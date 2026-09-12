@@ -45,7 +45,9 @@ export const STAGED_EFFECT_INCLUDE = {
 
 export const STAGED_MESSAGE_INCLUDE = {
   recipients: { include: { character: { select: { id: true, name: true, updatedAt: true } } } },
-  zone: { select: { id: true, name: true } },
+  // `kind` so the tray can say where a declaration actually goes: a cave
+  // level has no #summary and fans out to its Location channels instead.
+  zone: { select: { id: true, name: true, kind: true } },
   turn: { select: { id: true, number: true } },
   // One row per send (db/lib/stagedDelivery.js). The tray used to be able to
   // say only "Sent, some failed" off a JSON blob; with these it can say which
@@ -266,6 +268,7 @@ export function stagedMessageRow(m, { usernameById, openTurn }) {
     content: m.content,
     zoneId: m.zoneId,
     zoneName: m.zone?.name ?? null,
+    zoneKind: m.zone?.kind ?? null,
     recipients: m.recipients.map((r) => ({
       characterId: r.character.id,
       name: r.character.name,
@@ -372,11 +375,9 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
     lootUndoneAt: c.lootUndoneAt ? c.lootUndoneAt.getTime() : null,
     statusLabel: c.resolvedAt ? "Resolved" : "Needs attention",
     // A TROUBLE roll is created unresolved, and the only hand that resolves one
-    // writes its own id — so resolved with no resolver used to mean the
-    // turn-end push let it go (the now-deleted releaseUnresolvedCavingRolls,
-    // docs/systemdocs/CAVING.md §2d). That auto-release is gone, but rows it
-    // already wrote before the removal still carry this shape, so the flag
-    // and its "the clock did it" label stay as a historical marker.
+    // writes its own id — so resolved with no resolver means the turn-end push
+    // let it go (db/lib/cavingPass.js#releaseUnresolvedCavingRolls). Worth
+    // saying out loud on the desk: nobody adjudicated this, the clock did.
     autoResolved: Boolean(c.resolvedAt) && c.kind === "TROUBLE" && !c.resolvedByDiscordUserId,
     resolvedAt: c.resolvedAt ? c.resolvedAt.toISOString() : null,
     resolvedByUsername: c.resolvedByDiscordUserId

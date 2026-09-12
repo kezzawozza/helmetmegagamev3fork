@@ -28,6 +28,17 @@ Caves keeps Customs and gains the **Depot** as a Location of its own; the
 Station and Chrome City are retired, their prose kept in a comment at the
 bottom of `docs/zones.yaml`.
 
+**A public declaration underground lands in every room.** Neither level has a
+`#summary` — that is what "no channels of its own" means — so a GM's staged
+public declaration for the Caves or the Depths posts into **every Location
+channel in that level** instead, full size and word for word, one `Delivery` row
+per channel (`db/lib/publicPostTargets.js`, `ADJUDICATION.md` §1). It is a blunt
+answer and deliberately so: there is nowhere else down here for it to go, and
+before this the declaration was simply marked "no summary channel configured"
+and no player ever read it. One consequence to know when writing one: everybody
+on the level reads it wherever they are standing, so word it as news travelling
+the caves rather than as something happening in the room.
+
 The public **Caving** document (`docs/documents.yaml`, key `caving`) is the
 player-facing brief — what the levels are, what to bring, and that the die
 exists. `Role.docElements` grants it to `migrant` and `mercenary`, and it's
@@ -184,11 +195,11 @@ Summoning (`db/lib/riteEffects.js`) is untouched too, for the reason it
 already ignores `heldUntil`: it is somebody else's act on the character, not a
 walk.
 
-**Nothing auto-resolves, ever — not even at the push.** Only **Mark resolved**
-on the Caving desk clears the row, so a 1 nobody adjudicates holds a player in
-place indefinitely — which is the point, and is also new GM load on top of
-what §2a already added. The Caving lens' default "Needs attention" filter is
-the list of people who cannot leave.
+**Nothing auto-resolves at turn end.** Only **Mark resolved** on the Caving
+desk clears the row, so a 1 nobody adjudicates holds a player in place
+indefinitely — which is the point, and is also new GM load on top of what §2a
+already added. The Caving lens' default "Needs attention" filter is now the
+list of people who cannot leave.
 
 ### What each face means
 
@@ -210,43 +221,37 @@ row lands `QUIET`, already resolved, so nothing reaches the Caving lens and
 no `CAVE_TROUBLE` mood hit fires. The DM says what happened: whatever it was
 followed the stink instead. One lure, one trouble; the next 1 is real.
 
-### 2d. The push used to let go of what nobody adjudicated — no longer
+### 2d. The push lets go of what nobody adjudicated
 
-**There used to be a release valve here, and it is gone.** A `TROUBLE` roll
-still unresolved when the turn was pushed used to be auto-resolved by the push
-itself, and §2c's hold lifted with it
-(`releaseUnresolvedCavingRolls`, formerly in `db/lib/cavingPass.js`, run from
-`db/index.js` directly after the staged push). The argument for it: the hold
-is right while the turn is open and a GM is working, and wrong the moment the
-turn closes, because the Caving lens goes **read-only** on a past turn
-(`ADJUDICATION.md` §3) — so a roll nobody reached would be a roll nobody
-*could* reach, leaving the caver stuck with no way out and nobody able to give
-them one.
+**A `TROUBLE` roll still unresolved when the turn is pushed is resolved by the
+push**, and §2c's hold lifts with it
+(`db/lib/cavingPass.js#releaseUnresolvedCavingRolls`, run from `db/index.js`
+directly after the staged push).
 
-**That auto-release is deleted.** A 1 now holds its caver until a GM actually
-resolves it, turn boundary or no — matching the request that a 1 "makes it so
-you can't leave the cave zone again," full stop.
+It has to be. The hold is right while the turn is open and a GM is working, and
+wrong the moment the turn closes: the Caving lens goes **read-only** on a past
+turn (`ADJUDICATION.md` §3), so a roll nobody reached is a roll nobody *can*
+reach — and the caver is left standing in the dark with no way out and nobody
+able to give them one. History caving stays read-only; this is the release valve
+instead.
 
-What replaced the escape hatch, so a stale roll is never actually
-unreachable:
+What it writes: `resolvedAt`, and nothing else. **`resolvedByDiscordUserId`
+stays null, and that null is the marker** — a `TROUBLE` row is created
+unresolved and the only hand that resolves one always writes an id, so resolved
+with no resolver can only mean the push. `gmNotes` is untouched: the game has
+nothing to say about a monster it never adjudicated. The Caving lens reads the
+same rule and prints *"Resolved automatically at the push"*, so a GM reading
+back a past turn is never told a colleague handled something nobody did.
 
-- The **live Caving lens carries every unresolved `TROUBLE` row**, not just
-  the open turn's own — `web/app/(desk)/gm/turns/[[...selection]]/page.js`'s
-  query is `{ OR: [{ turnId: openTurn.id }, { kind: "TROUBLE", resolvedAt: null
-  }] }`. So a roll from three turns ago that nobody touched still shows up
-  under "Needs attention" today, on the live desk, not buried in History.
-- **A roll opened from History keeps its Result box and Mark resolved live**
-  if it is still unresolved (`CavingDesk.js`'s `unresolvedTrouble` check) —
-  the one exception to History's otherwise read-only rule. The composers
-  (Effect / Message / Public, Stage as message) stay hidden even here: a
-  pushed turn's staging is settled, and the Result box plus Mark resolved is
-  the whole tool a GM needs to close one out.
+A GM resolving the same roll at the same instant is not overwritten and not
+double-counted: the pass re-reads only the rows its own update actually
+changed (`resolvedAt` set, `resolvedByDiscordUserId` still null) before
+naming names, so a roll the GM reached first is left with the GM's resolver
+id and never shows up as the push's doing.
 
-Rows the old auto-release already wrote before this removal still carry its
-shape — `resolvedAt` set, `resolvedByDiscordUserId` null — and the Caving
-desk's *"Resolved automatically at the push"* line
-(`web/lib/moveRows.js`'s `autoResolved`) still reads that shape correctly. It
-is now purely historical: nothing writes a new row like that.
+One `caving_auto_resolved` audit row per push names every roll and caver it let
+go — "who can suddenly walk out of the Caves" being the question that row is
+there to answer.
 
 ## 3. The loot table
 
@@ -477,6 +482,5 @@ now `radio-system-cerberon` / `radio-bracelet-cerberon` ("Radio System
 | Loot grant, and taking it back | `db/lib/cavingPass.js`, `web/app/(desk)/gm/turns/actions.js#undoCavingFind` |
 | Consume mechanics | `web/lib/consumeGrants.js`, `db/lib/syncTags.js` |
 | The Caving lens | `web/app/(desk)/gm/turns/QueueRail.js`, `CavingDesk.js` |
-| Stray unresolved rolls on the live lens, and the History exception | `web/app/(desk)/gm/turns/[[...selection]]/page.js`'s `cavingRoll.findMany`, `CavingDesk.js`'s `unresolvedTrouble` (§2d) |
 | The document | `docs/documents.yaml` (key `caving`) |
 | The public brief text | same entry — kept in sync with players by hand |
