@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · The chat feed fills its column again
+
+✎ The scene stretches to the full width of the middle column. It was capped at 70 characters, and because the cap is left-aligned every spare pixel piled up on the right, so the page read as split down the middle with the right half empty
+
 ## 2026-09-12 · The chat rail's chips say what things are
 
 ✎ Hovering a paper in the chat panel now shows what it says — on the floor, in your pockets, and on a GM's column  

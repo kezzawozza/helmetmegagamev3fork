@@ -6537,14 +6537,20 @@ label.chip {
   padding: var(--sp-3) var(--sp-4);
 }
 
-/* A line of prose stops being comfortable to read somewhere past 70-ish
-   characters, and the middle column on a wide monitor is far wider than that.
-   Capped here rather than on .chat-feed so the scrollbar stays at the edge of
-   the column and only the CONTENT is measured. */
-.chat-feed-inner {
-  max-width: 70ch;
-}
+/* .chat-feed-inner carries no width of its own: the scene fills the column it
+   is given. It was briefly capped at 70ch for a comfortable prose measure, but
+   the cap is left-aligned, so on a wide monitor every spare pixel piled up on
+   the right and the page read as cropped down the middle.
 
+   The element stays even with nothing to declare. Feed.js hangs a
+   ResizeObserver on it to keep a reader pinned to the bottom of the scene —
+   notice cards landing at the top of the street, a face loading into a run —
+   so removing the div breaks sticky scroll rather than tidying anything.
+
+   PUT THE CAP BACK AND THE CHAT READS AS SPLIT DOWN THE MIDDLE with the right
+   half empty. That is the whole bug, and it has now shipped twice. If a prose
+   measure is wanted here, it has to CENTRE the column (margin-inline: auto)
+   rather than cap a left-aligned one, or it does this again. */
 
 .chat-row {
   display: flex;
