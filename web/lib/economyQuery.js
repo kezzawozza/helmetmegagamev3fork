@@ -1,6 +1,5 @@
 import { prisma } from "@lifeweb/db";
 import { reasonFlow, reasonLabel, FLOW } from "@lifeweb/db/lib/economyReasons";
-import { seatKey } from "./zones";
 
 // The read side of the economy ledger — everything /gm/economy asks the
 // database, in one place. Nothing here writes.
@@ -23,6 +22,13 @@ import { seatKey } from "./zones";
 // speaks.
 const REDACTED = "someone";
 
+// Every status whose ⬢ are real. CURSED used to be missing here and present in
+// reconcile(), so a cursed purse counted as drift on Health and was invisible
+// in the supply total a GM would open to check that drift against. The money
+// exists; the books see it. Gini is the one deliberate exception — it asks
+// about inequality among the living and stays ALIVE-only.
+export const HOLDING_STATUSES = ["ALIVE", "DEAD", "CURSED"];
+
 // --- live state ---------------------------------------------------------
 
 // The money supply, right now, by form. This is read from the balances
@@ -30,7 +36,7 @@ const REDACTED = "someone";
 // number the ledger gets checked AGAINST.
 export async function liveSupply() {
   const [chars, rooms, depot, coin, goods] = await Promise.all([
-    prisma.character.aggregate({ _sum: { resources: true }, where: { status: { in: ["ALIVE", "DEAD"] } } }),
+    prisma.character.aggregate({ _sum: { resources: true }, where: { status: { in: HOLDING_STATUSES } } }),
     prisma.room.aggregate({ _sum: { resources: true } }),
     prisma.depot.findFirst({ select: { accountObols: true, debtObols: true, manifest: true } }),
     coinInWorld(),
@@ -103,8 +109,8 @@ function manifestValue(manifest) {
 // PLUG rows are included on purpose. They exist precisely so the pre-ledger
 // history closes, and excluding them would report every account as drifting by
 // its opening balance.
-export async function reconcile(gameId) {
-  const [legs, chars, rooms] = await Promise.all([
+export async function reconcile(gameId, { limit = 50 } = {}) {
+  const [legs, chars, rooms, booked] = await Promise.all([
     prisma.$queryRaw`
       SELECT kind, id, SUM(delta)::int AS delta FROM (
         SELECT "fromKind" AS kind, "fromId" AS id, -SUM("amount")::int AS delta
@@ -117,9 +123,11 @@ export async function reconcile(gameId) {
          WHERE "gameId" = ${gameId} AND "form" = 'BALANCE' AND "toKind" IN ('character','room')
          GROUP BY 1, 2
       ) legs GROUP BY kind, id`,
-    prisma.character.findMany({ select: { id: true, name: true, resources: true } }),
+    prisma.character.findMany({ where: { status: { in: HOLDING_STATUSES } }, select: { id: true, name: true, resources: true } }),
     prisma.room.findMany({ select: { id: true, name: true, resources: true } }),
+    prisma.economyEntry.count({ where: { gameId } }),
   ]);
+  const backfilled = booked > 0;
 
   const ledger = new Map(legs.map((r) => [`${r.kind}:${r.id}`, Number(r.delta) || 0]));
   const rows = [];
@@ -131,7 +139,24 @@ export async function reconcile(gameId) {
     }
   }
   rows.sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift));
-  return { rows, clean: rows.length === 0 };
+
+  // Bounded. Unbounded, this returned a row for every account holding any ⬢ —
+  // which before a backfill is all of them — and shipped the lot to the client
+  // on the FRONT PAGE, where the badge then read as a catastrophe on day one.
+  //
+  // `backfilled` is what tells those two states apart: with no ledger history
+  // at all, every account "drifts" by its whole balance and the honest reading
+  // is "nothing has been booked yet", not "the books are broken".
+  const total = rows.length;
+  const drift = rows.reduce((n, r) => n + Math.abs(r.drift), 0);
+  return {
+    rows: rows.slice(0, limit),
+    total,
+    drift,
+    truncated: total > limit,
+    clean: total === 0,
+    backfilled,
+  };
 }
 
 // --- reading the book ---------------------------------------------------
@@ -141,30 +166,30 @@ export async function reconcile(gameId) {
 // This has to happen in the query, not after it. Filtering a page of rows
 // AFTER fetching it leaves the count and the page boundaries describing the
 // unscoped table: a zone-restricted GM gets a "page 3 of 40" that is neither,
-// and pages that render half empty. Null means every zone, and a row with no
-// zone stays visible to everyone — the same two rules inVisibleZones holds for
-// the in-memory lists.
+// and pages that render half empty.
 //
-// Cave levels are folded onto their seat the way inVisibleZones does, so a GM
-// holding the Underground seat still sees the levels under it.
-export function zoneWhere(visibleZoneNames) {
-  if (!visibleZoneNames) return {};
-  const names = new Set(visibleZoneNames);
-  for (const n of visibleZoneNames) {
-    const seat = seatKey(n);
-    if (seat) names.add(seat);
-  }
-  return { OR: [{ zoneName: null }, { zoneName: { in: [...names] } }] };
+// Filters on zoneId, not zoneName. The ledger stamps the id straight off the
+// party it was handed (db/lib/parties.js already selects it), so there is no
+// name to resolve at write time — and db/lib/gmZoneView.js#visibleZoneIds
+// already folds a seat onto the cave levels it owns, which the name side has
+// to redo by hand. Null means every zone, and a row with no zone stays visible
+// to everyone, both the same rules inVisibleZones holds for the in-memory
+// lists.
+export function zoneWhere(visibleZoneIds) {
+  if (!visibleZoneIds) return {};
+  const ids = [...visibleZoneIds];
+  if (!ids.length) return {};
+  return { OR: [{ zoneId: null }, { zoneId: { in: ids } }] };
 }
 
 // One page of entries. Server-side paged, the /gm/audit posture, because this
 // table is the longest thing in the game by the end of a month.
 //
-// `visibleZoneNames` is folded into the WHERE so the count and the paging
+// `visibleZoneIds` is folded into the WHERE so the count and the paging
 // describe what this GM can actually see.
-export async function ledgerPage({ gameId, page = 1, pageSize = 50, where = {}, visibleZoneNames = null }) {
+export async function ledgerPage({ gameId, page = 1, pageSize = 50, where = {}, visibleZoneIds = null }) {
   const skip = (Math.max(1, page) - 1) * pageSize;
-  const filter = { gameId, ...where, ...zoneWhere(visibleZoneNames) };
+  const filter = { gameId, ...where, ...zoneWhere(visibleZoneIds) };
   const [rows, total] = await Promise.all([
     prisma.economyEntry.findMany({ where: filter, orderBy: { at: "desc" }, skip, take: pageSize }),
     prisma.economyEntry.count({ where: filter }),

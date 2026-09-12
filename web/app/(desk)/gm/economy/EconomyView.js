@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { StackedArea, DivergingBars, Lorenz } from "@/app/components/charts";
-import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
+import { TableScroll } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
-import EmptyState, { EmptyRow } from "@/app/components/EmptyState";
+import EmptyState from "@/app/components/EmptyState";
 import ResourceChip from "@/app/components/ResourceChip";
+import DiscordTime from "@/app/components/DiscordTime";
 
 // The economy desk's whole client half. One file, one switch on `section` —
 // the four sections are short enough that splitting each into its own
@@ -129,6 +130,11 @@ function Pulse({ supply, series, gini, lorenz, reconciliation, topMovers, openTu
             Concentration
           </h3>
           <Lorenz points={lorenz} gini={gini} />
+          <p className="text-xs text-muted" style={{ marginTop: "0.5rem" }}>
+            Covers the living only — a CURSED or DEAD purse would skew inequality toward whoever is left standing,
+            so this curve reads differently from the supply and drift totals above, which count every holding
+            status.
+          </p>
         </div>
 
         <div className="panel" style={{ padding: "1rem", flex: "1 1 18rem" }}>
@@ -171,17 +177,30 @@ function ReconciliationBadge({ reconciliation }) {
   if (reconciliation.clean) {
     return <div className="chip" data-active="true">Books balance — every account reconciles</div>;
   }
+  // With no ledger history at all, every account "drifts" by its whole
+  // balance — that is the pre-ledger seam, not a broken book. Only call it
+  // drift once something has actually been booked to compare against.
+  if (!reconciliation.backfilled) {
+    return (
+      <div className="panel" style={{ padding: "0.75rem 1rem" }}>
+        Nothing has been booked to the ledger yet — run <code className="mono">db:backfill-economy</code> to give
+        every account an opening balance to reconcile against.
+      </div>
+    );
+  }
   return (
     <div className="panel" style={{ padding: "0.75rem 1rem", borderColor: "var(--danger)" }}>
-      <strong className="text-danger">{reconciliation.rows.length}</strong> account
-      {reconciliation.rows.length === 1 ? "" : "s"} drifted from the ledger. See Health for the list.
+      <strong className="text-danger">{reconciliation.total}</strong> account
+      {reconciliation.total === 1 ? "" : "s"} drifted from the ledger, {reconciliation.drift} ⬢ total
+      {reconciliation.truncated ? ` (showing the largest ${reconciliation.rows.length})` : ""}. See Health for the
+      list.
     </div>
   );
 }
 
 // --- Ledger ----------------------------------------------------------------
 
-function Ledger({ entries, total, page, pages, reasonFilter, reasonCounts }) {
+function Ledger({ entries, total, allCount, page, pages, reasonFilter, reasonCounts }) {
   const base = "/gm/economy?s=ledger";
   const withReason = (r) => (r ? `${base}&reason=${encodeURIComponent(r)}` : base);
   const pageHref = (p) => `${withReason(reasonFilter)}&page=${p}`;
@@ -192,7 +211,7 @@ function Ledger({ entries, total, page, pages, reasonFilter, reasonCounts }) {
 
       <div className="chip-row" role="group" aria-label="Filter by reason">
         <Link href={base} className="chip" data-active={!reasonFilter || undefined}>
-          All ({total})
+          All ({allCount})
         </Link>
         {reasonCounts.map((r) => (
           <Link
@@ -201,7 +220,7 @@ function Ledger({ entries, total, page, pages, reasonFilter, reasonCounts }) {
             className="chip"
             data-active={reasonFilter === r.reason || undefined}
           >
-            {r.reason} ({r.count})
+            {r.label} ({r.count})
           </Link>
         ))}
       </div>
@@ -209,31 +228,33 @@ function Ledger({ entries, total, page, pages, reasonFilter, reasonCounts }) {
       {entries.length === 0 ? (
         <EmptyState>No entries for this filter.</EmptyState>
       ) : (
-        <TableScroll minWidth="52rem">
+        <TableScroll minWidth="58rem">
           <thead>
             <tr>
+              <th scope="col">At</th>
               <th scope="col">Turn</th>
               <th scope="col">Reason</th>
               <th scope="col">From</th>
               <th scope="col">To</th>
               <th scope="col">Amount</th>
               <th scope="col">Form</th>
+              <th scope="col">Audit</th>
             </tr>
           </thead>
           <tbody>
             {entries.map((e) => (
               <tr key={e.id}>
+                <td className="mono">
+                  <DiscordTime epoch={e.at} format="f" />
+                </td>
                 <td className="mono">{e.turnNumber ?? "—"}</td>
                 <td>{e.reasonLabel}</td>
                 <td>{e.fromName ?? "—"}</td>
                 <td>{e.toName ?? "—"}</td>
                 <td className="mono">{formatAmount(e)}</td>
-                <td className="text-sm text-muted">
-                  {e.auditLogId ? (
-                    <Link href={`/gm/audit/${e.auditLogId}`}>{e.form}</Link>
-                  ) : (
-                    e.form
-                  )}
+                <td className="text-sm text-muted">{e.form}</td>
+                <td className="text-sm">
+                  {e.auditLogId ? <Link href={`/gm/audit/${e.auditLogId}`}>View</Link> : "—"}
                 </td>
               </tr>
             ))}
@@ -253,25 +274,41 @@ function Ledger({ entries, total, page, pages, reasonFilter, reasonCounts }) {
   );
 }
 
+// Both the ⬢ value and, when the entry moved goods or coin, what it was — not
+// one or the other. A goods/coin row used to print only "3 × bread" and drop
+// the ⬢ figure entirely, and a secret row nulls tagSlug (redactEntry), so the
+// same kind of entry rendered two different shapes depending on whether it
+// was secret.
 function formatAmount(e) {
-  if (e.tagSlug && e.quantity) return `${e.quantity} × ${e.tagSlug}`;
+  if (e.tagSlug && e.quantity) return `${e.amount} ⬢ (${e.quantity} × ${e.tagSlug})`;
+  if (e.quantity && e.redacted) return `${e.amount} ⬢ (${e.quantity} × item, redacted)`;
   return `${e.amount} ⬢`;
 }
 
 // --- Accounts --------------------------------------------------------------
 
-const ACCOUNT_FILTER_DEFS = [
-  { key: "kind", label: "Kind", value: (r) => r.kind, options: ["character", "room"] },
-  { key: "zoneName", label: "Zone", value: (r) => r.zoneName || "(none)" },
-];
-
-function Accounts({ rows, openTurnNumber }) {
-  const table = useTableState({
-    rows,
-    searchFields: [(r) => r.name],
-    filterDefs: ACCOUNT_FILTER_DEFS,
-    initialSort: { key: "balance", dir: "desc" },
-  });
+// Server-paged, the same posture as the Ledger and /gm/audit. This used to
+// load every character AND every room and hand the whole thing to
+// useTableState to page client-side — Rooms are unbounded and grow with every
+// zone re-sync, so that payload only ever got bigger. `apage` (rather than
+// `page`) so this section's paging doesn't collide with the Ledger's when a
+// GM has both open — they don't share a search param.
+function Accounts({ rows, total, page, pages, kindFilter, zoneFilter, q, zoneOptions, openTurnNumber }) {
+  const base = "/gm/economy?s=accounts";
+  const withParams = (overrides = {}) => {
+    const params = new URLSearchParams();
+    const kind = "kind" in overrides ? overrides.kind : kindFilter;
+    const zone = "zone" in overrides ? overrides.zone : zoneFilter;
+    const query = "q" in overrides ? overrides.q : q;
+    const apage = "apage" in overrides ? overrides.apage : null;
+    if (kind) params.set("kind", kind);
+    if (zone) params.set("zone", zone);
+    if (query) params.set("q", query);
+    if (apage) params.set("apage", apage);
+    const qs = params.toString();
+    return qs ? `${base}&${qs}` : base;
+  };
+  const pageHref = (p) => withParams({ apage: p });
 
   return (
     <section className="ops-section ops-section--wide">
@@ -284,54 +321,91 @@ function Accounts({ rows, openTurnNumber }) {
         }
       />
 
-      <FilterBar
-        filterDefs={ACCOUNT_FILTER_DEFS}
-        filters={table.filters}
-        setFilters={table.setFilters}
-        options={table.options}
-        query={table.query}
-        setQuery={table.setQuery}
-        searchLabel="Name"
-        searchPlaceholder="A character or room…"
-      />
+      <div className="chip-row" role="group" aria-label="Filter by kind">
+        <Link href={withParams({ kind: null })} className="chip" data-active={!kindFilter || undefined}>
+          All kinds
+        </Link>
+        {["character", "room"].map((k) => (
+          <Link key={k} href={withParams({ kind: k })} className="chip" data-active={kindFilter === k || undefined}>
+            {k === "character" ? "Characters" : "Rooms"}
+          </Link>
+        ))}
+      </div>
 
-      {table.pageRows.length === 0 ? (
+      {zoneOptions.length > 0 ? (
+        <div className="chip-row" role="group" aria-label="Filter by zone">
+          <Link href={withParams({ zone: null })} className="chip" data-active={!zoneFilter || undefined}>
+            All zones
+          </Link>
+          {zoneOptions.map((z) => (
+            <Link key={z} href={withParams({ zone: z })} className="chip" data-active={zoneFilter === z || undefined}>
+              {z}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      <AccountSearch base={base} kindFilter={kindFilter} zoneFilter={zoneFilter} q={q} />
+
+      {rows.length === 0 ? (
         <EmptyState>Nothing matches.</EmptyState>
       ) : (
         <TableScroll minWidth="40rem">
           <thead>
             <tr>
-              <SortHeader label="Name" sortKey="name" sort={table.sort} onSort={table.toggleSort} />
-              <SortHeader label="Kind" sortKey="kind" sort={table.sort} onSort={table.toggleSort} />
-              <SortHeader label="Zone" sortKey="zoneName" sort={table.sort} onSort={table.toggleSort} />
-              <SortHeader label="Balance" sortKey="balance" sort={table.sort} onSort={table.toggleSort} />
-              <SortHeader label="In" sortKey="inflow" sort={table.sort} onSort={table.toggleSort} />
-              <SortHeader label="Out" sortKey="outflow" sort={table.sort} onSort={table.toggleSort} />
+              <th scope="col">Name</th>
+              <th scope="col">Kind</th>
+              <th scope="col">Zone</th>
+              <th scope="col">Balance</th>
+              <th scope="col">In</th>
+              <th scope="col">Out</th>
             </tr>
           </thead>
           <tbody>
-            {table.pageRows.length === 0 ? (
-              <EmptyRow cols={6}>Nothing matches.</EmptyRow>
-            ) : (
-              table.pageRows.map((r) => (
-                <tr key={`${r.kind}:${r.id}`}>
-                  <td>{r.name}</td>
-                  <td className="text-sm text-muted">{r.kind}</td>
-                  <td className="text-sm text-muted">{r.zoneName || "—"}</td>
-                  <td>
-                    <ResourceChip value={r.balance} />
-                  </td>
-                  <td className="mono text-positive">{r.inflow ? `+${r.inflow}` : "0"}</td>
-                  <td className="mono text-danger">{r.outflow ? `-${r.outflow}` : "0"}</td>
-                </tr>
-              ))
-            )}
+            {rows.map((r) => (
+              <tr key={`${r.kind}:${r.id}`}>
+                <td>{r.name}</td>
+                <td className="text-sm text-muted">{r.kind}</td>
+                <td className="text-sm text-muted">{r.zoneName || "—"}</td>
+                <td>
+                  <ResourceChip value={r.balance} />
+                </td>
+                <td className="mono text-positive">{r.inflow ? `+${r.inflow}` : "0"}</td>
+                <td className="mono text-danger">{r.outflow ? `-${r.outflow}` : "0"}</td>
+              </tr>
+            ))}
           </tbody>
         </TableScroll>
       )}
 
-      <Pager page={table.page} totalPages={table.totalPages} total={table.total} onPage={table.setPage} />
+      <Pager
+        page={page}
+        totalPages={pages}
+        total={total}
+        prevHref={pageHref(Math.max(1, page - 1))}
+        nextHref={pageHref(page + 1)}
+      />
     </section>
+  );
+}
+
+// A plain GET form rather than a controlled input with client state: this
+// section is server-paged now, so "search" means "navigate with ?q=", the
+// same way the Ledger's reason chips are links rather than client filters.
+function AccountSearch({ base, kindFilter, zoneFilter, q }) {
+  return (
+    <form action={base} method="get" className="flex items-center gap-2" style={{ maxWidth: "24rem" }}>
+      <input type="hidden" name="s" value="accounts" />
+      {kindFilter ? <input type="hidden" name="kind" value={kindFilter} /> : null}
+      {zoneFilter ? <input type="hidden" name="zone" value={zoneFilter} /> : null}
+      <label className="field" style={{ flex: 1 }}>
+        <span className="sr-only">Search by name</span>
+        <input type="text" name="q" defaultValue={q} placeholder="A character or room…" />
+      </label>
+      <button type="submit" className="btn">
+        Search
+      </button>
+    </form>
   );
 }
 

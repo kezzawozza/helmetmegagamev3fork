@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@lifeweb/db";
+import { visibleZoneIds as loadVisibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
+import { reasonLabel } from "@lifeweb/db/lib/economyReasons";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
@@ -21,6 +23,7 @@ import {
   ledgerPage,
   zoneWhere,
   redactEntry,
+  HOLDING_STATUSES,
 } from "@/lib/economyQuery";
 
 // /gm/economy — the GM analytics desk over EconomyEntry. See CLAUDE.md's
@@ -84,6 +87,10 @@ async function FreshEconomy({ section, searchParams, userId }) {
   const gameId = await currentGameId();
   const visibleZones = await getVisibleZones();
   const visibleZoneNames = visibleZones?.map((z) => z.name) ?? null;
+  // The ledger is keyed by zoneId, not name — zoneWhere/ledgerPage need the
+  // id-based set. Accounts rows are character/room rows carrying a zone NAME,
+  // so they keep using visibleZoneNames + inVisibleZones below.
+  const zoneIds = await loadVisibleZoneIds(prisma, session.discordUserId);
 
   let data = { section, isSuperadmin: unredacted };
 
@@ -173,22 +180,29 @@ async function FreshEconomy({ section, searchParams, userId }) {
       // describing the unscoped table — "page 3 of 40" that is neither, and
       // pages that render half empty. The reason counts take the same filter,
       // so a chip never promises rows this GM cannot see.
-      const zoneFilter = zoneWhere(visibleZoneNames);
-      const [pageResult, reasonCounts] = await Promise.all([
-        ledgerPage({ gameId, page, pageSize: 50, where, visibleZoneNames }),
+      const zoneFilter = zoneWhere(zoneIds);
+      const [pageResult, reasonCounts, allCount] = await Promise.all([
+        ledgerPage({ gameId, page, pageSize: 50, where, visibleZoneIds: zoneIds }),
         prisma.economyEntry.groupBy({
           by: ["reason"],
           where: { gameId, ...zoneFilter },
           _count: { _all: true },
           orderBy: { _count: { reason: "desc" } },
         }),
+        // The "All" chip's own count, unfiltered by reason — `pageResult.total`
+        // is the count for the CURRENT reason filter, so reusing it here made
+        // "All" read as whatever reason was last picked.
+        prisma.economyEntry.count({ where: { gameId, ...zoneFilter } }),
       ]);
 
       const entries = pageResult.rows.map((row) => {
         const r = redactEntry(row, { unredacted: unredacted });
         return {
           id: r.id,
-          at: r.at,
+          // Seconds, not a Date — the same epoch DiscordTime already reads off
+          // a `<t:EPOCH:style>` token, and a Date object cannot cross the
+          // server/client boundary as anything but a string anyway.
+          at: Math.floor(new Date(r.at).getTime() / 1000),
           turnNumber: r.turnNumber,
           reason: r.reason,
           reasonLabel: r.reasonLabel,
@@ -212,19 +226,28 @@ async function FreshEconomy({ section, searchParams, userId }) {
         ...data,
         entries,
         total: pageResult.total,
+        allCount,
         page: pageResult.page,
         pages: pageResult.pages,
         reasonFilter: reason,
-        reasonCounts: reasonCounts.map((r) => ({ reason: r.reason, count: r._count._all })),
+        reasonCounts: reasonCounts.map((r) => ({ reason: r.reason, label: reasonLabel(r.reason), count: r._count._all })),
       };
       break;
     }
 
     case "accounts": {
       const openTurn = await getOpenTurn();
+      const raw = await searchParams;
+      const apage = Math.max(1, Number(raw?.apage) || 1);
+      const kindFilter = raw?.kind || null;
+      const zoneFilter2 = raw?.zone || null;
+      const q = (raw?.q || "").trim().toLowerCase();
+
       const [chars, rooms, legs] = await Promise.all([
+        // HOLDING_STATUSES, not ALIVE-only — a CURSED purse is real ⬢ and
+        // used to be invisible here while still counting as drift on Health.
         prisma.character.findMany({
-          where: { status: { in: ["ALIVE", "DEAD"] } },
+          where: { status: { in: HOLDING_STATUSES } },
           select: {
             id: true,
             name: true,
@@ -242,17 +265,21 @@ async function FreshEconomy({ section, searchParams, userId }) {
             location: { select: { zone: { select: { name: true } } } },
           },
         }),
+        // form = 'BALANCE' on both legs. Without it this summed BALANCE, COIN,
+        // ACCOUNT and GOODS-at-catalog-price into one column sitting next to a
+        // Balance column that is BALANCE only — a character who picked up two
+        // loaves showed ⬢ inflow they never received.
         openTurn
           ? prisma.$queryRaw`
               SELECT kind, id, SUM(inflow)::int AS inflow, SUM(outflow)::int AS outflow FROM (
                 SELECT "fromKind" AS kind, "fromId" AS id, 0 AS inflow, SUM("amount")::int AS outflow
                   FROM "EconomyEntry"
-                 WHERE "gameId" = ${gameId} AND "turnNumber" = ${openTurn.number} AND "fromKind" IN ('character','room')
+                 WHERE "gameId" = ${gameId} AND "turnNumber" = ${openTurn.number} AND "form" = 'BALANCE' AND "fromKind" IN ('character','room')
                  GROUP BY 1, 2
                 UNION ALL
                 SELECT "toKind" AS kind, "toId" AS id, SUM("amount")::int AS inflow, 0 AS outflow
                   FROM "EconomyEntry"
-                 WHERE "gameId" = ${gameId} AND "turnNumber" = ${openTurn.number} AND "toKind" IN ('character','room')
+                 WHERE "gameId" = ${gameId} AND "turnNumber" = ${openTurn.number} AND "form" = 'BALANCE' AND "toKind" IN ('character','room')
                  GROUP BY 1, 2
               ) legs GROUP BY kind, id`
           : Promise.resolve([]),
@@ -291,9 +318,45 @@ async function FreshEconomy({ section, searchParams, userId }) {
         }),
       ];
 
+      // Zone scoping stays NAME-based here — these are character/room rows,
+      // not EconomyEntry rows, and inVisibleZones is what already folds a
+      // seat onto the cave levels it owns on that side.
       const scoped = inVisibleZones(rows, visibleZoneNames);
 
-      data = { ...data, rows: scoped, openTurnNumber: openTurn?.number ?? null };
+      // The zone chip list, off the scoped rows so a GM never sees a zone
+      // option for something they cannot open anyway.
+      const zoneOptions = [...new Set(scoped.map((r) => r.zoneName).filter(Boolean))].sort();
+
+      const filtered = scoped.filter((r) => {
+        if (kindFilter && r.kind !== kindFilter) return false;
+        if (zoneFilter2 && r.zoneName !== zoneFilter2) return false;
+        if (q && !r.name.toLowerCase().includes(q)) return false;
+        return true;
+      });
+      filtered.sort((a, b) => b.balance - a.balance);
+
+      // Server-paged like the Ledger, not shipped whole for useTableState to
+      // page client-side: Rooms are unbounded and grow with every zone
+      // re-sync, so "every character AND every room" was a payload that only
+      // ever grew.
+      const pageSize = 50;
+      const total = filtered.length;
+      const pages = Math.max(1, Math.ceil(total / pageSize));
+      const clampedPage = Math.min(apage, pages);
+      const pageRows = filtered.slice((clampedPage - 1) * pageSize, clampedPage * pageSize);
+
+      data = {
+        ...data,
+        rows: pageRows,
+        total,
+        page: clampedPage,
+        pages,
+        kindFilter,
+        zoneFilter: zoneFilter2,
+        q: raw?.q || "",
+        zoneOptions,
+        openTurnNumber: openTurn?.number ?? null,
+      };
       break;
     }
 
