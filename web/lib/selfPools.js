@@ -281,9 +281,42 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
       ).map((z) => ({ id: z.id, name: z.name }))
     : [];
 
+  // Letters the bird is still standing over, waiting for something to carry
+  // back (docs/systemdocs/BIRD.md). Not gated on `hasBird`: the bird that
+  // brought it is the one that takes the answer, so replying needs no bird of
+  // your own — only the letters in your hands and the ability to work it.
+  //
+  // The window is the turn it arrived in and the one after. The authority is
+  // db/lib/birdReply.js#birdReplyWindow, which the answer re-runs; this is the
+  // read-side half, so a shut window greys the button rather than opening a
+  // dialog that can only refuse.
+  const birdReplies =
+    canReadNow && letterOptions.length > 0
+      ? (
+          await prisma.birdMessage.findMany({
+            where: {
+              recipientId: character.id,
+              delivered: true,
+              repliedAt: null,
+              ...(openTurn
+                ? { replyDeadlineTurn: { gte: openTurn.number } }
+                : { replyDeadlineTurn: { not: null } }),
+            },
+            orderBy: { createdAt: "asc" },
+            select: { id: true, senderName: true, gmSenderDiscordUserId: true },
+          })
+        ).map((m) => ({
+          id: m.id,
+          // A GM letter is signed with whatever name the GM wrote it under,
+          // which is already the snapshot in senderName (BIRD.md §9).
+          senderName: m.senderName,
+        }))
+      : [];
+
   return {
     hasBird,
     hasRavenDraught,
+    birdReplies,
     canRead: canReadNow,
     canWrite,
     hasSeal,

@@ -49,6 +49,7 @@ import { inactiveCharacters } from "@lifeweb/db/lib/inactivity";
 import { grantTagSlugs, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 import { mintLetterFor, sealWithMark } from "@lifeweb/db/lib/paperMint";
+import { dmAction, DM_ACTION } from "@lifeweb/db/lib/dmActions";
 import {
   canReadLetters,
   deliveryDm,
@@ -1409,6 +1410,10 @@ export async function sendGmLetter(_prevState, formData) {
       letterBody: body,
       sealed,
       sealMark: sealed ? sealMarkText : null,
+      // What makes the letter answerable on the web, the same descriptor the
+      // player Bird writes (db/lib/dmActions.js). Only where Discord gets a
+      // Reply button, so the two faces offer the same thing.
+      ...(canReply ? dmAction(DM_ACTION.BIRD_REPLY, birdMessageId) : {}),
     },
   });
 

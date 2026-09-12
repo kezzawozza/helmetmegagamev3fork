@@ -10,6 +10,7 @@ import TurnCard from "./TurnCard";
 import StatusStrip from "./StatusStrip";
 import Things from "./ThingsDrawer";
 import DesiresBlock from "./DesiresBlock";
+import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { waitingOnYou, answerWaiting } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
 import useMyMove from "./useMyMove";
@@ -30,6 +31,10 @@ import useMyMove from "./useMyMove";
 // are one answer, and the second surface finds nothing left to answer.
 function WaitingList({ rows, onAnswered }) {
   const { run, pending, error } = useActionRunner();
+  // A row whose answer is a PICKER rather than a yes — the bird's Reply, so
+  // far. It opens the sheet's own dialog in place instead of sending the
+  // player somewhere to look for it.
+  const openAction = useRequestActions()?.open ?? null;
   if (rows.length === 0) return null;
   return (
     <div className="chat-waiting">
@@ -56,6 +61,11 @@ function WaitingList({ rows, onAnswered }) {
                 onClick={() => run(answerWaiting, { kind: row.kind, id: row.id, accept: false }, { onOk: onAnswered })}
               >
                 Decline
+              </button>
+            )}
+            {row.mode && openAction && (
+              <button type="button" className="menu-item" onClick={() => openAction(row.mode)}>
+                Answer
               </button>
             )}
             {row.href && (

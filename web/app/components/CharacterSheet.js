@@ -136,6 +136,7 @@ export default function CharacterSheet({
   birdSentToday = false,
   birdTargets = [],
   birdZones = [],
+  birdReplies = [],
   healTargets = [],
   healParties = null,
   // Everyone and everything in this character's zone worth acting on, built
@@ -245,6 +246,7 @@ export default function CharacterSheet({
         birdSentToday={birdSentToday}
         birdTargets={birdTargets}
         birdZones={birdZones}
+        birdReplies={birdReplies}
         healTargets={healTargets}
         healParties={healParties}
         corpses={corpses}

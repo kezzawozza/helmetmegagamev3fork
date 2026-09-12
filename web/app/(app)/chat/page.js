@@ -508,6 +508,10 @@ async function FreshChat({ userId }) {
           canSeal: aside.letters.canSeal,
           hasBird: aside.letters.hasBird,
           birdSentToday: aside.letters.birdSentToday,
+          // Replying needs no bird of your own — the one that brought the
+          // letter takes the answer — so this is its own line rather than
+          // something hung off hasBird.
+          hasBirdReply: (aside.letters.birdReplies ?? []).length > 0,
         }
       : null,
     faction: factionView,

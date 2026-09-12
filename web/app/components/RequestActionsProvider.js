@@ -148,6 +148,10 @@ export default function RequestActionsProvider({
   birdSentToday = false,
   birdTargets = [],
   birdZones = [],
+  // Letters the bird is still standing over, waiting to carry an answer back
+  // (docs/systemdocs/BIRD.md). Not gated on holding a bird: the one that
+  // brought the letter is the one that takes the reply.
+  birdReplies = [],
   // Paperwork (docs/systemdocs/PAPERWORK.md). `canRead` is letters AND eyes,
   // resolved server-side so the button, the tag chip and the action's own
   // refusal all say the same thing. The option lists carry an EXCERPT rather
@@ -317,6 +321,7 @@ export default function RequestActionsProvider({
     sealOptions,
     birdTargets,
     birdZones,
+    birdReplies,
     stepstoneTargets,
     hideoutRooms,
     hideoutStock,
@@ -464,6 +469,10 @@ export default function RequestActionsProvider({
       canWrite,
       hasSeal,
       canSeal,
+      // HIDES rather than greys, the rule the Write and Seal buttons above it
+      // follow: a Reply that sat there dead would teach a player only that
+      // somebody might have written to them.
+      hasBirdReply: birdReplies.length > 0,
       // Holding a book IS having one to tear up — no second prop for it.
       canSendBirdToday: !birdSentToday,
       canButcher,
@@ -511,6 +520,7 @@ export default function RequestActionsProvider({
       hasSeal,
       canSeal,
       birdSentToday,
+      birdReplies,
       canButcher,
       canSeeExtract,
       canExtract,

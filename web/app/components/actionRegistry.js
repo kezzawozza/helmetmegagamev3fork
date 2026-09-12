@@ -443,6 +443,20 @@ export const ACTION_SECTIONS = [
         gate: "canSendBirdToday",
         gateReason: "Your bird has already flown today.",
       },
+      // Answering one that came TO you (docs/systemdocs/BIRD.md). Its own
+      // button rather than a branch of Send Bird: replying needs no bird of
+      // your own — the one standing there is the one that takes the answer —
+      // and the two ask different questions.
+      //
+      // HIDES rather than greys, the rule Write and Seal above it follow. A
+      // permanent dead "Reply" would say only that letters exist; this one
+      // appears when a bird is actually waiting and goes when it leaves.
+      {
+        mode: "birdReply",
+        icon: BirdIcon,
+        label: "Answer a letter",
+        show: "hasBirdReply",
+      },
       // A bird you drink (docs/systemdocs/BIRD.md §8). It sits here rather
       // than under You because what it does is the Bird's job, not a potion's
       // — and it HIDES on the same rule the seal above it follows: whether a

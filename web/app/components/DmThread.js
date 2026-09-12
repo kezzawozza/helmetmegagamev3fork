@@ -13,8 +13,9 @@ import {
   BIRD_SOURCE,
 } from "@lifeweb/db/lib/dmKinds";
 import { dayKey, dayLabel, clockLabel, formatDmTime, fullTimestamp } from "@/lib/dmTime";
-import { dmActionOf } from "@lifeweb/db/lib/dmActions";
+import { DM_ACTION, dmActionOf } from "@lifeweb/db/lib/dmActions";
 import DmActionRow from "./DmActionRow";
+import { useRequestActions } from "./RequestActionsProvider";
 
 // The one shared thread — the player desk's conversation pane and the
 // inspector's DMs tab both render this. It reads like a chat client rather
@@ -121,6 +122,26 @@ function MentionBody({ message }) {
   );
 }
 
+// The web's half of Discord's Reply button. It sits ON the letter, where
+// Discord's does, rather than in the generic button row under it: answering
+// means picking which of your papers goes back, which is a dialog and not an
+// Accept (db/lib/dmActions.js, on why BIRD_REPLY has no labels).
+//
+// Drawn only where all three are true — the row still names a live window
+// (`actionable`, stamped server-side by web/lib/dmActions.js), and there is a
+// sheet mounted to open the dialog from. The desk's inspector has no provider,
+// so a GM reading the same thread sees the letter as the record it is.
+function LetterReply({ message }) {
+  const actions = useRequestActions();
+  const action = message.actionable ? dmActionOf(message) : null;
+  if (!actions?.open || action?.kind !== DM_ACTION.BIRD_REPLY) return null;
+  return (
+    <button type="button" className="btn-quiet dm-letter-reply" onClick={() => actions.open("birdReply")}>
+      Reply
+    </button>
+  );
+}
+
 function LetterBody({ message }) {
   const meta = message.meta ?? {};
   const text = (meta.letterBody ?? message.content ?? "").trim();
@@ -137,6 +158,7 @@ function LetterBody({ message }) {
           reached its reader as literal characters — the same gap that put a
           raw `<t:1757700120:F>` in a lobby DM, one component further down. */}
       {text && <MarkdownContent content={text} className="dm-letter-text" />}
+      <LetterReply message={message} />
     </div>
   );
 }

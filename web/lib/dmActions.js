@@ -74,11 +74,39 @@ async function liveKeyedWays(ids, viewer) {
     .map((link) => link.id);
 }
 
+// A bird's letter is still answerable while the window is open — the turn it
+// arrived in and the one after (docs/systemdocs/BIRD.md). The authority is
+// db/lib/birdReply.js#birdReplyWindow, which the answer re-runs; this is the
+// cheap read-side half of it, so a thread scrolled back a month shows old
+// letters as the record they are rather than a column of live Reply links.
+//
+// Literacy is deliberately NOT checked here. It is checked at the answer, and
+// a Reply that refuses out loud tells a player who has just been blinded
+// something a silently missing link never would.
+async function liveBirdReplies(ids, viewer) {
+  if (!viewer.characterId) return [];
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
+  // Between turns the bird is waiting, not gone — the same call the window
+  // makes, and refusing here would grey a letter that is still answerable.
+  const rows = await prisma.birdMessage.findMany({
+    where: {
+      id: { in: ids },
+      recipientId: viewer.characterId,
+      delivered: true,
+      repliedAt: null,
+      ...(openTurn ? { replyDeadlineTurn: { gte: openTurn.number } } : { replyDeadlineTurn: { not: null } }),
+    },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
+}
+
 const RESOLVERS = {
   [DM_ACTION.OFFER]: liveOffers,
   [DM_ACTION.THREAT_SPAWN]: liveThreatSpawns,
   [DM_ACTION.LOBBY_SEAT]: liveLobbySeats,
   [DM_ACTION.KEYED_WAY]: liveKeyedWays,
+  [DM_ACTION.BIRD_REPLY]: liveBirdReplies,
 };
 
 // Stamps `actionable: true` on every row whose descriptor still names something

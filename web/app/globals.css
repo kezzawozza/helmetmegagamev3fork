@@ -5238,6 +5238,14 @@ label.chip {
   font-style: italic;
 }
 
+/* The web's Reply, on the letter rather than in the button row under it
+   (DmThread.js#LetterReply). Sized down and set apart, so it reads as
+   something you may do with the paper and not as the paper's own words. */
+.dm-letter-reply {
+  margin-top: 0.4rem;
+  font-size: var(--fs-xs);
+}
+
 .dm-letter-text {
   margin-top: 0.35rem;
   font-family: var(--font-serif), Georgia, serif;

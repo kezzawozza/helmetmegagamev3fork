@@ -22,6 +22,8 @@ import {
   replyButtonRow,
   canReadLetters,
 } from "@lifeweb/db/lib/bird";
+import { sendBirdReply } from "@lifeweb/db/lib/birdReply";
+import { dmAction, DM_ACTION } from "@lifeweb/db/lib/dmActions";
 import { readBlock, CANNOT_READ } from "@lifeweb/db/lib/reading";
 import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
@@ -6383,7 +6385,15 @@ async function birdMessageRequestImpl({
         components: recipientIsLiterate
           ? replyButtonRow(birdMessageId)
           : undefined,
-        meta: { kind: "bird", birdMessageId, letterName: held.tag.name },
+        // `kind: "bird"` is a meta field of the Bird's own, not the column
+        // and not a DM_ACTION; the descriptor spread in beside it is what
+        // makes the letter answerable on the web (db/lib/dmActions.js).
+        meta: {
+          kind: "bird",
+          birdMessageId,
+          letterName: held.tag.name,
+          ...(recipientIsLiterate ? dmAction(DM_ACTION.BIRD_REPLY, birdMessageId) : {}),
+        },
         source: "bird",
       },
     );
@@ -6404,6 +6414,52 @@ export async function packageItemsRequest(input) {
 
 export async function birdMessageRequest(input) {
   return guarded(() => birdMessageRequestImpl(input));
+}
+
+// Answering one. The Discord twin is the Reply button on the letter's own DM
+// (bot/src/lib/birdReply.js); every rule the two share — the window, literacy,
+// the one-reply claim, what a sealed answer shows — is db/lib/birdReply.js, so
+// the two faces cannot refuse different things, and an answer given on one
+// leaves the other with nothing to answer.
+//
+// A server action is a public endpoint, so the replier comes from the SESSION
+// and is handed to the core as `actingCharacterId`. The bot may omit that
+// because its button only ever exists on the recipient's own DM; here anybody
+// could post anybody's birdMessageId.
+async function birdReplyRequestImpl({ birdMessageId, tagId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  const result = await sendBirdReply(prisma, birdMessageId, tagId, {
+    actingCharacterId: character.id,
+  });
+  if (!result.ok) throw new UserError(result.reason);
+
+  await logAudit(prisma, {
+    actorDiscordUserId: session.discordUserId,
+    actionType: "request_bird_reply",
+    details: { birdMessageId: String(birdMessageId ?? "") },
+  });
+
+  // Returned by the core rather than sent by it (ARCHITECTURE.md §5), and null
+  // for a GM letter, which has no sender Character to write to — the core files
+  // that one as a conversation row on the desk instead.
+  if (result.dm) {
+    after(() =>
+      sendDm(result.dm.discordUserId, result.dm.content, result.dm.opts).catch((err) =>
+        console.error(`Bird reply DM to ${result.dm.discordUserId} failed:`, err),
+      ),
+    );
+  }
+
+  // Both sheets: the paper left the replier's hands and landed on the
+  // sender's. A GM letter names only the replier — the core says which.
+  await afterInventoryChange(result.characterIds);
+  revalidateAll();
+  return { ok: true, line: result.line };
+}
+
+export async function birdReplyRequest(input) {
+  return guarded(() => birdReplyRequestImpl(input));
 }
 
 // ---- The Raven Draught ---------------------------------------------------

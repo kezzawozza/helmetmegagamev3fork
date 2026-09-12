@@ -76,6 +76,19 @@ letter arrived in **and the turn after** — `BirdMessage.replyDeadlineTurn`
 holds the last turn that accepts one. Past that the button answers *"It's too
 late. The bird flew away."*
 
+**On both faces.** The Reply used to be Discord's alone, which meant a web-only
+player could be written to, take the paper, and then watch the window shut with
+nothing they could do about it — the same gap `db/lib/dmActions.js` was written
+to close for offers and seats, with the Bird the last family still on the wrong
+side of it. The web now draws its own Reply on the letter card in the DM pane
+(`DmThread.js#LetterReply`), an **Answer a letter** button on the sheet and in
+Chat's ✉ menu, and an **Answer** on the "waiting on you" row. All four open one
+dialog (`web/app/components/actions/BirdReplyDialog.js`).
+
+An answer given on either face leaves the other with nothing to answer: the
+rules are one copy, in `db/lib/birdReply.js`, and the one-reply claim is the
+same conditional write whichever face made it.
+
 The window is two turns rather than one for a plain fairness reason: a letter
 sent five minutes before a turn closes would otherwise be unanswerable in
 practice, and a rule that fires on when the *sender* clicked reads as a bug.
@@ -96,7 +109,16 @@ own, and does not reveal where they are.
 `bot/src/lib/birdReply.js` runs entirely in a DM, so `interaction.guild` and
 `interaction.member` are null. It never touches either: every party is
 snapshotted onto the `BirdMessage` row, so answering a letter needs no lookup
-against live state at all.
+against live state at all. It is a thin wrapper now — `ack`, call the core,
+send what it hands back, `respond`.
+
+**The web passes an acting character; the bot does not, on purpose.**
+`sendBirdReply`'s `actingCharacterId` is checked against
+`BirdMessage.recipientId`. Discord's Reply button only ever exists on the
+recipient's own DM, so it has already answered that question; a server action
+is a public endpoint and anybody could post anybody's `birdMessageId`. The
+refusal is the same *"It's too late. The bird flew away."* a letter that never
+existed gets — *"that isn't yours"* would confirm that it is somebody's.
 
 ## 5. Illiteracy
 
@@ -111,9 +133,9 @@ reader, decide whether to trust them with your mail — rather than a wall that
 eats the message. And an illiterate courier is now a genuinely useful thing to
 be, which is new.
 
-They get no Reply button: working the bird is writing, and that is the same
-gate the sender had to pass. The missing button is only the hint. The lock is
-in `windowState()` (`bot/src/lib/birdReply.js`), which re-reads the replier's
+They get no Reply on either face: working the bird is writing, and that is the
+same gate the sender had to pass. The missing button is only the hint. The lock
+is in `birdReplyWindow()` (`db/lib/birdReply.js`), which re-reads the replier's
 tags alongside the reply window, so a GM stripping **Literate** between the
 letter landing and the answer going out is caught on both the button and the
 pick.

@@ -41,6 +41,18 @@ const DM_ACTION = Object.freeze({
   // db/lib/tax.js). A pending row, like OFFER — but only one answer exists,
   // the LOBBY_SEAT shape: there is no Accept, doing nothing IS the accept.
   PENDING_TAX: "PENDING_TAX",
+  // The Bird's Reply (docs/systemdocs/BIRD.md). The one kind in this family
+  // that draws NO generic button row: answering a letter means choosing which
+  // of the papers in your hands goes back, which is a picker, not an Accept.
+  // So it has no DM_ACTION_LABELS entry — dmActionLabels returns null and
+  // DmActionRow renders nothing — and the web draws its own Reply on the
+  // letter card instead (web/app/components/DmThread.js#LetterBody).
+  //
+  // It is still a descriptor rather than nothing at all, because everything
+  // else in this file is still wanted: the row records that it ASKS
+  // something, the liveness resolver stops a month-old letter looking
+  // answerable, and DmThread stops collapsing it into "3 automated messages".
+  BIRD_REPLY: "BIRD_REPLY",
 });
 
 // The two answers. Every family reads as one of these, even where Discord
@@ -65,6 +77,7 @@ const DM_ACTION_LABELS = Object.freeze({
   [DM_ACTION.INTERCEPT_HOLD]: { accept: "Release", decline: null },
   [DM_ACTION.ATTACK_HOLD]: { accept: "Cancel attack", decline: null },
   [DM_ACTION.PENDING_TAX]: { accept: null, decline: "Refuse" },
+  // No entry for BIRD_REPLY, and that is deliberate — see the kind above.
 });
 
 // The descriptor a sendDm call site spreads into `meta`. `variant` is optional

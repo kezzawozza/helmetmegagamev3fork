@@ -1760,7 +1760,19 @@ export async function waitingOnYou() {
       select: { id: true, threatSlug: true },
     }),
     prisma.birdMessage.findMany({
-      where: { recipientId: me.character.id, delivered: true, repliedAt: null, replyDeadlineTurn: { not: null } },
+      where: {
+        recipientId: me.character.id,
+        delivered: true,
+        repliedAt: null,
+        // The window, not merely "it has one" — the turn it arrived in and the
+        // one after (db/lib/birdReply.js#birdReplyWindow). Without the
+        // comparison a letter nobody can answer any more sat on this list for
+        // the rest of the game as a to-do that could never be done. Between
+        // turns the bird is waiting rather than gone, so nothing is dropped.
+        ...(openTurn
+          ? { replyDeadlineTurn: { gte: openTurn.number } }
+          : { replyDeadlineTurn: { not: null } }),
+      },
       orderBy: { createdAt: "asc" },
       select: { id: true, senderName: true, replyDeadlineTurn: true },
     }),
@@ -1805,12 +1817,14 @@ export async function waitingOnYou() {
       id: l.id,
       kind: "bird",
       // No Accept here: answering a letter means choosing which paper goes
-      // back, which is the Bird dialog on the sheet. This row is the
-      // reminder that the bird has not left yet.
+      // back, which is a picker, not a yes. `mode` opens that dialog where it
+      // is standing (the sheet's dialogs are mounted on Chat too) — it used to
+      // be a bare link to /character, which landed the player on the sheet
+      // with the Send Bird dialog and no reply in sight.
       label: `The bird still waits on an answer to ${l.senderName}.`,
       accept: false,
       decline: false,
-      href: "/character",
+      mode: "birdReply",
     })),
     ...(lobbyEntry
       ? [

@@ -633,6 +633,7 @@ export default function Feed({
         disabled: Boolean(letters.birdSentToday),
       });
     }
+    if (letters.hasBirdReply) rows.push({ mode: "birdReply", label: "Answer a letter" });
     return rows;
   }, [letters, openAction]);
 
