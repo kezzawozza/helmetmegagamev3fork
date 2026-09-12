@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · The Economy panel is finished
+
+✚ Flows: where every ⬢ comes from and goes, as one diagram, plus a web of who actually trades with whom  
+✚ Faucets and Sinks: every source and every drain, turn by turn. The Spillway and an overdrawn purse get their own panel, since those destroy ⬢ rather than spend it  
+✚ Goods: what a ware costs, what it sells back for, how many exist and how often it trades. Flags anything nobody has ever bought, and in red anything whose round trip would print ⬢  
+✚ The Depot: the station's account, the Company's line against its cap, what is in flight, and the balance of trade per turn  
+✚ Factions: what each silo holds and what moved through it this turn  
+✎ Labor drops show what they actually paid. For what they were designed to pay, run db:audit-labor-drops — the panel will not invent that number
+
 ## 2026-09-12 · The chat feed fills its column again
 
 ✎ The scene stretches to the full width of the middle column. It was capped at 70 characters, and because the cap is left-aligned every spare pixel piled up on the right, so the page read as split down the middle with the right half empty
