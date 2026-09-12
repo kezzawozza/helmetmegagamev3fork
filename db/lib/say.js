@@ -21,7 +21,7 @@
 const { recordArchiveMessage } = require("./archive");
 const { notifyFeed } = require("./feedNotify");
 const { babble, growl, STUPID_SLUG, GHOUL_SLUG } = require("./babble");
-const { blockerFor, slugsBlocking, SPEAK, SHOUT } = require("./incapacitation");
+const { blockerFor, slugsBlocking, SHOUT } = require("./incapacitation");
 const { capitalizeSentences, fixContractions } = require("./textCorrection");
 const { presentedIdentity } = require("./presentedIdentity");
 const { loadPresentedState } = require("./examineSnapshot");
@@ -58,16 +58,16 @@ const BOUND_SLUG = "bound";
 const VOICE_SLUGS = [...slugsBlocking(SHOUT), STUPID_SLUG, GHOUL_SLUG, BOUND_SLUG];
 
 async function loadVoiceState(prisma, characterId) {
-  if (!characterId) return { block: null, shoutBlock: null, babbling: false, shoutMuffled: false };
+  if (!characterId) return { shoutBlock: null, babbling: false, shoutMuffled: false };
   const rows = await prisma.characterTag.findMany({
     where: { characterId, quantity: { gt: 0 }, tag: { slug: { in: VOICE_SLUGS } } },
     select: { tag: { select: { slug: true, name: true } } },
   });
   return {
-    // Blocked beats garbled: a Stupid Paralytic is silent, not babbling.
-    block: blockerFor(rows, SPEAK),
-    // Only /shout reads this one (db/lib/shout.js). It is `block` plus
-    // {tag:mute}, whose owner talks fine and simply cannot make a voice carry.
+    // Nothing takes ordinary speech any more (db/lib/incapacitation.js —
+    // SPEAK is a deliberately empty column). Only /shout reads this one
+    // (db/lib/shout.js), plus the two intercom call sites, which are gated
+    // as a loudspeaker rather than a conversation.
     shoutBlock: blockerFor(rows, SHOUT),
     babbling: rows.some((ct) => ct.tag.slug === STUPID_SLUG),
     // A Ghoul growls (docs/systemdocs/THANATI.md §4). Growl beats babble: a
@@ -79,12 +79,6 @@ async function loadVoiceState(prisma, characterId) {
     // reason to be told you may not shout.
     shoutMuffled: rows.some((ct) => ct.tag.slug === BOUND_SLUG),
   };
-}
-
-// What a silenced character is told. One sentence, naming the state, because
-// a player refused without a reason files a GM ticket about it.
-function speechRefusal(block) {
-  return `You can't get the words out — you're ${block.name}. Here's your message:`;
 }
 
 function lengthRefusal(_length) {
@@ -124,10 +118,11 @@ async function slowmodeWaitSeconds(prisma, { characterId, placeKey }) {
 // the Discord path DMs it back with the player's text, the web path returns
 // it as `{ error }`.
 //
-// Gate order matters. The voice block comes before the length check so a
-// silenced player is told they are silenced rather than told their essay was
-// long, and both come before the transforms so nothing is spent on text that
-// is not going anywhere.
+// Gate order matters: the place check comes before the transforms so nothing
+// is spent on text that is not going anywhere. There is no voice-block gate
+// here any more — nothing takes ordinary speech (db/lib/incapacitation.js) —
+// `loadVoiceState` below is read only for the babble/growl transforms and the
+// slowmode check that follows.
 async function prepareSpeech(prisma, { character, placeKey, content, source = "WEB" } = {}) {
   if (!character?.id) return { ok: false, refusal: "You don't have a living character." };
 
@@ -146,7 +141,6 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   }
 
   const voice = await loadVoiceState(prisma, character.id);
-  if (voice.block) return { ok: false, refusal: speechRefusal(voice.block), blocked: voice.block };
 
   const raw = content ?? "";
   if (!raw.trim()) return { ok: false, refusal: "There wasn't anything in your message." };
@@ -423,7 +417,6 @@ module.exports = {
   EDIT_WINDOW_MS,
   WINDOW_REFUSAL,
   loadVoiceState,
-  speechRefusal,
   transformSpeech,
   prepareSpeech,
   recordSpeech,

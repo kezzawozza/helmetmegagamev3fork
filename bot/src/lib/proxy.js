@@ -266,12 +266,7 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
       parentId: channel.parent?.id,
     });
 
-    // The gates, the transforms and the identity, in one call. Its activity
-    // write on a refusal is deliberate: a player whose words were refused was
-    // still HERE, so their catatonic clock has to move even though nothing
-    // reached the channel — otherwise being Mute or Paralyzed would quietly
-    // march them toward the auto-kill in db/lib/catatonicDeathPass.js for the
-    // crime of trying to talk.
+    // The gates, the transforms and the identity, in one call.
     prepared = await prepareSpeech(prisma, {
       character,
       placeKey,
@@ -285,7 +280,6 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
     return null;
   }
   if (!prepared.ok) {
-    if (prepared.blocked) await touchCharacterActivity(prisma, character.id);
     await deleteOriginal(message);
     await handBack(message, prepared.refusal, text);
     return null;

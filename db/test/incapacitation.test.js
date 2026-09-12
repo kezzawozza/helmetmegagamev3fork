@@ -20,9 +20,16 @@ test("Mute takes the yell and leaves the voice", () => {
   assert.equal(blockerFor(held("mute"), SHOUT)?.slug, "mute");
 });
 
-test("SPEAK implies SHOUT, and never the other way round", () => {
-  assert.equal(blockerFor(held("paralyzed"), SPEAK)?.slug, "paralyzed");
+test("being out cold takes the yell and leaves the typing", () => {
+  // unconscious, paralyzed and seizure used to block SPEAK too, which
+  // stranded a player who had no way to say OOC that they were out. They
+  // still can't shout.
+  assert.equal(blockerFor(held("unconscious"), SPEAK), null);
+  assert.equal(blockerFor(held("unconscious"), SHOUT)?.slug, "unconscious");
+  assert.equal(blockerFor(held("paralyzed"), SPEAK), null);
   assert.equal(blockerFor(held("paralyzed"), SHOUT)?.slug, "paralyzed");
+  assert.equal(blockerFor(held("seizure"), SPEAK), null);
+  assert.equal(blockerFor(held("seizure"), SHOUT)?.slug, "seizure");
 });
 
 test("a hostage can still yell for help", () => {
@@ -46,13 +53,18 @@ test("blockerFor reads both tag shapes", () => {
 });
 
 test("VOICE_SLUGS gets the superset it is built from", () => {
-  // db/lib/say.js builds its one query off slugsBlocking(SHOUT). Too narrow
-  // and a silenced character talks; too wide and Mute goes mute again.
+  // db/lib/say.js builds its one query off slugsBlocking(SHOUT).
   const shout = slugsBlocking(SHOUT);
-  const speak = slugsBlocking(SPEAK);
   assert.ok(shout.includes("mute"));
   assert.ok(shout.includes("paralyzed"));
-  assert.ok(!speak.includes("mute"));
-  assert.ok(speak.includes("paralyzed"));
-  assert.ok(speak.every((slug) => shout.includes(slug)));
+  assert.ok(shout.includes("unconscious"));
+  assert.ok(shout.includes("seizure"));
+});
+
+test("SPEAK is a deliberately empty column", () => {
+  // Nothing in the game silences ordinary speech any more — see the header
+  // comment in db/lib/incapacitation.js for why paralyzed/seizure/unconscious
+  // were pulled out of it. Re-adding a slug here should be a conscious edit
+  // to RESTRICTIONS, not something this test lets slide by accident.
+  assert.deepEqual(slugsBlocking(SPEAK), []);
 });

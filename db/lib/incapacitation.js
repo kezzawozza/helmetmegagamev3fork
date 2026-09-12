@@ -18,12 +18,14 @@
 //          every slug that blocks it, because db/lib/autoLaborPass.js skips
 //          filing an auto-Labor for them.
 //   SPEAK  the voice half — the proxy (ordinary chat, whispers, the Speak
-//          modal), the Council Room intercom, a Bird reply.
-//   SHOUT  the loud half — /shout and nothing else. Split off SPEAK because
-//          {tag:mute} is the one state that takes the carrying voice without
-//          taking the ordinary one. SPEAK IMPLIES SHOUT: a slug that removes
-//          your voice removes your yell too, so no entry ever lists both, and
-//          expandCaps() below is what keeps the two from drifting apart.
+//          modal), a Bird reply.
+//   SHOUT  the loud half — /shout, and anything else built to carry: the
+//          Council Room intercom, which is a loudspeaker rather than a
+//          conversation. Split off SPEAK because {tag:mute} is the one state
+//          that takes the carrying voice without taking the ordinary one.
+//          SPEAK IMPLIES SHOUT: a slug that removes your voice removes your
+//          yell too, so no entry ever lists both, and expandCaps() below is
+//          what keeps the two from drifting apart.
 //
 // Deliberately NOT capabilities: seeing and hearing. Vision already has two
 // homes that predate this file (db/lib/examineVision.js,
@@ -72,11 +74,17 @@ function expandCaps(caps) {
 //                back of their activity clock. Gate their speech and they can
 //                never clear it, and db/lib/catatonicDeathPass.js then kills
 //                them for it. Catatonic must never block SPEAK.
-//   paralyzed    both. Its description has promised "You can't move or talk"
-//                since the day it was written; this is the first time the
-//                second half has been true.
-//   seizure      both. You are on the floor (docs/systemdocs/FACTORY.md).
-//   unconscious  both. The top of the drinking ladder (BREWING.md).
+//   paralyzed    can't act, CAN speak, cannot shout. It used to take SPEAK
+//                too, on the strength of a description that has promised
+//                "You can't move or talk" since the day it was written — but
+//                that stranded a player dropped into a private Conversation
+//                with no way to even say OOC that they were out. Same failure
+//                {tag:mute} already made once (see below): silencing the
+//                character silenced the person playing them.
+//   seizure      can't act, CAN speak, cannot shout. You are on the floor
+//                (docs/systemdocs/FACTORY.md); same reasoning as paralyzed.
+//   unconscious  can't act, CAN speak, cannot shout. The top of the drinking
+//                ladder (BREWING.md); same reasoning as paralyzed.
 //   crucified    can't act, CAN speak — nailed up in the Square is the one
 //                place last words are the whole show. Put on by the Crucify
 //                button; becomes Dying after a turn (docs/tags.yaml).
@@ -88,14 +96,19 @@ function expandCaps(caps) {
 //                conversation, so it is no longer purchasable either
 //                (docs/tags.yaml); the tongue rung of the Mutilate ladder
 //                (db/lib/mutilate.js) is what puts it on somebody now.
+//
+// SPEAK is deliberately empty now — nothing in this table takes it. Adding a
+// slug back to that column is a conscious act, not a place to default to; see
+// paralyzed/seizure/unconscious above for why the last three were pulled out
+// of it. (`db/test/incapacitation.test.js` asserts the column stays empty.)
 const RESTRICTIONS = {
   dying: [ACT],
   "catatonic-afk": [ACT],
   bound: [ACT],
   crucified: [ACT],
-  seizure: [ACT, SPEAK],
-  paralyzed: [ACT, SPEAK],
-  unconscious: [ACT, SPEAK],
+  seizure: [ACT, SHOUT],
+  paralyzed: [ACT, SHOUT],
+  unconscious: [ACT, SHOUT],
   mute: [SHOUT],
 
   // KISS only. Everything above already blocks it through ACT (see

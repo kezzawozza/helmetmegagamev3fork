@@ -109,23 +109,14 @@ the character's player off it, and a database row does not forget.
 ### Who is allowed to speak at all
 
 `postAsCharacterTo` is the only funnel a character's words reach a channel
-through — ordinary chat, whispers and the Speak modal all end up there — so the
-SPEAK gate (`TAGS.md` §5f) sits in it as the backstop, with the Speak modal
-also refusing early as a courtesy. Paralyzed, Unconscious and mid-Seizure are
-silent; **Bound is not**, because being tied up takes your hands and not your
-voice — and **Mute is not either**, for the mirror of that reason: it takes the
-carrying voice and leaves the ordinary one, so `/shout` is the only thing that
-refuses it (`TAGS.md` §5f).
-
-A silenced player is handled exactly like any other refusal: the original is
-deleted and `handBack` DMs them their words. That is the right answer here and
-not merely a convenient one — the mask still has to hold for somebody who
-cannot talk, and they should not lose what they typed to find that out.
-
-**A refused message still writes the speaker's activity.** They were here; they
-tried. Without that, being silenced would quietly march somebody toward the
-auto-kill in `db/lib/catatonicDeathPass.js` for the crime of attempting to
-speak.
+through — ordinary chat, whispers and the Speak modal all end up there. No
+slug currently blocks SPEAK (`TAGS.md` §5f, `db/lib/incapacitation.js`), so
+that funnel is a gate with nothing standing at it today — its `/shout` twin
+(`db/lib/shout.js`) still refuses Bound, Mute, Paralyzed, Unconscious and
+mid-Seizure. It used to also refuse Paralyzed, Unconscious and mid-Seizure for
+ordinary speech, until that stranded a player with no way to even say OOC that
+they were out — the same mistake `mute` had already made once, for the same
+reason: silencing the character silenced the person.
 
 **Voice state is read from the sheet, not from the character object handed in.**
 Every caller arrives through a different `include` — `messageCreate.js` loads a
