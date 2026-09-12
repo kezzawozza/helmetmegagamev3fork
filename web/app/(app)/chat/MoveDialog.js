@@ -43,7 +43,9 @@ const BODY_MAX = 2000;
 const BODY_WARN = Math.floor(BODY_MAX * 0.9);
 
 export default function MoveDialog({ turn = null, characterId = null, onClose, onDone }) {
-  const [kind, setKind] = useState("ROUTINE");
+  // No default: a player who never notices this row must not have their Move
+  // silently filed as Routine. Lock In stays disabled until one is picked.
+  const [kind, setKind] = useState(null);
   // Whatever was typed into this turn's box and never filed. Read once, here,
   // because the dialog mounts on a click and unmounts on close.
   const [body, setBody] = useState(() => readDraft(characterId, turn?.number));
@@ -86,7 +88,7 @@ export default function MoveDialog({ turn = null, characterId = null, onClose, o
   // The one refusal that is knowable before the press. It only applies to
   // Labor — a Routine or a Gambit files from anywhere.
   const laborRefusal = kind === "LABOR" ? (context?.refusal ?? null) : null;
-  const canFile = Boolean(body.trim()) && !pending && !shut && !laborRefusal && body.length <= BODY_MAX;
+  const canFile = Boolean(kind) && Boolean(body.trim()) && !pending && !shut && !laborRefusal && body.length <= BODY_MAX;
 
   async function file() {
     if (!canFile) return;
@@ -137,14 +139,14 @@ export default function MoveDialog({ turn = null, characterId = null, onClose, o
             // The chips must not take the opening focus: Modal picks the first
             // focusable when nothing is marked, and Space on a freshly opened
             // dialog would silently change the kind.
-            tabIndex={kind === entry.value ? 0 : -1}
+            tabIndex={(kind ?? MOVE_KINDS[0].value) === entry.value ? 0 : -1}
             onClick={() => setKind(entry.value)}
           >
             {entry.label}
           </button>
         ))}
       </div>
-      <p className="move-help text-sm text-muted">{chosen?.help}</p>
+      <p className="move-help text-sm text-muted">{chosen?.help ?? " "}</p>
 
       {kind === "LABOR" && context && (
         <LaborReadout context={context} />
