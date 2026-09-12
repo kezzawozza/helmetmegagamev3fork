@@ -43,6 +43,34 @@ function tagOpSummary(tags) {
   return parts.join(", ");
 }
 
+// A transfer's `d.from` / `d.to` are each {kind: "character"|"room", id, name}
+// (web/app/(app)/character/requestActions.js#transferRequestImpl). `payload`
+// is the chip/qty/res segments describing what moved. Four shapes:
+//   room -> character   "took X from the Depot stash"
+//   character -> room   "left X in the Depot stash"
+//   character -> character  "handed X to Brannoc"
+//   character -> (destroyed) "tipped X into the trough"
+function transferSegments(d, ...payload) {
+  const from = d?.from;
+  const to = d?.to;
+  const parts = payload.filter(Boolean);
+  if (d?.destroyed) {
+    return [actor(), t("tipped"), ...parts, t("into the trough")];
+  }
+  if (from?.kind === "room") {
+    return [actor(), t("took"), ...parts, t("from"), em(from.name)];
+  }
+  if (to?.kind === "room") {
+    return [actor(), t("left"), ...parts, t("in"), em(to.name)];
+  }
+  if (to?.kind === "character") {
+    return [actor(), t("handed"), ...parts, t("to"), em(to.name)];
+  }
+  // Old rows, or a shape this fallback hasn't been taught — say the actor
+  // and the payload rather than nothing.
+  return [actor(), t("transferred"), ...parts];
+}
+
 // `prefix` is what the fallback matches on, so the order here matters: the
 // first prefix that matches wins, and "superadmin_" has to beat nothing while
 // "request_" has to beat nothing either. They do not overlap today; keep it
@@ -162,9 +190,13 @@ const R = {
   request_attack_filed: () => [actor(), t("attacked"), target()],
   request_attack_cancelled: () => [actor(), t("broke off from"), target()],
   request_loot_resources: (d) => [actor(), t("looted"), res(d.amount ?? d.resources), t("from"), target()],
-  request_transfer_resources: (d) => [actor(), t("sent"), res(d.amount ?? d.resources), t("to"), target()],
+  // A transfer moves between two parties, each {kind: "character"|"room", id, name}.
+  // The verb and preposition read by direction, so a pickup, a deposit, a
+  // hand-off and a Spillway destruction each say the true shape of the act —
+  // not a fixed "gave ... to" that only ever fit one of the four.
+  request_transfer_resources: (d) => transferSegments(d, res(d.amount ?? d.resources)),
   request_loot_tag: (d) => [actor(), t("looted"), chip(d.tagName), qty(d.quantity), t("from"), em(d.fromName)],
-  request_transfer_tag: (d) => [actor(), t("gave"), chip(d.tagName), qty(d.quantity), t("to"), em(d.toName)],
+  request_transfer_tag: (d) => transferSegments(d, chip(d.tagName), qty(d.quantity)),
   request_fulfill_desire: (d) => [actor(), t("claimed a Desire for"), points(d.pointsAwarded)],
   request_donate_blood: (d) => [actor(), t("donated blood to the Lifeweb"), ...bloodTail(d)],
   request_feed_person: (d) => [actor(), t("fed a person to the Lifeweb"), ...bloodTail(d)],

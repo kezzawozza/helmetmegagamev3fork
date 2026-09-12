@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 // Everything here comes from auditNarrative, never from auditQuery: that one
 // imports Prisma, and a client component reaching for one constant in it drags
 // the whole data layer into the browser bundle.
 import { AUDIT_FAMILIES, AUDIT_BANDS, DATE_PRESETS, prettifyActionType } from "@/lib/auditNarrative";
 import Select from "@/app/components/Select";
-import ChipPicker from "@/app/components/ChipPicker";
 
 // The filter rail. Every control writes into the URL through the `set` the
 // desk passes down — nothing here holds filter state of its own, because the
@@ -14,10 +13,8 @@ import ChipPicker from "@/app/components/ChipPicker";
 // GM.
 //
 // The one exception is `search`, which is typed: it is held locally so the
-// input does not lose a keystroke to a round trip, and committed on a short
-// debounce — the way every other list in the app filters as you type. It used
-// to need Enter or a blur, so a GM who typed a name and then looked at the
-// feed was reading the UNFILTERED feed and had no way to know it.
+// input does not lose a keystroke to a round trip, and committed on Enter or
+// blur.
 
 const ACTOR_KINDS = [
   ["", "Anyone"],
@@ -34,21 +31,10 @@ export default function AuditFilters({
   characters,
   factions,
   zones,
+  locations,
   turnNumbers,
 }) {
   const [search, setSearch] = useState(filters.q);
-  // Filter as you type, on the same beat as the rail's content search. `set`
-  // is read through a ref so a new closure on every render does not restart
-  // the timer and hold the commit off for ever.
-  const setRef = useRef(set);
-  useEffect(() => {
-    setRef.current = set;
-  });
-  useEffect(() => {
-    if (search === filters.q) return undefined;
-    const timer = setTimeout(() => setRef.current({ q: search }), 300);
-    return () => clearTimeout(timer);
-  }, [search, filters.q]);
   const [typeQuery, setTypeQuery] = useState("");
   const [actorQuery, setActorQuery] = useState("");
 
@@ -72,6 +58,16 @@ export default function AuditFilters({
     return [...selected, ...rest].slice(0, 40);
   }, [typeCounts, typeQuery, filters.types]);
 
+  // Every room, narrowed to the chosen Location once one is picked — so the
+  // Room select doesn't offer a hundred rooms nowhere near the place a GM
+  // just chose. With no Location picked, offer every room across all of them.
+  const roomsForFilter = useMemo(() => {
+    if (filters.locations[0]) {
+      return locations.find((l) => l.id === filters.locations[0])?.rooms ?? [];
+    }
+    return locations.flatMap((l) => l.rooms).sort((a, b) => a.name.localeCompare(b.name));
+  }, [locations, filters.locations]);
+
   const visibleActors = useMemo(() => {
     const q = actorQuery.trim().toLowerCase();
     const selected = actors.filter((a) => filters.actors.includes(a.id));
@@ -90,6 +86,8 @@ export default function AuditFilters({
     filters.targets.length ||
     filters.factions.length ||
     filters.zones.length ||
+    filters.locations.length ||
+    filters.rooms.length ||
     filters.turnFrom ||
     filters.turnTo ||
     filters.preset ||
@@ -105,22 +103,35 @@ export default function AuditFilters({
           placeholder="name, reason, @handle, role:smith, zone:caves…"
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && set({ q: search })}
+          onBlur={() => search !== filters.q && set({ q: search })}
         />
       </label>
 
-      {/* Show is a SINGLE pick, so it is a ChipPicker rather than a hand-rolled
-          chip-row (DESIGN-SYSTEM §5) — the same markup, minus the third copy
-          of it. "Everything" is one more option in the list, not a button
-          bolted on the end. */}
-      <ChipPicker
-        label="Show"
-        value={filters.band || "player"}
-        options={[
-          ...Object.entries(AUDIT_BANDS).map(([key, label]) => ({ id: key, label })),
-          { id: "all", label: "Everything" },
-        ]}
-        onChange={(id) => set({ band: id || "player", families: [] })}
-      />
+      <Group label="Show">
+        <div className="chip-row">
+          {Object.entries(AUDIT_BANDS).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className="chip"
+              data-active={(filters.band || "player") === key || undefined}
+              aria-pressed={(filters.band || "player") === key}
+              onClick={() => set({ band: key, families: [] })}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="chip"
+            data-active={filters.band === "all" || undefined}
+            aria-pressed={filters.band === "all"}
+            onClick={() => set({ band: "all", families: [] })}
+          >
+            Everything
+          </button>
+        </div>
+      </Group>
 
       <Group label="Family">
         <div className="chip-row">
@@ -249,6 +260,38 @@ export default function AuditFilters({
           {/* The zone a row belongs to is its target's FACTION zone, never
               where they happen to be standing — the rule ZoneChip states. */}
           <span className="text-muted text-xs">By the character&rsquo;s faction.</span>
+        </label>
+        <label className="field">
+          <span className="field-label">Location</span>
+          <Select
+            value={filters.locations[0] ?? ""}
+            onChange={(e) => set({ locations: e.target.value ? [e.target.value] : [], rooms: [] })}
+          >
+            <option value="">Any</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label className="field">
+          <span className="field-label">Room</span>
+          <Select
+            value={filters.rooms[0] ?? ""}
+            onChange={(e) => set({ rooms: e.target.value ? [e.target.value] : [] })}
+            disabled={!roomsForFilter.length}
+          >
+            <option value="">Any</option>
+            {roomsForFilter.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </Select>
+          {/* Where it happened, not the target's faction zone above. Only
+              rows written after this column shipped carry one. */}
+          <span className="text-muted text-xs">Only rows logged since this filter shipped.</span>
         </label>
       </Group>
 

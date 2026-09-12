@@ -172,6 +172,7 @@ async function createKissOffer(prisma, { actor, target, turn }) {
           actionType: KISS_AUDIT_ACTION,
           targetCharacterId: target.id,
           turnId: turn.id,
+          locationId: actor.locationId ?? null,
           details: { offerId: row.id, targetName: target.name, asked: true },
         },
       });
@@ -240,6 +241,7 @@ async function acceptKiss(prisma, offer, responder) {
           actionType: KISS_ACCEPTED_ACTION,
           targetCharacterId: target.id,
           turnId: turn?.id ?? null,
+          locationId: actor.locationId ?? null,
           details: { offerId: offer.id, initiator: actor.name, responder: target.name, moodApplied: Boolean(a) },
         },
         {
@@ -247,6 +249,7 @@ async function acceptKiss(prisma, offer, responder) {
           actionType: KISS_ACCEPTED_ACTION,
           targetCharacterId: actor.id,
           turnId: turn?.id ?? null,
+          locationId: target.locationId ?? null,
           details: { offerId: offer.id, initiator: actor.name, responder: target.name, moodApplied: Boolean(b) },
         },
       ],

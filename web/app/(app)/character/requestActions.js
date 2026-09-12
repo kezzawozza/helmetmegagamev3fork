@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
-import { prisma, isDynastyHead, isDynastyMember, canOpenCrate } from "@lifeweb/db";
+import { prisma, isDynastyHead, isDynastyMember, canOpenCrate, placeKeyForRoom } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
 import { linkBetween, crossingCheck } from "@lifeweb/db/lib/locationGraph";
 import { heldReasonFor } from "@lifeweb/db/lib/intercept";
@@ -3805,6 +3805,10 @@ async function transferRequestImpl({
         actorDiscordUserId: session.discordUserId,
         actionType: "request_transfer_tag",
         targetCharacterId: toCharacterId ?? fromCharacterId,
+        // Whichever end is a room IS the room this happened in; a
+        // character-to-character hand-off has none, so falls back to the
+        // acting character's location.
+        place: from.kind === "room" ? placeKeyForRoom(from.id) : to.kind === "room" ? placeKeyForRoom(to.id) : character,
         details: {
           tagId,
           tagName: held.tag.name,
@@ -3850,6 +3854,7 @@ async function transferRequestImpl({
         actorDiscordUserId: session.discordUserId,
         actionType: "request_transfer_resources",
         targetCharacterId: toCharacterId ?? fromCharacterId ?? character.id,
+        place: from.kind === "room" ? placeKeyForRoom(from.id) : to.kind === "room" ? placeKeyForRoom(to.id) : character,
         details: effect,
       });
     }

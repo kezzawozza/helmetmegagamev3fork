@@ -79,6 +79,7 @@ async function sootheListeners(prisma, musician, { quadruple = false } = {}) {
           actionType: PLAY_SOOTHE_AUDIT_ACTION,
           targetCharacterId: id,
           turnId: openTurn.id,
+          locationId: musician.locationId ?? null,
           details: { musicianId: musician.id, locationId: musician.locationId },
         },
       });
