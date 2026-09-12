@@ -4657,7 +4657,7 @@ tags:
     name: Paralyzed
     category: health
     group: health-mind
-    description: "You can't move or talk."
+    description: "You can't move."
     fighting: { tree: both, cap: pitiful }
     pointCost: 0
     visible: true
@@ -13103,6 +13103,13 @@ tags:
       # the smell, you don't use the body up.
       items:
         - group: items-corpse
+      # Without this, `group: items-corpse` above hides the recipe from
+      # everyone until they hold a corpse: nekker-corpse, graga-corpse and
+      # skinless-corpse are all catalog: secret (CRAFTING.md §2b), so the
+      # group is never fully public and the gate never opens on its own. A
+      # basic Brewing recipe should not need a body in hand just to learn it
+      # exists — reported by a player whose Craft menu never showed it.
+      recipePublic: true
     sellable: true
     sellablePrice: 5
 
