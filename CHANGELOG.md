@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · Crossing into the Caves warns you first
+
+✎ A crossing into Caves or Depths now warns you the Caving Die will roll on every step, before you commit the travel  
+✚ The Incarn role can now pick up the corrupt-only Desires the Cerberus and Sheriff already had  
+✎ Fixed a grammar slip in the Shroom Mound's description
+
 ## 2026-09-12 · The custom tag dialog can set a weight now
 
 ✚ A Weight box on the custom tag dialog, so a sword invented mid-game costs something to carry instead of nothing  
