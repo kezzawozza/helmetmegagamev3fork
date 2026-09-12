@@ -27,9 +27,10 @@ const fs = require("node:fs");
 const { prisma } = require("../../index");
 const { loadDoc, parseDoc } = require("../../lib/syncLaborDrops");
 const { scopeFilters, TIER_TO_LABOR_DROP_TYPE, passesRequiredTag } = require("../../lib/laborDrops");
-const { annotateLines, priceRows, ASSUMED_VALUES } = require("../../lib/labordropsAnnotate");
-const { rowShares, bandOf } = require("../../lib/labordropsRarity");
+const { annotateLines, priceRows } = require("../../lib/labordropsAnnotate");
+const { bandOf } = require("../../lib/labordropsRarity");
 const { docsPath } = require("../../lib/repoPaths");
+const { summarize } = require("../../lib/labordropsEv");
 
 function parseArgs(argv) {
   const out = { zoneSlug: null, locationSlug: null, holdsSlugs: [], write: false };
@@ -44,62 +45,10 @@ function parseArgs(argv) {
   return out;
 }
 
-// The one tag that IS ⬢ rather than something sold for it — DEPOT.md: "one
-// obol is one ⬢", the physical form of the currency itself (weight 0, no
-// sellablePrice of its own because selling an obol for ⬢ is a category
-// error). Hardcoded here rather than read off any catalog field, because
-// there is no field that says it — the same "known by name" carve-out
-// db/lib/lifeweb.js and a handful of others already accept for this repo's
-// smallest set of singular concepts.
-const OBOL_SLUG = "obol";
-const OBOL_VALUE = 1;
-
-// One pool entry -> { label, evValue, note }. evValue is always a ⬢ number
-// (0 for NOTHING and for a tag with neither a price nor an override) — see
-// the legend printed at the bottom of the report for why a tag's pointCost
-// is shown but never summed into it.
-//
-// Mirrors labordropsAnnotate.js#mechanicalValue/priceRows exactly — ASSUMED_VALUES
-// checked BEFORE the real sellable price (a Lockbox's discounted sellablePrice
-// must never win over its full contents value), then consumesIntoResources for
-// a non-sellable tag that still pays out when consumed (Purse, Supply Kit).
-// This branch order went missing from this script in the 2026-09-10 rarity
-// merge — labordropsAnnotate.js kept it (its own tests still pin it), but this
-// terminal report silently fell back to 0 ⬢ for every Lockbox and consumable
-// until restored here, imported from the one place ASSUMED_VALUES is now
-// defined rather than re-declared.
-function priceEntry(row, tagsById) {
-  if (row.kind === "NOTHING") return { label: "(nothing)", evValue: 0, note: null };
-  if (row.kind === "RESOURCES") {
-    const amount = row.resourceAmount ?? 0;
-    return { label: `${amount > 0 ? "+" : ""}${amount} ⬢`, evValue: amount, note: null };
-  }
-  const tag = tagsById.get(row.tagId);
-  const name = tag?.name ?? `(unknown tag ${row.tagId})`;
-  if (tag?.slug === OBOL_SLUG) {
-    return { label: `${name} — the coin itself, worth ${OBOL_VALUE} ⬢`, evValue: OBOL_VALUE, note: null };
-  }
-  if (tag && ASSUMED_VALUES[tag.slug] != null) {
-    const overrideValue = ASSUMED_VALUES[tag.slug];
-    const label =
-      tag.sellable && tag.sellablePrice
-        ? `${name} — worth ${overrideValue} ⬢ opened (sells ${tag.sellablePrice} ⬢ locked)`
-        : `${name} — assumed ${overrideValue} ⬢ (not actually sellable yet)`;
-    return { label, evValue: overrideValue, note: tag.sellable ? null : "assumed" };
-  }
-  if (tag?.sellable && tag.sellablePrice) {
-    return { label: `${name} — sells ${tag.sellablePrice} ⬢`, evValue: tag.sellablePrice, note: null };
-  }
-  if (tag?.consumesIntoResources) {
-    return {
-      label: `${name} — worth ${tag.consumesIntoResources} ⬢ consumed`,
-      evValue: tag.consumesIntoResources,
-      note: null,
-    };
-  }
-  const pointNote = tag ? `pointCost ${tag.pointCost}` : "tag missing from catalog";
-  return { label: `${name} — not sellable (${pointNote})`, evValue: 0, note: "unpriced" };
-}
+// priceEntry and summarize (the per-pool EV maths) now live in
+// db/lib/labordropsEv.js, so they can be exercised by db/test/ directly
+// instead of only by eyeballing this script's stdout. See that module for
+// the OBOL_SLUG/ASSUMED_VALUES branch order this mirrors.
 
 function bucketLabel(row, zoneNameById, locationNameById, tagsById) {
   const parts = [];
@@ -111,27 +60,6 @@ function bucketLabel(row, zoneNameById, locationNameById, tagsById) {
     parts.push(`requires: ${skill?.name ?? row.requiredTagId}`);
   }
   return parts.length ? parts.join(" + ") : "global";
-}
-
-// Priced by BAND, not by row count: a row's chance comes from the die face's
-// rarity column (db/lib/labordropsRarity.js), so `ev` is a real expectation
-// and `hit` is the real miss rate. Under the old uniform draw the two
-// happened to coincide with "fraction of lines"; they do not any more.
-//
-// `hits` stays a count because the printout says "N entries" beside it;
-// `hit` is the fraction that actually matters.
-function summarize(rows, tagsById, roll) {
-  const priced = rows.map((r) => priceEntry(r, tagsById));
-  const shares = rowShares(rows, roll);
-  const hits = priced.filter((p) => p.label !== "(nothing)").length;
-  let ev = 0;
-  let hit = 0;
-  priced.forEach((p, i) => {
-    ev += p.evValue * shares[i];
-    if (p.label !== "(nothing)") hit += shares[i];
-  });
-  const unpriced = priced.filter((p) => p.note === "unpriced").length;
-  return { priced, hits, hit, ev, unpriced, shares };
 }
 
 async function main() {

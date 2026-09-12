@@ -1,5 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { reasonFlow, reasonLabel, FLOW } from "@lifeweb/db/lib/economyReasons";
+import { creditAvailableObols } from "@lifeweb/db/lib/depotState";
 
 // The read side of the economy ledger — everything /gm/economy asks the
 // database, in one place. Nothing here writes.
@@ -296,4 +297,144 @@ export function redactEntry(entry, { unredacted = false } = {}) {
     tagSlug: null,
     redacted: true,
   };
+}
+
+// --- flows: who trades with whom ----------------------------------------
+
+// The biggest character<->room hand-overs in a turn range, for the ArcWeb
+// "who trades with whom" chart. Grouped straight off the snapshot columns
+// (fromName/toName), the same reason `ledgerPage` never joins back to
+// Character/Room: those rows can outlive the account they named.
+//
+// `form: "BALANCE"` only — a GOODS or COIN transfer is a different kind of
+// hand-over, and mixing the two would sum ⬢ against item counts.
+export async function counterpartyEdges({ gameId, fromTurn = null, toTurn = null, limit = 40 }) {
+  const turnFilter = {};
+  if (fromTurn != null) turnFilter.gte = Number(fromTurn);
+  if (toTurn != null) turnFilter.lte = Number(toTurn);
+  const where = {
+    gameId,
+    form: "BALANCE",
+    fromKind: { in: ["character", "room"] },
+    toKind: { in: ["character", "room"] },
+    ...(Object.keys(turnFilter).length ? { turnNumber: turnFilter } : {}),
+  };
+  const grouped = await prisma.economyEntry.groupBy({
+    by: ["fromId", "fromName", "toId", "toName"],
+    where,
+    _sum: { amount: true },
+  });
+  return grouped
+    .map((g) => ({ fromId: g.fromId, fromName: g.fromName, toId: g.toId, toName: g.toName, amount: g._sum.amount ?? 0 }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, limit);
+}
+
+// --- goods -----------------------------------------------------------------
+
+// Every priced tag in the world, with how much of it exists and how much of
+// it has ever moved through the ledger. One groupBy per side (held, stashed,
+// traded) rather than a query per tag — the same posture as
+// goodsValueInWorld above.
+export async function goodsCatalog() {
+  const tags = await prisma.tag.findMany({
+    where: {
+      OR: [{ sellablePrice: { not: null } }, { depotPrice: { not: null } }],
+      slug: { not: "obol" },
+    },
+    select: { id: true, slug: true, name: true, depotPrice: true, sellablePrice: true },
+  });
+  if (!tags.length) return [];
+  const ids = tags.map((t) => t.id);
+
+  const [held, stashed, traded] = await Promise.all([
+    prisma.characterTag.groupBy({ by: ["tagId"], _sum: { quantity: true }, where: { tagId: { in: ids } } }),
+    prisma.roomTag.groupBy({ by: ["tagId"], _sum: { quantity: true }, where: { tagId: { in: ids } } }),
+    prisma.economyEntry.groupBy({ by: ["tagId"], _count: { _all: true }, where: { tagId: { in: ids }, form: "GOODS" } }),
+  ]);
+  const heldById = new Map(held.map((r) => [r.tagId, r._sum.quantity ?? 0]));
+  const stashedById = new Map(stashed.map((r) => [r.tagId, r._sum.quantity ?? 0]));
+  const tradedById = new Map(traded.map((r) => [r.tagId, r._count._all]));
+
+  return tags.map((t) => {
+    const spread =
+      t.depotPrice != null && t.sellablePrice != null ? t.depotPrice - t.sellablePrice : null;
+    return {
+      id: t.id,
+      slug: t.slug,
+      name: t.name,
+      depotPrice: t.depotPrice,
+      sellablePrice: t.sellablePrice,
+      spread,
+      inWorld: (heldById.get(t.id) ?? 0) + (stashedById.get(t.id) ?? 0),
+      traded: tradedById.get(t.id) ?? 0,
+    };
+  });
+}
+
+// --- the Depot's books ------------------------------------------------
+
+// The Depot singleton plus what a GM actually wants to read off it: how much
+// credit is left, and what the outstanding manifest is worth. Returns nulls
+// rather than zeros when there is no Depot row yet, so the section can tell
+// "not provisioned" from "provisioned and empty".
+export async function depotBooks() {
+  const depot = await prisma.depot.findFirst();
+  if (!depot) {
+    return {
+      accountObols: null,
+      debtObols: null,
+      creditCapObols: null,
+      creditAvailableObols: null,
+      manifestLines: 0,
+      manifestValue: 0,
+    };
+  }
+  const manifest = Array.isArray(depot.manifest) ? depot.manifest : [];
+  const manifestValueTotal = manifest.reduce(
+    (n, l) => n + (Number(l?.quantity) || 0) * (Number(l?.unitPrice) || 0),
+    0,
+  );
+  return {
+    accountObols: depot.accountObols,
+    debtObols: depot.debtObols,
+    creditCapObols: depot.creditCapObols,
+    creditAvailableObols: creditAvailableObols(depot),
+    manifestLines: manifest.length,
+    manifestValue: manifestValueTotal,
+  };
+}
+
+// --- faction treasuries --------------------------------------------------
+
+// Every faction's silo balance — the Room it banks in, per FACTIONS.md/
+// CARRY.md ("there is no faction-level balance"). Follows the inline
+// siloRoom-include pattern web/app/(app)/faction/page.js already uses rather
+// than inventing a second shape for the same relation.
+export async function factionTreasuries() {
+  const factions = await prisma.faction.findMany({
+    select: {
+      id: true,
+      name: true,
+      zone: { select: { name: true } },
+      siloRoom: {
+        select: {
+          id: true,
+          name: true,
+          resources: true,
+          location: { select: { zone: { select: { name: true } } } },
+        },
+      },
+      _count: { select: { characters: true } },
+    },
+  });
+  return factions.map((f) => ({
+    id: f.id,
+    name: f.name,
+    zoneName: f.zone?.name ?? f.siloRoom?.location?.zone?.name ?? "",
+    siloRoomId: f.siloRoom?.id ?? null,
+    siloRoomName: f.siloRoom?.name ?? null,
+    balance: f.siloRoom ? f.siloRoom.resources : null,
+    memberCount: f._count.characters,
+  }));
 }
