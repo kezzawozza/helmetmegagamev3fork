@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · The custom tag dialog can set a weight now
+
+✚ A Weight box on the custom tag dialog, so a sword invented mid-game costs something to carry instead of nothing  
+✎ Clone from… now carries an item's weight across
+
 ## 2026-09-12 · Gamemasters get a real right column in Chat, and the scene fills the screen
 
 ✎ The chat feed uses the whole middle column again. It had been capped at a reading measure, which sat to one side, so on a wide monitor the scene read as cropped down the middle  
