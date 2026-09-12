@@ -8591,12 +8591,31 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: baroness-key
+          keep: true
 
   # The rest of Ravenheart's locks. Every one is weightless, tradeable and
   # stackable: a key is meant to be handed over, stolen off a body or copied,
   # and a role that hands out three of them needs a stack to put them in.
   # Invisible on the sheet, so carrying one is not something a stranger reads
   # off you.
+  #
+  # "Copied" is now a real recipe, not just flavor: `craftable: true` below
+  # with `items: [{tag: <itself>, keep: true}]` lets a Skilled Blacksmith
+  # (`smithing-skilled`) hold a key at the forge and walk away with two.
+  # Every key here gets it except the four ABOVE this comment (sewer-key,
+  # elevator-key, foresters-key, graywall-key) plus barons-key and
+  # incarns-key, none of which are `stackable` -- `craftGrantChecks` refuses
+  # a non-stackable duplicate outright ("You already have that tag."), which
+  # a keep-and-recraft recipe would trip on every single attempt. Mark one
+  # `stackable: true` to extend the recipe to it.
   manor-key:
     catalog: gm
     name: Manor Key
@@ -8610,6 +8629,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: manor-key
+          keep: true
 
   cerberus-key:
     catalog: gm
@@ -8624,6 +8652,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: cerberus-key
+          keep: true
 
   armory-key:
     catalog: gm
@@ -8638,6 +8675,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: armory-key
+          keep: true
 
   inn-key:
     catalog: gm
@@ -8652,6 +8698,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: inn-key
+          keep: true
 
   order-key:
     catalog: gm
@@ -8666,6 +8721,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: order-key
+          keep: true
 
   cathedral-key:
     catalog: gm
@@ -8680,6 +8744,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: cathedral-key
+          keep: true
 
   sanctuary-key:
     catalog: gm
@@ -8694,6 +8767,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: sanctuary-key
+          keep: true
 
   smithy-key:
     catalog: gm
@@ -8708,6 +8790,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: smithy-key
+          keep: true
 
   headmans-key:
     catalog: gm
@@ -8722,6 +8813,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: headmans-key
+          keep: true
 
   pushers-key:
     catalog: gm
@@ -8736,6 +8836,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: pushers-key
+          keep: true
 
   room-a-key:
     catalog: gm
@@ -8750,6 +8859,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: room-a-key
+          keep: true
 
   room-b-key:
     catalog: gm
@@ -8764,6 +8882,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: room-b-key
+          keep: true
 
   room-c-key:
     catalog: gm
@@ -8778,6 +8905,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: room-c-key
+          keep: true
 
   mortus-key:
     catalog: gm
@@ -8792,6 +8928,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: mortus-key
+          keep: true
 
   hands-key:
     catalog: gm
@@ -8806,6 +8951,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: hands-key
+          keep: true
 
   meisters-key:
     catalog: gm
@@ -8820,6 +8974,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: meisters-key
+          keep: true
 
   censors-key:
     catalog: gm
@@ -8834,6 +8997,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: censors-key
+          keep: true
 
   heirs-key:
     catalog: gm
@@ -8848,6 +9020,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: heirs-key
+          keep: true
 
   successors-key:
     catalog: gm
@@ -8862,6 +9043,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: successors-key
+          keep: true
 
   #Uncraftable
   neoclassic-rw10:
@@ -16051,6 +16241,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: factory-key
+          keep: true
 
   bannerets-key:
     catalog: gm
@@ -16065,6 +16264,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: bannerets-key
+          keep: true
 
   fishermans-key:
     catalog: gm
@@ -16079,6 +16287,15 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: fishermans-key
+          keep: true
 
   flooded-crate:
     catalog: all
