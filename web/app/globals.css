@@ -4924,6 +4924,7 @@ label.chip {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
+  text-align: left;
   text-decoration: none;
   color: var(--text);
 }

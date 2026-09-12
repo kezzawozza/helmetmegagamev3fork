@@ -36,10 +36,13 @@
 // less than the other three — Bascinet's call, on purpose: a Labor drop
 // (LABORDROPS.md) is meant to make up the rest of Prospecting's value in
 // items rather than ⬢, which none of the other three lean on this hard.
+//
+// Basic and Skilled both raised ~30% on 2026-09-12, rounded up: basic 0-2 ->
+// 0-3 (2*1.3=2.6), skilled 1-4 -> 2-6 (1*1.3=1.3, 4*1.3=5.2).
 const PRODUCTION_RATES = {
   labor: {
-    basic: { min: 0, max: 2 },
-    skilled: { min: 1, max: 4 },
+    basic: { min: 0, max: 3 },
+    skilled: { min: 2, max: 6 },
     hunting: { min: 0, max: 15 },
     farming: { min: 15, max: 21 },
     fishing: { min: 7, max: 13 },

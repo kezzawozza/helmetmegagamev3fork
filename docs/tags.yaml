@@ -15532,7 +15532,7 @@ tags:
     # which is the whole reason the Factory exists — 8 cubes is a day's work
     # and pays about four times a good farming day.
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 6
 
   # UNTRADEABLE on purpose, which is the only thing that actually pins it down:
   # `removable: false` blocks the Destroy menu and nothing else, so while this
