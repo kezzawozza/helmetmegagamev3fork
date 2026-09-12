@@ -7,12 +7,13 @@ import FormError from "@/app/components/FormError";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import EffectComposer from "./EffectComposer";
+import RoomEffectComposer from "./RoomEffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import { deleteStagedEffect, deleteStagedMessage, resendStagedMessage } from "./actions";
 import { applyDeskPatch } from "./deskStore";
 import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
-import { chunkCount, effectSummary, effectSegments, effectState, deliveryNotes, messageState, tagLookup, truncate } from "./stagedFormat";
+import { chunkCount, effectSummary, effectSegments, effectState, effectTargetLabel, deliveryNotes, messageState, tagLookup, truncate } from "./stagedFormat";
 import EffectSegments from "./EffectSegments";
 
 // The staged-row lists the desk and the tray share: every row shows what it
@@ -28,6 +29,7 @@ export function StagedEffectRow({
   roster,
   presenceZones,
   stagingLocations,
+  stagingRooms,
   onInspect,
   showBatch,
   batchCount,
@@ -46,6 +48,9 @@ export function StagedEffectRow({
   // editable in place: it's 1:1 by nature, not a fit for EffectComposer's
   // multi-target/multi-field form, so Delete and re-stage stands in for Edit.
   const isTransfer = Boolean(effect.transfer);
+  // A room's stash is the other null-target row, and unlike a transfer it IS
+  // editable: it is not 1:1 by nature, and RoomEffectComposer is built for it.
+  const isRoom = Boolean(effect.room);
 
   async function onDelete() {
     setDeleteError(null);
@@ -54,7 +59,7 @@ export function StagedEffectRow({
       title: batch ? "Delete this mass apply?" : "Delete this staged effect?",
       message: batch
         ? `Drops the effect for all ${batchCount ?? "its"} targets — ${effectSummary(effect, tagsById)}.`
-        : `${effect.targetName ?? "Transfer"} — ${effectSummary(effect, tagsById)}. It won't apply at the push.`,
+        : `${effect.targetName ?? effectTargetLabel(effect)} — ${effectSummary(effect, tagsById)}. It won't apply at the push.`,
       confirmLabel: "Delete",
       cancelLabel: "Keep it",
     });
@@ -89,7 +94,7 @@ export function StagedEffectRow({
               {effect.targetName}
             </button>
           ) : (
-            <span className="desk-name">Transfer</span>
+            <span className="desk-name">{effectTargetLabel(effect)}</span>
           )}{" "}
           <span className="mono">
             <EffectSegments segments={effectSegments(effect, tagsById)} />
@@ -121,7 +126,19 @@ export function StagedEffectRow({
           </>
         )}
       </div>
-      {editing && !isTransfer && (
+      {editing && isRoom && (
+        <RoomEffectComposer
+          existing={effect}
+          tagCatalog={tagCatalog}
+          stagingRooms={stagingRooms}
+          onDone={(patch) => {
+            setEditing(false);
+            applyDeskPatch(patch);
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      )}
+      {editing && !isTransfer && !isRoom && (
         <EffectComposer
           existing={effect}
           roster={roster}
@@ -296,7 +313,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
   );
 }
 
-export default function StagedItems({ effects, messages, tagCatalog, roster, presenceZones, stagingLocations, onInspect, empty, gmProfiles }) {
+export default function StagedItems({ effects, messages, tagCatalog, roster, presenceZones, stagingLocations, stagingRooms, onInspect, empty, gmProfiles }) {
   const tagsById = useMemo(() => tagLookup(tagCatalog), [tagCatalog]);
 
   if (!effects.length && !messages.length) {
@@ -314,6 +331,7 @@ export default function StagedItems({ effects, messages, tagCatalog, roster, pre
           roster={roster}
           presenceZones={presenceZones}
           stagingLocations={stagingLocations}
+          stagingRooms={stagingRooms}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
         />

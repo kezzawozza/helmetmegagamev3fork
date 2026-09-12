@@ -6,6 +6,7 @@ import DevCharacterButton from "@/app/components/DevCharacterButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import EffectComposer from "./EffectComposer";
+import RoomEffectComposer from "./RoomEffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
@@ -40,6 +41,7 @@ export default function CavingDesk({
   roster,
   presenceZones,
   stagingLocations,
+  stagingRooms,
   onInspect,
   onClose,
   registerEscape,
@@ -213,6 +215,7 @@ export default function CavingDesk({
           {!readOnly && (
             <StagingStrip
               onEffect={() => setComposer("effect")}
+            onRoom={() => setComposer("room")}
               onMessage={() => {
                 setMessagePrefill(null);
                 setComposer("message");
@@ -229,12 +232,25 @@ export default function CavingDesk({
           roster={roster}
           presenceZones={presenceZones}
           stagingLocations={stagingLocations}
+          stagingRooms={stagingRooms}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
           empty="Nothing staged yet."
         />
       </div>
 
+      {composer === "room" && (
+        <RoomEffectComposer
+          cavingRollId={roll.id}
+          tagCatalog={tagCatalog}
+          stagingRooms={stagingRooms}
+          onDone={(patch) => {
+            setComposer(null);
+            applyDeskPatch(patch);
+          }}
+          onCancel={() => setComposer(null)}
+        />
+      )}
       {composer === "effect" && (
         <EffectComposer
           cavingRollId={roll.id}

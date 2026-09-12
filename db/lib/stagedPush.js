@@ -12,6 +12,8 @@ const { Prisma } = require("@prisma/client");
 const { addResources, applyMoveEffects, describeMoveEffects } = require("./moveEffects");
 const { formatRangeExpression } = require("./resourceDelta");
 const { TagOpError, validateTagOps, applyTagOpsInTx } = require("./tagOps");
+const { validateRoomTagOps, applyRoomTagOpsInTx } = require("./roomTagOps");
+const { addRoomResources } = require("./roomStash");
 const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfer");
 const { ensureDeliveries } = require("./stagedDelivery");
 
@@ -174,6 +176,47 @@ async function applyOneStagedEffect(prisma, row, turn) {
         fromZoneId: before?.zoneId ?? null,
         toZoneId: location.zoneId,
       };
+    }
+
+    // A room's stash — tags left on a floor and the room's own ⬢
+    // (docs/systemdocs/CARRY.md). A row carrying `room` has no target
+    // character at all, and carries none of the character keys above, so it
+    // falls straight through everything before this point. The name was
+    // snapshotted at staging time, same as a transfer's parties, but the room
+    // itself is re-read: a zone sync may have pruned it since.
+    const room = row.payload?.room ?? null;
+    if (room) {
+      const live = await tx.room.findUnique({
+        where: { id: room.id ?? "" },
+        select: { id: true, destroysContents: true },
+      });
+      if (!live) throw new StagedZoneError("That room no longer exists.");
+
+      // ⬢ before tags, so the order inside a row is fixed and obvious.
+      // addRoomResources clamps a burn at 0 and returns what actually moved,
+      // and swallows a mint into a destroysContents room on its own.
+      const roomResources = Number.isInteger(row.payload?.roomResources) ? row.payload.roomResources : 0;
+      if (roomResources) {
+        snapshot.roomResources = await addRoomResources(tx, live.id, roomResources);
+      }
+
+      const roomOps = Array.isArray(row.payload?.roomTagOps) ? row.payload.roomTagOps : [];
+      if (roomOps.length) {
+        const roomTags = await tx.tag.findMany({ where: { id: { in: roomOps.map((o) => o.tagId) } } });
+        const roomTagsById = new Map(roomTags.map((t) => [t.id, t]));
+        // Before any write, so a TagOpError rolls the row back whole.
+        validateRoomTagOps(roomOps, roomTagsById);
+        // The NEXT turn, for the same reason the character branch above says:
+        // these land as that turn opens, so a 1-turn tag stashed here survives
+        // this rollover's own sweep.
+        snapshot.roomTags = await applyRoomTagOpsInTx(tx, {
+          roomId: live.id,
+          ops: roomOps,
+          tagsById: roomTagsById,
+          openTurn: { ...turn, number: turn.number + 1 },
+        });
+      }
+      snapshot.room = room;
     }
 
     await tx.stagedEffect.update({ where: { id: row.id }, data: { appliedEffect: snapshot } });

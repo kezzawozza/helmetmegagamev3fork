@@ -27,6 +27,7 @@ export default function MoveHistoryDesk({
   roster,
   presenceZones,
   stagingLocations,
+  stagingRooms,
   currentTurnNumber,
   onInspect,
   onClose,
@@ -143,6 +144,7 @@ export default function MoveHistoryDesk({
           roster={roster}
           presenceZones={presenceZones}
           stagingLocations={stagingLocations}
+          stagingRooms={stagingRooms}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
           empty="Nothing was staged on this Move."

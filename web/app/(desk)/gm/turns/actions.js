@@ -8,7 +8,9 @@ import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { consumeInspiredIfUsed } from "@lifeweb/db/lib/tagWrites";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
+import { validateRoomTagOps } from "@lifeweb/db/lib/roomTagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
+import { getVisibleZones } from "@/lib/gmZoneView";
 // By path, not off the barrel — the db/lib/dm.js convention this module follows.
 import {
   backfillLegacyDeliveries,
@@ -381,6 +383,19 @@ async function normalizeStagedLocation(raw) {
   return locationId;
 }
 
+// The room composer stages presence ops too, but through roomTagOps.js'
+// validator rather than tagOps.js'. The difference that matters: a room takes
+// any quantity of a non-stackable tag, because the pin is a rule about what
+// one CHARACTER can hold (docs/systemdocs/TAGS.md §5a). Running these through
+// normalizeStagedOps would refuse a second Longbow on a floor.
+function normalizeStagedRoomOps(tagOps) {
+  const ops = Array.isArray(tagOps) ? tagOps : [];
+  return ops.map((op) => {
+    const quantity = op?.quantity == null ? null : Number.parseInt(op.quantity, 10);
+    return { tagId: op?.tagId, op: op?.op, ...(quantity != null ? { quantity } : {}) };
+  });
+}
+
 async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollId, resources, tagPoints, tagOps, locationId }) {
   const session = await requireGm();
   const targets = [...new Set((targetCharacterIds ?? []).filter(Boolean))];
@@ -506,6 +521,147 @@ async function createStagedTransferImpl({
   });
 
   return { id: created.id, patch: await deskPatchFor({ stagedEffectIds: [created.id] }) };
+}
+
+// Resolves the room and re-checks every gate the picker already applied — a
+// server action is a public endpoint, and the <select> is a hint, not a lock.
+// Shared by create and update so the two can't drift.
+async function requireStagedRoom(roomId, session, { writingIn = false } = {}) {
+  const room = await resolveParty(prisma, `room:${roomId?.toString().trim() ?? ""}`);
+  if (!room) throw new UserError("That room no longer exists.");
+
+  // A GM only stages into zones they've chosen to see. Null means every zone
+  // (web/lib/gmZoneView.js) — a GM who never touched the control is not
+  // locked out of anything.
+  const visible = await getVisibleZones();
+  if (visible && !visible.some((z) => z.id === room.zoneId)) {
+    throw new UserError("That room is outside the zones you're watching.");
+  }
+
+  // The Godard Factory's Spillway. moveParty and addRoomResources both
+  // silently swallow anything put into it, which is right for a player tipping
+  // something into the trough on purpose and wrong for a GM staging an
+  // adjudication — they'd watch the row apply and change nothing. Removes and
+  // burns stay legal, the same asymmetry db/lib/resourceTransfer.js encodes.
+  if (writingIn && room.destroysContents) {
+    throw new UserError(`${room.name} destroys whatever is put into it — you can only take things out.`);
+  }
+  return room;
+}
+
+// A staged change to a room's stash: tags on the floor and the room's own ⬢
+// (docs/systemdocs/CARRY.md). Separate from createStagedEffectsImpl because
+// that function is targets-shaped throughout — multi-target, batchId, the
+// character existence check — and a room row is one room, like a transfer.
+// It carries NO character keys and leaves targetCharacterId null, so it falls
+// straight through every branch of the push before its own.
+async function createStagedRoomEffectImpl({ roomId, moveId, cavingRollId, roomResources, tagOps }) {
+  const session = await requireGm();
+
+  const delta = normalizeStagedResources(roomResources);
+  const ops = normalizeStagedRoomOps(tagOps);
+  if (!delta && !ops.length) throw new UserError("Stage a tag change or some ⬢.");
+
+  const room = await requireStagedRoom(roomId, session, {
+    writingIn: delta > 0 || ops.some((o) => o.op === "add"),
+  });
+
+  // Validated now with the same engine the push runs, so they can't disagree.
+  if (ops.length) {
+    const tags = await prisma.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
+    try {
+      validateRoomTagOps(ops, new Map(tags.map((t) => [t.id, t])));
+    } catch (err) {
+      if (err instanceof TagOpError) throw new UserError(err.message);
+      throw err;
+    }
+  }
+
+  const openTurn = await requireOpenTurn();
+  // Names snapshotted at staging time, the transfer precedent: the desk reads
+  // the label straight off the payload, so a room deleted before the push
+  // still says what the GM staged.
+  const payload = {
+    room: { id: room.id, name: room.name, locationName: room.locationName },
+    ...(ops.length ? { roomTagOps: ops } : {}),
+    ...(delta ? { roomResources: delta } : {}),
+  };
+
+  const created = await prisma.stagedEffect.create({
+    data: {
+      turnId: openTurn.id,
+      moveId: moveId || null,
+      cavingRollId: cavingRollId || null,
+      targetCharacterId: null,
+      createdByDiscordUserId: session.discordUserId,
+      payload,
+    },
+    select: { id: true },
+  });
+  await retargetIfTurnClosed(prisma.stagedEffect, [created.id], openTurn.id);
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "staged_effects_created",
+      details: { targets: 1, moveId: moveId || null, payload },
+    },
+  });
+
+  return { id: created.id, patch: await deskPatchFor({ stagedEffectIds: [created.id] }) };
+}
+
+// Editing a room row rewrites what it does, never which room it does it to —
+// the target is fixed once staged, exactly as a character row's is.
+async function updateStagedRoomEffectImpl({ stagedEffectId, roomResources, tagOps }) {
+  const session = await requireGm();
+  const existing = await prisma.stagedEffect.findUnique({ where: { id: stagedEffectId ?? "" } });
+  if (!existing) throw new UserError("That staged effect is gone.");
+  if (existing.appliedAt) throw new UserError("That effect already applied — it can't be edited.");
+  const room = existing.payload?.room ?? null;
+  if (!room) throw new UserError("That isn't a room effect.");
+
+  const delta = normalizeStagedResources(roomResources);
+  const ops = normalizeStagedRoomOps(tagOps);
+  if (!delta && !ops.length) throw new UserError("Stage a tag change or some ⬢.");
+
+  // Re-resolved rather than trusted from the payload: the zone seat and the
+  // Spillway flag are both live state, and the row may have sat here a while.
+  await requireStagedRoom(room.id, session, {
+    writingIn: delta > 0 || ops.some((o) => o.op === "add"),
+  });
+
+  if (ops.length) {
+    const tags = await prisma.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
+    try {
+      validateRoomTagOps(ops, new Map(tags.map((t) => [t.id, t])));
+    } catch (err) {
+      if (err instanceof TagOpError) throw new UserError(err.message);
+      throw err;
+    }
+  }
+
+  const claimed = await prisma.stagedEffect.updateMany({
+    where: { id: existing.id, appliedAt: null },
+    data: {
+      payload: {
+        room,
+        ...(ops.length ? { roomTagOps: ops } : {}),
+        ...(delta ? { roomResources: delta } : {}),
+      },
+    },
+  });
+  if (!claimed.count) throw new UserError("That effect just applied — it can't be edited.");
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "staged_effect_updated",
+      details: { stagedEffectId: existing.id },
+    },
+  });
+
+  return { patch: await deskPatchFor({ stagedEffectIds: [existing.id] }) };
 }
 
 async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps, locationId }) {
@@ -1220,6 +1376,29 @@ async function getHeldTagsImpl({ characterId }) {
   return { tags: rows.map((r) => ({ tagId: r.tagId, name: r.tag.name, quantity: r.quantity, stackable: r.tag.stackable })) };
 }
 
+// The same panel for a room: what is lying on the floor right now, so a GM
+// staging a Remove is choosing from what is actually there. A room has no
+// sheet, so this stands in for getHeldTags.
+async function getRoomStashImpl({ roomId }) {
+  await requireGm();
+  const room = await prisma.room.findUnique({
+    where: { id: roomId ?? "" },
+    select: {
+      resources: true,
+      tags: {
+        where: { quantity: { gt: 0 } },
+        select: { tagId: true, quantity: true, tag: { select: { name: true, stackable: true } } },
+        orderBy: { tag: { name: "asc" } },
+      },
+    },
+  });
+  if (!room) throw new UserError("That room no longer exists.");
+  return {
+    resources: room.resources,
+    tags: room.tags.map((r) => ({ tagId: r.tagId, name: r.tag.name, quantity: r.quantity, stackable: r.tag.stackable })),
+  };
+}
+
 export async function createStagedMessage(input) {
   return guarded(() => createStagedMessageImpl(input));
 }
@@ -1237,6 +1416,12 @@ export async function createStagedEffects(input) {
 }
 export async function createStagedTransfer(input) {
   return guarded(() => createStagedTransferImpl(input));
+}
+export async function createStagedRoomEffect(input) {
+  return guarded(() => createStagedRoomEffectImpl(input));
+}
+export async function updateStagedRoomEffect(input) {
+  return guarded(() => updateStagedRoomEffectImpl(input));
 }
 export async function updateStagedEffect(input) {
   return guarded(() => updateStagedEffectImpl(input));
@@ -1472,6 +1657,9 @@ export async function getArchiveSlice(input) {
 }
 export async function getHeldTags(input) {
   return guarded(() => getHeldTagsImpl(input));
+}
+export async function getRoomStash(input) {
+  return guarded(() => getRoomStashImpl(input));
 }
 export async function getMoveHistory(input) {
   return guarded(() => getMoveHistoryImpl(input));

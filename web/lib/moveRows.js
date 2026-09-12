@@ -240,6 +240,13 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
     // { from: {kind,id,name}, to: {kind,id,name}, amount } — mutually
     // exclusive with `resources`, see StagedEffect.payload in schema.prisma.
     transfer: e.payload?.transfer ?? null,
+    // { id, name, locationName } — a room's stash, mutually exclusive with
+    // every character key above. Read straight off the payload rather than
+    // through a name map like locationName below: the snapshot is what the GM
+    // staged, and it survives the room being pruned before the push.
+    room: e.payload?.room ?? null,
+    roomTagOps: e.payload?.roomTagOps ?? [],
+    roomResources: e.payload?.roomResources ?? 0,
     locationId: e.payload?.locationId ?? null,
     locationName: e.payload?.locationId
       ? (locationNameById.get(e.payload.locationId) ?? "(deleted location)")

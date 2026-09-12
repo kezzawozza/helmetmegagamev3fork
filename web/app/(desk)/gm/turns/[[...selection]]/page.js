@@ -136,6 +136,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     gmProfiles,
     resolvedTurns,
     ctx,
+    rooms,
   ] = await Promise.all([
     openTurn
       ? prisma.action.findMany({
@@ -251,9 +252,41 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     // every row is stamped with is NOT in here — it is read below, after this
     // whole batch has resolved.
     deskRowContext({ openTurn }),
+    // The staged room composer's picker. Deliberately NOT filtered to rooms
+    // with a provisioned thread the way /gm/dev's ambient-line picker is: that
+    // one posts a message and needs somewhere to post it, while a stash exists
+    // whether Discord knows about the room or not.
+    prisma.room.findMany({
+      orderBy: [{ location: { zone: { sortOrder: "asc" } } }, { location: { sortOrder: "asc" } }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        destroysContents: true,
+        location: { select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } } },
+      },
+    }),
   ]);
 
   const { usernameById, catatonicIds, locationRows, locationNameById, now } = ctx;
+  // The staged room composer's options, narrowed to the zones this GM watches.
+  // Null means every zone (web/lib/gmZoneView.js), so a GM who never touched
+  // the control sees the whole map. The <select> is only a hint — the action
+  // re-checks the same seat before it writes.
+  //
+  // Read here rather than in deskRowContext: a staged room row carries its own
+  // name snapshot, so nothing on the patch path needs this list, and
+  // deskPatchFor runs on every mutation and every live-desk frame.
+  const stagingRooms = (visibleZones ? rooms.filter((r) => visibleZones.some((z) => z.id === r.location.zoneId)) : rooms).map(
+    (r) => ({
+      id: r.id,
+      name: r.name,
+      destroysContents: r.destroysContents,
+      locationId: r.location.id,
+      locationName: r.location.name,
+      zoneId: r.location.zoneId,
+      zoneName: r.location.zone?.name ?? null,
+    }),
+  );
   const gmProfilesById = Object.fromEntries(gmProfiles.map((p) => [p.discordUserId, { username: p.username, avatarUrl: p.avatarUrl }]));
 
   const tagsById = tagsByIdFor(actions);
@@ -429,6 +462,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       })),
         presenceZones: presenceZones,
         stagingLocations: locationRows,
+        stagingRooms: stagingRooms,
         moves: moves,
         cavingRolls: cavingRows,
         otherRows: otherRows,

@@ -21,8 +21,9 @@ day of work survives a refresh):
 |---|---|---|
 | **Private messages** | `StagedMessage` (kind `PRIVATE`) + `StagedMessageRecipient` | One DM per recipient character's player, `»`-prefixed, logged to `DirectMessage` like every DM. |
 | **Public declarations** | `StagedMessage` (kind `PUBLIC`, required `zoneId`) | Posted to **the row's own zone `#summary`** — except underground, where there is no `#summary` at all: a `CAVE_LEVEL` zone (Caves, Depths) fans the declaration out to **every Location channel in the level**, one `Delivery` row per channel (`db/lib/publicPostTargets.js`). Full size and verbatim in both places; a declaration is a GM speaking, not scenery, so it wears no `-#`. If there is nowhere at all to post — an unprovisioned `#summary`, or a cave whose Locations have no channels yet — the post is skipped and recorded on `deliveryFailures`, never lost. A post survives the wipe that runs later in the same push: the wipe only deletes what predates the push (`CHANNELS.md` §8). The cave copies then live under the Location cadence, which is **every** turn rather than Dawn-only, so they get one turn where a `#summary` copy gets up to two. |
-| **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, zoneId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). EffectComposer's `+ Add` row carries a quantity stepper, so a GM can stage several at once; asking for more than one of a non-stackable tag stages `force: true` right alongside it (`TAGS.md` §5a). |
+| **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, locationId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). EffectComposer's `+ Add` row carries a quantity stepper for a **stackable** tag, so a GM can stage several at once; a non-stackable tag is a holds-it-or-doesn't flag and gets no stepper, because nobody may hold two of one (`TAGS.md` §5a). |
 | **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A character-to-character ⬢ move, not a mint/burn from nowhere, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive a player's Transfer and every GM transfer surface use). Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
+| **Room adjustments** | `StagedEffect` — `payload` `{ room: {id, name, locationName}, roomTagOps?, roomResources? }`, `targetCharacterId` **null** and mutually exclusive with every character key above | What is lying on a room's floor, and the room's own ⬢ (`CARRY.md`). The ⬢ is a **mint/burn** clamped at 0 (`db/lib/roomStash.js#addRoomResources`), not a transfer — there is no other end to balance against, so the snapshot records what actually moved. Tags go through `db/lib/roomTagOps.js`, **not** `tagOps.js`: a floor has no equip slots, no hands, and no treated-wound aftermath (`Tag.removesInto` chains are skipped on purpose — a scar is a fact about a body), and above all **no non-stackable pin** — two players can each leave their Longbow here, so a room takes any quantity of anything. Adds still carry `expiresTurn`, because the nightly sweep deletes `RoomTag` rows on the same clock it uses for characters. A `remove` the stack can't cover **fails the row** rather than taking what is there. Never batched: one room per row, like a transfer. Staged from "+ Room" on the tray and on a Move or Caving row (`RoomEffectComposer.js`). |
 
 ### 1a. One row per send: the `Delivery` table
 
@@ -687,9 +688,12 @@ Every call site (`MoveDesk`, `CavingDesk`, `StagedItems`, `StagingTray`, the
 four composers, `QueueRail`'s avatar and hold rows) wraps its call and puts
 the message in its own `FormError` via `mutationErrorMessage`.
 
-**One "+ Effect / + Message / + Public" strip** (`StagingStrip.js`), used by
-the Move desk, the Caving desk and the tray — the tray is the only one with a
-`+ Transfer`. And **one Preview push**, on the tray beside the rows it
+**One "+ Effect / + Transfer / + Room / + Message / + Public" strip**
+(`StagingStrip.js`), used by the Move desk, the Caving desk and the tray — the
+tray is the only one with a `+ Transfer`, since it is the only surface with
+two parties to move ⬢ between. The tray kept a hand-rolled copy of this row
+for a while, which is exactly the drift the shared component exists to stop:
+`+ Room` was added once, here, and all three surfaces got it. And **one Preview push**, on the tray beside the rows it
 previews; the desk header used to carry a second.
 
 The **Result box on both desks is a draft, not component state**
@@ -819,6 +823,10 @@ adjudicable the moment the Ram is a ruin.
 | `.../MoveDesk.js` / `CavingDesk.js` | The desks |
 | `.../MoveHistoryDesk.js` | The read-only desk for a Move on a pushed turn |
 | `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |
+| `.../RoomEffectComposer.js` | The staging composer for a room's stash — its own dialog rather than a mode inside `EffectComposer.js`, which is character-shaped throughout (roster search, held tags, tag points, Relocate) |
+| `.../StagingStrip.js` | The one `+ Effect / + Transfer / + Room / + Message / + Public` button row, shared by the tray and both desks |
+| `db/lib/roomTagOps.js` | Tag adds and removes against a room's stash — the floor's answer to `tagOps.js`, minus everything that is about a body |
+| `db/lib/roomStash.js` | The room stash helpers, including `addRoomResources` — a clamped mint/burn, as opposed to `resourceTransfer.js#moveParty`'s conserving leg |
 | `.../StagedItems.js` / `StagingTray.js` / `PushPreview.js` | Staged-row lists, the tray, the per-recipient preview |
 | `web/app/components/InspectorColumn.js` | Sheet / Tags / Moves / Archive / DMs + pins — **shared with `/gm/players`**, which puts its Canon section above the Moves tab through `tabPreludes` (PLAYER-DESK.md §6) |
 | `web/app/components/ArchiveContextModal.js` | The "in context" slice behind an Archive row, moved alongside it |

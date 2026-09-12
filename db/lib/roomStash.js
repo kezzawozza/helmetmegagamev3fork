@@ -23,6 +23,45 @@ async function pickRandomPublicRoom(db, locationId) {
   return rooms[Math.floor(Math.random() * rooms.length)];
 }
 
+// Mints or burns a room's own ⬢, clamped at 0 — the stash's answer to
+// moveEffects.js#addResources, and a direct copy of its shape for the same
+// reasons: one atomic statement rather than read-then-write (a GM's staged
+// burn can race a player's Transfer into the same room), GREATEST for a clamp
+// Prisma's `increment` can't express, and FOR UPDATE so nothing lands between
+// the `before` this reports and the `after` it wrote. The caller records what
+// MOVED, not what was asked for.
+//
+// This is deliberately NOT resourceTransfer.js#moveParty. That one is the
+// conservation primitive — a leg of a transfer between two parties — and it
+// throws when a burn overdraws, because a transfer that took less than it gave
+// would mint ⬢ out of nothing. A GM adjustment has no other end to balance
+// against, so the clamp is the right answer and the returned delta is the
+// whole story.
+//
+// A room that eats what is put into it (Room.destroysContents — the Godard
+// Factory's Spillway) takes no credit, the same asymmetry moveParty encodes:
+// ⬢ going in goes nowhere, ⬢ coming out is still allowed.
+async function addRoomResources(tx, roomId, amount) {
+  if (!amount) return 0;
+  if (amount > 0) {
+    const room = await tx.room.findUnique({ where: { id: roomId }, select: { destroysContents: true } });
+    if (room?.destroysContents) return 0;
+  }
+  const rows = await tx.$queryRaw`
+    WITH prev AS (
+      SELECT "resources" AS before FROM "Room" WHERE "id" = ${roomId} FOR UPDATE
+    )
+    UPDATE "Room" r
+    SET "resources" = GREATEST(0, prev.before + ${amount})
+    FROM prev
+    WHERE r."id" = ${roomId}
+    RETURNING prev.before AS before, r."resources" AS after
+  `;
+  const before = rows[0]?.before ?? 0;
+  const after = rows[0]?.after ?? before;
+  return after - before;
+}
+
 // "Graga Sac ×3" / "Lantern".
 function formatStack(name, quantity) {
   return (quantity ?? 1) > 1 ? `${name} ×${quantity}` : name;
@@ -51,4 +90,4 @@ function formatStashLine(room) {
   return `-# ${room.resources ?? 0} ⬢ | **Tags**: ${names || "none"}`;
 }
 
-module.exports = { pickRandomPublicRoom, formatStack, joinList, formatManifest, formatStashLine };
+module.exports = { pickRandomPublicRoom, addRoomResources, formatStack, joinList, formatManifest, formatStashLine };

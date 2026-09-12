@@ -169,6 +169,7 @@ export default function Workspace({
   roster,
   presenceZones,
   stagingLocations,
+  stagingRooms,
   factions,
   moves: moveRows,
   cavingRolls: cavingRollRows,
@@ -725,6 +726,7 @@ export default function Workspace({
               roster={roster}
               presenceZones={presenceZones}
               stagingLocations={stagingLocations}
+              stagingRooms={stagingRooms}
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
               onClose={deselect}
@@ -743,6 +745,7 @@ export default function Workspace({
               roster={roster}
               presenceZones={presenceZones}
               stagingLocations={stagingLocations}
+              stagingRooms={stagingRooms}
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
               onClose={deselect}
@@ -766,6 +769,7 @@ export default function Workspace({
               roster={roster}
               presenceZones={presenceZones}
               stagingLocations={stagingLocations}
+              stagingRooms={stagingRooms}
               currentTurnNumber={openTurn?.number ?? null}
               onInspect={inspect}
               onClose={deselect}
@@ -814,6 +818,7 @@ export default function Workspace({
         roster={roster}
         presenceZones={presenceZones}
         stagingLocations={stagingLocations}
+        stagingRooms={stagingRooms}
         factions={factions}
         tagCatalog={tagCatalog}
         onInspect={inspect}

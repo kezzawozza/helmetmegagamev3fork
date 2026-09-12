@@ -30,6 +30,15 @@ function partyLabel(party) {
 // still in the catalog) so a renderer can show a real hoverable TagChip
 // instead of a name with nothing behind it. `tagsById` is a Map(id -> full
 // tag row), from tagLookup() above.
+// What a staged row is aimed at, when it isn't a character. Both the desk and
+// the preview draw this, so the wording lives in one place.
+export function effectTargetLabel(effect) {
+  if (effect.room) {
+    return effect.room.locationName ? `${effect.room.locationName} — ${effect.room.name}` : effect.room.name;
+  }
+  return "Transfer";
+}
+
 export function effectSegments(effect, tagsById) {
   const segs = [];
   if (effect.transfer) {
@@ -41,6 +50,18 @@ export function effectSegments(effect, tagsById) {
     segs.push({ k: "text", v: `${effect.tagPoints > 0 ? "+" : "−"}${Math.abs(effect.tagPoints)} tp` });
   }
   for (const op of effect.tagOps ?? []) {
+    const tag = tagsById.get(op.tagId) ?? null;
+    const qty = op.quantity != null && op.quantity > 1 ? op.quantity : null;
+    segs.push({ k: "tagchip", op: op.op, tag, name: tag?.name ?? "a tag", quantity: qty });
+  }
+  // A room row's ⬢ and tags. Separate keys from the character ones above, so
+  // the two can never render as one muddled line, and the ⬢ says where it
+  // landed — "+5 ⬢" on a row labelled with a room would otherwise read as a
+  // payout to somebody.
+  if (effect.roomResources) {
+    segs.push({ k: "text", v: `${effect.roomResources > 0 ? "+" : ""}${effect.roomResources} ⬢ in the stash` });
+  }
+  for (const op of effect.roomTagOps ?? []) {
     const tag = tagsById.get(op.tagId) ?? null;
     const qty = op.quantity != null && op.quantity > 1 ? op.quantity : null;
     segs.push({ k: "tagchip", op: op.op, tag, name: tag?.name ?? "a tag", quantity: qty });

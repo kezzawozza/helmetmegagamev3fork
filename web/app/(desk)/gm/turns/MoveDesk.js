@@ -13,6 +13,7 @@ import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import useMoveLock from "./useMoveLock";
 import EffectComposer from "./EffectComposer";
+import RoomEffectComposer from "./RoomEffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
@@ -67,6 +68,7 @@ export default function MoveDesk({
   roster,
   presenceZones,
   stagingLocations,
+  stagingRooms,
   currentTurnNumber,
   onInspect,
   onClose,
@@ -348,6 +350,7 @@ export default function MoveDesk({
           <h3 className="field-label">Staged on this Move</h3>
           <StagingStrip
             onEffect={() => setComposer("effect")}
+            onRoom={() => setComposer("room")}
             onMessage={() => {
               setMessagePrefill(null);
               setComposer("message");
@@ -363,12 +366,25 @@ export default function MoveDesk({
           roster={roster}
           presenceZones={presenceZones}
           stagingLocations={stagingLocations}
+          stagingRooms={stagingRooms}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
           empty="Nothing staged yet."
         />
       </div>
 
+      {composer === "room" && (
+        <RoomEffectComposer
+          moveId={move.id}
+          tagCatalog={tagCatalog}
+          stagingRooms={stagingRooms}
+          onDone={(patch) => {
+            setComposer(null);
+            applyDeskPatch(patch);
+          }}
+          onCancel={() => setComposer(null)}
+        />
+      )}
       {composer === "effect" && (
         <EffectComposer
           moveId={move.id}

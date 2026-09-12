@@ -415,6 +415,12 @@ runs before the sweep and nulls the holding's `expiresTurn`, which is what
 stops the blind `deleteMany` deleting the body instead of rotting it — so the
 sweep never sees it and needs no exemption list.
 
+**A GM can write to a stash from the adjudication desk.** "+ Room" on
+`/gm/turns` stages tags onto a floor and mints or burns the room's own ⬢,
+applied at the turn-end push like any other staged effect — so seeding a cave
+or dropping what a Gambit left behind happens in the same queue as everything
+else, rather than by hand in the Dev Panel. `ADJUDICATION.md` §1 has the shape.
+
 One trap while you are in here: `RoomTag.tagId` cascades from `Tag`, but
 `CharacterTag.tagId` is **RESTRICT**. Deleting a catalog row somebody is
 carrying throws; clear the holdings first.

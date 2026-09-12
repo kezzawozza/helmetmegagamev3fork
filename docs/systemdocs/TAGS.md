@@ -1106,6 +1106,15 @@ overridable: an op could carry `force: true`, which was derived from whatever
 number happened to be in the stepper rather than from any deliberate choice.
 That flag is gone.
 
+**A ROOM is the one place this rule does not reach**, and it is not an
+exception to it — it is the same rule read correctly. The pin is about what one
+*character* may hold, so `addToRoomStack` applies none of it: two players can
+each leave their Longbow on the same floor and the `RoomTag` row must go to 2.
+The adjudication desk's room composer therefore shows a quantity stepper on
+every tag and validates through `db/lib/roomTagOps.js` rather than
+`validateTagOps` (`ADJUDICATION.md` §1). The pin is re-applied on the way back
+out, when somebody picks the thing up.
+
 Stacks made under the old rule may still be sitting in the database; they were
 deliberately left alone rather than flattened by a script. Two things to know
 about one. A stack on a tag with `expiresInto` is progressed as **one row** by

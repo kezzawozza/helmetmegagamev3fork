@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Modal from "@/app/components/Modal";
-import { chunkCount, effectSegments, tagLookup, truncate } from "./stagedFormat";
+import { chunkCount, effectSegments, effectTargetLabel, tagLookup, truncate } from "./stagedFormat";
 import EffectSegments from "./EffectSegments";
 
 // What the push will actually do, grouped by recipient character — every DM
@@ -27,12 +27,12 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
     }
     for (const e of stagedEffects) {
       if (e.applied) continue;
-      // A transfer with no character end (an old, pre-Silo-removal row
-      // between two factions) has nothing to group under — give each one its
-      // own bucket (keyed by its own row id) rather than piling every such
-      // row into one shared "no character" entry.
+      // A row with no character end — a room's stash, or an old,
+      // pre-Silo-removal transfer between two factions — has nothing to group
+      // under, so each gets its own bucket keyed by its own row id rather than
+      // piling every such row into one shared "no character" entry.
       const id = e.targetCharacterId ?? `party:${e.id}`;
-      const name = e.targetCharacterId ? e.targetName : "Transfer";
+      const name = e.targetCharacterId ? e.targetName : effectTargetLabel(e);
       entry(id, name).effects.push({ id: e.id, segments: effectSegments(e, tagsById) });
     }
     for (const msg of stagedMessages) {

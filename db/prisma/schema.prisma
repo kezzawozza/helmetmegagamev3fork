@@ -3873,12 +3873,13 @@ model StagedEffect {
   cavingRollId String?
   cavingRoll   CavingRoll? @relation(fields: [cavingRollId], references: [id], onDelete: SetNull)
 
-  // Nullable: a Room -> Room transfer has no character end. The filing rule
-  // is "the character end of this row, if any" — the recipient when both
-  // ends of a transfer are characters (they're the one who gets the DM),
-  // null when neither is. Every other staged effect (resources/tagPoints/
-  // tagOps/zone) always targets exactly one character, so this stays
-  // required in practice for every payload shape but `transfer`.
+  // Nullable: a Room -> Room transfer has no character end, and neither does
+  // a staged change to a room's own stash. The filing rule is "the character
+  // end of this row, if any" — the recipient when both ends of a transfer are
+  // characters (they're the one who gets the DM), null when neither is. Every
+  // other staged effect (resources/tagPoints/tagOps/location) always targets
+  // exactly one character, so this stays required in practice for every
+  // payload shape but `transfer` and `room`.
   targetCharacterId String?
   targetCharacter   Character? @relation(fields: [targetCharacterId], references: [id], onDelete: Cascade)
 
@@ -3891,12 +3892,20 @@ model StagedEffect {
 
   // { resources?: Int, tagOps?: [op] } — the op shape is the Dev Panel's
   // (see db/lib/tagOps.js): {tagId, op: add|remove|patch, quantity?, source?,
-  // expiry?, equipped?}. May also carry `zoneId?: String` — a staged
-  // relocation, applied as a raw zone write at the push with the Discord
-  // half handed to db/lib/zoneMove.js in the side-effect thunk. May instead
-  // carry `transfer?: { from: {kind,id,name}, to: {kind,id,name}, amount }`
-  // — mutually exclusive with `resources`; a row either mints/burns ⬢ from
+  // expiry?, equipped?}. May also carry `locationId?: String` — a staged
+  // relocation, applied as a raw write at the push with the Discord half
+  // handed to the side-effect thunk. May instead carry
+  // `transfer?: { from: {kind,id,name}, to: {kind,id,name}, amount }` —
+  // mutually exclusive with `resources`; a row either mints/burns ⬢ from
   // nowhere or moves it between two named parties, never both.
+  //
+  // A ROOM row is the third shape and stands entirely apart:
+  // `{ room: {id, name, locationName}, roomTagOps?: [{tagId, op, quantity?}],
+  // roomResources?: Int }`, with targetCharacterId null and NONE of the keys
+  // above. Its own keys are deliberately distinct so the push's field-by-field
+  // builder can never hand a null character id to a character branch. Tags go
+  // through db/lib/roomTagOps.js, not tagOps.js — see ADJUDICATION.md §1 for
+  // what that engine deliberately does not do.
   payload Json
 
   appliedAt     DateTime?

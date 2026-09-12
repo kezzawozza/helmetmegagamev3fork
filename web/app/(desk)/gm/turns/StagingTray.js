@@ -5,6 +5,8 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import FormError from "@/app/components/FormError";
 import { StagedEffectRow, StagedMessageRow } from "./StagedItems";
 import EffectComposer from "./EffectComposer";
+import RoomEffectComposer from "./RoomEffectComposer";
+import StagingStrip from "./StagingStrip";
 import TransferComposer from "./TransferComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
@@ -30,10 +32,21 @@ function matchesQuery(needle, ...haystacks) {
   return haystacks.some((h) => h && String(h).toLowerCase().includes(needle));
 }
 
-// An effect row matches on target, staging GM, or any of its staged tags.
+// An effect row matches on target, staging GM, or any of its staged tags. A
+// room row has no targetName — it matches on the room and its location, and on
+// the tags it puts on that floor.
 function effectMatches(effect, query, tagsById) {
-  const tagLabels = (effect.tagOps ?? []).map((t) => tagsById.get(t.tagId)?.name ?? "");
-  return matchesQuery(query, effect.targetName, effect.createdByUsername, ...tagLabels);
+  const tagLabels = [...(effect.tagOps ?? []), ...(effect.roomTagOps ?? [])].map(
+    (t) => tagsById.get(t.tagId)?.name ?? "",
+  );
+  return matchesQuery(
+    query,
+    effect.targetName,
+    effect.room?.name,
+    effect.room?.locationName,
+    effect.createdByUsername,
+    ...tagLabels,
+  );
 }
 
 // A message matches on any recipient, its content, the staging GM, or a
@@ -54,6 +67,7 @@ export default function StagingTray({
   roster,
   presenceZones,
   stagingLocations,
+  stagingRooms,
   factions,
   tagCatalog,
   onInspect,
@@ -221,18 +235,13 @@ export default function StagingTray({
       {open && (
         <div className="desk-tray-body">
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" className="btn-quiet" onClick={() => setComposer("effect")}>
-              + Effect
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => setComposer("transfer")}>
-              + Transfer
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => setComposer("message")}>
-              + Message
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => setComposer("public")}>
-              + Public
-            </button>
+            <StagingStrip
+              onEffect={() => setComposer("effect")}
+              onTransfer={() => setComposer("transfer")}
+              onRoom={() => setComposer("room")}
+              onMessage={() => setComposer("message")}
+              onPublic={() => setComposer("public")}
+            />
             <button type="button" className="btn-quiet" onClick={onOpenPreview}>
               Preview push
             </button>
@@ -284,6 +293,7 @@ export default function StagingTray({
                 roster={roster}
                 presenceZones={presenceZones}
                 stagingLocations={stagingLocations}
+                stagingRooms={stagingRooms}
                 onInspect={onInspect}
                 gmProfiles={gmProfiles}
                 showBatch
@@ -300,6 +310,7 @@ export default function StagingTray({
               roster={roster}
               presenceZones={presenceZones}
               stagingLocations={stagingLocations}
+              stagingRooms={stagingRooms}
               onInspect={onInspect}
               gmProfiles={gmProfiles}
             />
@@ -329,6 +340,17 @@ export default function StagingTray({
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
           stagingLocations={stagingLocations}
+          onDone={(patch) => {
+            setComposer(null);
+            applyDeskPatch(patch);
+          }}
+          onCancel={() => setComposer(null)}
+        />
+      )}
+      {composer === "room" && (
+        <RoomEffectComposer
+          tagCatalog={tagCatalog}
+          stagingRooms={stagingRooms}
           onDone={(patch) => {
             setComposer(null);
             applyDeskPatch(patch);
