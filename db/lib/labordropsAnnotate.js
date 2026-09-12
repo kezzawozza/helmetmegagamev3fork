@@ -299,31 +299,59 @@ function buildRollupComment(rows, frame) {
   return `# ⬢ EV/labor ${ev} · hit ${hitPct}%`;
 }
 
+// The exhaustive set of shapes mechanicalValue() above can produce, numbers
+// wildcarded. A bare mechanical comment written by some EARLIER run of this
+// tool still matches one of these even after the underlying tag's price has
+// since changed — which is exactly the case an exact match against TODAY's
+// mech value misses. Kept in lockstep with mechanicalValue() by hand, the
+// same way audit-labor-drops.js#priceEntry mirrors it (2026-09-12: a
+// knuckle-duster sellablePrice change from 21 to 30 turned a correct
+// `# sells 21 ⬢` into a duplicated `# sells 21 ⬢ — sells 30 ⬢` without this).
+const MECHANICAL_SHAPES = [
+  /^the coin itself, worth \d+ ⬢$/,
+  /^worth \d+ ⬢ opened \(sells \d+ ⬢ locked\)$/,
+  /^assumed \d+ ⬢ \(not actually sellable yet\)$/,
+  /^sells \d+ ⬢$/,
+  /^worth \d+ ⬢ consumed$/,
+  /^not sellable$/,
+];
+
+function looksMechanical(text) {
+  return MECHANICAL_SHAPES.some((re) => re.test(text));
+}
+
 // Splits an existing entry comment into { blurb }. Convention: the author's
 // "why" comes first, then " — ", then the mechanical fragment this tool
 // owns. Three cases:
 //  - has " — "          -> everything before it is the blurb.
 //  - no " — ", and the
-//    whole comment IS
-//    today's mech value  -> a bare mechanical comment (this tool's own
-//                           prior write, or a legacy line from before the
-//                           blurb convention existed) — no blurb, and
-//                           critically NOT re-wrapped as one, or every
-//                           refresh would duplicate it
-//                           ("sells 4 ⬢ — sells 4 ⬢").
+//    whole comment IS a
+//    bare mechanical
+//    comment              -> this tool's own prior write (or a legacy line
+//                           from before the blurb convention existed) — no
+//                           blurb, and critically NOT re-wrapped as one, or
+//                           every refresh would duplicate it
+//                           ("sells 4 ⬢ — sells 4 ⬢"). Matched by SHAPE
+//                           (`looksMechanical`), not by exact string against
+//                           today's value, so a comment written when the
+//                           price was 21 ⬢ is still recognized as bare after
+//                           the price moves to 30 ⬢ — an exact-match check
+//                           would instead fall through to case 3 and treat
+//                           the stale "sells 21 ⬢" as a hand-written blurb.
 //  - no " — ", anything
 //    else                 -> the FIRST time this entry got a comment at
 //                           all: the whole text is a hand-written blurb
 //                           with no mechanical suffix yet.
 // `mech` is the freshly computed mechanical value for THIS line right now
-// (null if the entry has none, e.g. a RESOURCES delta) — pass it so case 2
-// can be told apart from case 3.
+// (null if the entry has none, e.g. a RESOURCES delta) — checked first since
+// it's cheap and exact, ahead of the shape fallback.
 function splitBlurb(comment, mech = null) {
   if (!comment) return { blurb: null };
   const text = comment.replace(/^#\s*/, "").trim();
   const idx = text.indexOf(" — ");
   if (idx !== -1) return { blurb: text.slice(0, idx).trim() };
   if (mech !== null && text === mech) return { blurb: null };
+  if (looksMechanical(text)) return { blurb: null };
   return { blurb: text || null };
 }
 
