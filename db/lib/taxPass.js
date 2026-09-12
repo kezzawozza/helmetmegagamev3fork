@@ -72,7 +72,7 @@ async function runTaxPass(prisma, turn) {
           return { moved: 0, skipped: true };
         }
 
-        await applyTransfer(tx, { from, to, amount });
+        await applyTransfer(tx, { from, to, amount }, { reason: "TAX", actionType: "taxes_collected", turnId: turn.id, turnNumber: turn.number });
         await tx.pendingTax.update({ where: { id: row.id }, data: { appliedAmount: amount } });
         return { moved: amount, skipped: false };
       });

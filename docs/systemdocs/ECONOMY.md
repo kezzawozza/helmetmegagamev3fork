@@ -54,8 +54,10 @@ the burn or the room reads as drifting when it is not.
 
 ## 4. The hooks
 
-Everything that moves money goes through one of four places. Each takes an
-optional trailing context; absent, the entry is recorded as `UNATTRIBUTED`.
+Everything that moves money goes through one of the four places below, or —
+for the three decrements that cannot use them — through `recordSpentTagMoney`.
+Each takes an optional trailing context; absent, the entry is recorded as
+`UNATTRIBUTED`.
 
 | Hook | File | Covers |
 |---|---|---|
@@ -69,6 +71,15 @@ call sites, because there are about 135 of those and threading a context
 through every one would have been a diff nobody could review. They carry the
 context on the existing options bag instead (`options.econ`), so an ordinary
 call site is untouched.
+
+**Three call sites spend a stack without going through `dropCharacterTag`** —
+`riteEffects.js#spendFromHolder`, `thanatiActions.js#spendCharacterTag`, and
+`cavingPass.js`'s musk lure — each a guarded conditional decrement, each for a
+concurrency reason documented where it sits, because `dropCharacterTag` reads
+then writes and that is the wrong shape for money. They skip the hook with it,
+so they call **`recordSpentTagMoney`** right where they already call
+`clampEquippedQuantity`: the same "you bypassed the primitive, so run this too"
+bargain, one line further down. If you add a fourth such decrement, add both.
 
 `db/lib/pricedTags.js` keeps a small TTL'd map of which tags carry a price, so
 a tag write costs no extra query. An unpriced tag — a wound, a skill, a corpse
@@ -101,9 +112,15 @@ trade would make a quiet turn at the Depot look like a boom.
 
 **`UNATTRIBUTED` is a feature.** A write that reaches a hook with no context is
 recorded under that reason rather than dropped, so an un-hooked call site shows
-up on the panel as its own bar instead of quietly missing. **Never quiet a
-noisy entry by filtering its reason out on the read side** — that is exactly
-the pattern `dmKinds.js` was built to replace. Give the call site its reason.
+up on the panel as its own bar instead of quietly missing. `applyTransfer` used
+to override it with `TRANSFER`, which made every unnamed transfer look
+deliberate and kept the four biggest un-hooked sites off the very list that
+exists to find them. It does not any more, and no hook should acquire a
+friendlier default.
+
+**Never quiet a noisy entry by filtering its reason out on the read side** —
+that is exactly the pattern `dmKinds.js` was built to replace. Give the call
+site its reason.
 
 ## 6. History, and the plug
 
@@ -128,9 +145,15 @@ exactly that reason.
 `/gm/economy` is open to **every GM**, zone-scoped and redacted. Superadmins
 read it unredacted.
 
-- **Zone scoping** reuses the desks' own filter: `getVisibleZones()` (null
-  means every zone, never an empty list) and `inVisibleZones`.
-  `EconomyEntry.zoneName` is named to match what that filter already reads.
+- **Zone scoping** follows the desks' own rule — null means every zone, never
+  an empty list, so branch on null rather than on length.
+  Ledger rows are filtered on `EconomyEntry.zoneId`, stamped by the hooks from
+  whichever end of the movement is a real place — `db/lib/parties.js` already
+  selects `zoneId` onto every party, so it costs nothing. The id side rather
+  than the name side because `db/lib/gmZoneView.js#visibleZoneIds` already
+  folds a seat onto the cave levels it owns, which the name side has to redo by
+  hand. Character and room rows (the Accounts table) still use the name-based
+  `inVisibleZones`, because those are not ledger rows.
 - **Aggregates stay whole.** A GM who cannot see the Caves still sees the
   Caves' ⬢ in the total supply. The moment a total depends on who is looking,
   every number becomes a different number per reader and the books stop
@@ -168,8 +191,11 @@ and make the read path merge rather than choose.
   them. Two writable copies of one number is how this goes wrong.
 - **Don't write a ledger row outside the caller's transaction.** A row
   recording a write that rolled back is worse than no row.
-- **Don't let a ledger failure fail a money move.** Every write here is
-  wrapped, the same way `chargeWoundMood` is — a bookkeeping hiccup must never
-  cost a player their purchase. Reconciliation is what catches the miss.
+- **Don't let a ledger failure fail a money move.** A try/catch is NOT enough:
+  Postgres aborts the whole transaction on a failed statement and refuses every
+  statement after it, so catching the error in JavaScript does not un-abort
+  anything. The write is fenced between `SAVEPOINT` and `ROLLBACK TO SAVEPOINT`.
+  Keep it, and keep the test proving the savepoint is issued — the version of
+  the fake transaction that never threw could not tell the difference.
 - **Don't bring back a `Silo` model.** A faction treasury is a Room.
 - **Don't sum the Depot account and the Merchant's purse.**

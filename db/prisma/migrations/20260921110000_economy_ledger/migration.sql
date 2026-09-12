@@ -63,6 +63,16 @@ CREATE INDEX "EconomyEntry_zoneName_at_idx" ON "EconomyEntry"("zoneName", "at");
 
 CREATE INDEX "EconomyEntry_auditLogId_idx" ON "EconomyEntry"("auditLogId");
 
+-- The reader's own predicates. The set above indexes the columns the writer
+-- fills; these index the ones /gm/economy actually filters and sorts on —
+-- reconcile() on form, the ledger chips and Health's UNATTRIBUTED group on
+-- (gameId, reason), the zone-scoped ledger on (gameId, zoneId), and Health's
+-- plug list on amount within a source, which nothing touched at all.
+CREATE INDEX "EconomyEntry_gameId_form_idx" ON "EconomyEntry"("gameId", "form");
+CREATE INDEX "EconomyEntry_gameId_reason_at_idx" ON "EconomyEntry"("gameId", "reason", "at");
+CREATE INDEX "EconomyEntry_gameId_zoneId_idx" ON "EconomyEntry"("gameId", "zoneId");
+CREATE INDEX "EconomyEntry_gameId_source_amount_idx" ON "EconomyEntry"("gameId", "source", "amount");
+
 
 
 -- Backfill idempotency. PARTIAL, because backfillKey is null for every live

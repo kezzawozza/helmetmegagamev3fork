@@ -62,6 +62,7 @@ const REASONS = {
   TAX: { flow: FLOW.TRANSFER, label: "Tax" },
   CARRY_SPILL: { flow: FLOW.TRANSFER, label: "Dropped (overburdened)" },
   GM_TRANSFER: { flow: FLOW.TRANSFER, label: "GM transfer" },
+  STAGED_PUSH: { flow: FLOW.TRANSFER, label: "Adjudication push" },
   STASH: { flow: FLOW.TRANSFER, label: "Stash" },
   DEPOT_ORDER: { flow: FLOW.TRANSFER, label: "Depot order" },
   DEPOT_SALE: { flow: FLOW.TRANSFER, label: "Depot sale" },

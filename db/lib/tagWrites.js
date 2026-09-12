@@ -61,6 +61,21 @@ async function recordTagMoney(tx, holder, tagId, signedQuantity, econ = {}) {
   }
 }
 
+// The money half of the same bargain clampEquippedQuantity strikes.
+//
+// The four call sites named in the comment above spend a stack with a raw
+// guarded decrement instead of dropCharacterTag, each for its own concurrency
+// reason — and that also skipped the ledger hook that lives inside
+// dropCharacterTag. An obol or a priced ware leaving a sheet that way moved
+// real money and left no row, drifting the holder permanently.
+//
+// So: call this right where you already call clampEquippedQuantity, with the
+// quantity that actually left. An unpriced tag (a wound, a skill, a lure with
+// no catalog price) records nothing, which is most of them.
+async function recordSpentTagMoney(tx, holder, tagId, quantity, econ = {}) {
+  await recordTagMoney(tx, holder, tagId, -Math.abs(quantity || 0), econ);
+}
+
 // A wound landing on a sheet frightens its owner (docs/systemdocs/MOOD.md).
 // Both creators below call this for the row they just made — a stack going up
 // or an already-held tag is not a new wound, so only the `!existing` branches
@@ -202,11 +217,16 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null, options
 }
 
 // A stack shrunk by a raw quantity decrement OUTSIDE dropCharacterTag —
-// riteEffects.js#spendFromHolder, thanatiActions.js#spendCharacterTag,
-// requestActions.js#consumeRecipeItems, cavingPass.js's musk-lure spend —
-// each a guarded conditional updateMany rather than dropCharacterTag, for its
-// own concurrency reason documented at its call site (dropCharacterTag reads
-// then writes, "the wrong shape for money"). Every one of those needs this
+// riteEffects.js#spendFromHolder, thanatiActions.js#spendCharacterTag, and
+// cavingPass.js's musk-lure spend — each a guarded conditional updateMany
+// rather than dropCharacterTag, for its own concurrency reason documented at
+// its call site (dropCharacterTag reads then writes, "the wrong shape for
+// money").
+//
+// requestActions.js#consumeRecipeItems used to be the fourth and is not any
+// more: it guards with a read and then calls dropCharacterTag, so it is
+// hooked like any ordinary drop. It stayed named here long after that changed,
+// which sent a later reader looking for a bypass that no longer existed. Every one of those needs this
 // run right after, the same clamp dropCharacterTag applies inline: a stack
 // spent down to fewer units than are equipped frees the slots that frees,
 // rather than leaving equippedQuantity pointing past the end of it.
@@ -531,6 +551,7 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null, options = {}) {
 }
 
 module.exports = {
+  recordSpentTagMoney,
   addToStack,
   dropCharacterTag,
   clampEquippedQuantity,

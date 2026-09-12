@@ -23,7 +23,7 @@ const { formatBareName } = require("./characterName");
 const { STUPID_SLUG } = require("./babble");
 const { HUNGERLESS_SLUG } = require("./constants");
 const { applyLocationMoveSideEffects } = require("./locationMove");
-const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag, clampEquippedQuantity } = require("./tagWrites");
+const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag, clampEquippedQuantity, recordSpentTagMoney } = require("./tagWrites");
 const { createWithRetry } = require("./paperMint");
 const { resolveSeatConflicts, describeSeatConflicts } = require("./seatConflicts");
 const { listObjectives, fulfillObjectives } = require("./objectives");
@@ -210,6 +210,12 @@ async function spendFromHolder(tx, holder, tagId, what) {
   if (count === 0) throw new Error(`the ${what} is gone`);
   await tx.characterTag.deleteMany({ where: { characterId: holder.id, tagId, quantity: { lte: 0 } } });
   await clampEquippedQuantity(tx, holder.id, tagId);
+  // Booked here because the guarded decrement above skipped dropCharacterTag,
+  // and with it the ledger hook. A rite ingredient is often a priced ware.
+  await recordSpentTagMoney(tx, { kind: "character", id: holder.id, name: holder.name ?? null }, tagId, 1, {
+    reason: "RITE_COST",
+    secret: true,
+  });
 }
 
 async function grantToFloor(db, room, slug, quantity = 1) {

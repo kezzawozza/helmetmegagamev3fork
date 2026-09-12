@@ -4595,6 +4595,14 @@ model EconomyEntry {
   @@index([toKind, toId, at])
   @@index([zoneName, at])
   @@index([auditLogId])
+  // The reader's own predicates, which the first set did not cover:
+  // reconcile() filters on form, the ledger chips and Health's UNATTRIBUTED
+  // group filter (gameId, reason), the zone-scoped ledger filters
+  // (gameId, zoneId), and Health's plug list sorts by amount within a source.
+  @@index([gameId, form])
+  @@index([gameId, reason, at])
+  @@index([gameId, zoneId])
+  @@index([gameId, source, amount])
 }
 
 // Which coat the value was wearing. A closed set, so a real enum.

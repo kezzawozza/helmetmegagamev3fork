@@ -80,8 +80,11 @@ async function moveParty(tx, party, delta, ctx) {
 
 // Moves `amount` from `from` to `to`. Legs are sorted by (kind, id), not by
 // sender, so a total order over participants avoids a lock-order deadlock
-// between concurrent transfers. `ledger` is accepted and ignored: it fed the
-// Silo rows, and callers still pass it.
+// between concurrent transfers.
+//
+// Two things here are easy to confuse. `ledger`, INSIDE the first argument, is
+// accepted and ignored: it fed the Silo rows and callers still pass it. `ctx`,
+// the third argument, is the live economy context and is very much read.
 //
 // A transfer is ONE ledger row, not two: each leg's own moveParty call would
 // otherwise write its own entry, double-booking the same movement from both
@@ -100,8 +103,13 @@ async function applyTransfer(tx, { from, to, amount }, ctx) {
     await moveParty(tx, party, delta, legCtx);
   }
 
-  const recordCtx = ctx?.reason ? ctx : { ...ctx, reason: "TRANSFER" };
-  await record(tx, { from, to, form: "BALANCE", amount }, recordCtx);
+  // NO default reason. This used to fall back to "TRANSFER", which quietly
+  // made every un-hooked transfer site look deliberate — the four biggest of
+  // them (tax, GM transfer, the adjudication push, a player hand-over) never
+  // showed up on the panel's own "un-hooked call sites" list, which is the one
+  // thing that list exists to find. An unnamed transfer now reads
+  // UNATTRIBUTED like every other hook, and is meant to look wrong.
+  await record(tx, { from, to, form: "BALANCE", amount }, ctx);
 }
 
 module.exports = { moveParty, applyTransfer, InsufficientResourcesError };

@@ -17,7 +17,7 @@
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const { drawLoot } = require("./cavingLoot");
 const { hasAttribute, SAFE_ATTRIBUTE } = require("./locationAttributes");
-const { addToStack, clampEquippedQuantity } = require("./tagWrites");
+const { addToStack, clampEquippedQuantity, recordSpentTagMoney } = require("./tagWrites");
 const { applyMood } = require("./mood");
 const { rollWithAdvantage } = require("./advantage");
 const { LUCKY_SLUG } = require("./constants");
@@ -88,7 +88,18 @@ async function rollCaving(prisma, character, turn, location) {
                 })
               : await tx.characterTag.deleteMany({ where: { id: lure.id, quantity: 1 } });
           lured = spent.count > 0;
-          if (lured) await clampEquippedQuantity(tx, character.id, lure.tagId);
+          if (lured) {
+            await clampEquippedQuantity(tx, character.id, lure.tagId);
+            // Same bargain: the decrement above bypassed dropCharacterTag, so
+            // the ledger row comes to it. A no-op unless the lure is priced.
+            await recordSpentTagMoney(
+              tx,
+              { kind: "character", id: character.id, name: character.name ?? null, zoneId: character.zoneId ?? null },
+              lure.tagId,
+              1,
+              { reason: "CAVING", turnId: turn?.id ?? null, turnNumber: turn?.number ?? null },
+            );
+          }
         }
       }
       const rowKind = lured ? "QUIET" : kind;

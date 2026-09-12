@@ -104,6 +104,12 @@ async function applyOneStagedEffect(prisma, row, turn) {
           turnPhase: turn.phase,
           note: `Staged transfer, turn ${turn.number}`,
         },
+      }, {
+        reason: "STAGED_PUSH",
+        actionType: "staged_push_resolved",
+        actorDiscordUserId: row.createdByDiscordUserId,
+        turnId: turn.id,
+        turnNumber: turn.number,
       });
       snapshot.transfer = transfer;
     }

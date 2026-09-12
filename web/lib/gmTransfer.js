@@ -42,7 +42,17 @@ export async function gmTransferResources({ fromKey, toKey, amount: rawAmount, r
 
   await prisma.$transaction(async (tx) => {
     try {
-      await applyTransfer(tx, { from, to, amount, ledger });
+      await applyTransfer(
+        tx,
+        { from, to, amount, ledger },
+        {
+          reason: "GM_TRANSFER",
+          actionType: "gm_transfer_resources",
+          actorDiscordUserId: session.discordUserId,
+          turnId: openTurn?.id ?? null,
+          turnNumber: openTurn?.number ?? null,
+        },
+      );
     } catch (err) {
       if (err instanceof InsufficientResourcesError) throw new UserError(err.message);
       throw err;

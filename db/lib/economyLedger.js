@@ -23,6 +23,7 @@
 //      un-hooked call site is then an ugly bar on the panel instead of silently
 //      missing money.
 const { DEFAULT_REASON } = require("./economyReasons");
+const { readGameState } = require("./gameState");
 
 // The party kinds. "character" and "room" are real rows; the rest are book
 // accounts that exist so every entry has two ends and the supply always adds
@@ -74,22 +75,37 @@ async function savepointed(tx, fn) {
 // already returns, so a caller that has a party passes it straight through.
 function characterParty(c) {
   if (!c?.id) return null;
-  return { kind: "character", id: c.id, name: c.name ?? null };
+  return { kind: "character", id: c.id, name: c.name ?? null, zoneId: c.zoneId ?? null };
 }
 
 function roomParty(r) {
   if (!r?.id) return null;
-  return { kind: "room", id: r.id, name: r.name ?? null };
+  return { kind: "room", id: r.id, name: r.name ?? null, zoneId: r.zoneId ?? r.location?.zoneId ?? null };
 }
 
 // GameState holds the current gameId (there is one row). Looked up once per
 // write when the caller does not supply it — cheap and indexed, and
 // correctness matters more here than the read: a row on the wrong game is a
 // row in the wrong book. Pass `ctx.gameId` to skip it.
+// One lookup per TRANSACTION, not per row. A turn-end pass books a row for
+// every one of 100+ characters, and a findFirst apiece added 100+ round-trips
+// inside the most fragile pass in the game.
+//
+// Keyed on the tx object in a WeakMap so the entry disappears with the
+// transaction — a plain cache would outlive a wipe and start filing new rows
+// under the finished game.
+const gameIdByTx = new WeakMap();
+
 async function currentGameId(tx, ctx) {
   if (ctx?.gameId) return ctx.gameId;
-  const state = await tx.gameState.findFirst({ select: { gameId: true } });
-  return state?.gameId ?? null;
+  if (gameIdByTx.has(tx)) return gameIdByTx.get(tx);
+  // readGameState is the house reader for the singleton (db/lib/gameState.js);
+  // every other module finds this row through it, and a writer disagreeing
+  // with the readers about how to find the one row is a latent split-brain.
+  const state = await readGameState(tx, { gameId: true });
+  const id = state?.gameId ?? null;
+  gameIdByTx.set(tx, id);
+  return id;
 }
 
 // The one write.
@@ -145,7 +161,12 @@ async function record(tx, { from, to, form, amount, tag, quantity, unitValue }, 
         actionType: ctx.actionType ?? null,
         auditLogId: ctx.auditLogId ?? null,
         actorDiscordUserId: ctx.actorDiscordUserId ?? null,
-        zoneId: ctx.zoneId ?? null,
+        // WHERE it happened, for the GM zone filter. Taken from whichever end
+        // is a real place when the context did not say — db/lib/parties.js
+        // already selects zoneId onto every party it resolves, so this is
+        // free, and without it every row landed null and the zone filter
+        // matched everything for everybody.
+        zoneId: ctx.zoneId ?? src?.zoneId ?? dst?.zoneId ?? null,
         zoneName: ctx.zoneName ?? null,
         locationId: ctx.locationId ?? null,
         roomId: ctx.roomId ?? null,

@@ -35,13 +35,22 @@ function fakeTx(balances = {}) {
     },
   });
   const sql = [];
+  const lookups = { count: 0 };
   return {
     bal,
     entries,
     sql,
+    lookups,
     character: model(),
     room: model(),
-    gameState: { async findFirst() { return { gameId: "g1" }; } },
+    // findUnique, because the ledger reads the singleton through
+    // db/lib/gameState.js#readGameState like every other module does.
+    gameState: {
+      async findUnique() {
+        lookups.count += 1;
+        return { gameId: "g1" };
+      },
+    },
     economyEntry: { async create({ data }) { entries.push(data); return data; } },
     async $executeRawUnsafe(text) { sql.push(text); },
   };
@@ -153,10 +162,13 @@ test("a transfer is ONE row, not two, and both ends still reconcile", async () =
   assert.equal(ledgerBalance(tx.entries, "character", "bram"), 8);
 });
 
-test("a transfer defaults to the TRANSFER reason but keeps a given one", async () => {
+test("an unnamed transfer is UNATTRIBUTED, not quietly labelled TRANSFER", async () => {
+  // It used to default to "TRANSFER", which made every un-hooked transfer site
+  // look deliberate and kept the four biggest of them off the panel's own
+  // un-hooked-call-sites list. An unnamed transfer is meant to look wrong.
   const tx = fakeTx({ ada: 20, bram: 0 });
   await applyTransfer(tx, { from: ada, to: bram, amount: 1 });
-  assert.equal(tx.entries[0].reason, "TRANSFER");
+  assert.equal(tx.entries[0].reason, "UNATTRIBUTED");
   const tx2 = fakeTx({ ada: 20, bram: 0 });
   await applyTransfer(tx2, { from: ada, to: bram, amount: 1 }, { reason: "TAX" });
   assert.equal(tx2.entries[0].reason, "TAX");
@@ -219,4 +231,30 @@ test("a whole turn of mixed traffic reconciles across every account", async () =
   const burned = tx.entries.filter((e) => e.toId === "burn").reduce((n, e) => n + e.amount, 0);
   const live = [...tx.bal.values()].reduce((n, v) => n + v, 0);
   assert.equal(live, minted - burned, "supply equals mints minus burns");
+});
+
+test("the game is looked up once per transaction, not once per row", async () => {
+  // A turn-end pass books a row for every one of 100+ characters. One lookup
+  // apiece put 100+ extra round-trips inside the most fragile pass in the game.
+  const tx = fakeTx({ ada: 100 });
+  for (let i = 0; i < 10; i++) await moveParty(tx, ada, -1, { reason: "HUNGER" });
+  assert.equal(tx.entries.length, 10);
+  assert.equal(tx.lookups.count, 1);
+});
+
+test("a row is stamped with the zone of whichever end is a real place", async () => {
+  // db/lib/parties.js already selects zoneId onto every party it resolves.
+  // Without this the column was always null and the GM zone filter matched
+  // everything for everybody.
+  const tx = fakeTx({ ada: 10 });
+  const inTown = { kind: "character", id: "ada", name: "Ada", zoneId: "town" };
+  await moveParty(tx, inTown, -3, { reason: "HUNGER" });
+  assert.equal(tx.entries[0].zoneId, "town");
+});
+
+test("an explicit zone in the context still wins over the party's", async () => {
+  const tx = fakeTx({ ada: 10 });
+  const inTown = { kind: "character", id: "ada", name: "Ada", zoneId: "town" };
+  await moveParty(tx, inTown, -3, { reason: "HUNGER", zoneId: "caves" });
+  assert.equal(tx.entries[0].zoneId, "caves");
 });

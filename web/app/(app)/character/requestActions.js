@@ -3649,7 +3649,18 @@ async function transferRequestImpl({
 
     if (amount > 0) {
       try {
-        await applyTransfer(tx, { from, to, amount, ledger });
+        await applyTransfer(
+          tx,
+          { from, to, amount, ledger },
+          {
+            reason: "TRANSFER",
+            actionType: "request_transfer_resources",
+            actorDiscordUserId: character.discordUserId ?? null,
+            zoneId: character.zoneId ?? null,
+            turnId: openTurn?.id ?? null,
+            turnNumber: openTurn?.number ?? null,
+          },
+        );
       } catch (err) {
         if (!(err instanceof InsufficientResourcesError)) throw err;
         throw new UserError(err.message);
