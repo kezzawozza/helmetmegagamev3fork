@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · Editing a Gambit on the desk works again
+
+✎ Changing a Move to a Gambit on /gm/turns was throwing an error instead of saving. Inspired was taken out of the game a while back and the desk was still reaching for it
+
 ## 2026-09-12 · Where the money goes, on a page
 
 ✚ An Economy panel at /gm/economy: what the town is worth right now, what it minted and burned this turn, who is hoarding, and a searchable book of every ⬢ that moved  
