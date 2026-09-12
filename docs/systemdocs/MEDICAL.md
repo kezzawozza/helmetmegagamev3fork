@@ -140,7 +140,7 @@ cost).
 pool** — a `turnsCost: 1/3` or `1/2` cure is a fraction of the Move
 (`craftMoveCost`'s `share` case), and a `turnsCost: 1` cure is the whole
 thing. A whole Move is NOT the same as a Gambit: since M2b the top of the
-ladder holds both, at the same 14 ⬢ — tier 6 (`appendicitis`, `disfigured`,
+ladder holds both, at the same 13 ⬢ — tier 6 (`appendicitis`, `disfigured`,
 `envenomated`, `gut-wound`, `punctured-lung`) spends the whole Move as
 routine work, and tier 7 carries `requirementGambit` on top of it, which is
 the only thing separating the two rungs now that they share a price. A

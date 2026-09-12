@@ -225,6 +225,10 @@ const DEBTOR_SLUG = "debtor";
 const WOUND_TAG_GROUPS = Object.freeze(["health-wounds", "health-maiming", "health-infection"]);
 
 const LUCKY_SLUG = "lucky";
+// Advantage's other source (db/lib/advantage.js) — a one-shot consumable
+// buff rather than Lucky's permanent mastery, gone the moment it wins a
+// Gambit rather than by a timer alone.
+const INSPIRED_SLUG = "inspired";
 const MANIC_SLUG = "manic";
 const METEMPSYCHOSIS_SLUG = "metempsychosis";
 const AMOR_FATI_SLUG = "amor-fati";
@@ -324,6 +328,7 @@ module.exports = {
   DEBTOR_SLUG,
   WOUND_TAG_GROUPS,
   LUCKY_SLUG,
+  INSPIRED_SLUG,
   MANIC_SLUG,
   METEMPSYCHOSIS_SLUG,
   AMOR_FATI_SLUG,

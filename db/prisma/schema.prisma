@@ -2828,6 +2828,18 @@ model Tag {
   // never is.
   administerSkill String?
 
+  // Plain slugs to strip off the CONSUMER when this item is consumed —
+  // deliberately not `cures`: no category-Health restriction, no removesInto
+  // aftermath, no fear relief, no relation to the medical pass at all. For a
+  // consumable whose whole point is undoing an unrelated, non-Health tag
+  // (Coffee clearing Tired/Exhausted, Bar Soap clearing Unhygienic) rather
+  // than treating a wound. Validated only for "the slug exists" — see
+  // db/lib/tagShapes.js. Applied in the ordinary consume path
+  // (web/app/(app)/character/requestActions.js), a plain drop on the
+  // consumer, never routed through web/lib/consumeGrants.js (kept pure/
+  // Prisma-free for previews).
+  removesOnConsume Json?
+
   // Whether this tag is a POISON that can be dosed into a held food/drink
   // stack. Schema only for now — the Poison action that reads it is a later
   // milestone of the medical pass.

@@ -5,7 +5,7 @@
 import { recallComrades, recoverEquipment } from "@/app/(app)/character/thanatiActions";
 import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
 import { checkWanted } from "@/app/(app)/character/cerberonActions";
-import { extractGodfleshRequest, healCharacterRequest } from "@/app/(app)/character/requestActions";
+import { extractGodfleshRequest, healCharacterRequest, readPointerDevice } from "@/app/(app)/character/requestActions";
 import { formatMoveFraction } from "@/lib/craftBudget";
 import BindDialog, { BIND_VERBS } from "./BindDialog";
 import HarmDialog from "./HarmDialog";
@@ -61,6 +61,7 @@ export const INSTANT = {
     },
   },
   pointer: { run: () => readPointer(), confirm: () => null },
+  pointerdevice: { run: () => readPointerDevice(), confirm: () => null },
   arm: {
     run: () => armNuke(),
     confirm: () => ({

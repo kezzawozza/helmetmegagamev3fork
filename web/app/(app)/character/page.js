@@ -31,6 +31,7 @@ import {
   hideoutRoom,
 } from "@lifeweb/db/lib/thanati";
 import { CERBERON_SLUG, WARRANT_BADGE_SLUGS } from "@lifeweb/db/lib/wanted";
+import { isPointerDeviceSlug } from "@lifeweb/db/lib/pointerMint";
 import { APPRAISAL_SLUG } from "@lifeweb/db/lib/appraisal";
 import {
   BUTCHER_SLUG,
@@ -968,6 +969,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // since a hidden button is a hint and not a lock.
   const hasDatacard = heldSlugs.has("nuclear-datacard");
   const hasDevice = heldSlugs.has("nuclear-device");
+  // The Pointer Device Kit's own pair — a different device entirely, gated
+  // on the dynamic `custom-pointer-*` slug rather than a fixed one, since
+  // every pair mints its own (db/lib/pointerMint.js).
+  const hasPointerDevice = [...heldSlugs].some(isPointerDeviceSlug);
   // The Stepstone. It reaches anywhere on the SURFACE — every Location, known
   // or not — and nowhere underground. CAVE_LEVEL zones are the dark, and
   // CAVE_GROUP is not a place anybody stands (schema.prisma, ZoneKind), so the
@@ -1315,6 +1320,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       hideoutStock: hideoutStock,
       thanatiWares: thanatiWares,
       hasDatacard: hasDatacard,
+      hasPointerDevice: hasPointerDevice,
       hasStepstone: hasStepstone,
       stepstoneTargets: stepstoneTargets,
       hasDevice: hasDevice,

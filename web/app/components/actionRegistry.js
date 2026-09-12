@@ -104,6 +104,7 @@ export const ACTION_HELP = {
     "Put on a false name and face for 3 turns. Nobody sees who you are — not your name, not your portrait — and you cannot conceal yourself on top of it. The kit is not used up.",
   pointer:
     "Read the datacard. It names the next place on the way to the nuclear device, or tells you the device is already here. Costs nothing, takes no time, and nobody is told you looked.",
+  pointerdevice: "Check your pointer device. It names where the other one in the pair is right now.",
   arm:
     "Put the datacard into the device and start the countdown. It detonates at the close of the turn after next, and it will kill everyone who is not underground. You can still disarm it before then.",
   disarm:
@@ -245,6 +246,11 @@ export const ACTION_SECTIONS = [
     label: "The device",
     actions: [
       { mode: "pointer", icon: EyeIcon, label: "Use Pointer", show: "hasDatacard", instant: true },
+      // A different device entirely — the Pointer Device Kit's own pair
+      // (db/lib/pointerMint.js), gated on holding a `custom-pointer-*` tag
+      // rather than the secret datacard above. Deliberately its own mode,
+      // its own gate, its own server action — never touches nuke.js.
+      { mode: "pointerdevice", icon: EyeIcon, label: "Use Pointer Device", show: "hasPointerDevice", instant: true },
       {
         mode: "arm",
         icon: WoundIcon,

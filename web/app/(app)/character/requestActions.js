@@ -138,14 +138,23 @@ import { TAXMAN_SLUG } from "@lifeweb/db/lib/constants";
 // it stays because every writer of locationId owes the roll, and loosening
 // the refusal must not silently drop it.
 import { rollCavingOnArrival, cavingHoldFor } from "@lifeweb/db/lib/cavingPass";
+import { revealSurface } from "@lifeweb/db/lib/locationVisits";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { breakSeal } from "@lifeweb/db/lib/paperMint";
 import { CAMERA_SLUG, attachPhoto, createBlankPhotoRow } from "@lifeweb/db/lib/photoMint";
+import {
+  POINTER_DEVICE_KIT_SLUG,
+  isPointerDeviceSlug,
+  partnerSlugOf,
+  mintPointerPair,
+  attachPointerPair,
+  locatePointerPartner,
+} from "@lifeweb/db/lib/pointerMint";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { partFor, resolveMutilation } from "@lifeweb/db/lib/mutilate";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
-import { dropRoomTag, clampEquippedQuantity, lockRoom } from "@lifeweb/db/lib/tagWrites";
+import { dropRoomTag, clampEquippedQuantity, lockRoom, consumeInspiredIfUsed } from "@lifeweb/db/lib/tagWrites";
 import { WANTED_SLUG } from "@lifeweb/db/lib/wanted";
 import {
   BUTCHER_SLUG,
@@ -2463,6 +2472,42 @@ async function breakSealRequestImpl({ session, character, held }) {
 // It takes its own road out of consumeTagRequestImpl for breakSeal's reason:
 // the ordinary path reads `consumesInto`, which names CATALOG slugs, and a
 // photo is a runtime row no slug in docs/tags.yaml can ever name.
+async function pointerDeviceKitRequestImpl({ session, character, held }) {
+  const openTurn = await getOpenTurn();
+
+  // Minted BEFORE the transaction, for the same reason the camera's print
+  // is: createWithRetry's name-collision retry cannot survive inside one
+  // (db/lib/pointerMint.js). If the transaction below rolls back, both
+  // halves are left minted but unheld, which the next Restart Game sweeps
+  // (they carry `ephemeral: true`).
+  const pair = await mintPointerPair(prisma, held.tag);
+
+  await prisma.$transaction(async (tx) => {
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    await attachPointerPair(tx, character.id, pair);
+
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_consume_tag",
+      targetCharacterId: character.id,
+      turnId: openTurn?.id ?? null,
+      details: {
+        tagId: held.tagId,
+        tagName: held.tag.name,
+        restore: { tagId: held.tagId, source: held.source, expiresTurn: held.expiresTurn, quantity: 1 },
+        // Both runtime rows, the same reason the camera's print records
+        // photoTagId — a GM's Undo has to delete these, not just re-grant
+        // the kit.
+        pointerTagIds: [pair.a.id, pair.b.id],
+      },
+    });
+  });
+
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return { ok: true, line: "You open the kit. Two devices, always pointing at each other." };
+}
+
 async function photographNothingImpl({ session, character, held }) {
   const openTurn = await getOpenTurn();
 
@@ -2629,6 +2674,87 @@ async function openCrateRequestImpl({ session, character, held }) {
   return { granted, skipped, resourcesGranted };
 }
 
+const RAVENHEART_MAP_SLUG = "ravenheart-map";
+
+async function ravenheartMapRequestImpl({ session, character, held }) {
+  const openTurn = await getOpenTurn();
+  const restore = {
+    tagId: held.tagId,
+    source: held.source,
+    expiresTurn: held.expiresTurn,
+    quantity: 1,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await lockCharacter(tx, character.id);
+    // Same double-submit shape as Stepstone/openCrate: re-read under the
+    // lock rather than trust the row loaded before this transaction opened.
+    const stillHeld = await tx.characterTag.findFirst({
+      where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
+      select: { id: true },
+    });
+    if (!stillHeld) throw new UserError("You don't have that any more.");
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    await revealSurface(tx, character.id);
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_consume_tag",
+      targetCharacterId: character.id,
+      turnId: openTurn?.id ?? null,
+      details: { tagId: held.tagId, tagName: held.tag.name, restore, revealedSurface: true },
+    });
+  });
+
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return { ok: true, line: "The whole surface of Ravenheart unfolds before you." };
+}
+
+const BOX_OF_JUNK_SLUG = "box-of-junk";
+
+async function boxOfJunkRequestImpl({ session, character, held }) {
+  const openTurn = await getOpenTurn();
+  const restore = {
+    tagId: held.tagId,
+    source: held.source,
+    expiresTurn: held.expiresTurn,
+    quantity: 1,
+  };
+  // 0-4 inclusive, randomly — consumesIntoResources (Int?) has no range
+  // shape, so the roll happens here rather than in the catalog.
+  const resourcesGranted = Math.floor(Math.random() * 5);
+
+  await prisma.$transaction(async (tx) => {
+    await lockCharacter(tx, character.id);
+    const stillHeld = await tx.characterTag.findFirst({
+      where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
+      select: { id: true },
+    });
+    if (!stillHeld) throw new UserError("You don't have that any more.");
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    if (resourcesGranted > 0) {
+      await creditResources(tx, { kind: "character", id: character.id, name: character.name }, resourcesGranted);
+    }
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_consume_tag",
+      targetCharacterId: character.id,
+      turnId: openTurn?.id ?? null,
+      details: { tagId: held.tagId, tagName: held.tag.name, restore, resourcesGranted },
+    });
+  });
+
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return {
+    ok: true,
+    line:
+      resourcesGranted > 0
+        ? `You dig through the box and find ${resourcesGranted} ⬢ worth of odds and ends.`
+        : "You dig through the box. It's junk, all the way down.",
+  };
+}
+
 async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   const { session, character } = await requireCharacter();
 
@@ -2650,6 +2776,12 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     return photographNothingImpl({ session, character, held });
   }
 
+  // And a Pointer Device Kit, for the same reason again: it mints two linked
+  // runtime rows (db/lib/pointerMint.js), not a catalog grant.
+  if (held.tag.slug === POINTER_DEVICE_KIT_SLUG && (!targetCharacterId || targetCharacterId === character.id)) {
+    return pointerDeviceKitRequestImpl({ session, character, held });
+  }
+
   // And a crate, for the same reason again: what falls out of one is a list
   // of tag IDs printed on the crate at packing or landing, not catalog slugs,
   // and it also has a lock the ordinary path knows nothing about. Only for
@@ -2659,6 +2791,21 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // same message any other non-curative item gets.
   if (isCrate(held.tag) && (!targetCharacterId || targetCharacterId === character.id)) {
     return openCrateRequestImpl({ session, character, held });
+  }
+
+  // The Ravenheart Map's own road out: it reveals every SURFACE Location at
+  // once (db/lib/locationVisits.js#revealSurface), which no `consumesInto`
+  // chain can name. Self only — nobody's asked for handing someone else the
+  // map through a dose.
+  if (held.tag.slug === RAVENHEART_MAP_SLUG && (!targetCharacterId || targetCharacterId === character.id)) {
+    return ravenheartMapRequestImpl({ session, character, held });
+  }
+
+  // Box of Junk grants a ROLLED ⬢ amount — consumesIntoResources (schema:
+  // Int?) is a flat number, not a range, so "0-4 randomly" needs its own
+  // road out the same way the map's does.
+  if (held.tag.slug === BOX_OF_JUNK_SLUG && (!targetCharacterId || targetCharacterId === character.id)) {
+    return boxOfJunkRequestImpl({ session, character, held });
   }
 
   // The Mulligan Potion is the one consumable that cannot be drunk from here:
@@ -3071,6 +3218,30 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         },
       });
     }
+
+    // removesOnConsume (TAGS.md §5c note on Coffee/Bar Soap): a plain drop
+    // of whatever unrelated tags this item names, off the CONSUMER only —
+    // never the administered target, since nothing here has asked for
+    // "dose someone else's Unhygienic away." No aftermath, no mood, no
+    // curesInto override; it's the lighter cousin of the cure loop above on
+    // purpose. Re-read fresh under the lock already held for the same
+    // double-submit reason the cure loop re-reads target.tags.
+    const removedOnConsume = [];
+    if (held.tag.removesOnConsume?.length && target.id === character.id) {
+      const freshSelfTags = await tx.characterTag.findMany({
+        where: { characterId: character.id, tag: { slug: { in: held.tag.removesOnConsume } } },
+        select: { tagId: true, source: true, expiresTurn: true, quantity: true, tag: { select: { name: true } } },
+      });
+      for (const ct of freshSelfTags) {
+        await dropCharacterTag(tx, character.id, ct.tagId);
+        removedOnConsume.push({
+          tagId: ct.tagId,
+          tagName: ct.tag.name,
+          restore: { tagId: ct.tagId, source: ct.source, expiresTurn: ct.expiresTurn, quantity: ct.quantity ?? 1 },
+        });
+      }
+    }
+
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
@@ -3093,6 +3264,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         moodTerms: moodTerms?.length ? moodTerms : undefined,
         climbed: climbed.map((c) => c.tagName),
         cured: cured.length ? cured : undefined,
+        removedOnConsume: removedOnConsume.length ? removedOnConsume : undefined,
         administered: administered || undefined,
         targetName: administered ? target.name : undefined,
         // M4: what Iron Constitution shrugged off, and whether this draw came
@@ -3964,6 +4136,10 @@ async function healCharacterRequestImpl({
       // count. Same posture as fileAutoRoutine().
       let action;
       try {
+        // Lucky or Inspired keeps the better of two dice (db/lib/advantage.js);
+        // Inspired is spent the instant it wins one.
+        const healGambitAdvantage = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
+        await consumeInspiredIfUsed(tx, character.id, healGambitAdvantage.source);
         action = await tx.action.create({
           data: {
             characterId: character.id,
@@ -3974,8 +4150,7 @@ async function healCharacterRequestImpl({
             moveKind: "GAMBIT",
             moveReviewStatus: "OPEN",
             description: `Treating ${target.id === character.id ? "their own" : `${target.name}'s`} ${held.tag.name}.`,
-            // Lucky keeps the better of two dice (db/lib/advantage.js).
-            diceRoll: rollWithAdvantage(character.tags).die,
+            diceRoll: healGambitAdvantage.die,
             diceModifier:
               gambitModifierTotal(character.tags, {
                 hungerStreak: character.hungerStreak,
@@ -4134,6 +4309,10 @@ async function researchRequestImpl({ ingredientSlug }) {
     // turnId]) — but requireFreeMove's read a moment ago is what keeps a
     // normal submit from ever reaching it.
     try {
+      // Lucky or Inspired keeps the better of two dice (db/lib/advantage.js);
+      // Inspired is spent the instant it wins one.
+      const researchAdvantage = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
+      await consumeInspiredIfUsed(tx, character.id, researchAdvantage.source);
       action = await tx.action.create({
         data: {
           characterId: character.id,
@@ -4144,8 +4323,7 @@ async function researchRequestImpl({ ingredientSlug }) {
           moveKind: "GAMBIT",
           moveReviewStatus: "OPEN",
           description: `Researching ${ingredient.tag.name} in the Cathedral.`,
-          // Lucky keeps the better of two dice (db/lib/advantage.js).
-          diceRoll: rollWithAdvantage(character.tags).die,
+          diceRoll: researchAdvantage.die,
           diceModifier: gambitModifierTotal(character.tags, {
             hungerStreak: character.hungerStreak,
             mood: character.mood,
@@ -4651,7 +4829,9 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
   // The TORTURER's die, so it is the torturer's Lucky that bends it — the same
   // side gambitMods below are computed for. Both dice are carried through, so
   // the roll line can show the one that was thrown away.
-  const tortureRoll = rollWithAdvantage(character.tags);
+  // Lucky or Inspired keeps the better of two dice (db/lib/advantage.js);
+  // Inspired is spent the instant it wins one, in the transaction below.
+  const tortureRoll = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
   const result = resolveTorture({
     die: tortureRoll.die,
     rolls: tortureRoll.rolls,
@@ -4704,6 +4884,7 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
 
   const outcome = result.success ? "they broke" : "they held out";
   await prisma.$transaction(async (tx) => {
+    await consumeInspiredIfUsed(tx, character.id, tortureRoll.source);
     // +40, or nothing under Pain Immunity / an Opium High (MOOD.md §6).
     await applyMood(tx, target.id, { kind: "TORTURED" });
     if (result.success && depressed) {
@@ -6646,5 +6827,29 @@ export async function whisperRequest(input) {
 
 export async function stepstoneRequest(input) {
   return guarded(() => stepstoneRequestImpl(input));
+}
+
+// The Pointer Device Kit's own button. Not named usePointer* — nukeActions.js
+// has an explicit note about that exact collision with React's rules of
+// hooks — and not a DM: this is a mundane toy, not a secret plot device, so
+// the answer goes straight into the same bottom-right toast every other
+// instant action uses.
+async function readPointerDeviceImpl() {
+  const { character } = await requireCharacter();
+  const held = character.tags.find((ct) => isPointerDeviceSlug(ct.tag.slug) && ct.quantity > 0);
+  if (!held) throw new UserError("You aren't carrying a pointer device.");
+
+  const partnerSlug = partnerSlugOf(held.tag.slug);
+  const locationId = partnerSlug ? await locatePointerPartner(prisma, partnerSlug) : null;
+  if (!locationId) return { ok: true, line: "The other pointer isn't anywhere the map can see." };
+
+  const location = await prisma.location.findUnique({ where: { id: locationId }, select: { name: true } });
+  if (!location) return { ok: true, line: "The other pointer isn't anywhere the map can see." };
+
+  return { ok: true, line: `The other pointer is located in ${location.name}.` };
+}
+
+export async function readPointerDevice() {
+  return guarded(() => readPointerDeviceImpl());
 }
 

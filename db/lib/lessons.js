@@ -12,6 +12,7 @@
 // NOT on the @lifeweb/db barrel; require it by path. Web files the offer and
 // the bot answers the click, so everything both sides check lives here.
 const { rollWithAdvantage } = require("./advantage");
+const { consumeInspiredIfUsed } = require("./tagWrites");
 const { gambitModifierTotal } = require("./gambitModifier");
 const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
@@ -417,6 +418,10 @@ async function acceptLesson(prisma, offer, responder) {
 
       // The learner's Gambit. @@unique([characterId, turnId]) is the real
       // gate; the slot checks above were the polite version.
+      // Lucky or Inspired keeps the better of two dice (db/lib/advantage.js);
+      // Inspired is spent the instant it wins one.
+      const learnerAdvantage = rollWithAdvantage(learner.tags, 6, { gambitOnly: true });
+      await consumeInspiredIfUsed(tx, learner.id, learnerAdvantage.source);
       const learnerAction = await tx.action.create({
         data: {
           characterId: learner.id,
@@ -427,8 +432,7 @@ async function acceptLesson(prisma, offer, responder) {
           moveKind: "GAMBIT",
           moveReviewStatus: "OPEN",
           description: `Learning ${tag.name} from ${teacher.name}.`,
-          // Lucky keeps the better of two dice (db/lib/advantage.js).
-          diceRoll: rollWithAdvantage(learner.tags).die,
+          diceRoll: learnerAdvantage.die,
           diceModifier: gambitModifierTotal(learner.tags, {
             hungerStreak: learner.hungerStreak,
             mood: learner.mood,
