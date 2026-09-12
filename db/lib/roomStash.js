@@ -2,6 +2,7 @@
 // Pure helpers plus the one lookup the overflow drop needs. Takes `prisma`
 // (or a tx) as a parameter, same reason as db/lib/dm.js, and stays off the
 // @lifeweb/db barrel; require it by path.
+const { record, recordDelta, BURN } = require("./economyLedger");
 
 // findMany + a JS pick rather than ORDER BY random(): Prisma would need raw
 // SQL for that, and a Location has a handful of rooms at most. Every PUBLIC
@@ -40,13 +41,33 @@ async function pickRandomPublicRoom(db, locationId) {
 //
 // A room that eats what is put into it (Room.destroysContents — the Godard
 // Factory's Spillway) takes no credit, the same asymmetry moveParty encodes:
-// ⬢ going in goes nowhere, ⬢ coming out is still allowed.
-async function addRoomResources(tx, roomId, amount) {
+// ⬢ going in goes nowhere, ⬢ coming out is still allowed. The arrival and its
+// destruction are both booked, exactly as moveParty books them, so the
+// reconciliation check on /gm/economy still nets to the room's real balance.
+//
+// This is a money chokepoint, so it writes to the economy ledger
+// (db/lib/economyLedger.js): `ctx` carries the reason — GM_GRANT or GM_TAKE
+// from the adjudication desk — and a write with no reason is recorded
+// UNATTRIBUTED rather than dropped, which is what keeps an un-hooked caller
+// visible on the panel instead of quietly missing.
+async function addRoomResources(tx, roomId, amount, ctx = {}) {
   if (!amount) return 0;
-  if (amount > 0) {
-    const room = await tx.room.findUnique({ where: { id: roomId }, select: { destroysContents: true } });
-    if (room?.destroysContents) return 0;
+  const room = await tx.room.findUnique({
+    where: { id: roomId },
+    select: { id: true, name: true, destroysContents: true, location: { select: { zoneId: true } } },
+  });
+  if (!room) return 0;
+  const party = { kind: "room", id: room.id, name: room.name, zoneId: room.location?.zoneId ?? null };
+
+  if (amount > 0 && room.destroysContents) {
+    // Two rows netting to zero, the same shape moveParty uses: the ⬢ arrived
+    // and was destroyed, and the room's balance never moved. One row would
+    // break the panel's reconciliation check.
+    await recordDelta(tx, party, amount, ctx);
+    await record(tx, { from: party, to: BURN, form: "BALANCE", amount }, { ...ctx, reason: "SPILLWAY" });
+    return 0;
   }
+
   const rows = await tx.$queryRaw`
     WITH prev AS (
       SELECT "resources" AS before FROM "Room" WHERE "id" = ${roomId} FOR UPDATE
@@ -59,7 +80,16 @@ async function addRoomResources(tx, roomId, amount) {
   `;
   const before = rows[0]?.before ?? 0;
   const after = rows[0]?.after ?? before;
-  return after - before;
+  const moved = after - before;
+  if (moved) await recordDelta(tx, party, moved, ctx);
+  // The shortfall a GREATEST(0, ...) floor destroyed, booked under CLAMP — the
+  // reason the ledger added for exactly this silent burn. Without it an
+  // over-large GM burn leaves no trace that more was asked for than existed.
+  const clamped = amount - moved;
+  if (clamped < 0) {
+    await record(tx, { from: party, to: BURN, form: "BALANCE", amount: -clamped }, { ...ctx, reason: "CLAMP" });
+  }
+  return moved;
 }
 
 // "Graga Sac ×3" / "Lantern".

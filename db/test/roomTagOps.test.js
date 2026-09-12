@@ -100,6 +100,16 @@ function makeTx({ rooms = [{ id: ROOM_ID, resources: 0, destroysContents: false 
     },
     turn: { findFirst: () => Promise.resolve(null) },
     auditLog: { create: () => Promise.resolve({}) },
+    // The economy ledger's two reads (db/lib/pricedTags.js#loadCache and
+    // db/lib/gameState.js). Both hooks swallow their own errors by design, so
+    // without these the tests would still pass — but they would be passing
+    // over a ledger path that threw on every call, which is not the path the
+    // push actually runs. None of the tags here carry a price, so the hook
+    // correctly records nothing; what is being kept honest is that it gets
+    // that far.
+    tag: { findMany: () => Promise.resolve([]) },
+    gameState: { findUnique: () => Promise.resolve({ gameId: "game-test" }), findFirst: () => Promise.resolve({ gameId: "game-test" }) },
+    economyEntry: { create: ({ data }) => Promise.resolve({ id: "econ-1", ...data }) },
   };
 }
 

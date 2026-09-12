@@ -50,7 +50,12 @@ function validateRoomTagOps(ops, tagsById) {
 // a row touches exactly one room, so there is no lock-ordering work here and
 // no two-room deadlock to avoid. tagWrites.js' "character locks first" rule is
 // satisfied vacuously — this module never touches a Character.
-async function applyRoomTagOpsInTx(tx, { roomId, ops, tagsById, openTurn }) {
+// `econ` is the economy ledger context (db/lib/economyLedger.js), forwarded
+// into addToRoomStack/dropRoomTag — an obol or a priced ware put on a floor is
+// money moving in a coat (DEPOT.md §0g), and those two writers book it from
+// inside. Passing the reason here is what keeps a staged grant from reading as
+// UNATTRIBUTED on /gm/economy.
+async function applyRoomTagOpsInTx(tx, { roomId, ops, tagsById, openTurn, econ = {} }) {
   const applied = [];
   const removes = (ops ?? []).filter((o) => o.op === "remove");
   const adds = (ops ?? []).filter((o) => o.op === "add");
@@ -65,7 +70,9 @@ async function applyRoomTagOpsInTx(tx, { roomId, ops, tagsById, openTurn }) {
     // nothing would tell a GM their adjudication applied when it did not.
     // A null quantity means "the whole stack" and always succeeds, so the
     // common case never reaches this.
-    const { ok, poisonedTaken, poisonPayload } = await dropRoomTag(tx, roomId, op.tagId, quantity);
+    const { ok, poisonedTaken, poisonPayload } = await dropRoomTag(tx, roomId, op.tagId, quantity, {
+      econ: { ...econ, reason: econ.reason ?? "GM_TAKE" },
+    });
     if (!ok) {
       throw new TagOpError(`There isn't ${quantity} × ${tag.name} here to take.`);
     }
@@ -101,7 +108,10 @@ async function applyRoomTagOpsInTx(tx, { roomId, ops, tagsById, openTurn }) {
     });
     // No poison passed: a GM grant has nothing to inherit a dose from, so the
     // units land clean.
-    await addToRoomStack(tx, roomId, op.tagId, quantity, { expiresTurn });
+    await addToRoomStack(tx, roomId, op.tagId, quantity, {
+      expiresTurn,
+      econ: { ...econ, reason: econ.reason ?? "GM_GRANT" },
+    });
     applied.push({ op: "add", tagId: op.tagId, name: tag.name, quantity });
   }
 

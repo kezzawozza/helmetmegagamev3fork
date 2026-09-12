@@ -195,9 +195,22 @@ async function applyOneStagedEffect(prisma, row, turn) {
       // ⬢ before tags, so the order inside a row is fixed and obvious.
       // addRoomResources clamps a burn at 0 and returns what actually moved,
       // and swallows a mint into a destroysContents room on its own.
+      // The economy context every money chokepoint now carries, the same
+      // shape the staged transfer above passes. A GM adding ⬢ to a stash is a
+      // faucet and taking it is a sink, so the reason is not one value.
+      const econ = {
+        actionType: "staged_push_resolved",
+        actorDiscordUserId: row.createdByDiscordUserId,
+        turnId: turn.id,
+        turnNumber: turn.number,
+      };
+
       const roomResources = Number.isInteger(row.payload?.roomResources) ? row.payload.roomResources : 0;
       if (roomResources) {
-        snapshot.roomResources = await addRoomResources(tx, live.id, roomResources);
+        snapshot.roomResources = await addRoomResources(tx, live.id, roomResources, {
+          ...econ,
+          reason: roomResources > 0 ? "GM_GRANT" : "GM_TAKE",
+        });
       }
 
       const roomOps = Array.isArray(row.payload?.roomTagOps) ? row.payload.roomTagOps : [];
@@ -214,6 +227,7 @@ async function applyOneStagedEffect(prisma, row, turn) {
           ops: roomOps,
           tagsById: roomTagsById,
           openTurn: { ...turn, number: turn.number + 1 },
+          econ,
         });
       }
       snapshot.room = room;
