@@ -37,6 +37,18 @@ export function openedByLabel(tagName) {
   return `Opened by your ${tagName}.`;
 }
 
+// What to say about the destination itself, when it's worth a second look
+// before Go. Returns null for an ordinary crossing — most of them.
+//
+// One line for both cave zones, Bascinet's wording. `option.zoneSlug` stays
+// on the option regardless — CAVING.md §2a's Customs/Depot exemption is what
+// `caveLevel` already encodes, so nothing here needs to tell Caves and Depths
+// apart to say it.
+function crossingWarning(option) {
+  if (!option.caveLevel) return null;
+  return "You will roll Caving Die every time you move through here.";
+}
+
 // The question asked before a zone crossing, on both surfaces.
 //
 // A crossing is the one move here that is expensive and cannot be taken back:
