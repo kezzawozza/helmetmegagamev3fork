@@ -480,6 +480,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
         kind: access.length > 0 ? "PRIVATE" : "PUBLIC",
         accessTagSlugs: access,
         destroysContents: room.destroys === true,
+        soundproof: room.soundproof === true,
         live: collectLive(room.live, `room "${room.id}"`, problems),
         stash: parseStash(room.stash, room.id, problems),
         locationSlug: location.id,
@@ -554,6 +555,10 @@ function buildRoomBody(room, liveState) {
   const live = liveLine(room.live, liveState);
   if (description) parts.push(live ? `${description} | ${live}` : description);
   else if (live) parts.push(live);
+  // A standing fact about the room, not scenery like the description — its
+  // own line, the way locationAttributes.js keeps each fact separate rather
+  // than folding it into prose.
+  if (room.soundproof) parts.push("**Muffled**: shouts do not carry out of here.");
   // One newline, not two. A blank line between the bolded name and its `-#`
   // subtext reads as two separate posts stapled together; tight, the anchor
   // reads as one card.
@@ -1140,6 +1145,7 @@ async function syncZonesFromYaml(prisma) {
       kind: entry.kind,
       accessTagSlugs: entry.accessTagSlugs,
       destroysContents: entry.destroysContents,
+      soundproof: entry.soundproof,
       live: entry.live,
       locationId: location.id,
     };

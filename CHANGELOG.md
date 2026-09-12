@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · Soundproof rooms are soundproof again
+
+✎ A shout inside one of the eleven sealed rooms — the Oubliette, the Dungeons, the offices, the Sewers — stopped leaving the room again. It had been carrying out to the whole zone since 12 September  
+✎ The rooms' starter posts say **Muffled**: shouts do not carry out of here once more
+
 ## 2026-09-12 · The Economy panel is finished
 
 ✚ Flows: where every ⬢ comes from and goes, as one diagram, plus a web of who actually trades with whom  
