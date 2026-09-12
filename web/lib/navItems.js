@@ -30,6 +30,7 @@ export const GM_NAV = [
   { href: "/gm/players", label: "Players", icon: "messages", section: "gm" },
   { href: "/gm/turns", label: "Adjudicate", icon: "turns", section: "gm" },
   { href: "/gm/audit", label: "Audit", icon: "audit", section: "gm" },
+  { href: "/gm/economy", label: "Economy", icon: "economy", section: "gm" },
   { href: "/gm/oracle", label: "Oracle", icon: "oracle", section: "gm" },
   // The GM's own player screens, in PLAYER_NAV's order minus Faction.
   { href: "/character", label: "Character", icon: "character", section: "player" },

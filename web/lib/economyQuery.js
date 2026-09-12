@@ -1,6 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { reasonFlow, reasonLabel, FLOW } from "@lifeweb/db/lib/economyReasons";
-import { inVisibleZones } from "./zones";
+import { inVisibleZones, seatKey } from "./zones";
 
 // The read side of the economy ledger — everything /gm/economy asks the
 // database, in one place. Nothing here writes.
@@ -136,11 +136,35 @@ export async function reconcile(gameId) {
 
 // --- reading the book ---------------------------------------------------
 
+// The zone filter as a Prisma WHERE fragment rather than a post-filter.
+//
+// This has to happen in the query, not after it. Filtering a page of rows
+// AFTER fetching it leaves the count and the page boundaries describing the
+// unscoped table: a zone-restricted GM gets a "page 3 of 40" that is neither,
+// and pages that render half empty. Null means every zone, and a row with no
+// zone stays visible to everyone — the same two rules inVisibleZones holds for
+// the in-memory lists.
+//
+// Cave levels are folded onto their seat the way inVisibleZones does, so a GM
+// holding the Underground seat still sees the levels under it.
+export function zoneWhere(visibleZoneNames) {
+  if (!visibleZoneNames) return {};
+  const names = new Set(visibleZoneNames);
+  for (const n of visibleZoneNames) {
+    const seat = seatKey(n);
+    if (seat) names.add(seat);
+  }
+  return { OR: [{ zoneName: null }, { zoneName: { in: [...names] } }] };
+}
+
 // One page of entries. Server-side paged, the /gm/audit posture, because this
 // table is the longest thing in the game by the end of a month.
-export async function ledgerPage({ gameId, page = 1, pageSize = 50, where = {} }) {
+//
+// `visibleZoneNames` is folded into the WHERE so the count and the paging
+// describe what this GM can actually see.
+export async function ledgerPage({ gameId, page = 1, pageSize = 50, where = {}, visibleZoneNames = null }) {
   const skip = (Math.max(1, page) - 1) * pageSize;
-  const filter = { gameId, ...where };
+  const filter = { gameId, ...where, ...zoneWhere(visibleZoneNames) };
   const [rows, total] = await Promise.all([
     prisma.economyEntry.findMany({ where: filter, orderBy: { at: "desc" }, skip, take: pageSize }),
     prisma.economyEntry.count({ where: filter }),
