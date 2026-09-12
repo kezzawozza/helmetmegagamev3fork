@@ -40,17 +40,13 @@ export function openedByLabel(tagName) {
 // What to say about the destination itself, when it's worth a second look
 // before Go. Returns null for an ordinary crossing — most of them.
 //
-// Depths gets its own line rather than sharing Caves' wording: it has no
-// `safe` Location at all (CAVING.md §2a — Customs and the Depot, the only two,
-// are both in Caves), and its loot column runs far hotter at the dangerous end
-// (CAVING.md §3 — 25% rare / 7% extremely-rare / 3% nearly-impossible, against
-// Caves' 1.95% / 0% / 0.05%), so "the Die is harsher here" is true, not just
-// scarier-sounding.
+// One line for both cave zones, Bascinet's wording. `option.zoneSlug` stays
+// on the option regardless — CAVING.md §2a's Customs/Depot exemption is what
+// `caveLevel` already encodes, so nothing here needs to tell Caves and Depths
+// apart to say it.
 function crossingWarning(option) {
   if (!option.caveLevel) return null;
-  return option.zoneSlug === "depths"
-    ? "The Caving Die rolls on every step down here, and nowhere in the Depths is safe from it."
-    : "The Caving Die rolls on every step through the Caves — most of it is quiet, but not all of it.";
+  return "You will roll Caving Die every time you move through here.";
 }
 
 // The question asked before a zone crossing, on both surfaces.
