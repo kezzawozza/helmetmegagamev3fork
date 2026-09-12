@@ -31,7 +31,11 @@ async function exportAuditImpl({ params }) {
     where,
     orderBy: { createdAt: "desc" },
     take: EXPORT_LIMIT,
-    include: { targetCharacter: { select: { name: true } } },
+    include: {
+      targetCharacter: { select: { name: true } },
+      location: { select: { name: true } },
+      room: { select: { name: true } },
+    },
   });
 
   const usernameById = new Map(guildMembers.map((m) => [m.id, m.globalName ?? m.username ?? m.id]));
@@ -42,6 +46,8 @@ async function exportAuditImpl({ params }) {
     actorDiscordUserId: r.actorDiscordUserId,
     actor: usernameById.get(r.actorDiscordUserId) ?? r.actorDiscordUserId,
     target: r.targetCharacter?.name ?? "",
+    location: r.location?.name ?? "",
+    room: r.room?.name ?? "",
     reason: r.reason ?? "",
     details: r.details ?? null,
   }));
@@ -52,7 +58,7 @@ async function exportAuditImpl({ params }) {
 }
 
 function toCsv(rows) {
-  const columns = ["at", "action", "actor", "actorDiscordUserId", "target", "reason", "details", "id"];
+  const columns = ["at", "action", "actor", "actorDiscordUserId", "target", "location", "room", "reason", "details", "id"];
   const cell = (v) => {
     const s = v == null ? "" : String(v);
     // Quote everything rather than guessing: a reason is free text a player

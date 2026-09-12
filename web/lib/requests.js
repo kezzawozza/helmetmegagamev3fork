@@ -1,4 +1,4 @@
-import { prisma } from "@lifeweb/db";
+import { prisma, placePairForAudit } from "@lifeweb/db";
 import { MAX_REASON_LENGTH } from "@/lib/constants";
 import { UserError } from "@/lib/actionResult";
 import { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "@/lib/tagRequests";
@@ -149,7 +149,13 @@ export function requireReason(raw) {
 // happened, and a GM repairs by hand from /gm/dev if they must. `details` is
 // therefore the ONLY record — where the old Request.effect carried a restore
 // snapshot, that snapshot belongs in here now.
-export function logAudit(tx, { actorDiscordUserId, actionType, targetCharacterId, turnId, details }) {
+// `place` says WHERE this happened, for /gm/audit's room/location filter —
+// whatever the call site already has in hand: {locationId, roomId}, a
+// character (its .locationId is used, no room), or a place key string
+// (db/lib/placeKey.js). Optional and additive: omitted, the row stamps
+// nowhere, exactly as it did before this column existed.
+export async function logAudit(tx, { actorDiscordUserId, actionType, targetCharacterId, turnId, details, place }) {
+  const { locationId, roomId } = await placePairForAudit(tx, place);
   return tx.auditLog.create({
     data: {
       actorDiscordUserId,
@@ -157,6 +163,8 @@ export function logAudit(tx, { actorDiscordUserId, actionType, targetCharacterId
       targetCharacterId: targetCharacterId ?? null,
       turnId: turnId ?? null,
       details: details ?? {},
+      locationId,
+      roomId,
     },
   });
 }

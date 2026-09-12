@@ -37,6 +37,7 @@ export default function AuditDesk({
   characters,
   factions,
   zones,
+  locations,
   turnNumbers,
   selectableZones,
   visibleZoneIds,
@@ -210,6 +211,7 @@ export default function AuditDesk({
             characters={characters}
             factions={factions}
             zones={zones}
+            locations={locations}
             turnNumbers={turnNumbers}
           />
         </div>
@@ -255,6 +257,8 @@ function hrefFor(next) {
   for (const v of next.targets) put("target", v);
   for (const v of next.factions) put("faction", v);
   for (const v of next.zones) put("zone", v);
+  for (const v of next.locations) put("location", v);
+  for (const v of next.rooms) put("room", v);
   put("turnFrom", next.turnFrom);
   put("turnTo", next.turnTo);
   put("preset", next.preset);
@@ -278,6 +282,8 @@ function emptyFilters() {
     targets: [],
     factions: [],
     zones: [],
+    locations: [],
+    rooms: [],
     turnFrom: "",
     turnTo: "",
     preset: "",
@@ -300,6 +306,8 @@ function toQueryObject(f) {
     target: f.targets,
     faction: f.factions,
     zone: f.zones,
+    location: f.locations,
+    room: f.rooms,
     turnFrom: f.turnFrom,
     turnTo: f.turnTo,
     preset: f.preset,

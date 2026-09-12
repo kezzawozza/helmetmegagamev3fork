@@ -1332,6 +1332,7 @@ model Location {
   threatSpawns     ThreatSpawn[]
   cavingRolls      CavingRoll[]
   visits           LocationVisit[]
+  auditLogs        AuditLog[]
   // Everybody lying in wait here. A watch is anchored to one place and dies
   // when its owner leaves it (docs/systemdocs/INTERCEPT.md §1), so a Location
   // that goes away takes them with it.
@@ -1344,9 +1345,11 @@ model Location {
 
 /// What one character knows of the map — the fog behind /map.
 ///
-/// There was no record of this anywhere before: AuditLog has no locationId,
-/// ArchiveEntry is keyed to a zone rather than a Location, and a free in-zone
-/// hop files no Action at all. So "where have I been" had to become a table.
+/// There was no record of this anywhere before: AuditLog's locationId/roomId
+/// (added later, forward-only, and NULL on most rows even now) can't answer
+/// "where has this character ever been", ArchiveEntry is keyed to a zone
+/// rather than a Location, and a free in-zone hop files no Action at all. So
+/// "where have I been" had to become a table.
 ///
 /// Two grades, and the difference is the whole UI. `stood` means the character
 /// has actually been here. A row with `stood` false means they have only ever
@@ -1533,6 +1536,7 @@ model Room {
 
   playerThreads PlayerThread[]
   guests        RoomGuest[]
+  auditLogs     AuditLog[]
 
   // Factions banking here. A list rather than a single back-reference because
   // nothing stops two factions sharing a room -- the Church and the Order
@@ -4473,6 +4477,27 @@ model AuditLog {
   turnId    String?
   createdAt DateTime @default(now())
 
+  // WHERE this happened, for /gm/audit's room/location filter. Forward-only —
+  // added long after the table, so every row before this column shipped is
+  // NULL and stays NULL; there is no backfill, because most call sites never
+  // recorded a place at all. Real relations, not snapshot ids, because
+  // Locations and Rooms are mastered by docs/zones.yaml/db:sync-zones rather
+  // than created by play, so they are stable enough to reference — same
+  // reasoning as Action.locationId above.
+  //
+  // SetNull, never Cascade: a zone re-sync that prunes a Room must not take
+  // its audit history with it.
+  //
+  // These are filter-only. Renderers in web/lib/auditNarrative.js keep
+  // reading a place NAME out of `details` (e.g. d.locationName) rather than
+  // this column, because that is a frozen snapshot a pre-migration row still
+  // has — do not "deduplicate" that onto these columns, or old rows lose
+  // their sentence and the details::text free-text search stops matching.
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  roomId     String?
+  room       Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
   @@index([actionType])
   @@index([actorDiscordUserId])
   // The rationing lookups. Craft counts the crafter, which IS the row's
@@ -4485,6 +4510,11 @@ model AuditLog {
   // filter, and runs a count() beside it. Neither index above can serve that.
   @@index([createdAt])
   @@index([targetCharacterId])
+  // The room/location filters, each leading its own composite so a room
+  // filter with no location picked (a GM pasting a room link) still hits an
+  // index, and both still serve the createdAt sort/count beside them.
+  @@index([locationId, createdAt])
+  @@index([roomId, createdAt])
 }
 
 enum CavingRollKind {
