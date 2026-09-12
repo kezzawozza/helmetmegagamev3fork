@@ -14,7 +14,17 @@ import { useSyncExternalStore } from "react";
 //
 // Bump VERSION whenever a page's snapshot shape changes. An old snapshot is
 // then ignored rather than handed to a renderer that expects the new shape.
-const VERSION = 1;
+//
+// Bumped 2026-09-12: the Chat rail's tag chips (7dd5f2c2, "The chat rail's
+// chips are real tag chips now") reshaped the `things`/tag-chip payload
+// FreshChat stores for /chat without bumping this, so a browser holding an
+// older Chat snapshot painted it straight into the new ChatView and threw —
+// on every load, forever, since the stale copy lives in that browser's own
+// localStorage and no redeploy touches it. Bumping VERSION changes the
+// storage key prefix, so every stored snapshot everywhere is orphaned at
+// once: the next load finds nothing under the new prefix, falls through to
+// the fresh server fetch, and simply looks like a first visit.
+const VERSION = 2;
 const PREFIX = `bascinet:snap:${VERSION}:`;
 
 // localStorage is ~5MB per origin. One page may not eat most of it.

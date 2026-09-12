@@ -18,7 +18,21 @@ const { postMessage } = require("./discordRest");
 const { ambientLine } = require("./ambientLine");
 const { sceneLineAt } = require("./scene");
 
-const log = (what) => (err) => console.error(`Place line: ${what} failed:`, err?.message ?? err);
+const log = (what) => (err) => {
+  console.error(`Place line: ${what} failed:`, err?.message ?? err);
+  return FAILED;
+};
+
+// What a swallowed half resolves to, so a caller who wants to know can ask
+// without any of them having to stop swallowing. Every function below returns
+// { posted, archived } — false means that half did not land, and the callers
+// who do not care go on ignoring it.
+//
+// Null counts as not landed too, and that is not belt and braces: scene.js
+// catches its own failures and answers null rather than throwing, so a thrown
+// rejection is only one of the two ways an archive write can come to nothing.
+const FAILED = Symbol("failed");
+const landed = (result) => result !== FAILED && result != null;
 
 // BOTH halves are caught, and that is load-bearing rather than tidy. These are
 // scenery: a line nobody heard must never take down the thing that caused it.
@@ -27,20 +41,60 @@ const log = (what) => (err) => console.error(`Place line: ${what} failed:`, err?
 
 // The room hears one line. `room` needs { id, name, discordThreadId }.
 async function roomLine(db, room, text) {
+  let posted = false;
+  let archived = false;
   if (room?.discordThreadId) {
-    await postMessage(room.discordThreadId, ambientLine(text)).catch(log(`room line (${room.name})`));
+    posted = landed(await postMessage(room.discordThreadId, ambientLine(text)).catch(log(`room line (${room.name})`)));
   }
-  if (room?.id) await sceneLineAt(db, { roomId: room.id, text, signed: false }).catch(log(`room scene (${room.name})`));
+  if (room?.id) {
+    archived = landed(
+      await sceneLineAt(db, { roomId: room.id, text, signed: false }).catch(log(`room scene (${room.name})`)),
+    );
+  }
+  return { posted, archived };
 }
 
 // A Location's channel hears one line. `location` needs { id, name, discordChannelId }.
 async function locationLine(db, location, text) {
+  let posted = false;
+  let archived = false;
   if (location?.discordChannelId) {
-    await postMessage(location.discordChannelId, ambientLine(text)).catch(log(`location line (${location.name})`));
+    posted = landed(
+      await postMessage(location.discordChannelId, ambientLine(text)).catch(log(`location line (${location.name})`)),
+    );
   }
   if (location?.id) {
-    await sceneLineAt(db, { locationId: location.id, text, signed: false }).catch(log(`location scene (${location.name})`));
+    archived = landed(
+      await sceneLineAt(db, { locationId: location.id, text, signed: false }).catch(
+        log(`location scene (${location.name})`),
+      ),
+    );
   }
+  return { posted, archived };
 }
 
-module.exports = { roomLine, locationLine };
+// A zone's #summary hears one line. `zone` needs { id, name,
+// discordSummaryChannelId }.
+//
+// The third of these, and it arrived late: the two above were written for a
+// rite and a kiss, which both happen somewhere you are standing. A GM's
+// ambient line can be aimed at a whole zone, and that path was hand-rolling
+// the Discord half with no archive half at all — so a line a GM said into
+// #summary reached Discord and never reached /chat.
+async function zoneLine(db, zone, text) {
+  let posted = false;
+  let archived = false;
+  if (zone?.discordSummaryChannelId) {
+    posted = landed(
+      await postMessage(zone.discordSummaryChannelId, ambientLine(text)).catch(log(`zone line (${zone.name})`)),
+    );
+  }
+  if (zone?.id) {
+    archived = landed(
+      await sceneLineAt(db, { zoneId: zone.id, text, signed: false }).catch(log(`zone scene (${zone.name})`)),
+    );
+  }
+  return { posted, archived };
+}
+
+module.exports = { roomLine, locationLine, zoneLine };
