@@ -507,6 +507,16 @@ async function depotSendShuttleImpl() {
       if (cleared.count === 0) {
         throw new UserError("The stash moved while you were loading. Try again.");
       }
+      // Booked by hand because this is a guarded conditional decrement rather
+      // than a moveParty call — the concurrency shape has to stay, so the
+      // ledger row comes to it. Without this the stash drifts by exactly what
+      // every shuttle launch spends, forever, and Health cannot tell that
+      // apart from a real hole.
+      await record(
+        tx,
+        { from: { kind: "room", id: room.id, name: room.name }, to: COMPANY, form: "BALANCE", amount: resourcesSpent },
+        { reason: "DEPOT_SALE", ...turnStamp(openTurn) },
+      );
     }
     // The payout arrives from the Company, buying what was loaded — the
     // mirror image of an order's money leaving for it.
@@ -571,16 +581,16 @@ async function depotAtmImpl({ direction: rawDirection, amount: rawAmount }) {
   const openTurn = await getOpenTurn();
 
   await prisma.$transaction(async (tx) => {
-    // The ATM is a form change, not a mint or a burn — the two legs below
-    // (the account balance and the physical obols) are given matching
-    // `econ` so they net to zero across the books: the same value, just
-    // changing which account holds it.
+    // The ATM is a form change, not a mint or a burn: the same value stops
+    // being an account balance and starts being coin in a pocket.
+    //
+    // ONE row records it, on the coin leg below, and bumpAccount is
+    // deliberately given no `econ`. Booking both legs was the first attempt and
+    // it double-counted: both rows pointed account -> character, so the ATM
+    // showed at twice its value everywhere that does not filter by form —
+    // Top Movers and the Accounts in/out columns both do not.
     const merchant = characterParty(character);
-    const moved = await bumpAccount(tx, withdrawing ? -amount : amount, {
-      econ: withdrawing
-        ? { to: merchant, reason: "DEPOT_ATM", ...turnStamp(openTurn) }
-        : { from: merchant, reason: "DEPOT_ATM", ...turnStamp(openTurn) },
-    });
+    const moved = await bumpAccount(tx, withdrawing ? -amount : amount);
     if (Math.abs(moved.delta) < amount) {
       throw new UserError("The account moved while you were counting. Try again.");
     }
@@ -588,11 +598,11 @@ async function depotAtmImpl({ direction: rawDirection, amount: rawAmount }) {
       await addToStack(tx, character.id, obol.id, amount, {
         source: "EVENT",
         stackable: true,
-        econ: { from: DEPOT_ACCOUNT, reason: "DEPOT_ATM" , ...turnStamp(openTurn) },
+        econ: { from: DEPOT_ACCOUNT, to: merchant, reason: "DEPOT_ATM", ...turnStamp(openTurn) },
       });
     } else {
       await dropCharacterTag(tx, character.id, obol.id, amount, {
-        econ: { to: DEPOT_ACCOUNT, reason: "DEPOT_ATM" , ...turnStamp(openTurn) },
+        econ: { from: merchant, to: DEPOT_ACCOUNT, reason: "DEPOT_ATM", ...turnStamp(openTurn) },
       });
     }
 

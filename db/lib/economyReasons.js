@@ -70,7 +70,6 @@ const REASONS = {
   // --- internal (a form change, not a movement) ---
   DEPOT_ATM: { flow: FLOW.INTERNAL, label: "ATM" },
   DEPOT_CREDIT: { flow: FLOW.INTERNAL, label: "Credit line" },
-  DEPOT_MANIFEST: { flow: FLOW.INTERNAL, label: "On the manifest" },
 
   // --- the honest ones ---
   // A write reached the ledger with no reason. Deliberately loud: it shows up
@@ -94,8 +93,4 @@ function reasonLabel(reason) {
   return REASONS[reason]?.label ?? reason ?? "Unknown";
 }
 
-function isKnownReason(reason) {
-  return Boolean(REASONS[reason]);
-}
-
-module.exports = { FLOW, REASONS, DEFAULT_REASON, reasonFlow, reasonLabel, isKnownReason };
+module.exports = { FLOW, REASONS, DEFAULT_REASON, reasonFlow, reasonLabel };

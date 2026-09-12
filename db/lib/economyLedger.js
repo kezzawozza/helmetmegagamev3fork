@@ -11,11 +11,14 @@
 //   1. `amount` is always POSITIVE and the direction is from -> to. A caller
 //      that has a signed delta passes it and lets `record` sort out which way
 //      round the legs go, so no call site has to think about it.
-//   2. A ledger failure NEVER fails the money move. The write is wrapped, and a
-//      row that cannot be written is logged and dropped — the reconciliation
-//      check on /gm/economy is what catches the gap. Same reasoning as
-//      chargeWoundMood in db/lib/tagWrites.js: a bookkeeping hiccup must not
-//      cost a player their purchase.
+//   2. A ledger failure NEVER fails the money move. This needs a SAVEPOINT, not
+//      a try/catch, and the difference is the whole reason this comment is
+//      long. Postgres aborts the entire transaction on a failed statement, and
+//      every statement after it fails with 25P02 until the transaction ends —
+//      so catching the error in JavaScript does NOT un-abort it. A ledger bug
+//      would have taken the player's purchase down with it. The write is
+//      therefore fenced between SAVEPOINT and ROLLBACK TO SAVEPOINT, which is
+//      the only thing that actually makes a nested failure recoverable.
 //   3. A write with no reason is recorded as UNATTRIBUTED, never dropped. An
 //      un-hooked call site is then an ugly bar on the panel instead of silently
 //      missing money.
@@ -38,7 +41,34 @@ const COMPANY = { kind: "offworld", id: "company", name: "The Company" };
 // summing them would be a lie the panel tells on its front page.
 const DEPOT_ACCOUNT = { kind: "depot", id: "account", name: "Depot account" };
 const DEPOT_DEBT = { kind: "depot", id: "debt", name: "The Company's line" };
-const DEPOT_MANIFEST = { kind: "depot", id: "manifest", name: "On the manifest" };
+
+const MAX_INT4 = 2147483647;
+
+// Runs `fn` fenced by a SAVEPOINT so a failure inside it cannot poison the
+// caller's transaction.
+//
+// This is the only correct shape for "best effort inside somebody else's
+// transaction" on Postgres. Without it, a failed INSERT here puts the
+// connection in 25P02 and every later statement in the caller's $transaction
+// fails too — the money move included. A try/catch alone reads like it handles
+// that and does not.
+//
+// If the savepoint statements themselves are unavailable (a client that does
+// not expose $executeRawUnsafe), fall back to running `fn` bare: the ledger
+// row is still worth attempting, and the caller is no worse off than before
+// this module existed.
+async function savepointed(tx, fn) {
+  if (typeof tx.$executeRawUnsafe !== "function") return fn();
+  await tx.$executeRawUnsafe("SAVEPOINT economy_entry");
+  try {
+    const out = await fn();
+    await tx.$executeRawUnsafe("RELEASE SAVEPOINT economy_entry");
+    return out;
+  } catch (err) {
+    await tx.$executeRawUnsafe("ROLLBACK TO SAVEPOINT economy_entry");
+    throw err;
+  }
+}
 
 // A character or Room resolved to a party. Accepts the shape db/lib/parties.js
 // already returns, so a caller that has a party passes it straight through.
@@ -86,9 +116,17 @@ async function record(tx, { from, to, form, amount, tag, quantity, unitValue }, 
     const gameId = await currentGameId(tx, ctx);
     if (!gameId) return null;
 
-    return await tx.economyEntry.create({
-      data: {
-        gameId,
+    // `amount` is INTEGER in the database. A stack of a high-priced tag can
+    // multiply past int4 and raise, which before the savepoint below would
+    // have rolled back the player's whole action. Clamped rather than
+    // rejected: a wrong-but-huge number on a report is a bug to find, a lost
+    // purchase is a bug that costs somebody their afternoon.
+    if (a > MAX_INT4) a = MAX_INT4;
+
+    return await savepointed(tx, () =>
+      tx.economyEntry.create({
+        data: {
+          gameId,
         turnId: ctx.turnId ?? null,
         turnNumber: ctx.turnNumber ?? null,
         fromKind: src?.kind ?? null,
@@ -114,8 +152,9 @@ async function record(tx, { from, to, form, amount, tag, quantity, unitValue }, 
         secret: Boolean(ctx.secret),
         source: ctx.source ?? "LIVE",
         backfillKey: ctx.backfillKey ?? null,
-      },
-    });
+        },
+      }),
+    );
   } catch (err) {
     // Rule 2. Never let the book cost somebody their purchase.
     console.error("[economy] ledger write failed:", err?.message ?? err);
@@ -140,37 +179,15 @@ function turnStamp(turn) {
   return { turnId: turn.id ?? null, turnNumber: turn.number ?? null };
 }
 
-// Builds a context from the things a request handler usually has: the open
-// turn, the acting character (for place columns), and the reason.
-function context({ reason, turn, actor, character, actionType, auditLogId, secret, gameId, source, backfillKey } = {}) {
-  return {
-    reason: reason ?? DEFAULT_REASON,
-    ...turnStamp(turn),
-    actorDiscordUserId: actor ?? character?.discordUserId ?? null,
-    zoneId: character?.zoneId ?? null,
-    zoneName: character?.zone?.name ?? character?.zoneName ?? null,
-    locationId: character?.locationId ?? null,
-    roomId: character?.roomId ?? null,
-    actionType: actionType ?? null,
-    auditLogId: auditLogId ?? null,
-    secret: Boolean(secret),
-    gameId: gameId ?? null,
-    source: source ?? "LIVE",
-    backfillKey: backfillKey ?? null,
-  };
-}
-
 module.exports = {
   MINT,
   BURN,
   COMPANY,
   DEPOT_ACCOUNT,
   DEPOT_DEBT,
-  DEPOT_MANIFEST,
   characterParty,
   roomParty,
   record,
   recordDelta,
-  context,
   turnStamp,
 };

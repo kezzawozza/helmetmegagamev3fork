@@ -46,11 +46,12 @@ function blobParty(p) {
   return party(p.kind, p.id, p.name);
 }
 
-const MINT = { kind: "world", id: "mint", name: "Minted" };
-const BURN = { kind: "world", id: "burn", name: "Burned" };
-const COMPANY = { kind: "offworld", id: "company", name: "The Company" };
-const ACCOUNT = { kind: "depot", id: "account", name: "Depot account" };
-const DEBT = { kind: "depot", id: "debt", name: "The Company's line" };
+// The book accounts come from the ledger itself. They were briefly re-declared
+// here with identical values, which is the one duplication in this system that
+// actually costs something: two copies of the accounts that define the
+// double-entry universe drift, and then the backfill and the live hooks
+// disagree about what "the Company" is.
+const { MINT, BURN, COMPANY, DEPOT_ACCOUNT: ACCOUNT, DEPOT_DEBT: DEBT } = require("./economyLedger");
 
 const n = (v) => (Number.isFinite(Number(v)) ? Math.trunc(Number(v)) : 0);
 
@@ -136,16 +137,27 @@ const ADAPTERS = {
   thanati_purchase: (e) => spend(e, "THANATI", true),
 
   // --- faucets ---
+  //
+  // Three more used to sit here and could never fire, because the action moves
+  // no ⬢ at all: caving grants a tag rather than coin, character_created
+  // records the tag-point budget rather than the role's starting purse, and
+  // threat_assigned records tagPoints. Their ⬢, where there is any, reaches
+  // the books as a PLUG instead. Do not re-add a mapping without reading the
+  // writer's details blob first.
   request_consume_tag: (e) => grant(e, "CONSUME"),
-  caving_loot_granted: (e) => grant(e, "CAVING"),
-  character_created: (e) => grant(e, "CHARACTER_START"),
-  threat_assigned: (e) => grant(e, "THREAT_SPAWN"),
 };
 
 // The two generic shapes. Most of the old rows are one of these: a number the
 // actor paid, or a number the actor was given.
+// The key names here are not a guess and not a superset "just in case" — each
+// one is a key some real writer actually uses, and the list grew when a review
+// found four mappings silently producing nothing because the key they read was
+// not the key the call site wrote. `spent` is Engrave
+// (requestActions.js#request_engrave_headstone), `total` is the Thanati
+// purchase (thanatiActions.js). Check the writer before adding another.
 function spend(e, reason, secret = false) {
-  const amt = n(e.details?.resourcesSpent ?? e.details?.cost ?? e.details?.resources);
+  const d = e.details ?? {};
+  const amt = n(d.resourcesSpent ?? d.cost ?? d.spent ?? d.total ?? d.resources);
   return [{ from: target(e), to: BURN, form: "BALANCE", amount: amt, reason, secret }];
 }
 
@@ -169,8 +181,4 @@ function adapt(entry) {
   return rows.filter((r) => r && r.amount > 0 && (r.from || r.to));
 }
 
-function isMapped(actionType) {
-  return Boolean(ADAPTERS[actionType]);
-}
-
-module.exports = { adapt, isMapped, ADAPTERS, MINT, BURN, COMPANY, ACCOUNT, DEBT };
+module.exports = { adapt };

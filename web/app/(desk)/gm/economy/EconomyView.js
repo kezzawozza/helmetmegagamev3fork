@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
 import { StackedArea, DivergingBars, Lorenz } from "@/app/components/charts";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
 import EmptyState, { EmptyRow } from "@/app/components/EmptyState";
 import ResourceChip from "@/app/components/ResourceChip";
-import { rebuildRollupAction } from "./actions";
 
 // The economy desk's whole client half. One file, one switch on `section` —
 // the four sections are short enough that splitting each into its own
@@ -340,35 +338,11 @@ function Accounts({ rows, openTurnNumber }) {
 // --- Health ------------------------------------------------------------
 
 function Health({ reconciliation, unattributed, plugRows }) {
-  const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState(null);
-
-  function rebuild() {
-    startTransition(async () => {
-      const r = await rebuildRollupAction();
-      setResult(r);
-    });
-  }
 
   return (
     <section className="ops-section ops-section--wide">
       <SectionHead title="Health" lede="Diagnostics over the ledger — drift, un-hooked call sites, and the backfill seam." />
 
-      <div className="panel" style={{ padding: "1rem" }}>
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-sm text-muted">Rebuild rollup</h3>
-          <button type="button" className="btn btn-secondary" onClick={rebuild} disabled={pending}>
-            {pending ? "Rebuilding…" : "Rebuild rollup"}
-          </button>
-        </div>
-        {result ? (
-          result.ok ? (
-            <p className="text-sm text-muted">Rebuilt {result.turns} turn(s), {result.buckets} bucket(s).</p>
-          ) : (
-            <p className="form-error text-sm">{result.error}</p>
-          )
-        ) : null}
-      </div>
 
       <div className="panel" style={{ padding: "1rem" }}>
         <h3 className="text-sm text-muted" style={{ marginBottom: "0.5rem" }}>

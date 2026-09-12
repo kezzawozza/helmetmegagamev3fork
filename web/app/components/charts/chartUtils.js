@@ -36,7 +36,7 @@ export function compactNumber(value) {
 
 // The eight validated categorical series tokens, in fixed order. Never
 // generate a 9th -- fold extra series into "Other" at the call site.
-export const SERIES_VARS = [
+const SERIES_VARS = [
   "var(--chart-series-1)",
   "var(--chart-series-2)",
   "var(--chart-series-3)",

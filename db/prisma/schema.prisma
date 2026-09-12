@@ -4624,33 +4624,6 @@ enum EconomySource {
   PLUG
 }
 
-// A derived per-turn rollup, so the /gm/economy charts read one row per bucket
-// instead of scanning the ledger. A CACHE, not a source of truth: rebuildable
-// from EconomyEntry at any time, and the Health section has a button that does
-// exactly that.
-//
-// The grain carries fromKind/toKind because a mint (from a world account) and
-// a transfer between two players are the same reason wearing different shapes,
-// and the supply charts have to tell them apart.
-model EconomyTurnRollup {
-  id         String @id @default(cuid())
-  gameId     String
-  turnNumber Int
-
-  reason   String
-  form     EconomyForm
-  fromKind String?
-  toKind   String?
-
-  amount     Int
-  entryCount Int
-
-  builtAt DateTime @default(now())
-
-  @@unique([gameId, turnNumber, reason, form, fromKind, toKind])
-  @@index([gameId, turnNumber])
-}
-
 enum CavingRollKind {
   TROUBLE
   QUIET

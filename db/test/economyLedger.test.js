@@ -34,13 +34,16 @@ function fakeTx(balances = {}) {
       return { count: 1 };
     },
   });
+  const sql = [];
   return {
     bal,
     entries,
+    sql,
     character: model(),
     room: model(),
     gameState: { async findFirst() { return { gameId: "g1" }; } },
     economyEntry: { async create({ data }) { entries.push(data); return data; } },
+    async $executeRawUnsafe(text) { sql.push(text); },
   };
 }
 
@@ -91,6 +94,37 @@ test("a ledger failure never fails the money move", async () => {
   };
   await moveParty(tx, ada, -4);
   assert.equal(tx.bal.get("ada"), 6, "the balance still moved");
+});
+
+test("a failed ledger write is rolled back to a SAVEPOINT, not merely caught", async () => {
+  // The reason this test exists: Postgres aborts the WHOLE transaction on a
+  // failed statement and refuses every statement after it with 25P02, so
+  // catching the error in JavaScript does not un-abort anything — the money
+  // move would go down with the ledger row. Only a savepoint makes the failure
+  // recoverable, and an earlier version of this file could not tell the
+  // difference because its fake transaction never threw.
+  const tx = fakeTx({ ada: 10 });
+  tx.economyEntry.create = async () => {
+    throw new Error("ledger is on fire");
+  };
+  await moveParty(tx, ada, -4);
+  assert.deepEqual(tx.sql, ["SAVEPOINT economy_entry", "ROLLBACK TO SAVEPOINT economy_entry"]);
+});
+
+test("a successful ledger write releases its savepoint", async () => {
+  const tx = fakeTx({ ada: 10 });
+  await moveParty(tx, ada, -4, { reason: "HUNGER" });
+  assert.deepEqual(tx.sql, ["SAVEPOINT economy_entry", "RELEASE SAVEPOINT economy_entry"]);
+});
+
+test("an amount past int4 is clamped rather than raising", async () => {
+  // The realistic overflow: a big stack of a high-priced tag multiplied out.
+  // A wrong-but-huge number on a report is a bug to find; a lost purchase is
+  // somebody's afternoon.
+  const tx = fakeTx();
+  await record(tx, { from: ada, to: bram, form: "GOODS", amount: 9e18 });
+  assert.equal(tx.entries.length, 1);
+  assert.equal(tx.entries[0].amount, 2147483647);
 });
 
 test("moveParty reconciles: ledger sum equals the live balance", async () => {

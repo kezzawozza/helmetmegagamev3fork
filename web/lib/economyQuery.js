@@ -1,6 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { reasonFlow, reasonLabel, FLOW } from "@lifeweb/db/lib/economyReasons";
-import { inVisibleZones, seatKey } from "./zones";
+import { seatKey } from "./zones";
 
 // The read side of the economy ledger — everything /gm/economy asks the
 // database, in one place. Nothing here writes.
@@ -172,17 +172,20 @@ export async function ledgerPage({ gameId, page = 1, pageSize = 50, where = {}, 
   return { rows, total, page, pageSize, pages: Math.max(1, Math.ceil(total / pageSize)) };
 }
 
-// Per-turn totals for the charts. Reads the rollup when it has been built and
-// falls back to the ledger when it has not, so a fresh install still draws
-// something rather than an empty page.
+// Per-turn totals for the charts, grouped straight off the ledger.
+//
+// There was an EconomyTurnRollup cache here for a while. It is gone: nothing
+// ever built it during play, so in a live game it was empty or stale, and the
+// one button that refreshed it silently dropped every row with no turn number
+// — which is most of them — permanently shrinking the charts of whoever
+// pressed it. A cache that is never written is not a cache, it is a second
+// answer to the same question. If this groupBy ever gets slow, cache it
+// somewhere that is actually kept warm.
 export async function flowsByTurn({ gameId, fromTurn = null, toTurn = null }) {
   const turnFilter = {};
   if (fromTurn != null) turnFilter.gte = Number(fromTurn);
   if (toTurn != null) turnFilter.lte = Number(toTurn);
   const where = { gameId, ...(Object.keys(turnFilter).length ? { turnNumber: turnFilter } : {}) };
-
-  const rollup = await prisma.economyTurnRollup.findMany({ where, orderBy: { turnNumber: "asc" } });
-  if (rollup.length) return rollup;
 
   const grouped = await prisma.economyEntry.groupBy({
     by: ["turnNumber", "reason", "form", "fromKind", "toKind"],
@@ -252,14 +255,6 @@ export function gini(values) {
 }
 
 // --- what a given GM may read ------------------------------------------
-
-// Zone scoping, reusing the desks' own filter. `visibleZoneNames` null means
-// every zone (web/lib/gmZoneView.js), and an entry with no zone stays visible
-// to everyone — EconomyEntry.zoneName is named to match what inVisibleZones
-// already reads, so no adapter is needed.
-export function scopeToZones(rows, visibleZoneNames) {
-  return inVisibleZones(rows, visibleZoneNames);
-}
 
 // Redaction. The amount, the reason and the turn always survive; only the
 // counterparty is withheld, and only from a GM who is not a superadmin.

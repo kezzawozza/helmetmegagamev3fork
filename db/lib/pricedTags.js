@@ -23,7 +23,6 @@ const TTL_MS = 5 * 60 * 1000;
 // across transactions. Reset only by TTL expiry or an explicit invalidate.
 let cache = null; // Map<tagId, entry>
 let loadedAt = 0;
-let loading = null; // in-flight load promise, so concurrent misses share one query
 
 function isFresh() {
   return cache && Date.now() - loadedAt < TTL_MS;
@@ -59,10 +58,17 @@ async function pricedTag(tx, tagId) {
   if (!tagId) return null;
   try {
     if (!isFresh()) {
-      // Share one in-flight load across concurrent callers instead of each
-      // firing its own query the instant the TTL lapses.
-      loading = loading ?? loadCache(tx).finally(() => (loading = null));
-      await loading;
+      // NOT shared across callers, deliberately. An in-flight promise was
+      // reused here so a TTL lapse cost one query rather than many — but the
+      // promise carried whichever caller's `tx` won the race, so a second
+      // transaction ended up awaiting a query issued on the first one's
+      // connection. If the first rolled back, the second got an error for a
+      // reason that had nothing to do with it, and its tag write went
+      // unrecorded with nothing to retry it.
+      //
+      // Each caller loading on its own tx costs a handful of duplicate reads
+      // once every TTL. That is the cheaper mistake by a wide margin.
+      await loadCache(tx);
     }
     return cache?.get(tagId) ?? null;
   } catch (err) {
@@ -76,7 +82,6 @@ async function pricedTag(tx, tagId) {
 function invalidatePricedTags() {
   cache = null;
   loadedAt = 0;
-  loading = null;
 }
 
 module.exports = { pricedTag, invalidatePricedTags };

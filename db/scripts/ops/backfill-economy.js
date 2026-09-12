@@ -25,7 +25,6 @@
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { adapt } = require("../../lib/economyAdapter");
-const { rebuild } = require("../../lib/economyRollup");
 
 const BATCH = 500;
 
@@ -116,8 +115,6 @@ async function main() {
   let plugs = [];
   if (apply) {
     plugs = await writePlugs(gameId);
-    const built = await rebuild(prisma, gameId);
-    console.log(`Rollup rebuilt: ${built.turns} turn(s), ${built.buckets} bucket(s).`);
   }
 
   const top = [...skippedTypes.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);

@@ -12,6 +12,7 @@ import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { grantTagSlugs, addToRoomStack, dropRoomTag, clampEquippedQuantity } from "@lifeweb/db/lib/tagWrites";
+import { record, BURN, turnStamp } from "@lifeweb/db/lib/economyLedger";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import {
   THANATI_SLUG,
@@ -246,6 +247,7 @@ async function purchaseGearImpl({ items, currency, purse }) {
   // "not enough there" with three hundred ⬢ in their own pocket. The draw is
   // re-derived here, so the second one simply pays from somewhere else.
   const draw = {};
+  const openTurn = await getOpenTurn();
   await prisma.$transaction(async (tx) => {
     const [buyer, roomNow, roomObols, myObols] = await Promise.all([
       tx.character.findUnique({ where: { id: me.id }, select: { resources: true } }),
@@ -276,6 +278,20 @@ async function purchaseGearImpl({ items, currency, purse }) {
     }
     if (owed > 0) throw new UserError("Not enough there.");
 
+    // Every leg below is booked, and each one by hand, because none of them
+    // goes through a hooked primitive: the two balance legs are guarded
+    // conditional decrements (the concurrency shape has to stay, so the ledger
+    // row comes to them) and the own-obols leg goes through spendCharacterTag
+    // rather than dropCharacterTag for the same reason. Unbooked, a cult
+    // purchase drifted both the hideout and the buyer permanently.
+    //
+    // `secret` throughout: a cult purchase is exactly what the redaction flag
+    // is for. The amount still counts toward every aggregate; only the
+    // counterparty is withheld from a plain GM.
+    const econ = { reason: "THANATI", secret: true, ...turnStamp(openTurn) };
+    const roomParty = { kind: "room", id: hideout.id, name: hideout.name };
+    const selfParty = { kind: "character", id: me.id, name: me.name };
+
     for (const [key, amount] of Object.entries(draw)) {
       if (key === "room:resources") {
         const { count } = await tx.room.updateMany({
@@ -283,19 +299,27 @@ async function purchaseGearImpl({ items, currency, purse }) {
           data: { resources: { decrement: amount } },
         });
         if (count === 0) throw new UserError("Not enough there.");
+        await record(tx, { from: roomParty, to: BURN, form: "BALANCE", amount }, econ);
       } else if (key === "self:resources") {
         const { count } = await tx.character.updateMany({
           where: { id: me.id, resources: { gte: amount } },
           data: { resources: { decrement: amount } },
         });
         if (count === 0) throw new UserError("Not enough there.");
+        await record(tx, { from: selfParty, to: BURN, form: "BALANCE", amount }, econ);
       } else if (key === "room:obols") {
         // `.ok` — dropRoomTag returns an object, so testing the call is always truthy.
-        if (!obolTag || !(await dropRoomTag(tx, hideout.id, obolTag.id, amount)).ok) {
+        if (!obolTag || !(await dropRoomTag(tx, hideout.id, obolTag.id, amount, { econ })).ok) {
           throw new UserError("Not enough there.");
         }
       } else if (!obolTag || !(await spendCharacterTag(tx, me.id, obolTag.id, amount))) {
         throw new UserError("Not enough there.");
+      } else {
+        await record(
+          tx,
+          { from: selfParty, to: BURN, form: "COIN", amount, tag: { id: obolTag.id, slug: "obol" }, quantity: amount, unitValue: 1 },
+          econ,
+        );
       }
     }
     for (const line of lines) await addToRoomStack(tx, hideout.id, line.tagId, line.quantity);

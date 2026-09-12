@@ -141,18 +141,25 @@ read it unredacted.
   resolve, so the panel speaks the language the rest of the app speaks.
 - Lifeweb Blood is **not** on this page. It stays a Mortus surface.
 
-## 8. The rollup
+## 8. Per-turn numbers are grouped, not cached
 
-`EconomyTurnRollup` is a per-turn cache so the charts read one row per bucket
-instead of scanning the longest table in the database. It is **rebuildable from
-the ledger at any time** (`db/lib/economyRollup.js#rebuild`, and the button on
-Health), which is what makes it a cache rather than a second source of truth.
+`flowsByTurn()` groups the ledger directly. There was an `EconomyTurnRollup`
+cache here briefly and it is gone, for two reasons worth remembering before
+anyone adds it back:
 
-It is deliberately **not** written by the turn-end side-effect thunk. That is
-the most fragile pass in the game and this is a reporting convenience; the read
-path falls back to grouping the ledger directly when a turn has no rollup yet.
-Wiring it into turn resolution is a reasonable later change, but it needs to be
-made safe against a half-resolved turn first.
+- **Nothing ever built it during play.** It was written only by the backfill
+  and by a button, so in a live game it was empty or stale, and every read
+  fell through to the groupBy anyway — the same aggregation at the same grain,
+  in seven lines.
+- **Its refresh button destroyed data.** The rebuild skipped every row with no
+  turn number, which is most of them, so pressing it permanently shrank the
+  charts.
+
+A cache that is never written is not a cache, it is a second answer to the
+same question. If the groupBy becomes slow — it is the kind of thing that
+would, on a month-old game — cache it somewhere that is actually kept warm,
+and make the read path merge rather than choose.
+
 
 ## 9. Things not to do
 

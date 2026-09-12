@@ -48,21 +48,6 @@ CREATE TABLE "EconomyEntry" (
     CONSTRAINT "EconomyEntry_pkey" PRIMARY KEY ("id")
 );
 
-CREATE TABLE "EconomyTurnRollup" (
-    "id" TEXT NOT NULL,
-    "gameId" TEXT NOT NULL,
-    "turnNumber" INTEGER NOT NULL,
-    "reason" TEXT NOT NULL,
-    "form" "EconomyForm" NOT NULL,
-    "fromKind" TEXT,
-    "toKind" TEXT,
-    "amount" INTEGER NOT NULL,
-    "entryCount" INTEGER NOT NULL,
-    "builtAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "EconomyTurnRollup_pkey" PRIMARY KEY ("id")
-);
-
 
 CREATE INDEX "EconomyEntry_gameId_turnNumber_idx" ON "EconomyEntry"("gameId", "turnNumber");
 
@@ -78,9 +63,7 @@ CREATE INDEX "EconomyEntry_zoneName_at_idx" ON "EconomyEntry"("zoneName", "at");
 
 CREATE INDEX "EconomyEntry_auditLogId_idx" ON "EconomyEntry"("auditLogId");
 
-CREATE INDEX "EconomyTurnRollup_gameId_turnNumber_idx" ON "EconomyTurnRollup"("gameId", "turnNumber");
 
-CREATE UNIQUE INDEX "EconomyTurnRollup_gameId_turnNumber_reason_form_fromKind_to_key" ON "EconomyTurnRollup"("gameId", "turnNumber", "reason", "form", "fromKind", "toKind");
 
 -- Backfill idempotency. PARTIAL, because backfillKey is null for every live
 -- write and only db:backfill-economy sets it (as `<auditLogId>:<n>`) — a plain
