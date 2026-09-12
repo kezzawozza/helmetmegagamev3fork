@@ -30,17 +30,19 @@ of prerequisites before it can be bought at all.
 ## 2. Tiers
 
 Materials cost (the ⬢ column) was cut ~15% across the ladder as a rebalance
-pass. Dead Simple's 3 ⬢ is unchanged — 15% off 3 rounds back to 3 — every
-other rung actually moved. `pt`, `Turns`, and every gate are untouched.
+pass, then a further ~5% (2026-09-12, the same pass that trimmed medical and
+brewing). Dead Simple's 3 ⬢ and Simple's 6 ⬢ are unchanged — 5% off either
+rounds back to itself — every rung above Simple moved again. `pt`, `Turns`,
+and every gate are untouched.
 
 | Tier | pt | ⬢ | Turns | Skill gate | Combat gate | Purchasable at start |
 |---|---|---|---|---|---|---|
 | Dead Simple | 2 | 3 | 0 | `crafting` OR `smithing` | none | yes |
 | Simple | 5 | 6 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
-| Moderate | 7 | 14 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| High Quality | 9 | 26 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| Exceptional | 14 | 34 | 3 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| Gunpowder | 14 | 29 | 2 | `smithing-gunpowder` | `ranged-basic` | no (mastery gate) |
+| Moderate | 7 | 13 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| High Quality | 9 | 25 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| Exceptional | 14 | 32 | 3 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| Gunpowder | 14 | 28 | 2 | `smithing-gunpowder` | `ranged-basic` | no (mastery gate) |
 
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
@@ -99,7 +101,7 @@ new sword is gated the moment it names a smithing skill and nobody has to
 remember a second field. `needsWorkshop()` in `web/lib/tagRequests.js` is the
 one copy, shared by the Craft dialog and `craftRequestImpl`.
 
-`workshop-equipment` is itself a **High Quality** craftable — 9 pt, 26 ⬢, 2
+`workshop-equipment` is itself a **High Quality** craftable — 9 pt, 25 ⬢, 2
 turns, `smithing-skilled` — and **Immense (100 lb)**, so it is a real decision
 to move one. It is the one recipe **exempt from its own gate**, and has to be:
 gating it would mean nobody could ever build the first forge. You raise that
@@ -195,16 +197,16 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Broadsword | Moderate | |
 | War Hammer | Moderate | |
 | Bastard Sword | High Quality | |
-| Rapier | High Quality | Spends one `steel`. 1 turn / 18 ⬢ now, not the tier's 2 / 26 — the other turn moved into steel's own recipe, and 8 ⬢ comes off for the ingot (2026-09-09, repriced 2026-09-10). |
+| Rapier | High Quality | Spends one `steel`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — the other turn moved into steel's own recipe, and 8 ⬢ comes off for the ingot (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 | Sabre | High Quality | |
-| Katana | High Quality | Spends one `steel`. 1 turn / 18 ⬢ now, not the tier's 2 / 26 — same move as Rapier (2026-09-09, repriced 2026-09-10). |
-| Silver Spear | High Quality | Spends one `silver` — its 26 ⬢ total is unchanged, the resourceCost is just 21 ⬢ of it now (2026-09-09). |
+| Katana | High Quality | Spends one `steel`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — same move as Rapier (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Silver Spear | High Quality | Spends one `silver` — its 25 ⬢ total is unchanged, the resourceCost is just 20 ⬢ of it now (2026-09-09; materials cut a further ~5% 2026-09-12). |
 | Lucerne | High Quality | |
 | Zweihander | High Quality | |
 | Crossbow | High Quality | |
 | Musketoon | Gunpowder | Priced at 18 pt, not the tier's 14 — a pre-existing outlier, not introduced by the Combat Update. |
-| Bore Pistol | Gunpowder | Materials cost 19 ⬢, not the tier's 29 — a pre-existing outlier, not introduced by the Combat Update. Priced accordingly in `DEPOT.md` §4. |
-| Bomb | Gunpowder | `purchasable: false` (craft-only). Spends one `black-powder` per unit on top of its 29 ⬢ — the one ladder recipe with an ingredient. |
+| Bore Pistol | Gunpowder | Materials cost 18 ⬢, not the tier's 28 — a pre-existing outlier, not introduced by the Combat Update. Priced accordingly in `DEPOT.md` §4. |
+| Bomb | Gunpowder | `purchasable: false` (craft-only). Spends one `black-powder` per unit on top of its 28 ⬢ — the one ladder recipe with an ingredient. |
 
 **Off-tier recipes with ingredients.** Three smaller recipes sit under their
 own prices, each spending an ingredient (`requirement.items`, enforced and
@@ -299,9 +301,9 @@ pair still counts at the Spillway (`CRAFTING.md` §4a).
 | Gladiator Helmet | Moderate | Also on the Merchant's shelf at 45 ⬢ (`DEPOT.md`). Optional conceal. |
 | Knight's Helmet | High Quality | Force conceal — a closed helm is not a face (`PROXYING.md` §5). |
 | Censor's Helmet | High Quality | Force conceal |
-| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. Spends one `steel`. 1 turn / 18 ⬢ now, not the tier's 2 / 26 (2026-09-09, repriced 2026-09-10). |
+| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. Spends one `steel`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 | Breastplate | High Quality | |
-| Plate Armor | Exceptional | Spends one `steel`. 2 turns / 26 ⬢ now, not the tier's 3 / 34 (2026-09-09, repriced 2026-09-10). |
+| Plate Armor | Exceptional | Spends one `steel`. 2 turns / 25 ⬢ now, not the tier's 3 / 32 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 
 Off the ladder:
 

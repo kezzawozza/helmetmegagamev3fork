@@ -1,5 +1,6 @@
 const { gambitModifiers, gambitModifierTotal } = require("./gambitModifier");
 const { rollWithAdvantage } = require("./advantage");
+const { consumeInspiredIfUsed } = require("./tagWrites");
 const { formatLaborBonusNote, lazyYield, lazyExpression } = require("./laborAccess");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 
@@ -31,8 +32,12 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
   // `diceRoll` stays the die that COUNTS, so everything downstream — the
   // stored column, the threshold checks, the reveal DM — is unchanged; the
   // discarded die rides along in `advantage` for the roll line alone.
-  const advantage = action.moveKind === "GAMBIT" ? rollWithAdvantage(action.character.tags) : null;
+  const advantage =
+    action.moveKind === "GAMBIT" ? rollWithAdvantage(action.character.tags, 6, { gambitOnly: true }) : null;
   const diceRoll = advantage ? advantage.die : null;
+  // Inspired is spent the instant it wins a Gambit — Lucky never is
+  // (consumeInspiredIfUsed is a no-op for any other source).
+  if (advantage) await consumeInspiredIfUsed(prisma, action.character.id, advantage.source);
   // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
   // the RAW roll and the SUM of every contributor (Hunger scaled to the
   // streak, and the bottom two mood bands) is stored beside it — see the

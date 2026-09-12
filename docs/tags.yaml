@@ -3635,6 +3635,22 @@ tags:
     purchasableAfterStart: false
     durationTurns: 3
 
+  # A one-shot cousin of Lucky (db/lib/advantage.js): granted by Black River
+  # Mud, spent the instant it wins a Gambit (db/lib/tagWrites.js#
+  # consumeInspiredIfUsed), gone on its own after 2 turns otherwise via the
+  # ordinary expiry sweep.
+  inspired:
+    catalog: gm
+    name: Inspired
+    category: status
+    group: status-buffs
+    description: "Your next Gambit is rolled with advantage."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+
   # What a chrism anoints (Chris 2026-09-07). Two real mechanics, neither
   # named here so the tag leaks no secrets: db/lib/tagWrites.js refuses to
   # grant `broken` / `broken-enslaved` to a holder, and db/lib/mood.js halves
@@ -3663,6 +3679,18 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 4
+
+  alluring-scent:
+    catalog: gm
+    name: Alluring Scent
+    category: status
+    group: status-buffs
+    description: "You smell good!"
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
 
   # For targets of Mesmer Glass, GM applied
   flashed:
@@ -3971,7 +3999,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [medical-expert]
       gambit: true
 
@@ -3995,7 +4023,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [medical-expert]
       gambit: true
 
@@ -4291,7 +4319,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [medical-expert]
 
   gut-wound:
@@ -4312,7 +4340,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [medical-expert]
 
   broken-jaw:
@@ -4372,7 +4400,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [medical-expert]
 
   rot-lung:
@@ -4449,7 +4477,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [medical-expert]
 
   pox:
@@ -4501,7 +4529,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills:
         - medical-expert
       gambit: true
@@ -4612,7 +4640,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [medical-expert]
       gambit: true
 
@@ -4711,7 +4739,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [medical-expert]
       gambit: true
 
@@ -4798,7 +4826,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [medical-expert]
       gambit: false
 
@@ -4860,7 +4888,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [medical-expert]
       gambit: true
 
@@ -5094,7 +5122,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [medical-expert]
       gambit: true
 
@@ -5236,7 +5264,7 @@ tags:
     purchasableAfterStart: false
     # The Merchant is the only mid-game source, so the price is meant to hurt:
     # a free zone move every turn is the strongest thing on the assets shelf.
-    depotPrice: 84
+    depotPrice: 81
     sellable: true
     sellablePrice: 54
     craftable: true
@@ -6232,7 +6260,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 3
-      resourceCost: 15
+      resourceCost: 14
       skills: [smithing]
       gambit: false
       items: [old-coin]
@@ -6420,14 +6448,13 @@ tags:
     group: items-gear
     description: "A jarful of dark, patient leeches. Set on a bruise, they draw the bad blood out — cures {tag:bruised}."
     pointCost: 0
+    depotPrice: 1
     tradeable: true
     weight: 0.5
     stackable: true
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 2
     consumable: true
     consumesInto: []
     cures: [bruised]
@@ -7158,6 +7185,125 @@ tags:
     consumesInto:
       - oneOf: [ate-meal, vomiting]
 
+  # --- The Ration Box's bad draws. All four consumesInto ate-meal too — a
+  # meal, just a bad one — and their negative mood comes off db/lib/mood.js's
+  # CONSUME_RELIEF table, keyed on the item itself (see the comment there on
+  # why the item's own entry has to win outright over ate-meal's +5 floor).
+  moldy-bread:
+    catalog: gm
+    name: Moldy Bread
+    category: items
+    group: items-food
+    description: "It has grown mold on it, but it's edible."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [ate-meal]
+
+  grasshopper-kebab:
+    catalog: gm
+    name: Grasshopper Kebab
+    category: items
+    group: items-food
+    description: "Shriveled arthropods on a stick."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [ate-meal]
+
+  jellied-meats:
+    catalog: gm
+    name: Jellied Meats
+    category: items
+    group: items-food
+    description: "The bad cuts, jellied."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [ate-meal]
+
+  budget-cold-soup:
+    catalog: gm
+    name: Budget Cold Soup
+    category: items
+    group: items-food
+    description: "A can of cold soup. A mix of wilted vegetables in a watery broth. The label reads VOLGOGA."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [ate-meal]
+
+  # Opened, not merely eaten — a random pick among the five bad draws above,
+  # plus a chance of nothing at all (the reserved "nothing" word,
+  # db/lib/syncTags.js / web/lib/consumeGrants.js). No sellablePrice: a box
+  # this cheap and this unpleasant is not something the Depot buys back.
+  ration-box:
+    catalog: gm
+    name: Ration Box
+    category: items
+    group: items-food
+    description: "A cardboard container with a faded stamp. The lettering says VOLGOGA. You can open it and hopefully find some food."
+    pointCost: 0
+    depotPrice: 1
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - oneOf:
+          [
+            moldy-bread,
+            grasshopper-kebab,
+            jellied-meats,
+            budget-cold-soup,
+            skinned-cave-rat,
+            nothing,
+          ]
+
+  # Bespoke consume — consumesIntoResources (schema: Int?) is a flat grant,
+  # not a rollable range, so "0-4, randomly" is its own branch in
+  # consumeTagRequestImpl rather than catalog data (same posture as the
+  # Ravenheart Map above it). No sellablePrice: bulk goods this cheap aren't
+  # something the Depot buys back.
+  box-of-junk:
+    catalog: gm
+    name: Box of Junk
+    category: items
+    group: items-gear
+    description: "An assortment of stale rations and crafting ingredients — bulk goods."
+    pointCost: 0
+    depotPrice: 3
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+
   # Cave loot, ultracommon. Raw it is a gut full of regret; squeezed by anyone
   # with Brewing it is a cup of something almost like milk.
   purring-maggot:
@@ -7813,6 +7959,10 @@ tags:
         cracked-ribs,
         blunt-force-trauma,
         frostbite,
+        severe-burns,
+        grievous-wound,
+        gut-wound,
+        crush-injury,
       ]
     sellable: true
     sellablePrice: 38
@@ -7832,6 +7982,7 @@ tags:
     group: items-gear
     description: "A compact medical injector that immediately heals minor wounds, up to broken bones."
     pointCost: 0
+    depotPrice: 46
     tradeable: true
     weight: 2
     stackable: true
@@ -8667,7 +8818,7 @@ tags:
     # look like the bargain it is. See docs/systemdocs/DEPOT.md §3.
     sellable: true
     sellablePrice: 80
-    depotPrice: 125
+    depotPrice: 121
     sealedShipping: true
 
   #Cave weapons
@@ -9383,7 +9534,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -9412,7 +9563,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -9442,7 +9593,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -9470,7 +9621,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -9499,7 +9650,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -9529,7 +9680,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 26
+      resourceCost: 25
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -9555,7 +9706,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 18
+      resourceCost: 17
       skills: [smithing-skilled]
       gambit: false
       # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
@@ -9585,7 +9736,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 26
+      resourceCost: 25
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -9611,7 +9762,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 18
+      resourceCost: 17
       skills: [smithing-skilled]
       gambit: false
       # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
@@ -9642,7 +9793,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 21
+      resourceCost: 20
       skills: [smithing-skilled]
       gambit: false
       # {tag:silver} joined 2026-09-09, priced at 5 ⬢ — the rest of the old
@@ -9672,7 +9823,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 26
+      resourceCost: 25
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -9699,7 +9850,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 26
+      resourceCost: 25
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -9730,7 +9881,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 3
-      resourceCost: 34
+      resourceCost: 32
       skills: [smithing-skilled]
       gambit: false
       items: [aberrant-heart]
@@ -9757,7 +9908,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 26
+      resourceCost: 25
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -9786,7 +9937,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 29
+      resourceCost: 28
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
@@ -9813,7 +9964,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 19
+      resourceCost: 18
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
@@ -9839,7 +9990,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 29
+      resourceCost: 28
       skills: [smithing-gunpowder]
       gambit: false
       # The proper explosive is built around the refined charge, not raw
@@ -9858,7 +10009,7 @@ tags:
     description: "A gentleman's cane, filled with three feet of steel."
     fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 7
-    depotPrice: 21
+    depotPrice: 20
     equippable: true
     equipSlot: WEAPON
     tradeable: true
@@ -10093,6 +10244,7 @@ tags:
     group: items-food
     description: "An onion. Goes well in soups."
     pointCost: 0
+    depotPrice: 3
     tradeable: true
     weight: 0.5
     stackable: true
@@ -10178,6 +10330,7 @@ tags:
     group: items-food
     description: "A hard wheel of cheese. You could cook with it."
     pointCost: 0
+    depotPrice: 6
     tradeable: true
     weight: 3
     stackable: true
@@ -10294,6 +10447,7 @@ tags:
     group: items-food
     description: "A cave morel. You could cook with it."
     pointCost: 0
+    depotPrice: 5
     tradeable: true
     weight: 0.5
     stackable: true
@@ -10316,6 +10470,7 @@ tags:
     group: items-food
     description: "Rock salt. You could cook with it."
     pointCost: 0
+    depotPrice: 1
     tradeable: true
     weight: 0.5
     stackable: true
@@ -10565,12 +10720,12 @@ tags:
     # High Quality rung of the smithing ladder (docs/systemdocs/SMITHING.md §2).
     requirement:
       turnsCost: 2
-      resourceCost: 26
+      resourceCost: 25
       skills: [smithing-skilled]
       gambit: false
     sellable: true
     sellablePrice: 60
-    depotPrice: 63
+    depotPrice: 61
 
   surgical-equipment:
     catalog: all
@@ -10586,7 +10741,7 @@ tags:
     weight: 12
     sellable: true
     sellablePrice: 19
-    depotPrice: 29
+    depotPrice: 28
 
   # +1 on a torture roll for anyone working within reach (db/lib/torture.js,
   # docs/systemdocs/TORTURE.md). Not a smithing recipe and not on the ladder:
@@ -10730,7 +10885,7 @@ tags:
     # something you have to go down and find. See docs/systemdocs/DEPOT.md §3.
     sellable: true
     sellablePrice: 116
-    depotPrice: 180
+    depotPrice: 175
     sealedShipping: true
 
   #Artifacts
@@ -10759,6 +10914,25 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+
+  # Bespoke consume — reveals every SURFACE Location at once
+  # (db/lib/locationVisits.js#revealSurface). No `consumesInto`: there is no
+  # catalog slug for "the map itself".
+  ravenheart-map:
+    catalog: gm
+    name: Ravenheart Map
+    category: items
+    group: items-gear
+    description: "Can be consumed to reveal all overground locations immediately."
+    pointCost: 0
+    depotPrice: 4
+    tradeable: true
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
@@ -10839,7 +11013,7 @@ tags:
     # The Depot imports these, and it does not have to haul them anywhere.
     sellable: true
     sellablePrice: 103
-    depotPrice: 159
+    depotPrice: 154
 
   sawn-off-double-barrel:
     catalog: gm
@@ -12289,9 +12463,9 @@ tags:
     name: Coffee
     category: items
     group: items-drink
-    description: "A brown drink that's refreshing and energizing."
+    description: "A brown drink that's refreshing and energizing. It cures {tag:tired}."
     pointCost: 0
-    depotPrice: 2
+    depotPrice: 5
     sellable: true
     sellablePrice: 1
     tradeable: true
@@ -12303,6 +12477,42 @@ tags:
     consumable: true
     consumesInto:
       - caffeinated
+    removesOnConsume: [tired, exhausted]
+
+  bar-soap:
+    catalog: gm
+    name: Bar Soap
+    category: items
+    group: items-gear
+    description: "Wash up."
+    pointCost: 0
+    depotPrice: 1
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    removesOnConsume: [unhygienic]
+
+  perfume:
+    catalog: gm
+    name: Perfume
+    category: items
+    group: items-gear
+    description: "Makes you smell good."
+    pointCost: 0
+    depotPrice: 2
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - alluring-scent
 
   firecracker:
     catalog: gm
@@ -12531,7 +12741,7 @@ tags:
     group: items-gear
     description: "You can immediately tell when a meal is poisoned. This item is reusable."
     pointCost: 9
-    depotPrice: 20
+    depotPrice: 19
     sellable: true
     sellablePrice: 13
     tradeable: true
@@ -12547,7 +12757,7 @@ tags:
     group: items-gear
     description: "A black bag large enough to fit a person. Muffles sounds from inside."
     pointCost: 0
-    depotPrice: 20
+    depotPrice: 19
     sellable: true
     sellablePrice: 13
     tradeable: true
@@ -12564,7 +12774,7 @@ tags:
     group: items-gear
     description: "An odd contraption with a spot to place the eyes. Heavily magnifies small objects placed under it."
     pointCost: 0
-    depotPrice: 27
+    depotPrice: 26
     sellable: true
     sellablePrice: 17
     tradeable: true
@@ -12621,7 +12831,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 65
+    depotPrice: 63
     sealedShipping: true
     sellable: true
     sellablePrice: 42
@@ -12633,7 +12843,7 @@ tags:
     group: items-armor
     description: "A bulletproof vest and pad combination."
     pointCost: 0
-    depotPrice: 32
+    depotPrice: 31
     sealedShipping: true
     sellable: true
     sellablePrice: 20
@@ -12656,7 +12866,7 @@ tags:
     group: assets-companions
     description: "A pet monkey! Why, how exquisite!"
     pointCost: 0
-    depotPrice: 20
+    depotPrice: 19
     sellable: true
     sellablePrice: 13
     tradeable: true
@@ -12672,7 +12882,7 @@ tags:
     description: "A large, well-trained fighting dog ready to obey commands."
     fighting: { situational: true }
     pointCost: 0
-    depotPrice: 35
+    depotPrice: 34
     sellable: true
     sellablePrice: 23
     tradeable: true
@@ -12689,7 +12899,7 @@ tags:
     poison: true
     description: "A small vial of a clear substance."
     pointCost: 0
-    depotPrice: 42
+    depotPrice: 41
     sealedShipping: true
     sellable: true
     sellablePrice: 27
@@ -12710,7 +12920,7 @@ tags:
     group: items-gear
     description: "A small vial containing a wriggling mass that will eat all material it finds. Can be used to effectively clean up crime scenes."
     pointCost: 0
-    depotPrice: 48
+    depotPrice: 47
     sealedShipping: true
     sellable: true
     sellablePrice: 31
@@ -12730,7 +12940,7 @@ tags:
     group: items-special
     description: "A hideous little monster that will understand your simple instructions and carry them out."
     pointCost: 0
-    depotPrice: 70
+    depotPrice: 68
     sealedShipping: true
     sellable: true
     sellablePrice: 45
@@ -12747,7 +12957,7 @@ tags:
     group: items-gear
     description: "A metal cylinder that can be equipped to a firearm to muffle its shots."
     pointCost: 0
-    depotPrice: 69
+    depotPrice: 67
     sellable: true
     sellablePrice: 44
     equippable: true
@@ -12766,7 +12976,7 @@ tags:
     group: items-drink
     description: "A small vial of liquid that can be drunk to immediately cure all stages of infection."
     pointCost: 0
-    depotPrice: 76
+    depotPrice: 74
     sellable: true
     sellablePrice: 49
     tradeable: true
@@ -12789,7 +12999,7 @@ tags:
     laborBonus: { kind: hunting, amount: 2 }
     fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
-    depotPrice: 139
+    depotPrice: 135
     sealedShipping: true
     sellable: true
     sellablePrice: 89
@@ -12815,7 +13025,7 @@ tags:
     description: "A semi-automatic rifle chambered in .308."
     fighting: { tiers: 1, weaponClass: firearm }
     pointCost: 0
-    depotPrice: 198
+    depotPrice: 192
     sealedShipping: true
     sellable: true
     sellablePrice: 128
@@ -12836,7 +13046,7 @@ tags:
     description: "An experimental fully automatic rifle that belongs to the past."
     fighting: { tiers: 1.2, weaponClass: firearm }
     pointCost: 0
-    depotPrice: 412
+    depotPrice: 400
     sealedShipping: true
     sellable: true
     sellablePrice: 266
@@ -12857,7 +13067,7 @@ tags:
     description: "A gleaming sword fit for the highest of nobility. Light, strong, and unimaginably sharp."
     fighting: { tiers: 1, weaponClass: sword }
     pointCost: 0
-    depotPrice: 176
+    depotPrice: 171
     sealedShipping: true
     sellable: true
     sellablePrice: 113
@@ -12877,7 +13087,7 @@ tags:
     description: "A sword with a blade of pure silver. Might be useful…"
     fighting: { tiers: 0.5, weaponClass: sword }
     pointCost: 0
-    depotPrice: 114
+    depotPrice: 111
     sellable: true
     sellablePrice: 74
     tradeable: true
@@ -12896,7 +13106,7 @@ tags:
     description: "A small pistol that shoots nonlethal, but still painful, bullets."
     fighting: { tiers: 0.1, weaponClass: exotic }
     pointCost: 0
-    depotPrice: 57
+    depotPrice: 55
     sellable: true
     sellablePrice: 37
     tradeable: true
@@ -13144,6 +13354,7 @@ tags:
     group: items-drink
     description: "An alchemical substance that can cure a minor infection outright, but does not help against {tag:festering}."
     pointCost: 0
+    depotPrice: 7
     tradeable: true
     weight: 0.5
     stackable: true
@@ -13336,7 +13547,7 @@ tags:
       items: [nightshade, cave-fungus]
     sellable: true
     sellablePrice: 22
-    depotPrice: 33
+    depotPrice: 32
     sealedShipping: true
 
   advanced-poppy:
@@ -13526,6 +13737,24 @@ tags:
     sellable: true
     sellablePrice: 10
     depotPrice: 11
+
+  black-river-mud:
+    catalog: gm
+    name: Black River Mud
+    category: items
+    group: items-drink
+    description: "A brown powder. You can smoke it to become {tag:inspired} — your next Gambit is rolled with advantage."
+    pointCost: 0
+    depotPrice: 12
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - inspired
 
   mindbreaker-toxin:
     catalog: all
@@ -13752,6 +13981,7 @@ tags:
     group: items-drink
     description: "A bitter draught that clears the basic poisons."
     pointCost: 0
+    depotPrice: 16
     tradeable: true
     weight: 0.5
     stackable: true
@@ -13800,6 +14030,7 @@ tags:
     group: items-gear
     description: "A cooling salve to treat burns."
     pointCost: 0
+    depotPrice: 16
     tradeable: true
     weight: 0.5
     stackable: true
@@ -13871,7 +14102,7 @@ tags:
     cures: [dying]
     requirement:
       turnsCost: 3
-      resourceCost: 12
+      resourceCost: 11
       skills: [brewing-expert]
       gambit: false
       items: [aberrant-heart]
@@ -13926,6 +14157,7 @@ tags:
     group: items-gear
     description: "A carved peg buckled tight with leather straps. You can walk again."
     pointCost: 0
+    depotPrice: 31
     tradeable: true
     weight: 3
     stackable: true
@@ -13953,6 +14185,7 @@ tags:
     group: items-gear
     description: "A fitted iron hook."
     pointCost: 0
+    depotPrice: 31
     tradeable: true
     weight: 1
     stackable: true
@@ -13980,6 +14213,7 @@ tags:
     group: items-gear
     description: "A prosthetic hand."
     pointCost: 0
+    depotPrice: 52
     tradeable: true
     weight: 1
     stackable: true
@@ -13994,7 +14228,7 @@ tags:
       missing-fingers: prosthetic-hand-worn
     requirement:
       turnsCost: 1
-      resourceCost: 12
+      resourceCost: 11
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -14021,7 +14255,7 @@ tags:
       missing-eye: glass-eye-worn
     requirement:
       turnsCost: 1
-      resourceCost: 12
+      resourceCost: 11
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -14077,7 +14311,7 @@ tags:
     cures: [missing-arm]
     requirement:
       turnsCost: 3
-      resourceCost: 16
+      resourceCost: 15
       skills: [brewing-expert]
       gambit: false
       items: [cybernetic-core]
@@ -14103,7 +14337,7 @@ tags:
     cures: [missing-leg]
     requirement:
       turnsCost: 3
-      resourceCost: 16
+      resourceCost: 15
       skills: [brewing-expert]
       gambit: false
       items: [cybernetic-core]
@@ -14282,7 +14516,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 26
+      resourceCost: 25
       skills: [smithing-skilled]
     sellable: true
     sellablePrice: 62
@@ -14312,9 +14546,9 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [smithing-skilled]
-    depotPrice: 42
+    depotPrice: 41
     sellable: true
     sellablePrice: 34
 
@@ -14881,7 +15115,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 26
+      resourceCost: 25
       skills: [smithing-skilled]
     sellable: true
     sellablePrice: 62
@@ -15086,7 +15320,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 14
+      resourceCost: 13
       skills: [smithing-skilled]
     sellable: true
     sellablePrice: 30
@@ -15115,7 +15349,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 18
+      resourceCost: 17
       skills: [smithing-skilled]
       # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
       # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
@@ -15147,7 +15381,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 26
+      resourceCost: 25
       skills: [smithing-skilled]
     sellable: true
     sellablePrice: 62
@@ -15194,7 +15428,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 26
+      resourceCost: 25
       skills: [smithing-skilled]
       # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
       # the old 3-turn, 34 ⬢ recipe moved into steel's own recipe, and 8 ⬢
@@ -15245,7 +15479,7 @@ tags:
     weight: 2
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 135
+    depotPrice: 131
     sellable: true
     sellablePrice: 87
 
@@ -15443,7 +15677,26 @@ tags:
     consumable: true
     sellable: true
     sellablePrice: 16
-    depotPrice: 24
+    depotPrice: 23
+
+  # Bespoke consume, same reason the camera above needs one: it mints two
+  # runtime rows (db/lib/pointerMint.js) that no consumesInto chain can name.
+  # Both land on the buyer, to hand one away later via ordinary Transfer.
+  pointer-device-kit:
+    catalog: gm
+    name: Pointer Device Kit
+    category: items
+    group: items-gear
+    description: "A kit of two pointer devices. They always point at each other."
+    pointCost: 0
+    depotPrice: 6
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
 
   # --- Health: Grievous Wound ---------------------------------------------
   # Tier 5 (Very minor surgery) on the cure ladder — TAGS.md §5c.
@@ -15750,4 +16003,4 @@ tags:
     # Priced at about 65% of a {tag:flamethrower}, the shelf it shares.
     sellable: true
     sellablePrice: 76
-    depotPrice: 117
+    depotPrice: 113

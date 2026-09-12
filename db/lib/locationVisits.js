@@ -137,4 +137,25 @@ async function knownRooms(prisma, characterId, where = {}) {
   return accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
 }
 
-module.exports = { recordArrival, seedMemories, knownLocations, knownRooms };
+// The Ravenheart Map's whole effect: every SURFACE-zone Location becomes a
+// sighting at once. Deliberately NOT recordArrival/seedMemories reused —
+// those also paint each location's NEIGHBOURS, which for a bulk reveal like
+// this would leak the odd cave-adjacent Location as a "sighting" purely for
+// standing next to a surface one already in the list. `stood: false`
+// throughout: a purchased map shows you the place exists, not that you have
+// walked its streets. `skipDuplicates` keeps a Location the character has
+// actually stood in from ever being downgraded.
+async function revealSurface(prisma, characterId) {
+  if (!characterId) return;
+  const locations = await prisma.location.findMany({
+    where: { zone: { kind: "SURFACE" } },
+    select: { id: true },
+  });
+  if (locations.length === 0) return;
+  await prisma.locationVisit.createMany({
+    data: locations.map((location) => ({ characterId, locationId: location.id, stood: false })),
+    skipDuplicates: true,
+  });
+}
+
+module.exports = { recordArrival, seedMemories, revealSurface, knownLocations, knownRooms };

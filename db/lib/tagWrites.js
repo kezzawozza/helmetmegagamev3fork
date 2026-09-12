@@ -75,6 +75,7 @@ async function recordTagMoney(tx, holder, tagId, signedQuantity, econ = {}) {
 async function recordSpentTagMoney(tx, holder, tagId, quantity, econ = {}) {
   await recordTagMoney(tx, holder, tagId, -Math.abs(quantity || 0), econ);
 }
+const { INSPIRED_SLUG } = require("./constants");
 
 // A wound landing on a sheet frightens its owner (docs/systemdocs/MOOD.md).
 // Both creators below call this for the row they just made — a stack going up
@@ -214,6 +215,21 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null, options
   });
   await recordTagMoney(tx, characterParty({ id: characterId }), tagId, -take, options.econ);
   return { poisonedTaken, poisonPayload };
+}
+
+// db/lib/advantage.js#rollWithAdvantage reports which tag granted advantage
+// on a Gambit roll (`source`), and Inspired is the one of the two that has
+// to disappear the moment it wins — Lucky is a permanent mastery tag, never
+// touched here. Every true-Gambit call site calls this right after rolling,
+// inside the same transaction the roll itself happens in. A no-op if the
+// roll came from Lucky, or from nothing at all.
+async function consumeInspiredIfUsed(tx, characterId, source) {
+  if (source !== "inspired") return;
+  const held = await tx.characterTag.findFirst({
+    where: { characterId, tag: { slug: INSPIRED_SLUG } },
+    select: { tagId: true },
+  });
+  if (held) await dropCharacterTag(tx, characterId, held.tagId);
 }
 
 // A stack shrunk by a raw quantity decrement OUTSIDE dropCharacterTag —
@@ -554,6 +570,7 @@ module.exports = {
   recordSpentTagMoney,
   addToStack,
   dropCharacterTag,
+  consumeInspiredIfUsed,
   clampEquippedQuantity,
   replaceLowerTiers,
   grantTagSlugs,

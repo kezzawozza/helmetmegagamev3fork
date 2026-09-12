@@ -5,6 +5,7 @@ import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { after } from "next/server";
 import { prisma, Prisma } from "@lifeweb/db";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
+import { consumeInspiredIfUsed } from "@lifeweb/db/lib/tagWrites";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { validateRoomTagOps } from "@lifeweb/db/lib/roomTagOps";
@@ -853,17 +854,12 @@ async function releaseMoveLockImpl({ actionId }) {
 // A Gambit always carries a fresh roll, a Routine never does, so switching
 // kind rewrites the dice rather than leaving a stale number.
 //
-// Pure: it rolls and returns, and touches no rows.
-//
-// It used to also report which tag granted advantage, so the caller could
-// consume Inspired inside its own transaction. Inspired is gone from the game
-// — not in docs/tags.yaml, not in db/lib/advantage.js — and the helper that
-// consumed it went with it, but this call site was left behind still importing
-// it. That threw `consumeInspiredIfUsed is not a function` on every Gambit a
-// GM edited on the desk. Finishing the removal rather than resurrecting a
-// mechanic the catalog no longer has.
+// Returns { data, advantageSource } rather than consuming Inspired itself —
+// this stays a pure function; the caller (inside its own transaction) calls
+// consumeInspiredIfUsed with the source.
 function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
   const data = {};
+  let advantageSource = null;
 
   const kind = ["GAMBIT", "ROUTINE", "LABOR"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
   if (kind !== action.moveKind) {
@@ -873,17 +869,18 @@ function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
       data.diceModifier = null;
     } else {
       // Rolled from the character's current tags/hungerStreak/mood, not
-      // whatever was true when the player submitted. That includes Lucky: a
-      // GM switching a Routine to a Gambit must roll the same die the
-      // player's own submit path would have (db/lib/advantage.js).
+      // whatever was true when the player submitted. That includes Lucky or
+      // Inspired: a GM switching a Routine to a Gambit must roll the same
+      // die the player's own submit path would have (db/lib/advantage.js).
       const advantage = rollWithAdvantage(characterTags, 6, { gambitOnly: true });
       data.diceRoll = advantage.die;
       data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak, mood });
+      advantageSource = advantage.source;
     }
   }
 
   data.resultMessage = edits.resultMessage?.toString().trim() || null;
-  return { data };
+  return { data, advantageSource };
 }
 
 // mode: "save" keeps edits and leaves it open; "solve" marks SOLVED (nothing
@@ -922,13 +919,14 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
       return { status: "OPEN", note: "Reopened." };
     }
 
-    const { data } = normalizeEdits(
+    const { data, advantageSource } = normalizeEdits(
       action,
       edits,
       action.character.tags,
       action.character.hungerStreak,
       action.character.mood,
     );
+    await consumeInspiredIfUsed(tx, action.character.id, advantageSource);
 
     if (mode === "save") {
       // Save keeps the edits and leaves status wherever it was.

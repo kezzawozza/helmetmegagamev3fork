@@ -34,6 +34,11 @@
 // hand.
 const LIGHTWEIGHT_SLUG = "lightweight";
 const IRON_LIVER_SLUG = "iron-liver";
+// A reserved word inside a consumesInto `{ oneOf: [...] }` pick — not a tag,
+// same posture as `dead` in an expiresInto chain (db/lib/tagShapes.js). Lets
+// a random pick land on "grants nothing at all" (a Ration Box gone empty)
+// without minting a placeholder tag nobody's sheet should ever carry.
+const NOTHING_TOKEN = "nothing";
 const HOLDING_SLUG = "holding-it-down";
 
 // `heldSlugs` may be a Set or any iterable of slugs. `ladder` is an optional
@@ -101,6 +106,11 @@ export function resolveConsumeGrants(tag, heldSlugs, ladder = null, resistSlugs 
     const picked = Array.isArray(pickFrom)
       ? pickFrom[Math.floor(Math.random() * pickFrom.length)]
       : consumesInto[i];
+
+    // The reserved "nothing" pick: no condition check, no ladder, no grant —
+    // this position simply lands on empty-handed. Not blocked, not resisted,
+    // not climbed; those all describe something that WOULD have landed.
+    if (picked === NOTHING_TOKEN) continue;
 
     // The condition is answered against what was PICKED, before the ladder
     // moves it: `unlessTags` is how a drink says "not for someone already in
