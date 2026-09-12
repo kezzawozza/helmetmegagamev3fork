@@ -7109,6 +7109,25 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    # A smith minting their own coin — 1 ⬢ in, 1 obol out, no margin either
+    # way (an obol IS 1 ⬢, DEPOT.md). This exists so a smith can pay another
+    # smithing recipe's cost partly in coin (resolveObolSpend,
+    # requestActions.js) without depending on loot luck for the obols to do
+    # it with. Gated at Skilled, not plain smithing — striking coin is finer
+    # work than a cudgel. Its own ration (perTurn: 10) replaces the shared
+    # Dead Simple pool, and moveFamilyOf's never-spills list
+    # (web/lib/tagRequests.js) makes that ration a hard wall: the 11th in a
+    # turn is refused outright rather than spilling into the smith's Move —
+    # counting coin shouldn't cost the same Routine a Broadsword does. Still
+    # Dead Simple otherwise, so it wants the same forge as the plain tools
+    # (SMITHING.md §2a).
+    requirement:
+      turnsCost: 0
+      resourceCost: 1
+      perTurn: 10
+      skills: [smithing-skilled]
+      gambit: false
 
   cross:
     catalog: gm

@@ -68,6 +68,7 @@ import {
   isMount,
   addRequirementSatisfied,
   craftFamily,
+  moveFamilyOf,
   needsWorkshop,
 } from "@/lib/tagRequests";
 import {
@@ -727,6 +728,28 @@ export async function resolveCraftPayer(character, payerKey, cost) {
   return payer;
 }
 
+// Smithing only: an obol is one ⬢ (DEPOT.md), so a smith may pay a recipe's
+// cost in any mix of the two — some off their own coin, the rest through the
+// usual payer. Not a full swap: `resourceCost` still exists and still needs a
+// payer for whatever the obols don't cover. Clamped to the recipe's own
+// total — obols past that would just be wasted — and refused outright, not
+// clamped, if the smith doesn't actually hold that many: silently spending
+// fewer than asked would bill the payer for a mistake that wasn't theirs.
+const OBOL_SLUG = "obol";
+function resolveObolSpend(character, tag, totalCost, rawObolsSpent) {
+  if (craftFamily(tag) !== "smithing") return { obolsSpent: 0, line: null };
+  const obolsSpent = parseCount(rawObolsSpent, { min: 0, max: totalCost }) ?? 0;
+  if (!obolsSpent) return { obolsSpent: 0, line: null };
+  const held = character.tags.find((ct) => ct.tag?.slug === OBOL_SLUG);
+  if (!held || held.quantity < obolsSpent) {
+    throw new UserError(`You're carrying ${held?.quantity ?? 0} Obols.`);
+  }
+  return {
+    obolsSpent,
+    line: { tagId: held.tagId, tagName: held.tag.name ?? "Obol", quantity: obolsSpent },
+  };
+}
+
 // requireFreeMove and fileAutoRoutine moved to web/lib/moveSpend.js so the
 // Thanati's Recover Equipment (thanatiActions.js) spends a Move by the same
 // two rules as Bury, Engrave and Extract.
@@ -1141,6 +1164,10 @@ async function craftRequestImpl({
   // elsewhere gets a retry, not a silent Move charge. "Declining crafts
   // nothing" is enforced here, not just in the confirm dialog.
   billedSeen: rawBilledSeen,
+  // Smithing only (resolveObolSpend re-checks): how many held Obols the
+  // smith wants to put toward this recipe's cost, the rest billed to the
+  // usual payer. Ignored on any other recipe.
+  obolsSpent: rawObolsSpent,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
@@ -1233,7 +1260,22 @@ async function craftRequestImpl({
   const custom = mayCustom ? customWanted : { name: "", description: "", active: false };
   const surcharge = mayCustom ? customSurcharge : 0;
   const turns = tag.requirementTurns ?? 1;
-  const cost = ((tag.requirementResources ?? 0) + surcharge) * quantity;
+  const totalCost = ((tag.requirementResources ?? 0) + surcharge) * quantity;
+  const { obolsSpent, line: obolSpendLine } = resolveObolSpend(
+    character,
+    tag,
+    totalCost,
+    rawObolsSpent,
+  );
+  // MERGED BY TAG, same reasoning as the ingredient-slot merge above: a
+  // recipe that ever names `obol` as its own ingredient must not have this
+  // draw against the same stack twice under two separate plan entries.
+  if (obolSpendLine) {
+    const existing = itemPlan.spend.find((s) => s.tagId === obolSpendLine.tagId);
+    if (existing) existing.quantity += obolSpendLine.quantity;
+    else itemPlan.spend.push(obolSpendLine);
+  }
+  const cost = totalCost - obolsSpent;
   const payer = await resolveCraftPayer(character, payerKey, cost);
   const openTurn = await getOpenTurn();
 
@@ -1260,6 +1302,11 @@ async function craftRequestImpl({
         quantity,
         allowance,
         freeLeft: allowance == null ? null : allowance - already,
+        // moveFamilyOf, not craftFamily: a recipe on the never-spills list
+        // (Obol) prices as family-less here so going past its own perTurn
+        // refuses outright instead of spilling into the Move — everywhere
+        // else in this function still reads craftFamily().
+        family: moveFamilyOf(tag),
       });
       // No family to bill the overflow to (bone-mask is gated on `butcher`
       // alone), so the ration is still a wall.
