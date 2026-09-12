@@ -67,7 +67,14 @@ const MEMBER_SELECT = {
 // standing somewhere is public, what is over your face is not, so a mask is
 // drawn only for somebody who watched them speak in it this turn
 // (PROXYING.md §5a). Unseen, the row wears the question-mark plate.
-async function presentedMembers(prisma, characterIds, viewer, { sightings = null } = {}) {
+//
+// `gm` is the host's view: nothing is hidden and nothing has to be earned, so
+// every row comes back under its real name with `presentedAs` saying what the
+// people in the conversation actually see. It is the same answer
+// db/lib/whosHere.js#whosHereGm gives about a room, and it is here rather than
+// in the web layer for the same reason — one rule about who is who, with the
+// GM's view as an option on it instead of a second opinion.
+async function presentedMembers(prisma, characterIds, viewer, { sightings = null, gm = false } = {}) {
   const ids = [...new Set((characterIds ?? []).filter(Boolean))];
   if (ids.length === 0) return [];
 
@@ -94,6 +101,21 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
       // A forced name is not hiding (PROXYING.md §5): a Beast is named Beast,
       // openly, and only loses their own portrait for the letter plaque.
       const hidden = forced ? false : Boolean(piece && (piece.forced || person.concealed));
+
+      if (gm) {
+        return {
+          characterId: person.id,
+          token: null,
+          name: person.name,
+          avatarPath: null,
+          avatarVersion: person.updatedAt?.getTime?.() ?? null,
+          unknownFace: false,
+          concealed: false,
+          // What the room sees. A forced name is not hiding (PROXYING.md §5),
+          // so it reads as what they are presenting as, the same as a hood.
+          presentedAs: forced ?? (hidden ? aliasRow(person, null) : null),
+        };
+      }
 
       if (!hidden) {
         const shown = presentedIdentity(person, { forcedName: forced });

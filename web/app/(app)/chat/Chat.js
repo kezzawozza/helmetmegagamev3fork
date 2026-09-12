@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import EmptyState from "@/app/components/EmptyState";
 import Modal from "@/app/components/Modal";
 import ChatAside from "./ChatAside";
-import GmZoneRail from "@/app/components/GmZoneRail";
 import MapBoard from "../map/MapBoard";
 import PlacesColumn from "./PlacesColumn";
 import useAsideFolded from "./useAsideFolded";
@@ -21,7 +20,7 @@ import FactionPanel from "./FactionPanel";
 import DmPane, { DM_PLACE_KEY } from "./DmPane";
 import { useDmState, seedNewestOutbound, addDmRow, noteDmReconnect } from "./dmStore";
 import NoticeCards from "./NoticeCards";
-import GmNoticeboardDialog from "./GmNoticeboardDialog";
+import GmAside from "./GmAside";
 import { ConverseDialog } from "./PlacePanel";
 import { addMember } from "./actions";
 import { mentionsCharacter } from "@/app/components/richTokens";
@@ -256,10 +255,10 @@ export default function Chat({
   // shared dialog's rather than a drawer's own.
   const asideFolded = useAsideFolded();
   const narrow = useNarrow();
-  // GM mode only. Closed on its own rather than folded into the place dialogs,
-  // because GM mode has no PlacePanel to hang one off — that is built from a
-  // character and GM mode is the absence of one.
-  const [gmBoardOpen, setGmBoardOpen] = useState(false);
+  // Whether the right column's drawer is open, under 900px where the column
+  // itself has folded away. Both faces of the page use it — the player's
+  // ChatAside and the GM's GmAside — since there is one drawer and only one of
+  // the two is ever mounted in it.
   const [asideOpen, setAsideOpen] = useState(false);
   const [placesOpen, setPlacesOpen] = useState(false);
   // The noticeboard cards at the top of the Location's feed, and the counter
@@ -797,13 +796,17 @@ export default function Chat({
   }
 
   // The places column, drawn ONCE: in the left column on a desktop, in the
-  // ≡ drawer on a phone. The GM's zone picker rides its foot wherever the
-  // right column it used to live in is folded away, and the app's own links
-  // ride it on a phone, where the bottom bar is gone from this page.
+  // ≡ drawer on a phone. The app's own links ride its foot on a phone, where
+  // the bottom bar is gone from this page.
+  //
+  // The GM's zone picker used to ride here too, because the right column it
+  // lived in was folded away and it had nowhere else to be. It has somewhere
+  // else now: GmAside carries it, and GmAside follows the player's column into
+  // the right drawer when it folds, so the picker goes with it rather than
+  // turning up under a list of places it decides the contents of.
   const placesFoot =
-    (narrow && navItems.length > 0) || (gmZones && asideFolded) ? (
+    narrow && navItems.length > 0 ? (
       <div className="chat-places-nav">
-        {gmZones && asideFolded && <GmZoneRail zones={gmZones.selectable} selectedIds={gmZones.selectedIds} />}
         {narrow && navItems.length > 0 && (
           <nav className="chat-drawer-nav" aria-label="Main">
             {navItems.map((item) => {
@@ -852,10 +855,16 @@ export default function Chat({
   const unreadElsewhere = navPlaces.some(
     (place) => place.placeKey !== selectedKey && isUnread(seen, place.placeKey, newest(place)),
   );
+  // Null in GM mode, and left that way: a GM's people list is fetched by the
+  // column itself off whichever place is open, so this component genuinely
+  // does not know the number. The button opens without a badge rather than
+  // lifting that fetch up here to put one digit on it.
   const hereCount = aside ? (aside.people?.named?.length ?? 0) + (aside.people?.concealed?.length ?? 0) : null;
   const drawers = {
     onOpenPlaces: narrow ? openPlaces : null,
-    onOpenAside: aside && asideFolded ? openAside : null,
+    // GM mode included. It had no right column to open before, so the button
+    // was hidden and a GM on a phone had no way to reach one at all.
+    onOpenAside: (aside || gmZones) && asideFolded ? openAside : null,
     unreadElsewhere,
     hereCount,
   };
@@ -940,33 +949,15 @@ export default function Chat({
           phone, which meant two travel loads, two stash reads and two
           separate answers about what can be worked here. */}
       {/* GM mode has no `aside` at all — page.js builds that off
-          viewer.character, and GM mode is the absence of one — but the grid
-          still reserves the column (globals.css .chat-body). So the rail is
-          the column's only tenant here, bottom-pinned by the same
-          .chat-aside-tabs the tabbed version uses. Folded, it rides the foot
-          of the places column instead (placesFoot above). */}
+          viewer.character, and GM mode is the absence of one — so the column
+          is GmAside instead, which fetches what it needs off the place that is
+          open rather than off a character (CHAT.md §9). Same tabs, same
+          classes, same drawer below; a GM simply has no hands, so every panel
+          in it is a readout. */}
       {!aside && gmZones && !asideFolded && (
         <aside className="chat-aside">
-          {/* The SAME button a player presses, in the only column GM mode
-              has. A GM stands nowhere, so the board is the one belonging to
-              the place they have open — which is the Discord half's rule
-              too, where the button lives on the anchor in that Location's own
-              channel. Shown only where docs/zones.yaml declared a board
-              (db/lib/feedAccess.js#gmPlacesFor fills in `hasBoard`). */}
-          {selected?.kind === "loc" && selected.hasBoard && (
-            <div className="chat-buttons">
-              <button type="button" className="btn-secondary" onClick={() => setGmBoardOpen(true)}>
-                Noticeboard
-              </button>
-            </div>
-          )}
-          <div className="chat-aside-tabs">
-            <GmZoneRail zones={gmZones.selectable} selectedIds={gmZones.selectedIds} />
-          </div>
+          <GmAside selected={selected} gmZones={gmZones} onPlaceChanged={bumpBoard} />
         </aside>
-      )}
-      {gmBoardOpen && selectedKey && (
-        <GmNoticeboardDialog placeKey={selectedKey} onClose={() => setGmBoardOpen(false)} />
       )}
       {aside && !asideFolded && (
         <aside className="chat-aside">
@@ -995,6 +986,13 @@ export default function Chat({
             refresh();
           }}
         />
+      )}
+      {!aside && gmZones && asideFolded && asideOpen && (
+        <Modal open title="Here" onClose={closeAside} panelClassName="modal-panel chat-drawer chat-drawer--right">
+          <DrawerBody onSwipeClose={closeAside} side="right">
+            <GmAside selected={selected} gmZones={gmZones} onPlaceChanged={bumpBoard} />
+          </DrawerBody>
+        </Modal>
       )}
       {aside && asideFolded && asideOpen && (
         <Modal open title="Here" onClose={closeAside} panelClassName="modal-panel chat-drawer chat-drawer--right">

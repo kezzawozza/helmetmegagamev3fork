@@ -178,6 +178,36 @@ async function whosHere(prisma, viewer, { withHoodIds = false, ...options } = {}
   return { named, concealed, hoodIds };
 }
 
+// WHO IS ACTUALLY STANDING THERE, for a GM.
+//
+// Not an option on whosHere() above, because the answer is a different shape
+// rather than the same shape with a flag: there is no named/concealed split to
+// make. A GM is the host, not somebody in the room, so nothing is withheld and
+// nothing is earned — no sightings, no hood tokens, no faction gate on a Role.
+//
+// What a hood buys instead is one extra field. `presentedAs` is the alias the
+// people in the room actually see, so the column can say "Cersei Hristov,
+// showing as a hooded figure" — which is the thing a GM reading a scene needs
+// and the one thing the player list can never tell them. Null for anybody
+// standing there as themselves.
+//
+// Takes a locationId rather than a viewer: a GM stands nowhere, and the place
+// is whichever one they have open on /chat.
+async function whosHereGm(prisma, locationId) {
+  if (!locationId) return [];
+  const rows = await presentRows(prisma, null, { locationId });
+  return rows.map((c) => ({
+    characterId: c.id,
+    name: c.name,
+    roleTitle: c.roleTitle ?? null,
+    factionName: isUnaffiliated(c.faction) ? null : (c.faction?.name ?? null),
+    // A forced name is not a hood (PROXYING.md §5) — it is what they are
+    // openly called — so it reads as what they are presenting as, same as one.
+    presentedAs: c.forced ?? (c.hidden ? aliasRow(c, null) : null),
+    avatarVersion: c.updatedAt?.getTime?.() ?? null,
+  }));
+}
+
 // The other half of the token: which concealed character standing at the
 // VIEWER's own Location it names, or null. Recomputed over the people who are
 // actually there right now, so a token minted in a room somebody has since
@@ -218,4 +248,4 @@ function whosHereLines({ named, concealed }) {
   return lines;
 }
 
-module.exports = { PRESENT_SELECT, whosHere, whosHereLines, resolveHoodToken, hoodToken };
+module.exports = { PRESENT_SELECT, whosHere, whosHereGm, whosHereLines, resolveHoodToken, hoodToken };
