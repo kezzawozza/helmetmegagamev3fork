@@ -187,6 +187,7 @@ you pick the right doc — they are never enough to change code with.
 | [`MEDICAL.md`](docs/systemdocs/MEDICAL.md) | You're touching curing an ailment by item instead of by medic (`cures`/`curesInto`/`administerSkill`), the medical Move economy, poisoning and resistance, or the prosthetics |
 | [`BREWING.md`](docs/systemdocs/BREWING.md) | You're pricing a brew, changing a recipe, or touching the Brewing skill family |
 | [`DEPOT.md`](docs/systemdocs/DEPOT.md) | You're pricing an imported ware, touching `/depot` or the Merchant's credit line, or setting a tag's `depotPrice` / `sellablePrice` |
+| [`ECONOMY.md`](docs/systemdocs/ECONOMY.md) | You're touching the ⬢ ledger (`db/lib/economyLedger.js`), a money hook, `/gm/economy`, or **anything that asks where the money went** — the reconciliation invariant, the reason vocabulary, or the backfill |
 | [`DESIRES.md`](docs/systemdocs/DESIRES.md) | You're touching the Desire catalog, its gates/cooldowns/locks, `conflictsWith`, or the Desires GM surface on `/gm/dev` |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet — and **always** before adding one a per-turn ration counts |
 | [`BIRD.md`](docs/systemdocs/BIRD.md) | You're touching the Bird's letters, the once-a-day send, or the Reply window |

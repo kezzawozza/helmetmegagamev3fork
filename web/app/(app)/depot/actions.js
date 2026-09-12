@@ -36,6 +36,7 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { SHUTTLE_LANDED_LINE, SHUTTLE_DEPARTED_LINE } from "@lifeweb/db/lib/depotPass";
+import { COMPANY, DEPOT_ACCOUNT, DEPOT_DEBT, characterParty, record, turnStamp } from "@lifeweb/db/lib/economyLedger";
 import { refreshLiveRooms } from "@lifeweb/db/lib/syncZones";
 
 // The Merchant's station. Same contract as every other player Request
@@ -284,7 +285,9 @@ async function depotOrderImpl({ items: rawItems }) {
   await prisma.$transaction(async (tx) => {
     // The conditional clamp inside bumpAccount is what actually enforces the
     // balance — two tabs ordering the last of the money cannot both succeed.
-    const moved = await bumpAccount(tx, -total);
+    // The account's money leaves for the Company, which is what pays for
+    // what shows up on the manifest — a real counterparty, not a burn.
+    const moved = await bumpAccount(tx, -total, { econ: { to: COMPANY, reason: "DEPOT_ORDER" , ...turnStamp(openTurn) } });
     if (-moved.delta < total) {
       throw new UserError("The account moved while you were ordering. Try again.");
     }
@@ -480,7 +483,10 @@ async function depotSendShuttleImpl() {
       // whatever the landing pad held a moment ago; there is no recipient on
       // the other end to carry poison state onward to. Don't "fix" this into
       // threading poison through a payout that's about to vanish.
-      await dropRoomTag(tx, room.id, rt.tagId, null);
+      // Goods loaded onto the shuttle go to the Company, not a burn — it is
+      // the other leg of the payout just below, the same sale seen from the
+      // goods' side rather than the money's.
+      await dropRoomTag(tx, room.id, rt.tagId, null, { econ: { to: COMPANY, reason: "DEPOT_SALE" , ...turnStamp(openTurn) } });
       // A runtime crate tag with nothing left pointing at it is litter. The
       // catalog row goes with the last instance.
       if (rt.tag.custom) {
@@ -502,7 +508,9 @@ async function depotSendShuttleImpl() {
         throw new UserError("The stash moved while you were loading. Try again.");
       }
     }
-    await bumpAccount(tx, payout);
+    // The payout arrives from the Company, buying what was loaded — the
+    // mirror image of an order's money leaving for it.
+    await bumpAccount(tx, payout, { econ: { from: COMPANY, reason: "DEPOT_SALE" , ...turnStamp(openTurn) } });
     await tx.depot.update({
       where: { id: 1 },
       data: { shuttleState: "AWAY", shuttleTurn: openTurn?.number ?? null },
@@ -563,14 +571,29 @@ async function depotAtmImpl({ direction: rawDirection, amount: rawAmount }) {
   const openTurn = await getOpenTurn();
 
   await prisma.$transaction(async (tx) => {
-    const moved = await bumpAccount(tx, withdrawing ? -amount : amount);
+    // The ATM is a form change, not a mint or a burn — the two legs below
+    // (the account balance and the physical obols) are given matching
+    // `econ` so they net to zero across the books: the same value, just
+    // changing which account holds it.
+    const merchant = characterParty(character);
+    const moved = await bumpAccount(tx, withdrawing ? -amount : amount, {
+      econ: withdrawing
+        ? { to: merchant, reason: "DEPOT_ATM", ...turnStamp(openTurn) }
+        : { from: merchant, reason: "DEPOT_ATM", ...turnStamp(openTurn) },
+    });
     if (Math.abs(moved.delta) < amount) {
       throw new UserError("The account moved while you were counting. Try again.");
     }
     if (withdrawing) {
-      await addToStack(tx, character.id, obol.id, amount, { source: "EVENT", stackable: true });
+      await addToStack(tx, character.id, obol.id, amount, {
+        source: "EVENT",
+        stackable: true,
+        econ: { from: DEPOT_ACCOUNT, reason: "DEPOT_ATM" , ...turnStamp(openTurn) },
+      });
     } else {
-      await dropCharacterTag(tx, character.id, obol.id, amount);
+      await dropCharacterTag(tx, character.id, obol.id, amount, {
+        econ: { to: DEPOT_ACCOUNT, reason: "DEPOT_ATM" , ...turnStamp(openTurn) },
+      });
     }
 
     const effect = { direction, amount, balanceBefore: moved.before, balanceAfter: moved.after };
@@ -622,7 +645,26 @@ async function depotCreditImpl({ direction: rawDirection, amount: rawAmount }) {
     });
     if (count === 0) throw new UserError("The line moved while you were drawing. Try again.");
 
-    const moved = await bumpAccount(tx, draw ? amount : -amount);
+    // Two legs, because drawing on the line is two things at once: the debt
+    // itself (form DEBT, between the Company and the station's own debt
+    // account) and the cash that debt puts in the account (form ACCOUNT,
+    // between the Company and the account) — a repayment is the same pair
+    // run backward.
+    await record(
+      tx,
+      {
+        from: draw ? COMPANY : DEPOT_DEBT,
+        to: draw ? DEPOT_DEBT : COMPANY,
+        form: "DEBT",
+        amount,
+      },
+      { reason: "DEPOT_CREDIT", ...turnStamp(openTurn) },
+    );
+    const moved = await bumpAccount(tx, draw ? amount : -amount, {
+      econ: draw
+        ? { from: COMPANY, reason: "DEPOT_CREDIT", ...turnStamp(openTurn) }
+        : { to: COMPANY, reason: "DEPOT_CREDIT", ...turnStamp(openTurn) },
+    });
     const debtAfter = (depot.debtObols ?? 0) + (draw ? amount : -amount);
 
     const effect = {

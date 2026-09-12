@@ -17,6 +17,7 @@ import {
   ScrollText,
   Check,
   ShieldCheck,
+  Coins,
   Scale,
   MessageSquare,
   CodeXml,
@@ -88,6 +89,7 @@ export const PlayersIcon = lucide(Users, "PlayersIcon");
 export const AuditIcon = lucide(ScrollText, "AuditIcon");
 export const FactionIcon = lucide(ShieldCheck, "FactionIcon");
 export const ScaleIcon = lucide(Scale, "ScaleIcon");
+export const EconomyIcon = lucide(Coins, "EconomyIcon");
 export const MessageIcon = lucide(MessageSquare, "MessageIcon");
 export const DevIcon = lucide(CodeXml, "DevIcon");
 export const DocumentsIcon = lucide(FileText, "DocumentsIcon");

@@ -7,6 +7,59 @@
 // it into a larger transaction — the db/lib/dm.js convention.
 const { expiryFrom } = require("./turnFormat");
 const { drawPoisonedUnits } = require("./poison");
+const { pricedTag } = require("./pricedTags");
+const { record, characterParty, roomParty, MINT, BURN } = require("./economyLedger");
+
+// The economy side of a tag write. `addToStack`/`dropCharacterTag` and their
+// room-stash twins are ~135-call-site hot paths — a wound, a skill, most
+// crafting ingredients carry no price at all — so this is the one place that
+// decides whether a write is money moving in a coat (docs/systemdocs/DEPOT.md
+// §0g) or just a tag, and it costs those callers nothing extra: `pricedTag`
+// answers from an in-memory cache, never a query on this path.
+//
+// `holder` is a party (characterParty/roomParty) already resolved by the
+// caller, `signedQuantity` is positive for an add and negative for a drop —
+// negative flips `from`/`to` the same way economyLedger#record does for a
+// signed amount, so the direction here only has to be gotten right once.
+// `options.econ` lets a call site override `from`/`to` (a real counterparty
+// instead of the MINT/BURN default) and/or pass a `reason` — everything else
+// on the context rides along unchanged.
+//
+// Never throws: a bookkeeping miss must not cost a player their item, same
+// rule as chargeWoundMood just above.
+async function recordTagMoney(tx, holder, tagId, signedQuantity, econ = {}) {
+  if (!holder || !signedQuantity) return;
+  try {
+    const priced = await pricedTag(tx, tagId);
+    if (!priced) return; // no price on this tag: not money, nothing to record
+    econ = econ ?? {};
+    let form = "COIN";
+    let unitValue = 1;
+    if (!priced.isObol) {
+      unitValue = priced.sellablePrice ?? priced.depotPrice ?? null;
+      if (!unitValue) return; // no price on this tag: not money, nothing to record
+      form = "GOODS";
+    }
+    const amount = signedQuantity * unitValue;
+    const defaultFrom = signedQuantity > 0 ? MINT : holder;
+    const defaultTo = signedQuantity > 0 ? holder : BURN;
+    await record(
+      tx,
+      {
+        from: econ.from ?? defaultFrom,
+        to: econ.to ?? defaultTo,
+        form,
+        amount: Math.abs(amount),
+        tag: { id: tagId, slug: priced.slug },
+        quantity: Math.abs(signedQuantity),
+        unitValue,
+      },
+      econ,
+    );
+  } catch (err) {
+    console.error("[tagWrites] economy record failed:", err?.message ?? err);
+  }
+}
 
 // A wound landing on a sheet frightens its owner (docs/systemdocs/MOOD.md).
 // Both creators below call this for the row they just made — a stack going up
@@ -63,6 +116,9 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
       },
     });
     await chargeWoundMood(tx, characterId, [tagId]);
+    // Record what was ACTUALLY written (`n`, already pinned to 1 for a
+    // non-stackable tag above), never the raw `quantity` argument.
+    await recordTagMoney(tx, characterParty({ id: characterId }), tagId, n, options.econ);
     return created;
   }
   // Latent (M4 fix round): an already-held NON-stackable tag is left
@@ -71,11 +127,12 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
   // clobbered by a second grant. No caller passes poisonedCount for a
   // non-stackable tag today (poison rides on food/drink stacks, which are
   // always stackable), so this is a dropped-on-the-floor case that has never
-  // actually fired rather than an observed bug.
+  // actually fired rather than an observed bug. Nothing was written, so
+  // nothing is recorded.
   if (!stackable) return existing;
   const samePoison =
     !existing.poisonPayload || !poisonPayload || existing.poisonPayload === poisonPayload;
-  return tx.characterTag.update({
+  const updated = await tx.characterTag.update({
     where: { id: existing.id },
     data: {
       quantity: existing.quantity + n,
@@ -83,6 +140,8 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
       poisonPayload: existing.poisonPayload ?? (samePoison ? poisonPayload : null),
     },
   });
+  await recordTagMoney(tx, characterParty({ id: characterId }), tagId, n, options.econ);
+  return updated;
 }
 
 // Removes `quantity` of a tag, deleting the row once nothing is left. Pass
@@ -102,7 +161,7 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
 // This is the single place quantity ever shrinks without an explicit equip
 // op, so it is the one place that has to know the invariant
 // (equippedQuantity <= quantity) can break and put it back.
-async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
+async function dropCharacterTag(tx, characterId, tagId, quantity = null, options = {}) {
   const existing = await tx.characterTag.findUnique({
     where: { characterId_tagId: { characterId, tagId } },
   });
@@ -114,6 +173,10 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
   const poisonPayload = poisonedTaken > 0 ? existing.poisonPayload : null;
   if (take >= existing.quantity) {
     await tx.characterTag.delete({ where: { id: existing.id } });
+    // `take` may exceed what was actually held (a caller asking for more
+    // than remains) — the row only ever had `existing.quantity` to give up,
+    // so that, not the request, is what actually left the sheet.
+    await recordTagMoney(tx, characterParty({ id: characterId }), tagId, -existing.quantity, options.econ);
     return { poisonedTaken, poisonPayload };
   }
   // Payload-clear invariant (fix round, M4): once the units actually LEAVING
@@ -134,6 +197,7 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
       poisonPayload: remainingPoisoned > 0 ? existing.poisonPayload : null,
     },
   });
+  await recordTagMoney(tx, characterParty({ id: characterId }), tagId, -take, options.econ);
   return { poisonedTaken, poisonPayload };
 }
 
@@ -349,7 +413,7 @@ async function addToRoomStack(
   roomId,
   tagId,
   quantity,
-  { expiresTurn = null, poisonedCount = 0, poisonPayload = null } = {},
+  { expiresTurn = null, poisonedCount = 0, poisonPayload = null, econ = undefined } = {},
 ) {
   const n = Math.max(1, Math.trunc(quantity ?? 1));
   const incomingPoisoned = poisonedCount > 0 ? Math.min(Math.trunc(poisonedCount), n) : 0;
@@ -362,7 +426,7 @@ async function addToRoomStack(
   await lockRoom(tx, roomId);
   const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
   if (!existing) {
-    return tx.roomTag.create({
+    const created = await tx.roomTag.create({
       data: {
         roomId,
         tagId,
@@ -372,11 +436,13 @@ async function addToRoomStack(
         poisonPayload: incomingPoisoned > 0 ? poisonPayload : null,
       },
     });
+    await recordTagMoney(tx, roomParty({ id: roomId }), tagId, n, econ);
+    return created;
   }
   const clocks = [existing.expiresTurn, expiresTurn].filter((t) => t != null);
   const samePoison =
     !existing.poisonPayload || !poisonPayload || existing.poisonPayload === poisonPayload;
-  return tx.roomTag.update({
+  const updated = await tx.roomTag.update({
     where: { id: existing.id },
     data: {
       quantity: { increment: n },
@@ -397,6 +463,8 @@ async function addToRoomStack(
         : {}),
     },
   });
+  await recordTagMoney(tx, roomParty({ id: roomId }), tagId, n, econ);
+  return updated;
 }
 
 // Removes `quantity` of a tag from a room (null = the whole stack). Returns
@@ -406,7 +474,7 @@ async function addToRoomStack(
 // mirror dropCharacterTag's: a hypergeometric draw against the row as it
 // stood before the decrement, ignored by every caller that doesn't move
 // poison state onward.
-async function dropRoomTag(tx, roomId, tagId, quantity = null) {
+async function dropRoomTag(tx, roomId, tagId, quantity = null, options = {}) {
   // Room lock (fix round M4b, fix 2): taken before either read below. Two
   // concurrent 1-unit withdrawals off a quantity=2/poisoned=1 row used to
   // both draw against the SAME unlocked snapshot — both could draw clean
@@ -418,6 +486,11 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null) {
   if (quantity == null) {
     const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
     await tx.roomTag.deleteMany({ where: { roomId, tagId } });
+    // `quantity = null` drops the WHOLE holding — record what was actually
+    // there (`existing.quantity`), not a request that named no number at all.
+    if (existing?.quantity) {
+      await recordTagMoney(tx, roomParty({ id: roomId }), tagId, -existing.quantity, options.econ);
+    }
     return { ok: true, poisonedTaken: existing?.poisonedCount ?? 0, poisonPayload: existing?.poisonPayload ?? null };
   }
   const n = Math.max(1, Math.trunc(quantity));
@@ -453,6 +526,7 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null) {
     data: { poisonPayload: null },
   });
   await tx.roomTag.deleteMany({ where: { roomId, tagId, quantity: { lte: 0 } } });
+  await recordTagMoney(tx, roomParty({ id: roomId }), tagId, -n, options.econ);
   return { ok: true, poisonedTaken, poisonPayload };
 }
 

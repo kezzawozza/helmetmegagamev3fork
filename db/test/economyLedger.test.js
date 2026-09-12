@@ -1,0 +1,188 @@
+// node --test over the economy ledger — db/lib/economyLedger.js and the two
+// balance primitives in db/lib/resourceTransfer.js that write to it. Run with
+// `npm test --workspace=db`.
+//
+// Nothing here touches Prisma. `fakeTx` below stands in for a transaction
+// client: it holds balances in a Map and collects the EconomyEntry rows that
+// would have been written, which is enough to assert the one property the
+// whole /gm/economy panel rests on —
+//
+//   for every account, the sum of its ledger legs equals its live balance.
+//
+// A drift there means something moved money without telling the book, and the
+// panel's reconciliation badge exists to catch exactly that. These tests are
+// the same check run against the primitives in isolation.
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { record, recordDelta, MINT, BURN, characterParty } = require("../lib/economyLedger");
+const { moveParty, applyTransfer, InsufficientResourcesError } = require("../lib/resourceTransfer");
+
+function fakeTx(balances = {}) {
+  const bal = new Map(Object.entries(balances));
+  const entries = [];
+  const model = () => ({
+    async update({ where, data }) {
+      const cur = bal.get(where.id) ?? 0;
+      const f = data.resources;
+      bal.set(where.id, cur + (f.increment ?? -(f.decrement ?? 0)));
+    },
+    async updateMany({ where, data }) {
+      const cur = bal.get(where.id) ?? 0;
+      const need = where.resources?.gte ?? 0;
+      if (cur < need) return { count: 0 };
+      bal.set(where.id, cur - (data.resources.decrement ?? 0));
+      return { count: 1 };
+    },
+  });
+  return {
+    bal,
+    entries,
+    character: model(),
+    room: model(),
+    gameState: { async findFirst() { return { gameId: "g1" }; } },
+    economyEntry: { async create({ data }) { entries.push(data); return data; } },
+  };
+}
+
+// The ledger's sum for one account, counting a leg out as negative.
+function ledgerBalance(entries, kind, id) {
+  let n = 0;
+  for (const e of entries) {
+    if (e.fromKind === kind && e.fromId === id) n -= e.amount;
+    if (e.toKind === kind && e.toId === id) n += e.amount;
+  }
+  return n;
+}
+
+const ada = { kind: "character", id: "ada", name: "Ada" };
+const bram = { kind: "character", id: "bram", name: "Bram" };
+const stash = { kind: "room", id: "stash", name: "The stash" };
+
+test("amount is always positive; a signed amount swaps the legs", async () => {
+  const tx = fakeTx();
+  await record(tx, { from: ada, to: bram, form: "BALANCE", amount: -5 });
+  assert.equal(tx.entries.length, 1);
+  const e = tx.entries[0];
+  assert.equal(e.amount, 5);
+  assert.equal(e.fromId, "bram");
+  assert.equal(e.toId, "ada");
+});
+
+test("a zero move writes nothing, and a row with no ends at all writes nothing", async () => {
+  const tx = fakeTx();
+  await record(tx, { from: ada, to: bram, form: "BALANCE", amount: 0 });
+  await record(tx, { from: null, to: null, form: "BALANCE", amount: 9 });
+  assert.equal(tx.entries.length, 0);
+});
+
+test("a write with no reason is recorded as UNATTRIBUTED, never dropped", async () => {
+  const tx = fakeTx();
+  await recordDelta(tx, ada, 7);
+  assert.equal(tx.entries.length, 1);
+  assert.equal(tx.entries[0].reason, "UNATTRIBUTED");
+  assert.equal(tx.entries[0].fromKind, "world");
+  assert.equal(tx.entries[0].fromId, "mint");
+});
+
+test("a ledger failure never fails the money move", async () => {
+  const tx = fakeTx({ ada: 10 });
+  tx.economyEntry.create = async () => {
+    throw new Error("ledger is on fire");
+  };
+  await moveParty(tx, ada, -4);
+  assert.equal(tx.bal.get("ada"), 6, "the balance still moved");
+});
+
+test("moveParty reconciles: ledger sum equals the live balance", async () => {
+  const tx = fakeTx({ ada: 0 });
+  await moveParty(tx, ada, 10, { reason: "LABOR" });
+  await moveParty(tx, ada, -3, { reason: "HUNGER" });
+  await moveParty(tx, ada, 5, { reason: "LABOR_DROP" });
+  assert.equal(tx.bal.get("ada"), 12);
+  assert.equal(ledgerBalance(tx.entries, "character", "ada"), 12);
+});
+
+test("a refused debit moves nothing and records nothing", async () => {
+  const tx = fakeTx({ ada: 2 });
+  await assert.rejects(() => moveParty(tx, ada, -5, { reason: "HUNGER" }), InsufficientResourcesError);
+  assert.equal(tx.bal.get("ada"), 2);
+  assert.equal(tx.entries.length, 0);
+});
+
+test("a transfer is ONE row, not two, and both ends still reconcile", async () => {
+  const tx = fakeTx({ ada: 20, bram: 0 });
+  await applyTransfer(tx, { from: ada, to: bram, amount: 8 }, { reason: "TRANSFER" });
+  assert.equal(tx.entries.length, 1, "one movement, one row");
+  assert.equal(tx.bal.get("ada"), 12);
+  assert.equal(tx.bal.get("bram"), 8);
+  assert.equal(ledgerBalance(tx.entries, "character", "ada"), -8);
+  assert.equal(ledgerBalance(tx.entries, "character", "bram"), 8);
+});
+
+test("a transfer defaults to the TRANSFER reason but keeps a given one", async () => {
+  const tx = fakeTx({ ada: 20, bram: 0 });
+  await applyTransfer(tx, { from: ada, to: bram, amount: 1 });
+  assert.equal(tx.entries[0].reason, "TRANSFER");
+  const tx2 = fakeTx({ ada: 20, bram: 0 });
+  await applyTransfer(tx2, { from: ada, to: bram, amount: 1 }, { reason: "TAX" });
+  assert.equal(tx2.entries[0].reason, "TAX");
+});
+
+test("a failed second leg records nothing at all", async () => {
+  // bram cannot pay, so the transfer must leave no row behind claiming it did.
+  const tx = fakeTx({ ada: 0, bram: 1 });
+  await assert.rejects(() => applyTransfer(tx, { from: bram, to: ada, amount: 50 }, { reason: "TRANSFER" }));
+  assert.equal(tx.entries.length, 0);
+});
+
+test("the Spillway burns what arrives, and the room still reconciles at zero", async () => {
+  // Room.destroysContents — the Godard Factory's Spillway. The balance does not
+  // move, so the book has to show the ⬢ arriving AND being destroyed, or the
+  // reconciliation check reads a drift that isn't there.
+  const spillway = { kind: "room", id: "spillway", name: "The Spillway", destroysContents: true };
+  const tx = fakeTx({ spillway: 0 });
+  await moveParty(tx, spillway, 12, { reason: "STASH" });
+  assert.equal(tx.bal.get("spillway"), 0, "nothing was actually added");
+  assert.equal(ledgerBalance(tx.entries, "room", "spillway"), 0, "and the book agrees");
+  assert.ok(
+    tx.entries.some((e) => e.reason === "SPILLWAY" && e.toKind === "world" && e.toId === "burn"),
+    "the destruction is on the record",
+  );
+});
+
+test("a transfer into the Spillway does not double-count the sender", async () => {
+  const spillway = { kind: "room", id: "spillway", name: "The Spillway", destroysContents: true };
+  const tx = fakeTx({ ada: 30, spillway: 0 });
+  await applyTransfer(tx, { from: ada, to: spillway, amount: 30 }, { reason: "STASH" });
+  assert.equal(tx.bal.get("ada"), 0);
+  assert.equal(tx.bal.get("spillway"), 0);
+  assert.equal(ledgerBalance(tx.entries, "character", "ada"), -30, "charged once, not twice");
+  assert.equal(ledgerBalance(tx.entries, "room", "spillway"), 0);
+});
+
+test("a party kind the table does not know is a no-op in the book too", async () => {
+  // An old faction Silo. moveParty ignores it; the ledger must not invent a row
+  // for money that never moved.
+  const tx = fakeTx();
+  await moveParty(tx, { kind: "silo", id: "s1", name: "A silo" }, 40, { reason: "TRANSFER" });
+  assert.equal(tx.entries.length, 0);
+});
+
+test("a whole turn of mixed traffic reconciles across every account", async () => {
+  const tx = fakeTx({ ada: 0, bram: 0, stash: 0 });
+  await moveParty(tx, ada, 14, { reason: "LABOR" });
+  await moveParty(tx, bram, 9, { reason: "LABOR" });
+  await applyTransfer(tx, { from: ada, to: bram, amount: 4 }, { reason: "TRANSFER" });
+  await applyTransfer(tx, { from: bram, to: stash, amount: 10 }, { reason: "STASH" });
+  await moveParty(tx, ada, -1, { reason: "HUNGER" });
+  await moveParty(tx, bram, -1, { reason: "HUNGER" });
+
+  for (const [kind, id] of [["character", "ada"], ["character", "bram"], ["room", "stash"]]) {
+    assert.equal(ledgerBalance(tx.entries, kind, id), tx.bal.get(id), `${id} reconciles`);
+  }
+  // And the supply only moved by what was minted and burned.
+  const minted = tx.entries.filter((e) => e.fromId === "mint").reduce((n, e) => n + e.amount, 0);
+  const burned = tx.entries.filter((e) => e.toId === "burn").reduce((n, e) => n + e.amount, 0);
+  const live = [...tx.bal.values()].reduce((n, v) => n + v, 0);
+  assert.equal(live, minted - burned, "supply equals mints minus burns");
+});

@@ -4502,6 +4502,155 @@ model AuditLog {
   @@index([targetCharacterId])
 }
 
+// --- The economy ledger -------------------------------------------------
+//
+// One row per economic event, double-entry: `amount` is always POSITIVE and
+// the direction is from -> to. Every ⬢ that moves, is minted, or is burned
+// gets a row, written inside the same transaction as the balance write it
+// records (db/lib/economyLedger.js). /gm/economy reads nothing else.
+//
+// This is a RECORD, never a source of truth for a balance. Character.resources
+// and Room.resources stay authoritative; the ledger's worth is that its sum
+// per account can be compared against them, and a mismatch means something
+// wrote money without saying so. See docs/systemdocs/ECONOMY.md.
+//
+// Party ends are SNAPSHOT columns, not foreign keys — the ARCHITECTURE.md log
+// table rule. A character dies, a Room is pruned by a zone re-sync, and the
+// book still has to read.
+model EconomyEntry {
+  id String @id @default(cuid())
+
+  // Plain String, deliberately NOT a Game relation: the archive-or-discard
+  // wipe decides what happens to a finished game's books, and a cascade would
+  // make that decision for it.
+  gameId String
+
+  at         DateTime @default(now())
+  // turnNumber is snapshotted beside turnId so a row survives its Turn row and
+  // so the per-turn charts group without a join. Turn numbers restart at 1
+  // every game, which is why gameId leads every index that uses this.
+  turnId     String?
+  turnNumber Int?
+
+  // "character" | "room" | "depot" | "world" | "offworld" — db/lib/economyLedger.js.
+  // Either end may be null only when the other end is a world account.
+  fromKind String?
+  fromId   String?
+  fromName String?
+  toKind   String?
+  toId     String?
+  toName   String?
+
+  form   EconomyForm
+  amount Int
+
+  // What actually moved, when it was not bare ⬢. unitValue is the price the
+  // valuation used, frozen here: a catalog re-price must not silently restate
+  // history.
+  tagId     String?
+  tagSlug   String?
+  quantity  Int?
+  unitValue Int?
+
+  // The taxonomy. A plain String rather than an enum for the same reason
+  // AuditLog.actionType is one — the vocabulary grows, and a migration per new
+  // reason is a tax nobody would pay. The list lives in db/lib/economyReasons.js
+  // and that module is the only place it is authored.
+  //
+  // A write that reaches the ledger with no reason is recorded as
+  // UNATTRIBUTED rather than dropped, so an un-hooked call site shows up on
+  // /gm/economy as an ugly bar instead of quietly vanishing. NEVER quiet a
+  // noisy entry by filtering its reason out on the read side — fix the reason.
+  reason String
+
+  // The narrative row this came from, for drill-through. Not unique: one audit
+  // row can be several entries (an order with five line items).
+  actionType         String?
+  auditLogId         String?
+  actorDiscordUserId String?
+
+  // Where it happened. zoneName is the snapshot the GmZoneView filter actually
+  // reads — web/lib/zones.js#inVisibleZones matches on NAMES, and a zone that
+  // has since been pruned must still scope correctly.
+  zoneId     String?
+  zoneName   String?
+  locationId String?
+  roomId     String?
+
+  // Withheld from a plain GM: a cult purchase, a rite's cost, a concealed
+  // character's dealings. The AMOUNT still counts toward every aggregate —
+  // hiding it would make the books lie — only the counterparty is redacted.
+  secret Boolean @default(false)
+
+  source      EconomySource @default(LIVE)
+  // Set by the backfill only, as `<auditLogId>:<n>`, so re-running it is
+  // idempotent. Null for every live write, which is why the unique is partial
+  // in the migration SQL.
+  backfillKey String?
+
+  @@index([gameId, turnNumber])
+  @@index([gameId, at])
+  @@index([reason, at])
+  @@index([fromKind, fromId, at])
+  @@index([toKind, toId, at])
+  @@index([zoneName, at])
+  @@index([auditLogId])
+}
+
+// Which coat the value was wearing. A closed set, so a real enum.
+//
+// One obol is one ⬢ (DEPOT.md) — there is a single unit of account here, and
+// these are its forms, not separate currencies. BALANCE is abstract ⬢ on a
+// sheet or in a stash; COIN is physical `obol` tags, which have weight and can
+// be looted; ACCOUNT and DEBT are the Depot's two books; MANIFEST is an order
+// paid for but still in flight; GOODS is any priced tag at its catalog value.
+enum EconomyForm {
+  BALANCE
+  COIN
+  ACCOUNT
+  DEBT
+  MANIFEST
+  GOODS
+}
+
+// Where the row came from. LIVE is a hook firing at the moment money moved.
+// BACKFILL is reconstructed from AuditLog by db:backfill-economy. PLUG is the
+// difference the backfill could not account for, written once per account so
+// the books close at the seam — its size is a diagnostic, not a number to
+// trust.
+enum EconomySource {
+  LIVE
+  BACKFILL
+  PLUG
+}
+
+// A derived per-turn rollup, so the /gm/economy charts read one row per bucket
+// instead of scanning the ledger. A CACHE, not a source of truth: rebuildable
+// from EconomyEntry at any time, and the Health section has a button that does
+// exactly that.
+//
+// The grain carries fromKind/toKind because a mint (from a world account) and
+// a transfer between two players are the same reason wearing different shapes,
+// and the supply charts have to tell them apart.
+model EconomyTurnRollup {
+  id         String @id @default(cuid())
+  gameId     String
+  turnNumber Int
+
+  reason   String
+  form     EconomyForm
+  fromKind String?
+  toKind   String?
+
+  amount     Int
+  entryCount Int
+
+  builtAt DateTime @default(now())
+
+  @@unique([gameId, turnNumber, reason, form, fromKind, toKind])
+  @@index([gameId, turnNumber])
+}
+
 enum CavingRollKind {
   TROUBLE
   QUIET

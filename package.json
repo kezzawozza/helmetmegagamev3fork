@@ -33,6 +33,7 @@
     "db:sync-info-channel": "node db/scripts/sync/sync-info-channel.js",
     "db:rebuild-info-channel": "node db/scripts/sync/rebuild-info-channel.js",
     "db:doctor": "node db/scripts/ops/doctor.js",
+    "db:backfill-economy": "node db/scripts/ops/backfill-economy.js",
     "db:prune-tags": "node db/scripts/ops/prune-tags.js",
     "db:dedupe-room-stash": "node db/scripts/ops/dedupe-room-stash.js",
     "db:check-config": "node db/scripts/ops/check-config-registry.js",

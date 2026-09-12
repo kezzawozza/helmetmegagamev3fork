@@ -15,9 +15,9 @@ import { UserError } from "@/lib/actionResult";
 // Moves a party's balance by a signed delta and REFUSES rather than going
 // negative — the write IS the check, a conditional update that only matches
 // while the balance still covers the amount, safe under concurrent requests.
-export async function moveResources(tx, party, delta) {
+export async function moveResources(tx, party, delta, ctx) {
   try {
-    await moveParty(tx, party, delta);
+    await moveParty(tx, party, delta, ctx);
   } catch (err) {
     if (!(err instanceof InsufficientResourcesError)) throw err;
     if (party?.kind === "room") throw new UserError(`${party.name ?? "That room"} no longer holds ${err.amount} ⬢.`);
@@ -25,17 +25,18 @@ export async function moveResources(tx, party, delta) {
   }
 }
 
-// `ctx` used to feed the Silo ledger; it is accepted and ignored so the
-// call sites read the same. A party of a kind moveParty doesn't know (an old
-// row naming a faction Silo) is a silent no-op.
-export async function creditResources(tx, party, amount) {
+// `ctx` used to feed the Silo ledger, and was accepted and ignored while that
+// ledger was gone; it is now threaded through to moveParty, which is what
+// actually records the ledger row. A party of a kind moveParty doesn't know
+// (an old row naming a faction Silo) is a silent no-op.
+export async function creditResources(tx, party, amount, ctx) {
   if (!party || !amount) return;
-  await moveResources(tx, party, amount);
+  await moveResources(tx, party, amount, ctx);
 }
 
-export async function debitResources(tx, party, amount) {
+export async function debitResources(tx, party, amount, ctx) {
   if (!party || !amount) return;
-  await moveResources(tx, party, -amount);
+  await moveResources(tx, party, -amount, ctx);
 }
 
 async function moveBlood(tx, delta) {

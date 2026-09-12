@@ -150,6 +150,29 @@
      (#0c1013) and land (#c1c4c2), not against --surface -- the art does not
      change with the theme, only this does. */
   --map-river: #4f9d94;
+
+  /* Chart categorical series (web/app/components/charts/). Eight hues, fixed
+     order, validated with the dataviz skill's validate_palette.js against
+     this theme's --surface (#1e352f): all six checks pass; three slots land
+     in the sub-3:1 relief band, so every chart that uses them also ships a
+     legend/direct label or a table view rather than colour alone. Dusk and
+     dawn share one dark-mode set (both dark surfaces, same validated run);
+     limestone gets its own light-mode set below. Never reassign a slot's
+     hue -- the order is the CVD-safety mechanism, not decoration. */
+  --chart-series-1: #3987e5;
+  --chart-series-2: #d95926;
+  --chart-series-3: #199e70;
+  --chart-series-4: #c98500;
+  --chart-series-5: #d55181;
+  --chart-series-6: #008300;
+  --chart-series-7: #9085e9;
+  --chart-series-8: #e66767;
+  /* Diverging pair (minted vs burned, above/below a baseline): blue<->red,
+     the same poles as --chart-series-1/8, gray midpoint at --border. */
+  --chart-pos: var(--chart-series-1);
+  --chart-neg: var(--chart-series-8);
+  --chart-grid: var(--border);
+  --chart-axis: var(--muted);
 }
 
 /* Dawn — lamps up. Not daylight: a warmer, lifted dark with brighter ember. */
@@ -193,6 +216,22 @@
   /* The /map river -- see the dusk block. Sunrise on the water, warm, since
      dawn is the one theme whose whole ember runs orange. */
   --map-river: #c07a3c;
+
+  /* Chart categorical series -- see the dusk block. Same validated dark-mode
+     set (re-checked against this theme's --surface, #362a24: all six checks
+     pass, same relief slots). */
+  --chart-series-1: #3987e5;
+  --chart-series-2: #d95926;
+  --chart-series-3: #199e70;
+  --chart-series-4: #c98500;
+  --chart-series-5: #d55181;
+  --chart-series-6: #008300;
+  --chart-series-7: #9085e9;
+  --chart-series-8: #e66767;
+  --chart-pos: var(--chart-series-1);
+  --chart-neg: var(--chart-series-8);
+  --chart-grid: var(--border);
+  --chart-axis: var(--muted);
 }
 
 /* Limestone — the light-theme backup, kept for comparison rather than wired
@@ -250,6 +289,22 @@
      was chosen; it takes dusk's teal a shade deeper, and is the one of the
      three to revisit if the water reads wrong in daylight. */
   --map-river: #3f8b90;
+
+  /* Chart categorical series -- see the dusk block. Light-mode set, validated
+     against this theme's --surface (#fbfaf7): all six checks pass, with
+     aqua/yellow/magenta in the sub-3:1 relief band (legend + labels cover it). */
+  --chart-series-1: #2a78d6;
+  --chart-series-2: #eb6834;
+  --chart-series-3: #1baf7a;
+  --chart-series-4: #eda100;
+  --chart-series-5: #e87ba4;
+  --chart-series-6: #008300;
+  --chart-series-7: #4a3aa7;
+  --chart-series-8: #e34948;
+  --chart-pos: var(--chart-series-1);
+  --chart-neg: var(--chart-series-8);
+  --chart-grid: var(--border);
+  --chart-axis: var(--muted);
 }
 
 /* Bridge the tokens into Tailwind. Without this the app runs two disconnected

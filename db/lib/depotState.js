@@ -1,3 +1,5 @@
+const { record, MINT, BURN, DEPOT_ACCOUNT } = require("./economyLedger");
+
 // The Depot singleton's live state: the account, the generator, the shuttle.
 //
 // Every mover here does its clamp inside ONE locked statement rather than a
@@ -127,8 +129,35 @@ async function bumpColumn(tx, column, amount, { max = null } = {}) {
 
 // Obols into or out of the station's account. No ceiling — the Merchant can be
 // as rich as he can get.
-function bumpAccount(tx, amount) {
-  return bumpColumn(tx, "accountObols", amount);
+//
+// `ctx` is optional and, when passed, records the move on the economy ledger
+// (form ACCOUNT) — an obol in `Depot.accountObols` is still the same 1-⬢
+// obol, just held on the station's books instead of on a physical coin. The
+// default ends are MINT (deposit) / BURN (withdrawal), the same default the
+// ledger uses everywhere else; `ctx.econ` overrides `from`/`to` for a call
+// site that knows the real counterparty (the Company, on an order or a
+// sale). Every existing caller that passes no `ctx` is unaffected — nothing
+// is recorded, same as before this parameter existed.
+async function bumpAccount(tx, amount, ctx) {
+  const result = await bumpColumn(tx, "accountObols", amount);
+  if (ctx && result.delta) {
+    // record() never throws (economyLedger.js rule 2) — a ledger hiccup logs
+    // and drops the row rather than costing the Merchant his order or payout.
+    const econ = ctx.econ ?? {};
+    const defaultFrom = result.delta > 0 ? MINT : DEPOT_ACCOUNT;
+    const defaultTo = result.delta > 0 ? DEPOT_ACCOUNT : BURN;
+    await record(
+      tx,
+      {
+        from: econ.from ?? defaultFrom,
+        to: econ.to ?? defaultTo,
+        form: "ACCOUNT",
+        amount: Math.abs(result.delta),
+      },
+      econ,
+    );
+  }
+  return result;
 }
 
 // Fuel, capped at the tank's size so shovelling coal into a full generator

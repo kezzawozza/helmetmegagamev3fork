@@ -22,7 +22,7 @@
 // the same trap db/lib/lifeweb.js#bumpBlood documents and solves for the blood
 // pool, in the same shape: clamp and report in one statement, and let the
 // caller record what moved rather than what was asked for.
-async function addResources(tx, characterId, amount) {
+async function addResources(tx, characterId, amount, ctx) {
   if (!amount) return 0;
   // One atomic statement, not read-then-write. The old shape (findUnique, add
   // in JS, write the literal back) lost an update whenever anything else
@@ -45,9 +45,25 @@ async function addResources(tx, characterId, amount) {
   `;
   const before = rows[0]?.before ?? 0;
   const after = rows[0]?.after ?? before;
-  return after - before;
+  const moved = after - before;
+  const party = characterParty({ id: characterId });
+  if (party) await recordDelta(tx, party, moved, ctx);
+  // The GREATEST(0, ...) floor above is the other silent burn this module's
+  // header comment describes: a debit larger than the balance destroys the
+  // shortfall instead of driving the balance negative. `moved` is what
+  // actually happened and is already recorded above; the difference between
+  // what was asked for and what moved is money that ceased to exist, and
+  // until now nothing ever wrote that down.
+  if (amount < 0 && party) {
+    const shortfall = amount - moved; // both negative or zero; e.g. -5 - (-2) = -3
+    if (shortfall < 0) {
+      await record(tx, { from: party, to: BURN, form: "BALANCE", amount: -shortfall }, { ...ctx, reason: "CLAMP" });
+    }
+  }
+  return moved;
 }
 
+const { characterParty, recordDelta, record, BURN } = require("./economyLedger");
 const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
 const { rollWithAdvantage } = require("./advantage");
