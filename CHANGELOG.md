@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · Where the money goes, on a page
+
+✚ An Economy panel at /gm/economy: what the town is worth right now, what it minted and burned this turn, who is hoarding, and a searchable book of every ⬢ that moved  
+✎ Every ⬢ that moves is now written down — labour, the Depot, hand-overs, hunger, tax, the cult. Nothing in the game plays differently  
+✎ The Spillway and an overdrawn purse used to destroy ⬢ with no trace anywhere. Both leave a record now, and the panel shows them  
+✎ The panel checks itself: if what the book says an account holds does not match what it actually holds, that is on the front page  
+✚ A Health section listing anything moving money without saying so, which is a to-do list rather than an error  
+✎ The books only start today. Run db:backfill-economy to reconstruct what it can from the audit log; what it cannot is labelled rather than guessed
+
 ## 2026-09-12 · A bird's letter can be answered from the web
 
 ✎ Replying to a letter no longer needs Discord — the Reply is on the web too  
