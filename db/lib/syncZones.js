@@ -1569,6 +1569,7 @@ async function refreshGateRooms(prisma, locationId) {
 module.exports = {
   syncZonesFromYaml,
   refreshLiveRooms,
+  refreshRoomStarters,
   parseZonesYaml,
   reconcileChannelOverwrites,
   managedOverwriteIds,
