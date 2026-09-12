@@ -184,6 +184,31 @@ would, on a month-old game — cache it somewhere that is actually kept warm,
 and make the read path merge rather than choose.
 
 
+## 9. What each section of the desk answers
+
+| Section | The question |
+|---|---|
+| Pulse | What is the town worth, is the supply growing, and is one person sitting on it |
+| Flows | Where does ⬢ come from, where does it go, and who trades with whom |
+| Faucets | Which sources pay, and how much |
+| Sinks | What spends ⬢, and what destroys it — the Spillway and an overdrawn purse have their own panel, because those two are destruction rather than spending |
+| Ledger | The book: every entry, filterable, newest first |
+| Accounts | Every purse and stash, and what moved through it this turn |
+| Goods | The catalog against reality — prices, what exists, what actually trades, and any ware whose round trip prints ⬢ |
+| The Depot | The station's books. Its account and the Merchant's purse are shown APART, always (§1) |
+| Factions | Silo treasuries, and what went in and out this turn |
+| Health | Drift, un-hooked call sites, and the backfill seam |
+
+Two numbers the desk deliberately does not compute:
+
+- **Labor drops show what they paid, not what they were designed to pay.** The
+  expected value needs `docs/labordrops.yaml` parsed and the roll shares
+  simulated (`db/lib/labordropsEv.js`), which is not a page render's job. Run
+  `npm run db:audit-labor-drops` for that side. Inventing a plausible number
+  there would be worse than leaving it out.
+- **No per-faction balance history.** There is no per-turn snapshot to group
+  off, so a sparkline would cost a query per faction.
+
 ## 9. Things not to do
 
 - **Don't make the ledger a source of truth for a balance.** Balances stay on

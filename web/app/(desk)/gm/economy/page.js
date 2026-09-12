@@ -26,6 +26,9 @@ import {
   redactEntry,
   HOLDING_STATUSES,
   counterpartyEdges,
+  goodsCatalog,
+  depotBooks,
+  factionTreasuries,
 } from "@/lib/economyQuery";
 
 // /gm/economy — the GM analytics desk over EconomyEntry. See CLAUDE.md's
@@ -495,6 +498,94 @@ async function FreshEconomy({ section, searchParams, userId }) {
         data.laborDropNote =
           "Expected value per pool isn't wired into this page — it needs docs/labordrops.yaml priced and rolled per zone/location, which npm run db:audit-labor-drops already does. Only the realised total is shown here.";
       }
+      break;
+    }
+
+    case "goods": {
+      // Every priced tag against reality — no zone scoping, same as every
+      // other aggregate on this page: a tag's world count and trade history
+      // don't change depending on which zones a GM can see.
+      const catalog = await goodsCatalog();
+      data = { ...data, catalog };
+      break;
+    }
+
+    case "depot": {
+      const [books, depotRow, flowRows] = await Promise.all([
+        depotBooks(),
+        // depotBooks() reports the account/credit/manifest side; the
+        // generator and shuttle aren't part of that DTO, so they're read
+        // straight off the row here.
+        prisma.depot.findFirst({
+          select: { generatorOn: true, generatorFuel: true, fuelMax: true, shuttleState: true },
+        }),
+        flowsByTurn({ gameId }),
+      ]);
+
+      // Balance of trade from the Depot's own side: an order pays obols IN,
+      // a sale pays obols OUT. DivergingBars wants both magnitudes
+      // non-negative, so order -> positive, sale -> negative.
+      const byTurn = new Map();
+      for (const r of flowRows) {
+        if (r.reason !== "DEPOT_ORDER" && r.reason !== "DEPOT_SALE") continue;
+        const t = r.turnNumber ?? 0;
+        if (!byTurn.has(t)) byTurn.set(t, { turnNumber: t, order: 0, sale: 0 });
+        const bucket = byTurn.get(t);
+        if (r.reason === "DEPOT_ORDER") bucket.order += r.amount;
+        else bucket.sale += r.amount;
+      }
+      const turns = [...byTurn.keys()].sort((a, b) => a - b);
+      const tradePoints = turns.map((t) => {
+        const b = byTurn.get(t);
+        return { x: t, positive: b.order, negative: b.sale };
+      });
+
+      data = {
+        ...data,
+        books,
+        generatorOn: depotRow?.generatorOn ?? false,
+        generatorFuel: depotRow?.generatorFuel ?? 0,
+        fuelMax: depotRow?.fuelMax ?? 0,
+        shuttleState: depotRow?.shuttleState ?? null,
+        tradePoints,
+      };
+      break;
+    }
+
+    case "factions": {
+      const openTurn = await getOpenTurn();
+      const treasuries = await factionTreasuries();
+      const siloIds = treasuries.map((f) => f.siloRoomId).filter(Boolean);
+
+      // Contributions in / draws out THIS TURN, for each faction's silo.
+      // Only amounts are read here, never a counterparty name, so there is
+      // nothing for redactEntry to withhold from a plain GM — a cult silo's
+      // balance and this-turn totals are already the whole of what's shown.
+      let flowById = new Map();
+      if (openTurn && siloIds.length) {
+        const legs = await prisma.$queryRaw`
+          SELECT id, SUM(inflow)::int AS inflow, SUM(outflow)::int AS outflow FROM (
+            SELECT "fromId" AS id, 0 AS inflow, SUM("amount")::int AS outflow
+              FROM "EconomyEntry"
+             WHERE "gameId" = ${gameId} AND "turnNumber" = ${openTurn.number} AND "form" = 'BALANCE'
+               AND "fromKind" = 'room' AND "fromId" = ANY(${siloIds})
+             GROUP BY 1
+            UNION ALL
+            SELECT "toId" AS id, SUM("amount")::int AS inflow, 0 AS outflow
+              FROM "EconomyEntry"
+             WHERE "gameId" = ${gameId} AND "turnNumber" = ${openTurn.number} AND "form" = 'BALANCE'
+               AND "toKind" = 'room' AND "toId" = ANY(${siloIds})
+             GROUP BY 1
+          ) legs GROUP BY id`;
+        flowById = new Map(legs.map((l) => [l.id, { in: Number(l.inflow) || 0, out: Number(l.outflow) || 0 }]));
+      }
+
+      const factions = treasuries.map((f) => {
+        const flow = f.siloRoomId ? flowById.get(f.siloRoomId) ?? { in: 0, out: 0 } : null;
+        return { ...f, turnIn: flow?.in ?? 0, turnOut: flow?.out ?? 0 };
+      });
+
+      data = { ...data, factions, openTurnNumber: openTurn?.number ?? null };
       break;
     }
 
