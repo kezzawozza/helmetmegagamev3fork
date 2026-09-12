@@ -102,6 +102,11 @@
 #   never touched, so without this a live fact could only live on Examine, one
 #   channel up from the room it is about. A key the registry does not know is a
 #   sync PROBLEM, the same as an unknown attribute.
+# - soundproof (rooms only): true means a shout in here never leaves the
+#   room — db/lib/shout.js#soundproofAt reads it, and a Conversation held out
+#   on the room inherits it. Prints on the room's own starter as
+#   `**Muffled**: shouts do not carry out of here.` A Location is never
+#   soundproof itself; only a Room can carry this.
 #
 # PROSE STYLE — every prose value in this file is a `>-` folded block
 # scalar, one physical line per paragraph, no hard wrapping, UNLESS it has
@@ -333,6 +338,7 @@ zones:
             description: >-
               The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
             access: [order-key]
+            soundproof: true
             stash:
               items:
                 paper: 12
@@ -396,6 +402,7 @@ zones:
             description: >-
               Furnished with wood, the office stands in stark contrast to the sanitized aesthetics of the rest of the Sanctuary. Shelves on the wall are lined with glassware and bottles containing hundreds of different reagents.
             access: [sanctuary-key]
+            soundproof: true
             stash:
               items:
                 paper: 15
@@ -450,6 +457,7 @@ zones:
             description: >-
               Automated machineries used to provide plumbing, but now it's still and dirty. The sewer grate is locked.
             access: [sewer, tunnel-rat, sewer-key]
+            soundproof: true
             stash:
               items:
                 feces: 6
@@ -458,6 +466,7 @@ zones:
             description: >-
               Four connected basements, their separating walls knocked down. Originally some sort of hidden den, this now is a perfect place for organizing. It's accessed through the sewers.
             access: [underquarter-basements, thanati, thanati-leader]
+            soundproof: true
             stash:
               resources: 8
               items:
@@ -708,6 +717,7 @@ zones:
           keep-meisters-office:
             name: Meister's Office
             access: [meisters-key, barons-key]
+            soundproof: true
             description: >-
               A narrow office.
             stash:
@@ -717,6 +727,7 @@ zones:
           keep-hands-office:
             name: Hand's Office
             access: [hands-key, barons-key]
+            soundproof: true
             description: >-
               A narrow office.
             stash:
@@ -775,6 +786,7 @@ zones:
             access: [censors-key, cerberus-key]
             description: >-
               The Censor's office is spacious, with a small portrait of his beloved Baron perched on the wall. A caged window looks out over the training ground below. There is a big red button on the wall.
+            soundproof: true
             stash:
               items:
                 paper: 8
@@ -828,11 +840,13 @@ zones:
             access: [censors-key, incarns-key, cerberus-key]
             description: >-
               Rows of cells behind iron bars, each with a lock only accessible by members of the garrison.
+            soundproof: true
           garrison-oubliette:
             name: Oubliette
             access: [censors-key, incarns-key, cerberus-key]
             description: >-
               If you throw a man in here, they're not getting out.
+            soundproof: true
           garrison-training-yard:
             name: Training Yard
             access: [cerberus-key]
@@ -1689,6 +1703,7 @@ zones:
             description: >-
               Clear sightways into the factory and out to the surrounding marsh, leading to a walkway that wraps around the factory's upper levels.
             access: [bannerets-key]
+            soundproof: true
             stash:
               resources: 8
               items:
@@ -1912,6 +1927,7 @@ zones:
               depot-merchants-office:
                 name: Merchant's Office
                 access: [merchants-license]
+                soundproof: true
                 description: >-
                   A desk, filing cabinets, and a big red button.
                 stash:

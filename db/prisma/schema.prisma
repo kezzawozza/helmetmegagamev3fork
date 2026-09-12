@@ -1500,6 +1500,13 @@ model Room {
   // so a GM can still Undo. See docs/systemdocs/CARRY.md.
   destroysContents Boolean @default(false)
 
+  // The walls hold a shout in. Set from `soundproof: true` in
+  // docs/zones.yaml. db/lib/shout.js#soundproofAt reads this — a Room's own
+  // fact, and a Conversation (PlayerThread) hanging off one inherits it.
+  // A Location is never soundproof itself: standing in the street outside a
+  // soundproof room is not being in it.
+  soundproof Boolean @default(false)
+
   // A key from the registry in db/lib/roomLive.js, set from `live:` in
   // docs/zones.yaml. The room's starter message carries one extra line read
   // off live state, re-rendered whenever that state moves — the Landing Pad
