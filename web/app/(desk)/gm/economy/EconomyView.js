@@ -4,10 +4,13 @@ import { Pulse } from "./sections/Pulse";
 import { Ledger } from "./sections/Ledger";
 import { Accounts } from "./sections/Accounts";
 import { Health } from "./sections/Health";
+import { Flows } from "./sections/Flows";
+import { Faucets } from "./sections/Faucets";
+import { Sinks } from "./sections/Sinks";
 import { NotBuilt, EmptyGame } from "./sections/shared";
 
 // The economy desk's whole client half. One switch on `section`, dispatching
-// to the four sections in ./sections/ — each section used to live inline
+// to each section in ./sections/ — each section used to live inline
 // here; see sections/shared.js for the pieces they still share.
 //
 // Rendered by SnapshotPage (see page.js): every prop here is the DTO
@@ -26,6 +29,12 @@ export default function EconomyView(props) {
       return <Accounts {...props} />;
     case "health":
       return <Health {...props} />;
+    case "flows":
+      return <Flows {...props} />;
+    case "faucets":
+      return <Faucets {...props} />;
+    case "sinks":
+      return <Sinks {...props} />;
     default:
       return <NotBuilt section={props.section} />;
   }

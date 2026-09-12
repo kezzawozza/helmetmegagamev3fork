@@ -3,7 +3,8 @@ import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@lifeweb/db";
 import { visibleZoneIds as loadVisibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
-import { reasonLabel } from "@lifeweb/db/lib/economyReasons";
+import { reasonLabel, reasonFlow, FLOW, REASONS } from "@lifeweb/db/lib/economyReasons";
+import { sankeyFromFlows, arcWebFromEdges } from "@lifeweb/db/lib/economyFlows";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
@@ -24,6 +25,7 @@ import {
   zoneWhere,
   redactEntry,
   HOLDING_STATUSES,
+  counterpartyEdges,
 } from "@/lib/economyQuery";
 
 // /gm/economy — the GM analytics desk over EconomyEntry. See CLAUDE.md's
@@ -383,6 +385,116 @@ async function FreshEconomy({ section, searchParams, userId }) {
         unattributed: unattributed.map((u) => ({ actionType: u.actionType ?? "(none)", count: u._count._all })),
         plugRows,
       };
+      break;
+    }
+
+    case "flows": {
+      const raw = await searchParams;
+      // A turn-range control as plain query params — no client state, so the
+      // range survives a reload and a shared link reproduces exactly what a
+      // GM was looking at. Defaults to the whole game.
+      const bounds = await prisma.economyEntry.aggregate({
+        where: { gameId },
+        _min: { turnNumber: true },
+        _max: { turnNumber: true },
+      });
+      const minTurn = bounds._min.turnNumber ?? 0;
+      const maxTurn = bounds._max.turnNumber ?? 0;
+      const fromTurn = raw?.from ? Number(raw.from) : null;
+      const toTurn = raw?.to ? Number(raw.to) : null;
+
+      const [flowRows, edges] = await Promise.all([
+        flowsByTurn({ gameId, fromTurn, toTurn }),
+        counterpartyEdges({ gameId, fromTurn, toTurn, limit: 40 }),
+      ]);
+
+      const sankey = sankeyFromFlows(flowRows);
+      const arcWeb = arcWebFromEdges(edges);
+
+      // The table under the sankey: one row per faucet/sink reason in this
+      // range, so a GM can drill straight into the Ledger filtered to it.
+      const byReason = new Map();
+      for (const r of flowRows) {
+        const flow = reasonFlow(r.reason);
+        if (flow !== FLOW.FAUCET && flow !== FLOW.SINK) continue;
+        const cur = byReason.get(r.reason) ?? { reason: r.reason, flow, amount: 0 };
+        cur.amount += r.amount;
+        byReason.set(r.reason, cur);
+      }
+      const reasonRows = [...byReason.values()]
+        .map((r) => ({ ...r, label: reasonLabel(r.reason) }))
+        .sort((a, b) => b.amount - a.amount);
+
+      data = {
+        ...data,
+        sankey,
+        arcWeb,
+        reasonRows,
+        minTurn,
+        maxTurn,
+        fromTurn: fromTurn ?? minTurn,
+        toTurn: toTurn ?? maxTurn,
+      };
+      break;
+    }
+
+    case "faucets":
+    case "sinks": {
+      const wantFlow = section === "faucets" ? FLOW.FAUCET : FLOW.SINK;
+      const flowRows = await flowsByTurn({ gameId });
+
+      // Every reason this repo has ever declared for this flow, not just the
+      // ones with rows — a faucet nobody has hit yet is still a row worth
+      // showing at 0, the same reason UNATTRIBUTED gets its own bar on
+      // purpose rather than being filtered away.
+      const reasons = Object.entries(REASONS)
+        .filter(([, v]) => v.flow === wantFlow)
+        .map(([reason]) => reason);
+
+      const byTurn = new Map();
+      const totalByReason = new Map(reasons.map((r) => [r, 0]));
+      for (const row of flowRows) {
+        if (reasonFlow(row.reason) !== wantFlow) continue;
+        const t = row.turnNumber ?? 0;
+        if (!byTurn.has(t)) byTurn.set(t, {});
+        const bucket = byTurn.get(t);
+        bucket[row.reason] = (bucket[row.reason] ?? 0) + row.amount;
+        totalByReason.set(row.reason, (totalByReason.get(row.reason) ?? 0) + row.amount);
+      }
+      const turns = [...byTurn.keys()].sort((a, b) => a - b);
+      const categories = turns.map((t) => ({ x: t, values: byTurn.get(t) }));
+      const series = reasons
+        // Series with nothing in the whole range would still take a legend
+        // slot and a stack colour for a band that never draws — drop them
+        // from the chart series (the table below still lists every reason).
+        .filter((r) => totalByReason.get(r) > 0)
+        .map((r) => ({ key: r, label: reasonLabel(r) }));
+
+      const grandTotal = [...totalByReason.values()].reduce((a, b) => a + b, 0);
+      const table = reasons
+        .map((r) => ({
+          reason: r,
+          label: reasonLabel(r),
+          total: totalByReason.get(r) ?? 0,
+          share: grandTotal > 0 ? (totalByReason.get(r) ?? 0) / grandTotal : 0,
+          sparkline: turns.map((t) => byTurn.get(t)?.[r] ?? 0),
+        }))
+        .sort((a, b) => b.total - a.total);
+
+      data = { ...data, series, categories, table, grandTotal };
+
+      // Faucets only: designed vs. realised for labor drops. summarize() from
+      // labordropsEv.js wants priced pool rows plus a roll-share table per
+      // zone/location/holds combination (see db/scripts/ops/audit-labor-
+      // drops.js) — that is a YAML-parse-and-simulate job, not something this
+      // page render can assemble cheaply per request. So only the realised
+      // side is shown; the designed side stays a `npm run
+      // db:audit-labor-drops` job rather than a live number here.
+      if (section === "faucets") {
+        data.laborDropRealised = totalByReason.get("LABOR_DROP") ?? 0;
+        data.laborDropNote =
+          "Expected value per pool isn't wired into this page — it needs docs/labordrops.yaml priced and rolled per zone/location, which npm run db:audit-labor-drops already does. Only the realised total is shown here.";
+      }
       break;
     }
 

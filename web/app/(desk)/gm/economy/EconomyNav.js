@@ -4,7 +4,7 @@ import Link from "next/link";
 // gm/dev/OpsNav.js: no usePathname, because every section is the same route
 // and the active one comes from ?s=, which the page already knows.
 //
-// The four built sections come first. The other six are wired here on
+// The seven built sections come first. The other three are wired here on
 // purpose — a nav item pointing nowhere would be worse than a "not built yet"
 // panel — and page.js's per-section switch renders that panel for each of
 // them until a later task fills them in.
@@ -13,12 +13,12 @@ const BUILT = [
   { key: "ledger", label: "Ledger" },
   { key: "accounts", label: "Accounts" },
   { key: "health", label: "Health" },
-];
-
-const PLANNED = [
   { key: "flows", label: "Flows" },
   { key: "faucets", label: "Faucets" },
   { key: "sinks", label: "Sinks" },
+];
+
+const PLANNED = [
   { key: "goods", label: "Goods" },
   { key: "depot", label: "The Depot" },
   { key: "factions", label: "Factions" },
