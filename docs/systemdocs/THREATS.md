@@ -84,9 +84,10 @@ column for free.
 ## 3. Assign
 
 `assignThreat({ characterId, threatSlug })` in
-`web/app/(app)/gm/dev/threatActions.js`. Superadmin-gated, and it re-checks
-`assignable` itself — a server action is a public endpoint and the dropdown is
-a hint, not a lock.
+`web/app/(app)/gm/dev/threatActions.js`. GM-gated (`web/lib/devAccess.js`), not
+superadmin — running the game is what seats and objectives are — and it
+re-checks `assignable` itself — a server action is a public endpoint and the
+dropdown is a hint, not a lock.
 
 One transaction: the seat's tags, then the points, then the conflicts. Tags
 are **upserted**, not created, because a GM may have granted the seat tag by
@@ -251,8 +252,11 @@ personal role title, all worn as identity rather than read as prose.
 
 ## 5. The two GM sections
 
-Both live on `/gm/dev` under the **Threats** nav group, superadmin-only like
-everything else on that panel. Each fetches only its own data.
+Both live on `/gm/dev` under the **Threats** nav group. Unlike most of
+`/gm/dev`, which is superadmin-only, these two sections (`assignments` and
+`antagonists`) are GM-tier — `web/lib/devAccess.js` — because running the game
+is what seats and objectives are (`GAMEMASTERS.md` §5). Each fetches only its
+own data.
 
 ### `?s=assignments`
 
@@ -364,8 +368,8 @@ took as dead. The blast never scores the cult's bloodbath: its turn is the one
 per, once that exists; and a card whose party has nobody seated says so, since
 `buildAntagonistReveal` will print nothing for it. The page and the card use
 the same `membersByParty` the reveal does, so they cannot disagree about who
-sits where. Actions are `web/app/(app)/gm/dev/objectiveActions.js`,
-superadmin-gated, each re-validating kind, party, target shape and
+sits where. Actions are `web/app/(app)/gm/dev/objectiveActions.js`, GM-gated
+(§5), each re-validating kind, party, target shape and
 eligibility; every one writes an audit row (`objective_added` /
 `objective_pinned` / `objective_removed`). After End Game the card warns that
 the reveal is already frozen — only a second End Game rebuilds it.

@@ -76,6 +76,18 @@ const INCLUDED = new Set([
   "gm_character_killed",
   "gm_character_revived",
   "catatonic_deaths_resolved",
+
+  // The GM's own bookkeeping about a threat seat — a spawn offered, an
+  // objective pinned. Nobody's `locationId` in these rows, so they never reach
+  // a zone page by accident; oracleInput.js#threatsBlock pulls them here by
+  // actionType for the Threats correspondent. See ORACLE.md.
+  "threat_assigned",
+  "threat_spawn_offered",
+  "threat_spawn_cancelled",
+  "objective_added",
+  "objective_pinned",
+  "objective_removed",
+  "rite_fired",
 ]);
 
 // Rows worth one line for the WHOLE TURN rather than one per character. The
@@ -119,6 +131,12 @@ const DETAIL_KEYS = [
   // What the intercom actually said. Truncated like any other long string —
   // the point is that a zone was addressed and roughly about what.
   "body",
+  // The threat/objective lifecycle rows above.
+  "threat",
+  "party",
+  "objective",
+  "pinned",
+  "role",
 ];
 
 // Keys whose FALSE is a fact rather than an absence.

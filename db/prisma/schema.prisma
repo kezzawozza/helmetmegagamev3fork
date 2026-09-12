@@ -5064,9 +5064,18 @@ model OracleSynopsis {
   turnId String
   turn   Turn   @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
-  // NULL is the front page. Every other row is one zone's page.
+  // NULL is the front page OR the Threats page — `kind` is what tells those
+  // two apart now. Every other row (kind ZONE) is one real zone's page.
   zoneId String?
   zone   Zone?   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  // ZONE (default) has a real zoneId. FRONT and THREATS both have zoneId NULL
+  // and used to be the same thing for exactly that reason, until the Threats
+  // correspondent needed a second null-zoneId slot — see ORACLE.md. THREATS is
+  // a zone-shaped page with no Zone row behind it: same PRESENT/MOVES/EVENTS
+  // shape, scoped to antagonist seat-holders instead of a place, and it shows
+  // up as one more "## Threats" section in the front page's zone list.
+  kind OracleSynopsisKind @default(ZONE)
 
   // Markdown, carrying {char:Full Name} tokens that
   // web/app/components/DocumentMarkdown.js resolves against the turn's roster.
@@ -5094,14 +5103,23 @@ model OracleSynopsis {
   createdAt DateTime @default(now())
 
   // NOT a substitute for uniqueness. Postgres treats NULLs as distinct in a
-  // unique index, so @@unique([turnId, zoneId]) would happily allow two front
-  // pages for one turn. The real guard is a PARTIAL unique index added in raw
-  // migration SQL — `WHERE "zoneId" IS NULL` — the same shape as
-  // FactionApplication_pending_unique and ThreatSpawn_pending_unique, and it
-  // comes with the same warning: `prisma migrate diff` cannot express it, will
-  // propose dropping it, and the drop must be declined (CLAUDE.md).
+  // unique index, so @@unique([turnId, zoneId]) would happily allow any number
+  // of FRONT or THREATS rows for one turn (both have zoneId NULL). The real
+  // guards are two PARTIAL unique indexes added in raw migration SQL —
+  // `WHERE "zoneId" IS NULL AND "kind" = 'FRONT'` and `WHERE "kind" =
+  // 'THREATS'` — the same shape as FactionApplication_pending_unique and
+  // ThreatSpawn_pending_unique, and they come with the same warning: `prisma
+  // migrate diff` cannot express either, will propose dropping both, and the
+  // drop must be declined (CLAUDE.md). This @@unique still does real work: it
+  // is what keeps two ZONE rows from ever landing for the same zone.
   @@unique([turnId, zoneId])
   @@index([turnId])
+}
+
+enum OracleSynopsisKind {
+  ZONE
+  FRONT
+  THREATS
 }
 
 // A GM's own notes about a player, on the player desk's dossier.

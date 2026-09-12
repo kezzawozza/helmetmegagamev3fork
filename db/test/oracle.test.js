@@ -16,12 +16,14 @@ const {
   linkCharacterTokens,
   aggregatesSeenByZone,
   zoneBlock,
+  threatsBlock,
   describeStagedEffect,
   resolveSeat,
 } = require("../lib/oracleInput");
 const { moveCutoffAt } = require("../lib/turnClock");
 const { cutoffDecision } = require("../lib/oracleCutoff");
 const { splitEditorReply, correspondentPrompt, editorPrompt } = require("../lib/oraclePrompts");
+const { isComplete } = require("../lib/oracle");
 
 function namesFixture() {
   return {
@@ -500,6 +502,10 @@ function baseMaterial(overrides = {}) {
     stagedEffects: [],
     seatByZoneId: new Map(),
     names: { byCharacterId: new Map(), byDiscordUserId: new Map() },
+    threatMembers: new Map(),
+    objectivesByParty: new Map(),
+    spawns: [],
+    rites: [],
     ...overrides,
   };
 }
@@ -593,4 +599,84 @@ test("a child zone's beats, chat and staged rows land on the seat's page", () =>
 test("resolveSeat falls back to the raw id for a zone the map doesn't know", () => {
   assert.equal(resolveSeat("mystery-zone", new Map()), "mystery-zone");
   assert.equal(resolveSeat(null, new Map()), null);
+});
+
+// The Threats correspondent — a seventh, zone-shaped page scoped to seat
+// holders instead of a place. See ORACLE.md §3a.
+
+test("a non-seat-holder never appears in the Threats page's PRESENT or MOVES", () => {
+  const material = baseMaterial({
+    characters: [
+      { id: "c1", name: "Maeris", location: { name: "Fortress" }, tags: [] },
+      { id: "c2", name: "Ada Vance", location: { name: "Town" }, tags: [] },
+    ],
+    actions: [
+      { characterId: "c1", moveKind: "GAMBIT", description: "Seduces the Baron.", moveReviewStatus: "OPEN" },
+      { characterId: "c2", moveKind: "ROUTINE", description: "Tends the shop.", moveReviewStatus: "SOLVED" },
+    ],
+    names: { byCharacterId: new Map([["c1", "Maeris"], ["c2", "Ada Vance"]]), byDiscordUserId: new Map() },
+    threatMembers: new Map([["demoness", [{ id: "c1", name: "Maeris", seat: "Demoness" }]]]),
+  });
+  const { text } = threatsBlock(material, { aggregatesSeen: new Set() });
+  assert.match(text, /PRESENT \(1\)\n- Maeris/);
+  assert.match(text, /MOVES\nMaeris/);
+  assert.doesNotMatch(text, /Ada Vance/);
+});
+
+test("the Threats page reports nobody seated as its own quiet floor", () => {
+  const material = baseMaterial();
+  const { text } = threatsBlock(material, { aggregatesSeen: new Set() });
+  assert.match(text, /PRESENT\nNobody holds a seat\./);
+});
+
+test("the Threats page reads spawns, rites and objectives without the audit log", () => {
+  const material = baseMaterial({
+    spawns: [{ threatSlug: "demoness", status: "ACCEPTED", role: { name: "Succubus" } }],
+    rites: [{ riteKey: "blood-price", roomName: "Undercroft", status: "FIRED" }],
+    objectivesByParty: new Map([["thanati", [{ description: "Kill Corvin.", pinned: true }]]]),
+  });
+  const { text } = threatsBlock(material, { aggregatesSeen: new Set() });
+  assert.match(text, /SPAWNS\nspawn \| demoness \| Succubus \| accepted/);
+  assert.match(text, /RITES\nrite \| blood-price \| Undercroft \| FIRED/);
+  assert.match(text, /OBJECTIVES\nobjective \| thanati \| Kill Corvin\. \| success/);
+});
+
+test("threat/objective lifecycle rows round-trip through the audit allowlist", () => {
+  for (const type of [
+    "threat_assigned",
+    "threat_spawn_offered",
+    "threat_spawn_cancelled",
+    "objective_added",
+    "objective_pinned",
+    "objective_removed",
+    "rite_fired",
+  ]) {
+    assert.ok(INCLUDED.has(type), `${type} should be Oracle-visible`);
+  }
+  const lines = auditLinesFor(
+    [{ actionType: "threat_assigned", actorDiscordUserId: null, targetCharacterId: "c1", details: { threat: "Demoness" } }],
+    { byCharacterId: new Map([["c1", "Maeris"]]), byDiscordUserId: new Map() },
+  );
+  assert.match(lines[0], /assigned \| Maeris \| threat: Demoness/);
+});
+
+test("isComplete requires the front page, the Threats page, and every zone", async () => {
+  const zones = [{ id: "z1" }, { id: "z2" }];
+  const rowsFor = (kinds) => ({
+    oracleSynopsis: { findMany: async () => kinds.map(({ zoneId = null, kind }) => ({ zoneId, kind })) },
+  });
+
+  const missing = rowsFor([{ kind: "FRONT" }, { kind: "THREATS" }, { zoneId: "z1", kind: "ZONE" }]);
+  assert.equal(await isComplete(missing, "t1", zones), false, "z2 hasn't written yet");
+
+  const noThreats = rowsFor([{ kind: "FRONT" }, { zoneId: "z1", kind: "ZONE" }, { zoneId: "z2", kind: "ZONE" }]);
+  assert.equal(await isComplete(noThreats, "t1", zones), false, "the Threats page hasn't written yet");
+
+  const complete = rowsFor([
+    { kind: "FRONT" },
+    { kind: "THREATS" },
+    { zoneId: "z1", kind: "ZONE" },
+    { zoneId: "z2", kind: "ZONE" },
+  ]);
+  assert.equal(await isComplete(complete, "t1", zones), true);
 });

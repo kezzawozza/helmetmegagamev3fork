@@ -19,7 +19,8 @@
 
 const { complete } = require("./oracleClient");
 const { correspondentPrompt, editorPrompt, splitEditorReply } = require("./oraclePrompts");
-const { loadTurnMaterial, zoneBlock, linkCharacterTokens, aggregatesSeenByZone } = require("./oracleInput");
+const { loadTurnMaterial, zoneBlock, threatsBlock, linkCharacterTokens, aggregatesSeenByZone } = require("./oracleInput");
+const { AGGREGATE } = require("./oracleAudit");
 
 // Whether a run is even possible. Checked at RUN time rather than baked into
 // the side-effect payload, so enabling the Oracle between the advance and the
@@ -63,10 +64,18 @@ function seatZones(prisma) {
 const CORRESPONDENT_MAX_TOKENS = 1800;
 const EDITOR_MAX_TOKENS = 1400;
 
-async function memoryFor(prisma, { turnNumber, zoneId, take }) {
+// `kind` defaults from `zoneId` for the two shapes that predate it (a real
+// zone always has one, the front page never does) — only the Threats
+// correspondent, which also has no zoneId, needs to pass it explicitly, since
+// zoneId alone can no longer tell FRONT and THREATS apart.
+function pageKind(zoneId, kind) {
+  return kind ?? (zoneId ? "ZONE" : "FRONT");
+}
+
+async function memoryFor(prisma, { turnNumber, zoneId, kind, take }) {
   if (!take || take < 1) return [];
   const rows = await prisma.oracleSynopsis.findMany({
-    where: { zoneId: zoneId ?? null, turn: { number: { lt: turnNumber } } },
+    where: { zoneId: zoneId ?? null, kind: pageKind(zoneId, kind), turn: { number: { lt: turnNumber } } },
     orderBy: { turn: { number: "desc" } },
     take,
     select: { body: true, turn: { select: { number: true } } },
@@ -88,8 +97,11 @@ async function memoryFor(prisma, { turnNumber, zoneId, take }) {
 // front page was unreadable and unwritable from the day the Oracle was built —
 // invisible until it first called a real provider, because every zone page
 // succeeded and only the editor ever passes null.
-function findPage(prisma, turnId, zoneId, select) {
-  return prisma.oracleSynopsis.findFirst({ where: { turnId, zoneId: zoneId ?? null }, select });
+function findPage(prisma, turnId, zoneId, select, kind) {
+  return prisma.oracleSynopsis.findFirst({
+    where: { turnId, zoneId: zoneId ?? null, kind: pageKind(zoneId, kind) },
+    select,
+  });
 }
 
 // Write one page. Replaces rather than only creating: a resume that reaches a
@@ -99,7 +111,7 @@ function findPage(prisma, turnId, zoneId, select) {
 //
 // editedAt/editedBy are deliberately NOT cleared here — see the caller, which
 // refuses to overwrite a page a GM has rewritten.
-async function writePage(prisma, { turnId, zoneId, body, threads, config, usage }) {
+async function writePage(prisma, { turnId, zoneId, kind, body, threads, config, usage }) {
   const data = {
     body,
     threads: threads ?? undefined,
@@ -108,16 +120,18 @@ async function writePage(prisma, { turnId, zoneId, body, threads, config, usage 
     inputTokens: usage?.inputTokens ?? null,
     outputTokens: usage?.outputTokens ?? null,
   };
-  const existing = await findPage(prisma, turnId, zoneId, { id: true });
+  const existing = await findPage(prisma, turnId, zoneId, { id: true }, kind);
   if (existing) return prisma.oracleSynopsis.update({ where: { id: existing.id }, data });
-  return prisma.oracleSynopsis.create({ data: { turnId, zoneId: zoneId ?? null, ...data } });
+  return prisma.oracleSynopsis.create({
+    data: { turnId, zoneId: zoneId ?? null, kind: pageKind(zoneId, kind), ...data },
+  });
 }
 
 // A page a GM has rewritten is theirs. Neither a resume nor a Run now may
 // silently replace it — the edit IS the correction, and losing one would make
 // the only correction mechanism unreliable.
-async function isEdited(prisma, turnId, zoneId) {
-  const row = await findPage(prisma, turnId, zoneId, { editedAt: true });
+async function isEdited(prisma, turnId, zoneId, kind) {
+  const row = await findPage(prisma, turnId, zoneId, { editedAt: true }, kind);
   return Boolean(row?.editedAt);
 }
 
@@ -146,10 +160,11 @@ async function isEdited(prisma, turnId, zoneId) {
 async function isComplete(prisma, turnId, zones) {
   const rows = await prisma.oracleSynopsis.findMany({
     where: { turnId },
-    select: { zoneId: true },
+    select: { zoneId: true, kind: true },
   });
-  const written = new Set(rows.map((row) => row.zoneId));
-  return written.has(null) && zones.every((zone) => written.has(zone.id));
+  const writtenZoneIds = new Set(rows.filter((row) => row.kind === "ZONE").map((row) => row.zoneId));
+  const kinds = new Set(rows.map((row) => row.kind));
+  return kinds.has("FRONT") && kinds.has("THREATS") && zones.every((zone) => writtenZoneIds.has(zone.id));
 }
 
 // One zone's page. Returns nothing useful — the row is the output.
@@ -161,7 +176,7 @@ async function runCorrespondent(prisma, { turn, zone, material, config, aggregat
     zoneId: zone.id,
     take: config.oracleMemoryTurns,
   });
-  const block = zoneBlock(material, zone, { aggregatesSeen, memory, turnNumber: turn.number });
+  const block = zoneBlock(material, zone, { aggregatesSeen, memory });
 
   const result = await complete(config, {
     system: correspondentPrompt(config),
@@ -180,15 +195,57 @@ async function runCorrespondent(prisma, { turn, zone, material, config, aggregat
   });
 }
 
+// The Threats page. Shaped exactly like a zone's — same PRESENT/MOVES/EVENTS
+// structure, same prompt, same slot in the front page's zone list — except it
+// has no real Zone row, so `zoneId` stays null and `kind: "THREATS"` is what
+// keeps it from colliding with the front page's own null-zoneId row.
+//
+// It never claims an AGGREGATE line ("hunger was charged") for itself: those
+// are turn-wide facts a zone page already reports once, and a seat-holder's
+// own audit rows would otherwise let the Threats page claim one too, printing
+// it twice. Passing every AGGREGATE type as already-seen means it only ever
+// reports what a seat-holder specifically did.
+async function runThreatsCorrespondent(prisma, { turn, material, config }) {
+  if (await isEdited(prisma, turn.id, null, "THREATS")) return;
+
+  const memory = await memoryFor(prisma, {
+    turnNumber: turn.number,
+    zoneId: null,
+    kind: "THREATS",
+    take: config.oracleMemoryTurns,
+  });
+  const block = threatsBlock(material, { aggregatesSeen: new Set(AGGREGATE), memory });
+
+  const result = await complete(config, {
+    system: correspondentPrompt(config),
+    user: block.text,
+    maxTokens: CORRESPONDENT_MAX_TOKENS,
+  });
+
+  await writePage(prisma, {
+    turnId: turn.id,
+    zoneId: null,
+    kind: "THREATS",
+    body: linkCharacterTokens(result.text, material.characters),
+    config,
+    usage: result,
+  });
+}
+
 // The front page. Reads the six zone pages back OUT OF THE DATABASE rather than
 // taking them from the correspondents' return values, so a resume whose zone
 // steps ran in a previous process still has something to edit.
 async function runEditor(prisma, { turn, config, characters }) {
   if (await isEdited(prisma, turn.id, null)) return;
 
+  // Every real zone plus the Threats page — everything that is NOT the front
+  // page itself. The Threats row has no `zone` relation (zoneId is null), so
+  // its section header falls back to its own kind rather than to "Elsewhere",
+  // which is reserved for a genuinely zone-less row this file hasn't been
+  // taught about.
   const pages = await prisma.oracleSynopsis.findMany({
-    where: { turnId: turn.id, zoneId: { not: null } },
-    select: { body: true, zone: { select: { name: true } } },
+    where: { turnId: turn.id, kind: { not: "FRONT" } },
+    select: { body: true, kind: true, zone: { select: { name: true } } },
   });
   if (pages.length === 0) return;
 
@@ -201,7 +258,7 @@ async function runEditor(prisma, { turn, config, characters }) {
   const user = [
     memory.length ? `PREVIOUS FRONT PAGES\n${memory.join("\n\n")}` : null,
     `THIS TURN (${turn.number})`,
-    ...pages.map((page) => `## ${page.zone?.name ?? "Elsewhere"}\n${page.body}`),
+    ...pages.map((page) => `## ${page.zone?.name ?? (page.kind === "THREATS" ? "Threats" : "Elsewhere")}\n${page.body}`),
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -272,8 +329,8 @@ async function runOracle(prisma, { turnId, step, skipIfComplete = false }) {
   // run" no longer means. It is still TOLD about the error — the reason comes
   // back below — and the editor does not run over a set it cannot trust.
   const seenByZone = aggregatesSeenByZone(material, zones);
-  const settled = await Promise.allSettled(
-    zones.map((zone) =>
+  const settled = await Promise.allSettled([
+    ...zones.map((zone) =>
       step(`oracle:${zone.slug}`, () =>
         runCorrespondent(prisma, {
           turn,
@@ -284,7 +341,11 @@ async function runOracle(prisma, { turnId, step, skipIfComplete = false }) {
         }),
       ),
     ),
-  );
+    // Same batch, same reasoning as the zones — it costs what the slowest call
+    // costs either way, and the editor below reads it back from the database
+    // exactly like a zone page.
+    step("oracle:threats", () => runThreatsCorrespondent(prisma, { turn, material, config })),
+  ]);
   const failed = settled.find((outcome) => outcome.status === "rejected");
   if (failed) return { ran: false, reason: failed.reason?.message ?? String(failed.reason) };
 
@@ -294,4 +355,4 @@ async function runOracle(prisma, { turnId, step, skipIfComplete = false }) {
   return { ran: true, zones: zones.length };
 }
 
-module.exports = { runOracle, oracleReady, seatZones, memoryFor };
+module.exports = { runOracle, oracleReady, seatZones, memoryFor, isComplete };

@@ -16,6 +16,7 @@ import LockChip from "@/app/components/LockChip";
 import OracleDesk from "./OracleDesk";
 
 const FRONT_PAGE = "__front__";
+const THREATS_PAGE = "__threats__";
 
 export default async function OraclePage({ searchParams }) {
   const params = await searchParams;
@@ -78,6 +79,7 @@ export default async function OraclePage({ searchParams }) {
         threads: true,
         editedAt: true,
         model: true,
+        kind: true,
         zone: { select: { id: true, slug: true, name: true } },
       },
     }),
@@ -112,23 +114,32 @@ export default async function OraclePage({ searchParams }) {
     listSelectableZones(),
   ]);
 
-  const front = rows.find((row) => !row.zone) ?? null;
+  // `!row.zone` alone used to mean "the front page" — it now also matches the
+  // Threats row, which has no real Zone either (ORACLE.md), so `kind` is what
+  // actually tells the two apart.
+  const front = rows.find((row) => row.kind === "FRONT") ?? null;
 
-  // Deterministic, front page first: `pages[0]` below is only ever read when
-  // `front` is ALSO missing (a turn nobody wrote anything for), but when that
-  // happens it should still be reproducible rather than whatever order
+  // A zone-shaped title for a row with no Zone relation — the Threats row.
+  function titleFor(row) {
+    return row.zone?.name ?? (row.kind === "THREATS" ? "Threats" : `Turn ${turn.number}`);
+  }
+
+  // Deterministic, front page first, Threats sorted in with the named zones —
+  // it reads like one of them (ORACLE.md). `pages[0]` below is only ever read
+  // when `front` is ALSO missing (a turn nobody wrote anything for), but when
+  // that happens it should still be reproducible rather than whatever order
   // Postgres happened to hand back rows in — the query above carries no
   // `orderBy` of its own.
   const orderedRows = [...rows].sort((a, b) => {
-    if (!a.zone) return -1;
-    if (!b.zone) return 1;
-    return a.zone.name.localeCompare(b.zone.name);
+    if (a.kind === "FRONT") return -1;
+    if (b.kind === "FRONT") return 1;
+    return titleFor(a).localeCompare(titleFor(b));
   });
 
   const pages = orderedRows.map((row) => ({
-    key: row.zone?.slug ?? FRONT_PAGE,
+    key: row.zone?.slug ?? (row.kind === "THREATS" ? THREATS_PAGE : FRONT_PAGE),
     id: row.id,
-    title: row.zone?.name ?? `Turn ${turn.number}`,
+    title: titleFor(row),
     body: row.body,
     model: row.model,
     editedAt: row.editedAt ? row.editedAt.toISOString() : null,
@@ -158,7 +169,8 @@ export default async function OraclePage({ searchParams }) {
   // resolves to `null` through OracleDesk.js's `pageFor()`, which is what
   // draws its existing "Nothing written for this turn yet." empty state —
   // this only decides which rail button that empty state highlights.
-  const isRealTarget = requested === FRONT_PAGE || zones.some((z) => z.slug === requested);
+  const isRealTarget =
+    requested === FRONT_PAGE || requested === THREATS_PAGE || zones.some((z) => z.slug === requested);
   const selectedKey = isRealTarget
     ? requested
     : front

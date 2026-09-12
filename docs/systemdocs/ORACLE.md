@@ -7,8 +7,9 @@ channels. Nobody reads that, so most of what players did is never seen by the
 people adjudicating.
 
 The Oracle writes it down. Six correspondents, one per zone, each handed only
-their own zone's material; then an editor, which reads all six and writes the
-front page. It costs about a cent a turn.
+their own zone's material; a seventh, the Threats correspondent, scoped to
+antagonist seat-holders instead of a place (§3a); then an editor, which reads
+all seven and writes the front page. It costs about a cent a turn.
 
 It is **off by default** (`GameConfig.oracleEnabled`) and configured at
 `/gm/dev?s=oracle`, which is superadmin-only. The desk that reads it,
@@ -143,6 +144,39 @@ turn for exactly that reason.
 `db/lib/oracleInput.js` is the whole of that access, on purpose: what a
 correspondent may see is a question with a right answer, and it should be
 answerable by reading one file.
+
+## 3a. The Threats correspondent
+
+A seventh, zone-shaped page with no real Zone behind it — `db/lib/threats.js`'s
+seat holders instead of a place, added to the front page's zone list as
+`## Threats` the same way `## Black Hills` is. GM-tier, not superadmin: the
+Threats and Objectives sections it draws on are already GM-tier
+(`web/lib/devAccess.js`), and `threat_assigned` / `objective_*` rows already
+reach every GM through `/gm/audit` — a summary of the same activity is not a
+new leak.
+
+Who counts as a seat-holder, and which party they answer for, is
+`db/lib/objectives.js#membersByParty` — the same helper the end-of-game reveal
+uses, so this page can never disagree with `/gm/dev?s=antagonists` about who is
+seated. Its extra sources beyond the table above:
+
+| Block | Source |
+|---|---|
+| Spawns | `ThreatSpawn`, windowed on `createdAt` **or** `resolvedAt` — the one lifecycle table with no audit row of its own |
+| Rites | `RiteAttempt`, windowed on `firedAt` |
+| Objectives | `db/lib/objectives.js#listObjectives`, one call per party that has a seat-holder this turn — a live snapshot, not a diff (`Objective` has no completion timestamp), so the model leans on its own three-turn memory to notice a change |
+| Events | the seat-holders' own audit lines, **plus** `threat_assigned` / `threat_spawn_offered` / `threat_spawn_cancelled` / `objective_added` / `objective_pinned` / `objective_removed` / `rite_fired` — a new addition to `oracleAudit.js`'s allowlist, safe for the zone pages too since none of these rows carries a `locationId` |
+
+No `CHAT` section: chat is zone-scoped by Location channel and a seat-holder's
+own lines already appear on their own zone's page, so pulling them again here
+would double them up with nowhere single to attribute the duplicate to.
+
+**The schema wrinkle.** `zoneId = null` used to mean exactly one thing, the
+front page. The Threats page has no Zone row to point `zoneId` at either, so
+`OracleSynopsis.kind` (`ZONE` / `FRONT` / `THREATS`) is what tells the two
+null-zoneId rows apart now — in the run (`isComplete`, `findPage`, `isEdited`,
+`memoryFor`, `writePage`, all in `db/lib/oracle.js`) and on the desk
+(`front = rows.find(row => row.kind === "FRONT")`, `web/app/(desk)/gm/oracle/page.js`).
 
 Three things there are easy to get wrong.
 
@@ -387,24 +421,6 @@ get from a spreadsheet.
 
 It reads `body`, which is **the edited text where a GM has rewritten one**.
 
-**The memory is fenced, and for a while only half of it was.** A remembered page
-is finished prose about events that already have a page, so it sits in its own
-labelled block — `PREVIOUS TURNS` for a zone, `PREVIOUS FRONT PAGES` for the
-editor — followed by a `THIS TURN (n)` marker, and both prompts carry a
-CONTINUITY block saying the earlier pages are there to show what has been
-building and are not facts about this turn.
-
-The editor had both from the start. The correspondent had neither: its memory
-block ran straight into `PRESENT` with no marker between them, and its prompt
-never mentioned the earlier pages at all while telling it that *every sentence
-must trace to a row you were given* — which a `PREVIOUS TURNS` block plainly is.
-So a zone page could report last turn's events a second time as this turn's, and
-nothing in the input or the instructions said otherwise. The marker is written by
-`oracleInput.js#zoneBlock` only when there is memory to fence off, since the
-first turn of a game has none and a bare heading over the whole block fences
-nothing. Both prompts name it, so renaming the section means editing them too;
-three tests in `db/test/oracle.test.js` hold the order and that pairing.
-
 That is the entire correction mechanism. **There is no regenerate.** If a page
 is wrong, a GM rewrites it, and:
 
@@ -473,6 +489,10 @@ to keep true when it lives alone.
 | `web/app/(app)/gm/dev/oracleActions.js` | Settings, the key, Test connection, Run now |
 | `web/app/(app)/gm/dev/OracleForm.js` | The panel |
 | `db/test/oracle.test.js` | The pure halves — the audit filter above all |
+
+The Threats correspondent (§3a) has no files of its own — it lives inside the
+four rows above, reading `db/lib/threats.js` and `db/lib/objectives.js` for who
+is seated and how their objectives currently score.
 
 ## 11. Things not built, and why
 

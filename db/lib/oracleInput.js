@@ -18,6 +18,8 @@ const {
   concealmentFrom,
   presentedIdentity,
 } = require("./presentedIdentity");
+const { PARTIES } = require("./threats");
+const { listObjectives, membersByParty } = require("./objectives");
 
 // The only two tag categories worth re-reading every turn. A character's
 // Beliefs and Skills are bought at creation and never move, so shipping all
@@ -208,13 +210,33 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
         select: {
           quantity: true,
           equipped: true,
-          tag: { select: { ...CONCEALMENT_TAG_FIELDS, category: true } },
+          // slug is `membersByParty`'s own admission ticket (db/lib/objectives.js)
+          // — it's how a character is recognised as sitting a threat seat at
+          // all, for the Threats correspondent below.
+          tag: { select: { ...CONCEALMENT_TAG_FIELDS, category: true, slug: true } },
         },
       },
     },
   });
 
-  const [actions, auditRows, beats, chat, stagedMessages, stagedEffects] = await Promise.all([
+  // Who sits a threat seat right now, and which party they answer for — the
+  // same helper the end-of-game reveal uses (db/lib/objectives.js), so the
+  // Threats page can never disagree with `/gm/dev?s=antagonists` about who is
+  // seated. Objectives are read only for a party that actually has someone
+  // seated: an unseated party "never existed in play" (buildAntagonistReveal's
+  // own rule) and printing its prep here would be the same thing this file
+  // exists to avoid — showing a GM game state nobody is currently acting on.
+  const threatMembers = membersByParty(characters);
+  const objectivesByParty = new Map(
+    await Promise.all(
+      PARTIES.filter((p) => threatMembers.has(p.key)).map(async (p) => [
+        p.key,
+        await listObjectives(prisma, { partyKey: p.key }),
+      ]),
+    ),
+  );
+
+  const [actions, auditRows, beats, chat, stagedMessages, stagedEffects, spawns, rites] = await Promise.all([
     // Moves go by the WINDOW too, not by turnId, and for a reason that only
     // shows up once the run moved to the cutoff: the auto-labor pass files a
     // Move for everybody who filed none, and it does that at the PUSH — three
@@ -295,7 +317,7 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
         kind: true,
         content: true,
         zoneId: true,
-        recipients: { select: { character: { select: { zoneId: true } } } },
+        recipients: { select: { character: { select: { id: true, zoneId: true } } } },
       },
     }),
     // The mechanical half of the same tray — a resource burn, a tag grant,
@@ -313,6 +335,24 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
         targetCharacter: { select: { zoneId: true, name: true } },
       },
     }),
+    // The one lifecycle table with no audit row of its own (db/lib/threatSpawn.js
+    // stamps status/resolvedAt and nothing else) — createdAt catches an offer
+    // made this window, resolvedAt catches one accepted, declined or cancelled
+    // in it. A spawn can appear twice across two windows (offered in one,
+    // resolved in the next) which is correct: each half is its own event.
+    prisma.threatSpawn.findMany({
+      where: {
+        OR: [
+          { createdAt: { gte: window.from, lt: window.to } },
+          { resolvedAt: { gte: window.from, lt: window.to } },
+        ],
+      },
+      select: { threatSlug: true, status: true, discordUserId: true, role: { select: { name: true } } },
+    }),
+    prisma.riteAttempt.findMany({
+      where: { firedAt: { gte: window.from, lt: window.to } },
+      select: { riteKey: true, roomName: true, status: true, result: true },
+    }),
   ]);
 
   const names = {
@@ -325,7 +365,22 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
     if (character.discordUserId) names.byDiscordUserId.set(character.discordUserId, label);
   }
 
-  return { window, characters, actions, auditRows, beats, chat, stagedMessages, stagedEffects, seatByZoneId, names };
+  return {
+    window,
+    characters,
+    actions,
+    auditRows,
+    beats,
+    chat,
+    stagedMessages,
+    stagedEffects,
+    seatByZoneId,
+    names,
+    threatMembers,
+    objectivesByParty,
+    spawns,
+    rites,
+  };
 }
 
 // The audit rows one zone's page is built from.
@@ -444,6 +499,112 @@ function zoneBlock(material, zone, { aggregatesSeen, memory = [] }) {
   };
 }
 
+// Lifecycle actionTypes that describe the GM's OWN bookkeeping about a threat
+// seat, rather than something a seat-holder did in the fiction — a GM offering
+// a spawn, pinning an objective. auditRowsForZone would never surface these
+// anyway (none carries a locationId), so pulling them here by actionType alone
+// is safe: they cannot double up on a zone page.
+const THREAT_LIFECYCLE_TYPES = new Set([
+  "threat_assigned",
+  "threat_spawn_offered",
+  "threat_spawn_cancelled",
+  "objective_added",
+  "objective_pinned",
+  "objective_removed",
+  "rite_fired",
+]);
+
+const SPAWN_VERB = { PENDING: "offered", ACCEPTED: "accepted", DECLINED: "declined", CANCELLED: "cancelled" };
+
+// The Threats correspondent's page. Shaped exactly like a zone's — PRESENT,
+// MOVES, EVENTS, STAGED — because it is read into the front page's zone list
+// the same way (ORACLE.md), just scoped to seat-holders instead of a place.
+// There is no real Zone row behind it, so `resolveSeat` never enters here:
+// membership comes from `db/lib/objectives.js#membersByParty`, the same
+// helper the end-of-game reveal uses, so this page can never disagree with
+// /gm/dev?s=antagonists about who is seated.
+function threatsBlock(material, { aggregatesSeen, memory = [] }) {
+  const seatById = new Map();
+  for (const [partyKey, members] of material.threatMembers ?? []) {
+    for (const m of members) seatById.set(m.id, { ...m, partyKey });
+  }
+  const here = material.characters.filter((c) => seatById.has(c.id));
+  const hereIds = new Set(here.map((c) => c.id));
+  const hereNames = new Set(here.map((c) => c.name));
+
+  const roster = here.map((character) => {
+    const seat = seatById.get(character.id);
+    const bits = [displayName(character), seat?.seat ?? "Threat"];
+    if (character.location?.name) bits.push(character.location.name);
+    const live = liveTagNames(character);
+    if (live.length) bits.push(live.join(", "));
+    return `- ${bits.join(" · ")}`;
+  });
+
+  const moves = material.actions
+    .filter((action) => hereIds.has(action.characterId))
+    .map((action) => moveLine(action, material.names.byCharacterId.get(action.characterId) ?? "somebody"));
+
+  // A seat-holder's own actions (from the general audit log, the same rows
+  // zoneBlock draws on) plus the GM's bookkeeping about the seats themselves —
+  // two different questions, both worth this page.
+  const ownRows = material.auditRows.filter((row) => {
+    const actor = here.find((c) => c.discordUserId === row.actorDiscordUserId);
+    return Boolean(actor) || (row.targetCharacterId && hereIds.has(row.targetCharacterId));
+  });
+  const lifecycleRows = material.auditRows.filter((row) => THREAT_LIFECYCLE_TYPES.has(row.actionType));
+  const auditLines = auditLinesFor([...ownRows, ...lifecycleRows], material.names, aggregatesSeen);
+
+  const spawnLines = (material.spawns ?? []).map((s) => {
+    const verb = SPAWN_VERB[s.status] ?? s.status;
+    return `spawn | ${s.threatSlug} | ${s.role?.name ?? "unknown role"} | ${verb}`;
+  });
+
+  const riteLines = (material.rites ?? []).map((r) => `rite | ${r.riteKey} | ${r.roomName} | ${r.status}`);
+
+  // Current score, not a diff — Objective has no completion timestamp to
+  // window on (schema comment on the model), so this reads as a snapshot every
+  // turn and leans on the model's own three-turn memory to notice a change,
+  // the same way a zone correspondent notices somebody circling the gatehouse.
+  const objectiveLines = [...(material.objectivesByParty ?? new Map())].flatMap(([partyKey, rows]) =>
+    rows.map((row) => {
+      const state = row.pinned === true ? "success" : row.pinned === false ? "failed" : "undecided";
+      return `objective | ${partyKey} | ${row.description} | ${state}`;
+    }),
+  );
+
+  const beats = material.beats.filter((b) => hereNames.has(b.characterName)).map((b) => `${b.kind} | ${b.content}`);
+
+  const staged = [
+    ...(material.stagedMessages ?? [])
+      .filter((m) => (m.recipients ?? []).some((r) => hereIds.has(r.character?.id)))
+      .map((m) => `${m.kind} | ${m.content}`),
+    ...(material.stagedEffects ?? [])
+      .filter((e) => hereIds.has(e.targetCharacterId))
+      .map((e) => [e.targetCharacter?.name ?? "somebody", describeStagedEffect(e.appliedEffect)])
+      .filter(([, line]) => line)
+      .map(([name, line]) => `${name}: ${line}`),
+  ];
+
+  const sections = [
+    "THREATS",
+    memory.length ? `PREVIOUS TURNS\n${memory.join("\n\n")}` : null,
+    roster.length ? `PRESENT (${roster.length})\n${roster.join("\n")}` : "PRESENT\nNobody holds a seat.",
+    moves.length ? `MOVES\n${moves.join("\n")}` : null,
+    auditLines.length ? `EVENTS\n${auditLines.join("\n")}` : null,
+    spawnLines.length ? `SPAWNS\n${spawnLines.join("\n")}` : null,
+    riteLines.length ? `RITES\n${riteLines.join("\n")}` : null,
+    objectiveLines.length ? `OBJECTIVES\n${objectiveLines.join("\n")}` : null,
+    staged.length ? `STAGED\n${staged.join("\n")}` : null,
+    beats.length ? `NOTABLE\n${beats.join("\n")}` : null,
+  ].filter(Boolean);
+
+  return {
+    text: sections.join("\n\n"),
+    counts: { present: roster.length, moves: moves.length, events: auditLines.length + beats.length + staged.length },
+  };
+}
+
 // The model writes {char:Ada Vance}. Stored text uses the canonical mention
 // grammar, {char:<id>|<Name>} (db/lib/characterMentions.js), so this rewrites
 // one into the other against the turn's roster before the page is saved.
@@ -498,6 +659,7 @@ module.exports = {
   displayName,
   loadTurnMaterial,
   zoneBlock,
+  threatsBlock,
   linkCharacterTokens,
   describeStagedEffect,
   resolveSeat,

@@ -28,6 +28,7 @@ import OracleMarkdown from "./OracleMarkdown";
 import { saveSynopsis } from "./actions";
 
 const FRONT_PAGE = "__front__";
+const THREATS_PAGE = "__threats__";
 
 function EditBox({ page, onDone, onCancel }) {
   const [text, setText] = useState(page.body);
@@ -231,6 +232,18 @@ export default function OracleDesk({
             onClick={() => select(FRONT_PAGE)}
           >
             Front page
+          </button>
+
+          {/* No real Zone behind this one (ORACLE.md) — a seat-holder's own
+              page, hardcoded here the same way Front page is, since it isn't
+              part of the `zones` list either. */}
+          <button
+            type="button"
+            className="desk-queue-row"
+            data-active={selectedKey === THREATS_PAGE ? "true" : "false"}
+            onClick={() => select(THREATS_PAGE)}
+          >
+            Threats
           </button>
 
           {visibleZones.map((zone) => {
