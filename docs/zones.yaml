@@ -1280,7 +1280,6 @@ zones:
               Low walls of piled rocks separate the road from expansive fields of wheat. There's carts and empty crates, used for the harvest.
             stash:
               items:
-                pitchfork: 2
                 work-knife: 1
           farms-village-green:
             name: Village Green
