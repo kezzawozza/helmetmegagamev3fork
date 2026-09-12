@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTran
 import ClickMenu from "@/app/components/ClickMenu";
 import FormError from "@/app/components/FormError";
 import HoverCard from "@/app/components/HoverCard";
+import ChipLabel from "@/app/components/ChipLabel";
+import TagDetails from "@/app/components/TagDetails";
 import { ChevronDownIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
@@ -129,53 +131,44 @@ function ThingMenu({ row, onClose, onEquip, onUnequip, pending }) {
 // above it.
 function ThingChip({ row, isOpen, onToggle, onClose, onEquip, onUnequip, pending }) {
   const triggerRef = useRef(null);
-  const description = row.description?.trim();
   return (
     <span className="chat-thing-wrap">
-      {/* The name on hover, the same as the floor's chips (RoomPanel.js) —
-          "Wolfsbane" says nothing about what drinking it does. The panel is
+      {/* The app's REAL tag chip on hover, the same as the floor's chips
+          (RoomPanel.js) — "Wolfsbane" says nothing about what drinking it
+          does, and a letter in a pocket should show what it says. The panel is
           dropped while the action menu is open: the two are portaled to the
           same corner of the same chip, and both at once is a pile.
-          pinnable={false} because the chip's click already owns that menu. */}
+          pinnable={false} because the chip's click already owns that menu,
+          which is also why the face is ChipLabel as="button" rather than a
+          TagChip — a span inside the button would nest two .chip boxes. */}
       <HoverCard
         pinnable={false}
-        className="chat-chip-hover"
         panel={
-          (description || row.weightLbs > 0) && !isOpen ? (
-            <>
-              <span className="chat-tip-name">
-                {row.name}
-                {/* What the whole row costs you to carry, so the bar under the
-                    status chips has something to point at. Weightless rows —
-                    every Asset, anything untradeable — say nothing rather than
-                    "0 lb", which would read as a fact about the thing. */}
-                {row.weightLbs > 0 && <span className="chat-tip-weight mono">{row.weightLbs} lb</span>}
-              </span>
-              {description && <span className="chat-tip-desc">{description}</span>}
-            </>
-          ) : null
+          isOpen ? null : (
+            <TagDetails tag={row.tag} quantity={row.quantity} poisonMarker={row.poisonMarker} />
+          )
         }
       >
-        <button
+        <ChipLabel
+          as="button"
           ref={triggerRef}
           type="button"
-          className="chip"
+          tag={row.tag}
+          quantity={row.quantity}
           aria-haspopup="menu"
           aria-expanded={isOpen}
           data-active={row.equipped ? "true" : undefined}
           onClick={onToggle}
         >
-          {row.name}
-          {row.quantity > 1 ? ` ×${row.quantity}` : ""}
           {/* What is out and in hand, rather than in a pocket. */}
           {row.equipped ? " ·" : ""}
           {/* The doctor's-eye read (M4 fix round), same gate and same wording
               as the sheet's own TagChip. */}
           {row.poisonMarker ? <span className="text-muted"> · smells wrong</span> : null}
-        </button>
+        </ChipLabel>
       </HoverCard>
       {isOpen && (
-        <ClickMenu triggerRef={triggerRef} onClose={onClose} ariaLabel={row.name}>
+        <ClickMenu triggerRef={triggerRef} onClose={onClose} ariaLabel={row.tag.name}>
           <ThingMenu row={row} onClose={onClose} onEquip={onEquip} onUnequip={onUnequip} pending={pending} />
         </ClickMenu>
       )}

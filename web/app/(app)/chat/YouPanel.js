@@ -139,6 +139,7 @@ export default function YouPanel({
         resources={status?.resources ?? 0}
         carry={status?.carry ?? null}
         tags={status?.tags ?? []}
+        currentTurn={moveState.turn?.number ?? null}
         meter
       />
       <Things groups={things} />

@@ -1,217 +1,36 @@
 import { prisma, PRODUCTION_RATES, computeRate, formatRate } from "@lifeweb/db";
 import { carryCaps, carryBonusLine, MULT_SCALE } from "@lifeweb/db/lib/carry";
-import { FIGHTING_TAG_FIELDS } from "@lifeweb/db/lib/fightingSkill";
-import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
-import { APPRAISAL_SLUG } from "@lifeweb/db/lib/appraisal";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { documentSource, isWritten, readerFromCharacter } from "@/lib/documentAccess";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
 import { redactWithheldRecipes } from "@/lib/recipeCatalog";
-import { appraise } from "@/lib/appraisal";
+import {
+  CHIP_ROW_SELECT,
+  CHIP_VIEWER_SELECT,
+  chipContextFor,
+  composeChipTag,
+} from "@/lib/tagChipRows";
 
 // The three datasets behind the {tag:…} / {resource:…} / {document:…}
 // inline reference syntax. The root layout calls these
 // un-awaited and streams the promises into client providers, so the data
 // rides the initial response instead of a post-hydration round trip.
 
-// The tag list is not the whole catalog: a tag whose group carries a
-// requiredTag sits in a hidden category (Demoness — TAGS.md §3),
-// withheld unless the caller's own character has unlocked it. Gating is on
-// the GROUP gate only — a tag's own requiredTag stays visible so
-// {tag:ranged-archer} references still work for players who haven't bought it.
-//
-// The reverse of a Desire's tag gate: which Desires this tag OPENS. Read from
-// the two UNLOCK relations only — `desireForbiddenBy` (requiresNotTags) is the
-// locking half and never renders (web/lib/desireUnlocks.js says why).
-//
-// A separate export because FOUR queries load the catalog with four
-// hand-written selects — this module, pointBuyCatalog.js, /documents and
-// /gm/dev/tags — and a tooltip section that silently renders nothing on one of
-// them is exactly the drift TAG_CHIP_FIELDS exists to prevent. Spread it, do
-// not retype it.
-//
-// Deliberately four columns and a `retired` filter rather than the whole
-// template: TAG_CHIP_FIELDS is also read by /gm/turns (web/lib/moveRows.js),
-// so this rides along on the busiest tag query in the app. 274 templates
-// exist, ~66 tags carry any unlock at all, and every other row comes back
-// empty.
-export const DESIRE_UNLOCK_SELECT = {
-  desireRequiredBy: {
-    where: { retired: false },
-    select: {
-      slug: true,
-      name: true,
-      tier: true,
-      // Both needed to tell "tag AND role" from "tag OR role" — see
-      // desireUnlocks.js#rolesNote, which is the one place that logic lives.
-      requiresAnyOf: true,
-      requiresAnyRoleSlugs: true,
-    },
-    orderBy: [{ tier: "desc" }, { name: "asc" }],
-  },
-  desireAllRequiredBy: {
-    where: { retired: false },
-    select: {
-      slug: true,
-      name: true,
-      tier: true,
-      // The co-requirements, so the row can say "with Butcher".
-      requiresAllTags: { select: { slug: true, name: true } },
-    },
-    orderBy: [{ tier: "desc" }, { name: "asc" }],
-  },
-};
 
-// ~940 of the ~1000 tags in the catalog unlock no Desire at all, and Prisma
-// returns `[]` for each of them on both relations. Left in, that is about
-// 27KB of `"desireRequiredBy":[]` shipped to every browser on every page —
-// measured, not guessed — for information that is the absence of information.
-// desireUnlocksFor() already treats a missing key and an empty array the same,
-// so dropping them changes nothing but the wire.
-export function stripEmptyUnlocks(tag) {
-  if (tag.desireRequiredBy?.length || tag.desireAllRequiredBy?.length) return tag;
-  const { desireRequiredBy, desireAllRequiredBy, ...rest } = tag;
-  return rest;
-}
-
-// The same bargain stripEmptyUnlocks makes, for the weight pair. Barely a
-// third of the catalog carries a weight at all (226 of 629 rows when this was
-// written); on the rest the two columns ship `"weightLbs":null,
-// "tradeable":false` to every browser on every page to say nothing.
-// formatTagWeight() reads a stripped tag as weightless, which is the same
-// answer it would have given.
-export function stripWeightless(tag) {
-  if (tag.tradeable && tag.category !== "Assets" && (tag.weightLbs ?? 0) > 0) return tag;
-  const { weightLbs, tradeable, ...rest } = tag;
-  return rest;
-}
-
-// Exactly the Tag columns TagChip reads. Shared so every TagChip caller
-// (this module, /gm/turns) uses the same shape instead of a copy that drifts.
-// Cooking (docs/systemdocs/COOKING.md). A cook is told what an ingredient
-// TASTES of and nothing else — not its mood, not what it will do to whoever
-// eats it. You learn an ingredient by using it, and poisoning somebody is
-// meant to be a gamble the poisoner takes too (Bascinet, 2026-09-09).
-//
-// Prisma cannot select one key out of a Json column, so the whole `cooked`
-// block comes back and is cut down here, on the server, before it crosses.
-// Shipping it whole would put every mood figure and every hidden effect one
-// dev-tools inspection away, which is the entire secret.
-//
-// `Tag.cookedFrom` is dropped outright by the same pass, and is not in
-// TAG_CHIP_FIELDS either: a dish says what it tastes of and never what it was
-// made with. It is cut here as well as left out of the select because the
-// character sheet loads its held tags with a bare `include: { tag: … }`,
-// which takes every column there is — a rule that lives only in a select is
-// a rule the next `include` quietly breaks.
-export function cookedTasteOnly(tag) {
-  if (!tag?.cooked && !tag?.cookedFrom?.length) return tag;
-  const { cooked, cookedFrom, ...rest } = tag;
-  return cooked ? { ...rest, cooked: { taste: cooked.taste ?? "" } } : rest;
-}
-
-export const TAG_CHIP_FIELDS = {
-  id: true,
-  slug: true,
-  name: true,
-  // ChipLabel draws the mastery star off this. Drop it and the star silently
-  // stops appearing on every chip in the app rather than erroring anywhere.
-  mastery: true,
-  // Read and cut down to its taste by cookedTasteOnly before it ships — see
-  // above. Every caller that spreads TAG_CHIP_FIELDS must map through it.
-  cooked: true,
-  description: true,
-  pointCost: true,
-  category: true,
-  // Drives TagChip's "Requires" line. A caller gating to what the viewer
-  // holds must filter group-gated tags itself — the name would tip off
-  // anyone else.
-  requiredTagId: true,
-  requiredTag: { select: { name: true } },
-  group: {
-    select: {
-      slug: true,
-      name: true,
-      color: true,
-      requiredTagId: true,
-      requiredTag: { select: { name: true } },
-    },
-  },
-  removable: true,
-  craftable: true,
-  customizable: true,
-  healable: true,
-  teachable: true,
-  // Minified via formatTagRequirement wherever a description renders.
-  // requirementPerTurn is what tells a `turnsCost: 1/N` cure apart from a
-  // flat "1 turn" (review fix, M2 — the Tag Catalog showed the wrong number
-  // for every fraction-priced medical cure without it).
-  requirementTurns: true,
-  requirementPerTurn: true,
-  requirementResources: true,
-  requirementGambit: true,
-  requirementSkills: { select: { id: true, slug: true, name: true } },
-  // The ingredients ("uses Cave Fungus" / "needs a corpse to hand"). Without
-  // this the Tag Catalog's Recipe line silently renders none — the exact
-  // failure CORPSES.md §8 warns about, and the line the craft menu's
-  // ingredient-hiding rule leans on ("the catalog still teaches the recipe").
-  // Redacted per viewer in getVisibleTags() before it ships — see below.
-  requirementItems: true,
-  // Only so getVisibleTags can build the redaction's visibility set; this
-  // payload itself is NOT filtered by it (render-side hiding is this
-  // surface's model, the group-key filter below aside).
-  catalogVisibility: true,
-  // A prose {tag:…} reference has no live expiresTurn, so this is the only
-  // way to tell a reader how long the tag would last (TagChip.js).
-  defaultDurationTurns: true,
-  // What the tag turns into when its duration runs out (untreated-wound
-  // chain); TagChip renders it as "Becomes".
-  expiresInto: true,
-  // Drives TagChip's "Seen by others" line (Tag.inspectVisibility).
-  inspectVisibility: true,
-  // TagChip's "Armour" line, via formatTagArmor. Both halves, always: a chip
-  // that showed only the strong number would hide the fact a breastplate is
-  // paper against a rifle, which is the one thing that line exists to say.
-  meleeArmor: true,
-  ballisticArmor: true,
-  // What the tag does in a fight, for TagChip's "In a fight" line and for the
-  // GM inspector's Fighting fact, which resolves a whole character off these
-  // rows. equipSlot rides along because that resolution asks whether a body
-  // slot is filled (Flamboyant) and whether a weapon is drawn.
-  ...FIGHTING_TAG_FIELDS,
-  // TagChip's "Worn" line, via describeEquipFit. All THREE columns or the line
-  // lies: FIGHTING_TAG_FIELDS brings equipSlot only, and without these two the
-  // helper reads `undefined` for both — so every two-hander in the catalog said
-  // "Held · takes one" (22 of them) and every layered piece said bare "Head"
-  // instead of "Head · Liner" (52 of them), which is the single fact that line
-  // exists to carry. The same shape of gap as the armour columns above, found
-  // 2026-09-10.
-  equipLayer: true,
-  twoHanded: true,
-  // TagChip's "Weight" line, via formatTagWeight. Both halves: an untradeable
-  // tag weighs nothing against the cap no matter what the column says, so a
-  // weight shown without `tradeable` would contradict the sheet's total.
-  weightLbs: true,
-  tradeable: true,
-  // Drives TagChip's "Conceals you" line. Both, not just the first: the row
-  // has to say whether the wearer keeps a choice, and concealsIdentity alone
-  // cannot tell you that.
-  concealsIdentity: true,
-  forcesConceal: true,
-  // Drives TagChip's "Unlocks" section.
-  ...DESIRE_UNLOCK_SELECT,
-};
-
-// Appraisal's raw input (web/lib/appraisal.js's "Worth" line). Deliberately
-// NOT folded into TAG_CHIP_FIELDS above: that select is also spread by GM
-// surfaces (moveRows.js, peoplePools.js, the /gm/turns desk) that never call
-// appraise() on their rows, and shipping sellablePrice there unappraised
-// would leak the raw ⬢/obol number to every browser regardless of whether the
-// viewer holds the skill. Callers that DO run appraise() spread this in
-// alongside TAG_CHIP_FIELDS.
-export const APPRAISAL_SELECT = { sellablePrice: true };
+// The tag-chip primitives live in tagChipRows.js — the shape and the composer
+// that fills it belong together. Re-exported here because a dozen callers have
+// always imported them from this module and the path is not the point.
+export {
+  DESIRE_UNLOCK_SELECT,
+  TAG_CHIP_FIELDS,
+  APPRAISAL_SELECT,
+  PAPER_FIELDS,
+  stripEmptyUnlocks,
+  stripWeightless,
+  cookedTasteOnly,
+} from "@/lib/tagChipRows";
 
 // Session-dependent, so it must never be cached across callers.
 export async function getVisibleTags() {
@@ -219,19 +38,13 @@ export async function getVisibleTags() {
   const character = session?.discordUserId
     ? await prisma.character.findFirst({
         where: { discordUserId: session.discordUserId, status: "ALIVE" },
-        select: {
-          // Slugs and `equipped` as well as ids, because the paper gate below
-          // asks about eyes: blind, blind drunk, nearsighted with the
-          // spectacles left in a sack. See db/lib/reading.js.
-          tags: { select: { tagId: true, equipped: true, tag: { select: { slug: true } } } },
-          location: { select: { indoors: true } },
-        },
+        select: CHIP_VIEWER_SELECT,
       })
     : null;
 
   // A signed-out caller, or one with no living character, holds nothing.
-  const held = new Set((character?.tags ?? []).map((ct) => ct.tagId));
-  const canAppraise = (character?.tags ?? []).some((ct) => ct.tag.slug === APPRAISAL_SLUG);
+  const ctx = await chipContextFor(character);
+  const held = ctx.heldIds;
 
   // Runtime-minted rows — written paper, sealed letters, crates, headstones —
   // are game state, not catalog, and there is no ceiling on how many of them
@@ -244,14 +57,8 @@ export async function getVisibleTags() {
   // ids are the filter.
   const tags = await prisma.tag.findMany({
     where: { OR: [{ ephemeral: false }, { id: { in: [...held] } }] },
-    select: { ...TAG_CHIP_FIELDS, ...PAPER_FIELDS, ...APPRAISAL_SELECT },
+    select: CHIP_ROW_SELECT,
   });
-
-  const viewer = {
-    tags: character?.tags ?? [],
-    phase: (await openTurnPhase()) ?? null,
-    indoors: character?.location?.indoors ?? true,
-  };
 
   // A recipe line must not print an ingredient this viewer has no path to —
   // the same rule the /documents catalogs apply (web/lib/recipeCatalog.js).
@@ -267,51 +74,12 @@ export async function getVisibleTags() {
   return redactWithheldRecipes(
     tags
       .filter((tag) => !tag.group?.requiredTagId || held.has(tag.group.requiredTagId))
-      .map(composePaper(viewer, held))
-      .map((tag) => appraise(tag, canAppraise))
-      .map(stripEmptyUnlocks)
-      .map(stripWeightless)
-      .map(cookedTasteOnly),
+      .map((tag) => composeChipTag(tag, ctx)),
     { visibleSlugs: readableSlugs },
   );
 }
 
-// A paper's text NEVER travels in `description` — that column goes to every
-// signed-in browser, so a letter sitting in it would be published to everyone
-// playing. These three columns are read here, resolved against this viewer,
-// and dropped before anything reaches the client.
-const PAPER_FIELDS = { paperKind: true, paperText: true, sealMark: true };
 
-// Sun Sensitivity is the one impairment that depends on the clock, so the gate
-// needs the open turn's phase. Cheap, and this loader already runs per request.
-async function openTurnPhase() {
-  const turn = await prisma.turn.findFirst({
-    where: { status: "OPEN" },
-    orderBy: { number: "desc" },
-    select: { phase: true },
-  });
-  return turn?.phase ?? null;
-}
-
-// Replace `description` with what THIS reader is allowed to see, then strip the
-// raw text off the row so it cannot reach the browser by any other path.
-// An authored book is a CATALOG row, not an ephemeral one, so unlike a letter
-// it is not withheld by the `held` filter above — every browser gets it. Its
-// text is therefore composed only for a reader actually holding it; everyone
-// else is told there is a book and left to go and find it.
-function composePaper(viewer, held) {
-  return (tag) => {
-    if (!isPaper(tag)) {
-      const { paperKind, paperText, sealMark, ...rest } = tag;
-      return { ...rest, sealMark };
-    }
-    const { paperText, ...rest } = tag;
-    const reader = { ...viewer, holdsIt: held.has(tag.id) };
-    // `description` stays the flat sentence for lists; `paper` is the shape
-    // PaperSheet.js draws wherever the tag itself is opened.
-    return { ...rest, description: paperDescription(tag, reader), paper: paperView(tag, reader) };
-  };
-}
 
 // Computed live from productionCoefficient so docs/documents.yaml's printed
 // numbers never drift from actual payout. Each tier ships a pre-formatted

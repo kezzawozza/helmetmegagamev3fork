@@ -65,7 +65,13 @@ export function thingVerbs(ct, sets) {
   };
 }
 
-export function thingGroups(characterTags = []) {
+// `composeTag` turns each row's catalog Tag into the shape TagChip/TagDetails
+// draw (web/lib/tagChipRows.js#composeChipTag, bound to this reader). It is
+// passed IN rather than imported because this module is in the client bundle —
+// components/TagRail.js imports thingVerbs from it — and tagChipRows.js pulls
+// prisma and auth behind it. Both callers are server-side, so both can bind it.
+// The identity default keeps a caller that only wants verbs honest.
+export function thingGroups(characterTags = [], composeTag = (tag) => tag) {
   const sets = thingVerbSets(characterTags);
   // Detector surface (M4 fix round): the drawer never spreads a CharacterTag
   // row raw, so this is the one place it needs to derive its own
@@ -81,8 +87,9 @@ export function thingGroups(characterTags = []) {
       // catalog Tag id is what every dialog preselects with.
       characterTagId: ct.id ?? null,
       tagId: ct.tagId,
-      name: ct.tag.name,
-      description: ct.tag.description ?? "",
+      // The whole chip, so the drawer's hover is the app's own tag details —
+      // the group colour, the meta rows, and a letter's text on its own sheet.
+      tag: composeTag(ct.tag),
       category: ct.tag.category,
       quantity: ct.quantity ?? 1,
       equipped: Boolean(ct.equipped),
@@ -95,7 +102,7 @@ export function thingGroups(characterTags = []) {
       ...thingVerbs(ct, sets),
       poisonMarker: canSmellPoison && (ct.poisonedCount ?? 0) > 0,
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => a.tag.name.localeCompare(b.tag.name));
 
   return GROUPS.map((category) => ({
     category,

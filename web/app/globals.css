@@ -6348,23 +6348,13 @@ label.chip {
   font-family: inherit;
 }
 
-/* The name line grew a second thing to hold — the Things drawer hangs a row's
-   weight off its right edge — so it is a row rather than a block. With one
-   child, which is every other caller, it draws exactly as it did. */
+/* The name line over a hovered PLACE row (PlacesColumn.js). It briefly held a
+   second child — the Things drawer's per-row weight — and was a flex row for
+   it; the drawer draws real tag chips now and TagDetails says the weight, so
+   this is back to the block it always wanted to be. */
 .chat-tip-name {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--sp-3);
   font-weight: 600;
   margin-bottom: var(--sp-1);
-}
-
-.chat-tip-weight {
-  flex: none;
-  font-weight: 400;
-  font-size: var(--fs-2xs);
-  color: var(--muted);
 }
 
 .chat-tip-desc {
@@ -7330,13 +7320,6 @@ label.chip {
   flex-wrap: wrap;
   gap: var(--sp-2);
   margin-bottom: var(--sp-2);
-}
-
-/* A stash chip wrapped in a HoverCard so its description shows on hover
-   (RoomPanel.js). .tag-hover is mono, because the chips it was written for
-   are; these are not, and inheriting it turned the floor into a typewriter. */
-.chat-chip-hover {
-  font-family: inherit;
 }
 
 /* The load bar under those chips (play/StatusStrip.js). It is the SHEET's own

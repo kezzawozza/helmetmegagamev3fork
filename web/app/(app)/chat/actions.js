@@ -53,7 +53,7 @@ import {
   tornLine,
   BOARD_OPTION_LIMIT,
 } from "@lifeweb/db/lib/noticeboard";
-import { paperDescription, paperView, TITLE_MAX, WRITE_MAX } from "@lifeweb/db/lib/paper";
+import { paperDescription, paperView, paperViewGm, TITLE_MAX, WRITE_MAX } from "@lifeweb/db/lib/paper";
 import { mintUnownedPaper } from "@lifeweb/db/lib/paperMint";
 import { cleanCustomText } from "@lifeweb/db/lib/customText";
 import { getGmSession } from "@/lib/discordGuild";
@@ -105,6 +105,13 @@ import { photoCaption } from "@lifeweb/db/lib/photo";
 import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
+import {
+  CHIP_ROW_SELECT,
+  CHIP_VIEWER_SELECT,
+  chipContextFor,
+  composeChipTag,
+  toChipRow,
+} from "@/lib/tagChipRows";
 import { thingGroups } from "./thingRows";
 
 // Every button in Chat's right column, as a server action.
@@ -414,6 +421,7 @@ export async function starRow(seq) {
 export async function myThings() {
   const me = await actor({
     id: true,
+    ...CHIP_VIEWER_SELECT,
     tags: {
       select: {
         id: true,
@@ -424,37 +432,33 @@ export async function myThings() {
         // never returned raw, see thingGroups' own comment.
         poisonedCount: true,
         equippedQuantity: true,
-        tag: {
-          select: {
-            id: true,
-            // canDetectPoison reads slugs (thingRows.js), so the drawer's own
-            // re-read has to carry them or a detector's marker survives the
-            // first paint and vanishes on the next refresh.
-            slug: true,
-            name: true,
-            description: true,
-            category: true,
-            equippable: true,
-            consumable: true,
-            tradeable: true,
-            removable: true,
-            // The drawer draws each row's weight, and thingRows.js is the one
-            // place that shape is built — so leaving this out here would let
-            // the re-read after a verb disagree with the first paint, which is
-            // the exact thing that module exists to prevent.
-            weightLbs: true,
-          },
-        },
+        // The whole chip shape, which carries `slug` (canDetectPoison reads
+        // slugs), `category` and `weightLbs` — the three thingGroups itself
+        // needs — as well as everything TagDetails draws. One select, so the
+        // re-read after a verb cannot disagree with the first paint, which is
+        // the exact thing thingRows.js exists to prevent.
+        tag: { select: CHIP_ROW_SELECT },
       },
     },
   });
   if (me.error) return { ok: false, error: me.error };
-  return { ok: true, groups: thingGroups(me.character.tags) };
+  const ctx = await chipContextFor(me.character);
+  return { ok: true, groups: thingGroups(me.character.tags, (tag) => composeChipTag(tag, ctx)) };
 }
 
 export async function readStash(roomId) {
-  const me = await actor();
+  // Widened past actor()'s default: the chips on the floor are real tag chips
+  // now, and the paper among them is composed for THIS reader's eyes — which
+  // takes held tag ids, what is equipped, and whether they are indoors
+  // (db/lib/reading.js). `id` and `locationId` are what the rest of this
+  // action already needed.
+  const me = await actor({
+    id: true,
+    locationId: true,
+    ...CHIP_VIEWER_SELECT,
+  });
   if (me.error) return { ok: false, error: me.error };
+  const ctx = await chipContextFor(me.character);
   const rooms = await prisma.room.findMany({
     where: { locationId: me.character.locationId ?? "" },
     select: {
@@ -467,9 +471,10 @@ export async function readStash(roomId) {
       tags: {
         where: { quantity: { gt: 0 } },
         orderBy: { tag: { name: "asc" } },
-        // description: what the chip says on hover, so a floor full of names
-        // is a floor you can read before you pick anything up.
-        select: { tagId: true, quantity: true, tag: { select: { name: true, description: true } } },
+        // The whole chip shape, so a floor full of names is a floor you can
+        // READ before you pick anything up — a description on hover, and a
+        // letter's own words on the sheet TagDetails draws for it.
+        select: { tagId: true, quantity: true, tag: { select: CHIP_ROW_SELECT } },
       },
     },
   });
@@ -481,14 +486,7 @@ export async function readStash(roomId) {
     ok: true,
     name: room.name,
     resources: room.resources ?? 0,
-    items: (room.tags ?? [])
-      .filter((rt) => (rt.quantity ?? 0) > 0)
-      .map((rt) => ({
-        tagId: rt.tagId,
-        name: rt.tag.name,
-        description: rt.tag.description ?? "",
-        quantity: rt.quantity,
-      })),
+    items: (room.tags ?? []).filter((rt) => (rt.quantity ?? 0) > 0).map((rt) => toChipRow(rt, ctx)),
   };
 }
 
@@ -987,18 +985,12 @@ export async function gmReadNotice(placeKey, postId) {
   if (ctx.error) return { ok: false, error: ctx.error };
   const post = ctx.posts.find((p) => p.id === postId);
   if (!post) return { ok: false, error: "It's gone." };
-  // A GM sees everything, wax seal included. readBlock reads a tag list, and
-  // a GM's is empty — the ordinary gate would call them illiterate and refuse
-  // every notice on every board, so the panel would open onto nothing it
-  // could ever show. Reading is silent either way; nobody is told.
-  const text = (post.tag.paperText ?? "").trim();
-  return {
-    ok: true,
-    name: post.tag.name,
-    text,
-    plain: false,
-    paper: { kind: post.tag.paperKind ?? null, text, plain: false },
-  };
+  // A GM sees everything, wax seal included — the same bypass the GM rail's
+  // chips use, out of the same function (db/lib/paper.js#paperViewGm), rather
+  // than a second hand-built paper object beside it. Reading is silent either
+  // way; nobody is told.
+  const paper = paperViewGm(post.tag);
+  return { ok: true, name: post.tag.name, text: paper.text, plain: paper.plain, paper };
 }
 
 export async function gmTearNotice(placeKey, postId) {
@@ -1197,6 +1189,14 @@ async function gmPlace(placeKey) {
   return { session, location, locationId, roomId, conversationId, zoneId };
 }
 
+// A GM reads everything on the floor, wax seals included. PAPERWORK.md
+// §"A GM works the same board" is explicit about it: a GM holds no tags, so
+// the ordinary literacy gate would call them illiterate and refuse every
+// letter in the game — and this action is GM-gated already. `canAppraise`
+// stays false: there is no character and no skill, and /gm/dev is where a GM
+// reads numbers.
+const GM_CHIP_CTX = { gm: true };
+
 export async function gmPlaceView(placeKey) {
   const ctx = await gmPlace(placeKey);
   if (ctx.error) return { ok: false, error: ctx.error };
@@ -1247,7 +1247,10 @@ export async function gmPlaceView(placeKey) {
         tags: {
           where: { quantity: { gt: 0 } },
           orderBy: { tag: { name: "asc" } },
-          select: { tagId: true, quantity: true, tag: { select: { name: true, description: true } } },
+          // The whole chip shape. This used to select `description` and then
+          // throw it away in the mapper below, so the one person reading every
+          // scene in the game got a chip whose only tooltip was its own name.
+          select: { tagId: true, quantity: true, tag: { select: CHIP_ROW_SELECT } },
         },
       },
     }),
@@ -1310,7 +1313,7 @@ export async function gmPlaceView(placeKey) {
       private: room.kind === "PRIVATE",
       keys: room.accessTagSlugs ?? [],
       resources: room.resources ?? 0,
-      things: room.tags.map((t) => ({ id: t.tagId, name: t.tag.name, quantity: t.quantity })),
+      things: room.tags.map((t) => toChipRow(t, GM_CHIP_CTX)),
     })),
     openRoom: openRoom
       ? {
@@ -1319,7 +1322,7 @@ export async function gmPlaceView(placeKey) {
           private: openRoom.kind === "PRIVATE",
           keys: openRoom.accessTagSlugs ?? [],
           resources: openRoom.resources ?? 0,
-          things: openRoom.tags.map((t) => ({ id: t.tagId, name: t.tag.name, quantity: t.quantity })),
+          things: openRoom.tags.map((t) => toChipRow(t, GM_CHIP_CTX)),
           fixtures: roomAffordances(openRoom).map((entry) => ({
             id: entry.id,
             label: entry.label,

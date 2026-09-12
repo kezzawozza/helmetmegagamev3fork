@@ -29,7 +29,8 @@ import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor, extractedToday } from "@lifeweb/db/lib/godflesh";
 import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
-import { cookedTasteOnly } from "@/lib/referenceData";
+import { cookedTasteOnly, DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
+import { chipContextFor, composeChipTag } from "@/lib/tagChipRows";
 import {
   RESEARCH_TAG_SLUG,
   CATHEDRAL_LOCATION_SLUG,
@@ -212,6 +213,10 @@ async function FreshChat({ userId }) {
                   quantity: true,
                   equipped: true,
                   equippedQuantity: true,
+                  // What the chip's duration badge counts down — the status
+                  // strip draws the same "2t"/"last" the sheet's chips do, and
+                  // without this every expiring affliction reads as permanent.
+                  expiresTurn: true,
                   poisonedCount: true,
                   poisonPayload: true,
                   // requirementSkills named explicitly for the same reason
@@ -220,10 +225,27 @@ async function FreshChat({ userId }) {
                   // and `include` does not pull an unnamed relation — without
                   // it every cure here reads as Routine, above-tier ones
                   // included, which is the wrong direction to be silent in.
+                  // The relations named here are the ones TAG_CHIP_FIELDS
+                  // names, because the Things drawer draws these rows as the
+                  // app's real tag chips now (web/lib/tagChipRows.js) and an
+                  // `include` pulls no unnamed relation. `group` is the chip's
+                  // full group — its COLOUR is the chip's left border, and a
+                  // slug-only group silently drew every chip grey — and it is
+                  // still what researchableHeld matches a held corpse on.
                   tag: {
                     include: {
-                      group: { select: { slug: true } },
+                      group: {
+                        select: {
+                          slug: true,
+                          name: true,
+                          color: true,
+                          requiredTagId: true,
+                          requiredTag: { select: { name: true } },
+                        },
+                      },
+                      requiredTag: { select: { name: true } },
                       requirementSkills: { select: HEAL_SKILL_SELECT },
+                      ...DESIRE_UNLOCK_SELECT,
                     },
                   },
                 },
@@ -269,6 +291,15 @@ async function FreshChat({ userId }) {
         // it was made with. cookedTasteOnly runs FIRST, so everything below
         // is working on the already-narrowed tag.
         const canSmellPoison = canDetectPoison(sheet?.tags ?? []);
+        // The reader the Things drawer's chips are composed for: their own
+        // held tags and their own eyes, so a letter in a pocket shows its
+        // words to a literate holder and a refusal to everybody else. This is
+        // also the pass that drops `paperText` and the raw `sellablePrice` —
+        // structurally, in tagChipRows.js, rather than by a strip below.
+        const chipCtx = await chipContextFor({
+          ...character,
+          location: { indoors: viewer.character.location?.indoors ?? true },
+        });
         const clientSheet = {
           ...sheet,
           tags: (sheet?.tags ?? []).map((ct) => {
@@ -365,7 +396,7 @@ async function FreshChat({ userId }) {
           // What is in this character's pockets, for the Things drawer under
           // YOU. The drawer re-reads it for itself after every verb
           // (./actions.js#myThings).
-          things: thingGroups(sheet?.tags ?? []),
+          things: thingGroups(sheet?.tags ?? [], (tag) => composeChipTag(tag, chipCtx)),
           // The Depot terminal is a thing in a room: standing at it is not
           // enough, you need the licence or the keycard, and /depot bounces
           // anybody without one — so the link is offered only where it would

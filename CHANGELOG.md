@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · The chat rail's chips say what things are
+
+✎ Hovering a paper in the chat panel now shows what it says — on the floor, in your pockets, and on a GM's column  
+✎ Hovering a tag shows its real details: what it does, how long it lasts, what cures it  
+✎ A sealed letter still shows only its seal, and somebody who cannot read still cannot read. A GM reads everything  
+✚ The GM's chat column is back — who is standing there, what is stashed, and which ways out are shut
+
 ## 2026-09-12 · Editing a Gambit on the desk works again
 
 ✎ Changing a Move to a Gambit on /gm/turns was throwing an error instead of saving. Inspired was taken out of the game a while back and the desk was still reaching for it

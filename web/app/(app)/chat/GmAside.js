@@ -5,6 +5,7 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 import EmptyState from "@/app/components/EmptyState";
 import GmZoneRail from "@/app/components/GmZoneRail";
 import DevPanelModal, { prefetchDevPanel } from "@/app/components/DevPanelModal";
+import TagChip from "@/app/components/TagChip";
 import PlaceCard from "./PlaceCard";
 import GmSayBox from "./GmSayBox";
 import { useAsideTab } from "./asideTabStore";
@@ -36,16 +37,19 @@ import { gmPlaceView } from "./actions";
 
 // A room's contents, as chips. Shared by the Place tab's room list and the
 // Room tab, so a stash reads the same either way.
+//
+// The app's REAL tag chips, the same ones the player's own column draws. These
+// used to be a bare span wearing a native `title` of the chip's own name — a
+// tooltip that repeated the label — so the GM reading a scene could see that
+// there was a letter on the floor and never what it said. Pinnable, unlike the
+// player's: nothing here is a button, so a click has no other meaning.
 function Things({ things, resources }) {
   if (!things?.length && !resources) return <p className="chat-quiet-line">Empty.</p>;
   return (
     <div className="chip-row">
       {resources > 0 && <span className="chip mono">{resources} ⬢</span>}
       {things.map((thing) => (
-        <span key={thing.id} className="chip" title={thing.name}>
-          {thing.name}
-          {thing.quantity > 1 ? ` ×${thing.quantity}` : ""}
-        </span>
+        <TagChip key={thing.tagId} tag={thing.tag} quantity={thing.quantity} />
       ))}
     </div>
   );

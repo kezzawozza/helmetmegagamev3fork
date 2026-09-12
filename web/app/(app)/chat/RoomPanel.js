@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import FormError from "@/app/components/FormError";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import HoverCard from "@/app/components/HoverCard";
+import ChipLabel from "@/app/components/ChipLabel";
+import TagDetails from "@/app/components/TagDetails";
 import { readStash } from "./actions";
 import { TONE_CLASS } from "./PlacePanel";
 
@@ -40,32 +42,30 @@ function roomIdOf(selected) {
 // The ⬢ chip stays inert — a quantity is typed, not picked.
 // One stack on the floor, and what it is. A name alone ("Wolfsbane") is not
 // enough to decide with when the choice is what to carry out of here, so the
-// description shows on hover — PlacesColumn.js's room rows do the same thing
-// for the same reason, and through the same portal, because this strip is
-// inside a scrolling column that would clip an in-tree tooltip.
+// chip is the app's REAL tag chip: the same group colour, mastery star and
+// details block the sheet and the store draw, through the same portal, because
+// this strip is inside a scrolling column that would clip an in-tree tooltip.
+// A letter lying here shows what it says, to a reader who can read it.
 //
 // pinnable={false}: the chip is a button already. A click has one meaning
-// here — open Transfer with this stack ticked — and a pin would fight it.
+// here — open Transfer with this stack ticked — and a pin would fight it. That
+// is also why the face is ChipLabel `as="button"` rather than a TagChip: a
+// span inside the button would nest one .chip box inside another.
+//
+// inTooltip={false}: an unpinnable panel closes the moment the pointer leaves
+// it, so the interactive chips `inTooltip` renders inside a description would
+// be unreachable. Flat tokens are the honest render here.
 function StashChip({ item, onTake }) {
-  const button = (
-    <button type="button" className="chip" title={`Take ${item.name}`} onClick={() => onTake(item)}>
-      {item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name}
-    </button>
-  );
-  const description = item.description?.trim();
-  if (!description) return button;
   return (
-    <HoverCard
-      pinnable={false}
-      className="chat-chip-hover"
-      panel={
-        <>
-          <span className="chat-tip-name">{item.name}</span>
-          <span className="chat-tip-desc">{description}</span>
-        </>
-      }
-    >
-      {button}
+    <HoverCard pinnable={false} panel={<TagDetails tag={item.tag} quantity={item.quantity} />}>
+      <ChipLabel
+        as="button"
+        type="button"
+        tag={item.tag}
+        quantity={item.quantity}
+        title={`Take ${item.tag.name}`}
+        onClick={() => onTake(item)}
+      />
     </HoverCard>
   );
 }

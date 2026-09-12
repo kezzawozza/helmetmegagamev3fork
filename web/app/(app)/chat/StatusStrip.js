@@ -1,5 +1,7 @@
 "use client";
 
+import TagChip from "@/app/components/TagChip";
+
 // What is true of this body right now, in one wrapping row: what you are
 // carrying, and every Status or Health tag you are wearing.
 //
@@ -37,6 +39,10 @@ export default function StatusStrip({
   pickedId = null,
   meter = false,
   numbers = true,
+  // Only so an expiring affliction can say how many turns are left on it —
+  // the same badge the sheet's own chips wear. Absent is fine; the badge is
+  // simply not drawn.
+  currentTurn = null,
 }) {
   const worn = tags.filter((ct) => SHOWN_CATEGORIES.has(ct.tag?.category));
   // The sheet's own arithmetic, to the pixel: the same clamp at 100 and the
@@ -67,34 +73,37 @@ export default function StatusStrip({
         )}
         {worn.map((ct) => {
           const id = ct.tag.id ?? ct.tagId;
-          const face = (
-            <>
-              {ct.tag.name}
-              {(ct.quantity ?? 1) > 1 ? ` ×${ct.quantity}` : ""}
-            </>
-          );
+          const tone = BAD.has(ct.tag.slug) ? "danger" : undefined;
+          // On the SHEET (onPick set) the chip is a button and the details
+          // open inline underneath it — LedgerBand.js draws the same
+          // TagDetails block, so nothing here has to be hovered to be read.
+          // In CHAT there is nowhere to open inline, so the chip is the app's
+          // real tag chip and the details come on hover: group colour, how
+          // long it lasts, what cures it. It used to be a bare span with a
+          // native `title` of the description, which is the one place a player
+          // most needs the whole row rather than one sentence.
           return onPick ? (
             <button
               key={id}
               type="button"
               className="chip"
-              data-tone={BAD.has(ct.tag.slug) ? "danger" : undefined}
+              data-tone={tone}
               data-active={pickedId === id ? "true" : undefined}
               aria-expanded={pickedId === id}
               onClick={() => onPick(ct)}
             >
-              {face}
+              {ct.tag.name}
+              {(ct.quantity ?? 1) > 1 ? ` ×${ct.quantity}` : ""}
             </button>
           ) : (
-            <span
+            <TagChip
               key={id}
-              className="chip"
-              data-tone={BAD.has(ct.tag.slug) ? "danger" : undefined}
-              // The tag's own catalog text, not an explainer written for here.
-              title={ct.tag.description ?? undefined}
-            >
-              {face}
-            </span>
+              tag={ct.tag}
+              quantity={ct.quantity ?? 1}
+              expiresTurn={ct.expiresTurn ?? null}
+              currentTurn={currentTurn}
+              tone={tone}
+            />
           );
         })}
       </div>

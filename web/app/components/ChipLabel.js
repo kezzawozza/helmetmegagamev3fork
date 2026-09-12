@@ -1,11 +1,27 @@
-// The bare `.chip` span — name, optional ×N, group colour — with no tooltip
-// and nothing interactive on it.
+// The bare `.chip` face — name, optional ×N, group colour — with no tooltip
+// and nothing interactive of its own.
 //
 // Split out of TagChip so it can be rendered where an interactive chip can't
 // go: inside another chip's hover tooltip (un-hoverable), or inside the
 // <button> a point-buy row is (a role="button" inside a button is invalid
-// markup). TagChip builds its own visible half from this.
-export default function ChipLabel({ tag, quantity = 1, duration = null }) {
+// markup).
+//
+// `as` is the third of those cases, and the reason it exists: the /chat rail's
+// chips are ALREADY buttons — a room stash chip opens Transfer, a pocket chip
+// opens its verb menu — so they cannot wrap this span without nesting one
+// `.chip` box inside another. They render `as="button"` instead and pass their
+// own handlers straight through, which is what lets the rail wear the real
+// chip face (group colour, mastery star, duration) without giving up its click.
+export default function ChipLabel({
+  tag,
+  quantity = 1,
+  duration = null,
+  as: As = "span",
+  children = null,
+  className = "",
+  style,
+  ...rest
+}) {
   // Only a stack says how many; an ordinary tag reads as a bare name, which
   // is every tag outside Items today.
   const stack = quantity > 1 ? quantity : null;
@@ -19,9 +35,15 @@ export default function ChipLabel({ tag, quantity = 1, duration = null }) {
   const star = tag.mastery ? "★ " : null;
 
   return (
-    <span
-      className="chip"
-      style={groupColor ? { borderLeftColor: groupColor, borderLeftWidth: 3 } : undefined}
+    <As
+      // The caller's own classes ride ALONGSIDE `.chip` rather than replacing
+      // it — a chip that dropped its own class to take a modifier would stop
+      // being a chip.
+      className={className ? `chip ${className}` : "chip"}
+      // Merged, not overwritten, and the group colour wins: it is the one
+      // thing about a chip that is a fact rather than a decision.
+      style={groupColor ? { ...style, borderLeftColor: groupColor, borderLeftWidth: 3 } : style}
+      {...rest}
     >
       {star}
       {tag.name}
@@ -32,11 +54,16 @@ export default function ChipLabel({ tag, quantity = 1, duration = null }) {
           tooltip uses, so the two can't disagree; a tag on its final turn
           reads "last" rather than "0t", which looked like it had already
           gone. Null when the tag has no duration at all. */}
+      {/* Anything the FACE has to say that the tag itself does not — the
+          drawer's equipped dot, its doctor's-eye "smells wrong". Kept as
+          children rather than props so the chip does not grow a vocabulary of
+          one caller's markers. */}
+      {children}
       {duration && (
         <span className={duration.armed ? "text-accent" : "text-muted"} aria-hidden="true">
           {" "}&middot; {duration.badge}
         </span>
       )}
-    </span>
+    </As>
   );
 }

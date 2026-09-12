@@ -160,6 +160,34 @@ function paperView(tag, viewer = null) {
   return { kind, text, plain: false };
 }
 
+// THE GM's COPY. Same shape as paperView, no gate at all.
+//
+// PAPERWORK.md §"A GM works the same board": Read skips readBlock entirely,
+// wax seals included. A GM holds no tags, so the ordinary gate would call them
+// illiterate and refuse every notice on every board — and a GM adjudicating a
+// scene needs to know what the letter in the room actually says.
+//
+// The bypass lives HERE, one layer above the gate, rather than as a `gm` flag
+// inside `viewer`. A viewer object means "absent is unable to read, fail
+// closed" (see above), and a field whose PRESENCE means "reads everything"
+// would invert that contract on an object every other path builds from player
+// input. A separate function whose name says GM cannot be reached by accident.
+function paperViewGm(tag) {
+  if (!isPaper(tag)) return null;
+  const text = (tag.paperText ?? "").trim();
+  // `plain: false` even when blank: BLANK_LINE is markdown italics, and
+  // paperView draws it on a sheet too. A GM never sees a refusal, so there is
+  // no case here that wants the flat rendering.
+  return { kind: tag.paperKind, text: text || BLANK_LINE, plain: false };
+}
+
+// The flat sentence half, for lists. Same bypass, same reasoning.
+function paperDescriptionGm(tag) {
+  if (!isPaper(tag)) return tag?.description ?? null;
+  const text = (tag.paperText ?? "").trim();
+  return text || BLANK_LINE;
+}
+
 // The title a freshly written sheet wears — what the writer chose to call it,
 // or "A Note" if they called it nothing.
 //
@@ -273,6 +301,8 @@ module.exports = {
   bookName,
   paperDescription,
   paperView,
+  paperViewGm,
+  paperDescriptionGm,
   paperName,
   noteCode,
   sealedName,

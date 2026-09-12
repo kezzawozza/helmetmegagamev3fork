@@ -29,6 +29,10 @@ export default function TagChip({
   // TagRail.js). Never the raw poisonedCount or which poison — this prop
   // carries only the yes/no doctor's-eye reads.
   poisonMarker = false,
+  // `data-tone` on the face, for a chip that is bad news rather than news —
+  // Overburdened, Dying, Catatonic on the chat rail's status strip. The chip
+  // is otherwise identical; only the colour says so.
+  tone = null,
 }) {
   const duration = tagDurationFor({ tag, expiresTurn, currentTurn, armedTurn });
 
@@ -56,7 +60,7 @@ export default function TagChip({
 
   return (
     <HoverCard panel={panel}>
-      <ChipLabel tag={tag} quantity={quantity} duration={duration} />
+      <ChipLabel tag={tag} quantity={quantity} duration={duration} data-tone={tone ?? undefined} />
     </HoverCard>
   );
 }
