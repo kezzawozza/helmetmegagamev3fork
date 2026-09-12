@@ -20,15 +20,14 @@ day of work survives a refresh):
 | What | Model | At the push |
 |---|---|---|
 | **Private messages** | `StagedMessage` (kind `PRIVATE`) + `StagedMessageRecipient` | One DM per recipient character's player, `»`-prefixed, logged to `DirectMessage` like every DM. |
-| **Public declarations** | `StagedMessage` (kind `PUBLIC`, required `zoneId`) | Posted to **the row's own zone `#summary`** — except underground, where there is no `#summary` at all: a `CAVE_LEVEL` zone (Caves, Depths) fans the declaration out to **every Location channel in the level**, one `Delivery` row per channel (`db/lib/publicPostTargets.js`). Full size and verbatim in both places; a declaration is a GM speaking, not scenery, so it wears no `-#`. If there is nowhere at all to post — an unprovisioned `#summary`, or a cave whose Locations have no channels yet — the post is skipped and recorded on `deliveryFailures`, never lost. A post survives the wipe that runs later in the same push: the wipe only deletes what predates the push (`CHANNELS.md` §8). The cave copies then live under the Location cadence, which is **every** turn rather than Dawn-only, so they get one turn where a `#summary` copy gets up to two. |
+| **Public declarations** | `StagedMessage` (kind `PUBLIC`, required `zoneId`) | Posted to **the row's own zone `#summary`**. The composer requires a real, standable zone (the `Caves` group seat is excluded from the picker), so a row always has one to post to. If that zone's summary channel isn't configured, the post is skipped and recorded on `deliveryFailures` — never lost. A post survives the wipe that runs later in the same push: the wipe only deletes what predates the push (`CHANNELS.md` §8). |
 | **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, zoneId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). EffectComposer's `+ Add` row carries a quantity stepper, so a GM can stage several at once; asking for more than one of a non-stackable tag stages `force: true` right alongside it (`TAGS.md` §5a). |
 | **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A character-to-character ⬢ move, not a mint/burn from nowhere, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive a player's Transfer and every GM transfer surface use). Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
 
 ### 1a. One row per send: the `Delivery` table
 
 **Every send a staged message makes has its own row** — one per PRIVATE
-recipient, and one per CHANNEL a PUBLIC row posts into (a single `#summary`,
-or one per Location for a cave fan-out) — and `db/lib/stagedDelivery.js` is the
+recipient, one for a PUBLIC row's post — and `db/lib/stagedDelivery.js` is the
 only code that writes them. The push and the **Resend** button run the same
 function.
 
@@ -61,18 +60,6 @@ How it works now:
   row, and the rest were neither delivered to nor listed as failing. A PUBLIC
   row's key ends in `public` for the same reason — that shared empty tail was
   also the one a public post used.
-- **A cave fan-out's rows key on the LOCATION**, `public:loc:<locationId>`, and
-  a `#summary` post keeps the bare `public` tail it has always had. That second
-  half is load-bearing rather than tidy: production is full of
-  `staged:<id>:public` rows, and changing that tail would write a second row on
-  every declaration ever pushed — which reads as *never attempted*, so one GM
-  pressing Resend re-posts a declaration already sitting in the channel.
-  `db/test/stagedDelivery.test.js` asserts the surface key byte-for-byte.
-  The Location and **not its channel id**, because `db:sync-zones` and the
-  channel doctor both rewrite `Location.discordChannelId` on re-provisioning: a
-  channel-id tail would orphan a SENT row the moment that happened, and the next
-  push would post the declaration into the same room twice. Same lesson as "the
-  character, not their Discord account" directly above.
 - Each send **claims** its row first: `updateMany` from `PENDING`/`FAILED`
   (or a stale `IN_FLIGHT`) to `IN_FLIGHT`. Count 0 means somebody else has it —
   a concurrent push, or a GM pressing Resend mid-push — and this run sends
@@ -90,14 +77,7 @@ How it works now:
   `FAILED` would invite the next attempt to send a DM the player has already
   read. The public half is the same shape — post, stamp, and only then the
   `/play` row, whose own failure costs the web feed one line and never costs
-  Discord a second post. A fan-out has one post-and-stamp pair **per channel**,
-  but still exactly **one `/play` row per message**: the Hall row is the zone's,
-  and `db/lib/feedAccess.js` gives a cave character their zone's feed already,
-  so seven copies of one declaration is precisely what a fan-out must not
-  become. It is written below the loop, gated on at least one channel having
-  landed — which is what keeps Resend's `writeSceneLine: !posted` correct now
-  that a run can land partly: any SENT row means a run where something went
-  out, and that run wrote the row.
+  Discord a second post.
 - `StagedMessage.sentAt` and `deliveryFailures` are still written — the tray,
   the missed-push banner and every already-pushed turn read them — but they are
   **derived** from these rows now rather than being the only record. So a
@@ -150,10 +130,7 @@ Two consequences worth knowing:
 
 - **A multi-chunk declaration still survives the wipe.** The wipe's cutoff
   is the side-effect thunk's start time, and the public-post loop runs earlier
-  in that same thunk, so every chunk postdates the cutoff. That holds for a cave
-  fan-out too — its copies sit in Location channels, which are wiped every turn
-  rather than Dawn-only, so they survive the turn they landed in and go with the
-  next one.
+  in that same thunk, so every chunk postdates the cutoff.
 - **Resend re-posts the whole body.** `postMessageBatched` and `postDmBatched`
   are sequential and throw on the first chunk that fails, so a failure partway
   leaves the earlier chunks delivered. Resending then duplicates them. This is
@@ -292,25 +269,6 @@ the **cross-page** actions carry that call now (depot, store, dev panel,
 player desk…); the desk's own actions dropped theirs. What is left in
 `actions.js` is only ever another page's — `/character` after a Reject or a
 portrait takedown, `/gm/audit` after a fight is called off — never this one's.
-
-### What the Move desk looks like
-
-Top-down, the card is one job: who and where (with the side trips — Message
-them, Past moves, the dev panel — behind a `⋯` menu so `Close` is the only
-other control in the header), then the Move as they wrote it, then the Kind /
-Dice / Declared line, then **the Result box as the visually primary panel** —
-a raised surface with an accent edge, because it is the thing a GM came here
-to fill in and it used to be the fourth of five identical hairline-ruled
-slabs. Staged rows come after it, then Reject / Save / Solve.
-
-The Kind switch's consequence line ("Saving rolls a fresh d6…") is always
-rendered, empty or not, so changing Kind no longer shoves the Result box down
-the screen mid-sentence.
-
-Staged rows are two lines now: what it will do, then a quiet line carrying who
-staged it and which turn. Delivery detail rides the state pill's tooltip — a
-**bounce stays spelled out**, because it is the one thing on a staged row a GM
-has to act on.
 
 ### Narrow screens
 
@@ -509,15 +467,9 @@ instance is a change to the hub, not a slider.
   one a GM scrolls past. So a row still has **no desk**: clicking it, or `⏎`,
   opens the inspector on the person being held, and so does clicking any name
   in the strip. Each live pairing carries a ✕ that calls that one fight off.
-- **History lens** — the same rail over any turn, the open one included.
-  Its two parameters sit on **one line of selects** above the filters —
-  **Showing** (Moves or Caving) and **Turn** (the open turn first, marked
-  `· open`, then the resolved ones newest first). The kind used to be a second
-  `.segmented` stacked directly under the lens segmented: same control, same
-  width, two of the same four words, eight pixels apart, so the pair read as
-  one eight-button control with nothing saying which row meant what. The lens
-  picks the lens; inside History, kind is a parameter of the view exactly the
-  way the turn is, so it is drawn the way the turn is. A GM used to have to go to
+- **History lens** — the same rail over any turn, the open one included,
+  picked from a Turn dropdown above the filters (the open turn first, marked
+  `· open`, then the resolved ones newest first). A GM used to have to go to
   `/gm/audit` to see what somebody did last turn. Nothing is loaded with the
   page: for a **resolved** turn the lens fetches on demand
   (`actions.js#getMoveHistory`) and caches it for the page view, so the open
@@ -534,21 +486,14 @@ instance is a change to the hub, not a slider.
   (`appliedEffects`), the Result, and everything that was sent on it. No lock,
   no composers, no Solve, no Reject — but a staged row the push never carried
   keeps its Edit/Delete, and a failed delivery keeps its Resend, because those
-  are the two things about a past turn that can still need doing. Setting
-  **Showing** to Caving (`historyKind`) reads back
+  are the two things about a past turn that can still need doing. A
+  **Moves / Caving** switch beside the Turn picker (`historyKind`) reads back
   that turn's Caving Die rolls instead, mapped by the same `cavingRollRow`
-  the live Caving lens uses and opening a **read-only `CavingDesk`** — see
-  `CAVING.md` §5.
+  the live Caving lens uses and opening a **read-only `CavingDesk`** — with one
+  exception, an unresolved `TROUBLE` roll keeps its Result box and Mark
+  resolved live even from History (`CAVING.md` §2d, §5).
 - **Desk** — the selected item. For a Move: situation, dice, declared
-  numbers, the Result box, everything staged on it, and the three composers. The
-  **effect composer** is the longest dialog on the desk, so it is drawn as
-  headed, ruled-off groups — Targets, What it does to them, Tag changes, Their
-  tags, Add from the catalog — with a **sticky footer** carrying Cancel and
-  Stage it. Unheaded, six unrelated zones ran together as one column of
-  controls whose only landmark was a bare field label two thirds down, and with
-  a tag catalog open the two buttons sat a full screen below the fields. The
-  Tag changes group only renders once there is a change to show; a headed,
-  ruled-off group holding nothing reads as a bug.
+  numbers, the Result box, everything staged on it, and the three composers.
   Every button derives from `moveReviewStatus`, never from a display label or
   a lock: **Save · Solve · Reject** on an open Move, **Save · Reopen ·
   Reject** once it's Solved — Save stays live on a Solved Move (it edits
@@ -659,38 +604,9 @@ keeps itself current and stays reachable from the keyboard:
   that opens the message composer prefilled with the result text and the
   Move's own character.
 
-Escape is layered, topmost-first, and there are four rungs
-(`Workspace.js`, `escapeLayers.js`):
-
-1. An open blocking `Modal`, or a modeless one that currently holds focus,
-   handles its own Escape and the workspace yields to it.
-2. A focused field just blurs.
-3. An **open composer** closes — even one the GM has clicked away from. A
-   modeless dialog deliberately does not own the keyboard, so
-   `EffectComposer` / `MessageComposer` / `PublicComposer` /
-   `TransferComposer` each push a layer onto `escapeLayers.js` while they are
-   open, and the workspace asks that stack before it touches the selection.
-   Without it the first Escape closed the whole Move and took the composer
-   and the Result box with it.
-4. Only then does the selected Move/Caving roll deselect, through its own
-   dirty guard.
-
-A composer holding anything typed into it also counts in `isAnyDirty()`, so it
-stands the backstop poll down and makes switching rows ask first — an
-`existing` row being edited is exempt, since that text is already saved.
-
-**Every mutation on the desk catches a throw.** `guarded()` turns a
-`UserError` into `{ ok: false, error }`, but anything else rejects — and an
-uncaught rejection inside a server-action call reaches `(desk)/error.js`,
-which replaces the entire desk with an error page over one failed button.
-Every call site (`MoveDesk`, `CavingDesk`, `StagedItems`, `StagingTray`, the
-four composers, `QueueRail`'s avatar and hold rows) wraps its call and puts
-the message in its own `FormError` via `mutationErrorMessage`.
-
-**One "+ Effect / + Message / + Public" strip** (`StagingStrip.js`), used by
-the Move desk, the Caving desk and the tray — the tray is the only one with a
-`+ Transfer`. And **one Preview push**, on the tray beside the rows it
-previews; the desk header used to carry a second.
+Escape is layered, topmost-first: an open `Modal` handles its own Escape and
+the workspace yields to it; otherwise a focused field just blurs, and a
+selected Move/Request deselects through its own dirty guard (`Workspace.js`).
 
 The **Result box on both desks is a draft, not component state**
 (`web/app/(desk)/gm/turns/deskDraft.js`) — the Move desk's Result and Kind
@@ -728,9 +644,13 @@ guarantees: `TURN-ENGINE.md` §2–3). What a GM needs to know:
   audit row carrying `{attempted, delivered}`. A crash mid-delivery leaves the
   rest visibly unsent, not falsely delivered — and a resumed push finishes
   exactly the ones that did not get through.
-- **An unresolved `TROUBLE` caving roll is resolved by the push** and its hold
-  on the caver lifts (`CAVING.md` §2d). The Caving lens is read-only on a past
-  turn by design, so a roll nobody got to is a roll nobody can get to.
+- **An unresolved `TROUBLE` caving roll is *not* touched by the push any
+  more** (`CAVING.md` §2d) — a 1 nobody adjudicates holds its caver
+  indefinitely, turn boundary or no. It stays reachable despite the Caving
+  lens' read-only rule for past turns: a stale unresolved roll rides along on
+  the **live** lens regardless of which turn it belongs to, and if it's
+  opened from History anyway, `CavingDesk` leaves its Result box and Mark
+  resolved live as the one exception to that lens' read-only rule.
 - A staged row created in the seconds around the cron retargets itself to
   the new open turn; anything that slips through lands in the missed-push
   banner. Honest beats locked.

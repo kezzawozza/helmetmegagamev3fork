@@ -249,64 +249,23 @@ async function cavingHeldIds(prisma, characterIds, zoneId) {
   return new Set(rows.map((r) => r.characterId));
 }
 
-// The push's release valve (docs/systemdocs/CAVING.md §5).
+// There used to be a push-time release valve here
+// (releaseUnresolvedCavingRolls, docs/systemdocs/CAVING.md §2d): every
+// unresolved TROUBLE row still open when a turn was pushed got auto-resolved,
+// on the argument that the Caving lens goes read-only on a past turn and a
+// roll nobody reached would otherwise be a roll nobody COULD reach.
 //
-// A TROUBLE roll holds its caver in the zone until a GM resolves it. That is
-// right while the turn is open and the GM is working; it is wrong the moment
-// the turn is pushed, because a roll nobody got to is then a roll nobody CAN
-// get to — the Caving lens goes read-only on a past turn by design, and the
-// player is stuck in the caves with no way out and nobody able to give them
-// one.
-//
-// So the push resolves what is left. resolvedByDiscordUserId stays NULL, and
-// that null is the marker: a TROUBLE row is created unresolved and the only
-// hand that resolves one (web/app/(desk)/gm/turns/actions.js) always writes an
-// id, so resolved-with-no-resolver can only mean this. gmNotes is untouched —
-// the game has nothing to say about a monster it never adjudicated.
-async function releaseUnresolvedCavingRolls(prisma, turn) {
-  const open = await prisma.cavingRoll.findMany({
-    where: { turnId: turn.id, kind: "TROUBLE", resolvedAt: null },
-    select: { id: true, characterId: true, zoneId: true },
-  });
-  if (!open.length) return { released: 0, rolls: [] };
-
-  // The guarded updateMany is the claim: a roll a GM resolved between the read
-  // above and this write matches nothing. So the COUNT is what was released,
-  // not `open.length` — and the audit row is re-read from the rows that
-  // actually changed, because naming a caver the GM had already freed is how a
-  // reader of this log gets told the wrong thing about who is still down there.
-  await prisma.cavingRoll.updateMany({
-    where: { id: { in: open.map((r) => r.id) }, resolvedAt: null },
-    data: { resolvedAt: new Date(), resolvedByDiscordUserId: null },
-  });
-  const released = await prisma.cavingRoll.findMany({
-    where: { id: { in: open.map((r) => r.id) }, resolvedAt: { not: null }, resolvedByDiscordUserId: null },
-    select: { id: true, characterId: true },
-  });
-  if (!released.length) return { released: 0, rolls: [] };
-  await prisma.auditLog
-    .create({
-      data: {
-        actorDiscordUserId: "system",
-        actionType: "caving_auto_resolved",
-        details: {
-          turnNumber: turn.number,
-          released: released.length,
-          // Named, because "who is suddenly free to walk out of the Caves" is
-          // the question a GM reading this row is actually asking.
-          rolls: released.map((r) => ({ cavingRollId: r.id, characterId: r.characterId })),
-        },
-      },
-    })
-    .catch((err) => console.error("Caving auto-resolve audit log failed:", err));
-
-  return { released: released.length, rolls: released.map((r) => r.id) };
-}
+// It is gone on purpose. A 1 now holds a caver until a GM actually resolves
+// it, full stop — the push no longer lets go for them. What replaced the
+// escape hatch: a stale unresolved TROUBLE row rides along on the OPEN turn's
+// live Caving lens (web/app/(desk)/gm/turns/[[...selection]]/page.js), not just
+// in read-only History, and CavingDesk keeps the Result box and Mark resolved
+// live for an unresolved roll even when opened from History. See CAVING.md
+// §2d for the full account.
 
 module.exports = {
   rollCavingOnArrival,
   cavingHoldFor,
   cavingHeldIds,
-  releaseUnresolvedCavingRolls,
   CAVING_HOLD_REASON,
 };

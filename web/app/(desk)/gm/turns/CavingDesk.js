@@ -9,7 +9,6 @@ import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
-import StagingStrip from "./StagingStrip";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
@@ -46,11 +45,17 @@ export default function CavingDesk({
   onOpenDev,
   gmProfiles,
   // Read-only mode, for a roll on a pushed turn opened from the History lens —
-  // mirrors MoveHistoryDesk: no composers, no Mark resolved, the notes box
-  // disabled. Staged rows still show (an unapplied one stays editable).
+  // mirrors MoveHistoryDesk: no composers, the notes box disabled. ONE
+  // exception: an unresolved TROUBLE roll keeps its Result box and Save/Mark
+  // resolved live even here, because the turn-end push no longer auto-frees a
+  // 1 nobody adjudicated (docs/systemdocs/CAVING.md §2d) — History reached
+  // from the live Caving lens's stray-row clause has to be where a GM can
+  // still close it out.
   readOnly = false,
   turnLabel = null,
 }) {
+  const unresolvedTrouble = roll.kind === "TROUBLE" && !roll.resolvedAt;
+  const notesLocked = readOnly && !unresolvedTrouble;
   const confirm = useConfirm();
   // The Result box, held outside this component so a reload or anything else
   // that replaces the column hands it back (deskDraft.js) — the same
@@ -179,18 +184,21 @@ export default function CavingDesk({
       )}
 
       {roll.kind === "TROUBLE" && (
-        <div className="desk-result mt-4 flex flex-col gap-3">
+        <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
           <label className="field">
             <span className="field-label">Result — what happened down there</span>
             <textarea
               rows={4}
               maxLength={RESULT_BOX_MAX_LENGTH}
               value={gmNotes}
-              disabled={pending || readOnly}
+              disabled={pending || notesLocked}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="What actually happened here. GM-facing — send it to the player with Stage as message."
             />
           </label>
+          {/* Staying strictly on !readOnly, not notesLocked: this opens the
+              MessageComposer below, and a pushed turn's staging stays settled
+              even when the Result box itself is still editable. */}
           {!readOnly && (
             <button
               type="button"
@@ -211,14 +219,24 @@ export default function CavingDesk({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="field-label">Staged on this roll</h3>
           {!readOnly && (
-            <StagingStrip
-              onEffect={() => setComposer("effect")}
-              onMessage={() => {
-                setMessagePrefill(null);
-                setComposer("message");
-              }}
-              onPublic={() => setComposer("public")}
-            />
+            <div className="flex gap-2">
+              <button type="button" className="btn-quiet" onClick={() => setComposer("effect")}>
+                + Effect
+              </button>
+              <button
+                type="button"
+                className="btn-quiet"
+                onClick={() => {
+                  setMessagePrefill(null);
+                  setComposer("message");
+                }}
+              >
+                + Message
+              </button>
+              <button type="button" className="btn-quiet" onClick={() => setComposer("public")}>
+                + Public
+              </button>
+            </div>
           )}
         </div>
 
@@ -295,7 +313,7 @@ export default function CavingDesk({
 
       <FormError>{error}</FormError>
 
-      {roll.kind === "TROUBLE" && !readOnly && (
+      {roll.kind === "TROUBLE" && !notesLocked && (
         <div className="mt-4 flex flex-wrap justify-end gap-3">
           {/* Save is always here, resolved or not — the same fix MoveDesk.js:415
               describes. Marking a roll resolved used to take the only button

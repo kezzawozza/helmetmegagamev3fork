@@ -144,13 +144,17 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
           include: MOVE_INCLUDE,
         })
       : [],
-    // The Caving lens — every roll on the open turn. See
-    // docs/systemdocs/CAVING.md. No "strays from earlier turns" clause
-    // like stagedEffects/stagedMessages below: a CavingRoll is never
-    // "unapplied", it just sits resolved or not.
+    // The Caving lens — every roll on the open turn, plus every unresolved
+    // TROUBLE roll from any turn (docs/systemdocs/CAVING.md §2d). There used
+    // to be no stray clause here, on the argument a CavingRoll is never
+    // "unapplied" — but since the turn-end push stopped auto-resolving a 1
+    // nobody adjudicated, a stale TROUBLE row would otherwise vanish into a
+    // read-only History turn with nobody able to find the caver it's still
+    // holding. This is why one can show up here for a turn that already
+    // closed.
     openTurn
       ? prisma.cavingRoll.findMany({
-          where: { turnId: openTurn.id },
+          where: { OR: [{ turnId: openTurn.id }, { kind: "TROUBLE", resolvedAt: null }] },
           orderBy: { createdAt: "desc" },
           include: CAVING_ROLL_INCLUDE,
         })
@@ -217,9 +221,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     prisma.zone.findMany({
       where: { kind: { not: "CAVE_GROUP" } },
       orderBy: { sortOrder: "asc" },
-      // `kind` so the composer can say where a cave declaration actually goes:
-      // a CAVE_LEVEL has no #summary and fans out to its Location channels.
-      select: { id: true, name: true, kind: true },
+      select: { id: true, name: true },
     }),
     // The effect composer's search space: the whole catalog. TAG_CHIP_FIELDS
     // is what TagChip/ChipLabel need to render coloured with a working

@@ -49,10 +49,10 @@ const { runAutoLaborPass } = require("./lib/autoLaborPass");
 const { runLaborYieldPass } = require("./lib/laborYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
 const { runTaxPass } = require("./lib/taxPass");
-const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runLessonPass } = require("./lib/lessonPass");
 const { runResearchPass } = require("./lib/researchPass");
 const { runConfessionPass } = require("./lib/confessionPass");
+const { runTrinketPass } = require("./lib/trinketPass");
 // Required by path, not through the barrel: see db/lib/dm.js for why there
 // are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
@@ -230,6 +230,12 @@ const TURN_PASSES = [
   // shares the slot, not because either depends on the other's result.
   "research",
   "confessions",
+  // Trinket (docs/systemdocs/TRINKETS.md): a filed Trinket Gambit is SOLVED
+  // here, same slot as Lessons/Research/Confessions and for the same reason —
+  // it shares no state with any of them, it is just another Gambit a
+  // craft-time request filed and this turn has to resolve before the push
+  // closes it out. Order among the four genuinely does not matter.
+  "trinket",
   "stagedPush",
   // What a filed tax collects (db/lib/taxPass.js). Right after stagedPush
   // (a GM's own adjudication outranks a player verb) and before
@@ -466,6 +472,30 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Confessions audit log failed:", err));
   }
 
+  // Trinket (db/lib/trinketPass.js): same slot as Lessons/Research/
+  // Confessions above, and the same reason — a Gambit filed at craft time
+  // gets SOLVED here, before the push closes the Action out.
+  let trinket = null;
+  if (!done.has("trinket")) {
+    trinket = await runTrinketPass(prisma, turn).catch(async (err) => {
+      await passFailed("Trinket", err);
+      return null;
+    });
+    if (trinket) await markDone("trinket");
+  }
+  const { dms: trinketDms = [], ...trinketSummary } = trinket ?? {};
+  if (trinket && trinket.resolved) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "trinket_resolved",
+          details: trinketSummary,
+        },
+      })
+      .catch((err) => console.error("Trinket audit log failed:", err));
+  }
+
   // The staged-arbitration push (db/lib/stagedPush.js). Slot is
   // load-bearing: after autoLabor (which stamps appliedEffects), before
   // tagExpiry/expirySweep (a staged grant/cure must land first), and before
@@ -530,18 +560,10 @@ async function resolveNeeds(turn, config) {
     }
   }
 
-  // The caving release (db/lib/cavingPass.js). Directly after the staged push,
-  // because the push is the GM's last chance to have resolved one by hand: a
-  // TROUBLE roll still open once the turn closes holds its caver in the zone
-  // forever, and the Caving lens is read-only on a past turn. So anything left
-  // is resolved automatically here and the hold lifts.
-  if (!done.has("cavingRelease")) {
-    const released = await releaseUnresolvedCavingRolls(prisma, turn).catch(async (err) => {
-      await passFailed("Caving release", err);
-      return null;
-    });
-    if (released) await markDone("cavingRelease");
-  }
+  // There used to be a caving release here (db/lib/cavingPass.js) that
+  // auto-resolved every unresolved TROUBLE roll at the push. It's gone: a 1
+  // now holds its caver until a GM actually resolves it, turn boundary or no.
+  // See docs/systemdocs/CAVING.md §2d.
 
   // Sweeps turn-scoped tag expiry. Progression runs first (grants what an
   // expiring tag turns into), then the sweep deletes exactly what it read.
@@ -1333,6 +1355,7 @@ async function resolveNeeds(turn, config) {
     lessonDms,
     researchDms,
     confessionDms,
+    trinketDms,
     tagExpiryDms,
     catatonicDms,
     catatonicRoleUpdates,
@@ -1489,6 +1512,7 @@ async function advanceTurn() {
   let lessonDms = [];
   let researchDms = [];
   let confessionDms = [];
+  let trinketDms = [];
   let tagExpiryDms = [];
   let depotLines = [];
   let turretDms = [];
@@ -1549,6 +1573,7 @@ async function advanceTurn() {
       lessonDms,
       researchDms,
       confessionDms,
+      trinketDms,
       tagExpiryDms,
       catatonicDms,
       catatonicRoleUpdates,
@@ -1645,6 +1670,7 @@ async function advanceTurn() {
         autoLaborDms,
         lessonDms,
         confessionDms,
+        trinketDms,
         tagExpiryDms,
         catatonicDms,
         catatonicRoleUpdates,
@@ -1749,6 +1775,7 @@ async function advanceTurn() {
     lessonDms,
     researchDms,
     confessionDms,
+    trinketDms,
     tagExpiryDms,
     turretBursts,
     depotLocationId,
