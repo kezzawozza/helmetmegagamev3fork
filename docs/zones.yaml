@@ -1906,6 +1906,7 @@ zones:
                 stash: [tea, sweets]
               depot-landing-pad:
                 name: Landing Pad
+                access: [depot-keycard]
                 live: shuttle
                 description: >-
                   A grated steel bay. The roof automatically opens and closes.
@@ -1917,8 +1918,6 @@ zones:
                 stash:
                   items:
                     paper: 32
-              # The lock moved off the Landing Pad and onto here: the pad is
-              # just a hole in the roof, but the goods are worth a door.
               depot-cargo-bay:
                 name: Cargo Bay
                 access: [depot-keycard]
