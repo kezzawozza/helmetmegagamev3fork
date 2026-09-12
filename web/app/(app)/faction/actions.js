@@ -473,26 +473,27 @@ async function decideApplicationImpl({ applicationId, accept, grantTagSlug }) {
   if (row.character.status !== "ALIVE") throw new UserError(`${row.character.name} is beyond joining.`);
   if (row.character.factionId === row.factionId) throw new UserError("They're already with you.");
 
-  // The keys a recruit needs to reach their new faction's silo. The Brigands'
-  // camp is behind a tag, so letting somebody in without it hands them a home
-  // they can't find (FACTIONS.md §6).
-  //
-  // Which keys travel depends on WHO is answering, and that is a permission
-  // check, not a preference:
+  // The keys a recruit needs to reach their new faction's silo. Which keys
+  // travel depends on WHO is answering, and that is a permission check, not
+  // a preference:
   //
   // - An officer answering an APPLICATION chooses, via `grantTagSlug`, and
   //   the choice is bounded to their own silo's keys.
   // - An INVITE is answered by the invitee, so `grantTagSlug` is ignored
   //   outright — honouring it would let anyone holding an invitation post
-  //   themselves the Cathedral Key the officer chose not to give. Instead the
-  //   silo's keys are granted in full, because an officer who invited
-  //   somebody in has already decided they belong there. Without this an
-  //   invited Brigand could never receive the camp tag at all: `ravine-camp`
-  //   is untradeable, so no later hand-over exists.
+  //   themselves the Cathedral Key the officer chose not to give. It does
+  //   NOT mint a tradeable key either: an officer who invited somebody in
+  //   can just hand over a copy they're carrying afterward, the same as any
+  //   other item (CARRY.md §7's Transfer > Give) — that's how a faction
+  //   ordinarily gets a new member a key, no minting involved. What an
+  //   INVITE still grants is the silo's UNTRADEABLE access, because that has
+  //   no hand-over to fall back on. Without this an invited Brigand could
+  //   never receive the camp tag at all: `ravine-camp` is untradeable, and
+  //   nobody can simply give it away (FACTIONS.md §6).
   const keySlugs = await siloKeySlugs(row.factionId);
   let grantSlugs = [];
   if (row.kind === "INVITE") {
-    grantSlugs = keySlugs;
+    grantSlugs = await untradeableSlugsOf(keySlugs);
   } else if (grantTagSlug) {
     const wanted = grantTagSlug.toString();
     if (!keySlugs.includes(wanted)) throw new UserError("That tag isn't a key to your silo.");
@@ -551,6 +552,19 @@ async function siloKeySlugs(factionId) {
     select: { siloRoom: { select: { accessTagSlugs: true } } },
   });
   return faction?.siloRoom?.accessTagSlugs ?? [];
+}
+
+// Of a silo's access tags, the ones an INVITE still grants automatically:
+// only the untradeable ones, which have no other way to reach a new member.
+// A tradeable key can just be handed over afterward, the same as any other
+// item (CARRY.md §7's Transfer > Give).
+async function untradeableSlugsOf(slugs) {
+  if (!slugs.length) return [];
+  const rows = await prisma.tag.findMany({
+    where: { slug: { in: slugs }, tradeable: false },
+    select: { slug: true },
+  });
+  return rows.map((t) => t.slug);
 }
 
 // A new key changes which private threads a character belongs to.
