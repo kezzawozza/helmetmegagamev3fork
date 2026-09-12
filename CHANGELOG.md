@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · A bird's letter can be answered from the web
+
+✎ Replying to a letter no longer needs Discord — the Reply is on the web too  
+✚ An Answer a letter dialog, on your sheet, in Chat's ✉ menu, and on the letter itself  
+✎ The bird still waits on an answer row now opens the reply, instead of the Send Bird dialog  
+✎ A letter whose bird has already gone no longer sits on that list as a job you cannot do
+
 ## 2026-09-12 · Patch notes get their own Discord thread
 
 ✚ A /patchnote script that posts player-facing notes into a dated thread in #patch-notes  
