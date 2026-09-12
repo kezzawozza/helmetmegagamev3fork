@@ -875,6 +875,10 @@ async function syncTagsFromYaml(prisma) {
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),
+      // The escape hatch from the ingredient-group Craft-menu hiding
+      // (schema.prisma#Tag.recipePublic, CRAFTING.md §2b) — `requirement.
+      // recipePublic: true` in docs/tags.yaml.
+      recipePublic: entry.requirement?.recipePublic ?? false,
       // Cooking (COOKING.md). `cooked` is what this tag contributes as an
       // ingredient; `ingredientSlots` is how many a recipe takes; `mealMood`
       // is a meal's own small buff before its ingredients. `cookedFrom` is

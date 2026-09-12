@@ -79,6 +79,12 @@ export function computeKnownRecipeIds(
   { visibilityBySlug = new Map(), nonAllGroupSlugs = new Set() } = {},
 ) {
   function isNonPublicRecipe(tag) {
+    // Miasma's escape hatch (schema.prisma#Tag.recipePublic): a recipe
+    // authored `recipePublic: true` is listed regardless of what its
+    // ingredient's group currently contains — checked before the group walk
+    // below, which is what a `group: items-corpse` recipe would otherwise
+    // never clear (three catalog:secret monster corpses always sit in it).
+    if (tag.recipePublic) return false;
     if (tag.catalogVisibility !== "ALL") return true;
     return (tag.requirementItems ?? []).some((item) => {
       if (item.kind === "group") return nonAllGroupSlugs.has(item.slug);

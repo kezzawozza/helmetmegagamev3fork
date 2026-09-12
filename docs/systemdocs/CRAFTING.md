@@ -232,6 +232,19 @@ products sit a level further out again: hidden even from GMs on every
 surface but the unfiltered `/gm/dev/tags` view, and Research never turns one
 up.
 
+**`recipePublic` (`Tag.recipePublic`, authored as `requirement.recipePublic:
+true`) is the escape hatch from the ingredient gate above** —
+`isNonPublicRecipe` checks it first, before the ingredient walk, and lists
+the recipe regardless of what its ingredient's group currently contains.
+Miasma is the reason it exists: it names `group: items-corpse`, and that
+group is never fully public — `nekker-corpse`, `graga-corpse` and
+`skinless-corpse` are all `catalog: secret` and always sit in it — so the
+gate above never opened for a player who had never held a body, for a
+recipe that is supposed to be common knowledge once you know Brewing
+(Basic). Bone Mask and Death Mask name the same group and do **not** set
+the flag: for those two, "you have to have held a corpse" is the intended
+discovery mechanic, not a side effect worth working around.
+
 ## 3. Projects
 
 ```

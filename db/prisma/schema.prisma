@@ -3049,6 +3049,21 @@ model Tag {
   // keep the corpse you bottled the Miasma over. See CRAFTING.md §3.
   requirementItems Json?
 
+  // Overrides the ingredient-based Craft-menu hiding CRAFTING.md §2b
+  // describes: a public recipe whose OWN catalogVisibility is ALL still
+  // drops off the menu if any requirementItems ingredient (or, for a
+  // `group:` entry, any current member of that group) isn't ALL. Miasma's
+  // `group: items-corpse` names a group three catalog:secret monster
+  // corpses always sit in (nekker/graga/skinless), so that gate never opens
+  // on its own — a player never holding a corpse never learns Brewing
+  // (Basic) makes Miasma at all, which was never the design for a basic
+  // recipe. `recipePublic: true` (docs/tags.yaml) says this ONE recipe
+  // should always be listed regardless of what its ingredient's group
+  // contains; `computeKnownRecipeIds` (web/lib/tagRequests.js) checks it
+  // before the ingredient walk. Leaves Bone Mask and Death Mask — the same
+  // group, still meant to be discovered by holding a body — alone.
+  recipePublic Boolean @default(false)
+
   // What holding (or wearing) this tag adds to one kind of Laboring, from
   // docs/tags.yaml's `laborBonus:` block. Normalised by db/lib/tagShapes.js
   // and read by db/lib/laborAccess.js when it scores a labor candidate.
