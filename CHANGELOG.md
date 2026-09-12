@@ -6,42 +6,94 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · Patch notes get their own Discord thread
+
+✚ A /patchnote script that posts player-facing notes into a dated thread in #patch-notes  
+✎ The words are never AI-generated -- the script refuses without a heading and at least one note
+
+## 2026-09-12 · Eleven rooms go soundproof, for real this time
+
+✚ Eleven rooms are soundproof — a shout inside them stays inside them
+
 ## 2026-09-12 · Crossing into the Caves warns you first
 
 ✎ A crossing into Caves or Depths now warns you the Caving Die will roll on every step, before you commit the travel  
 ✚ The Incarn role can now pick up the corrupt-only Desires the Cerberus and Sheriff already had  
 ✎ Fixed a grammar slip in the Shroom Mound's description
 
-## 2026-09-12 · The custom tag dialog can set a weight now
+## 2026-09-12 · Name who moved what, and let GMs filter the audit log by room
 
-✚ A Weight box on the custom tag dialog, so a sword invented mid-game costs something to carry instead of nothing  
-✎ Clone from… now carries an item's weight across
+✎ Transfer and pickup rows in the audit log now say who took/left/ handed what, and to or from where  
+✚ Location and Room filters on /gm/audit, and on the CSV export
 
-## 2026-09-12 · Gamemasters get a real right column in Chat, and the scene fills the screen
+## 2026-09-12 · The caving 1 lock releases automatically again
 
-✎ The chat feed uses the whole middle column again. It had been capped at a reading measure, which sat to one side, so on a wide monitor the scene read as cropped down the middle  
-✚ A GM reading a place now sees who is standing in it, its description and Examine lines, what is standing on the ground, every room with its stash and the keys that open it, and which ways out are open, shut or held  
-✚ A GM sees through a hood: the real name, with what the room sees beside it. Clicking a name opens the Dev Panel over the chat without leaving it  
-✚ A GM can say a line into the place they already have open, instead of going to the Dev Panel and picking it out of a dropdown  
-✎ A GM's ambient line reached Discord and never reached the web. It writes to the transcript now, so web-only players see the scenery too  
-✚ A GM on a phone has a right column at all now. There was no button to open one
+✎ Rolling a 1 in the caves still locks you in the zone, but it no longer holds forever — if nobody adjudicates it, the lock lifts on its own at the turn's end, same as before.
 
-## 2026-09-12 · Shouts on Discord reach the website now
 
-✎ Shouting on Discord wrote nothing down, so a shout made there was a shout the website never heard and the archive never kept. Every shout now lands on both faces, wherever it was made  
-✎ A shout on Discord names who shouted, goes quiet in a soundproof room, and stops carrying when you are tied up — none of which it did before  
-✎ One five-minute throat across both apps. Shouting on Discord and then on the web used to beat the timer once  
-✎ A die rolled on Discord shows up in Chat and the archive, and says who threw it  
-✚ A web-only character can invite somebody to a conversation from Discord  
-✎ Letting somebody into a private room needs a key or a guest row of your own, not just standing outside it  
-✎ A guest let in from Discord sees the room in Chat straight away, with no reload  
-✎ Xom's screams no longer arrive twice in the Location they were screamed in
+## 2026-09-12 · A caving 1 pins you until a GM resolves it, push or no
 
-## 2026-09-11 · Public declarations reach the caves
+✎ Rolling a 1 in the caves used to lock you in only until the turn ended — the push auto-resolved every unresolved TROUBLE roll and the hold lifted with it. Now nothing resolves a roll but a GM's Mark resolved, so the hold survives the push and holds indefinitely until adjudicated.  
+✎ A stale unresolved roll now rides the live Caving lens regardless of which turn it belongs to, and can still be resolved from History — the one thing that made the old auto-release necessary in the first place.
 
-✎ A public declaration staged for the Caves or the Depths used to go nowhere — there is no summary channel underground, so it was quietly marked undeliverable and no player ever read it  
-✚ Underground a declaration now posts into every Location channel on that level, word for word, so everyone down there reads it wherever they happen to be standing  
-✎ The tray now says which rooms took it and which bounced, and Resend retries only the ones that missed
+## 2026-09-12 · Price trims across medical, smithing and brewing, and nine new Depot items
+
+− Coffee actually cures Tired now, and costs a little more for it  
+− Bar Soap removes Unhygienic outright  
+− Black River Mud grants Inspired — your next Gambit rolls with advantage, spent the instant it wins one (db/lib/advantage.js's Lucky mechanic, minus the permanence)  
+− Perfume grants Alluring Scent  
+− Ravenheart Map reveals every surface Location at once  
+− Pointer Device Kit mints a linked pair that always know where the other one is  
+− Ration Box opens into one of five bad meals, or nothing at all  
+− Box of Junk grants 0-4 ⬢, randomly
+
+## 2026-09-12 · Canned Crabmeat joins the Merchant's shelf
+
+
+## 2026-09-12 · Low-tier consumables drop a obol at the Merchant
+
+
+## 2026-09-12 · Pain Shock and Cripple can't cross a zone for free
+
+− A dazed Pain Shock and a legless Cripple lose the free zone crossing, same as Crippled Leg and Missing Leg already do — they can still act, fight and walk a zone freely, but crossing into another one costs the Move unless someone rides or escorts them  
+− Both tags' descriptions now say so
+
+## 2026-09-12 · Merchant buy prices cut ~7% across the board
+
+
+## 2026-09-12 · Arelitz Breeding is a mastery skill, not a starting one
+
+
+## 2026-09-12 · Arelitz breeding is gated behind a skill now
+
+
+## 2026-09-12 · Fertilizer is worth twice as much now
+
+✎ Fertilized Fields gives farming +8 ⬢ instead of +4, over the same two turns
+
+## 2026-09-12 · An arterial bleed kills you the same day now
+
+✎ Arterial Bleed, Phrygian Toxin and Crucified now kill at the end of the turn you take them, instead of spending an extra day on death's door first  
+✎ Every wound, illness and treatment clock comes down a rung — most two-turn tags are one turn now, three are two, four are three  
+✎ An untreated deep wound goes septic overnight. A sprained ankle is three days instead of four, a bandage two instead of three  
+✎ Infected to dead is five turns now, not six
+
+## 2026-09-12 · Oracle: staged narration reaches it, and cave levels stop vanishing
+
+− A GM's own turn narration (StagedMessage) and its mechanical effects (StagedEffect) were never read at all. A PRIVATE staged message goes out as a DM with no room trace and no ArchiveEntry, so a landmine narrated that way was invisible to the chronicle by construction. Both are now windowed the same way beats/chat already are, into a new STAGED section.  
+− Character.zoneId is presence-level (six zones, including the two cave LEVELS, Caves and Depths), but the seat a correspondent writes for is the cave GROUP, Underground — a `parentZoneId` relationship (db/lib/seatZone.js). Every zone-equality check in oracleInput.js compared the raw zoneId directly, so anyone actually standing in the Caves or Depths was invisible to the Underground page: not in its roster, its moves, or its chat. Now resolved through Zone.seatZoneId everywhere a zoneId is compared. The /gm/oracle rail's per-zone headcount had the identical bug and is fixed the same way.
+
+## 2026-09-12 · Spectacles cost 6 obols at the Merchant now, down from 25
+
+
+## 2026-09-12 · Giant is creation-only now
+
+
+## 2026-09-12 · Oracle: a page-less zone stops borrowing someone else's chronicle
+
+
+## 2026-09-12 · Fix the five Trinket ingredients missing their inlayValue
+
 
 ## 2026-09-11 · Appraisal: see an item's worth in obols
 

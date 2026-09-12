@@ -104,10 +104,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         ballisticArmor: true,
         // ChipLabel's mastery star.
         mastery: true,
-        // So Clone from… in the custom-tag dialog carries an item's weight
-        // across — cloning a longsword to make a notched one and silently
-        // getting a weightless sword is the hole this door used to leave.
-        weightLbs: true,
         group: { select: { name: true, color: true } },
       },
     }),
@@ -351,7 +347,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       requiredTagId: t.requiredTagId,
       // Slugs, resolved to names client-side against this same list.
       removesInto: t.removesInto,
-      weightLbs: t.weightLbs,
       group: t.group,
       // Precomputed server-side so the Heal-all and Inflict-wound
       // staging buttons and the server action agree on what an

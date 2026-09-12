@@ -422,8 +422,15 @@ async function postDmBatched(discordUserId, text, extras = {}) {
 // NOT inherit its parent channel's, and Discord only takes it at creation or
 // through a PATCH — which is why db/lib/syncZones.js re-asserts it on every
 // pass beside `archived: false`.
-async function startThread(channelId, name, autoArchiveMinutes = 10080, rateLimitPerUser = null) {
-  return discordRequest(`/channels/${channelId}/threads`, {
+//
+// `messageId`, when given, threads off an EXISTING message instead
+// (`POST /channels/{id}/messages/{messageId}/threads`) — Discord derives the
+// type from the message, so `type` is omitted on that path.
+async function startThread(channelId, name, autoArchiveMinutes = 10080, rateLimitPerUser = null, messageId = null) {
+  const path = messageId
+    ? `/channels/${channelId}/messages/${messageId}/threads`
+    : `/channels/${channelId}/threads`;
+  return discordRequest(path, {
     method: "POST",
     // Thread creation is the one route Discord rate-limits by the MINUTE. A
     // Restart Game wipe creates 129 of them in a row, and giving up at the 30 s
@@ -431,7 +438,7 @@ async function startThread(channelId, name, autoArchiveMinutes = 10080, rateLimi
     maxRetryAfterMs: THREAD_CREATE_MAX_RETRY_AFTER_MS,
     body: {
       name,
-      type: 11,
+      ...(messageId ? {} : { type: 11 }),
       auto_archive_duration: autoArchiveMinutes,
       ...(rateLimitPerUser === null ? {} : { rate_limit_per_user: rateLimitPerUser }),
     },

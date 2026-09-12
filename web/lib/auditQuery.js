@@ -55,11 +55,6 @@ export function parseAuditParams(params) {
     targets: list(params?.target),
     factions: list(params?.faction),
     zones: list(params?.zone),
-    // WHERE it happened — AuditLog.locationId/roomId, forward-only (see
-    // schema.prisma). A different axis from `zones` above, which is the
-    // target's FACTION zone.
-    locations: list(params?.location),
-    rooms: list(params?.room),
     turnFrom: one(params?.turnFrom),
     turnTo: one(params?.turnTo),
     preset: DATE_PRESETS[one(params?.preset)] ? one(params.preset) : "",
@@ -277,17 +272,6 @@ export async function buildAuditWhere(filters, ctx) {
     and.push({
       targetCharacterId: { in: ctx.characters.filter((c) => set.has(c.faction?.zone?.id)).map((c) => c.id) },
     });
-  }
-
-  // WHERE it happened. Unlike faction/zone above these are real columns, so
-  // no resolving through character ids — and forward-only: a row filed
-  // before the column existed is NULL, and NULL never matches an `in`, which
-  // is the correct behaviour here (see the schema comment on AuditLog).
-  if (filters.locations.length) {
-    and.push({ locationId: { in: filters.locations } });
-  }
-  if (filters.rooms.length) {
-    and.push({ roomId: { in: filters.rooms } });
   }
 
   // Date: an explicit from/to wins over a preset, and a turn range narrows

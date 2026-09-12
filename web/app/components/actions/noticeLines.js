@@ -56,7 +56,6 @@ const LINES = {
   attack: () => `You attack.`,
   recover: (res) => (res.granted?.length ? `${res.granted.join(" and ")} back in your hands.` : `Recovered.`),
   pointer: (res) => res.line ?? `The card swings.`,
-  pointerdevice: (res) => res.line ?? `Nothing happens.`,
   arm: () => `The count has begun.`,
   disarm: () => `The count is stopped.`,
   extract: (res) => res.line ?? `You cut what you could.`,

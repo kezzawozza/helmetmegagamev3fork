@@ -202,53 +202,6 @@ function parsePlaceKey(placeKey) {
   return { kind, id };
 }
 
-// Normalises whatever a logAudit call site already has in hand into
-// {locationId, roomId} for AuditLog's own columns (see schema.prisma).
-// Accepts:
-//   - {locationId, roomId} — passed through as-is
-//   - a character-ish object with .locationId — no room, since the server
-//     never learns which thread a character-sheet button was pressed from
-//   - a place key string (loc:/room:/conv:/zone:/net:)
-//
-// A row with a room ALWAYS carries its location too, derived from
-// Room.locationId — otherwise filtering by a Location loses everything that
-// happened in its rooms, the opposite of the point. zone: and net: carry no
-// Location (a radio net stands in no zone at all) and resolve to nulls.
-async function placePairForAudit(prisma, place) {
-  const empty = { locationId: null, roomId: null };
-  if (!place) return empty;
-
-  // {locationId, roomId} passthrough, or a character-ish object — both just
-  // need a locationId key. A character has no roomId, which reads as null.
-  if (typeof place === "object" && "locationId" in place) {
-    return { locationId: place.locationId ?? null, roomId: place.roomId ?? null };
-  }
-
-  if (typeof place !== "string") return empty;
-
-  const parsed = parsePlaceKey(place);
-  if (!parsed) return empty;
-
-  if (parsed.kind === "loc") return { locationId: parsed.id, roomId: null };
-
-  if (parsed.kind === "room") {
-    const room = await prisma.room.findUnique({ where: { id: parsed.id }, select: { locationId: true } });
-    return room ? { locationId: room.locationId, roomId: parsed.id } : empty;
-  }
-
-  if (parsed.kind === "conv") {
-    const conversation = await prisma.playerThread.findUnique({
-      where: { id: parsed.id },
-      select: { locationId: true, roomId: true },
-    });
-    if (!conversation) return empty;
-    return { locationId: conversation.locationId, roomId: conversation.roomId ?? null };
-  }
-
-  // zone: and net: — no Location to stamp.
-  return empty;
-}
-
 // A SCENE is somewhere people are standing together and can hear each other:
 // a Room thread or a Conversation. Not a Location, which is the street's
 // scenery and takes no voice at all — its members hold no Send there, and
@@ -336,5 +289,4 @@ module.exports = {
   parsePlaceKey,
   isScenePlaceKey,
   forgetPlaceKeys,
-  placePairForAudit,
 };

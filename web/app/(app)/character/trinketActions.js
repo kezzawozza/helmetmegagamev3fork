@@ -32,7 +32,6 @@ import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { WORKSHOP_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
-import { consumeInspiredIfUsed } from "@lifeweb/db/lib/tagWrites";
 import { dropCharacterTag, debitResources } from "@/lib/tagEffects";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
@@ -147,14 +146,12 @@ async function trinketRequestImpl({ name, description, ingredientSlugs }) {
   const cost = TRINKET_RESOURCE_COST;
   const payer = await resolveCraftPayer(character, `character:${character.id}`, cost);
 
-  const trinketAdvantage = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
-  const diceRoll = trinketAdvantage.die;
+  const diceRoll = rollWithAdvantage(character.tags).die;
 
   let action;
   try {
     action = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
-      await consumeInspiredIfUsed(tx, character.id, trinketAdvantage.source);
       for (const line of slotPlan.spend) {
         const row = await tx.characterTag.findUnique({
           where: { characterId_tagId: { characterId: character.id, tagId: line.tagId } },

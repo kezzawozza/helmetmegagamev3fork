@@ -516,11 +516,9 @@ Place panel. The reasoning is under `ChatAside.js` below.
 Desktop, three columns — `15rem minmax(0,1fr) 20rem`, carried as
 `--chat-rail` and `--chat-aside-w` on `.chat-body` rather than as literals
 repeated across the media queries below. The right column grew from 17rem in
-the second pass: it is the game suite now, not a button strip. The feed fills
-whatever the middle column gives it. It was briefly capped at a `70ch` prose
-measure, which sounds right and looked wrong: the cap is left-aligned, so on a
-wide monitor the slack all piled up on one side and the scene read as cropped
-down the middle.
+the second pass: it is the game suite now, not a button strip. The feed's own
+content is capped at `70ch` (`.chat-feed-inner`) — the scrollbar stays at the
+column's edge and only the words are measured.
 
 The right column below is drawn as the pre-tab stack, which is what it looked
 like when Bascinet picked this. Read it for what is IN the column, not for how
@@ -1880,104 +1878,3 @@ It is the first thing to use `InspectorColumn`'s `extraTabs` — a whole tab
 rather than a `tabPreludes` section, because a prelude sits above a base tab's
 own body and this has no base tab to sit above, and because it is a live stream
 that must not take a slot in the shared per-(character, tab) fetch cache.
-
-## 9. The GM's right column
-
-A GM used to get two controls in the right column: a Noticeboard button on a
-Location that had a board, and the zone rail. Everything else in `ChatAside` is
-built from `viewer.character` in `page.js`, and GM mode is the *absence* of one
-(`web/lib/feedAccess.js#loadFeedViewer` — a GM who is also playing gets the
-ordinary player column). So the one person reading every scene in the game had
-the least on the page: no idea who was standing in the room they were reading,
-what was stashed in it, or which way out was shut.
-
-`GmAside.js` is that column, and it is deliberately the SAME SHAPE as
-`ChatAside` — the same tab strip, the same `.chat-aside-tabs` /
-`.chat-tabstrip` / `.chat-aside-panel`, the same remembered tab through
-`asideTabStore.js`, and `PlaceCard` is literally the player's own component.
-That is §8's posture one surface over: a GM reading a scene should be reading
-the player's page, not a GM-flavoured copy of it.
-
-| Tab | Drawn for | What is in it |
-|---|---|---|
-| **Place** | a Location, room or conversation | who is standing here, the place card (description + `examineLines`), the conversation's members, what is standing on the ground, and every room with its stash and the keys that open it |
-| **Place** | a zone summary | the zone's own words and the Locations under it — nobody stands in a `#summary` |
-| **Room** | a room | that room's stash, its keys, its fixtures |
-| **Travel** | a Location, room or conversation | every way out, and whether it is open, shut, keyed or held |
-| **GM** | always | one box that says a line into this place, and the board |
-
-**It is not the player's column with the buttons greyed out.** A GM has no
-hands: nothing here drops, takes, transfers or travels. Every panel is a
-readout, plus the one thing a GM does to a place, which is say something into
-it.
-
-### Where the data comes from
-
-One server action, `gmPlaceView(placeKey)` in `chat/actions.js`, called on the
-place the column has open and re-called when it changes — the load shape
-`RoomPanel`'s stash read and `TravelNodes`' node grid already use, with the
-answer stamped with the place it was asked about so a slow reply for a place
-the GM has clicked past is rendered for nobody.
-
-Not `page.js`, and that is the whole reason it is an action: a player stands in
-one place and the page re-renders when they move, but a GM changes place by
-clicking, and re-rendering the server tree on every click is the exact thing §1
-says this page does not do.
-
-It composes and decides nothing. `examineLines`, `structuresAt`,
-`locationAffordances` / `roomAffordances` (the place-half of the catalog, §5c)
-and `linksFor` were already location-keyed. The gate is
-`visibleZoneIds`, re-applied inside the action: `gmPlacesFor` only lists places
-inside the GM's `GmZoneView`, so reading one through here that the column could
-not have offered would make the action the way around the zone view.
-
-### A GM sees through a hood
-
-`db/lib/whosHere.js#whosHereGm` and `db/lib/presentedMembers.js`'s `gm` option.
-Both answer with the real name, and both add `presentedAs` — the alias the
-people in the room actually see. "Cersei Hristov, showing as a hooded figure"
-is the thing a GM reading a scene needs and the one thing the player's own list
-can never tell them.
-
-`whosHereGm` is a sibling of `whosHere` rather than a flag on it, because the
-answer is a different SHAPE and not the same shape with something withheld:
-there is no named/concealed split to make, no sighting to earn a face with, and
-no faction gate on a Role. A name in the list opens `DevPanelModal` over the
-chat, which is already built to mount over any desk without leaving it.
-
-### Saying something
-
-`gmSayHere(placeKey, text)` — the same thing `/gm/dev`'s ambient form does with
-the picker removed, since the column already knows where the GM is reading.
-Both go through `db/lib/placeLine.js`, which owns **both halves**: the Discord
-post and the `ArchiveEntry` that puts the same line on `/chat`.
-
-That mattered more than it sounds. `sendAmbientLine` used to call `postMessage`
-directly and write no row at all, so the one kind of ambient line a GM composes
-by hand was the one kind a web-only player never saw — the exact gap phase 4
-closed for every other line of scenery in the game. `placeLine` gained a
-`zoneLine` beside its `roomLine` and `locationLine`, and both callers now use
-it.
-
-A place with **no channel** is refused before anything is written — the cave
-levels are the real case, since `Caves`, `Depths` and `Underground` carry no
-`#summary` and a GM can open all three. `placeLine` writes the archive row
-whether or not the Discord half lands, so checking afterwards would leave a
-line in the transcript that was never said anywhere.
-
-**One voice, scenery.** Speaking ALOUD into a room as the bot is still the
-`/gm` slash command's job. A full-size line archived as `SYSTEM` would light
-nobody's unread dot — `feedStore.js#isNotableRow` ignores SYSTEM rows on
-purpose, so the scenery does not make places blink — and a loud line nobody is
-told about is worse than no button. That is its own change, with its own answer
-about what such a row should be. `/gm` has the same missing-archive-row gap and
-is still to fix.
-
-### On a phone
-
-The column folds into the right drawer at 900px exactly like the player's,
-which it did **not** before: the 👥 button was gated on the player payload
-existing, so a GM under 900px had no right column and no way to open one. The
-drawer CSS keys off `.chat-aside-tabs`, so the shape came for free. The zone
-rail rides inside it now rather than at the foot of the places column, which is
-where it used to be exiled to when the column it lived in folded away.

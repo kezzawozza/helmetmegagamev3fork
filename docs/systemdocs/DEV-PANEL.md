@@ -353,8 +353,7 @@ again.
 It opens on **Basics** — Name, Category, Group, Description, Seen by others on
 🔍 — with everything else folded into a collapsed `Advanced` disclosure in four
 blocks: **Behaviour** (`stackable`, `equippable`, `concealsIdentity`,
-`consumable`, `removable`, `tradeable`, `healable`, `teachable`, the two
-armour fractions and `weightLbs`), **Lifespan** (`defaultDurationTurns`,
+`consumable`, `removable`, `tradeable`, `healable`, `teachable`), **Lifespan** (`defaultDurationTurns`,
 `expiresInto`, `removesInto`), **Economy** (`pointCost`, `purchasable`,
 `purchasableAfterStart`, `sellable`, `sellablePrice`) and **Requirement**
 (`requirementTurns`, `requirementResources`, `requirementGambit`,
@@ -373,15 +372,6 @@ posture for the same reason: they address tags by `slug`, so a door whose
 rows carry none hides them rather than offering a picker whose selections
 would never match. They share one row editor; only the expiry chain is gated
 on a duration, since the removal chain is fired by the removal itself.
-
-**Weight** is the one Behaviour field nothing disables — a sack of grain is
-cargo without being equippable — and it is always optional here. Blank means
-the tag is not cargo at all (every skill, status, injury and Asset), which is
-a different claim from `0`, a real rung for a key or a letter (`CARRY.md` §1,
-and the band table in the header of `docs/tags.yaml`). `db:sync-tags` refuses
-a tradeable `items` tag with no weight; this door deliberately does not, since
-a GM patching one situation mid-turn shouldn't be stopped to price a weight.
-It still refuses a negative one.
 
 Three pairings are mirrored as disabled controls and re-checked on the server:
 `concealsIdentity` and `WORN` visibility need `equippable`, `sellablePrice`

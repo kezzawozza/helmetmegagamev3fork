@@ -16,7 +16,6 @@
 // Takes `prisma` as the first parameter (the db/lib/dm.js convention) and is
 // NOT on the @lifeweb/db barrel; require it by path.
 const { rollWithAdvantage } = require("./advantage");
-const { consumeInspiredIfUsed } = require("./tagWrites");
 const { gambitModifierTotal } = require("./gambitModifier");
 const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
@@ -302,10 +301,6 @@ async function acceptConfession(prisma, offer, responder) {
 
       // The penitent's Gambit. @@unique([characterId, turnId]) is the real
       // gate; the slot checks above were the polite version.
-      // Lucky or Inspired keeps the better of two dice (db/lib/advantage.js);
-      // Inspired is spent the instant it wins one.
-      const penitentAdvantage = rollWithAdvantage(penitent.tags, 6, { gambitOnly: true });
-      await consumeInspiredIfUsed(tx, penitent.id, penitentAdvantage.source);
       const penitentAction = await tx.action.create({
         data: {
           characterId: penitent.id,
@@ -316,7 +311,8 @@ async function acceptConfession(prisma, offer, responder) {
           moveKind: "GAMBIT",
           moveReviewStatus: "OPEN",
           description: `Confessing ${tag.name} to ${chaplain.name}.`,
-          diceRoll: penitentAdvantage.die,
+          // Lucky keeps the better of two dice (db/lib/advantage.js).
+          diceRoll: rollWithAdvantage(penitent.tags).die,
           diceModifier: gambitModifierTotal(penitent.tags, {
             hungerStreak: penitent.hungerStreak,
             mood: penitent.mood,

@@ -10,10 +10,6 @@ const yaml = require("js-yaml");
 const { docsPath, repoPath } = require("./repoPaths");
 const { CORPSE_GROUP_SLUG } = require("./constants");
 const { PAPER_GROUP_SLUG } = require("./paper");
-// Hand-duplicated from web/lib/consumeGrants.js's own copy — that file is
-// deliberately dependency-free (client components import it), so this one
-// small constant is kept in sync by hand rather than by a shared require.
-const NOTHING_TOKEN = "nothing";
 const {
   DEAD_TOKEN,
   normalizeRequirementItems,
@@ -34,8 +30,6 @@ const {
   normalizeTurnsCost,
   normalizeCures,
   validateCures,
-  normalizeRemovesOnConsume,
-  validateRemovesOnConsume,
   normalizeCuresInto,
   validateCuresInto,
   validateAdministerSkill,
@@ -532,12 +526,9 @@ async function syncTagsFromYaml(prisma) {
     }
 
     // consumesInto is validated here, against slugs already known from this
-    // document, so a typo fails cleanly instead of half-applying. "nothing"
-    // is the one reserved word that is never a tag — an empty-handed branch
-    // of a oneOf pick (web/lib/consumeGrants.js), same posture as
-    // expiresInto's `dead` token (db/lib/tagShapes.js).
+    // document, so a typo fails cleanly instead of half-applying.
     for (const { slug, unlessTags, oneOf } of normalizeConsumesInto(t.consumesInto)) {
-      if (slug !== NOTHING_TOKEN && !allTagSlugs.has(slug)) {
+      if (!allTagSlugs.has(slug)) {
         throw new Error(`docs/tags.yaml: tag "${t.slug}" consumesInto references unknown tag "${slug}"`);
       }
       for (const blocker of unlessTags) {
@@ -548,7 +539,7 @@ async function syncTagsFromYaml(prisma) {
         }
       }
       for (const alt of oneOf ?? []) {
-        if (alt !== NOTHING_TOKEN && !allTagSlugs.has(alt)) {
+        if (!allTagSlugs.has(alt)) {
           throw new Error(`docs/tags.yaml: tag "${t.slug}" consumesInto oneOf references unknown tag "${alt}"`);
         }
       }
@@ -654,13 +645,6 @@ async function syncTagsFromYaml(prisma) {
       selfSlug: t.slug,
       knownSlugs: allTagSlugs,
       cures: normalizedCures,
-    });
-    // removesOnConsume — a lighter cousin of cures with no category
-    // restriction (TAGS.md §5c note on Coffee/Bar Soap). Same posture.
-    validateRemovesOnConsume(normalizeRemovesOnConsume(t.removesOnConsume), {
-      selfSlug: t.slug,
-      knownSlugs: allTagSlugs,
-      consumable: t.consumable ?? false,
     });
     validateAdministerSkill(t.administerSkill, { selfSlug: t.slug, knownSlugs: allTagSlugs });
     validateResists(normalizeResists(t.resists), { selfSlug: t.slug, knownSlugs: allTagSlugs });
@@ -878,7 +862,6 @@ async function syncTagsFromYaml(prisma) {
       removesInto: normalizeRemovesInto(entry.removesInto),
       cures: normalizeCures(entry.cures),
       curesInto: normalizeCuresInto(entry.curesInto),
-      removesOnConsume: normalizeRemovesOnConsume(entry.removesOnConsume),
       administerable: entry.administerable ?? false,
       administerSkill: entry.administerSkill ?? null,
       poison: entry.poison ?? false,

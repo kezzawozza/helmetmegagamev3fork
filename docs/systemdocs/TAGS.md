@@ -1277,8 +1277,8 @@ thing. See "The Move economy" below for how that bills and what it replaced.
 | 3 | Moderate | 2 | 1/3 | Skilled | no |
 | 4 | Severe | 4 | 1/3 | Skilled | no |
 | 5 | Very minor surgery | 7 | 1/2 | Skilled | no |
-| 6 | Severe surgery | 13 | 1 | Expert | no |
-| 7 | Complex surgery | 13 | 1 | Expert | yes |
+| 6 | Severe surgery | 14 | 1 | Expert | no |
+| 7 | Complex surgery | 14 | 1 | Expert | yes |
 
 Tiers 5–7 were repriced by the medical pass (M2 — 6→7, 8→9, 8→14) precisely
 because a whole Move stopped being what any of them actually cost once the
@@ -1610,7 +1610,7 @@ That turn is the whole design, and three wounds are exempt from it on purpose
 (the `dead` token above) because their descriptions promise otherwise.
 `dying` is visible and carries a tier-7 cure,
 so a heroic save is still on the table — a medic with Medical (Expert), a
-Gambit, 13 ⬢ and one turn can pull someone back. What went away is the version
+Gambit, 14 ⬢ and one turn can pull someone back. What went away is the version
 where a character sat on death's door indefinitely because no GM had got to
 the Kill button. The pass is also careful in one direction: a `dying` row with
 a **null** `expiresTurn` is stamped for the next close and its holder warned

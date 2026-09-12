@@ -267,6 +267,12 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.warn(`changelog: skipped (${err.message})`);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.warn(`changelog: skipped (${err.message})`);
+  });
+}
+
+// Shared with scripts/changelog/patchnote.js, so the ✚ − ✎ format is one
+// definition, not two that can drift apart.
+module.exports = { normalizeNote, clamp };

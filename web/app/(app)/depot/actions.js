@@ -24,7 +24,6 @@ import {
   shipmentId,
   splitIntoCrates,
   crateTagData,
-  placeKeyForRoom,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -180,14 +179,6 @@ async function speakAtDepot(line) {
   ).catch((err) => console.error("Depot ambient line failed:", err));
 }
 
-// Every Depot action happens standing at the Landing Pad — the room's own
-// audit-log place. A bare id select, not the full landingPad() lookup, since
-// most call sites already resolved everything else they need.
-async function landingPadRoomId(tx = prisma) {
-  const room = await tx.room.findUnique({ where: { slug: LANDING_PAD_SLUG }, select: { id: true } });
-  return room ? placeKeyForRoom(room.id) : null;
-}
-
 async function landingPad(tx = prisma) {
   const room = await tx.room.findUnique({
     where: { slug: LANDING_PAD_SLUG },
@@ -308,7 +299,6 @@ async function depotOrderImpl({ items: rawItems }) {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_order",
       targetCharacterId: character.id,
-      place: await landingPadRoomId(tx),
       turnId: openTurn?.id ?? null,
       details: effect,
     });
@@ -397,7 +387,6 @@ async function depotCallShuttleImpl() {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_shuttle_call",
       targetCharacterId: character.id,
-      place: await landingPadRoomId(tx),
       turnId: openTurn?.id ?? null,
       details: effect,
     });
@@ -531,7 +520,6 @@ async function depotSendShuttleImpl() {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_shuttle_send",
       targetCharacterId: character.id,
-      place: await landingPadRoomId(tx),
       turnId: openTurn?.id ?? null,
       details: effect,
     });
@@ -590,7 +578,6 @@ async function depotAtmImpl({ direction: rawDirection, amount: rawAmount }) {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_atm",
       targetCharacterId: character.id,
-      place: await landingPadRoomId(tx),
       turnId: openTurn?.id ?? null,
       details: effect,
     });
@@ -649,7 +636,6 @@ async function depotCreditImpl({ direction: rawDirection, amount: rawAmount }) {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_credit",
       targetCharacterId: character.id,
-      place: await landingPadRoomId(tx),
       turnId: openTurn?.id ?? null,
       details: effect,
     });
@@ -689,7 +675,6 @@ async function depotGeneratorImpl({ on }) {
       actorDiscordUserId: session.discordUserId,
       actionType: wanted ? "depot_generator_on" : "depot_generator_off",
       targetCharacterId: character.id,
-      place: await landingPadRoomId(tx),
       details: { on: wanted, fuel: depot.generatorFuel ?? 0, turn: openTurn?.number ?? null },
     });
   });
@@ -742,7 +727,6 @@ async function depotRefuelImpl({ slug: rawSlug, quantity: rawQuantity }) {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_depot_refuel",
       targetCharacterId: character.id,
-      place: await landingPadRoomId(tx),
       turnId: openTurn?.id ?? null,
       details: effect,
     });
@@ -772,7 +756,6 @@ async function depotTurretImpl({ armed }) {
       actorDiscordUserId: session.discordUserId,
       actionType: wanted ? "depot_turret_armed" : "depot_turret_disarmed",
       targetCharacterId: character.id,
-      place: await landingPadRoomId(tx),
       details: { armed: wanted, face: depot.merchantFace ?? "", turn: openTurn?.number ?? null },
     });
   });

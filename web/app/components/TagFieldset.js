@@ -76,7 +76,6 @@ export const BLANK_TAG = {
   requirementGambit: false,
   meleeArmor: "",
   ballisticArmor: "",
-  weight: "",
   skillTagIds: [],
 };
 
@@ -100,10 +99,6 @@ export function tagToFormValues(tag) {
     // leave a cleared armour box holding the previous tag's number.
     meleeArmor: tag?.meleeArmor ?? "",
     ballisticArmor: tag?.ballisticArmor ?? "",
-    // Also the tail rather than the loop above, and for a second reason: the
-    // form key is `weight` (what docs/tags.yaml calls it) while the row carries
-    // the column name, so the loop would never match it.
-    weight: tag?.weightLbs ?? "",
     skillTagIds: (tag?.requirementSkills ?? []).map((s) => s.id).filter(Boolean),
   };
 }
@@ -320,24 +315,6 @@ export default function TagFieldset({
                 Conceals identity {!equippable && "(needs Equippable)"}
               </CheckField>
             </div>
-
-            {/* What one unit weighs, against GameConfig.carryWeightLbs
-                (CARRY.md §1). Not disabled by anything: a sack of grain is
-                cargo without being equippable. Blank and 0 are different
-                claims, which is what the tooltip is for. */}
-            <label className="field">
-              <span className="field-label flex items-center gap-1.5">
-                Weight (lb)
-                <InfoIcon text="What ONE unit weighs. Price it off the band, never by feel: 0 negligible (key, letter, badge) · 0.5–1 trivial (vial, dagger) · 2–3 light (meal, sword) · 4–6 medium (spear, helm) · 8–12 heavy (rifle, shield) · 20–30 very heavy (breastplate) · 40–75 massive (plate, a corpse) · 100 immense. A thing with an obvious real weight gets that weight. Leave it blank for anything that isn't cargo — a skill, a status, an injury, an Asset — which is a different claim from 0." />
-              </span>
-              <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={values.weight ?? ""}
-                onChange={(e) => set("weight", e.target.value)}
-              />
-            </label>
 
             {/* Numbers here, words everywhere a player looks — the same split
                 Laboring yields take. 0 turns nothing aside, 1 turns everything;

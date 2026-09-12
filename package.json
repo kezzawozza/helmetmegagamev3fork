@@ -16,6 +16,7 @@
     "dev:seed": "node scripts/dev/seed-test-data.mjs",
     "push": "bash scripts/push.sh",
     "changelog": "node scripts/changelog/log.js",
+    "patchnote": "node scripts/changelog/patchnote.js",
     "redeploy": "railway redeploy -s web --from-source -y && railway redeploy -s '@lifeweb/bot' --from-source -y",
     "deploy": "git push origin master && ./migrate.sh && npm run redeploy",
     "db:generate": "npm run generate --workspace=db",

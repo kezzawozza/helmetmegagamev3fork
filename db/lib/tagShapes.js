@@ -153,35 +153,6 @@ function validateCures(normalized, { selfSlug, knownSlugs, categoryBySlug, consu
   }
 }
 
-// removesOnConsume — a flat slug list stripped off the CONSUMER when this
-// item is consumed, deliberately lighter than cures: no category-Health
-// restriction (Tired/Exhausted/Unhygienic are none of them Health), no
-// removesInto aftermath, no fear relief, no relation to the medical pass at
-// all. For an item whose whole point is undoing an unrelated tag rather than
-// treating a wound (Coffee clearing Tired, Bar Soap clearing Unhygienic).
-function normalizeRemovesOnConsume(entries, label = "docs/tags.yaml") {
-  if (entries == null) return null;
-  if (!Array.isArray(entries) || entries.some((s) => typeof s !== "string" || !s)) {
-    throw new Error(`${label}: removesOnConsume must be a list of tag slugs`);
-  }
-  if (entries.length === 0) return null;
-  return [...new Set(entries)];
-}
-
-// Every removed slug has to exist, and the carrier has to be consumable —
-// same door as cures, minus the category check.
-function validateRemovesOnConsume(normalized, { selfSlug, knownSlugs, consumable, label = "docs/tags.yaml" }) {
-  if (!normalized) return;
-  if (!consumable) {
-    throw new Error(`${label}: tag "${selfSlug}" declares removesOnConsume but is not consumable — nothing would ever apply it`);
-  }
-  for (const slug of normalized) {
-    if (!knownSlugs.has(slug)) {
-      throw new Error(`${label}: tag "${selfSlug}" removesOnConsume references unknown tag "${slug}"`);
-    }
-  }
-}
-
 // curesInto — the per-item aftermath override sidecar (prosthetics: a
 // crafted peg-leg cures missing-leg into peg-leg, a cybernetic leg leaves
 // nothing). A mapping, not a chain: { <cured-slug>: <aftermath-slug> }.
@@ -1295,8 +1266,6 @@ module.exports = {
   validateEscalationChains,
   normalizeCures,
   validateCures,
-  normalizeRemovesOnConsume,
-  validateRemovesOnConsume,
   normalizeCuresInto,
   validateCuresInto,
   validateAdministerSkill,

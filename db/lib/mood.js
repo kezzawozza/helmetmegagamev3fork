@@ -186,13 +186,6 @@ const CONSUME_RELIEF = Object.freeze({
   cigarette: 8,
   // Any proper meal at all, and the floor under every food above.
   "ate-meal": 5,
-  // The Ration Box's bad draws (all `consumesInto: [ate-meal]` too, which is
-  // exactly why consumeReliefFor above has to let the item's own negative
-  // entry win outright rather than being maxed against ate-meal's floor).
-  "moldy-bread": -10,
-  "grasshopper-kebab": -15,
-  "jellied-meats": -10,
-  "budget-cold-soup": -5,
 });
 
 // Which Health groups sink a mood when they land. Illness, mind, minor and
@@ -795,17 +788,10 @@ async function applyArrivalMood(prisma, { characterId, fromLocationId, toLocatio
   });
 }
 
-// What one consume is worth. An item with its OWN entry is authoritative —
-// that number is what the item is, and it wins outright, sign and all. A
-// negative entry (Moldy Bread, Grasshopper Kebab: bad ration-box food, all
-// of them also `consumesInto: [ate-meal]`) has to actually land negative
-// rather than being swallowed by ate-meal's +5 floor. An item with no entry
-// of its own falls back to the largest figure among what it granted — most
-// drinks are keyed on the STATUS they grant (Coffee has no entry; its relief
-// comes from Caffeinated's) rather than the item itself. 0 for a stew.
+// What one consume is worth: the largest single figure among what it granted
+// and what it was. 0 for a stew.
 function consumeReliefFor(itemSlug, grantedSlugs = []) {
-  if (itemSlug in CONSUME_RELIEF) return CONSUME_RELIEF[itemSlug];
-  let best = 0;
+  let best = CONSUME_RELIEF[itemSlug] ?? 0;
   for (const slug of grantedSlugs) best = Math.max(best, CONSUME_RELIEF[slug] ?? 0);
   return best;
 }

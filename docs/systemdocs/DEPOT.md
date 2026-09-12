@@ -781,14 +781,12 @@ The `turnsCost^1.3` exponent is what makes rate-per-turn climb *inside* a skill 
 too, not just jump between brackets — a deliberate, mild superlinear curve so tying up
 more turns in one item is rewarded a little more than proportionally, not just
 proportionally. The formula's raw rates read 2 → 5 → 6 → 7 → 11 ⬢/turn, and the shipped
-prices now sit well above it. Three passes put them there and none re-derived the
-formula: the ~15% materials rebalance cut every rung's `resourceCost`, then on
+prices now sit well above it. Two passes put them there and neither re-derived the
+formula: the ~15% materials rebalance cut every rung's `resourceCost`, and then on
 2026-09-11 **every sell price on the ladder was lifted and the curve deliberately
 flattened** — a smith could not make a living against a Merchant who sets his own buy
-price (§4), and the bottom of the ladder paid worst of all — and then on 2026-09-12 a
-further ~5% came off `resourceCost` again (`SMITHING.md` §2), same reasoning as the
-first cut: a smith's own margin widens a little more, `sellablePrice` untouched. What
-still has to hold is the SHAPE: never falling. The shipped per-turn profits are now
+price (§4), and the bottom of the ladder paid worst of all. What still has to hold is
+the SHAPE: never falling. The shipped per-turn profits are now
 
 | rung | ⅓-turn | Simple | Moderate | High Quality | Gunpowder |
 |---|---|---|---|---|---|
@@ -843,12 +841,10 @@ better one. Integer prices are why it is 9 and not exactly 10; round the quick p
 DOWN when they will not land clean, never up, or the rung above them is overtaken.
 
 A further 5% came off the Gunpowder tier on 2026-09-10 (31→29, 20→19), again without
-re-deriving `sellablePrice`, which widens that margin once more on purpose. A second ~5%
-cut on 2026-09-12 (`SMITHING.md` §2) took the tier's own `resourceCost` 29→28 and Bore
-Pistol's 19→18, same posture — `sellablePrice` untouched again.
+re-deriving `sellablePrice`, which widens that margin once more on purpose.
 
 Two items break from their tier's baseline `resourceCost` and price accordingly: Bore
-Pistol (18 ⬢ to make, cheaper than Musketoon/Bomb's 28) still prices under them, at 56
+Pistol (19 ⬢ to make, cheaper than Musketoon/Bomb's 29) still prices under them, at 56
 against 74 — same relative gap as the tier. A materials-cost rebalance dropped the Gunpowder tier's
 `resourceCost` ~15% (37→31, 23→20) without re-deriving `sellablePrice` off the formula,
 so both sit a little above what a fresh `resourceCost + rate × turnsCost^1.3` run would

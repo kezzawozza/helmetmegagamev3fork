@@ -152,9 +152,9 @@ instead.
 |---|---|---|---|---|
 | `autoinjector` | 3 | 1 | `antidote` + `fever-draught` + `brackenmoss` (HIDDEN — needs the brewer to hold all three) | bruised, sprained-ankle, burned, minor-bleeding, minor-wound, dislocated-shoulder, cracked-ribs, blunt-force-trauma, frostbite |
 | `portable-surgical-pack` | 8 | 1 | — | — (a surgical-site enabler, not a cure — `MEDICAL.md` §3) |
-| `last-breath` | 11 | 3 (project) | `aberrant-heart` (secret) | dying |
-| `cybernetic-arm` | 15 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
-| `cybernetic-leg` | 15 | 3 (project) | `cybernetic-core` (secret) | missing-leg |
+| `last-breath` | 12 | 3 (project) | `aberrant-heart` (secret) | dying |
+| `cybernetic-arm` | 16 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
+| `cybernetic-leg` | 16 | 3 (project) | `cybernetic-core` (secret) | missing-leg |
 
 `last-breath` and the two cybernetics are `catalog: secret` and hidden by
 conjunction — the Craft menu only shows them to a `brewing-expert` already

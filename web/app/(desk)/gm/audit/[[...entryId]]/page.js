@@ -59,7 +59,7 @@ async function FreshAudit({ params, searchParams, userId }) {
   const selectedId = routeParams?.entryId?.[0] ?? null;
   const filters = parseAuditParams(rawSearch);
 
-  const [guildMembers, gmProfiles, openTurn, zones, factions, visibleZones, selectableZones, locations] = await Promise.all([
+  const [guildMembers, gmProfiles, openTurn, zones, factions, visibleZones, selectableZones] = await Promise.all([
     listGuildMembers(),
     getGmProfiles(),
     getOpenTurn(),
@@ -67,13 +67,6 @@ async function FreshAudit({ params, searchParams, userId }) {
     // levels would be four filter options nothing ever matches.
     prisma.zone.findMany({ where: { kind: { not: "CAVE_LEVEL" } }, select: { id: true, name: true } }),
     prisma.faction.findMany({ select: { id: true, name: true } }),
-    // WHERE it happened — a different axis from the Zone filter above, which
-    // is the target's faction zone. Rooms travel nested under their
-    // Location so the filter can narrow the room list to the chosen place.
-    prisma.location.findMany({
-      select: { id: true, name: true, rooms: { select: { id: true, name: true } } },
-      orderBy: { name: "asc" },
-    }),
     // The zone picker at the foot of the inspector. The audit log itself is
     // not filtered by it — a GM reading the log is answering "who did this",
     // and hiding rows would answer it wrongly — but the control belongs
@@ -94,11 +87,7 @@ async function FreshAudit({ params, searchParams, userId }) {
       orderBy: { createdAt: "desc" },
       skip: (filters.page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      include: {
-        targetCharacter: { select: { id: true, name: true } },
-        location: { select: { id: true, name: true } },
-        room: { select: { id: true, name: true } },
-      },
+      include: { targetCharacter: { select: { id: true, name: true } } },
     }),
     prisma.auditLog.count({ where }),
     // Counts beside each entry in the type picker, over the CURRENT filter
@@ -119,11 +108,7 @@ async function FreshAudit({ params, searchParams, userId }) {
     selectedId && !rows.some((r) => r.id === selectedId)
       ? await prisma.auditLog.findUnique({
           where: { id: selectedId },
-          include: {
-            targetCharacter: { select: { id: true, name: true } },
-            location: { select: { id: true, name: true } },
-            room: { select: { id: true, name: true } },
-          },
+          include: { targetCharacter: { select: { id: true, name: true } } },
         })
       : null;
 
@@ -193,8 +178,6 @@ async function FreshAudit({ params, searchParams, userId }) {
         characterName: character?.name ?? null,
       },
       target: row.targetCharacter ? { id: row.targetCharacter.id, name: row.targetCharacter.name } : null,
-      location: row.location ? { id: row.location.id, name: row.location.name } : null,
-      room: row.room ? { id: row.room.id, name: row.room.name } : null,
       turnNumber: turn?.number ?? null,
       turnPhase: turn?.phase ?? null,
     };
@@ -249,13 +232,6 @@ async function FreshAudit({ params, searchParams, userId }) {
         .sort((a, b) => a.name.localeCompare(b.name)),
         factions: factions.sort((a, b) => a.name.localeCompare(b.name)),
         zones: sortZones(zones),
-        // WHERE it happened — the room filter's options, nested under
-        // Location so the rail can narrow rooms to whichever place is picked.
-        locations: locations.map((l) => ({
-          id: l.id,
-          name: l.name,
-          rooms: l.rooms.map((r) => ({ id: r.id, name: r.name })).sort((a, b) => a.name.localeCompare(b.name)),
-        })),
         turnNumbers: ctx.turns.map((t) => t.number),
         selectableZones: selectableZones,
         visibleZoneIds: visibleZones?.map((zone) => zone.id) ?? [],

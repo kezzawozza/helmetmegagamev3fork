@@ -143,23 +143,6 @@ export default function AuditInspector({ entry, names, tagsByName, onFilter, sel
           </section>
         )}
 
-        {entry.location && (
-          <section className="audit-person p-3">
-            <h3 className="audit-group-title">Where</h3>
-            <p>
-              {entry.room ? `${entry.room.name}, ` : ""}
-              {entry.location.name}
-            </p>
-            <button
-              type="button"
-              className="btn-quiet mt-1"
-              onClick={() => onFilter(entry.room ? { rooms: [entry.room.id] } : { locations: [entry.location.id] })}
-            >
-              Everything {entry.room ? "in this room" : "at this location"}
-            </button>
-          </section>
-        )}
-
         {entry.reason && (
           <section className="audit-person p-3">
             <h3 className="audit-group-title">Reason</h3>

@@ -362,13 +362,3 @@ test("a cooked meal is priced by dishMoodTerms, not by this table", () => {
   assert.equal(consumeReliefFor("fine-meal", ["ate-meal", "dined"]), 5);
   assert.equal(consumeReliefFor("lavish-meal", ["ate-meal", "dined"]), 5);
 });
-
-test("a bad Ration Box draw lands negative, not swallowed by ate-meal's +5 floor", () => {
-  // The whole reason consumeReliefFor prefers the item's own entry outright
-  // instead of maxing it against what it granted: all four of these also
-  // consumesInto ate-meal, and a naive Math.max(-10, 5) would read 5.
-  assert.equal(consumeReliefFor("moldy-bread", ["ate-meal"]), -10);
-  assert.equal(consumeReliefFor("grasshopper-kebab", ["ate-meal"]), -15);
-  assert.equal(consumeReliefFor("jellied-meats", ["ate-meal"]), -10);
-  assert.equal(consumeReliefFor("budget-cold-soup", ["ate-meal"]), -5);
-});

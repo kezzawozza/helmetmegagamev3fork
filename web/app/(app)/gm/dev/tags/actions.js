@@ -76,19 +76,6 @@ function optionalArmor(raw, label) {
   return n;
 }
 
-// A nullable weight out of a form field: pounds, decimals allowed, no ceiling,
-// an empty box meaning "not cargo at all". parseFloat for the same reason
-// optionalArmor uses it — half a pound is a real rung on the band table in the
-// header of docs/tags.yaml, and parseInt would read 0.5 as 0.
-function optionalWeight(raw, label) {
-  if (raw === "" || raw == null) return null;
-  const n = Number.parseFloat(raw);
-  if (!Number.isFinite(n) || n < 0) {
-    throw new UserError(`${label} must be a number of pounds of at least 0, or blank.`);
-  }
-  return n;
-}
-
 // The subset of Tag a GM may set from the UI. Everything absent from this
 // list — parentTagId, requiredTagId, exclusive, depotPrice, consumesInto — is
 // catalog structure that belongs in docs/tags.yaml, where it can be reviewed
@@ -195,13 +182,6 @@ function scalarsFrom(input) {
     // a piece of gear needs the number itself, so the form takes it raw.
     meleeArmor: optionalArmor(input.meleeArmor, "Melee armour"),
     ballisticArmor: optionalArmor(input.ballisticArmor, "Ballistic armour"),
-    // What one unit weighs, against the carry cap (CARRY.md §1). Blank stays
-    // null rather than becoming 0: null is "not cargo", 0 is "cargo that
-    // weighs nothing", and carry.js reads them the same but the catalog does
-    // not. Unlike docs/tags.yaml, this door does not insist on a number for a
-    // tradeable item — a GM patching one situation mid-turn should not be
-    // stopped to price a weight.
-    weightLbs: optionalWeight(input.weight, "Weight"),
   };
 }
 
