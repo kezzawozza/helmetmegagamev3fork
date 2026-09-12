@@ -9,7 +9,7 @@ import { recordArrival, knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { conversationsFor } from "@lifeweb/db/lib/conversations";
 import { blocksOnFoot, equippedSlugs } from "@lifeweb/db/lib/mounts";
-import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
+import { parksMounts, hasAttribute, SAFE_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import {
   ESCORT_SELECT as MOVER_SELECT,
   partyOf,
@@ -140,6 +140,16 @@ async function buildMap({ character, unfogged }) {
       name: location.name,
       zoneName: location.zone?.name ?? null,
       zoneKey: zoneKey(location.zone?.name) ?? "none",
+      zoneSlug: location.zone?.slug ?? null,
+      // A CAVE_LEVEL destination the Caving Die actually rolls at —
+      // travelCost.js#crossingConfirm reads this to warn before a zone
+      // crossing lands somebody underground (CAVING.md §2). Excludes Customs
+      // and the Depot, the two `safe` Locations the Die skips (CAVING.md
+      // §2a) — warning about a die that will not roll would be simply wrong.
+      // Same field name as the /chat Travel panel's option
+      // (chat/actions.js#loadTravel), so crossingConfirm reads one signal
+      // regardless of which surface called it.
+      caveLevel: location.zone?.kind === "CAVE_LEVEL" && !hasAttribute(location, SAFE_ATTRIBUTE),
       x: at.x,
       y: at.y,
       layer: layerOfZone(location.zone),

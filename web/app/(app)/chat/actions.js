@@ -3,7 +3,7 @@
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
-import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
+import { parksMounts, hasAttribute, SAFE_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
@@ -533,6 +533,14 @@ export async function loadTravel() {
       // the way out says what it leads to, not just where.
       description: row.location.description || null,
       zoneName: row.location.zone?.name ?? null,
+      zoneSlug: row.location.zone?.slug ?? null,
+      // A CAVE_LEVEL destination the Caving Die actually rolls at —
+      // travelCost.js#crossingConfirm reads this to warn before a zone
+      // crossing lands somebody underground (CAVING.md §2). Excludes Customs
+      // and the Depot, the two `safe` Locations the Die skips (CAVING.md
+      // §2a) — warning about a die that will not roll would be simply wrong.
+      caveLevel:
+        row.location.zone?.kind === "CAVE_LEVEL" && !hasAttribute(row.location, SAFE_ATTRIBUTE),
       crossesZone: row.crossesZone,
       passable: row.passable,
       // THIS destination's own count, unlike the ambient one above — a boat's

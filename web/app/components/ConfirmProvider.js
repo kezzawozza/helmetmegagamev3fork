@@ -9,6 +9,10 @@ const ConfirmContext = createContext(null);
 // Promise-based confirm dialog usable from any client component:
 //   const confirm = useConfirm();
 //   if (!(await confirm({ title: "Delete this?", message: "This can't be undone." }))) return;
+// An optional `warning` renders as its own --warning-toned line above the
+// message, for a heads-up rather than a plain informational confirm — the
+// crossing-into-the-Caves dialog is the first user (web/lib/travelCost.js).
+// Omitted by every other caller, so this changes nothing for them.
 // Renders one shared modal here instead of every caller rolling its own
 // modal-overlay/modal-panel markup.
 export function useConfirm() {
@@ -27,6 +31,7 @@ export default function ConfirmProvider({ children }) {
       setState({
         title: options.title ?? "Are you sure?",
         message: options.message ?? "",
+        warning: options.warning ?? null,
         confirmLabel: options.confirmLabel ?? "Confirm",
         cancelLabel: options.cancelLabel ?? "Cancel",
       });
@@ -44,6 +49,11 @@ export default function ConfirmProvider({ children }) {
       {children}
       {state && (
         <Modal title={state.title} width="narrow" onClose={() => settle(false)}>
+          {state.warning && (
+            <p className="mt-3 text-sm text-warning">
+              {state.warning}
+            </p>
+          )}
           {state.message && (
             <p className="mt-3 text-sm text-muted">
               {state.message}

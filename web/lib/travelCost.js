@@ -37,6 +37,22 @@ export function openedByLabel(tagName) {
   return `Opened by your ${tagName}.`;
 }
 
+// What to say about the destination itself, when it's worth a second look
+// before Go. Returns null for an ordinary crossing — most of them.
+//
+// Depths gets its own line rather than sharing Caves' wording: it has no
+// `safe` Location at all (CAVING.md §2a — Customs and the Depot, the only two,
+// are both in Caves), and its loot column runs far hotter at the dangerous end
+// (CAVING.md §3 — 25% rare / 7% extremely-rare / 3% nearly-impossible, against
+// Caves' 1.95% / 0% / 0.05%), so "the Die is harsher here" is true, not just
+// scarier-sounding.
+function crossingWarning(option) {
+  if (!option.caveLevel) return null;
+  return option.zoneSlug === "depths"
+    ? "The Caving Die rolls on every step down here, and nowhere in the Depths is safe from it."
+    : "The Caving Die rolls on every step through the Caves — most of it is quiet, but not all of it.";
+}
+
 // The question asked before a zone crossing, on both surfaces.
 //
 // A crossing is the one move here that is expensive and cannot be taken back:
@@ -61,9 +77,11 @@ export function crossingConfirm(option, freeLeft, partySize = 0) {
         ? " One person comes with you."
         : ` ${partySize} people come with you.`
       : "";
+  const warning = crossingWarning(option);
   return {
-    title: `Cross into ${option.zoneName}?`,
+    title: `${warning ? "⚠ " : ""}Cross into ${option.zoneName}?`,
     message: `${option.name} is in ${option.zoneName}. ${price}${party}`,
+    warning,
     confirmLabel: "Go",
     cancelLabel: "Stay",
   };
