@@ -9,6 +9,7 @@ import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
 import CavingDesk from "./CavingDesk";
+import DesireDesk from "./DesireDesk";
 import { getMoveHistory } from "./actions";
 import InspectorColumn from "@/app/components/InspectorColumn";
 import useInspectorOverlay, { InspectorToggle } from "@/app/components/useInspectorOverlay";
@@ -174,6 +175,7 @@ export default function Workspace({
   moves: moveRows,
   cavingRolls: cavingRollRows,
   otherRows,
+  desireRows,
   stagedEffects: stagedEffectRows,
   stagedMessages: stagedMessageRows,
   gmProfiles,
@@ -247,7 +249,7 @@ export default function Workspace({
   }
   // A tab open across the deploy can still hold the deleted "requests" lens
   // in sessionStorage, which would render an empty rail until it was clicked.
-  const LENSES = ["moves", "caving", "other", "history"];
+  const LENSES = ["moves", "caving", "other", "desires", "history"];
   const lens = LENSES.includes(rail.lens) ? rail.lens : "moves";
   const setLens = useCallback((l) => setRail((r) => ({ ...r, lens: l })), [setRail]);
   const historyKind = rail.historyKind ?? "moves";
@@ -503,6 +505,10 @@ export default function Workspace({
   const selectedCavingTurnLabel = historyCaving
     ? (resolvedTurns?.find((t) => t.id === historyCaving.turnId)?.label ?? null)
     : null;
+  // A Desire claim, unlike a Move or Caving roll, is not turn-scoped — it has
+  // no live/history split, so this looks straight at the page's own rows
+  // (desireRows), the same way otherRows never gets a store or a history arm.
+  const selectedDesire = selected?.type === "desire" ? (desireRows ?? []).find((d) => d.id === selected.id) : null;
 
   // Net staged resources/tag points and pending tag ops per character, over
   // everything not yet applied by a push.
@@ -686,6 +692,7 @@ export default function Workspace({
           moves={moves}
           cavingRolls={cavingRolls}
           otherRows={otherRows}
+          desireRows={desireRows}
           onInspect={inspect}
           onOpenMove={openMove}
           visibleZoneNames={visibleZoneNames}
@@ -777,15 +784,25 @@ export default function Workspace({
               onOpenDev={onOpenDev}
               gmProfiles={gmProfiles}
             />
+          ) : selectedDesire ? (
+            <DesireDesk
+              key={selectedDesire.id}
+              desire={selectedDesire}
+              onInspect={inspect}
+              onClose={deselect}
+              registerEscape={registerEscape}
+              onOpenDev={onOpenDev}
+            />
           ) : (
             <div className="desk-empty">
               {selected ? (
                 <p className="text-sm text-muted">
                   That row isn&apos;t in the open turn&apos;s queue any more — the turn just pushed, or
-                  another GM Rejected the Move. Pick another from the rail.
+                  another GM Rejected the Move (or reviewed the claim from another tab). Pick another from
+                  the rail.
                 </p>
               ) : (
-                <p className="text-sm text-muted">Pick a Move or a Caving roll from the queue.</p>
+                <p className="text-sm text-muted">Pick a Move, a Caving roll, or a Desire claim from the queue.</p>
               )}
             </div>
           )}

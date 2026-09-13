@@ -354,6 +354,55 @@ export function avatarReviewRow(c, { usernameById, catatonicIds }) {
   };
 }
 
+// A fulfilled, catalog-backed Desire claim waiting on a GM
+// (docs/systemdocs/DESIRES.md §6, `db/lib/desireReview.js`). Shares
+// `avatarReviewRow`'s two-line row shape: this lens is queue-shaped like
+// every other one here, so it needs no second vocabulary for search/sort.
+//
+// Unlike the portrait queue, an ALREADY-REVIEWED row stays in the rail
+// rather than dropping out — `desireReviewWhere()` deliberately doesn't
+// filter on `reviewedAt`, so a GM can see what they already cleared. The row
+// component is what dims it and hides its buttons.
+export const DESIRE_CLAIM_INCLUDE = {
+  template: { select: { name: true, tier: true, verifyQuery: true } },
+  character: {
+    select: {
+      id: true,
+      name: true,
+      updatedAt: true,
+      zoneId: true,
+      zone: { select: { name: true } },
+      discordUserId: true,
+    },
+  },
+};
+
+export function desireClaimRow(d, { usernameById, catatonicIds } = {}) {
+  const c = d.character;
+  const reviewed = Boolean(d.reviewedAt);
+  return {
+    id: d.id,
+    characterId: c.id,
+    characterName: c.name,
+    avatarVersion: c.updatedAt.getTime(),
+    catatonic: catatonicIds?.has(c.id) ?? false,
+    discordUsername: usernameById?.get?.(c.discordUserId) ?? "",
+    zoneId: c.zoneId ?? null,
+    zoneName: c.zone?.name ?? "",
+    desireName: d.text,
+    tier: d.template?.tier ?? null,
+    points: d.points,
+    slotIndex: d.slotIndex,
+    turnNumber: d.setTurnNumber,
+    reason: d.reason ?? "",
+    reviewedAt: reviewed ? d.reviewedAt.getTime() : null,
+    verifyQuery: d.template?.verifyQuery ?? "",
+    statusLabel: reviewed ? "Reviewed" : "Waiting",
+    searchText: `${c.name} ${d.text}`,
+    createdAtMs: d.createdAt.getTime(),
+  };
+}
+
 export function cavingRollRow(c, { usernameById, catatonicIds }) {
   const nameFor = usernameById.get(c.character.discordUserId) ?? c.character.discordUserId;
   return {

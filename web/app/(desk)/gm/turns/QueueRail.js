@@ -18,8 +18,9 @@ import IconButton from "@/app/components/IconButton";
 import MatchHint from "@/app/components/MatchHint";
 import { CheckIcon, CloseIcon } from "@/app/components/icons";
 import { useRefresh } from "@/app/components/useRefresh";
-import { cancelHoldAsGm, keepAvatar, rejectAvatar } from "./actions";
+import { cancelHoldAsGm, keepAvatar, rejectAvatar, keepDesireClaim, rejectDesireClaim } from "./actions";
 import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
+import { useConfirm } from "@/app/components/ConfirmProvider";
 
 // The left rail: the work queue as a compact list, using useTableState (the
 // same filter/search/sort engine every table uses) minus the table markup.
@@ -117,6 +118,23 @@ const cavingSearchMap = (r) => ({
 });
 const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
 
+// The Desires lens — fulfilled, catalog-backed claims waiting on a GM
+// (docs/systemdocs/DESIRES.md §6). Unreviewed sorts first; a reviewed row
+// stays in the list, dimmed, rather than dropping out.
+const DESIRE_STATUS_OPTIONS = ["Waiting", "Reviewed"];
+const DESIRE_STATUS_RANK = { Waiting: 0, Reviewed: 1 };
+const DESIRE_FILTER_DEFS = [
+  { key: "zone", label: "Zone", value: (r) => r.zoneName },
+  { key: "status", label: "Status", value: (r) => r.statusLabel, options: DESIRE_STATUS_OPTIONS },
+];
+const desireSearchMap = (r) => ({
+  name: r.characterName,
+  desire: r.desireName,
+  zone: r.zoneName,
+  status: r.statusLabel,
+  text: r.reason,
+});
+
 // The Other lens — everything holding somebody in place this turn
 // (docs/systemdocs/ATTACK.md). Attacks, ambushes and Safe intercepts in one
 // list, because to a GM reading the queue they are one question: who cannot
@@ -151,11 +169,12 @@ const OTHER_TONES = { Holding: "bad", New: "warn", Stopped: "neutral", "Called o
 
 // The keyboard lens flips, and what ⏎ selects in each lens. The History
 // lens over the OPEN turn selects a live "move" — see historyIsOpenTurn.
-const LENS_FOR_KEY = { m: "moves", c: "caving", o: "other", h: "history" };
+const LENS_FOR_KEY = { m: "moves", c: "caving", o: "other", h: "history", d: "desires" };
 const SELECTION_TYPE_FOR_LENS = {
   moves: "move",
   caving: "caving",
   history: "history",
+  desires: "desire",
 };
 
 function RailFilters({ table, filterDefs, searchPlaceholder, header, children }) {
@@ -375,6 +394,100 @@ function AvatarReviewRow({ row, matchFor, onInspect, active, kbd }) {
   );
 }
 
+// A fulfilled Desire claim waiting on a GM (docs/systemdocs/DESIRES.md §6).
+// The row's own lens now, not folded into Other — a claim holds nobody in
+// place and carries no fight to read at a glance, so it earns its own list
+// rather than a second shape crammed into that one.
+//
+// Same reasoning as AvatarReviewRow, verbatim: .desk-queue-row IS a button,
+// so Keep and Reject are siblings in .desk-queue-rowset rather than nested
+// inside it, and this uses the same guarded refresh() rather than a
+// desk-store patch — a Desire is a Character row, not one of the four types
+// web/lib/deskRows.js#deskPatchFor knows how to re-read.
+//
+// An already-reviewed row keeps its place in the rail (desireReviewWhere()
+// deliberately doesn't filter reviewedAt out) but loses its buttons and
+// dims via [data-auto] — the same "already dealt with, no GM attention
+// needed" affordance a Travel Move's row already wears.
+function DesireClaimRow({ row, matchFor, onInspect, onSelect, active, kbd }) {
+  const confirm = useConfirm();
+  const [refresh] = useRefresh();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const reviewed = Boolean(row.reviewedAt);
+
+  const open = () => {
+    onSelect?.({ type: "desire", id: row.id });
+    onInspect?.(row.characterId, row.characterName);
+  };
+
+  const answer = async (fn) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = noteActionVersion(await fn({ desireId: row.id }));
+      // A second GM answering the same claim first is the ordinary case, not
+      // an exception — see AvatarReviewRow's identical comment.
+      if (result?.error) setError(result.error);
+    } catch (err) {
+      setError(mutationErrorMessage(err));
+    }
+    setBusy(false);
+    refresh();
+  };
+
+  const reject = async () => {
+    if (busy) return;
+    const ok = await confirm({
+      title: "Reject this claim?",
+      message: `Takes ${row.points} tag point${row.points === 1 ? "" : "s"} back off ${row.characterName} and tells them so.`,
+      confirmLabel: "Reject",
+      cancelLabel: "Keep it",
+    });
+    if (!ok) return;
+    answer(rejectDesireClaim);
+  };
+
+  return (
+    <div className="desk-queue-rowset" data-active={active} data-kbd={kbd ? "" : undefined}>
+      <button
+        type="button"
+        className="desk-queue-row"
+        data-auto={reviewed || undefined}
+        data-row-key={row.id}
+        onClick={open}
+      >
+        <span className="flex items-center gap-2">
+          <CharacterAvatar
+            characterId={row.characterId}
+            name={row.characterName}
+            version={row.avatarVersion}
+            catatonic={row.catatonic}
+            size={40}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1.5 truncate font-medium">
+              <span className="truncate">{row.characterName}</span>
+              <MatchHint match={matchFor(row)} />
+            </span>
+            <span className="block truncate text-xs text-muted">
+              {row.desireName} · {row.points} pt{row.points === 1 ? "" : "s"}
+            </span>
+            <span className="block truncate text-xs text-muted">{error ?? (row.reason ? `» ${row.reason}` : "No reason given")}</span>
+          </span>
+        </span>
+      </button>
+      {!reviewed && (
+        <span className="desk-queue-actions">
+          <IconButton icon={CheckIcon} label="Keep" disabled={busy} onClick={() => answer(keepDesireClaim)} />
+          <IconButton icon={CloseIcon} label="Reject" disabled={busy} onClick={reject} />
+        </span>
+      )}
+    </div>
+  );
+}
+
 // What each person is in this row FOR, in the fewest words that stay true.
 const HOLD_ROLE_LABELS = {
   attacking: "attacking",
@@ -535,6 +648,7 @@ export default function QueueRail({
   moves,
   cavingRolls,
   otherRows,
+  desireRows,
   onInspect,
   onOpenMove,
   visibleZoneNames,
@@ -560,6 +674,7 @@ export default function QueueRail({
   const moveFilterDefs = useMemo(() => MOVE_FILTER_DEFS, []);
   const cavingFilterDefs = useMemo(() => CAVING_FILTER_DEFS, []);
   const otherFilterDefs = useMemo(() => OTHER_FILTER_DEFS, []);
+  const desireFilterDefs = useMemo(() => DESIRE_FILTER_DEFS, []);
   const moveSearchMap = useMemo(() => makeMoveSearchMap(tagsById), [tagsById]);
 
   // The rail's persisted view state. Each table's filters live under their
@@ -623,6 +738,15 @@ export default function QueueRail({
     [otherRows, inView],
   );
 
+  const rankedDesireRows = useMemo(
+    () =>
+      inView(desireRows).map((r) => ({
+        ...r,
+        queueOrder: (DESIRE_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
+      })),
+    [desireRows, inView],
+  );
+
   // All five tables mount permanently so lens flips keep each one's filters.
   // rankBySearch: true — no sortable headers to preserve, a query reorders.
   const moveTable = useTableState({
@@ -651,6 +775,15 @@ export default function QueueRail({
     initialSort: { key: "queueOrder", dir: "asc" },
     pageSize: 1000,
     ...makeFiltersProps("other"),
+  });
+  const desireTable = useTableState({
+    rows: rankedDesireRows,
+    filterDefs: desireFilterDefs,
+    searchMap: desireSearchMap,
+    rankBySearch: true,
+    initialSort: { key: "queueOrder", dir: "asc" },
+    pageSize: 1000,
+    ...makeFiltersProps("desires"),
   });
   // The History lens is the Moves lens over a past turn.
   const historyTable = useTableState({
@@ -692,6 +825,7 @@ export default function QueueRail({
     if (storedQuery.moves) moveTable.setQuery(storedQuery.moves);
     if (storedQuery.caving) cavingTable.setQuery(storedQuery.caving);
     if (storedQuery.other) otherTable.setQuery(storedQuery.other);
+    if (storedQuery.desires) desireTable.setQuery(storedQuery.desires);
     if (storedQuery.history) historyTable.setQuery(storedQuery.history);
     if (storedQuery["history-caving"]) historyCavingTable.setQuery(storedQuery["history-caving"]);
   }
@@ -706,6 +840,7 @@ export default function QueueRail({
           moves: moveTable.query,
           caving: cavingTable.query,
           other: otherTable.query,
+          desires: desireTable.query,
           history: historyTable.query,
           "history-caving": historyCavingTable.query,
         },
@@ -721,6 +856,7 @@ export default function QueueRail({
     moveTable.query,
     cavingTable.query,
     otherTable.query,
+    desireTable.query,
     historyTable.query,
     historyCavingTable.query,
   ]);
@@ -751,9 +887,18 @@ export default function QueueRail({
       moves: movesShown,
       caving: cavingTable.visible,
       other: otherTable.visible,
+      desires: desireTable.visible,
       history: historyIsCaving ? historyCavingTable.visible : historyShown,
     }),
-    [movesShown, cavingTable.visible, otherTable.visible, historyIsCaving, historyCavingTable.visible, historyShown],
+    [
+      movesShown,
+      cavingTable.visible,
+      otherTable.visible,
+      desireTable.visible,
+      historyIsCaving,
+      historyCavingTable.visible,
+      historyShown,
+    ],
   );
   const visibleRows = rowsForLens[lens] ?? movesShown;
   const historySelectionType = historyIsCaving ? "caving" : historyIsOpenTurn ? "move" : "history";
@@ -821,6 +966,15 @@ export default function QueueRail({
     restoredScrollLens.current = lens;
   }, [viewRestored, lens, visibleRows.length]);
 
+  // The Desires tab count — UNREVIEWED rows in view, not the total, so the
+  // number on the tab is the one that tells a GM whether opening it is worth
+  // it (the Moves tab counts everything shown, but every Move shown is
+  // something to look at; a reviewed Desire row is not).
+  const desireUnreviewedCount = useMemo(
+    () => desireTable.visible.filter((r) => !r.reviewedAt).length,
+    [desireTable.visible],
+  );
+
   const clampedKbdIndex = kbdCursorId ? visibleRows.findIndex((r) => r.id === kbdCursorId) : -1;
   const kbdId = clampedKbdIndex >= 0 ? visibleRows[clampedKbdIndex]?.id : null;
 
@@ -829,7 +983,7 @@ export default function QueueRail({
     function onKey(e) {
       const key = e.key;
       const isNav = key === "ArrowDown" || key === "ArrowUp" || key === "j" || key === "k" || key === "Enter";
-      const isLensKey = key === "m" || key === "r" || key === "c" || key === "o" || key === "h";
+      const isLensKey = key === "m" || key === "r" || key === "c" || key === "o" || key === "h" || key === "d";
       if (!isNav && !isLensKey) return;
       if (hasModifier(e)) return;
       if (dialogHoldsKeyboard()) return;
@@ -889,6 +1043,9 @@ export default function QueueRail({
         </button>
         <button type="button" aria-pressed={lens === "other"} onClick={() => onLens?.("other")}>
           Other
+        </button>
+        <button type="button" aria-pressed={lens === "desires"} onClick={() => onLens?.("desires")}>
+          Desires{desireUnreviewedCount > 0 ? ` (${desireUnreviewedCount})` : ""}
         </button>
         <button type="button" aria-pressed={lens === "history"} onClick={() => onLens?.("history")}>
           History
@@ -1013,6 +1170,30 @@ export default function QueueRail({
             )}
           </div>
         </>
+      ) : lens === "desires" ? (
+        <>
+          <RailFilters
+            table={desireTable}
+            filterDefs={desireFilterDefs}
+            searchPlaceholder="name, desire, reason…"
+          />
+          <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
+            {desireTable.visible.map((row) => (
+              <DesireClaimRow
+                key={row.id}
+                row={row}
+                matchFor={desireTable.matchFor}
+                onInspect={onInspect}
+                onSelect={onSelect}
+                active={selected?.type === "desire" && selected.id === row.id}
+                kbd={lens === "desires" && kbdId === row.id}
+              />
+            ))}
+            {desireTable.total === 0 && (
+              <p className="p-3 text-sm text-muted">No desire claims to review.</p>
+            )}
+          </div>
+        </>
       ) : lens === "other" ? (
         <>
           <RailFilters
@@ -1096,7 +1277,7 @@ export default function QueueRail({
           </div>
         </>
       )}
-      <p className="desk-rail-hint text-xs text-muted">↑↓ / j k navigate · ⏎ open · m/r/c/h lens · esc close</p>
+      <p className="desk-rail-hint text-xs text-muted">↑↓ / j k navigate · ⏎ open · m/r/c/d/h lens · esc close</p>
     </aside>
   );
 }

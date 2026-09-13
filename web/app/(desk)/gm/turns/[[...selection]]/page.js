@@ -10,6 +10,7 @@ import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
 import { turnEndsAt } from "@lifeweb/db/lib/turnClock";
 import { avatarReviewWhere } from "@lifeweb/db/lib/avatarReview";
+import { desireReviewWhere } from "@lifeweb/db/lib/desireReview";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { deployVersion } from "@/lib/deployVersion";
@@ -20,11 +21,13 @@ import {
   STAGED_MESSAGE_INCLUDE,
   CAVING_ROLL_INCLUDE,
   AVATAR_REVIEW_SELECT,
+  DESIRE_CLAIM_INCLUDE,
   moveRow,
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
   avatarReviewRow,
+  desireClaimRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
 import { deskRowContext, structuresByLocation } from "@/lib/deskRows";
@@ -126,6 +129,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     attacks,
     interceptHits,
     avatarsToReview,
+    desireClaims,
     stagedEffects,
     stagedMessages,
     roster,
@@ -186,6 +190,17 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       where: avatarReviewWhere(prisma),
       orderBy: { avatarSetAt: "desc" },
       select: AVATAR_REVIEW_SELECT,
+    }),
+    // The Desires lens — fulfilled, catalog-backed claims still waiting on a
+    // GM (docs/systemdocs/DESIRES.md §6). NOT scoped to the open turn, same
+    // reasoning as the portrait queue above: a claim is a thing that happened
+    // and is still waiting, not a thing that happens again every turn. Newest
+    // first, capped — a GM works the top of this list, not the bottom of it.
+    prisma.desire.findMany({
+      where: desireReviewWhere(),
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: DESIRE_CLAIM_INCLUDE,
     }),
     // Open-turn staging plus every unapplied stray from earlier turns —
     // the strays feed the missed-push banner.
@@ -335,6 +350,12 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     ...avatarsToReview.map((c) => avatarReviewRow(c, otherCtx)),
   ];
 
+  // The Desires lens' own row list — a fifth lens, not folded into Other:
+  // a desire claim is a thing to review, not a hold on anyone, and it needs
+  // no Move chips or fight strip.
+  const desireCtx = { usernameById, catatonicIds };
+  const desireRows = desireClaims.map((d) => desireClaimRow(d, desireCtx));
+
   const effectCtx = { usernameById, locationNameById, openTurn };
   const messageCtx = { usernameById, openTurn };
   const effects = stagedEffects.map((e) => stagedEffectRow(e, effectCtx));
@@ -466,6 +487,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         moves: moves,
         cavingRolls: cavingRows,
         otherRows: otherRows,
+        desireRows: desireRows,
         stagedEffects: effects,
         stagedMessages: messages,
         gmProfiles: gmProfilesById,

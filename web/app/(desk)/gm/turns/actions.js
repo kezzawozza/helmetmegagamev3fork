@@ -21,6 +21,9 @@ import {
 } from "@lifeweb/db/lib/stagedDelivery";
 import { publicPostTargets } from "@lifeweb/db/lib/publicPostTargets";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
+import { DesireRevokeRefused, revokeDesireCore } from "@lifeweb/db/lib/desireReview";
+import { getGmProfiles } from "@/lib/gmProfiles";
+import { turnAt } from "@/lib/auditQuery";
 import { dropCharacterTag } from "@/lib/tagEffects";
 import { UserError, guarded } from "@/lib/actionResult";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
@@ -1570,6 +1573,157 @@ async function rejectAvatarImpl({ characterId }) {
 }
 
 
+// ─── The Desires review queue (docs/systemdocs/DESIRES.md §6) ─────────────
+//
+// A claim pays its points the instant a player types a reason and submits —
+// Keep and Reject decide whether the claim STANDS, they do not gate it. Same
+// posture as keepAvatarImpl/rejectAvatarImpl just above, and Reject is the
+// desk's own copy of the Dev Panel's revokeDesireGmImpl
+// (web/app/(app)/gm/dev/characters/[characterId]/actions.js) — same row
+// lock, same core, so there is exactly one way a claimed Desire ever comes
+// back off.
+
+// Idempotent by construction: the updateMany only flips a row still waiting
+// (reviewedAt null), so a second press — another GM, or a double-click —
+// finds nothing left to claim and simply reports it, rather than throwing.
+async function keepDesireClaimImpl({ desireId }) {
+  const session = await requireGm();
+  const { count } = await prisma.desire.updateMany({
+    where: { id: String(desireId ?? ""), reviewedAt: null },
+    data: { reviewedAt: new Date(), reviewedBy: session.discordUserId },
+  });
+  return { ok: true, kept: count > 0 };
+}
+
+async function rejectDesireClaimImpl({ desireId }) {
+  const session = await requireGm();
+  const id = String(desireId ?? "");
+  const desire = await prisma.desire.findUnique({
+    where: { id },
+    include: { character: { select: { id: true, name: true, discordUserId: true, status: true } } },
+  });
+  if (!desire) throw new UserError("That claim is gone.");
+  if (desire.reviewedAt) throw new UserError("That claim was already reviewed.");
+
+  await prisma.$transaction(async (tx) => {
+    // Same row lock revokeDesireGmImpl takes, so a Reject here and a Dev
+    // Panel revoke of the same row can't both take the points back.
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${desire.characterId} FOR UPDATE`;
+    try {
+      await revokeDesireCore(tx, { characterId: desire.characterId, desireId: id, desire });
+    } catch (e) {
+      // db/lib takes no dependency on web/lib/actionResult, so its deliberate
+      // refusal arrives as a DesireRevokeRefused and is recast here. Only
+      // that one — anything else rethrows untouched and stays redacted,
+      // rather than being shown to a GM as a rule (mirrors
+      // gm/dev/.../actions.js#revokeDesireGmImpl).
+      if (e instanceof DesireRevokeRefused) throw new UserError(e.message);
+      throw e;
+    }
+    await tx.desire.update({
+      where: { id },
+      data: { reviewedAt: new Date(), reviewedBy: session.discordUserId },
+    });
+  });
+
+  // Same actionType the Dev Panel's revoke writes, so /gm/audit reads both
+  // the same rather than growing a second word for one event.
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_desire_cancelled",
+      targetCharacterId: desire.characterId,
+      details: { desireId: id, desireName: desire.text, points: desire.points },
+    },
+  });
+
+  // A NOTICE, not a CONVERSATION — the game said it, and a canned line
+  // sitting at the top of the GM inbox as mail is the exact pattern DM_KIND
+  // was built to stop (see rejectAvatarImpl above for the identical call).
+  if (desire.character.discordUserId && desire.character.status === "ALIVE") {
+    await sendDm(desire.character.discordUserId, "Your desire was rejected.", {
+      kind: DM_KIND.NOTICE,
+    }).catch((err) => console.error("Desire rejection DM failed:", err));
+  }
+
+  revalidatePath("/character");
+  return { name: desire.character.name };
+}
+
+// A read-only slice of one character's audit trail, for the Desire desk's
+// verify-it-yourself filter (DESIRES.md §6, DesireDesk.js). `query` narrows
+// to rows whose `details` blob mentions it, the same ILIKE
+// AuditLog_details_trgm_idx exists to serve (web/lib/auditQuery.js#detailsMatchIds)
+// — not a second index, the same one.
+const CHARACTER_AUDIT_SLICE_LIMIT = 40;
+
+async function getCharacterAuditSliceImpl({ characterId, query }) {
+  await requireGm();
+  const id = String(characterId ?? "");
+  if (!id) throw new UserError("No character given.");
+  const q = (query ?? "").toString().trim();
+
+  let idFilter = null;
+  if (q) {
+    const matched = await prisma.$queryRaw`
+      SELECT "id" FROM "AuditLog"
+      WHERE "targetCharacterId" = ${id} AND "details"::text ILIKE ${`%${q}%`}
+      ORDER BY "createdAt" DESC
+      LIMIT ${CHARACTER_AUDIT_SLICE_LIMIT}
+    `;
+    idFilter = matched.map((r) => r.id);
+    if (!idFilter.length) return { rows: [] };
+  }
+
+  const [rows, gmProfiles, guildMembers, turns] = await Promise.all([
+    prisma.auditLog.findMany({
+      where: idFilter ? { id: { in: idFilter } } : { targetCharacterId: id },
+      orderBy: { createdAt: "desc" },
+      take: CHARACTER_AUDIT_SLICE_LIMIT,
+      include: {
+        targetCharacter: { select: { id: true, name: true } },
+        location: { select: { id: true, name: true } },
+        room: { select: { id: true, name: true } },
+      },
+    }),
+    getGmProfiles(),
+    listGuildMembers(),
+    prisma.turn.findMany({ select: { number: true, phase: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
+  ]);
+
+  // Same DTO shape /gm/audit's own page.js builds (toDto), trimmed to what
+  // describeAudit/AuditSegments actually read — this panel reuses their
+  // rendering, not their whole query surface.
+  const usernameById = new Map(guildMembers.map((m) => [m.id, m.globalName ?? m.username ?? m.id]));
+  const gmIdSet = new Set(gmProfiles.map((p) => p.discordUserId));
+
+  return {
+    rows: rows.map((row) => {
+      const turn = turnAt(turns, row.createdAt);
+      const isSystem = row.actorDiscordUserId === "system";
+      return {
+        id: row.id,
+        actionType: row.actionType,
+        createdAt: row.createdAt.toISOString(),
+        reason: row.reason ?? null,
+        details: row.details ?? null,
+        actor: {
+          discordUserId: row.actorDiscordUserId,
+          name: isSystem ? "The turn engine" : (usernameById.get(row.actorDiscordUserId) ?? row.actorDiscordUserId),
+          kind: isSystem ? "system" : gmIdSet.has(row.actorDiscordUserId) ? "gm" : "player",
+          characterId: null,
+          characterName: null,
+        },
+        target: row.targetCharacter ? { id: row.targetCharacter.id, name: row.targetCharacter.name } : null,
+        location: row.location ? { id: row.location.id, name: row.location.name } : null,
+        room: row.room ? { id: row.room.id, name: row.room.name } : null,
+        turnNumber: turn?.number ?? null,
+        turnPhase: turn?.phase ?? null,
+      };
+    }),
+  };
+}
+
 // CALLING A FIGHT OFF FROM THE DESK (docs/systemdocs/ATTACK.md §7).
 //
 // Only the attacker can break off, which leaves a GM reading the Other lens
@@ -1676,4 +1830,13 @@ export async function keepAvatar(input) {
 }
 export async function rejectAvatar(input) {
   return guarded(() => rejectAvatarImpl(input));
+}
+export async function keepDesireClaim(input) {
+  return guarded(() => keepDesireClaimImpl(input));
+}
+export async function rejectDesireClaim(input) {
+  return guarded(() => rejectDesireClaimImpl(input));
+}
+export async function getCharacterAuditSlice(input) {
+  return guarded(() => getCharacterAuditSliceImpl(input));
 }
