@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Black Robes no longer cost a Move to craft
+
+✎ A Thanati can now put on their Black Robes for free -- no more spending a whole Routine just to dress for the rite
+
 ## 2026-09-13 · Obols are now a taxable currency
 
 ✚ A faction Leader or Treasurer can now tax a member's Obols, alongside Resources  
