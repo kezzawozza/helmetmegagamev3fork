@@ -10,8 +10,11 @@ const { DM_ACTION, dmAction } = require("./dmActions");
 const PENDING_TAX_DECLINE_PREFIX = "tax-decline:";
 
 // Bascinet's words, verbatim.
-function taxDmText({ taxerName, taxerRole }) {
-  return `You were taxed by ${taxerName}, the ${taxerRole}. You may refuse.`;
+function taxDmText({ taxerName, taxerRole, amount }) {
+  return (
+    `You were taxed by ${taxerName}, the ${taxerRole}. You may refuse.\n` +
+    `-# You are being taxed for ${amount} ⬢. The tax will land at the end of the turn.`
+  );
 }
 
 // Raw component JSON, the same shape as db/lib/lobby.js#declineComponents —
@@ -68,7 +71,7 @@ async function fileTax(prisma, { taxer, taxerRole, turn, targets }) {
       if (!target?.discordUserId) return null;
       return {
         discordUserId: target.discordUserId,
-        content: taxDmText({ taxerName: taxer.name, taxerRole }),
+        content: taxDmText({ taxerName: taxer.name, taxerRole, amount: row.amount }),
         components: taxDeclineComponents(row.id),
         meta: dmAction(DM_ACTION.PENDING_TAX, row.id),
       };
