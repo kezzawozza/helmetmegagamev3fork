@@ -119,11 +119,15 @@ export function craftFamilyLabel(family) {
 // caller that bills a heal or an administer fee.
 export function craftMoveCost(
   tag,
-  { quantity = 1, allowance = null, freeLeft = null, family: familyOverride = null } = {},
+  // No default on `family` — it has to stay `undefined` when the caller
+  // omits it, not fall to `null`, or a caller passing `family: null` on
+  // purpose (moveFamilyOf's never-spills override) would be indistinguishable
+  // from one that never passed the option at all: `??` treats both the same.
+  { quantity = 1, allowance = null, freeLeft = null, family: familyOverride } = {},
 ) {
   const turns = tag?.requirementTurns ?? 1;
   const perTurn = tag?.requirementPerTurn ?? null;
-  const family = familyOverride ?? craftFamily(tag);
+  const family = familyOverride !== undefined ? familyOverride : craftFamily(tag);
   const free = (qty) => ({
     kind: "free",
     family,

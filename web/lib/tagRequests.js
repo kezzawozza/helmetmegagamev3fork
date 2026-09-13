@@ -234,6 +234,24 @@ export function craftFamily(tag) {
   return [...set].filter(Boolean).sort()[0] ?? "craft";
 }
 
+// A recipe whose `perTurn` ration must be a hard wall, never a Move spill —
+// craftMoveCost() only refuses past the allowance ("capped") for a recipe
+// with no family to bill the overflow to (CRAFTING.md §2a's bone-mask
+// example); anything else with a real family spills into the Move instead.
+// Obol is real smith work by its skill gate — it needs the forge and the
+// Skilled rung like anything else on the ladder — but minting a coin isn't
+// forging, so it shouldn't be able to eat a smith's Routine the way a
+// fifth Broadsword does. This is the one override: not a second meaning
+// for craftFamily() itself (still read everywhere else — the obol-spend
+// mix-in, the ledger, distilling), just what a *Move price* is allowed to
+// see. Extend the set if another recipe ever wants the same shape.
+const NEVER_SPILLS_MOVE_SLUGS = new Set(["obol"]);
+
+export function moveFamilyOf(tag) {
+  if (NEVER_SPILLS_MOVE_SLUGS.has(tag?.slug)) return null;
+  return craftFamily(tag);
+}
+
 // `ct.poisonMarker` (M4 fix round): already a stripped, gated boolean by the
 // time it reaches here (character/page.js and play/page.js both derive it
 // server-side before the sheet crosses into a client component) — never the

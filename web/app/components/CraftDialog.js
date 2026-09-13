@@ -2,7 +2,7 @@
 
 import PartySelect from "./PartySelect";
 import Select from "./Select";
-import { needsWorkshop } from "@/lib/tagRequests";
+import { needsWorkshop, craftFamily } from "@/lib/tagRequests";
 import { craftFamilyLabel, formatMoveFraction } from "@/lib/craftBudget";
 import {
   CUSTOM_NAME_MAX,
@@ -85,6 +85,14 @@ export default function CraftDialog({
   selfId,
   hasMoved,
   hasWorkshop = false,
+  // Smithing only (docs/systemdocs/SMITHING.md, requestActions.js's
+  // resolveObolSpend): how many held Obols to put toward this recipe's cost
+  // before the payer covers the rest — an obol is one ⬢ (DEPOT.md), so this
+  // is the same money, just already in your pocket. `heldObols` is read off
+  // the sheet the same way every other ingredient count on this dialog is.
+  obolsSpent = "0",
+  onObolsSpent,
+  heldObols = 0,
 }) {
   const project = projects.find((p) => p.id === projectId) ?? null;
   const site = sites.find((s) => s.id === siteId) ?? null;
@@ -103,6 +111,12 @@ export default function CraftDialog({
   const { custom, surcharge } = customCraftFor(chosen, { customName, customDescription });
   const cost =
     ((chosen?.requirementResources ?? 0) + surcharge) * (chosen?.stackable ? qty : 1);
+  const isSmithing = chosen ? craftFamily(chosen) === "smithing" : false;
+  const obolsAvailable = Math.min(heldObols, cost);
+  const obolsToSpend = isSmithing
+    ? Math.min(Math.max(0, Number(obolsSpent) || 0), obolsAvailable)
+    : 0;
+  const remainingCost = cost - obolsToSpend;
   // Smith's work needs a forge in reach (SMITHING.md). Said here so a player
   // sees it before committing; craftRequest re-checks it regardless — and
   // grants the same fieldwork exemption the server does, or the hint would
@@ -362,7 +376,20 @@ export default function CraftDialog({
                   </p>
                 </>
               )}
-              {cost > 0 && (
+              {isSmithing && cost > 0 && obolsAvailable > 0 && (
+                <label className="field">
+                  <span className="field-label">Pay with your own Obols</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={obolsAvailable}
+                    value={obolsToSpend}
+                    onChange={(e) => onObolsSpent(e.target.value)}
+                  />
+                </label>
+              )}
+              {remainingCost > 0 && (
                 <PartySelect
                   label="Paid for by"
                   value={payerKey}
@@ -399,7 +426,13 @@ export default function CraftDialog({
                         // one way it differs from a project of your own.
                         `${turns} turns of work, and not necessarily yours alone: anyone standing at the site can put their Move into it. This turn is the first.`
                       : `${turns} turns of work. This turn is the first; come back here to continue.`}
-                {cost > 0 ? ` Costs ${cost} ⬢, paid now.` : " Costs nothing."}
+                {cost > 0
+                  ? obolsToSpend > 0
+                    ? remainingCost > 0
+                      ? ` Costs ${cost} ⬢: ${obolsToSpend} from your own Obols, ${remainingCost} paid now.`
+                      : ` Costs ${cost} ⬢, all ${obolsToSpend} from your own Obols.`
+                    : ` Costs ${cost} ⬢, paid now.`
+                  : " Costs nothing."}
                 {/* Past the free ration: a recipe with a craft family bills
                     the overflow to the Move; one without (a butcher's mask)
                     simply cannot go past it. */}
