@@ -4,10 +4,12 @@
 // Same format as the changelog — a heading, then ✚ − ✎ notes — but the words
 // are never derived from a commit, a branch, or a diff. There is no fallback
 // source for them, on purpose: this script refuses outright if you don't
-// supply a heading and at least one note. AI-generated prose does not belong
-// in a player-facing patch note; the human at the keyboard writes it.
+// supply at least one note. AI-generated prose does not belong in a
+// player-facing patch note; the human at the keyboard writes it. The heading
+// is always the flat "Patch notes" — every entry is one more note under that
+// same banner, not a headline of its own.
 //
-//   npm run patchnote -- "Crossing into the Caves warns you first" \
+//   npm run patchnote -- \
 //     "+A confirmation before you step into the dark" \
 //     "-The old silent crossing" \
 //     "Cave rooms are quieter now"
@@ -21,6 +23,11 @@ const { normalizeNote, clamp } = require("./log");
 // Not a secret — see db/lib/roleIds.js and scripts/changelog/log.js for the
 // reasoning. The env var is a scratch-channel override for testing.
 const CHANNEL_ID = process.env.PATCHNOTE_CHANNEL_ID || "1548386629562007672";
+
+// The heading is always this — never taken from an argument. See the header
+// comment for why: a patch note is one more line under a flat banner, not
+// its own headline.
+const SUBJECT = "Patch notes";
 
 function threadTitle() {
   // "Sat Sep 12" — no comma. toLocaleDateString gives "Sat, Sep 12", so build
@@ -42,8 +49,8 @@ function collect(argv, flag) {
   return out;
 }
 
-// Positionals not consumed by a flag: the first is the heading, the rest are
-// notes — same shape as `npm run push -- "Subject" "note" "note"`.
+// Positionals not consumed by a flag are all notes — there is no heading
+// argument any more, the subject is always SUBJECT above.
 function positionals(argv) {
   const out = [];
   for (let i = 0; i < argv.length; i += 1) {
@@ -110,22 +117,16 @@ async function main() {
   const argv = process.argv.slice(2);
   const dryRun = argv.includes("--dry-run");
 
-  const [subject, ...rest] = positionals(argv);
-  const notes = [...rest, ...collect(argv, "--note")].map(normalizeNote).filter(Boolean);
+  const notes = [...positionals(argv), ...collect(argv, "--note")].map(normalizeNote).filter(Boolean);
 
-  if (!subject || !subject.trim()) {
-    console.error('patchnote: no heading given. Usage: npm run patchnote -- "Heading" "+note" "-note" "note"');
-    process.exitCode = 1;
-    return;
-  }
   if (notes.length === 0) {
-    console.error("patchnote: no notes given. A patch note needs at least one — write it yourself, it isn't generated for you.");
+    console.error('patchnote: no notes given. Usage: npm run patchnote -- "+note" "-note" "note"');
     process.exitCode = 1;
     return;
   }
 
   const title = threadTitle();
-  const text = body(subject, notes);
+  const text = body(SUBJECT, notes);
 
   if (dryRun) {
     console.log(`patchnote: would post to #patch-notes (${CHANNEL_ID}), thread "${title}"\n\n${text}`);
