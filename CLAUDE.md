@@ -913,6 +913,58 @@ hours ago.
 **Pushing to `master` is a deploy.** Read the Deploy workflow section before
 pushing anything that carries a schema change.
 
+### Running several local sessions at once
+
+**Never point two local Claude Code sessions at this checkout directly, at
+the same time.** Two sessions editing the same working tree and the same
+`.git` index have no isolation from each other — one session's edit, `git
+add`, or revert can land on top of another session's unfinished work with no
+error and no conflict, just silent corruption. This is exactly how the
+checkout has ended up, more than once, with a large uncommitted diff that
+touches dozens of unrelated files and that no session recognizes as its own
+— two or more sessions' half-finished edits merged together by accident, not
+one session's coherent work.
+
+**Each local session gets its own git worktree instead.** A worktree is a
+second folder off the same `.git` — same commit history and objects, its own
+files, its own index — so sessions in separate worktrees can never step on
+each other's uncommitted state. This doesn't weaken the master-only rule
+above: work still lands on `master`, fast, no PR, no review. It just moves
+where a session's WIP briefly lives before that.
+
+```
+git worktree add ../lifeweb-work-a -b session-a   # once, from an existing checkout
+cd ../lifeweb-work-a
+# ...edit, commit...
+git fetch origin && git checkout master && git merge --ff-only session-a && git push
+# or skip the local switch: git push origin session-a:master
+git worktree remove ../lifeweb-work-a && git branch -d session-a
+```
+
+In Claude Code itself, call `EnterWorktree` at the start of the session — it
+creates an isolated worktree under `.claude/worktrees/` on a fresh branch and
+switches the session into it automatically; `ExitWorktree` merges and cleans
+up when the session is done. Do this every time more than one local session
+will be touching the repo, not just when a task feels risky — the corruption
+above comes from ordinary concurrent edits, not from anything unusual.
+
+The "never `git checkout -b`" rule further up is about not letting work sit
+on a long-lived feature branch instead of shipping to `master`. A
+session-scoped worktree branch that exists for one working session and gets
+fast-forwarded into `master` and deleted before the session ends is not
+that — it's the required setup for any session that isn't the only one
+touching the checkout.
+
+If a push to `master` gets rejected because another session pushed first,
+that's fine and cheap: `git fetch && git rebase origin/master`, then push
+again. That failure is loud and easy — the one worth avoiding is the quiet
+one above, where two sessions share a working tree and neither ever finds
+out until a page crashes.
+
+Cloud sessions don't need this — each already runs in its own isolated
+environment and only ever meets `master` at push time, which is the ordinary
+git-conflict case, not the shared-working-tree one.
+
 ### Contributors: fork's master, then a PR into upstream
 
 A contributor's checkout mirrors Bascinet's master-only habit, just one repo
