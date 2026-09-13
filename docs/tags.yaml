@@ -15117,7 +15117,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 0
       resourceCost: 1
       skills: [thanati]
       gambit: false

@@ -35,7 +35,7 @@ Recall Comrades, the hideout is a pointer on `GameState`.
 |---|---|
 | `flesh-of-tzchernobog` | Craftable by a Thanati: 1 ⬢, Dead Simple, 3 a turn. Eating it grants `dark-inspiration`. Not a meal — no `ate-meal`. |
 | `dark-inspiration` | Status, 2 turns (`durationTurns`). Half of what makes a chant count. |
-| `black-robes` | BODY armor, `visible: worn`. Craftable by a Thanati, 1 ⬢, one Routine. The other half of a counted chant. The combat line in its description is prose for a GM. |
+| `black-robes` | BODY armor, `visible: worn`. Craftable by a Thanati, 1 ⬢, no Move cost (`turnsCost: 0`, uncapped — not Dead Simple, just free). The other half of a counted chant. The combat line in its description is prose for a GM. |
 | `thanati-mask` | Pre-existing headgear, conceals identity. |
 | `grimoire` | Craftable from one `blank-book`, Dead Simple, 1 a turn. Holding it unlocks the **Grimoire** document. |
 | `madness` | The Rite of Madness's yield. Two turns, and description-only: nothing enforces the attacking, a GM does. |
