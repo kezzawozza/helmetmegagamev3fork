@@ -4451,8 +4451,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
-    expiresInto: [drained]
+    durationTurns: 2
     removesInto: [drained]
     healable: true
     requirement:

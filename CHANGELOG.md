@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Poisoned lasts two turns and no longer leaves you Drained
+
+✎ Poisoned now lasts 2 turns instead of 1  
+✎ When Poisoned runs out on its own it just ends; being cured of it still leaves you Drained
+
 ## 2026-09-13 · A long message splits instead of bouncing
 
 ✚ The chat box counts as you approach the limit, then says what it will do: "sends as 2 messages"  
