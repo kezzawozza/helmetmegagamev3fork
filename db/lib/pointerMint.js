@@ -60,7 +60,7 @@ async function pointerGroupId(db, baseTag) {
 // catch-and-retry inside $transaction can only raise 25P02 on the second
 // try. Callers grant the finished rows inside their own transaction instead
 // (attachPointerPair, below), the same split photoMint.js's mintPhoto and
-// consumeTagRequestImpl's photographNothingImpl already use.
+// the camera's print used to.
 //
 // `baseTag` is the Pointer Device Kit's own catalog row — its category,
 // group, weight and stackability (false: two devices are two objects, not

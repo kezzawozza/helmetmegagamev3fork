@@ -18,7 +18,7 @@
 
 const { PAPER_GROUP_SLUG, noteCode } = require("./paper");
 const { createWithRetry } = require("./paperMint");
-const { photoName, BLANK_PHOTO_CAPTION, BLANK_PHOTO_NAME } = require("./photo");
+const { photoName } = require("./photo");
 const { addToStack } = require("./tagWrites");
 
 // Same shape paperMint.js's customSlug uses, and for the same reason: two
@@ -129,22 +129,9 @@ async function mintPhoto(db, ownerId, { subject, caption, subjectCharacterId = n
   return attachPhoto(db, ownerId, tag);
 }
 
-// What comes out when the camera is pointed at nothing — the Consume path,
-// which DOES have something to keep atomic (the camera coming off the stack),
-// so it uses createPhotoRow + attachPhoto rather than this.
-async function createBlankPhotoRow(db, ownerId) {
-  return createPhotoRow(db, ownerId, {
-    name: (attempt) => (attempt === 0 ? BLANK_PHOTO_NAME : `${BLANK_PHOTO_NAME} (${noteCode()})`),
-    caption: BLANK_PHOTO_CAPTION,
-    // Nobody is in it, so there is nothing to keep private.
-    inspectVisibility: "ALWAYS",
-  });
-}
-
 module.exports = {
   CAMERA_SLUG: "instant-camera",
   createPhotoRow,
-  createBlankPhotoRow,
   attachPhoto,
   mintPhoto,
 };

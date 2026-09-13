@@ -143,7 +143,7 @@ import { rollCavingOnArrival, cavingHoldFor } from "@lifeweb/db/lib/cavingPass";
 import { revealSurface } from "@lifeweb/db/lib/locationVisits";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { breakSeal } from "@lifeweb/db/lib/paperMint";
-import { CAMERA_SLUG, attachPhoto, createBlankPhotoRow } from "@lifeweb/db/lib/photoMint";
+import { CAMERA_SLUG } from "@lifeweb/db/lib/photoMint";
 import {
   POINTER_DEVICE_KIT_SLUG,
   isPointerDeviceSlug,
@@ -2510,53 +2510,6 @@ async function pointerDeviceKitRequestImpl({ session, character, held }) {
   return { ok: true, line: "You open the kit. Two devices, always pointing at each other." };
 }
 
-async function photographNothingImpl({ session, character, held }) {
-  const openTurn = await getOpenTurn();
-
-  // The row is created BEFORE the transaction, because its name-collision
-  // retry cannot survive inside one — Postgres aborts a transaction on the
-  // first failed statement (db/lib/photoMint.js#createWithRetry). If the
-  // transaction below then rolls back, the print is left in nobody's hands,
-  // which reaches no browser and gets swept at the next Restart Game.
-  const photo = await createBlankPhotoRow(prisma, character.id);
-
-  await prisma.$transaction(async (tx) => {
-    await dropCharacterTag(tx, character.id, held.tagId, 1);
-    await attachPhoto(tx, character.id, photo);
-
-    const effect = {
-      tagId: held.tagId,
-      tagName: held.tag.name,
-      // Enough for an Undo to put the camera back and find the print again.
-      restore: {
-        tagId: held.tagId,
-        source: held.source,
-        expiresTurn: held.expiresTurn,
-        quantity: 1,
-      },
-      photoTagId: photo.id,
-      // The shape every other consumable files, so the GM desk's "Became" line
-      // carries the print, and the
-      // shared CONSUME_TAG undo takes it back out of their hands. `photoTagId`
-      // above only tells that undo to delete the ROW as well, which is the one
-      // thing a runtime print needs that a catalog grant does not.
-    };
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_consume_tag",
-      targetCharacterId: character.id,
-      // REQUESTS.md §1a — its sibling consume audit row carries this now
-      // (review fix, round 3); this one was the one place it didn't.
-      turnId: openTurn?.id ?? null,
-      details: effect,
-    });
-  });
-
-  await afterInventoryChange([character.id]);
-  revalidateAll();
-  return { ok: true, name: photo.name };
-}
-
 // Cracking a crate — a Depot shipment, or one a player packed themselves
 // (packageItemsRequestImpl). It used to be a button on /depot; it is a
 // Consume now, which is both one verb fewer to learn and the only thing that
@@ -2772,10 +2725,11 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     return breakSealRequestImpl({ session, character, held });
   }
 
-  // Same reasoning, same road: an Instant Camera consumes into a runtime Photo
-  // row rather than into anything the catalog can name.
+  // An Instant Camera is never spent — it only takes pictures through the 📸
+  // reaction. Refused here too, because a row synced before `consumable` came
+  // off would otherwise fall through and eat the camera for nothing.
   if (held.tag.slug === CAMERA_SLUG) {
-    return photographNothingImpl({ session, character, held });
+    throw new UserError("That tag can't be consumed.");
   }
 
   // And a Pointer Device Kit, for the same reason again: it mints two linked

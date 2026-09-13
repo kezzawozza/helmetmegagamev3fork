@@ -15657,10 +15657,8 @@ tags:
   # purchasableAfterStart).
   #
   # Reusable: the 📸 reaction reads the film-holder's camera as a gate and
-  # never spends it. `consumable` is the OTHER thing you can do with one —
-  # point it at nothing and keep the print — and it deliberately carries no
-  # consumesInto:, because db/lib/photoMint.js mints the row instead. Same
-  # special-case shape a SEALED letter already has in consumeTagRequestImpl.
+  # never spends it. Not consumable: a Use button once swapped the camera
+  # for a blank photo, and players ate cameras by mistake.
   instant-camera:
     catalog: all
     name: Instant Camera
@@ -15674,7 +15672,7 @@ tags:
     visible: true
     purchasable: true
     purchasableAfterStart: false
-    consumable: true
+    consumable: false
     sellable: true
     sellablePrice: 16
     depotPrice: 23

@@ -728,11 +728,9 @@ neither:
   moment twice is the same photo.
 
 **The camera is not spent.** Holding one is the entire gate; film is not a
-system anybody asked for. The *other* thing you can do with a camera is Consume
-it on `/character`, which points it at nothing and hands back a blank Photo —
-that path is special-cased in `consumeTagRequestImpl` exactly the way a
-`SEALED` letter is, because a photo is a runtime row no `consumesInto:` slug
-could ever name.
+system anybody asked for. It is not consumable, and `consumeTagRequestImpl`
+refuses it by slug as well — a Use button that swapped it for a blank Photo
+used to eat players' cameras.
 
 ### Four handlers that are now only Discord
 

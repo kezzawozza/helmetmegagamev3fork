@@ -36,10 +36,6 @@ function photoCaption(readout) {
   return [appearance, tags].filter(Boolean).join(" ");
 }
 
-// What the camera prints when nobody is in front of it. Bascinet's line.
-const BLANK_PHOTO_CAPTION = "A nice photo.";
-const BLANK_PHOTO_NAME = "Photo";
-
 // `Photo (Young Man)`. The subject goes in the NAME rather than only the
 // description, because a photo is something you sort through a stack of — a
 // pile of rows all called "Photo" would be unusable, and the name is the only
@@ -48,4 +44,4 @@ function photoName(subject) {
   return `Photo (${subject})`;
 }
 
-module.exports = { photoCaption, photoName, BLANK_PHOTO_CAPTION, BLANK_PHOTO_NAME };
+module.exports = { photoCaption, photoName };
