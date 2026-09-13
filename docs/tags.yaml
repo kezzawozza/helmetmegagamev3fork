@@ -679,7 +679,7 @@ tags:
     name: Cruel
     category: general
     group: general-personality
-    description: "It's a call, a need. Unlocks Desires about cruelty."
+    description: "It's a call, a need. Unlocks Desires about cruelty. Your torture rolls get +1."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1156,7 +1156,7 @@ tags:
     name: Brave
     category: general
     group: general-traits
-    description: "Fearlessness isn't a choice. It's the natural state of your mind. It takes a lot for you to become Afraid."
+    description: "Fearlessness isn't a choice, it's the natural state of your mind. Everything frightens you half as much."
     fighting: { tree: both, tiers: 0.5 }
     pointCost: 5
     purchasable: true
@@ -1267,7 +1267,7 @@ tags:
     name: Iron Liver
     category: general
     group: general-traits
-    description: "You can drink grown men under the table. Grown women, too. Even children. It takes more drinks for you to feel the negative effects of being drunk."
+    description: "You can drink grown men under the table. Grown women, too. Even children. After the first drink, it takes two more to move you a rung further down the bottle."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -5430,7 +5430,7 @@ tags:
     name: Fishing Boat
     category: assets
     group: assets-property
-    description: "A flat-bottomed boat with a pole. While equipped, gives the user 1 extra Zone crossing each turn between the Forest, Black Hills and Marshes, and adds +1 to Fishing Labor. It can carry four people."
+    description: "A flat-bottomed boat with a pole. While equipped, gives the user 1 extra Zone crossing each turn between the Forest, Black Hills and Marshes, and adds +1 to Fishing Labor. It can carry four people. You can't have it out at the same time as a {tag:horse} or a {tag:cart}."
     pointCost: 4
     visible: true
     tradeable: true

@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Four tags say their rules again
+
+✎ Iron Liver says it takes two more drinks to move you a rung  
+✎ Cruel says your torture rolls get +1  
+✎ Brave says everything frightens you half as much  
+✎ The Fishing Boat says it can't be out with a horse or a cart
+
 ## 2026-09-13 · GMs can check Desire claims
 
 ✎ Claiming a Desire now asks you to say how you pulled it off, and the answer is required  
