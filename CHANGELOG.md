@@ -6,6 +6,9 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Arelitz Breeding's recipes stay hidden until you have the mastery
+
+
 ## 2026-09-13 · Lavish and Fine Meal cook with any real ingredient again
 
 ✎ Deep Morel, Tea, Honey, Sweets, Fish Roe and 40 others are legal meal ingredients again  
