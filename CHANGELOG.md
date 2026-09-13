@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Everything the patch-notes push accidentally wiped is back
+
+✎ The nine new Depot items work again: Coffee, Bar Soap, Black River Mud, Perfume, Ravenheart Map, Pointer Device Kit, Ration Box, Box of Junk, and the ~5% medical, smithing and brewing price trims  
+✎ Opening a Box of Junk or a Ration Box now tells you what you got  
+✎ The audit log names who moved what again, and GMs can filter it by room  
+✎ The custom tag dialog can set a weight again  
+✎ Incarn can have corrupt desires again  
+✎ One Caving Die warning on a crossing, not two  
+✎ A GM's scenery line reaches the website again, not just Discord
+
 ## 2026-09-13 · Talking through a gate
 
 ✎ Speech in a public room at either end of a gate (Fortress Gatehouse, both Town gates, Customs) is now heard in the public rooms on the other side, as the speaker, in small text  
