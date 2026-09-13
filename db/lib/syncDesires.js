@@ -112,6 +112,9 @@ async function syncDesiresFromYaml(prisma) {
     if (d.cooldownTurns != null && !(Number.isInteger(d.cooldownTurns) && d.cooldownTurns > 0)) {
       throw new Error(`docs/desires.yaml: desire "${d.slug}" has a cooldownTurns that is not a positive whole number`);
     }
+    if (d.verify != null && (typeof d.verify !== "string" || d.verify.trim() === "")) {
+      throw new Error(`docs/desires.yaml: desire "${d.slug}" has a "verify" that is not a non-empty string`);
+    }
     if (d.oncePerLife != null && typeof d.oncePerLife !== "boolean") {
       throw new Error(`docs/desires.yaml: desire "${d.slug}" has a non-boolean oncePerLife`);
     }
@@ -160,6 +163,9 @@ async function syncDesiresFromYaml(prisma) {
       families: entry.families ?? [],
       onceEver,
       cooldownTurns: entry.cooldownTurns ?? null,
+      // Empty string is not "unset" here any more than for the other
+      // scalars — an absent or blank `verify:` both mean null.
+      verifyQuery: entry.verify?.trim() || null,
       // Default AND. Only an explicit `combine: or` joins anyTags/anyRoles
       // with OR — see db/lib/desireGates.js#evalRequires.
       requiresAnyOf: entry.requires?.combine === "or",

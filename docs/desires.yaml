@@ -313,6 +313,14 @@ families:
   #     must not lock a Sanctuary character's bread-and-butter Desire.
 
 desires:
+  # `verify:` (optional, on any entry below): one search string, synced to
+  # DesireTemplate.verifyQuery, that prefills a GM's audit-log filter when
+  # they open this claim in the review queue — a head start, not proof. Write
+  # one only for a desire whose claim leaves a mechanical trace a GM can
+  # actually search for (a named tag or item eaten, drunk, bought). Most
+  # entries below are social or narrative — a GM has to judge those by
+  # reading the scene, not by searching a log — and correctly have no
+  # `verify:` at all.
   # === 4a. Ungated ==========================================================
   con-a-noble:
     name: Con a member of royalty or a courtier out of resources or an item.
@@ -333,36 +341,42 @@ desires:
 
   drink-alcohol:
     name: Drink alcohol
+    verify: "Alcohol"
     tier: 1
     families: [alcohol]
     cooldownTurns: 3
 
   drink-ravenheart-red:
     name: Drink Ravenheart Red
+    verify: "Ravenheart Red"
     tier: 2
     families: [alcohol]
     cooldownTurns: 3
 
   smoke-a-cigarette:
     name: Smoke a cigarette
+    verify: "Cigarette"
     tier: 1
     families: [drugs]
     cooldownTurns: 3
 
   take-a-drug:
     name: Take a recreational drug — not alcohol
+    verify: "drug"
     tier: 2
     families: [drugs]
     cooldownTurns: 3
 
   try-a-new-drug:
     name: Use a drug or tonic you have never used before.
+    verify: "drug"
     tier: 2
     families: [drugs]
     cooldownTurns: 3
 
   overdose:
     name: Overdose on a recreational drug, to near death
+    verify: "drug"
     tier: 3
     families: [drugs, mortality]
 
@@ -450,6 +464,7 @@ desires:
 
   fine-meal:
     name: Have a fine meal
+    verify: "Fine Meal"
     tier: 1
     families: [food]
     requires:
@@ -458,6 +473,7 @@ desires:
 
   lavish-meal:
     name: Have a lavish meal
+    verify: "Lavish Meal"
     tier: 2
     families: [food]
     cooldownTurns: 3
@@ -529,6 +545,7 @@ desires:
 
   get-jewelry:
     name: Buy some jewelry
+    verify: "Jewelry"
     tier: 2
     families: [vanity, wealth]
 
@@ -555,24 +572,28 @@ desires:
 
   drink-sake:
     name: Drink sake
+    verify: "Sake"
     tier: 2
     families: [alcohol]
     cooldownTurns: 3
 
   drink-tea-or-coffee:
     name: Drink tea or coffee
+    verify: "Tea"
     tier: 1
     families: [food]
     cooldownTurns: 3
 
   listen-to-boombox:
     name: Listen to music on a boombox
+    verify: "Boombox"
     tier: 1
     families: [social]
     cooldownTurns: 5
 
   use-a-censer:
     name: Use a censer
+    verify: "Censer"
     tier: 1
     cooldownTurns: 5
     families: [faith]
@@ -592,6 +613,7 @@ desires:
   # keeps access through its own food carve-out, no separate gated entry.
   eat-sweets:
     name: Eat sweets
+    verify: "Sweets"
     tier: 1
     families: [food]
     cooldownTurns: 3
@@ -755,6 +777,7 @@ desires:
 
   drink-to-unconscious:
     name: Drink until you blackout.
+    verify: "Alcohol"
     tier: 2
     families: [alcohol]
     requires:
@@ -781,6 +804,7 @@ desires:
   # recipe leaks nowhere.
   own-a-death-mask:
     name: Own a Death Mask
+    verify: "Death Mask"
     tier: 3
     families: [status, mortality]
 
@@ -934,6 +958,7 @@ desires:
 
   sell-stolen-jewelry:
     name: Sell stolen jewelry to the Merchant
+    verify: "Jewelry"
     tier: 4
     families: [theft]
     requires:
@@ -969,6 +994,7 @@ desires:
 
   install-cybernetic:
     name: Install a cybernetic part on a living person.
+    verify: "Cybernetic"
     tier: 4
     families: [medical]
     requires:
@@ -976,6 +1002,7 @@ desires:
 
   test-drugs:
     name: Test drugs on someone
+    verify: "drug"
     tier: 3
     families: [medical, cruelty]
     requires:
@@ -1025,6 +1052,7 @@ desires:
 
   sell-drugs:
     name: Sell drugs
+    verify: "drug"
     tier: 1
     families: [drugs, theft]
     requires:
@@ -1070,6 +1098,7 @@ desires:
 
   cup-of-tea:
     name: Enjoy a cup of tea
+    verify: "Tea"
     tier: 2
     families: [food]
     requires:
@@ -1523,6 +1552,7 @@ desires:
 
   cook-a-lavish-meal:
     name: Cook a lavish meal
+    verify: "Lavish Meal"
     tier: 1
     families: [food, craft]
     requires:
@@ -1583,6 +1613,7 @@ desires:
 
   harvest-godflesh-barehanded:
     name: Harvest Godflesh with your bare hands.
+    verify: "Godflesh"
     tier: 3
     oncePerLife: true
     families: [mortality, stupidity]

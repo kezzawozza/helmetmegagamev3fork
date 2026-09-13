@@ -37,6 +37,7 @@ import { cancelWatchOnMove } from "@lifeweb/db/lib/intercept";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { applyMood, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
+import { DesireRevokeRefused, revokeDesireCore } from "@lifeweb/db/lib/desireReview";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 import { gmTransferResources } from "@/lib/gmTransfer";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
@@ -735,19 +736,15 @@ async function revokeDesireGmImpl({ characterId, desireId }) {
 
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
-    const { count } = await tx.desire.updateMany({
-      where: { id: desireId, characterId, status: { not: "CANCELLED" } },
-      data: { status: "CANCELLED", endedTurnNumber: null },
-    });
-    // Guarded against a race: two Revokes fired together would both pass the
-    // read above, and only the one that actually flipped the row may take
-    // the points back.
-    if (count === 0) throw new UserError("That desire was already revoked.");
-    if (desire.status === "FULFILLED") {
-      await tx.character.update({
-        where: { id: characterId },
-        data: { tagPoints: { decrement: desire.points } },
-      });
+    try {
+      await revokeDesireCore(tx, { characterId, desireId, desire });
+    } catch (e) {
+      // db/lib takes no dependency on web/lib/actionResult, so its deliberate
+      // refusal arrives as a DesireRevokeRefused and is recast here. Only that
+      // one: anything else — a dropped connection, a bug — rethrows untouched
+      // and stays redacted, rather than being shown to a GM as a rule.
+      if (e instanceof DesireRevokeRefused) throw new UserError(e.message);
+      throw e;
     }
   });
 

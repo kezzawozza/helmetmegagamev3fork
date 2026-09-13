@@ -4908,6 +4908,14 @@ model DesireTemplate {
   // instances keep running.
   retired              Boolean  @default(false)
   sortOrder            Int      @default(0)
+  // Optional search string (docs/desires.yaml `verify:`), synced by
+  // syncDesires.js. Prefills the GM review panel's audit-log filter so a GM
+  // checking a claim doesn't have to guess what a claim of this kind would
+  // look like in the log. Most desires have none — only worth writing where
+  // the claim leaves a mechanical trace (a named tag/item eaten, drunk,
+  // bought), never for a social or narrative goal a GM has to judge by eye
+  // anyway.
+  verifyQuery          String?
 
   desires Desire[]
 }
@@ -4937,6 +4945,18 @@ model Desire {
   // Which of GameConfig.desireSlots this occupies; grandfathered rows
   // backfilled to 0.
   slotIndex  Int             @default(0)
+
+  // Free text the player types when claiming: how they pulled it off. Never
+  // backfilled — every pre-rework row and every GM award (see below) has
+  // none, and that's fine, the review queue just shows less for those.
+  reason     String?
+  // Stamped by BOTH the keep and the reject path of the GM review queue.
+  // Null means this claim is still waiting to be looked at.
+  reviewedAt DateTime?
+  // The reviewing GM's Discord user id. A snapshot string, not an FK — same
+  // reason AuditLog and its neighbours store actor ids that way rather than
+  // pointing at a row that might not exist by the time anyone reads it.
+  reviewedBy String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
