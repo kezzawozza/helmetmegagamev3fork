@@ -2977,6 +2977,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // which prefers it over the generic "It used up." (noticeLines.js).
   const line = isDish ? tasteLine(ingredientTags.map((t) => t.cooked?.taste ?? "")) : null;
   let grantedNames = [];
+  let resourcesGrantedOut = 0;
 
   // Cure application (the medical pass, TAGS.md §5c): every cured slug the
   // TARGET actually holds — not just the first, since one item (white-honey,
@@ -3100,6 +3101,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     // way the food's own halves already are.
     const allClimbedFrom = poisonDraw ? [...climbedFrom, ...poisonDraw.grants.removes] : climbedFrom;
     const allResourcesGranted = resourcesGranted + (poisonDraw?.grants.resources ?? 0);
+    resourcesGrantedOut = allResourcesGranted;
 
     const climbed = allClimbedFrom
       .map((slug) => target.tags.find((ct) => ct.tag.slug === slug))
@@ -3249,6 +3251,13 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // Ration Box) says what it landed on, since nothing else would.
   if (!line && held.tag.consumesIntoOneOf?.some((entry) => entry)) {
     return { line: grantedNames.length ? `You got ${grantedNames.join(", ")}.` : "You got nothing." };
+  }
+  // A flat ⬢ grant (Purse, Supply Kit) — same "You got N ⬢." phrasing as
+  // Box of Junk's own road out, said to the CONSUMER only: administering one
+  // to someone else credits the target, not the actor, so there's nothing
+  // for the actor to be told here.
+  if (!line && resourcesGrantedOut > 0 && target.id === character.id) {
+    return { line: `You got ${resourcesGrantedOut} ⬢.` };
   }
   return line ? { line } : {};
 }
