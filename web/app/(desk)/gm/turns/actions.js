@@ -24,7 +24,7 @@ import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/dis
 import { dropCharacterTag } from "@/lib/tagEffects";
 import { UserError, guarded } from "@/lib/actionResult";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
-import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
+import { GM_MESSAGE_MAX_LENGTH, MAX_REASON_LENGTH } from "@/lib/constants";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 import {
@@ -465,6 +465,72 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
   };
 }
 
+// Free text, required: it drives the archive row, the death DM and the
+// #leave rollup line all at once (db/lib/stagedPush.js), so an empty one
+// would produce a broken sentence in all three.
+function normalizeStagedDeathReason(raw) {
+  const reason = raw?.toString().trim() ?? "";
+  if (!reason) throw new UserError("Say how they died — it's what the death DM and the #leave post read.");
+  if (reason.length > MAX_REASON_LENGTH) {
+    throw new UserError(`That's over the ${MAX_REASON_LENGTH}-character cap.`);
+  }
+  return reason;
+}
+
+// A staged death — GM-adjudicated, fires at the push via
+// db/lib/characterDeath.js#applyDeathToRow (db/lib/stagedPush.js). One row
+// per target, same mass-apply shape createStagedEffectsImpl uses above: no
+// resources/tagPoints/tagOps/locationId key ever rides alongside `death` —
+// the character has no further sheet to write to, and the push
+// short-circuits on it before considering any other key.
+async function createStagedDeathsImpl({ targetCharacterIds, moveId, cavingRollId, reason, gib }) {
+  const session = await requireGm();
+  const targets = [...new Set((targetCharacterIds ?? []).filter(Boolean))];
+  if (!targets.length) throw new UserError("Pick at least one character.");
+
+  const text = normalizeStagedDeathReason(reason);
+  const vaporize = gib === true;
+
+  const found = await prisma.character.findMany({ where: { id: { in: targets } }, select: { id: true } });
+  if (found.length !== targets.length) throw new UserError("One of those characters no longer exists.");
+
+  const openTurn = await requireOpenTurn();
+  const batchId = targets.length > 1 ? crypto.randomUUID() : null;
+  const payload = { death: true, gib: vaporize, reason: text };
+
+  const created = await prisma.$transaction(
+    targets.map((targetCharacterId) =>
+      prisma.stagedEffect.create({
+        data: {
+          turnId: openTurn.id,
+          moveId: moveId || null,
+          cavingRollId: cavingRollId || null,
+          targetCharacterId,
+          createdByDiscordUserId: session.discordUserId,
+          batchId,
+          payload,
+        },
+        select: { id: true },
+      }),
+    ),
+  );
+  await retargetIfTurnClosed(prisma.stagedEffect, created.map((r) => r.id), openTurn.id);
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "staged_effects_created",
+      details: { batchId, targets: targets.length, moveId: moveId || null, payload },
+    },
+  });
+
+  return {
+    count: created.length,
+    batchId,
+    patch: await deskPatchFor({ stagedEffectIds: created.map((r) => r.id) }),
+  };
+}
+
 // A staged character-to-character transfer. Separate from
 // createStagedEffectsImpl because the balance check runs against live
 // balances at stage time, not a mint/burn delta.
@@ -699,6 +765,33 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
       },
       batchId: null,
     },
+  });
+  if (!claimed.count) throw new UserError("That effect just applied — it can't be edited.");
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "staged_effect_updated",
+      details: { stagedEffectId: existing.id },
+    },
+  });
+
+  return { patch: await deskPatchFor({ stagedEffectIds: [existing.id] }) };
+}
+
+async function updateStagedDeathImpl({ stagedEffectId, reason, gib }) {
+  const session = await requireGm();
+  const existing = await prisma.stagedEffect.findUnique({ where: { id: stagedEffectId ?? "" } });
+  if (!existing) throw new UserError("That staged effect is gone.");
+  if (existing.appliedAt) throw new UserError("That effect already applied — it can't be edited.");
+  if (!existing.payload?.death) throw new UserError("That isn't a staged death.");
+
+  const text = normalizeStagedDeathReason(reason);
+  const vaporize = gib === true;
+
+  const claimed = await prisma.stagedEffect.updateMany({
+    where: { id: existing.id, appliedAt: null },
+    data: { payload: { death: true, gib: vaporize, reason: text }, batchId: null },
   });
   if (!claimed.count) throw new UserError("That effect just applied — it can't be edited.");
 
@@ -1413,6 +1506,12 @@ export async function resendStagedMessage(input) {
 }
 export async function createStagedEffects(input) {
   return guarded(() => createStagedEffectsImpl(input));
+}
+export async function createStagedDeaths(input) {
+  return guarded(() => createStagedDeathsImpl(input));
+}
+export async function updateStagedDeath(input) {
+  return guarded(() => updateStagedDeathImpl(input));
 }
 export async function createStagedTransfer(input) {
   return guarded(() => createStagedTransferImpl(input));

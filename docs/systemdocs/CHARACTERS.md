@@ -885,10 +885,11 @@ re-roll: **a random role with a free seat, `startingTagPoints + 6`, and no
 Curse.** `db/lib/reincarnate.js`.
 
 It hangs off `db/lib/characterDeath.js#applyDeathToRow` rather than off the
-wizard, because **eight** callers kill people — the dying, catatonic,
-ascension, nuke and turret passes, the rites, and the web's own
-`killCharacter` — and all eight go through that one function. Hooking the
-wizard would have covered one of them.
+wizard, because **nine** callers kill people — the dying, catatonic,
+ascension, nuke and turret passes, the rites, the web's own `killCharacter`,
+and the staged-arbitration push (`ADJUDICATION.md` §1, `db/lib/stagedPush.js`)
+— and all nine go through that one function. Hooking the wizard would have
+covered one of them.
 
 Four things worth knowing before changing it:
 
@@ -910,7 +911,7 @@ Four things worth knowing before changing it:
   written without one is permanent), `Role.extraStartingPoints` counts toward
   the budget, `seedMemories` runs so the new body is not standing in a town it
   cannot see, and `webOnly` is carried across — read off the database, not off
-  the passed row, since the eight callers select whatever they happen to need.
+  the passed row, since the nine callers select whatever they happen to need.
 - **The player is not ghosted by their own corpse.** Both death teardowns key on
   `discordUserId`, so they reach the *person*; both now skip somebody who is
   alive again (`db/lib/deathTeardown.js#stillAlive`), and reincarnation lifts
@@ -953,6 +954,18 @@ apply. The personal character role is deliberately not minted here — it is a
 mentionable name token that grants nothing (`PROXYING.md` §6), the placeholder
 name is about to change anyway, and the channel doctor mints any missing one on
 the next bot start.
+
+**A known gap: the staged-arbitration push cannot reincarnate a Metempsychosis
+holder yet.** `applyDeathToRow` runs inside the staged row's own
+`$transaction` (`db/lib/stagedPush.js`), but `reincarnate()` opens its own
+nested `prisma.$transaction` (line ~184) — a transaction client has no
+`.$transaction` of its own, so that call throws and is swallowed by
+`applyDeathToRow`'s own `.catch()`, logged rather than propagated. Everything
+else about the death has already committed by that point, so this fails soft:
+the character simply stays dead instead of being reborn, rather than any row
+ending up half-applied. Every other caller passes a bare `prisma` client and
+is unaffected. Fixing it means teaching `reincarnate()` to detect and reuse an
+existing transaction client — a real improvement, not yet made.
 
 Every early return is a normal outcome, not an error: no tag, no Discord user,
 another living character already, or no free seat anywhere in the game. A

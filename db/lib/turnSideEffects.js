@@ -97,6 +97,7 @@ function buildSideEffectPayload(fields) {
     nukeDeaths: fields.nukeDeaths ?? [],
     ascensionDeaths: fields.ascensionDeaths ?? [],
     turretDeaths: fields.turretDeaths ?? [],
+    stagedDeaths: fields.stagedDeaths ?? [],
     hungerNotices: fields.hungerNotices ?? [],
     zoneMoves: fields.zoneMoves ?? [],
     travelArrivals: fields.travelArrivals ?? [],
@@ -285,6 +286,7 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
   );
 
   const turnDeaths = [
+    ...list(p.stagedDeaths),
     ...list(p.catatonicDeaths),
     ...list(p.dyingDeaths),
     ...list(p.nukeDeaths),
