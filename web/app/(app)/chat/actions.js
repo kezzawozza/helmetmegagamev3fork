@@ -404,11 +404,17 @@ export async function loadTravel() {
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  const [options, party, currentZone] = await Promise.all([
+  const [options, party, currentZone, action] = await Promise.all([
     travelOptions(prisma, character, character.locationId),
     partyOf(prisma, character.id),
     character.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } }) : null,
+    // Whether the Move is spent — a push on is only offered after it is
+    // (MAP.md §3). The same read the sheet's hasMoved makes.
+    openTurn
+      ? prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } })
+      : null,
   ]);
+  const acted = Boolean(action);
 
   return {
     ok: true,
@@ -427,6 +433,7 @@ export async function loadTravel() {
       // Which way the push on's die leans for this character, said before
       // they commit (MAP.md §3). Null when it doesn't.
       const exertNote = exertEdgeSentence(exertEdgeFor(character.tags ?? []));
+      const exertOpts = { crossing: null, left: 0, acted };
       // THIS destination's own count, unlike the ambient one above — a boat's
       // bonus is earned per crossing (db/lib/mounts.js#boatCrossing), so
       // Forest<->Hills or Hills<->Marshes has to show one more than a
@@ -455,7 +462,8 @@ export async function loadTravel() {
         freeLeft,
         // Whether the Push on button belongs beside Go for this crossing —
         // the server's own refusal, asked ahead of time (MAP.md §3).
-        canExert: row.crossesZone && exertRefusal(character, config, openTurn, { crossing, left: freeLeft }) === null,
+        canExert:
+          row.crossesZone && exertRefusal(character, config, openTurn, { ...exertOpts, crossing, left: freeLeft }) === null,
         exertNote,
         // A Location a mount gets parked at on arrival (db/lib/indoors.js) —
         // which is not every Location with a roof over it.

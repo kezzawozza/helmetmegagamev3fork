@@ -64,11 +64,11 @@ function movesLeft({ base, bonus }, character, openTurn) {
 }
 
 // PUSHING ON (docs/systemdocs/MAP.md §3): one more crossing a turn, on foot,
-// after the free ones are gone — paid with a die instead of the Move. The
-// Move stays yours, and the paid crossing is still there beside it. What the
-// die costs, with nothing else on it: no mood or hunger modifier, because a
-// hungry, frightened walker is exactly who pushes on, and a −4 on top would
-// make the injury a certainty the confirm text does not admit.
+// after the free ones are gone AND the Move is already spent — the extra
+// gamble to go the distance, paid with a die. What the die costs, with
+// nothing else on it: no mood or hunger modifier, because a hungry,
+// frightened walker is exactly who pushes on, and a −4 on top would make
+// the injury a certainty the confirm text does not admit.
 const EXERT_INJURY_SLUG = "sprained-ankle";
 // What a 6 leaves: a turn's visible mark and nothing else (docs/tags.yaml).
 const WINDED_SLUG = "winded";
@@ -108,9 +108,12 @@ function exertedThisTurn(character, config, openTurn) {
 
 // Why this character cannot push on right now, or null. `left` is THIS
 // crossing's own free count, the same per-destination number the surfaces
-// already compute. The reasons a player can read off their own sheet come
-// first, the counter last. Bascinet's wording, 2026-09-12.
-function exertRefusal(character, config, openTurn, { crossing = null, left = 0 } = {}) {
+// already compute; `acted` is whether an Action already stands for this
+// turn — the Move spent, on a paid crossing or anything else — which the
+// caller reads, since this stays pure. The reasons a player can read off
+// their own sheet come first, the counter last. Bascinet's wording,
+// 2026-09-12.
+function exertRefusal(character, config, openTurn, { crossing = null, left = 0, acted = false } = {}) {
   const held = character.tags ?? [];
   const active = equippedSlugs(held);
   if (isMounted(active)) return "Your horse has ridden as hard as it can.";
@@ -126,6 +129,8 @@ function exertRefusal(character, config, openTurn, { crossing = null, left = 0 }
   }
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return "You're overburdened, drop some weight to push on.";
   if (left > 0) return "You still have a free crossing.";
+  // The gamble is for going the distance: only once the Move is gone.
+  if (!acted) return "You haven't spent your Move yet.";
   if (exertedThisTurn(character, config, openTurn)) return "You've already pushed on this turn.";
   return null;
 }
@@ -507,9 +512,16 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
               };
 
         if (exert) {
+          // The same read the paid branch below makes, asked the other way
+          // round: a push on needs the Move already spent.
+          const acted = await tx.action.findFirst({
+            where: { characterId: character.id, turnId: openTurn.id },
+            select: { id: true },
+          });
           const why = exertRefusal(character, config, openTurn, {
             crossing: { fromZoneSlug: currentLocation.zone?.slug, toZoneSlug: targetLocation.zone?.slug },
             left,
+            acted: Boolean(acted),
           });
           if (why) throw new MoveRefused(why);
           // Charged to the base pool and never the bonus — that overspend is

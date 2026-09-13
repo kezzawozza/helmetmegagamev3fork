@@ -383,11 +383,13 @@ A free move files no Action at all. **Acting and crossing on your Move are
 mutually exclusive within a turn, in either order** — the enforcement is
 `@@unique([characterId, turnId])` on `Action`.
 
-**Pushing on.** Once the free crossings are gone, a walker can take one more
-crossing a turn on a die instead of the Move — the Push on button beside Go on
+**Pushing on.** Once the free crossings are gone AND the Move is spent — on a
+paid crossing or on anything else — a walker can take one more crossing a turn
+on a die: the extra gamble to go the distance, a Push on button beside Go on
 the Travel panel, `/map` and the `#turns` picker. The crossing lands like any
-other and the Move stays theirs; the paid crossing is still there beside it, so
-three zones a day on foot is the ceiling. The d6, Lucky keeping the better of
+other, files no Action, and is refused while the Move is still unspent (the
+surfaces read the turn's Action row, `performLocationMove` reads it again).
+So three zones a day on foot is the ceiling: free, paid, pushed. The d6, Lucky keeping the better of
 two and nothing else on it (no mood or hunger modifier — a hungry, frightened
 walker is exactly who pushes on, and a −4 would make the injury a certainty the
 confirm text does not admit): **1** grants Sprained Ankle, **2–3** Exhausted,

@@ -40,22 +40,24 @@ test("exertedThisTurn: the base pool over the base allowance, and nothing else",
 
 test("exertRefusal: the reasons, in the order a player can read them off their sheet", () => {
   const spent = counters(1);
-  assert.match(exertRefusal({ ...withTags("horse"), ...spent }, config, turn, { left: 0 }), /horse has ridden/);
-  const water = { crossing: { fromZoneSlug: "forest", toZoneSlug: "hills" }, left: 0 };
+  assert.match(exertRefusal({ ...withTags("horse"), ...spent }, config, turn, { left: 0, acted: true }), /horse has ridden/);
+  const water = { crossing: { fromZoneSlug: "forest", toZoneSlug: "hills" }, left: 0, acted: true };
   assert.match(exertRefusal({ ...withTags("fishing-boat"), ...spent }, config, turn, water), /push the boat/);
   // The same boat on a land leg is on foot.
-  assert.equal(exertRefusal({ ...withTags("fishing-boat"), ...spent }, config, turn, { crossing: { fromZoneSlug: "town", toZoneSlug: "forest" }, left: 0 }), null);
-  assert.match(exertRefusal({ ...withTags("sprained-ankle"), ...spent }, config, turn, { left: 0 }), /Sprained Ankle/);
+  assert.equal(exertRefusal({ ...withTags("fishing-boat"), ...spent }, config, turn, { crossing: { fromZoneSlug: "town", toZoneSlug: "forest" }, left: 0, acted: true }), null);
+  assert.match(exertRefusal({ ...withTags("sprained-ankle"), ...spent }, config, turn, { left: 0, acted: true }), /Sprained Ankle/);
   // Too hurt to march, though none of these restrict ACT.
-  assert.match(exertRefusal({ ...withTags("punctured-lung"), ...spent }, config, turn, { left: 0 }), /Punctured Lung prevents you/);
-  assert.match(exertRefusal({ ...withTags("blind-drunk"), ...spent }, config, turn, { left: 0 }), /Blind Drunk/);
+  assert.match(exertRefusal({ ...withTags("punctured-lung"), ...spent }, config, turn, { left: 0, acted: true }), /Punctured Lung prevents you/);
+  assert.match(exertRefusal({ ...withTags("blind-drunk"), ...spent }, config, turn, { left: 0, acted: true }), /Blind Drunk/);
   // Top of the ladder: nothing left to lose but the ankle, so no free gamble.
-  assert.match(exertRefusal({ ...withTags("exhausted"), ...spent }, config, turn, { left: 0 }), /Exhausted/);
-  assert.match(exertRefusal({ ...withTags("overburdened"), ...spent }, config, turn, { left: 0 }), /overburdened, drop some weight/);
-  assert.match(exertRefusal({ ...withTags(), ...counters(0) }, config, turn, { left: 1 }), /still have a free crossing/);
-  assert.match(exertRefusal({ ...withTags(), ...counters(2) }, config, turn, { left: 0 }), /already pushed on/);
-  // Clear: on foot, free crossing spent, not yet pushed on.
-  assert.equal(exertRefusal({ ...withTags("tired"), ...spent }, config, turn, { left: 0 }), null);
+  assert.match(exertRefusal({ ...withTags("exhausted"), ...spent }, config, turn, { left: 0, acted: true }), /Exhausted/);
+  assert.match(exertRefusal({ ...withTags("overburdened"), ...spent }, config, turn, { left: 0, acted: true }), /overburdened, drop some weight/);
+  assert.match(exertRefusal({ ...withTags(), ...counters(0) }, config, turn, { left: 1, acted: true }), /still have a free crossing/);
+  // The gamble is for going the distance: the Move has to be gone first.
+  assert.match(exertRefusal({ ...withTags(), ...spent }, config, turn, { left: 0 }), /haven't spent your Move/);
+  assert.match(exertRefusal({ ...withTags(), ...counters(2) }, config, turn, { left: 0, acted: true }), /already pushed on/);
+  // Clear: on foot, free crossing spent, Move spent, not yet pushed on.
+  assert.equal(exertRefusal({ ...withTags("tired"), ...spent }, config, turn, { left: 0, acted: true }), null);
 });
 
 test("exertResultLine: what it cost and the die that counted, nothing about the other die", () => {

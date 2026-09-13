@@ -228,12 +228,17 @@ async function handleTravelPick(interaction) {
   const seatWarning = crossing ? freeZoneMovesReason(character, party.length, { config, openTurn }) : null;
   // Push on: the crossing on a die instead of the Move (MAP.md §3), offered
   // only where performLocationMove would say yes.
+  const acted =
+    crossing && openTurn
+      ? Boolean(await prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } }))
+      : false;
   const canExert =
     crossing &&
     left === 0 &&
     exertRefusal(character, config, openTurn, {
       crossing: { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: target.zone?.slug ?? null },
       left,
+      acted,
     }) === null;
 
   const cost = !character.locationId
@@ -248,7 +253,7 @@ async function handleTravelPick(interaction) {
   // odds before committing.
   const exertNote = canExert ? exertEdgeSentence(exertEdgeFor(character.tags ?? [])) : null;
   const exertLine = canExert
-    ? `-# Or push on to save your Move, risking exhaustion and possible injury.${exertNote ? ` ${exertNote}` : ""}`
+    ? `-# Or push on, risking exhaustion and possible injury.${exertNote ? ` ${exertNote}` : ""}`
     : null;
 
   const stowed = crossing ? stowedMounts(character.tags) : [];

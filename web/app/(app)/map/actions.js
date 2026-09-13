@@ -83,6 +83,12 @@ async function buildMap({ character, unfogged }) {
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
     character?.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } }) : null,
   ]);
+  // Whether the Move is spent — a push on is only offered after it is
+  // (MAP.md §3). The same read the Travel panel and the sheet make.
+  const acted =
+    character && openTurn
+      ? Boolean(await prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } }))
+      : false;
 
   const known = character
     ? await knownLocations(prisma, character.id)
@@ -147,7 +153,7 @@ async function buildMap({ character, unfogged }) {
       // own refusal, asked ahead of time (MAP.md §3). Same question the
       // Travel panel asks per option.
       canExert: Boolean(
-        near?.crossesZone && exertRefusal(character, config, openTurn, { crossing, left: freeLeft }) === null,
+        near?.crossesZone && exertRefusal(character, config, openTurn, { crossing, left: freeLeft, acted }) === null,
       ),
       // Which way the push on's die leans, said before they commit. Null when
       // it doesn't; the same sentence the Travel panel carries.
