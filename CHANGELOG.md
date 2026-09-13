@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Maggot Milk's recipe is public knowledge now
+
+− Any Brewer should know you can squeeze a Purring Maggot without having found one first, so it no longer waits on holding the ingredient to show up on the Craft menu.
+
 ## 2026-09-13 · Curing Poisoned no longer leaves you Drained
 
 ✎ Being cured of Poisoned now just ends it, with no Drained afterwards
