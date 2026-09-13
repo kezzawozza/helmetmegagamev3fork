@@ -1351,6 +1351,14 @@ desires:
       anyTags: [cruel]
     cooldownTurns: 6
 
+  brand-someone:
+    name: Brand someone
+    tier: 1
+    families: [cruelty]
+    requires:
+      anyTags: [cruel, torturer]
+    cooldownTurns: 3
+
   beat-up-a-bum:
     name: Beat up a bum
     tier: 2

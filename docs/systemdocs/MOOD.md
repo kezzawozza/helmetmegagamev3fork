@@ -107,6 +107,7 @@ key on.
 | Crucified | CRUCIFIED | −80 | `crucifyCharacterRequestImpl` |
 | Tortured, broke or held | TORTURED | −40 | `tortureCharacterRequestImpl` (TORTURE.md) |
 | A piece cut off you | MUTILATED | −50 | `mutilateRequestImpl` (TORTURE.md §6). A corpse takes no hit — a dead row's dial is read by nobody. |
+| Branded | BRANDED | −40 | `brandCharacterRequestImpl` (TORTURE.md §8). Same two ×0 immunities as TORTURED. |
 | Someone dies in your Location | DEATH_SEEN | −15 to each witness | `characterDeath.js#applyDeathToRow` |
 | An unburied body in your Location at turn end | CORPSE | −5 | mood pass |
 | Shot at by a turret and alive, hit or graze, either gun | TURRET | −25 | `turretPass.js#applyTurretShot` |
@@ -368,8 +369,8 @@ Held tags scale **harm** by its kind; the factors multiply, and a 0 wins:
 | `claustrophobia` (−3) | CAVE | ×2 |
 | `teratophobia` (−2) | CAVE_TROUBLE | ×3 |
 | `pyrophobia` (−2) | WOUND, only `burned` / `severe-burns` | ×3 |
-| `pain-immunity` (status) | TORTURED | ×0 |
-| `opium-high` (status) | TORTURED | ×0 |
+| `pain-immunity` (status) | TORTURED, BRANDED | ×0 |
+| `opium-high` (status) | TORTURED, BRANDED | ×0 |
 | `rage` (the Rite of Rage, THANATI.md §4) | everything | ×0 |
 | `blessed` (status, 3t — a `chrism`'s anointing) | everything | ×0.5 |
 | `heartforged-blade` (**while equipped** — the first equipped-conditional rule; a caller that can't say what's equipped skips it, failing safe) | everything | ×0 |
@@ -476,7 +477,7 @@ hooks in the same tick cannot race a stale read past either end.
   `hungerPass.js`, `cavingPass.js`, `bind.js`, `characterDeath.js`,
   `confessionPass.js`, `riteEffects.js` (the Rite of Panic's `setMood`),
   `web/app/(app)/character/requestActions.js` (consume, heal, loot, crucify,
-  torture, desire), `web/app/(app)/gm/dev/characters/[characterId]/actions.js`
+  torture, brand, desire), `web/app/(app)/gm/dev/characters/[characterId]/actions.js`
   (GM desire award, the dial edit), `bot/src/events/interactionCreate.js`
   (`/play`).
 
@@ -523,7 +524,7 @@ What had to go was the phobia's involvement at all.
 
 The kinds are split on purpose. Misfortune that *happens* to you — a shock with
 an author and a moment — pays half back: `WOUND`, `DYING`, `CRUCIFIED`,
-`TORTURED`, `MUTILATED`, `BOUND`, `ROBBED`, `TURRET`, `CAVE_TROUBLE`,
+`TORTURED`, `MUTILATED`, `BRANDED`, `BOUND`, `ROBBED`, `TURRET`, `CAVE_TROUBLE`,
 `DEATH_SEEN`. The weather does not: `WILDERNESS`, `CAVE`, `HUNGER`, `CORPSE`,
 `NOBLE_MEAL` simply stop landing rather than becoming a pleasure, because nobody
 would call an ever-present cost an incident. `DRIFT` needs no entry (it carries

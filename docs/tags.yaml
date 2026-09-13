@@ -4999,6 +4999,23 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # The base row for the Brand button (TORTURE.md §8). Never granted directly
+  # — brandCharacterRequestImpl mints a fresh custom+ephemeral copy of this
+  # row per unique description (db/lib/customCraftMint.js), the same way a
+  # customized craft mints off its own base. Not `craftable`/`customizable`:
+  # the mint is the only door onto it.
+  brand:
+    catalog: all
+    name: Brand
+    category: health
+    group: health-maiming
+    description: "A permanent brand."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    stackable: false
+
   # --- Ailments ----------------------------------------------------------
 
   vomiting:
@@ -11135,6 +11152,32 @@ tags:
       skills: [torturer]
       items: [work-knife, hatchet, cudgel]
       gambit: false
+
+  # The Brand button's whole gate (TORTURE.md §8) — holding this is the
+  # entire ability, no skill tag on top. Dead Simple like Work Knife/Hatchet
+  # (SMITHING.md §1), but priced like the other standing kits (Torturing
+  # Equipment above, Surgical Equipment): `pointCost: 0`, no `group`, since
+  # it isn't a Recipes-tab weapon or armor rung. Reusable — branding someone
+  # does not consume it.
+  branding-iron:
+    catalog: all
+    name: Branding Iron
+    category: items
+    description: "A branding iron. It allows you to permanently brand captives."
+    pointCost: 0
+    visible: true
+    tradeable: true
+    weight: 2
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 6
 
   # --- Special ------------------------------------------------------------
   # Relics, grafts and machinery. None of it is purchasable at any price and

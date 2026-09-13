@@ -204,6 +204,7 @@ import {
 } from "@lifeweb/db/lib/customCraftMint";
 import {
   CUSTOM_SURCHARGE,
+  CUSTOM_DESCRIPTION_MAX,
   INSCRIPTION_MAX,
   cleanCustomText,
   customCraftFields,
@@ -5841,6 +5842,94 @@ async function mutilateRequestImpl({
   return { part: named.label, name: subject.name };
 }
 
+// --- Branding someone bound or incapacitated -------------------------------
+
+const BRANDING_IRON_SLUG = "branding-iron";
+const BRAND_SLUG = "brand";
+const ACHING_SLUG = "aching";
+
+// The Branding Iron's whole gate (TORTURE.md §8) is holding the tag — no
+// separate skill, unlike Torture's `torturer`. Free: no Move, no ⬢, no turn,
+// and the iron is never consumed. The target class is INCAPACITATING_SLUGS
+// (bound OR any other helpless state), the same broader gate Harm/Loot/Poison
+// use — wider than Torture and Mutilate's "must hold `bound`" — because a
+// brand doesn't need the victim to be able to struggle for it to work.
+async function brandCharacterRequestImpl({ targetCharacterId, description: rawDescription }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  if (!character.locationId)
+    throw new UserError("You aren't anywhere you could do that.");
+  if (targetCharacterId === character.id)
+    throw new UserError("You can't brand yourself.");
+  // Re-checked here and not merely in the UI: the hidden button is a hint.
+  if (!character.tags.some((ct) => ct.tag.slug === BRANDING_IRON_SLUG))
+    throw new UserError("You don't have a branding iron.");
+
+  const description = cleanCustomText(rawDescription, CUSTOM_DESCRIPTION_MAX);
+  if (!description) throw new UserError("Say what the brand marks them with.");
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    include: { tags: { include: { tag: { select: { slug: true } } } } },
+  });
+  if (!target || !isHere(character, target))
+    throw new UserError(notHereMessage(target));
+  const targetSlugs = target.tags.map((ct) => ct.tag.slug);
+  if (!targetSlugs.some((slug) => INCAPACITATING_SLUGS.has(slug)))
+    throw new UserError(`${target.name} could still stop you — that's not something you can just do to them.`);
+
+  const openTurn = await getOpenTurn();
+  const [achingTag, brandBase] = await Promise.all([
+    prisma.tag.findUnique({ where: { slug: ACHING_SLUG }, select: { id: true, stackable: true, defaultDurationTurns: true } }),
+    prisma.tag.findUnique({ where: { slug: BRAND_SLUG } }),
+  ]);
+  if (!achingTag || !brandBase)
+    throw new UserError("Something's missing from the catalog. Tell a GM.");
+  const achingExpiresTurn = await expiryForGrant(prisma, achingTag, openTurn, {
+    characterId: target.id,
+    where: "brandCharacter",
+  });
+
+  // Minted OUTSIDE the transaction (mintCustomCraft says why), unwound after
+  // it only if the transaction below fails and the row was fresh.
+  const grant = await mintCustomCraft(prisma, brandBase, {
+    description: `A permanent brand. ${description}`,
+  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      await addToStack(tx, target.id, achingTag.id, 1, {
+        source: "EVENT",
+        expiresTurn: achingExpiresTurn,
+        stackable: achingTag.stackable,
+      });
+      await addToStack(tx, target.id, grant.tag.id, 1, { source: "EVENT", stackable: false });
+      // −40, or nothing under Pain Immunity / an Opium High (MOOD.md §6) —
+      // the same two rows that zero TORTURED.
+      await applyMood(tx, target.id, { kind: "BRANDED" });
+      await logAudit(tx, {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "request_brand_character",
+        targetCharacterId: target.id,
+        turnId: openTurn?.id ?? null,
+        details: {
+          targetName: target.name,
+          description,
+          brandTagId: grant.tag.id,
+        },
+      });
+    });
+  } catch (err) {
+    await unmintCustomCraft(prisma, grant);
+    throw err;
+  }
+
+  await afterInventoryChange(target.id);
+  // Unattributed, like every other request that acts on somebody else.
+  notifyCharacter(target, "Somebody held a hot iron to you. It'll never fade.");
+  revalidateAll();
+  return { name: target.name };
+}
+
 // Scenery into the Location the actor is standing in. Corpse work is the most
 // visible thing a person can do with a body, and until now only a room stash
 // pull said anything. `requireCharacter` carries no `character.location`, so
@@ -6480,6 +6569,10 @@ export async function butcherCorpseRequest(input) {
 
 export async function mutilateRequest(input) {
   return guarded(() => mutilateRequestImpl(input));
+}
+
+export async function brandCharacterRequest(input) {
+  return guarded(() => brandCharacterRequestImpl(input));
 }
 
 export async function engraveHeadstoneRequest(input) {

@@ -68,6 +68,7 @@ import {
   X,
   Menu,
   Plus,
+  Stamp,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -213,6 +214,9 @@ export const ExtractIcon = lucide(Pickaxe, "ExtractIcon");
 export const TortureIcon = lucide(Flame, "TortureIcon");
 // A quill — the Write action. See docs/systemdocs/PAPERWORK.md.
 export const QuillIcon = lucide(Feather, "QuillIcon");
+// Brand — a stamp coming down. Distinct from Torture's brazier, even though
+// both act on somebody helpless.
+export const BrandIcon = lucide(Stamp, "BrandIcon");
 // Package — a banded crate.
 export const CrateIcon = lucide(Package, "CrateIcon");
 

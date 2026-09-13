@@ -133,6 +133,12 @@ column of its own, so it is recognised as "0 turns of work plus a smithing or
 crafting skill gate". `craftAllowance()` (`web/lib/requests.js`) is the one
 place that decides what a recipe's free ration actually is.
 
+**Not every Dead Simple smith recipe is a weapon.** `branding-iron` gates on
+`skills: [smithing]` the same as Work Knife and Hatchet, but it's a standing
+kit rather than a Recipes-tab rung — no `group`, `pointCost: 0`, same shape as
+Torturing Equipment (§5 note in `TORTURE.md`) — so it doesn't appear in the
+weapon table below. See `TORTURE.md` §8 for what it does once crafted.
+
 **Over the cap, the work comes out of your Move.** This is the rule Milestone
 A deferred to here. Units past the allowance are not refused: each one costs
 **1/4 of the Routine** (1/`perTurn` for a recipe with its own ration), spent

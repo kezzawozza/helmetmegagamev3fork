@@ -135,6 +135,7 @@ const EVENTS = Object.freeze({
   CRUCIFIED: -80,
   TORTURED: -40,
   MUTILATED: -50,
+  BRANDED: -40,
   DEATH_SEEN: -15,
   CORPSE: -5,
   TURRET: -25,
@@ -229,9 +230,11 @@ const MULTIPLIERS = Object.freeze([
   { slug: "teratophobia", kinds: ["CAVE_TROUBLE"], factor: 3 },
   { slug: "pyrophobia", kinds: ["WOUND"], factor: 3, when: (ctx) => Boolean(ctx?.burn) },
   // Pain you cannot feel is not frightening. Both are two-turn statuses, so a
-  // torturer who waits a day gets the full −40 (db/lib/torture.js).
-  { slug: "pain-immunity", kinds: ["TORTURED"], factor: 0 },
-  { slug: "opium-high", kinds: ["TORTURED"], factor: 0 },
+  // torturer who waits a day gets the full −40 (db/lib/torture.js). BRANDED
+  // is the same kind of harm — a hot iron held to someone who can't stop it —
+  // so it gets the same two immunities.
+  { slug: "pain-immunity", kinds: ["TORTURED", "BRANDED"], factor: 0 },
+  { slug: "opium-high", kinds: ["TORTURED", "BRANDED"], factor: 0 },
   // The Rite of Rage (docs/systemdocs/THANATI.md §4): "Rage people do not
   // become afraid." Every kind, permanently.
   { slug: "rage", kinds: "*", factor: 0 },
@@ -267,7 +270,7 @@ const MULTIPLIERS = Object.freeze([
 // hit and the nightly one, since the kind is the same for each. DRIFT needs no
 // entry (it carries noMultiplier) and PLACE harm is already capped at Fine.
 const AMOR_FATI_SHOCK = Object.freeze(
-  new Set(["WOUND", "DYING", "CRUCIFIED", "TORTURED", "MUTILATED", "BOUND", "ROBBED", "TURRET", "CAVE_TROUBLE", "DEATH_SEEN"]),
+  new Set(["WOUND", "DYING", "CRUCIFIED", "TORTURED", "MUTILATED", "BRANDED", "BOUND", "ROBBED", "TURRET", "CAVE_TROUBLE", "DEATH_SEEN"]),
 );
 const AMOR_FATI_AMBIENT = Object.freeze(new Set(["WILDERNESS", "CAVE", "HUNGER", "CORPSE", "NOBLE_MEAL"]));
 const AMOR_FATI_SHARE = -0.5;

@@ -187,6 +187,10 @@ export default function RequestActionsProvider({
   // that the target is Bound.
   canTorture = false,
   canMutilate = false,
+  // Brand: you hold `branding-iron`. Your own sheet; the action re-checks it
+  // and that the target is bound or otherwise incapacitated
+  // (INCAPACITATING_SLUGS — TORTURE.md §8). Reuses `doseTargets` above.
+  canBrand = false,
   // The datacard, and the device itself. Both facts about your own sheet.
   hasDatacard = false,
   hasDevice = false,
@@ -483,6 +487,7 @@ export default function RequestActionsProvider({
       canDisguise,
       canTorture,
       canMutilate,
+      canBrand,
       hasDatacard,
       hasDevice,
       isThanati,
@@ -529,6 +534,7 @@ export default function RequestActionsProvider({
       canDisguise,
       canTorture,
       canMutilate,
+      canBrand,
       hasDatacard,
       hasDevice,
       isThanati,

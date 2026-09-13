@@ -58,6 +58,7 @@ import {
   AttackIcon,
   KissIcon,
   ResourcesIcon,
+  BrandIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -94,6 +95,8 @@ export const ACTION_HELP = {
     "You can torture people, revealing all their tags on a 4 or higher. Brave or Craven characters will break on different timelines.",
   mutilate:
     "Cut a piece off somebody tied up here, or off a body you can reach. One piece each time, and it costs you nothing. The piece is yours to keep.",
+  brand:
+    "Permanently brand someone who's bound or incapacitated. It costs you nothing, and it never comes off.",
   bury: "Bury someone. Removes the player's Cursed status.",
   engrave: "Memorialize someone's name. Removes the player's Cursed status.",
   whisper:
@@ -391,6 +394,10 @@ export const ACTION_SECTIONS = [
         label: "Mutilate",
         show: "canMutilate",
       },
+      // HIDDEN on the same rule once more: whether YOU hold a branding iron
+      // is your own sheet's fact. Who here is bound or incapacitated is the
+      // dialog's answer, never the button's.
+      { mode: "brand", icon: BrandIcon, label: "Brand", show: "canBrand" },
       { mode: "harm", icon: WoundIcon, label: "Harm" },
       // The three body actions used to sit in a section of their own, on the
       // argument that a corpse is an object rather than somebody standing

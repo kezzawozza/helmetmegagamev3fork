@@ -910,6 +910,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // facts, so it leaks nothing about who is standing here or what state they
   // are in. mutilateRequest re-checks the gate and the subject.
   const canMutilate = MUTILATE_GATE_SLUGS.some((slug) => heldSlugs.has(slug));
+  // Brand shows for anyone holding a branding iron — your own sheet, so it
+  // leaks nothing about who is standing here. brandCharacterRequest re-checks
+  // the tag and that the target is bound or otherwise incapacitated.
+  const canBrand = heldSlugs.has("branding-iron");
   // THE THANATI (docs/systemdocs/THANATI.md). Whether you are one, and whether
   // you lead, are your own sheet's facts; where the hideout is, you set
   // yourself. thanatiActions.js re-checks every one of these.
@@ -1316,6 +1320,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canDisguise: canDisguise,
       canTorture: canTorture,
       canMutilate: canMutilate,
+      canBrand: canBrand,
       isThanati: isThanati,
       isThanatiLeader: isThanatiLeader,
       isCerberon: isCerberon,

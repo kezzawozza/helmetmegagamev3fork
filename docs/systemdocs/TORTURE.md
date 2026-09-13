@@ -1,10 +1,10 @@
 # Torture
 
 The Torture button, the die behind it, what a broken person gives up, the
-Torturing Equipment kit, and the Mutilate button beside it. Read this before
-touching `db/lib/torture.js`, `db/lib/mutilate.js`, the
-`torturer` tag, the `TORTURED` mood event, or anything that decides who breaks
-under questioning.
+Torturing Equipment kit, the Mutilate button beside it, and the Brand button
+(§8). Read this before touching `db/lib/torture.js`, `db/lib/mutilate.js`, the
+`torturer` tag, the `TORTURED`/`BRANDED` mood events, or anything that decides
+who breaks under questioning or gets marked by it.
 
 Shipped 2026-09-06. Before it, the Order's role text promised "your torturer's
 tools" and the Torturer tag promised better Gambits, and both were prose a GM
@@ -279,3 +279,66 @@ The subject dropdown holds two id spaces in one control (`person:` /
   `torture`, sharing the Bind/Free roster), `character/page.js` (`canTorture`).
 - `web/app/components/icons.js#TortureIcon` — Lucide's flame.
 - `db/test/torture.test.js`, and the TORTURED case in `db/test/mood.test.js`.
+
+## 8. Branding
+
+The third "do something to somebody who can't stop you" verb, shipped
+alongside Torture and Mutilate but held to a broader target class than either
+of them.
+
+**The gate is one tag, and it's an item rather than a skill.** Holding
+`branding-iron` (Dead Simple, `skills: [smithing]`, `SMITHING.md` §2) is the
+*whole* ability — there is no Torturer-style skill tag on top of it, unlike
+Torture. **Hidden, not greyed**, the same rule every button on this page
+follows: whether you're carrying the iron is your own sheet's fact.
+
+**The target class is wider than Torture and Mutilate's.** Both of those
+require the victim to hold `bound` specifically. Brand instead uses
+`INCAPACITATING_SLUGS` (`db/lib/incapacitation.js`) — Bound, Dying, Catatonic,
+Paralyzed, Seizure, Unconscious, Crucified — the same broader "helpless"
+class Harm's own-target check, Loot and Poison's "dose a helpless person" all
+use. A brand doesn't need the victim able to struggle for it to work, so there
+was no reason to hold it to the narrower Bound-only gate the other two use.
+
+**It costs nothing.** No Move, no ⬢, no turn, and the iron is never consumed
+— reusable, the same standing-kit shape as Torturing Equipment (§5).
+
+**The words are the player's, capped like any other custom craft.** The
+dialog takes a description (`CUSTOM_DESCRIPTION_MAX` = 300, `web/lib/
+customCraft.js`), and `brandCharacterRequestImpl`
+(`web/app/(app)/character/requestActions.js`) mints a fresh custom+ephemeral
+copy of the base `brand` catalog tag reading `A permanent brand.
+<description>` — `mintCustomCraft`/`db/lib/customCraftMint.js`, the same
+mechanism a customized weapon or a named dish mints through. `brand` itself
+carries no `craftable`/`customizable` flags: the mint is the only door onto
+it, granted straight from `brandCharacterRequestImpl` rather than through the
+Craft dialog.
+
+### What it does to the victim
+
+**`aching`** (2 turns, `TAGS.md` §5c's pain tags) and the minted **Brand**
+tag, both `source: EVENT`, permanent for Brand and on `aching`'s own clock for
+the pain.
+
+**Mood −40**, kind `BRANDED`, through `applyMood` inside the action's
+transaction (MOOD.md §3). The same two statuses that zero `TORTURED` zero
+this too — `pain-immunity` and `opium-high`, both ×0 in `MULTIPLIERS`
+(`db/lib/mood.js`) — because it's the same kind of harm: a hot iron held to
+someone who can't stop it.
+
+**The DM**, unattributed like every other request that acts on somebody else:
+*"Somebody held a hot iron to you. It'll never fade."*
+
+### Where the code lives
+
+- `docs/tags.yaml` — `branding-iron` (the gate item, beside Torturing
+  Equipment), `brand` (the mint's base row, beside `scarred`).
+- `db/lib/mood.js` — `EVENTS.BRANDED`, the two ×0 rows.
+- `db/lib/incapacitation.js` — `INCAPACITATING_SLUGS`, the target gate.
+- `db/lib/customCraftMint.js#mintCustomCraft` — the same mint Craft and
+  Cooking use.
+- `web/app/(app)/character/requestActions.js#brandCharacterRequestImpl`.
+- `web/app/components/actionRegistry.js`, `RequestActionsProvider.js`,
+  `character/page.js` (`canBrand`), `actions/BrandDialog.js` (reuses Poison's
+  `doseTargets` pool), `icons.js#BrandIcon` — Lucide's stamp.
+- `docs/desires.yaml` — `brand-someone`.

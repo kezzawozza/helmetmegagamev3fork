@@ -21,6 +21,7 @@ const LINES = {
   torture: (res, ctx) => `${named(ctx, res.name)} has been put to the question.`,
   harm: (res, ctx) => (res.killed ? `${named(ctx)} is dead.` : `${named(ctx)} is hurt.`),
   mutilate: (res, ctx) => `The ${res.part ?? "piece"} is yours.`,
+  brand: (res, ctx) => `${named(ctx, res.name)} is branded. It'll never come off.`,
   bury: (res, ctx) => `${res.name ?? named(ctx, "They")} is buried.`,
   butcher: (res, ctx) => `${res.name ?? named(ctx, "The body")} is cut up.`,
   engrave: (res) => (res.headstone ? `The name is cut into the stone.` : `No stone took the name.`),

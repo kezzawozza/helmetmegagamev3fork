@@ -10,6 +10,7 @@ import { formatMoveFraction } from "@/lib/craftBudget";
 import BindDialog, { BIND_VERBS } from "./BindDialog";
 import HarmDialog from "./HarmDialog";
 import MutilateDialog from "./MutilateDialog";
+import BrandDialog from "./BrandDialog";
 import BodyDialog from "./BodyDialog";
 import EngraveDialog from "./EngraveDialog";
 import WarrantDialog from "./WarrantDialog";
@@ -93,6 +94,7 @@ export const DIALOGS = {
   torture: BindDialog,
   harm: HarmDialog,
   mutilate: MutilateDialog,
+  brand: BrandDialog,
   bury: BodyDialog,
   butcher: BodyDialog,
   engrave: EngraveDialog,
