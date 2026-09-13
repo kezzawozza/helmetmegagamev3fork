@@ -163,6 +163,14 @@ is why `LocationLink` carries fields rather than one enum.
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
 | On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it, same as walking into an indoors Location |
 
+**A modular gate is also a window, open or shut.** A line said in a PUBLIC,
+non-soundproof Room at one end is echoed into every such Room at the other end,
+as the speaker, with each line `-#` (`db/lib/gateEcho.js`, called from
+`say.js#recordSpeech`). Private Rooms and Conversations never echo either way.
+And Who's here? plus the web HERE column list the people at the far Location
+under that Location's name (`whosHere(…, { withAcross: true })`), in rows that
+carry no hood token and no menu, so nothing can be done to them through the bars.
+
 **Stealth is the one tag that reads on a crossing**, and it moves the
 announcement down exactly one step rather than switching it off
 (`db/lib/locationMove.js#announceLevelFor`, a pure function with its own test

@@ -138,6 +138,6 @@ async function loadTaxRoster(character, openTurn) {
 export async function loadPeopleHere() {
   const who = await me();
   if (who.error) return { ok: false, error: who.error };
-  const rows = await whosHere(prisma, who.character, { withSightings: true });
+  const rows = await whosHere(prisma, who.character, { withSightings: true, withAcross: true });
   return { ok: true, ...rows };
 }

@@ -110,10 +110,62 @@ async function presentRows(
 // decided by the identity you actually hold, not by what is over their face at
 // this instant. A hood put on after you heard them speak does not protect them
 // from you until the turn rolls.
-async function whosHere(prisma, viewer, { withHoodIds = false, ...options } = {}) {
-  const rows = await presentRows(prisma, viewer, options);
+async function whosHere(prisma, viewer, { withHoodIds = false, withAcross = false, ...options } = {}) {
+  // One sightings Map for here and across the gate alike, when asked for.
+  const sightings =
+    options.sightings ?? (options.withSightings ? await lastSightings(prisma, viewer) : null);
+  const rows = await presentRows(prisma, viewer, { ...options, sightings });
 
-  const named = rows
+  const named = namedRows(rows, viewer);
+  const concealed = concealedRows(rows, { withTokens: true });
+
+  // The people across a modular gate from where you stand: seen and heard
+  // through the bars, so listed, but in rows nothing can act on — no token on
+  // a hood, and never in hoodIds below. Opt-in, so no picker can offer them.
+  const result = { named, concealed };
+  if (withAcross) {
+    const locationId = options.locationId ?? viewer?.locationId ?? null;
+    result.across = [];
+    for (const far of await gateNeighbours(prisma, locationId)) {
+      const farRows = await presentRows(prisma, viewer, { locationId: far.id, sightings: sightings ?? new Map() });
+      result.across.push({
+        locationId: far.id,
+        locationName: far.name,
+        named: namedRows(farRows, viewer),
+        concealed: concealedRows(farRows, { withTokens: false }),
+      });
+    }
+  }
+
+  // SERVER-ONLY, and opt-in so it cannot be shipped by accident: token -> the
+  // character id behind it, for a caller that has to filter hoods by id before
+  // deciding which to offer. placeMembers() is the one — it drops anybody
+  // already in the conversation, and anybody holding a key to the room.
+  //
+  // A sibling key rather than an id on the concealed rows themselves, because
+  // those rows go straight to a browser and /api/avatar/<id> answers with a
+  // face: shipping one IS the unmasking, whatever the page chooses to draw.
+  if (!withHoodIds) return result;
+  const hoodIds = new Map();
+  for (const c of rows) {
+    if (c.hidden && !c.forced) hoodIds.set(hoodToken(c.id), c.id);
+  }
+  return { ...result, hoodIds };
+}
+
+// The Locations across a modular gate, read straight off the links rather
+// than through locationGraph.js, whose requires would come round in a circle.
+async function gateNeighbours(prisma, locationId) {
+  if (!locationId) return [];
+  const links = await prisma.locationLink.findMany({
+    where: { modular: true, OR: [{ aId: locationId }, { bId: locationId }] },
+    select: { aId: true, a: { select: { id: true, name: true } }, b: { select: { id: true, name: true } } },
+  });
+  return links.map((link) => (link.aId === locationId ? link.b : link.a)).filter(Boolean);
+}
+
+function namedRows(rows, viewer) {
+  return rows
     .filter((c) => !c.hidden || c.forced)
     .map((c) => {
       const sameFaction =
@@ -137,8 +189,10 @@ async function whosHere(prisma, viewer, { withHoodIds = false, ...options } = {}
         self: c.self,
       };
     });
+}
 
-  const concealed = rows
+function concealedRows(rows, { withTokens }) {
+  return rows
     .filter((c) => c.hidden && !c.forced)
     .map((c) => {
       // What is over the face, so the room sees the helm rather than a letter
@@ -154,28 +208,13 @@ async function whosHere(prisma, viewer, { withHoodIds = false, ...options } = {}
         : (c.sighting?.avatarPath ?? null);
       return {
         alias: aliasRow(c, c.sighting?.name),
-        token: hoodToken(c.id),
+        token: withTokens ? hoodToken(c.id) : null,
         avatarPath: c.seen ? face : null,
         unknownFace: !c.seen || Boolean(c.sighting?.unknownFace),
         seen: c.seen,
         sightingSeq: c.sighting?.seq ?? null,
       };
     });
-
-  // SERVER-ONLY, and opt-in so it cannot be shipped by accident: token -> the
-  // character id behind it, for a caller that has to filter hoods by id before
-  // deciding which to offer. placeMembers() is the one — it drops anybody
-  // already in the conversation, and anybody holding a key to the room.
-  //
-  // A sibling key rather than an id on the concealed rows themselves, because
-  // those rows go straight to a browser and /api/avatar/<id> answers with a
-  // face: shipping one IS the unmasking, whatever the page chooses to draw.
-  if (!withHoodIds) return { named, concealed };
-  const hoodIds = new Map();
-  for (const c of rows) {
-    if (c.hidden && !c.forced) hoodIds.set(hoodToken(c.id), c.id);
-  }
-  return { named, concealed, hoodIds };
 }
 
 // WHO IS ACTUALLY STANDING THERE, for a GM.
@@ -239,12 +278,19 @@ async function resolveHoodToken(prisma, viewer, token, { sightings = null } = {}
 
 // The one-or-two-line readout the Discord button answers with, built off the
 // same rows so the channel and the page can never disagree.
-function whosHereLines({ named, concealed }) {
+function whosHereLines({ named, concealed, across = [] }) {
   const lines = [];
   if (named.length > 0) {
     lines.push(`**Here:** ${named.map((c) => (c.roleTitle ? `${c.name}, ${c.roleTitle}` : c.name)).join(" | ")}`);
   }
   if (concealed.length > 0) lines.push(`**Also here:** ${concealed.map((c) => c.alias).join(" | ")}`);
+  for (const group of across) {
+    const people = [
+      ...group.named.map((c) => (c.roleTitle ? `${c.name}, ${c.roleTitle}` : c.name)),
+      ...group.concealed.map((c) => c.alias),
+    ];
+    if (people.length > 0) lines.push(`**${group.locationName}:** ${people.join(" | ")}`);
+  }
   return lines;
 }
 

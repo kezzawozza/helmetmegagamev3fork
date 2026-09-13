@@ -1289,7 +1289,7 @@ async function handleWhosHere(interaction, locationId) {
     where: { discordUserId: interaction.user.id, status: "ALIVE" },
     select: { id: true, factionId: true },
   });
-  const rows = await whosHere(prisma, viewer, { locationId });
+  const rows = await whosHere(prisma, viewer, { locationId, withAcross: true });
   const lines = whosHereLines(rows);
   if (lines.length === 0) {
     await respond(interaction, "Nobody is here.");

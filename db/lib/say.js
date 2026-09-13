@@ -28,6 +28,7 @@ const { loadPresentedState } = require("./examineSnapshot");
 const { mayWritePlace, slowmodeMsFor } = require("./feedAccess");
 const { rolesToTokens, stampMentionNames } = require("./characterMentions");
 const { noteChant } = require("./riteChant");
+const { echoSpeech } = require("./gateEcho");
 
 // Discord's own ceiling for a message. Kept on the web side too, because the
 // outbox has to be able to repost whatever lands in a row.
@@ -272,6 +273,11 @@ async function recordSpeech(
   // chant that counts writes a row or two of its own, and none of that may
   // slow or fail the message it rode in on.
   if (row) void noteChant(prisma, { row, character: prepared.character });
+  // Heard through the bars of a modular gate (db/lib/gateEcho.js). Not for a
+  // message recovered late by messageCatchUp.js, the only caller with sentAt.
+  if (row && !sentAt) {
+    void echoSpeech(prisma, prepared, row).catch((err) => console.error("Gate echo failed:", err.message ?? err));
+  }
   return row;
 }
 

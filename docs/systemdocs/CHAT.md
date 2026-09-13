@@ -94,6 +94,12 @@ channel it came from than a proxied one can.
 | `advanceTurn`'s staged public declarations | the declaration's zone |
 | the turn opening | one `TURN_START` per zone, `placeKey: zone:<id>`, so every zone feed carries the day line |
 
+**A gate echo is the exception that is NOT a SYSTEM row.** A line said at one
+end of a modular gate (`MAP.md` §2a) is copied to the far Rooms as a `WEB` row
+with the speaker's character and frozen identity columns, its text `-#` per line,
+so the outbox posts it as the character and `/chat` draws it through
+`remarkSubtext`. Editing or deleting the original does not follow it to the echoes.
+
 The intercom used to write a single row from the Speak handler with no place
 key at all. It read correctly in `/archive` and was invisible in Chat,
 because a zone feed can only show a row filed against its own place key — so

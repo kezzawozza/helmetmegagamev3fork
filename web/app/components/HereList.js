@@ -329,6 +329,47 @@ export default function HereList({
         </div>
       ))}
 
+      {/* Across a modular gate: seen through the bars, so listed, but nothing
+          here can be done to them — no menu, no eye. */}
+      {(people?.across ?? []).map((group) => (
+        <div key={group.locationId}>
+          <p className="chat-section-title">
+            {group.locationName} · {group.named.length + group.concealed.length}
+          </p>
+          {group.named.map((person) => (
+            <div key={person.characterId} className="chat-person-row">
+              <span className="chat-person">
+                <CharacterAvatar
+                  characterId={person.characterId}
+                  name={person.name}
+                  version={person.avatarVersion}
+                  src={person.avatarPath ?? undefined}
+                  size={24}
+                />
+                <span className="chat-person-name">
+                  {person.name}
+                  {person.roleTitle ? <span className="text-muted"> · {person.roleTitle}</span> : null}
+                </span>
+              </span>
+            </div>
+          ))}
+          {group.concealed.map((person, index) => (
+            <div key={`across-hooded-${index}`} className="chat-person-row">
+              <span className="chat-person">
+                <CharacterAvatar
+                  characterId={null}
+                  name={person.alias}
+                  src={person.avatarPath ?? undefined}
+                  unknown={person.unknownFace}
+                  size={24}
+                />
+                <span className="chat-person-name text-muted">{person.alias}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
+
       <FormError>{addError}</FormError>
 
       {hood && <LookReadout state={hood} onClose={() => setHood(null)} />}

@@ -326,7 +326,7 @@ async function FreshChat({ userId }) {
         };
 
         const [people, affordances, examine, waiting, pools, stashRooms, mine, desires, letters, boardLocation, researchCatalog] = await Promise.all([
-          whosHere(prisma, character, { withSightings: true }),
+          whosHere(prisma, character, { withSightings: true, withAcross: true }),
           affordancesFor(prisma, character),
           // What Examine used to answer in a modal. It is the place card's
           // body now, rendered on the server with the rest of the column —
