@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · A sealed letter keeps its name
+
+✎ Sealing a letter no longer throws away what the writer called it — a closed letter now reads its title first and the wax after it, so a courier carrying two of them can tell which is which without opening one  
+✎ Breaking the seal puts the bare title back on the sheet  
+✚ If a letter reaches you with no name on it, the Seal dialog now lets you write one on the outside as you close it  
+✎ Letters sealed before today have no title stored and read as they always did
+
 ## 2026-09-13 · Stops on the road no longer ping the GM inbox
 
 ✎ Being intercepted or ambushed now arrives as a game notice, not as mail for the GMs

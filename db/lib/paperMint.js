@@ -149,6 +149,10 @@ async function mintUnownedPaper(tx, seed, authorName, text, title = null) {
     // and paperSlug re-rolls it per attempt, so two letters may share a title
     // — which is the point, since two people may both write "Orders".
     name: paperName(title),
+    // Kept separately too, because `name` does not survive the sheet's own
+    // life: sealing rewrites it and breaking the seal rewrites it again. This
+    // is the one copy the title is rebuilt from either way.
+    paperTitle: (title ?? "").trim() || null,
     // Never the text. The description column is broadcast to every browser;
     // paperDescription composes what a given reader is allowed to see.
     description: null,
@@ -183,6 +187,7 @@ async function bindBook(tx, character, blankTagId, title, text) {
     groupId,
     slug: bookSlug(character.id, attempt),
     name: attempt ? `${bookName(title)} (${attempt + 1})` : bookName(title),
+    paperTitle: (title ?? "").trim() || null,
     // A book has real heft, unlike a sheet — ten of them bound between boards
     // is the first thing in the paper group a carry cap should notice.
     weightLbs: 1.5,
@@ -216,8 +221,12 @@ async function appendToPaper(tx, tagId, existingText, addition) {
 //
 // The stamp is NOT consumed. A wax stamp presses as many letters as you have
 // wax for, and metering the wax is a system nobody asked for.
-async function sealPaper(tx, paperTag, stampTag) {
-  return sealWithMark(tx, paperTag, { label: sealLabel(stampTag), mark: stampTag.sealMark ?? null });
+async function sealPaper(tx, paperTag, stampTag, { title = null } = {}) {
+  return sealWithMark(tx, paperTag, {
+    label: sealLabel(stampTag),
+    mark: stampTag.sealMark ?? null,
+    title,
+  });
 }
 
 // The same seal, pressed with wax nobody owns. Every mark in the game
@@ -225,28 +234,33 @@ async function sealPaper(tx, paperTag, stampTag) {
 // is a physical object you can be robbed of. A GM letter has no stamp, so it
 // says outright what the wax carries, and the mark then flows through
 // paperDescription like any other.
-async function sealWithMark(tx, paperTag, { label, mark }) {
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    try {
-      return await tx.tag.update({
-        where: { id: paperTag.id },
-        data: {
-          // Whose wax is on it is PUBLIC — that is the whole point of sealing
-          // a letter. This REPLACES whatever the writer called it, and does
-          // not put it back when the seal is broken: the outside of a sealed
-          // letter tells a courier whose wax it carries and nothing else.
-          name: attempt ? `${sealedName(label)} (${attempt + 1})` : sealedName(label),
-          paperKind: "SEALED",
-          sealMark: mark ?? null,
-          // Consuming a sealed letter is how you break the seal.
-          consumable: true,
-        },
-      });
-    } catch (err) {
-      if (err?.code !== "P2002") throw err;
-    }
-  }
-  throw new Error("Could not name the sealed letter.");
+async function sealWithMark(tx, paperTag, { label, mark, title = null }) {
+  // A sheet that reached the sealer untitled may be labelled here, and only
+  // here — once it has a title, the title is the writer's and a second hand
+  // does not get to rename it. Same "set once" rule the Write dialog has.
+  const kept = (paperTag.paperTitle ?? "").trim();
+  const finalTitle = kept || (title ?? "").trim() || null;
+
+  // No retry loop. This touches the name and not the slug, and Tag.name lost
+  // its @unique in 20260913010000_paper_name_not_unique, so two letters may
+  // share a name and there is nothing left here that can collide.
+  return tx.tag.update({
+    where: { id: paperTag.id },
+    data: {
+      // Whose wax is on it is PUBLIC — that is the whole point of sealing a
+      // letter — and so is what the writer called it. The name is REBUILT
+      // here rather than replaced, and rebuilt again from paperTitle when the
+      // seal is broken. It used to be replaced outright, which deleted the
+      // title: a courier carrying two sealed letters could then only tell
+      // them apart by opening one, and opening one is permanent.
+      name: sealedName(label, finalTitle),
+      paperTitle: finalTitle,
+      paperKind: "SEALED",
+      sealMark: mark ?? null,
+      // Consuming a sealed letter is how you break the seal.
+      consumable: true,
+    },
+  });
 }
 
 // Breaking one. Two writes, and both matter: the letter comes back exactly as
@@ -272,9 +286,10 @@ async function breakSeal(tx, characterId, sealedTag) {
   const paper = await tx.tag.update({
     where: { id: sealedTag.id },
     data: {
-      // Back to an anonymous note. The letter inside says whatever it said;
-      // who sealed it survives on the envelope, not on the paper.
-      name: paperName(),
+      // Back to whatever the writer called it — or "A Note" if they called it
+      // nothing, which is the same anonymous sheet it was before the wax. Who
+      // sealed it survives on the envelope, not on the paper.
+      name: paperName(sealedTag.paperTitle),
       paperKind: "PAPER",
       sealMark: null,
       consumable: false,

@@ -264,10 +264,27 @@ function bookName(title) {
   return clean ? `${clean} (a book)` : "An Untitled Book";
 }
 
-function sealedName(label) {
-  return `Sealed Letter (${label})`;
+// A closed letter's name: the title first, the wax after it.
+//
+// The title used to be thrown away here — a sealed letter said whose wax it
+// carried and nothing else, on the argument that the outside of an envelope is
+// not the place to advertise. What that missed is a courier with two sealed
+// letters in a sack, who could only tell them apart by opening one, which
+// breaks the seal for good. So the title leads and the wax trails, and both
+// are on the outside where a hand that cannot read still sees them.
+//
+// Untitled is still untitled: a sheet the writer advertised nothing on seals
+// to "Sealed Letter (<wax>)", exactly as every letter did before this.
+function sealedName(label, title) {
+  const clean = (title ?? "").trim();
+  const sealed = `Sealed Letter (${label})`;
+  return clean ? `${clean} — ${sealed}` : sealed;
 }
 
+// The spent envelope, which wears NO title. Every envelope of one wax reads
+// alike so they can stack (paperMint.js#breakSeal); a title would mint a fresh
+// row per letter opened, and would also leave the name of a letter lying in a
+// sack long after the letter itself walked off.
 function brokenSealName(label) {
   return `Broken Seal (${label})`;
 }

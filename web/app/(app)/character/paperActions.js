@@ -197,7 +197,7 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText, title: rawTitle 
   return { name: result.name, tagId: result.id };
 }
 
-async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId }) {
+async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId, title: rawTitle }) {
   const { character } = await requireWriter({ needs: ACT });
 
   const paperRow = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
@@ -214,9 +214,20 @@ async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId }) {
 
   // Sealing does not need literacy — pressing wax into a fold is not reading —
   // but it does need the paper, and holding it is the check.
+  // A sheet that reached this hand untitled may be labelled on the way into
+  // the wax — a courier with a bundle of anonymous letters is exactly who
+  // needs to tell them apart. Scrubbed the same way the Write dialog scrubs a
+  // title, because the name reaches Discord through the noticeboard and the
+  // Bird, where an unscrubbed "@everyone" is a real mention.
+  //
+  // sealPaper enforces the rest: a sheet that already has a title keeps it,
+  // whatever was posted here, so a second hand cannot rename a first hand's
+  // letter. The dialog hides the field in that case; this is the lock.
+  const title = cleanCustomText(rawTitle, TITLE_MAX) || null;
+
   let sealed;
   await prisma.$transaction(async (tx) => {
-    sealed = await sealPaper(tx, paperRow.tag, stampRow.tag);
+    sealed = await sealPaper(tx, paperRow.tag, stampRow.tag, { title });
   });
 
   await afterInventoryChange([character.id]);

@@ -235,6 +235,11 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
       tagId: ct.tagId,
       name: ct.tag.name,
       excerpt: canReadNow ? (ct.tag.paperText ?? "").trim().slice(0, 60) : null,
+      // A sheet that arrived untitled may be labelled at the wax, and one that
+      // already has a title may not — the writer named it and a second hand
+      // does not get to rename it. The dialog hides its title field off this;
+      // paperMint.js#sealWithMark is the lock behind it.
+      titled: Boolean((ct.tag.paperTitle ?? "").trim()),
     })),
   };
 

@@ -19,7 +19,7 @@
 // trim() the way the book title was written.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { paperName, bookName, TITLE_MAX } = require("../lib/paper");
+const { paperName, bookName, sealedName, brokenSealName, TITLE_MAX } = require("../lib/paper");
 const { cleanCustomText } = require("../lib/customText");
 
 test("no title leaves the sheet anonymous", () => {
@@ -78,4 +78,42 @@ test("a title that is nothing but scrubbed characters reads as no title", () => 
   // "@@@" cleans to "" — which must fall through to the anonymous name rather
   // than naming a sheet the empty string.
   assert.equal(paperName(cleanCustomText("@@@", TITLE_MAX) || null), "A Note");
+});
+
+// ── Through the wax and back ───────────────────────────────────────────────
+//
+// WHAT A FAILURE HERE MEANS. A player reported it before this existed: seal a
+// letter and its title was gone, so a courier carrying two closed letters
+// could only tell them apart by opening one — and opening one breaks the seal
+// for good. sealedName now carries the title on the outside and paperName
+// rebuilds it from Tag.paperTitle when the wax comes off.
+
+test("a sealed letter wears its title and its wax", () => {
+  assert.equal(
+    sealedName("Three Cups", "Orders for the Watch"),
+    "Orders for the Watch — Sealed Letter (Three Cups)",
+  );
+});
+
+test("an untitled letter seals exactly as it always did", () => {
+  assert.equal(sealedName("Three Cups"), "Sealed Letter (Three Cups)");
+  assert.equal(sealedName("Three Cups", null), "Sealed Letter (Three Cups)");
+  assert.equal(sealedName("Three Cups", "   "), "Sealed Letter (Three Cups)");
+});
+
+test("breaking the seal gives the writer's name back", () => {
+  // What breakSeal writes: paperName(sealedTag.paperTitle). The round trip is
+  // the whole feature — a title that survived the seal but not the opening
+  // would be worse than the old behaviour, not better.
+  const title = "Orders for the Watch";
+  assert.equal(sealedName("Three Cups", title), `${title} — Sealed Letter (Three Cups)`);
+  assert.equal(paperName(title), title);
+  // And a letter that was never titled is still an anonymous note afterwards.
+  assert.equal(paperName(null), "A Note");
+});
+
+test("the envelope left behind wears no title", () => {
+  // Envelopes STACK — every one bearing the same wax must read identically, or
+  // breakSeal mints a fresh row for every letter anybody opens.
+  assert.equal(brokenSealName("Three Cups"), "Broken Seal (Three Cups)");
 });

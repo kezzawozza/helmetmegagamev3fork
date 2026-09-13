@@ -2677,6 +2677,24 @@ model Tag {
   // outlive its author, and a dead writer's letter still names them.
   paperAuthor String?
 
+  // What the writer chose to call it, kept apart from `name` because `name` is
+  // COMPOSED and recomposed as the sheet moves through its states: sealing
+  // rewrites it to lead with the title and trail the wax, breaking the seal
+  // puts the bare title back. Holding the title in `name` alone meant sealing
+  // destroyed it, so a courier with two sealed letters could not tell them
+  // apart without opening one — which is permanent.
+  //
+  // Null means the writer advertised nothing, which stays the default: a sheet
+  // with no title seals to "Sealed Letter (<wax>)" exactly as it always did.
+  // Set once, on the first write, or by the sealer if the sheet reached them
+  // untitled — a second hand may not rename what a first hand called it.
+  //
+  // PUBLIC, unlike paperText. It travels everywhere Tag.name travels (Transfer,
+  // Loot, a room's Storage readout, the bot's inspect embed), none of which
+  // knows anything about literacy. That is the bargain a title makes and the
+  // reason it is optional.
+  paperTitle String?
+
   // A wax stamp's distinguishing line — "Three cups, stacked." Authored in
   // docs/tags.yaml as `sealMark:`, which is also what makes the stamp a stamp:
   // db/lib/syncTags.js composes the whole description around it, so the

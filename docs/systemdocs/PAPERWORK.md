@@ -30,6 +30,11 @@ game to everyone playing it. So the text lives in `Tag.paperText`, which
 `TAG_CHIP_FIELDS` never selects, and the description is composed per request,
 per viewer.
 
+`Tag.paperTitle` sits beside it and is the opposite kind of column: public, and
+deliberately so. It holds what the writer chose to advertise on the outside, and
+exists separately from `Tag.name` because `name` gets rebuilt each time the
+sheet is sealed or opened (§4).
+
 That loader now also withholds `ephemeral` rows the caller isn't holding.
 Without it the catalog payload would grow with every paper ever written — a
 problem crates already had, with no consequences until paper made the set
@@ -166,10 +171,35 @@ appends and shows no title field, so a second hand cannot rename what a first
 hand called it. Sheets written before this existed therefore stay `A Note`
 permanently — there is no retitle path, deliberately.
 
-**Sealing is untouched.** A `SEALED` row is still named `Sealed Letter
-(<wax>)` and a `BROKEN_SEAL` row `Broken Seal (<wax>)`, so the outside of a
-sealed letter tells a courier whose wax is on it and nothing else. A title does
-not survive the seal, and does not come back when it is broken.
+**A title goes through the wax and comes back.** A `SEALED` row is named
+`<title> — Sealed Letter (<wax>)`, and breaking the seal puts the bare title
+back on the sheet. An untitled letter is unchanged: `Sealed Letter (<wax>)`,
+exactly as every letter read before this. A `BROKEN_SEAL` row is still
+`Broken Seal (<wax>)` and wears no title at all — envelopes stack, and every
+one bearing the same wax has to read alike.
+
+This is a reversal, and worth knowing why. Sealing used to *delete* the title:
+`name` was overwritten in place, nothing kept a copy, and breaking the seal
+wrote `A Note`. The argument was that the outside of an envelope says whose wax
+it carries and nothing else. What that missed is a courier holding two sealed
+letters, who could tell them apart only by opening one — and opening one is
+permanent. The secrecy is still there, and it is the same secrecy a written
+sheet has always had: a title is optional, so a writer who wants to advertise
+nothing leaves it blank, and the *contents* stay behind the literacy gate
+either way.
+
+`Tag.paperTitle` is where the title lives now, apart from `name`, because
+`name` is composed and recomposed as the sheet is sealed and opened.
+`paperName(title)` and `sealedName(label, title)` in `db/lib/paper.js` are the
+only two places either string is built.
+
+**The sealer may name an untitled sheet.** The Seal dialog grows the same
+optional title field the Write dialog has, but **only when the sheet arrived
+with no title** — that keeps the set-once rule, so a second hand cannot rename
+what a first hand called it. `sealWithMark` enforces it server-side rather than
+trusting the hidden field, and the posted title goes through `cleanCustomText`
+for the same reason a written one does. Letters sealed before this existed have
+no stored title and stay as they read today; those names are gone.
 
 **A title is scrubbed, not just trimmed.** It goes through
 `cleanCustomText` (`web/lib/customCraft.js`), the custom-craft mint's own
@@ -245,7 +275,9 @@ included, cannot tell the two apart.
 
 **Sealing renames the row in place**, the same move a corpse makes when it rots
 — a letter somebody is carrying seals in their hands with no second row to
-reconcile. The stamp is **not** consumed.
+reconcile. The name it takes leads with the writer's title, if there is one,
+and trails the wax — §4 for why, and for the one moment a sealer may supply
+that title themselves. The stamp is **not** consumed.
 
 **Breaking a seal is Consume**, and takes its own road out of
 `consumeTagRequest`: the ordinary path reads `consumesInto`, which names
