@@ -206,7 +206,18 @@ export default function DmPane({ self, drawers = null }) {
             </div>
           )}
         </div>
-        <IconButton icon={SendIcon} label="Send" type="submit" disabled={sending || !draft.trim() || over} />
+        {/* The same send the scene composer draws (./Feed.js): on a phone,
+            the 44px accent glyph, because this is the button a thumb aims at
+            on every line. It was a bare .icon-btn here — 26px and the colour
+            of a quiet control — which made writing to Bascinet the fiddliest
+            box in the app on the face most people write from. */}
+        <IconButton
+          icon={SendIcon}
+          label="Send"
+          type="submit"
+          className={narrow ? "icon-btn chat-send" : "icon-btn"}
+          disabled={sending || !draft.trim() || over}
+        />
       </form>
     </div>
   );

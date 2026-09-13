@@ -6716,6 +6716,21 @@ label.chip {
   background: var(--danger);
 }
 
+/* The top of a feed that has more behind it (./chat/Feed.js#BacklogEdge).
+   Quiet on purpose: it is scenery about the list, not a line in it, so it
+   reads the way an ambient line does on Discord rather than like a control. */
+.chat-backlog-edge {
+  padding: var(--sp-3) 0 var(--sp-2);
+  text-align: center;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+
+.chat-backlog-edge a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 /* A row a search hit took the reader to. A flash and then nothing: the point
    is to say WHICH line, not to leave it marked. */
 .chat-row[data-run="start"] {
@@ -7845,6 +7860,11 @@ label.chip {
   left: 0;
   z-index: 20;
   min-width: 12rem;
+  /* …and no wider than the box it hangs off. Without this the longest
+     command description set the width, which on a 390px phone put the right
+     third of the menu off the side of the screen — the descriptions carry
+     .truncate, but truncating needs a bound to truncate to. */
+  max-width: 100%;
   max-height: 12rem;
   overflow-y: auto;
   margin-bottom: var(--sp-1);

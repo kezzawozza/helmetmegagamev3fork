@@ -25,7 +25,7 @@ import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/
 const HUB_KEY = "__bascinetFeedHub";
 // Bumped whenever createHub() gains a field, so a hot reload backfills an
 // older hub instead of throwing on the missing one. See hub().
-const HUB_SHAPE = 4;
+const HUB_SHAPE = 5;
 const BACKOFF_MIN_MS = 1000;
 const BACKOFF_MAX_MS = 60_000;
 
@@ -83,6 +83,10 @@ function createHub() {
     // Whether this hub has ever held a LISTEN. A connect after that is a
     // RE-connect, and everything raised in the gap is gone — see resyncDm.
     everConnected: false,
+    // When the listener went away, so the reconnect can say how long the feed
+    // was dark. Null while it is up. Only ever a log line — nothing branches
+    // on it.
+    downSince: null,
     // Which channels the LIVE client is actually listening on. Not the same
     // question as "has it connected": hub() backfills a hub built by an older
     // copy of this file on a hot reload, and a channel added to CHANNELS since
@@ -511,7 +515,16 @@ async function connect() {
 
   const drop = (err) => {
     if (h.client !== client && h.connecting === false) return;
+    // Said out loud even when the session ended CLEANLY, which is the case
+    // that used to pass in silence. While the hub is down nothing is fanned
+    // out to anybody, so every open tab goes quiet until the reconnect below
+    // resyncs it — and that looks, from a player's chair, exactly like the
+    // website lagging minutes behind Discord. Players have reported that;
+    // without a line here there was no way to check a report against the
+    // logs. The recovery line names how long the gap was.
     if (err) console.error("Feed hub listener error:", err);
+    else console.warn("Feed hub listener ended; the live feed is down until it reconnects.");
+    h.downSince = Date.now();
     if (h.client === client) h.client = null;
     h.connecting = false;
     // The session is gone and so are its LISTENs; the next connect re-issues
@@ -557,10 +570,13 @@ async function connect() {
     h.connecting = false;
     h.backoffMs = BACKOFF_MIN_MS;
     if (h.everConnected) {
+      const gap = h.downSince ? Math.round((Date.now() - h.downSince) / 1000) : null;
+      console.warn(`Feed hub reconnected${gap === null ? "" : ` after ${gap}s`}; resyncing every open stream.`);
       resyncPlaces();
       resyncDm();
       resyncDesk();
     }
+    h.downSince = null;
     h.everConnected = true;
   } catch (err) {
     console.error("Feed hub could not start listening:", err);

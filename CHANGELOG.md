@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Chat reads all the way back, not just the last hundred lines
+
+✎ Scrolling up in a room keeps loading what was said before, instead of stopping at the last hundred lines  
+✎ The top of a scene says whether that is the beginning of the place, or a turn wipe with the archive behind it  
+✚ A bigger send button when writing to Bascinet on a phone  
+✎ The slash-command menu no longer runs off the side of a phone screen
+
 ## 2026-09-13 · Butchering a person now takes their organs too
 
 ✎ Butcher gives up every organ Mutilate hasn't already taken, not just Human Flesh  

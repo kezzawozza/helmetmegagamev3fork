@@ -30,7 +30,18 @@ const state = {
   pending: new Map(),
   // placeKey -> "idle" | "loading" | "loaded"
   history: new Map(),
+  // placeKey -> { loading, exhausted, floored }, the state of reading FURTHER
+  // BACK than that first page (web/app/api/feed/history/route.js#before).
+  // Separate from `history` above, which is about the first page only: a place
+  // can be "loaded" and still have ten pages of scene behind it.
+  backlog: new Map(),
 };
+
+// What a place with nothing asked for yet looks like. Frozen and shared, so
+// useSyncExternalStore's snapshot is referentially stable for every place
+// nobody has scrolled up in — a fresh object each read would re-render on
+// every store frame.
+const BACKLOG_IDLE = Object.freeze({ loading: false, exhausted: false, floored: false });
 
 const listeners = new Set();
 
@@ -297,9 +308,40 @@ export function markHistoryLoaded(place) {
 // a line deleted or changed while the tab was away. The rows already held
 // stay; seedRows merges by seq.
 export function resetHistory() {
-  if (state.history.size === 0) return;
+  if (state.history.size === 0 && state.backlog.size === 0) return;
   state.history = new Map();
+  // The backlog goes with it. A stale `exhausted` would tell a reader there
+  // is nothing further back when the re-read has only fetched the newest
+  // hundred again, and a stale `loading` would wedge the scroll-up for good.
+  state.backlog = new Map();
   emit();
+}
+
+// The state of reading further back in one place.
+export function backlogOf(place) {
+  return state.backlog.get(place) ?? BACKLOG_IDLE;
+}
+
+export function setBacklog(place, patch) {
+  if (!place) return;
+  const current = backlogOf(place);
+  const next = { ...current, ...patch };
+  if (
+    next.loading === current.loading &&
+    next.exhausted === current.exhausted &&
+    next.floored === current.floored
+  ) {
+    return;
+  }
+  state.backlog = new Map(state.backlog);
+  state.backlog.set(place, next);
+  emit();
+}
+
+export function useBacklog(place) {
+  const snapshot = useCallback(() => backlogOf(place), [place]);
+  const server = useCallback(() => BACKLOG_IDLE, []);
+  return useSyncExternalStore(subscribe, snapshot, server);
 }
 
 // "Has this tab already asked?" — the guard that keeps the empty state from
@@ -330,6 +372,21 @@ export function newestSeq(place) {
     if (seq > best) best = seq;
   }
   return String(best);
+}
+
+// The oldest confirmed seq this tab holds for a place, as a string, or null.
+// The cursor a scroll-up pages from — read off the store rather than
+// remembered from the last response, so the rows the page server-rendered
+// count too.
+export function oldestSeq(place) {
+  const rows = state.confirmed.get(place);
+  if (!rows || rows.size === 0) return null;
+  let best = null;
+  for (const key of rows.keys()) {
+    const seq = BigInt(key);
+    if (best === null || seq < best) best = seq;
+  }
+  return best === null ? null : String(best);
 }
 
 // Is this row one the VIEWER wrote?

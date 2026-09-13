@@ -22,11 +22,16 @@ import ChatHead from "./ChatHead";
 import {
   useFeed,
   useHistoryState,
+  useBacklog,
+  backlogOf,
+  setBacklog,
+  seedRows,
   applyRow,
   addPending,
   markPendingFailed,
   retryPending,
   newestSeq,
+  oldestSeq,
   isOwnRow,
 } from "./feedStore";
 import FeedSearch from "./FeedSearch";
@@ -77,6 +82,11 @@ import { MOVE_KINDS } from "./MoveDialog";
 const RUN_GAP_MS = 7 * 60_000;
 // How close to the bottom still counts as "reading the newest", in px.
 const STICK_PX = 40;
+// How close to the TOP starts the next page of the backlog. Further than
+// STICK_PX because this one has a round trip behind it: asking a few hundred
+// pixels early means the rows are usually there before the reader arrives,
+// rather than a stall at the very top of the list.
+const REACH_PX = 400;
 // The same five minutes db/lib/say.js#EDIT_WINDOW_MS enforces. Kept here as a
 // number rather than imported, because importing from @lifeweb/db in a
 // "use client" file drags Prisma and node:fs into the browser bundle. The
@@ -102,6 +112,27 @@ const SystemRow = memo(function SystemRow({ row }) {
 // Discord's red line: everything under it landed since you last had this
 // place open. Drawn once, where the list was when you opened it, and left
 // there while you read — it is a bookmark, not a cursor.
+// The top of the list, when there is more of the scene than one page of it.
+//
+// Deliberately not a button. Reading further back happens on the scroll (see
+// reachBack), so this only ever REPORTS — what is on the wire, or why the
+// road ended. And the two endings are different things worth saying
+// differently: a place can run out because it is young, or because a turn
+// wipe put the rest below the line (db/lib/feedWipe.js), and only the second
+// one has somewhere else to send the reader.
+function BacklogEdge({ loading, exhausted, floored }) {
+  if (loading) return <li className="chat-backlog-edge">Reading further back…</li>;
+  if (!exhausted) return null;
+  if (floored) {
+    return (
+      <li className="chat-backlog-edge">
+        Nothing from before this turn. <a href="/archive">The archive</a> keeps the rest.
+      </li>
+    );
+  }
+  return <li className="chat-backlog-edge">This is the beginning.</li>;
+}
+
 function NewLine() {
   return (
     <li className="chat-new-line" aria-hidden="true">
@@ -706,6 +737,14 @@ export default function Feed({
   // Read inside the scroll handler and the arrival effect, where a stale
   // closure would stick the view to the wrong end of the list.
   const atBottomRef = useRef(true);
+  // How tall the list was just before a page of older rows was put on top of
+  // it, and where the reader was in it. Restored after layout — see the
+  // useLayoutEffect below. A ref, because it is set from a fetch callback and
+  // read during layout, and neither is a render.
+  const anchorRef = useRef(null);
+  // The state of reading further back in THIS place, so the top of the list
+  // can say what it is doing.
+  const backlog = useBacklog(placeKey);
   // Retries this tab has scheduled for itself after a slowmode refusal, so a
   // place change or a closed tab does not leave one to fire into nothing.
   const retryTimers = useRef(new Set());
@@ -1333,6 +1372,65 @@ export default function Feed({
     [confirm],
   );
 
+  // One page further back, fetched when the reader gets near the top.
+  //
+  // It lives here rather than beside the other history fetches in Chat.js
+  // because the scroll position is the trigger AND the thing that has to be
+  // put back afterwards: the anchor has to be measured in the beat between
+  // the rows arriving and React laying them out, which is this component's
+  // own render. Chat.js loads the FIRST page of a place; this loads the rest.
+  const reachBack = useCallback(() => {
+    // The two pseudo-places never reach this component at all — Chat.js
+    // draws ./FactionPanel.js and ./DmPane.js instead — so a real place is
+    // the only thing a mounted Feed can be looking at.
+    if (!placeKey) return;
+    const state = backlogOf(placeKey);
+    if (state.loading || state.exhausted) return;
+    // Nothing on screen yet means the first page is still out. It will bring
+    // the cursor this pages from, so there is nothing to ask for.
+    const cursor = oldestSeq(placeKey);
+    if (!cursor) return;
+    setBacklog(placeKey, { loading: true });
+    fetch(
+      `/api/feed/history?place=${encodeURIComponent(placeKey)}&before=${encodeURIComponent(cursor)}`,
+    )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) {
+          setBacklog(placeKey, { loading: false });
+          return;
+        }
+        // Measured HERE, before seedRows re-renders the list — the DOM is
+        // still the old, shorter one at this point. Restoring it is the
+        // useLayoutEffect below.
+        // Measured only when there is actually something to put on top, and
+        // measured HERE, before seedRows re-renders — the DOM is still the
+        // old, shorter one at this point. An anchor set for a page that
+        // turned out to be empty would sit unclaimed until the next line
+        // somebody spoke, and then yank the reader for no reason.
+        //
+        // No staleness guard needed beyond that: Chat.js keys this component
+        // on the place, so a reader who walked away took this whole closure's
+        // component with them.
+        const older = Array.isArray(data.rows) ? data.rows : [];
+        if (older.length > 0) {
+          const el = scrollerRef.current;
+          if (el) anchorRef.current = { height: el.scrollHeight, top: el.scrollTop };
+          seedRows(placeKey, older);
+        }
+        setBacklog(placeKey, {
+          loading: false,
+          exhausted: Boolean(data.exhausted),
+          floored: Boolean(data.floored),
+        });
+      })
+      .catch(() => {
+        // Left un-exhausted on purpose: a failed reach is worth trying again
+        // on the next scroll, unlike an honest end of the road.
+        setBacklog(placeKey, { loading: false });
+      });
+  }, [placeKey]);
+
   const onScroll = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
@@ -1343,7 +1441,46 @@ export default function Feed({
     // scroll, not on selection, so opening a busy room and scrolling away
     // still leaves the dot for what you have not read.
     if (near && placeKey) onSeen?.(placeKey, newestSeq(placeKey));
-  }, [placeKey, onSeen]);
+    // …and reading to the top is what asks for more.
+    if (el.scrollTop <= REACH_PX) reachBack();
+  }, [placeKey, onSeen, reachBack]);
+
+  // A feed that does not overflow its scroller can never fire the handler
+  // above — there is nowhere to scroll — so a page that came back short of a
+  // screenful would sit there looking like the whole of a room's history. One
+  // page at a time until it either fills the box or runs out, which bounds
+  // this at "enough to scroll" rather than at the whole backlog.
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return undefined;
+    if (historyState !== "loaded") return undefined;
+    if (el.scrollHeight > el.clientHeight) return undefined;
+    reachBack();
+    return undefined;
+  }, [rows, historyState, reachBack]);
+
+  // Put the reader back where they were after a page of older rows lands on
+  // top of the list.
+  //
+  // Without this, scrolling up to read is self-defeating: the browser keeps
+  // scrollTop where it was, so a hundred rows arriving ABOVE that point shove
+  // the line somebody was reading down off the bottom of the screen, and the
+  // view is suddenly parked in the middle of a conversation from an hour
+  // earlier. Adding the height the list grew by holds the same line under the
+  // same pixel.
+  //
+  // useLayoutEffect, not useEffect: this has to happen in the same frame the
+  // rows are painted, or the jump is visible.
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    anchorRef.current = null;
+    const el = scrollerRef.current;
+    if (!el) return;
+    const grew = el.scrollHeight - anchor.height;
+    if (grew <= 0) return;
+    el.scrollTop = anchor.top + grew;
+  }, [rows]);
 
   // Scroll follows only a reader who is already at the bottom. Yanking
   // somebody back down while they are reading further up is the single most
@@ -1644,6 +1781,11 @@ export default function Feed({
           )
         ) : (
           <ul className="list-none p-0">
+            <BacklogEdge
+              loading={backlog.loading}
+              exhausted={backlog.exhausted}
+              floored={backlog.floored}
+            />
             {withRuns.map(({ row, startsRun, mine, system, canLook, canPhoto, canRemove, newLine }) => {
               const key = row.clientId ?? row.seq;
               if (system) {
