@@ -7323,6 +7323,8 @@ tags:
 
   # Not on the caving table — the maggot is the loot, this is what you make of
   # it. Calms like {tag:tea} (db/lib/mood.js CONSUME_RELIEF) and feeds you.
+  # recipePublic: any Brewer should know you can squeeze a maggot, without
+  # having to have found one first (CRAFTING.md §2b).
   maggot-milk:
     catalog: gm
     name: Maggot Milk
@@ -7343,6 +7345,7 @@ tags:
       skills: [brewing-basic]
       gambit: false
       items: [purring-maggot]
+      recipePublic: true
     consumable: true
     consumesInto:
       - ate-meal
