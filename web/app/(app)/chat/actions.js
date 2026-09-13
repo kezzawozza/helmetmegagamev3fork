@@ -1804,6 +1804,10 @@ export async function sendToGms(content, clientNonce) {
       direction: "INBOUND",
       content: text,
       source: "player",
+      // A player's own words, the same as the bot's inbound log. Without
+      // this the row takes the NOTICE default and never lights the desk
+      // (db/lib/dmKinds.js).
+      kind: DM_KIND.CONVERSATION,
       clientNonce: nonce,
       meta: { via: "play" },
     },
