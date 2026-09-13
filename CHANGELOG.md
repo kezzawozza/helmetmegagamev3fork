@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Curing Poisoned no longer leaves you Drained
+
+✎ Being cured of Poisoned now just ends it, with no Drained afterwards
+
 ## 2026-09-13 · Poisoned lasts two turns and no longer leaves you Drained
 
 ✎ Poisoned now lasts 2 turns instead of 1  

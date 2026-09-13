@@ -4452,7 +4452,6 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 2
-    removesInto: [drained]
     healable: true
     requirement:
       turnsCost: 1/3
