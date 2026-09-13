@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Talking through a gate
+
+✎ Speech in a public room at either end of a gate (Fortress Gatehouse, both Town gates, Customs) is now heard in the public rooms on the other side, as the speaker, in small text  
+✎ Who's here? and the web people list now show who is standing on the other side of a gate, under that place's name
+
 ## 2026-09-13 · Quests: GMs can stage a room anywhere without a deploy
 
 ✚ A Quests panel on /gm/dev with three tabs: the quests themselves, every noticeboard in the game, and a line into any zone's #summary  
