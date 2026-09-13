@@ -1108,9 +1108,14 @@ have yet, for the whole length of a build.
 GitHub repo, so pushing to `master` triggers a deploy. Two settings on the
 Railway services make that deploy correct, and both are set:
 
-- **Pre-Deploy Command on `web`: `npm run db:migrate:deploy`.** It runs after
-  the build and before the new version takes traffic, so a failed migration
-  aborts the deploy instead of shipping a half-migrated app. Scoped to `web`
+- **Pre-Deploy Command on `web`: `npm run db:migrate:deploy && npm run
+  db:sync-safe`.** It runs after the build and before the new version takes
+  traffic, so a failed migration aborts the deploy instead of shipping a
+  half-migrated app. `db:sync-safe` is `db:sync-tags` then `db:sync-desires`,
+  the two syncs that never delete and never touch Discord, so a YAML edit to
+  either lands with the push. A YAML error there fails the deploy loudly, which
+  is the point. Every other sync (zones, documents, labor drops, #info) still
+  deletes or posts, and stays a hand-run step. Scoped to `web`
   on purpose — `bot` shares the database and would only race it. Don't use a
   root `railway.json`, which would apply to both services.
 - **Watch Paths are empty on both services**, so every push rebuilds both.

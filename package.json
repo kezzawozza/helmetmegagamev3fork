@@ -31,6 +31,7 @@
     "db:sync-labor-drops": "node db/scripts/sync/sync-labor-drops.js",
     "db:sync-narrowcast-channels": "node db/scripts/sync/sync-narrowcast-channels.js",
     "db:sync-info-channel": "node db/scripts/sync/sync-info-channel.js",
+    "db:sync-safe": "node db/scripts/sync/sync-tags.js && node db/scripts/sync/sync-desires.js",
     "db:rebuild-info-channel": "node db/scripts/sync/rebuild-info-channel.js",
     "db:doctor": "node db/scripts/ops/doctor.js",
     "db:backfill-economy": "node db/scripts/ops/backfill-economy.js",

@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Tag and desire edits reach the live game on every push
+
+✎ Changes to the tag and desire lists now apply by themselves when a push deploys, no hand sync needed  
+✎ Zones, documents, labor drops and #info still need a hand sync
+
 ## 2026-09-13 · Pushes rebase first and refuse to undo other sessions' work
 
 ✎ A push now lands on the newest master instead of overwriting whatever another session just shipped  
