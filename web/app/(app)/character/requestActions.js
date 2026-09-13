@@ -2291,10 +2291,12 @@ async function kissRequestImpl({ targetCharacterId }) {
 
 // --- Tax -------------------------------------------------------------
 
-// `picks` is { [characterId]: "amount" }, the StackRow shape. Every entry is
-// re-derived from a fresh taxRoster() rather than trusted from the client —
-// the picker may be stale, and a stale row is dropped rather than errored.
-async function taxRequestImpl({ picks }) {
+// `picks`/`obolPicks` are each { [characterId]: "amount" }, the StackRow
+// shape — one currency apiece, since a PendingTax row is single-currency
+// (schema.prisma's PendingTaxKind). Every entry is re-derived from a fresh
+// taxRoster() rather than trusted from the client — the picker may be stale,
+// and a stale row is dropped rather than errored.
+async function taxRequestImpl({ picks, obolPicks }) {
   const { character } = await requireCharacter({ needs: ACT });
 
   const openTurn = await getOpenTurn();
@@ -2316,30 +2318,38 @@ async function taxRequestImpl({ picks }) {
   const roster = await taxRoster(prisma, character, { openTurnNumber: openTurn.number });
   const byId = new Map(roster.map((m) => [m.id, m]));
 
-  const entries = Object.entries(picks ?? {});
-  const targets = [];
-  for (const [characterId, rawAmount] of entries) {
-    const member = byId.get(characterId);
-    // Stale client state — dropped silently, not errored (§10 of TAGS.md's
-    // metagaming posture: the roster is what decides, never the post body).
-    if (!member || !member.sameZone || member.lockedOut) continue;
-    const amount = Math.min(
-      parseCount(rawAmount, { min: 1, max: member.resources }) ?? 0,
-      member.resources,
-    );
-    if (amount <= 0) continue;
-    targets.push({ id: member.id, amount });
+  function targetsFrom(rawPicks, kind, held) {
+    const entries = Object.entries(rawPicks ?? {});
+    const out = [];
+    for (const [characterId, rawAmount] of entries) {
+      const member = byId.get(characterId);
+      // Stale client state — dropped silently, not errored (§10 of TAGS.md's
+      // metagaming posture: the roster is what decides, never the post body).
+      if (!member || !member.sameZone || member.lockedOut) continue;
+      const cap = held(member);
+      const amount = Math.min(parseCount(rawAmount, { min: 1, max: cap }) ?? 0, cap);
+      if (amount <= 0) continue;
+      out.push({ id: member.id, amount, kind });
+    }
+    return out;
   }
+
+  const targets = [
+    ...targetsFrom(picks, "RESOURCES", (m) => m.resources),
+    ...targetsFrom(obolPicks, "OBOL", (m) => m.obols),
+  ];
   if (targets.length === 0) throw new UserError("Nobody to tax.");
 
-  // A duplicate row against the same target this turn would just double the
-  // clamp math at close for no player-visible reason — refuse it here.
+  // A duplicate row against the same target AND currency this turn would
+  // just double the clamp math at close for no player-visible reason —
+  // refuse it here. Resources and Obols are separate currencies, so taxing
+  // one doesn't block filing the other against the same person this turn.
   const already = await prisma.pendingTax.findMany({
     where: { taxerId: character.id, turnId: openTurn.id, targetId: { in: targets.map((t) => t.id) }, declinedAt: null },
-    select: { targetId: true },
+    select: { targetId: true, kind: true },
   });
-  const alreadyIds = new Set(already.map((r) => r.targetId));
-  const filedTargets = targets.filter((t) => !alreadyIds.has(t.id));
+  const alreadyKeys = new Set(already.map((r) => `${r.targetId}:${r.kind}`));
+  const filedTargets = targets.filter((t) => !alreadyKeys.has(`${t.id}:${t.kind}`));
   if (filedTargets.length === 0) throw new UserError("You've already taxed them this turn.");
 
   const targetRows = await prisma.character.findMany({

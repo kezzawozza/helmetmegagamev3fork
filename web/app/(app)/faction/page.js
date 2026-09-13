@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { prisma } from "@lifeweb/db";
+import { prisma, CATATONIC_SLUG, OBOL_SLUG } from "@lifeweb/db";
 import { roomAccessKeys, accessibleRooms } from "@lifeweb/db/lib/roomAccess";
 import { knownRooms } from "@lifeweb/db/lib/locationVisits";
 import { auth } from "@/lib/auth";
@@ -26,7 +26,7 @@ import {
   removeCharacterFromFaction,
 } from "./actions";
 
-const MEMBER_COL_COUNT = 7;
+const MEMBER_COL_COUNT = 8;
 
 // Breadth-first over parentFactionId so the GM overview's indentation covers
 // the whole subtree, not just direct children — the hierarchy is one level
@@ -165,8 +165,11 @@ async function buildPlayerProps(session, me) {
       // Both withheld when the door is shut. The balance leaked before, so a
       // member without the Cathedral Key could watch the Church's treasury
       // rise and fall directly above a banner promising they could not see
-      // inside (FACTIONS.md §4a).
+      // inside (FACTIONS.md §4a). Obols get the same treatment — they're a
+      // second balance in every practical sense, just carried as a Tag stack
+      // instead of a column (DEPOT.md).
       resources: canOpen ? room.resources : null,
+      obols: canOpen ? (room.tags.find((rt) => rt.tag.slug === OBOL_SLUG)?.quantity ?? 0) : null,
       tags: canOpen
         ? room.tags
             .filter((rt) => rt.quantity > 0)
@@ -298,7 +301,8 @@ async function buildPlayerProps(session, me) {
         isLeader: c.isLeader,
         isTreasurer: c.isTreasurer,
         resources: c.resources,
-        catatonic: c.tags.length > 0,
+        obols: c.tags.find((t) => t.tag?.slug === OBOL_SLUG)?.quantity ?? 0,
+        catatonic: c.tags.some((t) => t.tag?.slug === CATATONIC_SLUG),
       })),
     },
   };
@@ -436,7 +440,8 @@ export default async function FactionPage({ searchParams }) {
           <li>
             Silo:{" "}
             {faction.siloRoom
-              ? `${faction.siloRoom.name} · ${faction.siloRoom.location.name} · ${faction.siloRoom.resources} ⬢`
+              ? `${faction.siloRoom.name} · ${faction.siloRoom.location.name} · ${faction.siloRoom.resources} ⬢ · ` +
+                `${faction.siloRoom.tags.find((t) => t.tag?.slug === OBOL_SLUG)?.quantity ?? 0} obols`
               : "None"}
           </li>
           <li>Slug: <span className="mono">{faction.slug}</span></li>
@@ -452,6 +457,7 @@ export default async function FactionPage({ searchParams }) {
               <th>Fate</th>
               <th>Role</th>
               <th>Resources</th>
+              <th>Obols</th>
               <th></th>
               <th></th>
               <th></th>
@@ -466,7 +472,7 @@ export default async function FactionPage({ searchParams }) {
                     <CharacterLink characterId={c.id} name={c.name} isGm />
                     {c.isLeader ? " (Leader)" : ""}
                     {treasurer ? " (Treasurer)" : ""}
-                    {c.tags.length > 0 && (
+                    {c.tags.some((t) => t.tag?.slug === CATATONIC_SLUG) && (
                       <span className="chip chip-quiet ml-2">Catatonic</span>
                     )}
                   </td>
@@ -475,6 +481,7 @@ export default async function FactionPage({ searchParams }) {
                   </td>
                   <td>{c.roleTitle ?? "—"}</td>
                   <td>{c.resources} ⬢</td>
+                  <td>{c.tags.find((t) => t.tag?.slug === OBOL_SLUG)?.quantity ?? 0}</td>
                   <td>
                     {!unaffiliated && !c.isLeader && (
                       <form action={setFactionLeader}>

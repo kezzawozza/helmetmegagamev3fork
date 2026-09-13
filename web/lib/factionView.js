@@ -1,5 +1,5 @@
 import "server-only";
-import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
+import { prisma, CATATONIC_SLUG, OBOL_SLUG } from "@lifeweb/db";
 
 // The faction query, lifted out of web/app/(app)/faction/page.js so a second
 // surface can ask the same question. Chat's Faction panel
@@ -35,6 +35,7 @@ export async function loadFaction(factionId) {
               tag: {
                 select: {
                   id: true,
+                  slug: true,
                   name: true,
                   description: true,
                   mastery: true,
@@ -74,9 +75,15 @@ export async function loadFaction(factionId) {
           // Only ever rendered behind the officer gate — a plain member never
           // sees the column.
           resources: true,
-          // Just the AFK marker, not the sheet: rows only when the member
-          // holds the catatonic tag, so `tags.length > 0` is the whole read.
-          tags: { where: { tag: { slug: CATATONIC_SLUG } }, select: { id: true } },
+          // Two things riding the same relation, both filtered down to a
+          // fixed pair of slugs rather than the whole sheet: the AFK marker
+          // (a bare row means catatonic — `tags.some()` reads it below) and
+          // an officer's Obols column, which needs the actual quantity
+          // (obols are a physical Tag stack, not a balance column — DEPOT.md).
+          tags: {
+            where: { tag: { slug: { in: [CATATONIC_SLUG, OBOL_SLUG] } } },
+            select: { quantity: true, tag: { select: { slug: true } } },
+          },
         },
       },
     },

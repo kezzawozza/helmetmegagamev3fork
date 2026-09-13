@@ -1,5 +1,5 @@
 import "server-only";
-import { prisma } from "@lifeweb/db";
+import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import {
   evaluateDesireCatalog,
   slotStates,
@@ -382,7 +382,7 @@ export async function loadFactionView(session, character) {
       roleTitle: c.roleTitle,
       isLeader: c.isLeader,
       isTreasurer: c.isTreasurer,
-      catatonic: c.tags.length > 0,
+      catatonic: c.tags.some((t) => t.tag?.slug === CATATONIC_SLUG),
       avatarVersion: c.updatedAt?.getTime?.() ?? null,
       ...(isOfficer ? { resources: c.resources } : {}),
     })),

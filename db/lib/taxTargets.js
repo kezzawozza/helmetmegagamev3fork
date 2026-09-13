@@ -11,6 +11,7 @@
 // indexed query, not a join through Location.
 const { isUnaffiliated } = require("./factionConstants");
 const { CATATONIC_SLUG } = require("./constants");
+const { OBOL_SLUG } = require("./depotState");
 
 // One turn of quiet after a refusal (desireGates.js's `lockTurns` shape,
 // lockTurns = 1): locked while the open turn is the one the refusal happened
@@ -33,8 +34,9 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
   });
   if (isUnaffiliated(faction)) return [];
 
-  const [catatonicTag, members] = await Promise.all([
+  const [catatonicTag, obolTag, members] = await Promise.all([
     prisma.tag.findUnique({ where: { slug: CATATONIC_SLUG }, select: { id: true } }),
+    prisma.tag.findUnique({ where: { slug: OBOL_SLUG }, select: { id: true } }),
     prisma.character.findMany({
       where: { factionId: taxer.factionId, status: "ALIVE", id: { not: taxer.id } },
       select: {
@@ -51,7 +53,7 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
   ]);
 
   const memberIds = members.map((m) => m.id);
-  const [catatonicIds, refusals] = await Promise.all([
+  const [catatonicIds, obolCounts, refusals] = await Promise.all([
     catatonicTag && memberIds.length
       ? prisma.characterTag
           .findMany({
@@ -60,6 +62,17 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
           })
           .then((rows) => new Set(rows.map((r) => r.characterId)))
       : Promise.resolve(new Set()),
+    // Obols are a physical Tag stack, not a balance column (DEPOT.md), so a
+    // member's holding is a CharacterTag row rather than a field on the
+    // character itself — read the same way the catatonic marker is.
+    obolTag && memberIds.length
+      ? prisma.characterTag
+          .findMany({
+            where: { characterId: { in: memberIds }, tagId: obolTag.id },
+            select: { characterId: true, quantity: true },
+          })
+          .then((rows) => new Map(rows.map((r) => [r.characterId, r.quantity])))
+      : Promise.resolve(new Map()),
     memberIds.length
       ? prisma.auditLog.findMany({
           where: { actionType: "tax_refused", targetCharacterId: { in: memberIds } },
@@ -94,6 +107,7 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
     name: m.name,
     roleTitle: m.roleTitle,
     resources: m.resources,
+    obols: obolCounts.get(m.id) ?? 0,
     isLeader: m.isLeader,
     isTreasurer: m.isTreasurer,
     catatonic: catatonicIds.has(m.id),
@@ -110,7 +124,14 @@ async function taxesFiledThisTurn(prisma, taxerId, turnId) {
   if (!taxerId || !turnId) return [];
   const rows = await prisma.pendingTax.findMany({
     where: { taxerId, turnId },
-    select: { id: true, amount: true, paidAmount: true, declinedAt: true, target: { select: { name: true } } },
+    select: {
+      id: true,
+      amount: true,
+      paidAmount: true,
+      declinedAt: true,
+      kind: true,
+      target: { select: { name: true } },
+    },
     orderBy: { createdAt: "asc" },
   });
   return rows.map((r) => ({
@@ -118,6 +139,7 @@ async function taxesFiledThisTurn(prisma, taxerId, turnId) {
     name: r.target?.name ?? "",
     amount: r.amount,
     paidAmount: r.paidAmount,
+    kind: r.kind,
     status: r.declinedAt ? "refused" : r.paidAmount != null ? "partial" : "pending",
   }));
 }
