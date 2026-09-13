@@ -2752,8 +2752,8 @@ async function boxOfJunkRequestImpl({ session, character, held }) {
     ok: true,
     line:
       resourcesGranted > 0
-        ? `You dig through the box and find ${resourcesGranted} ⬢ worth of odds and ends.`
-        : "You dig through the box. It's junk, all the way down.",
+        ? `You got ${resourcesGranted} ⬢.`
+        : "You got nothing.",
   };
 }
 
@@ -3018,6 +3018,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // its tastes and never its ingredients. `line` is returned to the client,
   // which prefers it over the generic "It used up." (noticeLines.js).
   const line = isDish ? tasteLine(ingredientTags.map((t) => t.cooked?.taste ?? "")) : null;
+  let grantedNames = [];
 
   // Cure application (the medical pass, TAGS.md §5c): every cured slug the
   // TARGET actually holds — not just the first, since one item (white-honey,
@@ -3161,6 +3162,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
       openTurn?.number ?? null,
       allGrantDurations,
     );
+    grantedNames = granted.map((g) => g.tagName);
     // The Resources half — Purse and Supply Kit (CAVING.md). Most
     // consumables grant none, so this is usually a no-op.
     if (allResourcesGranted) {
@@ -3285,7 +3287,11 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   }
   revalidateAll();
   // The taste sentence, which is the whole point of cooking — the one-click
-  // Consume on the tag rail raises it too (COOKING.md §8).
+  // Consume on the tag rail raises it too (COOKING.md §8). A random pick (a
+  // Ration Box) says what it landed on, since nothing else would.
+  if (!line && held.tag.consumesIntoOneOf?.some((entry) => entry)) {
+    return { line: grantedNames.length ? `You got ${grantedNames.join(", ")}.` : "You got nothing." };
+  }
   return line ? { line } : {};
 }
 
