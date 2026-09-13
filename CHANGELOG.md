@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Documents and labor drops also sync by themselves on every push
+
+✎ The documents list and the labor drops now update on their own when a push deploys, alongside tags and desires  
+✎ Zones and #info still need a hand sync
+
 ## 2026-09-13 · Tag and desire edits reach the live game on every push
 
 ✎ Changes to the tag and desire lists now apply by themselves when a push deploys, no hand sync needed  
