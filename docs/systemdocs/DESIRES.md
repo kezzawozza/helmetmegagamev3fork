@@ -28,13 +28,17 @@ against it: `slotIndex`, `status`, `templateId`, the template's `points`
 snapshotted at claim time, and `setTurnNumber`/`endedTurnNumber` **both stamped
 with the same open turn**, because the row is born ended. A free-text Desire
 (still available, from a GM only — see §6) carries `templateId: null` instead.
+A claim also carries `reason` (the player's own text, required — §8) and, once
+a GM has looked at it, `reviewedAt`/`reviewedBy` (§6a) — `reason` is never
+backfilled onto a pre-review-queue row, and neither is `reviewedAt`, so an old
+row just shows less on the desk rather than erroring.
 
 `status` is `FULFILLED` on every row a claim creates. `ACTIVE` is legacy and
 nothing writes it any more, kept in the Postgres enum rather than dropped (same
 posture as `MoveReviewStatus.WAITING_FOR_OPPONENTS`). `CANCELLED` still means
-something real: a claim a GM revoked, or one undone through the Request system
-— and such a row has its `endedTurnNumber` **cleared**, which is what releases
-the slot (§2).
+something real: a claim a GM revoked — from the Dev Panel's Revoke or the
+review queue's Reject, both now `revokeDesireCore` (§6a) — and such a row has
+its `endedTurnNumber` **cleared**, which is what releases the slot (§2).
 
 `GameConfig.desireSlots` (default 2) is how many slots a character has. Slots
 are independent: each cools down on its own clock, and the **bottom** one is
@@ -400,6 +404,80 @@ slot is safe — it only ever touches the row it snapshotted. The visible effect
 is that a slot carries a history of rows, and the cooldown math cares only
 about the largest `endedTurnNumber` among them.
 
+## 6a. The review queue
+
+A claim pays the instant it lands (§1) and only afterward waits on a GM to
+look. That waiting pile is a fifth lens on `/gm/turns`, beside Moves / Caving
+/ Other / History — not a new tab on `/gm/dev`. It lives there because
+`/gm/turns` is the desk a GM is already working a turn from, and because the
+avatar-review queue already proved the shape: a row that pays first and asks
+permission second, answered from the rail with two buttons and a mini
+inspector.
+
+**A row is a `FULFILLED`, catalog-backed `Desire` with `reviewedAt: null`.**
+`desireNeedsReview` (`db/lib/desireReview.js`) is the pure predicate and
+`desireReviewWhere()` is the identical Prisma `where` — the same "keep the
+two in sync by hand" contract `avatarReview.js` states for its own pair, so a
+change to one without the other is a bug waiting to be found by a claim that
+silently stops showing up.
+
+**Keep** stamps `reviewedAt`/`reviewedBy` and does nothing else — no audit
+row, no DM, no `tagPoints` movement. It is a mark-as-seen, and the update is
+conditional on `reviewedAt: null`, so a second Keep (another GM, a
+double-click) finds nothing left to claim and just reports that rather than
+throwing (`keepDesireClaimImpl`).
+
+**Reject** is the load-bearing button. It runs `revokeDesireCore` — the same
+transaction body the Dev Panel's `revokeDesireGmImpl` uses (§6), lifted out
+so there is exactly one way a claimed Desire ever comes back off, rather than
+two copies of a points reversal that could drift apart. It takes the points
+back **even into negative**, flips the row `CANCELLED`, clears
+`endedTurnNumber` (which reopens the slot — §2), writes a `gm_desire_cancelled`
+audit row, and sends one DM: "Your desire was rejected." — a `NOTICE`, not a
+`CONVERSATION`, for the reason every DM kind is chosen on: the game said it,
+a person didn't. Reject then stamps `reviewedAt`/`reviewedBy` on the
+same row inside the transaction, so a rejected claim is also a reviewed one.
+
+**Reviewed rows stay in the queue.** `desireReviewWhere()` deliberately does
+not filter on `reviewedAt` — it is a sort key for the caller (unreviewed
+first), not a filter for the query. A reviewed row keeps its place in the
+rail, dimmed and button-less, the same `[data-auto]` affordance an already-
+resolved Travel Move wears. That makes the lens double as the claim history,
+not just the inbox — a GM can see what they already cleared without
+switching views.
+
+**`templateId: null` rows never enter the queue.** That is a GM free-text
+award (§6's other route, "Free text" 1..7 points) — a GM who typed the points
+in by hand has nothing to review, so `desireNeedsReview` refuses it outright
+regardless of `reviewedAt`.
+
+**The tab's count is unreviewed rows, not the total.** The Moves tab counts
+everything shown because every Move shown is something to look at; a Desires
+tab counting reviewed rows too would tell a GM to open it when there is
+nothing left to do.
+
+**The honest limit, stated plainly rather than buried:** `AuditLog` records
+mechanical acts, so "drink alcohol" leaves a trace a GM can search for and
+"earn a compliment" leaves none — nothing about a compliment is mechanical.
+The desk's mini audit-log filter (`DesireDesk.js`, prefilled from the
+template's `verifyQuery` where one exists — §10) is a head start on the
+minority of the catalog that's checkable, not a verdict on the rest. For
+those, the Inspector's Archive tab beside the desk — what the character
+actually said — is the real answer, and a GM reading the `reason` field
+(required at claim time — see the rewritten §8 below) is still the whole
+enforcement.
+
+**The deliberate non-decision worth recording: these rows skip the desk
+store and the notify triggers.** `ADJUDICATION.md` §3's four `_notify`
+triggers wake every open desk live when a Move, Caving roll, staged effect or
+staged message changes; a `Desire` row raises none of them, and
+`web/lib/deskRows.js#deskPatchFor` doesn't know how to re-read one either —
+both `DesireDesk.js` and `QueueRail.js`'s `DesireClaimRow` close the panel or
+call the rail's own guarded `refresh()` instead. That is the same trade-off
+`AvatarReviewRow` already made, for the same reason: a fifth row type through
+the desk store, the live stream, and the trigger set is a lot of machinery
+for two buttons nobody presses twice in the same turn.
+
 ## 7. The clawback rule
 
 Curing an Addiction or a negative Personality tag (a Chaplain confessing
@@ -425,10 +503,25 @@ character can't stage a scene whose entire content is manufacturing the
 conditions for a Desire and then claim it — e.g. asking someone for a hug
 purely to claim `get-a-hug`. The rule exists specifically against a tier-1,
 high-frequency Desire like that one turning into a repeatable income tap with
-no roleplay cost. There is no code check for this (a claim files a
-`FULFILL_DESIRE` request and a GM reviews it, same as any other Request), so
-it's a written adjudication standard, not a gate — a GM reading the reason
-field is the enforcement.
+no roleplay cost. This used to say a claim "files a `FULFILL_DESIRE` request and a GM reviews
+it, same as any other Request," and that there was "no code check for this."
+Both halves of that sentence were describing something that no longer exists
+by the time it was written: the `Request` table is gone (§11's neighbour in
+spirit — nothing files anything any more, an action just applies), and until
+the review queue in §6a shipped there was, genuinely, no reason field and no
+surface a GM could read it from. If you find that sentence quoted anywhere
+else, it's stale in exactly the way §1 calls the old retroactive-claim rule
+"now exactly backwards."
+
+What's true now: `claimDesireImpl` refuses a claim with no reason
+(`"Say how you pulled it off."`, `web/app/(app)/character/requestActions.js`),
+and every claim lands in the §6a review queue. So the written standard
+finally has a surface behind it — a GM opens the row, reads the reason field,
+checks the audit slice if the claim is the checkable kind, and presses Keep
+or Reject. That is still not a gate. The difference between an evening that
+happened and an evening staged to be claimed is a judgement about fiction,
+and no code path was ever going to make it — what changed is that the
+judgement now has somewhere to be made.
 
 **Since the retroactive rework this is the load-bearing rule of the whole
 system, and it should be read that way.** It used to share the work with the
@@ -515,8 +608,22 @@ desires:
                                   #   anyRoles (both must be non-empty)
     cooldownTurns: 5              # optional, overrides tier as cooldown length
     oncePerLife: true             # optional; forced true at tier 7 unless set false
+    verify: "Alcohol"              # optional, see below
     description: "..."            # optional
 ```
+
+**`verify:` is one search string**, synced to `DesireTemplate.verifyQuery`,
+that prefills the review desk's audit-log filter (§6a) when a GM opens that
+claim. It's optional, and most entries correctly carry none — write one only
+where fulfilling the Desire leaves a mechanical trace worth searching for (a
+named tag or item eaten, drunk, bought), spelled the way `docs/tags.yaml`
+spells the thing, not the desire's own prose. About 25 entries carry one as
+of this writing. The gambling Desires are the clean case for leaving it off:
+there is no gambling mechanic anywhere in `db/lib`, so a claim like it is
+pure GM adjudication and there is nothing in the audit log a `verify:` string
+could ever find — writing one there would be decoration, not a head start.
+It's validated in pass 0 (must be a non-empty string when present) and
+written in pass 1 alongside the other scalars.
 
 `families:` is the fixed vocabulary every entry's `families` list draws
 from — nothing writes to it dynamically, and referencing an undeclared key
@@ -605,7 +712,11 @@ The section number is kept rather than renumbering everything below it.
 | `web/app/components/GoalsPanel.js` | Mounts `DesirePanel` on `/character` |
 | `web/app/(app)/gm/dev/characters/[characterId]/GoalsTab.js` | GM Dev Panel surface — per-slot Award form (catalog or free text), Revoke on each past row, cooldown readout |
 | `web/app/(app)/gm/dev/characters/[characterId]/actions.js` | `awardDesireGm`/`revokeDesireGm` — gates bypassed, bookkeeping not (§6) |
-| `web/app/(app)/character/requestActions.js` | Player-facing `claimDesire` — the one player action. Gates enforced via `evaluateDesireCatalog`/`slotStates`, re-validated inside the transaction under a `FOR UPDATE` row lock |
+| `db/lib/desireReview.js` | `desireNeedsReview`/`desireReviewWhere` (the review-queue predicate and its `where` twin) and `revokeDesireCore`, the shared transaction body Reject and `revokeDesireGmImpl` both call (§6a) |
+| `web/app/(desk)/gm/turns/actions.js` | `keepDesireClaim`/`rejectDesireClaim` (the desk's two buttons, §6a) and `getCharacterAuditSlice` (the mini audit-log filter behind `DesireDesk.js`) |
+| `web/app/(desk)/gm/turns/DesireDesk.js` | The arbitration panel for one claim — reason, the audit-slice search box, Keep/Reject |
+| `web/app/(desk)/gm/turns/QueueRail.js` | `DesireClaimRow` — the Desires lens's row and its unreviewed-only tab count (§6a) |
+| `web/app/(app)/character/requestActions.js` | Player-facing `claimDesire` — the one player action, and the one that requires a reason (§8). Gates enforced via `evaluateDesireCatalog`/`slotStates`, re-validated inside the transaction under a `FOR UPDATE` row lock |
 | `web/lib/tagEffects.js` | `FULFILL_DESIRE` re-score (`applyEdit`) and undo — the undo clears `endedTurnNumber`, releasing the slot |
 | `bot/src/events/messageReactionAdd.js` | The 🔍/⚜️ embeds' `Last Desire` field — the most recent `FULFILLED` row, gated by `db/lib/inspectVision.js` |
 
