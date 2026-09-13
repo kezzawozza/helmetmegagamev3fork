@@ -392,6 +392,12 @@ it back to the sender, because the effect records `destroyed: true` and skips
 the receiving half; without that the ordinary path throws on a stash that never
 held anything. See `FACTORY.md` §9.
 
+**Eleven rooms hold their sound in.** `Room.soundproof`, set from
+`soundproof: true` in `docs/zones.yaml`, is read by `db/lib/shout.js#soundproofAt`
+— a shout there never carries out, and prints
+`**Muffled**: shouts do not carry out of here.` on the room's own starter. A
+Location is never soundproof itself; only the Room can be.
+
 Two things a stash does differently from a pocket, both in
 `db/lib/tagWrites.js`:
 

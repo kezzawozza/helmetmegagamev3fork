@@ -42,8 +42,7 @@ import {
 } from "@/lib/discordGuild";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
-import { ambientLine } from "@lifeweb/db/lib/ambientLine";
-import { postMessage } from "@lifeweb/db/lib/discordRest";
+import { roomLine, locationLine, zoneLine } from "@lifeweb/db/lib/placeLine";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { inactiveCharacters } from "@lifeweb/db/lib/inactivity";
 import { grantTagSlugs, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
@@ -1231,10 +1230,25 @@ export async function nudgeInactivePlayers(input) {
 // the one place that rule lives (docs/systemdocs/ARCHITECTURE.md, CLAUDE.md's
 // aura section). Typed by hand, a two-line scene came out half subtext.
 //
+// It goes out through db/lib/placeLine.js, which owns BOTH halves — the
+// Discord post and the ArchiveEntry that puts the line on /chat. This used to
+// call postMessage directly and write no row, so the one kind of ambient line
+// a GM composes by hand was the one kind a web player never saw.
+//
 // The intercom is the deliberate exception to all of this and is NOT reachable
 // from here — a PA is a loudspeaker, not scenery (db/lib/intercom.js).
 
 const AMBIENT_MAX = 1500;
+
+// One line of scenery into whichever kind of place `ambientTarget` resolved,
+// Discord and archive both. The switch is here rather than inside placeLine
+// because placeLine's three functions each take the row they need and nothing
+// else, which is what keeps them callable from the rites and the kiss.
+async function sayIntoPlace(target, text) {
+  if (target.kind === "zone") return zoneLine(prisma, target.row, text);
+  if (target.kind === "room") return roomLine(prisma, target.row, text);
+  return locationLine(prisma, target.row, text);
+}
 
 // The channel a target speaks into, or a refusal. Every kind resolves through
 // its own row so a target with no Discord footprint yet says so plainly rather
@@ -1248,7 +1262,7 @@ async function ambientTarget(kind, id) {
       });
       if (!zone) return { error: "No such zone." };
       if (!zone.discordSummaryChannelId) return { error: "That zone has no #summary channel yet." };
-      return { channelId: zone.discordSummaryChannelId, name: `${zone.name} — #summary`, zoneId: zone.id };
+      return { row: zone, kind: "zone", name: `${zone.name} — #summary`, zoneId: zone.id };
     }
     case "location": {
       const location = await prisma.location.findUnique({
@@ -1257,7 +1271,7 @@ async function ambientTarget(kind, id) {
       });
       if (!location) return { error: "No such location." };
       if (!location.discordChannelId) return { error: "That location has no channel yet." };
-      return { channelId: location.discordChannelId, name: location.name, zoneId: location.zoneId };
+      return { row: location, kind: "location", name: location.name, zoneId: location.zoneId };
     }
     case "room": {
       const room = await prisma.room.findUnique({
@@ -1266,7 +1280,7 @@ async function ambientTarget(kind, id) {
       });
       if (!room) return { error: "No such room." };
       if (!room.discordThreadId) return { error: "That room has no thread yet." };
-      return { channelId: room.discordThreadId, name: room.name, zoneId: room.location?.zoneId ?? null };
+      return { row: room, kind: "room", name: room.name, zoneId: room.location?.zoneId ?? null };
     }
     default:
       return { error: "Pick somewhere to say it." };
@@ -1292,12 +1306,29 @@ export async function sendAmbientLine(input) {
     return { ok: false, error: "That is not one of the zones you are watching." };
   }
 
-  const content = ambientLine(text);
-  try {
-    await postMessage(target.channelId, content);
-  } catch (err) {
-    console.error("Ambient line failed:", err);
-    return { ok: false, error: "Discord refused it. Nothing was said." };
+  // BOTH HALVES, through db/lib/placeLine.js: the Discord post AND the
+  // ArchiveEntry that puts the same line on /chat. This used to be a bare
+  // postMessage, so a GM's scenery reached the channel and never reached the
+  // web face at all — which is the exact gap CHAT.md phase 4 closed for every
+  // other ambient line in the game, and this was the one left behind.
+  const said = await sayIntoPlace(target, text);
+  // Discord refusing is still a refusal the GM must see. placeLine swallows
+  // both halves — it has to, since its other callers have already eaten a
+  // rite's ingredients by the time they speak — so the verdict comes back in
+  // the result instead of as a throw.
+  //
+  // And the sentence says what actually happened rather than the older
+  // "Nothing was said", which stopped being true the moment the archive half
+  // moved in front of it: the line IS on /chat, so the web players in that
+  // room have read it and only Discord missed out. A GM deciding whether to
+  // retype it needs to know which.
+  if (!said.posted) {
+    return {
+      ok: false,
+      error: said.archived
+        ? "Discord refused it — but it is on the web already, so say it again there and it will read twice."
+        : "Discord refused it. Nothing was said.",
+    };
   }
 
   await prisma.auditLog.create({
