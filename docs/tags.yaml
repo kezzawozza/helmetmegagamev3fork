@@ -14520,7 +14520,7 @@ tags:
     # Cutting further only widens the loop; leave it for whoever fixes that.
     depotPrice: 5
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 3
 
   bone-mask:
     catalog: gm
