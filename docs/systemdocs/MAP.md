@@ -385,8 +385,11 @@ mutually exclusive within a turn, in either order** — the enforcement is
 
 **Pushing on.** Once the free crossings are gone AND the Move is spent — on a
 paid crossing or on anything else — a walker can take one more crossing a turn
-on a die: the extra gamble to go the distance, a Push on button beside Go on
-the Travel panel, `/map` and the `#turns` picker. The crossing lands like any
+on a die: the extra gamble to go the distance, a Push on button in Go's place
+on the Travel panel, `/map` and the `#turns` picker — Go (Discord's Confirm)
+is hidden once the Move is spent, since it could only refuse, and the node's
+foot reads `exertion`, or `next turn` when the push on would be refused too
+(the refusal is written on the confirm strip). The crossing lands like any
 other, files no Action, and is refused while the Move is still unspent (the
 surfaces read the turn's Action row, `performLocationMove` reads it again).
 So three zones a day on foot is the ceiling: free, paid, pushed. The d6, Lucky keeping the better of

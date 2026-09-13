@@ -429,6 +429,9 @@ export async function loadTravel() {
     // this is true, since neither "on foot" nor "indoors" means anything to
     // somebody already walking.
     mounted: blocksOnFoot(equippedSlugs(character.tags ?? [])),
+    // The Move already spent this turn: Go leaves the strip and the push on
+    // is the only way across a zone with no travel left (MAP.md §3).
+    moved: acted,
     options: options.map((row) => {
       // Which way the push on's die leans for this character, said before
       // they commit (MAP.md §3). Null when it doesn't.
@@ -441,6 +444,13 @@ export async function loadTravel() {
       // crossing" equally as far as `crossesZone` is concerned.
       const crossing = { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: row.location.zone?.slug ?? null };
       const freeLeft = freeMovesLeft(character, config, openTurn, party.length, crossing);
+      // The server's own refusal of a push on here, asked ahead of time
+      // (MAP.md §3); null is yes. Shown once the Move is spent and this is
+      // the only way across, so a player knows why the way is shut till
+      // next turn.
+      const exertWhy = row.crossesZone
+        ? exertRefusal(character, config, openTurn, { ...exertOpts, crossing, left: freeLeft })
+        : null;
       return {
         id: row.location.id,
         name: row.location.name,
@@ -460,10 +470,9 @@ export async function loadTravel() {
         crossesZone: row.crossesZone,
         passable: row.passable,
         freeLeft,
-        // Whether the Push on button belongs beside Go for this crossing —
-        // the server's own refusal, asked ahead of time (MAP.md §3).
-        canExert:
-          row.crossesZone && exertRefusal(character, config, openTurn, { ...exertOpts, crossing, left: freeLeft }) === null,
+        // Whether the Push on button belongs on the strip for this crossing.
+        canExert: row.crossesZone && exertWhy === null,
+        exertWhy,
         exertNote,
         // A Location a mount gets parked at on arrival (db/lib/indoors.js) —
         // which is not every Location with a roof over it.

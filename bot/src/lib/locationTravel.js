@@ -147,13 +147,19 @@ async function applyBring(mover, pickedIds, turn) {
 
 // `exert` adds the Push on button — one more crossing on a die instead of the
 // Move (MAP.md §3). Only offered where exertRefusal has already said yes.
-function buildConfirmRow(locationId, { exert = false } = {}) {
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`${CONFIRM_PREFIX}${locationId}`)
-      .setLabel("Confirm")
-      .setStyle(ButtonStyle.Success),
-  );
+// `go` false leaves Confirm off the row: the Move is spent and this crossing
+// has no free move left, so there is nothing for it to do but refuse (MAP.md
+// §3). Push on may still stand beside Cancel.
+function buildConfirmRow(locationId, { exert = false, go = true } = {}) {
+  const row = new ActionRowBuilder();
+  if (go) {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`${CONFIRM_PREFIX}${locationId}`)
+        .setLabel("Confirm")
+        .setStyle(ButtonStyle.Success),
+    );
+  }
   if (exert) {
     row.addComponents(
       new ButtonBuilder().setCustomId(`${EXERT_PREFIX}${locationId}`).setLabel("Push on").setStyle(ButtonStyle.Danger),

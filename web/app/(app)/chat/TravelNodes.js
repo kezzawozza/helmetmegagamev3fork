@@ -8,7 +8,7 @@ import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, travelFoot, openedByLabel } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadTravel, travelTo } from "./actions";
 
 // TRAVEL: every way out of here as a node you can see. Loaded on mount and
@@ -152,7 +152,7 @@ export default function TravelNodes({ onDone, pick = null }) {
               )}
               {/* Flat ChipLabel, not TagChip — an interactive chip can't live inside this button. */}
               {via && <ChipLabel tag={via} />}
-              <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted)}</span>
+              <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted, data.moved)}</span>
             </button>
             );
           })}
@@ -161,9 +161,7 @@ export default function TravelNodes({ onDone, pick = null }) {
 
       {chosen && (
         <div className="chat-travel-confirm">
-          <p className="text-sm">
-            {nextTurn ? `To ${chosen.name}. This one spends your Move.` : `To ${chosen.name}.`}
-          </p>
+          <p className="text-sm">{crossingLine(chosen, nextTurn, data.moved)}</p>
 
           {/* Who comes along is the party rack's business now — an escort persists, so only the count is owed here. */}
           {data.partySize > 0 && (
@@ -174,17 +172,22 @@ export default function TravelNodes({ onDone, pick = null }) {
 
           <FormError>{error}</FormError>
           <div className="chat-buttons">
-            <button
-              type="button"
-              className="btn"
-              disabled={pending}
-              onClick={() => go(chosen)}
-            >
-              Go
-            </button>
-            {/* The other way across once the travels are gone: on a die
-                instead of the Move. Only drawn where the server would say
-                yes — canExert is its refusal, asked ahead of time. */}
+            {/* Go is the Move. Once it is spent a crossing with no travel
+                left has no Go to offer — the server would only refuse it —
+                so the button leaves rather than lying (MAP.md §3). */}
+            {!(nextTurn && data.moved) && (
+              <button
+                type="button"
+                className="btn"
+                disabled={pending}
+                onClick={() => go(chosen)}
+              >
+                Go
+              </button>
+            )}
+            {/* The other way across once the travels and the Move are gone:
+                on a die. Only drawn where the server would say yes —
+                canExert is its refusal, asked ahead of time. */}
             {nextTurn && chosen.canExert && (
               <button
                 type="button"

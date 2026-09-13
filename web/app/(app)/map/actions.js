@@ -127,6 +127,13 @@ async function buildMap({ character, unfogged }) {
     // a merely-known one has no crossing to weigh yet.
     const crossing = { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: location.zone?.slug ?? null };
     const freeLeft = near ? freeMovesLeft(character, config, openTurn, party.length, crossing) : null;
+    // The server's own refusal of a push on here, asked ahead of time
+    // (MAP.md §3); null is yes. Same question the Travel panel asks per
+    // option, and the reason is shown once the Move is spent and this was
+    // the only way across.
+    const exertWhy = near?.crossesZone
+      ? exertRefusal(character, config, openTurn, { crossing, left: freeLeft, acted })
+      : null;
 
     nodes.push({
       id: location.id,
@@ -149,12 +156,9 @@ async function buildMap({ character, unfogged }) {
       passable: Boolean(near?.passable),
       crossesZone: Boolean(near?.crossesZone),
       freeLeft,
-      // Whether Push on belongs beside Go for this crossing — the server's
-      // own refusal, asked ahead of time (MAP.md §3). Same question the
-      // Travel panel asks per option.
-      canExert: Boolean(
-        near?.crossesZone && exertRefusal(character, config, openTurn, { crossing, left: freeLeft, acted }) === null,
-      ),
+      // Whether Push on belongs on the card for this crossing (MAP.md §3).
+      canExert: Boolean(near?.crossesZone && exertWhy === null),
+      exertWhy,
       // Which way the push on's die leans, said before they commit. Null when
       // it doesn't; the same sentence the Travel panel carries.
       exertNote: near?.crossesZone ? exertEdgeSentence(exertEdgeFor(character?.tags ?? [])) : null,
@@ -204,6 +208,9 @@ async function buildMap({ character, unfogged }) {
           freeReason: freeZoneMovesReason(character, party.length, { config, openTurn }),
           mounted: onFootBlocked,
           partySize: party.length,
+          // The Move already spent this turn: Go leaves the card and the push
+          // on is the only way across a zone with no travel left (MAP.md §3).
+          moved: acted,
         }
       : null,
     known: nodes.length,

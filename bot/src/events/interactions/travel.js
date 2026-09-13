@@ -232,29 +232,34 @@ async function handleTravelPick(interaction) {
     crossing && openTurn
       ? Boolean(await prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } }))
       : false;
-  const canExert =
-    crossing &&
-    left === 0 &&
-    exertRefusal(character, config, openTurn, {
-      crossing: { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: target.zone?.slug ?? null },
-      left,
-      acted,
-    }) === null;
+  const exertWhy =
+    crossing && left === 0
+      ? exertRefusal(character, config, openTurn, {
+        crossing: { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: target.zone?.slug ?? null },
+        left,
+        acted,
+      })
+      : null;
+  const canExert = crossing && left === 0 && exertWhy === null;
+  // Once the Move is spent a crossing with no free move left has no Confirm
+  // to offer — the web surfaces drop Go the same way (MAP.md §3).
+  const spent = crossing && left === 0 && acted;
 
+  // The same sentence the web confirm carries about which way the die leans,
+  // when it does — the picker is the only place a Discord player reads the
+  // odds before committing.
+  const exertNote = canExert ? exertEdgeSentence(exertEdgeFor(character.tags ?? [])) : null;
   const cost = !character.locationId
     ? "-# Arriving costs you nothing."
     : !crossing
       ? "-# You have free zone moves left, so this is free."
       : left > 0
         ? `-# Crossing into ${target.zone.name} uses 1 of your ${left} free ${left === 1 ? "move" : "moves"} this turn.`
-        : `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move.`;
-  // The same sentence the web confirm carries about which way the die leans,
-  // when it does — the picker is the only place a Discord player reads the
-  // odds before committing.
-  const exertNote = canExert ? exertEdgeSentence(exertEdgeFor(character.tags ?? [])) : null;
-  const exertLine = canExert
-    ? `-# Or push on, risking exhaustion and possible injury.${exertNote ? ` ${exertNote}` : ""}`
-    : null;
+        : !acted
+          ? `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move.`
+          : canExert
+            ? `-# You have no free moves left and your Move is spent, so crossing into ${target.zone.name} means pushing on, risking exhaustion and possible injury.${exertNote ? ` ${exertNote}` : ""}`
+            : `-# You have no free moves left and your Move is spent, so you can't cross into ${target.zone.name} this turn.${exertWhy ? ` ${exertWhy}` : ""}`;
 
   const stowed = crossing ? stowedMounts(character.tags) : [];
   const stowedLine =
@@ -268,14 +273,13 @@ async function handleTravelPick(interaction) {
       content: [
         `Move to **${target.name}**?`,
         cost,
-        exertLine,
         seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,
         overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25.` : null,
       ]
         .filter(Boolean)
         .join("\n"),
-      components: [bringRow, buildConfirmRow(locationId, { exert: canExert })].filter(Boolean),
+      components: [bringRow, buildConfirmRow(locationId, { exert: canExert, go: !spent })].filter(Boolean),
     },
     { fleeting: false },
   );

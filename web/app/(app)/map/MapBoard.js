@@ -8,7 +8,7 @@ import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, travelFoot, openedByLabel } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadMap } from "./actions";
 import { travelTo } from "../chat/actions";
 
@@ -768,7 +768,7 @@ export default function MapBoard({ onClose = null }) {
                 {/* The tag of theirs that opens it, where one does — the same
                     chip the Travel panel and the card below draw. */}
                 <ViaChip slug={n.openedBy} />
-                <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.mounted)}</span>
+                <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.mounted, travel?.moved)}</span>
               </button>
             ))}
           </div>
@@ -881,7 +881,7 @@ function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onE
         <div className="map-confirm">
           {reachable ? (
             <>
-              <p className="text-sm">{nextTurn ? `To ${node.name}. This one spends your Move.` : `To ${node.name}.`}</p>
+              <p className="text-sm">{crossingLine(node, nextTurn, travel?.moved)}</p>
               {travel?.partySize > 0 && (
                 <p className="chat-quiet-line">
                   {travel.partySize === 1 ? "One person" : `${travel.partySize} people`} with you.
@@ -889,9 +889,14 @@ function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onE
               )}
               <FormError>{error}</FormError>
               <div className="chat-buttons">
-                <button type="button" className="btn" disabled={pending} onClick={onGo}>
-                  Go
-                </button>
+                {/* Same rule as the Travel panel: Go is the Move, and once
+                    that is spent a crossing with no travel left has none to
+                    offer, so the button leaves (MAP.md §3). */}
+                {!(nextTurn && travel?.moved) && (
+                  <button type="button" className="btn" disabled={pending} onClick={onGo}>
+                    Go
+                  </button>
+                )}
                 {/* Same button the Travel panel draws, for the same reason. */}
                 {nextTurn && node.canExert && (
                   <button
