@@ -933,13 +933,27 @@ above: work still lands on `master`, fast, no PR, no review. It just moves
 where a session's WIP briefly lives before that.
 
 ```
-git worktree add ../lifeweb-work-a -b session-a   # once, from an existing checkout
-cd ../lifeweb-work-a
-# ...edit, commit...
-git fetch origin && git checkout master && git merge --ff-only session-a && git push
-# or skip the local switch: git push origin session-a:master
-git worktree remove ../lifeweb-work-a && git branch -d session-a
+claude -w                      # or EnterWorktree inside a session
+# ...edit...
+npm run push -- "Subject" "note"   # from the worktree, on any branch
 ```
+
+**`npm run push` does the landing for you.** It commits the worktree, rebases
+onto the newest `origin/master`, writes the changelog entry into the top
+commit, and pushes `HEAD:master`, rebasing again if another session got there
+first. Three refusals guard it:
+
+- **The shared checkout, while other worktrees exist.** `git add -A` there
+  sweeps up other sessions' files. `--allow-shared-checkout` overrides, and
+  `git worktree remove` your old ones so the count stays honest.
+- **A rebase conflict.** Nothing is pushed; fix it in the worktree and push again.
+- **A stale-copy revert** (`scripts/revert-guard.js`): the push deletes 5+
+  lines that some other commit added in the last 48h. That is the shape of
+  be5c3d7c, which silently reverted a day of work on 2026-09-12.
+  `--allow-revert` when you really mean it.
+
+Keep it to about five live sessions. Past that, the bottleneck is merging and
+checking the work, not writing it; group related bugs into one session.
 
 In Claude Code itself, call `EnterWorktree` at the start of the session — it
 creates an isolated worktree under `.claude/worktrees/` on a fresh branch and

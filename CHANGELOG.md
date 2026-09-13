@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Pushes rebase first and refuse to undo other sessions' work
+
+✎ A push now lands on the newest master instead of overwriting whatever another session just shipped  
+✎ A push that would delete lines somebody else added in the last two days stops and names them  
+✎ Pushing from the shared checkout is refused while other sessions have their own worktrees
+
 ## 2026-09-13 · Chat reads all the way back, not just the last hundred lines
 
 ✎ Scrolling up in a room keeps loading what was said before, instead of stopping at the last hundred lines  

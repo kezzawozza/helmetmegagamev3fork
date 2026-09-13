@@ -111,8 +111,12 @@ function prepend(entry) {
   fs.writeFileSync(FILE, `${head}\n\n${entry}\n\n${rest}`.trimEnd() + "\n");
 }
 
-function changedPaths(staged) {
-  const raw = staged
+// --range is what push.sh passes: after its rebase the work is already
+// committed, so the staged diff holds nothing but CHANGELOG.md itself.
+function changedPaths(staged, range) {
+  const raw = range
+    ? git(["diff", "--name-only", range])
+    : staged
     ? git(["diff", "--cached", "--name-only"])
     : git(["show", "--name-only", "--pretty=format:", "HEAD"]);
   return raw.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -212,7 +216,8 @@ async function main() {
   const msgFlag = argv.indexOf("--message");
   const subject = (msgFlag !== -1 ? argv[msgFlag + 1] : git(["log", "-1", "--pretty=%s"])).split("\n")[0].trim();
 
-  const secret = sensitiveHits(changedPaths(staged));
+  const rangeFlag = argv.indexOf("--range");
+  const secret = sensitiveHits(changedPaths(staged, rangeFlag !== -1 ? argv[rangeFlag + 1] : null));
   if (secret.length && !tellGms) {
     console.log(
       `changelog: held back — this push touches ${secret.join(", ")}, which the GMs are briefed on separately. ` +
