@@ -5,15 +5,17 @@ const { recordArchiveEvent } = require("./archive");
 const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival, cavingHoldFor, cavingHeldIds } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
-const { OVERBURDENED_SLUG } = require("./constants");
+const { OVERBURDENED_SLUG, TIRED_SLUG, EXHAUSTED_SLUG, LUCKY_SLUG } = require("./constants");
 const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs, fastTravelCapacity, fastTravelBonus, STOWABLE_SLUGS } = require("./mounts");
+const { rollWithEdge, edgeFor } = require("./advantage");
+const { nextLaborFatigueSlug } = require("./laborFatigue");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
 const { heldReasonFor, fireWatches, NOT_A_FIGHT } = require("./intercept");
 const { linkBetween, crossingCheck } = require("./locationGraph");
 const { dismountForNarrowWay } = require("./indoors");
 const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
 const { expiryForGrant } = require("./grantExpiry");
-const { addToStack } = require("./tagWrites");
+const { addToStack, grantTagSlugs } = require("./tagWrites");
 const { sendDm } = require("./dm");
 
 // Too hurt or too dazed to make a whole zone's walk for free. A Peg Leg is absent on
@@ -59,6 +61,152 @@ function movesLeft({ base, bonus }, character, openTurn) {
   const bonusSpent = sameTurn ? (character.zoneMovesBonusUsed ?? 0) : 0;
   const baseSpent = Math.max(0, spent - bonusSpent);
   return Math.max(0, base - baseSpent) + Math.max(0, bonus - bonusSpent);
+}
+
+// PUSHING ON (docs/systemdocs/MAP.md §3): one more crossing a turn, on foot,
+// after the free ones are gone — paid with a die instead of the Move. The
+// Move stays yours, and the paid crossing is still there beside it. What the
+// die costs, with nothing else on it: no mood or hunger modifier, because a
+// hungry, frightened walker is exactly who pushes on, and a −4 on top would
+// make the injury a certainty the confirm text does not admit.
+const EXERT_INJURY_SLUG = "sprained-ankle";
+// What a 6 leaves: a turn's visible mark and nothing else (docs/tags.yaml).
+const WINDED_SLUG = "winded";
+// Too hurt to force a second day's march, on top of LAMED_SLUGS: the three
+// wounds that kill untreated, and the two states that take your wits the way
+// Pain Shock does. None of them restrict ACT (db/lib/incapacitation.js), so
+// without this they could push on. Bascinet's list, 2026-09-12.
+const EXERT_REFUSAL_SLUGS = new Set(["arterial-bleed", "punctured-lung", "gut-wound", "sepsis", "blind-drunk"]);
+// The traits that pull the die (db/lib/advantage.js#rollWithEdge): a runner
+// and two stimulants keep the better of two, "more easily tired out by
+// physical activity" and "slower" keep the worse. Lucky counts as it does on
+// every other die. The count decides; a tie rolls once.
+const EXERT_BETTER_SLUGS = new Set([LUCKY_SLUG, "quick-footed", "caffeinated", "stimulant-high"]);
+const EXERT_WORSE_SLUGS = new Set(["fat", "old"]);
+function exertOutcome(die) {
+  if (die <= 1) return "injury";
+  if (die <= 3) return "exhausted";
+  if (die <= 5) return "tired";
+  return "none";
+}
+
+// Whether they already pushed on this turn. There is no column for it: an
+// exert crossing claims zoneMovesUsed like a free one but never
+// zoneMovesBonusUsed, and a paid crossing claims neither, so the base pool
+// reading OVER the base allowance can only mean an exert — a free claim
+// cannot get there, because it only happens while base > baseSpent. Pure in
+// (character, config, openTurn) on purpose: the surfaces compute their
+// allowances with different party/destination inputs, and a check hung off
+// one of those would offer the button where the server refuses. A GM
+// lowering freeZoneMovesPerTurn mid-turn reads as "already pushed on" until
+// the turn turns; accepted.
+function exertedThisTurn(character, config, openTurn) {
+  if (!openTurn || character?.zoneMovesTurnId !== openTurn.id) return false;
+  const baseSpent = Math.max(0, (character.zoneMovesUsed ?? 0) - (character.zoneMovesBonusUsed ?? 0));
+  return baseSpent > (config?.freeZoneMovesPerTurn ?? 1);
+}
+
+// Why this character cannot push on right now, or null. `left` is THIS
+// crossing's own free count, the same per-destination number the surfaces
+// already compute. The reasons a player can read off their own sheet come
+// first, the counter last. Bascinet's wording, 2026-09-12.
+function exertRefusal(character, config, openTurn, { crossing = null, left = 0 } = {}) {
+  const held = character.tags ?? [];
+  const active = equippedSlugs(held);
+  if (isMounted(active)) return "Your horse has ridden as hard as it can.";
+  if (isBoated(active) && boatCrossing(crossing?.fromZoneSlug, crossing?.toZoneSlug)) {
+    return "You can't push the boat any faster.";
+  }
+  const stopped = held.find((ct) => LAMED_SLUGS.has(ct.tag?.slug) || EXERT_REFUSAL_SLUGS.has(ct.tag?.slug));
+  if (stopped) return `${stopped.tag.name} prevents you from pushing on.`;
+  // Exhausted is the top of the ladder, so a push on could cost them nothing
+  // but the ankle — that is free crossings for the worn out, not a gamble.
+  if (held.some((ct) => ct.tag?.slug === EXHAUSTED_SLUG)) {
+    return "You're already Exhausted, you have nothing left to push on with.";
+  }
+  if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return "You're overburdened, drop some weight to push on.";
+  if (left > 0) return "You still have a free crossing.";
+  if (exertedThisTurn(character, config, openTurn)) return "You've already pushed on this turn.";
+  return null;
+}
+
+// Which way the die leans for this character, before it is thrown — the
+// confirm says so. { edge: "better" | "worse" | null, names }.
+function exertEdgeFor(characterTags) {
+  return edgeFor(characterTags, { better: EXERT_BETTER_SLUGS, worse: EXERT_WORSE_SLUGS });
+}
+
+// The sentence the confirm adds when the die leans, on both faces; null when
+// it doesn't. "Lucky and Quick-Footed" for two, "Lucky, Quick-Footed and
+// Caffeinated" for three.
+function exertEdgeSentence({ edge, names } = {}) {
+  if (!edge || !names?.length) return null;
+  const who = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `Due to ${who} you have ${edge === "better" ? "advantage" : "disadvantage"} on this roll.`;
+}
+
+// The die, and what it did. Runs inside the crossing's own transaction, after
+// the claim above has already won the race. Fatigue is granted at N+1 so a
+// push at the tail of a turn still costs the whole next one — the same clock
+// a day's Labor runs on (docs/tags.yaml, Exhausted); the ankle keeps its own
+// three turns from now. A held Tired is consumed by the step up to Exhausted
+// rather than left to expire beside it, for the reason db/lib/moveEffects.js
+// gives — so for a Tired walker the table reads 1 ankle, 2–5 Exhausted, 6
+// Winded. An Exhausted one was refused before the claim (exertRefusal).
+async function pushOn(tx, character, openTurn, targetLocation) {
+  const roll = rollWithEdge(character.tags ?? [], { better: EXERT_BETTER_SLUGS, worse: EXERT_WORSE_SLUGS });
+  const effect = exertOutcome(roll.die);
+  const held = new Set((character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  let slug = null;
+  if (effect === "injury") slug = EXERT_INJURY_SLUG;
+  else if (effect === "exhausted") slug = EXHAUSTED_SLUG;
+  else if (effect === "tired") slug = nextLaborFatigueSlug(held);
+  else slug = WINDED_SLUG;
+
+  let tagName = null;
+  if (slug) {
+    if (slug === EXHAUSTED_SLUG && held.has(TIRED_SLUG)) {
+      await tx.characterTag.deleteMany({ where: { characterId: character.id, tag: { slug: TIRED_SLUG } } });
+    }
+    const at = slug === EXERT_INJURY_SLUG ? openTurn.number : openTurn.number + 1;
+    const [granted] = await grantTagSlugs(tx, character.id, [slug], at);
+    tagName = granted?.tagName ?? null;
+  }
+
+  // No Action is filed — the Move was never spent — so this row is the GM's
+  // only record of the push.
+  await tx.auditLog.create({
+    data: {
+      actorDiscordUserId: character.discordUserId ?? null,
+      actionType: "exert_crossing",
+      targetCharacterId: character.id,
+      turnId: openTurn.id,
+      details: {
+        die: roll.die,
+        rolls: roll.rolls,
+        edge: roll.edge,
+        edgeFrom: roll.names,
+        effect,
+        granted: slug,
+        to: targetLocation.name,
+        zone: targetLocation.zone.name,
+      },
+    },
+  });
+  return { die: roll.die, rolls: roll.rolls, edge: roll.edge, names: roll.names, effect, tagName };
+}
+
+// The one sentence both faces say after a push on. Bare: the bot's respond()
+// and the Travel panel's line each add their own dressing. Only the die that
+// counted is shown — the discarded one and the trait behind it stay off the
+// line, Bascinet's call. Winded is named outright rather than read off the
+// row so the line still reads if the catalog is behind (db:sync-tags).
+function exertResultLine(exert) {
+  if (!exert) return null;
+  const rolled = `Rolled: **${exert.die}**`;
+  if (exert.effect === "none") return `You pushed on and have arrived only Winded. ${rolled}`;
+  if (exert.effect === "injury") return `You pushed on and sprained your ankle. ${rolled}`;
+  return `You pushed on and are now ${exert.tagName ?? "Tired"}. ${rolled}`;
 }
 
 // What undoing a Move should also undo on the Character row — a zone crossing spends
@@ -129,9 +277,15 @@ function fitsMount(activeSlugs, partySize = 0) {
   return partySize + 1 <= seats;
 }
 
-// One sentence explaining the sheet's crossing count, for its hover — usually why the
-// number is 0 (a bare 0 leaves a lamed or overloaded player nothing to act on), but also the opposite: a boat's extra crossing is earned per crossing not banked, so the number UNDERSTATES what a boatman gets on the water and has to say so.
-function freeZoneMovesReason(character, partySize = 0) {
+// One sentence explaining the sheet's crossing count, for its hover. Usually
+// that means why the number is 0 — a bare 0 leaves a lamed or overloaded player
+// with nothing to act on. It also covers the opposite case: a boat's extra
+// crossing is earned per crossing, not banked, so the number UNDERSTATES what a
+// boatman gets on the water and has to say so.
+//
+// `turn` is optional { config, openTurn }: with it, a 0 that comes from having
+// pushed on this turn says so, since nothing else on the sheet does.
+function freeZoneMovesReason(character, partySize = 0, turn = null) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) {
     return "Overburdened: you don't have a free move anymore.";
@@ -147,6 +301,7 @@ function freeZoneMovesReason(character, partySize = 0) {
   }
   const lamed = held.find((ct) => LAMED_SLUGS.has(ct.tag?.slug));
   if (lamed) return `${lamed.tag.name}: you can't cross a zone for free without riding.`;
+  if (turn && exertedThisTurn(character, turn.config, turn.openTurn)) return "You've already pushed on this turn.";
   // Not a refusal — the number above is right for most crossings, and the
   // boat quietly adds one to the three that touch water.
   if (isBoated(equippedSlugs(held))) {
@@ -165,10 +320,19 @@ class MoveRefused extends Error {
   }
 }
 
-// `character` is the mover as loaded by the caller (needs id, name, locationId, zoneId,
-// factionId, isLeader, discordUserId, tags); `targetLocation` must include its zone.
-// WHO COMES ALONG is not a parameter any more — the party is read off Character.escortedById inside this function's own transaction, so a client cannot post a list of ids at all, deleting the whole class of re-authorising a picker's output the old `dragged` argument needed.
-async function performLocationMove(prisma, character, targetLocation) {
+// `character` is the mover as loaded by the caller (needs id, name,
+// locationId, zoneId, factionId, isLeader, discordUserId, tags);
+// `targetLocation` must include its zone.
+//
+// WHO COMES ALONG is not a parameter any more. The party is read off
+// Character.escortedById inside this function's own transaction, so a client
+// cannot post a list of ids at all — which deletes the whole class of
+// re-authorising a picker's output that the old `dragged` argument needed.
+//
+// `exert`: push on for one more crossing on the die instead of the Move (see
+// pushOn). Refused, not downgraded, when it does not apply — the surfaces
+// only offer it where exertRefusal says nothing.
+async function performLocationMove(prisma, character, targetLocation, { exert = false } = {}) {
   if (!targetLocation?.zone) throw new Error("performLocationMove needs targetLocation.zone");
 
   // The MOVER's own state — escorting asks whether the TARGET is helpless, but "can this
@@ -329,17 +493,37 @@ async function performLocationMove(prisma, character, targetLocation) {
         const left = movesLeft(allowance, character, openTurn);
         // The bonus pool goes first — a crossing charged to it stays charged to it for the rest of the turn, so parking the horse indoors afterwards gives back nothing and takes back nothing.
         const onBonus = allowance.bonus > spentBonus;
+        // The claim's WHERE, shared by a free crossing and a push on: the
+        // counter as this read saw it, or a stale/absent turn id.
+        const claimWhere =
+          character.zoneMovesTurnId === openTurn.id
+            ? { id: character.id, zoneMovesTurnId: openTurn.id, zoneMovesUsed: spentFree }
+            : {
+                id: character.id,
+                // `{ not: x }` never matches NULL in SQL, so the null case
+                // has to be spelled out or a character who has not moved
+                // this turn could never claim their first free move.
+                OR: [{ zoneMovesTurnId: null }, { zoneMovesTurnId: { not: openTurn.id } }],
+              };
 
-        if (left > 0) {
+        if (exert) {
+          const why = exertRefusal(character, config, openTurn, {
+            crossing: { fromZoneSlug: currentLocation.zone?.slug, toZoneSlug: targetLocation.zone?.slug },
+            left,
+          });
+          if (why) throw new MoveRefused(why);
+          // Charged to the base pool and never the bonus — that overspend is
+          // what exertedThisTurn reads back.
           const claimed = await tx.character.updateMany({
-            where:
-              character.zoneMovesTurnId === openTurn.id
-                ? { id: character.id, zoneMovesTurnId: openTurn.id, zoneMovesUsed: spentFree }
-                : {
-                    id: character.id,
-                    // `{ not: x }` never matches NULL in SQL, so the null case has to be spelled out or a character who hasn't moved this turn could never claim their first free move.
-                    OR: [{ zoneMovesTurnId: null }, { zoneMovesTurnId: { not: openTurn.id } }],
-                  },
+            where: claimWhere,
+            data: { zoneMovesTurnId: openTurn.id, zoneMovesUsed: spentFree + 1, zoneMovesBonusUsed: spentBonus },
+          });
+          if (claimed.count === 0) throw new MoveRefused("You've already moved. Try again in a moment.");
+          outcome.exert = await pushOn(tx, character, openTurn, targetLocation);
+          outcome.freeMovesLeft = 0;
+        } else if (left > 0) {
+          const claimed = await tx.character.updateMany({
+            where: claimWhere,
             data: {
               zoneMovesTurnId: openTurn.id,
               zoneMovesUsed: spentFree + 1,
@@ -527,6 +711,9 @@ async function performLocationMove(prisma, character, targetLocation) {
       reason: e.reason,
     })),
     freeMovesLeft: outcome.freeMovesLeft,
+    // The push on's die and what it cost, or null. Said by the caller in
+    // exertResultLine's words; the AuditLog row already exists.
+    exert: outcome.exert ?? null,
     moved,
   };
 }
@@ -538,5 +725,11 @@ module.exports = {
   freeZoneMovesReason,
   travelClaimsToUndo,
   fitsMount,
+  exertOutcome,
+  exertedThisTurn,
+  exertRefusal,
+  exertEdgeFor,
+  exertEdgeSentence,
+  exertResultLine,
   CHARACTER_SELECT,
 };

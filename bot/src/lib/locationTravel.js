@@ -2,6 +2,10 @@ const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } 
 const { prisma } = require("@lifeweb/db");
 const {
   performLocationMove,
+  exertRefusal,
+  exertEdgeFor,
+  exertEdgeSentence,
+  exertResultLine,
   freeMovesLeft,
   freeZoneMovesReason,
 } = require("@lifeweb/db/lib/locationTravel");
@@ -34,6 +38,7 @@ const MENU_OPTION_LIMIT = 25;
 const PICK_ID = "loc:pick";
 const BRING_ID = "loc:bring";
 const CONFIRM_PREFIX = "loc:confirm:";
+const EXERT_PREFIX = "loc:exert:";
 const CANCEL_ID = "loc:cancel";
 
 // Nothing is parked between clicks: an escort is a row on the follower (Character.escortedById),
@@ -140,21 +145,31 @@ async function applyBring(mover, pickedIds, turn) {
   return out;
 }
 
-function buildConfirmRow(locationId) {
-  return new ActionRowBuilder().addComponents(
+// `exert` adds the Push on button — one more crossing on a die instead of the
+// Move (MAP.md §3). Only offered where exertRefusal has already said yes.
+function buildConfirmRow(locationId, { exert = false } = {}) {
+  const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`${CONFIRM_PREFIX}${locationId}`)
       .setLabel("Confirm")
       .setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(CANCEL_ID).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
   );
+  if (exert) {
+    row.addComponents(
+      new ButtonBuilder().setCustomId(`${EXERT_PREFIX}${locationId}`).setLabel("Push on").setStyle(ButtonStyle.Danger),
+    );
+  }
+  row.addComponents(new ButtonBuilder().setCustomId(CANCEL_ID).setLabel("Cancel").setStyle(ButtonStyle.Secondary));
+  return row;
 }
 
-// Executes a validated move. performLocationMove owns rules and writes; everything below is the
-// Discord work left to the caller, run per character and never allowed to throw — a failed role
-// swap must not make a committed move look refused. The channel doctor reconciles any miss here.
-async function performMove(character, targetLocation) {
-  const result = await performLocationMove(prisma, character, targetLocation);
+// Executes a validated move. performLocationMove owns the rules and the
+// writes; everything below is the Discord work it deliberately leaves to its
+// caller, run per moved character and never allowed to throw — a failed role
+// swap must not make a committed move look refused. The channel doctor
+// reconciles whatever a miss here leaves.
+async function performMove(character, targetLocation, { exert = false } = {}) {
+  const result = await performLocationMove(prisma, character, targetLocation, { exert });
   if (!result.ok) return result;
 
   // Followers the way wouldn't take, already detached. The leader's message must not say WHY —
@@ -264,6 +279,7 @@ module.exports = {
   PICK_ID,
   BRING_ID,
   CONFIRM_PREFIX,
+  EXERT_PREFIX,
   CANCEL_ID,
   loadMover,
   listNames,
@@ -275,5 +291,9 @@ module.exports = {
   restoreStandingRoles,
   freeMovesLeft,
   freeZoneMovesReason,
+  exertRefusal,
+  exertEdgeFor,
+  exertEdgeSentence,
+  exertResultLine,
   stowedMounts,
 };

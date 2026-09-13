@@ -14,7 +14,13 @@ import {
   ESCORT_SELECT as MOVER_SELECT,
   partyOf,
 } from "@lifeweb/db/lib/escort";
-import { freeMovesLeft, freeZoneMovesReason } from "@lifeweb/db/lib/locationTravel";
+import {
+  freeMovesLeft,
+  freeZoneMovesReason,
+  exertRefusal,
+  exertEdgeFor,
+  exertEdgeSentence,
+} from "@lifeweb/db/lib/locationTravel";
 import { nodeAt, plateSize, PLATE_SRC } from "@/lib/mapNodes";
 import { zoneKey } from "@/lib/zones";
 
@@ -108,6 +114,13 @@ async function buildMap({ character, unfogged }) {
     const here = Boolean(character?.locationId && location.id === character.locationId);
     const near = adjacent.get(location.id) ?? null;
     const stood = unfogged || known.stood.has(location.id);
+    // THIS crossing's own count, not a flat one shared by every node — a
+    // boat's bonus is earned per crossing (db/lib/mounts.js#boatCrossing),
+    // so Forest<->Hills or Hills<->Marshes shows one more than a crossing
+    // the water does nothing for. Only worth asking for an adjacent node;
+    // a merely-known one has no crossing to weigh yet.
+    const crossing = { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: location.zone?.slug ?? null };
+    const freeLeft = near ? freeMovesLeft(character, config, openTurn, party.length, crossing) : null;
 
     nodes.push({
       id: location.id,
@@ -129,14 +142,16 @@ async function buildMap({ character, unfogged }) {
       adjacent: Boolean(near),
       passable: Boolean(near?.passable),
       crossesZone: Boolean(near?.crossesZone),
-      // THIS crossing's own count (db/lib/mounts.js#boatCrossing), not a flat
-      // one shared by every node; only worth asking for an adjacent node.
-      freeLeft: near
-        ? freeMovesLeft(character, config, openTurn, party.length, {
-            fromZoneSlug: currentZone?.slug ?? null,
-            toZoneSlug: location.zone?.slug ?? null,
-          })
-        : null,
+      freeLeft,
+      // Whether Push on belongs beside Go for this crossing — the server's
+      // own refusal, asked ahead of time (MAP.md §3). Same question the
+      // Travel panel asks per option.
+      canExert: Boolean(
+        near?.crossesZone && exertRefusal(character, config, openTurn, { crossing, left: freeLeft }) === null,
+      ),
+      // Which way the push on's die leans, said before they commit. Null when
+      // it doesn't; the same sentence the Travel panel carries.
+      exertNote: near?.crossesZone ? exertEdgeSentence(exertEdgeFor(character?.tags ?? [])) : null,
       dismounts: Boolean(near?.dismounts),
       reason: near?.refusal ?? null,
       // Same field the Travel panel draws a chip from; only ever set for a tag this character already holds.
@@ -180,7 +195,7 @@ async function buildMap({ character, unfogged }) {
       ? {
           held: heldReasonFor(character),
           freeLeft: freeMovesLeft(character, config, openTurn, party.length),
-          freeReason: freeZoneMovesReason(character, party.length),
+          freeReason: freeZoneMovesReason(character, party.length, { config, openTurn }),
           mounted: onFootBlocked,
           partySize: party.length,
         }

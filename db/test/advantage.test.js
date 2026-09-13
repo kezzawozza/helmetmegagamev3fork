@@ -78,3 +78,42 @@ test("the fallback face is the 6, and a 1 is never touched", () => {
   assert.equal(SCAVENGING_FALLBACK_TO, 6);
   assert.equal(scavengingMayFallBack(1, new Set(["laboring-scavenging"])), false);
 });
+
+// The push on's two-sided die (rollWithEdge): votes for and against, ties
+// roll once, and the roll line names what decided it.
+const { rollWithEdge, edgeFor } = require("../lib/advantage");
+const BETTER = new Set(["lucky", "quick-footed"]);
+const WORSE = new Set(["fat", "old"]);
+const held = (...pairs) => pairs.map(([slug, name]) => ({ tag: { slug, name } }));
+
+test("rollWithEdge: nothing held, or a tie, throws one die", () => {
+  for (let i = 0; i < 20; i++) {
+    const plain = rollWithEdge(held(), { better: BETTER, worse: WORSE });
+    assert.equal(plain.rolls.length, 1);
+    assert.equal(plain.edge, null);
+    const tie = rollWithEdge(held(["quick-footed", "Quick-Footed"], ["fat", "Fat"]), { better: BETTER, worse: WORSE });
+    assert.equal(tie.rolls.length, 1);
+    assert.equal(tie.edge, null);
+  }
+});
+
+test("rollWithEdge: the majority keeps the better or the worse of two", () => {
+  for (let i = 0; i < 40; i++) {
+    const up = rollWithEdge(held(["lucky", "Lucky"], ["quick-footed", "Quick-Footed"], ["fat", "Fat"]), { better: BETTER, worse: WORSE });
+    assert.equal(up.rolls.length, 2);
+    assert.equal(up.die, Math.max(...up.rolls));
+    assert.equal(up.edge, "better");
+    assert.deepEqual(up.names, ["Lucky", "Quick-Footed"]);
+    const down = rollWithEdge(held(["old", "Old"]), { better: BETTER, worse: WORSE });
+    assert.equal(down.rolls.length, 2);
+    assert.equal(down.die, Math.min(...down.rolls));
+    assert.equal(down.edge, "worse");
+    assert.deepEqual(down.names, ["Old"]);
+  }
+});
+
+test("edgeFor: the decision alone, no die thrown", () => {
+  assert.deepEqual(edgeFor(held(["lucky", "Lucky"], ["quick-footed", "Quick-Footed"]), { better: BETTER, worse: WORSE }), { edge: "better", names: ["Lucky", "Quick-Footed"] });
+  assert.deepEqual(edgeFor(held(["fat", "Fat"]), { better: BETTER, worse: WORSE }), { edge: "worse", names: ["Fat"] });
+  assert.deepEqual(edgeFor(held(), { better: BETTER, worse: WORSE }), { edge: null, names: [] });
+});

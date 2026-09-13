@@ -3,6 +3,7 @@ const {
   PICK_ID,
   BRING_ID,
   CONFIRM_PREFIX,
+  EXERT_PREFIX,
   CANCEL_ID,
   loadMover,
   listNames,
@@ -180,6 +181,9 @@ module.exports = {
         if (interaction.customId === CANCEL_ID) return void (await handleTravelCancel(interaction));
         if (interaction.customId.startsWith(CONFIRM_PREFIX)) {
           return void (await handleTravelConfirm(interaction, interaction.customId.slice(CONFIRM_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(EXERT_PREFIX)) {
+          return void (await handleTravelConfirm(interaction, interaction.customId.slice(EXERT_PREFIX.length), { exert: true }));
         }
         if (interaction.customId.startsWith(WHOS_HERE_PREFIX)) {
           return void (await handleWhosHere(interaction, interaction.customId.slice(WHOS_HERE_PREFIX.length)));

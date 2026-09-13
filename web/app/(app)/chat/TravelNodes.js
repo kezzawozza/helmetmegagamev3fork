@@ -87,14 +87,21 @@ export default function TravelNodes({ onDone, pick = null }) {
   // earned per crossing.
   const nextTurn = Boolean(chosen?.crossesZone && chosen.freeLeft <= 0);
 
-  // Go is the only door onto travel (MAP.md §6c) — a zone crossing stops here
-  // and asks again in the shared dialog, since it spends something and carries whoever is with you.
-  const go = async (option) => {
+  // Travel, in one place. Go is the only door onto it, the way the map's is
+  // (MAP.md §6c) — clicking a node only ever picks it.
+  //
+  // A zone crossing stops here and asks again, in the shared dialog. It is the
+  // one move that spends something, carries whoever is with you, and cannot be
+  // walked back for free.
+  //
+  // Push on is the same door with a die in it (MAP.md §3): its own confirm,
+  // then the same action with `exert` set.
+  const go = async (option, { exert = false } = {}) => {
     if (option.crossesZone) {
-      const asked = crossingConfirm(option, option.freeLeft, data.partySize);
+      const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert });
       if (!(await confirm(asked))) return;
     }
-    run(travelTo, { locationId: option.id }, {
+    run(travelTo, { locationId: option.id, exert }, {
       onOk: (res) => {
         setTarget(null);
         onDone?.(res);
@@ -175,6 +182,20 @@ export default function TravelNodes({ onDone, pick = null }) {
             >
               Go
             </button>
+            {/* The other way across once the travels are gone: on a die
+                instead of the Move. Only drawn where the server would say
+                yes — canExert is its refusal, asked ahead of time. */}
+            {nextTurn && chosen.canExert && (
+              <button
+                type="button"
+                className="btn"
+                disabled={pending}
+                title="Exert yourself for another free travel."
+                onClick={() => go(chosen, { exert: true })}
+              >
+                Push on
+              </button>
+            )}
             <button type="button" className="btn-quiet" disabled={pending} onClick={() => setTarget(null)}>
               Cancel
             </button>

@@ -856,6 +856,7 @@ tags:
     # under-carrier can't also be the big body that hauls.
     conflictsWith: [pack-mule, strong, giant]
 
+  # Push on (MAP.md §3): keeps the worse of two dice — db/lib/locationTravel.js.
   old:
     catalog: all
     name: Old
@@ -1600,6 +1601,7 @@ tags:
       locks:
         - families: [romance]
 
+  # Push on (MAP.md §3): keeps the worse of two dice — db/lib/locationTravel.js.
   fat:
     catalog: all
     name: Fat
@@ -1972,6 +1974,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # Push on (MAP.md §3): keeps the better of two dice — db/lib/locationTravel.js.
   quick-footed:
     catalog: all
     name: Quick-Footed
@@ -3596,6 +3599,7 @@ tags:
     purchasableAfterStart: false
     durationTurns: 2
 
+  # Push on (MAP.md §3): keeps the better of two dice — db/lib/locationTravel.js.
   stimulant-high:
     catalog: gm
     name: Stimulant High
@@ -3808,10 +3812,26 @@ tags:
     purchasable: false
     durationTurns: 3
 
+  # What a 6 on the push on leaves (MAP.md §3, db/lib/locationTravel.js#pushOn):
+  # a turn's visible mark and no effect at all. Granted at N+1 like the
+  # fatigue tags, so it shows through the next turn and the sweep clears it.
+  # Description is Bascinet's own wording.
+  winded:
+    catalog: gm
+    name: Winded
+    category: status
+    group: status-debuffs
+    description: "You're not tired, you just need to catch your breath."
+    pointCost: 0
+    purchasable: false
+    visible: true
+    durationTurns: 1
+
   # The precursor to Exhausted (db/lib/laborFatigue.js). Granted by a day's
-  # Labor, or by a bad night's sleep (Guilt Ridden, Insomniac). Doesn't block
-  # anything by itself — Labor, or a second bad night, escalates it straight
-  # to Exhausted instead of refreshing this. Left alone, it clears on its
+  # Labor, a bad night's sleep (Guilt Ridden, Insomniac) or pushing on
+  # (MAP.md §3). Doesn't block anything by itself — Labor, a second bad
+  # night or a second push escalates it straight to Exhausted instead of
+  # refreshing this. Left alone, it clears on its
   # own — durationTurns: 1 the same way Exhausted's does, so it only survives
   # into the very next turn.
   tired:
@@ -3826,8 +3846,9 @@ tags:
     durationTurns: 1
 
   # The escalated half of the same ladder (db/lib/laborFatigue.js). Reached by
-  # Laboring, or a bad night's sleep, while already Tired — two days running,
-  # or two bad nights running. durationTurns: 1 is what makes the clock work:
+  # Laboring, a bad night's sleep or pushing on (MAP.md §3) while already
+  # Tired — two days running, or two bad nights running — or straight away
+  # on a 2–3 when pushing on. durationTurns: 1 is what makes the clock work:
   # granted while turn T closes, it blocks turn T+1 and degrades back into
   # Tired when T+1 closes.
   exhausted:
@@ -3860,6 +3881,7 @@ tags:
   # §3). Neither is bought or brewed: Caffeinated is what a cup of Coffee
   # consumes into, and Asleep is what a Soporific does to whoever drinks it —
   # so both live here with the other tonic effects rather than in Items.
+  # Push on (MAP.md §3): keeps the better of two dice — db/lib/locationTravel.js.
   caffeinated:
     catalog: gm
     name: Caffeinated
@@ -3982,6 +4004,7 @@ tags:
       resourceCost: 7
       skills: [medical-skilled]
 
+  # Refuses a push on (MAP.md §3, EXERT_REFUSAL_SLUGS in db/lib/locationTravel.js).
   sepsis:
     catalog: all
     name: Sepsis
@@ -4185,6 +4208,7 @@ tags:
       resourceCost: 3
       skills: [medical-skilled]
 
+  # Refuses a push on (MAP.md §3, EXERT_REFUSAL_SLUGS in db/lib/locationTravel.js).
   arterial-bleed:
     catalog: all
     name: Arterial Bleed
@@ -4301,6 +4325,7 @@ tags:
       resourceCost: 2
       skills: [medical-skilled]
 
+  # Refuses a push on (MAP.md §3, EXERT_REFUSAL_SLUGS in db/lib/locationTravel.js).
   punctured-lung:
     catalog: all
     name: Punctured Lung
@@ -4322,6 +4347,7 @@ tags:
       resourceCost: 13
       skills: [medical-expert]
 
+  # Refuses a push on (MAP.md §3, EXERT_REFUSAL_SLUGS in db/lib/locationTravel.js).
   gut-wound:
     catalog: all
     name: Gut Wound
@@ -16458,6 +16484,7 @@ tags:
       taste: "booze"
       mood: 10
 
+  # Refuses a push on (MAP.md §3, EXERT_REFUSAL_SLUGS in db/lib/locationTravel.js).
   blind-drunk:
     catalog: gm
     name: Blind Drunk

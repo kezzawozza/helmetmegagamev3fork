@@ -24,18 +24,45 @@ function crossingWarning(option) {
   return "You will roll Caving Die every time you move through here.";
 }
 
-// Asked before a zone crossing on both surfaces; a hop inside a zone is never asked about. `freeLeft` is the DESTINATION's own count.
-export function crossingConfirm(option, freeLeft, partySize = 0) {
-  const price =
-    (freeLeft ?? 0) > 0
-      ? "This spends one of your travels."
-      : "You have no travels left, so this spends your Move for the turn.";
+// The question asked before a zone crossing, on both surfaces.
+//
+// A crossing is the one move here that is expensive and cannot be taken back:
+// it spends a travel or the whole Move, it drags whoever is with you along, and
+// it lands at once. A hop inside a zone is none of those things and is never
+// asked about. So this exists, and travelFoot's local "free" case has no
+// counterpart below.
+//
+// Built here rather than in either component for the reason travelFoot is: two
+// surfaces, one sentence. `freeLeft` is the DESTINATION's own count, not the
+// header's ambient one — a boat's bonus is earned per crossing.
+//
+// `exert` is the other question, asked from the other button: pushing on for
+// one more crossing on a die instead of the Move (MAP.md §3). `option.exertNote`
+// is the server's sentence about which way the die leans, when it does
+// (db/lib/locationTravel.js#exertEdgeSentence), so the two faces say it the
+// same way.
+export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false } = {}) {
+  // Said out loud because it is the half of an accidental crossing that costs
+  // somebody else their afternoon too.
   const party =
     partySize > 0
       ? partySize === 1
         ? " One person comes with you."
         : ` ${partySize} people come with you.`
       : "";
+  if (exert) {
+    const note = option.exertNote ? ` ${option.exertNote}` : "";
+    return {
+      title: `Push on to ${option.zoneName}?`,
+      message: `${option.name} is in ${option.zoneName} and you have no free travels left. You can choose to push yourself, risking exhaustion and possible injury.${note}${party}`,
+      confirmLabel: "Push on",
+      cancelLabel: "Stay",
+    };
+  }
+  const price =
+    (freeLeft ?? 0) > 0
+      ? "This spends one of your travels."
+      : "You have no travels left, so this spends your Move for the turn.";
   return {
     title: `Cross into ${option.zoneName}?`,
     message: `${option.name} is in ${option.zoneName}. ${price}${party}`,
