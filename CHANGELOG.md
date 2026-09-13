@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Lavish and Fine Meal cook with any real ingredient again
+
+✎ Deep Morel, Tea, Honey, Sweets, Fish Roe and 40 others are legal meal ingredients again  
+✎ Naming a meal you cooked is free again, and the ingredient contributes its mood again
+
 ## 2026-09-13 · A sealed letter keeps its name
 
 ✎ Sealing a letter no longer throws away what the writer called it — a closed letter now reads its title first and the wax after it, so a courier carrying two of them can tell which is which without opening one  

@@ -5935,6 +5935,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 8
+    cooked:
+      taste: "strength"
+      mood: -15
 
   # Same shape as the Graga Sac above — a monster organ that is an ingredient
   # and nothing else: stackable, tradeable, sellable, and NOT consumable,
@@ -5963,6 +5966,9 @@ tags:
     # being a person first — and the Dreamer's Draught SPENDS one now
     # (Tag.requirementItems), so that decision is taken per bottle.
     sellablePrice: 25
+    cooked:
+      taste: "magic"
+      mood: -20
 
   # --- Corpses -----------------------------------------------------------
   # Bodies as real, carryable objects. These three are what a monster leaves;
@@ -6321,6 +6327,9 @@ tags:
     # The dearest of the three by a wide margin: an Aberrant has to fall first,
     # and the recipe it feeds costs 0 ⬢ because the heart is the price.
     sellablePrice: 55
+    cooked:
+      taste: "something indescribable"
+      mood: -25
 
   ravens-eye:
     catalog: gm
@@ -6337,6 +6346,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 4
+    cooked:
+      taste: "an eyeball"
+      mood: -15
     # A Trinket ingredient (TRINKETS.md §3) — the priciest inlay in the
     # catalog.
     inlayValue: 10
@@ -6356,6 +6368,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 2
+    cooked:
+      taste: "something poisonous"
+      mood: -10
 
   # Two more of the same shape (Chris 2026-09-05): Poppy and Distilled Coca
   # used to be brewed out of ⬢ alone, and now spend a raw ingredient the way
@@ -6377,6 +6392,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 2
+    cooked:
+      taste: "something bitter"
+      mood: 10
 
   coca-leaves:
     catalog: all
@@ -6393,6 +6411,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 2
+    cooked:
+      taste: "something bitter"
+      mood: 12
 
   # Fished up by the labor loot pass. Public on purpose (Chris 2026-09-07):
   # the heart is a curiosity anyone may catch, but the White Honey link stays
@@ -6412,6 +6433,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 4
+    cooked:
+      taste: "raw fish"
+      mood: 6
 
   # {tag:autoinjector}'s third ingredient (M6c). catalog: gm, same shape as
   # {tag:aberrant-heart}/{tag:cybernetic-core}: a GM can look it up granting
@@ -6456,6 +6480,9 @@ tags:
     consumable: true
     consumesInto: []
     cures: [bruised]
+    cooked:
+      taste: "leeches"
+      mood: -10
 
   # The generator's proper fuel. Imported, so the Merchant has to buy it off
   # the station with the profit he makes selling everything else — which is the
@@ -7182,6 +7209,10 @@ tags:
     consumable: true
     consumesInto:
       - oneOf: [ate-meal, vomiting]
+    cooked:
+      taste: "meat"
+      mood: 4
+      into: []
 
   # --- The Ration Box's bad draws. All four consumesInto ate-meal too — a
   # meal, just a bad one — and their negative mood comes off db/lib/mood.js's
@@ -7320,6 +7351,9 @@ tags:
     consumable: true
     consumesInto:
       - poisoned
+    cooked:
+      taste: "a maggot"
+      mood: -8
 
   # Not on the caving table — the maggot is the loot, this is what you make of
   # it. Calms like {tag:tea} (db/lib/mood.js CONSUME_RELIEF) and feeds you.
@@ -7349,6 +7383,9 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+    cooked:
+      taste: "milk"
+      mood: 12
 
   supply-kit:
     catalog: gm
@@ -10078,6 +10115,11 @@ tags:
     consumesInto:
       - ate-meal
     sellable: false
+    cooked:
+      taste: "meat"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   # --- Remains -----------------------------------------------------------
   # What the Mutilate button takes off a bound person or a corpse, one piece
@@ -10118,6 +10160,11 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 8
+    cooked:
+      taste: "organs"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   tongue:
     catalog: gm
@@ -10134,6 +10181,11 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 3
+    cooked:
+      taste: "organs"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   hand:
     catalog: gm
@@ -10150,6 +10202,11 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 5
+    cooked:
+      taste: "meat"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   foot:
     catalog: gm
@@ -10166,6 +10223,11 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 4
+    cooked:
+      taste: "meat"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   bone:
     catalog: gm
@@ -10198,6 +10260,11 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 4
+    cooked:
+      taste: "organs"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   heart:
     catalog: gm
@@ -10214,6 +10281,11 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 8
+    cooked:
+      taste: "organs"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   # --- Cooking ingredients (docs/systemdocs/COOKING.md) ---------------------
   #
@@ -10570,6 +10642,11 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    # Naming your own work is free now (COOKING.md), and a Fine Meal takes a
+    # NAME only — the Lavish is the one that gets its own words.
+    custom: { cost: 0, describable: false }
+    # Was a flat 15 in db/lib/mood.js. The ingredient does the work now.
+    mealMood: 5
     consumable: true
     consumesInto:
       - ate-meal
@@ -10582,6 +10659,9 @@ tags:
       resourceCost: 2
       skills: [cooking-basic]
       gambit: false
+      # Optional, unlike the Lavish. A Fine Meal is an honest plate of food
+      # with or without something good in it.
+      ingredientSlots: { min: 0, max: 1 }
   lavish-meal:
     catalog: all
     name: Lavish Meal
@@ -10597,6 +10677,12 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    # Free words, and the Lavish is the one recipe that takes a DESCRIPTION —
+    # the dish a cook writes their own line for (COOKING.md).
+    custom: { cost: 0, describable: true }
+    # Was a flat 30 in db/lib/mood.js, which was the single largest relief in
+    # the game and left the ingredient nothing to say. See MOOD.md §6.
+    mealMood: 8
     consumable: true
     consumesInto:
       - ate-meal
@@ -10610,14 +10696,18 @@ tags:
       # says it too.
       skills: [cooking-skilled]
       gambit: false
-      # The one recipe the cook chooses an ingredient for. Three are Depot
-      # imports and the roe is fished up by the loot pass, so the delicacy is
-      # a real errand either way. Honey stays out of the description and the
-      # paper on purpose: it is gm-catalog, so the honeyed version is a
-      # DISCOVERY — the Recipes tab's anyOf narrowing shows "Tea, Sweets or
-      # Fish Roe" until the cook holds one.
-      items:
-        - anyOf: [tea, sweets, honey, fish-roe]
+      # Was `items: [anyOf: [tea, sweets, honey, fish-roe]]` — four slugs, one
+      # slot, and a hardcoded list that every new delicacy had to be added to
+      # by hand. Now it is slots: at least one of ANYTHING carrying a `cooked`
+      # block, and room for two.
+      #
+      # The Honey discovery survives the change and gets better. It used to
+      # live in the RECIPE — the Recipes tab narrowed the anyOf to "Tea,
+      # Sweets or Fish Roe" until a cook held a jar. Now the recipe names
+      # nothing at all, and the secret lives in the chip list instead: Honey
+      # only appears as something you can slot if you are holding one. Same
+      # discovery, one less place to maintain it.
+      ingredientSlots: { min: 1, max: 2 }
 
   # Featherweight travel food (Chris 2026-09-07): a Fine Meal weighs 2 lb and
   # this weighs a quarter of that — the meal you pack ten of for the caves.
@@ -10698,6 +10788,9 @@ tags:
       resourceCost: 1
       skills: [thanati]
       gambit: false
+    cooked:
+      taste: "something foul"
+      mood: -35
 
   # --- The three kits -----------------------------------------------------
   # None is gear you wear; all are gear you have to GET TO. Each is
@@ -11414,6 +11507,9 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: []
+    cooked:
+      taste: "tea"
+      mood: 15
 
   # --- Paperwork -----------------------------------------------------------
   #
@@ -11654,6 +11750,9 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: [phrygian-toxin]
+    cooked:
+      taste: ""
+      mood: 0
 
   # Five sticks make a bundle, and the bundle is an ordinary Craft recipe with
   # an enforced ingredient — the `items:`/`count:` shape blank-book uses. No
@@ -12478,6 +12577,9 @@ tags:
     consumable: true
     consumesInto:
       - caffeinated
+    cooked:
+      taste: "something bitter"
+      mood: 15
     removesOnConsume: [tired, exhausted]
 
   bar-soap:
@@ -12554,6 +12656,9 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+    cooked:
+      taste: "sugar"
+      mood: 20
 
   # Prospecting's edible find where the ground itself isn't cave floor —
   # every surface Prospecting location with mushroom flavor already written
@@ -12599,6 +12704,9 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+    cooked:
+      taste: "little crunchies"
+      mood: 28
 
   honey:
     catalog: gm
@@ -12619,6 +12727,9 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+    cooked:
+      taste: "honey"
+      mood: 20
 
   sky-lantern:
     catalog: gm
@@ -12661,6 +12772,9 @@ tags:
     consumable: true
     consumesInto:
       - tipsy
+    cooked:
+      taste: "wine"
+      mood: 18
 
   # Gear. The band where a working person might actually save up for one.
   boombox:
@@ -12913,6 +13027,9 @@ tags:
     consumable: true
     consumesInto:
       - asleep
+    cooked:
+      taste: "something bitter"
+      mood: 0
 
   amoeba-vial:
     catalog: gm
@@ -13141,6 +13258,9 @@ tags:
         durationTurns: 2
     sellable: true
     sellablePrice: 3
+    cooked:
+      taste: "cave mushroom"
+      mood: 0
 
   alcohol:
     catalog: all
@@ -13190,6 +13310,9 @@ tags:
       resourceCost: 1
       skills: [blessing]
       gambit: false
+    cooked:
+      taste: "something holy"
+      mood: 25
 
   # HIDDEN recipe (honey is non-public; Chris 2026-09-07): the Cathedral's
   # second craft. Holy water poured on a thing; this is worked into a person.
@@ -13217,6 +13340,9 @@ tags:
       skills: [blessing]
       gambit: false
       items: [holy-water, honey]
+    cooked:
+      taste: "something holy"
+      mood: 25
 
   bliss:
     catalog: all
@@ -13282,6 +13408,9 @@ tags:
       items: [alcohol]
     sellable: true
     sellablePrice: 14
+    cooked:
+      taste: "wine"
+      mood: 18
 
   # --- The apothecary -----------------------------------------------------
   #Needs resources and a special ingredient acquired through RP. GMs need to adjudicate the results,
@@ -13323,6 +13452,9 @@ tags:
       recipePublic: true
     sellable: true
     sellablePrice: 5
+    cooked:
+      taste: "rotting flesh"
+      mood: -45
 
   feces:
     catalog: all
@@ -13347,6 +13479,11 @@ tags:
       perTurn: 2
       skills: [brewing-basic]
       gambit: false
+    cooked:
+      taste: "feces"
+      mood: -55
+      into:
+        - vomiting
 
   cleaning-powder:
     catalog: all
@@ -13399,6 +13536,9 @@ tags:
       items: [alcohol]
     sellable: true
     sellablePrice: 7
+    cooked:
+      taste: "something bitter"
+      mood: 0
 
   poppy:
     catalog: all
@@ -13425,6 +13565,9 @@ tags:
       items: [poppy-pods]
     sellable: true
     sellablePrice: 4
+    cooked:
+      taste: "something soothing"
+      mood: 0
 
   molotov-cocktail:
     catalog: all
@@ -13471,6 +13614,11 @@ tags:
     consumable: true
     consumesInto:
       - choking
+    cooked:
+      taste: "something poisonous"
+      # A poison contributes its EFFECT and no mood. You do not enjoy or
+      # resent a taste you are dying of, and a mood swing would be a tell.
+      mood: 0
     requirement:
       turnsCost: 1
       resourceCost: 3
@@ -13538,6 +13686,13 @@ tags:
     consumable: true
     consumesInto:
       - phrygian-toxin
+    cooked:
+      # UNDETECTABLE, and that is the whole character of this one. No taste,
+      # no mood, no tell — a dish carrying it reads exactly like a dish that
+      # is not. web/lib/cooking.js drops an empty taste from the line rather
+      # than printing a gap.
+      taste: ""
+      mood: 0
     requirement:
       turnsCost: 2
       resourceCost: 4
@@ -13658,6 +13813,10 @@ tags:
     cures: [poisoned, envenomated, phrygian-toxin, choking]
     sellable: true
     sellablePrice: 26
+    cooked:
+      taste: "medicine"
+      mood: 15
+      cures: true
 
   deadeye-drops:
     catalog: all
@@ -13711,6 +13870,9 @@ tags:
       items: [cave-fungus]
     sellable: true
     sellablePrice: 12
+    cooked:
+      taste: "something soothing"
+      mood: 0
 
   distilled-coca:
     catalog: all
@@ -13783,6 +13945,9 @@ tags:
       items: [cave-fungus]
     sellable: true
     sellablePrice: 5
+    cooked:
+      taste: "something bitter"
+      mood: 0
 
   # The one player-facing rename (docs/systemdocs/CHARACTERS.md §1b). Drunk
   # from this tag's own tooltip on the character sheet: Consume opens the
@@ -13863,6 +14028,9 @@ tags:
       - pheromones
     sellable: true
     sellablePrice: 5
+    cooked:
+      taste: "something disgusting"
+      mood: -30
 
   raven-draught:
     catalog: all
@@ -15764,6 +15932,9 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: [vomiting]
+    cooked:
+      taste: "meat"
+      mood: -5
 
   squeeze:
     catalog: gm
@@ -15780,6 +15951,9 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: [seizure]
+    cooked:
+      taste: "something indescribable"
+      mood: -20
     # Nothing in Ravenheart wants a cube. The Depot buys every one of them,
     # which is the whole reason the Factory exists — 8 cubes is a day's work
     # and pays about four times a good farming day.
@@ -15919,6 +16093,9 @@ tags:
       items: [godflesh]
     sellable: true
     sellablePrice: 3
+    cooked:
+      taste: "booze"
+      mood: 10
 
   blind-drunk:
     catalog: gm
