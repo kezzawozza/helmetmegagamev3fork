@@ -184,7 +184,18 @@ hunting-only now and lives in `docs/tags.yaml` like every other tool
 | Nekker Corpse | `nekker-pheromones` |
 | Graga Corpse | `graga-sac` |
 | Skinless Corpse | `skinless-brain` |
-| anybody's corpse | `human-flesh` |
+| anybody's corpse | `human-flesh`, plus whatever organs are still on the body |
+
+**A human corpse also gives up its organs**, one Butcher instead of up to nine
+Mutilate presses. `harvestableOrgans` (`db/lib/mutilate.js`) runs every
+`MUTILATE_PARTS` ladder (`TORTURE.md` §6) to its end and hands the actor
+however many rungs are left — an untouched body is the same nine pieces a full
+Mutilate pass would leave (two eyes, two hands, two feet, one tongue, one
+stomach, one heart), and a body already missing a part (a prior Mutilate, or
+Torture that killed it by the stomach or heart) only gives up what's left.
+The corpse's own sheet ends the same way a hand-pressed Mutilate would leave
+it — holding the final rung of each part taken — so a second Butcher (or a
+GM inspecting the dead character) sees the same ladder state either way.
 
 `nekker-pheromones` **stopped being brewable** in the same change. It is
 butchered now, and its row is gone from `BREWING.md` §2 and from the Alcohol &

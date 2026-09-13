@@ -154,7 +154,7 @@ import {
 } from "@lifeweb/db/lib/pointerMint";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
-import { partFor, resolveMutilation } from "@lifeweb/db/lib/mutilate";
+import { partFor, resolveMutilation, harvestableOrgans } from "@lifeweb/db/lib/mutilate";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
 import { dropRoomTag, clampEquippedQuantity, lockRoom, consumeInspiredIfUsed } from "@lifeweb/db/lib/tagWrites";
 import { WANTED_SLUG } from "@lifeweb/db/lib/wanted";
@@ -5525,6 +5525,55 @@ async function butcherCorpseRequestImpl({
     reason: "butcher",
   });
 
+  // A human body also gives up whatever Mutilate hasn't already taken —
+  // every ladder run to its end in one pass instead of nine presses.
+  let subject = null;
+  let harvests = [];
+  let organTagBySlug = new Map();
+  let organExpiryByTagId = new Map();
+  if (corpse.human && corpse.deadCharacterId) {
+    subject = await prisma.character.findUnique({
+      where: { id: corpse.deadCharacterId },
+      select: { id: true, tags: { select: { tag: { select: { slug: true } } } } },
+    });
+    const rawHarvests = harvestableOrgans(
+      (subject?.tags ?? []).map((ct) => ct.tag.slug),
+    );
+    if (rawHarvests.length) {
+      const neededSlugs = new Set();
+      for (const h of rawHarvests) {
+        neededSlugs.add(h.grantSlug);
+        neededSlugs.add(h.itemSlug);
+        if (h.dropSlug) neededSlugs.add(h.dropSlug);
+      }
+      const organTags = await prisma.tag.findMany({
+        where: { slug: { in: [...neededSlugs] } },
+      });
+      organTagBySlug = new Map(organTags.map((t) => [t.slug, t]));
+      // A harvest whose tags aren't all in the catalog is dropped rather
+      // than blocking the whole Butcher action — human-flesh is the yield
+      // that must not fail on catalog drift; organs are the bonus.
+      harvests = rawHarvests.filter(
+        (h) =>
+          organTagBySlug.has(h.grantSlug) &&
+          organTagBySlug.has(h.itemSlug) &&
+          (!h.dropSlug || organTagBySlug.has(h.dropSlug)),
+      );
+      const itemTags = [...new Set(harvests.map((h) => h.itemSlug))].map(
+        (slug) => organTagBySlug.get(slug),
+      );
+      const expiries = await Promise.all(
+        itemTags.map((tag) =>
+          expiryForGrant(prisma, tag, openTurn, {
+            characterId: character.id,
+            where: "butcher",
+          }),
+        ),
+      );
+      organExpiryByTagId = new Map(itemTags.map((tag, i) => [tag.id, expiries[i]]));
+    }
+  }
+
   await prisma.$transaction(async (tx) => {
     await takeCorpse(tx, corpse);
     await addToStack(tx, character.id, yieldTag.id, 1, {
@@ -5532,6 +5581,23 @@ async function butcherCorpseRequestImpl({
       expiresTurn,
       stackable: yieldTag.stackable,
     });
+    for (const h of harvests) {
+      const grantTag = organTagBySlug.get(h.grantSlug);
+      const itemTag = organTagBySlug.get(h.itemSlug);
+      const dropTag = h.dropSlug ? organTagBySlug.get(h.dropSlug) : null;
+      if (subject) {
+        if (dropTag) await dropCharacterTag(tx, subject.id, dropTag.id);
+        await addToStack(tx, subject.id, grantTag.id, 1, {
+          source: "EVENT",
+          stackable: grantTag.stackable,
+        });
+      }
+      await addToStack(tx, character.id, itemTag.id, h.quantity, {
+        source: "EVENT",
+        expiresTurn: organExpiryByTagId.get(itemTag.id),
+        stackable: itemTag.stackable,
+      });
+    }
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_butcher_corpse",
@@ -5540,6 +5606,9 @@ async function butcherCorpseRequestImpl({
         corpse: corpse.tagName,
         made: yieldTag.name,
         source: corpse.source.kind,
+        ...(harvests.length
+          ? { organs: harvests.map((h) => ({ part: h.part, quantity: h.quantity })) }
+          : {}),
       },
     });
   });

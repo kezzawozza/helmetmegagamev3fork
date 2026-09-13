@@ -3,6 +3,7 @@ const assert = require("node:assert");
 const {
   MUTILATE_PARTS,
   resolveMutilation,
+  harvestableOrgans,
 } = require("../lib/mutilate");
 
 test("an untouched subject gives up the first rung", () => {
@@ -66,4 +67,48 @@ test("every part names a distinct item and a non-empty ladder", () => {
     assert.ok(!items.has(p.itemSlug), `${p.itemSlug} is used twice`);
     items.add(p.itemSlug);
   }
+});
+
+test("an untouched subject gives up nine pieces across six parts", () => {
+  const harvest = harvestableOrgans([]);
+  assert.equal(harvest.length, 6);
+  const byPart = Object.fromEntries(harvest.map((h) => [h.part, h]));
+  assert.equal(byPart.eye.quantity, 2);
+  assert.equal(byPart.hand.quantity, 2);
+  assert.equal(byPart.foot.quantity, 2);
+  assert.equal(byPart.tongue.quantity, 1);
+  assert.equal(byPart.stomach.quantity, 1);
+  assert.equal(byPart.heart.quantity, 1);
+  assert.equal(
+    harvest.reduce((sum, h) => sum + h.quantity, 0),
+    9,
+  );
+  assert.equal(byPart.eye.grantSlug, "blind");
+  assert.equal(byPart.eye.dropSlug, null);
+});
+
+test("a part already missing its first rung only owes the rest of the ladder", () => {
+  const harvest = harvestableOrgans(["missing-eye"]);
+  const eye = harvest.find((h) => h.part === "eye");
+  assert.equal(eye.quantity, 1);
+  assert.equal(eye.grantSlug, "blind");
+  assert.equal(eye.dropSlug, "missing-eye");
+});
+
+test("a fully mutilated subject has nothing left to harvest", () => {
+  const harvest = harvestableOrgans([
+    "blind",
+    "mute",
+    "missing-arm",
+    "cripple",
+    "missing-stomach",
+    "missing-heart",
+  ]);
+  assert.deepEqual(harvest, []);
+});
+
+test("a lethal organ already taken drops out, the rest are unaffected", () => {
+  const harvest = harvestableOrgans(["missing-heart"]);
+  assert.ok(!harvest.some((h) => h.part === "heart"));
+  assert.equal(harvest.length, 5);
 });

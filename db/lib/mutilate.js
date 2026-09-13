@@ -66,4 +66,34 @@ function resolveMutilation(partKey, subjectSlugs) {
   };
 }
 
-module.exports = { MUTILATE_PARTS, partFor, resolveMutilation };
+// What Butcher hands over in one pass: every part run to the END of its
+// ladder, skipping whatever's already been taken. Unlike resolveMutilation
+// (one press, one rung) this returns however many rungs are left per part —
+// e.g. an untouched eye is worth 2 Eyeballs (missing-eye, then blind), same
+// as pressing Mutilate on it twice.
+function harvestableOrgans(subjectSlugs) {
+  const held = new Set(subjectSlugs ?? []);
+  return MUTILATE_PARTS.map((part) => {
+    let at = -1;
+    for (let i = part.ladder.length - 1; i >= 0; i -= 1) {
+      if (held.has(part.ladder[i])) {
+        at = i;
+        break;
+      }
+    }
+    const quantity = part.ladder.length - (at + 1);
+    if (quantity <= 0) return null;
+    return {
+      part: part.key,
+      label: part.label,
+      itemSlug: part.itemSlug,
+      quantity,
+      // Ladders replace rather than stack, so only the FINAL rung is ever
+      // held at the end — however many presses it took to get there.
+      grantSlug: part.ladder[part.ladder.length - 1],
+      dropSlug: at >= 0 ? part.ladder[at] : null,
+    };
+  }).filter(Boolean);
+}
+
+module.exports = { MUTILATE_PARTS, partFor, resolveMutilation, harvestableOrgans };

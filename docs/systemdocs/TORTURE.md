@@ -214,6 +214,11 @@ that is the mistake to avoid if these are ever retuned: price the ladder, never
 the piece. They stay `tradeable` too, so the market between players is still the
 livelier one.
 
+**Butchering a human corpse takes every part in one action** now, rather than
+making the butcher press Mutilate nine times — `harvestableOrgans` in the same
+file runs each ladder above to its end, skipping whatever's already gone
+(`CORPSES.md` §6).
+
 The group is deliberately **not `items-corpse`**. That slug is
 `CORPSE_GROUP_SLUG`, what `db/lib/corpses.js#isCorpseTag` matches on, so an eye
 filed there would answer a `group: items-corpse` recipe ingredient and turn up

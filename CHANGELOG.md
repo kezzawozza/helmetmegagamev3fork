@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Butchering a person now takes their organs too
+
+✎ Butcher gives up every organ Mutilate hasn't already taken, not just Human Flesh  
+✎ A body already missing a part from Torture or Mutilate won't hand out a second one
+
 ## 2026-09-13 · Arelitz Breeding's recipes stay hidden until you have the mastery
 
 
