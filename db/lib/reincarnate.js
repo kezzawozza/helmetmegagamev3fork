@@ -179,65 +179,78 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
 
   const identity = await rollIdentity(prisma, role);
 
-  let created;
-  try {
-    created = await prisma.$transaction(async (tx) => {
-      // The same row lock the wizard takes, and for the same reason: two
-      // deaths resolving in one turn pass must not both land in the last seat.
-      await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${role.id} FOR UPDATE`;
-      const held = await heldSeatsByRole(tx, [role]);
-      if ((held.get(role.id) ?? 0) >= roleCapacity(role, effectivePlayerCount(config, state))) {
-        throw new Error("ROLE_FULL");
-      }
+  // The same row lock the wizard takes, and for the same reason: two deaths
+  // resolving in one turn pass must not both land in the last seat.
+  const createInSeat = async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${role.id} FOR UPDATE`;
+    const held = await heldSeatsByRole(tx, [role]);
+    if ((held.get(role.id) ?? 0) >= roleCapacity(role, effectivePlayerCount(config, state))) {
+      throw new Error("ROLE_FULL");
+    }
 
-      const character = await tx.character.create({
+    const character = await tx.character.create({
+      data: {
+        discordUserId,
+        // A rolled name, gender and age — a new person, not the dead one
+        // renamed. See rollIdentity.
+        firstName: identity.firstName,
+        lastName: identity.lastName,
+        name: identity.name,
+        gender: identity.gender,
+        age: identity.age,
+        // Carried across, not defaulted: a player who reads and writes the
+        // game on the web must not be silently moved onto Discord by dying.
+        webOnly: previous?.webOnly ?? false,
+        roleId: role.id,
+        roleTitle: role.name,
+        factionId: role.factionId,
+        // The denormalization contract: every writer of locationId writes
+        // location.zoneId in the same statement.
+        locationId: role.startingLocationId ?? null,
+        zoneId: role.startingLocation?.zoneId ?? null,
+        resources: role.startingResources,
+        // Unspent, on purpose — see the note on the bonus above.
+        tagPoints: budget,
+        isLeader: role.grantsLeader,
+        isTreasurer: role.grantsTreasurer,
+      },
+    });
+
+    // expiresTurn has to arrive STAMPED. Nothing backfills it later — the
+    // expiry sweep matches on the column — so a timed kit tag written without
+    // one is permanent, and would have been permanent only for reincarnated
+    // characters. Same expiryForGrant the wizard uses.
+    for (const tag of startingTags) {
+      await tx.characterTag.create({
         data: {
-          discordUserId,
-          // A rolled name, gender and age — a new person, not the dead one
-          // renamed. See rollIdentity.
-          firstName: identity.firstName,
-          lastName: identity.lastName,
-          name: identity.name,
-          gender: identity.gender,
-          age: identity.age,
-          // Carried across, not defaulted: a player who reads and writes the
-          // game on the web must not be silently moved onto Discord by dying.
-          webOnly: previous?.webOnly ?? false,
-          roleId: role.id,
-          roleTitle: role.name,
-          factionId: role.factionId,
-          // The denormalization contract: every writer of locationId writes
-          // location.zoneId in the same statement.
-          locationId: role.startingLocationId ?? null,
-          zoneId: role.startingLocation?.zoneId ?? null,
-          resources: role.startingResources,
-          // Unspent, on purpose — see the note on the bonus above.
-          tagPoints: budget,
-          isLeader: role.grantsLeader,
-          isTreasurer: role.grantsTreasurer,
+          characterId: character.id,
+          tagId: tag.id,
+          source: "GM_GRANT",
+          quantity: tag.stackable ? (wanted.get(tag.slug) ?? 1) : 1,
+          expiresTurn: await expiryForGrant(tx, tag, turn, {
+            characterId: character.id,
+            where: "reincarnate",
+          }),
         },
       });
+    }
+    return character;
+  };
 
-      // expiresTurn has to arrive STAMPED. Nothing backfills it later — the
-      // expiry sweep matches on the column — so a timed kit tag written without
-      // one is permanent, and would have been permanent only for reincarnated
-      // characters. Same expiryForGrant the wizard uses.
-      for (const tag of startingTags) {
-        await tx.characterTag.create({
-          data: {
-            characterId: character.id,
-            tagId: tag.id,
-            source: "GM_GRANT",
-            quantity: tag.stackable ? (wanted.get(tag.slug) ?? 1) : 1,
-            expiresTurn: await expiryForGrant(tx, tag, turn, {
-              characterId: character.id,
-              where: "reincarnate",
-            }),
-          },
-        });
-      }
-      return character;
-    });
+  let created;
+  try {
+    // Most callers pass the bare `prisma` singleton, which opens its own
+    // transaction here. The staged-arbitration push (db/lib/stagedPush.js)
+    // instead passes its own row's transaction client straight through
+    // applyDeathToRow — and a transaction client has no `.$transaction` of
+    // its own, so `typeof prisma.$transaction` tells the two apart. Reusing
+    // the existing transaction is correct, not a fallback: the seat claim and
+    // the character/tag rows land atomically with the rest of that staged
+    // row either way.
+    created =
+      typeof prisma.$transaction === "function"
+        ? await prisma.$transaction(createInSeat)
+        : await createInSeat(prisma);
   } catch (err) {
     if (err.message === "ROLE_FULL") return null;
     throw err;

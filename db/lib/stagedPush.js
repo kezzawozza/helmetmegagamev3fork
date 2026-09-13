@@ -88,11 +88,11 @@ async function applyOneStagedEffect(prisma, row, turn) {
     // a dead character has no further sheet to move ⬢ onto, gain tagPoints
     // on, retag, or relocate in this same row, so a death payload
     // short-circuits the rest of the row entirely rather than composing
-    // with it. applyDeathToRow is safe on `tx` for every path except a
-    // Metempsychosis holder's reincarnation (db/lib/reincarnate.js opens
-    // its own nested $transaction) — that one case fails soft: the death
-    // itself still lands, reincarnation is skipped and logged
-    // (CHARACTERS.md's Metempsychosis section).
+    // with it. applyDeathToRow is safe on `tx` throughout, including a
+    // Metempsychosis holder's reincarnation: db/lib/reincarnate.js detects
+    // that it was handed a transaction client rather than the bare `prisma`
+    // singleton and reuses it instead of opening a nested one, so the rebirth
+    // lands atomically with the rest of this row.
     if (row.payload?.death === true) {
       const gib = row.payload?.gib === true;
       const reason =

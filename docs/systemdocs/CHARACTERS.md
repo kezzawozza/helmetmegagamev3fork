@@ -955,17 +955,16 @@ mentionable name token that grants nothing (`PROXYING.md` §6), the placeholder
 name is about to change anyway, and the channel doctor mints any missing one on
 the next bot start.
 
-**A known gap: the staged-arbitration push cannot reincarnate a Metempsychosis
-holder yet.** `applyDeathToRow` runs inside the staged row's own
-`$transaction` (`db/lib/stagedPush.js`), but `reincarnate()` opens its own
-nested `prisma.$transaction` (line ~184) — a transaction client has no
-`.$transaction` of its own, so that call throws and is swallowed by
-`applyDeathToRow`'s own `.catch()`, logged rather than propagated. Everything
-else about the death has already committed by that point, so this fails soft:
-the character simply stays dead instead of being reborn, rather than any row
-ending up half-applied. Every other caller passes a bare `prisma` client and
-is unaffected. Fixing it means teaching `reincarnate()` to detect and reuse an
-existing transaction client — a real improvement, not yet made.
+**The staged-arbitration push reincarnates a Metempsychosis holder too.**
+`applyDeathToRow` runs inside the staged row's own `$transaction`
+(`db/lib/stagedPush.js`), and `reincarnate()` tells that case apart from an
+ordinary `prisma` singleton by checking for `.$transaction` on what it was
+handed — a transaction client has none of its own — and reuses the existing
+transaction instead of opening a nested one. The seat claim and the new
+character/tag rows land atomically with the rest of that staged row either
+way. Every other caller (the dying pass, catatonic auto-death, ascension, the
+nuke, the turret passes, the rites, the web's own `killCharacter`) still
+passes the bare `prisma` client, which opens its own transaction as before.
 
 Every early return is a normal outcome, not an error: no tag, no Discord user,
 another living character already, or no free seat anywhere in the game. A
