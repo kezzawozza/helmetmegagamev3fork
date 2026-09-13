@@ -3813,9 +3813,9 @@ tags:
     durationTurns: 3
 
   # What a 6 on the push on leaves (MAP.md §3, db/lib/locationTravel.js#pushOn):
-  # a turn's visible mark and no effect at all. Granted at N+1 like the
-  # fatigue tags, so it shows through the next turn and the sweep clears it.
-  # Description is Bascinet's own wording.
+  # a turn's visible mark and no effect at all. Granted at N, not N+1 like the
+  # fatigue tags: it only says you pushed on today, so the sweep clears it
+  # when this turn closes. Description is Bascinet's own wording.
   winded:
     catalog: gm
     name: Winded

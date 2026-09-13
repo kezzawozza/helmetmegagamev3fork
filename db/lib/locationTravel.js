@@ -154,7 +154,9 @@ function exertEdgeSentence({ edge, names } = {}) {
 // the claim above has already won the race. Fatigue is granted at N+1 so a
 // push at the tail of a turn still costs the whole next one — the same clock
 // a day's Labor runs on (docs/tags.yaml, Exhausted); the ankle keeps its own
-// three turns from now. A held Tired is consumed by the step up to Exhausted
+// three turns from now. Winded is granted at N and gone when the turn closes:
+// it is only the mark of having pushed on today, with nothing to carry over
+// (Bascinet, 2026-09-13). A held Tired is consumed by the step up to Exhausted
 // rather than left to expire beside it, for the reason db/lib/moveEffects.js
 // gives — so for a Tired walker the table reads 1 ankle, 2–5 Exhausted, 6
 // Winded. An Exhausted one was refused before the claim (exertRefusal).
@@ -173,7 +175,7 @@ async function pushOn(tx, character, openTurn, targetLocation) {
     if (slug === EXHAUSTED_SLUG && held.has(TIRED_SLUG)) {
       await tx.characterTag.deleteMany({ where: { characterId: character.id, tag: { slug: TIRED_SLUG } } });
     }
-    const at = slug === EXERT_INJURY_SLUG ? openTurn.number : openTurn.number + 1;
+    const at = slug === EXERT_INJURY_SLUG || slug === WINDED_SLUG ? openTurn.number : openTurn.number + 1;
     const [granted] = await grantTagSlugs(tx, character.id, [slug], at);
     tagName = granted?.tagName ?? null;
   }
