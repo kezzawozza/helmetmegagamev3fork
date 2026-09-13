@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Obols in smithing, key-copying, and staged deaths
+
+✚ Smiths can now put their held Obols toward a smithing recipe's cost, mixed with the usual ⬢ payer  
+✚ Skilled Blacksmiths can now copy almost any key in the game -- hold it, keep it, walk away with two  
+✎ A faction invite no longer mints a new recruit every tradeable key on the silo's door  
+✎ The labor-drops audit no longer corrupts its own price comment when a price changes  
+✚ GMs can stage an instantaneous character death from the turn desk  
+✎ A staged death now properly reincarnates a Metempsychosis holder instead of quietly skipping it
+
 ## 2026-09-13 · Documents and labor drops also sync by themselves on every push
 
 ✎ The documents list and the labor drops now update on their own when a push deploys, alongside tags and desires  
