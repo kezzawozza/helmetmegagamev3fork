@@ -125,6 +125,24 @@ test("splitBlurb: a bare comment matching today's mech value is a stale mechanic
   assert.deepEqual(splitBlurb("# sells 4 ⬢", "sells 4 ⬢"), { blurb: null });
 });
 
+test("splitBlurb: a bare comment matching an EARLIER mech value is still a stale mechanical write, not a blurb (the sellablePrice-changed case)", () => {
+  // Reproduces the knuckle-duster bug: sellablePrice moved from 21 to 30
+  // between two --write runs. An exact match against today's "sells 30 ⬢"
+  // would miss the old "sells 21 ⬢" and wrongly treat it as a hand blurb,
+  // producing "# sells 21 ⬢ — sells 30 ⬢" instead of "# sells 30 ⬢".
+  assert.deepEqual(splitBlurb("# sells 21 ⬢", "sells 30 ⬢"), { blurb: null });
+  // Same shape check for the other mechanicalValue() formats.
+  assert.deepEqual(splitBlurb("# worth 5 ⬢ consumed", "worth 8 ⬢ consumed"), { blurb: null });
+  assert.deepEqual(
+    splitBlurb("# worth 20 ⬢ opened (sells 10 ⬢ locked)", "worth 40 ⬢ opened (sells 20 ⬢ locked)"),
+    { blurb: null },
+  );
+  assert.deepEqual(
+    splitBlurb("# assumed 5 ⬢ (not actually sellable yet)", "assumed 8 ⬢ (not actually sellable yet)"),
+    { blurb: null },
+  );
+});
+
 test("splitBlurb: a bare comment with no separator, authored before any mechanical value existed, IS the blurb", () => {
   assert.deepEqual(splitBlurb("# a boar's tusk catches you", "not sellable"), {
     blurb: "a boar's tusk catches you",
