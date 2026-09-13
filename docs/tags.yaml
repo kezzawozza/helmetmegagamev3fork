@@ -5289,8 +5289,19 @@ tags:
   # a horse and the ingredients could breed any of them. Mastery (Bascinet's
   # call): nobody starts the game able to breed one, same posture as
   # Smithing (Gunpowder).
+  #
+  # `catalog: gm` (not `all`) so the four recipes above actually stay
+  # secret rather than just gated: `redactWithheldRecipes` /
+  # `recipeFields` / `clientTagCatalog` only redact a recipe when its
+  # OWN gating skill is non-`ALL` catalog (CRAFTING.md §2b) — the same
+  # lever `forger` uses for wax seals. Holding a horse or a graga sac
+  # never reveals it; the skill check answers first. The Arelitz mounts
+  # themselves stay `catalog: all` — a bred one is still a known,
+  # tradeable object, only the method is secret. Purchasing the skill is
+  # unaffected: `loadPointBuyCatalog` gates on `purchasable`, never on
+  # `catalogVisibility`.
   arelitz-breeding:
-    catalog: all
+    catalog: gm
     name: Arelitz Breeding
     category: skills
     teachable: true
