@@ -63,7 +63,8 @@ async function runTaxPass(prisma, turn) {
         // transaction the debit runs in — applyTransfer's conditional
         // updateMany is still the actual guard against a concurrent write,
         // this just decides the amount.
-        const amount = Math.min(row.amount, from.balance);
+        // A Partial answer replaces what is owed; null means the full tax.
+        const amount = Math.min(row.paidAmount ?? row.amount, from.balance);
         if (amount <= 0) {
           await tx.pendingTax.update({
             where: { id: row.id },

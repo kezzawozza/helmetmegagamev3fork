@@ -85,6 +85,21 @@ export default function TaxDialog({ mode, onDone, onClose }) {
         />
       </div>
 
+      {tax.filed?.length > 0 && (
+        <div className="panel flex flex-col gap-2 p-3">
+          <span className="field-label">This turn</span>
+          {tax.filed.map((f) => (
+            <p key={f.id} className="text-sm text-muted flex justify-between gap-2">
+              <span>{f.name}</span>
+              <span className="mono">
+                {f.amount} ⬢ ·{" "}
+                {f.status === "refused" ? "Refused" : f.status === "partial" ? `Partial (${f.paidAmount} ⬢)` : "Pending"}
+              </span>
+            </p>
+          ))}
+        </div>
+      )}
+
       {rest.length > 0 && (
         <div className="panel flex flex-col gap-2 p-3">
           <span className="field-label">Elsewhere in the faction</span>

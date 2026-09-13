@@ -37,7 +37,7 @@ const { settleCarry } = require("./carry");
 const { releaseHeldBy, seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { cancelAttack, ATTACK_CALLED_OFF_DM } = require("./attack");
 const { recordArchiveEvent } = require("./archive");
-const { refuseTax } = require("./tax");
+const { refuseTax, payPartialTax } = require("./tax");
 
 // Nothing to do, drawn as the reason under the message. Shared so the four
 // families refuse in the same words.
@@ -163,8 +163,11 @@ async function answerLobbySeat(prisma, { id, discordUserId }) {
 
 // The Refuse click. One button, and it declines — there is no accept, the
 // same LOBBY_SEAT shape as answerLobbySeat above.
-async function answerPendingTax(prisma, { id, discordUserId }) {
-  const result = await refuseTax(prisma, { pendingTaxId: id, discordUserId });
+async function answerPendingTax(prisma, { id, discordUserId, choice, amount }) {
+  const result =
+    choice === DM_CHOICE.PARTIAL
+      ? await payPartialTax(prisma, { pendingTaxId: id, discordUserId, amount })
+      : await refuseTax(prisma, { pendingTaxId: id, discordUserId });
   return { ok: result.ok, line: result.ok ? result.line : result.reason, ...empty() };
 }
 
@@ -247,9 +250,9 @@ async function answerAttackHold(prisma, { id, discordUserId }) {
 // `line` carries the refusal too, never a separate `reason`: both faces print
 // result.line unconditionally, so a refusal that answered on any other key
 // would put a literal "undefined" in front of a player.
-async function answerDmAction(prisma, { action, choice, discordUserId }) {
+async function answerDmAction(prisma, { action, choice, discordUserId, amount }) {
   if (!discordUserId) return { ok: false, line: NOT_YOURS, ...empty() };
-  const args = { id: action.id, discordUserId, choice };
+  const args = { id: action.id, discordUserId, choice, amount };
   switch (action.kind) {
     case DM_ACTION.OFFER:
       return answerOffer(prisma, args);

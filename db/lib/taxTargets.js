@@ -104,4 +104,22 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
   }));
 }
 
-module.exports = { taxRoster, isLockedOut };
+// What the taxer's own filings this turn came to, for the Tax dialog's
+// "This turn" panel. `status` is "pending" | "refused" | "partial".
+async function taxesFiledThisTurn(prisma, taxerId, turnId) {
+  if (!taxerId || !turnId) return [];
+  const rows = await prisma.pendingTax.findMany({
+    where: { taxerId, turnId },
+    select: { id: true, amount: true, paidAmount: true, declinedAt: true, target: { select: { name: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.target?.name ?? "",
+    amount: r.amount,
+    paidAmount: r.paidAmount,
+    status: r.declinedAt ? "refused" : r.paidAmount != null ? "partial" : "pending",
+  }));
+}
+
+module.exports = { taxRoster, isLockedOut, taxesFiledThisTurn };

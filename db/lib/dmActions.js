@@ -58,7 +58,7 @@ const DM_ACTION = Object.freeze({
 // The two answers. Every family reads as one of these, even where Discord
 // labels them differently -- escort says "Cancel" and the keyed way says
 // "No", but both are a decline.
-const DM_CHOICE = Object.freeze({ ACCEPT: "accept", DECLINE: "decline" });
+const DM_CHOICE = Object.freeze({ ACCEPT: "accept", DECLINE: "decline", PARTIAL: "partial" });
 
 // What the web draws, matching the labels on the Discord row builders
 // (db/lib/offerRow.js, db/lib/threatSpawn.js, db/lib/lobby.js,
@@ -76,7 +76,8 @@ const DM_ACTION_LABELS = Object.freeze({
   // One button, and it is the accept — the LOBBY_SEAT shape, the other way up.
   [DM_ACTION.INTERCEPT_HOLD]: { accept: "Release", decline: null },
   [DM_ACTION.ATTACK_HOLD]: { accept: "Cancel attack", decline: null },
-  [DM_ACTION.PENDING_TAX]: { accept: null, decline: "Refuse" },
+  // `partial` asks for a number — only a tax has one (db/lib/tax.js#payPartialTax).
+  [DM_ACTION.PENDING_TAX]: { accept: null, decline: "Refuse", partial: "Partial" },
   // No entry for BIRD_REPLY, and that is deliberate — see the kind above.
 });
 

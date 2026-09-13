@@ -82,16 +82,18 @@ async function applySideEffects({ dms, sideEffects }) {
 // `kind` and `id` name the row; `choice` is accept or decline. Returns
 // { ok, line } — the card draws the line where its buttons were, which is what
 // the bot's interaction.update() does to the DM.
-export async function answerDmAction(kind, id, choice) {
+export async function answerDmAction(kind, id, choice, amount = null) {
   const session = await auth();
   if (!session?.discordUserId) return { ok: false, line: "You are not signed in." };
 
   if (!DM_ACTION[kind]) return { ok: false, line: "That's not something you can answer." };
-  const picked = choice === DM_CHOICE.ACCEPT ? DM_CHOICE.ACCEPT : DM_CHOICE.DECLINE;
+  const picked =
+    choice === DM_CHOICE.ACCEPT || choice === DM_CHOICE.PARTIAL ? choice : DM_CHOICE.DECLINE;
 
   const result = await routeDmAction(prisma, {
     action: { kind, id: String(id) },
     choice: picked,
+    amount: picked === DM_CHOICE.PARTIAL ? String(amount ?? "").slice(0, 6) : null,
     discordUserId: session.discordUserId,
   });
 

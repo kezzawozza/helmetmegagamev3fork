@@ -11,7 +11,7 @@ import { cookedTasteOnly } from "@/lib/referenceData";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import { getMyFactionRole } from "@/lib/factionPermissions";
-import { taxRoster } from "@lifeweb/db/lib/taxTargets";
+import { taxRoster, taxesFiledThisTurn } from "@lifeweb/db/lib/taxTargets";
 import { TAXMAN_SLUG } from "@lifeweb/db/lib/constants";
 
 // "What can I see from here" — the reads a player-action dialog makes the
@@ -128,11 +128,12 @@ async function loadTaxRoster(character, openTurn) {
   const { isOfficer } = await getMyFactionRole(character.discordUserId, character.factionId);
   if (!isOfficer) return { canTax: false, members: [], rooms: [] };
 
-  const [members, rooms] = await Promise.all([
+  const [members, rooms, filed] = await Promise.all([
     taxRoster(prisma, character, { openTurnNumber: openTurn?.number ?? null }),
     loadStashRooms(character, { scope: "zone" }),
+    taxesFiledThisTurn(prisma, character.id, openTurn?.id),
   ]);
-  return { canTax: true, members, rooms };
+  return { canTax: true, members, rooms, filed };
 }
 
 export async function loadPeopleHere() {

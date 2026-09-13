@@ -165,8 +165,13 @@ const {
 } = require("../lib/noticeboardPanel");
 const { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX } = require("@lifeweb/db/lib/offerRow");
 const { handleOfferAccept, handleOfferDecline } = require("../lib/offers");
-const { PENDING_TAX_DECLINE_PREFIX } = require("@lifeweb/db/lib/tax");
-const { handleTaxDecline } = require("../lib/tax");
+const { PENDING_TAX_DECLINE_PREFIX, PENDING_TAX_PARTIAL_PREFIX } = require("@lifeweb/db/lib/tax");
+const {
+  TAX_PARTIAL_MODAL_PREFIX,
+  handleTaxDecline,
+  handleTaxPartialOpen,
+  handleTaxPartialSubmit,
+} = require("../lib/tax");
 const {
   THREAT_SPAWN_ACCEPT_PREFIX,
   THREAT_SPAWN_DECLINE_PREFIX,
@@ -2047,6 +2052,13 @@ module.exports = {
             interaction.customId.slice(PENDING_TAX_DECLINE_PREFIX.length),
           ));
         }
+        // Opens a modal, so it must NOT be acked first.
+        if (interaction.customId.startsWith(PENDING_TAX_PARTIAL_PREFIX)) {
+          return void (await handleTaxPartialOpen(
+            interaction,
+            interaction.customId.slice(PENDING_TAX_PARTIAL_PREFIX.length),
+          ));
+        }
         // Arrives in a DM on an assignment (docs/systemdocs/LOBBY.md §4), so
         // guild/member are null and the clicker has no character yet.
         if (interaction.customId.startsWith(LOBBY_DECLINE_PREFIX)) {
@@ -2127,6 +2139,12 @@ module.exports = {
           return void (await handleTurretSubmit(
             interaction,
             interaction.customId.slice(TURRET_MODAL_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(TAX_PARTIAL_MODAL_PREFIX)) {
+          return void (await handleTaxPartialSubmit(
+            interaction,
+            interaction.customId.slice(TAX_PARTIAL_MODAL_PREFIX.length),
           ));
         }
         if (interaction.customId.startsWith(BELL_MODAL_PREFIX)) {

@@ -8,6 +8,7 @@
 const { DM_ACTION, dmAction } = require("./dmActions");
 
 const PENDING_TAX_DECLINE_PREFIX = "tax-decline:";
+const PENDING_TAX_PARTIAL_PREFIX = "tax-partial:";
 
 // Bascinet's words, verbatim.
 function taxDmText({ taxerName, taxerRole, amount }) {
@@ -26,6 +27,7 @@ function taxDeclineComponents(pendingTaxId) {
       type: 1,
       components: [
         { type: 2, style: 2, custom_id: `${PENDING_TAX_DECLINE_PREFIX}${pendingTaxId}`, label: "Refuse" },
+        { type: 2, style: 2, custom_id: `${PENDING_TAX_PARTIAL_PREFIX}${pendingTaxId}`, label: "Partial" },
       ],
     },
   ];
@@ -91,16 +93,61 @@ const NOT_YOURS = "That's not yours to answer.";
 // target filed this same turn: the lockout says nobody in the faction may
 // retarget them, so a second officer's row filed in the same window can't
 // beat the refusal to the wire.
-async function refuseTax(prisma, { pendingTaxId, discordUserId }) {
+// The row, if it is still open and the clicker is its target.
+async function loadOwnTax(prisma, pendingTaxId, discordUserId) {
   const row = await prisma.pendingTax.findUnique({ where: { id: pendingTaxId } });
-  if (!row) return { ok: false, reason: GONE };
-
+  if (!row) return { problem: GONE };
   const target = await prisma.character.findFirst({
     where: { id: row.targetId, status: "ALIVE" },
-    select: { id: true, name: true, discordUserId: true },
+    select: { discordUserId: true },
   });
-  if (!target || target.discordUserId !== discordUserId) return { ok: false, reason: NOT_YOURS };
-  if (row.declinedAt || row.appliedAt) return { ok: false, reason: GONE };
+  if (!target || target.discordUserId !== discordUserId) return { problem: NOT_YOURS };
+  if (row.declinedAt || row.appliedAt) return { problem: GONE };
+  return { row };
+}
+
+// Writes the lockout row. A Partial answer writes the same actionType as a
+// refusal on purpose: paying part is pushing back, and db/lib/taxTargets.js
+// locks the taxer out on either.
+function writeRefusalAudit(prisma, row, discordUserId, extra = {}) {
+  return prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: discordUserId,
+        actionType: "tax_refused",
+        targetCharacterId: row.targetId,
+        turnId: row.turnId,
+        details: { taxerId: row.taxerId, amount: row.amount, pendingTaxId: row.id, ...extra },
+      },
+    })
+    .catch((err) => console.error("Tax refusal audit failed:", err));
+}
+
+// The Partial answer. 0 is a refusal. Anything above is clamped to the tax and
+// becomes what the pass takes at close.
+async function payPartialTax(prisma, { pendingTaxId, discordUserId, amount }) {
+  const n = Number.parseInt(String(amount ?? "").trim(), 10);
+  if (!Number.isFinite(n) || n < 0) return { ok: false, reason: "Enter a number." };
+  if (n === 0) return refuseTax(prisma, { pendingTaxId, discordUserId });
+
+  const { row, problem } = await loadOwnTax(prisma, pendingTaxId, discordUserId);
+  if (problem) return { ok: false, reason: problem };
+  if (row.paidAmount != null) return { ok: false, reason: GONE };
+  const paid = Math.min(n, row.amount);
+
+  const claim = await prisma.pendingTax.updateMany({
+    where: { id: row.id, declinedAt: null, appliedAt: null, paidAmount: null },
+    data: { paidAmount: paid },
+  });
+  if (claim.count === 0) return { ok: false, reason: GONE };
+
+  await writeRefusalAudit(prisma, row, discordUserId, { paidAmount: paid });
+  return { ok: true, line: `You pay ${paid} ⬢.` };
+}
+
+async function refuseTax(prisma, { pendingTaxId, discordUserId }) {
+  const { row, problem } = await loadOwnTax(prisma, pendingTaxId, discordUserId);
+  if (problem) return { ok: false, reason: problem };
 
   const claim = await prisma.pendingTax.updateMany({
     where: { id: row.id, declinedAt: null, appliedAt: null },
@@ -113,19 +160,17 @@ async function refuseTax(prisma, { pendingTaxId, discordUserId }) {
     data: { declinedAt: new Date(), skippedReason: "declined" },
   });
 
-  await prisma.auditLog
-    .create({
-      data: {
-        actorDiscordUserId: discordUserId,
-        actionType: "tax_refused",
-        targetCharacterId: row.targetId,
-        turnId: row.turnId,
-        details: { taxerId: row.taxerId, amount: row.amount, pendingTaxId: row.id },
-      },
-    })
-    .catch((err) => console.error("Tax refusal audit failed:", err));
+  await writeRefusalAudit(prisma, row, discordUserId);
 
   return { ok: true, line: "You refuse." };
 }
 
-module.exports = { PENDING_TAX_DECLINE_PREFIX, taxDmText, taxDeclineComponents, fileTax, refuseTax };
+module.exports = {
+  PENDING_TAX_DECLINE_PREFIX,
+  PENDING_TAX_PARTIAL_PREFIX,
+  taxDmText,
+  taxDeclineComponents,
+  fileTax,
+  refuseTax,
+  payPartialTax,
+};
