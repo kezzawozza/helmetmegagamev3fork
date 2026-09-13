@@ -59,7 +59,7 @@ async function FreshAudit({ params, searchParams, userId }) {
   const selectedId = routeParams?.entryId?.[0] ?? null;
   const filters = parseAuditParams(rawSearch);
 
-  const [guildMembers, gmProfiles, openTurn, zones, factions, visibleZones, selectableZones, locations] = await Promise.all([
+  const [guildMembers, gmProfiles, openTurn, zones, factions, locations, visibleZones, selectableZones] = await Promise.all([
     listGuildMembers(),
     getGmProfiles(),
     getOpenTurn(),
