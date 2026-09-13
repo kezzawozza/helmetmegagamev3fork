@@ -164,6 +164,9 @@ const CHARACTER_SELECT = {
       equipped: true,
       equippedQuantity: true,
       expiresTurn: true,
+      // What drawDrops sorts an overflow shed by (below) — the row most
+      // recently added to, never "whenever this row was first created".
+      acquiredAt: true,
       tag: {
         select: {
           id: true,
@@ -182,8 +185,30 @@ const CHARACTER_SELECT = {
 
 let warnedMissingTag = false;
 
-// Draws random UNITS out of the droppable holdings until `excessLbs` pounds have been
-// shed. Returns [{ tagId, tagName, quantity, expiresTurn }] aggregated per tag. Carry-bonus tags and equipped gear are never in the bag: dropping the Cart to fix being over would shrink the cap again and loop, and being disarmed by an overfull pack reads badly. "Equipped gear" means only the equipped UNITS, not the whole row — three swords equipped out of five leaves the other two exactly as droppable as anything else, since a slot only protects what's actually in it. A weightless unit can never help, so it's not even a candidate — otherwise the shuffle would spend draws on letters while the anvil stayed put.
+// Draws UNITS out of the droppable holdings, NEWEST-ACQUIRED first, until
+// `excessLbs` pounds have been shed. Returns [{ tagId, tagName, quantity,
+// expiresTurn }] aggregated per tag. Carry-bonus tags and equipped gear are
+// never in the bag: dropping the Cart to fix being over would shrink the cap
+// again and loop, and being disarmed by an overfull pack reads badly.
+//
+// Newest first, not a shuffle — changed 2026-09-13. A random draw could shed
+// whatever a character was already carrying to make room for something
+// someone had just handed them, which turned Transfer into a griefing tool:
+// dump something heavy on a person and pick through whatever THEY drop. The
+// thing that just arrived is what goes back on the ground first; only once
+// that is not enough does an older holding get shed too. `Tag.stackable`'s
+// fungibility means a top-up merges into the existing row rather than
+// creating a second one (tagWrites.js#addToStack, tagEffects.js
+// #restoreCharacterTag), so `acquiredAt` on a stack is "last topped up", not
+// "first ever held" — which is exactly the reading this sort wants.
+//
+// "Equipped gear" means only the equipped UNITS, not the whole row — three
+// swords equipped out of five leaves the other two exactly as droppable as
+// anything else in the pack, since a slot only protects what is actually in
+// it.
+//
+// A weightless unit can never help, so it is not even a candidate — otherwise
+// this would spend draws on letters while the anvil stayed put.
 function drawDrops(characterTags, excessLbs) {
   const units = [];
   for (const ct of characterTags) {
@@ -193,11 +218,9 @@ function drawDrops(characterTags, excessLbs) {
     const droppable = Math.max(0, (ct.quantity ?? 1) - (ct.equippedQuantity ?? 0));
     for (let i = 0; i < droppable; i += 1) units.push(ct);
   }
-  // Fisher–Yates, then take from the front until the excess is covered.
-  for (let i = units.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [units[i], units[j]] = [units[j], units[i]];
-  }
+  // Every push above shares the same `ct` for one row, so this only ever
+  // orders ROWS against each other — units off the same stack stay together.
+  units.sort((a, b) => (b.acquiredAt?.getTime?.() ?? 0) - (a.acquiredAt?.getTime?.() ?? 0));
   const chosen = [];
   let shed = 0;
   for (const ct of units) {

@@ -59,6 +59,11 @@ export async function restoreCharacterTag(tx, characterId, snapshot) {
         expiresTurn: snapshot.expiresTurn ?? null,
         poisonedCount: samePoison ? existing.poisonedCount + incomingPoisoned : existing.poisonedCount,
         poisonPayload: existing.poisonPayload ?? (samePoison ? incomingPayload : null),
+        // This is the landing side of every Transfer/Loot hand-over
+        // (giveTagTo), so a top-up here is exactly the acquisition
+        // db/lib/carry.js#drawDrops needs to see as newest — see
+        // tagWrites.js#addToStack's identical comment.
+        acquiredAt: new Date(),
       },
     });
   }
