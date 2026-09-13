@@ -19,6 +19,7 @@
 // dialog on the web and a refusal on Discord.
 
 const { hasNoticeboard } = require("./noticeboard");
+const { QUEST_INTERACT_PREFIX } = require("./questText");
 const { INTERCOM_ROOM_SLUG } = require("./intercom");
 const { BELL_ROOM_SLUG } = require("./bell");
 const { XOM_SHRINE_ROOM_SLUG } = require("./xom");
@@ -84,6 +85,20 @@ const LOCATION_AFFORDANCES = [
 // Intercom is on exactly one (the Council Room), Toggle Turret on exactly one
 // other (the Censor's Office), Sound Bell on the Cathedral's Bell Tower.
 const ROOM_AFFORDANCES = [
+  // A Quest's one button, and the only affordance in the game that is not a
+  // standing fact about a place — a GM staged it, and closing the quest takes
+  // it away again (docs/systemdocs/QUESTS.md). First in the row because it is
+  // the thing anybody walking in here came to press.
+  //
+  // The QUEST id rides in the custom_id, not the room id, because the quest
+  // outlives its room: closing one deletes the thread and keeps the record.
+  {
+    id: "questInteract",
+    label: "Interact",
+    tone: GO,
+    when: (room) => Boolean(room?.questId),
+    customId: (_id, room) => `${QUEST_INTERACT_PREFIX}${room?.questId ?? ""}`,
+  },
   { id: "storage", label: "Storage", tone: PLAIN, prefix: ROOM_STORAGE_PREFIX },
   {
     id: "intercom",
@@ -120,8 +135,10 @@ const ROOM_AFFORDANCES = [
   },
 ];
 
-function customIdFor(def, id) {
-  return def.customId ? def.customId(id) : `${def.prefix}${id}`;
+// `subject` is the whole row the affordance was resolved against, for the one
+// def that needs a field off it rather than the id it is keyed by.
+function customIdFor(def, id, subject = null) {
+  return def.customId ? def.customId(id, subject) : `${def.prefix}${id}`;
 }
 
 // The Location affordances that apply to this place. `location` may be a bare
@@ -138,14 +155,14 @@ function locationAffordances(location) {
   }));
 }
 
-// `room` needs { id, slug }.
+// `room` needs { id, slug, questId }.
 function roomAffordances(room) {
   return ROOM_AFFORDANCES.filter((def) => !def.when || def.when(room)).map((def) => ({
     id: def.id,
     label: def.label,
     tone: def.tone,
     roomId: room.id,
-    customId: customIdFor(def, room.id),
+    customId: customIdFor(def, room.id, room),
   }));
 }
 
@@ -176,7 +193,7 @@ async function affordancesFor(prisma, character) {
     prisma.room.findMany({
       where: { locationId: character.locationId },
       orderBy: { sortOrder: "asc" },
-      select: { id: true, name: true, slug: true, kind: true, accessTagSlugs: true },
+      select: { id: true, name: true, slug: true, kind: true, accessTagSlugs: true, questId: true },
     }),
     roomAccessKeys(prisma, character.id),
     linksFor(prisma, character.locationId),
@@ -188,7 +205,7 @@ async function affordancesFor(prisma, character) {
   // A room's buttons, for every room this character can actually get into —
   // a locked door offers nothing, which is the same answer Discord gives by
   // simply not showing them the thread.
-  const open = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
+  const open = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
   for (const room of open) {
     for (const entry of roomAffordances(room)) {
       out.push({ ...entry, kind: "room", roomName: room.name });
@@ -255,6 +272,7 @@ module.exports = {
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
   ROOM_PRAY_PREFIX,
+  QUEST_INTERACT_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
   WATCHTOWER_ROOM_SLUGS,
   LOCATION_AFFORDANCES,

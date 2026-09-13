@@ -3,6 +3,7 @@
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
+import { questInteract } from "@lifeweb/db/lib/quests";
 import { parksMounts, hasAttribute, SAFE_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove } from "@lifeweb/db/lib/moves";
@@ -480,7 +481,7 @@ export async function readStash(roomId) {
   });
   const keys = await roomAccessKeys(prisma, me.character.id);
   // A room you cannot get into is a locked door, not an empty one.
-  const room = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds).find((r) => r.id === roomId);
+  const room = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).find((r) => r.id === roomId);
   if (!room) return { ok: false, error: "You can't get in there." };
   return {
     ok: true,
@@ -1440,7 +1441,7 @@ export async function converseRooms() {
     }),
     roomAccessKeys(prisma, me.character.id),
   ]);
-  const open = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
+  const open = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
   return { ok: true, rooms: open.map((r) => ({ id: r.id, name: r.name, private: r.kind === "PRIVATE" })) };
 }
 
@@ -1469,7 +1470,7 @@ export async function openConversation({ roomId, name, inviteRefs = [] } = {}) {
   }
   // The same locked-door rule the Discord picker applies.
   const keys = await roomAccessKeys(prisma, me.character.id);
-  if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds).length === 0) {
+  if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) {
     return { ok: false, error: "You can't get in there." };
   }
 
@@ -1557,7 +1558,7 @@ export async function pray({ roomId } = {}) {
   // endpoint, so the door is re-checked here and not trusted from the panel
   // that drew the button.
   const keys = await roomAccessKeys(prisma, me.character.id);
-  if (accessibleRooms([found.room], keys.heldSlugs, keys.guestRoomIds).length === 0) {
+  if (accessibleRooms([found.room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) {
     return { ok: false, error: "You can't get in there." };
   }
 
@@ -1733,6 +1734,32 @@ export async function speakOnIntercom({ roomId, body } = {}) {
     ok: true,
     line: "Your voice goes out across Ravenheart.",
     note: failed.length > 0 ? `Nothing came through in ${failed.join(", ")}.` : null,
+  };
+}
+
+// ------------------------------------------------------------------ quests
+
+// A quest's Interact button, the web half of the pair (QUESTS.md). The Discord
+// half is bot/src/events/interactionCreate.js#handleQuestSubmit, and both call
+// the same questInteract — every gate, the wording of every refusal and the
+// Gambit itself live there, so the two faces cannot drift about what pressing
+// this does.
+export async function interactWithQuest({ questId, intention } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+
+  const result = await questInteract(prisma, {
+    questId: String(questId ?? ""),
+    // actor() already filtered to ALIVE; questInteract asks for the column.
+    character: { ...me.character, status: "ALIVE" },
+    intention,
+    actorDiscordUserId: me.discordUserId,
+  });
+  if (!result.ok) return result;
+
+  return {
+    ok: true,
+    line: "Your Gambit is filed. You'll hear how it went when the turn is pushed.",
   };
 }
 

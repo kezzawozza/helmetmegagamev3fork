@@ -53,6 +53,7 @@ const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runLessonPass } = require("./lib/lessonPass");
 const { runResearchPass } = require("./lib/researchPass");
 const { runConfessionPass } = require("./lib/confessionPass");
+const { expireQuestsPass: runQuestExpiryPass } = require("./lib/quests");
 // Required by path, not through the barrel: see db/lib/dm.js for why there
 // are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
@@ -879,6 +880,20 @@ async function resolveNeeds(turn, config) {
       await markDone("noticeboard");
     } catch (err) {
       await passFailed("Noticeboards", err);
+    }
+  }
+
+  // Quests. Same clock as the noticeboard above and for the same reason: a
+  // GM stages one with an expiry so they do not have to remember to come back
+  // and close it. The thread and its Room go; the Quest row stays, so a GM can
+  // still read what people said they were doing there.
+  // See docs/systemdocs/QUESTS.md.
+  if (!done.has("questExpiry")) {
+    try {
+      await runQuestExpiryPass(prisma, turn.number);
+      await markDone("questExpiry");
+    } catch (err) {
+      await passFailed("Quests", err);
     }
   }
 

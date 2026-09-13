@@ -34,6 +34,10 @@ const SECTIONS = [
     ],
   },
   {
+    title: "Content",
+    items: [{ key: "quests", label: "Quests" }],
+  },
+  {
     title: "Threats",
     items: [
       { key: "assignments", label: "Assignments" },

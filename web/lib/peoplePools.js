@@ -474,7 +474,7 @@ export async function loadStashRooms(character, { scope = "location" } = {}) {
       }),
       roomAccessKeys(prisma, character.id),
     ]);
-    return accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds).map((room) => ({
+    return accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).map((room) => ({
       id: room.id,
       name: room.name,
       resources: room.resources,
@@ -514,7 +514,7 @@ export async function loadStashRooms(character, { scope = "location" } = {}) {
     roomAccessKeys(prisma, character.id),
   ]);
 
-  return accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds).map((room) => ({
+  return accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).map((room) => ({
     id: room.id,
     name: room.name,
     resources: room.resources,

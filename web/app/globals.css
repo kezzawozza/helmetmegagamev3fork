@@ -9541,3 +9541,95 @@ button.equip-cell-face:focus-visible {
   text-decoration-style: solid;
   text-decoration-color: var(--accent-text);
 }
+
+/* ---------------------------------------------------------------- quests */
+
+/* The Quests panel (docs/systemdocs/QUESTS.md). A rail of what is staged
+   beside the one that is selected, because scanning a list and working on a
+   form are two different shapes and one wide table serves neither. */
+.quest-desk {
+  display: grid;
+  grid-template-columns: minmax(260px, 22rem) 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.quest-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.quest-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.quest-rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.quest-rail-zone {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: var(--sp-2) 0 var(--sp-1);
+}
+
+.quest-rail-item {
+  appearance: none;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: var(--sp-2);
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  /* The 44px touch floor, met by the two stacked lines rather than padding. */
+  min-height: 44px;
+}
+
+.quest-rail-item:hover {
+  border-color: var(--border);
+}
+
+.quest-rail-item[data-active="true"] {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.quest-rail-title {
+  font-weight: 600;
+}
+
+.quest-rail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* Every board in the game at once. Two up where there is room, one where
+   there is not — a board is a short list and a full-width row of them would
+   be mostly whitespace. */
+.quest-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .quest-desk {
+    grid-template-columns: 1fr;
+  }
+}

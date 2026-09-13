@@ -134,7 +134,7 @@ async function knownRooms(prisma, characterId, where = {}) {
     },
   });
 
-  return accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
+  return accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
 }
 
 module.exports = { recordArrival, seedMemories, knownLocations, knownRooms };

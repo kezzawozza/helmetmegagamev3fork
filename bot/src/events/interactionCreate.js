@@ -103,6 +103,13 @@ const {
 } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_ROOM_SLUG, broadcastIntercom } = require("@lifeweb/db/lib/intercom");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
+const { buildQuestModal } = require("../lib/questModal");
+const {
+  QUEST_INTERACT_PREFIX,
+  QUEST_MODAL_PREFIX,
+  QUEST_INTENTION_FIELD,
+  questInteract,
+} = require("@lifeweb/db/lib/quests");
 const {
   TURRET_MODAL_PREFIX,
   TURRET_WORD_FIELD,
@@ -550,6 +557,49 @@ async function handleIntercomOpen(interaction, roomId) {
   await interaction.showModal(buildIntercomModal(roomId));
 }
 
+// A quest's Interact button (docs/systemdocs/QUESTS.md). The only work here is
+// reading the quest's title for the modal's heading — everything that decides
+// whether the press is allowed waits for the submit, because the modal outlives
+// the player walking out of the cave. showModal IS the acknowledgement, so no
+// ack() here.
+async function handleQuestOpen(interaction, questId) {
+  const quest = await prisma.quest.findUnique({
+    where: { id: questId },
+    select: { title: true, status: true },
+  });
+  if (!quest || quest.status !== "OPEN") {
+    await respond(interaction, "That's over.");
+    return;
+  }
+  await interaction.showModal(buildQuestModal(questId, quest.title));
+}
+
+// Every gate lives in db/lib/quests.js#questInteract, which both faces call:
+// the quest is still open, they are still standing there, the door is still
+// theirs, and they have not already moved. This handler's whole job is to hand
+// it the typed intention and say what came back.
+async function handleQuestSubmit(interaction, questId) {
+  await ack(interaction);
+
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await respond(interaction, "You don't have a living character.");
+    return;
+  }
+
+  const result = await questInteract(prisma, {
+    questId,
+    character,
+    intention: interaction.fields.getTextInputValue(QUEST_INTENTION_FIELD),
+    actorDiscordUserId: interaction.user.id,
+  });
+  if (!result.ok) {
+    await respond(interaction, result.error);
+    return;
+  }
+  await respond(interaction, "Your Gambit is filed. You'll hear how it went when the turn is pushed.");
+}
+
 // The big red button in the Censor's Office. Opening the modal is not the act
 // — the typed word is — so this only has to find out which way the switch is
 // currently thrown. showModal IS the acknowledgement, so no ack() here.
@@ -600,7 +650,7 @@ async function prayGate(interaction, roomId) {
     return { error: `You're not standing in the ${room.name} any more.` };
   }
   const keys = await roomAccessKeys(prisma, character.id);
-  if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds).length === 0) {
+  if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) {
     return { error: "You can't get in there." };
   }
   return { character, room };
@@ -1301,7 +1351,7 @@ async function handleSecretRooms(interaction, locationId) {
     }),
   ]);
 
-  const mine = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
+  const mine = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
   const conversations = await prisma.playerThread.findMany({
     where: {
       locationId,
@@ -1353,7 +1403,7 @@ async function handleConverseOpen(interaction, locationId) {
     }),
     roomAccessKeys(prisma, character.id),
   ]);
-  const options = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds).slice(0, MENU_OPTION_LIMIT);
+  const options = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).slice(0, MENU_OPTION_LIMIT);
   if (options.length === 0) {
     await respond(interaction, "There's no room here to hold a conversation in.");
     return;
@@ -1909,6 +1959,10 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_STORAGE_PREFIX)) {
           return void (await handleRoomStorage(interaction, interaction.customId.slice(ROOM_STORAGE_PREFIX.length)));
         }
+        // Opens a modal, so it must NOT be ack()'d first — see handleQuestOpen.
+        if (interaction.customId.startsWith(QUEST_INTERACT_PREFIX)) {
+          return void (await handleQuestOpen(interaction, interaction.customId.slice(QUEST_INTERACT_PREFIX.length)));
+        }
         // Opens a modal, so it must NOT be ack()'d first — see handleIntercomOpen.
         if (interaction.customId.startsWith(ROOM_INTERCOM_PREFIX)) {
           return void (await handleIntercomOpen(interaction, interaction.customId.slice(ROOM_INTERCOM_PREFIX.length)));
@@ -2059,6 +2113,9 @@ module.exports = {
             interaction,
             interaction.customId.slice(NOTICE_POST_MODAL_PREFIX.length),
           ));
+        }
+        if (interaction.customId.startsWith(QUEST_MODAL_PREFIX)) {
+          return void (await handleQuestSubmit(interaction, interaction.customId.slice(QUEST_MODAL_PREFIX.length)));
         }
         if (interaction.customId.startsWith(INTERCOM_MODAL_PREFIX)) {
           return void (await handleIntercomSubmit(

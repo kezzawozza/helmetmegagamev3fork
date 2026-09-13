@@ -140,7 +140,7 @@ async function setHideoutImpl({ roomId }) {
   });
   if (!room || room.locationId !== me.locationId) throw new UserError("That room isn't here.");
   const keys = await roomAccessKeys(prisma, me.id);
-  if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds).length === 0) {
+  if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) {
     throw new UserError("That door is locked.");
   }
   // NOT a faction silo. A silo is an ordinary Room with a pointer on the
@@ -202,7 +202,7 @@ async function purchaseGearImpl({ items, currency, purse }) {
   // spent what was behind it — and the goods landed in a room they could not
   // enter. Set Hideout has always run this check; this is the same one.
   const buyerKeys = await roomAccessKeys(prisma, me.id);
-  if (accessibleRooms([hideout], buyerKeys.heldSlugs, buyerKeys.guestRoomIds).length === 0) {
+  if (accessibleRooms([hideout], buyerKeys.heldSlugs, buyerKeys.guestRoomIds, buyerKeys.allowedRoomIds).length === 0) {
     throw new UserError("That door is locked.");
   }
   const currencyFirst = currency === "obols" ? "obols" : "resources";

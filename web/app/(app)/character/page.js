@@ -19,6 +19,7 @@ import {
 import {
   accessibleRooms,
   guestRoomIds as roomGuestIds,
+  questAllowedRoomIds,
 } from "@lifeweb/db/lib/roomAccess";
 import { mayCustomize } from "@/lib/customCraft";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
@@ -558,6 +559,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // Rooms somebody let this character into by hand — the other half of the
   // door, and the reason this page and the Transfer gate agree (CARRY.md).
   const guestRoomIds = await roomGuestIds(prisma, character.id);
+  const questRoomIds = await questAllowedRoomIds(prisma, character.id);
   const roomsHere = character.locationId
     ? await prisma.room.findMany({
         where: { locationId: character.locationId },
@@ -599,7 +601,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // — more importantly — so the menu is built from exactly the rooms the
   // server-side re-check will use. A locked door is not a scouting target.
   const corpses = await corpsesInReach(prisma, character, {
-    rooms: accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds),
+    rooms: accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds, questRoomIds),
   });
   // A fact about your own sheet, so the button may grey on it. Resolved here
   // rather than in the client so no slug matching reaches the browser.
@@ -668,6 +670,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
               ],
               heldSlugsForRooms,
               guestRoomIds,
+              questRoomIds,
             ).length === 1,
         }
       : null;
@@ -929,7 +932,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const atHideout = Boolean(hideout && hideout.locationId === character.locationId);
   // Set Hideout's picker: the rooms at this Location the leader can get into.
   const hideoutRooms = isThanatiLeader
-    ? accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds).map((r) => ({
+    ? accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds, questRoomIds).map((r) => ({
         id: r.id,
         name: r.name,
         current: r.id === hideout?.id,

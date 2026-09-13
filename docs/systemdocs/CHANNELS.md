@@ -436,6 +436,12 @@ thread mentions.
 A Room is a thread under its Location's channel, authored in `docs/zones.yaml`
 (`SYNC.md`) and owned end-to-end by the sync — **players cannot create one.**
 
+**One exception, and only one: a quest room.** A GM stages a Quest at runtime
+from `/gm/dev?s=quests` and it mints a Room whose slug is in no YAML file
+(`QUESTS.md`). The sync's stale-room prune would delete it — thread and row —
+so that query carries `questId: null`. Anything that prunes Rooms must carry
+the same guard. Players still cannot create one; a GM can.
+
 **A room's id is always `<location-stem>-<room>`** — `keep-throne-room`,
 `inn-cellar`, `customs-watchtower`. Zones, locations and rooms share one slug
 namespace, so without the stem the obvious id is often already gone: there are

@@ -39,6 +39,9 @@ import { loadOracleSettings } from "@/app/(app)/gm/dev/oracleActions";
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ArchiveGameButton from "@/app/(app)/gm/dev/ArchiveGameButton";
+import QuestsSection from "@/app/(app)/gm/dev/quests/QuestsSection";
+import { turnsRemaining } from "@lifeweb/db/lib/quests";
+import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import ObjectivesPanel from "@/app/(app)/gm/dev/threats/ObjectivesPanel";
@@ -215,6 +218,12 @@ export default async function DevPanelPage({ searchParams }) {
   let livingCharacters = [];
   let bulkCharacters = [];
   let bulkTags = [];
+  let questRows = [];
+  let questLocations = [];
+  let questTags = [];
+  let questCharacters = [];
+  let questBoards = [];
+  let questZones = [];
   let ambientZones = [];
   let ambientLocations = [];
   let ambientRooms = [];
@@ -356,6 +365,104 @@ export default async function DevPanelPage({ searchParams }) {
           : "nowhere",
       }));
       bulkTags = allTags;
+      break;
+    }
+    case "quests": {
+      // Scoped to the zones this GM watches, the same filter the desks and
+      // Say-something apply. questActions.js re-checks it — a <select> is a
+      // hint, not a lock.
+      const allowed = await visibleZoneIds(prisma, session.discordUserId);
+      const inView = (zoneId) => !allowed || (zoneId && allowed.has(zoneId));
+
+      const [questList, locationRows, tagRows, characterRows, zoneRows] = await Promise.all([
+        prisma.quest.findMany({
+          orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+          include: {
+            location: { select: { id: true, name: true, zoneId: true, zone: { select: { name: true, kind: true } } } },
+            interactions: {
+              orderBy: { createdAt: "desc" },
+              select: { id: true, intention: true, turnId: true, character: { select: { name: true } } },
+            },
+          },
+        }),
+        prisma.location.findMany({
+          where: { discordChannelId: { not: null } },
+          orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+          select: { id: true, name: true, zoneId: true, attributes: true, zone: { select: { name: true } } },
+        }),
+        // Only tags a GM could sensibly gate on: the catalog, not the runtime
+        // paper and custom crafts, which would bury the list.
+        prisma.tag.findMany({
+          where: { ephemeral: false },
+          orderBy: { name: "asc" },
+          select: { slug: true, name: true },
+        }),
+        prisma.character.findMany({
+          where: { status: "ALIVE" },
+          orderBy: { name: "asc" },
+          select: { id: true, name: true },
+        }),
+        prisma.zone.findMany({
+          where: { discordSummaryChannelId: { not: null } },
+          orderBy: { sortOrder: "asc" },
+          select: { id: true, name: true },
+        }),
+      ]);
+
+      // One lookup for every turn a press was filed in, so the interactions
+      // table can print a turn NUMBER rather than a cuid.
+      const turnIds = [...new Set(questList.flatMap((q) => q.interactions.map((i) => i.turnId)))];
+      const turns = turnIds.length
+        ? await prisma.turn.findMany({ where: { id: { in: turnIds } }, select: { id: true, number: true } })
+        : [];
+      const turnNumberById = new Map(turns.map((t) => [t.id, t.number]));
+
+      questRows = questList
+        .filter((q) => inView(q.location?.zoneId))
+        .map((q) => ({
+          id: q.id,
+          title: q.title,
+          description: q.description,
+          status: q.status,
+          locationId: q.locationId,
+          locationName: q.location?.name ?? "?",
+          zoneId: q.location?.zoneId ?? null,
+          zoneName: q.location?.zone?.name ?? "Unzoned",
+          cave: q.location?.zone?.kind === "CAVE_LEVEL",
+          turnsLeft: turnsRemaining(q, openTurnRecord?.number ?? null),
+          accessTagSlugs: q.accessTagSlugs,
+          allowedCharacterIds: q.allowedCharacterIds,
+          interactionCount: q.interactions.length,
+          interactions: q.interactions.map((i) => ({
+            id: i.id,
+            intention: i.intention,
+            characterName: i.character?.name ?? "—",
+            turnNumber: turnNumberById.get(i.turnId) ?? null,
+          })),
+        }));
+
+      questLocations = locationRows
+        .filter((l) => inView(l.zoneId))
+        .map((l) => ({ id: l.id, label: `${l.zone?.name ?? "Unzoned"} — ${l.name}` }));
+      questTags = tagRows;
+      questCharacters = characterRows;
+      questZones = zoneRows.filter((z) => inView(z.id)).map((z) => ({ id: z.id, label: z.name }));
+
+      // The boards, from the same locationAttributes registry the Discord
+      // panel reads — never a second list of which places have one.
+      const boardLocations = locationRows.filter((l) => inView(l.zoneId) && hasNoticeboard(l));
+      const posts = boardLocations.length
+        ? await prisma.noticePost.findMany({
+            where: { locationId: { in: boardLocations.map((l) => l.id) } },
+            orderBy: { postedTurn: "asc" },
+            select: { id: true, locationId: true, tag: { select: { name: true } } },
+          })
+        : [];
+      questBoards = boardLocations.map((l) => ({
+        locationId: l.id,
+        locationName: `${l.zone?.name ?? "Unzoned"} — ${l.name}`,
+        notices: posts.filter((p) => p.locationId === l.id).map((p) => ({ id: p.id, name: p.tag.name })),
+      }));
       break;
     }
     case "ambient": {
@@ -970,6 +1077,29 @@ export default async function DevPanelPage({ searchParams }) {
                   locations: g.locations.map((l) => ({ id: l.id, name: l.name })),
                 }))}
                 tags={bulkTags}
+              />
+            </section>
+          ) : null}
+
+          {section === "quests" ? (
+            <section className="ops-section ops-section--wide">
+              <div className="ops-section-head">
+                <h2 className="section-title">Quests</h2>
+                <p className="ops-lede">
+                  Somewhere to go and something to try. A quest is a room you put anywhere —
+                  usually in the caves — with one button on it: pressing Interact spends the
+                  presser&apos;s Move for the turn as a Gambit. Below it are every noticeboard in
+                  the game and a line into any zone, because staging a thing is only half of it.
+                </p>
+              </div>
+              <QuestsSection
+                quests={questRows}
+                locations={questLocations}
+                tags={questTags}
+                characters={questCharacters}
+                boards={questBoards}
+                zones={questZones}
+                canDelete={isMaster}
               />
             </section>
           ) : null}

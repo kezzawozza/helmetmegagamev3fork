@@ -53,7 +53,7 @@ export async function canReachParty(
     if (!actor?.locationId || party.locationId !== actor.locationId) return false;
     const keys =
       heldSlugs && guestRoomIds ? { heldSlugs, guestRoomIds } : await roomAccessKeys(prisma, actor.id);
-    return accessibleRooms([party], keys.heldSlugs, keys.guestRoomIds).length === 1;
+    return accessibleRooms([party], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 1;
   }
   if (party.kind === "character") return isHere(actor, party, { allowDead, allowConcealed });
   return false;

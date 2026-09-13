@@ -92,7 +92,7 @@ async function boundCandidates(db, room, { excludeSlugs = [] } = {}) {
     const slugs = new Set(c.tags.map((ct) => ct.tag.slug));
     if (excludeSlugs.some((slug) => slugs.has(slug))) continue;
     const keys = await roomAccessKeys(db, c.id);
-    if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds).length === 0) continue;
+    if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) continue;
     out.push({ ...c, slugs, leader: Boolean(c.role?.requiresWhitelist) });
   }
   // Leaders first (Bascinet: "If two bound people, prioritize leaders").

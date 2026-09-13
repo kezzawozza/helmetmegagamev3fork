@@ -265,7 +265,7 @@ async function roomsInside(prisma, character, unfogged, stoodIds) {
 
   const allowed = unfogged
     ? rooms
-    : accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
+    : accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
 
   const out = new Map();
   const at = (id) => {

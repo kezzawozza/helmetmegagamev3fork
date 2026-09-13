@@ -156,7 +156,7 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
   // The same accessibleRooms() every other door in the game reads, guests
   // included — a guest who is shown the thread on Discord and refused the
   // feed on the web would be two answers to one question.
-  const reachable = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds);
+  const reachable = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
   // THE SCRYING EYE (docs/systemdocs/THANATI.md §4): equipped, and only with
   // the web-only switch on, every room and every conversation at this Location
   // is readable. What the eye adds arrives with canSpeak false, so

@@ -8,6 +8,7 @@ import EmptyState from "@/app/components/EmptyState";
 import { NoticeText } from "./NoticeCards";
 import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
+import { INTERACT_PROMPT, INTENTION_MAX, QUEST_INTERACT_PREFIX } from "@lifeweb/db/lib/questText";
 import {
   loadAffordances,
   flipGate,
@@ -23,6 +24,7 @@ import {
   turretState,
   toggleTurret,
   speakOnIntercom,
+  interactWithQuest,
 } from "./actions";
 
 // THE PLACE's dialogs, and the one hook that owns them.
@@ -148,6 +150,9 @@ export function usePlaceActions(initialAffordances, onChanged) {
       {dialog?.kind === "pray" && <PrayDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "intercom" && <IntercomDialog entry={dialog.entry} onClose={close} onDone={say} />}
+      {dialog?.kind === "questInteract" && (
+        <QuestInteractDialog entry={dialog.entry} onClose={close} onDone={say} />
+      )}
     </>
   );
 
@@ -520,6 +525,62 @@ function TurretDialog({ entry, onClose, onDone }) {
     />
   );
 }
+
+// ------------------------------------------------------------------ quests
+
+// A quest's Interact button (docs/systemdocs/QUESTS.md). The prompt is
+// INTERACT_PROMPT from db/lib/questText.js rather than a sentence typed here,
+// because the Discord modal shows the same one — a player who meets this on
+// both faces must read the same words.
+//
+// The quest id travels in the affordance's customId, which is where the
+// Discord button carries it too. Nothing here decides whether the press is
+// allowed: interactWithQuest re-checks the quest, the place, the door and the
+// one-Move-a-turn rule on the server, because a dialog outlives somebody
+// walking out of the cave.
+function QuestInteractDialog({ entry, onClose, onDone }) {
+  const [intention, setIntention] = useState("");
+  const { run, pending, error } = useActionRunner();
+  const questId = entry?.customId?.slice(QUEST_INTERACT_PREFIX.length) ?? "";
+
+  return (
+    <Modal open title={entry?.roomName || "Interact"} onClose={onClose}>
+      <p className="text-sm text-muted">{INTERACT_PROMPT}</p>
+      <div className="field">
+        <label className="field-label" htmlFor="quest-intention">
+          Your intentions
+        </label>
+        <textarea
+          id="quest-intention"
+          rows={4}
+          value={intention}
+          maxLength={INTENTION_MAX}
+          onChange={(e) => setIntention(e.target.value)}
+        />
+      </div>
+      <FormError>{error}</FormError>
+      <div className="modal-actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={!intention.trim() || pending}
+          onClick={() =>
+            run(interactWithQuest, { questId, intention }, {
+              onOk: (res) => {
+                onDone(res);
+                onClose();
+              },
+            })
+          }
+        >
+          Interact
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------- intercom
 
 function IntercomDialog({ entry, onClose, onDone }) {
   const [body, setBody] = useState("");

@@ -598,7 +598,7 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
             .filter((c) => c.discordUserId && !c.webOnly)
             .filter((c) => {
               const keys = keysByCharacter.get(c.id);
-              return accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds).length > 0;
+              return accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length > 0;
             })
             .map((c) => c.discordUserId),
         );

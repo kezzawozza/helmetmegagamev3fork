@@ -91,7 +91,7 @@ export async function loadActionRoster({ need = [] } = {}) {
         })
       : [];
     out.corpses = await corpsesInReach(prisma, character, {
-      rooms: accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds),
+      rooms: accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds),
     });
   }
   if (wants.has("self")) {

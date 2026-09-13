@@ -51,7 +51,7 @@ async function hasEquipmentInReach(prisma, character, slug) {
     structuresAt(prisma, character.locationId, { statuses: ["COMPLETE"] }),
   ]);
   if (structures.some((s) => s.placement?.provides?.includes(slug))) return true;
-  return accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds).length > 0;
+  return accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length > 0;
 }
 
 module.exports = { hasEquipmentInReach };

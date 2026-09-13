@@ -1413,7 +1413,14 @@ async function syncZonesFromYaml(prisma) {
   // locations (channel and row — characters standing there are set null and
   // the doctor reports them; deleting the channel takes every occupant
   // overwrite with it), then zones.
-  const staleRooms = await prisma.room.findMany({ where: { slug: { notIn: [...roomsBySlug.keys()] } } });
+  // `questId: null` is the one exemption, and it is load-bearing. A quest room
+  // is minted at runtime from /gm/dev, so its slug is in no YAML and every
+  // other row here would read it as stale — the next sync would delete the
+  // thread and the row out from under a live quest. Quests have their own
+  // clock instead: db/lib/quests.js closes them on expiry or when a GM says so.
+  const staleRooms = await prisma.room.findMany({
+    where: { slug: { notIn: [...roomsBySlug.keys()] }, questId: null },
+  });
   for (const room of staleRooms) {
     if (room.discordThreadId) await deleteThread(room.discordThreadId);
     await prisma.room.delete({ where: { id: room.id } });
@@ -1568,6 +1575,9 @@ async function refreshGateRooms(prisma, locationId) {
 
 module.exports = {
   syncZonesFromYaml,
+  // Exported for db/lib/quests.js, which mints a Room at runtime and must
+  // build its thread and starter post exactly the way the sync does.
+  syncRoomThread,
   refreshLiveRooms,
   parseZonesYaml,
   reconcileChannelOverwrites,

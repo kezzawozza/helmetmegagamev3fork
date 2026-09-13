@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Quests: GMs can stage a room anywhere without a deploy
+
+✚ A Quests panel on /gm/dev with three tabs: the quests themselves, every noticeboard in the game, and a line into any zone's #summary  
+✚ A quest is a room you put anywhere — usually a cave — with one button on it. Pressing Interact spends that character's Move for the turn as a Gambit, and it lands on /gm/turns like any other  
+✚ Quest gates: a required tag, or a GM naming people by hand. Set either and the room goes private  
+✚ An expiry in turns. A quest nobody closes blows away the way a notice does — the room goes, the record of who touched it stays  
+✚ Advertise, on a quest, jumps to the broadcaster with its zone already ticked
+
 ## 2026-09-12 · Soundproof rooms are soundproof again
 
 ✎ A shout inside one of the eleven sealed rooms — the Oubliette, the Dungeons, the offices, the Sewers — stopped leaving the room again. It had been carrying out to the whole zone since 12 September  

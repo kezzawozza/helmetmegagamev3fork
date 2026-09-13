@@ -1316,6 +1316,7 @@ model Location {
   anchorHash      String?
 
   rooms            Room[]
+  quests           Quest[]
   characters       Character[]
   // Characters walking here right now — Character.travelToLocationId.
   travellers       Character[]     @relation("CharacterTravelDestination")
@@ -1542,6 +1543,13 @@ model Room {
   // duplicated items on 2026-09-10. Slugs rather than tag ids for the same
   // reason accessTagSlugs above is: zones and tags sync independently.
   seededStashSlugs String[] @default([])
+
+  // The Quest that minted this room, if any. A quest room is the ONE Room in
+  // the game that docs/zones.yaml does not master: a GM stages it at runtime
+  // from /gm/dev?s=quests, so syncZones.js's stale-room prune skips every row
+  // where this is set. Everything else about it is an ordinary Room.
+  questId String? @unique
+  quest   Quest?  @relation("QuestRoom", fields: [questId], references: [id], onDelete: SetNull)
 
   playerThreads PlayerThread[]
   guests        RoomGuest[]
@@ -2197,6 +2205,7 @@ model Character {
   cavingRolls             CavingRoll[]
   craftProjects           CraftProject[]
   roomGuestOf             RoomGuest[]
+  questInteractions       QuestInteraction[]
   noticePosts             NoticePost[]             @relation("NoticePostAuthor")
   // Every Location this character has stood in or seen from next door.
   locationVisits          LocationVisit[]
@@ -5332,4 +5341,87 @@ model PushSubscription {
   lastUsedAt    DateTime?
 
   @@index([discordUserId])
+}
+
+// A Quest: a piece of content a GM stages at runtime, without a YAML edit and
+// without a deploy. It mints one Room -- a Discord thread and a place on the
+// web -- at any Location, usually a cave, carrying exactly one button.
+// Pressing Interact files the presser's Move for the turn as a Gambit with
+// whatever they declare, so a quest adds no new economy: it spends the one
+// thing a character already has to spend. See docs/systemdocs/QUESTS.md.
+//
+// The gates are copied here rather than only living on the Room, because
+// closing a quest DELETES its Room and the record has to outlive the door.
+model Quest {
+  id String @id @default(cuid())
+
+  title       String
+  // GM-editable prose. Edited in place on the room's starter message, never
+  // reposted -- a repost pings every thread follower, the same reason
+  // db:sync-info-channel edits by default.
+  description String @default("")
+
+  status QuestStatus @default(OPEN)
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  // The Room this quest minted, while it has one. Null once it is closed:
+  // the thread and the Room row go, the Quest row stays for the record.
+  room Room? @relation("QuestRoom")
+
+  // Absolute turn number, resolved through db/lib/turnFormat.js#expiryFrom the
+  // way NoticePost.expiresTurn is. Null means it stands until a GM closes it.
+  expiresTurn Int?
+  createdTurn Int?
+
+  // A snapshot, not an FK, the way every other log column here is.
+  createdById String?
+
+  // Either gate non-empty makes the room PRIVATE. Empty both ways is a quest
+  // anybody standing there can see.
+  accessTagSlugs      String[] @default([])
+  allowedCharacterIds String[] @default([])
+
+  interactions QuestInteraction[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  closedAt  DateTime?
+
+  @@index([status])
+  @@index([locationId])
+}
+
+enum QuestStatus {
+  OPEN
+  CLOSED
+  EXPIRED
+}
+
+/// One press of a quest's Interact button. The Move it filed is the Action row
+/// -- this is the join, so the GM desk can show what somebody said they were
+/// trying to do next to the quest they said it about.
+model QuestInteraction {
+  id String @id @default(cuid())
+
+  questId String
+  quest   Quest  @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  // The Gambit this filed. Unique because one press is one Move.
+  actionId String @unique
+
+  turnId    String
+  intention String
+
+  createdAt DateTime @default(now())
+
+  // One press per character per quest per turn. The one-Move-a-turn rule in
+  // db/lib/moves.js already makes a second press impossible; this is the
+  // database saying so too.
+  @@unique([questId, characterId, turnId])
+  @@index([questId])
 }

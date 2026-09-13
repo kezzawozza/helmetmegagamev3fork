@@ -46,13 +46,33 @@ const { notifyPresence } = require("./presenceNotify");
 // (the sync, which has no character in hand) can leave it off, but anything
 // deciding what a PERSON can reach must pass it, or a guest sees the thread
 // and is then told the stash isn't theirs.
-function accessibleRooms(rooms, heldSlugs, guestRoomIds = new Set()) {
+// `allowedRoomIds` is the fourth door, and it belongs to Quests
+// (docs/systemdocs/QUESTS.md): a GM naming specific characters on a quest,
+// rather than a key or a hand-written invitation. It could not reuse
+// guestRoomIds, because a guest grant is spent the moment its holder walks off
+// the Location and a quest's allowlist has to outlast that.
+//
+// It defaults empty, so a caller that has no character in hand — or one that
+// predates quests — asks exactly the question it always asked.
+function accessibleRooms(rooms, heldSlugs, guestRoomIds = new Set(), allowedRoomIds = new Set()) {
   return rooms.filter(
     (room) =>
       room.kind !== "PRIVATE" ||
       guestRoomIds.has(room.id) ||
+      allowedRoomIds.has(room.id) ||
       room.accessTagSlugs.some((slug) => heldSlugs.has(slug)),
   );
+}
+
+// The rooms an OPEN quest names this character on by hand.
+async function questAllowedRoomIds(prisma, characterId) {
+  const rows = await prisma.quest
+    .findMany({
+      where: { status: "OPEN", allowedCharacterIds: { has: characterId } },
+      select: { room: { select: { id: true } } },
+    })
+    .catch(() => []);
+  return new Set(rows.map((q) => q.room?.id).filter(Boolean));
 }
 
 async function heldTagSlugs(prisma, characterId) {
@@ -76,11 +96,12 @@ async function guestRoomIds(prisma, characterId) {
 // this character reach" wants both, and loading them separately is how the two
 // answers drift apart.
 async function roomAccessKeys(prisma, characterId) {
-  const [heldSlugs, guests] = await Promise.all([
+  const [heldSlugs, guests, allowed] = await Promise.all([
     heldTagSlugs(prisma, characterId),
     guestRoomIds(prisma, characterId),
+    questAllowedRoomIds(prisma, characterId),
   ]);
-  return { heldSlugs, guestRoomIds: guests };
+  return { heldSlugs, guestRoomIds: guests, allowedRoomIds: allowed };
 }
 
 // `character` needs { id, discordUserId, locationId, status }; `tagSlugs` may
@@ -100,7 +121,7 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
 
   const rooms = await prisma.room.findMany({
     where: { kind: "PRIVATE", discordThreadId: { not: null } },
-    select: { id: true, name: true, locationId: true, kind: true, accessTagSlugs: true, discordThreadId: true },
+    select: { id: true, name: true, locationId: true, kind: true, accessTagSlugs: true, questId: true, discordThreadId: true },
   });
 
   // Spend every guest grant that is no longer where the character is standing.
@@ -135,8 +156,9 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
   // which is what removes them everywhere.
   const held = alive ? tagSlugs ?? (await heldTagSlugs(prisma, character.id)) : new Set();
   const guests = alive ? await guestRoomIds(prisma, character.id) : new Set();
+  const allowed = alive ? await questAllowedRoomIds(prisma, character.id) : new Set();
   const entitled = alive
-    ? new Set(accessibleRooms(rooms, held, guests).map((r) => r.id))
+    ? new Set(accessibleRooms(rooms, held, guests, allowed).map((r) => r.id))
     : new Set();
 
   // What Discord has actually been told, so we can act on the DIFFERENCE. This
@@ -223,5 +245,6 @@ module.exports = {
   accessibleRooms,
   heldTagSlugs,
   guestRoomIds,
+  questAllowedRoomIds,
   roomAccessKeys,
 };

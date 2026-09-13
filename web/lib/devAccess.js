@@ -35,6 +35,11 @@ export const SECTION_TIER = {
   assignments: "gm",
   antagonists: "gm",
 
+  // Staging a quest is daily work, not host access. Deleting one takes the
+  // record of who touched it, so THAT verb asks for super in questActions.js
+  // — the section itself is a GM's.
+  quests: "gm",
+
   danger: "super",
 };
 
