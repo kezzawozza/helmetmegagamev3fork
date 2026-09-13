@@ -8513,8 +8513,18 @@ tags:
     description: "A small metal key."
     pointCost: 0
     tradeable: true
+    stackable: true
     weight: 0
     purchasable: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: sewer-key
+          keep: true
 
   elevator-key:
     catalog: gm
@@ -8524,8 +8534,18 @@ tags:
     description: "A small metal key."
     pointCost: 0
     tradeable: true
+    stackable: true
     weight: 0
     purchasable: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: elevator-key
+          keep: true
 
   foresters-key:
     catalog: gm
@@ -8535,8 +8555,18 @@ tags:
     description: "A key to the forester's waystation."
     pointCost: 0
     tradeable: true
+    stackable: true
     weight: 0
     purchasable: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: foresters-key
+          keep: true
 
   graywall-key:
     catalog: gm
@@ -8546,9 +8576,23 @@ tags:
     description: "A key to the property room at Graywall."
     pointCost: 0
     tradeable: true
+    stackable: true
     weight: 0
     purchasable: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: graywall-key
+          keep: true
 
+  # A rare Caving loot drop (db/lib/cavingLoot.js) gating its own cave room
+  # (docs/zones.yaml). Stackable so a second find doesn't get refused as a
+  # duplicate, but deliberately NOT craftable — a forge that could mint copies
+  # would erase the point of it being a find at all.
   ancient-keycard:
     catalog: gm
     name: Ancient Keycard
@@ -8557,6 +8601,7 @@ tags:
     description: "A small piece of plastic, with a metal lining on one edge."
     pointCost: 0
     tradeable: true
+    stackable: true
     weight: 0
     purchasable: false
 
@@ -8568,8 +8613,18 @@ tags:
     description: "The Baron's key."
     pointCost: 0
     tradeable: true
+    stackable: true
     weight: 0
     purchasable: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: barons-key
+          keep: true
 
   # The Baroness's own key. It opens the Baron's Chambers and nothing else --
   # she shares his bed, not his ring.
@@ -11477,6 +11532,10 @@ tags:
   # the room is handled entirely by Room.accessTagSlugs — see the landing-pad
   # entry in docs/zones.yaml — so this tag has no code of its own behind it.
   # It is emphatically NOT what the turret reads.
+  # A GM-issued Depot access badge (web/lib/depotState.js), not an ordinary
+  # lock. Stackable so a second issue doesn't get refused as a duplicate, but
+  # deliberately NOT craftable — a forge that could mint copies would bypass
+  # the GM's own control over who gets Depot access.
   depot-keycard:
     catalog: gm
     name: Depot Keycard
@@ -11485,6 +11544,7 @@ tags:
     description: "A worn plastic card on a lanyard."
     pointCost: 0
     tradeable: true
+    stackable: true
     weight: 0
     visible: false
     purchasable: false
@@ -11501,9 +11561,19 @@ tags:
     equipSlot: ACCESSORY
     visible: worn
     tradeable: true
+    stackable: true
     weight: 0
     purchasable: false
     purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 1/4
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: incarns-key
+          keep: true
 
   ordinator-insignia:
     catalog: gm
