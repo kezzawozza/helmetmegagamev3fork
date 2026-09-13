@@ -106,6 +106,21 @@ test("a refusal says which rule refused", () => {
   assert.equal(escortRefusal(leader(), person({ escortedById: "L" })), "You can't take them along.");
 });
 
+test("a passenger cannot bring anyone along themselves", () => {
+  // The reported bug: somebody already being brought along could still open
+  // their own picker and attach followers of their own, leaving an orphaned
+  // sub-party once they walked with their own leader.
+  const passenger = leader({ escortedById: "Z" });
+  assert.equal(escortAuthority(passenger, person()), null);
+  // No exception for FORCED — a passenger cannot drive even a corpse, their
+  // own faction, or the helpless off somebody else while being carried
+  // themselves.
+  assert.equal(escortAuthority(passenger, person({ status: "DEAD" })), null);
+  assert.equal(escortAuthority(passenger, person({ tags: [tag("bound", "Bound")] })), null);
+  assert.equal(escortAuthority(passenger, person({ factionId: "f1" })), null);
+  assert.equal(escortRefusal(passenger, person()), "You're being brought along yourself.");
+});
+
 test("a hood is off the list, the way it is off every other picker", () => {
   assert.equal(escortAuthority(leader(), person({ concealed: true })), null);
   // But a corpse cannot hold a hood up, so the dead still show.

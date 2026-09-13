@@ -457,6 +457,25 @@ export async function loadParty() {
   const character = me.character;
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+
+  // A passenger cannot lead a party of their own (db/lib/escort.js
+  // #escortAuthority), so the rack shows who THEY are being brought along
+  // with instead of a picker to bring somebody of their own (MAP.md §3a).
+  let riding = null;
+  if (character.escortedById) {
+    const [leaderRow, companions] = await Promise.all([
+      prisma.character.findUnique({ where: { id: character.escortedById }, select: { id: true, name: true } }),
+      partyOf(prisma, character.escortedById),
+    ]);
+    riding = {
+      leaderId: character.escortedById,
+      leaderName: leaderRow?.name ?? "somebody",
+      companions: companions
+        .filter((row) => row.id !== character.id)
+        .map((row) => ({ id: row.id, name: row.name, status: row.status })),
+    };
+  }
+
   const [candidates, party, incoming] = await Promise.all([
     escortCandidates(prisma, character, openTurn?.number ?? null),
     partyOf(prisma, character.id),
@@ -479,6 +498,7 @@ export async function loadParty() {
 
   return {
     ok: true,
+    riding,
     seats: fastTravelCapacity(equippedSlugs(character.tags ?? [])),
     candidates,
     // Re-derived rather than read off `candidates`: a follower can be with you and no longer be a candidate.
