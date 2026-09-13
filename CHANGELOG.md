@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · GMs can check Desire claims
+
+✎ Claiming a Desire now asks you to say how you pulled it off, and the answer is required  
+✚ A Desires tab on the turn desk, listing every claim with the reason beside it  
+✚ Tick a claim to mark it looked at, or reject it to take the points back and reopen the slot  
+✎ A rejected claim tells the player, and the slot's lock lifts with it
+
 ## 2026-09-13 · Maggot Milk's recipe is public knowledge now
 
 − Any Brewer should know you can squeeze a Purring Maggot without having found one first, so it no longer waits on holding the ingredient to show up on the Craft menu.
