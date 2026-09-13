@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Obols are now a taxable currency
+
+✚ A faction Leader or Treasurer can now tax a member's Obols, alongside Resources  
+✎ The faction roster and silo now show each officer an Obol count next to the ⬢ figure
+
 ## 2026-09-13 · Obols in smithing, key-copying, and staged deaths
 
 ✚ Smiths can now put their held Obols toward a smithing recipe's cost, mixed with the usual ⬢ payer  
