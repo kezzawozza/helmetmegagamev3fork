@@ -6,6 +6,7 @@ import FormError from "@/app/components/FormError";
 import { StagedEffectRow, StagedMessageRow } from "./StagedItems";
 import EffectComposer from "./EffectComposer";
 import RoomEffectComposer from "./RoomEffectComposer";
+import DeathComposer from "./DeathComposer";
 import StagingStrip from "./StagingStrip";
 import TransferComposer from "./TransferComposer";
 import MessageComposer from "./MessageComposer";
@@ -239,6 +240,7 @@ export default function StagingTray({
               onEffect={() => setComposer("effect")}
               onTransfer={() => setComposer("transfer")}
               onRoom={() => setComposer("room")}
+              onDeath={() => setComposer("death")}
               onMessage={() => setComposer("message")}
               onPublic={() => setComposer("public")}
             />
@@ -351,6 +353,16 @@ export default function StagingTray({
         <RoomEffectComposer
           tagCatalog={tagCatalog}
           stagingRooms={stagingRooms}
+          onDone={(patch) => {
+            setComposer(null);
+            applyDeskPatch(patch);
+          }}
+          onCancel={() => setComposer(null)}
+        />
+      )}
+      {composer === "death" && (
+        <DeathComposer
+          roster={roster}
           onDone={(patch) => {
             setComposer(null);
             applyDeskPatch(patch);

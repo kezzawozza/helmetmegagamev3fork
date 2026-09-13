@@ -59,9 +59,12 @@ components included. It is written at mint and recomputed by
 
 ## 1a. Gibbing — the death that leaves no body
 
-Three deaths in the game vaporise a character outright: the Thanati **Rite of
-Sacrifice**, the **Rite of Judgement**, and the **bomb**. They pass
-`{ gib: true }` to `applyDeathToRow`, and that option is the whole definition:
+Four deaths in the game vaporise a character outright: the Thanati **Rite of
+Sacrifice**, the **Rite of Judgement**, the **bomb**, and a **GM-staged death
+with Gib checked** (`DeathComposer.js`, `ADJUDICATION.md` §1) — the only one
+of the four a GM triggers by hand rather than a scripted rite or the bomb.
+All four pass `{ gib: true }` to `applyDeathToRow`, and that option is the
+whole definition:
 
 - **No corpse is minted at all.** Not minted-then-deleted, which is what the
   two rites used to do — simply never made. So there is nothing to loot, carry,

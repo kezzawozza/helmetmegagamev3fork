@@ -16,6 +16,7 @@ const { validateRoomTagOps, applyRoomTagOpsInTx } = require("./roomTagOps");
 const { addRoomResources } = require("./roomStash");
 const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfer");
 const { ensureDeliveries } = require("./stagedDelivery");
+const { applyDeathToRow } = require("./characterDeath");
 
 // The tail on a Routine nothing else spoke for. Left off when a GM staged a
 // message or an effect on the Move — that IS the adjudication, and "no notes"
@@ -81,6 +82,33 @@ async function applyOneStagedEffect(prisma, row, turn) {
     if (claim.count === 0) return null;
 
     const snapshot = {};
+
+    // An instantaneous death, staged from the tray's dedicated Death
+    // composer. Exclusive with every other character-targeted shape below:
+    // a dead character has no further sheet to move ⬢ onto, gain tagPoints
+    // on, retag, or relocate in this same row, so a death payload
+    // short-circuits the rest of the row entirely rather than composing
+    // with it. applyDeathToRow is safe on `tx` for every path except a
+    // Metempsychosis holder's reincarnation (db/lib/reincarnate.js opens
+    // its own nested $transaction) — that one case fails soft: the death
+    // itself still lands, reincarnation is skipped and logged
+    // (CHARACTERS.md's Metempsychosis section).
+    if (row.payload?.death === true) {
+      const gib = row.payload?.gib === true;
+      const reason =
+        typeof row.payload?.reason === "string" && row.payload.reason.trim()
+          ? row.payload.reason.trim()
+          : "died.";
+      const target = row.targetCharacter;
+      const { claimed, corpse } = await applyDeathToRow(
+        tx,
+        { id: row.targetCharacterId, name: target?.name ?? "Someone", zoneId: target?.zoneId ?? null },
+        { turn, content: `${target?.name ?? "Someone"} died — ${reason}`, gib },
+      );
+      snapshot.death = claimed ? { claimed: true, gib, reason, corpse } : { claimed: false, gib, reason };
+      await tx.stagedEffect.update({ where: { id: row.id }, data: { appliedEffect: snapshot } });
+      return snapshot;
+    }
 
     const resources = Number.isInteger(row.payload?.resources) ? row.payload.resources : 0;
     if (resources) {
@@ -247,10 +275,19 @@ async function runStagedPushPass(prisma, turn) {
   // zone so a batch doesn't churn roles on the way through — rows process in
   // createdAt order and each overwrite wins.
   const zoneMovesByCharacter = new Map();
+  // Every staged death that actually claimed, in the exact shape
+  // catatonicDeathPass.js/dyingDeathPass.js already establish — folded into
+  // turnDeaths by db/index.js/turnSideEffects.js so a staged kill gets the
+  // same Discord teardown, death DM and #leave rollup any other death does.
+  const deaths = [];
   const stagedEffects = await prisma.stagedEffect.findMany({
     where: { turnId: turn.id, appliedAt: null },
     orderBy: { createdAt: "asc" },
-    include: { targetCharacter: { select: { status: true, discordUserId: true } } },
+    include: {
+      targetCharacter: {
+        select: { status: true, discordUserId: true, name: true, discordRoleId: true, zoneId: true },
+      },
+    },
   });
   for (const row of stagedEffects) {
     try {
@@ -270,6 +307,20 @@ async function runStagedPushPass(prisma, turn) {
               toLocationId: snapshot.location.to,
             });
           }
+        }
+        if (snapshot.death?.claimed) {
+          // discordRoleId is read off the pre-death snapshot taken above —
+          // applyDeathToRow already nulled the live column by the time we
+          // get here, same reason catatonicDeathPass.js captures it first.
+          const target = row.targetCharacter;
+          deaths.push({
+            characterId: row.targetCharacterId,
+            name: target?.name ?? "Someone",
+            discordUserId: target?.discordUserId ?? null,
+            discordRoleId: target?.discordRoleId ?? null,
+            zoneId: target?.zoneId ?? null,
+            reason: snapshot.death.reason,
+          });
         }
       }
     } catch (err) {
@@ -481,6 +532,7 @@ async function runStagedPushPass(prisma, turn) {
     privateDeliveries,
     publicPosts,
     zoneMoves,
+    deaths,
   };
 }
 

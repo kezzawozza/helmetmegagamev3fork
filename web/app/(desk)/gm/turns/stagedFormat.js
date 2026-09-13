@@ -41,6 +41,15 @@ export function effectTargetLabel(effect) {
 
 export function effectSegments(effect, tagsById) {
   const segs = [];
+  // A death payload carries nothing else — db/lib/stagedPush.js
+  // short-circuits on it before any other key, so this is the whole row.
+  if (effect.death) {
+    segs.push({
+      k: "text",
+      v: effect.death.gib ? `💀 Gibbed — ${effect.death.reason}` : `💀 Killed — ${effect.death.reason}`,
+    });
+    return segs;
+  }
   if (effect.transfer) {
     const { from, to, amount } = effect.transfer;
     segs.push({ k: "text", v: `${partyLabel(from)} → ${partyLabel(to)} · ${amount} ⬢` });
@@ -84,7 +93,15 @@ export function effectSummary(effect, tagsById) {
 // The one-word state of a staged row, for a status pill.
 export function effectState(effect) {
   if (effect.appliedError) return { label: "Errored", tone: "bad" };
-  if (effect.applied) return { label: "Applied", tone: "good" };
+  if (effect.applied) {
+    // The target died some other way before the push reached this row —
+    // applyDeathToRow's own claim (status must still be ALIVE) came back
+    // false. The GM's intent was already satisfied; this isn't a failure.
+    if (effect.death && effect.appliedDeath && effect.appliedDeath.claimed === false) {
+      return { label: "No-op — already dead", tone: "warn" };
+    }
+    return { label: "Applied", tone: "good" };
+  }
   // Missed push is the warning; Staged is the normal resting state of every
   // row on the desk and was wearing the warning colour, so the one row that
   // actually needed chasing did not stand out from the twenty that did not.

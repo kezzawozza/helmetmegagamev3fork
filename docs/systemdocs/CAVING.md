@@ -372,9 +372,10 @@ like any other). The Result box is *not* itself the thing the player receives
 alone never reaches anyone. That gap is exactly why caving-desk
 messages used to go missing: the desk had the notes box but no Stage-as-message
 button, so a GM working "the same as a Move" had no send step. Alongside it are
-the same `EffectComposer` / `MessageComposer` / `PublicComposer` trio every
-desk uses (wired to `cavingRollId` instead of `moveId` — both `StagedMessage`
-and `StagedEffect` carry the column, `SetNull` on delete same as `moveId`), and
+the same `EffectComposer` / `RoomEffectComposer` / `DeathComposer` /
+`MessageComposer` / `PublicComposer` set every desk uses (wired to
+`cavingRollId` instead of `moveId` — both `StagedMessage` and `StagedEffect`
+carry the column, `SetNull` on delete same as `moveId`), and
 a **Save** and a **Mark resolved** button. No cooperative lock like a Move — two GMs opening
 the same roll can't race a solve that pays anyone twice, since resolving is a
 one-way stamp with nothing to apply.

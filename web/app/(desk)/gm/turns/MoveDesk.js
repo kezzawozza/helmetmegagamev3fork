@@ -14,6 +14,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import useMoveLock from "./useMoveLock";
 import EffectComposer from "./EffectComposer";
 import RoomEffectComposer from "./RoomEffectComposer";
+import DeathComposer from "./DeathComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
@@ -351,6 +352,7 @@ export default function MoveDesk({
           <StagingStrip
             onEffect={() => setComposer("effect")}
             onRoom={() => setComposer("room")}
+            onDeath={() => setComposer("death")}
             onMessage={() => {
               setMessagePrefill(null);
               setComposer("message");
@@ -378,6 +380,18 @@ export default function MoveDesk({
           moveId={move.id}
           tagCatalog={tagCatalog}
           stagingRooms={stagingRooms}
+          onDone={(patch) => {
+            setComposer(null);
+            applyDeskPatch(patch);
+          }}
+          onCancel={() => setComposer(null)}
+        />
+      )}
+      {composer === "death" && (
+        <DeathComposer
+          moveId={move.id}
+          defaultTarget={{ id: move.characterId, name: move.characterName }}
+          roster={roster}
           onDone={(patch) => {
             setComposer(null);
             applyDeskPatch(patch);

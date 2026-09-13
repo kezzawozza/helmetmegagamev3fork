@@ -3949,6 +3949,18 @@ model StagedEffect {
   // builder can never hand a null character id to a character branch. Tags go
   // through db/lib/roomTagOps.js, not tagOps.js — see ADJUDICATION.md §1 for
   // what that engine deliberately does not do.
+  //
+  // A DEATH row is the fourth shape: `{ death: true, gib?: Boolean,
+  // reason: String }`. It DOES carry a real targetCharacterId, like the
+  // first shape, but is exclusive with every key in it — a dead character
+  // has no further sheet to move ⬢ onto, gain tagPoints on, retag, or
+  // relocate in the same row, so db/lib/stagedPush.js#applyOneStagedEffect
+  // short-circuits on `death` before considering any other key. Applied via
+  // db/lib/characterDeath.js#applyDeathToRow inside the row's own
+  // transaction — instantaneous at the push, same as everything else here.
+  // `gib: true` mints no corpse (CORPSES.md §1a). A target no longer ALIVE
+  // by push time (killed some other way meanwhile) resolves as a clean
+  // no-op rather than an error — `appliedEffect.death.claimed === false`.
   payload Json
 
   appliedAt     DateTime?

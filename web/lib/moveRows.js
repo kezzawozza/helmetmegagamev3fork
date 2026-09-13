@@ -251,6 +251,14 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
     locationName: e.payload?.locationId
       ? (locationNameById.get(e.payload.locationId) ?? "(deleted location)")
       : null,
+    // { gib, reason } — a staged death, mutually exclusive with every other
+    // character key above (db/lib/stagedPush.js short-circuits on it before
+    // any of them). appliedDeath mirrors what applyOneStagedEffect actually
+    // wrote to appliedEffect.death once pushed: { claimed: false, ... } means
+    // the target was already dead by push time, a clean no-op rather than a
+    // failure.
+    death: e.payload?.death ? { gib: e.payload.gib === true, reason: e.payload.reason ?? null } : null,
+    appliedDeath: e.appliedEffect?.death ?? null,
     applied: Boolean(e.appliedAt),
     appliedError: e.appliedEffect?.error ?? null,
     createdByUsername: usernameById.get(e.createdByDiscordUserId) ?? e.createdByDiscordUserId,

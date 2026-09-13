@@ -8,6 +8,7 @@ import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import EffectComposer from "./EffectComposer";
 import RoomEffectComposer from "./RoomEffectComposer";
+import DeathComposer from "./DeathComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import { deleteStagedEffect, deleteStagedMessage, resendStagedMessage } from "./actions";
@@ -51,6 +52,10 @@ export function StagedEffectRow({
   // A room's stash is the other null-target row, and unlike a transfer it IS
   // editable: it is not 1:1 by nature, and RoomEffectComposer is built for it.
   const isRoom = Boolean(effect.room);
+  // A death row — always a real single target, always editable, always its
+  // own composer (DeathComposer.js): it carries none of EffectComposer's
+  // other fields to reopen into.
+  const isDeath = Boolean(effect.death);
 
   async function onDelete() {
     setDeleteError(null);
@@ -138,7 +143,18 @@ export function StagedEffectRow({
           onCancel={() => setEditing(false)}
         />
       )}
-      {editing && !isTransfer && !isRoom && (
+      {editing && isDeath && (
+        <DeathComposer
+          existing={effect}
+          roster={roster}
+          onDone={(patch) => {
+            setEditing(false);
+            applyDeskPatch(patch);
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      )}
+      {editing && !isTransfer && !isRoom && !isDeath && (
         <EffectComposer
           existing={effect}
           roster={roster}

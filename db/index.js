@@ -487,6 +487,7 @@ async function resolveNeeds(turn, config) {
     zoneMoves = [],
     routineNotices = [],
     gambitRollNotices = [],
+    deaths: stagedDeaths = [],
     ...stagedPushSummary
   } = stagedPush ?? {};
   if (stagedPush) {
@@ -502,6 +503,7 @@ async function resolveNeeds(turn, config) {
             publicPosts: publicPosts.length,
             routineNotices: routineNotices.length,
             gambitRollNotices: gambitRollNotices.length,
+            deaths: stagedDeaths.length,
           },
         },
       })
@@ -1365,6 +1367,7 @@ async function resolveNeeds(turn, config) {
     privateDeliveries,
     publicPosts,
     zoneMoves,
+    stagedDeaths,
     travelArrivals,
     xomDeaths,
     xomTeleports,
@@ -1526,6 +1529,7 @@ async function advanceTurn() {
   let privateDeliveries = [];
   let publicPosts = [];
   let zoneMoves = [];
+  let stagedDeaths = [];
   let travelArrivals = [];
   let xomDeaths = [];
   let xomTeleports = [];
@@ -1581,6 +1585,7 @@ async function advanceTurn() {
       privateDeliveries,
       publicPosts,
       zoneMoves,
+      stagedDeaths,
       travelArrivals,
       xomDeaths,
       xomTeleports,
@@ -1677,6 +1682,7 @@ async function advanceTurn() {
         privateDeliveries,
         publicPosts,
         zoneMoves,
+        stagedDeaths,
         travelArrivals,
         xomDeaths,
         xomTeleports,
@@ -1780,6 +1786,7 @@ async function advanceTurn() {
     nukeDeaths,
     ascensionDeaths,
     turretDeaths,
+    stagedDeaths,
     hungerNotices,
     zoneMoves,
     travelArrivals,
