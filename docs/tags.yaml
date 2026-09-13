@@ -5224,7 +5224,7 @@ tags:
     name: Horse
     category: assets
     group: assets-companions
-    description: "A horse rideable by up to 2 people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others. Cannot be used in the Caves. Consumes 1 ⬢ per day."
+    description: "A horse rideable by up to 2 people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others. Cannot be used in the Caves. Consumes 1 ⬢ per turn."
     pointCost: 9
     tradeable: true
     stackable: true
@@ -5279,7 +5279,7 @@ tags:
     name: Arelitz (Warbeast)
     category: assets
     group: assets-companions
-    description: "A terrifying, arachnid behemoth that tramples men with ease. It is only barely hurt by typical weapons."
+    description: "A terrifying, arachnid behemoth that tramples men with ease. It is only barely hurt by typical weapons. Consumes 1 ⬢ per turn."
     pointCost: 0
     tradeable: true
     equippable: true
@@ -5302,7 +5302,7 @@ tags:
     name: Arelitz (Ovum)
     category: assets
     group: assets-companions
-    description: "A bloated Arelitz. It hates moving. It produces the valuable Arelitz egg. Does not allow fast travel."
+    description: "A bloated Arelitz. It hates moving. It produces the valuable Arelitz egg. Does not allow fast travel. Consumes 1 ⬢ per turn."
     pointCost: 0
     tradeable: true
     equippable: true
@@ -5325,7 +5325,7 @@ tags:
     name: Arelitz (Thoroughbred)
     category: assets
     group: assets-companions
-    description: "A healthy and upright arachnid, capable of galloping easily. It has an extra zone move compared to a regular horse."
+    description: "A healthy and upright arachnid, capable of galloping easily. It has an extra zone move compared to a regular horse. Consumes 1 ⬢ per turn."
     pointCost: 0
     tradeable: true
     equippable: true
