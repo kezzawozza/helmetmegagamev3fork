@@ -462,7 +462,7 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
           "You were stopped on the road. It's an ambush! You can't move until the end of the turn. Make a Gambit declaring your intent!",
           ...(hit.watch.message ? [`» ${hit.watch.message}`] : []),
         ].join("\n"),
-        kind: hit.watch.message ? DM_KIND.CONVERSATION : DM_KIND.NOTICE,
+        kind: DM_KIND.NOTICE,
         authorDiscordUserId: hit.watch.message ? hit.interceptor.discordUserId ?? null : null,
       });
     } else {
@@ -473,11 +473,9 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
           `» ${hit.watch.message || "…"}`,
           "You can't move for two minutes.",
         ].join("\n"),
-        // A person composed those words for this reader, which is the whole
-        // definition of a CONVERSATION (db/lib/dmKinds.js) — it sorts the GM
-        // inbox and counts as unread. Everything else Intercept sends is the
-        // game talking.
-        kind: DM_KIND.CONVERSATION,
+        // NOTICE even with typed words in it: it is the game delivering a stop, and as
+        // CONVERSATION every stop on the road pinged the GM inbox.
+        kind: DM_KIND.NOTICE,
         authorDiscordUserId: hit.interceptor.discordUserId ?? null,
       });
     }

@@ -277,15 +277,16 @@ Four lines. Three of them are Bascinet's words verbatim.
 
 | Line | `DM_KIND` |
 |---|---|
-| The victim, Safe — carries the typed message | `CONVERSATION` |
-| The victim, Ambush — carries it too, as a `»` line | `CONVERSATION` if there is one, else `NOTICE` |
+| The victim, Safe — carries the typed message | `NOTICE` |
+| The victim, Ambush — carries it too, as a `»` line | `NOTICE` |
 | The interceptor's confirmation | `NOTICE` |
 | The victim, released | `NOTICE` |
 
-Only the first two are a person writing to a person, which is the whole
-definition of `CONVERSATION` (`db/lib/dmKinds.js`) — they sort the GM inbox and
-count as unread, and `authorDiscordUserId` is set so `/gm/messages` threads
-them right. Everything else is the game talking.
+All four are `NOTICE`, the first two included. They used to be `CONVERSATION`
+because the interceptor typed the words, but a stop on the road is still the
+game delivering it, and as `CONVERSATION` every one of them pinged the GM inbox.
+`authorDiscordUserId` is still set on the first two, so who said it stays on
+record.
 
 Bascinet's Ambush line does not mention the message, but a player who typed one
 and had it silently dropped would read that as a bug, so it rides along on its
