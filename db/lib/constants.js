@@ -89,11 +89,19 @@ const PORTABLE_SURGICAL_PACK_SLUG = "portable-surgical-pack";
 const TORTURING_EQUIPMENT_SLUG = "torturing-equipment";
 const TORTURER_SLUG = "torturer";
 
-// Mutilate's gate: any ONE of the three shows the button (docs/systemdocs/
-// TORTURE.md §6). Three rather than one because there is no single "would cut
-// pieces off somebody" tag — Cruel is the personality, Torturer is the trade,
-// and the Thanati are the ones who want the pieces.
-const MUTILATE_GATE_SLUGS = Object.freeze(["cruel", "torturer", "thanati"]);
+// Mutilate's gate: any ONE of these shows the button (docs/systemdocs/
+// TORTURE.md §6). There is no single "would cut pieces off somebody" tag —
+// Cruel is the personality, Torturer the trade, the Thanati want the pieces,
+// and a medic or a butcher already knows how to take a limb off.
+const MUTILATE_GATE_SLUGS = Object.freeze([
+  "cruel",
+  "torturer",
+  "thanati",
+  "medical-basic",
+  "medical-skilled",
+  "medical-expert",
+  "butcher",
+]);
 
 // Kissing's OTHER gate (docs/systemdocs/KISS.md). The incapacity half lives in
 // db/lib/incapacitation.js, where every ACT-blocking state already removes the

@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · Medics and butchers can Mutilate
+
+✎ Any Medical skill or Butcher now shows the Mutilate button, alongside Cruel, Torturer and Thanati
+
 ## 2026-09-13 · Purse says how many resources you got
 
 ## 2026-09-13 · Four tags say their rules again

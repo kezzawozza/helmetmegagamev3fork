@@ -143,12 +143,13 @@ within reach of it; anyone can carry it off.
 The other thing you can do to somebody tied up, shipped 2026-09-07. Torture
 takes what they know; **Mutilate** takes a piece of them.
 
-**The gate is three tags, any one of them**: `cruel`, `torturer` or `thanati`
-(`MUTILATE_GATE_SLUGS`). There is no single "would cut pieces off a person"
-tag — Cruel is the personality, Torturer is the trade, and the Thanati are the
-ones who want the pieces — and demanding all three would have made it a button
-almost nobody could press. **Hidden, not greyed**, the same rule Torture and
-Crucify follow: which of the three you hold is your own sheet.
+**The gate is any one of these tags**: `cruel`, `torturer`, `thanati`, any
+Medical skill (`medical-basic`, `medical-skilled`, `medical-expert`) or
+`butcher` (`MUTILATE_GATE_SLUGS`). There is no single "would cut pieces off a
+person" tag — Cruel is the personality, Torturer is the trade, the Thanati are
+the ones who want the pieces, and a medic or a butcher already knows how to
+take a limb off. **Hidden, not greyed**, the same rule Torture and Crucify
+follow: which of them you hold is your own sheet.
 
 **It is free.** No ⬢, no Move, no turn — the one action here that costs
 nothing at all, and it has to be, because one press takes exactly one piece.
