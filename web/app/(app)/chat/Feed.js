@@ -38,6 +38,8 @@ import { readDraft, writeDraft } from "./draftStore";
 // module is pure string work with no requires of its own, so it is safe here
 // — and it has to be here, or the row this composer draws says something
 // different from the row the server writes a moment later.
+import { chunkMessage } from "@lifeweb/db/lib/chunkText";
+import { MESSAGE_LIMIT, MAX_SAY_PIECES, COUNT_FROM, tooManyPieces } from "@lifeweb/db/lib/sayLimits";
 import { capitalizeSentences, fixContractions } from "@lifeweb/db/lib/textCorrection";
 import MentionMenu, { mentionQueryAt, matchRoster } from "./MentionMenu";
 import CommandMenu from "./CommandMenu";
@@ -1094,6 +1096,22 @@ export default function Feed({
     el.style.height = `${Math.min(el.scrollHeight, Math.round(line * 6) + 12)}px`;
   }, [draft, narrow, command]);
 
+  // What the count under the box says, or null for nothing at all. Three
+  // states past silence: the plain count as they approach one message, then
+  // what the split will do, then a refusal once it is past the ceiling.
+  //
+  // chunkMessage is the same splitter the server runs (db/lib/say.js), and
+  // db/lib/chunkText.js has no requires precisely so a client component can
+  // call it — so the number shown here is the number that will happen.
+  const sayCount = useMemo(() => {
+    const length = draft.trim().length;
+    if (length < COUNT_FROM) return null;
+    if (length <= MESSAGE_LIMIT) return { label: `${length}/${MESSAGE_LIMIT}`, over: false };
+    const pieces = chunkMessage(draft.trim()).length;
+    if (pieces > MAX_SAY_PIECES) return { label: tooManyPieces(pieces), over: true };
+    return { label: `sends as ${pieces} messages`, over: false };
+  }, [draft]);
+
   const submit = useCallback(() => {
     const content = draft.trim();
     if (!content || !placeKey) return;
@@ -1106,6 +1124,16 @@ export default function Feed({
       nudgeTimer.current = setTimeout(() => setNudge(false), 500);
       return;
     }
+    // Over 2000 this goes out as several messages (db/lib/say.js#sayInPieces).
+    // Past the ceiling it does not go out at all, and the composer says so
+    // here rather than letting the server be the first to mention it — which
+    // is the whole complaint this fixed. Same sentence the server would give.
+    const pieces = chunkMessage(content);
+    if (pieces.length > MAX_SAY_PIECES) {
+      setError(tooManyPieces(pieces.length));
+      return;
+    }
+
     const clientId = newClientId();
     setDraft("");
     setMention(null);
@@ -1123,7 +1151,15 @@ export default function Feed({
       avatarPath: self.avatarPath,
       // What the SERVER will store, not what was typed. Both transforms, in
       // the order db/lib/say.js#transformSpeech runs them.
-      content: autocorrect ? capitalizeSentences(fixContractions(content)) : content,
+      //
+      // The FIRST piece only, when this is a split send: the server puts the
+      // clientId on piece 1 and this row is the twin it replaces. The rest
+      // arrive on the stream a moment later. Client and server call the same
+      // chunkMessage on the same string, so they cannot disagree about where
+      // the break falls.
+      content: autocorrect
+        ? capitalizeSentences(fixContractions(pieces[0]))
+        : pieces[0],
       sentAt: new Date().toISOString(),
     });
     // Optimistic, so a second Enter in the same second meets the countdown
@@ -1889,6 +1925,15 @@ export default function Feed({
                   data-over={draft.trim().length > textArgOf(command.entry).maxLength ? "true" : undefined}
                 >
                   {draft.trim().length}/{textArgOf(command.entry).maxLength}
+                </span>
+              )}
+              {/* The same readout for ordinary speech, which had none — a
+                  player typed a goods list, the box let them, and the refusal
+                  was the first they heard of a limit. Silent until they are
+                  near it, then the count, then what it will actually do. */}
+              {!command && sayCount && (
+                <span className="chat-composer-count mono" data-over={sayCount.over ? "true" : undefined}>
+                  {sayCount.label}
                 </span>
               )}
             </>

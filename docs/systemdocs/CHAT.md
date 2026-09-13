@@ -494,6 +494,33 @@ cards described under `ChatAside.js` below:
   send. The keys are spelled out beside it. The slowmode clock shows before it
   bites rather than only once it has, and a character count is drawn where a
   command actually caps its text.
+- **Ordinary speech counts too now, and over one message it SPLITS.** A player
+  typed a list of goods, the box let them type all of it, and the send was then
+  refused at 2000 characters — so the refusal was the first they ever heard of
+  a limit. Two halves to the fix, and the second is the real one:
+  - The count under the box is silent below `COUNT_FROM` (1500), then reads
+    `1742/2000`, then `sends as 2 messages`, then refuses. It reuses
+    `.chat-composer-count` and its `data-over` danger state.
+  - `db/lib/say.js#sayInPieces` splits the send with `chunkMessage` — the
+    splitter `postAsCharacter` already used, which breaks on blank lines and
+    then on lines, so a list splits between items rather than through one.
+    Up to `MAX_SAY_PIECES` (3, about 6000 characters); past that it is refused,
+    **while typing**, in the same sentence the server would use.
+
+  Three things about it are load-bearing. The numbers and the refusal wording
+  live in `db/lib/sayLimits.js`, which has **zero requires** so the client
+  composer can read them (the `dmKinds.js` rule). The `clientId` rides on the
+  FIRST piece only — `feedStore.js` swaps a pending row for the confirmed row
+  carrying its `clientId`, and three rows claiming one twin would fight. And
+  `prepareSpeech` takes a `skipSlowmode` flag for the pieces after the first:
+  slowmode is measured against this character's newest row here, so piece 1
+  would otherwise refuse piece 2 and leave half a message in the room. That
+  only bites in the zone summary (`PLACE_SLOWMODE_MS` is 0), but half a message
+  is worse than a clean refusal.
+
+  **Web only.** Discord stops a player at 2000 in its own client, so there is
+  nothing on that side to split. An EDIT is also still one message: editing one
+  message into three is a different feature.
 - **Command mode is a strip** (`.chat-cmd-strip`) across the top of the box —
   name, what it does, an ✕ — replacing `.chat-cmd-chip`, an accent-tinted
   floating pill.

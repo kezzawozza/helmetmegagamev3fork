@@ -1,6 +1,8 @@
 // node --test over the Discord chunker. Run with `npm test --workspace=db`.
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const { chunkMessage, DISCORD_MESSAGE_LIMIT } = require("../lib/chunkText");
 
 test("short text is one chunk, untouched", () => {
@@ -34,4 +36,62 @@ test("a single line over the cap is still hard-split", () => {
   const long = "x".repeat(3000);
   const chunks = chunkMessage(`intro\n${long}`);
   assert.deepEqual(chunks, ["intro", "x".repeat(2000), "x".repeat(1000)]);
+});
+
+// ---- The composer's limits -------------------------------------------------
+//
+// WHAT A FAILURE HERE MEANS. A player typed a list of goods into /chat, the
+// box let them type the whole thing, and the send was then refused at 2000
+// characters — the refusal being the first mention that a limit existed. The
+// box now counts, and over one message the send SPLITS instead of refusing.
+// These are the numbers both faces read: db/lib/say.js runs the split and
+// web/app/(app)/chat/Feed.js draws the count off the same module, so a
+// disagreement here is a player being told one thing and getting another.
+const sayLimits = require("../lib/sayLimits");
+
+test("sayLimits.js has zero requires, so it stays client-safe", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "lib", "sayLimits.js"), "utf8");
+  assert.equal(
+    /^\s*(const .*=\s*)?require\(/m.test(source),
+    false,
+    "db/lib/sayLimits.js must require nothing — the chat composer is a client component",
+  );
+});
+
+test("one message stays one message, right up to the cap", () => {
+  assert.equal(chunkMessage("x".repeat(1999)).length, 1);
+  assert.equal(chunkMessage("x".repeat(2000)).length, 1);
+  assert.equal(chunkMessage("x".repeat(2001)).length, 2);
+});
+
+test("a long list splits into as few pieces as it can", () => {
+  // 300 lines of about 20 characters: ~6000 chars, which is the ceiling.
+  const list = Array.from({ length: 300 }, (_, i) => `- item number ${i}`).join("\n");
+  const pieces = chunkMessage(list);
+  assert.ok(pieces.length <= sayLimits.MAX_SAY_PIECES, `expected ≤3 pieces, got ${pieces.length}`);
+  // Nothing is lost and nothing is doubled.
+  assert.equal(pieces.join("\n"), list);
+  // And no piece is over what Discord will take.
+  for (const piece of pieces) assert.ok(piece.length <= sayLimits.MESSAGE_LIMIT);
+});
+
+test("a list splits between items, never through one", () => {
+  const list = Array.from({ length: 300 }, (_, i) => `- item number ${i}`).join("\n");
+  for (const piece of chunkMessage(list)) {
+    assert.equal(piece.startsWith("- item"), true, "a piece must begin at an item");
+    assert.match(piece, /item number \d+$/, "a piece must end at the end of an item");
+  }
+});
+
+test("the ceiling is three pieces, and the refusal counts them", () => {
+  assert.equal(sayLimits.MAX_SAY_PIECES, 3);
+  assert.equal(chunkMessage("x".repeat(6000)).length, 3);
+  assert.equal(chunkMessage("x".repeat(6001)).length, 4);
+  assert.match(sayLimits.tooManyPieces(4), /4 messages/);
+  assert.match(sayLimits.tooManyPieces(4), /3 or fewer/);
+});
+
+test("the count stays quiet until it is worth saying", () => {
+  assert.ok(sayLimits.COUNT_FROM > 0);
+  assert.ok(sayLimits.COUNT_FROM < sayLimits.MESSAGE_LIMIT, "silence must end before the cap does");
 });

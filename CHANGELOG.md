@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-13 · A long message splits instead of bouncing
+
+✚ The chat box counts as you approach the limit, then says what it will do: "sends as 2 messages"  
+✚ Over 2000 characters a message now goes out as up to three, split between lines rather than through one. A list of goods no longer has to be posted by hand in pieces  
+✚ Past three messages it is refused while you type, not after you press Send — which is what went wrong before: the refusal was the first anyone heard that a limit existed
+
 ## 2026-09-13 · Everything the patch-notes push accidentally wiped is back
 
 ✎ The nine new Depot items work again: Coffee, Bar Soap, Black River Mud, Perfume, Ravenheart Map, Pointer Device Kit, Ration Box, Box of Junk, and the ~5% medical, smithing and brewing price trims  

@@ -28,11 +28,12 @@ const { loadPresentedState } = require("./examineSnapshot");
 const { mayWritePlace, slowmodeMsFor } = require("./feedAccess");
 const { rolesToTokens, stampMentionNames } = require("./characterMentions");
 const { noteChant } = require("./riteChant");
+// The numbers and the refusal wording, in a module with no requires so the
+// composer can read them too (db/lib/sayLimits.js).
+const { chunkMessage } = require("./chunkText");
+const { MESSAGE_LIMIT, MAX_SAY_PIECES, tooManyPieces } = require("./sayLimits");
 const { echoSpeech } = require("./gateEcho");
 
-// Discord's own ceiling for a message. Kept on the web side too, because the
-// outbox has to be able to repost whatever lands in a row.
-const MESSAGE_LIMIT = 2000;
 
 // How long a message stays yours to change. Bascinet's call, and the same
 // number on both faces: past it, ✏️ and ❌ refuse and so do the web's ✎ and ✕.
@@ -124,7 +125,7 @@ async function slowmodeWaitSeconds(prisma, { characterId, placeKey }) {
 // here any more — nothing takes ordinary speech (db/lib/incapacitation.js) —
 // `loadVoiceState` below is read only for the babble/growl transforms and the
 // slowmode check that follows.
-async function prepareSpeech(prisma, { character, placeKey, content, source = "WEB" } = {}) {
+async function prepareSpeech(prisma, { character, placeKey, content, source = "WEB", skipSlowmode = false } = {}) {
   if (!character?.id) return { ok: false, refusal: "You don't have a living character." };
 
   const web = source !== "DISCORD";
@@ -147,7 +148,13 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   if (!raw.trim()) return { ok: false, refusal: "There wasn't anything in your message." };
   if (raw.length > MESSAGE_LIMIT) return { ok: false, refusal: lengthRefusal(raw.length) };
 
-  if (web) {
+  // `skipSlowmode` is for the pieces AFTER the first of a split send, and
+  // nothing else. Slowmode is measured against the newest row this character
+  // wrote here, so piece 1 would otherwise refuse piece 2 and leave half a
+  // message posted. It only bites in the zone summary — PLACE_SLOWMODE_MS is
+  // 0 (db/lib/feedAccess.js) — but half a message is the one outcome worse
+  // than a clean refusal, so the split checks it once and then says so.
+  if (web && !skipSlowmode) {
     const wait = await slowmodeWaitSeconds(prisma, { characterId: character.id, placeKey });
     if (wait > 0) {
       return { ok: false, refusal: `Wait ${wait}s before speaking again.`, retryAfter: wait };
@@ -290,6 +297,75 @@ async function sayInPlace(prisma, { character, placeKey, content, source = "WEB"
   return { ok: true, row, prepared };
 }
 
+// The web's other order: one typed message, sent as SEVERAL.
+//
+// A goods list over 2000 characters used to be refused outright, and the
+// refusal was the first mention a player got that a limit existed at all
+// (docs/systemdocs/CHAT.md). It splits now instead — up to MAX_SAY_PIECES
+// messages, and only past that is anything refused.
+//
+// WEB ONLY, on purpose. Discord's own client stops a player at 2000 before
+// the bot ever sees the message, so there is nothing on that side to split.
+//
+// The splitter is chunkMessage, the one postAsCharacter already uses: it
+// breaks on blank lines first, then on lines, and hard-slices only a single
+// line that is itself over the cap. A list splits between items rather than
+// through one, and it costs no new code.
+//
+// Returns { ok: true, rows, pieces } or { ok: false, refusal, retryAfter? }.
+async function sayInPieces(
+  prisma,
+  { character, placeKey, content, source = "WEB", maxPieces = MAX_SAY_PIECES, clientId = null, ...context } = {},
+) {
+  const raw = content ?? "";
+  if (!raw.trim()) return { ok: false, refusal: "There wasn't anything in your message." };
+
+  const pieces = chunkMessage(raw);
+  if (pieces.length === 0) return { ok: false, refusal: "There wasn't anything in your message." };
+  if (pieces.length > maxPieces) return { ok: false, refusal: tooManyPieces(pieces.length) };
+
+  const rows = [];
+  for (const [index, piece] of pieces.entries()) {
+    const prepared = await prepareSpeech(prisma, {
+      character,
+      placeKey,
+      content: piece,
+      source,
+      // Checked once, on the first piece. See prepareSpeech.
+      skipSlowmode: index > 0,
+    });
+    if (!prepared.ok) {
+      // Nothing written yet, so this is an ordinary refusal — the place gate,
+      // slowmode, an empty message.
+      if (rows.length === 0) return prepared;
+      // Half of it is already in the room. Every gate passed to get here, so
+      // only the write itself can have failed; say which half landed rather
+      // than pretending the whole send did.
+      return { ok: false, refusal: partlySent(rows.length, pieces.length), rows, pieces: rows.length };
+    }
+
+    const row = await recordSpeech(prisma, prepared, {
+      ...context,
+      // The clientId rides on the FIRST piece only. feedStore.js swaps a
+      // pending row for the confirmed row carrying its clientId, and three
+      // rows claiming one twin would fight over it — the rest arrive as
+      // ordinary new rows on the stream.
+      clientId: index === 0 ? clientId : null,
+    });
+    if (!row) {
+      if (rows.length === 0) return { ok: false, refusal: "That didn't get written down. Try again." };
+      return { ok: false, refusal: partlySent(rows.length, pieces.length), rows, pieces: rows.length };
+    }
+    rows.push(row);
+  }
+
+  return { ok: true, rows, pieces: rows.length };
+}
+
+function partlySent(sent, total) {
+  return `Only ${sent} of ${total} messages went out. The rest didn't send — you'll need to retype them.`;
+}
+
 // ---- Edits and deletes -----------------------------------------------------
 //
 // The ROW is the source of truth for both, on both faces. A player pressing
@@ -427,6 +503,7 @@ module.exports = {
   prepareSpeech,
   recordSpeech,
   sayInPlace,
+  sayInPieces,
   editSpeech,
   deleteSpeech,
 };

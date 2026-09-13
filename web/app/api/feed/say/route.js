@@ -1,5 +1,5 @@
 import { prisma, feedRowShape } from "@lifeweb/db";
-import { sayInPlace } from "@lifeweb/db/lib/say";
+import { sayInPieces } from "@lifeweb/db/lib/say";
 import { touchCharacterActivity } from "@lifeweb/db/lib/characterActivity";
 import { archiveContextForPlaceKey, parsePlaceKey } from "@lifeweb/db/lib/placeKey";
 import { pullMentionedIntoConversation } from "@lifeweb/db/lib/conversations";
@@ -44,11 +44,11 @@ export async function POST(request) {
   // same scene must not render two ways depending on which face said it.
   const context = await archiveContextForPlaceKey(prisma, place);
 
-  // The gate is inside sayInPlace — it asks db/lib/feedAccess.js#placesFor,
+  // The gate is inside sayInPieces — it asks db/lib/feedAccess.js#placesFor,
   // which is also what drew the composer the player typed into, so a Location
   // (scenery, no composer) is refused here too. The character it gates on is
   // the session's, never the request's.
-  const said = await sayInPlace(prisma, {
+  const said = await sayInPieces(prisma, {
     character,
     placeKey: place,
     content,
@@ -77,15 +77,20 @@ export async function POST(request) {
   //
   // AFTER the row is written, never before, and never able to fail the send —
   // the words are the point, and a Discord hiccup must not cost them.
-  await pullIntoConversation(character, place, said.row?.content ?? content).catch((err) =>
+  await pullIntoConversation(character, place, said.rows.map((r) => r.content).join("\n") || content).catch((err) =>
     console.error("Mention thread-add failed:", err?.message ?? err),
   );
 
+  // The FIRST row is the one the sending tab already drew, so it is the one
+  // that comes back — it carries the clientId and replaces the pending twin.
+  // Any pieces after it arrive on the stream like anybody else's message.
+  // `pieces` is only so the composer can say what happened.
   return jsonResponse({
-    row: feedRowShape(said.row, {
+    row: feedRowShape(said.rows[0], {
       clientId,
       avatarVersion: character.updatedAt?.getTime?.() ?? null,
     }),
+    pieces: said.pieces,
   });
 }
 
