@@ -108,7 +108,12 @@ export default function TagRail({
       healable: Boolean(ct.tag.healable),
       researchable: ct.tag.slug === RESEARCH_TAG_SLUG && canResearch,
     };
-    const isPotion = v.consumable && ct.tag.id === identity?.tagId;
+    // Off the tag's own id, not v.consumable: consumableTags() (the set
+    // v.consumable is built from) excludes the potion on purpose, so it's
+    // never on offer in the ordinary consume list elsewhere. Gating this row's
+    // own Use button on that same set left the potion with no Use at all.
+    const isPotion = ct.tag.id === identity?.tagId;
+    if (isPotion) v.consumable = true;
     // A poison opens its own three-option dialog (lace it, dose someone, or
     // drink it) instead of the one-click straight-to-server path — it needs
     // an answer the quick Use can't ask for. Routes on Tag.poison, the one

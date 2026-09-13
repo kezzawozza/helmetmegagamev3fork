@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · A branding iron, and a fix for the Mulligan Potion's Use button
+
+✎ A smith can craft a Branding Iron; holding one opens a Brand button on anyone bound or incapacitated here — free, permanent, a -40 mood hit  
+✎ The Mulligan Potion's Use button was missing from the sheet; it's back
+
 ## 2026-09-13 · Black Robes no longer cost a Move to craft
 
 ✎ A Thanati can now put on their Black Robes for free -- no more spending a whole Routine just to dress for the rite
