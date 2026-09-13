@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ATE_MEAL_SLUG, FAST_METABOLISM_SLUG, HUNGERLESS_SLUG } from "@lifeweb/db/lib/constants";
+import {
+  ATE_MEAL_SLUG,
+  FAST_METABOLISM_SLUG,
+  HORSE_UPKEEP_COST,
+  HUNGERLESS_SLUG,
+  UPKEEP_SLUGS,
+} from "@lifeweb/db/lib/constants";
 import { chainTokens } from "@/lib/tagChains";
 import ChipText from "./ChipText";
 
@@ -10,7 +16,8 @@ import ChipText from "./ChipText";
 // you arrive at the end of, and whether there is dinner. Every item is derived
 // from what the sheet already loaded — nothing here is a second opinion, only
 // the turn passes read forward one step (db/lib/tagExpiryPass.js,
-// hungerPass.js, craft and structure passes, locationTravel.js).
+// hungerPass.js, horseUpkeepPass.js, craft and structure passes,
+// locationTravel.js).
 //
 // The items read INLINE, separated by · rather than one to a line. As a list
 // four short clauses made the box taller than the turn card beside it, for
@@ -68,13 +75,34 @@ export default function TurnForecast({
   }
 
 
+  // The horse's feed (and every other UPKEEP_SLUGS animal, e.g. the
+  // Arelitz), the way horseUpkeepPass.js settles it: 1 ⬢ per species held,
+  // billed separately — read straight off the same list the real pass uses,
+  // so a future addition to UPKEEP_SLUGS shows up here with no second edit.
+  const held = new Set(tags.map((ct) => ct.tag?.slug));
+  const heldUpkeepCount = UPKEEP_SLUGS.filter((slug) => held.has(slug)).length;
+  const horseCost = heldUpkeepCount * HORSE_UPKEEP_COST;
+
   // Dinner, the way db/lib/hungerPass.js settles it: Hungerless owes nothing,
   // a meal already eaten covers it, otherwise the flat 1 ⬢ (2 with Fast
-  // Metabolism) — and under the full cost you pay nothing and go Hungry.
-  const held = new Set(tags.map((ct) => ct.tag?.slug));
+  // Metabolism) — and under the full cost you pay nothing and go Hungry. The
+  // horse's feed is billed before Hunger (TURN-ENGINE.md §7d) so it folds
+  // into the same total here.
   if (!held.has(HUNGERLESS_SLUG) && !held.has(ATE_MEAL_SLUG)) {
-    const cost = held.has(FAST_METABOLISM_SLUG) ? 2 : 1;
-    items.push(<span key="dinner">{resources >= cost ? `You'll consume ${cost} ⬢` : "You'll go hungry"}</span>);
+    const dinnerCost = held.has(FAST_METABOLISM_SLUG) ? 2 : 1;
+    const totalCost = horseCost + dinnerCost;
+    items.push(
+      <span key="dinner">{resources >= totalCost ? `You'll consume ${totalCost} ⬢` : "You'll go hungry"}</span>,
+    );
+  } else if (horseCost > 0) {
+    // Hungerless, or already fed — Dinner is skipped, but the horse still eats.
+    items.push(
+      <span key="horse-upkeep">
+        {resources >= horseCost
+          ? `Your ${heldUpkeepCount > 1 ? "animals" : "animal"} will consume ${horseCost} ⬢`
+          : "You can't feed your animal"}
+      </span>,
+    );
   }
 
   if (items.length === 0) return null;
