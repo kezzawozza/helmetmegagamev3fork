@@ -174,7 +174,19 @@ export default function ChatAside({
           />
         )}
 
-        {openTab === "travel" && <TravelNodes onDone={say} pick={travelPick} />}
+        {openTab === "travel" && (
+          <>
+            <TravelNodes onDone={say} pick={travelPick} />
+            {/* What the move said back — the same line the Place tab draws
+                above, here because this is the tab the Go was pressed on:
+                "that crossing spent your Move", the push on's die. */}
+            {notice && (
+              <div className="chat-quiet-line">
+                <ChatMarkdown content={notice} />
+              </div>
+            )}
+          </>
+        )}
 
         {openTab === "you" && (
           <YouPanel
