@@ -277,6 +277,10 @@ import { propagateDynastyLastName } from "@/lib/dynasty";
 // The one generic rejection text a hidden Desire and a nonexistent/retired
 // one both answer with, so the wording itself can't be an oracle (DESIRES §5).
 const DESIRE_NOT_AVAILABLE = "That Desire isn't available to you.";
+// How they pulled it off, required on every player claim (DESIRES.md §8).
+// The cap is MAX_REASON_LENGTH rather than a second 500 sitting here: the
+// dialog's textarea is capped by the same constant, and a server limit that
+// drifted below the one the box lets you type would truncate mid-sentence.
 
 // `needs` is a capability from db/lib/incapacitation.js — pass ACT and the
 // action refuses for anyone Bound, Dying, Paralyzed, Catatonic, mid-Seizure
@@ -5147,11 +5151,15 @@ async function harmCharacterRequestImpl({
 async function claimDesireImpl({
   slotIndex: rawSlotIndex,
   slug: rawSlug,
+  reason: rawReason,
 }) {
   const { session, character } = await requireCharacter();
 
   const slug = rawSlug?.toString().trim();
   if (!slug) throw new UserError(DESIRE_NOT_AVAILABLE);
+
+  const reason = rawReason?.toString().trim().slice(0, MAX_REASON_LENGTH);
+  if (!reason) throw new UserError("Say how you pulled it off.");
 
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
@@ -5262,6 +5270,7 @@ async function claimDesireImpl({
         status: "FULFILLED",
         setTurnNumber: openTurn?.number ?? null,
         endedTurnNumber: openTurn?.number ?? null,
+        reason,
       },
     });
     await tx.character.update({
@@ -5279,6 +5288,7 @@ async function claimDesireImpl({
         pointsAwarded: row.points,
         slug: template.slug,
         slotIndex,
+        reason,
       },
     });
     return row;

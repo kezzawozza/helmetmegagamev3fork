@@ -161,6 +161,7 @@ export default function DesirePanel({
         title="Claim Desire"
         submitLabel="Claim"
         busy={pending}
+        reasonRequired
         onCancel={() => !pending && setClaiming(null)}
         onConfirm={submitClaim}
       >
@@ -170,6 +171,9 @@ export default function DesirePanel({
         </p>
         <p className="text-xs text-muted">
           You get the points immediately, but tell the GMs how you pulled it off.
+        </p>
+        <p className="text-xs text-muted">
+          A scene staged only to claim this doesn&apos;t count — write what actually happened.
         </p>
       </RequestDialog>
     </div>
