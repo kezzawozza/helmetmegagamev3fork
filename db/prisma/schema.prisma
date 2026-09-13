@@ -4195,6 +4195,15 @@ model Offer {
   @@index([teacherActionId])
 }
 
+// Which stack a PendingTax row moves. An obol is one ⬢ (DEPOT.md), but it is
+// a physical Tag stack rather than a balance column, so taxPass.js has to
+// take it off a CharacterTag row instead of running it through
+// resourceTransfer.js's applyTransfer.
+enum PendingTaxKind {
+  RESOURCES
+  OBOL
+}
+
 // A tax filed by a faction's Leader or Treasurer against a member standing in
 // their zone (docs/systemdocs/TAGS.md, the Taxman tag). OPT-OUT, which is why
 // this is not an Offer: an Offer does nothing until ACCEPTED, this moves ⬢
@@ -4217,6 +4226,12 @@ model PendingTax {
   factionId String
   taxerRole String
   amount    Int
+  // Which stack `amount` (and paidAmount/appliedAmount) counts against —
+  // Resources or physical Obols. A row is always single-currency: taxing
+  // both off one target files two rows, same as everywhere else two things
+  // move together (FACTIONS.md, resourceTransfer.js's own ⬢-only shape).
+  // Defaulted for the rows filed before Obols were taxable.
+  kind PendingTaxKind @default(RESOURCES)
 
   // Set by the Refuse button (db/lib/tax.js#refuseTax). The pass's own claim
   // re-checks this, so a refusal landing between the read and the close still

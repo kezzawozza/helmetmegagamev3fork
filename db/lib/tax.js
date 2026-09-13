@@ -10,11 +10,18 @@ const { DM_ACTION, dmAction } = require("./dmActions");
 const PENDING_TAX_DECLINE_PREFIX = "tax-decline:";
 const PENDING_TAX_PARTIAL_PREFIX = "tax-partial:";
 
-// Bascinet's words, verbatim.
-function taxDmText({ taxerName, taxerRole, amount }) {
+// What the amount reads as, for the DM and the "you pay" line — the only two
+// places a filed tax's currency turns into words. Obols get no glyph (they
+// aren't the resources ledger — DEPOT.md), just the plain word.
+function taxUnit(kind, amount) {
+  return kind === "OBOL" ? `${amount} obol${amount === 1 ? "" : "s"}` : `${amount} ⬢`;
+}
+
+// Bascinet's words, verbatim, with the currency swapped in.
+function taxDmText({ taxerName, taxerRole, amount, kind }) {
   return (
     `You were taxed by ${taxerName}, the ${taxerRole}. You may refuse.\n` +
-    `-# You are being taxed for ${amount} ⬢. The tax will land at the end of the turn.`
+    `-# You are being taxed for ${taxUnit(kind, amount)}. The tax will land at the end of the turn.`
   );
 }
 
@@ -37,13 +44,16 @@ function taxDeclineComponents(pendingTaxId) {
 // tax_filed AuditLog row per target (a straight record, not a cooldown clock
 // — the cooldown is tax_refused, written only on decline).
 //
-// `targets` is [{ id, discordUserId, name, amount }], already validated and
-// clamped by the caller (taxRequestImpl re-derives the roster server-side —
-// see requestActions.js). Returns the DM payloads for the caller's after().
+// `targets` is [{ id, discordUserId, name, amount, kind }], already validated
+// and clamped by the caller (taxRequestImpl re-derives the roster
+// server-side — see requestActions.js). `kind` defaults to "RESOURCES" for a
+// caller that never heard of Obols. Returns the DM payloads for the caller's
+// after().
 async function fileTax(prisma, { taxer, taxerRole, turn, targets }) {
   const rows = [];
   await prisma.$transaction(async (tx) => {
     for (const target of targets) {
+      const kind = target.kind ?? "RESOURCES";
       const row = await tx.pendingTax.create({
         data: {
           turnId: turn.id,
@@ -52,6 +62,7 @@ async function fileTax(prisma, { taxer, taxerRole, turn, targets }) {
           factionId: taxer.factionId,
           taxerRole,
           amount: target.amount,
+          kind,
         },
       });
       await tx.auditLog.create({
@@ -60,7 +71,7 @@ async function fileTax(prisma, { taxer, taxerRole, turn, targets }) {
           actionType: "tax_filed",
           targetCharacterId: target.id,
           turnId: turn.id,
-          details: { amount: target.amount, factionId: taxer.factionId, taxerRole, pendingTaxId: row.id },
+          details: { amount: target.amount, kind, factionId: taxer.factionId, taxerRole, pendingTaxId: row.id },
         },
       });
       rows.push(row);
@@ -73,7 +84,7 @@ async function fileTax(prisma, { taxer, taxerRole, turn, targets }) {
       if (!target?.discordUserId) return null;
       return {
         discordUserId: target.discordUserId,
-        content: taxDmText({ taxerName: taxer.name, taxerRole, amount: row.amount }),
+        content: taxDmText({ taxerName: taxer.name, taxerRole, amount: row.amount, kind: row.kind }),
         components: taxDeclineComponents(row.id),
         meta: dmAction(DM_ACTION.PENDING_TAX, row.id),
       };
@@ -142,7 +153,7 @@ async function payPartialTax(prisma, { pendingTaxId, discordUserId, amount }) {
   if (claim.count === 0) return { ok: false, reason: GONE };
 
   await writeRefusalAudit(prisma, row, discordUserId, { paidAmount: paid });
-  return { ok: true, line: `You pay ${paid} ⬢.` };
+  return { ok: true, line: `You pay ${taxUnit(row.kind, paid)}.` };
 }
 
 async function refuseTax(prisma, { pendingTaxId, discordUserId }) {

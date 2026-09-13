@@ -285,6 +285,12 @@ sees what each member is holding — on `/faction`'s roster and on the bot's �
 inspect embed. Absent, never masked. `getMyFactionRole` only ever answers for
 the viewer's own faction; there is no ancestor walk.
 
+**Obols get the same officer-only column, on `/faction`'s roster only.** An
+obol is physically a `Tag` stack rather than a balance column (`DEPOT.md`),
+so it is read off the member's `CharacterTag` row for the `obol` slug instead
+of a field on `Character` — see `web/lib/factionView.js`. The bot's 🔍 inspect
+embed is unchanged; it has never carried per-tag quantities at all.
+
 One more thing the player roster shows that fate never is: a **Catatonic**
 chip next to an AFK member's name. Death stays hidden there on purpose, but
 Catatonic is a visible tag whose entire job is telling the faction a player is
@@ -296,12 +302,13 @@ doesn't distinguish the two.
 
 `/faction` is a tabbed console (`web/app/components/FactionConsole.js`),
 copying `DepotConsole.js`: a status strip that never leaves the screen —
-name, silo, silo ⬢, member count, Leader, pending count — and tabs under it.
+name, silo, silo ⬢ and obols, member count, Leader, pending count — and tabs
+under it.
 
 | Tab | Who sees it | What it does |
 |---|---|---|
-| Roster | everyone | The members table of §5. Officers also get Treasurer and Remove. |
-| Silo | everyone | Contents, the deposit/withdraw rules, and for officers a Change silo picker. |
+| Roster | everyone | The members table of §5. Officers also see each member's Obols beside their Resources, and get Treasurer and Remove. |
+| Silo | everyone | Contents (including any obols banked, same withholding rule as the ⬢ figure), the deposit/withdraw rules, and for officers a Change silo picker. |
 | Applications | officers | Two lists — people asking to join, invitations sent — each Accept/Decline. |
 | Standing | everyone | Parent and subjects, your own pending handshakes, Rename, Secede, Leave. |
 

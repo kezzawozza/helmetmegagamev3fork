@@ -31,6 +31,7 @@ export default function TaxDialog({ mode, onDone, onClose }) {
   const { roster, loading } = useRoster(["tax"]);
   const tax = roster?.tax ?? { canTax: false, members: [], rooms: [] };
   const [picks, setPicks] = useState({});
+  const [obolPicks, setObolPicks] = useState({});
   const { submit, busy, error } = useSubmit();
 
   const actionable = tax.members.filter((m) => m.sameZone && !m.lockedOut);
@@ -43,13 +44,24 @@ export default function TaxDialog({ mode, onDone, onClose }) {
     max: m.resources,
     note: [m.roleTitle, m.catatonic ? "catatonic" : null].filter(Boolean).join(" · ") || null,
   }));
+  // Obols are a separate stack (a physical Tag, not the ⬢ balance — DEPOT.md),
+  // so they get their own StackPicker rather than sharing rows with Resources.
+  const obolRows = actionable.map((m) => ({
+    id: m.id,
+    name: m.name,
+    held: m.obols,
+    max: m.obols,
+    note: [m.roleTitle, m.catatonic ? "catatonic" : null].filter(Boolean).join(" · ") || null,
+  }));
 
   const lines = pickedLines(picks).filter((l) => rows.some((r) => r.id === l.tagId));
+  const obolLines = pickedLines(obolPicks).filter((l) => obolRows.some((r) => r.id === l.tagId));
 
   function onSubmit() {
     const submitPicks = Object.fromEntries(lines.map((l) => [l.tagId, String(l.quantity)]));
+    const submitObolPicks = Object.fromEntries(obolLines.map((l) => [l.tagId, String(l.quantity)]));
     submit(
-      () => taxRequest({ picks: submitPicks }),
+      () => taxRequest({ picks: submitPicks, obolPicks: submitObolPicks }),
       (res) => onDone(noticeLine(mode, res)),
     );
   }
@@ -69,7 +81,7 @@ export default function TaxDialog({ mode, onDone, onClose }) {
             ? "Nobody in your faction to tax."
             : null
       }
-      canSubmit={lines.length > 0}
+      canSubmit={lines.length > 0 || obolLines.length > 0}
       onClose={onClose}
       onSubmit={onSubmit}
     >
@@ -85,18 +97,35 @@ export default function TaxDialog({ mode, onDone, onClose }) {
         />
       </div>
 
+      <div className="panel flex flex-col gap-3 p-3">
+        <span className="field-label">Obols</span>
+        <StackPicker
+          rows={obolRows}
+          picks={obolPicks}
+          onChange={setObolPicks}
+          emptyLabel="Nobody in your zone is carrying any."
+        />
+      </div>
+
       {tax.filed?.length > 0 && (
         <div className="panel flex flex-col gap-2 p-3">
           <span className="field-label">This turn</span>
-          {tax.filed.map((f) => (
-            <p key={f.id} className="text-sm text-muted flex justify-between gap-2">
-              <span>{f.name}</span>
-              <span className="mono">
-                {f.amount} ⬢ ·{" "}
-                {f.status === "refused" ? "Refused" : f.status === "partial" ? `Partial (${f.paidAmount} ⬢)` : "Pending"}
-              </span>
-            </p>
-          ))}
+          {tax.filed.map((f) => {
+            const unit = f.kind === "OBOL" ? "obols" : "⬢";
+            return (
+              <p key={f.id} className="text-sm text-muted flex justify-between gap-2">
+                <span>{f.name}</span>
+                <span className="mono">
+                  {f.amount} {unit} ·{" "}
+                  {f.status === "refused"
+                    ? "Refused"
+                    : f.status === "partial"
+                      ? `Partial (${f.paidAmount} ${unit})`
+                      : "Pending"}
+                </span>
+              </p>
+            );
+          })}
         </div>
       )}
 
@@ -107,7 +136,7 @@ export default function TaxDialog({ mode, onDone, onClose }) {
             <p key={m.id} className="text-sm text-muted flex justify-between gap-2">
               <span>{m.name}</span>
               <span className="mono">
-                {m.resources} ⬢{reasonFor(m) ? ` · ${reasonFor(m)}` : ""}
+                {m.resources} ⬢ · {m.obols} obols{reasonFor(m) ? ` · ${reasonFor(m)}` : ""}
               </span>
             </p>
           ))}

@@ -71,6 +71,7 @@ function RosterTab({ faction, isOfficer, isLeader, meId, run, pending }) {
             <th>Name</th>
             <th>Role</th>
             {isOfficer && <th>Resources</th>}
+            {isOfficer && <th>Obols</th>}
             {isOfficer && <th />}
           </tr>
         </thead>
@@ -90,6 +91,7 @@ function RosterTab({ faction, isOfficer, isLeader, meId, run, pending }) {
               </td>
               <td>{c.roleTitle ?? "—"}</td>
               {isOfficer && <td className="mono">{c.resources} ⬢</td>}
+              {isOfficer && <td className="mono">{c.obols}</td>}
               {isOfficer && (
                 // The flex goes on a wrapper, never on the <td>. A cell made
                 // into a flex container drops out of the row's layout, so its
@@ -131,7 +133,7 @@ function RosterTab({ faction, isOfficer, isLeader, meId, run, pending }) {
               )}
             </tr>
           ))}
-          {faction.members.length === 0 && <EmptyRow cols={isOfficer ? 4 : 2}>Nobody yet.</EmptyRow>}
+          {faction.members.length === 0 && <EmptyRow cols={isOfficer ? 5 : 2}>Nobody yet.</EmptyRow>}
         </tbody>
       </table>
     </section>
@@ -149,7 +151,7 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
     return (
       <section className="panel p-4 flex flex-col gap-3">
         <EmptyState>
-          Where {faction.name} keeps its Resources.
+          Where {faction.name} keeps its Resources and its Obols.
         </EmptyState>
         {isOfficer && (
           <div>
@@ -169,7 +171,9 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
         <h2 className="panel-header">
           {silo.name} <span className="text-muted">· {silo.locationName}</span>
         </h2>
-        <span className="mono">{silo.resources == null ? "—" : `${silo.resources} ⬢`}</span>
+        <span className="mono">
+          {silo.resources == null ? "—" : `${silo.resources} ⬢ · ${silo.obols} obols`}
+        </span>
       </div>
 
       {/* The two things a member has to be told, in priority order. */}
@@ -820,7 +824,7 @@ export default function FactionConsole(props) {
         <div className="console-strip-head">
           <span className="console-title">{faction.name}</span>
           <span className="mono console-figure">
-            {!silo ? "no silo" : silo.resources == null ? "locked" : `${silo.resources} ⬢`}
+            {!silo ? "no silo" : silo.resources == null ? "locked" : `${silo.resources} ⬢ · ${silo.obols} obols`}
           </span>
         </div>
         <div className="console-strip-stats">
