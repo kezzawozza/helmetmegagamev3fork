@@ -65,6 +65,11 @@ const INCAPACITATING_SLUGS = new Set(
 // seizure/unconscious don't become a death sentence.
 const FINISHABLE_SLUGS = new Set(["dying", "bound"]);
 
+// The narrower gate on a GAMBIT Move (db/lib/moves.js#fileMove): only being truly out of it stops a
+// long shot. Bound, Crucified and Catatonic can still try something — Bascinet's ruling. Routine and
+// Labor keep the full ACT gate; every other action does too.
+const GAMBIT_BLOCKING_SLUGS = new Set(["unconscious", "paralyzed", "seizure", "dying"]);
+
 // Accepts CharacterTag[] ({ tag: { slug } }) or a bare Tag[], matching db/lib/examineVision.js#slugSet.
 function slugSet(characterTags) {
   return new Set((characterTags ?? []).map((ct) => ct?.tag?.slug ?? ct?.slug).filter(Boolean));
@@ -78,6 +83,15 @@ function blockerFor(characterTags, capability) {
     if (!expandCaps(caps).includes(capability) || !held.has(slug)) continue;
     const match = (characterTags ?? []).find((ct) => (ct?.tag?.slug ?? ct?.slug) === slug);
     return { slug, name: match?.tag?.name ?? match?.name ?? slug };
+  }
+  return null;
+}
+
+// blockerFor's shape, for a Gambit: { slug, name } of the first GAMBIT_BLOCKING_SLUGS tag held, or null.
+function gambitBlockerFor(characterTags) {
+  for (const ct of characterTags ?? []) {
+    const slug = ct?.tag?.slug ?? ct?.slug;
+    if (GAMBIT_BLOCKING_SLUGS.has(slug)) return { slug, name: ct?.tag?.name ?? ct?.name ?? slug };
   }
   return null;
 }
@@ -98,6 +112,8 @@ module.exports = {
   RESTRICTIONS,
   INCAPACITATING_SLUGS,
   FINISHABLE_SLUGS,
+  GAMBIT_BLOCKING_SLUGS,
   blockerFor,
+  gambitBlockerFor,
   slugsBlocking,
 };

@@ -172,7 +172,9 @@ ROUTINE already PASSED — the same shape Torture uses, and for the same
 reason: it resolves the moment it's pressed, so a real GAMBIT row would have
 the turn-end push announce the same die a second time. No confirm dialog
 either (`web/components/actions/index.js`'s `INSTANT` table) — the tooltip
-already says what pressing it does.
+already says what pressing it does. A Bound character may also file an
+ordinary Gambit (`db/lib/moves.js`), so each turn it is one or the other: the
+two share the one Move.
 
 **The clock**: `Character.boundSinceTurnNumber`, stamped with `turn.number`
 by `applyBind` the moment `bound` is freshly granted (not on a re-bind of

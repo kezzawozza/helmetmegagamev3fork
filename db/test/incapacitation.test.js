@@ -5,6 +5,7 @@ const {
   SPEAK,
   SHOUT,
   blockerFor,
+  gambitBlockerFor,
   slugsBlocking,
 } = require("../lib/incapacitation");
 
@@ -59,6 +60,19 @@ test("VOICE_SLUGS gets the superset it is built from", () => {
   assert.ok(shout.includes("paralyzed"));
   assert.ok(shout.includes("unconscious"));
   assert.ok(shout.includes("seizure"));
+});
+
+test("a Gambit is stopped only by being out of it", () => {
+  // Bascinet's ruling: tied up, nailed up or away can still take a long shot.
+  for (const slug of ["bound", "crucified", "catatonic-afk"]) {
+    assert.equal(gambitBlockerFor(held(slug)), null, slug);
+    assert.equal(blockerFor(held(slug), ACT)?.slug, slug, `${slug} still blocks everything else`);
+  }
+  for (const slug of ["unconscious", "paralyzed", "seizure", "dying"]) {
+    assert.equal(gambitBlockerFor(held(slug))?.slug, slug);
+  }
+  assert.equal(gambitBlockerFor([{ tag: { slug: "dying", name: "Dying" } }])?.name, "Dying");
+  assert.equal(gambitBlockerFor(held("bound", "unconscious"))?.slug, "unconscious");
 });
 
 test("SPEAK is a deliberately empty column", () => {

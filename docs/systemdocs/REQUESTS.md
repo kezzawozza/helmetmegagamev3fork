@@ -970,6 +970,9 @@ makes) and **Waiting on you** — the Accept/Decline for a pending offer, a
 threat spawn or a lobby seat, calling the same `db/lib` functions the DM's
 buttons call. Neither files an `Action` twice: `fileMove` is guarded by
 `@@unique([characterId, turnId])`, and the rest write no Move at all.
+`fileMove` refuses a Routine or Labor for anyone who can't `ACT`, but a
+**Gambit** only for `GAMBIT_BLOCKING_SLUGS` (Unconscious, Paralyzed, Seizure,
+Dying) — someone Bound, Crucified or Catatonic can still file one.
 
 One consequence worth knowing: `CharacterSheet#groupTagsByCategory` now groups
 the **`CharacterTag` rows**, not the bare `Tag`s. The wrapper carries

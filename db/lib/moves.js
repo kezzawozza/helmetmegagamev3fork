@@ -3,7 +3,7 @@
 // A filed Move is FINAL — you get one Move and it stands. Only a GM changes a filed Move, from /gm/dev. Old `move_edited` rows stay in the audit log.
 const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
-const { blockerFor, ACT } = require("./incapacitation");
+const { blockerFor, gambitBlockerFor, ACT } = require("./incapacitation");
 const { resolveLaborRate } = require("./laborAccess");
 const { touchCharacterActivity } = require("./characterActivity");
 
@@ -35,11 +35,12 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
   }
 
   // The same gate every other action runs (db/lib/incapacitation.js). Checked after the already-acted test so a refusal costs nothing, and before the Action row so a refused Move never lands on the desk.
+  // A Gambit gets the narrower gate: Bound, Crucified or Catatonic can still take a long shot; only Unconscious, Paralyzed, Seizure or Dying stop one.
   const heldTags = await prisma.characterTag.findMany({
     where: { characterId: character.id },
     select: { tag: { select: { slug: true, name: true } } },
   });
-  const stuck = blockerFor(heldTags, ACT);
+  const stuck = moveKind === "GAMBIT" ? gambitBlockerFor(heldTags) : blockerFor(heldTags, ACT);
   if (stuck) {
     return { ok: false, error: `You can't act right now — you're ${stuck.name}. Nothing was recorded.` };
   }

@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Bound characters can take a Gambit
+
+✎ Bound, Crucified and Catatonic characters can file a Gambit now; only Unconscious, Paralyzed, Seizure and Dying stop one  
+✎ Routine and Labor are still off-limits while tied up  
+✎ A Gambit and Break Free share the one Move each turn
+
 ## 2026-09-14 · Learn and Teach no longer show other people's skills
 
 ✎ Learn Skill lists everyone here and the skills you could learn; Teach lists everyone here and the skills you know. Nobody's sheet is shown  
