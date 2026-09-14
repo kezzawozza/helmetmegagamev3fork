@@ -81,9 +81,8 @@ export const ACTION_HELP = {
     "Use something up. You can also just click on the tag on your sheet.",
   poison:
     "Lace a meal or drink you're holding, dose someone that's helpless, or drink it yourself.",
-  // [PLAYER TEXT — Bascinet to rewrite]
   learn:
-    "Learning a skill is a Gambit. Anyone can teach you something they know; a trained teacher makes it easier.",
+    "Learning a skill is a Gambit. Teachers with the Teaching skill are better at it.",
   teach:
     "Offer to teach a skill you have. It takes your whole turn unless you hold Teaching.",
   confess:

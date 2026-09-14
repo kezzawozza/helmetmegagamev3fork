@@ -26,7 +26,7 @@ const VERBS = {
     empty: "Nobody here can teach you anything right now.",
     people: (p) => p.teachers ?? [],
     choices: (partner) => partner.skills ?? [],
-    // [PLAYER TEXT — Bascinet to rewrite]
+    // Learning is always the student's Gambit, so a spent Move always stops it.
     note: (p) => (p.hasMoved ? "You've already used your Move this turn." : null),
     run: (partnerId, tagId) => learnRequest({ teacherId: partnerId, tagId }),
   },
@@ -39,10 +39,9 @@ const VERBS = {
     people: (p) => p.learners ?? [],
     choices: (partner) => partner.skills ?? [],
     // Teaching is free for a tag holder, so a spent Move only stops the rest.
-    // [PLAYER TEXT — Bascinet to rewrite]
     note: (p) =>
       !p.teachCostsMove
-        ? "Teaching costs you no Move."
+        ? "Teaching is free."
         : p.hasMoved
           ? "You've already used your Move this turn."
           : "Teaching someone takes your whole turn.",
