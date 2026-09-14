@@ -279,6 +279,19 @@ mount at the door. On arrival somewhere that counts,
 message says so in its own `-#` line, written by `syncZones` and hashed with
 the rest of the body, so it appears once and never again.
 
+The return leg is opt-in. A character whose sheet has **Automatically ride
+my mount** on (`Character.autoMount`, off by default) takes the road kit
+back up on arrival anywhere `parksMounts` says a mount may be out:
+`db/lib/indoors.js#takeUpMountsOutdoors`, called from the same spot in
+`applyLocationMoveSideEffects` that parks, and only when the MOUNT slot is
+empty — a boat or an Ovum already out is left alone. It picks the fastest
+stowed ridden mount (Thoroughbred, Warbeast, Horse, Motorcycle, in that
+order) plus the Cart, honours the ACT blocker and Motion Sickness the way
+`equipOne` does, fires only on a real arrival (never a Resync, a Revive or a
+first placement), and skips the arrival that just dismounted for an
+`on_foot` way. Silent: no DM, the sheet shows what's out. Upkeep is charged
+on tags held, not equipped, so it costs nobody ⬢.
+
 **`wheels: true` is the exception, and it is authored.** `indoors` was
 answering two questions with one column — is there a roof over this place (the
 mood dial, Sun Sensitivity, whether a palisade can be raised in it) and do

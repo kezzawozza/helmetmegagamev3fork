@@ -2121,6 +2121,10 @@ model Character {
   appearance    String?
   turnPingOptIn Boolean @default(true)
 
+  // Take the road kit back up on arrival anywhere a mount may be out
+  // (db/lib/indoors.js#takeUpMountsOutdoors). Off by default: opt-in.
+  autoMount     Boolean @default(false)
+
   // "Play from the web" (docs/systemdocs/HALL.md §6). While it is on, this
   // player's Discord account holds NO game access at all — no Location
   // overwrite, no zone role, no room or conversation thread — so standing
