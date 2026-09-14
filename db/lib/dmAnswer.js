@@ -56,21 +56,31 @@ async function afterBind(prisma, boundId) {
   return out;
 }
 
+// The one place an offer's kind picks its accept. The web's "waiting on you"
+// list calls this too — it used to keep its own copy, which had no ESCORT or
+// KISS branch and so ran a ride offer through acceptLesson.
+function acceptOffer(prisma, offer, responder) {
+  switch (offer.kind) {
+    case "BIND":
+      return acceptBind(prisma, offer, responder);
+    case "CONFESSION":
+      return acceptConfession(prisma, offer, responder);
+    case "ESCORT":
+      return acceptEscort(prisma, offer, responder);
+    case "KISS":
+      return acceptKiss(prisma, offer, responder);
+    default:
+      return acceptLesson(prisma, offer, responder);
+  }
+}
+
 async function answerOffer(prisma, { id, discordUserId, choice }) {
   const { offer, responder, problem } = await loadOfferFor(prisma, id, discordUserId);
   if (problem) return { ok: false, line: problem, ...empty() };
 
   const accepting = choice === DM_CHOICE.ACCEPT;
   const result = accepting
-    ? offer.kind === "BIND"
-      ? await acceptBind(prisma, offer, responder)
-      : offer.kind === "CONFESSION"
-        ? await acceptConfession(prisma, offer, responder)
-        : offer.kind === "ESCORT"
-          ? await acceptEscort(prisma, offer, responder)
-          : offer.kind === "KISS"
-            ? await acceptKiss(prisma, offer, responder)
-            : await acceptLesson(prisma, offer, responder)
+    ? await acceptOffer(prisma, offer, responder)
     : await declineOffer(prisma, offer, responder);
 
   const base = empty();
@@ -220,4 +230,5 @@ async function answerDmAction(prisma, { action, choice, discordUserId, amount })
 
 module.exports = {
   answerDmAction,
+  acceptOffer,
 };

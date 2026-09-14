@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Travel offers no longer read as lesson offers
+
+✎ An offer to take someone along showed up on the web as a lesson offer, for both people  
+✎ Accepting a travel or kiss offer from the web's waiting list could run it as a lesson; it now does the same thing as the DM buttons
+
 ## 2026-09-14 · Accepting a ride works again
 
 ✎ Accepting an offer to travel with someone failed with "Could not reach the server"; picking someone up to bring along failed the same way
