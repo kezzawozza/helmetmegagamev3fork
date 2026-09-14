@@ -14,6 +14,17 @@ function chainReachesDying(expiresInto) {
 }
 const STALLABLE_GROUP_SLUGS = new Set(["health-infection", "health-wounds"]);
 
+// Not every chain is a wound getting worse. Exhausted decays INTO Tired,
+// Migraine into No Migraine, Stitched and Cauterized into Scarred — the tag
+// on the right is the lighter one, and a DM headed "Something has taken a
+// turn for the worse" over "Exhausted → Tired" told a player the opposite of
+// what happened. A progression whose every successor is one of these is
+// announced as recovery instead. Keyed on the successor, like the rest of
+// this file's rules, rather than on a catalog flag the schema does not have.
+const RELIEF_SUCCESSOR_SLUGS = new Set(["tired", "no-migraine", "scarred"]);
+const WORSE_HEADER = "Something has taken a turn for the worse.";
+const BETTER_HEADER = "Your condition has improved.";
+
 async function runTagExpiryPass(prisma, turn) {
   const expiring = await prisma.characterTag.findMany({
     where: {
@@ -53,6 +64,9 @@ async function runTagExpiryPass(prisma, turn) {
   const successorBySlug = new Map(successors.map((t) => [t.slug, t]));
 
   const rows = [];
+  // characterId -> { discordUserId, worse: ["Infected → Festering", ...],
+  // better: ["Exhausted → Tired", ...] } — two lists, because the one DM
+  // each character gets heads them differently.
   const progressions = new Map();
   const missing = new Set();
   const stalledIds = [];
@@ -97,14 +111,17 @@ async function runTagExpiryPass(prisma, turn) {
         source: "EVENT",
         expiresTurn: expiryFrom(turn.number + 1, successor.defaultDurationTurns),
       });
-      gained.push(successor.name);
+      gained.push(successor);
     }
 
     if (gained.length === 0) continue;
     if (!progressions.has(ct.characterId)) {
-      progressions.set(ct.characterId, { discordUserId: ct.character.discordUserId, lines: [] });
+      progressions.set(ct.characterId, { discordUserId: ct.character.discordUserId, worse: [], better: [] });
     }
-    progressions.get(ct.characterId).lines.push(`${ct.tag.name} → ${gained.join(" and ")}`);
+    const relief = gained.every((t) => RELIEF_SUCCESSOR_SLUGS.has(t.slug));
+    progressions.get(ct.characterId)[relief ? "better" : "worse"].push(
+      `${ct.tag.name} → ${gained.map((t) => t.name).join(" and ")}`,
+    );
   }
 
   for (const slug of missing) {
@@ -159,8 +176,13 @@ async function runTagExpiryPass(prisma, turn) {
     .filter((p) => p.discordUserId)
     .map((p) => ({
       discordUserId: p.discordUserId,
-      // Bot-composed, so the » goes in at the call site rather than from sendDm — see CLAUDE.md's aura note.
-      content: ["Something has taken a turn for the worse.", ...p.lines.map((l) => `» ${l}`)].join("\n"),
+      // Bot-composed, so the » goes in at the call site rather than coming
+      // from sendDm — see CLAUDE.md's aura note. Worse first: a wound that
+      // deepened overnight outranks a night's sleep wearing off.
+      content: [
+        ...(p.worse.length ? [WORSE_HEADER, ...p.worse.map((l) => `» ${l}`)] : []),
+        ...(p.better.length ? [BETTER_HEADER, ...p.better.map((l) => `» ${l}`)] : []),
+      ].join("\n"),
     }));
 
   return {
