@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Only big gear shows when someone looks you over
+
+✎ Hoods, masks, helmets, robes, one-handed swords, the shortbow and small guns now only show while you have them on  
+✎ Mounts, heavy armour, shields, long weapons and banners still show either way
+
 ## 2026-09-14 · Breaking free is harder
 
 ✎ Break Restraints needs a 6 the turn you're tied up and a 5 or 6 the next; from the third turn it always works  

@@ -2093,24 +2093,25 @@ take the sack off their own head would not be much of a hostage.
 `equippable` **does** interact with `visible`, through its third state. A tag
 authored `visible: worn` is shown to a bystander's 🔍 only while
 `CharacterTag.equipped` is true — see §5 for the table and the throw. What
-gets it is a question about size, not secrecy: anything small enough to keep
-out of sight when you aren't using it.
+gets it is a question about size, not secrecy. **`worn` is the default for
+anything you can wear or hold**; only something too big to carry unnoticed is
+`true`. (Until 2026-09-14 this went the other way, and every sword, hood and
+robe in somebody's bag showed on a look.)
 
-- **`worn`** — the sidearms and short blades (Dagger, Silver Knife, Work
-  Knife, Knuckle Duster, Sling, Sword Cane, Bomb, and every pistol including
-  the Sawn-Off), armor that goes under clothes (Padded Armor, Brigandine), and
-  the small worn signals: Sheriff's Badge, Hand's Pin, Incarn's
-  Key, Bishop's Mitre, Headman's Cap, Esculap's Vest, Jewelry, Spectacles,
-  Radio Bracelet, Dark-Eye Lenses. The badges are the interesting half — an
-  officer can now go about unmarked, and displaying the thing is a choice,
-  which is what the Sheriff's Badge's own description always claimed. The
-  clubs and small tools join them: Cudgel, Truncheon, Sickle, Hatchet, Whip,
-  Disabler, Cracked Bone Club, Horseshoes, the Ordinator's Insignia and the
-  Scrying Eye.
-- **`true`** — everything you cannot hide by not holding it: swords,
-  polearms, bows, shields, plate, banners, the Baron's Scepter, the Power
-  Fist, the Flamethrower, and all the garb and robes. Carrying one reads the
-  same as wearing one.
+- **`worn`** — every hood, mask, hat, cap and helmet; all robes, garb, cloaks
+  and coats; every one-handed weapon (swords short of the Zweihander, maces,
+  axes, the War Hammer, clubs, the Whip, the Disabler, the Bomb); small guns
+  (every pistol, the Musketoon); the Shortbow and Javelin; the Buckler and
+  Energy Shield; the small worn signals (badges, pins, keys, Jewelry, the
+  Ordinator's Insignia, the Scrying Eye); armor that goes under clothes (Padded
+  Armor, Brigandine); and small tools (Prospector's Pick, Barbed Net,
+  Horseshoes). On you, it shows. In your bag, it doesn't.
+- **`true`** — only what you cannot hide by not holding it: mounts and carts,
+  the Shield and Pavise, armor from Light Infantry Armour up, long weapons
+  (spears, polearms, the Quarterstaff, Pitchfork, Longbow, Crossbow,
+  Zweihander, the rifles), banners, the Power Fist, Flamethrower and Chainsaw,
+  Trapping Gear and the Fishing Rod. Carrying one reads the same as wearing
+  one.
 - **`false`** — a small thing you carry with nothing to wear it on: the
   Instant Camera, every food and drink, every book and sheet of paper, and
   pocket gear (Rope, Rock, Gold Fleck, Badge, the Branding Iron, the Censer,

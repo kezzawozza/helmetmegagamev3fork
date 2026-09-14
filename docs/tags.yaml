@@ -6911,7 +6911,7 @@ tags:
     tradeable: true
     weight: 4
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -6951,7 +6951,7 @@ tags:
     tradeable: true
     weight: 3
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -9359,7 +9359,7 @@ tags:
     tradeable: true
     weight: 4
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -9597,7 +9597,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -9710,7 +9710,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -9765,7 +9765,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -9819,7 +9819,7 @@ tags:
     tradeable: true
     weight: 4
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -9848,7 +9848,7 @@ tags:
     tradeable: true
     weight: 4
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -9961,7 +9961,7 @@ tags:
     tradeable: true
     weight: 3
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -9990,7 +9990,7 @@ tags:
     tradeable: true
     weight: 5
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -10020,7 +10020,7 @@ tags:
     tradeable: true
     weight: 3.5
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -10048,7 +10048,7 @@ tags:
     tradeable: true
     weight: 2.5
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -10078,7 +10078,7 @@ tags:
     tradeable: true
     weight: 2.5
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -10104,7 +10104,7 @@ tags:
     tradeable: true
     weight: 2.5
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -10223,7 +10223,7 @@ tags:
     tradeable: true
     weight: 5
     stackable: true
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -10279,7 +10279,7 @@ tags:
     tradeable: true
     weight: 7
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -10332,7 +10332,7 @@ tags:
     tradeable: true
     weight: 4
     stackable: true
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -11518,7 +11518,7 @@ tags:
     tradeable: true
     weight: 3
     stackable: false
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
 
@@ -11531,7 +11531,7 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
-    visible: true
+    visible: worn
     tradeable: true
     weight: 3
     purchasable: false
@@ -11547,7 +11547,7 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    visible: true
+    visible: worn
     tradeable: true
     weight: 2
     purchasable: false
@@ -11563,7 +11563,7 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    visible: true
+    visible: worn
     tradeable: true
     weight: 3
     purchasable: false
@@ -11722,7 +11722,7 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 3
-    visible: true
+    visible: worn
     tradeable: true
     weight: 5
     purchasable: false
@@ -11738,7 +11738,7 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    visible: true
+    visible: worn
     tradeable: true
     weight: 3
     purchasable: false
@@ -13544,7 +13544,7 @@ tags:
     weight: 3
     equippable: true
     equipSlot: WEAPON
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
 
@@ -13563,7 +13563,7 @@ tags:
     weight: 3
     equippable: true
     equipSlot: WEAPON
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
 
@@ -14983,7 +14983,7 @@ tags:
     ballistic: 0.5
     concealsIdentity: true
     concealSprite: soulbreaker1
-    visible: true
+    visible: worn
     tradeable: true
     weight: 7
     purchasable: false
@@ -15004,7 +15004,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: cerberus
-    visible: true
+    visible: worn
     tradeable: true
     weight: 7
     purchasable: false
@@ -15025,7 +15025,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: hero0
-    visible: true
+    visible: worn
     tradeable: true
     weight: 7
     stackable: true
@@ -15055,7 +15055,7 @@ tags:
     ballistic: 0.28
     concealsIdentity: true
     concealSprite: fighterhelmet
-    visible: true
+    visible: worn
     tradeable: true
     weight: 6
     stackable: true
@@ -15087,7 +15087,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: tribhelm
-    visible: true
+    visible: worn
     tradeable: true
     weight: 6
     purchasable: false
@@ -15108,7 +15108,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: vietnamordinator
-    visible: true
+    visible: worn
     tradeable: true
     weight: 6
     purchasable: false
@@ -15129,7 +15129,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: tspacehelmet
-    visible: true
+    visible: worn
     tradeable: true
     weight: 8
     purchasable: false
@@ -15147,7 +15147,7 @@ tags:
     equipLayer: 2
     concealsIdentity: true
     concealSprite: pumpkin
-    visible: true
+    visible: worn
     tradeable: true
     weight: 8
     purchasable: false
@@ -15205,7 +15205,7 @@ tags:
     # `true`, not `worn`, and the description is the reason: the plain robes
     # only show when somebody is wearing them, but these glow, so an inspection
     # finds them in a sack too.
-    visible: true
+    visible: worn
     removable: false
     purchasable: false
     purchasableAfterStart: false
@@ -15244,7 +15244,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: plaguedoctor
-    visible: true
+    visible: worn
     tradeable: true
     weight: 1
     purchasable: false
@@ -15263,7 +15263,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: rat
-    visible: true
+    visible: worn
     tradeable: true
     weight: 1
     purchasable: false
@@ -15289,7 +15289,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: bone
-    visible: true
+    visible: worn
     tradeable: true
     weight: 1.5
     purchasable: false
@@ -15327,7 +15327,7 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 1
-    visible: true
+    visible: worn
     tradeable: true
     weight: 1
     stackable: true
@@ -15356,7 +15356,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: balaclava
-    visible: true
+    visible: worn
     tradeable: true
     weight: 0.3
     purchasable: false
@@ -15375,7 +15375,7 @@ tags:
     equippable: true
     equipSlot: HEAD
     equipLayer: 3
-    visible: true
+    visible: worn
     tradeable: true
     weight: 1
     stackable: true
@@ -15404,7 +15404,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: hood
-    visible: true
+    visible: worn
     tradeable: true
     weight: 0.5
     purchasable: false
@@ -15428,7 +15428,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: bag
-    visible: true
+    visible: worn
     tradeable: true
     weight: 0.3
     purchasable: false
@@ -15452,7 +15452,7 @@ tags:
     equipLayer: 3
     concealsIdentity: true
     concealSprite: plebhood
-    visible: true
+    visible: worn
     tradeable: true
     weight: 0.5
     purchasable: true
@@ -15471,7 +15471,7 @@ tags:
     equipLayer: 3
     concealsIdentity: true
     concealSprite: leper
-    visible: true
+    visible: worn
     tradeable: true
     weight: 0.5
     purchasable: true
@@ -15489,7 +15489,7 @@ tags:
     equipLayer: 1
     melee: 0.25
     ballistic: 0.05
-    visible: true
+    visible: worn
     tradeable: true
     weight: 1
     stackable: true
@@ -15519,7 +15519,7 @@ tags:
     ballistic: 0.05
     concealsIdentity: true
     concealSprite: hauberkhood
-    visible: true
+    visible: worn
     tradeable: true
     weight: 4
     stackable: true
@@ -15551,7 +15551,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
 
@@ -15569,7 +15569,7 @@ tags:
     ballistic: 0.1
     concealsIdentity: true
     concealSprite: paladin1
-    visible: true
+    visible: worn
     tradeable: true
     weight: 4
     stackable: true
@@ -15600,7 +15600,7 @@ tags:
     equipLayer: 2
     melee: 0.35
     ballistic: 0.1
-    visible: true
+    visible: worn
     tradeable: true
     weight: 4
     purchasable: true
@@ -15624,7 +15624,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: knight0
-    visible: true
+    visible: worn
     tradeable: true
     weight: 6
     stackable: true
@@ -15711,7 +15711,7 @@ tags:
     equipSlot: WEAPON
     melee: 0.25
     ballistic: 0.05
-    visible: true
+    visible: worn
     tradeable: true
     weight: 3
     stackable: true
@@ -15801,7 +15801,7 @@ tags:
     equipLayer: 3
     melee: 0.2
     ballistic: 0.1
-    visible: true
+    visible: worn
     tradeable: true
     weight: 8
     stackable: true
@@ -15994,7 +15994,7 @@ tags:
     equipSlot: WEAPON
     melee: 0.7
     ballistic: 0.95
-    visible: true
+    visible: worn
     tradeable: true
     weight: 2
     purchasable: false
