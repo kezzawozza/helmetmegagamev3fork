@@ -2100,8 +2100,8 @@ robe in somebody's bag showed on a look.)
 
 - **`worn`** — every hood, mask, hat, cap and helmet; all robes, garb, cloaks
   and coats; every one-handed weapon (swords short of the Zweihander, maces,
-  axes, the War Hammer, clubs, the Whip, the Disabler, the Bomb); small guns
-  (every pistol, the Musketoon); the Shortbow and Javelin; the Buckler and
+  axes, the War Hammer, clubs, the Whip, the Disabler, the Bomb); every
+  pistol; the Shortbow and Javelin; the Buckler and
   Energy Shield; the small worn signals (badges, pins, keys, Jewelry, the
   Ordinator's Insignia, the Scrying Eye); armor that goes under clothes (Padded
   Armor, Brigandine); and small tools (Prospector's Pick, Barbed Net,
@@ -2109,7 +2109,7 @@ robe in somebody's bag showed on a look.)
 - **`true`** — only what you cannot hide by not holding it: mounts and carts,
   the Shield and Pavise, armor from Light Infantry Armour up, long weapons
   (spears, polearms, the Quarterstaff, Pitchfork, Longbow, Crossbow,
-  Zweihander, the rifles), banners, the Power Fist, Flamethrower and Chainsaw,
+  Zweihander, the Musketoon and the rifles), banners, the Power Fist, Flamethrower and Chainsaw,
   Trapping Gear and the Fishing Rod. Carrying one reads the same as wearing
   one.
 - **`false`** — a small thing you carry with nothing to wear it on: the

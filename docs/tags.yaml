@@ -10279,7 +10279,7 @@ tags:
     tradeable: true
     weight: 7
     stackable: true
-    visible: worn
+    visible: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true

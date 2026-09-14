@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · The musketoon always shows on a look
+
+✎ It is too big to hide in a bag
+
 ## 2026-09-14 · Only big gear shows when someone looks you over
 
 ✎ Hoods, masks, helmets, robes, one-handed swords, the shortbow and small guns now only show while you have them on  
