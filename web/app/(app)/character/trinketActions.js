@@ -38,7 +38,7 @@ import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { buildSkillAncestry, satisfiedSkillIds } from "@lifeweb/db/lib/medicalVision";
 import { cleanCustomText, CUSTOM_NAME_MAX, CUSTOM_DESCRIPTION_MAX } from "@/lib/customCraft";
-import { resolveIngredientSlots, resolveCraftPayer } from "./requestActions";
+import { resolveIngredientSlots, resolveCraftPayer } from "./actions/crafting";
 
 // The recipe's own numbers (TRINKETS.md §1), authored as constants here
 // rather than read off {tag:trinket}.requirement — see the file header for
@@ -122,7 +122,7 @@ async function trinketRequestImpl({ name, description, ingredientSlugs }) {
 
   // Trinket's OWN ingredient pool — every tag carrying `inlayValue`, never
   // `cooked` (that's cooking's separate pool; see the comment on
-  // resolveIngredientSlots in requestActions.js).
+  // resolveIngredientSlots in actions/crafting.js).
   const posted = (Array.isArray(ingredientSlugs) ? ingredientSlugs : [])
     .map((s) => (typeof s === "string" ? s.trim() : ""))
     .filter(Boolean);
