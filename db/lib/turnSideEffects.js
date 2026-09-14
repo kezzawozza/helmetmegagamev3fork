@@ -87,7 +87,6 @@ function buildSideEffectPayload(fields) {
     stagedDeaths: fields.stagedDeaths ?? [],
     hungerNotices: fields.hungerNotices ?? [],
     zoneMoves: fields.zoneMoves ?? [],
-    travelArrivals: fields.travelArrivals ?? [],
     xomDeaths: fields.xomDeaths ?? [],
     xomTeleports: fields.xomTeleports ?? [],
     xomConversations: fields.xomConversations ?? [],

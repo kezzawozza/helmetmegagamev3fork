@@ -2665,7 +2665,6 @@ input[type="radio"]:disabled {
    trick. */
 .col-fit { width: 1%; }
 .col-prose { min-width: 22rem; }
-.col-text { min-width: 14rem; }
 .col-meta { min-width: 12rem; }
 
 /* A long table that stays put: fixed tall viewport, both scroll axes inside

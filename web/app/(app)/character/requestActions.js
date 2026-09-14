@@ -7028,10 +7028,7 @@ async function stepstoneRequestImpl({ locationId }) {
         locationId: location.id,
         // Denormalized mirror — every writer of locationId writes both.
         zoneId: location.zoneId,
-        // A crossing already declared would otherwise walk them off again at
-        // the next close, and an escort you have vanished out of is over.
-        travelToLocationId: null,
-        travelTurnId: null,
+        // An escort you have vanished out of is over.
         escortedById: null,
       },
     });

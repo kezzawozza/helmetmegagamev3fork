@@ -61,10 +61,6 @@ const NOTICE_SPECS = {
   },
 };
 
-function posterText(name, zoneName) {
-  return NOTICE_SPECS.WANTED.text(name, zoneName);
-}
-
 // True when a freshly created character bought Debtor.
 function isDebtor(heldSlugs) {
   const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
@@ -137,7 +133,6 @@ async function postDebtorNotices(prisma, character, openTurn) {
 module.exports = {
   isWanted,
   postWantedPosters,
-  posterText,
   WANTED_SLUG,
   isDebtor,
   postDebtorNotices,

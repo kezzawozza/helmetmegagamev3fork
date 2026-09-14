@@ -79,7 +79,6 @@ const HANDS_TAG_FIELDS = { handsLost: true };
 // is a rule about what a person can have about them, and the last thing this
 // file needs is a second limit a GM can set to disagree with the slots.
 const MAX_ACCESSORIES = 4;
-const MAX_EQUIP_LAYER = 3;
 const LAYERED_SLOTS = new Set(["HEAD", "BODY", "MOUNT"]);
 // SHIELD is deliberately absent: syncTags.js validates against this list, so
 // a YAML entry still naming it throws instead of sliding through.
@@ -301,7 +300,6 @@ module.exports = {
   handsFor,
   shedForHands,
   MAX_ACCESSORIES,
-  MAX_EQUIP_LAYER,
   LAYERED_SLOTS,
   EQUIP_SLOTS,
   SLOT_TITLES,

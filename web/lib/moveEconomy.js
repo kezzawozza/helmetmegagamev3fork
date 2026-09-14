@@ -47,16 +47,13 @@ export async function findOpenTurnAction(prisma, characterId) {
 // ONLY the appliedEffects snapshot, never the live row, so it stays correct
 // even for a Move a GM edited in between.
 //
-// Two more things a Move can spend that never go through appliedEffects at
-// all, because db/lib/locationTravel.js writes them straight onto the
-// Character row instead: a PAID zone crossing (past the free allowance)
-// stamps travelToLocationId/travelTurnId rather than moving anyone, and
-// EVERY crossing this turn — free or paid — claims against
-// zoneMovesUsed/zoneMovesTurnId. Undoing the Action alone left both stuck:
-// the travel menu stayed locked ("you're on the road to X") on a road that,
-// per the Action ledger, was never taken, and the day's free crossings
-// stayed spent even though the Move that (over-)spent them just came back.
-// travelClaimsToUndo works out WHAT to undo; this just writes it.
+// One more thing a Move can spend that never goes through appliedEffects at
+// all, because db/lib/locationTravel.js writes it straight onto the
+// Character row instead: EVERY crossing this turn — free or paid — claims
+// against zoneMovesUsed/zoneMovesTurnId. Undoing the Action alone left that
+// stuck, with the day's free crossings spent even though the Move that
+// (over-)spent them just came back. travelClaimsToUndo works out WHAT to
+// undo; this just writes it.
 async function undoTravelClaims(tx, action) {
   const data = travelClaimsToUndo(action);
   if (data) await tx.character.update({ where: { id: action.characterId }, data });

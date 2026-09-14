@@ -38,11 +38,6 @@ function isCerberon(heldSlugs) {
   return held.has(CERBERON_SLUG);
 }
 
-function canDeclareWarrant(heldSlugs) {
-  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
-  return WARRANT_BADGE_SLUGS.some((slug) => held.has(slug));
-}
-
 // Who a typed name puts a warrant on. EVERY living man who answers to it, not
 // one — the law does not know which Alexander Ivanov it wants, so it wants
 // both. This is the whole of the rule, kept pure and DB-free so db/test/ can
@@ -97,7 +92,6 @@ module.exports = {
   WARRANT_BADGE_SLUGS,
   isWanted,
   isCerberon,
-  canDeclareWarrant,
   warrantTargets,
   listWanted,
 };

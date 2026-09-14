@@ -632,15 +632,6 @@ async function bulkDeleteMessages(channelId, messageIds) {
   }
 }
 
-// Empties a thread but keeps it alive — the starter message's id IS the
-// thread id, and deleting it destroys the whole post, so it's always skipped.
-async function clearThreadExceptStarter(threadId, { before } = {}) {
-  const messages = await fetchAllMessages(threadId, { before });
-  const ids = messages.filter((m) => m.id !== threadId).map((m) => m.id);
-  if (ids.length === 0) return;
-  await bulkDeleteMessages(threadId, ids);
-}
-
 // Everything in a channel or thread except one nominated message — a
 // Location channel's pinned anchor, a Room thread's starter (which, unlike a
 // forum post's, has an id of its own). `before` bounds it the way the Dawn
@@ -697,19 +688,6 @@ async function deleteThread(threadId) {
 async function getForumTagId(channelId, tagName) {
   const channel = await getChannel(channelId);
   return channel.available_tags?.find((t) => t.name === tagName)?.id ?? null;
-}
-
-// PATCHing available_tags is a full replacement, so this always includes the
-// channel's existing tags plus the new one if not already present.
-async function ensureForumTag(channelId, tagName, emojiName) {
-  const channel = await getChannel(channelId);
-  const existing = channel.available_tags?.find((t) => t.name === tagName);
-  if (existing) return existing.id;
-
-  const updated = await patchChannel(channelId, {
-    available_tags: [...(channel.available_tags ?? []), { name: tagName, emoji_name: emojiName }],
-  });
-  return updated.available_tags.find((t) => t.name === tagName)?.id ?? null;
 }
 
 const WEBHOOK_NAME = "Bascinet Tupper";
@@ -977,7 +955,6 @@ module.exports = {
   deleteMessage,
   fetchAllMessages,
   bulkDeleteMessages,
-  clearThreadExceptStarter,
   clearMessagesExcept,
   snowflakeForTimestamp,
   beginRequestMetrics,
@@ -988,7 +965,6 @@ module.exports = {
   listArchivedPrivateThreads,
   deleteThread,
   getForumTagId,
-  ensureForumTag,
   startThread,
   startPrivateThread,
   addThreadMember,

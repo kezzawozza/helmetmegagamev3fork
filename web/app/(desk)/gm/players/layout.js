@@ -9,7 +9,7 @@ import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
 import InboxPoller from "./InboxPoller";
 import InboxStream from "./InboxStream";
-import InboxStreamChip from "./InboxStreamChip";
+import { InboxStreamChip } from "../StreamStatusChip";
 import DeskInboxCounts from "./DeskInboxCounts";
 import { deployVersion } from "@/lib/deployVersion";
 import { DeskStaleChip } from "@/app/components/useDeskVersion";

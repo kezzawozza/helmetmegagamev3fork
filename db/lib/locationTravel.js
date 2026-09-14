@@ -6,10 +6,10 @@
 // db/lib/locationMove.js#applyLocationMoveSideEffects over `moved`.
 //
 // EVERY crossing lands at once, paid or free. A crossing that cost the Move
-// used to park its destination on Character.travelToLocationId and wait for
-// db/lib/travelArrivalPass.js to walk the party over at the next advance — a
-// day on the road, which kept the destination's channels shut until then. It
-// doesn't any more (MAP.md §3): the Move is still spent, and you are there.
+// used to park its destination and wait for a turn advance to walk the party
+// over — a day on the road, which kept the destination's channels shut until
+// then. It doesn't any more (MAP.md §3): the Move is still spent, and you
+// are there.
 //
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
@@ -48,8 +48,6 @@ const CHARACTER_SELECT = {
   zoneMovesTurnId: true,
   zoneMovesUsed: true,
   zoneMovesBonusUsed: true,
-  travelToLocationId: true,
-  travelTurnId: true,
   // The hold. One timestamp, read by heldReasonFor() at the top of
   // performLocationMove and again per follower (INTERCEPT.md), and the word
   // for WHICH thing has hold of them — a select carrying one without the
@@ -114,24 +112,21 @@ function movesLeft({ base, bonus }, character, openTurn) {
 // them just came back.
 //
 // WHAT IT NO LONGER UNDOES IS THE CROSSING ITSELF. A paid crossing used to
-// stamp travelToLocationId rather than move anybody, so undoing the Action
+// stamp a travel pointer rather than move anybody, so undoing the Action
 // really did call the journey off. Travel lands at once now (MAP.md §3) —
 // the character is already standing at the destination, and handing their
 // Move back does not walk them home. A GM who wants that teleports them.
-// The travelTo branch below is kept only as a drain, for a straggler left
-// mid-journey by that change who then has their Move restored; it can go
-// with the arrival pass.
 //
 // Pure on purpose — web/lib/moveEconomy.js#deleteActionRestoringTurn is the
 // only caller and applies whatever this returns, but keeping the decision
 // separate from the write is what makes it testable without a database.
 //
-// `action` needs { turnId, characterId, character: { travelToLocationId,
-// travelTurnId, zoneMovesTurnId, zoneMovesUsed, zoneMovesBonusUsed } }.
-// Returns a Character update object, or null when this Action never claimed
-// either one. zoneMovesBonusUsed resets alongside zoneMovesUsed — a claim
-// undone this turn owes back whatever pool it was charged to, mount bonus
-// included, not just the flat count.
+// `action` needs { turnId, characterId, character: { zoneMovesTurnId,
+// zoneMovesUsed, zoneMovesBonusUsed } }. Returns a Character update object,
+// or null when this Action never claimed a crossing. zoneMovesBonusUsed
+// resets alongside zoneMovesUsed — a claim undone this turn owes back
+// whatever pool it was charged to, mount bonus included, not just the flat
+// count.
 //
 // Action.turnId is unique per character (@@unique([characterId, turnId])),
 // so a match against it can only ever mean THIS Action — there is no other
@@ -140,10 +135,6 @@ function travelClaimsToUndo(action) {
   const character = action?.character;
   if (!character) return null;
   const data = {};
-  if (character.travelToLocationId && character.travelTurnId === action.turnId) {
-    data.travelToLocationId = null;
-    data.travelTurnId = null;
-  }
   if (character.zoneMovesTurnId === action.turnId) {
     data.zoneMovesUsed = 0;
     data.zoneMovesBonusUsed = 0;
@@ -553,9 +544,9 @@ async function performLocationMove(prisma, character, targetLocation) {
         }
         outcome.freeMovesLeft ??= 0;
         // Paid or free, the crossing lands NOW. A paid one used to park its
-        // destination on travelToLocationId and wait for the turn advance to
-        // walk the traveller over; it doesn't any more (MAP.md §3), so the two
-        // branches are one write.
+        // destination and wait for the turn advance to walk the traveller
+        // over; it doesn't any more (MAP.md §3), so the two branches are one
+        // write.
         await tx.character.update({
           where: { id: character.id },
           data: {

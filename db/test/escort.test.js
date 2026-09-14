@@ -173,9 +173,8 @@ test("fitsMount says nothing is overfull when there are no seats", () => {
 test("ESCORT_SELECT stays a superset of what performLocationMove needs", () => {
   // Every caller now loads a mover with ESCORT_SELECT and hands that row to
   // performLocationMove. Drop a field and the failure is silent and ugly:
-  // without travelToLocationId a character on the road walks away from their
-  // own journey, and without zoneMoves* the free-crossing claim reads zero
-  // spent every time and never runs out.
+  // without zoneMoves* the free-crossing claim reads zero spent every time
+  // and never runs out.
   const missing = Object.keys(CHARACTER_SELECT).filter((key) => !(key in ESCORT_SELECT));
   assert.deepEqual(missing, []);
 });

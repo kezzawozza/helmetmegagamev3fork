@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Retire the deferred-travel drain and other code nothing calls
+
+✎ The old deferred-travel arrival pass and every write to the journey columns are gone; every crossing has landed at once since the map change  
+− Fifteen exported helpers nothing referenced  
+✎ The bot's interaction handlers are now one module per domain, with no change to any button or command
+
 ## 2026-09-14 · A branding iron, and a fix for the Mulligan Potion's Use button
 
 ✎ A smith can craft a Branding Iron; holding one opens a Brand button on anyone bound or incapacitated here — free, permanent, a -40 mood hit  

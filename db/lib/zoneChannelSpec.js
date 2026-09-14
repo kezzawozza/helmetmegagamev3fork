@@ -213,21 +213,10 @@ function zoneGmRoleName(zone) {
   return `GM: ${zone.name}`;
 }
 
-// Retired: no Location wears a role any more. Kept only so the retirement
-// script and the doctor's orphan sweep can still RECOGNISE the roles an
-// older sync created, and delete them. Nothing creates one.
-function locationRoleName(location) {
-  return `Location: ${location.name}`;
-}
-
-const LOCATION_ROLE_PREFIX = "Location: ";
-
 module.exports = {
   zoneChannelSpec,
   locationChannelSpec,
   zoneRoleName,
   zoneGmRoleName,
-  locationRoleName,
-  LOCATION_ROLE_PREFIX,
   LOCATION_MEMBER_ALLOW,
 };

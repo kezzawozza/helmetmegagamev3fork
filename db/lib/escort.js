@@ -40,9 +40,8 @@ const CONSENT_TURNS = 2;
 // locationTravel.js's CHARACTER_SELECT — so a row loaded with this can be
 // handed straight to performLocationMove, which every caller now does.
 //
-// That superset is load-bearing, not tidiness. The travel fields below are
-// invisible to escorting and essential to moving: without travelToLocationId
-// the "you're on the road" refusal never fires, and without zoneMoves* the
+// That superset is load-bearing, not tidiness. The zoneMoves* fields below
+// are invisible to escorting and essential to moving: without them the
 // free-crossing claim reads nobody has spent anything and hands out an
 // unlimited allowance. db/test/escort.test.js asserts the superset holds.
 const ESCORT_SELECT = {
@@ -70,8 +69,6 @@ const ESCORT_SELECT = {
   zoneMovesTurnId: true,
   zoneMovesUsed: true,
   zoneMovesBonusUsed: true,
-  travelToLocationId: true,
-  travelTurnId: true,
   // Escorting's business as well as the mover's: somebody being held is not
   // available to be picked up (INTERCEPT.md, and escortAuthority below).
   // heldById rides along because every caller hands this row on to something
@@ -248,13 +245,6 @@ async function detach(prisma, targetId, { tx = null } = {}) {
   await db.character.updateMany({ where: { id: targetId }, data: { escortedById: null } });
 }
 
-// Everybody following this leader lets go at once — the leader died, or a GM
-// picked them up and put them somewhere else.
-async function releaseParty(prisma, leaderId, { tx = null } = {}) {
-  const db = tx ?? prisma;
-  await db.character.updateMany({ where: { escortedById: leaderId }, data: { escortedById: null } });
-}
-
 // --- The consent handshake ------------------------------------------------
 //
 // Modelled on db/lib/bind.js, which already does exactly this split: the
@@ -371,7 +361,6 @@ module.exports = {
   partyOf,
   attach,
   detach,
-  releaseParty,
   createEscortOffer,
   acceptEscort,
 };

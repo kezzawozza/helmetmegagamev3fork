@@ -374,33 +374,6 @@ async function archiveRowForMessage(prisma, discordMessageId) {
   });
 }
 
-// ✏️ and ❌, keyed on the Discord message id. Both are thin now: db/lib/say.js
-// owns the owner check, the five-minute window, the transforms and the notify,
-// and bot/src/lib/feedOutbox.js is the only thing that touches Discord.
-//
-// `require` inside the function, not at the top: say.js requires this module,
-// and a cycle at load time would hand it a half-built exports object.
-async function updateArchiveMessage(prisma, discordMessageId, content, options = {}) {
-  return safely("message edit", async () => {
-    const row = await archiveRowForMessage(prisma, discordMessageId);
-    if (!row) return { ok: false, refusal: "That message is gone." };
-    const { editSpeech } = require("./say");
-    return editSpeech(prisma, { characterId: row.characterId, seq: row.seq, content, ...options });
-  });
-}
-
-// Soft since phase 1. A client holding the row has to be able to reconcile,
-// and the outbox needs something to read when it goes to remove the Discord
-// message — so the row stays and /archive and /chat filter it out.
-async function deleteArchiveMessage(prisma, discordMessageId, options = {}) {
-  return safely("message delete", async () => {
-    const row = await archiveRowForMessage(prisma, discordMessageId);
-    if (!row) return { ok: false, refusal: "That message is gone." };
-    const { deleteSpeech } = require("./say");
-    return deleteSpeech(prisma, { characterId: row.characterId, seq: row.seq, ...options });
-  });
-}
-
 // Take a row back that nobody should have seen — the proxy's claim row when
 // the Discord post it was written for then failed.
 //
@@ -434,7 +407,5 @@ module.exports = {
   recordArchiveMessage,
   recordArchiveEvent,
   archiveRowForMessage,
-  updateArchiveMessage,
-  deleteArchiveMessage,
   retractArchiveRow,
 };

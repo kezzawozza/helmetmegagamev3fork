@@ -378,7 +378,7 @@ const EFFECTS = {
     for (const c of cultists) {
       if (c.locationId === location.id || onHallowedGround(c.location)) continue;
       await db.$transaction(async (tx) => {
-        await tx.character.update({ where: { id: c.id }, data: { locationId: location.id, zoneId: location.zoneId, travelToLocationId: null, travelTurnId: null, escortedById: null } });
+        await tx.character.update({ where: { id: c.id }, data: { locationId: location.id, zoneId: location.zoneId, escortedById: null } });
         if (bound) await dropCharacterTag(tx, c.id, bound.id);
       });
       await applyLocationMoveSideEffects(db, { characterId: c.id, fromLocationId: c.locationId, toLocationId: location.id }).catch(

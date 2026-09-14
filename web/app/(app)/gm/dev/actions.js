@@ -63,6 +63,13 @@ import { afterInventoryChange } from "@/lib/afterInventoryChange";
 // a sheet of paper like any other, and a longer one would not fit the object.
 const GM_LETTER_MAX = 2000;
 
+// The three faction-editing actions below (create/edit, delete, assign
+// member) all touch the same three surfaces on the way out.
+function revalidateFactionSurfaces() {
+  revalidatePath("/gm/dev/factions");
+  revalidatePath("/faction");
+  revalidatePath("/gm/players", "layout");
+}
 
 function str(formData, key) {
   const v = formData.get(key);
@@ -695,9 +702,7 @@ export async function updateFaction(formData) {
     },
   });
 
-  revalidatePath("/gm/dev/factions");
-  revalidatePath("/faction");
-  revalidatePath("/gm/players", "layout");
+  revalidateFactionSurfaces();
 }
 
 // Reassigns the faction's members to "Unaffiliated" before deleting the row.
@@ -728,9 +733,7 @@ export async function deleteFaction(formData) {
     },
   });
 
-  revalidatePath("/gm/dev/factions");
-  revalidatePath("/faction");
-  revalidatePath("/gm/players", "layout");
+  revalidateFactionSurfaces();
 }
 
 // Moves a character into a faction and sets their seats, in one write.
@@ -780,9 +783,7 @@ export async function assignFactionMember(formData) {
     },
   });
 
-  revalidatePath("/gm/dev/factions");
-  revalidatePath("/faction");
-  revalidatePath("/gm/players", "layout");
+  revalidateFactionSurfaces();
 }
 
 // --- The bomb ---------------------------------------------------------
@@ -968,15 +969,11 @@ async function bulkMove(session, characters, input) {
   // The denormalization contract: locationId and zoneId are written together.
   await prisma.character.updateMany({
     where: { id: { in: characters.map((c) => c.id) } },
-    // travelTo* cleared alongside: being put somewhere by a GM ends any walk
-    // in progress, or db/lib/travelArrivalPass.js would undo this at Dawn.
-    // escortedById with them: being picked up and put somewhere ends any
-    // escort, the same way travelTo* is cleared (docs/systemdocs/MAP.md §3a).
+    // escortedById cleared alongside: being picked up and put somewhere ends
+    // any escort this character was part of (docs/systemdocs/MAP.md §3a).
     data: {
       locationId: location.id,
       zoneId: location.zoneId,
-      travelToLocationId: null,
-      travelTurnId: null,
       escortedById: null,
     },
   });

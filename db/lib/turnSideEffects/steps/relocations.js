@@ -3,11 +3,10 @@ const { DM_KIND } = require("../../dmKinds");
 const { applyLocationMoveSideEffects } = require("../../locationMove");
 const { rollCavingOnArrival } = require("../../cavingPass");
 
-// Two kinds of relocation land in the same breath and want the identical
-// Discord work: a GM's staged "Relocate to" (zoneMoves) and a player's
-// paid crossing finally arriving (travelArrivals, MAP.md §3).
+// A GM's staged "Relocate to" — every crossing a player makes lands (and
+// gets its Discord work) at the moment it happens instead (MAP.md §3).
 async function applyRelocations({ prisma, p, list, step }) {
-  const relocations = [...list(p.zoneMoves), ...list(p.travelArrivals)];
+  const relocations = [...list(p.zoneMoves)];
   for (let i = 0; i < relocations.length; i += 1) {
     const move = relocations[i];
     await step(`move:${i}`, async () => {

@@ -26,7 +26,6 @@ const { runCorpseRotPass } = require("./lib/corpseRotPass");
 const { runStructureYieldPass } = require("./lib/structureYieldPass");
 const { runArelitzLayPass } = require("./lib/arelitzLayPass");
 const { reconcileCorpses } = require("./lib/corpseFollow");
-const { runTravelArrivalPass } = require("./lib/travelArrivalPass");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runHungerPass } = require("./lib/hungerPass");
 const { runCarryPass } = require("./lib/carryPass");
@@ -284,10 +283,7 @@ const TURN_PASSES = [
   // The mood dial's nightly settle: the place each character sleeps in, the
   // drift back toward Fine, hunger, a body in the room, a noble's missed
   // dinner. After hunger (it reads the final streak) and carry (the final
-  // sheet). It used to matter that this ran before travelArrival, so a
-  // traveller paid the night where they set out from; travel lands at once
-  // now, so a crosser simply pays the night wherever they ended the day
-  // standing. See db/lib/moodPass.js and docs/systemdocs/MOOD.md.
+  // sheet). See db/lib/moodPass.js and docs/systemdocs/MOOD.md.
   "mood",
   // After "carry", because the overflow drop can put a corpse on a floor.
   // Pull-based, so it just re-reads where every body's tag ended up.
@@ -317,11 +313,6 @@ const TURN_PASSES = [
   // from "depot" so a failed Depot pass cannot swallow it, and so a resume
   // re-runs exactly the one that did not finish.
   "gatehouseTurret",
-  // A DRAIN (db/lib/travelArrivalPass.js). Nothing files work for this any
-  // more — every crossing lands the moment it is made. It stays LAST, and
-  // stays at all, only to land anybody who was mid-journey when the deferral
-  // was removed; after that it matches nobody. Delete it once they have.
-  "travelArrival",
 ];
 
 // How long a resume lease is honoured before another advance may take it
@@ -1295,36 +1286,6 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Depot audit log failed:", err));
   }
 
-  // Everyone who set out last turn arrives. Discord work is deliberately not
-  // done here — the rows go out with zoneMoves and runSideEffects swaps the
-  // roles and rolls the Caving Die, which needs the NEXT turn open anyway.
-  let travelArrivals = [];
-  if (!done.has("travelArrival")) {
-    const arrived = await runTravelArrivalPass(prisma, config).catch(
-      async (err) => {
-        await passFailed("Travel arrival", err);
-        return null;
-      },
-    );
-    if (arrived) {
-      await markDone("travelArrival");
-      travelArrivals = arrived;
-      if (arrived.length > 0) {
-        await prisma.auditLog
-          .create({
-            data: {
-              actorDiscordUserId: "system",
-              actionType: "travellers_arrived",
-              details: {
-                arrived: arrived.map((a) => ({ name: a.name, to: a.toLocationName })),
-              },
-            },
-          })
-          .catch((err) => console.error("Travel arrival audit log failed:", err));
-      }
-    }
-  }
-
   // needsResolvedAt is the sole selector for advanceTurn()'s resume query,
   // so it's only stamped once every pass in TURN_PASSES has run.
   const outstanding = TURN_PASSES.filter((name) => !done.has(name));
@@ -1368,7 +1329,6 @@ async function resolveNeeds(turn, config) {
     publicPosts,
     zoneMoves,
     stagedDeaths,
-    travelArrivals,
     xomDeaths,
     xomTeleports,
     xomConversations,
@@ -1530,7 +1490,6 @@ async function advanceTurn() {
   let publicPosts = [];
   let zoneMoves = [];
   let stagedDeaths = [];
-  let travelArrivals = [];
   let xomDeaths = [];
   let xomTeleports = [];
   let xomConversations = [];
@@ -1586,7 +1545,6 @@ async function advanceTurn() {
       publicPosts,
       zoneMoves,
       stagedDeaths,
-      travelArrivals,
       xomDeaths,
       xomTeleports,
       xomConversations,
@@ -1683,7 +1641,6 @@ async function advanceTurn() {
         publicPosts,
         zoneMoves,
         stagedDeaths,
-        travelArrivals,
         xomDeaths,
         xomTeleports,
         xomConversations,
@@ -1789,7 +1746,6 @@ async function advanceTurn() {
     stagedDeaths,
     hungerNotices,
     zoneMoves,
-    travelArrivals,
     xomDeaths,
     xomTeleports,
     xomConversations,

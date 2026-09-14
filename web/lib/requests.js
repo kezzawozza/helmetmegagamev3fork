@@ -1,6 +1,5 @@
 import { prisma, placePairForAudit } from "@lifeweb/db";
 import { MAX_REASON_LENGTH } from "@/lib/constants";
-import { UserError } from "@/lib/actionResult";
 import { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "@/lib/tagRequests";
 
 // What is left of the old Request system: the per-turn rations, and the one
@@ -133,14 +132,6 @@ export async function craftFreeUnits(db, characterId, turnId, tags) {
     out[tag.id] = { per, left: Math.max(0, per - used) };
   }
   return out;
-}
-
-// Server actions are public endpoints, so the reason is validated here rather
-// than trusted from the dialog that collected it.
-export function requireReason(raw) {
-  const reason = raw?.toString().trim() ?? "";
-  if (!reason) throw new UserError("A reason is required.");
-  return reason.slice(0, MAX_REASON_LENGTH);
 }
 
 

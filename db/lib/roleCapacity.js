@@ -20,10 +20,6 @@ function roleCapacity(role, playerCount) {
   return Math.max(1, Math.round((role.weight * playerCount) / 100));
 }
 
-function formatCapacity(cap) {
-  return cap === Infinity ? "∞" : String(cap);
-}
-
 // Seats that never reopen. A seat is normally held only by a LIVING character
 // — the holder dies and the picker offers the role again, which is right for
 // a Bum or a Cerberus. These roles are the exception: once someone has held
@@ -88,7 +84,6 @@ function seatHolderStatuses(role) {
 
 module.exports = {
   roleCapacity,
-  formatCapacity,
   PERMANENT_SEAT_ROLE_SLUGS,
   SPAWN_ONLY_ROLE_SLUGS,
   isSpawnOnly,

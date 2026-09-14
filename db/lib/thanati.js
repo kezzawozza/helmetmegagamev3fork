@@ -10,7 +10,6 @@ const THANATI_LEADER_SLUG = "thanati-leader";
 const BLACK_ROBES_SLUG = "black-robes";
 const THANATI_MASK_SLUG = "thanati-mask";
 const DARK_INSPIRATION_SLUG = "dark-inspiration";
-const GRIMOIRE_SLUG = "grimoire";
 const SHIMMERING_ROBES_SLUG = "shimmering-robes";
 const SCRYING_EYE_SLUG = "scrying-eye";
 const GHOUL_SLUG = "ghoul";
@@ -124,7 +123,6 @@ module.exports = {
   BLACK_ROBES_SLUG,
   THANATI_MASK_SLUG,
   DARK_INSPIRATION_SLUG,
-  GRIMOIRE_SLUG,
   SHIMMERING_ROBES_SLUG,
   SCRYING_EYE_SLUG,
   GHOUL_SLUG,

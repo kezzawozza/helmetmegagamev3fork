@@ -163,18 +163,6 @@ export function mergeDishCures(mealTag, ingredientTags = []) {
 // is the right trade: the tell costs a 5-point trait or a held gadget, so the
 // dish still reads as an ordinary meal to everybody at the table who has not
 // paid for a palate.
-//
-// `poisonSlugs` is a Set (or a plain object) the caller builds once per
-// request off the catalog — never a per-row lookup. Pure and Prisma-free, so
-// a "use client" surface can import it without dragging @lifeweb/db into the
-// browser bundle.
-export function dishCarriesPoison(tag, poisonSlugs) {
-  const from = tag?.cookedFrom;
-  if (!from?.length || !poisonSlugs) return false;
-  const has =
-    poisonSlugs instanceof Set ? (s) => poisonSlugs.has(s) : (s) => Boolean(poisonSlugs[s]);
-  return from.some(has);
-}
 
 // The line the eater reads (NoticeProvider, bottom-right).
 //

@@ -29,7 +29,7 @@ import { dialogHoldsKeyboard } from "@/app/components/Modal";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 import { seedDesk, useDeskRows } from "./deskStore";
 import DeskStream from "./DeskStream";
-import DeskStreamChip from "./DeskStreamChip";
+import { DeskStreamChip } from "../StreamStatusChip";
 import { noteDesk, noteWorkspaceMount } from "./blackBox";
 import { runTopEscapeLayer } from "./escapeLayers";
 
