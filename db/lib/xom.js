@@ -171,7 +171,6 @@ async function grantXom(prisma, { characterId, turnNumber = null } = {}) {
 module.exports = {
   OLD_WAYS_XOM_SLUG,
   XOM_SHRINE_ROOM_SLUG,
-  BELIEF_GROUP_SLUG,
   FECES_SLUG,
   CAVE_RAT_SLUG,
   RAVENHEART_RED_SLUG,

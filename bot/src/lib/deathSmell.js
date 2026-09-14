@@ -102,4 +102,7 @@ function startDeathSmell(prisma) {
   arm();
 }
 
-module.exports = { startDeathSmell, runDeathSmell, MIN_DELAY_MS, MAX_DELAY_MS };
+module.exports = {
+  startDeathSmell,
+  runDeathSmell,
+};

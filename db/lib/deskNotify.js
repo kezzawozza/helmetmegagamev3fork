@@ -16,13 +16,4 @@
 // a GM is allowed to be sent (docs/systemdocs/ADJUDICATION.md §3).
 const DESK_CHANNEL = "bascinet_desk";
 
-// The `t` values, so the trigger's TG_ARGV strings, the hub and the route
-// agree in one place rather than three.
-const DESK_ROW_TYPES = Object.freeze({
-  MOVE: "move",
-  CAVING: "caving",
-  EFFECT: "effect",
-  MESSAGE: "message",
-});
-
-module.exports = { DESK_CHANNEL, DESK_ROW_TYPES };
+module.exports = { DESK_CHANNEL };

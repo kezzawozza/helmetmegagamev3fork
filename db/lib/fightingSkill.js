@@ -491,8 +491,6 @@ const FIGHTING_TAG_FIELDS = { fighting: true, equipSlot: true, category: true };
 module.exports = {
   BANDS,
   POINTS_PER_TIER,
-  RANGED_CLASSES,
-  RUNG_STEP,
   TREES,
   UNTRAINED,
   WEAPON_CLASSES,

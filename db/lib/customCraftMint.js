@@ -133,4 +133,8 @@ async function unmintCustomCraft(db, grant) {
     .catch(() => {});
 }
 
-module.exports = { mintCustomCraft, unmintCustomCraft, customCraftName, cookedTasteSuffix };
+module.exports = {
+  mintCustomCraft,
+  unmintCustomCraft,
+  customCraftName,
+};

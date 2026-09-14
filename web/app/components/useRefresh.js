@@ -26,22 +26,6 @@ export function RefreshProvider({ children }) {
   return <RefreshContext.Provider value={value}>{children}</RefreshContext.Provider>;
 }
 
-// A nested provider that intercepts every useRefresh() beneath it with a
-// guard, while keeping the ROOT provider's transition. GM desks mount this
-// with isDeskStale: once a deploy has landed under an open desk, any
-// router.refresh() would fetch a flight from the new build, trip Next's
-// mismatch check, and hard-reload the page mid-work — so it's skipped
-// instead, and the GM reloads when ready.
-export function RefreshGate({ skipWhen, children }) {
-  const [refresh, refreshing] = useRefresh();
-  const guarded = useCallback(() => {
-    if (skipWhen()) return;
-    refresh();
-  }, [refresh, skipWhen]);
-  const value = useMemo(() => [guarded, refreshing], [guarded, refreshing]);
-  return <RefreshContext.Provider value={value}>{children}</RefreshContext.Provider>;
-}
-
 // A router.refresh() that will not cross a deploy boundary.
 //
 // Next discards an RSC payload built by a different build and falls back to a

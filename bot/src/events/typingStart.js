@@ -2,6 +2,7 @@ const { Events } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { notifyTyping } = require("@lifeweb/db/lib/typingNotify");
+const { findAliveCharacter } = require("../lib/interactionGuild");
 
 // "Somebody in this room is writing something." Discord shows its own typing
 // indicator to the people in the channel; this carries the same fact across to
@@ -31,10 +32,7 @@ module.exports = {
     // "somebody is typing" there would only ever mean the person reading it.
     if (!typing?.guild || !typing.channel || !typing.user || typing.user.bot) return;
 
-    const character = await prisma.character.findFirst({
-      where: { discordUserId: typing.user.id, status: "ALIVE" },
-      select: CHARACTER_SELECT,
-    });
+    const character = await findAliveCharacter(typing.user.id, { select: CHARACTER_SELECT });
     if (!character || character.webOnly) return;
 
     const placeKey = await placeKeyForChannel(prisma, {

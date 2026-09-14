@@ -600,4 +600,11 @@ async function answerPanic(db, { attempt, content }) {
   return { place: zone?.name ?? location?.name, struck: struck.length };
 }
 
-module.exports = { EFFECTS, roomLine, locationLine, dmParticipants, killByRite, reviveByRite, spawnRemains, answerPanic, REMAINS_SLUGS };
+module.exports = {
+  EFFECTS,
+  roomLine,
+  locationLine,
+  killByRite,
+  reviveByRite,
+  answerPanic,
+};

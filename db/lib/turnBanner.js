@@ -97,9 +97,7 @@ function turnBannerPath(turn, state = null) {
 
 module.exports = {
   TURN_BANNER_DIR,
-  platesFor,
   pickTurnBanner,
-  lastBannerForPhase,
   nextTurnBanner,
   turnBannerPath,
 };

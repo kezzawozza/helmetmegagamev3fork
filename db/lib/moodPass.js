@@ -23,6 +23,7 @@ const {
   applyMoodTerms,
   loadIntensity,
 } = require("./mood");
+const { alivePassCharacters } = require("./aliveCharacters");
 const { DINED_SLUG, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG } = require("./constants");
 
 // db/lib/bind.js reads the slug directly too; a hostage's night is not restful.
@@ -65,8 +66,7 @@ async function runMoodPass(prisma, turn) {
   // re-reading it: the tag rows here cover everything it needs — the multiplier
   // slugs and this pass's own gates.
   const watched = [...MULTIPLIER_SLUGS, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG, DINED_SLUG, BOUND_SLUG];
-  const characters = await prisma.character.findMany({
-    where: { status: "ALIVE" },
+  const characters = await alivePassCharacters(prisma, {
     select: {
       id: true,
       status: true,

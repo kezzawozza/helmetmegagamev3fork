@@ -38,7 +38,7 @@ export function noteDesk(kind, detail = null) {
   }
 }
 
-export function deskTrail() {
+function deskTrail() {
   return readSession(KEY, EMPTY) ?? EMPTY;
 }
 

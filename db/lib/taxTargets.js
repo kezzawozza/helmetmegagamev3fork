@@ -144,4 +144,7 @@ async function taxesFiledThisTurn(prisma, taxerId, turnId) {
   }));
 }
 
-module.exports = { taxRoster, isLockedOut, taxesFiledThisTurn };
+module.exports = {
+  taxRoster,
+  taxesFiledThisTurn,
+};

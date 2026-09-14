@@ -39,7 +39,5 @@ async function attackMoveBlock(db, characterId, turnId) {
 
 module.exports = {
   spentBy,
-  moveSpent,
-  ATTACK_MOVE_SPENT,
   attackMoveBlock,
 };

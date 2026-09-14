@@ -6,6 +6,7 @@ const { gmRoleIds } = require("@lifeweb/db/lib/roleIds");
 const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow");
 const { deleteSpeech, EDIT_WINDOW_MS, WINDOW_REFUSAL } = require("@lifeweb/db/lib/say");
 const { proxyRowFor } = require("../lib/proxy");
+const { findAliveCharacter } = require("../lib/interactionGuild");
 const { resolveChannelContext } = require("../lib/channels");
 const { forcedNameFrom, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { photoCaption } = require("@lifeweb/db/lib/photo");
@@ -223,10 +224,7 @@ async function handleDossierReaction(reaction, proxy, user) {
 // Pressed against the row's seq rather than its character id, so the server is
 // the only thing that ever knows who is under the hood.
 async function readoutForReaction(proxy, user, { bystander = false } = {}) {
-  const viewer = await prisma.character.findFirst({
-    where: { discordUserId: user.id, status: "ALIVE" },
-    select: VIEWER_SELECT,
-  });
+  const viewer = await findAliveCharacter(user.id, { select: VIEWER_SELECT });
   if (!viewer) return null;
   return examineRow(prisma, viewer, proxy.seq, { bystander });
 }

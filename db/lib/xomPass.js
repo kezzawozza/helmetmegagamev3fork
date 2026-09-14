@@ -56,6 +56,7 @@ const {
   pickXomOutcome,
   pickShout,
 } = require("./xom");
+const { alivePassCharacters } = require("./aliveCharacters");
 
 // The Church and the Order of the Silver Cross, which is who "the Inquisition
 // and the clergy" are: the inquisitor seat lives under the Order
@@ -97,9 +98,8 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
     shouts: [],
   };
 
-  const holders = await prisma.character.findMany({
+  const holders = await alivePassCharacters(prisma, {
     where: {
-      status: "ALIVE",
       tags: { some: { tag: { slug: OLD_WAYS_XOM_SLUG } } },
       // A Catatonic character is a player who has stopped answering. Moving
       // them across the map and pinging a live player into a scene with a
@@ -329,8 +329,8 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
 // teleport rather than from a snapshot taken at the top of the pass, so
 // somebody gibbed a moment ago is already gone from the pool.
 async function pickCompany(prisma, characterId, rng) {
-  const candidates = await prisma.character.findMany({
-    where: { status: "ALIVE", id: { not: characterId }, locationId: { not: null } },
+  const candidates = await alivePassCharacters(prisma, {
+    where: { id: { not: characterId }, locationId: { not: null } },
     select: { id: true, name: true, locationId: true, location: { select: { name: true } } },
   });
   if (candidates.length === 0) return null;
@@ -350,9 +350,8 @@ async function pickCompany(prisma, characterId, rng) {
 // not extend the first. Don't "fix" it.
 async function strikeTheClergy(prisma, turn, madnessTag) {
   if (CLERGY_FACTION_SLUGS.length === 0 || !madnessTag) return [];
-  const victims = await prisma.character.findMany({
+  const victims = await alivePassCharacters(prisma, {
     where: {
-      status: "ALIVE",
       OR: [
         { faction: { slug: { in: CLERGY_FACTION_SLUGS } } },
         { role: { faction: { slug: { in: CLERGY_FACTION_SLUGS } } } },

@@ -48,7 +48,7 @@ import {
 // A shout is 300 characters at the most, the same cap the Discord option
 // carries — this posts into a couple of dozen channels and half of them get it
 // with most of the letters knocked out.
-export const SHOUT_LIMIT = 300;
+const SHOUT_LIMIT = 300;
 
 const EVERYWHERE = ["loc", "room", "conv", "zone", "net"];
 

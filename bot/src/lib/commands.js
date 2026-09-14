@@ -162,4 +162,6 @@ async function registerCommands(client) {
   }
 }
 
-module.exports = { commandDefinitions, registerCommands };
+module.exports = {
+  registerCommands,
+};

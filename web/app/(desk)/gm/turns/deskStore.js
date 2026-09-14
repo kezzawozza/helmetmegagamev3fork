@@ -64,7 +64,7 @@ export function subscribe(cb) {
 // The frozen views, readable without React. `useDeskRows` is the ordinary way
 // in; this is the same value for anything that is not a component — and it is
 // what lets the store's arbitration be exercised on its own.
-export function deskRowsSnapshot() {
+function deskRowsSnapshot() {
   return state.views;
 }
 

@@ -78,4 +78,6 @@ async function examineLines(prisma, locationId) {
   };
 }
 
-module.exports = { LABOR_QUERY_KINDS, examineLines };
+module.exports = {
+  examineLines,
+};

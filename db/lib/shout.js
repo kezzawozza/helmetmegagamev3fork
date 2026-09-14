@@ -412,5 +412,4 @@ module.exports = {
   shoutAudience,
   shout,
   deliverShout,
-  SHOUT_COOLDOWN_MS,
 };

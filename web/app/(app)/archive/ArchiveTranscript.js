@@ -94,7 +94,7 @@ function foldSummary(rows) {
     .join(" · ");
 }
 
-export function buildBlocks(rows, { groupScenes = true } = {}) {
+function buildBlocks(rows, { groupScenes = true } = {}) {
   const blocks = [];
   let dayKey;
   let sceneKey;

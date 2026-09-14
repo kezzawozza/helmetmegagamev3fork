@@ -90,4 +90,6 @@ async function reconcileCorpses(prisma) {
   return moved;
 }
 
-module.exports = { reconcileCorpse, reconcileCorpses };
+module.exports = {
+  reconcileCorpses,
+};

@@ -32,16 +32,16 @@ const MOVE_KIND_LABELS = {
 // A Move the auto-labor pass filed for someone who submitted nothing
 // (db/lib/autoLaborPass.js). Same shape as AUTO_ZONE_CHANGE below: a gmNotes
 // marker no GM ever types.
-export const AUTO_LABOR = "auto:labor";
+const AUTO_LABOR = "auto:labor";
 
-export function isAutoLabor(gmNotes) {
+function isAutoLabor(gmNotes) {
   return typeof gmNotes === "string" && gmNotes.includes(AUTO_LABOR);
 }
 
 // A gmNotes marker a GM never types themselves — stamped by
 // db/lib/locationTravel.js to identify a Move the desk generated rather than
 // a player submitted.
-export const AUTO_ZONE_CHANGE = "auto:zone_change";
+const AUTO_ZONE_CHANGE = "auto:zone_change";
 
 // A travel stub (db/lib/locationTravel.js#performLocationMove) files a Move
 // with no moveKind — there's no Routine/Gambit to pick, it's just "walked to

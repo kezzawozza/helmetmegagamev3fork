@@ -12,6 +12,7 @@ const {
 } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 const { applyMood } = require("./mood");
+const { alivePassCharacters } = require("./aliveCharacters");
 
 const HUNGER_STREAK_CAP = 6;
 
@@ -69,8 +70,7 @@ async function runHungerPass(prisma, turn) {
   // A noble's dinner is no longer this pass's business: skipping it costs
   // a mood hit at the mood pass instead (db/lib/moodPass.js, the `dined` marker).
   const gateIds = [hungerlessId, fastMetabolismId, ateMealId].filter(Boolean);
-  const characters = await prisma.character.findMany({
-    where: { status: "ALIVE" },
+  const characters = await alivePassCharacters(prisma, {
     select: {
       id: true,
       discordUserId: true,

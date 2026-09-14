@@ -425,8 +425,6 @@ async function cancelWith(prisma, offer, reason, { claimed = false } = {}) {
 }
 
 module.exports = {
-  CONFESSION_CHARACTER_SELECT,
-  isChaplain,
   confessableTags,
   createConfessionOffer,
   acceptConfession,

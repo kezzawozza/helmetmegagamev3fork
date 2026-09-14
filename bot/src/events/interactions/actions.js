@@ -38,7 +38,7 @@ const { buildMoveModal } = require("../../lib/moveModal");
 const { confirmMove } = require("../../lib/moveConfirm");
 const { buildSpeakModal } = require("../../lib/speakModal");
 const { canSpeakInTarget } = require("../../lib/speakTargets");
-const { resolveActingMember, isGmMember, findAliveCharacter } = require("../../lib/interactionGuild");
+const { resolveActingMember, isGmMember, findAliveCharacter, actingCharacter } = require("../../lib/interactionGuild");
 const { placeKeyForChannel, isScenePlaceKey } = require("@lifeweb/db/lib/placeKey");
 const { playInstrument } = require("@lifeweb/db/lib/instrumentPlay");
 const { postAsCharacterTo, loadVoiceState } = require("../../lib/proxy");
@@ -387,8 +387,7 @@ async function handleRollCommand(interaction) {
 async function handlePlayCommand(interaction) {
   await ack(interaction);
 
-  const character = await prisma.character.findFirst({
-    where: { discordUserId: interaction.user.id, status: "ALIVE" },
+  const character = await actingCharacter(interaction, {
     include: { tags: { include: { tag: true } } },
   });
   if (!character) {
@@ -437,8 +436,7 @@ async function handleShoutCommand(interaction) {
     return;
   }
 
-  const character = await prisma.character.findFirst({
-    where: { discordUserId: interaction.user.id, status: "ALIVE" },
+  const character = await actingCharacter(interaction, {
     // discordUserId because shout() stamps the cooldown's AuditLog row with
     // it. Without it the row is written with an empty actor and /gm/audit
     // cannot read a shout back to a person.

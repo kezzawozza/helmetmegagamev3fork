@@ -33,6 +33,7 @@ const { expiryFrom } = require("./turnFormat");
 // offers. Required by path: it is deliberately off the barrel.
 const { applyDeathToRow } = require("./characterDeath");
 const { applyMood } = require("./mood");
+const { alivePassCharacters } = require("./aliveCharacters");
 const { addToStack } = require("./tagWrites");
 
 // Everything a shot needs off a character. Shared because the sweep and the
@@ -84,8 +85,8 @@ async function sweepTurretAt(prisma, { locationSlug, tableSource = null, spares 
   });
   if (!location) return { shots: [], locationId: null };
 
-  const present = await prisma.character.findMany({
-    where: { status: "ALIVE", locationId: location.id },
+  const present = await alivePassCharacters(prisma, {
+    where: { locationId: location.id },
     select: TURRET_CHARACTER_SELECT,
   });
 

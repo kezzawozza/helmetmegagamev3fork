@@ -253,7 +253,7 @@ export const CHIP_VIEWER_SELECT = {
   location: { select: { indoors: true } },
 };
 
-export async function openTurnPhase() {
+async function openTurnPhase() {
   const turn = await prisma.turn.findFirst({
     where: { status: "OPEN" },
     orderBy: { number: "desc" },
@@ -266,7 +266,7 @@ export async function openTurnPhase() {
 // CHIP_VIEWER_SELECT. `null` is a legitimate argument — a signed-out caller or
 // a GM — and yields a viewer holding nothing, which the gate reads as unable
 // to read. That is the safe direction.
-export async function chipViewerFor(character) {
+async function chipViewerFor(character) {
   return {
     tags: character?.tags ?? [],
     phase: await openTurnPhase(),

@@ -63,7 +63,7 @@ export function roundTrip(data) {
   return JSON.parse(JSON.stringify(data, replacer));
 }
 
-export function readSnapshot(scope, userId) {
+function readSnapshot(scope, userId) {
   if (!userId) return null;
   const key = keyFor(scope, userId);
   if (memory.has(key)) return memory.get(key);

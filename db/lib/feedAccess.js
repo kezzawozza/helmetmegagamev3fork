@@ -367,5 +367,4 @@ module.exports = {
   mayWritePlace,
   slowmodeMsFor,
   PLACE_SLOWMODE_MS,
-  ZONE_SLOWMODE_MS,
 };

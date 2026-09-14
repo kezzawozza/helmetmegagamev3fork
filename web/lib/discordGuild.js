@@ -16,6 +16,7 @@ import {
 } from "@lifeweb/db";
 import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
 import { applyDmPrefix, dmLogRow } from "@lifeweb/db/lib/dmPolicy";
+import { buildNickname } from "@lifeweb/db/lib/nicknameFormat";
 import {
   revokeAllCharacterAccess as revokeAllCharacterAccessShared,
   revokeAccessForCharacters as revokeAccessForCharactersShared,
@@ -34,7 +35,7 @@ const CHANNEL_TYPE_TEXT = 0;
 const PERM_VIEW_CHANNEL = 1024;
 const PERM_SEND_MESSAGES = 2048;
 
-// Tupper/summary status is channel-ID-based (getLocationChannelIds below).
+// Tupper/summary status is channel-ID-based.
 // Since Bascinet 2 the tupper set is every Location channel plus each zone's
 // #summary; #summary is also the channel a zone's summaries post to.
 // #cerberon is tupper-only (no zone to summarize into).
@@ -49,36 +50,6 @@ export function isTupperChannel(channel, locationChannelIds) {
     (locationChannelIds?.tupperSummary?.has(channel.id) || locationChannelIds?.tupperOnly?.has(channel.id)) ?? false
   );
 }
-
-const locationChannelCache = ttlCache(30_000);
-
-async function fetchLocationChannelIds() {
-  const [zones, locations, config] = await Promise.all([
-    prisma.zone.findMany({ select: { discordSummaryChannelId: true } }),
-    prisma.location.findMany({ select: { discordChannelId: true } }),
-    prisma.gameConfig.findUnique({ where: { id: 1 } }),
-  ]);
-  const tupperSummary = new Set();
-  const tupperOnly = new Set();
-  for (const zone of zones) {
-    if (zone.discordSummaryChannelId) tupperSummary.add(zone.discordSummaryChannelId);
-  }
-  for (const location of locations) {
-    if (location.discordChannelId) tupperOnly.add(location.discordChannelId);
-  }
-  for (const entry of SPECIAL_CHANNELS) {
-    if (entry.tupper && config?.[entry.configKey]) tupperOnly.add(config[entry.configKey]);
-  }
-  return { tupperSummary, tupperOnly };
-}
-
-export const getLocationChannelIds = cache(async () => {
-  const cached = locationChannelCache.get("all");
-  if (cached !== undefined) return cached;
-  const value = await fetchLocationChannelIds();
-  locationChannelCache.set("all", value);
-  return value;
-});
 
 // Per-key TTL cache so repeated Discord lookups across navigations don't
 // each cost a round trip. Fine at this scale (one Railway instance).
@@ -258,7 +229,7 @@ export function isPlaytester(member) {
 
 // The Contributor seat (db/lib/roleIds.js): a person who works on Bascinet.
 // Read by the playtest-mode roster gate below and nowhere else.
-export function isContributor(member) {
+function isContributor(member) {
   if (!member) return false;
   return hasContributorRole(member.roles);
 }
@@ -311,21 +282,7 @@ export async function deleteMessage(channelId, messageId) {
   });
 }
 
-const NICK_MAX = 32;
-const NICK_SEP = " | ";
-
-// Kept in sync by hand with the identical function in bot/src/lib/nickname.js.
-export function buildNickname(base, characterName) {
-  const budget = NICK_MAX - NICK_SEP.length;
-  const a = (base || "").trim();
-  const b = (characterName || "").trim();
-  if (a.length + b.length <= budget) return `${a}${NICK_SEP}${b}`;
-
-  const aMax = Math.ceil(budget / 2);
-  const truncA = a.slice(0, Math.min(a.length, aMax));
-  const truncB = b.slice(0, budget - truncA.length);
-  return `${truncA}${NICK_SEP}${truncB}`;
-}
+export { buildNickname };
 
 export async function updateGuildNickname(discordUserId, nickname) {
   const guildId = process.env.DISCORD_GUILD_ID;
@@ -388,7 +345,7 @@ export async function setTurnPingRole(discordUserId, optIn) {
 // A PERMISSION HANDLE, nothing more. Whether the player is Cursed — Migrant or
 // Bum only, six fewer points — is db/lib/curse.js's answer, and no longer has
 // anything to do with whether this role landed.
-export async function grantGhostRole(discordUserId) {
+async function grantGhostRole(discordUserId) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
   const roleId = GHOST_ROLE_ID;

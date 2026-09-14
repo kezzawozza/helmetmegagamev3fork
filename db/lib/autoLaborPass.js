@@ -29,6 +29,7 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { isRefinery, loadRefineryStashes, refineryInputFor } = require("./refinery");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
+const { alivePassCharacters } = require("./aliveCharacters");
 
 // What the filed Move says it was. A player who wasn't there didn't narrate
 // anything, and inventing a sentence for them would put words in a character's
@@ -38,8 +39,7 @@ const AUTO_LABOR_DESCRIPTION = "*Labored.*";
 async function runAutoLaborPass(prisma, turn) {
   // Everyone alive, not everyone with a saved panel — the candidate set is the
   // whole roster now, which is the actual shape of "if you don't submit a move".
-  const characters = await prisma.character.findMany({
-    where: { status: "ALIVE" },
+  const characters = await alivePassCharacters(prisma, {
     select: {
       id: true,
       name: true,

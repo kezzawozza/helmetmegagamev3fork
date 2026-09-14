@@ -93,42 +93,6 @@ export function noteError(discordUserId, error) {
   emit();
 }
 
-// An older page, prepended. Returns nothing — the pane re-reads the store.
-export function prependPage(discordUserId, messages, hasMore) {
-  const had = state.byUser.get(discordUserId);
-  if (!had?.payload) return;
-  const seen = new Set(had.payload.messages.map((m) => m.id));
-  const older = (messages ?? []).filter((m) => m?.id && !seen.has(m.id));
-  state.byUser.set(discordUserId, {
-    ...had,
-    payload: { ...had.payload, messages: [...older, ...had.payload.messages], hasMore },
-    at: Date.now(),
-  });
-  emit();
-}
-
-// The desk's own send, landing before any stream row does.
-export function appendRow(discordUserId, row) {
-  const had = state.byUser.get(discordUserId);
-  if (!had?.payload || !row?.id) return;
-  if (had.payload.messages.some((m) => m.id === row.id)) return;
-  state.byUser.set(discordUserId, {
-    ...had,
-    payload: { ...had.payload, messages: [...had.payload.messages, row] },
-    at: Date.now(),
-  });
-  emit();
-}
-
-// Seeded by the route's own server render on a cold load, so landing directly
-// on /gm/players/<id> paints without a second round trip.
-export function seedThread(discordUserId, payload) {
-  if (!discordUserId || !payload) return;
-  if (state.byUser.get(discordUserId)?.status === "ready") return;
-  state.byUser.set(discordUserId, { status: "ready", payload, error: null, at: Date.now() });
-  emit();
-}
-
 function getSnapshot() {
   return state.snapshot;
 }

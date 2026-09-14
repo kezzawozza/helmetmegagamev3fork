@@ -9,6 +9,7 @@
 // work is returned as `deaths`/`warnings` for the side-effect thunk.
 const { DYING_SLUG } = require("./constants");
 const { applyDeathToRow } = require("./characterDeath");
+const { alivePassCharacters } = require("./aliveCharacters");
 
 const DEATH_REASON = "they never came back from Dying.";
 
@@ -41,9 +42,8 @@ async function runDyingDeathPass(prisma, turn) {
     });
   }
 
-  const doomed = await prisma.character.findMany({
+  const doomed = await alivePassCharacters(prisma, {
     where: {
-      status: "ALIVE",
       tags: { some: { tagId: dyingTag.id, expiresTurn: { not: null, lte: turn.number } } },
     },
     select: { id: true, name: true, discordUserId: true, discordRoleId: true, zoneId: true },
@@ -73,9 +73,8 @@ async function runDyingDeathPass(prisma, turn) {
   // The eve-of warning, same posture as the Catatonic track's: everyone whose
   // clock comes due at the NEXT close hears about it once. That is both the
   // rows just stamped and anyone granted Dying earlier in this same close.
-  const warned = await prisma.character.findMany({
+  const warned = await alivePassCharacters(prisma, {
     where: {
-      status: "ALIVE",
       leftGuildAt: null,
       tags: { some: { tagId: dyingTag.id, expiresTurn: turn.number + 1 } },
     },

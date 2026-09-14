@@ -159,4 +159,6 @@ async function playInstrument(prisma, character, placeKey) {
   return { ok: true, line: "You play." };
 }
 
-module.exports = { playInstrument, PLAY_COOLDOWN_MS, PLAY_AUDIT_ACTION, PLAY_SOOTHE_AUDIT_ACTION };
+module.exports = {
+  playInstrument,
+};

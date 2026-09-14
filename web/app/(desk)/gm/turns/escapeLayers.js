@@ -24,7 +24,7 @@ import { useEffect, useRef } from "react";
 
 const layers = [];
 
-export function pushEscapeLayer(fn) {
+function pushEscapeLayer(fn) {
   const token = { fn };
   layers.push(token);
   return () => {
@@ -40,10 +40,6 @@ export function runTopEscapeLayer() {
   if (!token) return false;
   token.fn();
   return true;
-}
-
-export function hasEscapeLayer() {
-  return layers.length > 0;
 }
 
 // The hook form. `fn` is read through a ref so a composer re-rendering on

@@ -131,7 +131,5 @@ async function mintPhoto(db, ownerId, { subject, caption, subjectCharacterId = n
 
 module.exports = {
   CAMERA_SLUG: "instant-camera",
-  createPhotoRow,
-  attachPhoto,
   mintPhoto,
 };

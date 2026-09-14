@@ -338,5 +338,4 @@ module.exports = {
   appendToPaper,
   sealPaper,
   breakSeal,
-  paperSlug,
 };

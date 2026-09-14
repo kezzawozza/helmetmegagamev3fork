@@ -460,14 +460,4 @@ async function startFeedOutbox() {
   await enqueue(drainFeedOutbox);
 }
 
-function stopFeedOutbox() {
-  stopped = true;
-  const client = listener;
-  listener = null;
-  if (client) {
-    client.removeAllListeners();
-    client.end().catch(() => { });
-  }
-}
-
-module.exports = { startFeedOutbox, drainFeedOutbox, stopFeedOutbox };
+module.exports = { startFeedOutbox, drainFeedOutbox };

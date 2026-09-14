@@ -1,5 +1,6 @@
 const { MessageType } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
+const { findAliveCharacter } = require("../lib/interactionGuild");
 const {
   CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
@@ -134,11 +135,10 @@ module.exports = {
       );
     }
 
-    const character = await prisma.character.findFirst({
-      where: { discordUserId: message.author.id, status: "ALIVE" },
-      // The identity tags ride along on the busiest query the bot runs, rather
-      // than costing a second round trip per message. Two kinds: the one that
-      // dictates a name, and the equipped gear that hides one.
+    // The identity tags ride along on the busiest query the bot runs, rather
+    // than costing a second round trip per message. Two kinds: the one that
+    // dictates a name, and the equipped gear that hides one.
+    const character = await findAliveCharacter(message.author.id, {
       include: {
         tags: {
           where: {

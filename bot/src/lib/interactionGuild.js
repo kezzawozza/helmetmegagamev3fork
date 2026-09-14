@@ -47,9 +47,12 @@ function isGmMember(interaction) {
 
 // The falsy guard is the whole point: without it an absent id resolves to
 // whichever living character the database hands back first.
-async function findAliveCharacter(discordUserId) {
+async function findAliveCharacter(discordUserId, args = {}) {
   if (!discordUserId) return null;
-  return prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" } });
+  return prisma.character.findFirst({
+    where: { discordUserId, status: "ALIVE" },
+    ...args,
+  });
 }
 
 // The acting character, resolved from the interaction rather than from anything

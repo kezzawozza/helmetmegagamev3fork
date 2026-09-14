@@ -105,5 +105,4 @@ module.exports = {
   INTERCOM_ROOM_SLUG,
   OUT_OF_RANGE_ZONE_SLUGS,
   broadcastIntercom,
-  intercomLine,
 };

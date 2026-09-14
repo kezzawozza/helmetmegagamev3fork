@@ -127,7 +127,7 @@ function normalise(raw) {
 
 // Returns the held draft, or null when the row's own saved values are what
 // the editor should show.
-export function readDeskDraft(key) {
+function readDeskDraft(key) {
   return readDeskEntry(key)?.value ?? null;
 }
 

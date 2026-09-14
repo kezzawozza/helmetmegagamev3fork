@@ -147,4 +147,6 @@ async function runWhisperPoll(prisma) {
   return posted;
 }
 
-module.exports = { runWhisperPoll, WINDOW_MINUTES };
+module.exports = {
+  runWhisperPoll,
+};

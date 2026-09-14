@@ -386,11 +386,7 @@ function decodeGame(game) {
 }
 
 module.exports = {
-  PACKET_KIND,
-  PACKET_VERSION,
-  STRICT_FIELDS,
   archiveFields,
-  encodeRow,
   decodeRow,
   exportGame,
   verifyPacket,

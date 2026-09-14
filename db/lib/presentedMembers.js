@@ -178,4 +178,8 @@ function resolveMemberToken(characterIds, token) {
   return null;
 }
 
-module.exports = { presentedMembers, presentedNameOf, resolveMemberToken, MEMBER_SELECT };
+module.exports = {
+  presentedMembers,
+  presentedNameOf,
+  resolveMemberToken,
+};

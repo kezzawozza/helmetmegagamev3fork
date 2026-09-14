@@ -340,6 +340,5 @@ module.exports = {
   spawnOfferComponents,
   acceptThreatSpawn,
   declineThreatSpawn,
-  resolveSpawnTags,
   resolveAssignTags,
 };

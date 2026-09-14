@@ -33,7 +33,7 @@ export function EmptyGame({ section }) {
   );
 }
 
-export function sectionTitle(section) {
+function sectionTitle(section) {
   const titles = {
     pulse: "Pulse",
     ledger: "Ledger",

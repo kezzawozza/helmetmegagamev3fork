@@ -8,6 +8,7 @@
 const { TIRED_SLUG, EXHAUSTED_SLUG, GUILT_RIDDEN_SLUG, INSOMNIAC_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 const { nextLaborFatigueSlug } = require("./laborFatigue");
+const { alivePassCharacters } = require("./aliveCharacters");
 
 const GUILT_RIDDEN_ODDS = 0.05;
 const INSOMNIAC_ODDS = 0.2;
@@ -24,9 +25,8 @@ async function runDawnAfflictionPass(prisma, turn, { rng = Math.random } = {}) {
     return { turnNumber: turn.number, rolled: 0, granted: 0, notices: [] };
   }
 
-  const characters = await prisma.character.findMany({
+  const characters = await alivePassCharacters(prisma, {
     where: {
-      status: "ALIVE",
       tags: { some: { tag: { slug: { in: [GUILT_RIDDEN_SLUG, INSOMNIAC_SLUG] } } } },
     },
     select: {

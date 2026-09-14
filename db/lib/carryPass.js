@@ -9,15 +9,15 @@
 // than sending them. Takes `prisma` as a parameter — see db/lib/dm.js.
 const { OVERBURDENED_SLUG } = require("./constants");
 const { settleCarry } = require("./carry");
+const { alivePassCharacters } = require("./aliveCharacters");
 
 async function runCarryPass(prisma, turn) {
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
     select: { carryResourceCap: true },
   });
-  const candidates = await prisma.character.findMany({
+  const candidates = await alivePassCharacters(prisma, {
     where: {
-      status: "ALIVE",
       OR: [
         { tags: { some: { tag: { tradeable: true } } } },
         { tags: { some: { tag: { slug: OVERBURDENED_SLUG } } } },

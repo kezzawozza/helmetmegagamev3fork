@@ -68,7 +68,7 @@ function readServer() {
   return "";
 }
 
-export function setAsideTab(id) {
+function setAsideTab(id) {
   try {
     window.localStorage.setItem(KEY, String(id));
   } catch {

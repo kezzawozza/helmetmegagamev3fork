@@ -43,7 +43,7 @@ const drafts = new Map();
 const writtenAt = new Map();
 const listeners = new Set();
 
-export function dmDraftKey(discordUserId) {
+function dmDraftKey(discordUserId) {
   return `messages-draft-${discordUserId}`;
 }
 
@@ -54,7 +54,7 @@ function emit() {
 // Seeded from storage ONCE per conversation, then never read from storage
 // again. A refusal memoises "" so a blocked accessor isn't retried on every
 // render.
-export function readDmDraft(discordUserId) {
+function readDmDraft(discordUserId) {
   if (!discordUserId) return EMPTY;
   const held = drafts.get(discordUserId);
   if (held !== undefined) return held;

@@ -111,7 +111,6 @@ async function destroyNotice(prisma, post) {
 }
 
 module.exports = {
-  NOTICEBOARD_ATTRIBUTE,
   boardFor,
   destroyNotice,
   BOARD_OPTION_LIMIT,

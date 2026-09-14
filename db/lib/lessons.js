@@ -661,13 +661,9 @@ async function cancelOffersForCharacter(db, characterId) {
 }
 
 module.exports = {
-  LESSON_CHARACTER_SELECT,
   LESSON_CATALOG_SELECT,
   teachableSkills,
-  lessonThreshold,
-  teacherCapacity,
   isTeacher,
-  holdsTier,
   createLessonOffer,
   acceptLesson,
   declineOffer,

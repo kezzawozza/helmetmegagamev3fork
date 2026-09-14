@@ -283,7 +283,6 @@ async function acceptKiss(prisma, offer, responder) {
 module.exports = {
   KISS_COOLDOWN_MS,
   KISS_AUDIT_ACTION,
-  KISS_ACCEPTED_ACTION,
   KISS_SELECT,
   kissBlock,
   kissAuthority,

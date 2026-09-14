@@ -168,4 +168,9 @@ function noteChant(db, args) {
   return noteChantImpl(db, args).catch((err) => console.error("Rite chant hook failed:", err.message ?? err));
 }
 
-module.exports = { noteChant, evaluateAttempt, distinctChanters, roomIdForPlaceKey, TENSE_LINE, ROOM_SELECT };
+module.exports = {
+  noteChant,
+  evaluateAttempt,
+  distinctChanters,
+  ROOM_SELECT,
+};

@@ -257,7 +257,6 @@ async function affordancesFor(prisma, character) {
 
 module.exports = {
   GO,
-  PLAIN,
   DANGER,
   TRAVEL_CUSTOM_ID,
   WHOS_HERE_PREFIX,
@@ -275,7 +274,6 @@ module.exports = {
   QUEST_INTERACT_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
   WATCHTOWER_ROOM_SLUGS,
-  LOCATION_AFFORDANCES,
   ROOM_AFFORDANCES,
   locationAffordances,
   roomAffordances,

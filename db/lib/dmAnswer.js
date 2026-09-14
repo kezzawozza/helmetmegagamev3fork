@@ -273,4 +273,6 @@ async function answerDmAction(prisma, { action, choice, discordUserId, amount })
   }
 }
 
-module.exports = { answerDmAction, loadOfferFor };
+module.exports = {
+  answerDmAction,
+};

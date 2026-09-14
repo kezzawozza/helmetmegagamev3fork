@@ -158,4 +158,8 @@ async function deleteCorpseFor(db, characterId) {
   return true;
 }
 
-module.exports = { mintCorpse, deleteCorpseFor, corpseName, corpseDescription, corpseSlug };
+module.exports = {
+  mintCorpse,
+  deleteCorpseFor,
+  corpseName,
+};

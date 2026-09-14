@@ -14,7 +14,7 @@ import { readBlock } from "@lifeweb/db/lib/reading";
 // A rolling window, not the whole game. Seven in-game days is long enough to
 // catch somebody who is at it regularly and short enough that the scan stays
 // bounded and the table pages in the browser like every other player list.
-export const LEDGER_TURNS = 7;
+const LEDGER_TURNS = 7;
 
 // The ceiling on what crosses to the client, the Depot's number. Enough to be
 // a book, few enough that a busy week does not ship a megabyte of JSON.

@@ -24,7 +24,7 @@ const {
   accessibleRooms,
   roomAccessKeys,
 } = require("@lifeweb/db/lib/roomAccess");
-const { resolveActingMember, isGmMember, findAliveCharacter } = require("../../lib/interactionGuild");
+const { resolveActingMember, isGmMember, findAliveCharacter, actingCharacter } = require("../../lib/interactionGuild");
 const { toggleConceal } = require("@lifeweb/db/lib/conceal");
 const { whosHere, whosHereLines } = require("@lifeweb/db/lib/whosHere");
 const { examineLines } = require("@lifeweb/db/lib/examineLocation");
@@ -54,8 +54,7 @@ const CONVERSE_ROOM_PREFIX = "conv:room:";
 async function handleWhosHere(interaction, locationId) {
   await ack(interaction);
 
-  const viewer = await prisma.character.findFirst({
-    where: { discordUserId: interaction.user.id, status: "ALIVE" },
+  const viewer = await actingCharacter(interaction, {
     select: { id: true, factionId: true },
   });
   const rows = await whosHere(prisma, viewer, { locationId, withAcross: true });

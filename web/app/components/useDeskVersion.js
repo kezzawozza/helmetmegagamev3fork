@@ -34,10 +34,6 @@ export function setDeskBaseline(version) {
   state.baseline = version ?? null;
 }
 
-export function deskBaseline() {
-  return state.baseline;
-}
-
 function latch() {
   if (state.stale) return;
   state.stale = true;
@@ -89,10 +85,6 @@ export function noteDeskVersion(seen, baseline) {
 export function noteActionVersion(result) {
   if (result?.version && state.baseline) noteDeskVersion(result.version, state.baseline);
   return result;
-}
-
-export function readVersionCrumb() {
-  return readSession(CRUMB_KEY, null);
 }
 
 export default function useDeskVersion() {

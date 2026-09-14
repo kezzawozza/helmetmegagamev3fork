@@ -14,8 +14,6 @@
 // live here: this file drags no Prisma into either bundle.
 export const DM_PLACE_KEY = "gm";
 
-export const AUTOMATED_EFFECT_SOURCES = ["bot_auto", "player_event", "gm_dev", "move_unlock"];
-
 // A mention relay — "You were mentioned in X" (bot/src/lib/mentions.js,
 // bot/src/lib/feedOutbox.js#relayWebMentions). Its own source rather than
 // system_notice because the two chairs disagree about it: the GM desk hides

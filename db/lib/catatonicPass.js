@@ -10,6 +10,7 @@
 const { CATATONIC_SLUG } = require("./constants");
 const { formatBareName } = require("./characterName");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
+const { alivePassCharacters } = require("./aliveCharacters");
 
 function catatonicDm(turns, deathTurns) {
   const deathLine =
@@ -39,8 +40,7 @@ async function runCatatonicPass(prisma, turn) {
   const turns = Math.max(1, config.catatonicTurns ?? 4);
   const threshold = turn.number - turns;
 
-  const characters = await prisma.character.findMany({
-    where: { status: "ALIVE" },
+  const characters = await alivePassCharacters(prisma, {
     select: {
       id: true,
       discordUserId: true,

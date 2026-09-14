@@ -136,7 +136,6 @@ module.exports = {
   WATER_ZONE_SLUGS,
   BOAT_CONFLICT_SLUGS,
   STOWABLE_SLUGS,
-  HORSESHOE_SLUG,
   equippedSlugs,
   fastTravelCapacity,
   fastTravelBonus,

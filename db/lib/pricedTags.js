@@ -77,11 +77,4 @@ async function pricedTag(tx, tagId) {
   }
 }
 
-// For `db:sync-tags` or a test to force a re-read on the next call, rather
-// than waiting out the TTL.
-function invalidatePricedTags() {
-  cache = null;
-  loadedAt = 0;
-}
-
-module.exports = { pricedTag, invalidatePricedTags };
+module.exports = { pricedTag };

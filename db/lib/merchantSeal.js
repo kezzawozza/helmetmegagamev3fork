@@ -58,4 +58,6 @@ async function setMerchantSeal(tx, name) {
   });
 }
 
-module.exports = { MERCHANT_STAMP_SLUG, initialsOf, merchantSealMark, setMerchantSeal };
+module.exports = {
+  setMerchantSeal,
+};

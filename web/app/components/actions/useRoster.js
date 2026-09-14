@@ -29,10 +29,6 @@ function keyFor(need) {
   return [...need].sort().join(",");
 }
 
-export function forgetRoster() {
-  cache.clear();
-}
-
 export default function useRoster(need, { seed = null } = {}) {
   const key = keyFor(need);
   const [state, setState] = useState(() => {

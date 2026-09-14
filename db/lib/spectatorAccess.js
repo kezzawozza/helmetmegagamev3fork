@@ -148,6 +148,4 @@ module.exports = {
   managedSpectatorChannels,
   spectatorDrift,
   syncSpectatorAccess,
-  SPECTATOR_ALLOW,
-  SPECTATOR_DENY,
 };

@@ -176,7 +176,7 @@ function attackClusterRow(edges, ctx) {
   };
 }
 
-export function interceptHitRow(h, ctx) {
+function interceptHitRow(h, ctx) {
   const { usernameById, catatonicIds } = ctx;
   return {
     id: h.id,

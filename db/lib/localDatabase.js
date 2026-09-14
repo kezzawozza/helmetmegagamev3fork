@@ -104,8 +104,6 @@ function assertRawSqlAllowed(args, url = process.env.DATABASE_URL) {
 }
 
 module.exports = {
-  LOCAL_HOSTS,
-  databaseHost,
   isLocalDatabase,
   requireLocalDatabase,
   assertRawSqlAllowed,

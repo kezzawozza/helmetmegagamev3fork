@@ -82,7 +82,6 @@ module.exports = {
   BELL_HOPS,
   BELL_LOUD_HOPS,
   BELL_COOLDOWN_MS,
-  BELL_LINE,
   RING_WORD,
   bellWordMatches,
   bellCooldown,

@@ -339,6 +339,5 @@ module.exports = {
   selectMissed,
   recoveryKind,
   REPOST_WINDOW_MS,
-  SCAN_WINDOW_MS,
   SETTLE_MS,
 };

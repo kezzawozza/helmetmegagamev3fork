@@ -14,7 +14,7 @@ const KEY = "gm-pins";
 const LEGACY_DESK_KEY = "desk-pins";
 const LEGACY_INBOX_KEY = "messages-pins";
 
-export function pinIdentity(entry) {
+function pinIdentity(entry) {
   return entry?.characterId ? `c:${entry.characterId}` : `u:${entry?.discordUserId ?? ""}`;
 }
 

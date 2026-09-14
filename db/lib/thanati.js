@@ -120,9 +120,6 @@ async function chanterReady(db, characterId) {
 module.exports = {
   THANATI_SLUG,
   THANATI_LEADER_SLUG,
-  BLACK_ROBES_SLUG,
-  THANATI_MASK_SLUG,
-  DARK_INSPIRATION_SLUG,
   SHIMMERING_ROBES_SLUG,
   SCRYING_EYE_SLUG,
   GHOUL_SLUG,

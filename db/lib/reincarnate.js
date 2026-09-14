@@ -308,4 +308,7 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
   return created;
 }
 
-module.exports = { reincarnate, REINCARNATION_BONUS_POINTS, REINCARNATION_AGE_MAX };
+module.exports = {
+  reincarnate,
+  REINCARNATION_AGE_MAX,
+};

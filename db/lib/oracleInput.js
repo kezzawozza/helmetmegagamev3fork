@@ -651,8 +651,6 @@ function linkCharacterTokens(text, characters) {
 }
 
 module.exports = {
-  LIVE_TAG_CATEGORIES,
-  BEAT_KINDS,
   aggregatesSeenByZone,
   windowBetween,
   turnWindow,

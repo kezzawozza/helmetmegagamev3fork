@@ -134,8 +134,6 @@ function splitEditorReply(text) {
 }
 
 module.exports = {
-  CORRESPONDENT_PROMPT,
-  EDITOR_PROMPT,
   correspondentPrompt,
   editorPrompt,
   splitEditorReply,

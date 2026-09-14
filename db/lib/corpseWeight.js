@@ -151,6 +151,5 @@ module.exports = {
   corpseWeightFor,
   refreshCorpseWeight,
   BASE_CORPSE_LBS,
-  BUILD_MULTIPLIERS,
   MIN_BODY_LBS,
 };

@@ -23,6 +23,7 @@
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js.
 const { applyDeathToRow } = require("./characterDeath");
+const { alivePassCharacters } = require("./aliveCharacters");
 
 // What every #summary reads, verbatim from Bascinet. The @everyone is the
 // point: this is the one event in the game that should wake somebody who is
@@ -81,8 +82,8 @@ async function runNukeExplosionPass(prisma, turn) {
     });
   }
 
-  const doomed = await prisma.character.findMany({
-    where: { status: "ALIVE", zone: { kind: { not: "CAVE_LEVEL" } } },
+  const doomed = await alivePassCharacters(prisma, {
+    where: { zone: { kind: { not: "CAVE_LEVEL" } } },
     select: {
       id: true,
       name: true,

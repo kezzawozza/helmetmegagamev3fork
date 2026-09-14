@@ -38,9 +38,6 @@ async function broadcastTrumpet(prisma, originLocationId) {
 }
 
 module.exports = {
-  TRUMPET_HOPS,
-  TRUMPET_LOUD_HOPS,
   TRUMPET_COOLDOWN_MS,
-  TRUMPET_LINE,
   broadcastTrumpet,
 };

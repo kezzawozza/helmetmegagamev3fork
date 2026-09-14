@@ -13,11 +13,7 @@
 // doctor's eye on 🔍-inspect asks the same "are you qualified for this?"
 // question this module asks. Re-exported so every existing caller here keeps
 // importing from where it always did.
-export {
-  buildSkillAncestry,
-  satisfiedSkillIds,
-  canTreatAsRoutine,
-} from "@lifeweb/db/lib/medicalVision";
+export { buildSkillAncestry, satisfiedSkillIds, canTreatAsRoutine }from "@lifeweb/db/lib/medicalVision";
 
 export const HEAL_SKILL_SLUG = "medical-basic";
 
@@ -84,7 +80,7 @@ export function healCost(tag) {
 export const HEAL_SKILL_SELECT = { id: true, name: true, slug: true };
 
 // The requirementSkills rows still missing — [] when qualified.
-export function missingSkillsFor(tag, satisfied) {
+function missingSkillsFor(tag, satisfied) {
   return (tag?.requirementSkills ?? []).filter((skill) => !satisfied.has(skill.id));
 }
 

@@ -65,4 +65,6 @@ async function mintHeadstone(tx, target) {
   }
 }
 
-module.exports = { mintHeadstone, headstoneSlug };
+module.exports = {
+  mintHeadstone,
+};

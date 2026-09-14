@@ -15,7 +15,7 @@
 import { RITES } from "@lifeweb/db/lib/rites";
 
 export const GRIMOIRE_DOCUMENT_KEY = "grimoire";
-export const GRIMOIRE_MARKER = "{grimoire}";
+const GRIMOIRE_MARKER = "{grimoire}";
 
 export function grimoireBody(words = {}) {
   return RITES.map((rite) => {

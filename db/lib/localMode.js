@@ -135,4 +135,7 @@ function localDiscordRequest(discordPath, { method = "GET", body } = {}) {
   return Promise.resolve(looksSingular ? null : []);
 }
 
-module.exports = { isLocalMode, localDiscordRequest, LOCAL_ROLES, LOCAL_OUTBOX_PATH };
+module.exports = {
+  isLocalMode,
+  localDiscordRequest,
+};

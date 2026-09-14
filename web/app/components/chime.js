@@ -15,7 +15,7 @@ let reverbIR;
 // nav badge's count (fed by the 30s router.refresh) catches up to the same
 // arrival later. InboxChime.js checks this before ringing.
 let lastChimeAt = 0;
-export function noteChime() {
+function noteChime() {
   lastChimeAt = Date.now();
 }
 export function chimedRecently(withinMs = 45_000) {

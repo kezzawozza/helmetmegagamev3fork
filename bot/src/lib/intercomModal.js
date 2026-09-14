@@ -41,4 +41,7 @@ function buildIntercomModal(roomId) {
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(INTERCOM_HELP));
 }
 
-module.exports = { INTERCOM_MODAL_PREFIX, INTERCOM_MAX_LENGTH, buildIntercomModal };
+module.exports = {
+  INTERCOM_MODAL_PREFIX,
+  buildIntercomModal,
+};

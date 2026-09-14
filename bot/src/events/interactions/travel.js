@@ -1,6 +1,7 @@
 // Travel and movement interaction handlers: opening the travel picker,
 // gate toggling and keyed-open prompts, and ending an Intercept/Attack hold.
 const { prisma } = require("@lifeweb/db");
+const { actingCharacter } = require("../../lib/interactionGuild");
 const {
   MENU_OPTION_LIMIT,
   PICK_ID,
@@ -115,8 +116,7 @@ async function handleTravelOpen(interaction) {
 async function handleGateToggle(interaction, linkId) {
   await ack(interaction);
 
-  const character = await prisma.character.findFirst({
-    where: { discordUserId: interaction.user.id, status: "ALIVE" },
+  const character = await actingCharacter(interaction, {
     select: GATE_CHARACTER_SELECT,
   });
   const result = await toggleGate(prisma, {

@@ -13,7 +13,7 @@ import { lockedSlotLabel } from "@/lib/desireLabels";
 // A Desire's award, in the same voice as a Point Buy price: `+3 pts`,
 // `+1 pt`. Tier IS the award, and formatCost/costColor read a NEGATIVE cost
 // as "grants points", so the number lands in --positive like a drawback's.
-export function formatDesirePoints(tier) {
+function formatDesirePoints(tier) {
   return `${formatCost(-tier)} ${tier === 1 ? "pt" : "pts"}`;
 }
 

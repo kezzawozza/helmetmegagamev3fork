@@ -355,4 +355,8 @@ async function runOracle(prisma, { turnId, step, skipIfComplete = false }) {
   return { ran: true, zones: zones.length };
 }
 
-module.exports = { runOracle, oracleReady, seatZones, memoryFor, isComplete };
+module.exports = {
+  runOracle,
+  memoryFor,
+  isComplete,
+};

@@ -134,6 +134,5 @@ module.exports = {
   TIER_TO_LABOR_DROP_TYPE,
   scopeFilters,
   passesRequiredTag,
-  laborDropPool,
   pickLaborDropOption,
 };

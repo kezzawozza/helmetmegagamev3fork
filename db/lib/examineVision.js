@@ -74,8 +74,4 @@ function examineBlock(characterTags = [], where = {}) {
 module.exports = {
   examineBlock,
   BLIND_SLUG,
-  BLIND_DRUNK_SLUG,
-  NEARSIGHTED_SLUG,
-  SPECTACLES_SLUG,
-  SUN_SENSITIVITY_SLUG,
 };

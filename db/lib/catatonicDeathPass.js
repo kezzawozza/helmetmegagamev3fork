@@ -8,6 +8,7 @@
 // side-effect thunk. Takes `prisma` as a parameter — see db/lib/dm.js.
 const { CATATONIC_SLUG } = require("./constants");
 const { applyDeathToRow } = require("./characterDeath");
+const { alivePassCharacters } = require("./aliveCharacters");
 
 function deathWarningDm() {
   return (
@@ -42,9 +43,8 @@ async function runCatatonicDeathPass(prisma, turn) {
   // the death lands at the close of T+deathTurns. The tag check rides along
   // so a GM who hand-removed the tag but left a stale stamp (or the reverse)
   // fails safe: both must agree before anyone dies.
-  const doomed = await prisma.character.findMany({
+  const doomed = await alivePassCharacters(prisma, {
     where: {
-      status: "ALIVE",
       catatonicSinceTurn: { not: null, lte: turn.number - deathTurns },
       tags: { some: { tagId: catatonicTag.id } },
     },
@@ -87,9 +87,8 @@ async function runCatatonicDeathPass(prisma, turn) {
   // The eve-of warning, same posture as the Nobility track's: one DM the
   // close before the axe, nothing on the quiet turns in between. Departed
   // players are skipped — the account is gone and the send would only 403.
-  const warned = await prisma.character.findMany({
+  const warned = await alivePassCharacters(prisma, {
     where: {
-      status: "ALIVE",
       leftGuildAt: null,
       catatonicSinceTurn: turn.number - deathTurns + 1,
       tags: { some: { tagId: catatonicTag.id } },

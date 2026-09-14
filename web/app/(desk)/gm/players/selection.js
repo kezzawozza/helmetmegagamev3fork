@@ -76,10 +76,6 @@ export function useSelection() {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
-export function getSelection() {
-  return selected;
-}
-
 // Open somebody, or pass null for the roster. `replace` is for landing on a
 // URL rather than choosing from it — it must not add a history entry, or Back
 // would return to the page you just arrived at.

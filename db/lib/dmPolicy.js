@@ -109,5 +109,4 @@ module.exports = {
   dedupeKey,
   describeFailure,
   DEFAULT_KIND,
-  DEFAULT_SOURCE,
 };

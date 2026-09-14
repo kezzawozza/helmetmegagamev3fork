@@ -1,22 +1,5 @@
 const { prisma, formatBareName } = require("@lifeweb/db");
-
-const NICK_MAX = 32;
-const SEP = " | ";
-
-// Kept in sync by hand with the identical function in web/lib/discordGuild.js
-// (same convention already used for isTupperChannel/isSummaryChannel, which
-// exist independently in both processes — see CLAUDE.md).
-function buildNickname(base, characterName) {
-  const budget = NICK_MAX - SEP.length;
-  const a = (base || "").trim();
-  const b = (characterName || "").trim();
-  if (a.length + b.length <= budget) return `${a}${SEP}${b}`;
-
-  const aMax = Math.ceil(budget / 2);
-  const truncA = a.slice(0, Math.min(a.length, aMax));
-  const truncB = b.slice(0, budget - truncA.length);
-  return `${truncA}${SEP}${truncB}`;
-}
+const { buildNickname } = require("@lifeweb/db/lib/nicknameFormat");
 
 // Never uses member.nickname as the base — that's this sync's own past
 // output, and feeding it back in would compound on every change.

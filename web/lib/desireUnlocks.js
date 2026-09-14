@@ -42,7 +42,7 @@ function titleCase(slug) {
     .join(" ");
 }
 
-export function plainDesireName(name) {
+function plainDesireName(name) {
   return splitTokens(String(name ?? ""))
     .map((part) => (part.kind === "tag" ? titleCase(part.payload) : (part.text ?? part.raw)))
     .join("")

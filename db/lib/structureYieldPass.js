@@ -33,6 +33,7 @@ const { ambientLine } = require("./ambientLine");
 const { postMessage } = require("./discordRest");
 const { placementOf } = require("./structures");
 const { buildSkillAncestry, satisfiedSkillIds } = require("./medicalVision");
+const { alivePassCharacters } = require("./aliveCharacters");
 
 // Structures that are actually WORKING. Deliberately COMPLETE only, and
 // stricter than WORKING_STATUSES: a palisade still fences you in when it is
@@ -56,8 +57,8 @@ async function someoneTending(prisma, locationId, skillSlug) {
     console.warn(`structureYield: yields.skill "${skillSlug}" is not a tag — not gating on it.`);
     return true;
   }
-  const here = await prisma.character.findMany({
-    where: { locationId, status: "ALIVE" },
+  const here = await alivePassCharacters(prisma, {
+    where: { locationId },
     select: { tags: { select: { tagId: true } } },
   });
   if (!here.length) return false;

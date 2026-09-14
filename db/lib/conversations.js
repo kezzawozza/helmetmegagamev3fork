@@ -239,7 +239,6 @@ async function pullMentionedIntoConversation(prisma, { conversation, content, sp
 }
 
 module.exports = {
-  conversationByThreadId,
   conversationMemberIds,
   isConversationMember,
   addConversationMember,

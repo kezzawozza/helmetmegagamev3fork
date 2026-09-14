@@ -21,6 +21,7 @@
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js.
 const { applyDeathToRow } = require("./characterDeath");
+const { alivePassCharacters } = require("./aliveCharacters");
 
 // What every #summary reads, verbatim from Bascinet. No @everyone: the warning
 // two turns ago was the one worth waking somebody for, and by the time this
@@ -86,8 +87,7 @@ async function runAscensionPass(prisma, turn) {
     });
   }
 
-  const doomed = await prisma.character.findMany({
-    where: { status: "ALIVE" },
+  const doomed = await alivePassCharacters(prisma, {
     select: {
       id: true,
       name: true,

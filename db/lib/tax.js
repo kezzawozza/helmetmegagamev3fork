@@ -179,8 +179,6 @@ async function refuseTax(prisma, { pendingTaxId, discordUserId }) {
 module.exports = {
   PENDING_TAX_DECLINE_PREFIX,
   PENDING_TAX_PARTIAL_PREFIX,
-  taxDmText,
-  taxDeclineComponents,
   fileTax,
   refuseTax,
   payPartialTax,

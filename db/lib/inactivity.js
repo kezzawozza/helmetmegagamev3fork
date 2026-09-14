@@ -48,4 +48,7 @@ function inactiveRows(report) {
   );
 }
 
-module.exports = { inactiveCharacters, inactiveRows, BUCKET_LABEL };
+module.exports = {
+  inactiveCharacters,
+  inactiveRows,
+};

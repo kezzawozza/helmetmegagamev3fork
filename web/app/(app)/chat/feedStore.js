@@ -209,17 +209,6 @@ export function retryPending(place, clientId) {
   return row;
 }
 
-export function dropPending(place, clientId) {
-  const pending = state.pending.get(place);
-  if (!pending?.has(clientId)) return;
-  const next = new Map(pending);
-  next.delete(clientId);
-  state.pending = new Map(state.pending);
-  state.pending.set(place, next);
-  rebuild(place);
-  emit();
-}
-
 // What the column and the composer are drawn from, per place. The two seq
 // watermarks are deliberately NOT in it: they move whenever anybody speaks,
 // and a list that "changed" every time somebody said something would make
@@ -285,7 +274,7 @@ export function usePlaces() {
 // now: the skeleton has to come down the moment the rows land.
 const HISTORY_IDLE = "idle";
 
-export function setHistoryState(place, next) {
+function setHistoryState(place, next) {
   if (!place) return;
   if (state.history.get(place) === next) return;
   state.history = new Map(state.history);

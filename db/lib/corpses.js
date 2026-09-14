@@ -134,10 +134,6 @@ async function corpsesInReach(prisma, character, { rooms = null } = {}) {
 }
 
 module.exports = {
-  MONSTER_YIELDS,
-  CORPSE_TAG_FIELDS,
   isCorpseTag,
-  isHumanCorpse,
-  yieldSlugFor,
   corpsesInReach,
 };

@@ -150,16 +150,11 @@ async function deleteThreadCreatedMessages(channelId) {
 }
 
 module.exports = {
-  YAML_PATH,
   DOCS_DIR,
-  BOLD_ROLE_NAMES,
-  GENERATORS,
   loadInfoDoc,
   resolveThreadBody,
   infoThreads,
   findInfoChannel,
-  LINKS_LINE,
   buildDirectoryMessage,
-  THREAD_CREATED_MESSAGE_TYPE,
   deleteThreadCreatedMessages,
 };

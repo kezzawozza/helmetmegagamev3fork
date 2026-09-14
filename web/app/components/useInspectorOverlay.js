@@ -13,7 +13,7 @@ import useSessionState from "./useSessionState";
 // through useSessionState is already how every other piece of desk view state
 // is held — per tab, dead with the tab, alive across the reload every deploy
 // triggers.
-export const INSPECTOR_OVERLAY_KEY = "gm-desk-inspector";
+const INSPECTOR_OVERLAY_KEY = "gm-desk-inspector";
 
 // A module constant, so useSyncExternalStore never sees the fallback change
 // identity (useSessionState.js says the same).

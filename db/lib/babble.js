@@ -79,8 +79,4 @@ function growl(content, rng = Math.random) {
   return babble(content, rng, GHOUL_SYLLABLES).toUpperCase();
 }
 
-function speaksGrowl(characterTags) {
-  return (characterTags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === GHOUL_SLUG);
-}
-
-module.exports = { babble, growl, speaksBabble, speaksGrowl, STUPID_SLUG, GHOUL_SLUG };
+module.exports = { babble, growl, speaksBabble, STUPID_SLUG, GHOUL_SLUG };

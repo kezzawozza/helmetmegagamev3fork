@@ -280,14 +280,9 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
 
 module.exports = {
   BOUND_SLUG,
-  PIOUS_SLUG,
   HALLOWED_LOCATION_SLUGS,
   onHallowedGround,
   floorHas,
-  boundCandidates,
-  corpseOnFloor,
-  photographInReach,
-  weaponOnFloor,
   resolveIngredients,
   nameOnPhoto,
 };

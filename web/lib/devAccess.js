@@ -52,7 +52,7 @@ export function allows(tier, need) {
   return false;
 }
 
-export function homeSection(tier) {
+function homeSection(tier) {
   return HOME[tier] ?? "bulk";
 }
 
