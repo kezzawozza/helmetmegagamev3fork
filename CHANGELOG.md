@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Hooded people no longer show up in Learn Skill and other people lists
+
+✎ Someone in a hood that hides the face (a Cerberus Helmet, a bag, a plague doctor mask) was still listed by real name in Learn, Teach, Heal, Kiss and the other pickers; now they are hidden like anyone who used /conceal
+
 ## 2026-09-14 · Handing someone goods tells them who handed it over
 
 ✎ "You were handed X." now reads "Ada handed you X.", or "A young man handed you X." from a hood

@@ -38,6 +38,8 @@ const {
 
 // What a lesson needs to know about each side. hungerStreak and mood feed
 // the learner's Gambit modifier, same as a hand-filed Gambit.
+// `equipped` and the hood fields are for presence.js#isHere: a forcing hood hides a teacher the column doesn't.
+const { CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
 const LESSON_CHARACTER_SELECT = {
   id: true,
   name: true,
@@ -53,11 +55,14 @@ const LESSON_CHARACTER_SELECT = {
     select: {
       tagId: true,
       quantity: true,
+      equipped: true,
       tag: {
         select: {
+          ...CONCEALMENT_TAG_FIELDS,
           id: true,
           slug: true,
           name: true,
+          forcedName: true,
           parentTagId: true,
           groupId: true,
         },

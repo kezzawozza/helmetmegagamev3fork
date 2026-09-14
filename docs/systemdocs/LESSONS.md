@@ -36,7 +36,8 @@ the student's **Gambit** — the die after its modifier (Hunger, Afraid, Panic;
 - Neither remaining tag is `teachable`. You can't be taught to teach.
 - Thresholds are fixed. There is no "each attempt lowers the difficulty".
 - Both sides have to be standing at the same Location and unconcealed
-  (`db/lib/presence.js`). The learner may never already have locked in a Move.
+  (`db/lib/presence.js`) — which counts a worn hood that forces concealment,
+  not just `/conceal`. The learner may never already have locked in a Move.
 
 Constants: `db/lib/constants.js` (`TEACHING_SLUG`, `DRILL_INSTRUCTOR_SLUG`,
 `FIGHTING_GROUP_SLUG`, `TEACHING_CAPACITY`, `UNTAUGHT_LESSON_THRESHOLD`,
