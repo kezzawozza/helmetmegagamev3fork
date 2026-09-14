@@ -89,6 +89,9 @@ export default function Chat({
   // carrying an instant camera. Both only decide which controls a feed row
   // draws; the server re-decides every one of them when it is pressed.
   gm = false,
+  // A dead player reading with no living character. Their list is every zone,
+  // like a GM's, which is the one thing this component needs to know.
+  ghost = false,
   // The GM's "Zones I see" picker, or null. It rides the right column rather
   // than the places list because it is a control, not a place — and because
   // that column is where the same picker sits on every GM desk.
@@ -724,17 +727,18 @@ export default function Chat({
   // the conversations you are in and the summary, and firing six requests at
   // once would compete with the thing the reader is actually looking at.
   //
-  // NOT FOR A GM. A player's list is a Location, its rooms, their
-  // conversations and a summary — small enough to walk. A GM's list is every
-  // zone, every Location and every Room they may watch, which is two hundred
-  // and more, and each one of those is a `findMany` of a hundred rows plus an
-  // avatar pass. Warming a Chat a GM will open one room of is a storm the
-  // database pays for and nobody sees, so a GM fetches on selection like the
-  // Chat always did. And even for a player it is CAPPED: a well-connected
-  // character can sit in a lot of conversations, and past a dozen the warmth
-  // is not worth the requests.
+  // NOT FOR A GM, AND NOT FOR A GHOST. A player's list is a Location, its
+  // rooms, their conversations and a summary — small enough to walk. A GM's
+  // list is every zone, every Location and every Room they may watch, which
+  // is two hundred and more, and each one of those is a `findMany` of a
+  // hundred rows plus an avatar pass. Warming a Chat a GM will open one room
+  // of is a storm the database pays for and nobody sees, so a GM fetches on
+  // selection like the Chat always did — and a ghost's list is the same size.
+  // And even for a player it is CAPPED: a well-connected character can sit in
+  // a lot of conversations, and past a dozen the warmth is not worth the
+  // requests.
   useEffect(() => {
-    if (gm) return undefined;
+    if (gm || ghost) return undefined;
     let stopped = false;
     let timer = null;
     const queue = places
@@ -773,7 +777,7 @@ export default function Chat({
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [places, gm, gapNonce]);
+  }, [places, gm, ghost, gapNonce]);
 
   // Which of the open place's doors a person can be let through. Only a
   // conversation and a PRIVATE room have one; everywhere else there is nothing
@@ -924,6 +928,7 @@ export default function Chat({
           onConverse={onConverse}
           placesVersion={placesVersion}
           gm={gm}
+          ghost={ghost}
           hasCamera={hasCamera}
           letters={letters}
           canConceal={Boolean(conceal?.canConceal)}

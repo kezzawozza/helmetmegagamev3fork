@@ -3,6 +3,7 @@ import "server-only";
 import { prisma } from "@lifeweb/db";
 import { placesFor as placesForCharacter, findPlace, mayReadPlace, mayWritePlace } from "@lifeweb/db/lib/feedAccess";
 import { feedWipeFloors, placeSeqWhere } from "@lifeweb/db/lib/feedWipe";
+import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { getGmSession } from "@/lib/discordGuild";
 
 // The web's half of the feed gate; rules live in db/lib/feedAccess.js. What's left: the viewer load — the session says who is asking, never a posted character id.
@@ -107,17 +108,37 @@ export async function loadFeedCharacter(discordUserId) {
   });
 }
 
-// Who is looking: a GM with no character gets a read-only Chat over their GmZoneView zones, else plays their character. cache()d since every page's header asks for it, not only /chat.
+// Who is looking, and on what terms. A GM with no living character still gets
+// a Chat — a read-only one over the zones their GmZoneView allows — and a GM
+// who DOES have a living character plays it as that character, because the
+// alternative is a GM who cannot use their own sheet. A dead player whose body
+// still lies in the world is a GHOST: a read-only Chat over every zone, the
+// seat their Discord role already gives them (CHANNELS.md §5).
+//
+// Whether they are a ghost is db/lib/curse.js's question and nobody else's —
+// the same rule the channel doctor reconciles the Ghost role to, so the two
+// faces cannot disagree: it ends when the body is buried or the name engraved
+// (the role comes off, the row stays DEAD), or when a living character is
+// theirs again. A second predicate here keyed on `status: DEAD` would have
+// kept the web seat open for the rest of the game after a burial.
+//
+// `options` is what every db/lib/feedAccess.js call needs:
+// `{ gm, ghost, discordUserId }`.
+// cache()d because every page's header asks for it now (AppHeader -> TurnMeta)
+// and /chat asks again for its own load. One small indexed lookup either way,
+// but there is no reason for a page to run it twice in a request.
 export const loadFeedViewer = cache(async () => {
   const { session, isGm } = await getGmSession();
-  if (!session?.discordUserId) return { discordUserId: null, character: null, gm: false, options: null };
+  if (!session?.discordUserId) return { discordUserId: null, character: null, gm: false, ghost: false, options: null };
 
   const character = await loadFeedCharacter(session.discordUserId);
   const gm = Boolean(isGm) && !character;
+  const ghost = !character && !gm && (await isPlayerCursed(prisma, session.discordUserId));
   return {
     discordUserId: session.discordUserId,
     character,
     gm,
-    options: { gm, discordUserId: session.discordUserId },
+    ghost,
+    options: { gm, ghost, discordUserId: session.discordUserId },
   };
 });

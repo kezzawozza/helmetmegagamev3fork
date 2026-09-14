@@ -176,6 +176,8 @@ const FeedRow = memo(function FeedRow({
   // A GM with no living character. They may take any line down, their own
   // rules — no ownership, no five-minute window.
   canRemove,
+  // ⭐ needs a living character to file the note under (chat/actions.js#starRow).
+  canStar,
   editing,
   coarse,
   // True only for a row that arrived after this place was painted, so the
@@ -196,7 +198,7 @@ const FeedRow = memo(function FeedRow({
   // ⭐ is offered on every line that HAS a seq — your own included, exactly as
   // the reaction is in Discord — which is what widened the bar past the rows
   // somebody can act against. A system line with no seq still has nothing.
-  const anyAction = mine || canLook || canPhoto || canRemove || row.seq != null;
+  const anyAction = mine || canLook || canPhoto || canRemove || canStar;
   // WHETHER the bar exists is decided here; whether it is SEEN is decided in
   // CSS, by .chat-row:hover and :focus-within. It used to be a useState set
   // from onMouseEnter/onMouseLeave, which re-rendered the row on every mouse
@@ -304,7 +306,7 @@ const FeedRow = memo(function FeedRow({
             {canPhoto && (
               <IconButton icon={CameraIcon} label="Photograph" onClick={() => onPhotograph(row.seq)} />
             )}
-            {row.seq != null && (
+            {canStar && (
               <IconButton icon={NotesIcon} label="Save to Notes" onClick={() => onStar(row.seq)} />
             )}
             {canRemove && (
@@ -539,6 +541,9 @@ export default function Feed({
   // A GM watching with no living character (web/lib/feedAccess.js#loadFeedViewer).
   // They speak nowhere and act on nobody, but they may take a line down.
   gm = false,
+  // A dead player watching with no living character. They speak nowhere and
+  // act on nobody either, and may take nothing down.
+  ghost = false,
   // Whether this character's sheet holds an instant-camera
   // (db/lib/photoMint.js#CAMERA_SLUG). The row's 📷 is the web twin of the
   // 📸 reaction; the server re-checks the camera either way.
@@ -1668,9 +1673,14 @@ export default function Feed({
         // look at a hood without ever being told who is under it, and a
         // photograph of a hood is still a photograph of a hood
         // (db/lib/examineRow.js).
-        const canLook = theirs && !gm;
-        const canPhoto = theirs && !gm && hasCamera;
+        // `!gm && !ghost` is "has a living character": both watch with none,
+        // and lookAtRow / photographRow refuse a viewer without one.
+        const canLook = theirs && !gm && !ghost;
+        const canPhoto = theirs && !gm && !ghost && hasCamera;
         const canRemove = gm && Boolean(row.seq) && !system;
+        // Same rule as canLook: a note is filed under a living character, and
+        // a watcher of either kind has none. It used to draw for every row.
+        const canStar = row.seq != null && !gm && !ghost;
         return {
           row,
           startsRun,
@@ -1679,10 +1689,11 @@ export default function Feed({
           canLook,
           canPhoto,
           canRemove,
+          canStar,
           newLine: Boolean(row.seq) && row.seq === newAt,
         };
       }),
-    [rows, self.characterId, newAt, gm, hasCamera, openAction],
+    [rows, self.characterId, newAt, gm, ghost, hasCamera, openAction],
   );
 
   if (!place) {
@@ -1786,7 +1797,7 @@ export default function Feed({
               exhausted={backlog.exhausted}
               floored={backlog.floored}
             />
-            {withRuns.map(({ row, startsRun, mine, system, canLook, canPhoto, canRemove, newLine }) => {
+            {withRuns.map(({ row, startsRun, mine, system, canLook, canPhoto, canRemove, canStar, newLine }) => {
               const key = row.clientId ?? row.seq;
               if (system) {
                 return (
@@ -1812,6 +1823,7 @@ export default function Feed({
                     canLook={canLook}
                     canPhoto={canPhoto}
                     canRemove={canRemove}
+                    canStar={canStar}
                     editing={editing}
                     coarse={coarse}
                     // A pending row is your own send, which has always just

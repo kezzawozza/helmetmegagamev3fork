@@ -627,7 +627,11 @@ predates the removal of the 🌬️ whisper (`COMMANDS.md` §6) and outlived it.
 its `DEPTHS_SLUGS` exclusion list are gone. They read `#cerberon` too
 (each special-channel entry declares `ghostsMaySee`). Private threads stay
 invisible to them the way they are to any non-member; no overwrite is needed to
-keep that so.
+keep that so. **The web draws the same seat**: whoever `db/lib/curse.js` says
+is cursed — the same answer the doctor reconciles this role to — gets a
+read-only Chat over every zone, public Rooms and the `ghostsMaySee` nets
+(`db/lib/feedAccess.js#ghostPlacesFor`, `CHAT.md` §5a), decided from the
+database rather than from this role, and ending when this role does.
 
 **The role's colour is part of the seat.** It is pinned to `0` (Discord's "no
 colour"), never hoisted, by `ensureCursedRoleAppearance` — re-asserted on every

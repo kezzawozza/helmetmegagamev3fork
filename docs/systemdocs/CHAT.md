@@ -1399,7 +1399,7 @@ a 48px head and a one-line composer:
 
 ### 5a. Who may read and speak where
 
-`db/lib/feedAccess.js#placesFor(prisma, character, { gm, discordUserId })` is
+`db/lib/feedAccess.js#placesFor(prisma, character, { gm, ghost, discordUserId })` is
 the **one** answer, and `mayReadPlace` / `mayWritePlace` derive from it rather
 than the other way round — a rule that only exists in the list could never
 disagree with the rule that guards a send. The web routes and `db/lib/say.js`
@@ -1419,7 +1419,7 @@ you are in **at this Location**, then the zone Summary, then the **radio nets**
 (§5d), which the column lifts up under Summary. `newestSeq` is added by
 `web/lib/feedAccess.js`, not by the rules — the dot is a page concern.
 
-Two things are read-only:
+Three things are read-only:
 
 - **A Location is scenery, not speech** (§5b). `canSpeak: false`. The box is
   still drawn there, but only as a command line — nothing typed into it is
@@ -1428,6 +1428,22 @@ Two things are read-only:
   over every place inside `visibleZoneIds(prisma, discordUserId)`
   (`db/lib/gmZoneView.js`; no rows means every zone). Watching is not standing
   there — a GM who wants to say something says it as a GM.
+- **A ghost speaks nowhere either.** A dead player whose body still lies in
+  the world (`web/lib/feedAccess.js#loadFeedViewer`: `ghost`, which is
+  `db/lib/curse.js#isPlayerCursed` — the one rule the channel doctor
+  reconciles the Ghost role to, never the role itself) gets a read-only Chat
+  over every zone summary that has a `#summary` channel (a cave level has
+  none, so its web-only zone place stays out), every Location and its public
+  Rooms, plus the nets that declare `ghostsMaySee` — the seat the Ghost role
+  already holds on Discord (`CHANNELS.md` §5). Private Rooms and
+  conversations stay out, the way a private thread is invisible to a
+  non-member there. The stream re-asks the rule on every ping and ends the
+  moment it says no, so a burial or a revival does not leave an open tab
+  reading the map. It ends when the
+  two faces' seat ends: the body buried, the name engraved, or a living
+  character theirs again. `ghostPlacesFor` draws from the same list builder
+  the GM's seat does. Before this a dead player's Chat was the DM thread and
+  an empty column.
 
 Slowmode is 300 s per character in a zone summary and nothing anywhere else,
 enforced in `prepareSpeech` by the character's newest row there. Discord's
