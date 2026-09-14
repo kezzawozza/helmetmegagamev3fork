@@ -324,7 +324,8 @@ const EFFECTS = {
   },
 
   async summoning({ db, location }) {
-    const bound = await db.tag.findUnique({ where: { slug: BOUND_SLUG }, select: { id: true } });
+    // Ropes or shackles (db/lib/bind.js#RESTRAINT_SLUGS): a summoned cultist comes out of either.
+    const restraints = await db.tag.findMany({ where: { slug: { in: [BOUND_SLUG, "shackled"] } }, select: { id: true } });
     const cultists = await db.character.findMany({
       where: { status: "ALIVE", tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_SLUG } } } },
       select: { id: true, name: true, locationId: true, location: { select: { slug: true } } },
@@ -334,7 +335,7 @@ const EFFECTS = {
       if (c.locationId === location.id || onHallowedGround(c.location)) continue;
       await db.$transaction(async (tx) => {
         await tx.character.update({ where: { id: c.id }, data: { locationId: location.id, zoneId: location.zoneId, escortedById: null } });
-        if (bound) await dropCharacterTag(tx, c.id, bound.id);
+        for (const r of restraints) await dropCharacterTag(tx, c.id, r.id);
       });
       await applyLocationMoveSideEffects(db, { characterId: c.id, fromLocationId: c.locationId, toLocationId: location.id }).catch(
         log(`summoning placement for ${c.name}`),

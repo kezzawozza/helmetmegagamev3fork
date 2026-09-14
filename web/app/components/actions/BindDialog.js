@@ -12,6 +12,7 @@ import {
   bindCharacterRequest,
   freeCharacterRequest,
   crucifyCharacterRequest,
+  shackleCharacterRequest,
   tortureCharacterRequest,
 } from "@/app/(app)/character/requestActions";
 
@@ -62,6 +63,14 @@ export const BIND_VERBS = {
     }),
     run: (id) => crucifyCharacterRequest({ targetCharacterId: id }),
     fit: (t) => !t.crucified,
+  },
+  shackle: {
+    title: "Shackle",
+    question: "Who are you shackling?",
+    empty: "Nobody here is bound.",
+    confirm: (name) => ({ title: `Shackle ${name}?`, confirmLabel: "Shackle them" }),
+    run: (id) => shackleCharacterRequest({ targetCharacterId: id }),
+    fit: (t) => t.bound && !t.shackled,
   },
 };
 

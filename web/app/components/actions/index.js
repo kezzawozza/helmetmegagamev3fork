@@ -94,6 +94,7 @@ export const DIALOGS = {
   bind: BindDialog,
   free: BindDialog,
   crucify: BindDialog,
+  shackle: BindDialog,
   torture: BindDialog,
   harm: HarmDialog,
   mutilate: MutilateDialog,
@@ -151,6 +152,7 @@ export const FAST_PATHS = {
   free: bindShortcut("free"),
   torture: bindShortcut("torture"),
   crucify: bindShortcut("crucify"),
+  shackle: bindShortcut("shackle"),
   // Heal, when the patient has exactly one thing wrong and you are paying:
   // the dialog would have had one chip lit and one payer, which is no dialog.
   heal: (seed, bag) => {

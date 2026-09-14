@@ -32,6 +32,25 @@ test("Giant changes nothing, alone or with Escape Artist", () => {
   }
 });
 
+test("shackled without Escape Artist: impossible, whatever the turn", () => {
+  for (const elapsed of [0, 1, 2, 10]) {
+    assert.equal(breakRestraintsThreshold(elapsed, [], { shackled: true }), Infinity);
+    assert.equal(resolveBreakRestraints({ die: 6, turnsElapsed: elapsed, heldSlugs: [], shackled: true }).success, false);
+  }
+});
+
+test("shackled Escape Artist: 6, 5, 4, 3, 2, then 1 — never automatic", () => {
+  const ladder = [0, 1, 2, 3, 4, 5, 6].map((e) => breakRestraintsThreshold(e, ["escape-artist"], { shackled: true }));
+  assert.deepEqual(ladder, [6, 5, 4, 3, 2, 1, 1]);
+  assert.equal(resolveBreakRestraints({ die: 5, turnsElapsed: 0, heldSlugs: ["escape-artist"], shackled: true }).success, false);
+  assert.equal(resolveBreakRestraints({ die: 6, turnsElapsed: 0, heldSlugs: ["escape-artist"], shackled: true }).automatic, false);
+});
+
+test("the ropes ladder is untouched when not shackled", () => {
+  assert.equal(breakRestraintsThreshold(0, [], { shackled: false }), 6);
+  assert.equal(breakRestraintsThreshold(2, ["escape-artist"], {}), null);
+});
+
 test("a negative elapsed count floors to 0 rather than throwing or going easier", () => {
   assert.equal(breakRestraintsThreshold(-1, []), breakRestraintsThreshold(0, []));
   assert.equal(breakRestraintsThreshold(-5, ["escape-artist"]), breakRestraintsThreshold(0, ["escape-artist"]));

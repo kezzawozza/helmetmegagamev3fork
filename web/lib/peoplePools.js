@@ -356,13 +356,16 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     .filter((c) => c.status === "ALIVE")
     .map((c) => ({ id: c.id, name: rosterName(c) }));
 
-  // Bind and Free split this one list on `bound`; Crucify on `crucified`.
+  // Bind and Free split this one list on `bound`; Crucify on `crucified`;
+  // Shackle on `bound && !shackled`. `bound` counts shackles too — Free,
+  // Torture and Mutilate treat a shackled person as tied up.
   const bindTargets = zoneRoster
     .filter((c) => c.status === "ALIVE")
     .map((c) => ({
       id: c.id,
       name: rosterName(c),
-      bound: c.tags.some((ct) => ct.tag.slug === "bound"),
+      bound: c.tags.some((ct) => ct.tag.slug === "bound" || ct.tag.slug === "shackled"),
+      shackled: c.tags.some((ct) => ct.tag.slug === "shackled"),
       crucified: c.tags.some((ct) => ct.tag.slug === "crucified"),
     }));
 

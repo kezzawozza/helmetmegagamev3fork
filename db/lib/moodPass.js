@@ -15,6 +15,8 @@ const { DINED_SLUG, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG } = require("./co
 
 // db/lib/bind.js reads the slug directly too; a hostage's night is not restful.
 const BOUND_SLUG = "bound";
+// Shackled costs the same night (db/lib/bind.js#RESTRAINT_SLUGS).
+const SHACKLED_SLUG = "shackled";
 
 // Every Location with an unburied body — stashed in a Room, or carried. Same two-legged read as bot/src/lib/deathSmell.js, minus its ROTTEN filter.
 async function unburiedCorpseLocationIds(prisma) {
@@ -47,7 +49,7 @@ async function runMoodPass(prisma, turn) {
 
   const corpseLocationIds = await unburiedCorpseLocationIds(prisma);
   // One read per character; applyMoodTerms is handed the row rather than re-reading it.
-  const watched = [...MULTIPLIER_SLUGS, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG, DINED_SLUG, BOUND_SLUG];
+  const watched = [...MULTIPLIER_SLUGS, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG, DINED_SLUG, BOUND_SLUG, SHACKLED_SLUG];
   const characters = await alivePassCharacters(prisma, {
     select: {
       id: true,
@@ -76,7 +78,7 @@ async function runMoodPass(prisma, turn) {
     const drift = driftTermFor(character.mood);
     if (drift) terms.push(drift);
     if (character.hungerStreak > 0) terms.push({ kind: "HUNGER", base: EVENTS.HUNGER });
-    if (held.has(BOUND_SLUG)) terms.push({ kind: "BOUND", base: EVENTS.BOUND_HELD });
+    if (held.has(BOUND_SLUG) || held.has(SHACKLED_SLUG)) terms.push({ kind: "BOUND", base: EVENTS.BOUND_HELD });
     if (character.locationId && corpseLocationIds.has(character.locationId)) terms.push({ kind: "CORPSE", base: EVENTS.CORPSE });
     const noble = held.has(NOBILITY_SLUG) && !held.has(HUNGERLESS_SLUG) && !held.has(DYING_SLUG);
     if (noble && !held.has(DINED_SLUG)) terms.push({ kind: "NOBLE_MEAL", base: EVENTS.NOBLE_MEAL });

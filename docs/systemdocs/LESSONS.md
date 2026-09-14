@@ -209,6 +209,19 @@ stale** until the character is bound again — accepted, not fixed:
 `applyBind`'s fresh-grant check overwrites it correctly on the next real
 bind, and the button is hidden the whole time `bound` is absent anyway.
 
+**Shackles.** The **Shackle** button (`shackleCharacterRequestImpl`, misc.js)
+shows only where COMPLETE **Dungeons** stand — a structure nobody can build,
+seeded by `docs/zones.yaml` in the Cathedral, the Garrison and the Lifeweb.
+Anyone standing there may shackle a Bound person, spending no Move: `bound`
+comes off, `shackled` goes on with no expiry, and `boundSinceTurnNumber`
+restarts. `shackled` is Bound in every other way (`db/lib/bind.js#
+RESTRAINT_SLUGS`: Bind refuses, Torture/Mutilate/Free accept, the shout is
+muffled, the night costs mood, a rite takes them), and Free still cuts them
+loose. Break Restraints is **impossible** on shackles ("Breaking free is
+impossible.", refused before the Move) — except for an Escape Artist, who
+needs a 6 the turn they were shackled, then 5, 4, 3, 2, and 1 from then on;
+never automatic, and a success still lands at the close of the turn.
+
 ## 4. The web
 
 - **Nobody's skills are shown.** `character/page.js` builds `teachers` as

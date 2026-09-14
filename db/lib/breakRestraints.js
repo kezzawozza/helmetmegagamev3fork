@@ -20,10 +20,18 @@ function toSet(slugs) {
 // Bascinet's ladder (2026-09-14): a 6 the turn you're tied up, 5+ the next,
 // automatic from the third for anyone. Escape Artist needs 5+ then 3+.
 // Giant used to help and no longer does.
-function breakRestraintsThreshold(turnsElapsed, heldSlugs) {
+//
+// Shackles (the Dungeons' Shackle button) are their own ladder: impossible
+// (`Infinity`) without Escape Artist, and for an Escape Artist a 6 the turn
+// they were shackled, then one easier each turn down to 1 — never automatic.
+function breakRestraintsThreshold(turnsElapsed, heldSlugs, { shackled = false } = {}) {
   const held = toSet(heldSlugs);
   const elapsed = Math.max(0, turnsElapsed);
 
+  if (shackled) {
+    if (!held.has(ESCAPE_ARTIST_SLUG)) return Infinity;
+    return Math.max(1, 6 - elapsed);
+  }
   if (elapsed >= 2) return null;
   if (held.has(ESCAPE_ARTIST_SLUG)) return elapsed >= 1 ? 3 : 5;
   return elapsed >= 1 ? 5 : 6;
@@ -31,8 +39,8 @@ function breakRestraintsThreshold(turnsElapsed, heldSlugs) {
 
 // `die` is what was actually rolled (irrelevant when the result is
 // automatic, but the caller always has one from rollWithAdvantage).
-function resolveBreakRestraints({ die, turnsElapsed, heldSlugs }) {
-  const threshold = breakRestraintsThreshold(turnsElapsed, heldSlugs);
+function resolveBreakRestraints({ die, turnsElapsed, heldSlugs, shackled = false }) {
+  const threshold = breakRestraintsThreshold(turnsElapsed, heldSlugs, { shackled });
   const automatic = threshold == null;
   return { die, threshold, automatic, success: automatic || die >= threshold };
 }

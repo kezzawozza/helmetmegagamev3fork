@@ -37,8 +37,13 @@ async function requireBoundTag(db) {
   return bound;
 }
 
+// Ropes or shackles. Shackled (the Dungeons' Shackle button) is Bound in
+// every way but Break Restraints, so every "is this person tied up" check —
+// Bind's refusal, Torture, Mutilate, Free — reads both.
+const RESTRAINT_SLUGS = Object.freeze(["bound", "shackled"]);
+
 function isBound(target) {
-  return target.tags.some((ct) => ct.tag.slug === "bound");
+  return target.tags.some((ct) => RESTRAINT_SLUGS.includes(ct.tag.slug));
 }
 
 // Dead or helpless: no leave needed.
@@ -154,4 +159,4 @@ async function acceptBind(prisma, offer, responder) {
   };
 }
 
-module.exports = { BIND_SELECT, requireBoundTag, isBound, needsNoConsent, applyBind, createBindOffer, acceptBind };
+module.exports = { BIND_SELECT, RESTRAINT_SLUGS, requireBoundTag, isBound, needsNoConsent, applyBind, createBindOffer, acceptBind };

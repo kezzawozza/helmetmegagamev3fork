@@ -26,6 +26,7 @@ const RESTRICTIONS = {
   dying: [ACT],
   "catatonic-afk": [ACT],
   bound: [ACT],
+  shackled: [ACT],
   crucified: [ACT],
   seizure: [ACT, SHOUT],
   paralyzed: [ACT, SHOUT],
@@ -63,7 +64,7 @@ const INCAPACITATING_SLUGS = new Set(
 // HARM_CHARACTER's lethal half: kills outright, no GM confirmation (REQUESTS.md §5b). Catatonic is
 // excluded (db/lib/catatonicDeathPass.js kills those on its own clock); hand-written, not derived, so
 // seizure/unconscious don't become a death sentence.
-const FINISHABLE_SLUGS = new Set(["dying", "bound"]);
+const FINISHABLE_SLUGS = new Set(["dying", "bound", "shackled"]);
 
 // The narrower gate on a GAMBIT Move (db/lib/moves.js#fileMove): only being truly out of it stops a
 // long shot. Bound, Crucified and Catatonic can still try something — Bascinet's ruling. Routine and

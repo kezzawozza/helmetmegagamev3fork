@@ -3362,6 +3362,21 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Put on by the Shackle button, at standing Dungeons, in place of `bound`.
+  # Everything Bound does (db/lib/bind.js#RESTRAINT_SLUGS), except Break
+  # Restraints only works for an Escape Artist (db/lib/breakRestraints.js).
+  shackled:
+    catalog: gm
+    name: Shackled
+    category: status
+    group: status-debuffs
+    description: "You're shackled. Breaking free is impossible."
+    fighting: { tree: both, cap: pitiful }
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   # Put on by the Crucify button (a Fundamentalist, a Cross standing here).
   # In RESTRICTIONS as ACT-only (db/lib/incapacitation.js): you hang there and
   # can still speak, so last words and recantations happen in channel. A
@@ -5952,6 +5967,32 @@ tags:
     placement:
       fieldwork: true
       examine: "a cross stands ready."
+
+  # Dungeons: never built by a player. The validator requires `craftable` on
+  # any placement, so `locations: [nowhere]` names a Location that doesn't
+  # exist — canBuildHere refuses it everywhere and the Craft menu hides it.
+  # It is seeded instead, by `structures: [dungeons]` in docs/zones.yaml
+  # (Cathedral, Garrison, Lifeweb). A COMPLETE one standing where you are
+  # shows the Shackle button (misc.js#shackleCharacterRequestImpl).
+  dungeons:
+    catalog: all
+    name: Dungeons
+    category: assets
+    group: assets-structures
+    description: "Cells and chains. You can shackle people here."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 0
+      gambit: false
+    placement:
+      locations: [nowhere]
+      examine: "You can shackle people here, permanently binding them."
 
   dog:
     catalog: all

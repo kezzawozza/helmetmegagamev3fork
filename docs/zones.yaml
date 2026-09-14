@@ -327,6 +327,8 @@ zones:
       cathedral:
         name: Cathedral
         indoors: true
+        # The Shackle button works where Dungeons stand (docs/tags.yaml).
+        structures: [dungeons]
         description: >-
           Stained limestone erected modestly upon a sedimentary-like stack of ancient buildings. Hundreds of candles light the ornate interior.
         rooms:
@@ -560,6 +562,9 @@ zones:
           A tower of pure ceramite looms before you. Its peak crowned with vibrant flame. The Mortii's key unlocks the door.
         attributes:
           noBuild: true
+        # Seeded despite noBuild — nobody builds Dungeons; the sync warns and
+        # seeds anyway. The Shackle button works here.
+        structures: [dungeons]
         rooms:
           lifeweb-outside:
             name: Outside
@@ -777,6 +782,8 @@ zones:
         name: Garrison
         attributes:
           noticeboard: true
+        # The Shackle button works where Dungeons stand (docs/tags.yaml).
+        structures: [dungeons]
         description: >-
           The garrison tower and its offshoot buildings surround the training yard. A home for those who walk the cobbles at night.
         rooms:

@@ -9,6 +9,8 @@ const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 
 const BOUND_SLUG = "bound";
+// A shackled person is a bound-person ingredient too (db/lib/bind.js#RESTRAINT_SLUGS).
+const SHACKLED_SLUG = "shackled";
 const PIOUS_SLUG = "pious";
 const WEAPON_GROUP_SLUG = "items-weapons";
 // A slug list rather than a Location attribute, so it needs no zone sync.
@@ -49,7 +51,7 @@ async function boundCandidates(db, room, { excludeSlugs = [] } = {}) {
     where: {
       status: "ALIVE",
       locationId: room.locationId,
-      tags: { some: { quantity: { gt: 0 }, tag: { slug: BOUND_SLUG } } },
+      tags: { some: { quantity: { gt: 0 }, tag: { slug: { in: [BOUND_SLUG, SHACKLED_SLUG] } } } },
     },
     orderBy: { name: "asc" },
     select: {

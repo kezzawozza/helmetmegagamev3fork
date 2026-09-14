@@ -27,8 +27,10 @@ const EDIT_WINDOW_MS = 5 * 60_000;
 // every caller reaches speech through a different include, so trusting one led to a gate that read undefined and passed everybody.
 // {tag:bound} still takes ACT not SHOUT — a hostage can yell, it just doesn't carry (see shoutMuffled below).
 const BOUND_SLUG = "bound";
+// Shackled muffles the same way (db/lib/bind.js#RESTRAINT_SLUGS; not required here, bind.js pulls in tag writes).
+const SHACKLED_SLUG = "shackled";
 
-const VOICE_SLUGS = [...slugsBlocking(SHOUT), STUPID_SLUG, GHOUL_SLUG, BOUND_SLUG];
+const VOICE_SLUGS = [...slugsBlocking(SHOUT), STUPID_SLUG, GHOUL_SLUG, BOUND_SLUG, SHACKLED_SLUG];
 
 async function loadVoiceState(prisma, characterId) {
   if (!characterId) return { shoutBlock: null, babbling: false, shoutMuffled: false };
@@ -40,7 +42,7 @@ async function loadVoiceState(prisma, characterId) {
     shoutBlock: blockerFor(rows, SHOUT), // only /shout and the intercom read this.
     babbling: rows.some((ct) => ct.tag.slug === STUPID_SLUG),
     growling: rows.some((ct) => ct.tag.slug === GHOUL_SLUG), // a Ghoul growls (THANATI.md §4); beats babble.
-    shoutMuffled: rows.some((ct) => ct.tag.slug === BOUND_SLUG), // deliberately NOT part of shoutBlock — a refusal and a muffle are different answers.
+    shoutMuffled: rows.some((ct) => ct.tag.slug === BOUND_SLUG || ct.tag.slug === SHACKLED_SLUG), // deliberately NOT part of shoutBlock — a refusal and a muffle are different answers.
   };
 }
 

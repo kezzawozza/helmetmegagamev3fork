@@ -92,6 +92,7 @@ export const ACTION_HELP = {
   kiss: "Ask somebody for a kiss.",
   crucify:
     "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
+  shackle: "Shackle a bound person, binding them with no chance of escape.",
   harm: "Further injure someone who is bound or incapacitated.",
   torture:
     "You can torture people, revealing all their tags on a 4 or higher. Brave or Craven characters will break on different timelines.",
@@ -396,6 +397,9 @@ export const ACTION_SECTIONS = [
       // Fundamentalist standing at a Cross is your own fact, and a dead
       // Crucify icon on every other sheet would teach nothing.
       { mode: "crucify", icon: WoundIcon, label: "Crucify", show: "canCrucify" },
+      // HIDDEN on the same rule: whether Dungeons stand where YOU are is your
+      // own ground. Who here is tied up is the dialog's answer.
+      { mode: "shackle", icon: ShackleIcon, label: "Shackle", show: "canShackle" },
       // HIDDEN on the same rule: whether YOU are a Torturer is your own fact.
       // Who here is tied up is the dialog's answer, never the button's.
       { mode: "torture", icon: TortureIcon, label: "Torture", show: "canTorture" },

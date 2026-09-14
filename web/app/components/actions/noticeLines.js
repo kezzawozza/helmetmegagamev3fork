@@ -18,6 +18,7 @@ const LINES = {
     res.pending ? `${named(ctx, res.name)} has to agree first.` : `${named(ctx, res.name)} is tied up.`,
   free: (res, ctx) => `${named(ctx)} is loose again.`,
   crucify: (res, ctx) => `${named(ctx, res.name)} is on the cross.`,
+  shackle: (res, ctx) => `${named(ctx, res.name)} is shackled.`,
   torture: (res, ctx) => `${named(ctx, res.name)} has been put to the question.`,
   harm: (res, ctx) => (res.killed ? `${named(ctx)} is dead.` : `${named(ctx)} is hurt.`),
   mutilate: (res, ctx) => `The ${res.part ?? "piece"} is yours.`,

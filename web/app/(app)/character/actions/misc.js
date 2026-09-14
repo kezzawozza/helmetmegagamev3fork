@@ -86,7 +86,7 @@ import {
   createBindOffer,
   needsNoConsent,
   isBound as isBoundTarget,
-  requireBoundTag,
+  RESTRAINT_SLUGS,
   BIND_SELECT,
 } from "@lifeweb/db/lib/bind";
 import {
@@ -135,7 +135,7 @@ import {
   formatTortureRoll,
   buildTortureEmbed,
 } from "@lifeweb/db/lib/torture";
-import { resolveBreakRestraints, formatBreakRestraintsRoll } from "@lifeweb/db/lib/breakRestraints";
+import { resolveBreakRestraints, formatBreakRestraintsRoll, ESCAPE_ARTIST_SLUG } from "@lifeweb/db/lib/breakRestraints";
 import {
   EXAMINE_SUBJECT_SELECT,
   tortureReadout,
@@ -1519,10 +1519,15 @@ export async function freeCharacterRequestImpl({
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
 
-  const bound = await requireBoundTag(prisma);
+  // Ropes or shackles — Free cuts either (Bascinet's ruling on Dungeons).
   const target = await prisma.character.findFirst({
     where: { id: targetCharacterId ?? "", status: "ALIVE" },
-    include: { tags: { where: { tagId: bound.id } } },
+    include: {
+      tags: {
+        where: { tag: { slug: { in: RESTRAINT_SLUGS } } },
+        include: { tag: { select: { id: true, name: true } } },
+      },
+    },
   });
   if (!target || !isHere(character, target))
     throw new UserError(notHereMessage(target));
@@ -1533,12 +1538,12 @@ export async function freeCharacterRequestImpl({
   const openTurn = await getOpenTurn();
 
   await prisma.$transaction(async (tx) => {
-    await dropCharacterTag(tx, target.id, bound.id);
+    for (const row of target.tags) await dropCharacterTag(tx, target.id, row.tagId);
     const effect = {
       targetCharacterId: target.id,
       targetName: target.name,
-      tagId: bound.id,
-      tagName: bound.name,
+      tagId: held.tagId,
+      tagName: held.tag.name,
       quantity: held.quantity,
       source: held.source,
       expiresTurn: held.expiresTurn,
@@ -1576,14 +1581,17 @@ export async function freeCharacterRequestImpl({
 export async function breakRestraintsRequestImpl() {
   const { session, character } = await requireCharacter();
 
-  const bound = await requireBoundTag(prisma);
-  if (!character.tags.some((ct) => ct.tagId === bound.id))
-    throw new UserError("You aren't restrained.");
+  // Ropes or shackles (Dungeons). Shackles give only to an Escape Artist, and
+  // that refusal comes before the Move is spent.
+  const restraint = character.tags.find((ct) => RESTRAINT_SLUGS.includes(ct.tag.slug));
+  if (!restraint) throw new UserError("You aren't restrained.");
+  const heldSlugs = character.tags.map((ct) => ct.tag.slug);
+  const shackled = restraint.tag.slug === "shackled";
+  if (shackled && !heldSlugs.includes(ESCAPE_ARTIST_SLUG))
+    throw new UserError("Breaking free is impossible.");
 
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
-
-  const heldSlugs = character.tags.map((ct) => ct.tag.slug);
   // 0 on the same turn the bind landed; boundSinceTurnNumber is only ever
   // null for a character who was already bound before this column existed.
   const turnsElapsed = character.boundSinceTurnNumber == null
@@ -1593,7 +1601,7 @@ export async function breakRestraintsRequestImpl() {
   // The character's own die — their Lucky or Inspired bends it, the same
   // side gambitMods work on any other Gambit roll.
   const roll = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
-  const result = resolveBreakRestraints({ die: roll.die, turnsElapsed, heldSlugs });
+  const result = resolveBreakRestraints({ die: roll.die, turnsElapsed, heldSlugs, shackled });
   const rollLine = result.automatic
     ? null
     : formatBreakRestraintsRoll({ die: roll.die, threshold: result.threshold, rolls: roll.rolls });
@@ -1605,7 +1613,7 @@ export async function breakRestraintsRequestImpl() {
       // Not dropped now: stamped to expire with this turn, so the expirySweep
       // pass (db/index.js) takes `bound` off at the close. Bascinet's ruling.
       await tx.characterTag.updateMany({
-        where: { characterId: character.id, tagId: bound.id },
+        where: { characterId: character.id, tagId: restraint.tagId },
         data: { expiresTurn: openTurn.number },
       });
       await tx.character.update({
@@ -1642,7 +1650,7 @@ export async function breakRestraintsRequestImpl() {
       ? result.automatic
         ? "You broke your restraints. This will take effect at the end of the turn."
         : `${rollLine}. You broke your restraints. This will take effect at the end of the turn.`
-      : `${rollLine}. The knots hold.`,
+      : `${rollLine}. ${shackled ? "The shackles hold." : "The knots hold."}`,
   };
 }
 
@@ -1743,6 +1751,96 @@ export async function crucifyCharacterRequestImpl({
     location?.discordChannelId,
     ambientLine(`${target.name} hangs on the cross.`),
   );
+  revalidateAll();
+  return { name: target.name };
+}
+
+// --- Shackling (Dungeons) --------------------------------------------------
+
+const DUNGEONS_SLUG = "dungeons";
+const SHACKLED_SLUG = "shackled";
+
+// Turning someone's ropes into shackles. Two gates and no consent: COMPLETE
+// Dungeons stand where the actor is, and the target is standing there, Bound.
+// Anyone may do it, and it spends no Move — Bind's shape. `bound` comes off and
+// `shackled` goes on with no expiry, and the escape clock restarts, since only
+// an Escape Artist can work shackles loose (db/lib/breakRestraints.js). Free
+// still cuts them off.
+export async function shackleCharacterRequestImpl({
+  targetCharacterId,
+}) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  if (!character.locationId)
+    throw new UserError("You aren't anywhere you could do that.");
+  if (targetCharacterId === character.id)
+    throw new UserError("You can't shackle yourself.");
+
+  const location = await loadBuildGround(character.locationId);
+  const standing = await structuresAt(prisma, character.locationId, {
+    statuses: ["COMPLETE"],
+  });
+  const dungeon = standing.find((s) => s.typeSlug === DUNGEONS_SLUG) ?? null;
+  if (!dungeon) throw new UserError("There are no dungeons here.");
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      locationId: true,
+      concealed: true,
+      discordUserId: true,
+      tags: { select: { tagId: true, tag: { select: { slug: true } } } },
+    },
+  });
+  if (!target || !isHere(character, target))
+    throw new UserError(notHereMessage(target));
+  if (target.tags.some((ct) => ct.tag.slug === SHACKLED_SLUG))
+    throw new UserError(`${target.name} is already shackled.`);
+  const boundRow = target.tags.find((ct) => ct.tag.slug === "bound");
+  if (!boundRow) throw new UserError(`${target.name} isn't bound.`);
+
+  const shackledTag = await prisma.tag.findUnique({
+    where: { slug: SHACKLED_SLUG },
+  });
+  if (!shackledTag)
+    throw new UserError("The Shackled tag is missing from the catalog — tell a GM.");
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open.");
+
+  const effect = {
+    targetCharacterId: target.id,
+    targetName: target.name,
+    tagId: shackledTag.id,
+    tagName: shackledTag.name,
+    structureId: dungeon.id,
+    locationId: location?.id ?? character.locationId,
+    locationName: location?.name ?? null,
+  };
+  await prisma.$transaction(async (tx) => {
+    await dropCharacterTag(tx, target.id, boundRow.tagId);
+    await addToStack(tx, target.id, shackledTag.id, 1, {
+      source: "EVENT",
+      stackable: shackledTag.stackable,
+    });
+    await tx.character.update({
+      where: { id: target.id },
+      data: { boundSinceTurnNumber: openTurn.number },
+    });
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_shackle_character",
+      targetCharacterId: target.id,
+      turnId: openTurn.id,
+      details: effect,
+    });
+  });
+
+  await afterInventoryChange(target.id);
+  notifyCharacter(target, "You've been shackled.");
   revalidateAll();
   return { name: target.name };
 }

@@ -180,6 +180,9 @@ export default function RequestActionsProvider({
   // are. Both facts about YOUR sheet and YOUR ground, resolved in
   // character/page.js; the action re-checks both.
   canCrucify = false,
+  // Shackle: COMPLETE Dungeons stand where you are. A fact about YOUR ground,
+  // resolved in character/page.js; the action re-checks it and the target.
+  canShackle = false,
   // Disguise: you are carrying a disguise kit. Hidden rather than greyed —
   // see actionRegistry.js.
   canDisguise = false,
@@ -490,6 +493,7 @@ export default function RequestActionsProvider({
       canExtract,
       canSeePackage,
       canCrucify,
+      canShackle,
       canDisguise,
       canTorture,
       canMutilate,
@@ -539,6 +543,7 @@ export default function RequestActionsProvider({
       canExtract,
       canSeePackage,
       canCrucify,
+      canShackle,
       canDisguise,
       canTorture,
       canMutilate,

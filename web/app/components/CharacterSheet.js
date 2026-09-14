@@ -56,6 +56,7 @@ export default function CharacterSheet({
   // `false` won, silently. Torture and Mutilate were dropped the same way,
   // and had never once rendered until they were added to this list.
   canCrucify = false,
+  canShackle = false,
   canDisguise = false,
   canTorture = false,
   canMutilate = false,
@@ -267,6 +268,7 @@ export default function CharacterSheet({
         kissBlocked={kissBlocked}
         examineBlocked={examineBlocked}
         canCrucify={canCrucify}
+        canShackle={canShackle}
         canDisguise={canDisguise}
         canTorture={canTorture}
         canMutilate={canMutilate}

@@ -775,7 +775,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const canTorture = heldSlugs.has("torturer"); // tortureCharacterRequest re-checks the tag and that the target is Bound
   const canMutilate = MUTILATE_GATE_SLUGS.some((slug) => heldSlugs.has(slug)); // Cruel, Torturer or Thanati
   const canBrand = heldSlugs.has("branding-iron"); // brandCharacterRequest re-checks tag and target's incapacitation
-  const canBreakRestraints = heldSlugs.has("bound"); // breakRestraintsRequest re-checks the tag, the Move, and rolls itself
+  // Shackles only give to an Escape Artist (LESSONS.md §3c); breakRestraintsRequest re-checks the tag, the Move, and rolls itself.
+  const canBreakRestraints =
+    heldSlugs.has("bound") || (heldSlugs.has("shackled") && heldSlugs.has("escape-artist"));
+  // Shackle: anyone standing at finished Dungeons — your ground. shackleCharacterRequest re-checks it and that the target is Bound.
+  const canShackle = sitesHere.some((s) => s.typeSlug === "dungeons" && s.status === "COMPLETE");
   // THE THANATI (THANATI.md). Whether you are one/lead is your own sheet's
   // facts. thanatiActions.js re-checks every one of these.
   const isThanati = heldSlugs.has(THANATI_SLUG);
@@ -1096,6 +1100,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       consumeTargets: consumeTargets,
       bindTargets: bindTargets,
       canCrucify: canCrucify,
+      canShackle: canShackle,
       canDisguise: canDisguise,
       canTorture: canTorture,
       canMutilate: canMutilate,

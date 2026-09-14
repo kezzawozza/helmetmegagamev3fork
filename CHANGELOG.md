@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Dungeons and the Shackle button
+
+✎ Dungeons stand in the Cathedral, the Garrison and the Lifeweb; nobody can build them  
+✎ A Shackle button there turns a Bound person's ropes into shackles, for good; anyone can do it and it costs no Move  
+✎ Shackled is Bound in every way, but only an Escape Artist can break free: a 6 the first turn, then one easier each turn  
+✎ Free still cuts shackles off
+
 ## 2026-09-14 · Breaking free now takes effect at the end of the turn
 
 ✎ A successful Break Restraints tells you so now, but you stay Bound until the turn closes  
