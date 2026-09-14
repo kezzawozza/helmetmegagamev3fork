@@ -56,7 +56,8 @@
     "copy:reinject": "node scripts/copy/reinject.js",
     "map:dot": "node scripts/map/zone-dot.js",
     "map:png": "node scripts/map/zone-image.js",
-    "check": "npm run lint --workspace=web && npm run build --workspace=web && npm test --workspace=db && npm run db:check-config && npm run audit:contrast --workspace=web",
+    "check": "npm run check:bot && npm run lint --workspace=web && npm run build --workspace=web && npm test --workspace=db && npm run db:check-config && npm run audit:contrast --workspace=web",
+    "check:bot": "find bot/src db/lib db/scripts scripts -name '*.js' -not -path '*/node_modules/*' -exec node --check {} +",
     "dead-exports": "node scripts/dead-exports.mjs"
   },
   "allowScripts": {
