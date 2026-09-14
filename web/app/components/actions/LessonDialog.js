@@ -13,8 +13,10 @@ import { learnRequest, teachRequest, confessRequest } from "@/app/(app)/characte
 // them, or a sin of yours (LESSONS.md, CONFESSION.md). All three are offers
 // the other side accepts in Discord or on /chat, so the notice says so.
 //
-// The partner lists are the page's own, resolved server-side against who
-// could actually teach or hear YOU; nothing here greys on who is nearby.
+// The partner lists are the page's own, resolved server-side against who holds
+// something you could take (or take from you); nothing here greys on who is
+// nearby. Anyone can teach now, so a skill chip carries what the learner needs
+// to roll off THAT teacher — a 6 from someone untrained, a 5 from a teacher.
 const VERBS = {
   learn: {
     title: "Learn Skill",
@@ -24,6 +26,8 @@ const VERBS = {
     empty: "Nobody here can teach you anything right now.",
     people: (p) => p.teachers ?? [],
     choices: (partner) => partner.skills ?? [],
+    // [PLAYER TEXT — Bascinet to rewrite]
+    note: (p) => (p.hasMoved ? "You've already used your Move this turn." : null),
     run: (partnerId, tagId) => learnRequest({ teacherId: partnerId, tagId }),
   },
   teach: {
@@ -34,6 +38,14 @@ const VERBS = {
     empty: "There's nobody here you could teach anything.",
     people: (p) => p.learners ?? [],
     choices: (partner) => partner.skills ?? [],
+    // Teaching is free for a tag holder, so a spent Move only stops the rest.
+    // [PLAYER TEXT — Bascinet to rewrite]
+    note: (p) =>
+      !p.teachCostsMove
+        ? "Teaching costs you no Move."
+        : p.hasMoved
+          ? "You've already used your Move this turn."
+          : "Teaching someone takes your whole turn.",
     run: (partnerId, tagId) => teachRequest({ learnerId: partnerId, tagId }),
   },
   confess: {
@@ -44,6 +56,7 @@ const VERBS = {
     empty: "Nobody here can hear a confession.",
     people: (p) => p.confessors ?? [],
     choices: (partner, p) => p.mySins ?? [],
+    note: (p) => (p.hasMoved ? "You've already used your Move this turn." : null),
     run: (partnerId, tagId) => confessRequest({ chaplainId: partnerId, tagId }),
   },
 };
@@ -58,6 +71,7 @@ export default function LessonDialog({ mode, onDone, onClose }) {
 
   const partner = people.find((p) => p.id === partnerId) ?? null;
   const choices = partner ? verb.choices(partner, pools) : [];
+  const note = verb.note?.(pools) ?? null;
 
   return (
     <ActionDialog
@@ -87,15 +101,17 @@ export default function LessonDialog({ mode, onDone, onClose }) {
       {partner && (
         <ChipPicker
           label={verb.what}
-          options={choices.map((t) => ({ id: t.id, label: t.name }))}
+          options={choices.map((t) => ({
+            id: t.id,
+            // [PLAYER TEXT — Bascinet to rewrite]
+            label: t.threshold ? `${t.name} · needs ${t.threshold}+` : t.name,
+          }))}
           value={tagId}
           onChange={setTagId}
           emptyLabel="Nothing to pass on."
         />
       )}
-      {pools.hasMoved && (mode === "confess" || !pools.canTeach) && (
-        <p className="text-xs text-muted">You&apos;ve already used your Move this turn.</p>
-      )}
+      {note && <p className="text-xs text-muted">{note}</p>}
     </ActionDialog>
   );
 }

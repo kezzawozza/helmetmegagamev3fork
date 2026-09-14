@@ -108,7 +108,7 @@ export default function CharacterSheet({
   holdsResearch = false,
   atCathedral = false,
   researchOptions = [],
-  canTeach = false,
+  teachCostsMove = true,
   knownRecipeIds = [],
   deathMaskCorpses = [],
   craftProjects = [],
@@ -223,7 +223,7 @@ export default function CharacterSheet({
         holdsResearch={holdsResearch}
         atCathedral={atCathedral}
         researchOptions={researchOptions}
-        canTeach={canTeach}
+        teachCostsMove={teachCostsMove}
         knownRecipeIds={knownRecipeIds}
         deathMaskCorpses={deathMaskCorpses}
         craftProjects={craftProjects}

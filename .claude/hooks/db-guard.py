@@ -49,6 +49,7 @@ DESTRUCTIVE_SCRIPTS = {
     "db:sync-narrowcast-channels": "db/scripts/sync/sync-narrowcast-channels.js",
     "db:rebuild-info-channel": "db/scripts/sync/rebuild-info-channel.js",
     "db:prune-tags": "db/scripts/ops/prune-tags.js",
+    "db:convert-lecturers": "db/scripts/ops/convert-lecturers.js",
     "db:dedupe-room-stash": "db/scripts/ops/dedupe-room-stash.js",
     "db:prune-orphan-roles": "db/scripts/ops/prune-orphan-roles.js",
     "db:prune-stale-channels": "db/scripts/ops/prune-stale-channels.js",

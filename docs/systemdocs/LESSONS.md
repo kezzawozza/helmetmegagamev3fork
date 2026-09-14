@@ -6,27 +6,40 @@ lesson. This is the game's first code-adjudicated Gambit.
 
 ## 1. The rules
 
-- **Teaching** (4 pt, a standalone `skills` tag): you can train someone in a
-  skill you have. Teaching is your **Routine** for the turn; learning is the student's
-  **Gambit**. They succeed on a **5 or 6** — the die after its modifier
-  (Hunger, Afraid, Panic; `db/lib/gambitModifier.js`).
-- **Teaching (Lecturing)** (5 pt, upgrade of Teaching): up to **three**
-  students on the one Routine.
+**Anybody can teach.** The Teaching tag stopped being a door on 2026-09-14;
+it is now what makes teaching free, repeatable and easier. Learning is always
+the student's **Gambit** — the die after its modifier (Hunger, Afraid, Panic;
+`db/lib/gambitModifier.js`).
+
+| The teacher | Student needs | Costs the teacher | Students a turn |
+|---|---|---|---|
+| anybody | **6** | their whole **Routine** | 1 |
+| holds **Teaching** (4 pt) | **5 or 6** | **nothing** | 3 |
+| holds **Teaching (Drill Instructor)**, fighting skill | **4, 5 or 6** | nothing | 3 |
+
+- **Teaching** (4 pt, a standalone `skills` tag) buys three things at once: the
+  Routine back, the threshold down a pip, and a cap of `TEACHING_CAPACITY`
+  students a turn. A holder's Move slot is **never read** — they can labor,
+  travel or run a Gambit and still teach three people the same day.
+- An untrained teacher owes a whole Routine, so any Move already locked in
+  refuses. That is also what caps them at one student: accepting files the
+  Routine, and the next offer finds the slot full.
 - **Teaching (Drill Instructor)** (3 pt, `skills` category but grouped under
   `general-cerberon` for that group's `requiredTag: cerberon` gate, so only a
   Cerberus or the Censor, who starts with the Cerberon tag; requires
   Teaching): a student learning a **fighting skill** (group `skills-fighting`)
-  succeeds on a **4, 5 or 6**. Stacks with Lecturing. It replaced the old
-  Drillmaster tag.
-- None of the three is `teachable`. You can't be taught to teach.
+  succeeds on a **4, 5 or 6**. It replaced the old Drillmaster tag.
+- **Teaching (Lecturing)** is gone, removed with this rework. Its three-student
+  cap moved onto plain Teaching, which no longer spends a Routine to need
+  widening. Nobody was compensated; existing holders were converted to plain
+  Teaching by `db/scripts/ops/convert-lecturers.js` (§6).
+- Neither remaining tag is `teachable`. You can't be taught to teach.
 - Thresholds are fixed. There is no "each attempt lowers the difficulty".
 - Both sides have to be standing at the same Location and unconcealed
-  (`db/lib/presence.js`), and neither may already have locked in a Move for
-  the turn — except a Lecturer whose Move is already a lesson Routine with
-  room left.
+  (`db/lib/presence.js`). The learner may never already have locked in a Move.
 
-Constants: `db/lib/constants.js` (`TEACHING_SLUG`, `LECTURING_SLUG`,
-`DRILL_INSTRUCTOR_SLUG`, `FIGHTING_GROUP_SLUG`, `LECTURE_CAPACITY`,
+Constants: `db/lib/constants.js` (`TEACHING_SLUG`, `DRILL_INSTRUCTOR_SLUG`,
+`FIGHTING_GROUP_SLUG`, `TEACHING_CAPACITY`, `UNTAUGHT_LESSON_THRESHOLD`,
 `LESSON_THRESHOLD`, `DRILL_THRESHOLD`).
 
 ## 2. What can be taught
@@ -84,17 +97,26 @@ dead character's offers stay readable.
    DM is Bascinet's line: "*X* wants to try and learn *Y* from you. Accept?"
 2. **Accept** (`lessons.js#acceptLesson`). Re-validates everything for
    **both** sides — same open turn, `moveWindow` not locked, both alive and
-   here, teacher still teaches, skill still teachable, learner has no Action,
-   teacher has none or a lesson Routine with capacity — then in one
-   transaction: claim PENDING→ACCEPTED (`updateMany`, count 0 = someone
-   answered first); create the learner's Action (`GAMBIT`, `CONFIRMED`,
-   `moveReviewStatus OPEN`, die rolled and modifier stored now like any
-   Gambit, `gmNotes: "auto:lesson"`); create the teacher's Routine
-   (`CONFIRMED`, `PASSED`, `appliedEffects: {}`, `auto:lesson`) or widen a
-   Lecturer's existing one; stamp `threshold` and both action ids. Any refusal
-   after the claim leaves the offer **CANCELLED**, never PENDING, and DMs the
-   initiator why. `@@unique([characterId, turnId])` is the real gate; a P2002
-   is a refusal, not a crash.
+   here, skill still teachable, learner has no Action, teacher passes
+   `teacherSlot` — then in one transaction: claim PENDING→ACCEPTED
+   (`updateMany`, count 0 = someone answered first); create the learner's
+   Action (`GAMBIT`, `CONFIRMED`, `moveReviewStatus OPEN`, die rolled and
+   modifier stored now like any Gambit, `gmNotes: "auto:lesson"`); create the
+   teacher's Routine (`CONFIRMED`, `PASSED`, `appliedEffects: {}`,
+   `auto:lesson`) **only if the teacher lacks Teaching**; stamp `threshold`
+   and the action ids. A Teaching holder's `teacherActionId` stays **null** —
+   there is no Move, so there is nothing for a GM to see or reject, and their
+   accept DM says so instead of confirming a Move. Any refusal after the claim
+   leaves the offer **CANCELLED**, never PENDING, and DMs the initiator why.
+   `@@unique([characterId, turnId])` is the real gate; a P2002 is a refusal,
+   not a crash.
+
+   `teacherSlot` is where the two teachers part company. A Teaching holder is
+   capped by counting this turn's ACCEPTED/RESOLVED LESSON offers against
+   `TEACHING_CAPACITY` — off the offers themselves, because there is no Action
+   to hang the count on, and excluding the offer being accepted, which the
+   claim has already flipped to ACCEPTED. Everyone else is capped by owing a
+   free Move slot.
 3. **Resolve** (`db/lib/lessonPass.js`, the `"lessons"` pass — between
    `autoLabor` and `stagedPush` in `TURN_PASSES`). For each ACCEPTED lesson
    on the closing turn: learner Action gone → CANCELLED (a GM rejected it);
@@ -113,9 +135,11 @@ A lesson resolves where it was accepted: moving away or a teacher dying
 before turn end changes nothing. Death voids **PENDING** offers only
 (`characterDeath.js`). A GM **Reject** of either Move
 (`web/lib/moveEconomy.js#deleteActionRestoringTurn` →
-`lessons.js#cancelOffersForAction`) cancels the lesson; rejecting the
-teacher's Routine deletes the stranded learners' Gambits too and DMs them that
-their Move is free again.
+`lessons.js#cancelOffersForAction`) cancels the lesson; rejecting an untrained
+teacher's Routine deletes the stranded learner's Gambit too and DMs them that
+their Move is free again. A Teaching holder's lesson has no teacher Action, so
+that door simply never opens on it — a GM who wants it stopped rejects the
+learner's Gambit.
 
 ### 3b. Bind: consent unless helpless
 
@@ -184,15 +208,21 @@ bind, and the button is hidden the whole time `bound` is absent anyway.
 
 ## 4. The web
 
-- `character/page.js` builds `teachers` (everyone here who can teach, each
-  with the skills they could teach **me**) and, when I hold Teaching,
-  `learners`. Only skills I could learn cross the wire — never another
-  sheet. `pendingOffers` is every PENDING offer I'm part of this turn;
-  `SheetTurn.js` shows it under "This turn" ("Waiting for Ada to accept…").
-- `actionRegistry.js`: `learn` greys on `canLearn` (nobody here offers me
-  anything) and `teach` on `canTeach` (I don't hold Teaching) — both facts
-  about my own sheet or a list the server already filtered, so greying is
-  allowed.
+- `character/page.js` builds `teachers` (everyone here holding a skill I could
+  take, each skill carrying its own `threshold` so the chip can say what I need
+  to roll off **that** teacher) and `learners`, the same list the other way
+  round. Both are built for everyone present now, not just tag holders. Only
+  skills that could actually change hands cross the wire — never another sheet.
+  `pendingOffers` is every PENDING offer I'm part of this turn; `SheetTurn.js`
+  shows it under "This turn" ("Waiting for Ada to accept…").
+- **This is a skill-scanner of the room, and that is accepted.** Since anyone
+  can teach, the Learn menu now names everyone standing here who holds a skill
+  I lack. That falls out of the rule; designing around it would mean hiding
+  teachers who could really teach me.
+- `actionRegistry.js`: `learn` greys on `canLearn` (`teachers.length > 0`) and
+  `teach` on `canTeach` (`learners.length > 0`) — both lists the server already
+  filtered, so greying is allowed. `teachCostsMove` (do I lack Teaching?) is a
+  separate prop and only decides what the dialog's footnote says.
 - `/gm/turns` shows a lesson as an ordinary Gambit whose description starts
   "Learning …" with `auto:lesson` in the notes. A GM who writes a result
   before the push wins; a GM who Rejects cancels the lesson.
@@ -209,9 +239,27 @@ bind, and the button is hidden the whole time `bound` is absent anyway.
 | Co-presence rule | `db/lib/presence.js` (web: `web/lib/peopleHere.js`) |
 | Web actions | `web/app/(app)/character/requestActions.js` (`learnRequest`, `teachRequest`, `bindCharacterRequest`) |
 | Menus and status line | `character/page.js`, `RequestActionsProvider.js`, `SheetTurn.js` |
-| Catalog | `docs/tags.yaml` (`teaching`, `teaching-lecturing`, `teaching-drill-instructor`; `teachable:` on skills) |
+| Catalog | `docs/tags.yaml` (`teaching`, `teaching-drill-instructor`; `teachable:` on skills) |
+| One-off Lecturing conversion | `db/scripts/ops/convert-lecturers.js` (`npm run db:convert-lecturers`) |
 | Player text | `docs/documents.yaml` `teachingskills`, `docs/handbook.md` "Teaching" |
 
 An offer's Accept / Decline is answerable on **either face** — the buttons are
 drawn in the Bascinet pane on `/chat` as well as in the Discord DM
 (`CHAT.md` §2b).
+
+## 6. Converting the old Lecturers
+
+Dropping `teaching-lecturing` from `docs/tags.yaml` does nothing to a character
+who already holds it — `db:sync-tags` is upsert-only. Two steps clear it, and
+**both are destructive against live data, so both wait on Bascinet saying yes
+in chat**:
+
+```
+npm run db:convert-lecturers            # dry run: says what it would do
+npm run db:convert-lecturers -- --apply
+npm run db:prune-tags -- --apply        # then the orphaned tag itself
+```
+
+The first re-points each Lecturing row at plain `teaching`, or deletes it if
+the holder somehow has both. It is the one place the old rung is remembered,
+and it can be deleted once it has been run against the live database.

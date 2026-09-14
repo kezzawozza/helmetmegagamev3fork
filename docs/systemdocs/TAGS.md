@@ -539,9 +539,11 @@ how much of the Desire catalog it closes against how much it opens, and
 Depressed closes everything and opens nothing, so it is that band's floor.
 **Camouflage is a seventh, at 3.** It buys no code: nothing reads the slug,
 and "nearly invisible when ambushing in a forested area" is adjudicated the
-way Mindreading's Gambit is. Teaching (Lecturing) sits on-scale at 5, the
-ordinary Moderate band (`LESSONS.md` §1); **Teaching itself is 4**, the same
-between-bands spot. **Crafting is 2** — the Minor band: it gates the Dead
+way Mindreading's Gambit is. **Teaching is 4**, a between-bands spot it
+kept through the 2026-09-14 rework that deleted the 5-point Lecturing rung and
+folded its three-student cap into Teaching itself (`LESSONS.md` §1). The tag
+got stronger and the price did not move — deliberately, because the rework was
+a removal, not a rebalance. **Crafting is 2** — the Minor band: it gates the Dead
 Simple rung and miscellaneous production, not a rung of the smithing chain
 (`SMITHING.md` §1).
 **Torturing Equipment is 0** — unpurchasable, like the other kits' `purchasable:
@@ -981,8 +983,8 @@ them).
   tag with a cure and `false` everywhere else — see §5c.
 - `teachable` — whether this tag is a skill Learn Skill / Teach Skill will
   offer. Set `true` on every entry in the `skills` category except the
-  Teaching tree itself (Teaching, Lecturing, Drill Instructor are `false` —
-  you can't be taught to teach) and Research (also `false` — it arrives only
+  Teaching tree itself (Teaching and Drill Instructor are `false` — you can't
+  be taught to teach) and Research (also `false` — it arrives only
   through the Scholastic's `starting_tags`, and studying it yourself in the
   Cathedral is the whole point, not something a lesson can hand you), not
   derived from the category; the one rule is

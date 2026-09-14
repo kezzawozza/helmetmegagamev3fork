@@ -80,7 +80,8 @@ async function openTurnAndWindow(db) {
   return { turn, locked };
 }
 
-// One confession is one whole Routine; no Lecturing here — a chaplain hears one person a day.
+// One confession is one whole Routine, always — a chaplain hears one person a
+// day, and unlike teaching there is no tag that buys the Move back.
 async function freeSlot(db, character, turnId) {
   const action = await db.action.findFirst({
     where: { characterId: character.id, turnId },
