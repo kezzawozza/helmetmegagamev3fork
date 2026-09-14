@@ -699,8 +699,11 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     // Wrapped: a watch that throws must never wedge a move that has already committed. The mover is standing at the destination either way.
     try {
       ({ dms: interceptDms } = await fireWatches(prisma, {
-        arrivals: moved.map((entry) => entry.character),
+        // Each arrival carries the zone it came FROM, for a watch set to ignore anybody who
+        // was already in this one (intercept.js#originHolds). Per arrival rather than per move: an escort party is judged one person at a time, since a leader crossing a border can be carrying somebody who never left the zone.
+        arrivals: moved.map((entry) => ({ ...entry.character, fromZoneId: entry.fromZoneId })),
         locationId: targetLocation.id,
+        zoneId: targetLocation.zoneId,
         openTurn: turnForWatches,
       }));
     } catch (err) {

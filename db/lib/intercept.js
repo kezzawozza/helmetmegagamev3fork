@@ -113,6 +113,15 @@ function anchorHolds(watch, locationId) {
   return Boolean(watch?.locationId) && Boolean(locationId) && watch.locationId === locationId;
 }
 
+// PURE, and the second half of "does this watch reach this person": anchorHolds asks
+// where the WATCH is, this asks where the ARRIVAL came from. Off, a watch reaches everybody and this costs nothing — which is the default and what every watch set before the flag existed does. On, it is the gate guard's mute button: the townsfolk crossing their own square all day stop generating the same line, and only somebody who actually came up the road is stopped.
+// An arrival with no previous zone at all counts as OUTSIDE. An unknown origin is a stranger, and the other way round would be a hole in a watch somebody deliberately turned on.
+// Deliberately NOT folded into matchesArrival: that function is the hood rule and only the hood rule (INTERCEPT.md §2). Where you came from is geography, not a face.
+function originHolds(watch, arrival, zoneId) {
+  if (!watch?.outsideZoneOnly) return true;
+  return arrival?.fromZoneId !== zoneId;
+}
+
 // Moving cancels the watch. Called from locationMove.js#applyLocationMoveSideEffects,
 // the writer EVERY relocation runs — walking, an escort, a GM teleport, a Bulk Move, a staged Relocate to, a rite. Deliberately the opposite hook from firing (fireWatches hangs off the mover, so a teleport can't trip somebody's ambush): a watch fires only from the road, but dies however you left. IT SENDS NOTHING, like the rest of this module — the caller is handed `cancelled` and sends INTERCEPT_CANCELLED_DM itself.
 async function cancelWatchOnMove(db, characterId) {
@@ -198,7 +207,7 @@ function identityOf(row) {
 
 // Called once by locationTravel.js#performLocationMove with everyone who just arrived
 // — the mover first, then their whole escort party, which makes "if several people come up together, all of them get stopped" free rather than a feature of its own. Runs AFTER the move's transaction commits, does its own small transactions per catch. Returns DM descriptors; sends nothing.
-async function fireWatches(db, { arrivals, locationId, openTurn }) {
+async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }) {
   const dms = [];
   if (!locationId || !openTurn || !Array.isArray(arrivals) || arrivals.length === 0) return { dms, hits: [] };
 
@@ -239,6 +248,9 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
     for (const watch of live) {
       const matchedBy = matchesArrival(watch, row, presented);
       if (!matchedBy) continue;
+      // Where they came from, not who they are. It reads `arrival` and not `row`, since
+      // the journey is on the descriptor the mover handed us and the fresh row knows only the face. BEFORE the ration insert below: a local this watch deliberately ignored must not burn the turn's one catch, or a stranger arriving later the same turn would walk straight through.
+      if (!originHolds(watch, arrival, zoneId)) continue;
 
       // THE RATION, and the insert IS the enforcement. Without it a lapsed two-minute
       // hold is walked straight back into, and a Safe watch on a busy road becomes an endless roadblock and DM feed. A unique violation means this catcher already caught this target this turn — not an error, the rule working. Keyed to the CATCHER, never the watch row: a watch dies when its owner walks off, so a row-keyed ration would reset by stepping out and back.
@@ -375,6 +387,7 @@ module.exports = {
   heldReasonFor,
   releaseHeldBy,
   anchorHolds,
+  originHolds,
   cancelWatchOnMove,
   INTERCEPT_CANCELLED_DM,
   matchesArrival,

@@ -8,6 +8,7 @@ const {
   matchesArrival,
   heldReasonFor,
   anchorHolds,
+  originHolds,
   cleanMessage,
   cleanNames,
   seenAs,
@@ -64,6 +65,27 @@ test("a watch works where it was set and nowhere else", () => {
   assert.equal(anchorHolds(watch({ anyPerson: true }), "loc-gatehouse"), false);
   assert.equal(anchorHolds(gate, null), false);
   assert.equal(anchorHolds(null, "loc-gatehouse"), false);
+});
+
+test("a watch may ignore anybody who was already in the zone", () => {
+  const TOWN = "zone-town";
+  const local = { id: "c1", fromZoneId: TOWN };
+  const stranger = { id: "c2", fromZoneId: "zone-moor" };
+
+  // Off, which is every watch set before the flag existed: everybody who walks in.
+  const open = watch({ anyPerson: true });
+  assert.equal(originHolds(open, local, TOWN), true);
+  assert.equal(originHolds(open, stranger, TOWN), true);
+
+  // On: the gate guard stops the stranger coming up the road and lets the
+  // townsfolk crossing their own square walk past.
+  const gate = watch({ anyPerson: true, outsideZoneOnly: true });
+  assert.equal(originHolds(gate, stranger, TOWN), true);
+  assert.equal(originHolds(gate, local, TOWN), false);
+
+  // An unknown origin is a stranger — erring the other way would be a hole in a
+  // watch somebody deliberately turned on.
+  assert.equal(originHolds(gate, { id: "c3", fromZoneId: null }, TOWN), true);
 });
 
 test("the hold lapses on its own", () => {

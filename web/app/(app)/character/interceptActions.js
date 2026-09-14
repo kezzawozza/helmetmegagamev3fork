@@ -92,6 +92,7 @@ async function loadInterceptImpl() {
           names: live.targetNames ?? [],
           anyConcealed: live.anyConcealed,
           anyPerson: live.anyPerson,
+          outsideZoneOnly: live.outsideZoneOnly,
           place: live.location?.name ?? null,
         }
       : null,
@@ -99,7 +100,7 @@ async function loadInterceptImpl() {
   };
 }
 
-async function setInterceptImpl({ mode, message, names, anyConcealed, anyPerson }) {
+async function setInterceptImpl({ mode, message, names, anyConcealed, anyPerson, outsideZoneOnly }) {
   const { session, character } = await me({ needs: ACT });
 
   const wantAmbush = mode === "AMBUSH";
@@ -128,6 +129,9 @@ async function setInterceptImpl({ mode, message, names, anyConcealed, anyPerson 
     targetNames,
     anyConcealed: concealed,
     anyPerson: anyone,
+    // Narrows any watch, including one made of typed names, so it is NOT subsumed
+    // by "Any person" the way anyConcealed is — the two answer different questions.
+    outsideZoneOnly: Boolean(outsideZoneOnly),
   };
 
   await prisma.$transaction(async (tx) => {
