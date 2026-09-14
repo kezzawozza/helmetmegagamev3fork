@@ -2103,11 +2103,19 @@ out of sight when you aren't using it.
   Key, Bishop's Mitre, Headman's Cap, Esculap's Vest, Jewelry, Spectacles,
   Radio Bracelet, Dark-Eye Lenses. The badges are the interesting half — an
   officer can now go about unmarked, and displaying the thing is a choice,
-  which is what the Sheriff's Badge's own description always claimed.
+  which is what the Sheriff's Badge's own description always claimed. The
+  clubs and small tools join them: Cudgel, Truncheon, Sickle, Hatchet, Whip,
+  Disabler, Cracked Bone Club, Horseshoes, the Ordinator's Insignia and the
+  Scrying Eye.
 - **`true`** — everything you cannot hide by not holding it: swords,
   polearms, bows, shields, plate, banners, the Baron's Scepter, the Power
   Fist, the Flamethrower, and all the garb and robes. Carrying one reads the
   same as wearing one.
+- **`false`** — a small thing you carry with nothing to wear it on: the
+  Instant Camera, every food and drink, every book and sheet of paper, and
+  pocket gear (Rope, Rock, Gold Fleck, Badge, the Branding Iron, the Censer,
+  the Silver Cross). A stranger looking you over can't see what's in your
+  bag, and until 2026-09-14 about sixty of these said they could.
 
 A concealed character's 🔍 embed applies the same gate through the same
 predicate, so a hidden cuirass stays hidden even while worn, and a stowed

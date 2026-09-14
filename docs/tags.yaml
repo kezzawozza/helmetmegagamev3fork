@@ -5425,7 +5425,7 @@ tags:
     tradeable: true
     weight: 0.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -6591,7 +6591,7 @@ tags:
     tradeable: true
     weight: 0.2
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     sellable: true
@@ -6835,7 +6835,7 @@ tags:
     tradeable: true
     weight: 3
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -6851,7 +6851,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -6865,7 +6865,7 @@ tags:
     tradeable: true
     weight: 3
     stackable: true
-    visible: true
+    visible: false
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -7092,7 +7092,7 @@ tags:
     tradeable: true
     weight: 0.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -7119,7 +7119,7 @@ tags:
     tradeable: true
     weight: 0.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -9183,7 +9183,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
 
@@ -9299,7 +9299,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -9495,7 +9495,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -9523,7 +9523,7 @@ tags:
     tradeable: true
     weight: 1.5
     stackable: true
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
     sellable: true
@@ -9570,7 +9570,7 @@ tags:
     tradeable: true
     weight: 1.5
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -9905,7 +9905,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: worn
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -10386,7 +10386,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
 
@@ -10631,7 +10631,7 @@ tags:
     tradeable: true
     weight: 0.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -10653,7 +10653,7 @@ tags:
     tradeable: true
     weight: 3
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -10674,7 +10674,7 @@ tags:
     tradeable: true
     weight: 1
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -10695,7 +10695,7 @@ tags:
     tradeable: true
     weight: 0.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -10717,7 +10717,7 @@ tags:
     tradeable: true
     weight: 3
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     # The one exception to the nine: a wheel of cheese is food on its own, and
@@ -10740,7 +10740,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -10762,7 +10762,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -10786,7 +10786,7 @@ tags:
     tradeable: true
     weight: 1
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -10808,7 +10808,7 @@ tags:
     tradeable: true
     weight: 1
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -10834,7 +10834,7 @@ tags:
     tradeable: true
     weight: 0.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -10857,7 +10857,7 @@ tags:
     tradeable: true
     weight: 0.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -10929,7 +10929,7 @@ tags:
     tradeable: true
     weight: 1
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
@@ -10947,7 +10947,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -10982,7 +10982,7 @@ tags:
     tradeable: true
     weight: 3
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -11032,7 +11032,7 @@ tags:
     tradeable: true
     weight: 0.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -11058,7 +11058,7 @@ tags:
     tradeable: true
     weight: 0.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -11183,7 +11183,7 @@ tags:
     category: items
     description: "A branding iron. It allows you to permanently brand captives."
     pointCost: 0
-    visible: true
+    visible: false
     tradeable: true
     weight: 2
     purchasable: false
@@ -11647,7 +11647,7 @@ tags:
     equipSlot: ACCESSORY
     tradeable: true
     weight: 0
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
 
@@ -11971,7 +11971,7 @@ tags:
     tradeable: true
     weight: 1.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -12028,7 +12028,7 @@ tags:
     weight: 1
     equippable: true
     equipSlot: ACCESSORY
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
 
@@ -12161,7 +12161,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12175,7 +12175,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12191,7 +12191,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12207,7 +12207,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12223,7 +12223,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12242,7 +12242,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12258,7 +12258,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12274,7 +12274,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12289,7 +12289,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12303,7 +12303,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12317,7 +12317,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12361,7 +12361,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12405,7 +12405,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12455,7 +12455,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12469,7 +12469,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12483,7 +12483,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12501,7 +12501,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12515,7 +12515,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12529,7 +12529,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12543,7 +12543,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -12557,7 +12557,7 @@ tags:
     pointCost: 0
     tradeable: true
     weight: 1.5
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -13175,7 +13175,7 @@ tags:
     weight: 1.5
     equippable: true
     equipSlot: WEAPON
-    visible: true
+    visible: worn
     purchasable: false
     purchasableAfterStart: false
 
@@ -13191,7 +13191,7 @@ tags:
     sellablePrice: 7
     tradeable: true
     weight: 2
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -13229,7 +13229,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -13623,7 +13623,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -13652,7 +13652,7 @@ tags:
     tradeable: true
     weight: 1
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -13678,7 +13678,7 @@ tags:
     tradeable: true
     weight: 0.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -13737,7 +13737,7 @@ tags:
     tradeable: true
     weight: 2.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -13817,7 +13817,7 @@ tags:
     tradeable: true
     weight: 1
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -16010,7 +16010,7 @@ tags:
     group: items-special
     description: "A cross. As simple as it is, it is beautiful."
     pointCost: 0
-    visible: true
+    visible: false
     tradeable: true
     weight: 0
     purchasable: false
@@ -16189,7 +16189,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: false
     purchasable: true
     purchasableAfterStart: false
     consumable: false
@@ -16326,7 +16326,7 @@ tags:
     description: "Bolten down tools that allow one to package things into crates."
     pointCost: 0
     tradeable: false
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     removable: false
@@ -16453,7 +16453,7 @@ tags:
     tradeable: true
     weight: 2
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true

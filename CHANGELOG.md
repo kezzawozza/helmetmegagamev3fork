@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Small items no longer show when someone looks you over
+
+✎ Cameras, food, drink, books and pocket gear are hidden from a look  
+✎ Clubs, whips, the Disabler and other short weapons only show while they are out
+
 ## 2026-09-14 · Bound characters can take a Gambit
 
 ✎ Bound, Crucified and Catatonic characters can file a Gambit now; only Unconscious, Paralyzed, Seizure and Dying stop one  
