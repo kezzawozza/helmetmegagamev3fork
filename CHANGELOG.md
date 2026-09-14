@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Handing someone goods tells them who handed it over
+
+✎ "You were handed X." now reads "Ada handed you X.", or "A young man handed you X." from a hood
+
 ## 2026-09-14 · You keep seeing where you have been this turn
 
 ✎ You go on reading every place you walked into this turn, and its public rooms — but only to watch: you cannot speak or react there until you walk back in  
