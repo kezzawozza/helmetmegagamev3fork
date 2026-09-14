@@ -52,6 +52,10 @@ function needsNoConsent(target) {
 async function applyBind(prisma, { actor, target, turn, offerId = null }) {
   const bound = await requireBoundTag(prisma);
   const expiresTurn = await expiryForGrant(prisma, bound, turn, { characterId: target.id, where: "bindCharacter" });
+  // Break Restraints' clock (db/lib/breakRestraints.js, LESSONS.md §3c) only
+  // starts on a FRESH bind — a re-bind of someone already tied up must not
+  // reset their progress toward automatic release.
+  const freshBind = !isBound(target);
   const effect = {
     targetCharacterId: target.id,
     targetName: target.name,
@@ -62,6 +66,12 @@ async function applyBind(prisma, { actor, target, turn, offerId = null }) {
   };
   await prisma.$transaction(async (tx) => {
     await addToStack(tx, target.id, bound.id, 1, { source: "EVENT", expiresTurn, stackable: bound.stackable });
+    if (freshBind) {
+      await tx.character.update({
+        where: { id: target.id },
+        data: { boundSinceTurnNumber: turn?.number ?? null },
+      });
+    }
     // Being tied up is frightening, consented to or not (MOOD.md); every night
     // still bound costs more, in db/lib/moodPass.js.
     await applyMood(tx, target.id, { kind: "BOUND" });

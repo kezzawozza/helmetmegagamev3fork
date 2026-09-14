@@ -59,6 +59,7 @@ import {
   KissIcon,
   ResourcesIcon,
   BrandIcon,
+  BreakRestraintsIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -71,6 +72,7 @@ export const ACTION_HELP = {
   tax: "Automatically tax your subjects",
   loot: "Loot somebody that's bound or helpless.",
   free: "Cut somebody loose.",
+  breakrestraints: "Make a Gambit to break your restraints. It's easier every turn.",
   butcher: "Butcher a body.",
   write:
     "Add a line to a sheet of paper you're carrying. Writing only ever appends.",
@@ -220,6 +222,16 @@ export const ACTION_SECTIONS = [
         show: "canSeeExtract",
         gate: "canExtract",
         gateReason: "You have nothing to cut with.",
+        instant: true,
+      },
+      // HIDDEN, never greyed, the same rule Extract just above follows: being
+      // Bound is a fact about YOUR OWN sheet, and a dead row on every other
+      // sheet would only teach a bystander that struggling free is possible.
+      {
+        mode: "breakrestraints",
+        icon: BreakRestraintsIcon,
+        label: "Break Restraints",
+        show: "canBreakRestraints",
         instant: true,
       },
       {

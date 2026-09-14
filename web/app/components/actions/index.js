@@ -5,7 +5,7 @@
 import { recallComrades, recoverEquipment } from "@/app/(app)/character/thanatiActions";
 import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
 import { checkWanted } from "@/app/(app)/character/cerberonActions";
-import { extractGodfleshRequest, healCharacterRequest, readPointerDevice } from "@/app/(app)/character/requestActions";
+import { extractGodfleshRequest, healCharacterRequest, readPointerDevice, breakRestraintsRequest } from "@/app/(app)/character/requestActions";
 import { formatMoveFraction } from "@/lib/craftBudget";
 import BindDialog, { BIND_VERBS } from "./BindDialog";
 import HarmDialog from "./HarmDialog";
@@ -83,6 +83,9 @@ export const INSTANT = {
       confirmLabel: "Cut",
     }),
   },
+  // No question first — the tooltip already says what pressing it does, and
+  // asking "Try to break free?" of somebody who is Bound is not a real choice.
+  breakrestraints: { run: () => breakRestraintsRequest(), confirm: () => null },
 };
 
 // Mode → dialog component. Filled in as the dialogs move out of the provider;

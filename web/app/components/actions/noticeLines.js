@@ -61,6 +61,7 @@ const LINES = {
   arm: () => `The count has begun.`,
   disarm: () => `The count is stopped.`,
   extract: (res) => res.line ?? `You cut what you could.`,
+  breakrestraints: (res) => res.line ?? `You struggle against the ropes.`,
 };
 
 export function noticeLine(mode, res, ctx = null) {

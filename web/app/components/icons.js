@@ -61,6 +61,7 @@ import {
   Menu,
   Plus,
   Stamp,
+  Unlock,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -164,6 +165,8 @@ export const InterceptIcon = lucide(OctagonMinus, "InterceptIcon");
 export const AttackIcon = lucide(Swords, "AttackIcon");
 // Free — the key that opens it.
 export const KeyIcon = lucide(KeyRound, "KeyIcon");
+// Break Restraints — the lock coming undone, distinct from Free's own KeyRound.
+export const BreakRestraintsIcon = lucide(Unlock, "BreakRestraintsIcon");
 // A bird in flight, for the Bird's letter.
 export const BirdIcon = lucide(Bird, "BirdIcon");
 // The Select trigger's open/close glyph.

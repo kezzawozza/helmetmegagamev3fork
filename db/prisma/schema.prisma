@@ -2053,6 +2053,18 @@ model Character {
   // into a character row.
   extractDayKey String?
 
+  // The Turn.number `bound` was freshly granted on — not a foreign key, the
+  // same reasoning extractDayKey gives: a turn can be deleted with no
+  // cascade into a character row. Stamped once, in db/lib/bind.js#applyBind,
+  // only when the target wasn't already bound; cleared to null the moment
+  // Break Restraints succeeds (db/lib/breakRestraints.js). Read back as
+  // `openTurn.number - boundSinceTurnNumber` to know how many turns a Bound
+  // character has been struggling, which is what sets the escalating
+  // threshold (LESSONS.md §3c). A GM manually stripping `bound` from
+  // /gm/dev leaves this stale until the character is bound again — low
+  // risk, since the button is hidden the whole time `bound` is absent.
+  boundSinceTurnNumber Int?
+
   // Consecutive turns' worth of hunger this character is carrying — written
   // only by db/lib/hungerPass.js. Each hungry turn increments it; a fed turn
   // (paid or Ate Meal) only sheds ONE tick, not the whole streak, so it takes

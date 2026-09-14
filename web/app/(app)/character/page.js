@@ -766,6 +766,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const canTorture = heldSlugs.has("torturer"); // tortureCharacterRequest re-checks the tag and that the target is Bound
   const canMutilate = MUTILATE_GATE_SLUGS.some((slug) => heldSlugs.has(slug)); // Cruel, Torturer or Thanati
   const canBrand = heldSlugs.has("branding-iron"); // brandCharacterRequest re-checks tag and target's incapacitation
+  const canBreakRestraints = heldSlugs.has("bound"); // breakRestraintsRequest re-checks the tag, the Move, and rolls itself
   // THE THANATI (THANATI.md). Whether you are one/lead is your own sheet's
   // facts. thanatiActions.js re-checks every one of these.
   const isThanati = heldSlugs.has(THANATI_SLUG);
@@ -1108,6 +1109,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canTorture: canTorture,
       canMutilate: canMutilate,
       canBrand: canBrand,
+      canBreakRestraints: canBreakRestraints,
       isThanati: isThanati,
       isThanatiLeader: isThanatiLeader,
       isCerberon: isCerberon,

@@ -1362,7 +1362,7 @@ tags:
     name: Escape Artist
     category: general
     group: general-traits
-    description: "Ropes, chains, and cells barely hold you."
+    description: "Breaking restraints is much easier for you."
     fighting: { tree: both, tiers: 0.6, situational: true }
     pointCost: 4
     purchasable: true
