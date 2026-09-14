@@ -8,7 +8,6 @@
 const { formatAdvantage } = require("./advantage");
 
 const ESCAPE_ARTIST_SLUG = "escape-artist";
-const GIANT_SLUG = "giant";
 
 function toSet(slugs) {
   return slugs instanceof Set ? slugs : new Set(slugs ?? []);
@@ -18,22 +17,16 @@ function toSet(slugs) {
 // needed, it just works. `turnsElapsed` is `openTurn.number -
 // character.boundSinceTurnNumber`, 0 on the same turn the bind landed.
 //
-// Escape Artist shifts the whole ladder one turn early (their turn 1 plays
-// like everyone else's turn 2). Giant only sweetens turn 1 — Bascinet gave
-// no reason to shift its later turns, so turn 2+ falls back to the base
-// ladder. Escape Artist AND Giant together is Bascinet's own ruling: instant,
-// from turn 1, no exceptions.
+// Bascinet's ladder (2026-09-14): a 6 the turn you're tied up, 5+ the next,
+// automatic from the third for anyone. Escape Artist needs 5+ then 3+.
+// Giant used to help and no longer does.
 function breakRestraintsThreshold(turnsElapsed, heldSlugs) {
   const held = toSet(heldSlugs);
   const elapsed = Math.max(0, turnsElapsed);
-  const escapeArtist = held.has(ESCAPE_ARTIST_SLUG);
-  const giant = held.has(GIANT_SLUG);
 
-  if (escapeArtist && giant) return null;
   if (elapsed >= 2) return null;
-  if (escapeArtist) return elapsed >= 1 ? null : 3;
-  if (giant) return elapsed >= 1 ? 3 : 4;
-  return elapsed >= 1 ? 3 : 5;
+  if (held.has(ESCAPE_ARTIST_SLUG)) return elapsed >= 1 ? 3 : 5;
+  return elapsed >= 1 ? 5 : 6;
 }
 
 // `die` is what was actually rolled (irrelevant when the result is
@@ -54,7 +47,6 @@ function formatBreakRestraintsRoll({ die, threshold, rolls = null }) {
 
 module.exports = {
   ESCAPE_ARTIST_SLUG,
-  GIANT_SLUG,
   breakRestraintsThreshold,
   resolveBreakRestraints,
   formatBreakRestraintsRoll,

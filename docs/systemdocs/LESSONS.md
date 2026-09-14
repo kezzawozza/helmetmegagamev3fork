@@ -190,18 +190,14 @@ means automatic, no roll needed at all:
 
 | Holds | Turn 1 | Turn 2 | Turn 3+ |
 |---|---|---|---|
-| neither | needs 5 or 6 | needs 3–6 | automatic |
-| Escape Artist | needs 3–6 | automatic | automatic |
-| Giant | needs 4–6 | needs 3–6 | automatic |
-| **Escape Artist and Giant together** | **automatic** | automatic | automatic |
+| neither | needs 6 | needs 5 or 6 | automatic |
+| Escape Artist | needs 5 or 6 | needs 3–6 | automatic |
 
-Escape Artist shifts the whole ladder one turn early — their turn 1 plays
-like everyone else's turn 2. Giant only sweetens turn 1; Bascinet gave no
-reason to shift its later turns, so turn 2+ falls back to the base ladder.
-Escape Artist and Giant together is Bascinet's own ruling (2026-09-24):
-instant, from turn 1, no exceptions — not merely the better of the two.
-No Hunger/mood Gambit modifiers apply; this is a flat die-vs-threshold
-check.
+Bascinet rebalanced this on 2026-09-14: harder in the first two turns, and
+automatic from the third for everyone. **Giant no longer helps** — it used
+to lower turn 1, and with Escape Artist made breaking free instant. Lucky or
+Inspired still rolls two dice and keeps the better. No Hunger/mood Gambit
+modifiers apply; this is a flat die-vs-threshold check.
 
 On success, `dropCharacterTag` removes `bound` and `boundSinceTurnNumber` is
 cleared. **A GM manually stripping `bound` from `/gm/dev` leaves the column

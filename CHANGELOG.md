@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Breaking free is harder
+
+✎ Break Restraints needs a 6 the turn you're tied up and a 5 or 6 the next; from the third turn it always works  
+✎ Escape Artist needs a 5 or 6, then a 3 or better  
+✎ Giant no longer makes breaking free easier
+
 ## 2026-09-14 · Streets you are only watching are read-only on Discord too
 
 ✎ A street you walked out of this turn no longer lets you post in its Room threads or react there  
