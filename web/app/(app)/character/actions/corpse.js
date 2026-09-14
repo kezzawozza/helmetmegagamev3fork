@@ -54,34 +54,22 @@ import {
 } from "./shared.js";
 
 // --- Bodies: Butcher, Bury, Engrave --------------------------------------
-//
-// All three act on a CORPSE TAG rather than on a name typed into a box, which
-// is the change docs/systemdocs/CORPSES.md is really about: a body is an
-// object you hold or can walk up to. Engrave is the exception, and it is the
-// exception on purpose — see its own comment.
+// All three act on a CORPSE TAG rather than a typed name (docs/systemdocs/CORPSES.md): a body is an object you hold
+// or can walk up to. Engrave is the deliberate exception — see its own comment.
 
-// The one reach rule the three share, and the reason they cannot disagree
-// about what you can touch: a corpse in your own hands, or one lying in a Room
-// at your Location you can actually get into. Location-grain, because that is
-// what a room stash is (CARRY.md §5).
-//
-// Re-resolved server-side from the posted ids every time. The dialog's list is
-// advisory; this is the gate that holds when a client posts its own ids.
+// Shared reach rule: a corpse in your own hands, or one lying in a Room at your Location you can get into
+// (Location-grain, CARRY.md §5). Re-resolved server-side from posted ids every time — the dialog's list is advisory.
 async function resolveCorpseSource(character, { tagId, sourceKey }) {
   const reachable = await corpsesInReach(prisma, character);
   const found = reachable.find(
     (c) => c.tagId === tagId && c.sourceKey === sourceKey,
   );
-  // One message for both "you made that up" and "someone got there first",
-  // deliberately: telling them apart would say whether a body they cannot see
-  // exists, which is the scouting leak the reach rule exists to prevent.
+  // One message for both "you made that up" and "someone got there first" — telling them apart would leak whether a body they can't see exists.
   if (!found) throw new UserError("That body isn't there any more.");
   return found;
 }
 
-// Taking the body off whatever was holding it. The conditional write IS the
-// check in both branches — a room is the game's first multi-actor inventory
-// (CARRY.md §5), and two of your own tabs can race just as well.
+// Conditional write IS the check in both branches — a room is a multi-actor inventory (CARRY.md §5), and two of your own tabs can race just as well.
 async function takeCorpse(tx, corpse) {
   if (corpse.source.kind === "room") {
     const { ok } = await dropRoomTag(tx, corpse.source.id, corpse.tagId, 1);
@@ -95,12 +83,8 @@ async function takeCorpse(tx, corpse) {
     throw new UserError("That body isn't there any more.");
 }
 
-// Butchering. FREE — no ⬢, no Move — and it consumes the body.
-//
-// It deliberately does NOT free the soul: cutting someone up destroys the
-// evidence without burying them, so their player stays Cursed. That is the
-// hole Engrave exists to fill, and it reads as an oversight unless you know
-// it was a choice.
+// Butchering. FREE — no ⬢, no Move — and consumes the body. Deliberately does NOT free the soul: no burial means the
+// player stays Cursed. Engrave exists to fill that hole.
 export async function butcherCorpseRequestImpl({
   tagId,
   sourceKey,
@@ -116,8 +100,7 @@ export async function butcherCorpseRequestImpl({
   const yieldTag = await prisma.tag.findUnique({
     where: { slug: corpse.yieldSlug },
   });
-  // A catalog out of step with the code. Refusing is right: silently granting
-  // nothing would read to the player as the button being broken.
+  // A catalog out of step with the code — refuse rather than silently grant nothing, which would read as a broken button.
   if (!yieldTag) throw new UserError("Nothing comes of that one. Tell a GM.");
 
   const openTurn = await getOpenTurn();
@@ -125,8 +108,7 @@ export async function butcherCorpseRequestImpl({
     reason: "butcher",
   });
 
-  // A human body also gives up whatever Mutilate hasn't already taken —
-  // every ladder run to its end in one pass instead of nine presses.
+  // A human body also gives up whatever Mutilate hasn't already taken — every ladder run to its end in one pass instead of nine presses.
   let subject = null;
   let harvests = [];
   let organTagBySlug = new Map();
@@ -150,9 +132,7 @@ export async function butcherCorpseRequestImpl({
         where: { slug: { in: [...neededSlugs] } },
       });
       organTagBySlug = new Map(organTags.map((t) => [t.slug, t]));
-      // A harvest whose tags aren't all in the catalog is dropped rather
-      // than blocking the whole Butcher action — human-flesh is the yield
-      // that must not fail on catalog drift; organs are the bonus.
+      // A harvest whose tags aren't all in the catalog is dropped rather than blocking Butcher — human-flesh must not fail on catalog drift; organs are the bonus.
       harvests = rawHarvests.filter(
         (h) =>
           organTagBySlug.has(h.grantSlug) &&
@@ -215,8 +195,7 @@ export async function butcherCorpseRequestImpl({
 
   await afterInventoryChange([character.id]);
 
-  // The dead player is told, and never told by whom — the same posture every
-  // other request that acts on someone else takes.
+  // The dead player is told, never told by whom — the posture every request acting on someone else takes.
   if (corpse.human && corpse.deadCharacterId) {
     const dead = await prisma.character.findUnique({
       where: { id: corpse.deadCharacterId },
@@ -234,18 +213,10 @@ export async function butcherCorpseRequestImpl({
   return { made: yieldTag.name };
 }
 
-// Mutilating. One piece off a bound person or a corpse, and it is FREE — no ⬢,
-// no Move, no turn. Press it again for the next piece; the ladder in
-// db/lib/mutilate.js is what stops a third eye.
-//
-// It deliberately does NOT consume the body the way Butcher does. Butchering
-// is the whole corpse at once; this is picking at one, and you should be able
-// to come back for the other eye.
-//
-// The part menu is UNFILTERED on the client on purpose (see the dialog): which
-// rungs a subject has left is a fact about their sheet, and offering only the
-// ones they still have would answer "what are they already missing?" to anyone
-// who opened it. The refusal here is where they find out.
+// Mutilating. One piece off a bound person or a corpse, FREE — no ⬢, no Move, no turn. Press again for the next
+// piece; db/lib/mutilate.js's ladder is what stops a third eye. Deliberately does NOT consume the body like Butcher
+// does — this is picking at one, so you can come back for the other eye. The part menu is UNFILTERED client-side on
+// purpose: filtering to what's left would answer "what are they already missing?" to anyone who opened it — the refusal here is where they find out.
 export async function mutilateRequestImpl({
   targetCharacterId,
   tagId,
@@ -264,10 +235,8 @@ export async function mutilateRequestImpl({
   const named = partFor(part);
   if (!named) throw new UserError("That isn't something you could take.");
 
-  // Two subjects, one action. A corpse resolves through the reach rule Butcher
-  // and Bury already share; a living person through the Bound-and-here check
-  // Torture already makes. Either way what comes out is ONE Character row to
-  // injure, so everything below this is common.
+  // Two subjects, one action: a corpse resolves through the reach rule Butcher/Bury share; a living person through
+  // the Bound-and-here check Torture makes. Either way it's ONE Character row to injure, so everything below is common.
   let corpse = null;
   let subject = null;
   if (tagId) {
@@ -283,10 +252,8 @@ export async function mutilateRequestImpl({
   } else {
     if (targetCharacterId === character.id)
       throw new UserError("You can't do that to yourself.");
-    // The WHOLE row, not a select: a lethal part hands this straight to
-    // killCharacter, which reads discordRoleId and everything
-    // revokeAllCharacterAccess needs. The Harm path loads it the same way and
-    // for the same reason — a partial row there orphans a Discord role.
+    // The WHOLE row, not a select: a lethal part hands this to killCharacter, which needs discordRoleId and
+    // everything revokeAllCharacterAccess needs — a partial row here orphans a Discord role.
     subject = await prisma.character.findFirst({
       where: { id: targetCharacterId ?? "", status: "ALIVE" },
       include: { tags: { include: { tag: { select: { slug: true } } } } },
@@ -308,8 +275,7 @@ export async function mutilateRequestImpl({
     prisma.tag.findUnique({ where: { slug: step.grantSlug } }),
     prisma.tag.findUnique({ where: { slug: step.itemSlug } }),
   ]);
-  // A catalog out of step with the code. Refusing is right: granting nothing
-  // silently would read to the player as the button being broken.
+  // A catalog out of step with the code — refuse rather than silently grant nothing, which would read as a broken button.
   if (!grantTag || !itemTag)
     throw new UserError("Nothing comes of that one. Tell a GM.");
   const dropTag = step.dropSlug
@@ -384,11 +350,7 @@ export async function mutilateRequestImpl({
   return { part: named.label, name: subject.name };
 }
 
-// Scenery into the Location the actor is standing in. Corpse work is the most
-// visible thing a person can do with a body, and until now only a room stash
-// pull said anything. `requireCharacter` carries no `character.location`, so
-// the channel is read here (the same lookup every other action in this file
-// does).
+// Scenery into the Location the actor is standing in. `requireCharacter` carries no `character.location`, so the channel is read here.
 async function speakHere(character, text) {
   if (!character.locationId) return;
   const location = await prisma.location.findUnique({
@@ -398,12 +360,7 @@ async function speakHere(character, text) {
   speakAtSite(location?.discordChannelId, ambientLine(text));
 }
 
-// Burying. Takes the body — you have to actually have it, or be able to reach
-// it — and spends your Move.
-//
-// The old version matched a TYPED first name against the dead in your zone.
-// That input has not gone away; it moved to Engrave, which is the one that
-// still needs it.
+// Burying. Takes the body — you have to actually have it, or be able to reach it — and spends your Move.
 export async function buryCharacterRequestImpl({
   tagId,
   sourceKey,
@@ -460,25 +417,10 @@ export async function buryCharacterRequestImpl({
   return { name: target.name };
 }
 
-// Engraving. The answer to a body nobody can find — so it is the ONE action
-// here with no corpse and no reach check at all, and it searches the whole
-// game rather than your zone.
-//
-// This is where Bury's typed name went, and the reasoning that kept it typed
-// is unchanged and now stronger: a dropdown would answer "who is dead?" to
-// anyone who opened the dialog, and the list would now be every corpse in
-// Ravenheart rather than the ones at your feet.
-//
-// It used to match on the FIRST NAME alone, and that was too coarse for a game
-// with a hundred people in it: first names repeat constantly, so a mourner who
-// knew exactly whose stone they were cutting got told "more than one dead
-// person answers to that name" and had to go find a GM. It matches the whole
-// name now — matchesTypedName takes either the full display name or the plain
-// First Last, so an honorific nobody told them about is not a wall.
-//
-// The >1-match refusal stays, and now it means what it says: two dead people
-// with the same full name. It is the only thing standing between a mourner and
-// freeing the wrong soul.
+// Engraving. The answer to a body nobody can find — the ONE action here with no corpse/reach check, searching the
+// whole game rather than your zone. Name is typed, not a dropdown: a dropdown would answer "who is dead?" to anyone
+// who opened it, over every corpse in Ravenheart. matchesTypedName matches the full display name or plain First
+// Last, so an honorific nobody told them about isn't a wall. The >1-match refusal means exactly that: two dead people with the same full name — the only thing standing between a mourner and freeing the wrong soul.
 export async function engraveHeadstoneRequestImpl({
   name: rawName,
 }) {
@@ -487,9 +429,7 @@ export async function engraveHeadstoneRequestImpl({
   const typed = rawName?.toString().trim().slice(0, FULL_NAME_LIMIT) ?? "";
   if (!typed) throw new UserError("Whose name?");
 
-  // No zone clause, on purpose (see above). The composed name is not something
-  // Prisma can compare against, so the unburied dead — a short list — come
-  // back and matchesTypedName does the rest.
+  // No zone clause, on purpose (see above). The composed name isn't something Prisma can compare against, so the unburied dead (a short list) come back and matchesTypedName does the rest.
   const candidates = await prisma.character.findMany({
     where: { status: "DEAD", buriedAt: null },
   });

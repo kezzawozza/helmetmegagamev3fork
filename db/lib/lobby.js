@@ -1,7 +1,6 @@
 // The lobby's database half (docs/systemdocs/LOBBY.md): building the roll's
-// input, checking a previewed draft still fits, committing it, and what
-// happens when a player turns a seat down. The web action sends the DMs and
-// the bot routes the Decline click; both call in here.
+// input, checking a previewed draft still fits, committing it, and declining
+// a seat. The web action sends the DMs; the bot routes the Decline click.
 
 const { assignRoles, newSeed } = require("./roleAssignment");
 const { roleCapacity, isSpawnOnly } = require("./roleCapacity");
@@ -10,27 +9,23 @@ const { LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { getGameConfig } = require("./gameState");
 const { pickTurnBanner } = require("./turnBanner");
 
-// Button customId prefix for the assignment DM's Decline. The web builds the
-// button and the bot routes the click — the REST/gateway twin convention.
+// Button customId prefix for the assignment DM's Decline (web builds it, bot routes the click).
 const LOBBY_DECLINE_PREFIX = "lobby-decline:";
 
 // Nine percent over the readied count, for late joins.
 const READY_HEADROOM = 1.09;
 
-// Phases a roll may be previewed and committed in. CLOSED with readied rows
-// is a FROZEN lobby: Close lobby, Preview, Start is the sequence that keeps
-// somebody readying up between the two from spoiling the draft.
+// Phases a roll may be previewed/committed in. CLOSED with readied rows is a
+// FROZEN lobby — Close lobby, Preview, Start keeps someone readying up between
+// the two from spoiling the draft.
 const ROLL_PHASES = new Set(["LOBBY", "CLOSED"]);
 
-// Everything assignRoles needs, read fresh: the readied players with their
-// preferences and whitelist standing, every role with its capacity inputs,
-// and the seats already spoken for. `memberRoles` maps discordUserId ->
-// Discord role ids (from listGuildMembers), the only Discord fact the roll
-// reads.
+// Everything assignRoles needs, read fresh. `memberRoles` maps discordUserId
+// -> Discord role ids (from listGuildMembers), the only Discord fact the roll reads.
 async function loadAssignmentInput(db, memberRoles) {
   const [config, entries, prefs, roles] = await Promise.all([
     getGameConfig(db),
-    // Ordered, so the seeded shuffle really is reproducible from its seed.
+    // Ordered so the seeded shuffle is reproducible.
     db.lobbyEntry.findMany({ where: { status: "READY" }, orderBy: [{ readyAt: "asc" }, { id: "asc" }], select: { discordUserId: true } }),
     db.playerPreference.findMany(),
     db.role.findMany({
@@ -64,8 +59,7 @@ async function loadAssignmentInput(db, memberRoles) {
   };
 }
 
-// A draft: what Preview shows and Start commits. Hand-set rows carry
-// source "GM"; a re-roll replaces the lot with a new seed.
+// What Preview shows and Start commits. Hand-set rows carry source "GM"; a re-roll replaces the lot with a new seed.
 async function buildDraft(db, memberRoles, { seed = newSeed() } = {}) {
   const input = await loadAssignmentInput(db, memberRoles);
   const rolled = assignRoles({ ...input, seed });
@@ -78,10 +72,7 @@ async function buildDraft(db, memberRoles, { seed = newSeed() } = {}) {
   };
 }
 
-// Does the draft still fit the world? Every row's player must still be READY
-// (nobody unreadied or got a character), every seat must still have room for
-// the rows that name it, and every slug must still be a role. Returns a list
-// of problems; empty means Start may commit.
+// Does the draft still fit the world? Returns a list of problems; empty means Start may commit.
 async function validateDraft(db, draft) {
   const problems = [];
   if (!draft?.rows) return ["There is no preview to commit."];
@@ -100,7 +91,6 @@ async function validateDraft(db, draft) {
     if (row.roleSlug && isSpawnOnly(bySlug.get(row.roleSlug))) problems.push(`${bySlug.get(row.roleSlug).name} can only be spawned, never assigned.`);
   }
 
-  // buildDraft always stamps playerCount; the empty draft has no rows to check.
   const playerCount = draft.playerCount ?? 80;
   const wanted = new Map();
   for (const row of draft.rows) if (row.roleSlug) wanted.set(row.roleSlug, (wanted.get(row.roleSlug) ?? 0) + 1);
@@ -115,11 +105,9 @@ async function validateDraft(db, draft) {
   return [...new Set(problems)];
 }
 
-// Commits a validated draft: every READY entry becomes ASSIGNED (with a
-// window) or UNASSIGNED, the game goes RUNNING, Turn 1 is restamped to now.
-// Returns what the caller must DM, plus the open turn for the #turns repost.
-// Runs the validation again under a lock on the GameState row so two Start
-// clicks cannot both commit.
+// Commits a validated draft: READY -> ASSIGNED/UNASSIGNED, game goes RUNNING,
+// Turn 1 restamped to now. Re-validates under a lock on GameState so two
+// Start clicks cannot both commit.
 async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "GameState" WHERE id = 1 FOR UPDATE`;
@@ -170,15 +158,12 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
       where: { id: 1 },
       data: { phase: "RUNNING", startedAt: now, playerCount: draft.playerCount ?? null, assignmentDraft: null },
     });
-    // Both stamps, not just gameDate: every Move deadline is derived from
-    // startedAt (db/lib/turnClock.js), and the wipe opened this turn days ago.
-    // Left alone, Turn 1 read as having ended before the game began.
+    // Both stamps, not just gameDate: every Move deadline derives from startedAt (turnClock.js).
     const open = await tx.turn.findFirst({ where: { status: "OPEN" } });
     let turn;
     if (open) turn = await tx.turn.update({ where: { id: open.id }, data: { gameDate: now, startedAt: now } });
     else {
-      // Turn.number is unique; a resolved Turn 1 with nothing open is rare but
-      // possible by hand, and must not turn Start into a constraint error.
+      // Turn.number is unique; a resolved Turn 1 with nothing open must not throw a constraint error.
       const last = await tx.turn.aggregate({ _max: { number: true } });
       turn = await tx.turn.create({ data: { number: (last._max.number ?? 0) + 1, phase: "DAWN", banner: pickTurnBanner("DAWN"), status: "OPEN", gameDate: now, startedAt: now } });
     }
@@ -207,9 +192,8 @@ function epoch(date) {
   return Math.floor(new Date(date).getTime() / 1000);
 }
 
-// The assignment DM. The first line is the one Discord shows in the
-// notification, so the seat is in it. `origin` is the site's canonical origin
-// (web/lib/auth.js), passed in because db/ must not know it.
+// First line is what Discord shows in the notification, so the seat is in
+// it. `origin` is passed in because db/ must not know it (web/lib/auth.js).
 function assignmentMessage({ roleName, factionName, zoneName, expiresAt }, origin) {
   const t = epoch(expiresAt);
   return [
@@ -238,8 +222,7 @@ function startedLine() {
   return "The game has begun.";
 }
 
-// Raw component JSON, the same shape as the threat spawn offer — the web
-// sends this and only the bot has discord.js.
+// Raw component JSON — the web sends this and only the bot has discord.js.
 function declineComponents(entryId) {
   return [
     {
@@ -254,16 +237,12 @@ async function markNotified(db, entryId) {
   await db.lobbyEntry.update({ where: { id: entryId }, data: { notifiedAt: new Date() } }).catch(() => {});
 }
 
-// A character arrived by ANY route — the wizard, a threat spawn — so the
-// player's assigned seat, if they held one, is spent: recorded against the
-// character and no longer holding a seat. Every character.create runs this
-// in its transaction; without it a readied player who took a spawn instead
-// would block their rolled seat for the whole window.
-//
-// READY too, not only ASSIGNED: a GM who readied up to test the lobby and
-// then pressed Skip kept a READY row, so the roll handed them a second seat
-// and held it for the whole window. Settling it here makes a stale preview
-// refuse on "no longer ready", which is the right answer.
+// A character arrived by ANY route (wizard, threat spawn), so an assigned
+// seat is spent: recorded against the character, no longer held. Every
+// character.create runs this in its transaction — otherwise a readied player
+// who took a spawn instead would block their rolled seat for the whole
+// window. READY too, not only ASSIGNED: a GM who readied up to test then
+// pressed Skip kept a READY row, doubling their seat otherwise.
 async function settleLobbyEntry(tx, discordUserId, characterId) {
   await tx.lobbyEntry.updateMany({
     where: { discordUserId, status: { in: ["READY", "ASSIGNED"] } },
@@ -271,8 +250,7 @@ async function settleLobbyEntry(tx, discordUserId, characterId) {
   });
 }
 
-// The Decline click. The seat is free the moment the status changes, since
-// capacity only counts ASSIGNED rows (db/lib/seatCount.js).
+// The seat is free the moment the status changes — capacity counts only ASSIGNED rows (seatCount.js).
 async function declineAssignment(db, entryId, discordUserId) {
   const entry = await db.lobbyEntry.findUnique({ where: { id: entryId }, include: { assignedRole: { select: { name: true } } } });
   if (!entry) return { ok: false, reason: "That seat's gone." };

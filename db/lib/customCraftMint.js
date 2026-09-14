@@ -1,55 +1,32 @@
-// The custom-craft mint (docs/systemdocs/CRAFTING.md, COOKING.md,
-// TRINKETS.md): a `customizable` recipe crafted with player words — or a
-// Trinket, whose "words" are the tier the die handed back — clones the base
-// catalog row into a fresh custom + ephemeral tag and the craft grants THAT
-// row instead of the base one.
-//
-// Lives in db/lib rather than web/ because BOTH faces need it now: the web
-// Craft dialog (web/app/(app)/character/requestActions.js#mintCustomCraft,
-// now a thin UserError-wrapping shim around this) and the Trinket turn-end
-// pass (db/lib/trinketPass.js), which runs from db/index.js#resolveNeeds()
-// and can never require anything under web/ — that direction of dependency
-// does not exist anywhere in this codebase, and a turn pass is not the place
-// to start it. See CLAUDE.md: "If both faces need something, put it in
-// db/lib/ — don't write it twice."
-//
-// Throws a plain Error on the rare "no free name" collision — there is no
-// UserError down here, since db/lib has no notion of a web request. The web
-// wrapper is what turns that into one.
+// The custom-craft mint (CRAFTING.md, COOKING.md, TRINKETS.md): clones the
+// base catalog row into a fresh custom + ephemeral tag for a `customizable`
+// recipe crafted with player words (or a Trinket, whose "words" are the die's
+// tier); the craft grants THAT row instead of the base one. Lives in db/lib
+// because BOTH faces need it: the web Craft dialog and the Trinket turn-end
+// pass (db/lib/trinketPass.js), which runs from resolveNeeds() and can never
+// require anything under web/. Throws a plain Error on the rare "no free
+// name" collision — no UserError down here; the web wrapper converts it.
 const { createWithRetry } = require("./paperMint");
 
-// "(Name)" for a player-worded custom craft — the mint-time copy of
-// web/lib/customCraft.js#customCraftName, kept here because that module is
-// ESM and web-only (it also pulls in cleanCustomText, which this file must
-// not need: the words arrive ALREADY cleaned, at request time, by whichever
-// side is calling in). Two copies of one formatting rule is a real cost, but
-// the alternative — db/lib requiring an ESM file under web/ — is the thing
-// this whole module exists to avoid. If this drifts from
-// web/lib/customCraft.js, that is a bug to fix in both places at once.
+// Mint-time copy of web/lib/customCraft.js#customCraftName, kept here since
+// that module is ESM/web-only (words arrive ALREADY cleaned at request time).
+// If this drifts from web/lib/customCraft.js, fix both places at once.
 function customCraftName(baseName, name) {
   return name ? `${name} (${baseName})` : `${baseName} (custom)`;
 }
 
-// "(rich spices)" for a dish nobody named, or "" when it has no ingredients
-// or none of them taste of anything. `cookedTastes` is the caller's lookup,
-// already loaded — this must not query.
+// "(rich spices)" for an unnamed dish, or "" when nothing tastes of anything.
+// `cookedTastes` is the caller's already-loaded lookup — this must not query.
 function cookedTasteSuffix(cookedFrom, cookedTastes) {
   const tastes = (cookedFrom ?? []).map((slug) => cookedTastes?.get(slug) ?? "").filter(Boolean);
   return tastes.length ? ` (${tastes.join(", ")})` : "";
 }
 
-// The finished thing lands on the sheet: the replaced tiers come off (caller's
-// job), the tag goes on with its clock, and the ADD_TAG request records all of
-// it. Runs OUTSIDE the craft transaction, deliberately — see the comment this
-// carried at its old home in requestActions.js for the full "why now, why
-// dedup on words+ingredients" story; unchanged here.
-//
-// `sellablePriceOverride` is Trinket's own door onto this: a minted Trinket's
-// sell price is computed by db/lib/trinketPass.js from the die and the
-// ingredients, and has nothing to do with `baseTag.sellablePrice` (the never-
-// minted {tag:trinket} catalog row's own placeholder). Every other caller
-// omits it and gets the old behavior — `baseTag.sellablePrice` copied
-// straight across, same as before this parameter existed.
+// Runs OUTSIDE the craft transaction, deliberately. `sellablePriceOverride`
+// is Trinket's own door onto this: its sell price is computed by
+// db/lib/trinketPass.js from the die and ingredients, unrelated to
+// `baseTag.sellablePrice` (the never-minted placeholder row). Every other
+// caller omits it and gets `baseTag.sellablePrice` copied straight across.
 async function mintCustomCraft(
   db,
   baseTag,
@@ -122,10 +99,9 @@ async function mintCustomCraft(
   return { tag, minted: true };
 }
 
-// Best-effort undo of a mint whose craft transaction failed: the guard on
-// `custom` means this can never touch a catalog row, and a row somebody
-// already holds is FK-pinned and simply survives (prune's problem, not
-// ours). Failures are swallowed — the craft's own error is the one to show.
+// Best-effort undo when the craft transaction failed. `custom` guard means
+// this can never touch a catalog row; an already-held row is FK-pinned and
+// survives (prune's problem, not ours). Failures swallowed — the craft's own error is shown instead.
 async function unmintCustomCraft(db, grant) {
   if (!grant?.minted) return;
   await db.tag

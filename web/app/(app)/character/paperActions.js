@@ -29,30 +29,15 @@ import { guarded, UserError } from "@/lib/actionResult";
 import { auth } from "@/lib/auth";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 
-// Writing and sealing. See docs/systemdocs/PAPERWORK.md.
-//
-// NEITHER FILES A REQUEST, and that is deliberate — the same call
-// equipActions.js makes. Writing costs nothing, spends no Move, and is the
-// single most frequent thing a scribe does; a Request per sentence would drown
-// /gm/turns and /gm/audit at 100+ players, and there is nothing for a GM to
-// adjudicate. What a GM needs is to READ the letters, and they can: the text
-// is on the tag, and every GM surface that renders a tag renders it.
-//
-// The one paper verb that IS a Request is breaking a seal, because that
-// destroys something and has to be undoable — it lives in requestActions.js
-// with the rest of Consume.
+// Writing and sealing. See docs/systemdocs/PAPERWORK.md. NEITHER FILES A REQUEST (same call equipActions.js makes): writing costs nothing, spends no Move, and a Request per sentence would drown /gm/turns and /gm/audit at 100+ players — a GM just reads the tag's text, which every GM surface already renders.
+// Breaking a seal IS a Request (destroys something, must be undoable) and lives in requestActions.js with the rest of Consume.
 
-// The same shape readBlock and paperDescription both want, resolved once.
-// `needs` is a capability from db/lib/incapacitation.js. The four writing
-// actions pass ACT — a pen needs a hand. readMyPaper deliberately does not:
-// reading is not acting, and whether the eyes work is db/lib/reading.js's
-// question, not this one.
+// `needs` (db/lib/incapacitation.js): the four writing actions pass ACT — a pen needs a hand. readMyPaper does not: reading isn't acting, and whether the eyes work is db/lib/reading.js's question.
 async function requireWriter({ needs = null } = {}) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
-  // From the session, never from a posted id: a server action is a public
-  // endpoint, and an id on the wire would let anyone write on anyone's sheet.
+  // From the session, never a posted id: a server action is a public endpoint, and an id on the wire would let anyone write on anyone's sheet.
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
     select: {
@@ -108,12 +93,7 @@ function revalidateAll() {
   revalidatePath("/faction");
 }
 
-// Who signs the paper, internally. The PRESENTED name, so a hooded writer does
-// not put their real one on a sheet somebody may later find — and so a forced
-// name (Apex Form) writes as the Beast. Never rendered to another player: it
-// only tells a GM whose hand it was, since Tag.name is deliberately anonymous
-// (db/lib/paper.js#paperName). Read off the tags already loaded rather than
-// through loadForcedName, so this costs no second query.
+// Who signs the paper, internally: the PRESENTED name, so a hooded writer doesn't put their real one on a sheet somebody may find, and a forced name (Apex Form) writes as the Beast. Never shown to another player — only tells a GM whose hand it was, since Tag.name is deliberately anonymous (db/lib/paper.js#paperName).
 function writerName(character) {
   return presentedIdentity(character, {
     forcedName: forcedNameFrom(character.tags),
@@ -125,8 +105,7 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText, title: rawTitle 
   const { character, where } = await requireWriter({ needs: ACT });
 
   if (readBlock(character.tags, where)) {
-    // The same sentence a paper shows a reader who can't read it. Saying
-    // WHICH of letters or eyes stopped them would leak a condition.
+    // Same sentence a paper shows a reader who can't read it — naming WHICH of letters or eyes stopped them would leak a condition.
     throw new UserError("You can't read this.");
   }
 
@@ -134,22 +113,12 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText, title: rawTitle 
   const held = character.tags.find((ct) => ct.tagId === targetId);
   if (!held) throw new UserError("You aren't holding that.");
 
-  // A book holds six times what a sheet does, and it is the whole thing in one
-  // pass — there is no second visit to add a chapter.
+  // A book holds six times what a sheet does, and is the whole thing in one pass — no second visit to add a chapter.
   const writingBook = held.tag.slug === BLANK_BOOK_SLUG;
   const text = String(rawText ?? "").trim().slice(0, writingBook ? BOOK_MAX : WRITE_MAX);
   if (!text) throw new UserError("Write something first.");
 
-  // A book must be named and a sheet may be. Blank on a sheet is a legal
-  // answer and leaves it "A Note" (db/lib/paper.js#paperName), which is what
-  // every sheet was called before this existed.
-  //
-  // CLEANED, NOT JUST TRIMMED. A paper's name is interpolated straight into
-  // bot messages — the noticeboard's "You put X up." and the Bird's "The bird
-  // is away with X." — so an unscrubbed title is a Discord mention waiting to
-  // happen. cleanCustomText is the custom-craft mint's own scrubber and takes
-  // "@", "{" and "}" out for exactly this reason; it was never run on a book
-  // title, which is a hole this closes on the way past.
+  // A book must be named; a sheet may be (blank leaves it "A Note", db/lib/paper.js#paperName). CLEANED, NOT JUST TRIMMED: a paper's name is interpolated into bot messages (noticeboard, Bird), so an unscrubbed title is a Discord mention waiting to happen — cleanCustomText strips "@", "{" and "}" for exactly this reason.
   const title = cleanCustomText(rawTitle, TITLE_MAX) || null;
   if (writingBook && !title) throw new UserError("Give it a title first.");
 
@@ -157,10 +126,7 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText, title: rawTitle 
 
   let result;
   await prisma.$transaction(async (tx) => {
-    // A blank book becomes a written one. Locked and re-counted inside the
-    // transaction for the reason dropCharacterTag makes necessary: it CLAMPS
-    // rather than failing, so two submits a millisecond apart would both pass
-    // a check made outside and the second would mint a free book.
+    // A blank book becomes a written one. Locked and re-counted inside the transaction: dropCharacterTag CLAMPS rather than failing, so two submits a millisecond apart would both pass an outside check and the second would mint a free book.
     if (writingBook) {
       const [locked] = await tx.$queryRaw`
         SELECT "quantity" FROM "CharacterTag"
@@ -175,8 +141,7 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText, title: rawTitle 
       result = await writeNewPaper(tx, { id: character.id, name: hand }, held.tagId, text, title);
       return;
     }
-    // Writing more on a sheet that already has words on it. APPEND-ONLY —
-    // nothing anywhere in the game shortens paperText.
+    // Writing more on a sheet with words on it. APPEND-ONLY — nothing anywhere in the game shortens paperText.
     if (held.tag.paperKind === "PAPER") {
       result = await appendToPaper(tx, held.tagId, held.tag.paperText, text);
       return;
@@ -184,8 +149,7 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText, title: rawTitle 
     if (held.tag.paperKind === "SEALED") {
       throw new UserError("It's sealed. Break the seal first.");
     }
-    // The one rule a book has that a sheet does not. What is bound in is what
-    // it says; there is no page left to add.
+    // The one rule a book has that a sheet doesn't: what's bound in is what it says, no page left to add.
     if (isBook(held.tag)) {
       throw new UserError("It's bound. You'd have to tear it up and start again.");
     }
@@ -208,21 +172,11 @@ async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId, title: 
   if (!isPaper(paperRow.tag) || paperRow.tag.paperKind !== "PAPER") {
     throw new UserError("That isn't a letter you can seal.");
   }
-  // A blank sheet folded shut is a joke, not a letter, and it would put an
-  // unreadable "Blank paper" behind a seal somebody has to break to find out.
+  // A blank sheet folded shut is a joke, not a letter — it would put an unreadable "Blank paper" behind a seal somebody has to break to find out.
   if (!(paperRow.tag.paperText ?? "").trim()) throw new UserError("There's nothing written on it.");
 
-  // Sealing does not need literacy — pressing wax into a fold is not reading —
-  // but it does need the paper, and holding it is the check.
-  // A sheet that reached this hand untitled may be labelled on the way into
-  // the wax — a courier with a bundle of anonymous letters is exactly who
-  // needs to tell them apart. Scrubbed the same way the Write dialog scrubs a
-  // title, because the name reaches Discord through the noticeboard and the
-  // Bird, where an unscrubbed "@everyone" is a real mention.
-  //
-  // sealPaper enforces the rest: a sheet that already has a title keeps it,
-  // whatever was posted here, so a second hand cannot rename a first hand's
-  // letter. The dialog hides the field in that case; this is the lock.
+  // Sealing needs no literacy (pressing wax into a fold isn't reading) but does need the paper, so holding it is the check. An untitled sheet may be labelled here (a courier with anonymous letters needs to tell them apart), scrubbed like the Write dialog scrubs a title since it reaches Discord via the noticeboard and the Bird.
+  // sealPaper enforces the rest: a sheet that already has a title keeps it regardless of what's posted here, so a second hand can't rename a first hand's letter.
   const title = cleanCustomText(rawTitle, TITLE_MAX) || null;
 
   let sealed;
@@ -245,10 +199,7 @@ export async function sealLetter(input) {
   return guarded(() => sealLetterImpl(input));
 }
 
-// What the Write dialog needs that the sheet does not already hold: the text
-// of a paper the caller can read, so the box can show it above the cursor.
-// Composed through paperDescription so a reader who has since gone blind, or
-// left their spectacles somewhere, gets the same refusal here as everywhere.
+// The text of a paper the caller can read, for the Write dialog's box. Composed through paperDescription so a reader who's since gone blind or left their spectacles gets the same refusal here as everywhere.
 export async function readMyPaper(rawTagId) {
   const { character, where } = await requireWriter();
   const held = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));

@@ -21,16 +21,9 @@ import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { after } from "next/server";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 
-// File-local helpers and constants shared by 2+ action groups under
-// web/app/(app)/character/actions/. See requestActions.js for the public
-// server-action wrappers. Each action: authenticate, re-validate everything
-// the client sent (a server action is a public endpoint), apply the effect
-// and write the Request + AuditLog rows in ONE transaction.
+// Helpers shared by 2+ action groups under actions/ (requestActions.js has the public server-action wrappers). Each action re-validates everything the client sent (a server action is a public endpoint) and writes its effect + AuditLog row in ONE transaction.
 
-// `needs` is a capability from db/lib/incapacitation.js — pass ACT and the
-// action refuses for anyone Bound, Dying, Paralyzed, Catatonic, mid-Seizure
-// or out cold, naming the tag that stopped them. Omit it for the handful
-// that shouldn't care — reading your own sheet is not an act, nor is paperwork.
+// `needs` (db/lib/incapacitation.js): pass ACT and the action refuses for anyone Bound, Dying, Paralyzed, Catatonic, mid-Seizure or out cold, naming the blocking tag. Omit for the few that aren't an act (reading your sheet, paperwork).
 export async function requireCharacter({ needs = null } = {}) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -80,33 +73,23 @@ export function resolveParty(key, opts) {
   return dbResolveParty(prisma, key, opts);
 }
 
-// The serializer every craft that touches a ration or a stack takes first.
-// Postgres holds it to the end of the transaction, so two tabs submitting at
-// once queue up instead of both reading the same count.
+// Serializer every craft touching a ration or a stack takes first — Postgres holds it to end of transaction, so two tabs submitting at once queue up instead of both reading the same count.
 export function lockCharacter(tx, characterId) {
   return tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
 }
 
 // --- The craft Move budget (docs/systemdocs/CRAFTING.md §2a) -----------
-// A craft costing less than a whole Move files the same auto:craft Action
-// every craft with turns files, and writes a LEDGER on it
-// (`Action.craftBudget`): family, how much of the Move is spent, what was
-// made. Nothing is derived or cached — the row IS the record, so a GM Reject
-// hands the whole turn back with one delete. No per-craft Undo.
+// A craft under a whole Move files the same auto:craft Action every craft with turns files, writing a LEDGER (`Action.craftBudget`): family, Move spent, what was made. The row IS the record — no derive/cache, no per-craft Undo; a GM Reject hands the whole turn back with one delete.
 
 export const MOVE_SPENT = "You've already used your Move this turn.";
 
-// The Action's description, rebuilt from the ledger every time an entry lands,
-// so a GM reading the desk sees the whole turn's work in one line rather than
-// only the first thing made.
+// Rebuilt from the ledger every time an entry lands, so a GM reading the desk sees the whole turn's work, not just the first thing made.
 export function craftLedgerDescription(entries) {
   const made = entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name));
   return `Crafting this turn: ${made.join(", ")}.`;
 }
 
-// Heal's own ledger line (M2, TAGS.md §5c) — same shape as
-// craftLedgerDescription but "Treating" is the medic's verb; spendCraftMove
-// picks between the two by family.
+// Heal's ledger line (M2, TAGS.md §5c) — same shape, "Treating" is the medic's verb; spendCraftMove picks by family.
 export function healLedgerDescription(entries) {
   const made = entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name));
   return `Treating this turn: ${made.join(", ")}.`;
@@ -122,10 +105,7 @@ export function craftLedgerEntry(tag, cost) {
   };
 }
 
-// Reads the turn's Action against what this craft needs. Returns the ledger
-// to extend — null when there's no Action yet — or throws the refusal.
-// Called TWICE for every budget craft: once outside the transaction (fast
-// fail), again inside under the Character row lock (the answer that counts).
+// Reads the turn's Action against what this craft needs; returns the ledger to extend (null if no Action yet) or throws the refusal. Called TWICE per budget craft: once outside the transaction (fast fail), again inside under the Character row lock (the answer that counts).
 export function checkCraftMove(action, need) {
   // Asked for more than a turn holds, which an empty turn would otherwise wave through with no ledger yet to fail against.
   if (!fitsInRemaining(need, WHOLE_MOVE)) {
@@ -160,9 +140,7 @@ export function checkCraftMove(action, need) {
   return ledger;
 }
 
-// The fast fail, outside the transaction. Replaces requireFreeMove on the
-// craft path only — Bury, Engrave, Extract and the build sites still take a
-// whole clean Move.
+// The fast fail, outside the transaction. Replaces requireFreeMove on the craft path only — Bury, Engrave, Extract and the build sites still take a whole clean Move.
 export async function resolveCraftMove(character, openTurn, need) {
   if (!openTurn) throw new UserError("No turn is open.");
   // moveWindow() takes `clockFrozen`, not `autoTurnAdvanceDisabled` — clockFrozen(prisma) is the one real answer (db/lib/gameState.js).
@@ -175,13 +153,8 @@ export async function resolveCraftMove(character, openTurn, need) {
   checkCraftMove(action, need);
 }
 
-// Claims the Move — or the slice of it — this craft needs, inside the
-// caller's transaction, re-checked under the Character row lock since two
-// tabs can both have passed the cheap check a moment ago. The
-// `@@unique([characterId, turnId])` P2002 catch in fileAutoRoutine is the
-// backstop underneath even that. `description` is what the Action says when
-// this craft files it — a project passes its own "(2/3)" line and keeps it;
-// a fractional craft passes none and gets the running made-this-turn list.
+// Claims the Move (or slice) this craft needs, inside the caller's transaction, re-checked under the Character row lock since two tabs can both have passed the cheap check a moment ago (`@@unique([characterId, turnId])` P2002 catch in fileAutoRoutine is the backstop under even that).
+// `description`: a project passes its own "(2/3)" line and keeps it; a fractional craft passes none and gets the running made-this-turn list.
 export async function spendCraftMove(
   tx,
   { character, openTurn, need, entry, description = null },
@@ -240,8 +213,7 @@ export async function spendCraftMove(
   return { action: existing, budget };
 }
 
-// The ground, with everything canBuildHere() judges plus the channel the
-// site speaks into.
+// The ground, with everything canBuildHere() judges plus the channel the site speaks into.
 export async function loadBuildGround(locationId) {
   if (!locationId) return null;
   return prisma.location.findUnique({
@@ -258,9 +230,7 @@ export async function loadBuildGround(locationId) {
   });
 }
 
-// Scenery into the Location's own channel, post-commit and catch-logged: a
-// Discord outage must never roll back work that really happened
-// (ARCHITECTURE.md §5).
+// Scenery into the Location's own channel, post-commit and catch-logged: a Discord outage must never roll back work that really happened (ARCHITECTURE.md §5).
 export function speakAtSite(channelId, line) {
   if (!channelId || !line) return;
   after(() =>

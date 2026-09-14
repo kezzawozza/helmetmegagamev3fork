@@ -1,20 +1,13 @@
-// Confession: the Confess handshake (docs/systemdocs/CONFESSION.md).
-//
-// A confession is an Offer of kind CONFESSION between a penitent and a
-// chaplain around one of the penitent's `psychological` tags. Only the
-// PENITENT ever starts one — that asymmetry is the whole design. A chaplain
-// with a "hear confession" menu would be reading the addictions off everyone
-// standing near them before agreeing to hear a word, so there is no such
-// menu, and the Accept DM the chaplain gets NEVER NAMES THE TAG. They agree
-// to hear a confession, not to hear that one.
-//
-// Accepting files both Moves for the turn — the penitent's Gambit and the
-// chaplain's Routine — and db/lib/confessionPass.js rolls it at turn end.
-// Structurally this is db/lib/lessons.js with the teacher's menu amputated;
-// read LESSONS.md first, then this file for the deltas.
-//
-// Takes `prisma` as the first parameter (the db/lib/dm.js convention) and is
-// NOT on the @lifeweb/db barrel; require it by path.
+// Confession: the Confess handshake (docs/systemdocs/CONFESSION.md). An Offer
+// of kind CONFESSION between a penitent and a chaplain over one of the
+// penitent's `psychological` tags. Only the PENITENT ever starts one — no
+// chaplain "hear confession" menu, and the Accept DM the chaplain gets NEVER
+// NAMES THE TAG; they agree to hear a confession, not that one. Accepting
+// files both Moves for the turn (penitent's Gambit, chaplain's Routine);
+// db/lib/confessionPass.js rolls it at turn end. Structurally this is
+// db/lib/lessons.js with the teacher's menu amputated — read LESSONS.md
+// first. Takes `prisma` as the first parameter; NOT on the @lifeweb/db
+// barrel, require it by path.
 const { rollWithAdvantage } = require("./advantage");
 const { consumeInspiredIfUsed } = require("./tagWrites");
 const { gambitModifierTotal } = require("./gambitModifier");
@@ -25,8 +18,7 @@ const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { CHAPLAIN_SLUG, CONFESSION_THRESHOLD, GUILT_RIDDEN_SLUG } = require("./constants");
 
-// What a confession needs to know about each side. hungerStreak and mood feed
-// the penitent's Gambit modifier, same as a hand-filed Gambit.
+// hungerStreak and mood feed the penitent's Gambit modifier, same as a hand-filed Gambit.
 const CONFESSION_CHARACTER_SELECT = {
   id: true,
   name: true,
@@ -57,18 +49,15 @@ function heldSlugs(character) {
   );
 }
 
-// Bishop and Chaplain both hold the tag; neither the Bishop role nor the
-// Chaplain role is checked anywhere here.
+// Bishop and Chaplain both hold the tag; neither role is checked here.
 function isChaplain(character) {
   return heldSlugs(character).has(CHAPLAIN_SLUG);
 }
 
-// The penitent's own confessable tags: the ones flagged `psychological` in
-// docs/tags.yaml. Nothing about the chaplain narrows this — a chaplain is a
-// chaplain — so unlike teachableSkills it takes one character.
+// The penitent's confessable tags: those flagged `psychological` in docs/tags.yaml.
+// Takes one character — unlike teachableSkills, nothing about the chaplain narrows this.
 function confessableTags(penitent) {
-  // Guilt Ridden's whole rule: someone drowning in guilt can't bring
-  // themself to name any one sin, so the list is empty rather than filtered.
+  // Guilt Ridden: someone drowning in guilt can't name any one sin, so the list is empty.
   if (heldSlugs(penitent).has(GUILT_RIDDEN_SLUG)) return [];
   return (penitent?.tags ?? [])
     .map((ct) => ct.tag)
@@ -91,8 +80,7 @@ async function openTurnAndWindow(db) {
   return { turn, locked };
 }
 
-// One confession is one whole Routine. There is no Lecturing here: a chaplain
-// hears one person a day, and a queue of penitents is the point.
+// One confession is one whole Routine; no Lecturing here — a chaplain hears one person a day.
 async function freeSlot(db, character, turnId) {
   const action = await db.action.findFirst({
     where: { characterId: character.id, turnId },
@@ -106,9 +94,8 @@ async function freeSlot(db, character, turnId) {
     : { ok: true };
 }
 
-// Everything a confession needs true, checked the same way at offer time and
-// again at accept time. `checkSlotsFor` is the penitent alone at offer time
-// and both at accept time.
+// Checked the same way at offer time and accept time. `checkSlotsFor` is the
+// penitent alone at offer time and both at accept time.
 async function validateConfession(
   db,
   { chaplain, penitent, tag, turnId, checkSlotsFor },
@@ -125,8 +112,7 @@ async function validateConfession(
   if (!isChaplain(chaplain))
     return `${chaplain.name} can't take a confession.`;
   if (!tag) return "Unknown burden.";
-  // Re-derived from the penitent's own row, never trusted from the client:
-  // they must still hold it, and it must still be a psychological one.
+  // Re-derived from the penitent's own row, never trusted from the client.
   if (!confessableTags(penitent).some((t) => t.id === tag.id)) {
     return `That isn't something ${penitent.name} can confess.`;
   }
@@ -151,12 +137,8 @@ async function loadCharacter(db, id) {
 
 // --- the offer -------------------------------------------------------------
 
-// Files a PENDING offer and returns the DM to send the chaplain. Returns
-// { ok: true, offer, dm: { discordUserId, content, components } } or
-// { ok: false, reason }.
-//
-// `initiatorId` is always the penitent. The chaplain has no door into this
-// function, on purpose.
+// Files a PENDING offer and returns the DM to send the chaplain.
+// `initiatorId` is always the penitent — the chaplain has no door into this function.
 async function createConfessionOffer(
   prisma,
   { penitentId, chaplainId, tagId },
@@ -210,17 +192,14 @@ async function createConfessionOffer(
       turnId: turn.id,
       initiatorId: penitentId,
       responderId: chaplainId,
-      // The chaplain sits in teacherId and the penitent in learnerId, so the
-      // Routine/Gambit columns line up with the Lesson ones and the shared
-      // GM-reject hook needs no special case.
+      // Chaplain in teacherId, penitent in learnerId, so Routine/Gambit line up with Lesson columns.
       teacherId: chaplainId,
       learnerId: penitentId,
       tagId,
     },
   });
 
-  // The tag is deliberately absent from this line. Naming it here would put
-  // the sin in the chaplain's DMs before they had agreed to hear it.
+  // Tag deliberately absent: naming it would put the sin in the chaplain's DMs before they agreed.
   const content = `*${penitent.name}* wants to confess to you. Accept?`;
   return {
     ok: true,
@@ -253,10 +232,9 @@ function confirmLines(action) {
 
 class ConfessionRefused extends Error {}
 
-// Claims the offer and files both Moves in one transaction. Returns
-// { ok: true, dms, line } — `line` is what the chaplain's own DM gets edited
-// to say — or { ok: false, reason }. Same ordering rule as acceptLesson: a
-// stale click is answered "gone" before anything else is looked at.
+// Claims the offer and files both Moves in one transaction. `line` is what
+// the chaplain's own DM gets edited to say. Same ordering rule as
+// acceptLesson: a stale click is answered "gone" before anything else.
 async function acceptConfession(prisma, offer, responder) {
   const fresh = await prisma.offer.findUnique({ where: { id: offer.id } });
   if (!fresh || fresh.status !== "PENDING")
@@ -300,9 +278,8 @@ async function acceptConfession(prisma, offer, responder) {
       });
       if (claim.count === 0) return { ok: false, reason: GONE };
 
-      // The penitent's Gambit. @@unique([characterId, turnId]) is the real
-      // gate; the slot checks above were the polite version.
-      // Lucky or Inspired keeps the better of two dice (db/lib/advantage.js);
+      // Penitent's Gambit. @@unique([characterId, turnId]) is the real gate; slot checks above were
+      // the polite version. Lucky/Inspired keeps the better of two dice (db/lib/advantage.js);
       // Inspired is spent the instant it wins one.
       const penitentAdvantage = rollWithAdvantage(penitent.tags, 6, { gambitOnly: true });
       await consumeInspiredIfUsed(tx, penitent.id, penitentAdvantage.source);
@@ -326,9 +303,7 @@ async function acceptConfession(prisma, offer, responder) {
         },
       });
 
-      // The chaplain's Routine. Its description names the penitent but NOT
-      // the tag — this string reaches the chaplain's own DM. A GM reading
-      // /gm/turns sees the penitent's Gambit right beside it, which does.
+      // Chaplain's Routine: description names the penitent but NOT the tag — it reaches their own DM.
       const chaplainAction = await tx.action.create({
         data: {
           characterId: chaplain.id,
@@ -397,9 +372,8 @@ async function acceptConfession(prisma, offer, responder) {
   }
 }
 
-// Marks the offer CANCELLED and hands back a DM for the penitent, so a
-// refusal at accept time doesn't leave them waiting. Before the claim only a
-// PENDING row may be cancelled; `claimed` is the claimant's own post-claim
+// Marks the offer CANCELLED and hands back a DM for the penitent. Before the
+// claim only a PENDING row may be cancelled; `claimed` is a post-claim
 // failure. Same shape as lessons.js#cancelWith.
 async function cancelWith(prisma, offer, reason, { claimed = false } = {}) {
   await prisma.offer.updateMany({

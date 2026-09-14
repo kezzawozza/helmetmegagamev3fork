@@ -1,23 +1,18 @@
-// The Depot's per-turn upkeep: the generator burns, the shuttle's clock runs
-// out, and the turret sweeps the room.
-//
-// Run from db/index.js#resolveNeeds() so the bot's cron advance and the Dev
-// Panel's "End turn" behave identically. Like every other pass it mutates the
-// database and RETURNS its side effects — the ambient lines to speak, the DMs
-// to send — rather than making a network call itself. See TURN-ENGINE.md §3.
-//
-// Takes `prisma` as a parameter; see db/lib/dm.js for why.
+// The Depot's per-turn upkeep: generator burns, shuttle's clock runs out,
+// turret sweeps the room. Run from db/index.js#resolveNeeds() so the bot's
+// cron advance and Dev Panel's "End turn" behave identically. Like every
+// other pass it mutates the database and RETURNS its side effects rather
+// than making a network call itself (TURN-ENGINE.md §3). Takes `prisma` as a
+// parameter (db/lib/dm.js).
 const { loadDepot, bumpFuel, depotPowered, LANDING_PAD_SLUG } = require("./depotState");
 const { turretSpares } = require("./depotTurret");
 const { DEPOT_LOCATION_SLUG } = require("./depot");
-// The sweep, the arrival roll and what a bullet does are shared with the
-// Gatehouse turret (db/lib/gatehouseTurret.js). Everything left in this file is
-// what makes THIS gun the Merchant's: it needs the generator running, and it
-// reads faces against Depot.merchantFace.
+// The sweep, arrival roll and bullet logic are shared with the Gatehouse
+// turret (gatehouseTurret.js). What's left here makes THIS gun the
+// Merchant's: needs the generator running, reads faces against Depot.merchantFace.
 const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt, turretDmFor } = require("./turretPass");
 
-// What the world says when the generator finally coughs out. Bascinet's
-// register: a thing that happens TO the room, not an announcement about it.
+// Bascinet's register: a thing that happens TO the room, not an announcement about it.
 const GENERATOR_DIED_LINE = {
   text: "You hear the generator cough twice and stop. Every light in the depot goes out at once.",
   signed: true,
@@ -46,22 +41,15 @@ async function burnGenerator(prisma, depot) {
   const moved = await bumpFuel(prisma, -(depot.fuelBurnPerTurn ?? 0));
   const died = moved.after <= 0;
   if (died) {
-    // Fuel at zero is already "off" as far as depotPowered is concerned, but
-    // flipping the switch too means the Merchant has to deliberately restart
-    // it after refuelling rather than having it silently come back.
+    // Flipping the switch too means the Merchant must deliberately restart it after refuelling.
     await prisma.depot.update({ where: { id: 1 }, data: { generatorOn: false } });
   }
   return { burned: -moved.delta, died };
 }
 
-// The shuttle's clock. It leaves on its own after shuttleMaxTurns whether or
-// not anyone loaded it, which is what stops a Merchant parking it forever and
-// using the landing pad as a second stash.
-//
-// Departing does NOT sweep the hold here. Selling is a deliberate act with a
-// price attached, and a shuttle that left on a timer took nothing with it —
-// the crates stay on the pad. Whoever wanted them sold should have been
-// awake. Returns the line to speak.
+// Leaves on its own after shuttleMaxTurns whether or not loaded — stops the
+// landing pad becoming a second stash. Does NOT sweep the hold: selling is a
+// deliberate act, and crates from a timed-out departure stay on the pad.
 async function runShuttleClock(prisma, depot, turn) {
   if (depot.shuttleState !== "DOCKED") return { departed: false };
   const landed = depot.shuttleTurn ?? 0;
@@ -74,10 +62,7 @@ async function runShuttleClock(prisma, depot, turn) {
   return { departed: true };
 }
 
-// The turret's turn-end sweep over everyone standing in the Depot.
-//
-// Powered and armed, or it does nothing — an unpowered turret is a lump of
-// metal in the ceiling, which is the whole reason the generator matters.
+// Powered and armed, or it does nothing — an unpowered turret is a lump of metal in the ceiling.
 async function sweepTurret(prisma, depot) {
   if (!depotPowered(depot) || !depot.turretArmed) return { shots: [] };
 
@@ -89,14 +74,11 @@ async function sweepTurret(prisma, depot) {
 }
 
 const DEATH_CONTENT = "Shot by a turret.";
-// What the victim's death DM ends on, and what #leave reads. Separate from the
-// flavour line above, which the gun speaks in the moment — this is the plain
-// fact, and it has to survive being read a day later out of context.
+// What the death DM ends on and #leave reads — the plain fact, must survive being read out of context.
 const DEATH_REASON = "they were shot by a turret.";
 
-// Walking in while it is hot. `armed` is a thunk so loadDepot — an upsert, and
-// therefore a write on one contended row — never runs for the thousands of
-// arrivals that are not the Depot.
+// `armed` is a thunk so loadDepot (an upsert, a write on one contended row) never runs for
+// arrivals that aren't the Depot.
 function rollTurretOnArrival(prisma, { characterId, toLocationId, turn }) {
   return rollTurretOnArrivalAt(prisma, {
     characterId,
@@ -121,17 +103,14 @@ async function runDepotPass(prisma, turn) {
   const depot = await loadDepot(prisma);
 
   const generator = await burnGenerator(prisma, depot);
-  // Re-read: the burn may have switched the generator off, and the turret
-  // must not fire on power the generator no longer has.
+  // Re-read: the turret must not fire on power the generator no longer has.
   const afterBurn = await loadDepot(prisma);
 
   const shuttle = await runShuttleClock(prisma, afterBurn, turn);
   const { shots } = await sweepTurret(prisma, afterBurn);
 
-  // Loaded here rather than taken from sweepTurret's return. It used to come
-  // from there, which meant an unpowered Depot produced no locationId — and a
-  // generator that has just died IS unpowered, so the one line most worth
-  // hearing could never be spoken.
+  // Loaded here, not from sweepTurret's return: an unpowered Depot produces no locationId there,
+  // but a just-died generator still needs its line spoken.
   const location = await prisma.location
     .findUnique({ where: { slug: DEPOT_LOCATION_SLUG }, select: { id: true } })
     .catch(() => null);
@@ -149,9 +128,7 @@ async function runDepotPass(prisma, turn) {
     if (outcome.discordUserId) {
       dms.push({ discordUserId: outcome.discordUserId, content: turretDmFor(TURRET_DM, outcome) });
     }
-    // The Discord teardown a kill owes — role, overwrites, nickname, the ghost
-    // seat. Carried up to the side-effect thunk rather than done here: this
-    // runs inside the turn's work, and REST calls do not belong there.
+    // Discord teardown carried up to the side-effect thunk — REST calls don't belong inside turn work.
     if (outcome.death) deaths.push(outcome.death);
   }
 
@@ -167,10 +144,8 @@ async function runDepotPass(prisma, turn) {
     turretShots: outcomes.length,
     turretOutcomes: outcomes,
     locationId,
-    // One burst for the whole sweep, and only when it actually rolled at
-    // somebody — see db/lib/turretBurst.js. Distinct from `locationId` above,
-    // which is set whenever the Depot exists, because the generator and the
-    // shuttle have lines to speak in an empty room and a gun does not.
+    // Distinct from `locationId` (set whenever the Depot exists): the generator/shuttle speak in
+    // an empty room but a gun does not (turretBurst.js).
     burstLocationId: outcomes.length ? locationId : null,
     lines,
     dms,
@@ -182,8 +157,7 @@ module.exports = {
   runDepotPass,
   rollTurretOnArrival,
   TURRET_DM,
-  // The two shuttle lines are spoken from the web actions as well as from the
-  // pass, so they do cross a boundary; the generator line does not.
+  // Shuttle lines are spoken from the web actions too (cross a boundary); the generator line does not.
   SHUTTLE_LANDED_LINE,
   SHUTTLE_DEPARTED_LINE,
 };

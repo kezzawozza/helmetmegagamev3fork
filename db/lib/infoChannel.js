@@ -1,11 +1,8 @@
-// Everything that turns docs/systemdocs/infochannel.yaml into the text that
-// lands in #info: the YAML load, the `generated:` bodies, the directory
-// message, and finding the channel itself. No writes live here.
-//
-// Two scripts share it. db/scripts/sync/sync-info-channel.js edits what is
-// already posted, and is the one to reach for; db/scripts/sync/
-// rebuild-info-channel.js throws the channel away and reposts. See
-// docs/systemdocs/INFOCHANNEL.md.
+// Turns docs/systemdocs/infochannel.yaml into the text that lands in #info:
+// the YAML load, `generated:` bodies, the directory message, finding the
+// channel. No writes live here. Two scripts share it: sync-info-channel.js
+// edits what's posted (the one to reach for); rebuild-info-channel.js throws
+// the channel away and reposts. See docs/systemdocs/INFOCHANNEL.md.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { getGuildChannels, fetchAllMessages, bulkDeleteMessages } = require("./discordRest");
@@ -16,20 +13,13 @@ const YAML_PATH = docsPath("systemdocs", "infochannel.yaml");
 const ROLES_YAML_PATH = docsPath("roles.yaml");
 const DOCS_DIR = docsPath();
 
-// Generator for infochannel.yaml's `generated: roles-intro` thread — the
-// Fates thread. Every fate, name + intro text only (no description, tags or
-// difficulty), grouped exactly the way /character's picker groups them: the
-// seven social buckets of db/lib/roleGroups.js, imported rather than
-// duplicated so the thread and the picker can never disagree.
-//
-// It names NO ZONE, on purpose. This used to head each section with a big
-// "# Black Hills", which told every reader where the Brigands camp before the
-// game had started. The bucket is a social position, not a place.
-//
-// A fate whose faction is whitelisted-only wears a ★ — that is `whitelist:`,
-// the thing that actually gates the seat, not `leader:`. Bolded names are the
-// two high-cap, go-anywhere fates; everything else is italic.
-// Reads roles.yaml fresh every run, so this thread can never drift from it.
+// Generator for the Fates thread. Name + intro text only, grouped by the
+// seven social buckets of db/lib/roleGroups.js (imported, not duplicated, so
+// the thread and the picker can't disagree). Names NO ZONE on purpose — that
+// would tell readers where a faction camps before the game starts. A fate
+// whose faction is whitelisted-only wears a ★ (`whitelist:`, not `leader:`).
+// Bolded names are the two high-cap go-anywhere fates. Reads roles.yaml fresh
+// every run, so this thread can never drift from it.
 const BOLD_ROLE_NAMES = new Set(["Commoner", "Migrant"]);
 
 // "The Court" under a "Court" heading is just the heading again. Compared
@@ -52,14 +42,12 @@ function buildRolesIntroBody() {
   // bucket slug -> ordered list of { factionName, lines }, one per faction
   const held = new Map(order.map((g) => [g.slug, []]));
 
-  // `factions` and `roles` are slug-keyed MAPPINGS in roles.yaml, not lists —
-  // db/lib/syncRoles.js reads them the same way.
+  // `factions`/`roles` are slug-keyed MAPPINGS in roles.yaml, read the same way by syncRoles.js.
   for (const zone of rolesDoc.zones ?? []) {
     for (const [factionSlug, faction] of Object.entries(zone.factions ?? {})) {
       const home = bucketOf.get(factionSlug) ?? ELSEWHERE;
       for (const [roleSlug, role] of Object.entries(faction.roles ?? {})) {
-        // Same precedence groupRoles applies: a role may override its
-        // faction's bucket, which is how the Fisherman reads as Soil.
+        // Same precedence as groupRoles: a role may override its faction's bucket (Fisherman -> Soil).
         const wanted = ROLE_GROUP_OVERRIDES[roleSlug] ?? home;
         const bucket = held.has(wanted) ? wanted : ELSEWHERE;
         const marker = BOLD_ROLE_NAMES.has(role.name) ? "**" : "*";
@@ -77,8 +65,7 @@ function buildRolesIntroBody() {
     }
   }
 
-  // A heading is followed straight by its content; blank lines only ever
-  // separate one group from the next.
+  // A heading is followed straight by its content; blank lines only separate groups.
   return order
     .filter((group) => held.get(group.slug).length > 0)
     .map((group) => {
@@ -98,10 +85,8 @@ function loadInfoDoc() {
   return yaml.load(fs.readFileSync(YAML_PATH, "utf8"));
 }
 
-// A thread's body is its hand-authored `body` (if any), followed by its
-// generator's output (if any) — lets a `generated` thread carry a static
-// intro paragraph (e.g. Roles' "choose a role at game start..." blurb)
-// ahead of the auto-built content.
+// Hand-authored `body` (if any) followed by generator output — lets a `generated` thread carry a
+// static intro paragraph ahead of the auto-built content.
 function resolveThreadBody(thread) {
   const parts = [];
   if (thread.body) parts.push(thread.body);
@@ -134,12 +119,9 @@ function buildDirectoryMessage(mainMessage, linksByCategory) {
   return [mainMessage, ...sections, LINKS_LINE].join("\n\n");
 }
 
-// Creating a thread with no starter message (as startThread does) makes
-// Discord auto-post a "X started a thread: Y" system message (type 18,
-// THREAD_CREATED) into the parent channel — one per thread, pure clutter
-// around the directory message. Swept up after everything else is posted
-// so only the real content messages (directory + any batched overflow)
-// remain.
+// startThread's no-starter-message threads make Discord auto-post a "X
+// started a thread: Y" system message (type 18) into the parent — swept up
+// after everything else is posted so only real content remains.
 const THREAD_CREATED_MESSAGE_TYPE = 18;
 
 async function deleteThreadCreatedMessages(channelId) {

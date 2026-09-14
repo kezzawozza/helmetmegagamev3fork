@@ -2,21 +2,11 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-// The conversation composer's draft. MEMORY is the source of truth and
-// localStorage is a best-effort mirror — never the other way round, so a
-// throwing `setItem` (quota full) can't freeze a GM's typing. Value lives in
-// a module Map, read via useSyncExternalStore over our own listeners — same
-// shape as `useSessionState.js`, no useState seeded from an effect
-// (react-hooks/set-state-in-effect). Shared here, not private to the pane,
-// because the inspector's Canon tab ("Insert into reply") writes into it
-// across the desk shell tree.
+// Conversation composer draft. Memory (module Map) is the source of truth, localStorage a best-effort mirror only — a throwing setItem must never freeze typing. useSyncExternalStore, not useState+effect (react-hooks/set-state-in-effect); shared here, not pane-private, because the Canon tab's "Insert into reply" writes into it across the desk tree.
 
 const EMPTY = "";
 
-// How long a draft counts as somebody mid-sentence; past it the draft is
-// still shown/restored/guarded but stops holding the desk's backstop poll
-// down (useDirtyGuard.js#alsoDirtyHoldsPoll). Same number and reasoning as
-// turns/deskDraft.js.
+// Past this age a draft still shows/restores/guards but stops holding the desk's backstop poll down (useDirtyGuard.js#alsoDirtyHoldsPoll). Same number/reasoning as turns/deskDraft.js.
 const DRAFT_FRESH_MS = 10 * 60 * 1000;
 
 const drafts = new Map(); // discordUserId -> draft string, source of truth
@@ -46,10 +36,7 @@ function readDmDraft(discordUserId) {
   return stored;
 }
 
-// Notify FIRST, mirror second, so a throwing setItem can't swallow the
-// re-render. No `storage` event is dispatched — nothing else reads
-// `messages-draft-*`, and a global dispatch would wake every storage
-// subscriber on the desk (e.g. usePins) on every keystroke.
+// Notify FIRST, mirror second, so a throwing setItem can't swallow the re-render. No `storage` event dispatched — a global one would wake every storage subscriber on the desk (e.g. usePins) per keystroke.
 export function writeDmDraft(discordUserId, value) {
   if (!discordUserId) return;
   const next = value ?? EMPTY;
@@ -78,8 +65,7 @@ function subscribeDmDraft(callback) {
   return () => listeners.delete(callback);
 }
 
-// The snapshot is a string, so useSyncExternalStore's identity check is
-// satisfied by value equality — nothing to memoise.
+// Snapshot is a string, so useSyncExternalStore's identity check is satisfied by value equality.
 export function useDmDraft(discordUserId) {
   const get = useCallback(() => readDmDraft(discordUserId), [discordUserId]);
   return useSyncExternalStore(subscribeDmDraft, get, () => EMPTY);

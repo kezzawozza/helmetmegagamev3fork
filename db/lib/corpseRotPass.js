@@ -1,30 +1,14 @@
-// A person's corpse goes off. docs/systemdocs/CORPSES.md.
-//
-// Three turns after they died, "Ada's Corpse" becomes "Ada's Rotten Corpse"
-// and starts stinking (bot/src/lib/deathSmell.js). Monster corpses never rot:
-// a Nekker left lying around stays butcherable, and only a person smells.
-//
-// THIS RENAMES THE TAG ROW IN PLACE rather than expiring into a second one,
-// which is the whole trick and worth explaining, because Tag.expiresInto is
-// right there and looks like the answer:
-//
-//   * expiresInto names catalog SLUGS, and "Ada's Rotten Corpse" is written
-//     per-character and never appears in docs/tags.yaml. There is no slug for
-//     it to name.
-//   * tagExpiryPass.js only walks CharacterTag, and a corpse is almost always
-//     a RoomTag lying on a floor.
-//   * a chain would leave the holding pointing at the OLD row, so a corpse
-//     someone was carrying would rot into a tag in a different place.
-//
-// Renaming sidesteps all three: one row, one identity, and a body in your bag
-// rots in your bag.
-//
-// IT MUST RUN BEFORE THE "expirySweep" PASS. That sweep is a blind deleteMany
-// over `expiresTurn <= turn.number`, so a corpse that reached its clock would
-// simply be deleted. Nulling expiresTurn here is what takes it out of the
-// sweep's reach — no exemption list, no special case in db/index.js.
-//
-// Takes `prisma` as a parameter — see db/lib/dm.js for why.
+// A person's corpse goes off (CORPSES.md). Three turns after death, "Ada's
+// Corpse" becomes "Ada's Rotten Corpse" and starts stinking
+// (bot/src/lib/deathSmell.js); monster corpses never rot. THIS RENAMES THE
+// TAG ROW IN PLACE rather than expiring into a second one via
+// Tag.expiresInto, because expiresInto names catalog SLUGS (this name is
+// per-character), tagExpiryPass.js only walks CharacterTag (a corpse is
+// usually a RoomTag), and a chain would leave the holding pointing at the OLD
+// row — a body in your bag rots in your bag. IT MUST RUN BEFORE
+// "expirySweep": that pass is a blind deleteMany over `expiresTurn <=
+// turn.number`, so nulling expiresTurn here is what takes a rotted corpse out
+// of its reach, no exemption list needed. Takes `prisma` as a parameter (db/lib/dm.js).
 function rottenName(name) {
   return `${name}'s Rotten Corpse`;
 }
@@ -33,14 +17,9 @@ function rottenDescription(name) {
   return `The rotten body of ${name}. It makes you sick to be near it.`;
 }
 
-// The rename, with the same collision dance minting does. Tag.slug is @unique,
-// two characters can share a name, and their corpses were already suffixed
-// apart at death ("Ada's Corpse (2)"); rotting both would collapse them onto
-// one rotten name. The suffix has to be re-derived here rather than parsed out
-// of the old name, because the old name is about to stop existing.
-//
-// The NAME suffix is now a readability choice rather than a constraint — see
-// db/lib/corpseMint.js#createCorpseTag — but the answer is the same either way.
+// Same collision dance minting does: two characters can share a name (suffixed apart at death), so
+// rotting both would collapse them onto one rotten name — the suffix is re-derived here since the
+// old name is about to stop existing (see db/lib/corpseMint.js#createCorpseTag).
 async function rotAndName(prisma, tag, who) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const name = attempt ? `${rottenName(who)} (${attempt + 1})` : rottenName(who);
@@ -52,14 +31,9 @@ async function rotAndName(prisma, tag, who) {
             name,
             description: rottenDescription(who),
             corpseKind: "ROTTEN",
-            // Nothing left to count down to. Nulling the holdings' clocks
-            // below is what actually takes this row out of the blind sweep's
-            // reach — see the header.
-            defaultDurationTurns: null,
+            defaultDurationTurns: null, // nulling holdings' clocks below is what takes this out of the blind sweep's reach
           },
         });
-        // Both holdings, because a corpse can be in a pocket or on a floor and
-        // the sweep walks both tables.
         await tx.characterTag.updateMany({ where: { tagId: tag.id }, data: { expiresTurn: null } });
         await tx.roomTag.updateMany({ where: { tagId: tag.id }, data: { expiresTurn: null } });
       });
@@ -72,9 +46,7 @@ async function rotAndName(prisma, tag, who) {
 }
 
 async function runCorpseRotPass(prisma, turn) {
-  // Only a person's corpse, only a fresh one, only one whose clock is up. A
-  // monster corpse has no defaultDurationTurns and its holdings carry a null
-  // expiresTurn, so it can never match either half of this.
+  // A monster corpse has no defaultDurationTurns and a null expiresTurn, so it never matches either half.
   const due = await prisma.tag.findMany({
     where: {
       corpseKind: "FRESH",
@@ -87,23 +59,19 @@ async function runCorpseRotPass(prisma, turn) {
     select: { id: true, name: true, corpseOf: { select: { name: true } } },
   });
 
-  // An object, not null: db/index.js reads null as "this pass failed, retry it
-  // next advance" and gates markDone on truthiness.
+  // An object, not null: db/index.js reads null as "this pass failed, retry next advance".
   if (due.length === 0) return { turnNumber: turn.number, rotted: 0 };
 
   const rotted = [];
   for (const tag of due) {
-    // The character's own name, not a substring of the tag's — the collision
-    // suffix means "Ada's Corpse (2)" exists, and parsing it back would be
-    // wrong. A hard-deleted character leaves corpseOf null; fall back to
-    // rewriting whatever the tag already says so it still visibly rots.
+    // The character's own name, not a substring of the tag's (the suffix makes parsing wrong).
+    // A hard-deleted character leaves corpseOf null; fall back to rewriting what the tag already says.
     const who = tag.corpseOf?.name ?? tag.name.replace(/'s Corpse.*$/, "");
     try {
       const name = await rotAndName(prisma, tag, who);
       rotted.push(name);
     } catch (err) {
-      // One bad row costs one body, not the pass.
-      console.error(`corpseRot: failed to rot tag ${tag.id}:`, err);
+      console.error(`corpseRot: failed to rot tag ${tag.id}:`, err); // one bad row costs one body, not the pass
     }
   }
 

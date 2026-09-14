@@ -1,7 +1,6 @@
-// The app's icon set: Lucide (https://lucide.dev), re-exported under the names the rest of the app already
-// imports. Every icon renders on Lucide's 24×24 grid, round caps and joins, currentColor, at 1.6 stroke (thinner
-// than Lucide's default 2, which reads heavy at 15-20px). Sizing is the caller's job: `width`/`height` for a
-// one-off, CSS on `svg` for a family. Nine glyphs with no Lucide equivalent stay hand-drawn at the bottom of the file.
+// The app's icon set: Lucide (https://lucide.dev), re-exported under the names the rest of the app already imports.
+// 24×24 grid, round caps/joins, currentColor, 1.6 stroke (thinner than Lucide's default 2). Sizing is the caller's
+// job. Nine glyphs with no Lucide equivalent stay hand-drawn at the bottom of the file.
 
 import {
   User,

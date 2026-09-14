@@ -1,39 +1,30 @@
-// The Lifeweb's blood pool: GameState.lifewebBlood, 0-100. Two things feed
-// it — a Donate Blood (the donor lives, and takes the Drained tag) and a Feed
-// Person (someone is fed to it whole).
-//
-// This module is the single source of both numbers, shared by the GM panel
-// (web/app/(app)/lifeweb/actions.js) and the player-facing Requests
-// (web/app/(app)/lifeweb/requestActions.js), same posture as gambitModifier.js — so the
-// amount a player is shown and the amount applied cannot drift.
+// The Lifeweb's blood pool: GameState.lifewebBlood, 0-100. Fed by Donate
+// Blood (donor lives, takes Drained) and Feed Person (someone fed whole). The
+// single source of both numbers, shared by the GM panel and player-facing
+// Requests (same posture as gambitModifier.js) so shown and applied amounts can't drift.
 
 const { NOBILITY_SLUG, COURTIER_SLUG } = require("./constants");
 const { getGameState } = require("./gameState");
 
 const BLOOD_MAX = 100;
 
-// At or below this, the Tower is not holding the valley together any more.
-// Two things read it: the turn announcement's flavor line and the /lifeweb
-// status label, and — since the laboring rework — the labor resolver, which
-// cuts every payout by 95% and stops Basic labor outright
-// (db/lib/laborAccess.js). It lives here rather than in db/index.js so
-// db/lib/ modules can reach it: requiring the barrel back from inside db/lib/
-// resolves to a partial exports object.
+// At or below this, the Tower isn't holding the valley together any more —
+// read by the turn announcement, /lifeweb's status label, and the labor
+// resolver, which cuts every payout by 95% and stops Basic labor
+// (db/lib/laborAccess.js). Lives here, not db/index.js, so db/lib/ modules
+// can reach it without a barrel require resolving to a partial exports object.
 const LIFEWEB_SPUTTER_THRESHOLD = 20;
 const FEED_PERSON_AMOUNT = 100;
 
-// Whose blood it is decides what it's worth: noble blood is richer than a
-// courtier's, and a courtier's richer than a commoner's. Keyed on the tags of
-// the character being bled, not the Mortus doing the bleeding.
+// Whose blood decides what it's worth: noble > courtier > commoner. Keyed on the bled character's
+// tags, not the Mortus doing the bleeding.
 const DONATE_BLOOD_BASE = 20;
 const DONATE_BLOOD_BY_TAG = [
   { slug: NOBILITY_SLUG, amount: 40, label: "Nobility" },
   { slug: COURTIER_SLUG, amount: 30, label: "Courtier" },
 ];
 
-// Accepts the CharacterTag[] shape used everywhere else (`{ tag: { slug } }`)
-// and tolerates a bare Tag[]. Highest tier wins, so holding both Nobility and
-// Courtier is worth 40 rather than 30.
+// Accepts CharacterTag[] (`{ tag: { slug } }`) and tolerates bare Tag[]. Highest tier wins.
 function bloodValueForTags(characterTags = []) {
   const slugs = new Set(characterTags.map((ct) => ct?.tag?.slug ?? ct?.slug).filter(Boolean));
   for (const tier of DONATE_BLOOD_BY_TAG) {
@@ -42,23 +33,19 @@ function bloodValueForTags(characterTags = []) {
   return { amount: DONATE_BLOOD_BASE, tier: null };
 }
 
-// Returns the delta that was ACTUALLY applied, not the amount asked for. The
-// pool caps at 100, so donating 40 onto a pool at 90 moves 10 — and an Undo
-// that reversed the nominal 40 would mint 30 blood out of nothing. Callers
-// snapshot `delta` onto Request.effect and Undo reads only that, which is the
-// payload-vs-effect rule in REQUESTS.md §2 applied to the blood pool.
+// Returns the delta ACTUALLY applied, not asked for: the pool caps at 100, so
+// donating 40 onto a pool at 90 moves 10, and an Undo reversing the nominal
+// 40 would mint 30 blood from nothing. Callers snapshot `delta` onto
+// Request.effect (payload-vs-effect rule, REQUESTS.md §2).
 function applyBlood(current, amount) {
   const before = Math.max(0, Math.min(BLOOD_MAX, current ?? 0));
   const after = Math.max(0, Math.min(BLOOD_MAX, before + amount));
   return { before, after, delta: after - before };
 }
 
-// The atomic twin of applyBlood, and the one every writer should use: it does
-// the clamp inside a single UPDATE (a row lock first) instead of a
-// read-modify-write, so two concurrent donations on GameConfig id=1 can't
-// stomp each other, and `delta` reflects what this statement actually moved.
-// Takes `tx` as a parameter rather than requiring the client, same convention
-// as db/lib/dm.js.
+// The atomic twin of applyBlood, and the one every writer should use: clamps
+// inside a single locked UPDATE instead of a read-modify-write, so two
+// concurrent donations can't stomp each other. Takes `tx` as a parameter (db/lib/dm.js convention).
 async function bumpBlood(tx, amount) {
   if (!amount) {
     const state = await getGameState(tx);

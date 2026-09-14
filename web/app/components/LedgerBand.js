@@ -15,28 +15,12 @@ import TagDetails from "./TagDetails";
 import TurnForecast from "./TurnForecast";
 
 // One number and its label. The label is the word, the value carries the
-// glyph — the house rule for ⬢ (CLAUDE.md), and the reason no tile below
-// writes "Resources" next to a hexagon.
-//
-// A tile with something to say SWAPS ITS OWN FACE for it: hover, focus or
-// click and the value is replaced by the detail, inside the same box, at the
-// same height. Nothing outside the tile moves.
-//
-// That shape is the point. The detail used to be appended under the whole row,
-// which pushed the rest of the sheet down every time somebody read it — a
-// readout that moves the thing you were reading. Floating it instead would
-// have been a tooltip, and this sheet has none (SHEET.md §3). Swapping in
-// place is the third answer: it costs no layout and it stays on the page.
-//
-// Click matters as much as hover and is not a fallback: a phone has no hover
-// at all, and a tap is the same gesture with the same result. Focus is in
-// there for the same reason in the other direction — a keyboard has no
-// pointer, and a detail only a mouse can reach is a detail half the people
-// using this cannot.
-//
-// `tone` colours the value by meaning rather than by colour, the rule
-// StatusPill.js sets: the stylesheet owns which token a tone gets.
-// `word` drops the mono face, because a word is not data.
+// glyph (CLAUDE.md house rule for ⬢). A tile with something to say SWAPS ITS
+// OWN FACE for it on hover, focus or click, inside the same box at the same
+// height — no layout shift, and no tooltip (this sheet has none, SHEET.md
+// §3). Click matters as much as hover: a phone has no hover, and focus
+// reaches players on a keyboard the same way.
+// `tone` colours the value by meaning, the rule StatusPill.js sets. `word` drops the mono face — a word is not data.
 function Tile({
   label,
   value,
@@ -48,11 +32,9 @@ function Tile({
   onOpen = null,
   children = null,
 }) {
-  // Whether a MOUSE is currently over this tile. A touch tap fires a
-  // synthesised mouseenter before its click, so without this the enter opened
-  // the tile and the click immediately toggled it shut again — a tap that
-  // looked like it did nothing. Declared before the early return below,
-  // because a hook may not be called conditionally.
+  // Whether a MOUSE is over this tile: a touch tap fires a synthesised
+  // mouseenter before its click, and without this the tap opened then
+  // immediately closed the tile. Declared before the early return — a hook may not be called conditionally.
   const hovering = useRef(false);
   const className = "ledger-tile";
   if (!detail) {
@@ -86,32 +68,20 @@ function Tile({
         hovering.current = false;
         onOpen(false);
       }}
-      // Under a mouse the tile is already open, so a click would only close it
-      // under the cursor. Touch and keyboard both land here with no pointer
-      // over the tile, and there the click IS the way in and back out.
+      // Under a mouse the tile is already open, so a click would only close it.
+      // Touch and keyboard land here with no pointer over the tile — there the click IS the way in and back out.
       onClick={() => {
         if (hovering.current) return;
         onOpen(!open);
       }}
-      // :focus-visible rather than focus, so a tap (which also focuses) does
-      // not fight the click above. A keyboard is the only thing that reaches
-      // this, and it is the only way a keyboard reaches the detail at all.
+      // :focus-visible so a tap (which also focuses) doesn't fight the click above.
       onFocus={(e) => {
         if (e.target.matches(":focus-visible")) onOpen(true);
       }}
       onBlur={() => onOpen(false)}
     >
       <span className="field-label">{label}</span>
-      {/* Both faces live in one relative box and the detail is ABSOLUTE inside
-          it, so the tile is sized by its resting face alone and opening it
-          cannot change its height — which is the whole reason for this shape.
-          Sizing it by the taller of the two instead would have made every tile
-          permanently as tall as its longest explanation.
-
-          `visibility` rather than the `hidden` attribute: the stylesheet's
-          reset makes [hidden] display:none !important, and a display:none face
-          cannot be the thing holding the box open. visibility also does the
-          right thing for a screen reader, which display:none would too. */}
+      {/* Both faces live in one relative box, detail ABSOLUTE inside it, so opening a tile can't change its height. `visibility` not `hidden`. */}
       <span className="ledger-tile-faces">
         <span className="ledger-tile-face" data-open={open ? "true" : "false"}>
           <span
@@ -144,31 +114,17 @@ function tierLabel(tiers) {
   return `${tiers > 0 ? "+" : "−"}${Math.abs(tiers)}`;
 }
 
-// "Melee (Expert)" under a run already headed MELEE is the word twice. The
-// catalog names the ladder and its specialisms that way because a tag has to
-// stand alone in a list of five hundred; here it does not, and the prefix was
-// costing a line of a box that has few to spare.
+// "Melee (Expert)" under a run already headed MELEE is the word twice; drop the prefix here.
 function shortName(label, tree) {
   const prefix = tree === "melee" ? "Melee (" : "Ranged (";
   return label.startsWith(prefix) && label.endsWith(")") ? label.slice(prefix.length, -1) : label;
 }
 
-// What the Combat tile opens: every contributor behind the two bands, and then
-// the things a GM has to decide. Written into the shared detail slot under the
-// row of tiles rather than floating over anything — it is far too long for a
-// tooltip, and the Mood box set the precedent that a tile with something to
-// say says it on the page (SHEET.md §2).
-//
-// The SCORE is never printed, only the names and their shifts. Working out
-// that Seasoned beats Capable is the player's job, the same posture armour
-// takes; a total here would turn a fight into arithmetic and hand somebody a
-// way to measure themselves against a person they should not be able to read.
+// What the Combat tile opens: every contributor behind the two bands and what
+// a GM has to decide, in the shared detail slot (SHEET.md §2). The SCORE is
+// never printed, only the names and their shifts — working out that Seasoned
+// beats Capable is the player's job, the same posture armour takes.
 function CombatDetail({ combat }) {
-  // Two full-width rows rather than two columns. Combat has real width in the
-  // band row now, and stacking also removes the thing that was wrong with the
-  // columns: a `> * + *` margin meant to space Mood's paragraph was pushing
-  // the second grid item down, so RANGED sat four pixels below MELEE and the
-  // pair bottom-aligned. There is no second column left to misalign.
   return (
     <>
       {TREES.map((tree) => (
@@ -190,29 +146,15 @@ function CombatDetail({ combat }) {
 }
 
 // Combat's resting face: a row per dimension, each carrying its own band and
-// its own armour.
-//
-// It used to be two unlabelled PAIRS — "Pitiful · Pitiful" over "⛊ None ·
-// None" — and nobody could read the second half of either. One shield in front
-// of two words says nothing about which word it belongs to, and a player had
-// to open the box to learn that the first band was melee. Turning it ninety
-// degrees answers both at once: each line is one question, "how do I fare up
-// close" and "how do I fare at range", and the label sits at the head of it.
-//
-// One honest approximation lives here. The Ranged row pairs ranged SKILL with
-// BALLISTIC armour, and those are not quite the same axis — ballistic is what
-// guns roll against (db/lib/depotTurret.js), while ranged skill covers bows
-// too. Bascinet's call, made knowingly: two labelled lines that are roughly
-// right beat four values nobody can attribute at all.
+// armour, each line labelled at its head. One honest approximation: the
+// Ranged row pairs ranged SKILL with BALLISTIC armour, not quite the same
+// axis (db/lib/depotTurret.js) — Bascinet's call, made knowingly.
 function CombatFace({ combat, armor }) {
-  // Names only, and only once each: a tag on both halves of the tree would
-  // otherwise be printed twice on a line whose whole job is being small.
+  // Names only, once each: a tag on both halves of the tree would otherwise print twice.
   const names = [...new Set(TREES.flatMap((t) => combat[t].situational.map((s) => s.label)))];
   return (
     <>
-      {/* A grid rather than two flex rows, so the bands line up under each
-          other and the armour does too — three columns read as three columns
-          only if they actually share an edge. */}
+      {/* A grid, not two flex rows, so the bands and armour actually share an edge. */}
       <span className="combat-rows">
         {TREES.map((tree) => (
           <Fragment key={tree}>
@@ -226,20 +168,15 @@ function CombatFace({ combat, armor }) {
           </Fragment>
         ))}
       </span>
-      {/* A footnote, not controls: these are not clickable, and what each one
-          is for is in the tag's own description. This line only says there is
-          something here to ask a gamemaster about. */}
+      {/* A footnote, not controls — just says there is something here to ask a gamemaster about. */}
       {names.length > 0 && <span className="combat-situational">{names.join(" · ")}</span>}
     </>
   );
 }
 
-// The band across the top of the sheet// The band across the top of the sheet// The band across the top of the sheet — it scrolls away with the rest of the
-// page: who this is and where they stand, the five things a player checks
-// before doing anything, then the pieces of the Chat's YOU column that belong
-// on a sheet too — the turn card with its Move, the status strip — and under
-// them what the turn will change and every verb in one strip.
-//
+// The band across the top of the sheet — who this is and where they stand,
+// the five things a player checks first, the turn card and status strip, and
+// under them what the turn will change and every verb in one strip.
 // The numbers are read-only on purpose. The strip is where things happen.
 export default function LedgerBand({
   character,
@@ -257,22 +194,17 @@ export default function LedgerBand({
 }) {
 
   const moodBand = bandOf(character.mood ?? 0);
-  // Derived on every render from the tags already in hand, never stored — the
-  // posture combineArmor and gambitModifierTotal take, so it can't go stale.
-  // Drawn only on your OWN sheet: a fighting band is the one number nobody
-  // should be able to read off somebody they might have to fight, and every
-  // fighting tag in the catalog is `visible: false` for the same reason.
+  // Derived every render, never stored, so it can't go stale. Drawn only on
+  // your OWN sheet: a fighting band is one number nobody should read off
+  // somebody they might have to fight (every fighting tag is `visible: false`).
   const combat = isSelf ? fightingSkill(character.tags) : null;
-  // Kept apart rather than pre-joined: the readout puts each half on the row
-  // it belongs to, and a joined string could only be split again.
+  // Kept apart rather than pre-joined: a joined string could only be split again.
   const armorWords = {
     melee: armorWord(combineArmor(character.tags, "meleeArmor")),
     ranged: armorWord(combineArmor(character.tags, "ballisticArmor")),
   };
   const carrying = carry ? `${carry.weightUsed} / ${carry.weightCap}` : null;
-  // Both of these are already computed by db/lib — carryStatus returns
-  // `breakdown` and gambitModifiers returns its named list — so neither tile
-  // is deriving a second opinion about its own number.
+  // Both already computed by db/lib, so neither tile derives a second opinion about its own number.
   const carryDetail = carry?.breakdown?.length
     ? carry.breakdown
         .map((b) => `${b.name} ${b.bonus > 0 ? "+" : "−"}${Math.abs(Math.round(b.bonus * 100))}%`)
@@ -282,9 +214,7 @@ export default function LedgerBand({
     hungerStreak: character.hungerStreak,
     mood: character.mood,
   });
-  // Summed from the parts rather than asked for separately: two calls to the
-  // same module with the same arguments is two chances for the number and its
-  // explanation to disagree.
+  // Summed from the parts: two calls to the same module is two chances for the number and its explanation to disagree.
   const gambit = gambitParts.reduce((sum, m) => sum + m.value, 0);
   const gambitDetail = gambitParts.length
     ? formatGambitModifiers(gambitParts)
@@ -292,15 +222,9 @@ export default function LedgerBand({
   const loadPct = carry
     ? Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))
     : 0;
-  // The status chip a player clicked open, read inline under the strip — a
-  // chip's wording has to be reachable by a tap, and hover is not one.
+  // The status chip a player clicked open, read inline under the strip — reachable by a tap, not just hover.
   const [picked, setPicked] = useState(null);
-  // Free moves is the only tile with anything to say. Carrying used to open a
-  // breakdown of what holds its cap up; that came off on purpose — the tile is
-  // a number, and a number the whole band reads as read-only should not be the
-  // one thing on the row that presses.
-  // Which tile's detail is open, "moves" or "mood" — one slot, because there
-  // is one paragraph under the row of tiles for both to write into.
+  // Which tile's detail is open — one slot, one paragraph under the row for all of them to write into.
   const [tileOpen, setTileOpen] = useState(null);
   const pickedRow = picked ? character.tags.find((ct) => (ct.tag.id ?? ct.tagId) === picked) ?? null : null;
 
@@ -310,11 +234,7 @@ export default function LedgerBand({
         <div className="ledger-identity">
           <div className="ledger-face">
             {avatarSrc ? (
-              // The one face on the sheet that is actually yours, so it is the
-              // one most worth opening: whatever height the column beside it
-              // comes out at here, 256 stored. `avatarSrc` is already whatever
-              // presentedIdentity resolved for the person looking, so the zoom
-              // shows that and never rebuilds a URL.
+              // `avatarSrc` is already whatever presentedIdentity resolved for the person looking; the zoom never rebuilds a URL.
               <AvatarZoom src={avatarSrc} name={character.name}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={avatarSrc} alt={character.name} />
@@ -323,10 +243,7 @@ export default function LedgerBand({
               <div className="ledger-face-blank" aria-hidden="true" />
             )}
           </div>
-          {/* Who this is, and where they stand. The name, the role and the
-              faction lived in the page's header until 2026-09-10 — the header
-              says "Character" now, and this is the only place on the page that
-              names the person. */}
+          {/* The only place on the page that names the person. */}
           <div className="ledger-who">
             <h2 className="ledger-name">{character.name}</h2>
             <p className="m-0 text-sm text-muted">
@@ -341,9 +258,7 @@ export default function LedgerBand({
               {character.zone?.name ?? "Unassigned"} · {character.location?.name ?? "Nowhere"}
             </p>
             <div className="mt-2">
-              {/* No ⬢ and no pounds here: the tiles a few inches to the right
-                  already carry both, with the caps and the load meter the chips
-                  could only half-say. What is left is what is actually worn. */}
+              {/* No ⬢ and no pounds here: the tiles to the right already carry both. What's left is what is actually worn. */}
               <StatusStrip
                 numbers={false}
                 carry={carry}
@@ -366,15 +281,9 @@ export default function LedgerBand({
           </div>
         </div>
 
-        {/* Five tiles, one row, as they have always been. The Combat readout
-            lives on the row below instead of squeezing a sixth (and a
-            double-width one at that) into a grid whose max-width fits exactly
-            five. */}
+        {/* Five tiles, one row — Combat lives on the row below instead of squeezing a sixth, double-width tile in. */}
         <div className="ledger-tiles">
-          {/* One open slot across the band, so two boxes are never showing
-              their detail at once — a row where three had all swapped faces
-              would read as a different row rather than as one answering a
-              question. */}
+          {/* One open slot across the band, so two boxes never show detail at once. */}
           <Tile
             label="Free moves"
             value={zoneMoves != null ? zoneMoves : "—"}
@@ -388,11 +297,6 @@ export default function LedgerBand({
             value={carry ? `${carry.resources} / ${carry.resourcesCap} ⬢` : `${character.resources} ⬢`}
             over={Boolean(carry && carry.resources > carry.resourcesCap)}
           />
-          {/* What holds the cap up, back on the sheet. carryBreakdown has said
-              "for the hover breakdown on /character" in db/lib/carry.js the
-              whole time — it came off only because ONE pressable tile in a row
-              of read-only ones read as a bug, and that reason is gone now they
-              nearly all press. */}
           <Tile
             label="Carrying"
             value={carrying ? `${carrying} lb` : "—"}
@@ -411,10 +315,7 @@ export default function LedgerBand({
               </span>
             )}
           </Tile>
-          {/* The mood dial as ONE WORD (docs/systemdocs/MOOD.md) — never the
-              number, which is the whole point of the dial. Fine is grey,
-              Ecstatic is green and Panicking is red; the tone picks the
-              token. */}
+          {/* The mood dial as ONE WORD (docs/systemdocs/MOOD.md), never the number; the tone picks the token. */}
           <Tile
             label="Mood"
             value={moodBand?.label ?? "Fine"}
@@ -424,10 +325,7 @@ export default function LedgerBand({
             open={tileOpen === "mood"}
             onOpen={(want) => setTileOpen(want ? "mood" : null)}
           />
-          {/* The modifier the bot actually rolls the Gambit die against, not a
-              second opinion: same module, same arguments as the bot's own call
-              — and now it says WHICH modifiers, which is the question a player
-              looking at a bare −3 was always about to ask. */}
+          {/* The modifier the bot actually rolls the Gambit die against — same module, same arguments — and says WHICH modifiers. */}
           <Tile
             label="Gambit die"
             value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
@@ -439,12 +337,7 @@ export default function LedgerBand({
         </div>
       </div>
 
-      {/* This turn · Combat · Turn Effects. Three boxes of the same build
-          (.ledger-turn and .ledger-tile share their background, border, radius
-          and padding), reading as what you are doing, what you can do, and
-          what the turn will do to you. The grid is auto-fit, so Turn Effects
-          simply narrows from half the band to a third to make room — and on a
-          quiet turn it renders nothing and Combat takes half. */}
+      {/* This turn · Combat · Turn Effects, same build (.ledger-turn/.ledger-tile share background/border/radius/padding). Grid is auto-fit. */}
       <div className="sheet-band-row">
         {isSelf && (
           <div className="ledger-turn">

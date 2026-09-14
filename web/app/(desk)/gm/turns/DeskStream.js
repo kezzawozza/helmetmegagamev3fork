@@ -7,26 +7,16 @@ import { noteDeskVersion } from "@/app/components/useDeskVersion";
 import { useRefresh } from "@/app/components/useRefresh";
 import { noteDeskStreamUp, noteDeskStreamDown, noteDeskStreamFatal } from "./deskStreamStore";
 
-// The other GMs' half of the adjudication desk — the Move somebody else just
-// claimed, the effect somebody staged, the row somebody rejected. The
-// payload is the same patch shape a mutation returns
-// (web/lib/deskRows.js#deskPatchFor), folded by the same applyDeskPatch(), so
-// a stream frame and a button frame are indistinguishable and the store's
-// newer-wins rule arbitrates without either side knowing about the other.
-// THE BACKSTOP POLL STAYS, at 120s (Workspace.js) — same argument as
-// InboxStream.js: a dead stream that still looks alive is the worst failure
-// mode. No chime here: a staged effect is not mail.
+// The other GMs' half of the adjudication desk. Payload is the same patch shape a mutation returns (web/lib/deskRows.js#deskPatchFor), folded by the same applyDeskPatch(), so a stream frame and a button frame are indistinguishable.
+// THE BACKSTOP POLL STAYS at 120s (Workspace.js) — a dead stream that still looks alive is the worst failure mode. No chime here: a staged effect is not mail.
 const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
-// A stream that never once opened is not a blip. After this many failures with
-// no `open` in between, say so rather than retrying behind a silent desk.
+// A stream that never once opened is not a blip. After this many failures with no `open` in between, say so rather than retrying behind a silent desk.
 const FATAL_AFTER = 4;
 
 const DRAFT_KEY = { moves: (row) => `move:${row.id}`, cavingRolls: (row) => `caving:${row.id}` };
 
-// A row whose work is FINISHED is never buffered — nothing left for the GM
-// to write. MoveDesk drops its draft when the Solved row lands. A Caving
-// roll isn't in here on purpose: its Result box stays editable after resolve (CavingDesk.js).
+// A row whose work is FINISHED is never buffered — nothing left for the GM to write. MoveDesk drops its draft when the Solved row lands. Caving isn't here on purpose: its Result box stays editable after resolve (CavingDesk.js).
 const TERMINAL = { moves: (row) => row.reviewStatus === "SOLVED", cavingRolls: () => false };
 
 function buffers(field, row) {
@@ -34,13 +24,8 @@ function buffers(field, row) {
   return deskDraftHeld(DRAFT_KEY[field](row));
 }
 
-// Split a frame into what can land now and what has to wait.
-// THE DIRTY GUARD: a GM typing into a Move's Result box must not have the
-// rest of the card swap under them (their TEXT is already safe — the draft
-// wins over the row, deskDraft.js). A frame carrying a row with a held draft
-// is buffered, folded in when the draft clears (save/solve/reject).
-// REMOVALS ARE NEVER BUFFERED — if another GM rejected the Move, say so at
-// once rather than let a GM write a result for a row that no longer exists.
+// Split a frame into what can land now and what waits. THE DIRTY GUARD: a GM typing into a Move's Result box must not have the rest of the card swap under them (text is already safe — draft wins over row, deskDraft.js), so a row with a held draft is buffered until the draft clears (save/solve/reject).
+// REMOVALS ARE NEVER BUFFERED — if another GM rejected the Move, say so at once rather than let a GM write a result for a row that no longer exists.
 function split(patch) {
   let held = null;
   let fold = patch;
@@ -117,9 +102,7 @@ export default function DeskStream({ deployVersion }) {
           data = null;
         }
         if (data?.version) noteDeskVersion(data.version, deployVersion);
-        // The hub's Postgres connection dropped and came back; unlike the
-        // inbox there's no cursor to re-ask from, so the page is refetched
-        // once. Mounted inside DeskStaleRefreshGate, so `refresh()` is already guarded against a deploy-window hard navigation.
+        // Hub's Postgres connection dropped and came back; unlike the inbox there's no cursor to re-ask from, so the page refetches once (refresh() is already deploy-window-guarded, DeskStaleRefreshGate).
         refresh();
       });
 

@@ -2,20 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 
-// How far this reader has read in each place, per browser.
-//
-// The unread dot in the places column is one comparison: the newest seq said
-// in a place against the newest seq this browser has seen there. The second
-// half is a per-viewer convenience and belongs in localStorage, read through
-// useSyncExternalStore the way useChimeMuted.js does — never in an effect,
-// which react-hooks/set-state-in-effect makes an error here anyway.
-//
-// Every read and write is wrapped: a private window, blocked site data or a
-// thumbnail capture can throw on the accessor itself, and a Chat with no dots
-// is still a Chat.
-
-// The old name survives in the key on purpose: renaming it would forget
-// every player's seen marks. A stored key is matched on, not read.
+// How far this reader has read in each place, per browser. localStorage via
+// useSyncExternalStore, never in an effect (react-hooks/set-state-in-effect is an error here).
+// The old name survives in the key: renaming it would forget every player's seen marks.
 const PREFIX = "hall:seen:";
 const listeners = new Set();
 
@@ -24,13 +13,7 @@ function emit() {
   for (const cb of listeners) cb();
 }
 
-// The snapshot is CACHED, and the cache is thrown away only when the marks
-// can have moved: a write from this tab (emit) or from another one (the
-// storage event). Rebuilding it meant walking every key in localStorage —
-// the page snapshots, the theme, everything — and that walk was the snapshot
-// read useSyncExternalStore made on every render of Chat, which is to say on
-// every row that landed anywhere and every scroll tick at the bottom of a
-// room. Now it is walked once per change.
+// Cached, invalidated only on emit or a storage event — avoids walking every localStorage key on every render.
 let cached = null;
 
 function invalidate() {
@@ -38,12 +21,9 @@ function invalidate() {
 }
 
 function subscribe(callback) {
-  // Another tab may have moved a mark while nothing here was listening —
-  // between one visit to Chat and the next — so a new subscriber starts from
-  // a fresh read.
+  // Another tab may have moved a mark since the last visit.
   invalidate();
   listeners.add(callback);
-  // Another tab of the same character reading a room counts as read here too.
   const onStorage = () => {
     invalidate();
     callback();
@@ -69,9 +49,7 @@ function scan() {
   return parts.sort().join("|");
 }
 
-// One string for the whole map, so useSyncExternalStore's snapshot is stable
-// between renders — returning a fresh object every call is the classic way to
-// make it loop forever.
+// One string for the whole map, so useSyncExternalStore's snapshot stays stable between renders.
 function read() {
   if (cached === null) cached = scan();
   return cached;
@@ -81,8 +59,7 @@ function readServer() {
   return "";
 }
 
-// Memoised on the string: the Map is the same object for as long as the
-// snapshot is, so the column's props hold still between changes.
+// Memoised on the string, so the column's props hold still between changes.
 let parsedFor = null;
 let parsedMap = new Map();
 
@@ -101,8 +78,7 @@ function parse(snapshot) {
   return map;
 }
 
-// Only ever moves forward: a stale write from a tab scrolled up must not
-// re-mark a room as unread for the tab that just read it.
+// Only moves forward: a stale write must not re-mark a room as unread.
 export function markSeen(placeKey, seq) {
   if (!placeKey || !seq) return;
   try {
@@ -116,9 +92,7 @@ export function markSeen(placeKey, seq) {
   emit();
 }
 
-// The mark as it stands RIGHT NOW, outside the store. The NEW divider needs
-// the value a place had at the moment it was opened, and it captures it in
-// the same breath the place is opened in — a beat before markSeen moves it.
+// The mark RIGHT NOW, outside the store — the NEW divider needs it a beat before markSeen moves it.
 export function peekSeen(placeKey) {
   if (!placeKey) return null;
   try {
@@ -128,12 +102,8 @@ export function peekSeen(placeKey) {
   }
 }
 
-// A browser that has never opened Chat has no marks at all, and every
-// place it can hear would otherwise light up its dot on the first paint —
-// telling a new player that a week of somebody else's conversation is theirs
-// to catch up on. So a first visit starts caught up: every place is marked at
-// what was newest when the page loaded. Only ever on a genuinely empty slate;
-// one mark anywhere means this browser has been here.
+// A first visit starts caught up (every place marked at what was newest on
+// load) instead of lighting up every place at once — only on an empty slate.
 export function seedSeenIfFresh(entries) {
   if (!Array.isArray(entries) || entries.length === 0) return;
   try {
@@ -146,15 +116,8 @@ export function seedSeenIfFresh(entries) {
   markAllSeen(entries);
 }
 
-// Everything caught up at once, off the tick in the places column's foot.
-//
-// The same write seedSeenIfFresh makes, without its empty-slate guard —
-// coming back to a hundred lit channels you do not intend to open one by one
-// is the case this exists for.
-//
-// FORWARD ONLY, per place, the rule markSeen states: a caller handing over a
-// stale seq for one place must not un-read it. One emit at the end rather
-// than one per place, so a hundred rows repaint once.
+// Same write as seedSeenIfFresh without its empty-slate guard. FORWARD ONLY
+// per place, same rule as markSeen; one emit at the end, not one per place.
 export function markAllSeen(entries) {
   if (!Array.isArray(entries) || entries.length === 0) return;
   let wrote = false;
@@ -166,8 +129,7 @@ export function markAllSeen(entries) {
       try {
         if (current && BigInt(current) >= BigInt(entry.seq)) continue;
       } catch {
-        // An unparseable mark left by an older build is not a reason to
-        // refuse the write; overwrite it with something that does parse.
+        // An unparseable mark from an older build: overwrite it.
       }
       window.localStorage.setItem(key, String(entry.seq));
       wrote = true;
@@ -183,9 +145,7 @@ export function useSeen() {
   return parse(snapshot);
 }
 
-// True when a place holds something this browser has not seen. Both sides are
-// compared as BigInt: a seq is a bigint column and "9" sorts after "10" as a
-// string.
+// Compared as BigInt: a seq is a bigint column and "9" sorts after "10" as a string.
 export function isUnread(seen, placeKey, newest) {
   if (!newest) return false;
   const mark = seen.get(placeKey);

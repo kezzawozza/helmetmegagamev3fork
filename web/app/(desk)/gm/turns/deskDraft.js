@@ -3,17 +3,8 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { reportDeskReset } from "./blackBox";
 
-// What a GM has typed into a desk row but not yet saved — the Move desk's
-// Result box and Kind switch, and the Caving desk's Result box; both used to
-// hold this in bare useState, so a hard navigation or error boundary lost it.
-// Same shape as dmDraft.js: MEMORY is the source of truth, localStorage a
-// best-effort mirror, never the other way round. Keyed by row ("move:<id>" /
-// "caving:<id>"); DRAFT WINS over the saved row while it exists (every save,
-// solve, reject, resolve clears its own key). Each draft is stamped with its
-// turn and last-touched time, so it can be pruned on turn rollover or when
-// its row leaves the desk (pruneDeskDrafts, via seedDesk), stops holding the
-// backstop poll down after DRAFT_FRESH_MS untouched, and only buffers live
-// stream frames while an editor holding it is actually MOUNTED.
+// What a GM typed into a desk row but hasn't saved (Move desk's Result box/Kind switch, Caving desk's Result box). Same shape as dmDraft.js: memory is the source of truth, localStorage a best-effort mirror only. Keyed by row ("move:<id>" / "caving:<id>"); DRAFT WINS over the saved row until its save/solve/reject/resolve clears its key.
+// Stamped with turn + last-touched time so pruneDeskDrafts (via seedDesk) can drop it on turn rollover or when its row leaves the desk; stops holding the backstop poll down past DRAFT_FRESH_MS untouched; buffers live stream frames only while an editor holding it is MOUNTED.
 
 const DRAFT_FRESH_MS = 10 * 60 * 1000;
 
@@ -21,8 +12,7 @@ const DRAFT_FRESH_MS = 10 * 60 * 1000;
 const drafts = new Map();
 // key -> number of mounted editors. See deskDraftHeld.
 const mounts = new Map();
-// Once per key per page life: re-opening the same row a dozen times is one
-// fact, and a line that repeats is a line nobody reads (blackBox.js).
+// Once per key per page life: re-opening the same row a dozen times is one fact, and a line that repeats is a line nobody reads (blackBox.js).
 const reportedDrafts = new Set();
 const listeners = new Set();
 let currentTurnId = null;
@@ -42,20 +32,16 @@ function subscribe(callback) {
   return () => listeners.delete(callback);
 }
 
-// Exported for DeskStream.js, which buffers a live frame for a row somebody is
-// mid-sentence in and drains it when the draft clears — the draft map IS the
-// desk's record of which rows are dirty, keyed unlike useDirtyGuard's global counter.
+// For DeskStream.js: buffers a live frame for a row somebody's mid-sentence in, drains it when the draft clears — the draft map IS the desk's record of which rows are dirty, keyed unlike useDirtyGuard's global counter.
 export const subscribeToDeskDrafts = subscribe;
 
-// Whether a row is holding unsaved text right now AND somebody has it open —
-// the mount test stops the stream buffering frames forever for an abandoned draft.
+// Row holding unsaved text right now AND somebody has it open — the mount test stops the stream buffering frames forever for an abandoned draft.
 export function deskDraftHeld(key) {
   if (!(mounts.get(key) > 0)) return false;
   return readDeskDraft(key) != null;
 }
 
-// Whether the draft on `key` was touched recently enough to count as somebody
-// actively writing. Read by the editors for useDirtyGuard's poll gate.
+// Whether the draft on `key` was touched recently enough to count as somebody actively writing. Read by the editors for useDirtyGuard's poll gate.
 export function deskDraftFresh(key, nowMs = Date.now()) {
   const entry = readDeskEntry(key);
   if (!entry) return false;
@@ -87,14 +73,12 @@ function normalise(raw) {
   return { value: raw, turnId: null, writtenAt: 0 };
 }
 
-// Returns the held draft, or null when the row's own saved values are what
-// the editor should show.
+// Returns the held draft, or null when the row's own saved values are what the editor should show.
 function readDeskDraft(key) {
   return readDeskEntry(key)?.value ?? null;
 }
 
-// Notify FIRST, mirror second — a throwing setItem can't swallow the
-// re-render.
+// Notify FIRST, mirror second — a throwing setItem can't swallow the re-render.
 export function writeDeskDraft(key, value) {
   if (!key) return;
   const entry = value ? { value, turnId: currentTurnId, writtenAt: Date.now() } : null;
@@ -104,7 +88,7 @@ export function writeDeskDraft(key, value) {
     if (entry) window.localStorage.setItem(storageKey(key), JSON.stringify(entry));
     else window.localStorage.removeItem(storageKey(key));
   } catch {
-    // Full, private, or blocked; the draft still survives in memory for this tab.
+    /* full, private, or blocked; the draft still survives in memory for this tab */
   }
 }
 
@@ -112,15 +96,12 @@ export function clearDeskDraft(key) {
   writeDeskDraft(key, null);
 }
 
-// Which turn new drafts belong to. Set from seedDesk, so a draft written on
-// the desk is stamped with the turn the desk was showing when it was written.
+// Which turn new drafts belong to. Set from seedDesk, so a draft written on the desk is stamped with the turn the desk was showing when written.
 export function noteDeskDraftTurn(turnId) {
   currentTurnId = turnId ?? null;
 }
 
-// Drop every stored draft the desk can no longer account for: wrong turn, or
-// row no longer on the desk. Called from seedDesk, which knows both answers.
-// Walks localStorage rather than the memo, since that's the accumulating case.
+// Drop every stored draft the desk can no longer account for: wrong turn, or row no longer on the desk (seedDesk knows both). Walks localStorage rather than the memo, since that's the accumulating case.
 export function pruneDeskDrafts(liveKeys) {
   let stored = [];
   try {
@@ -151,9 +132,7 @@ export function pruneDeskDrafts(liveKeys) {
   if (changed) emit();
 }
 
-// Another tab wrote or cleared a draft; invalidate rather than patch the
-// memo, so the next read goes to storage — without this two open desks each
-// held their own idea of the same Result box until one reloaded.
+// Another tab wrote or cleared a draft; invalidate rather than patch the memo so the next read goes to storage — without this two open desks each held their own idea of the same Result box until one reloaded.
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.storageArea && event.storageArea !== window.localStorage) return;
@@ -169,8 +148,7 @@ if (typeof window !== "undefined") {
   });
 }
 
-// Returns the held draft, or null. Mounting also registers this key as OPEN,
-// which is what lets the live stream tell "writing here" from "left words here once".
+// Returns the held draft, or null. Mounting also registers this key as OPEN, letting the live stream tell "writing here" from "left words here once".
 export function useDeskDraft(key) {
   const get = useCallback(() => readDeskDraft(key), [key]);
   useEffect(() => {

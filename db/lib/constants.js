@@ -66,12 +66,10 @@ const MUTILATE_GATE_SLUGS = Object.freeze([
   "butcher",
 ]);
 
-// Kissing's OTHER gate (KISS.md). The incapacity half lives in db/lib/incapacitation.js; this is the
-// short hand-written list of things that walk/work/talk normally but still cannot kiss: ghoul/apex-form/
-// servant-of-tzchernobog (not a person any more), rage (bloodlust), broken/broken-enslaved (an empty
-// shell that can press Accept, so consent means nothing — keeps {desire:dem-kiss-a-broken} a GM call),
-// phrygian-toxin and installed-poison-tooth (a tell KISS.md documents). Taste/belief/appearance
-// (Prudish, Eunuch, Pacifist, Saint, Ugly, Unhygienic) stay OUT — they lock Desires, not the verb.
+// Kissing's OTHER gate (KISS.md); incapacity half is db/lib/incapacitation.js. Things that walk/work/
+// talk normally but still can't kiss: not-a-person (ghoul/apex-form/servant-of-tzchernobog), bloodlust
+// (rage), consent-is-meaningless (broken/broken-enslaved — keeps {desire:dem-kiss-a-broken} a GM call),
+// and the phrygian-toxin/poison-tooth tell. Taste/belief tags (Prudish, Eunuch, etc) stay OUT — they lock Desires, not the verb.
 const KISS_BLOCKING_SLUGS = Object.freeze([
   "ghoul",
   "rage",
@@ -129,8 +127,7 @@ const INSOMNIAC_SLUG = "insomniac";
 const MOTION_SICKNESS_SLUG = "motion-sickness";
 // Lightweight / Iron Liver / Steady's slugs live only in web/lib/consumeGrants.js (ships to the client).
 const DEBTOR_SLUG = "debtor";
-// The mastery tags (TAGS.md 4a), as one registry. Nine of the ten are imported elsewhere; Manic keeps
-// its own copy in db/lib/desireGates.js (deep-imported by client components) but stays listed here too.
+// Manic keeps its own copy in db/lib/desireGates.js (deep-imported by client components) but stays listed here too.
 // A WOUND, not an illness/state of mind — shared by the mood dial and Second Wind (db/lib/fightingSkill.js).
 const WOUND_TAG_GROUPS = Object.freeze(["health-wounds", "health-maiming", "health-infection"]);
 

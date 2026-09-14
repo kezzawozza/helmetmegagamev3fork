@@ -1,33 +1,5 @@
-// Archive packets: one finished game's transcript as a single portable file.
-//
-// The problem this solves is not durability — PITR and the nightly pg_dump
-// already cover losing the database (docs/systemdocs/BACKUPS.md). It is
-// GRANULARITY. Both of those are all-or-nothing, and the dumps are pruned to
-// the newest 30, so "give me just game 4's transcript" meant restoring a whole
-// database into a scratch service and copying rows out, if a dump that old
-// still existed. A packet is one game, one file, movable and readable on its
-// own.
-//
-// It is cheap because ArchiveEntry has no foreign keys at all: every id on it
-// is a snapshot column (see the model comment in schema.prisma). The table is
-// already a flat file that happens to live in Postgres.
-//
-// FORMAT. Gzipped JSONL. Line 1 is a manifest; every line after it is one
-// ArchiveEntry. Not CSV, which was the first idea: `content` is multi-line
-// prose full of commas and quotes, `epilogue` is JSON, `seq` is a BigInt, and
-// CSV cannot tell NULL from empty string — which matters here, because a null
-// `concealedAlias` means "not concealed" and an empty one would mean a mask
-// with no name.
-//
-// Three rules make a packet still readable after a year of schema drift:
-//
-//   1. Every column is written EXPLICITLY, nulls included. A reader can then
-//      tell "the column existed and was null" from "the column did not exist",
-//      which is the whole difference between a safe default and a silent one.
-//   2. The column list comes from Prisma's DMMF at runtime, not a hardcoded
-//      array, so the exporter cannot fall behind the schema.
-//   3. `seq` crosses as a string (it is a BigInt — CHAT.md's rule for the feed
-//      cursor) and dates as ISO strings.
+// Archive packets: one finished game's transcript as a single portable file. The problem is GRANULARITY, not durability — PITR and nightly pg_dump already cover losing the database (docs/systemdocs/BACKUPS.md), but both are all-or-nothing and dumps prune to the newest 30, so getting just one game's transcript meant restoring a whole database into a scratch service. Cheap because ArchiveEntry has no foreign keys — every id is a snapshot column (schema.prisma) — so the table is already a flat file that happens to live in Postgres.
+// FORMAT: gzipped JSONL, manifest on line 1, one ArchiveEntry per line after. Not CSV: `content` is multi-line prose full of commas/quotes, `epilogue` is JSON, `seq` is a BigInt, and CSV can't tell NULL from empty string (a null `concealedAlias` means "not concealed", an empty one means a nameless mask). Stays readable after a year of drift: every column is written EXPLICITLY (nulls included, so "existed and was null" reads differently from "didn't exist"); the column list comes from Prisma's DMMF at runtime, never a hardcoded array; `seq` crosses as a string (BigInt, CHAT.md's feed-cursor rule) and dates as ISO strings.
 
 const crypto = require("crypto");
 const fs = require("fs");
@@ -41,26 +13,10 @@ const { Prisma } = require("@prisma/client");
 const PACKET_KIND = "bascinet-archive";
 const PACKET_VERSION = 1;
 
-// How many rows are read from Postgres at a time. The export is keyset-paged
-// on seq rather than offset-paged: a month-long game is tens of thousands of
-// rows and the bot is still writing while this runs.
+// How many rows are read from Postgres at a time. Keyset-paged on seq rather than offset-paged: a month-long game is tens of thousands of rows and the bot is still writing while this runs.
 const PAGE = 2000;
 
-// Columns the importer refuses to invent. Every one of these drives behaviour
-// somewhere, so a "sensible default" for a missing one is a silent corruption
-// rather than a gap:
-//
-//   sentAt   — bot/src/lib/feedOutbox.js#drainFeedOutbox claims rows by age.
-//              Defaulted to now(), every archived WEB row lands inside the
-//              drain window and the bot narrates a dead game into today's
-//              channels.
-//   discordMessageId / sourceDiscordMessageId — both @unique, and Postgres
-//              allows unlimited NULLs on a unique index, so defaulting them
-//              to null throws the Discord link away without erroring.
-//   seq      — the feed cursor. See assertSeqSafe below.
-//   id       — @default(cuid()), so minting one on import duplicates the row
-//              instead of updating it.
-//
+// Columns the importer refuses to invent — each drives real behaviour, so a "sensible default" would be silent corruption: sentAt (defaulted to now(), every archived WEB row would land inside bot/src/lib/feedOutbox.js#drainFeedOutbox's claim window and narrate a dead game into today's channels), discordMessageId/sourceDiscordMessageId (both @unique — Postgres allows unlimited NULLs on a unique index, so defaulting to null throws the Discord link away silently), seq (the feed cursor, see assertSeqSafe below), id (@default(cuid()) — minting one on import duplicates the row instead of updating it).
 // Tolerance is for columns added AFTER a packet was written, and nothing else.
 const STRICT_FIELDS = [
   "id", "seq", "gameId", "kind", "content", "sentAt", "source",
@@ -90,8 +46,7 @@ function encodeRow(row, fields) {
   return out;
 }
 
-// ...and back. `missing` collects the strict fields a packet has lost, so the
-// caller can refuse the whole import rather than write half of it.
+// ...and back. `missing` collects the strict fields a packet has lost, so the caller can refuse the whole import rather than write half of it.
 function decodeRow(obj, fields, { missing, dropped }) {
   const out = {};
   for (const f of fields) {
@@ -116,13 +71,7 @@ function sha256Stream() {
 
 // ---------------------------------------------------------------- export
 
-// Writes `<outPath>` and returns the manifest it wrote.
-//
-// Two passes, because the manifest carries the hash of the entries and sits on
-// the FIRST line — a reader should be able to validate a packet before parsing
-// a hundred thousand rows of it. Pass one streams Postgres into a plain temp
-// file while hashing; pass two writes the manifest and copies the temp through
-// gzip. The second pass is local disk and costs nothing next to the read.
+// Writes `<outPath>` and returns the manifest it wrote. Two passes, because the manifest carries the hash of the entries and sits on the FIRST line — a reader should validate a packet before parsing a hundred thousand rows of it. Pass one streams Postgres into a plain temp file while hashing; pass two writes the manifest and copies the temp through gzip, at the cost of local disk next to the read.
 async function exportGame(prisma, { gameId, outPath }) {
   const fields = archiveFields();
   const game = await prisma.game.findUnique({ where: { id: gameId } });
@@ -162,14 +111,11 @@ async function exportGame(prisma, { gameId, outPath }) {
       gameId,
       exportedAt: new Date().toISOString(),
       entryCount,
-      // The seq window the packet actually covers. The wipe bounds its delete
-      // by maxSeq so a row written between the export and the delete is never
-      // destroyed without having been in the file.
+      // The seq window the packet actually covers. The wipe bounds its delete by maxSeq so a row written between the export and the delete is never destroyed without having been in the file.
       minSeq: minSeq === null ? null : minSeq.toString(),
       maxSeq: entryCount ? maxSeq.toString() : null,
       sha256: hash.digest("hex"),
-      // Every column name the schema had when this was written, so a future
-      // importer can name what it is dropping rather than guess.
+      // Every column name the schema had when this was written, so a future importer can name what it's dropping rather than guess.
       fields: fields.map((f) => f.name),
       game: encodeGame(game),
     };
@@ -202,11 +148,7 @@ async function* manifestThenBody(manifest, tmp) {
 
 // ---------------------------------------------------------------- verify
 
-// Re-reads what was actually written and recomputes the hash over it. Nothing
-// in this system deletes a row on the strength of an exit code: a truncated
-// packet is the same shape and roughly the same size as a good one, and you
-// find out which it was on the worst possible day. ops/backup/backup.sh
-// refuses to upload a dump with no restorable entries for the same reason.
+// Re-reads what was actually written and recomputes the hash over it. Nothing in this system deletes a row on the strength of an exit code: a truncated packet is the same shape and roughly the same size as a good one, and you find out which it was on the worst possible day. ops/backup/backup.sh refuses to upload a dump with no restorable entries for the same reason.
 async function verifyPacket(filePath) {
   const rl = readline.createInterface({
     input: fs.createReadStream(filePath).pipe(zlib.createGunzip()),
@@ -242,18 +184,8 @@ async function verifyPacket(filePath) {
 
 // ---------------------------------------------------------------- import
 
-// The seq guard.
-//
-// Every feed reader leans on one invariant (CHAT.md §7): seq only climbs, so
-// every row of a finished game sits BELOW every row of the current one.
-// db/lib/feedWipe.js#previousGameFloor turns that into the floor /chat filters
-// above, by taking MAX(seq) of everything not in this game.
-//
-// Deleting old rows is therefore safe — it can only lower the floor, and the
-// rows it would have hidden are gone. IMPORTING is the dangerous direction: a
-// packet whose seq range reaches into the live game's range lifts the floor
-// ABOVE the live rows, and /chat, the SSE stream, history and the unread dots
-// all go dark at once.
+// The seq guard. Every feed reader leans on one invariant (CHAT.md §7): seq only climbs, so every row of a finished game sits BELOW every row of the current one — db/lib/feedWipe.js#previousGameFloor turns that into the floor /chat filters above, by taking MAX(seq) of everything not in this game.
+// Deleting old rows is safe: it can only lower the floor, and the rows it would have hidden are gone. IMPORTING is the dangerous direction — a packet whose seq range reaches into the live game's range lifts the floor ABOVE the live rows, and /chat, the SSE stream, history and the unread dots all go dark at once.
 async function assertSeqSafe(prisma, { maxSeq, gameId }) {
   if (maxSeq === null) return;
   const state = await prisma.gameState.findUnique({ where: { id: 1 }, select: { gameId: true } });
@@ -274,15 +206,9 @@ async function assertSeqSafe(prisma, { maxSeq, gameId }) {
   }
 }
 
-// Move the sequence forward past whatever was imported — and ONLY forward.
-// Read as "setval to the imported max", this would move it BACKWARD in the
-// ordinary case (importing an old game), and every insert after that would
-// collide on ArchiveEntry_seq_key until it climbed back: a hard outage of all
-// speech. The name has to stay quoted, or it folds to lowercase and errors.
+// Move the sequence forward past whatever was imported — and ONLY forward. Read as "setval to the imported max", this would move it BACKWARD in the ordinary case (importing an old game), and every insert after that would collide on ArchiveEntry_seq_key until it climbed back: a hard outage of all speech. The name has to stay quoted, or it folds to lowercase and errors.
 async function bumpSeqSequence(prisma) {
-  // pg_get_serial_sequence for the name and pg_sequence_last_value for the
-  // current position, so the sequence ("ArchiveEntry_seq_seq") is never spelled
-  // out twice and cannot drift.
+  // pg_get_serial_sequence for the name and pg_sequence_last_value for the current position, so the sequence ("ArchiveEntry_seq_seq") is never spelled out twice and cannot drift.
   await prisma.$executeRawUnsafe(`
     SELECT setval(
       s.seq,
@@ -295,9 +221,7 @@ async function bumpSeqSequence(prisma) {
   `);
 }
 
-// Loads a packet back. Returns a report — what it wrote, and every column it
-// dropped or let default. That report is what makes a packet written today
-// loadable in two years: the failure mode of a tolerant importer is silence.
+// Loads a packet back. Returns a report — what it wrote, and every column it dropped or let default. That report is what makes a packet written today loadable in two years: the failure mode of a tolerant importer is silence.
 async function importPacket(prisma, filePath, { remapSeq = false, chunk = 500 } = {}) {
   const fields = archiveFields();
   const manifest = await verifyPacket(filePath);
@@ -319,9 +243,7 @@ async function importPacket(prisma, filePath, { remapSeq = false, chunk = 500 } 
 
   const flush = async () => {
     if (batch.length === 0) return;
-    // createMany + skipDuplicates rather than per-row upsert: the trigram GIN
-    // on `content` dominates insert cost, and a re-run of a half-finished
-    // import should skip what landed rather than rewrite it.
+    // createMany + skipDuplicates rather than per-row upsert: the trigram GIN on `content` dominates insert cost, and a re-run of a half-finished import should skip what landed rather than rewrite it.
     const res = await prisma.archiveEntry.createMany({ data: batch, skipDuplicates: true });
     written += res.count;
     batch = [];
@@ -354,12 +276,7 @@ async function importPacket(prisma, filePath, { remapSeq = false, chunk = 500 } 
   });
   await bumpSeqSequence(prisma);
 
-  // What is actually there afterwards, which is not the same question as what
-  // this run wrote. createMany's skipDuplicates is silent by design — a re-run
-  // of a half-finished import should skip what landed — but it is equally
-  // silent when the packet's ids collide with rows belonging to some OTHER
-  // game, and then "0 written, all skipped" reads as success over an empty
-  // table. Counting settles it, and the caller can say so.
+  // What is actually there afterwards, which isn't the same question as what this run wrote. createMany's skipDuplicates is silent by design — fine for a re-run skipping what landed — but equally silent when the packet's ids collide with rows belonging to some OTHER game, so "0 written, all skipped" would read as success over an empty table. Counting settles it, and the caller can say so.
   const present = await prisma.archiveEntry.count({ where: { gameId: manifest.gameId } });
 
   return {

@@ -1,15 +1,7 @@
-// Writing a corpse. One Tag row per death, dropped on the floor where they
-// fell. See docs/systemdocs/CORPSES.md.
-//
-// This is the THIRD authoring door onto the tag catalog, beside docs/tags.yaml
-// and the GM form at /gm/dev/tags — and the only one no human touches. The row
-// it writes carries `custom: true` so db:sync-tags (upsert-by-slug) never sees
-// it and db:prune-tags skips it, exactly as a GM's homebrew is protected; what
-// separates it from a GM's is Tag.corpseOfCharacterId, which is also what makes
-// the Restart Game wipe able to delete precisely these and nothing else.
-//
-// Takes `prisma` (or a tx) as a parameter, the db/lib/dm.js convention, and
-// stays off the @lifeweb/db barrel.
+// Writing a corpse (docs/systemdocs/CORPSES.md). THIRD authoring door onto the
+// tag catalog, but the row carries `custom: true` so sync/prune-tags skip it
+// like homebrew; Tag.corpseOfCharacterId is what lets Restart Game delete just
+// these. Takes `prisma`/tx as a parameter; stays off the @lifeweb/db barrel.
 const { CORPSE_GROUP_SLUG, CORPSE_ROT_TURNS } = require("./constants");
 const { pickRandomPublicRoom } = require("./roomStash");
 const { addToRoomStack, addToStack } = require("./tagWrites");
@@ -24,10 +16,7 @@ function corpseDescription(name) {
   return `The lifeless body of ${name}.`;
 }
 
-// Slugified from the name like every other slug in the catalog, with the
-// `custom-` prefix that keeps it out of the YAML's namespace forever. The
-// `-corpse` suffix is inside the prefix rather than appended to a bare name so
-// a character actually called "Corpse" still produces something readable.
+// `custom-` prefix keeps this out of the YAML's namespace; `-corpse` suffix is inside it so "Corpse" still reads fine.
 function corpseSlug(name, suffix = 0) {
   const base = (name ?? "")
     .toString()
@@ -40,16 +29,7 @@ function corpseSlug(name, suffix = 0) {
   return `custom-${base || "unnamed"}-corpse${suffix ? `-${suffix}` : ""}`;
 }
 
-// Two characters can share a name, and Tag.slug is @unique. Retrying on the
-// unique violation rather than checking first is deliberate: two deaths
-// resolving in the same turn-close would both pass a pre-check and then one
-// would throw. Six attempts is far past anything the game can produce.
-//
-// The "(2)" on the NAME is no longer forced by a constraint — Tag.name stopped
-// being unique when paper stopped being titled after its own id
-// (db/lib/paper.js#paperName) — and is kept on purpose. A body is a thing a GM
-// picks out of a list, so two rows both reading "Ada's Corpse" is a confusion
-// worth spending a suffix on; two notes both reading "A Note" is the point.
+// Tag.slug is @unique; retries on violation rather than a pre-check, since two same-turn deaths could both pass one. "(2)" suffix disambiguates a GM's list, not a constraint.
 async function createCorpseTag(tx, character, groupId, expiresTurn, weightLbs) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const suffixed = attempt ? `${corpseName(character.name)} (${attempt + 1})` : corpseName(character.name);
@@ -65,20 +45,11 @@ async function createCorpseTag(tx, character, groupId, expiresTurn, weightLbs) {
           custom: true,
           corpseKind: "FRESH",
           corpseOfCharacterId: character.id,
-          // ALWAYS because you are visibly hauling a body — the exact case
-          // docs/tags.yaml's `visible: true` rule names.
-          inspectVisibility: "ALWAYS",
+          inspectVisibility: "ALWAYS", // visibly hauling a body — docs/tags.yaml's `visible: true` case
           tradeable: true,
-          // One body is one body. The non-stackable pin in tagWrites.js is
-          // also what stops two people each holding "the" corpse.
-          stackable: false,
-          // A body is cargo (db/lib/corpseWeight.js): the base weight bent by
-          // the build they had, plus whatever is still on their sheet, since
-          // their gear never moves off it. Recomputed when the body is looted.
-          weightLbs,
-          // Not binnable from the Destroy menu: Butcher and Bury are the only
-          // two ways a body leaves the world.
-          removable: false,
+          stackable: false, // one body is one body
+          weightLbs, // cargo (db/lib/corpseWeight.js): base weight bent by build, plus gear; recomputed when looted
+          removable: false, // Butcher and Bury are the only two ways a body leaves the world
           consumable: false,
           purchasable: false,
           purchasableAfterStart: false,
@@ -86,41 +57,26 @@ async function createCorpseTag(tx, character, groupId, expiresTurn, weightLbs) {
         },
       });
     } catch (err) {
-      // P2002 is the @unique on slug — someone shares this name.
-      if (err?.code !== "P2002") throw err;
+      if (err?.code !== "P2002") throw err; // P2002 = @unique slug collision, someone shares this name
     }
   }
   return null;
 }
 
-// The whole death-side story: mint the corpse and put it somewhere.
-//
-// Returns { tag, room } — `room` null when it landed on the dead character's
-// own sheet instead. That fallback is not an error case: a Location with no
-// public room (or an unplaced character) still has to leave a body, and the
-// sheet is a perfectly good place for it, because corpseFollow's reconcile
-// then reads "the corpse is on the character it belongs to" and does nothing.
-//
-// Idempotent by Tag.corpseOfCharacterId being @unique: a resumed turn close
-// re-running the death pass finds the row already there and returns it rather
-// than writing a second body.
+// Mint the corpse and put it somewhere. `room` null = landed on the dead character's own sheet (not an error — corpseFollow reads that as already home). Idempotent via Tag.corpseOfCharacterId's @unique.
 async function mintCorpse(tx, character, turn = null) {
   const existing = await tx.tag.findUnique({ where: { corpseOfCharacterId: character.id } });
   if (existing) return { tag: existing, room: null, alreadyExisted: true };
 
   const group = await tx.tagGroup.findUnique({ where: { slug: CORPSE_GROUP_SLUG }, select: { id: true } });
-  // No group means db:sync-tags has not run since this feature shipped. A
-  // missing corpse is bad; a death that throws is worse, so say so and let the
-  // rest of the death proceed.
+  // No group means db:sync-tags hasn't run. A missing corpse is bad; a death that throws is worse.
   if (!group) {
     console.error(`mintCorpse: no "${CORPSE_GROUP_SLUG}" tag group — run db:sync-tags.`);
     return { tag: null, room: null };
   }
 
   const expiresTurn = turn ? expiryFrom(turn.number + 1, CORPSE_ROT_TURNS) : null;
-  // Read off the sheet rather than the `character` handed in: the callers pass
-  // wildly different selects, and a missing `tags` would silently mint every
-  // body at the base weight with no sign anything was wrong.
+  // Read off the sheet, not the `character` handed in — callers pass varying selects.
   const weightLbs = (await corpseWeightFor(tx, character.id)) ?? undefined;
   const tag = await createCorpseTag(tx, character, group.id, expiresTurn, weightLbs);
   if (!tag) {
@@ -137,18 +93,7 @@ async function mintCorpse(tx, character, turn = null) {
   return { tag, room };
 }
 
-// Taking a body out of the world completely — used by a GM Revive, where the
-// person is walking around again and their corpse must not still be on a shelf.
-//
-// The holdings go FIRST, and that ordering is not optional: RoomTag.tagId
-// cascades from Tag but CharacterTag.tagId is RESTRICT, so deleting a corpse
-// somebody is carrying throws a foreign-key error rather than doing anything.
-// (The Restart Game wipe gets this right for free, because it clears both
-// holding tables before it deletes Characters.)
-//
-// NOT used by Butcher or Bury. Those consume the HOLDING and deliberately
-// leave the Tag row behind, because a GM's Undo has to be able to put the body
-// back — see web/lib/tagEffects.js.
+// Used by a GM Revive. Holdings go FIRST — CharacterTag.tagId is RESTRICT (unlike RoomTag's cascade), so a carried corpse must be cleared first or deletion throws. NOT used by Butcher/Bury, which leave the Tag row so a GM's Undo can restore it (web/lib/tagEffects.js).
 async function deleteCorpseFor(db, characterId) {
   const tag = await db.tag.findUnique({ where: { corpseOfCharacterId: characterId }, select: { id: true } });
   if (!tag) return false;

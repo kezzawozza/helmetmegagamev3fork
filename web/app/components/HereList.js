@@ -15,60 +15,35 @@ import { loadPeopleHere } from "@/app/(app)/character/rosterActions";
 import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
 
 // HERE: who is standing where you are, and what you can do to them. Drawn at
-// the top of /chat's Place panel and on the character sheet's Actions panel —
-// the same rows, the same menu — which is why it lives here rather than under
-// the chat route.
+// the top of /chat's Place panel and the sheet's Actions panel — same rows,
+// same menu. Rows come from db/lib/whosHere.js, the same function the
+// Discord "Who's here?" answers with.
 //
-// The rows come from db/lib/whosHere.js — the same function the "Who's here?"
-// button on the Discord anchor answers with — so the street and the page can
-// never disagree about who a stranger is.
+// A FACE AND AN EYE ARE EARNED: standing in a room is public, but what's over
+// somebody's face is not, so a row shows a face and a look only once you've
+// watched that person SPEAK this turn (db/lib/sightings.js) — and shows what
+// you saw, not what's true now. Unseen, a named row keeps its own face; a
+// hood gets the question-mark plate and no eye.
 //
-// A FACE AND AN EYE ARE EARNED, and this is the rule the column is built
-// around. Standing in a room is public — everyone here is listed, hooded or
-// not — but what is over somebody's face is not, and drawing every mask to
-// anybody who walked in announced a cult meeting to the first person through
-// the door. So a row shows a face and offers a look only once you have watched
-// that person SPEAK this turn (db/lib/sightings.js), and what it shows is what
-// you saw: somebody who chatted bare-faced and then masked up in private is
-// still listed under their own name and their own face until the turn rolls.
-//
-// Unseen, a named row keeps its own face — there was never anything to hide
-// there — and a hood gets the question-mark plate and no eye.
-//
-// The eye points at the LINE, not the person: `sightingSeq` is the last thing
-// you heard them say, and the server resolves the speaker off it
-// (db/lib/examineRow.js). That is what lets a hood carry an eye at all — the
-// browser is never told who is under it, so there is nothing for it to leak.
+// The eye points at the LINE, not the person: `sightingSeq` is the last line
+// you heard, and the server resolves the speaker off it (db/lib/examineRow.js)
+// — the browser is never told who is under a hood, so there is nothing to leak.
 //
 // The menu is the sheet's own people dialogs, opened through
-// RequestActionsProvider with the clicked person already filled in. Nothing
-// is forked: this is the same Heal dialog, the same Loot dialog, the same
-// server actions.
-//
-// A HOOD GETS A SHORTER MENU, NOT A DIFFERENT ONE: hand them something, take
-// them aside, let them through a door. `PROXYING.md` §5 has the rule and the
-// reason the other six are absent.
-//
-// A hooded row carries no character id — /api/avatar/<id> answers with a
-// face, so shipping one is the unmasking. What it carries is the hood token
-// (db/lib/whosHere.js#hoodToken), and every action below that takes one
-// resolves it server-side against the people actually standing here.
+// RequestActionsProvider with the person already filled in — nothing forked.
+// A HOOD GETS A SHORTER MENU, NOT A DIFFERENT ONE (PROXYING.md §5). A hooded
+// row carries no character id (shipping one is the unmasking) — it carries
+// the hood token (db/lib/whosHere.js#hoodToken), resolved server-side.
 //
 // THE METAGAMING RULE STILL HOLDS (web/app/components/actionRegistry.js): no
-// row is greyed for a fact about the person it names. Whether they can be
-// looted, bound or harmed is the dialog's answer and the server's, never a
-// hint you can read off a menu without opening it.
+// row is greyed for a fact about the person it names — that's the dialog's
+// answer and the server's, never a menu hint.
 //
-// Look at is NOT on this menu: the eye on the row is the Look at, on every
-// row you have earned one on, and a second copy of it inside the menu was
-// the same dialog one click further away. Neither is Move Player, which is
-// gone entirely — taking somebody with you is the party rack below this list
-// now, and it is a thing you keep rather than a thing you re-do every hop
+// Look at is NOT on this menu (the eye on the row already is it). Move
+// Player is gone entirely — the party rack below this list replaced it
 // (docs/systemdocs/MAP.md §3a).
-// `hoodPrefix` is what makes a row offerable to a hood: transferRequestImpl
-// parses "hood:<token>" and resolves it back through resolveHoodToken, the
-// same handle Transfer's own recipient dropdown has always offered
-// (web/lib/peoplePools.js). An entry without one is named-rows-only.
+// `hoodPrefix` makes a row offerable to a hood: transferRequestImpl parses
+// "hood:<token>" via resolveHoodToken (web/lib/peoplePools.js). No prefix means named-rows-only.
 const PEOPLE_ACTIONS = [
   { mode: "heal", label: "Heal", preset: "patientId" },
   { mode: "transfer", label: "Transfer", preset: "toKey", prefix: "character:", hoodPrefix: "hood:" },
@@ -95,9 +70,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
     [open, onClose, person],
   );
 
-  // A hood with no token is a hood there is nothing to act ON — hoodToken
-  // mints none without an AUTH_SECRET. Converse below still works, because it
-  // can open with nobody ticked; everything else needs a handle.
+  // A hood with no token is a hood nothing can act ON (hoodToken mints none without an AUTH_SECRET); Converse still works.
   const entries = PEOPLE_ACTIONS.filter((entry) => (person.hooded ? entry.hoodPrefix && person.ref : true));
 
   return (
@@ -111,10 +84,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
           onClick={() => pick(entry)}
         />
       ))}
-      {/* Letting somebody into the conversation or the private room that is
-          OPEN in the feed. Only offered where there is a door to open — a
-          Location, the zone summary and a public room have none — and the
-          server re-checks that this character may work it. */}
+      {/* Only offered where there is a door to open; the server re-checks that this character may work it. */}
       {addPlace && onAddMember && person.ref && (
         <ActionButton
           variant="menu"
@@ -131,9 +101,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
           label="Converse"
           onClick={() => {
             onClose();
-            // Opened ON this person, so the dialog has them ticked already —
-            // asking for a corner with somebody and then having to name them
-            // again was the same answer typed twice.
+            // Opened ON this person, already ticked.
             onConverse({ ref: person.ref, name: person.name });
           }}
         />
@@ -145,21 +113,19 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
 const HERE_POLL_MS = 60_000;
 
 export default function HereList({
-  // The server's list, or null to read it on mount — the character sheet
-  // passes null, because opening it is the click that asks who is standing
-  // here. (/ledger, which this used to name, redirects to /character now.)
+  // The server's list, or null to read it on mount — the sheet passes null,
+  // since opening it is the click that asks who is standing here.
   people,
   selfId,
   onConverse = null,
   poll = false,
-  // The open place, when it is one somebody can be let into: { placeKey,
-  // name }. Null everywhere else, which is what keeps the row off the menu.
+  // The open place, when somebody can be let into it: { placeKey, name }.
+  // Null everywhere else, which keeps the row off the menu.
   addPlace = null,
   onAddMember = null,
 }) {
-  // Seeded from the server and replaced by the poll. ChatAside keys this
-  // component on the server list, so a move remounts it with the new street's
-  // people rather than leaving a stale poll answer in place.
+  // Seeded from the server, replaced by the poll. ChatAside keys this
+  // component on the server list, so a move remounts it instead of leaving a stale poll answer.
   const [live, setLive] = useState(people);
   const named = live?.named ?? [];
   const concealed = live?.concealed ?? [];
@@ -171,19 +137,16 @@ export default function HereList({
         if (res?.ok) setLive({ named: res.named, concealed: res.concealed });
       })
       .catch(() => {
-        // A missed read costs one stale minute. The next one fixes it.
+        // A missed read costs one stale minute; the next one fixes it.
       });
   }, []);
-  // No seed means nobody has asked yet; ask now, then on the minute — and
-  // only while the tab is in front of somebody (play/useVisiblePoll.js).
+  // No seed means nobody has asked yet; ask now, then on the minute, only while the tab is visible.
   useEffect(() => {
     if (poll && people == null) pollPeople();
   }, [poll, people, pollPeople]);
   useVisiblePoll(pollPeople, HERE_POLL_MS, { enabled: poll });
   const [hood, setHood] = useState(null);
-  // "Add to …" refused, or never reached the server. Chat.js answers with
-  // the action's { ok, error }; this is where the sentence is shown, under
-  // the list the row was on.
+  // "Add to …" refused, or never reached the server — shown under the list the row was on.
   const [addError, setAddError] = useState(null);
   const addAndReport = useCallback(
     (ref) => {
@@ -198,16 +161,12 @@ export default function HereList({
     [onAddMember],
   );
   const actions = useRequestActions();
-  // The one place a click outside has to close something. Kept on the
-  // wrapper rather than on the document: the menu is inside the column, and
-  // a document listener would need an effect to attach.
+  // Kept on the wrapper rather than the document: a document listener would need an effect to attach.
   const wrapRef = useRef(null);
 
   const close = useCallback(() => setOpenId(null), []);
 
-  // One look for every row, hooded or not: the seq of the last line you heard
-  // them say. Fetch-then-set from a click rather than an effect — the readout
-  // is one round trip and the dialog is open the whole time it is in flight.
+  // Fetch-then-set from a click, not an effect: the dialog is open the whole time the readout is in flight.
   const lookAtSeq = useCallback(
     (seq) => {
       close();
@@ -245,10 +204,7 @@ export default function HereList({
               aria-expanded={openId === person.characterId}
               onClick={() => setOpenId(openId === person.characterId ? null : person.characterId)}
             >
-              {/* Unseen, this falls through to their own face — a name has
-                  nothing to hide, and withholding it would only make the
-                  column harder to read. `avatarPath` is set only for a forced
-                  name's plaque or a face frozen at the last line you heard. */}
+              {/* `avatarPath` is set only for a forced name's plaque or a face frozen at the last line you heard. */}
               <CharacterAvatar
                 characterId={person.characterId}
                 name={person.name}
@@ -262,10 +218,7 @@ export default function HereList({
                 {person.characterId === selfId ? <span className="text-muted"> · you</span> : null}
               </span>
             </button>
-            {/* No eye until you have heard them. Absent rather than greyed:
-                the row above already drops it for yourself, so that is one
-                rule instead of two, and a disabled eye would need a sentence
-                explaining itself. */}
+            {/* No eye until you have heard them. Absent rather than greyed — one rule instead of two. */}
             {person.characterId !== selfId && person.sightingSeq && (
               <span className="chat-person-eye">
                 <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
@@ -284,9 +237,7 @@ export default function HereList({
         </div>
       ))}
 
-      {/* Keyed by POSITION rather than by token: db/lib/whosHere.js mints no
-          token at all when there is no AUTH_SECRET to key the HMAC with, and
-          two hoods would then share the key `hooded-null`. */}
+      {/* Keyed by POSITION, not token: with no AUTH_SECRET, db/lib/whosHere.js mints none, and two hoods would share `hooded-null`. */}
       {concealed.map((person, index) => (
         <div key={`hooded-${index}`} className="chat-person-wrap">
           <div className="chat-person-row">
@@ -297,9 +248,7 @@ export default function HereList({
               aria-expanded={openId === `hooded-${index}`}
               onClick={() => setOpenId(openId === `hooded-${index}` ? null : `hooded-${index}`)}
             >
-              {/* The mask, but only if you watched them wear it. Otherwise
-                  the question-mark plate: a room full of hoods should not
-                  publish which cult is standing in it (PROXYING.md §5). */}
+              {/* The mask, only if you watched them wear it — else the question-mark plate (PROXYING.md §5). */}
               <CharacterAvatar
                 characterId={null}
                 name={person.alias}
@@ -315,8 +264,7 @@ export default function HereList({
               </span>
             )}
           </div>
-          {/* The same menu the named rows get, filtered to what you can do
-              to somebody you cannot name. */}
+          {/* The same menu the named rows get, filtered to what you can do to somebody you cannot name. */}
           {openId === `hooded-${index}` && (
             <PersonMenu
               person={{ ref: person.token ?? null, name: person.alias, hooded: true }}
@@ -329,8 +277,7 @@ export default function HereList({
         </div>
       ))}
 
-      {/* Across a modular gate: seen through the bars, so listed, but nothing
-          here can be done to them — no menu, no eye. */}
+      {/* Across a modular gate: seen through the bars, so listed, but nothing can be done to them — no menu, no eye. */}
       {(people?.across ?? []).map((group) => (
         <div key={group.locationId}>
           <p className="chat-section-title">

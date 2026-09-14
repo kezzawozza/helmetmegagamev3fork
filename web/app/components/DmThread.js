@@ -18,12 +18,10 @@ import DmActionRow from "./DmActionRow";
 import { useRequestActions } from "./RequestActionsProvider";
 
 // The one shared thread — the player desk's conversation pane and the
-// inspector's DMs tab both render this. It reads like a chat client rather
-// than a support inbox: flat rows, one header (avatar, name, time) per run of
-// messages from the same person, day dividers, a NEW line where the unread
-// ones start, and a scroll that follows the conversation only when you're
-// already at the bottom. `messages` are DirectMessage DTOs; `createdAt` may
-// be a Date (server-rendered) or an ISO string (live feed).
+// inspector's DMs tab both render this. Flat rows, one header (avatar, name,
+// time) per run from the same person, day dividers, a NEW line, and a scroll
+// that follows the conversation only when already at the bottom. `messages`
+// are DirectMessage DTOs; `createdAt` may be a Date or an ISO string.
 
 // Quiet source labels for the GM-authored rows that still need a "what kind
 // of GM message is this" hint next to the name.
@@ -33,11 +31,9 @@ const SOURCE_LABELS = {
   gm_letter: "by bird",
 };
 
-// The three letter sources now come from @lifeweb/db/lib/dmKinds rather than
-// being copied here as literals. That import is safe by the same rule that
-// lets a client component import @lifeweb/db/lib/constants — the module requires
-// nothing, so it cannot drag PrismaClient into the browser bundle. Importing
-// from the @lifeweb/db BARREL still would.
+// The letter sources come from @lifeweb/db/lib/dmKinds, safe for a client
+// component because that module requires nothing — importing from the
+// @lifeweb/db BARREL still would drag PrismaClient into the bundle.
 
 const RUN_GAP_MS = 7 * 60_000;
 const AT_BOTTOM_PX = 80;
@@ -50,60 +46,41 @@ function isEmbed(m) {
   return m.meta?.embed === true;
 }
 
-// A letter sent or answered from the Dev Panel (BIRD.md §9). It renders as an
-// object rather than as chat, because that is what it is — a piece of paper
-// that changed hands, with a name and possibly a seal on it.
-//
-// The outbound row's `content` is the notice the player actually received
-// ("A bird finds you..."), so the letter's own words ride in meta and are what
-// gets drawn. The inbound row's content IS the reply, so it falls back to that.
+// A letter sent or answered from the Dev Panel (BIRD.md §9) — renders as an
+// object, not chat. The outbound row's `content` is the notice the player
+// received, so the letter's own words ride in meta; the inbound row's content IS the reply.
 function isLetter(m) {
   return m.source === GM_LETTER_SOURCE || m.source === GM_LETTER_REPLY_SOURCE || m.source === BIRD_SOURCE;
 }
 
-// A notice — the game telling this player something, rather than a person
-// writing to them. Resource grants, hunger, a seat assignment, a travel
-// outcome. They render as centred system lines, and runs of three or more
-// collapse. Pure plumbing (kind QUIET) never reaches this component:
-// @/lib/dmThread excludes it at the query.
+// A notice — the game telling this player something. Renders as a centred
+// system line; runs of three or more collapse. Pure plumbing (kind QUIET)
+// never reaches this component: @/lib/dmThread excludes it at the query.
+// isMention is NOT gated on perspective: the GM chair never receives one (the
+// query drops it), and gating it would let the two chairs disagree on item keys.
 //
-// The three exceptions are notices that have a body of their own to draw — a
-// letter, a mention relay, an embed. They are quiet in the inbox like any
-// other notice, but collapsing one into "3 automated messages" would throw
-// away the only thing worth looking at. Note isMention is NOT gated on the
-// perspective here: the GM chair never receives one (the query drops it), and
-// gating it would let the two chairs disagree about item keys.
 // A notice that still asks something — an offer's Accept/Decline, a seat's
-// Decline. `actionable` is stamped server-side by web/lib/dmActions.js, so a
-// row whose offer has since been answered is background texture again.
+// Decline. `actionable` is stamped server-side by web/lib/dmActions.js, so an
+// answered offer is background texture again.
 function liveAction(m) {
   return m.actionable ? dmActionOf(m) : null;
 }
 
+// A future inbound writer that forgets `kind` must not get collapsed; a row with live buttons is a question, not texture.
 function isEffect(m) {
   return (
     m.kind === DM_KIND.NOTICE &&
-    // A player's own words can never be background texture. Nothing writes an
-    // INBOUND notice today, but the DB default is NOTICE, so a future inbound
-    // writer that forgets `kind` would otherwise have its message collapsed
-    // into "3 automated messages" instead of merely misfiled.
     m.direction === "OUTBOUND" &&
     !isEmbed(m) &&
     !isLetter(m) &&
     !isMention(m) &&
-    // The fourth exception, and the one that matters most: a row with live
-    // buttons is a question, not texture. Collapsed into "3 automated
-    // messages" it would be unanswerable without knowing to unfold it.
     !liveAction(m)
   );
 }
 
-// A mention relay, read from the player's chair. The row's content is the
-// Discord DM (a line and a Discord link); here the link is the Chat place
-// the ping happened in, since that is where this reader already is. A row
-// with no placeKey (an unmapped channel, or older than the meta) falls back
-// to the content as written. The desk never renders one: the GM chair's
-// filter drops the source (web/lib/dmThread.js#withoutDmNoise).
+// A mention relay, read from the player's chair — links to the Chat place
+// instead of Discord. No placeKey falls back to the content as written. The
+// desk never renders one: web/lib/dmThread.js#withoutDmNoise drops the source.
 function isMention(m) {
   return m.source === MENTION_SOURCE;
 }
@@ -122,15 +99,11 @@ function MentionBody({ message }) {
   );
 }
 
-// The web's half of Discord's Reply button. It sits ON the letter, where
-// Discord's does, rather than in the generic button row under it: answering
-// means picking which of your papers goes back, which is a dialog and not an
-// Accept (db/lib/dmActions.js, on why BIRD_REPLY has no labels).
-//
-// Drawn only where all three are true — the row still names a live window
-// (`actionable`, stamped server-side by web/lib/dmActions.js), and there is a
-// sheet mounted to open the dialog from. The desk's inspector has no provider,
-// so a GM reading the same thread sees the letter as the record it is.
+// The web's half of Discord's Reply button — sits ON the letter, not the
+// generic button row: answering picks which paper goes back, a dialog not an
+// Accept (db/lib/dmActions.js, on why BIRD_REPLY has no labels). Drawn only
+// where a sheet is mounted to open the dialog from — the desk's inspector has
+// no provider, so a GM sees the letter as the record it is.
 function LetterReply({ message }) {
   const actions = useRequestActions();
   const action = message.actionable ? dmActionOf(message) : null;
@@ -153,10 +126,7 @@ function LetterBody({ message }) {
         {meta.replierName && <span className="dm-letter-from">from {meta.replierName}</span>}
       </div>
       {meta.sealed && meta.sealMark && <p className="dm-letter-seal">Sealed. {meta.sealMark}</p>}
-      {/* Through the renderer, like every other body in this thread. It was a
-          raw string, which is how a letter carrying a mention or a `<t:…>`
-          reached its reader as literal characters — the same gap that put a
-          raw `<t:1757700120:F>` in a lobby DM, one component further down. */}
+      {/* Through the renderer, like every other body in this thread — avoids the raw `<t:1757700120:F>` lobby-DM bug. */}
       {text && <MarkdownContent content={text} className="dm-letter-text" />}
       <LetterReply message={message} />
     </div>
@@ -168,9 +138,8 @@ function speakerKey(m) {
   return `out:${m.authorDiscordUserId ?? "bot"}`;
 }
 
-// Usually the thread owns its own scroll (.dm-thread's overflow-y: auto). In
-// the player desk the pane owns it instead (.desk-convo-thread .dm-thread
-// sets overflow-y: visible), so walk up to whichever element scrolls.
+// Usually .dm-thread owns its own scroll; the player desk pane owns it
+// instead (.desk-convo-thread .dm-thread overflow-y: visible) — walk up.
 function getScrollEl(el) {
   let node = el;
   while (node) {
@@ -228,9 +197,8 @@ function buildItems(messages, newSinceMs, now, newDirection) {
   return items;
 }
 
-// Splits a flattened embed's `content` into a title, an optional plain
-// description, and any `**Field**: value` rows. See bot/src/lib/dm.js for
-// how the embed got flattened into content in the first place.
+// Splits a flattened embed's `content` (see bot/src/lib/dm.js) into a title,
+// an optional description, and any `**Field**: value` rows.
 const FIELD_LINE = /^\*\*(.+?)\*\*:\s*(.*)$/;
 
 function parseEmbedContent(content) {
@@ -288,9 +256,7 @@ function EmbedBody({ message }) {
   );
 }
 
-// A bot/effect notification — background texture, not a conversational turn.
-// No avatar, no name, no row shape, the way nobody reads Discord's own "X
-// pinned a message" lines.
+// A bot/effect notification — background texture, no avatar, no name, no row shape.
 function SystemLine({ message }) {
   return (
     <div className="dm-system-line-row">
@@ -314,9 +280,7 @@ function CollapsedGroup({ messages }) {
   );
 }
 
-// What a player sees on the game's side of the conversation: every outbound
-// row, whoever typed it, wears this one face. The desk sees GMs by name; the
-// player sees Bascinet (CHAT.md §2b).
+// Every outbound row wears this one face for the player; the desk sees GMs by name (CHAT.md §2b).
 const BASCINET_PROFILE = Object.freeze({ username: "Bascinet", avatarUrl: null });
 
 function Row({ item, gmProfileById, character, now, perspective, onRetry, onDiscard }) {
@@ -372,11 +336,7 @@ function Row({ item, gmProfileById, character, now, perspective, onRetry, onDisc
           <MarkdownContent content={message.content} />
         )}
         {perspective === "player" && liveAction(message) && <DmActionRow action={liveAction(message)} />}
-        {/* A send that failed stays where it was written rather than being
-            swept back into the composer, which could clobber a sentence the
-            writer has started since. Retry reuses the send's nonce, so a
-            message that did reach Discord before the answer got lost cannot
-            be delivered a second time. */}
+        {/* Retry reuses the send's nonce, so a message that already reached Discord cannot be delivered twice. */}
         {message.failed && (
           <div className="dm-row-failed">
             <span>{message.error || "That didn't send."}</span>
@@ -406,15 +366,11 @@ export default function DmThread({
   character = null,
   newSinceMs = null,
   myDiscordUserId = null,
-  // Which chair the reader is in. The desk is "gm": inbound rows are the
-  // other person's, the NEW line marks the first unread inbound, and the
-  // reader's own send is an outbound row they authored. Chat's Bascinet
-  // pane is "player": the same rows, with every one of those the other way
-  // round. Nothing else in the renderer knows which is which.
+  // Which chair the reader is in: "gm" (inbound is the other person's) or
+  // "player" (Chat's Bascinet pane — the same rows, reversed).
   perspective = "gm",
-  // Only the composer that owns an optimistic row can re-send or drop it, so
-  // both are handed in. Absent everywhere else, which is also every place a
-  // row can never be `failed`.
+  // Only the composer that owns an optimistic row can re-send or drop it;
+  // absent everywhere a row can never be `failed`.
   onRetry = null,
   onDiscard = null,
 }) {
@@ -424,14 +380,10 @@ export default function DmThread({
   const prevLastIdRef = useRef(null);
   const anchorHeightRef = useRef(null);
   const loadingOlderRef = useRef(false);
-  // Where the NEW line goes is decided once, when the thread opens: mark-read
-  // fires a moment later, and the line must not move because of it. State
-  // seeded from the prop, never re-synced.
+  // Decided once, when the thread opens — mark-read fires later and must not move it.
   const [newSince] = useState(newSinceMs);
 
-  // Whether the reader is at (or near) the bottom, kept as state because the
-  // "N new messages ↓" pill renders off it. It only ever changes from the
-  // scroll listener — an event callback, not an effect body.
+  // Kept as state for the "N new messages ↓" pill; only ever changes from the scroll listener.
   const [atBottom, setAtBottom] = useState(true);
   const [seenBottomId, setSeenBottomId] = useState(null);
 
@@ -445,17 +397,14 @@ export default function DmThread({
 
   const firstId = messages[0]?.id ?? null;
   const lastId = messages[messages.length - 1]?.id ?? null;
-  // The scroll listener below needs the newest id without re-subscribing on
-  // every message, so it reads a ref that an effect keeps current.
+  // The scroll listener needs the newest id without re-subscribing on every message.
   const lastIdRef = useRef(lastId);
   useEffect(() => {
     lastIdRef.current = lastId;
   }, [lastId]);
 
   // Follow the conversation only when already following it. A GM's own send
-  // always goes to the bottom — pressing Enter in a composer pinned there
-  // means that's where they were. A player's message landing while the GM
-  // is reading history must not yank them.
+  // always goes to the bottom; a player's message landing while the GM reads history must not yank them.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -484,8 +433,7 @@ export default function DmThread({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
-  // The scroll listener: tracks "at the bottom" and remembers the newest row
-  // seen from there, which is what the pill counts against.
+  // Tracks "at the bottom" and remembers the newest row seen from there, what the pill counts against.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return undefined;
@@ -507,8 +455,7 @@ export default function DmThread({
     onLoadOlder();
   }, [hasMore, onLoadOlder]);
 
-  // Older pages load on their own as the reader nears the top, the way a chat
-  // client does it, instead of on a button.
+  // Older pages load on their own as the reader nears the top, not on a button.
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel || !hasMore || !onLoadOlder) return undefined;

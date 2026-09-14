@@ -98,9 +98,7 @@ async function loadRecipe(tagId) {
       requirementSkills: { select: { id: true, slug: true, name: true } },
     },
   });
-  // requirementItems rides along on the full row `include` gives us — see
-  // resolveRecipeItems below. Nothing to add here; noted because a narrower
-  // `select` on this query would silently disable ingredient checking.
+  // requirementItems rides on the full row `include` gives us (resolveRecipeItems below) — a narrower `select` here would silently disable ingredient checking.
   if (!tag) throw new UserError("Unknown tag.");
   // Re-checked here because the client's filtered list is only advisory.
   if (!tag.craftable)
@@ -128,13 +126,8 @@ async function requireRecipeSkills(character, tag) {
   }
 }
 
-// Smithing and building need a forge; ordinary crafting needs your hands.
-//
-// The rule is read off the recipe's own skills rather than a per-tag flag, so
-// a new sword is gated the moment it names a smithing skill and nobody has to
-// remember a second field. Reach is "hold it, or stand somewhere one is set
-// up" (db/lib/equipmentReach.js) — which is what makes the Factory floor and
-// the Keep's forge worth walking to. See docs/systemdocs/SMITHING.md.
+// Smithing and building need a forge; ordinary crafting needs your hands. Read off the recipe's own skills rather
+// than a per-tag flag, so a new sword is gated the moment it names a smithing skill. Reach is "hold it, or stand somewhere one is set up" (db/lib/equipmentReach.js). See docs/systemdocs/SMITHING.md.
 async function requireWorkshop(character, tag) {
   if (!needsWorkshop(tag)) return;
   if (await hasEquipmentInReach(prisma, character, WORKSHOP_EQUIPMENT_SLUG))
@@ -144,49 +137,14 @@ async function requireWorkshop(character, tag) {
   );
 }
 
-// The recipe's INGREDIENTS (Tag.requirementItems), resolved against what the
-// crafter is holding. Runs OUTSIDE the transaction, so somebody who can't make
-// it is told before a single ⬢ moves.
-//
-// Most ingredients are SPENT, `quantity` units per craft — three molotovs take
-// three Alcohol, the same way they take three lots of ⬢. An entry may also
-// carry its own `count`, which multiplies: a blank book takes ten sheets, and
-// three of them take thirty. An entry marked
-// `keep` is the old hold-check instead: a body has its own lifecycle, so
-// bottling a second Miasma over the same corpse is still allowed. A `group`
-// entry is always kept, and is the only thing that can name a corpse written
-// at death (that tag is not in docs/tags.yaml, so no authored slug could ever
-// have named it). An `anyOf` entry is a spend the PLAYER picks — the Craft
-// dialog posts `ingredientChoice`, and the membership check here is what makes
-// that dialog a hint rather than a lock.
-//
-// Your OWN sheet only — never a room stash you could reach. Spending happens
-// once, when the work STARTS: a multi-turn project pays its ingredients up
-// front, the rule its ⬢ already lived under, so a continue re-checks nothing
-// about them.
-// INGREDIENT SLOTS (docs/systemdocs/COOKING.md) ride alongside `items` rather
-// than inside it. `ingredientChoices` is the array the cooking dialog posts:
-// the slugs the cook slotted, in order.
-//
-// Membership is not a list on the recipe — it is "any tag carrying a `cooked`
-// block", which is why the caller resolves the rows and hands them in as
-// `cookableBySlug`. A recipe never has to be edited to accept a new
-// ingredient, and this function never has to know what any of them are. That
-// genericity is what lets `web/app/(app)/character/trinketActions.js` reuse
-// this exact function for a SECOND, disjoint pool — "any tag carrying an
-// `inlayValue`" — by handing in its own map under the same name. The two
-// pools never overlap: cooking and Trinket read different columns, so a stew
-// ingredient can never be slotted into a Trinket and vice versa.
-// `ingredientChoices` arrives ALREADY cleaned (trimmed, blanks dropped) — the
-// caller has to clean it anyway to look the rows up, and cleaning it twice is
-// how the two copies drift.
+// Ingredient SLOTS (COOKING.md), alongside `items` not inside it. Runs OUTSIDE the transaction, against your OWN sheet only, once when work STARTS (a project pays up front, a continue re-checks nothing). `ingredientChoices` arrives ALREADY cleaned by the caller — don't re-clean, two copies would drift.
+// Membership is "any tag with a `cooked` block", resolved by the caller into `cookableBySlug` — that genericity is what lets trinketActions.js reuse this for the disjoint `inlayValue` pool under the same map name; cooking and Trinket never overlap.
 export async function resolveIngredientSlots(character, tag, quantity, ingredientChoices, cookableBySlug) {
   const slots = tag.requirementIngredientSlots;
   const plan = { spend: [], cookedFrom: [] };
   const picks = ingredientChoices ?? [];
   if (!slots) {
-    // Picks posted at a recipe with no slots are ignored rather than refused,
-    // the same posture quantity takes on a non-stackable.
+    // Picks posted at a recipe with no slots are ignored rather than refused — the same posture quantity takes on a non-stackable.
     return plan;
   }
   if (picks.length < slots.min) {
@@ -199,10 +157,7 @@ export async function resolveIngredientSlots(character, tag, quantity, ingredien
   if (picks.length > slots.max) {
     throw new UserError(`That takes at most ${slots.max}.`);
   }
-  // No slug twice. It keeps "it tastes like onion and onion" off the notice,
-  // and it keeps the spend honest: two slots naming one stack would plan two
-  // independent draws against it and the second refusal would name a count
-  // nobody could make sense of.
+  // No slug twice — keeps "it tastes like onion and onion" off the notice, and keeps the spend honest: two slots naming one stack would draw against it twice and the second refusal would name a count nobody could make sense of.
   if (new Set(picks).size !== picks.length) {
     throw new UserError("You've put the same ingredient in twice.");
   }
@@ -226,6 +181,8 @@ export async function resolveIngredientSlots(character, tag, quantity, ingredien
   return plan;
 }
 
+// requirementItems: most entries are SPENT `quantity` per craft (× an entry's own `count` multiplier); `keep` is a
+// hold-check instead (a body has its own lifecycle — a second Miasma bottled over the same corpse is still fine); `group` is always kept and is the only way to name a corpse written at death; `anyOf` is a spend the PLAYER picks via `ingredientChoice`, and the membership check here is what makes the dialog a hint, not a lock.
 function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
   const items = Array.isArray(tag.requirementItems) ? tag.requirementItems : [];
   const plan = { spend: [], hold: [] };
@@ -241,12 +198,7 @@ function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
       continue;
     }
     if (item.kind === "customOf") {
-      // A mint of this recipe never keeps the base slug — its only trace of
-      // where it came from is `customOfSlug` (mintCustomCraft). The base row
-      // itself still counts, for the rare case it's what's actually held.
-      // Several candidates: take the least remarkable one (lowest mealMood,
-      // then oldest), not a picker — the player is spending a commodity, not
-      // choosing a flavour.
+      // A mint of this recipe never keeps the base slug — its trace is `customOfSlug` (mintCustomCraft); the base row still counts if held. Several candidates: take the least remarkable (lowest mealMood, then oldest), not a picker — spending a commodity, not choosing a flavour.
       const candidates = held
         .filter((ct) => ct.tag.customOfSlug === item.slug || ct.tag.slug === item.slug)
         .sort((a, b) => (a.tag.mealMood ?? 0) - (b.tag.mealMood ?? 0) || a.acquiredAt - b.acquiredAt);
@@ -296,30 +248,8 @@ function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
   return plan;
 }
 
-// Spends what resolveRecipeItems planned, inside the SAME transaction as the
-// payment and under the row lock above.
-//
-// **The check is still separate from the write.** The row is read first and
-// a short stack refuses the craft outright — `dropCharacterTag`'s own
-// decrement is unconditional (it deletes whatever exists rather than
-// refusing an overdraw), so this function keeps the refusal in front of it
-// rather than after. What changed (fix round M4b, fix 4): the actual spend
-// now goes through `dropCharacterTag` instead of a hand-rolled
-// decrement/delete, because a manual write here knew nothing about
-// `poisonedCount`/`poisonPayload` — crafting off a poisoned stack used to
-// leave the row's poison columns untouched while quantity shrank under
-// them, eventually driving poisonedCount above quantity. Safe to do
-// unconditionally here specifically because every caller already holds the
-// character row lock (taken above, or by the caller per its own comment)
-// before this runs, so nothing can shrink the row between the check and the
-// drop. The draw itself — whether any of the units actually spent were
-// tainted — is discarded on purpose: a poisoned ingredient's dose is lost
-// in the crafting rather than carried into the output (that's as far as
-// this fix goes; whether a crafted item should ever inherit input taint is
-// a product question for later, not answered here).
-//
-// Returns the `replaced`-shaped snapshot the audit row records as
-// `details.consumed` — the one record of the spend a GM repairs from.
+// Spends what resolveRecipeItems planned, in the SAME transaction as the payment, under the row lock above. **The check is still separate from the write**: read first, a short stack refuses outright, since `dropCharacterTag`'s decrement is unconditional — safe here only because the caller already holds the row lock. Goes through `dropCharacterTag` (not a hand-rolled decrement) so poisonedCount/poisonPayload stay consistent; whether drawn units were tainted is discarded on purpose, a poisoned dose is lost in the crafting, never carried into the output.
+// Returns the `replaced`-shaped snapshot the audit row records as `details.consumed` — the one record of the spend a GM repairs from.
 async function consumeRecipeItems(tx, characterId, plan) {
   for (const item of plan.hold) {
     const still = await tx.characterTag.count({
@@ -353,18 +283,10 @@ async function consumeRecipeItems(tx, characterId, plan) {
   return consumed;
 }
 
-// Prerequisite chain, exclusivity, tier replacement, duplicates — the same
-// checks a purchase runs (web/lib/characterCreation.js). Returns the held
-// lower tiers a grant would replace, snapshotted for Undo.
-//
-// `db` defaults to prisma for the fast fail outside the transaction; the
-// grant paths run it AGAIN inside the tx via recheckGrantsUnderLock below,
-// because a turn can now hold several Move-costing crafts and two of them
-// racing could otherwise both pass an exclusivity or duplicate check that
-// was true when each one read the sheet.
+// Prerequisite chain, exclusivity, tier replacement, duplicates — the same checks a purchase runs (web/lib/characterCreation.js). Returns the held lower tiers a grant would replace, snapshotted for Undo.
+// `db` defaults to prisma for the fast fail outside the transaction; recheckGrantsUnderLock reruns it inside the tx, since a turn can hold several Move-costing crafts racing past the same exclusivity/duplicate check.
 async function craftGrantChecks(character, tag, db = prisma) {
-  // The whole catalog comes down so a chain walk never dead-ends on an
-  // ancestor the character doesn't hold.
+  // The whole catalog comes down so a chain walk never dead-ends on an ancestor the character doesn't hold.
   const chainRows = await db.tag.findMany({
     select: {
       id: true,
@@ -419,11 +341,8 @@ async function craftGrantChecks(character, tag, db = prisma) {
     }));
 }
 
-// The in-tx re-run, under the Character row lock, against the sheet as it is
-// NOW rather than as it was when the fast fail read it. Stackable recipes
-// skip it — a racing grant there only adds units to a stack, which nothing
-// in craftGrantChecks refuses — so the everyday brews never pay for it.
-// Returns the fresh `replaced` snapshot, which is the one the grant uses.
+// The in-tx re-run, under the Character row lock, against the sheet as it is NOW rather than when the fast fail
+// read it. Stackable recipes skip it — a racing grant there only adds units, which craftGrantChecks never refuses — so everyday brews never pay for it. Returns the fresh `replaced` snapshot, which is the one the grant uses.
 async function recheckGrantsUnderLock(tx, character, tag) {
   if (tag.stackable) return null;
   const fresh = await tx.characterTag.findMany({
@@ -445,13 +364,7 @@ export async function resolveCraftPayer(character, payerKey, cost) {
   return payer;
 }
 
-// Smithing only: an obol is one ⬢ (DEPOT.md), so a smith may pay a recipe's
-// cost in any mix of the two — some off their own coin, the rest through the
-// usual payer. Not a full swap: `resourceCost` still exists and still needs a
-// payer for whatever the obols don't cover. Clamped to the recipe's own
-// total — obols past that would just be wasted — and refused outright, not
-// clamped, if the smith doesn't actually hold that many: silently spending
-// fewer than asked would bill the payer for a mistake that wasn't theirs.
+// Smithing only: an obol is one ⬢ (DEPOT.md), so a smith may pay in any mix of the two — some off their own coin, the rest through the usual payer. Clamped to the recipe's own total (excess obols wasted); refused outright, not silently clamped, if the smith doesn't hold that many — else the payer gets billed for a mistake that wasn't theirs.
 const OBOL_SLUG = "obol";
 function resolveObolSpend(character, tag, totalCost, rawObolsSpent) {
   if (craftFamily(tag) !== "smithing") return { obolsSpent: 0, line: null };
@@ -467,36 +380,15 @@ function resolveObolSpend(character, tag, totalCost, rawObolsSpent) {
   };
 }
 
-// requireFreeMove and fileAutoRoutine moved to web/lib/moveSpend.js so the
-// Thanati's Recover Equipment (thanatiActions.js) spends a Move by the same
-// two rules as Bury, Engrave and Extract.
+// requireFreeMove and fileAutoRoutine moved to web/lib/moveSpend.js so Thanati's Recover Equipment (thanatiActions.js) spends a Move by the same two rules as Bury, Engrave and Extract.
 
 function craftLabel(tag, quantity) {
   return quantity > 1 ? `${quantity}× ${tag.name}` : tag.name;
 }
 
 
-// The finished thing lands on the sheet: the replaced tiers come off, the
-// tag goes on with its clock, and the ADD_TAG request records all of it.
-// The FIFTH runtime authoring door onto the tag catalog (db/lib/paperMint.js
-// lists the other four): a `customizable` recipe crafted with player words
-// mints a clone of the base row — custom + ephemeral, `craftable: false` so
-// it is an ITEM and never a recipe — and the craft grants THAT row. Runs
-// OUTSIDE the craft transaction, deliberately: createWithRetry's P2002 retry
-// is unusable inside one (paperMint.js documents the 25P02 trap), and the
-// composed name collides ROUTINELY — the same cook naming the same dish
-// twice is the normal case, not the freak one. Two answers, in order: an
-// identical existing mint (same name, same words) is REUSED, so the second
-// batch of "Steak Dinner (Lavish Meal)" stacks onto the first; a same-name,
-// different-words mint picks up a "(2)" via the retry. The caller deletes a
-// freshly minted row if the transaction it fed then fails.
-//
-// The mint itself now lives in db/lib/customCraftMint.js — Trinket's
-// turn-end pass (db/lib/trinketPass.js) needs it too, and db/lib can never
-// require anything under web/, so the only way to share it was to move it
-// there and have this side become the thin wrapper: catch the plain Error
-// that side throws and reraise it as the UserError a server action needs.
-// Every existing call site (cooking, the Death Mask, …) is unchanged.
+// FIFTH runtime authoring door onto the tag catalog (db/lib/paperMint.js has the other four): a `customizable` recipe mints a custom+ephemeral clone (`craftable: false`, an ITEM never a recipe) and grants THAT row. Runs OUTSIDE the craft tx (createWithRetry's P2002 retry can't nest, and name collisions are routine — reused if identical, "(2)"'d if not; caller deletes a fresh mint if the tx then fails).
+// Lives in db/lib/customCraftMint.js (db/lib can't require web/); this wrapper reraises its plain Error as a UserError.
 export async function mintCustomCraft(db, baseTag, opts) {
   try {
     return await dbMintCustomCraft(db, baseTag, opts);
@@ -524,26 +416,15 @@ async function grantCrafted(
     project = null,
     action = null,
     consumed = [],
-    // The base RECIPE when `tag` is a minted custom row — what the ration
-    // counters bill this grant against (web/lib/requests.js reads
-    // details.baseTagId), and what a GM reading the audit row sees it was.
+    // The base RECIPE when `tag` is a minted custom row — what the ration counters bill against (web/lib/requests.js reads details.baseTagId), and what a GM reading the audit row sees it was.
     baseTag = null,
-    // Recipe-specific extras for the audit row (the Death Mask records its
-    // source corpse here).
+    // Recipe-specific extras for the audit row (the Death Mask records its source corpse here).
     extraDetails = {},
   },
 ) {
   for (const snapshot of replaced)
     await dropCharacterTag(tx, character.id, snapshot.tagId);
-  // Brewing (Distilling): two items for the same cost. The doubling lives
-  // HERE, at the single grant every craft path funnels through, rather than
-  // beside the three callers — and deliberately downstream of the ingredient
-  // plan and the ⬢ spend, which are both computed from `quantity` and must
-  // stay that way. Doubling the cost as well would make the tag do nothing.
-  //
-  // The family is read off `baseTag ?? tag`, not `tag`: when a recipe mints a
-  // custom row the minted tag carries no requirementSkills, so craftFamily()
-  // would read it as the generic "craft" and quietly stop doubling.
+  // Brewing (Distilling): two items for the same cost. The doubling lives HERE, at the single grant every craft path funnels through, deliberately downstream of the ingredient plan and ⬢ spend (both computed from `quantity`, doubling the cost too would make the tag do nothing). Family is read off `baseTag ?? tag`, not `tag`: a minted custom row carries no requirementSkills, so craftFamily() on `tag` would read it as generic "craft" and quietly stop doubling.
   const recipeTag = baseTag ?? tag;
   const distilled =
     craftFamily(recipeTag) === "brewing" &&
@@ -551,8 +432,7 @@ async function grantCrafted(
   const granted = distilled ? quantity * 2 : quantity;
   await addToStack(tx, character.id, tag.id, granted, {
     source: "CRAFT",
-    // Must arrive already stamped or it never expires — resolveNeeds()'s
-    // sweep matches on expiresTurn and nothing backfills it.
+    // Must arrive already stamped or it never expires — resolveNeeds()'s sweep matches on expiresTurn and nothing backfills it.
     expiresTurn: await expiryForGrant(tx, tag, openTurn, {
       characterId: character.id,
       where: "craftRequest",
@@ -564,36 +444,24 @@ async function grantCrafted(
     actorDiscordUserId: session.discordUserId,
     actionType: "request_craft_tag",
     targetCharacterId: character.id,
-    // The ration counters below read this back; without it they cannot tell
-    // this turn's work from last turn's.
+    // The ration counters below read this back; without it they can't tell this turn's work from last turn's.
     turnId: openTurn?.id ?? null,
     details: {
       tagId: tag.id,
       tagName: tag.name,
-      // RECIPE RUNS, not units granted — the per-turn rations in
-      // web/lib/requests.js count this, so a Distilling brewer must not have
-      // their Dead Simple allowance halved by their own doubled output.
-      // What actually landed is recorded beside it when the two differ.
+      // RECIPE RUNS, not units granted — web/lib/requests.js's per-turn rations count this, so a Distilling brewer's Dead Simple allowance isn't halved by their own doubled output. What actually landed is recorded beside it when the two differ.
       quantity,
-      // Only when the doubling actually landed. addToStack pins a
-      // non-stackable tag at quantity 1 however many are granted, so a
-      // non-stackable brew doubles to nothing — and a row claiming otherwise
-      // is a lie in the GM ledger rather than a rounding error.
+      // Only when the doubling actually landed — addToStack pins a non-stackable tag at quantity 1 regardless, so a non-stackable brew doubles to nothing and a row claiming otherwise would lie in the GM ledger.
       ...(distilled && tag.stackable ? { granted, distilled: true } : {}),
       resourcesSpent: cost,
       payer: payerParty,
       projectId: project?.id ?? null,
-      // The base RECIPE behind a minted custom row — the ration counters in
-      // web/lib/requests.js bill by it, so a custom Lavish Meal obeys the
-      // plain one's per-turn cap.
+      // The base RECIPE behind a minted custom row — web/lib/requests.js's ration counters bill by it, so a custom Lavish Meal obeys the plain one's per-turn cap.
       ...(baseTag ? { baseTagId: baseTag.id, baseTagName: baseTag.name } : {}),
       ...(project ? { turnsNeeded: project.turnsNeeded } : {}),
       ...(action ? { actionId: action.id } : {}),
       ...(replaced.length ? { replaced } : {}),
-      // What the ingredients cost, in the `replaced` shape. This row is the
-      // ONLY record of the spend now — a GM repairing a craft by hand reads
-      // it here. A multi-turn project spent these when it STARTED and
-      // carried the snapshot on CraftProject.consumed until now.
+      // What the ingredients cost, in the `replaced` shape. This row is the ONLY record of the spend now — a GM repairs by hand from here. A multi-turn project spent these when it STARTED and carried the snapshot on CraftProject.consumed until now.
       ...(consumed?.length ? { consumed } : {}),
       ...extraDetails,
     },
@@ -601,27 +469,17 @@ async function grantCrafted(
 }
 
 // --- The Death Mask (docs/tags.yaml `death-mask`) -------------------------
-//
-// The one recipe whose OUTPUT is named by an ingredient: the finished item is
-// stamped with the dead character's name ("Death Mask of Ada"), read off the
-// corpse it was cast over. The corpse is a group ingredient and so KEPT — but
-// a face can only be cut once, so the craft marks the corpse's own
-// description and refuses one already marked. The marker doubles as the
-// fiction: Examine says the face is gone.
+// The one recipe whose OUTPUT is named by an ingredient: stamped with the dead character's name, read off the corpse it was cast over. The corpse is a group ingredient and so KEPT, but a face can only be cut once — the craft marks the corpse's description and refuses one already marked; the marker doubles as the fiction, Examine says the face is gone.
 const DEATH_MASK_SLUG = "death-mask";
 const FACE_TAKEN_SENTENCE = "The face has been taken.";
 
 function maskNameFor(corpseName) {
-  // "Ada's Corpse" → "Ada"; "Ada's Corpse (2)" → "Ada (2)"; the authored
-  // monster corpses ("Graga Corpse") lose the bare word instead.
+  // "Ada's Corpse" → "Ada"; "Ada's Corpse (2)" → "Ada (2)"; authored monster corpses ("Graga Corpse") lose the bare word instead.
   const who = corpseName.replace(/'s Corpse\b/, "").replace(/ Corpse\b/, "").trim();
   return `Death Mask of ${who || "Nobody"}`;
 }
 
-// Which held corpse the mask is taken from. `ingredientChoice` carries the
-// corpse tag's SLUG (the same channel an anyOf pick uses — a recipe has at
-// most one of the two, so they cannot collide); a single unmarked corpse is
-// taken as chosen, the dialog's one-option convention.
+// Which held corpse the mask is taken from. `ingredientChoice` carries the corpse tag's SLUG (same channel an anyOf pick uses — a recipe has at most one of the two, so no collision); a single unmarked corpse is taken as chosen, the dialog's one-option convention.
 function resolveDeathMaskSource(character, ingredientChoice) {
   const corpses = character.tags.filter(
     (ct) => ct.tag?.group?.slug === "items-corpse",
@@ -642,9 +500,7 @@ function resolveDeathMaskSource(character, ingredientChoice) {
   return { tagId: picked.tagId, name: picked.tag.name };
 }
 
-// Marks the corpse inside the craft transaction. Compare-and-swap on the
-// exact description text, so two artists racing over one body cannot both
-// take the face — the loser's write matches nothing and the craft refuses.
+// Marks the corpse inside the craft transaction. Compare-and-swap on the exact description text, so two artists racing over one body cannot both take the face — the loser's write matches nothing and the craft refuses.
 async function takeFace(tx, source) {
   const row = await tx.tag.findUnique({
     where: { id: source.tagId },
@@ -673,49 +529,28 @@ export async function craftRequestImpl({
   tagId,
   quantity: rawQuantity,
   payerKey,
-  // Which member of an `anyOf` ingredient goes in — a slug the dialog posts,
-  // re-checked for membership and possession like everything else a client
-  // sends.
+  // Which member of an `anyOf` ingredient goes in — a slug the dialog posts, re-checked for membership and possession like everything else a client sends.
   ingredientChoice,
-  // The slugs a cook slotted, in order, on a recipe with `ingredientSlots`
-  // (docs/systemdocs/COOKING.md). A separate channel from `ingredientChoice`
-  // above because they answer different questions: that one picks a member of
-  // a list the recipe named, this one is an ordered set out of a catalog the
-  // recipe says nothing about. Re-checked here for membership, possession and
-  // count, so the chip list is a hint like every other disabled control.
+  // Slugs a cook slotted, in order, on a recipe with `ingredientSlots` (COOKING.md) — an ordered set out of a catalog the recipe names nothing about, unlike `ingredientChoice`'s pick from a named list. Re-checked here for membership, possession and count, so the chip list is a hint like any other disabled control.
   ingredientChoices,
-  // The custom-item fields (CRAFTING.md), honored only on a `customizable`
-  // recipe. cleanCustomText decides what survives — the same shared helper
-  // the dialog priced the +1 ⬢ with, so client and server cannot disagree
-  // about whether a whitespace-only name counts.
+  // Custom-item fields (CRAFTING.md), honored only on a `customizable` recipe. cleanCustomText decides what survives — the dialog priced the +1 ⬢ with the same helper, so client and server can't disagree on whether a whitespace-only name counts.
   customName,
   customDescription,
   // The builder's line, honored only where placement.inscribable says so.
   inscription,
-  // How many units the dialog TOLD the player would bill against their Move
-  // (0 when it showed the craft as free). The server refuses to bill more
-  // than was acknowledged: a stale tab whose free allowance ran out
-  // elsewhere gets a retry, not a silent Move charge. "Declining crafts
-  // nothing" is enforced here, not just in the confirm dialog.
+  // Units the dialog TOLD the player would bill against their Move (0 if shown free). The server refuses to bill more than acknowledged — a stale tab whose free allowance ran out elsewhere gets a retry, not a silent Move charge; "Declining crafts nothing" is enforced here, not just in the dialog.
   billedSeen: rawBilledSeen,
-  // Smithing only (resolveObolSpend re-checks): how many held Obols the
-  // smith wants to put toward this recipe's cost, the rest billed to the
-  // usual payer. Ignored on any other recipe.
+  // Smithing only (resolveObolSpend re-checks): held Obols to put toward this recipe's cost, rest billed to the usual payer. Ignored on any other recipe.
   obolsSpent: rawObolsSpent,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
   const tag = await loadRecipe(tagId);
   await requireRecipeSkills(character, tag);
-  // Fieldwork is the one exemption from the forge: a recipe naming builder-*
-  // skills otherwise demands Workshop Equipment in reach, which is right for
-  // heavy works and wrong for stakes and drying racks.
+  // Fieldwork is the one exemption from the forge: a recipe naming builder-* skills otherwise demands Workshop Equipment in reach — right for heavy works, wrong for stakes and drying racks.
   const placement = placementOf(tag);
   if (!placement?.fieldwork) await requireWorkshop(character, tag);
-  // A `placement:` recipe is BUILT ON SITE and never lands on a sheet, so the
-  // tag-tier gates below — prerequisites, exclusivity, tier replacement,
-  // stacks — have nothing to say about it. It never carries ingredients
-  // either; the sync refuses that pairing (db/lib/tagShapes.js).
+  // A `placement:` recipe is BUILT ON SITE and never lands on a sheet, so the tag-tier gates below (prerequisites, exclusivity, tier replacement, stacks) have nothing to say about it. Never carries ingredients either — the sync refuses that pairing (db/lib/tagShapes.js).
   if (placement)
     return openBuildSiteImpl(character, session, tag, {
       payerKey,
@@ -733,10 +568,7 @@ export async function craftRequestImpl({
     quantity,
     ingredientChoice,
   );
-  // Ingredient slots, on top of `items` (COOKING.md). The legal set is every
-  // tag carrying a `cooked` block, so it is read here rather than named on
-  // the recipe — one query, narrowed to what was actually posted, and the
-  // `cooked: { not: null }` is the membership check itself.
+  // Ingredient slots, on top of `items` (COOKING.md). Legal set is every tag with a `cooked` block, read here rather than named on the recipe — `cooked: { not: null }` is the membership check itself.
   const posted = (Array.isArray(ingredientChoices) ? ingredientChoices : [])
     .map((s) => (typeof s === "string" ? s.trim() : ""))
     .filter(Boolean);
@@ -748,44 +580,22 @@ export async function craftRequestImpl({
         })
       : [];
   const cookableBySlug = new Map(cookableRows.map((t) => [t.slug, t]));
-  // Just the tastes, for naming a dish nobody named (mintCustomCraft). Read
-  // here because the mint runs outside the craft transaction and must not
-  // open a query of its own.
+  // Just the tastes, for naming a dish nobody named (mintCustomCraft) — read here since the mint runs outside the craft transaction and must not open a query of its own.
   const cookedTastes = new Map(cookableRows.map((t) => [t.slug, t.cooked?.taste ?? ""]));
   const slotPlan = await resolveIngredientSlots(character, tag, quantity, posted, cookableBySlug);
-  // One plan from here on: the ingredients a dish spends are spent the same
-  // way, under the same lock, and land in the same `details.consumed`.
-  //
-  // MERGED BY TAG, not concatenated. No recipe today carries both an `items`
-  // block and slots, but nothing stops one, and two entries naming the same
-  // stack would have consumeRecipeItems draw against it twice off two
-  // independent re-reads — the second refusal quoting a count nobody could
-  // make sense of, and `details.consumed` showing two rows for one spend.
+  // One plan from here on, MERGED BY TAG not concatenated: two entries naming the same stack (no recipe does today, but nothing stops one) would have consumeRecipeItems draw against it twice off two independent re-reads — a nonsensical refusal count and two `details.consumed` rows for one spend.
   for (const line of slotPlan.spend) {
     const existing = itemPlan.spend.find((s) => s.tagId === line.tagId);
     if (existing) existing.quantity += line.quantity;
     else itemPlan.spend.push(line);
   }
   const cookedFrom = slotPlan.cookedFrom;
-  // The Death Mask binds a SPECIFIC corpse (the group entry above only
-  // proved one is held) — resolved out here for the fast fail, marked
-  // inside the transaction by takeFace.
+  // The Death Mask binds a SPECIFIC corpse (the group entry above only proved one is held) — resolved out here for the fast fail, marked inside the transaction by takeFace.
   const deathMask =
     tag.slug === DEATH_MASK_SLUG
       ? resolveDeathMaskSource(character, ingredientChoice)
       : null;
-  // The one shared verdict the dialog prices with (web/lib/customCraft.js):
-  // what the words amount to after cleaning, and what this recipe charges for
-  // them — usually CUSTOM_SURCHARGE, zero on the two meals, which buy them
-  // out (COOKING.md). Fields posted against a non-customizable recipe, and a
-  // description posted at a recipe that takes none, are dropped rather than
-  // refused — the same posture as quantity on a non-stackable.
-  //
-  // `mayCustomize` is the second half of the gate and reads the rung the
-  // recipe names (Tag.customizableSkillSlug — `smithing-skilled` on the arms
-  // and armour), so an apprentice cannot sign a cudgel. The sheet already
-  // hides the fields, but a sheet is a hint. Failing the rung drops the words
-  // AND the surcharge: nobody pays for a name they did not get.
+  // The shared verdict the dialog prices with (web/lib/customCraft.js): what the words amount to after cleaning, and what this recipe charges (usually CUSTOM_SURCHARGE, zero on the two meals — COOKING.md). Fields posted against a non-customizable recipe are dropped, not refused — same posture as quantity on a non-stackable. `mayCustomize` reads the rung the recipe names (Tag.customizableSkillSlug) so an apprentice can't sign a cudgel; failing it drops the words AND the surcharge — nobody pays for a name they didn't get.
   const { custom: customWanted, surcharge: customSurcharge } = customCraftFor(tag, {
     customName,
     customDescription,
@@ -801,9 +611,7 @@ export async function craftRequestImpl({
     totalCost,
     rawObolsSpent,
   );
-  // MERGED BY TAG, same reasoning as the ingredient-slot merge above: a
-  // recipe that ever names `obol` as its own ingredient must not have this
-  // draw against the same stack twice under two separate plan entries.
+  // MERGED BY TAG, same reasoning as the ingredient-slot merge above: a recipe naming `obol` as its own ingredient must not draw against the same stack twice under two separate plan entries.
   if (obolSpendLine) {
     const existing = itemPlan.spend.find((s) => s.tagId === obolSpendLine.tagId);
     if (existing) existing.quantity += obolSpendLine.quantity;
@@ -813,15 +621,7 @@ export async function craftRequestImpl({
   const payer = await resolveCraftPayer(character, payerKey, cost);
   const openTurn = await getOpenTurn();
 
-  // No Move of its own, but rationed per turn (docs/systemdocs/SMITHING.md §2):
-  // a recipe's own `perTurn`, or the shared Dead Simple pool. Units PAST the
-  // allowance are no longer refused — for a recipe with a craft family they
-  // spill into the Move at 1/allowance each (CRAFTING.md §2a), which is what
-  // makes a fifth work knife cost something rather than be impossible.
-  //
-  // Priced twice: here for a fast fail, and again inside the transaction under
-  // the row lock, since two simultaneous requests would otherwise both read
-  // the same count and pass.
+  // No Move of its own, but rationed per turn (SMITHING.md §2): a recipe's own `perTurn`, or the shared Dead Simple pool. Units PAST the allowance no longer refuse — for a recipe with a craft family they spill into the Move at 1/allowance each (CRAFTING.md §2a), making a fifth work knife cost something rather than be impossible. Priced twice: here for the fast fail, again inside the transaction under the row lock, since two simultaneous requests would otherwise both read the same count and pass.
   const perTurn = tag.requirementPerTurn ?? null;
   if (turns === 0) {
     const allowance = openTurn ? craftAllowance(tag) : null;
@@ -836,14 +636,10 @@ export async function craftRequestImpl({
         quantity,
         allowance,
         freeLeft: allowance == null ? null : allowance - already,
-        // moveFamilyOf, not craftFamily: a recipe on the never-spills list
-        // (Obol) prices as family-less here so going past its own perTurn
-        // refuses outright instead of spilling into the Move — everywhere
-        // else in this function still reads craftFamily().
+        // moveFamilyOf, not craftFamily: a recipe on the never-spills list (Obol) prices as family-less here so going past its own perTurn refuses outright instead of spilling into the Move — everywhere else in this function still reads craftFamily().
         family: moveFamilyOf(tag),
       });
-      // No family to bill the overflow to (bone-mask is gated on `butcher`
-      // alone), so the ration is still a wall.
+      // No family to bill the overflow to (bone-mask is gated on `butcher` alone), so the ration is still a wall.
       if (priced.kind === "capped") {
         throw new UserError(
           `You can only make ${allowance} ${tag.name} per turn (${already} already this turn).`,
@@ -852,10 +648,7 @@ export async function craftRequestImpl({
       return priced;
     };
     const billedSeen = parseCount(rawBilledSeen, { min: 0, max: 99 }) ?? 0;
-    // The player is never billed more than the dialog showed them. Priced
-    // here for the fast fail, and AGAIN inside the transaction, where a
-    // concurrent craft may have eaten the free allowance between the two —
-    // the in-tx copy is what actually holds.
+    // The player is never billed more than the dialog showed them. Priced here for the fast fail, and AGAIN inside the transaction — the in-tx copy is what actually holds, since a concurrent craft may have eaten the free allowance in between.
     const acknowledgeBill = (priced) => {
       if (priced.billedQty > billedSeen) {
         throw new UserError(
@@ -867,23 +660,14 @@ export async function craftRequestImpl({
     acknowledgeBill(moveCost);
     if (moveCost.kind === "spill")
       await resolveCraftMove(character, openTurn, moveCost);
-    // Minted before the transaction (see mintCustomCraft for why), unwound
-    // after it only if the transaction fails and the row was fresh.
-    //
-    // A DISH ALWAYS MINTS, words or no words: what went in is what it does,
-    // so it needs a row of its own even from a cook who named nothing. A meal
-    // with no ingredient and no words has nothing to carry and stays the
-    // plain catalog row, which keeps it Depot-listable and out of the way of
-    // the Restart Game ephemeral sweep.
+    // Minted before the transaction (mintCustomCraft says why), unwound after it only if the transaction fails and the row was fresh. A DISH ALWAYS MINTS, words or no words — what went in is what it does, so it needs its own row even from a cook who named nothing; a meal with no ingredient and no words stays the plain catalog row, Depot-listable and out of the Restart Game ephemeral sweep.
     const grant =
       custom.active || cookedFrom.length
         ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom, cookedTastes })
         : null;
     try {
     await prisma.$transaction(async (tx) => {
-      // One lock for all the racy things: the ration counts, the ingredient
-      // stacks, the grant re-check, and the Move ledger (spendCraftMove takes
-      // it again, which costs nothing once this transaction holds it).
+      // One lock for all the racy things: ration counts, ingredient stacks, the grant re-check, and the Move ledger (spendCraftMove takes it again, free once this transaction holds it).
       if (allowance != null || itemPlan.spend.length || !tag.stackable) {
         await lockCharacter(tx, character.id);
       }
@@ -892,10 +676,7 @@ export async function craftRequestImpl({
       let action = null;
       let budget = null;
       if (spend.kind === "spill") {
-        // The fast fail only ran resolveCraftMove when the OUTSIDE price
-        // already spilled, so a spill first seen here re-checks the Move
-        // window itself — a craft submitted after Moves lock must not write
-        // a ledger no matter how the race fell.
+        // The fast fail only ran resolveCraftMove when the OUTSIDE price already spilled, so a spill first seen here re-checks the Move window itself — a craft submitted after Moves lock must not write a ledger no matter how the race fell.
         if (moveCost.kind !== "spill") {
           const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
           if (locked)
@@ -939,23 +720,14 @@ export async function craftRequestImpl({
     return { made: craftLabel(grant?.tag ?? tag, quantity) };
   }
 
-  // Real work: this turn's Move, and a project if it takes more than one.
-  //
-  // Quantity is limited by WORK ARITHMETIC and nothing else (Chris
-  // 2026-09-06): a unit costs its `turnsCost` of the Move — a whole turn,
-  // or the 1/N a fractional recipe authors — so a brewer's Routine holds
-  // three ⅓-turn Alcohol and a smith's holds ONE broadsword, and a spare
-  // half-turn takes more same-family work or none. A project takes the Move
-  // whole every turn it runs, so it can never share one — and it makes ONE
-  // unit, its turns being per piece; wanting two means starting it twice.
+  // Real work: this turn's Move, and a project if it takes more than one. Quantity is limited by WORK ARITHMETIC and nothing else: a unit costs its `turnsCost` of the Move (a whole turn, or the 1/N a fractional recipe authors), so a brewer's Routine holds three ⅓-turn Alcohol and a smith's holds ONE broadsword, and a spare half-turn takes more same-family work or none. A project takes the Move whole every turn it runs, so it can never share one, and makes ONE unit — wanting two means starting it twice.
   if (turns > 1 && quantity > 1) {
     throw new UserError(
       `That's ${turns} turns of work apiece — make them one at a time.`,
     );
   }
   const moveCost = craftMoveCost(tag, { quantity });
-  // The cross-submission count — for a fractional recipe, `perTurn` holds
-  // its work denominator, so this and the budget agree by construction.
+  // The cross-submission count — for a fractional recipe, `perTurn` holds its work denominator, so this and the budget agree by construction.
   const ration = async (db) => {
     if (perTurn == null || !openTurn) return;
     const already = await unitsOfTagThisTurn(
@@ -974,10 +746,7 @@ export async function craftRequestImpl({
   await resolveCraftMove(character, openTurn, moveCost);
   const finishes = turns === 1;
   let done = false;
-  // A finishing craft mints now (outside the tx — mintCustomCraft says why);
-  // a longer project carries the words on CraftProject.custom instead, and
-  // continueCraftImpl mints them on the finishing turn. The Death Mask's
-  // stamped name rides the same machinery in literal mode.
+  // A finishing craft mints now (outside the tx — mintCustomCraft says why); a longer project carries the words on CraftProject.custom instead and continueCraftImpl mints them on the finishing turn. The Death Mask's stamped name rides the same machinery in literal mode.
   const grant = finishes
     ? deathMask
       ? await mintCustomCraft(prisma, tag, {
@@ -991,20 +760,16 @@ export async function craftRequestImpl({
     : null;
   try {
   await prisma.$transaction(async (tx) => {
-    // Ingredients go in when the work starts, the same moment the ⬢ do — and
-    // like the ⬢ they never come back if the project is abandoned. A project
-    // longer than a turn carries the snapshot on itself until it finishes.
+    // Ingredients go in when the work starts, the same moment the ⬢ do — like the ⬢ they never come back if the project is abandoned. A project longer than a turn carries the snapshot on itself until it finishes.
     await lockCharacter(tx, character.id);
     await ration(tx);
-    // The Move is claimed first: it is the contended thing, and a refusal
-    // here rolls back everything below it.
+    // The Move is claimed first: it's the contended thing, and a refusal here rolls back everything below it.
     const { action, budget } = await spendCraftMove(tx, {
       character,
       openTurn,
       need: moveCost,
       entry: craftLedgerEntry(tag, moveCost),
-      // A batch craft lets the Action's description be rebuilt from the
-      // ledger; everything else keeps the line it has always written.
+      // A batch craft lets the Action's description rebuild from the ledger; everything else keeps the line it has always written.
       description:
         moveCost.kind === "share"
           ? null
@@ -1015,9 +780,7 @@ export async function craftRequestImpl({
     const replacedNow =
       (await recheckGrantsUnderLock(tx, character, tag)) ?? replaced;
     const consumed = await consumeRecipeItems(tx, character.id, itemPlan);
-    // The face comes off when the work starts, like every other ingredient
-    // cost — an abandoned mask still ruined the face, and no second cast
-    // can ever be taken from this body.
+    // The face comes off when the work starts, like every other ingredient cost — an abandoned mask still ruined the face, and no second cast can ever be taken from this body.
     if (deathMask) await takeFace(tx, deathMask);
     if (cost) await moveResources(tx, payer, -cost);
     const project = await tx.craftProject.create({
@@ -1120,11 +883,7 @@ async function loadOwnProject(character, projectId) {
   return project;
 }
 
-// Another turn on a project. The recipe's gates are re-run: a skill lost
-// since the start stops the work where it stands.
-//
-// The INGREDIENTS are not re-checked, and must not be — they were spent when
-// the work started, so an honest continue would fail its own check on turn 2.
+// Another turn on a project. The recipe's gates are re-run: a skill lost since the start stops the work where it stands. The INGREDIENTS are not re-checked, and must not be — spent when the work started, so an honest continue would fail its own check on turn 2.
 export async function continueCraftImpl({ projectId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
   const project = await loadOwnProject(character, projectId);
@@ -1132,9 +891,7 @@ export async function continueCraftImpl({ projectId }) {
   await requireRecipeSkills(character, tag);
   await requireWorkshop(character, tag);
   const openTurn = await getOpenTurn();
-  // A turn on a project is the whole Move, so it demands a clean one: any
-  // fraction already spent on a batch craft blocks it, and it blocks
-  // everything after it (docs/systemdocs/CRAFTING.md §2a).
+  // A turn on a project is the whole Move, so it demands a clean one: any fraction already spent on a batch craft blocks it, and it blocks everything after it (CRAFTING.md §2a).
   const moveCost = { family: craftFamily(tag), num: 1, den: 1 };
   await resolveCraftMove(character, openTurn, moveCost);
   if (project.lastTurnId === openTurn.id)
@@ -1149,10 +906,7 @@ export async function continueCraftImpl({ projectId }) {
   const next = project.turnsDone + 1;
   const done = next >= project.turnsNeeded;
   const replaced = done ? await craftGrantChecks(character, tag) : [];
-  // The words stored when the work began (already cleaned then; cleaned
-  // again here because re-sanitizing is free and stored JSON is still
-  // input). Minted outside the tx — mintCustomCraft says why — and unwound
-  // if the transaction fails.
+  // The words stored when the work began (already cleaned then; cleaned again here since re-sanitizing is free and stored JSON is still input). Minted outside the tx — mintCustomCraft says why — and unwound if the transaction fails.
   const pendingCustom =
     done && project.custom && typeof project.custom === "object"
       ? customCraftFields({
@@ -1160,8 +914,7 @@ export async function continueCraftImpl({ projectId }) {
           customDescription: project.custom.description,
         })
       : { active: false };
-  // A Death Mask project stamped its name (and source corpse) at start —
-  // stored under its own key so customCraftFields above ignores it.
+  // A Death Mask project stamped its name (and source corpse) at start — stored under its own key so customCraftFields above ignores it.
   const pendingMask =
     done && project.custom && typeof project.custom === "object" && project.custom.deathMask
       ? project.custom.deathMask

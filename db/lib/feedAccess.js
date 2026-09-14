@@ -1,18 +1,9 @@
-// Which places a character may read and write, for both faces.
-//
-// This is the ONE answer. The SSE route asks it to decide what a stream
-// subscribes to, the say route asks it to decide whether a message is allowed,
-// db/lib/say.js asks it inside prepareSpeech, and the page asks it to draw the
-// left column. Re-implementing any of that in a route is how a private Room
-// ends up readable by somebody standing outside it.
-//
-// placesFor() is the primitive and mayReadPlace/mayWritePlace derive from it,
-// rather than the other way round: a rule that only exists in the list can
-// never disagree with the rule that guards a send.
-//
-// Takes `prisma` where it needs it, same reason as archive.js and placeKey.js:
-// db/index.js imports this, so requiring it back would resolve to a partial
-// exports object.
+// The ONE answer for which places a character may read/write, on both faces
+// (SSE stream, say route, db/lib/say.js, the page's left column). Re-implementing
+// this in a route risks a private Room readable from outside it. mayReadPlace/
+// mayWritePlace derive from placesFor() so they can never disagree with it.
+// Takes `prisma` as a param: db/index.js imports this, so requiring it back
+// would resolve to a partial exports object (same as archive.js, placeKey.js).
 
 const {
   placeKeyForLocation,
@@ -33,13 +24,9 @@ const { conversationsFor } = require("./conversations");
 const { visibleZoneIds } = require("./gmZoneView");
 const { SCRYING_EYE_SLUG, ROBE_SLUGS } = require("./thanati");
 
-// Equipped Scrying Eye, ROBES ON, AND the web-only switch on. The web-only
-// half is technical: Discord's channel permissions could never show a
-// character the rooms the eye opens, so it works only for someone who has left
-// Discord. The robes are Bascinet's rule — "holding it in your hand while
-// wearing your robes lets you see through walls" — which also means a
-// stolen eye is worth nothing to a thief who is not in the cult's dress.
-// (docs/systemdocs/THANATI.md §4.)
+// Equipped Scrying Eye + ROBES ON + web-only switch. Web-only because Discord's
+// channel permissions can't show rooms the eye opens; robes because a stolen
+// eye is worth nothing outside the cult's dress. (docs/systemdocs/THANATI.md §4.)
 async function hasScryingEye(prisma, characterId) {
   const row = await prisma.character.findUnique({
     where: { id: characterId },
@@ -56,10 +43,8 @@ async function hasScryingEye(prisma, characterId) {
   return slugs.has(SCRYING_EYE_SLUG) && ROBE_SLUGS.some((slug) => slugs.has(slug));
 }
 
-// How long a character waits between two sends in one place, in ms. The zone
-// summary is a slower surface on purpose: it is a whole zone reading.
-// Rooms and Conversations have no slowmode (Bascinet, 2026-09-06); only the
-// zone summary does, matching its Discord channel.
+// Wait between two sends in one place, in ms. Only the zone summary has
+// slowmode (a whole zone reading it), matching its Discord channel.
 const PLACE_SLOWMODE_MS = 0;
 const ZONE_SLOWMODE_MS = 300_000;
 
@@ -78,28 +63,22 @@ function place({ placeKey, kind, name, description = "", roomKind = null, canSpe
     description: description ?? "",
     roomKind,
     canSpeak,
-    // Only a Location ever carries one, and only the GM list fills it in: a
-    // player's board reaches them through affordancesFor, off the Location
-    // they are standing in. A GM is standing nowhere and picks the place off
-    // the left column, so the column has to say which places have a board.
+    // Only a Location carries one, only the GM list fills it: a player's board
+    // comes through affordancesFor; a GM picks off the left column instead.
     hasBoard,
     slowmodeSeconds: Math.round(slowmodeMsFor(placeKey) / 1000),
   };
 }
 
-// A Location channel is SCENERY now, not speech (the plan's decision 5, and
-// CHANNELS.md §2). Arrivals, smells, the turret and the noticeboard land
-// there; talking happens in a Room thread, a Conversation or the zone
-// summary. Discord enforces the same thing by dropping Send from
-// LOCATION_MEMBER_ALLOW, so a player meets one rule on both faces.
+// A Location channel is SCENERY, not speech (CHANNELS.md §2); talking happens
+// in a Room thread, a Conversation or the zone summary. Discord enforces the
+// same thing by dropping Send from LOCATION_MEMBER_ALLOW — one rule, two faces.
 const LOCATION_CAN_SPEAK = false;
 
-// The radio nets this character is on. A net belongs to no Location and no
-// zone — it travels with whoever is carrying the radio — so it is built from
-// the character alone, and the rule is the SAME one that writes the Discord
-// overwrites (db/lib/specialChannels.js). One rule, two faces: a bracelet
-// that only receives is canSpeak false here for the same reason it holds no
-// Send bit there.
+// The radio nets this character is on. A net travels with the radio, not a
+// Location or zone, and uses the SAME rule that writes the Discord overwrites
+// (db/lib/specialChannels.js) — a receive-only bracelet is canSpeak false here
+// for the same reason it holds no Send bit there.
 async function netPlacesFor(prisma, characterId) {
   if (!characterId) return [];
   const access = computeNarrowcastAccess(await buildNarrowcastContext(prisma, characterId));
@@ -126,8 +105,7 @@ async function netPlacesFor(prisma, characterId) {
 async function placesFor(prisma, character, { gm = false, discordUserId = null } = {}) {
   if (gm) return gmPlacesFor(prisma, discordUserId);
   if (!character?.id) return [];
-  // A radio works wherever you are, including nowhere: a character with no
-  // Location still hears their nets rather than getting an empty column.
+  // A radio works even with no Location, so the column isn't empty.
   const nets = await netPlacesFor(prisma, character.id);
   if (!character.locationId) return nets;
 
@@ -153,15 +131,13 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
     hasScryingEye(prisma, character.id),
   ]);
 
-  // The same accessibleRooms() every other door in the game reads, guests
-  // included — a guest who is shown the thread on Discord and refused the
-  // feed on the web would be two answers to one question.
+  // The same accessibleRooms() every door in the game reads — a guest shown
+  // the thread on Discord but refused the feed here would be two answers to
+  // one question.
   const reachable = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
-  // THE SCRYING EYE (docs/systemdocs/THANATI.md §4): equipped, and only with
-  // the web-only switch on, every room and every conversation at this Location
-  // is readable. What the eye adds arrives with canSpeak false, so
-  // mayWritePlace still refuses it; what the character could already enter
-  // keeps its voice.
+  // THE SCRYING EYE (docs/systemdocs/THANATI.md §4): with it, every room/
+  // conversation here is readable but canSpeak false; what was already
+  // enterable keeps its voice.
   const reachableIds = new Set(reachable.map((room) => room.id));
   const seen = scrying ? rooms : reachable;
   const memberConversationIds = conversations.map((c) => c.id);
@@ -172,8 +148,8 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
         select: { id: true, name: true },
       })
     : [];
-  // Public first, then the private ones a key or a guest row opens: the
-  // column draws them as two sections and the order is what separates them.
+  // Public first, then private ones a key/guest row opens — order is the
+  // only thing separating the two sections the column draws.
   const ordered = [
     ...seen.filter((room) => room.kind !== "PRIVATE"),
     ...seen.filter((room) => room.kind === "PRIVATE"),
@@ -232,18 +208,15 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
   return list;
 }
 
-// A GM reads every place inside the zones they have chosen to see
-// (db/lib/gmZoneView.js — no rows means every zone) and speaks in none of
-// them. Watching is not standing there: a GM who wants to say something in a
-// scene says it as a GM, on Discord or through the desk.
+// A GM reads every place in their chosen zones (db/lib/gmZoneView.js — no
+// rows means every zone) and speaks in none: a GM who wants to say something
+// in a scene says it as a GM, on Discord or through the desk.
 async function gmPlacesFor(prisma, discordUserId) {
-  // visibleZoneIds already folds a seat down onto the zones it owns, so
-  // "Underground" arrives here as Underground + Caves + Depths and the cave
-  // Locations come with it (db/lib/gmZoneView.js).
+  // Folds a seat down onto the zones it owns, so "Underground" arrives as
+  // Underground + Caves + Depths with the cave Locations (db/lib/gmZoneView.js).
   const visible = await visibleZoneIds(prisma, discordUserId);
-  // A CAVE_GROUP is a Discord category and a GM seat, never a place: it holds
-  // no Locations and the sync gives it no #summary channel, so listing it
-  // would draw a row that opens nothing. Its two levels carry the places.
+  // A CAVE_GROUP is a Discord category/GM seat, never a place — no Locations,
+  // no #summary; its two levels carry the places instead.
   const zoneWhere = {
     kind: { not: "CAVE_GROUP" },
     ...(visible ? { id: { in: [...visible] } } : {}),
@@ -262,9 +235,7 @@ async function gmPlacesFor(prisma, discordUserId) {
           id: true,
           name: true,
           description: true,
-          // For hasNoticeboard below — the one Location attribute the GM's
-          // column needs, and it is a JSON blob rather than a join.
-          attributes: true,
+          attributes: true, // for hasNoticeboard below — a JSON blob, not a join
           rooms: {
             orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
             select: { id: true, name: true, description: true, kind: true },
@@ -322,10 +293,8 @@ async function gmPlacesFor(prisma, discordUserId) {
     }
   }
 
-  // The radio nets, flat and last. They belong to no zone, so GmZoneView has
-  // nothing to say about them and there is nowhere to nest them — but a GM
-  // holds both channels on Discord, so withholding them here would only make
-  // the desk the one place a GM cannot read a frequency.
+  // Radio nets, flat and last: belong to no zone, but a GM holds both
+  // channels on Discord so the desk shouldn't be the one place they can't read one.
   for (const entry of SPECIAL_CHANNELS) {
     list.push(
       place({
@@ -341,8 +310,8 @@ async function gmPlacesFor(prisma, discordUserId) {
   return list;
 }
 
-// Both of these DERIVE from the list. That is the point: there is no second
-// copy of the rule to fall out of step with the column a player is looking at.
+// DERIVE from the list, so there's no second copy of the rule to fall out of
+// step with the column a player is looking at.
 async function findPlace(prisma, character, placeKey, options) {
   if (!placeKey) return null;
   const list = await placesFor(prisma, character, options);
@@ -353,8 +322,7 @@ async function mayReadPlace(prisma, character, placeKey, options) {
   return Boolean(await findPlace(prisma, character, placeKey, options));
 }
 
-// Reading and writing parted company in phase 2: a Location is read-only for
-// everybody, and every place is read-only for a GM.
+// A Location is read-only for everybody; every place is read-only for a GM.
 async function mayWritePlace(prisma, character, placeKey, options) {
   const found = await findPlace(prisma, character, placeKey, options);
   return Boolean(found?.canSpeak);

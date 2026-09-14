@@ -1,38 +1,16 @@
-// Finding a delimited run that has FORMATTING inside it.
-//
-// The problem this exists to solve. `remark-parse` (plus remark-gfm) builds the
-// whole inline tree before any plugin runs, so by the time a plugin sees a
-// paragraph, every `*star*`, `` `tick` ``, `~~tilde~~` and `[link](…)` has
-// already become its own node and cut the surrounding text in half. A pass
-// built on `mdast-util-find-and-replace` only ever sees ONE text node, so
-//
-//     he said "*get out*"
-//
-// arrives as three siblings — the text `he said "`, an emphasis, the text `"` —
-// and no regex in the world matches a quote that opens in the first and closes
-// in the third. The quote was simply never tinted, and the same was true of
-// `||a *hidden* word||`. Players write with emphasis constantly, so this was
-// most quotes.
-//
-// So the scan here runs over a parent's CHILD LIST rather than over one string.
-// The opener and the closer still have to sit in text nodes, but everything
-// between them may be any number of siblings, and those siblings go inside the
-// wrapper untouched — which is the whole point: the tint is around the phrase,
-// and the emphasis inside it is still emphasis.
-//
-// A tiny walk of our own rather than unist-util-visit, for the reason
-// remarkSubtext.js gives: that package is here only as somebody else's
-// transitive dependency. This file imports NOTHING, which is also what lets
+// Finding a delimited run that has FORMATTING inside it — e.g. `he said
+// "*get out*"` — by scanning a parent's CHILD LIST rather than one string, so
+// sibling nodes between opener and closer pass through untouched. A tiny walk
+// of our own rather than unist-util-visit, for the reason remarkSubtext.js
+// gives — this file imports NOTHING, which is also what lets
 // db/test/chatFormatting.test.js load it with no build step.
 
-// Inside code the whole point of the text is that it is literal — the same
-// `ignore` both find-and-replace passes used to carry.
+// Inside code the whole point of the text is that it is literal.
 const OPAQUE = new Set(["code", "inlineCode"]);
 
 const text = (value) => ({ type: "text", value });
 
-// How much text a sibling contributes, so an emphasis in the middle of a quote
-// still counts against the length cap.
+// How much text a sibling contributes, so a nested emphasis still counts against the length cap.
 function textLength(node) {
   if (node.type === "text") return node.value.length;
   if (!Array.isArray(node.children)) return 0;
@@ -41,13 +19,8 @@ function textLength(node) {
   return total;
 }
 
-// The first closer at or after `startOffset` in child `from`, searching forward
-// through the siblings. Returns { index, start, end } or null.
-//
-// A run gives up — rather than reaching further — on any of: a forbidden
-// character (a second quote, a stray bar), a hard line break, running past the
-// cap, or running out of siblings. Giving up is what stops one unmatched quote
-// at the top of a long message from swallowing the rest of it.
+// The first closer at or after `startOffset` in child `from`, or null. Gives
+// up on a forbidden character, a hard break, or the cap, so one unmatched quote can't swallow the rest.
 function findClose(children, from, startOffset, spec) {
   const close = new RegExp(spec.close.source, "g");
   let inner = 0;
@@ -64,15 +37,13 @@ function findClose(children, from, startOffset, spec) {
       inner += chunk.length;
       if (inner > spec.maxInner) return null;
       if (hit) {
-        // Nothing between the marks is not a quote, it is two marks.
+        // Nothing between the marks is two marks, not a quote.
         if (inner < 1) return null;
         return { index: i, start: hit.index, end: hit.index + hit[0].length };
       }
       continue;
     }
 
-    // A hard break is the node-shaped spelling of the newline the old regexes
-    // refused.
     if (node.type === "break") return null;
 
     inner += textLength(node);
@@ -82,10 +53,7 @@ function findClose(children, from, startOffset, spec) {
   return null;
 }
 
-// Is this opener actually opening something? Speech wants the mark followed by
-// a real character, so `he said " ` mid-sentence does not start a quote. The
-// character after it may live in the NEXT sibling — which is exactly the
-// `"*get out*"` case — and a sibling is never whitespace.
+// Speech wants the mark followed by a real character, possibly in the NEXT sibling (never whitespace).
 function opensHere(children, index, end, spec) {
   if (!spec.openTight) return true;
   const value = children[index].value;
@@ -93,10 +61,7 @@ function opensHere(children, index, end, spec) {
   return index + 1 < children.length;
 }
 
-// The children of the wrapper: the tail of the opening text node, whole
-// siblings, the head of the closing one. `keepDelimiters` decides whether the
-// marks themselves go in — speech keeps its quotes so the tint reads as one
-// phrase, a spoiler drops its bars.
+// The wrapper's children. `keepDelimiters` decides whether the marks go in — speech keeps quotes, a spoiler drops bars.
 function runChildren(children, from, open, close, spec) {
   const start = spec.keepDelimiters ? open.start : open.end;
   const end = spec.keepDelimiters ? close.end : close.start;
@@ -135,7 +100,6 @@ function scan(children, spec) {
     const mark = open.exec(node.value);
     const hit = mark ? { start: mark.index, end: mark.index + mark[0].length } : null;
 
-    // Nothing left to open here: keep what is left of this node and move on.
     if (!hit) {
       const rest = node.value.slice(from);
       if (rest) out.push(text(rest));
@@ -146,8 +110,7 @@ function scan(children, spec) {
 
     const close = opensHere(children, i, hit.end, spec) ? findClose(children, i, hit.end, spec) : null;
 
-    // An opener with no partner is just a character. Emit up to and including
-    // it and carry on looking — the next mark may be the real opener.
+    // An opener with no partner is just a character; carry on looking.
     if (!close) {
       out.push(text(node.value.slice(from, hit.end)));
       from = hit.end;
@@ -169,11 +132,7 @@ function scan(children, spec) {
   return out;
 }
 
-// Walk the tree and wrap every run of `spec` in place.
-//
-// Depth first, children before the parent, so a run built here is never scanned
-// again — and so a quote written inside an emphasis (`*she said "no"*`) is found
-// on the emphasis's own children, where it belongs.
+// Walk and wrap every run of `spec` in place. Depth first, children before the parent, so a run built here is never scanned again.
 export default function wrapRuns(tree, spec) {
   const full = { maxInner: 400, keepDelimiters: false, openTight: false, ...spec };
 

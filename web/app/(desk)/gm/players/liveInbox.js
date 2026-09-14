@@ -2,20 +2,17 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-// The live inbox's client store — what LiveInboxPoller.js fills, read by the
-// rail and conversation pane. Module-level, read through useSyncExternalStore.
-// patches: per conversation, rail fields that moved, stamped with DB clock
-// read time; applied (mergeRailRows) only when newer than the held row.
-// feeds: per conversation, message rows arrived since load.
-// Every rebuild makes a new Map/array — react-hooks/immutability is an error.
+// Live inbox client store — what LiveInboxPoller.js fills, read by the rail and conversation pane. Module-level,
+// read through useSyncExternalStore. patches: per conversation, rail fields that moved, stamped with DB clock read
+// time, applied (mergeRailRows) only when newer than the held row. feeds: per conversation, message rows arrived
+// since load. Every rebuild makes a new Map/array — react-hooks/immutability is an error.
 
 const EMPTY_PATCHES = new Map();
 const EMPTY_READ_OVERRIDES = new Map();
 const EMPTY_FEED = Object.freeze([]);
 const SEEN_CAP = 2000;
 
-// How long a read override stands before dropping on age alone — normally
-// clears on the server's echo; this only catches the echo never arriving.
+// How long a read override stands before dropping on age alone — normally clears on the server's echo; this only catches the echo never arriving.
 const READ_OVERRIDE_MAX_AGE_MS = 5 * 60_000;
 
 const state = {
@@ -66,9 +63,8 @@ function byTimeThenId(a, b) {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-// Folds one poll result in. `sinceMs` is the request's cursor (0 on first
-// tick); `announce` says whether anything found is news — the first tick's
-// two-minute lookback must not ring. Returns INBOUND arrivals worth announcing.
+// Folds one poll result in. `sinceMs` is the request's cursor (0 on first tick); `announce` says whether anything
+// found is news — the first tick's two-minute lookback must not ring. Returns INBOUND arrivals worth announcing.
 export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
   let changed = false;
   const inbound = [];
@@ -79,9 +75,7 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
     const next = new Map(state.patches);
     for (const patch of delta.rail) {
       if (!patch?.discordUserId) continue;
-      // Older than what's held has nothing to say — the stream and the 30s
-      // backstop poll can race, and setting unconditionally would let a
-      // stale backstop answer overwrite a fresher zero-unread state.
+      // Older than what's held has nothing to say — the stream and the 30s backstop poll can race, and setting unconditionally would let a stale backstop answer overwrite a fresher zero-unread state.
       const prev = next.get(patch.discordUserId);
       if (prev && prev.asOfMs > delta.nowMs) continue;
       next.set(patch.discordUserId, { ...patch, asOfMs: delta.nowMs });
@@ -90,9 +84,8 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
     changed = true;
   }
 
-  // `thread` (singular) is the backstop poll's, for whichever conversation is
-  // open. `threads` (plural) is the stream's, for EVERY conversation that
-  // moved. Folded through one function so the two paths don't drift.
+  // `thread` (singular) is the backstop poll's, for whichever conversation is open. `threads` (plural) is the
+  // stream's, for EVERY conversation that moved. Folded through one function so the two paths don't drift.
   const thread = delta?.thread;
   const threadList = [
     ...(thread?.discordUserId ? [thread] : []),
@@ -118,9 +111,8 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
     changed = true;
   }
 
-  // Inbound rows on conversations that are NOT open never reach `feeds`, so
-  // the chime hears about them from the rail patch instead — but "inbound"
-  // alone isn't news, only a last message newer than the asked-for cursor is.
+  // Inbound rows on conversations that are NOT open never reach `feeds`, so the chime hears about them from the
+  // rail patch instead — but "inbound" alone isn't news, only a last message newer than the asked-for cursor is.
   if (announce && Array.isArray(delta?.rail)) {
     for (const patch of delta.rail) {
       if (patch?.lastDirection !== "INBOUND") continue;
@@ -141,13 +133,8 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
   return { inbound };
 }
 
-// The GM has read this conversation, said here before the server has
-// answered. mergeRailRows lays it over the row last, so the badge clears on
-// click rather than on the next frame. Two callers: the optimistic one
-// guesses the cursor from the BROWSER's clock (can be minutes off), so the
-// server's later answer REPLACES rather than has to beat that guess — a
-// fast browser clock would otherwise strand its own over-claiming guess and
-// the badge would never come back.
+// The GM read this conversation, said here before the server answered; mergeRailRows lays it over the row last so
+// the badge clears on click. The optimistic caller guesses the cursor from the BROWSER's clock (can be minutes off), so the server's later answer REPLACES it — else a fast clock would strand its own over-claim and the badge never returns.
 export function noteConversationRead(discordUserId, cursorMs, { fromServer = false } = {}) {
   if (!discordUserId || !Number.isFinite(cursorMs)) return;
   const prev = state.readOverrides.get(discordUserId);
@@ -190,15 +177,11 @@ export function useThreadFeed(discordUserId) {
   return useSyncExternalStore(subscribe, snap, getServerFeed);
 }
 
-// Lays the live patches over the layout's rows. A patch applies as a whole or
-// not at all — mixing half a patch with half a row could say "handled"
-// against a newer message. A patch for someone the rail has never seen
-// carries a whole `row` to append.
+// Lays the live patches over the layout's rows. A patch applies as a whole or not at all — mixing half a patch
+// with half a row could say "handled" against a newer message. A patch for someone unseen carries a whole `row` to append.
 export function mergeRailRows(rows, patches, rowsAsOfMs, readOverrides = EMPTY_READ_OVERRIDES) {
   if ((!patches || patches.size === 0) && readOverrides.size === 0) return rows;
-  // A read override applies PER FIELD (unread count only), not part of the
-  // patch's all-or-nothing rule since it's local, not from a server read.
-  // lastDirection stays alone: reading somebody isn't the same as writing last.
+  // A read override applies PER FIELD (unread count only), not the patch's all-or-nothing rule, since it's local, not a server read; lastDirection stays alone — reading isn't writing last.
   const applyRead = (row) => {
     const o = readOverrides.get(row.discordUserId);
     if (!o || !(o.cursorMs > (row.lastReadAtMs ?? 0))) return row;

@@ -1,30 +1,17 @@
-// The Gatehouse turret: the triple-barrelled machinegun on the rotor in the
-// fortress yard, which the Baron's own charter has described as "off" since
-// before it could actually be switched on.
-//
-// It is the Depot turret's opposite in the one way that matters. The Merchant's
-// gun reads faces and spares exactly one; this one spares nobody. There is no
-// list, no keycard, no rank — arm it and it fires on whoever is standing in the
-// yard, the Censor included. That is why the switch is a physical button on a
-// wall in the Censor's Office rather than a page anyone can reach: the only
-// safeguard is that somebody has to walk up to it.
-//
-// It carries no tunable table of its own, so it rolls on the shipped one
-// (db/lib/depotTurret.js#DEFAULT_TURRET_TABLE) — see turretPass.js's header for
-// why that needs no code. Armour still bends the curve, which is the point of
-// the Cerberon's mail: the gun is survivable if you are dressed for it, and
-// very much not if you are not.
-//
-// Takes `prisma` as a parameter; see db/lib/dm.js for why.
+// The Gatehouse turret: the machinegun in the fortress yard. Opposite of the
+// Depot turret in the one way that matters: the Merchant's gun reads faces
+// and spares one, this one spares nobody, no list/keycard/rank — arm it and
+// it fires on whoever's in the yard, Censor included, which is why the switch
+// is a physical button in the Censor's Office and not a page anyone can
+// reach. Rolls on the shipped table (db/lib/depotTurret.js#DEFAULT_TURRET_TABLE);
+// armour still bends the curve. Takes `prisma` as a parameter (db/lib/dm.js).
 const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt, turretDmFor } = require("./turretPass");
 
 const GATEHOUSE_LOCATION_SLUG = "gatehouse";
 
 const DEATH_CONTENT = "Shot by a turret.";
 
-// The plain fact under the flavour, for the death DM and #leave. Same split as
-// the Depot's: the line above is what the archive records, this is what the
-// person killed is told.
+// Same split as the Depot's: DEATH_CONTENT is what the archive records, this is what the dead are told.
 const DEATH_REASON = "they were shot by a turret.";
 
 const GATEHOUSE_TURRET_DM = {
@@ -33,10 +20,7 @@ const GATEHOUSE_TURRET_DM = {
   dead: "The turret shoots you.",
 };
 
-// What the world says when somebody flips the switch. Scenery, not an
-// announcement — it goes into the Gatehouse as `-#` subtext through
-// db/lib/ambientLine.js, because a machine spinning up is the only warning
-// anyone in the yard is going to get.
+// Scenery, not an announcement — `-#` subtext (db/lib/ambientLine.js), the only warning the yard gets.
 const TURRET_ARMED_LINE = {
   text: "You hear something in the yard whir.",
   signed: false,
@@ -55,8 +39,7 @@ async function gatehouseTurretArmed(prisma) {
   return state?.gatehouseTurretArmed === true;
 }
 
-// The turn-end sweep. Returns DMs for the caller to send, the way every other
-// pass does — see TURN-ENGINE.md §3.
+// Returns DMs for the caller to send, the way every other pass does (TURN-ENGINE.md §3).
 async function runGatehouseTurretPass(prisma, turn) {
   if (!(await gatehouseTurretArmed(prisma))) {
     return { turretShots: 0, turretOutcomes: [], dms: [], deaths: [], burstLocationId: null };
@@ -76,14 +59,11 @@ async function runGatehouseTurretPass(prisma, turn) {
     if (outcome.discordUserId) {
       dms.push({ discordUserId: outcome.discordUserId, content: turretDmFor(GATEHOUSE_TURRET_DM, outcome) });
     }
-    // The Discord teardown a kill owes, carried up to the side-effect thunk.
-    if (outcome.death) deaths.push(outcome.death);
+    if (outcome.death) deaths.push(outcome.death); // Discord teardown carried up to the side-effect thunk
   }
 
-  // One burst for the whole sweep, not one per victim — see
-  // db/lib/turretBurst.js. Null when it rolled at nobody: an empty yard makes
-  // no noise, and a gun that announced itself every turn to an empty room
-  // would be wallpaper by day three.
+  // One burst for the whole sweep, not one per victim (turretBurst.js). Null when it rolled at
+  // nobody — an empty yard makes no noise.
   return {
     turretShots: outcomes.length,
     turretOutcomes: outcomes,
@@ -93,9 +73,7 @@ async function runGatehouseTurretPass(prisma, turn) {
   };
 }
 
-// Walking into the yard while it is hot. `armed` is passed as a thunk so the
-// GameConfig read never happens for the thousands of arrivals that are not the
-// Gatehouse.
+// `armed` is a thunk so the GameConfig read never happens for arrivals that aren't the Gatehouse.
 function rollGatehouseTurretOnArrival(prisma, { characterId, toLocationId, turn }) {
   return rollTurretOnArrivalAt(prisma, {
     characterId,
@@ -108,15 +86,12 @@ function rollGatehouseTurretOnArrival(prisma, { characterId, toLocationId, turn 
   });
 }
 
-// What somebody types to throw the switch, per direction. Deliberate
-// friction — a misclick on a red button should not be able to shoot the Keep
-// — and it lives here rather than in the bot's modal builder so Chat's
-// confirm asks for the same word. Case and stray spaces are forgiven.
+// Deliberate friction against a misclick shooting the Keep; lives here (not the bot's modal
+// builder) so Chat's confirm asks for the same word. Case/stray spaces forgiven.
 const ARM_WORD = "ARM";
 const DISARM_WORD = "DISARM";
 
-// `armed` is the turret's state RIGHT NOW, so the confirm asks for the
-// opposite.
+// `armed` is the turret's state RIGHT NOW, so the confirm asks for the opposite.
 function turretWordMatches(typed, armed) {
   return String(typed ?? "").trim().toUpperCase() === (armed ? DISARM_WORD : ARM_WORD);
 }

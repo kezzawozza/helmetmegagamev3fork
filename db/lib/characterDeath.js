@@ -1,12 +1,8 @@
 // The DATABASE half of a character's death — shared so the two death paths
-// can't drift: web/lib/discordGuild.js#killCharacter (a GM's Kill button, the
-// lethal-outcome request path) and db/lib/catatonicDeathPass.js (the turn
-// engine's one auto-kill). Each caller keeps its own Discord half — the web
-// one inline, the pass via returned side effects — but what death *means* on
-// the row is decided here, once.
-//
-// Takes `prisma` as the first parameter (the db/lib/dm.js convention) and is
-// deliberately NOT on the @lifeweb/db barrel; require it by path.
+// (web/lib/discordGuild.js#killCharacter and db/lib/catatonicDeathPass.js)
+// can't drift; each keeps its own Discord half, but what death *means* on the
+// row is decided here, once. Takes `prisma` as the first parameter;
+// deliberately NOT on the @lifeweb/db barrel, require it by path.
 const { recordArchiveEvent } = require("./archive");
 const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
@@ -16,36 +12,18 @@ const { CATATONIC_SLUG, GIBBED_SLUG, METEMPSYCHOSIS_SLUG } = require("./constant
 const { NOT_A_FIGHT } = require("./intercept");
 const { closeFightsFor } = require("./attack");
 
-// Marks one character DEAD. Returns { claimed } — false when the character
-// was no longer ALIVE, in which case NOTHING else was written: the update's
-// own `status: "ALIVE"` where-clause is the claim, so two racing callers (or
-// a resumed turn re-running the death pass) can never half-kill or
-// double-archive the same character. `expectStatus` exists for the web path,
-// which calls this a moment AFTER updateCharacterRaw already wrote DEAD.
-//
-// What it does when it claims: status DEAD, discordRoleId nulled (the caller
-// must capture the role id FIRST — it still owes Discord the role delete),
-// catatonicSinceTurn nulled (a corpse has no countdown), every equipped tag
-// unequipped (a corpse doesn't wield things — frees the equip slots for a
-// Revive and keeps the loot panel honest), and one DEATH row in the
-// transcript. `content` is the archive line; `turn` pins the archive row to a
-// specific turn (the death pass hands the closing turn) rather than whatever
-// happens to be open.
-//
-// `gib` is the vaporised variant — no corpse at all, and every tag replaced by
-// one "Gibbed" row. See vaporizeTags below and docs/systemdocs/CORPSES.md §1a.
-//
-// Returns `corpse` alongside `claimed` — { tag, room } — so a caller that owes
-// Discord an announcement knows which Room the body landed in. `room` is null
-// when it stayed on the dead sheet for want of a public room to fall in.
-// Takes the officer seats off a dead character and, if they led, hands the
-// Leader's seat to the longest-standing living member — a Treasurer first,
-// since they already held office, and a Catatonic member LAST, because
-// crowning somebody who has left the Discord server is no better than leaving
-// the seat with a corpse.
-//
-// Membership itself is untouched: a body stays in its faction, the way it
-// stays in its Location.
+// Marks one character DEAD. Returns { claimed } — false when no longer ALIVE,
+// in which case NOTHING else is written: the update's `status: "ALIVE"`
+// where-clause IS the claim, so racing callers can never half-kill or
+// double-archive. `expectStatus` is for the web path, which calls this a
+// moment AFTER updateCharacterRaw already wrote DEAD. discordRoleId is nulled
+// here, so the caller must capture it FIRST — it still owes Discord the role
+// delete. `gib` is the vaporised variant — no corpse, every tag replaced by
+// one "Gibbed" row (vaporizeTags, CORPSES.md §1a). Returns
+// `corpse: { tag, room }` alongside `claimed`; `room` null means it stayed on
+// the sheet for want of a public room.
+// Hands a dead Leader's seat to the longest-standing living member — a
+// Treasurer first, a Catatonic member LAST. Membership itself is untouched.
 async function vacateFactionOffice(prisma, character) {
   const row = await prisma.character.findUnique({
     where: { id: character.id },
@@ -69,14 +47,11 @@ async function vacateFactionOffice(prisma, character) {
   await prisma.character.update({ where: { id: heir.id }, data: { isLeader: true } });
 }
 
-// Vaporised rather than killed: every tag the character owned is deleted and
-// one "Gibbed" row replaces them, and no corpse is minted at all. Called only
-// with `gib: true` set, from the two Thanati rites and the bomb.
-//
-// SEAT_TAG_SLUGS is the one exception to the wipe, and it is load-bearing. The
-// end-of-game reveal reads antagonist seats straight off live Character rows
-// (db/lib/epilogue.js). The bomb gibs everyone above ground and then ends the
-// game, so a blind delete here would leave the ending naming nobody.
+// Vaporised rather than killed: every tag deleted, one "Gibbed" row replaces
+// them, no corpse minted. Called with `gib: true` from the two Thanati rites
+// and the bomb. SEAT_TAG_SLUGS is the one load-bearing exception: the
+// end-of-game reveal reads antagonist seats off live Character rows
+// (db/lib/epilogue.js), and the bomb gibs everyone then ends the game.
 async function vaporizeTags(prisma, characterId) {
   await prisma.characterTag.deleteMany({
     where: { characterId, tag: { slug: { notIn: SEAT_TAG_SLUGS } } },
@@ -91,10 +66,8 @@ async function vaporizeTags(prisma, characterId) {
 }
 
 async function applyDeathToRow(prisma, character, { turn = null, content = null, expectStatus = "ALIVE", gib = false } = {}) {
-  // Read BEFORE the claim, and off the database rather than off `character`:
-  // callers pass rows of every shape (most carry no tags at all), and a gib
-  // deletes the rows outright a few lines below, so asking afterwards would
-  // find nothing. One count, on the one tag that changes what a death means.
+  // Read BEFORE the claim, off the database not `character` (callers pass varying shapes, and a
+  // gib deletes the rows outright below).
   const reborn = await prisma.characterTag
     .count({ where: { characterId: character.id, tag: { slug: METEMPSYCHOSIS_SLUG } } })
     .catch(() => 0);
@@ -109,9 +82,7 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   });
   if (claimed.count === 0) return { claimed: false };
 
-  // A gib deletes the tags outright, which makes unequipping them moot; an
-  // ordinary death only drops them out of their slots. Either way a corpse
-  // wields nothing.
+  // A gib deletes the tags outright; an ordinary death only drops them out of their slots.
   if (gib) {
     await vaporizeTags(prisma, character.id).catch((err) =>
       console.error(`Failed to vaporize tags for ${character.id}:`, err),
@@ -125,11 +96,8 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
       .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));
   }
 
-  // A dead leader leads nobody, so everyone following them lets go — and
-  // their own standing agreement to follow somebody dies with them. What is
-  // deliberately NOT cleared is `escortedById` on this row: a corpse is still
-  // something a person can carry (db/lib/escort.js gives a body FORCED), so
-  // dying in somebody's arms leaves you in them.
+  // A dead leader leads nobody; everyone following them lets go. NOT cleared: `escortedById` on
+  // this row — a corpse can still be carried (db/lib/escort.js gives a body FORCED).
   await prisma.character
     .updateMany({
       where: { escortedById: character.id },
@@ -137,23 +105,13 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     })
     .catch((err) => console.error(`Failed to release the party on death for ${character.id}:`, err));
 
-  // A dead man holds nobody (docs/systemdocs/INTERCEPT.md). One of the three
-  // writers that ends a hold before its timestamp — the other two are the
-  // holder's own Release and the holder walking away. Their OWN heldUntil is
-  // deliberately left alone, for the same reason escortedById is: it costs a
-  // corpse nothing, and it lapses on its own anyway.
-  // A FIGHT comes off first, and it comes off through the row rather than
-  // through heldById (docs/systemdocs/ATTACK.md §2). Both ends of it: a dead
-  // attacker holds nobody, and a dead target is holding nobody either — and a
-  // row left live on the far side would go on pinning the survivor for the
-  // rest of the turn, because settleHold would keep finding it. Stamped rather
-  // than deleted, the same as breaking off: it happened.
+  // A dead man holds nobody (INTERCEPT.md). Their OWN heldUntil is left alone — costs a corpse
+  // nothing and lapses on its own. A FIGHT comes off first, through the row not heldById
+  // (ATTACK.md §2): both attacker and target release, or settleHold would keep pinning the survivor.
   await closeFightsFor(prisma, character.id).catch((err) =>
     console.error(`Failed to close fights on death for ${character.id}:`, err),
   );
-  // The intercept holds. Guarded away from a fight for the reason
-  // releaseHeldBy is: heldById names one opponent and a brawl has several, so
-  // a blind clear here would free somebody out of a fight that is still going.
+  // Guarded away from a fight (like releaseHeldBy): heldById names one opponent but a brawl has several.
   await prisma.character
     .updateMany({
       where: { heldById: character.id, ...NOT_A_FIGHT },
@@ -167,15 +125,11 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     })
     .catch((err) => console.error(`Failed to clear escort consent on death for ${character.id}:`, err));
 
-  // A pending handshake either way is void, and a half-made thing stays
-  // half-made (docs/systemdocs/LESSONS.md, CRAFTING.md). An ACCEPTED lesson
-  // still resolves — it happened when it was accepted.
+  // A pending handshake is void either way (LESSONS.md, CRAFTING.md); an ACCEPTED lesson still resolves.
   await cancelOffersForCharacter(prisma, character.id).catch((err) =>
     console.error(`Failed to void offers on death for ${character.id}:`, err),
   );
-  // The same rule for a faction handshake (FACTIONS.md): an application or an
-  // invitation nobody can answer any more is withdrawn rather than left in a
-  // queue for an officer to trip over.
+  // Same rule for a faction handshake (FACTIONS.md): withdrawn, not left for an officer to trip over.
   await prisma.factionApplication
     .updateMany({
       where: { characterId: character.id, status: "PENDING" },
@@ -183,14 +137,8 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     })
     .catch((err) => console.error(`Failed to void faction applications on death for ${character.id}:`, err));
 
-  // And the office itself. A dead Leader used to keep the seat, which froze
-  // the faction solid: rename, secede and every officer verb require
-  // `isLeader`, and a Treasurer may not remove the Leader they answer to — so
-  // only a GM could unstick it. Since catatonicDeathPass auto-kills AFK
-  // characters, that would have happened without anybody dying dramatically.
-  //
-  // Same succession as walking out (FACTIONS.md §2): the seat passes rather
-  // than vanishing.
+  // A dead Leader keeping the seat freezes the faction solid — every officer verb requires
+  // `isLeader` and only a GM could unstick it. Same succession as walking out (FACTIONS.md §2).
   await vacateFactionOffice(prisma, character).catch((err) =>
     console.error(`Failed to vacate faction office on death for ${character.id}:`, err),
   );
@@ -198,19 +146,8 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     .updateMany({ where: { characterId: character.id, status: "ACTIVE" }, data: { status: "CANCELLED" } })
     .catch((err) => console.error(`Failed to cancel craft projects on death for ${character.id}:`, err));
 
-  // The body itself, as a real object: one Tag row, dropped into a random
-  // public Room at the Location they fell in (docs/systemdocs/CORPSES.md). It
-  // is a HANDLE to this sheet, not a container — nothing moves off the row, so
-  // LOOT_CHARACTER is unaffected — but from here on the sheet follows the tag,
-  // which is what makes a body draggable by carrying it.
-  //
-  // Wrapped, and deliberately after the claim: a catalog that has not been
-  // synced yet must not turn a death into a throw. A missing corpse is
-  // recoverable by hand; a half-applied death is not.
-  // A gib leaves no body at all, so there is nothing to mint. This is the
-  // whole difference on the world side: no corpse means nothing to loot,
-  // carry, butcher, bury or engrave, and corpseFollow never has a tag to
-  // follow.
+  // One Tag row in a random public Room (CORPSES.md) — a HANDLE to this sheet, so the sheet
+  // follows the tag. Wrapped: a missing corpse is recoverable by hand, a half-applied death isn't.
   const corpse = gib
     ? { tag: null, room: null }
     : await mintCorpse(prisma, character, turn).catch((err) => {
@@ -218,16 +155,13 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
         return { tag: null, room: null };
       });
 
-  // Everyone standing where they fell saw it (docs/systemdocs/MOOD.md). The
-  // location is re-read rather than trusted off `character`, since callers
-  // pass rows of every shape. Wrapped, and after the claim: a death is never
-  // aborted by a witness's nerves.
+  // Everyone standing where they fell saw it (MOOD.md). Re-read, not trusted off `character`;
+  // wrapped so a death is never aborted by a witness's nerves.
   await frightenWitnesses(prisma, character.id).catch((err) =>
     console.error(`Failed to frighten witnesses of ${character.id}:`, err.message ?? err),
   );
 
-  // recordArchiveEvent already swallows its own failures (a lost transcript
-  // line must never abort a death), so no catch here.
+  // recordArchiveEvent already swallows its own failures, so no catch here.
   await recordArchiveEvent(prisma, {
     kind: "DEATH",
     character,
@@ -236,14 +170,11 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     content: content ?? `${character.name} died.`,
   });
 
-  // The soul does not wait for a body (db/lib/reincarnate.js). Last, and
-  // wrapped: everything above is what a death IS, and a failure to find the
-  // new life must not leave the old one half-buried. A null return is the
-  // ordinary outcome when no seat is free.
+  // The soul doesn't wait for a body (db/lib/reincarnate.js). Wrapped: a failed rebirth must not
+  // leave the old life half-buried; null is ordinary when no seat is free.
   if (reborn > 0) {
-    // Required HERE, not at the top: reincarnate -> locationMove -> ... loops
-    // back to this file, and a top-level require resolves to a half-built
-    // exports object whose applyDeathToRow is undefined.
+    // Required HERE not at the top: reincarnate -> locationMove -> ... loops back to this file,
+    // and a top-level require would resolve to a half-built exports object.
     const { reincarnate } = require("./reincarnate");
     await reincarnate(prisma, character, { turn }).catch(
       (err) => console.error(`Reincarnation failed for ${character.id}:`, err.message ?? err),
@@ -260,8 +191,7 @@ async function frightenWitnesses(prisma, deadCharacterId) {
     where: { locationId: dead.locationId, status: "ALIVE", id: { not: deadCharacterId } },
     select: { id: true },
   });
-  // Sequential on purpose: a dozen witnesses is the most a room holds, and a
-  // burst of parallel transactions at turn close competes for pool slots.
+  // Sequential: a burst of parallel transactions at turn close competes for pool slots.
   for (const { id } of witnesses) {
     await applyMood(prisma, id, { kind: "DEATH_SEEN" }).catch((err) =>
       console.error(`Death-seen mood failed for ${id}:`, err.message ?? err),

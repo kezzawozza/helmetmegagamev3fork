@@ -1,35 +1,22 @@
-// The labor-drop EV maths, pulled verbatim out of
-// db/scripts/ops/audit-labor-drops.js so it can be exercised with a plain
-// node --test instead of only by eyeballing the CLI's stdout. See that
-// script for what calls this and LABORDROPS.md §6a/§7 for what the numbers
-// mean.
+// The labor-drop EV maths, pulled out of db/scripts/ops/audit-labor-drops.js
+// so it's testable with node --test. See that script for callers and
+// LABORDROPS.md §6a/§7 for what the numbers mean.
 const { rowShares } = require("./labordropsRarity");
 const { ASSUMED_VALUES } = require("./labordropsAnnotate");
 
-// The one tag that IS ⬢ rather than something sold for it — DEPOT.md: "one
-// obol is one ⬢", the physical form of the currency itself (weight 0, no
-// sellablePrice of its own because selling an obol for ⬢ is a category
-// error). Hardcoded here rather than read off any catalog field, because
-// there is no field that says it — the same "known by name" carve-out
-// db/lib/lifeweb.js and a handful of others already accept for this repo's
-// smallest set of singular concepts.
+// The one tag that IS ⬢ (DEPOT.md: "one obol is one ⬢"), no sellablePrice of
+// its own since selling an obol for ⬢ is a category error. Hardcoded — no
+// catalog field says it, the same "known by name" carve-out db/lib/lifeweb.js accepts.
 const OBOL_SLUG = "obol";
 const OBOL_VALUE = 1;
 
 // One pool entry -> { label, evValue, note }. evValue is always a ⬢ number
-// (0 for NOTHING and for a tag with neither a price nor an override) — see
-// the legend the CLI prints at the bottom of its report for why a tag's
-// pointCost is shown but never summed into it.
-//
-// Mirrors labordropsAnnotate.js#mechanicalValue/priceRows exactly — ASSUMED_VALUES
-// checked BEFORE the real sellable price (a Lockbox's discounted sellablePrice
-// must never win over its full contents value), then consumesIntoResources for
-// a non-sellable tag that still pays out when consumed (Purse, Supply Kit).
-// This branch order went missing from the script in the 2026-09-10 rarity
-// merge — labordropsAnnotate.js kept it (its own tests still pin it), but the
-// terminal report silently fell back to 0 ⬢ for every Lockbox and consumable
-// until restored here, imported from the one place ASSUMED_VALUES is defined
-// rather than re-declared.
+// (0 for NOTHING or an unpriced tag). Mirrors
+// labordropsAnnotate.js#mechanicalValue/priceRows exactly — ASSUMED_VALUES
+// checked BEFORE the real sellable price (a Lockbox's discounted
+// sellablePrice must never win over its full contents value), then
+// consumesIntoResources for a non-sellable tag that pays out when consumed
+// (Purse, Supply Kit). Keep this branch order in sync with labordropsAnnotate.js.
 function priceEntry(row, tagsById) {
   if (row.kind === "NOTHING") return { label: "(nothing)", evValue: 0, note: null };
   if (row.kind === "RESOURCES") {
@@ -63,13 +50,10 @@ function priceEntry(row, tagsById) {
   return { label: `${name} — not sellable (${pointNote})`, evValue: 0, note: "unpriced" };
 }
 
-// Priced by BAND, not by row count: a row's chance comes from the die face's
-// rarity column (db/lib/labordropsRarity.js), so `ev` is a real expectation
-// and `hit` is the real miss rate. Under the old uniform draw the two
-// happened to coincide with "fraction of lines"; they do not any more.
-//
-// `hits` stays a count because the printout says "N entries" beside it;
-// `hit` is the fraction that actually matters.
+// Priced by BAND, not row count: a row's chance comes from the die face's
+// rarity column (labordropsRarity.js), so `ev`/`hit` are real expectations,
+// not "fraction of lines" as under the old uniform draw. `hits` stays a count
+// for the printout's "N entries"; `hit` is the fraction that matters.
 function summarize(rows, tagsById, roll) {
   const priced = rows.map((r) => priceEntry(r, tagsById));
   const shares = rowShares(rows, roll);

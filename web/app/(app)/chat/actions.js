@@ -115,24 +115,13 @@ import {
 } from "@/lib/tagChipRows";
 import { thingGroups } from "./thingRows";
 
-// Every button in Chat's right column, as a server action.
-//
-// THE CONTRACT, and it is the same one for all of them: the acting character
-// is resolved from the session, never from anything posted; every gate the
-// panel drew is re-checked here, because a disabled button is a hint and not
-// a lock; the answer is `{ ok: true, … }` or `{ ok: false, error }`, and
-// nothing throws out to the client (web/app/components/useActionRunner.js
-// turns a transport failure into a sentence, and a thrown one into the wrong
-// sentence).
-//
-// The GAME logic lives in db/lib, so the Discord button and the web dialog
-// run one implementation: db/lib/gates.js, db/lib/moves.js,
-// db/lib/whosHere.js, db/lib/examine.js, db/lib/locationTravel.js.
-// What is written out below is the sequencing each face needs and nothing
-// else.
+// Every button in Chat's right column, as a server action. THE CONTRACT: the
+// acting character is resolved from the session, never posted; every gate is
+// re-checked here; the answer is `{ ok: true, … }` or `{ ok: false, error }`,
+// nothing throws to the client (web/app/components/useActionRunner.js). Game
+// logic lives in db/lib, so the Discord button and web dialog run one implementation.
 
-// The acting character, from the session. `select` widens it for whichever
-// action needs more; the default is what almost all of them need.
+// `select` widens the acting-character query for whichever action needs more.
 async function actor(select) {
   const session = await auth();
   if (!session?.discordUserId) return { error: "You are not signed in." };
@@ -145,12 +134,9 @@ async function actor(select) {
       locationId: true,
       factionId: true,
       discordUserId: true,
-      // "Play from the web" — nothing here may touch Discord for them
-      // (docs/systemdocs/CHAT.md §6).
+      // "Play from the web" — nothing here may touch Discord for them (docs/systemdocs/CHAT.md §6).
       webOnly: true,
-      // The tag slugs are what the room `access:` lists read, which is what
-      // decides both which rooms this character can enter and — since the
-      // winch lives in the watchtower — which gates they may work.
+      // Tag slugs are what room `access:` lists read — which rooms, which gates.
       role: { select: { slug: true } },
       tags: { select: { tag: { select: { slug: true } } } },
     },
@@ -159,8 +145,7 @@ async function actor(select) {
   return { character, discordUserId: session.discordUserId };
 }
 
-// Standing in the room is the whole permission model for everything a Room
-// button does — you cannot pull a bell rope from three zones away.
+// Standing in the room is the whole permission model for a Room button — you cannot pull a bell rope from three zones away.
 async function roomHere(character, roomId, slug, missing) {
   const room = await prisma.room.findUnique({
     where: { id: roomId },
@@ -175,27 +160,15 @@ async function roomHere(character, roomId, slug, missing) {
 
 // ---------------------------------------------------------------- the place
 
-// The whole place panel, re-read. The page renders the first copy; this is
-// what a dialog calls after it changed something a button's label depends on
-// (a gate that is now shut, a door now being held).
+// The whole place panel, re-read — what a dialog calls after changing something a button's label depends on.
 export async function loadAffordances() {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
   return { ok: true, affordances: await affordancesFor(prisma, me.character) };
 }
 
-// Looking at whoever said one line — the web twin of the 🔍 reaction, and the
-// only look the page has now. Both eyes point here: the one on a row in the
-// feed, and the one on a row in HERE, which aims at the last line it watched
-// that person say.
-//
-// The browser sends a SEQ and nothing else. Who spoke, whether they were
-// hooded and whether this reader may see the place are all resolved on the
-// server (db/lib/examineRow.js), which is what lets a hooded line carry an eye
-// at all — the page never learns who is under the hood, so there is nothing
-// for it to leak. That replaces the hood token this used to resolve, and it
-// works on a line scrolled back to long after the speaker walked out, which a
-// token keyed on who is standing here never could.
+// Looking at whoever said one line — the web twin of the 🔍 reaction. Only a
+// SEQ is sent; who spoke and whether hooded is resolved server-side (db/lib/examineRow.js).
 export async function lookAtRow(seq) {
   const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
@@ -206,24 +179,9 @@ export async function lookAtRow(seq) {
   return { ok: true, readout: result.readout };
 }
 
-// Photographing what somebody said — the web twin of the 📸 reaction
-// (bot/src/events/messageReactionAdd.js#handleCameraReaction). The row is the
-// only thing the browser sends; who spoke, whether they were hooded, whether
-// this reader may see the place and what the room could see of the speaker
-// AT THE TIME are all resolved by db/lib/examineRow.js, the same path the eye
-// takes. A print is permanent, so a caption written off live state was the
-// worst version of the look-at-now bug: evidence that outlives the look.
-//
-// The camera is NOT spent: holding one is the whole gate, and film is not a
-// system anybody asked for. What bounds it instead is one shot per line per
-// photographer — otherwise a reader could mint unbounded Tag rows off one
-// message, and every one of those is a permanent catalog row. The bot keeps
-// that bound in memory, which a restart empties and which the web process
-// could never share, so this one is a row in AuditLog. It is the same shot
-// either way, so the two faces refusing separately costs a player nothing.
-//
-// No `turnId`: that column is for the per-turn rations that count these rows
-// (REQUESTS.md §1a), and this ration is per LINE rather than per turn.
+// Photographing what somebody said — the web twin of the 📸 reaction, resolved the same way the eye is (db/lib/examineRow.js).
+// The camera is NOT spent — holding one is the whole gate; one shot per line
+// per photographer is tracked in AuditLog. No `turnId`: this ration is per LINE, not per turn (REQUESTS.md §1a).
 const PHOTO_ACTION = "photo_taken";
 
 export async function photographRow(seq) {
@@ -248,11 +206,8 @@ export async function photographRow(seq) {
     return { ok: false, error: "That line is gone." };
   }
 
-  // One shot per line per photographer, read off the INDEXED columns.
-  // AuditLog has (actorDiscordUserId, actionType, turnId) and (actionType);
-  // it has no index over `details`, so a `path: ["seq"]` filter was a scan of
-  // the whole table on a button anybody can press. The seq is checked in JS
-  // over this photographer's own prints, which is a handful of rows.
+  // Read off the INDEXED columns — AuditLog has no index over `details`, so a
+  // `path: ["seq"]` filter would scan the whole table. Checked in JS instead, over a handful of rows.
   const mine = await prisma.auditLog.findMany({
     where: { actorDiscordUserId: me.discordUserId, actionType: PHOTO_ACTION },
     select: { details: true },
@@ -262,10 +217,8 @@ export async function photographRow(seq) {
     return { ok: false, error: "You already have that shot." };
   }
 
-  // Only what the audit row files, plus the one refusal examineRow cannot
-  // word for itself: it returns a bare null for your own line, and "point it
-  // at somebody else" is worth more than "that line is gone". Everything else
-  // about the row — the place, the floor, the kind, the speaker — is its call.
+  // Only what the audit row files, plus the one refusal examineRow can't word
+  // for itself: it returns null for your own line, and "point it at somebody else" beats "that line is gone".
   const row = await prisma.archiveEntry.findUnique({
     where: { seq: key },
     select: { placeKey: true, characterId: true },
@@ -273,21 +226,8 @@ export async function photographRow(seq) {
   if (!row?.characterId) return { ok: false, error: "That line is gone." };
   if (row.characterId === character.id) return { ok: false, error: "Point it at somebody else." };
 
-  // The shot itself is the ordinary look, through the one path every look in
-  // the game takes (db/lib/examineRow.js). This used to be a second copy of
-  // that — its own row fetch, its own place gate, its own subject load, its
-  // own examineReadout — and the copies had already drifted twice over: it
-  // decided a hood by `concealedAlias != null` rather than wasHooded(), so a
-  // forced name photographed as an impoverished hood here and as an ordinary
-  // read in Discord; and its sight gate was Blind alone where the eye's is the
-  // full examineBlock, so a nearsighted player could not look but could
-  // photograph. Framing a shot is something you do by eye, and now it is
-  // gated exactly as 🔍 and 📸 are.
-  //
-  // `bystander: true` is what makes it a LENS rather than a person: no
-  // doctor's eye, no Seductive, no Thanati sight. Without it a surgeon's
-  // photograph would carry their diagnosis to whoever they handed the print
-  // to, which is the one way that gate could be laundered.
+  // The shot is the ordinary look (db/lib/examineRow.js). `bystander: true`
+  // makes it a LENS not a person — no doctor's eye, no Seductive, no Thanati sight.
   const viewer = await prisma.character.findUnique({ where: { id: character.id }, select: VIEWER_SELECT });
   const result = await examineRow(prisma, viewer, key, { bystander: true });
   if (!result) return { ok: false, error: "That line is gone." };
@@ -295,17 +235,14 @@ export async function photographRow(seq) {
   const readout = result.readout;
   const hooded = readout.concealed;
 
-  // No transaction: nothing is spent, so there is nothing that has to be
-  // atomic with the print — and mintPhoto's collision retry cannot run inside
-  // one (db/lib/photoMint.js#createWithRetry).
+  // No transaction: nothing is spent, and mintPhoto's collision retry cannot run inside one (db/lib/photoMint.js#createWithRetry).
   const photo = await mintPhoto(prisma, character.id, {
     subject: readout.name,
     caption: photoCaption(readout),
     subjectCharacterId: row.characterId,
   });
 
-  // Written only once the print exists, so a failed mint leaves the shot
-  // there to try again rather than burning it.
+  // Written only once the print exists, so a failed mint can retry rather than burning the shot.
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: me.discordUserId,
@@ -323,19 +260,10 @@ export async function photographRow(seq) {
   };
 }
 
-// ⭐ from the web. The twin of the reaction in Discord
-// (bot/src/events/messageReactionAdd.js#handleStarReaction) and it writes the
-// same `Note` row, so a line starred here and a line starred there land on the
-// same /notes page in the same shape.
-//
-// A line with no Discord message behind it — a web-only player's, or one the
-// outbox has not pushed yet — still needs a stable key for Note's
-// (discordMessageId, discordUserId) unique, so it is filed under its seq
-// instead. Using the real message id when there is one is what keeps a ⭐ in
-// Discord and a ⭐ here from making two notes out of one message.
+// ⭐ from the web — the twin of the Discord reaction, writing the same `Note`
+// row. A line with no Discord message is filed under its seq instead.
 export async function starRow(seq) {
-  // locationId is what db/lib/feedAccess.js#placesFor reads — without it the
-  // place list comes back empty and every star is refused.
+  // locationId feeds feedAccess.js#placesFor.
   const me = await actor({ id: true, name: true, discordUserId: true, zoneId: true, locationId: true });
   if (me.error) return { ok: false, error: me.error };
   const character = me.character;
@@ -367,9 +295,7 @@ export async function starRow(seq) {
   });
   if (!row || row.deletedAt || !row.content) return { ok: false, error: "That line is gone." };
 
-  // The same gate the feed itself reads by (db/lib/feedAccess.js). A seq is a
-  // guessable number, so this is what stops one being starred out of a room
-  // the reader is standing outside of.
+  // The same gate the feed reads by — stops a starred seq from a room the reader isn't standing in.
   const allowed =
     Boolean(row.placeKey) &&
     (await mayReadPlace(prisma, character, row.placeKey, { gm: false, discordUserId: me.discordUserId }));
@@ -386,13 +312,9 @@ export async function starRow(seq) {
       discordMessageId: row.discordMessageId ?? `seq:${row.seq}`,
       discordChannelId: row.discordChannelId ?? "",
       characterId: row.characterId,
-      // Filed under the alias a concealed or forced line was said as, for the
-      // reason handleStarReaction gives: the note is private, but writing the
-      // real name into it hands the starrer what the hood was hiding.
+      // Filed under the alias a concealed line was said as — a note revealing the real name would hand back what the hood hid.
       characterName: row.concealedAlias ?? row.characterName ?? "Bascinet",
-      // And the face beside it, on the same gate — a note drawing the real
-      // portrait next to an alias hands back what the alias withheld. Null is
-      // their own face, and only a line said under one records it.
+      // Same gate, for the face.
       presentedAvatarPath: row.concealedAlias ? (row.presentedAvatarPath ?? null) : null,
       zoneId: row.zoneId ?? null,
       content: row.content,
@@ -405,20 +327,8 @@ export async function starRow(seq) {
   return { ok: true, line: "Saved to your Notes." };
 }
 
-// What is lying in a room's stash, as STRUCTURE rather than as a sentence.
-//
-// It used to answer with formatStashLine's Discord line — `-# 0 ⬢ | **Tags**:
-// Paper ×23` — which the column then printed raw, subtext marker, asterisks
-// and all. That helper stays exactly as it is for the bot, which is talking
-// into a channel that renders those markers. The web draws its own chips off
-// the rows, so nothing is being formatted twice.
-// THE THINGS DRAWER (CHAT.md §7). What is in this character's pockets, in the
-// two categories a player carries — read back after every Equip, Use, Give or
-// Destroy, and on the column's own minute, so a thing handed over in Discord
-// stops being listed here without a reload.
-//
-// Nothing is decided in the browser: the four verbs come off the catalog flags
-// through ./thingRows.js, and each one re-checks itself when it is pressed.
+// What is lying in a room's stash, as STRUCTURE, not a formatted Discord line.
+// THE THINGS DRAWER (CHAT.md §7): pockets, read back after every Equip/Use/Give/Destroy. Each verb re-checks itself when pressed.
 export async function myThings() {
   const me = await actor({
     id: true,
@@ -429,15 +339,10 @@ export async function myThings() {
         tagId: true,
         quantity: true,
         equipped: true,
-        // M4 fix round: thingGroups derives its own poisonMarker off this —
-        // never returned raw, see thingGroups' own comment.
+        // thingGroups derives its own poisonMarker off this — never returned raw.
         poisonedCount: true,
         equippedQuantity: true,
-        // The whole chip shape, which carries `slug` (canDetectPoison reads
-        // slugs), `category` and `weightLbs` — the three thingGroups itself
-        // needs — as well as everything TagDetails draws. One select, so the
-        // re-read after a verb cannot disagree with the first paint, which is
-        // the exact thing thingRows.js exists to prevent.
+        // The whole chip shape — slug, category, weightLbs for thingGroups, plus everything TagDetails draws.
         tag: { select: CHIP_ROW_SELECT },
       },
     },
@@ -448,11 +353,7 @@ export async function myThings() {
 }
 
 export async function readStash(roomId) {
-  // Widened past actor()'s default: the chips on the floor are real tag chips
-  // now, and the paper among them is composed for THIS reader's eyes — which
-  // takes held tag ids, what is equipped, and whether they are indoors
-  // (db/lib/reading.js). `id` and `locationId` are what the rest of this
-  // action already needed.
+  // Widened past actor()'s default: paper on the floor is composed for THIS reader's eyes (db/lib/reading.js).
   const me = await actor({
     id: true,
     locationId: true,
@@ -472,15 +373,13 @@ export async function readStash(roomId) {
       tags: {
         where: { quantity: { gt: 0 } },
         orderBy: { tag: { name: "asc" } },
-        // The whole chip shape, so a floor full of names is a floor you can
-        // READ before you pick anything up — a description on hover, and a
-        // letter's own words on the sheet TagDetails draws for it.
+        // Whole chip shape, so you can READ before picking up.
         select: { tagId: true, quantity: true, tag: { select: CHIP_ROW_SELECT } },
       },
     },
   });
   const keys = await roomAccessKeys(prisma, me.character.id);
-  // A room you cannot get into is a locked door, not an empty one.
+  // A room you can't get into is a locked door, not an empty one.
   const room = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).find((r) => r.id === roomId);
   if (!room) return { ok: false, error: "You can't get in there." };
   return {
@@ -509,63 +408,40 @@ export async function loadTravel() {
 
   return {
     ok: true,
-    // Somebody has hold of them (INTERCEPT.md). travelOptions has already
-    // shut every way and written the reason onto each row; this is the banner
-    // over the list, so the panel says it once rather than fifty times.
+    // Somebody has hold of them (INTERCEPT.md) — the banner over the list, said once.
     held: heldReasonFor(character),
-    // The AMBIENT count, before any destination is picked — freeZoneMoves'
-    // own honest answer with no crossing to weigh (see its doc comment). Both
-    // count the party: over the mount's seats, the extra crossing it buys is
-    // gone, and the number here has to already say so (MAP.md §3a).
+    // The AMBIENT count, before a destination is picked. Both count the
+    // party, so a mount's extra crossing is already reflected (MAP.md §3a).
     freeLeft: freeMovesLeft(character, config, openTurn, party.length),
     freeReason: freeZoneMovesReason(character, party.length),
-    // Whether there's anything to dismount at all — the node list only
-    // marks a specific way or a specific destination as a consequence when
-    // this is true, since neither "on foot" nor "indoors" means anything to
-    // somebody already walking.
+    // Whether there's anything to dismount at all.
     mounted: blocksOnFoot(equippedSlugs(character.tags ?? [])),
     options: options.map((row) => ({
       id: row.location.id,
       name: row.location.name,
-      // Already loaded: locationGraph's LINK_INCLUDE pulls whole Location rows
-      // on both ends of a link, so this costs no query. The node draws it so
-      // the way out says what it leads to, not just where.
+      // Already loaded via locationGraph's LINK_INCLUDE, no extra query.
       description: row.location.description || null,
       zoneName: row.location.zone?.name ?? null,
       zoneSlug: row.location.zone?.slug ?? null,
-      // A CAVE_LEVEL destination the Caving Die actually rolls at —
-      // travelCost.js#crossingConfirm reads this to warn before a zone
-      // crossing lands somebody underground (CAVING.md §2). Excludes Customs
-      // and the Depot, the two `safe` Locations the Die skips (CAVING.md
-      // §2a) — warning about a die that will not roll would be simply wrong.
+      // A CAVE_LEVEL destination the Caving Die actually rolls at (CAVING.md
+      // §2) — excludes the two `safe` Locations the Die skips (§2a).
       caveLevel:
         row.location.zone?.kind === "CAVE_LEVEL" && !hasAttribute(row.location, SAFE_ATTRIBUTE),
       crossesZone: row.crossesZone,
       passable: row.passable,
-      // THIS destination's own count, unlike the ambient one above — a boat's
-      // bonus is earned per crossing (db/lib/mounts.js#boatCrossing), so
-      // Forest<->Hills or Hills<->Marshes has to show one more than a
-      // crossing the water does nothing for, even though both are "a zone
-      // crossing" equally as far as `crossesZone` is concerned.
+      // THIS destination's own count: a boat's bonus is earned per crossing
+      // (db/lib/mounts.js#boatCrossing), so it can differ from the ambient one above.
       freeLeft: freeMovesLeft(character, config, openTurn, party.length, {
         fromZoneSlug: currentZone?.slug ?? null,
         toZoneSlug: row.location.zone?.slug ?? null,
       }),
-      // A Location a mount gets parked at on arrival (db/lib/indoors.js) —
-      // which is not every Location with a roof over it.
+      // Where a mount parks on arrival (db/lib/indoors.js), not every roofed Location.
       indoors: parksMounts(row.location),
-      // A way too narrow to ride or push through — crossing it dismounts
-      // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
+      // Too narrow to ride through — dismounts instead of refusing.
       dismounts: Boolean(row.dismounts),
-      // Which of this character's own tags opens the way, when one does — the
-      // node draws it as that tag's chip, so a climb you paid Mountaineering
-      // for says so instead of looking like every other road. Only ever a tag
-      // they hold (locationGraph.js#crossingCheck), so there is nothing here to
-      // leak.
+      // Only ever a tag they hold (locationGraph.js#crossingCheck).
       openedBy: row.openedBy ?? null,
-      // crossingCheck's field is `refusal`, not `reason` — this was silently
-      // dropping the actual message (e.g. the locked/shut wording) and
-      // falling back to the node's generic "no way".
+      // crossingCheck's field is `refusal`, not `reason`.
       reason: row.refusal ?? null,
     })),
     partySize: party.length,
@@ -574,9 +450,7 @@ export async function loadTravel() {
 
 // ------------------------------------------------------------------ escort
 
-// The party rack: who is standing here, who is already with you, and how many
-// seats your mount has. One round trip, polled by the panel the way HereList
-// polls its own list — somebody walking up to you has to appear.
+// The party rack: who's here, who's with you, how many seats. Polled the way HereList polls its own list.
 export async function loadParty() {
   const me = await actor(MOVER_SELECT);
   if (me.error) return { ok: false, error: me.error };
@@ -586,18 +460,14 @@ export async function loadParty() {
   const [candidates, party, incoming] = await Promise.all([
     escortCandidates(prisma, character, openTurn?.number ?? null),
     partyOf(prisma, character.id),
-    // Asks aimed at THIS character. The Discord buttons are unreachable for a
-    // web-only player, so the rack answers them too.
+    // Asks aimed at THIS character — the Discord buttons are unreachable for a web-only player.
     prisma.offer.findMany({
       where: { kind: "ESCORT", status: "PENDING", responderId: character.id },
       select: { id: true, initiatorId: true },
     }),
   ]);
 
-  // Offer.initiatorId is a bare column, not a relation — every other reader
-  // resolves the name with its own lookup (db/lib/escort.js, lessons.js,
-  // confession.js). Selecting `initiator` here threw a validation error on
-  // every poll instead, which took the whole party rack down with it.
+  // Offer.initiatorId is a bare column, not a relation — resolve the name with its own lookup, like every other reader.
   const askerNames = new Map();
   if (incoming.length) {
     const askers = await prisma.character.findMany({
@@ -611,10 +481,7 @@ export async function loadParty() {
     ok: true,
     seats: fastTravelCapacity(equippedSlugs(character.tags ?? [])),
     candidates,
-    // The rack draws this, in the order they were picked up. Its verdict is
-    // re-derived rather than read off `candidates`: a follower can be with you
-    // and no longer be a candidate, which is exactly the state a stale
-    // attachment leaves and exactly what the rack has to keep showing.
+    // Re-derived rather than read off `candidates`: a follower can be with you and no longer be a candidate.
     party: party.map((row) => ({
       id: row.id,
       name: row.name,
@@ -625,9 +492,7 @@ export async function loadParty() {
   };
 }
 
-// Pick somebody up. FORCED and CONSENTED attach at once; anyone else is asked
-// and attaches only when they accept. The verdict is re-derived here — the
-// panel's is a hint, and this is a public endpoint.
+// Pick somebody up. FORCED and CONSENTED attach at once; anyone else is asked. Re-derived — the panel's verdict is a hint.
 export async function bringAlong(targetId) {
   const me = await actor(MOVER_SELECT);
   if (me.error) return { ok: false, error: me.error };
@@ -635,10 +500,7 @@ export async function bringAlong(targetId) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
   const target = await prisma.character.findUnique({ where: { id: targetId ?? "" }, select: MOVER_SELECT });
   const verdict = escortAuthority(me.character, target, openTurn?.number ?? null);
-  // Says WHICH rule refused. The picker only lists people you can take, so a
-  // refusal here means the world moved between the list and the click, and
-  // "you can't" with no reason left the player staring at somebody standing
-  // in front of them.
+  // Says WHICH rule refused, not just "you can't".
   if (!verdict) return { ok: false, error: escortRefusal(me.character, target) };
 
   if (verdict === "ASK") {
@@ -649,9 +511,7 @@ export async function bringAlong(targetId) {
     return { ok: true, line: `You asked ${target.name} to come with you.` };
   }
 
-  // A FORCED target is taken, not agreed with, so somebody else holding the
-  // column is not a reason to refuse — escortAuthority already decided that
-  // above and attach must not re-decide it (db/lib/escort.js).
+  // A FORCED target is taken, not agreed with — escortAuthority already decided above; attach must not re-decide it.
   if (!(await attach(prisma, me.character.id, target.id, { takeover: verdict === "FORCED" }))) {
     return { ok: false, error: "Somebody else has them." };
   }
@@ -671,8 +531,7 @@ export async function putDown(targetId) {
   return { ok: true, line: `You let ${target.name} go.` };
 }
 
-// Answering an ask from the web, for a player who never opens Discord. The
-// same two functions the bot's buttons call, so the two faces cannot drift.
+// Answering an ask from the web. Same two functions the bot's buttons call, so the two faces can't drift.
 export async function answerEscort({ offerId, accept } = {}) {
   const me = await actor(MOVER_SELECT);
   if (me.error) return { ok: false, error: me.error };
@@ -697,55 +556,43 @@ export async function travelTo({ locationId } = {}) {
   const target = await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } });
   if (!target) return { ok: false, error: "That place no longer exists." };
 
-  // Who comes along is read off Character.escortedById inside the move's own
-  // transaction — nothing is posted from the browser, so there is nothing to
-  // re-authorize here (MAP.md §3a).
+  // Who comes along is read off Character.escortedById inside the move's own transaction — nothing to re-authorize here (MAP.md §3a).
   const result = await performLocationMove(prisma, me.character, target);
   if (!result.ok) return { ok: false, error: result.reason };
 
-  // Followers the way would not take: already detached, still standing where
-  // they were. The leader's line must not name the reason — a hidden crawl's
-  // refusal would announce that the crawl is there (MAP.md §2a).
+  // Followers the way would not take, already detached. The leader's line
+  // must not name the reason — a hidden crawl's refusal would announce it (MAP.md §2a).
   const stranded = [];
   const heldBack = [];
   for (const entry of result.leftBehind ?? []) {
-    // "held" is the one reason the leader IS told, because it is plain to see:
-    // somebody has hold of them. Every other reason stays unnamed.
+    // "held" is the one reason the leader IS told — it's plain to see anyway.
     (entry.reason === "held" ? heldBack : stranded).push(entry.character.name);
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
     await sendDm(entry.character.discordUserId, `*${me.character.name} went on without you.*`).catch(() => {});
   }
 
-  // Sequential on purpose: each entry is a handful of REST calls, and firing
-  // a whole dragged party's worth at once is the shape that trips the
-  // invalid-response breaker (db/lib/discordRest.js).
+  // Sequential on purpose: firing a whole dragged party's worth at once trips the invalid-response breaker (db/lib/discordRest.js).
   for (const entry of result.moved) {
     await applyLocationMoveSideEffects(prisma, {
       characterId: entry.character.id,
       fromLocationId: entry.fromLocationId,
       toLocationId: entry.toLocationId,
-      // Only ever computed for the mover themselves — performLocationMove
-      // checks the mover's own equipped mount against the edge, never a
-      // dragged passenger's.
+      // Only ever the mover's own mount.
       dismounted: entry.character.id === me.character.id ? result.dismounted : undefined,
     }).catch(() => {});
   }
-  // The Caving Die's "on arrival" trigger (CAVING.md), and the word owed to
-  // anybody who was carried off without pressing anything.
+  // The Caving Die's "on arrival" trigger (CAVING.md).
   for (const entry of result.moved) {
     if (entry.cavingDm) await sendDm(entry.cavingDm.discordUserId, entry.cavingDm.content).catch(() => {});
   }
-  // Anybody who was laying in wait here (INTERCEPT.md). Built inside
-  // performLocationMove and sent out here, the same split cavingDm uses.
+  // Anybody laying in wait here (INTERCEPT.md), built inside performLocationMove.
   for (const dm of result.interceptDms ?? []) {
     await sendDm(dm.discordUserId, dm.content, {
       kind: dm.kind,
       authorDiscordUserId: dm.authorDiscordUserId ?? null,
       components: dm.components,
       meta: dm.meta,
-      // Player-typed text rides in these. cleanMessage() already took the
-      // broadcast pings out of the stored copy; this is the belt to that
-      // pair of braces, and it costs nothing.
+      // Belt to cleanMessage() already stripping broadcast pings.
       allowedMentions: { parse: [] },
     }).catch(() => {});
   }
@@ -772,9 +619,6 @@ export async function travelTo({ locationId } = {}) {
   if (brought.length > 0) parts.push(`Bringing ${brought.join(", ")}.`);
   if (stranded.length > 0) parts.push(`You can't move ${stranded.join(", ")} through here.`);
   if (heldBack.length > 0) parts.push(`Somebody has hold of ${heldBack.join(", ")}.`);
-  // A way too narrow for what they had out. This used to be said only on the
-  // deferred branch, so a free crossing dismounted a rider and told them
-  // nothing; every crossing lands here now, so it is said once, here.
   if (result.dismounted.length > 0) {
     return { ok: true, line: `${parts.join(" ")} ${dismountedMessage(result.dismounted)}` };
   }
@@ -792,11 +636,7 @@ export async function flipGate(linkId) {
     actorDiscordUserId: me.discordUserId,
   });
   if (!result.ok) return { ok: false, error: result.error };
-  // Redrawing the Discord anchor and the watchtower's starter is a
-  // Discord-only follow-up and stays with the bot, which owns those messages
-  // — the gate itself is already flipped either way, so nothing here waits
-  // on it. The bot redraws on its own click and on the next channel doctor
-  // pass.
+  // Redrawing the Discord anchor stays with the bot, which owns those messages — the gate is already flipped either way.
   return { ok: true, line: result.line };
 }
 
@@ -809,8 +649,7 @@ export async function holdKeyed(linkId) {
 
 // ------------------------------------------------------------- noticeboard
 
-// A paper's whole Tag row, because paperDescription and readBlock both need
-// it — a `select` beside a nested `include` is not a shape Prisma accepts.
+// A paper's whole Tag row: paperDescription and readBlock both need it, and a `select` beside a nested `include` isn't valid Prisma.
 const BOARD_ACTOR_SELECT = {
   id: true,
   name: true,
@@ -819,10 +658,7 @@ const BOARD_ACTOR_SELECT = {
   tags: { select: { tagId: true, equipped: true, tag: true } },
 };
 
-// The board where this character is standing. The LOAD is
-// db/lib/noticeboard.js#boardFor, which is Location-keyed and knows nothing
-// about who is asking; the actor gate — you have to be standing here — is
-// this line, and it stays on this side.
+// The board where this character is standing. The LOAD (db/lib/noticeboard.js#boardFor) is Location-keyed and knows nothing about who's asking.
 async function boardHere(character) {
   return boardFor(prisma, character.locationId);
 }
@@ -833,8 +669,7 @@ export async function readBoard() {
   const ctx = await boardHere(me.character);
   if (ctx.error) return { ok: false, error: ctx.error };
 
-  // Written or sealed, and never gated on whether they can read it: pinning
-  // up a letter you cannot read yourself is a perfectly good thing to do.
+  // Never gated on whether they can read it — pinning up a letter you can't read yourself is a fine thing to do.
   const holding = me.character.tags
     .filter((ct) => ct.tag.paperKind === "PAPER" || ct.tag.paperKind === "SEALED")
     .slice(0, BOARD_OPTION_LIMIT)
@@ -941,26 +776,11 @@ export async function pinNotice(tagId) {
 }
 
 // ------------------------------------------------ the board, worked by a GM
-//
-// A GM has no body, so every gate the four actions above apply — are you
-// alive, are you standing here, can you read — answers "no" for them. The
-// board was the one public surface in the game the GMs could not touch.
-//
-// FOUR SEPARATE ACTIONS rather than a branch inside each of the four above.
-// Three of them behave differently enough (no literacy gate, a tear that
-// destroys, a post that mints paper out of nothing) that branching would make
-// the player path harder to read for no gain, and a server action re-checks
-// everything it was sent regardless.
-//
-// The gate is the SAME verdict chat/page.js uses to decide GM mode, so the
-// page and the actions can never disagree about who is a GM. The board comes
-// from the place the GM has open, which is the Discord half's rule too: there,
-// the button lives on the anchor in that Location's own channel.
+// A GM has no body, so the player gates answer "no" for them. FOUR SEPARATE
+// ACTIONS since three behave differently (no literacy gate, a destroying tear, a paper minted from nothing).
 async function gmBoard(placeKey) {
   const { session, isGm } = await getGmSession();
-  // The same sentence a characterless player gets from actor(). A GM reading
-  // this is looking at a bug; anyone else is looking at a refusal that tells
-  // them nothing about whether GM powers exist.
+  // Same sentence a characterless player gets.
   if (!session?.discordUserId || !isGm) return { error: "You have no living character." };
   const parsed = parsePlaceKey(placeKey);
   if (parsed?.kind !== "loc") return { error: "There's no board here." };
@@ -972,8 +792,7 @@ async function gmBoard(placeKey) {
 export async function gmReadBoard(placeKey) {
   const ctx = await gmBoard(placeKey);
   if (ctx.error) return { ok: false, error: ctx.error };
-  // No `holding`: a GM has no paper to pin, which is the whole reason the
-  // dialog gives them a writing form where a player gets a picker.
+  // No `holding`: a GM has no paper to pin, so the dialog gives a writing form where a player gets a picker.
   return {
     ok: true,
     heading: boardText(ctx.location.name, ctx.posts, ctx.openTurn?.number ?? 0),
@@ -986,10 +805,7 @@ export async function gmReadNotice(placeKey, postId) {
   if (ctx.error) return { ok: false, error: ctx.error };
   const post = ctx.posts.find((p) => p.id === postId);
   if (!post) return { ok: false, error: "It's gone." };
-  // A GM sees everything, wax seal included — the same bypass the GM rail's
-  // chips use, out of the same function (db/lib/paper.js#paperViewGm), rather
-  // than a second hand-built paper object beside it. Reading is silent either
-  // way; nobody is told.
+  // A GM sees everything, wax seal included, out of the same function (db/lib/paper.js#paperViewGm). Reading is silent either way.
   const paper = paperViewGm(post.tag);
   return { ok: true, name: post.tag.name, text: paper.text, plain: paper.plain, paper };
 }
@@ -1000,10 +816,7 @@ export async function gmTearNotice(placeKey, postId) {
   const post = ctx.posts.find((p) => p.id === postId);
   if (!post) return { ok: false, error: "It's gone." };
 
-  // The delete IS the claim, the same as a player's tear — and the paper goes
-  // with the post, because a GM has nothing to hold it in. That is what the
-  // expiry sweep does to a notice that blew away, so nothing new is invented
-  // here (db/lib/noticeboard.js#destroyNotice).
+  // The delete IS the claim, same as a player's tear — the paper goes with the post since a GM has nothing to hold it in.
   const claimed = await destroyNotice(prisma, post);
   if (claimed.count === 0) return { ok: false, error: "Somebody got there first." };
 
@@ -1034,12 +847,9 @@ export async function gmPostNotice(placeKey, { title: rawTitle = "", body: rawBo
   if (ctx.error) return { ok: false, error: ctx.error };
   if (!ctx.openTurn) return { ok: false, error: "Nothing is happening yet." };
 
-  // The title is CLEANED and the body is only trimmed — exactly what a
-  // player's own Write does (character/paperActions.js). A paper's NAME is
-  // interpolated raw into bot messages, so an "@" in one is a mention waiting
-  // to happen; a body is only ever shown through PaperSheet or inside a code
-  // block, and it keeps its line breaks because a proclamation signed on its
-  // own line should stay signed on its own line.
+  // The title is CLEANED and the body only trimmed — a paper's NAME is
+  // interpolated raw into bot messages (an "@" is a mention waiting to
+  // happen), while the body is only shown through PaperSheet or a code block.
   const title = cleanCustomText(rawTitle, TITLE_MAX) || null;
   const body = String(rawBody ?? "").trim().slice(0, WRITE_MAX);
   if (!body) return { ok: false, error: "Write something first." };
@@ -1050,14 +860,10 @@ export async function gmPostNotice(placeKey, { title: rawTitle = "", body: rawBo
   });
   const expiresTurn = expiryFrom(ctx.openTurn.number, config?.noticeExpiryTurns ?? 10);
 
-  // MINTED OUTSIDE A TRANSACTION. createWithRetry re-rolls the slug on a
+  // MINTED OUTSIDE A TRANSACTION: createWithRetry re-rolls the slug on a
   // unique collision, and Postgres aborts the whole transaction on the first
-  // failed statement (25P02), so a retry inside one throws instead of
-  // retrying — db/lib/paperMint.js spells the trap out.
-  //
-  // paperAuthor takes the GM's Discord id, and nothing renders it anywhere. It
-  // is for the audit trail only: a notice is anonymous on the board, which is
-  // the point of a public board.
+  // failed statement (25P02) — a retry inside one throws (db/lib/paperMint.js).
+  // paperAuthor takes the GM's Discord id for the audit trail only — a notice is anonymous on the board.
   const paper = await mintUnownedPaper(
     prisma,
     `gm-notice-${ctx.location.id}`,
@@ -1071,17 +877,14 @@ export async function gmPostNotice(placeKey, { title: rawTitle = "", body: rawBo
       data: {
         locationId: ctx.location.id,
         tagId: paper.id,
-        // Nobody pinned it. The column is nullable for its own reason — a
-        // notice outlives the person who put it up — and this is the shape a
-        // Wanted poster already lands in (db/lib/wantedPoster.js).
+        // Nobody pinned it — the same shape a Wanted poster lands in (db/lib/wantedPoster.js).
         postedById: null,
         postedTurn: ctx.openTurn.number,
         expiresTurn,
       },
     });
   } catch (err) {
-    // The paper exists and the board refused it, so it would be an orphan
-    // nothing can ever reach. Take it back out.
+    // The paper exists but the board refused it — an orphan nothing can reach. Take it back out.
     await prisma.tag.deleteMany({ where: { id: paper.id, ephemeral: true } }).catch(() => {});
     if (err?.code === "P2002") return { ok: false, error: "That one is already up somewhere." };
     return { ok: false, error: "That didn't go up." };
@@ -1103,9 +906,7 @@ export async function gmPostNotice(placeKey, { title: rawTitle = "", body: rawBo
     })
     .catch((err) => console.error("Notice audit log failed:", err));
 
-  // THE SAME LINE A PLAYER'S PIN RAISES. It names the paper and never the
-  // person, so nobody in the room can tell a GM's notice from anyone else's —
-  // which is exactly why the line was written that way.
+  // THE SAME LINE A PLAYER'S PIN RAISES — names the paper, never the person, so nobody can tell a GM's notice from anyone else's.
   if (ctx.location.discordChannelId) {
     await postMessage(ctx.location.discordChannelId, ambientLine(pinnedLine(paper.name))).catch(() => {});
   }
@@ -1114,23 +915,7 @@ export async function gmPostNotice(placeKey, { title: rawTitle = "", body: rawBo
 }
 
 // ------------------------------------------------- the place, read by a GM
-//
-// What GmAside.js draws. A player's whole right column is built once in
-// page.js, because a player stands in one place and the page is re-rendered
-// when they move. A GM stands nowhere and changes place by clicking, so the
-// same shape would mean re-rendering the server tree on every click — which is
-// the exact thing CHAT.md §1 says this page does not do.
-//
-// So it is an action the column calls on the place it has open, the way
-// RoomPanel's readStash and TravelNodes' loadTravel already work. Everything
-// below is location-keyed and already exists: this composes, it decides
-// nothing.
-//
-// THE GATE IS THE SAME ONE THE PLACE LIST APPLIES. gmPlacesFor only lists
-// places inside visibleZoneIds, so reading one through here that the column
-// could not have offered would make this action the way around the zone view.
-// A server action is a public endpoint (CLAUDE.md), so it is re-checked here
-// rather than trusted from the click.
+// What GmAside.js draws: a GM changes place by clicking, so this is an action on the open place, not a server re-render (CHAT.md §1).
 async function gmPlace(placeKey) {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId || !isGm) return { error: "You have no living character." };
@@ -1138,8 +923,7 @@ async function gmPlace(placeKey) {
   const parsed = parsePlaceKey(placeKey);
   if (!parsed) return { error: "Nowhere to look." };
 
-  // Every kind resolved down to the Location it belongs to, which is what the
-  // readouts below all take. A zone has none, and neither does a net.
+  // Every kind resolved down to its Location. A zone has none, and neither does a net.
   let locationId = null;
   let conversationId = null;
   let roomId = null;
@@ -1190,12 +974,7 @@ async function gmPlace(placeKey) {
   return { session, location, locationId, roomId, conversationId, zoneId };
 }
 
-// A GM reads everything on the floor, wax seals included. PAPERWORK.md
-// §"A GM works the same board" is explicit about it: a GM holds no tags, so
-// the ordinary literacy gate would call them illiterate and refuse every
-// letter in the game — and this action is GM-gated already. `canAppraise`
-// stays false: there is no character and no skill, and /gm/dev is where a GM
-// reads numbers.
+// A GM reads everything, wax seals included (PAPERWORK.md §"A GM works the same board") — no tags, so `canAppraise` stays false.
 const GM_CHIP_CTX = { gm: true };
 
 export async function gmPlaceView(placeKey) {
@@ -1203,15 +982,12 @@ export async function gmPlaceView(placeKey) {
   if (ctx.error) return { ok: false, error: ctx.error };
   const { location, locationId, roomId, conversationId, zoneId } = ctx;
 
-  // A radio net belongs to no zone and no Location (CHAT.md §5d), so there is
-  // nothing place-shaped to say about one. Answered plainly rather than with
-  // an empty column, which reads as a column that failed to load.
+  // A radio net belongs to no zone and no Location (CHAT.md §5d) — answered plainly, not with an empty column.
   if (!locationId && !zoneId) {
     return { ok: true, placeKey, kind: "net" };
   }
 
-  // A zone summary is the zone and its Locations, and nothing else: a GM
-  // reading #summary is not standing in any of them.
+  // A zone summary is the zone and its Locations, nothing else — a GM reading #summary isn't standing in any of them.
   if (!locationId) {
     const zone = await prisma.zone.findUnique({
       where: { id: zoneId },
@@ -1248,9 +1024,7 @@ export async function gmPlaceView(placeKey) {
         tags: {
           where: { quantity: { gt: 0 } },
           orderBy: { tag: { name: "asc" } },
-          // The whole chip shape. This used to select `description` and then
-          // throw it away in the mapper below, so the one person reading every
-          // scene in the game got a chip whose only tooltip was its own name.
+          // The whole chip shape, not just a name.
           select: { tagId: true, quantity: true, tag: { select: CHIP_ROW_SELECT } },
         },
       },
@@ -1260,17 +1034,12 @@ export async function gmPlaceView(placeKey) {
     conversationId ? conversationMembers(prisma, conversationId, null, { gm: true }) : Promise.resolve(null),
   ]);
 
-  // The place-only half of the affordance catalog — the half an anchor can
-  // carry, which is exactly the half that is true of a place rather than of a
-  // person (db/lib/placeAffordances.js). Travel and Who's here? are dropped
-  // for the same reason ChatAside drops them: this column answers both by
-  // being on the page.
+  // The place-only half of the affordance catalog (db/lib/placeAffordances.js). Travel and Who's here? dropped, same reason ChatAside drops them.
   const fixtures = locationAffordances(location)
     .filter((entry) => entry.id !== "travel" && entry.id !== "whosHere" && entry.id !== "examine")
     .map((entry) => ({ id: entry.id, label: entry.label, tone: entry.tone }));
 
-  // Every modular way out and what it is doing, read through the graph rather
-  // than off a button — the reason examineLines reads it that way too.
+  // Every modular way out, read through the graph rather than off a button — same reason examineLines reads it that way.
   const ways = (links ?? [])
     .map((link) => {
       const far = endpoints(link, locationId).far;
@@ -1298,9 +1067,7 @@ export async function gmPlaceView(placeKey) {
     fixtures,
     people,
     ways,
-    // typeName is the snapshot column, so a structure keeps the name it was
-    // raised under even if the tag behind it is renamed later — the same
-    // reasoning every other log column in this schema follows.
+    // typeName is a snapshot column, same reasoning as every other log column.
     structures: (structures ?? []).map((s) => ({
       id: s.id,
       name: s.typeName,
@@ -1335,27 +1102,11 @@ export async function gmPlaceView(placeKey) {
   };
 }
 
-// The same ceiling /gm/dev's ambient form applies. One line of scenery, not a
-// monologue — and the two boxes write the same kind of row, so they cannot
-// sensibly disagree about how long one may be.
+// The same ceiling /gm/dev's ambient form applies — one line of scenery, not a monologue.
 const AMBIENT_MAX = 1500;
 
-// A line the world says into the place a GM has open.
-//
-// The same thing /gm/dev's ambient form does, with the picker removed: the
-// column already knows where the GM is reading, and re-choosing the place from
-// a dropdown you just clicked is the friction that kept this on a page three
-// clicks away. One text box, the place you are looking at.
-//
-// It goes through db/lib/placeLine.js like every other line of scenery, so the
-// Discord post and the ArchiveEntry happen together and a web-only player sees
-// it too. `-#` is per line and ambientLine owns that rule — never write the
-// prefix here (CLAUDE.md, "Bot message style").
-//
-// THREE KINDS ONLY, matching the ambient form's own targets. A conversation is
-// a private thread somebody opened to talk in, and a radio net is a frequency
-// rather than a room; scenery belongs in neither, and refusing plainly beats
-// offering a box that posts somewhere surprising.
+// A line the world says into the place a GM has open, through db/lib/placeLine.js like every line of scenery.
+// `-#` is per line and ambientLine owns that rule — never write the prefix here (CLAUDE.md, "Bot message style").
 export async function gmSayHere(placeKey, text) {
   const ctx = await gmPlace(placeKey);
   if (ctx.error) return { ok: false, error: ctx.error };
@@ -1445,14 +1196,10 @@ export async function converseRooms() {
   return { ok: true, rooms: open.map((r) => ({ id: r.id, name: r.name, private: r.kind === "PRIVATE" })) };
 }
 
-// How many people one Converse may seat besides the opener. The dialog ticks
-// at most one; this is the bound on a hand-posted list, since each hood token
-// in it costs a presence query to resolve.
+// How many people one Converse may seat besides the opener — a bound on a hand-posted list, since each hood token costs a presence query.
 const INVITE_LIMIT = 10;
 
-// `inviteRefs` are character ids, or the bare hood token a concealed row
-// carries instead of one — the same pair lookAt, addMember and removeMember
-// take, told apart the same way.
+// `inviteRefs` are character ids, or the bare hood token a concealed row carries instead — the same pair lookAt/addMember/removeMember take.
 export async function openConversation({ roomId, name, inviteRefs = [] } = {}) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
@@ -1543,11 +1290,8 @@ export async function openConversation({ roomId, name, inviteRefs = [] } = {}) {
 
 // ------------------------------------------------------- bell, PA, the gun
 
-// Pray, at the Shrine of an Old Man. A confirm rather than the bell's
-// type-the-word dialog, and the difference is the point: RING is a speed bump
-// on a LOUD act, and this disturbs nobody — it hands you a permanent tag that
-// can kill you and shuts every goal on your sheet but one. The friction that
-// suits that is being told what the bargain is, which the dialog does.
+// Pray, at the Shrine of an Old Man. A confirm, not the bell's type-the-word
+// dialog: this disturbs nobody, but hands you a permanent tag that can kill you.
 export async function pray({ roomId } = {}) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
@@ -1739,11 +1483,7 @@ export async function speakOnIntercom({ roomId, body } = {}) {
 
 // ------------------------------------------------------------------ quests
 
-// A quest's Interact button, the web half of the pair (QUESTS.md). The Discord
-// half is bot/src/events/interactionCreate.js#handleQuestSubmit, and both call
-// the same questInteract — every gate, the wording of every refusal and the
-// Gambit itself live there, so the two faces cannot drift about what pressing
-// this does.
+// A quest's Interact button, the web half of the pair (QUESTS.md). Both faces call the same questInteract, so they can't drift.
 export async function interactWithQuest({ questId, intention } = {}) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
@@ -1800,13 +1540,9 @@ export async function submitMove({ moveKind, description } = {}) {
   return { ok: true, line: parts.join(" ") };
 }
 
-// The turn card's own state, re-read: which turn is open, whether the Move
-// window has shut, and the Move this character has already filed into it.
-// Polled beside waitingOnYou, so a Move filed from Discord shows up here
-// without a reload.
-//
-// A filed Move is final, so what comes back is what it says and nothing about
-// changing it — no `editable`, no kind-change ration.
+// The turn card's own state, re-read: open turn, Move window, filed Move.
+// Polled beside waitingOnYou, so a Discord-filed Move shows up without a reload.
+// A filed Move is final: no `editable`, no kind-change ration.
 export async function myMove() {
   const me = await actor({ id: true });
   if (me.error) return { ok: false, error: me.error };
@@ -1835,35 +1571,23 @@ export async function myMove() {
     turn: {
       number: openTurn.number,
       phase: openTurn.phase,
-      // ISO, because a Date does not survive the trip to a client component
-      // intact and the countdown ticks in the browser anyway. It is the
-      // CUTOFF, not the turn's end — Moves stop three hours early
-      // (db/lib/turnClock.js), and counting to the end named a time nothing
-      // happens at.
+      // ISO — a Date doesn't survive to a client component. It's the CUTOFF,
+      // not the turn's end: Moves stop three hours early (db/lib/turnClock.js).
       closesAt: hasLock && cutoffAt ? cutoffAt.toISOString() : null,
       locked,
       hasLock,
     },
     move: action ? { id: action.id, kind: action.moveKind, description: action.description } : null,
-    // Whose Move this is. The dialog keys its unfiled draft on it, so two
-    // characters signed in from the same browser never inherit each other's
-    // half-written day.
+    // The dialog keys its unfiled draft on it, so two characters don't inherit each other's day.
     characterId: me.character.id,
   };
 }
 
-// What the Move dialog shows before a Labor is committed, and nothing more.
-//
-// The player used to learn that they cannot labor where they stand by pressing
-// File it and reading the refusal afterwards — on the one action a turn that
-// is final. resolveLaborRate already knows; this just asks it early.
-//
-// WORDS, never numbers. `qualityWord` is the same function the Examine button
-// prints (db/lib/examineLocation.js), so this says exactly what anybody
-// standing here can already read, and the min/max the rate resolver also
-// returns is deliberately dropped on the floor: Examine is the only surface
-// allowed to show a coefficient at all (docs/systemdocs/LABORING.md), and a
-// range is that number with the disguise off.
+// What the Move dialog shows before a Labor is committed — resolveLaborRate
+// asked early, so a player doesn't learn they can't labor here only after filing.
+// WORDS, never numbers. `qualityWord` is the same function Examine prints
+// (db/lib/examineLocation.js) — the min/max is dropped, since Examine is the
+// only surface allowed to show a coefficient at all (docs/systemdocs/LABORING.md).
 const LABOR_TIER_LABELS = {
   basic: "Laboring",
   skilled: "Skilled Laboring",
@@ -1872,13 +1596,11 @@ const LABOR_TIER_LABELS = {
   fishing: "Fishing",
   prospecting: "Prospecting",
   refining: "Refining",
-  // No skill that pays here. An em dash rather than a word, because there is
-  // no tier — the day still files, and it still earns nothing.
+  // No skill that pays here — the day still files, still earns nothing.
   unskilled: "—",
 };
 
-// The same fixed order the bot's Examine uses, so a player who has learned the
-// shape in Discord reads it the same way here.
+// The same fixed order the bot's Examine uses.
 const LABOR_CONTEXT_KINDS = [
   { kind: "HUNTING", label: "Hunting" },
   { kind: "FARMING", label: "Farming" },
@@ -1909,35 +1631,23 @@ export async function moveContext() {
       label,
       word: qualityWord(byKind.get(kind) ?? null),
     })),
-    // The tier that would win, as its own name — "you would work Fishing".
-    // Absent when the rate refuses, in which case `refusal` carries the why.
+    // "you would work Fishing"; absent when the rate refuses.
     tier: rate.ok ? (LABOR_TIER_LABELS[rate.tier] ?? null) : null,
-    // Named, not summed: the number is the coefficient's cousin and stays out.
+    // Named, not summed.
     tools: rate.ok ? (rate.tools ?? []).map((tool) => tool.name).filter(Boolean) : [],
     refusal: rate.ok ? null : (rate.reason ?? null),
-    // The Godard Factory floor, where a day pays in cubes and the four yield
-    // words above describe nothing (db/lib/refinery.js, FACTORY.md). The same
-    // sentence the DM gets afterwards, shared from db/lib so the two faces
-    // cannot drift. Null everywhere else, which is what the dialog branches on.
+    // The Godard Factory floor, where a day pays in cubes (db/lib/refinery.js, FACTORY.md). Null elsewhere; the dialog branches on it.
     refining: rate.ok && rate.refinery ? REFINERY_NOTE : null,
   };
 }
 
 
-// The Bascinet conversation (CHAT.md §2b): everything the game has said to
-// this player by DM, and what they wrote back. The SAME rows the GM desk
-// reads, through the SAME noise filter (web/lib/dmThread.js), from the other
-// chair — so the two surfaces cannot disagree about what was said. The row
-// shape strips the author: a player never learns which GM answered.
-//
-// Paged from the newest backwards by `beforeId`, with the desk's keyset
-// (createdAt, id) — a turn push writes several rows into one millisecond, and
-// a plain `createdAt <` would skip every row sharing the boundary's stamp.
-//
-// Gated on the ACCOUNT, not on a living character: the page itself is what
-// requires one, and a player whose character died with the tab open should
-// still be able to read what Bascinet said and write back — that is the
-// moment they most want to.
+// The Bascinet conversation (CHAT.md §2b): the SAME rows the GM desk reads,
+// through the SAME noise filter (web/lib/dmThread.js). Row shape strips the
+// author — a player never learns which GM answered. Paged by `beforeId` with
+// the desk's keyset (createdAt, id) — a turn push writes several rows into
+// one millisecond. Gated on the ACCOUNT, not a living character: a player
+// whose character just died should still read and reply.
 const GM_THREAD_PAGE = 60;
 
 async function account() {
@@ -1973,9 +1683,7 @@ export async function gmThread({ beforeId = null } = {}) {
     select: PLAYER_DM_SELECT,
   });
   const hasMore = rows.length > GM_THREAD_PAGE;
-  // Which of this page's DM buttons are still worth drawing. Stamped here
-  // rather than in the renderer, because "is this offer still open?" is a
-  // database question (web/lib/dmActions.js).
+  // Which DM buttons are still worth drawing — "is this offer still open?" is a database question (web/lib/dmActions.js).
   const character = await prisma.character.findFirst({
     where: { discordUserId: me.discordUserId, status: "ALIVE" },
     select: { id: true },
@@ -1990,19 +1698,11 @@ export async function gmThread({ beforeId = null } = {}) {
   };
 }
 
-// A line to Bascinet, from Chat. One INBOUND row, exactly as the bot logs
-// a DM typed into Discord (bot/src/events/messageCreate.js) — and nothing
-// sent to Discord, because there is nothing to send: the bot cannot speak as
-// the player in their own DM, the desk picks the row up on its poll like any
-// inbound, and the GM's answer goes out through sendDm to Discord and the
-// table both, so it reaches the player on whichever face they are on.
-// `meta.via` says where it was typed, for a GM reading the record later.
-//
-// Two refusals the Discord path has no equivalent of. The Play switch
-// (GameConfig.playPanelEnabled) is re-read here because a tab open when a GM
-// flips it keeps its stream; and a plain cap on how fast one account may
-// write, because every scene composer in Chat is throttled and this one
-// is a pipe straight into the GM desk's inbox.
+// A line to Bascinet, from Chat. One INBOUND row, as the bot logs a DM typed
+// into Discord — nothing sent to Discord, since the bot can't speak as the
+// player. `meta.via` says where it was typed. Two refusals the Discord path
+// has none of: the Play switch re-read here (a tab open when a GM flips it
+// keeps its stream), and a rate cap since this is a pipe into the GM inbox.
 const TO_GMS_WINDOW_MS = 60_000;
 const TO_GMS_PER_WINDOW = 12;
 
@@ -2056,10 +1756,7 @@ export async function sendToGms(content, clientNonce) {
   return { ok: true, row: playerDmRow(row) };
 }
 
-// The Desire picker's catalog, ~271 templates evaluated against this
-// character's gates. Fetched the first time the picker opens rather than on
-// every page load — the slot half the column draws costs one query and comes
-// down with the page (web/lib/selfPools.js).
+// The Desire picker's catalog, ~271 templates evaluated against this character's gates. Fetched the first time the picker opens.
 export async function desireCatalogView() {
   const me = await actor({
     id: true,
@@ -2079,11 +1776,8 @@ export async function desireCatalogView() {
 
 // ------------------------------------------------------------ waiting on you
 
-// Everything that is holding still until this player answers it: a lesson,
-// a binding or a confession somebody offered; a threat seat; a letter the
-// bird is still waiting on; a lobby assignment. Each row's Accept/Decline
-// calls the SAME db/lib function the DM's buttons call, so an answer given
-// here and an answer given in Discord are the same answer.
+// Everything holding still until this player answers it: a lesson, binding,
+// confession, threat seat, letter, lobby assignment. Each row's Accept/Decline calls the SAME db/lib function the DM's buttons call.
 export async function waitingOnYou() {
   const me = await actor({ id: true, name: true, discordUserId: true, locationId: true });
   if (me.error) return { ok: false, error: me.error };
@@ -2250,15 +1944,9 @@ export async function answerWaiting({ kind, id, accept } = {}) {
 // ------------------------------------------------------------ slash commands
 //
 // The web twins of the player slash commands (bot/src/lib/commands.js). Each
-// one is the SAME rule the Discord handler runs, extracted into db/lib so the
-// two faces cannot drift: db/lib/conceal.js, db/lib/shout.js, db/lib/roll.js.
-// What is left here is the sequencing the web needs — resolve the actor from
-// the session, re-check the place, write the scene row beside the Discord
-// post — and nothing else.
-//
-// `/move`, `/travel`, `/converse` and `/look` need no new action: they are
-// submitMove, travelTo, openConversation and the sheet's Examine dialog, all
-// of which already exist above.
+// is the SAME rule the Discord handler runs, extracted into db/lib
+// (conceal.js, shout.js, roll.js) — what's left is web sequencing only.
+// `/move`, `/travel`, `/converse`, `/look` need no new action: already above.
 
 // /conceal. A standing state, not a per-message prefix — the alias is what
 // the composer wears from here until it is turned off again.
@@ -2279,14 +1967,9 @@ export async function toggleConceal() {
 }
 
 // /shout. db/lib/shout.js answers who hears it and what they hear; this does
-// both halves of the delivery, because a SYSTEM row is deliberately never
-// echoed into a channel by the outbox (db/lib/scene.js) and a shout that only
-// reached one face would be a shout half the game did not hear.
-//
-// Sequential, no Promise.all: this is up to a couple of dozen Locations, and
-// a fan-out across all of them would burst Discord's rate-limit buckets. Same
-// discipline as the bot's own loop. Every post is caught on its own, so one
-// dead channel cannot swallow the rest of the shout.
+// both halves of delivery, since a SYSTEM row is never echoed by the outbox.
+// Sequential, no Promise.all — up to a couple dozen Locations would burst
+// Discord's rate limit. Every post is caught on its own, so one dead channel can't swallow the rest.
 export async function shoutHere(text, placeKey = null) {
   const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
@@ -2399,16 +2082,10 @@ export async function playHere(placeKey) {
   return playInstrument(prisma, { ...me.character, discordUserId: me.discordUserId }, placeKey);
 }
 
-// /look, and the eye in the HERE column. One entry point for both kinds of
-// person the column knows about: a character id off a named row, or the opaque
-// hood token db/lib/whosHere.js mints for a concealed one. A token is 32 hex
-// characters and a cuid never is, so the two can be told apart without the
-// browser saying which it sent.
-//
-// Either way it lands on the LINE you last heard them say, not on the person
-// standing in front of you. You cannot size up a stranger who has not opened
-// their mouth — looking is something you do to somebody you have noticed, and
-// what you get back is what you noticed, frozen (db/lib/sightings.js).
+// /look, and the eye in the HERE column. One entry point for a character id
+// or the opaque hood token db/lib/whosHere.js mints — a token is 32 hex, a
+// cuid never is, so they're told apart without the browser saying which.
+// Lands on the LINE you last heard them say, frozen (db/lib/sightings.js).
 const HOOD_TOKEN = /^[0-9a-f]{32}$/;
 
 export async function lookAt(personRef) {
@@ -2418,8 +2095,7 @@ export async function lookAt(personRef) {
   const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
 
-  // One sightings Map for both halves: resolveHoodToken decides who counts as
-  // hooded from the same answer the readout below is built on.
+  // One sightings Map for both halves: resolveHoodToken decides who counts as hooded from the same answer the readout uses.
   const seen = await lastSightings(prisma, me.character);
   const targetId = HOOD_TOKEN.test(ref)
     ? await resolveHoodToken(prisma, me.character, ref, { sightings: seen })
@@ -2435,17 +2111,10 @@ export async function lookAt(personRef) {
 // ------------------------------------------------- who is in this room, and
 // ------------------------------------------------- who may let somebody in
 //
-// The web twin of /add and /remove (bot/src/events/interactionCreate.js).
-// They work on two things, and the place decides which:
-//
-//   - A Conversation. Membership is a PlayerThreadMember row, and it works on
-//     any living character wherever they stand — the PlayerThreadInvite row
-//     beside it replays the Discord half when they arrive.
-//   - A private Room. Membership is a RoomGuest row, and the target has to be
-//     STANDING here, because the grant is spent the moment they leave.
-//
-// A public Room takes neither: everyone standing in the Location can already
-// read it, so `members` comes back null and the strip does not draw.
+// The web twin of /add and /remove. A Conversation's membership is a
+// PlayerThreadMember row, working on any living character. A private Room's
+// is a RoomGuest row, and the target has to be STANDING here. A public Room
+// takes neither: `members` comes back null and the strip doesn't draw.
 
 // The conversation behind a `conv:` key, plus whether this character is in
 // it. Being a member IS the permission, the same gate the bot applies.
@@ -2473,12 +2142,8 @@ async function conversationHere(character, placeKey, { sightings = null } = {}) 
   return { conversation, members, memberIds };
 }
 
-// The private room behind a `room:` key. Two things, not one: your feet at its
-// Location, AND a way in — a key or a guest row. The same pair
-// db/lib/roomGuests.js#doorwayFor tests, and it has to be both. On Discord the
-// second half was implicit, because /add was typed into the room's own thread
-// and only an entitled character can see one; without it here, anybody
-// standing in the street could hand out a door they cannot open themselves.
+// The private room behind a `room:` key: your feet at its Location AND a way
+// in (a key or a guest row) — the same pair db/lib/roomGuests.js#doorwayFor tests.
 async function privateRoomHere(character, placeKey) {
   const parsed = parsePlaceKey(placeKey);
   if (!parsed || parsed.kind !== "room") return { error: "That isn't a room." };
@@ -2496,9 +2161,7 @@ async function privateRoomHere(character, placeKey) {
   return { room };
 }
 
-// Who is in the open place, and who standing here could be let in. One call,
-// because the strip draws both and a second round trip for the picker would
-// show a list that was already a beat stale.
+// Who is in the open place, and who standing here could be let in — one call, so the picker never shows a stale list.
 export async function placeMembers(placeKey) {
   const me = await actor({ id: true, factionId: true, locationId: true });
   if (me.error) return { ok: false, error: me.error };
@@ -2698,10 +2361,7 @@ export async function addMember(placeKey, ref) {
   return { ok: true, line: result.line };
 }
 
-// A character id or a hood token, resolved against the roster of the place
-// the caller has already gated on. Anything that is not a token is passed
-// through as an id and re-checked downstream, which is where a bad id was
-// always going to be refused anyway.
+// A character id or a hood token, resolved against the roster of the place the caller has already gated on.
 function resolveMemberRef(ref, memberIds) {
   const raw = String(ref ?? "").trim();
   if (!HOOD_TOKEN.test(raw)) return raw;
@@ -2709,13 +2369,8 @@ function resolveMemberRef(ref, memberIds) {
 }
 
 // `ref` is a character id, or the opaque hood token a concealed member's row
-// carries instead of one (db/lib/presentedMembers.js). Same pair /look takes,
-// and told apart the same way: a token is 32 hex characters and a cuid never
-// is, so the browser never says which it sent.
-//
-// The token resolves only inside the roster of the place it was minted from,
-// which is what makes handing it out safe — it can name somebody in a room you
-// are in and nobody anywhere else.
+// carries (db/lib/presentedMembers.js). The token resolves only inside the
+// roster of the place it was minted from — safe to hand out.
 export async function removeMember(placeKey, ref) {
   const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };

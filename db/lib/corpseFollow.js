@@ -1,41 +1,25 @@
-// The dead sheet follows its corpse. docs/systemdocs/CORPSES.md.
-//
-// A corpse tag is a handle to a Character row, and this is the half that makes
-// that mean something: wherever the tag ends up — a Room's stash, or somebody's
-// pocket — the dead character's locationId and zoneId are moved to match. Once
-// they agree, db/lib/presence.js#isHere makes the body lootable there with NO
-// edit to lootCharacterRequestImpl at all, and Move/Harm come along for free.
-//
-// PULL-BASED, and it has to be. The obvious design is to push from whatever
-// moved the tag, and it cannot work: the case this feature exists for — you
-// pick a body up and WALK somewhere — involves no tag write whatsoever. Only
-// the carrier's own locationId changed. So this recomputes from current state
-// instead of being told, the same reasoning settleCarry and
-// roomAccess.js#syncCharacterRoomAccess both give.
-//
-// POST-COMMIT, never inside a caller's transaction: it is a plain write but it
-// runs beside settleCarry, which talks to Discord.
-//
+// The dead sheet follows its corpse (CORPSES.md). Wherever the tag ends up —
+// a Room's stash, a pocket — the dead character's locationId/zoneId move to
+// match, so db/lib/presence.js#isHere makes the body lootable with no edit to
+// lootCharacterRequestImpl, and Move/Harm come along free. PULL-BASED, and
+// has to be: the case this exists for (picking a body up and WALKING) writes
+// no tag at all, only the carrier's locationId changes — so this recomputes
+// from current state (same reasoning as settleCarry and
+// roomAccess.js#syncCharacterRoomAccess). POST-COMMIT, never inside a
+// caller's transaction: runs beside settleCarry, which talks to Discord.
 // Takes `prisma` as a parameter (db/lib/dm.js convention); off the barrel.
 
-// Where a corpse tag physically is, in precedence order:
-//   1. in someone's hands  -> that holder's Location
-//   2. lying in a Room     -> that Room's Location
-//   3. nowhere             -> leave the dead row exactly as it is
-//
-// 1 beats 2 because a tag can briefly be both mid-transfer, and the pocket is
-// the more specific answer. "Nowhere" is a real state (a buried or butchered
-// body's tag is gone) and must never be read as "move them to null" — that
-// would unplace every buried character on the next pass.
+// Precedence: 1. in hands -> holder's Location, 2. in a Room -> Room's
+// Location, 3. nowhere -> leave the dead row as-is. 1 beats 2 since a tag can
+// briefly be both mid-transfer. "Nowhere" (buried/butchered) must never read
+// as "move to null" — that would unplace every buried character.
 async function placementFor(prisma, tag) {
   const held = await prisma.characterTag.findFirst({
     where: { tagId: tag.id },
     select: { character: { select: { id: true, locationId: true, zoneId: true } } },
   });
   if (held?.character?.locationId) {
-    // A corpse sitting on its OWN sheet is the no-public-room fallback from
-    // mintCorpse. It is already where it belongs; moving it to itself is a
-    // no-op, but say so rather than leaving the reader to work it out.
+    // A corpse on its OWN sheet is the no-public-room fallback from mintCorpse — already where it belongs.
     return { locationId: held.character.locationId, zoneId: held.character.zoneId };
   }
   const stashed = await prisma.roomTag.findFirst({
@@ -48,17 +32,14 @@ async function placementFor(prisma, tag) {
   return null;
 }
 
-// Reconcile one body. Cheap enough to call on any path that might have moved
-// a corpse, and a no-op when nothing did.
+// Cheap enough to call on any path that might have moved a corpse; a no-op when nothing did.
 async function reconcileCorpse(prisma, tag) {
   if (!tag?.corpseOfCharacterId) return null;
   const where = await placementFor(prisma, tag);
   if (!where) return null;
 
-  // Only ever moves a DEAD, unburied sheet. A Revive clears the corpse tag
-  // (see reviveCharacter), but the guard is here too: teleporting a living
-  // character because their old body is in someone's bag would be a very
-  // confusing bug to chase.
+  // Only ever moves a DEAD, unburied sheet. Revive clears the corpse tag, but the guard is here
+  // too — teleporting a living character via their old body would be a confusing bug to chase.
   const moved = await prisma.character.updateMany({
     where: {
       id: tag.corpseOfCharacterId,
@@ -71,9 +52,8 @@ async function reconcileCorpse(prisma, tag) {
   return moved.count > 0 ? { characterId: tag.corpseOfCharacterId, ...where } : null;
 }
 
-// Every body at once. Takes no arguments on purpose: the callers that need it
-// (an arrival, the turn close) know a corpse MIGHT have moved but not which,
-// and the scan is bounded by the number of deaths in the game.
+// Takes no arguments: callers know a corpse MIGHT have moved but not which, and the scan is
+// bounded by the number of deaths in the game.
 async function reconcileCorpses(prisma) {
   const corpses = await prisma.tag.findMany({
     where: { corpseOfCharacterId: { not: null }, corpseOf: { status: "DEAD", buriedAt: null } },

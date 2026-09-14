@@ -3,12 +3,8 @@
 import { useSyncExternalStore } from "react";
 import { noteDeskDraftTurn, pruneDeskDrafts } from "./deskDraft";
 
-// The adjudication desk's client-owned model of its own rows — Moves, Caving
-// rolls, staged effects/messages. Every action hands back the rows it
-// changed and the desk folds them in here, so what a GM sees is what a GM
-// did, and the page payload is a reconciliation rather than the only source.
-// Module-level state read through useSyncExternalStore, same shape as
-// liveInbox.js. Every rebuild makes a new Map/array: react-hooks/immutability is an error here.
+// Adjudication desk's client-owned model of its rows — Moves, Caving rolls, staged effects/messages. Every action hands back the rows it changed and the desk folds them in, so what a GM sees is what a GM did; the page payload is a reconciliation, not the only source.
+// Module-level state read through useSyncExternalStore (liveInbox.js's shape). Every rebuild makes a new Map/array: react-hooks/immutability is an error here.
 
 const EMPTY_VIEWS = Object.freeze({
   seeded: false,
@@ -18,8 +14,7 @@ const EMPTY_VIEWS = Object.freeze({
   stagedMessages: Object.freeze([]),
 });
 
-// Deleted rows are remembered as tombstones so a page payload already in
-// flight can't resurrect them; capped against a long session.
+// Deleted rows are remembered as tombstones so a page payload already in flight can't resurrect them; capped against a long session.
 const TOMBSTONE_CAP = 2000;
 
 const state = {
@@ -58,10 +53,7 @@ function getServerSnapshot() {
   return EMPTY_VIEWS;
 }
 
-// THE RECONCILIATION RULE, in one function. Every row carries `asOfMs`, the
-// database's own clock at read time (web/lib/pgClock.js). A newer read
-// replaces a held row WHOLE, never field by field — mixing halves of two
-// reads can say things neither read said. A tie keeps what is held.
+// THE RECONCILIATION RULE, in one function. Every row carries `asOfMs`, the database's own clock at read time (web/lib/pgClock.js). A newer read replaces a held row WHOLE, never field by field — mixing halves of two reads can say things neither read said. A tie keeps what is held.
 function hold(map, id, row, asOfMs) {
   if (!id) return false;
   const held = map.get(id);
@@ -102,9 +94,7 @@ function byCreatedAsc(a, b) {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-// Rebuilt only when something moved, so a component reading it via
-// useSyncExternalStore re-renders exactly then. Sort matches page.js's
-// queries: Moves/Caving rolls newest first, staged rows oldest first (queue order = push order).
+// Rebuilt only when something moved, so a component reading it via useSyncExternalStore re-renders exactly then. Sort matches page.js's queries: Moves/Caving rolls newest first, staged rows oldest first (queue order = push order).
 function rebuildViews() {
   state.views = Object.freeze({
     seeded: state.seeded,
@@ -122,10 +112,8 @@ const TYPES = [
   ["messages", "stagedMessages", "stagedMessageIds"],
 ];
 
-// A whole page payload. Unlike a patch this is AUTHORITATIVE ABOUT MEMBERSHIP
-// at its own `asOfMs`: a row it doesn't name, no older than the payload, is
-// gone (somebody else's Reject/Delete). A row held from a LATER read
-// survives. Called on every payload, stored and fresh alike (web/lib/snapshot).
+// A whole page payload. Unlike a patch this is AUTHORITATIVE ABOUT MEMBERSHIP at its own `asOfMs`: a row it doesn't
+// name, no older than the payload, is gone (somebody else's Reject/Delete). A row held from a LATER read survives. Called on every payload, stored and fresh alike (web/lib/snapshot).
 export function seedDesk(payload) {
   if (!payload || !Number.isFinite(payload.asOfMs)) return;
   // A new turn opened under the desk — a different queue, so drop it rather than reconciling.
@@ -159,9 +147,8 @@ export function seedDesk(payload) {
     }
   }
 
-  // A page payload is authoritative about membership, so it's the one place
-  // that can say a draft's row is gone (deskDraft.js#pruneDeskDrafts). An
-  // OLDER payload has no membership authority — letting it prune would delete whatever the GM had open.
+  // A page payload is authoritative about membership, so it's the one place that can say a draft's row is gone
+  // (deskDraft.js#pruneDeskDrafts). An OLDER payload has no membership authority — letting it prune would delete whatever the GM had open.
   if (!older) {
     const liveDraftKeys = new Set();
     for (const row of liveRows(state.moves)) liveDraftKeys.add(`move:${row.id}`);
@@ -179,18 +166,11 @@ export function seedDesk(payload) {
   }
 }
 
-// What a server action hands back: the rows it touched and the ids it
-// removed. NO membership authority — a patch says "these changed", never
-// "and nothing else exists". Shape:
-//
-//   { asOfMs, turnId, moves, cavingRolls, stagedEffects, stagedMessages,
-//     removed: { moveIds, cavingRollIds, stagedEffectIds, stagedMessageIds } }
+// What a server action hands back: the rows it touched and the ids it removed. NO membership authority — a patch says "these changed", never "and nothing else exists". Shape: { asOfMs, turnId, moves, cavingRolls, stagedEffects, stagedMessages, removed: { moveIds, cavingRollIds, stagedEffectIds, stagedMessageIds } }
 export function applyDeskPatch(patch) {
   if (!patch || !Number.isFinite(patch.asOfMs)) return;
-  // THE TURN GATE (deskRows.js#deskPatchFor): a Solve landing across the
-  // turn-end push could hold a row from the turn that just closed — a patch
-  // for a turn this desk isn't showing has nothing to say to it. Only once
-  // seeded: before that, dropping the first frames is worse than folding them in.
+  // THE TURN GATE (deskRows.js#deskPatchFor): a Solve landing across the turn-end push could hold a row from the
+  // turn that just closed — a patch for a turn this desk isn't showing has nothing to say to it. Only once seeded: before that, dropping the first frames is worse than folding them in.
   if (state.seeded && patch.turnId !== undefined && (patch.turnId ?? null) !== state.turnId) return;
   const asOfMs = patch.asOfMs;
   let changed = false;
