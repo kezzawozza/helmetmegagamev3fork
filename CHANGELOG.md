@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Accepting a ride works again
+
+✎ Accepting an offer to travel with someone failed with "Could not reach the server"; picking someone up to bring along failed the same way
+
 ## 2026-09-14 · A horse and cart can ride indoors now — except underground
 
 ✎ A horse or cart no longer gets parked at the door of the Cathedral, Sanctuary, Inn or other surface buildings  

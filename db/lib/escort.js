@@ -166,6 +166,12 @@ async function detach(prisma, targetId, { tx = null } = {}) {
   await db.character.updateMany({ where: { id: targetId }, data: { escortedById: null } });
 }
 
+// Lets go of everyone `leaderId` was bringing along. Called by attach() and acceptEscort(): a passenger cannot lead a party of their own.
+async function releaseParty(prisma, leaderId, { tx = null } = {}) {
+  const db = tx ?? prisma;
+  await db.character.updateMany({ where: { escortedById: leaderId }, data: { escortedById: null } });
+}
+
 // --- The consent handshake ------------------------------------------------
 // Modelled on db/lib/bind.js, which already does exactly this split: the helpless get no say, everybody else gets an Offer. The bot's generic accept/decline plumbing (bot/src/lib/offers.js) switches on offer.kind, so ESCORT rides the same two buttons and the same router branch.
 
