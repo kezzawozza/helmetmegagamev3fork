@@ -36,21 +36,12 @@ const {
 } = require("../../lib/converseModal");
 const { ack, respond, scheduleDismiss } = require("../../lib/respond");
 
-// The conversation-room select, the one custom id in this flow that isn't
-// defined next to the component that carries it (the modal's lives in
-// bot/src/lib/converseModal.js, the anchor buttons' in
-// db/lib/locationAnchorRow.js, the travel flow's in
-// bot/src/lib/locationTravel.js).
 const CONVERSE_ROOM_PREFIX = "conv:room:";
 
-// The green "Who's here?" button on a Location's anchor. Named characters
-// first, with their Role for a fellow member of a real faction — the same
-// rule the 🔍 inspect gate uses, because Role is same-faction knowledge and
-// not Silo authority (FACTIONS.md §4a). Concealed characters are listed
-// separately and only as what a stranger could tell at a glance. A forced
-// name (Tag.forcedName) outranks both: it goes in the Here: list with no
-// Role — a Role is as identifying as a name — and never in the concealed
-// line even if Character.concealed is still on underneath.
+// The green "Who's here?" button. Named characters first, with their Role
+// for a fellow faction member (same rule as the 🔍 inspect gate, FACTIONS.md
+// §4a). Concealed characters listed separately. A forced name outranks both:
+// listed with no Role, never on the concealed line.
 async function handleWhosHere(interaction, locationId) {
   await ack(interaction);
 
@@ -67,29 +58,16 @@ async function handleWhosHere(interaction, locationId) {
 }
 
 
-// "Secret rooms?": the doors this character can open here that nobody else
-// can see they can. Private Rooms come from the key tags they hold
-// (db/lib/roomAccess.js); Conversations come from having opened one or been
-// invited to it.
-// The Examine button on a Location anchor. Information only — it files
-// nothing, costs nothing and can be pressed as often as you like.
-//
-// It answers one question, "what is this place?", in three parts: what can be
-// worked here, what the place IS, and what the ways out are doing. The labor
-// half is the old Labor? button unchanged — the LIVE coefficient
-// (LocationYield.current) as a word rather than a number, because working out
-// that Bountiful beats Ample is the player's job and the numbers move anyway
-// (db/lib/laborYield.js). The rest comes from db/lib/locationAttributes.js.
-//
-// Deliberately readable by anyone standing here, whether or not they hold a
-// Laboring tag — scouting a place is the point, and a scout reporting back to
-// a hunter is a conversation the game wants.
+// The Examine button on a Location anchor. Information only — costs nothing,
+// can be pressed as often as you like. Answers "what is this place?" in
+// three parts: what can be worked here (LIVE labor coefficient as a word,
+// db/lib/laborYield.js), what the place IS, and what the ways out are doing
+// (db/lib/locationAttributes.js). Readable by anyone standing here — scouting
+// is the point.
 async function handleExamine(interaction, locationId) {
   await ack(interaction);
 
-  // db/lib/examineLocation.js is the one composer — Chat's Examine dialog
-  // reads from the same function, so the two surfaces cannot drift apart.
-  const result = await examineLines(prisma, locationId);
+  const result = await examineLines(prisma, locationId); // shared with Chat's Examine dialog
   if (!result.ok) {
     await respond(interaction, result.error);
     return;
@@ -99,6 +77,9 @@ async function handleExamine(interaction, locationId) {
 }
 
 
+// "Secret rooms?": doors this character can open here that nobody else can
+// see they can — Private Rooms from key tags (db/lib/roomAccess.js),
+// Conversations from having opened or been invited to one.
 async function handleSecretRooms(interaction, locationId) {
   await ack(interaction);
 
@@ -149,10 +130,8 @@ async function handleSecretRooms(interaction, locationId) {
 }
 
 
-// "Converse": the only thread a player can still open. It is linked to a
-// Room, and every 15 minutes that Room hears somebody is whispering
-// (bot/src/lib/whisperPoll.js) — which is what keeps a private thread from
-// being a place nobody can tell is happening.
+// "Converse": the only thread a player can still open, linked to a Room so
+// it hears somebody whispering every 15 minutes (bot/src/lib/whisperPoll.js).
 async function handleConverseOpen(interaction, locationId) {
   await ack(interaction);
 
@@ -198,9 +177,7 @@ async function handleConverseOpen(interaction, locationId) {
 }
 
 
-// A modal must be shown within 3 seconds and cannot be deferred first, so
-// nothing is awaited here — every gate runs on submit.
-async function handleConverseRoomPick(interaction) {
+async function handleConverseRoomPick(interaction) { // modal must show within 3s, nothing awaited here
   await interaction.showModal(buildConverseModal(interaction.values[0]));
 }
 
@@ -237,9 +214,7 @@ async function handleConverseCreate(interaction, roomId) {
     return;
   }
 
-  // The one copy of the open sequence, shared with Chat's Converse dialog and
-  // with Xom's turn pass — see db/lib/conversationOpen.js.
-  const opened = await openConversationThread(prisma, {
+  const opened = await openConversationThread(prisma, { // shared with Chat's Converse dialog and Xom's turn pass
     locationId: room.locationId,
     roomId: room.id,
     name,
@@ -266,16 +241,10 @@ async function handleConverseCreate(interaction, roomId) {
 }
 
 
-// /conceal: a standing state, not a per-message prefix. While it is on, every
-// message proxies under the alias with the unknown silhouette, and Who's here
-// lists the alias instead of the name. db/lib/conceal.js#toggleConceal is the
-// rule — the same one the web's Chat composer asks — and this handler is only
-// the Discord end of it.
-//
-// findAliveCharacter rather than actingCharacter, deliberately: /conceal is
-// registered ANYWHERE (bot/src/lib/commands.js), so it has to work in a DM,
-// where there is no guild and no member to resolve. It touches none of
-// interaction.guild, .member or .channel, and it should stay that way.
+// /conceal: a standing state, not a per-message prefix. db/lib/conceal.js
+// #toggleConceal is the rule (shared with the web); this handler is only the
+// Discord end. findAliveCharacter, not actingCharacter, deliberately:
+// /conceal is registered ANYWHERE and must work in a DM with no guild/member.
 async function handleConcealCommand(interaction) {
   await ack(interaction);
 

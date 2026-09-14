@@ -1,10 +1,7 @@
 // Load real pages against the local dev server, signed in, and report what
-// happened. The companion to session.mjs — see that file for why minting a
-// cookie is safe and why no application code changes.
-//
-// This exists because the failure this repo has actually shipped is a page that
-// builds clean and lints clean and throws only when someone opens it (the
-// `no-undef` note in CLAUDE.md). Nothing catches that except opening it.
+// happened. Companion to session.mjs. Exists because the failure this repo
+// has actually shipped is a page that builds clean and lints clean and
+// throws only when someone opens it (CLAUDE.md's `no-undef` note).
 //
 //   npm run dev:check                             # the whole matrix below
 //   npm run dev:check -- --gm /gm/turns           # named routes, as a superadmin
@@ -20,16 +17,11 @@ import { mintCookie, resolveTarget } from "./session.mjs";
 const BASE = process.env.DEV_CHECK_BASE ?? "http://localhost:3000";
 
 // Routes, who should be looking at them, and where a redirect is the CORRECT
-// answer. Several of these gates are load-bearing, so the negative cases at the
-// bottom are the point of the file as much as the positive ones: they fail if
-// someone loosens a gate by accident.
-//
-// `expect` is a redirect target. Its absence means "must render".
+// answer (`expect`; its absence means "must render"). The negative cases at
+// the bottom matter as much as the positive ones: they fail if a gate loosens.
 const DEFAULT_ROUTES = [
-  // The one public route, so it doubles as "is the server up and is it this app".
-  { path: "/handbook", as: "public" },
+  { path: "/handbook", as: "public" }, // the one public route; doubles as "is the server up"
 
-  // Player surfaces.
   { path: "/character", as: "player" },
   { path: "/chat", as: "player" },
   { path: "/map", as: "player" },
@@ -37,23 +29,13 @@ const DEFAULT_ROUTES = [
   { path: "/faction", as: "player" },
   { path: "/notes", as: "player" },
 
-  // Deliberate redirect stubs, kept so old links still land somewhere:
-  // web/app/(app)/store/page.js and web/app/(app)/gm/page.js.
-  { path: "/store", as: "player", expect: "/character" },
-  // The Depot is gated on the Merchant's Licence or a Depot Keycard, not on
-  // being a player, so an ordinary character is SUPPOSED to be bounced. The
-  // licensed path cannot be checked here without minting a merchant, so this
-  // row asserts the gate shuts rather than that the page renders.
-  { path: "/depot", as: "player", expect: "/character" },
+  { path: "/store", as: "player", expect: "/character" }, // deliberate redirect stub for old links
+  { path: "/depot", as: "player", expect: "/character" }, // gated on a licence, not on being a player
   { path: "/gm", as: "gm", expect: "/gm/players" },
 
-  // Conditional on game state — a GM always passes, a player only sometimes,
-  // so these are checked as a GM to keep the run stable.
-  // (web/app/(app)/archive/page.js:33, web/app/(app)/lifeweb/page.js:39)
-  { path: "/archive", as: "gm" },
+  { path: "/archive", as: "gm" }, // conditional on game state; checked as GM to keep the run stable
   { path: "/lifeweb", as: "gm" },
 
-  // GM desk and dev panel.
   { path: "/gm/players", as: "gm" },
   { path: "/gm/turns", as: "gm" },
   { path: "/gm/audit", as: "gm" },
@@ -63,13 +45,9 @@ const DEFAULT_ROUTES = [
   { path: "/gm/dev/characters", as: "gm" },
   { path: "/gm/dev/factions", as: "gm" },
   { path: "/gm/dev/tags", as: "gm" },
-  // The sheet moved to /character and this is only the forward that keeps old
-  // links working (SHEET.md). Asserting the destination is the point: a
-  // /ledger that answered 200 again would mean a second sheet came back.
-  { path: "/ledger", as: "gm", expect: "/character" },
+  { path: "/ledger", as: "gm", expect: "/character" }, // old sheet path forward (SHEET.md)
   { path: "/ledger", as: "player", expect: "/character" },
 
-  // The gates themselves. A pass here means the door is still shut.
   { path: "/character", as: "anon", expect: "/" },
   { path: "/chat", as: "anon", expect: "/" },
   { path: "/map", as: "anon", expect: "/" },
@@ -77,30 +55,17 @@ const DEFAULT_ROUTES = [
   { path: "/gm/turns", as: "player", expect: "/character" },
   { path: "/gm/players", as: "player", expect: "/character" },
   { path: "/gm/dev", as: "player", expect: "/character" },
-  // The player negative is the interesting one for an isGm page — anon
-  // alone would under-test a gate every GM tool depends on.
   { path: "/gm/structures", as: "player", expect: "/character" },
   { path: "/gm/structures", as: "anon", expect: "/" },
-  // The GM roster lives on the Dev panel now, behind the same superadmin
-  // door — /gm/gamemasters is gone.
-  { path: "/gm/dev?s=gamemasters", as: "player", expect: "/character" },
+  { path: "/gm/dev?s=gamemasters", as: "player", expect: "/character" }, // GM roster now lives here
   { path: "/ledger", as: "anon", expect: "/" },
 ];
 
 // A server component that throws still answers 200: React streams the shell,
-// then encodes the error as a flight row in the RSC payload rather than
-// changing the status line. So status alone would miss the single failure this
-// script exists to catch — a page that builds clean, lints clean, and throws
-// only when opened.
-//
-// The row looks like `3f:E{"digest":"3960263124","name":"ReferenceError",
-// "message":"X is not defined",...}`, backslash-escaped inside a <script>.
-// Production emits the same row with the name and message stripped, leaving
-// the digest — which is why the digest, not the message, is what's matched.
+// then encodes the error as a flight row in the RSC payload. Production
+// strips the name/message, leaving only the digest — which is why the
+// digest, not the message, is what's matched.
 const FLIGHT_ERROR = /[0-9a-f]+:E\{\\?"digest\\?":\\?"([^"\\]+)/;
-// The message is JSON-escaped inside a script string, so newlines arrive as
-// literal `\n` and quotes as `\"`. Accept escapes rather than stopping at the
-// first one, or a Prisma error (which is mostly newlines) reports as blank.
 const ERROR_NAME = /\\?"name\\?":\\?"([A-Za-z]*Error)\\?",\\?"message\\?":\\?"((?:[^"\\]|\\.){0,400})/;
 
 function bodyError(html) {
@@ -110,17 +75,11 @@ function bodyError(html) {
   if (!detail) return `server error, digest ${flight[1]}`;
 
   const message = detail[2]
-    // Turbopack rewrites `prisma` into a mangled module accessor that is most
-    // of the line and none of the meaning.
-    .replace(/__TURBOPACK__[A-Za-z0-9_$]*\[\\*"([^"\\]+)\\*"\]/g, "$1")
-    // Collapse the escaped newlines so the report stays one row per route.
-    // Escaped newlines arrive as one or more backslashes then `n`.
-    .replace(/\\+n/g, " ")
+    .replace(/__TURBOPACK__[A-Za-z0-9_$]*\[\\*"([^"\\]+)\\*"\]/g, "$1") // Turbopack's mangled module accessor
+    .replace(/\\+n/g, " ") // collapse escaped newlines to one row per route
     .replace(/\\+(.)/g, "$1")
     .replace(/\s+/g, " ")
-    // Prisma appends the failing call site and a source excerpt; the call
-    // itself is the useful part and the rest is a .next/ chunk path.
-    .replace(/ invocation in .*$/, "")
+    .replace(/ invocation in .*$/, "") // trim Prisma's source-excerpt tail
     .trim()
     .slice(0, 110);
 
@@ -128,13 +87,9 @@ function bodyError(html) {
 }
 
 // A redirect() called from a *page* rather than a layout usually lands after
-// streaming has begun, so the status line is already committed to 200 and the
-// real instruction rides along in the RSC payload instead. /gm/dev is the case
-// that caught this: a non-superadmin gets a 200 whose body carries
-// `NEXT_REDIRECT;replace;/character;307;` and no panel content.
-//
-// Treating that as a pass would make this script worthless for exactly the
-// gates it most needs to check, so the body is the authority, not the status.
+// streaming has begun, so the status line is already committed to 200 and
+// the real instruction rides along in the RSC payload instead — the body is
+// the authority, not the status.
 function streamedRedirect(html) {
   const match = html.match(/NEXT_REDIRECT[;,]([a-z]+)[;,]([^;,"\\]+)/);
   return match ? match[2] : null;
@@ -144,9 +99,7 @@ async function probe(path, cookie) {
   const started = Date.now();
   let res;
   try {
-    // redirect: "manual" so an auth bounce stays visible. Following it would
-    // report a cheerful 200 for a page that never rendered.
-    res = await fetch(BASE + path, {
+    res = await fetch(BASE + path, { // manual redirect so an auth bounce stays visible
       headers: cookie ? { cookie } : {},
       redirect: "manual",
     });
@@ -173,9 +126,7 @@ async function probe(path, cookie) {
   return { ms, status, rendered: true };
 }
 
-// Compare a redirect target ignoring its query string, so /faction ->
-// /gm/players?tab=factions still matches an expectation of /gm/players.
-function redirectMatches(actual, expected) {
+function redirectMatches(actual, expected) { // ignores query string
   return actual && actual.split("?")[0] === expected.split("?")[0];
 }
 
@@ -195,9 +146,7 @@ function judge(result, expect) {
   return { ok: true, note: "" };
 }
 
-// The player persona needs some real ALIVE character. Any one will do, so take
-// the first alphabetically for a stable, reproducible run.
-async function defaultPlayer() {
+async function defaultPlayer() { // any ALIVE character; first alphabetically for a stable, reproducible run
   const require = createRequire(import.meta.url);
   const { prisma } = require("@lifeweb/db");
   const character = await prisma.character.findFirst({
@@ -246,8 +195,7 @@ async function runRoutes(argv, routes) {
   let cookie = null;
   let who = "anonymous";
   if (!anon) {
-    // Strip route paths so a leading "/gm/turns" is never read as a target.
-    const target = await resolveTarget(argv.filter((a) => !a.startsWith("/")));
+    const target = await resolveTarget(argv.filter((a) => !a.startsWith("/"))); // strip route paths
     cookie = await mintCookie(target.discordUserId);
     who = target.label;
   }
@@ -255,9 +203,7 @@ async function runRoutes(argv, routes) {
   console.log(`${BASE} as ${who} — ${routes.length} route${routes.length === 1 ? "" : "s"}\n`);
 
   let failures = 0;
-  for (const path of routes) {
-    // Serial on purpose: `next dev` compiles routes on demand, so a parallel
-    // burst makes every timing meaningless and can starve the compiler.
+  for (const path of routes) { // serial: `next dev` compiles on demand; parallel starves it
     const result = await probe(path, cookie);
     const verdict = judge(result, null);
     if (!verdict.ok) failures++;

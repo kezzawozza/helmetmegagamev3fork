@@ -1,14 +1,8 @@
-// The place-key grammar, and the one kind whose id is not a row id.
-//
-// WHAT A FAILURE HERE MEANS. A place key is the string both faces agree on for
-// WHERE something was said. If `net:` stops parsing, a radio net silently
-// leaves the /chat column, the feed stops subscribing to it, and — worst — the
-// outbox stops relaying a web-typed line to Discord, so half a conversation
-// happens on each face and nobody is told.
-//
-// `net:27.065` is the case worth pinning: every other kind's id is a cuid, and
-// this one is a registry slug WITH A DOT IN IT. parsePlaceKey splits on the
-// FIRST colon precisely so an id may contain anything but that.
+// The place-key grammar, and the one kind whose id is not a row id. A place
+// key is the string both faces agree on for WHERE something was said.
+// `net:27.065` is the case worth pinning: every other kind's id is a cuid,
+// and this one is a registry slug WITH A DOT IN IT — parsePlaceKey splits on
+// the FIRST colon precisely so an id may contain anything but that.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
@@ -44,8 +38,6 @@ test("the four older kinds still parse, and a bogus kind still does not", () => 
 });
 
 test("a radio net is not a scene", () => {
-  // shout, play and roll are things you do in a room you are standing in.
-  // You cannot shout across a frequency.
   assert.equal(isScenePlaceKey(placeKeyForNet("27.065")), false);
   assert.equal(isScenePlaceKey(placeKeyForZone("abc123")), false);
 });

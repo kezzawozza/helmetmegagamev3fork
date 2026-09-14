@@ -1,28 +1,9 @@
-// What a character knows of the map — the fog behind /map.
-//
-// The ONE module that reads or writes LocationVisit, for the same reason
-// db/lib/locationGraph.js is the one module that touches LocationLink: the
-// rule about what a player may see is a policy, and a second copy of it would
-// drift into a leak. Nothing here decides passability itself — every question
-// about an edge is asked of locationGraph.
-//
-// Two grades of knowing. `stood` is "I have been here". A row without it is "I
-// have seen this from next door", which draws hollow and carries a name but no
-// description. Neither is ever unlearned: seen once, drawn forever, so the map
-// only ever grows.
-//
-// Deliberately NOT on the @lifeweb/db barrel; require it by path.
+// The fog behind /map. The ONE module reading or writing LocationVisit, same
+// reason db/lib/locationGraph.js is the one for LocationLink. `stood` is "I have been here"; without it, "seen from next door" (hollow). Deliberately NOT on the @lifeweb/db barrel — require by path.
 const { travelOptions } = require("./locationGraph");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 
-// Called on arrival — from applyLocationMoveSideEffects, which is the one
-// function every writer of Character.locationId runs (MAP.md §4). Hooking
-// there rather than in performLocationMove is what stops a GM teleport, a
-// character's first placement or the turn's arrival pass from leaving a hole
-// in somebody's map.
-//
-// `character` wants tags loaded (CHARACTER_SELECT shape is enough);
-// travelOptions falls back to querying them if not.
+// Called from applyLocationMoveSideEffects, run by every writer of Character.locationId (MAP.md §4).
 async function recordArrival(prisma, character, locationId) {
   if (!character?.id || !locationId) return;
 
@@ -32,17 +13,11 @@ async function recordArrival(prisma, character, locationId) {
     update: { stood: true },
   });
 
-  // Everything one step away, as a sighting. travelOptions rather than
-  // linksFor: it has already dropped the ways this character cannot see, so a
-  // hidden crawl they lack the tag for is never recorded and can never be
-  // revealed by the map later.
+  // travelOptions, not linksFor — a hidden crawl the character lacks the tag for is never recorded.
   const neighbours = await travelOptions(prisma, character, locationId);
   if (neighbours.length === 0) return;
 
-  // skipDuplicates is load-bearing, not an optimisation. It is what makes this
-  // write unable to touch a row that already exists — so a place the character
-  // has actually STOOD in can never be downgraded to a bare sighting by
-  // walking past its door afterwards.
+  // skipDuplicates is load-bearing — a STOOD place can never be downgraded.
   await prisma.locationVisit.createMany({
     data: neighbours.map((row) => ({
       characterId: character.id,
@@ -53,14 +28,7 @@ async function recordArrival(prisma, character, locationId) {
   });
 }
 
-// The map a character wakes up with (db/lib/startingMemories.js). Called once,
-// from createCharacter, after the tags are committed — travelOptions reads
-// them, so a fisherman's boat-gated water ways are visible by the time this
-// runs. Pass `character.tags` loaded, or every location below re-queries them.
-//
-// recordArrival per location rather than one bulk write, so the hidden-way rule
-// above is obeyed rather than re-derived. A slug naming a Location that no
-// longer exists is absent from the lookup and skipped.
+// db/lib/startingMemories.js. recordArrival per location, not one bulk write, so the hidden-way rule above is obeyed rather than re-derived.
 async function seedMemories(prisma, character, locationSlugs) {
   if (!character?.id || !locationSlugs?.length) return;
 
@@ -70,15 +38,11 @@ async function seedMemories(prisma, character, locationSlugs) {
   });
 
   for (const location of locations) {
-    // Placement already recorded where they stand, neighbours and all.
     if (location.id === character.locationId) continue;
     await recordArrival(prisma, character, location.id);
   }
 }
 
-// Everything this character knows, as two sets. `stood` is a subset of `seen`
-// — a place you have been is also a place you have seen — so a caller asking
-// "is this on the map at all" checks `seen`.
 async function knownLocations(prisma, characterId) {
   const empty = { stood: new Set(), seen: new Set() };
   if (!characterId) return empty;
@@ -97,22 +61,8 @@ async function knownLocations(prisma, characterId) {
   return { stood, seen };
 }
 
-// The rooms this character could legitimately NAME: inside a Location they have
-// STOOD in, and behind a door that opens for them. Both halves matter and both
-// already exist — this is the pair web/app/(app)/map/actions.js#roomsInside
-// composes, lifted out because a picker and the server action that re-checks it
-// must not be able to drift apart.
-//
-// `stood`, not `seen`: a room is a door in a wall you have to have stood in
-// front of, and listing the Cathedral's private rooms to somebody who has only
-// glimpsed it from the Square would be telling them about a door they have
-// never seen. `accessibleRooms` is the door itself, and it is the same
-// predicate the channel doctor, the Secret rooms? button and the Transfer
-// dialog use, so all of them agree.
-//
-// `where` narrows the query further (the silo picker passes the faction's own
-// zone). Lives here rather than in roomAccess.js because locationGraph already
-// requires that module, so the arrow has to point this way.
+// STOOD in the Location, behind a door that opens for them. Lifted out of
+// web/app/(app)/map/actions.js#roomsInside. `accessibleRooms` is the same predicate the channel doctor, Secret rooms? and Transfer dialog use.
 async function knownRooms(prisma, characterId, where = {}) {
   if (!characterId) return [];
 
@@ -137,14 +87,8 @@ async function knownRooms(prisma, characterId, where = {}) {
   return accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
 }
 
-// The Ravenheart Map's whole effect: every SURFACE-zone Location becomes a
-// sighting at once. Deliberately NOT recordArrival/seedMemories reused —
-// those also paint each location's NEIGHBOURS, which for a bulk reveal like
-// this would leak the odd cave-adjacent Location as a "sighting" purely for
-// standing next to a surface one already in the list. `stood: false`
-// throughout: a purchased map shows you the place exists, not that you have
-// walked its streets. `skipDuplicates` keeps a Location the character has
-// actually stood in from ever being downgraded.
+// Deliberately NOT recordArrival/seedMemories reused — those also paint
+// NEIGHBOURS, leaking a cave-adjacent Location as a "sighting". `stood: false` throughout; `skipDuplicates` keeps a stood-in Location from ever downgrading.
 async function revealSurface(prisma, characterId) {
   if (!characterId) return;
   const locations = await prisma.location.findMany({

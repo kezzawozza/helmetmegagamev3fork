@@ -1,14 +1,9 @@
-// The destructive counterpart to `npm run db:sync-tags`. Run with
-// `npm run db:prune-tags` to see what would go, and
-// `npm run db:prune-tags -- --apply` to actually delete it. Dry-run-by-default
-// with an --apply flag matches db:prune-orphan-roles, the other destructive
-// script in this directory.
-//
-// Deliberately terminal-only, and deliberately NOT wired into wipeGameData's
-// "Restart Game" flow: a wipe clears every CharacterTag first, so a prune
-// running there would find every GM-created tag unheld and — but for the
-// custom flag — delete the lot. Keeping it out of that path keeps the blast
-// radius somewhere a human is watching.
+// The destructive counterpart to `npm run db:sync-tags`. `npm run
+// db:prune-tags` to preview, `-- --apply` to delete. Deliberately NOT wired
+// into wipeGameData's "Restart Game" flow — a wipe clears every CharacterTag
+// first, so a prune running there would delete every GM-created tag but for
+// the custom flag. Keeping it out keeps the blast radius somewhere a human
+// is watching.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { pruneTagsFromYaml } = require("../../lib/pruneTags");

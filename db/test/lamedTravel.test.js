@@ -1,10 +1,7 @@
-// node --test over the lamed half of the free zone move
-// (db/lib/locationTravel.js's LAMED_SLUGS) — the tags that take the free
-// crossing away without touching ACT, so a Crippled Leg or a dazed Pain
-// Shock can still fight, work and walk around a zone, but can't cross into
-// another one for free. Follows db/test/boatTravel.test.js's fixture
-// pattern: freeZoneMoves/freeZoneMovesReason imported straight off
-// db/lib/locationTravel.js, plain { tags } objects, no Prisma.
+// The lamed half of the free zone move (db/lib/locationTravel.js's
+// LAMED_SLUGS): tags that take the free crossing away without touching ACT,
+// so a Crippled Leg can still fight but can't cross a zone for free. Plain
+// { tags } objects, no Prisma.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { freeZoneMoves, freeZoneMovesReason } = require("../lib/locationTravel");
@@ -26,10 +23,7 @@ test("freeZoneMoves: Cripple zeroes the allowance too", () => {
 test("freeZoneMoves: a mount cancels Pain Shock's lameness, same as it does a bad leg", () => {
   const config = { freeZoneMovesPerTurn: 1 };
   const mounted = withTags("pain-shock", "horse");
-  // base (1) + the horse's own bonus crossing (1) — the same total a
-  // clear-headed rider gets, because isMounted() is checked before
-  // LAMED_SLUGS and returns early.
-  assert.equal(freeZoneMoves(mounted, config), 2);
+  assert.equal(freeZoneMoves(mounted, config), 2); // base + horse bonus, same as a clear-headed rider
 });
 
 test("freeZoneMovesReason: names Pain Shock and Cripple the same way it names Crippled Leg", () => {

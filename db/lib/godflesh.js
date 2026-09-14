@@ -1,48 +1,23 @@
-// Cutting Godflesh out of the marsh: the die, the yield, and the hand you
-// might not come back with.
-//
-// Modelled on db/lib/depotTurret.js, and deliberately so — the two are the
-// same shape of problem (a thing that hurts you, with armour deciding HOW
-// badly rather than WHETHER). What is different is the entry: the turret rolls
-// its table every time, and this one only reaches the table on a 1. Extracting
-// is meant to be routine work that occasionally takes a finger, not a coin
-// flip with your body.
-//
-// The pattern it was copied from has since moved on. The turret no longer picks
-// a column off a hardcoded slug list — armour is a number on the tag
-// (Tag.ballisticArmor, db/lib/armorValue.js) bending one curve. This file kept
-// its two-column table on purpose: the only thing between a chainsaw and your
-// hand is a specific pair of gloves, so "gloves or no gloves" is the honest
-// model here and a general armour value would be pretending otherwise. If a
-// third kind of hand protection ever exists, that stops being true.
-//
-// Pure and Prisma-free, like the turret: the caller loads the tags and writes
-// the result, and this decides only what happens. See
-// docs/systemdocs/FACTORY.md.
+// Cutting Godflesh: the die, the yield, the hand you might not come back
+// with. Modelled on db/lib/depotTurret.js, but only reaches the table on a 1
+// — routine work, not a coin flip. Kept a two-column gloves/no-gloves table
+// on purpose (unlike the turret's tag curve) — a general armour value would
+// misrepresent what stands between a chainsaw and your hand. Pure and Prisma-free. See docs/systemdocs/FACTORY.md.
 
 const { turnDay } = require("./turnFormat");
 
-// Anything that can cut. The Chainsaw is also the only one that doubles the
-// yield, which is what a player is paying the Depot 154 ¢ for.
 const EXTRACT_TOOLS = ["chainsaw", "battle-axe", "hatchet"];
 const CHAINSAW_SLUG = "chainsaw";
 const ARMORED_GLOVES_SLUG = "armored-gloves";
 const GODFLESH_SLUG = "godflesh";
 
-// The whole difference between keeping your fingers and not. Gloves are 2 ⬢ to
-// craft and every Factory role starts with a pair, so a mangled hand is nearly
-// always somebody who took them off to work faster.
-//
-// Columns sum to 1. `null` is "hurt, but nothing that leaves a mark".
+// Gloves are 2 ⬢ to craft and every Factory role starts with a pair; columns sum to 1.
 const INJURY_TABLE = {
   none: { "missing-fingers": 0.45, "mangled-hand": 0.4, "missing-arm": 0.15 },
   gloves: { "minor-wound": 0.75, "deep-wound": 0.25 },
   "gloves-armored": { "minor-wound": 0.9, "deep-wound": 0.1 },
 };
 
-// Body armour on top of the gloves. Same priority-order idea as the turret's
-// tiers, but there are only two answers here: something between the mouths and
-// you, or nothing.
 const BODY_ARMOR_SLUGS = [
   "plate-armor", "breastplate", "brigandine", "mail-shirt", "salvage-plate",
   "light-infantry-armour", "padded-armor",
@@ -57,15 +32,8 @@ for (const [key, column] of Object.entries(INJURY_TABLE)) {
   }
 }
 
-// Equipped only, same rule as the turret and db/lib/laborAccess.js's tools: a
-// pair of gloves at the bottom of a sack protects nobody.
-//
-// A smith's own signed piece resolves to what it is a copy of. Every list
-// below names catalog slugs, and a custom craft (CRAFTING.md §4a) mints a
-// fresh `custom-craft-*` slug — so without customOfSlug a breastplate with
-// somebody's name on it would stop being body armour at the Spillway, and a
-// named battle axe would stop cutting. That is the whole reason the column
-// exists; any new rule that reads a held slug back needs the same line.
+// Equipped only. A custom craft (CRAFTING.md §4a) mints a fresh
+// `custom-craft-*` slug — without customOfSlug a signed breastplate would stop being body armour.
 function equippedSlugSet(characterTags = []) {
   return new Set(
     characterTags
@@ -78,8 +46,6 @@ function equippedSlugSet(characterTags = []) {
   );
 }
 
-// Which blade is in their hands, or null. Returned rather than a boolean so
-// the DM can name it and the yield can read the Chainsaw off it.
 function extractToolFor(characterTags = []) {
   const worn = equippedSlugSet(characterTags);
   return EXTRACT_TOOLS.find((slug) => worn.has(slug)) ?? null;
@@ -91,16 +57,10 @@ function injuryColumnFor(characterTags = []) {
   return BODY_ARMOR_SLUGS.some((slug) => worn.has(slug)) ? "gloves-armored" : "gloves";
 }
 
-// One day's extraction. `rng` is injectable so a test can pin the outcome;
-// nothing in production passes it.
-//
-// Returns { die, tool, quantity, injury: { column, tagSlug } | null }.
 function rollExtraction(characterTags, rng = Math.random) {
   const tool = extractToolFor(characterTags);
   const die = 1 + Math.floor(rng() * 6);
 
-  // A Chainsaw is worth two. A 6 is worth one more on top of whatever you
-  // were already going to get, so the good day is good for everybody.
   let quantity = tool === CHAINSAW_SLUG ? 2 : 1;
   if (die === 6) quantity += 1;
 
@@ -112,14 +72,10 @@ function rollExtraction(characterTags, rng = Math.random) {
     roll -= weight;
     if (roll <= 0) return { die, tool, quantity, injury: { column, tagSlug } };
   }
-  // Only reachable on a column that sums under 1, which the assertion above
-  // rejects at require time. The mildest outcome is the harmless direction.
   const [mildest] = Object.keys(INJURY_TABLE[column]);
   return { die, tool, quantity, injury: { column, tagSlug: mildest } };
 }
 
-// What the player is told. One `-#` line under the result, the house wording
-// for "here is why your number is the size it is" (db/lib/laborAccess.js).
 function extractionDm(result, { locationName = null } = {}) {
   const where = locationName ? ` at ${locationName}` : "";
   const lines = [`*You went out into the marsh${where} and cut.*`, `**Roll (1d6):** ${result.die}`];
@@ -139,20 +95,13 @@ function extractionDm(result, { locationName = null } = {}) {
   return lines.join("\n");
 }
 
-// The cooldown. Extract used to cost the whole Move, so "once per turn" fell
-// out of the Action table's @@unique([characterId, turnId]). It costs no Move
-// now, so it carries its own claim: Character.extractDayKey, the in-game DAY,
-// the same token and the same trap as the Bird's (FACTORY.md §3, BIRD.md).
-//
-// A day is TWO turns. Keying this on the turn id would hand out two cuts a day
-// instead of the one the button promises.
+// Character.extractDayKey, the in-game DAY (FACTORY.md §3, BIRD.md) — a day
+// is TWO turns, so keying on the turn id would give two cuts a day.
 function extractDayKey(openTurn) {
   return openTurn ? String(turnDay(openTurn)) : null;
 }
 
-// Read-side only, for greying the button. The WRITE side is the conditional
-// updateMany in extractGodfleshRequest, whose WHERE is the real check — this
-// predicate has read the row a moment ago and two tabs can both pass it.
+// Read-side only, for greying the button — the WRITE side (extractGodfleshRequest's conditional updateMany) is the real check; two tabs can both pass this.
 function extractedToday(character, openTurn) {
   const key = extractDayKey(openTurn);
   return Boolean(key && character?.extractDayKey === key);

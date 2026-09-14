@@ -1,20 +1,10 @@
-// Mint a valid Auth.js session cookie for local development.
-//
-// The web app has exactly one auth provider (Discord), so `next dev` on this
-// machine can start but never render a page: both route groups redirect on a
-// missing session (web/app/(app)/layout.js, web/app/(desk)/layout.js). That
-// makes every UI change unverifiable except by reading the diff.
-//
-// Sessions here are JWTs — web/lib/auth.js configures no adapter, so Auth.js
-// uses its JWT strategy — signed with AUTH_SECRET, which is already on this
-// machine in web/.env.local. So a cookie can be minted directly with the same
-// encode() the app itself uses, and NO application code needs a dev bypass.
-// Nothing in web/ changes, so nothing can leak to production.
-//
-// This grants no authority the holder of AUTH_SECRET doesn't already have.
-// GM access in particular is NOT faked: isGm() (web/lib/discordGuild.js) still
-// asks Discord for that user's real roles. Impersonating an ID with no GM role
-// gets you bounced from /gm exactly like the real thing.
+// Mint a valid Auth.js session cookie for local development. The web app has
+// exactly one auth provider (Discord), so `next dev` can start but never
+// render a page without one. Sessions are JWTs signed with AUTH_SECRET
+// (already in web/.env.local), minted with the same encode() the app itself
+// uses — NO application code needs a dev bypass, nothing in web/ changes.
+// Grants no authority the holder of AUTH_SECRET doesn't already have: GM
+// access is NOT faked, isGm() still asks Discord for real roles.
 //
 //   node scripts/dev/session.mjs --gm
 //   node scripts/dev/session.mjs --character "Jorren"
@@ -29,15 +19,12 @@ import { encode, decode } from "@auth/core/jwt";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 // Must equal the cookie name — Auth.js derives the encryption key from
-// (secret, salt), so a mismatch produces a token the app silently rejects and
-// you get a redirect instead of an error. Over plain http://localhost the name
-// is unprefixed; the `__Secure-` prefix only applies over HTTPS.
+// (secret, salt), so a mismatch silently rejects the token. Unprefixed since
+// plain http://localhost never gets the `__Secure-` prefix.
 export const COOKIE_NAME = "authjs.session-token";
 
 const DEFAULT_MAX_AGE = 24 * 60 * 60;
 
-// The env files are plain KEY=value, so parse them rather than adding a dotenv
-// dependency to the root workspace for a dev-only script.
 function readEnvFile(path) {
   let raw;
   try {
@@ -54,10 +41,7 @@ function readEnvFile(path) {
   return out;
 }
 
-// web/.env.local first: that is the file `next dev` itself loads, so it is the
-// secret the running server will actually verify against. The root .env is the
-// fallback the bot and Prisma read.
-function loadEnv() {
+function loadEnv() { // web/.env.local is what `next dev` loads; .env is the bot/Prisma fallback
   return {
     ...readEnvFile(resolve(REPO_ROOT, ".env")),
     ...readEnvFile(resolve(REPO_ROOT, "web/.env.local")),
@@ -75,11 +59,7 @@ function authSecret(env) {
   return secret;
 }
 
-// Read the superadmin list out of db/lib/roleIds.js (the canonical copy —
-// web/lib/superadmin.js just re-exports it) rather than copying the IDs, so
-// there is exactly one place that can drift. A plain ESM `import` would need
-// db/'s package.json "exports"/main resolved as CommonJS-from-ESM interop,
-// which the rest of this file sidesteps with createRequire, so this does too.
+// Reads the canonical list out of db/lib/roleIds.js rather than copying it.
 function superadminIds() {
   const path = resolve(REPO_ROOT, "db/lib/roleIds.js");
   const require = createRequire(import.meta.url);
@@ -91,16 +71,12 @@ function superadminIds() {
 }
 
 async function characterDiscordId(query, env) {
-  // The generated Prisma client is CommonJS, and db/index.js needs DATABASE_URL
-  // present before it constructs the singleton.
-  if (!process.env.DATABASE_URL && env.DATABASE_URL) {
+  if (!process.env.DATABASE_URL && env.DATABASE_URL) { // db/index.js needs it before constructing the singleton
     process.env.DATABASE_URL = env.DATABASE_URL;
   }
   const require = createRequire(import.meta.url);
   const { prisma } = require("@lifeweb/db");
 
-  // `name` is the denormalized full name every other reader sorts and searches
-  // on (db/prisma/schema.prisma, Character.name).
   const matches = await prisma.character.findMany({
     where: { status: "ALIVE", name: { contains: query, mode: "insensitive" } },
     select: { name: true, discordUserId: true },
@@ -120,13 +96,9 @@ async function characterDiscordId(query, env) {
 export async function resolveTarget(argv, env = loadEnv()) {
   const gmIndex = argv.indexOf("--gm");
   if (gmIndex !== -1) {
-    // Which superadmin to mint for. The first listed one is not necessarily a
-    // member of THIS environment's guild (a throwaway dev guild has only the
-    // developer), and a superadmin who fails the isGm() REST check bounces
-    // off /gm/turns exactly like a player — which made dev:check read as
-    // failing on routes that were fine. DEV_SUPERADMIN_ID picks a different
-    // one; it must still be on the superadmin.js list, so this stays a
-    // selector, never a door.
+    // DEV_SUPERADMIN_ID picks a different superadmin than the default first
+    // one (which may not belong to this environment's guild); it must still
+    // be on the superadmin.js list, so this stays a selector, never a door.
     const ids = superadminIds();
     const wanted = process.env.DEV_SUPERADMIN_ID;
     if (wanted && !ids.includes(wanted)) {
@@ -157,9 +129,8 @@ export async function mintCookie(discordUserId, { maxAge = DEFAULT_MAX_AGE, env 
   const secret = authSecret(env);
   const now = Math.floor(Date.now() / 1000);
 
-  // Mirrors what web/lib/auth.js's jwt callback writes and its session callback
-  // reads back. `discordUserId` is the only custom field the app consults
-  // anywhere; `sub` is Auth.js's own convention.
+  // Mirrors web/lib/auth.js's jwt/session callbacks. `discordUserId` is the
+  // only custom field the app consults; `sub` is Auth.js's own convention.
   const token = {
     discordUserId,
     sub: discordUserId,
@@ -170,10 +141,7 @@ export async function mintCookie(discordUserId, { maxAge = DEFAULT_MAX_AGE, env 
 
   const jwt = await encode({ token, secret, salt: COOKIE_NAME, maxAge });
 
-  // A wrong secret or salt yields a token the app rejects as an anonymous
-  // request — which looks like an ordinary auth redirect much later, far from
-  // the cause. Fail here instead.
-  const roundTrip = await decode({ token: jwt, secret, salt: COOKIE_NAME });
+  const roundTrip = await decode({ token: jwt, secret, salt: COOKIE_NAME }); // fail here, not as a mystery redirect later
   if (roundTrip?.discordUserId !== discordUserId) {
     throw new Error("Minted token failed to decode — AUTH_SECRET or salt is wrong.");
   }
@@ -184,9 +152,7 @@ export async function mintCookie(discordUserId, { maxAge = DEFAULT_MAX_AGE, env 
 async function main() {
   const env = loadEnv();
   const { discordUserId } = await resolveTarget(process.argv.slice(2), env);
-  // stdout carries the cookie and nothing else, so it can be captured directly:
-  //   COOKIE=$(node scripts/dev/session.mjs --gm)
-  process.stdout.write(await mintCookie(discordUserId, { env }) + "\n");
+  process.stdout.write(await mintCookie(discordUserId, { env }) + "\n"); // stdout carries only the cookie
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -1,27 +1,17 @@
 // Freeze every page of the signed-in app into flat, self-contained HTML files
-// that need no session to view.
+// that need no session to view — every URL here redirects to a Discord
+// login, so instead of opening the door this takes a photocopy. Each route
+// is opened in a real browser holding a minted dev cookie
+// (scripts/dev/session.mjs), left alone until it stops fetching, and only
+// then serialized. A plain fetch is NOT enough: most of this app paints
+// after hydration, so a fetch before that is a photocopy of a spinner.
 //
-// The reason this exists: design tools (Google Stitch, and anything else that
-// wants to look at the app) take a URL, and every URL here redirects to a
-// Discord login. So instead of opening the door, we take a photocopy. Each
-// route is opened in a real browser holding a minted dev cookie
-// (scripts/dev/session.mjs), left alone until it stops fetching, and only then
-// serialized — scripts dropped, CSS inlined, assets pulled down beside it.
+// Drives the Chrome already on the machine through puppeteer-core (a driver,
+// not a browser; downloads nothing), deliberately not a workspace dependency
+// — install it anywhere and point PUPPETEER_DIR at that folder.
 //
-// A plain fetch is NOT enough, and it fails in the most misleading way: the
-// server-rendered HTML of a client-heavy page is a correct-looking shell around
-// the word "Loading". Most of this app paints after hydration, so a photocopy
-// taken before that is a photocopy of a spinner. Hence the browser.
-//
-// It drives the Chrome already on the machine through puppeteer-core, which is
-// a driver rather than a browser and downloads nothing. It is deliberately not
-// a dependency of any workspace — this is a dev-only script, and the repo does
-// not need a browser-automation stack in its lockfile to ship. Install it
-// anywhere and point PUPPETEER_DIR at that folder.
-//
-// The output is static, so it goes in web/public and is served unauthenticated
-// at the path it is written to. Give it an unguessable directory name — real
-// player names, messages and sheets are in these files.
+// Output is static and unauthenticated once written, so give it an
+// unguessable directory name — real player data is in these files.
 //
 //   npm run dev:web                        # must already be running
 //   node scripts/dev/snapshot-site.mjs     # -> web/public/ux/<random>/
@@ -56,8 +46,7 @@ function loadPuppeteer() {
   }
 }
 
-// Who should be looking at each page. Mirrors scripts/dev/check.mjs, minus the
-// negative cases — a snapshot of a redirect is not a design to look at.
+// Who should be looking at each page (mirrors check.mjs, minus negative cases).
 const ROUTES = [
   ["/handbook", "public"],
   ["/character", "player"],
@@ -80,9 +69,8 @@ const ROUTES = [
   ["/gm/dev/tags", "gm"],
 ];
 
-// A detail page is worth a lot more than its index for a design pass, but its
-// URL carries an id only the data knows. So pull one out of the index page we
-// have already loaded.
+// A detail page's URL carries an id only the data knows; pull one out of the
+// already-loaded index page.
 const DERIVED = [
   { from: "/gm/players", pattern: /\/gm\/players\/(\d{17,20})/, as: "gm" },
   { from: "/gm/dev/characters", pattern: /\/gm\/dev\/characters\/([a-z0-9]{20,32})/, as: "gm" },
@@ -93,11 +81,8 @@ function slugFor(route) {
   return (s || "index") + ".html";
 }
 
-// Whose sheet the player pages are captured from. It matters more than it
-// looks: a half-made test character snapshots an empty /character and a gated
-// /faction, which is a photocopy of nothing. So the default is the character
-// carrying the most tags — the fullest version of each screen — and
-// --character overrides it.
+// Default is the character carrying the most tags — the fullest version of
+// each screen, so a half-made test character doesn't snapshot nothing.
 async function pickPlayer(name) {
   const { prisma } = require("@lifeweb/db");
   const all = await prisma.character.findMany({
@@ -110,13 +95,9 @@ async function pickPlayer(name) {
   return all[0];
 }
 
-// Runs inside the page. Everything a browser knows and a fetch does not — the
-// hydrated DOM, the stylesheets as the engine actually parsed them — is only
-// reachable from in here.
+// Runs inside the page — only place the hydrated DOM and parsed stylesheets are reachable.
 function serialize() {
-  // document.styleSheets is same-origin, so the rules can be read straight out
-  // rather than re-fetched and re-resolved.
-  const css = [...document.styleSheets]
+  const css = [...document.styleSheets] // same-origin; rules read straight out
     .map((sheet) => {
       try {
         return [...sheet.cssRules].map((r) => r.cssText).join("\n");
@@ -146,15 +127,11 @@ async function capture(browser, route, cookie) {
   }
   try {
     const res = await page.goto(BASE + route, { waitUntil: "networkidle0", timeout: 60000 });
-    // A gate redirects rather than erroring, and a snapshot of the sign-in page
-    // is not a page of the app.
     const landed = new URL(page.url()).pathname;
     const wanted = new URL(route, BASE).pathname;
-    if (landed !== wanted) return { error: `redirected -> ${landed}` };
+    if (landed !== wanted) return { error: `redirected -> ${landed}` }; // a gate redirects rather than erroring
     if (res && res.status() >= 400) return { error: `HTTP ${res.status()}` };
-    // networkidle0 says the fetches stopped, not that the render they feed has
-    // landed. One frame is enough and costs nothing.
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1200)); // networkidle0 says fetches stopped, not that render landed
     const html = await page.evaluate(serialize);
     return { html };
   } catch (err) {
@@ -164,9 +141,8 @@ async function capture(browser, route, cookie) {
   }
 }
 
-// The serialized DOM still points at the dev server for its fonts, avatars and
-// images. Pull each one down once and rewrite the reference, so the folder
-// opens with no server behind it at all.
+// Pulls down each asset reference once and rewrites it, so the folder opens
+// with no server behind it at all.
 async function localizeAssets(html, cookie, assets) {
   let out = html;
   const refs = new Set();
@@ -227,8 +203,7 @@ async function main() {
     console.log(`  ok ${route} (${as})`);
   };
 
-  // First pass, so the derived detail routes have something to be derived from.
-  for (const [route, as] of routes) await run(route, as);
+  for (const [route, as] of routes) await run(route, as); // first pass; derived routes need this to already exist
 
   for (const { from, pattern, as } of DERIVED) {
     const id = raw.get(from)?.match(pattern)?.[1];
@@ -251,9 +226,7 @@ async function main() {
     const html = raw.get(route);
     if (!html) continue;
     let frozen = await localizeAssets(html, cookies[as], assets);
-    // Point the app's own nav at the snapshots instead of at live routes, so a
-    // crawler walking links stays inside the copy.
-    for (const [other] of routes) {
+    for (const [other] of routes) { // point nav at the snapshots instead of live routes
       frozen = frozen.split(`href="${other}"`).join(`href="${slugFor(other)}"`);
     }
     frozen = frozen.replace(/href="\/(?![a-z0-9]*\.)[^"]*"/g, 'href="index.html"');

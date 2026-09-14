@@ -13,25 +13,17 @@ const {
   INTENTION_MAX,
 } = require("@lifeweb/db/lib/questText");
 
-// The dialogue behind a quest's Interact button (docs/systemdocs/QUESTS.md).
-// A modal rather than a channel for the same reason the Move modal is one:
-// typing in a channel fires the indicator under the player's real account.
-//
-// The QUEST id rides in the customId, not the room id, so the submit handler
-// needs no thread-to-Room lookup and the quest can be re-checked directly. An
-// ephemeral modal outlives somebody walking out of the cave, so permission is
-// decided at submit, never at open.
-//
-// The prompt itself is INTERACT_PROMPT from db/lib/questText.js rather than a
-// string typed here — the web dialog shows the same sentence, and a player
-// who reads one on Discord and the other on the web must read the same words.
+// The dialogue behind a quest's Interact button (QUESTS.md). A modal, same
+// reason as the Move modal: typing in a channel fires the indicator under the
+// player's real account. The QUEST id rides in the customId, not the room id,
+// so the quest can be re-checked directly at submit, never at open. The
+// prompt is INTERACT_PROMPT from db/lib/questText.js so Discord and the web
+// dialog show the same sentence.
 
 function buildQuestModal(questId, title) {
   return new ModalBuilder()
     .setCustomId(`${QUEST_MODAL_PREFIX}${questId}`)
-    // Discord caps a modal title at 45, and the quest's own title is the most
-    // useful thing to put there — it is what they clicked.
-    .setTitle(String(title ?? "Interact").slice(0, 45))
+    .setTitle(String(title ?? "Interact").slice(0, 45)) // Discord caps a modal title at 45
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# ${INTERACT_PROMPT}`))
     .addLabelComponents(
       new LabelBuilder()

@@ -46,11 +46,7 @@ async function handleTravelOpen(interaction) {
     return;
   }
 
-  // Somebody has hold of them (docs/systemdocs/INTERCEPT.md). The picker is
-  // still worth drawing: travelOptions has marked every row unpassable, which
-  // drops them into `shut` below with no work here, so a held player can see
-  // where they would have gone.
-  const held = heldReasonFor(character);
+  const held = heldReasonFor(character); // INTERCEPT.md; the picker still draws, showing where they'd have gone
 
   let current = null;
   let destinations;
@@ -68,10 +64,6 @@ async function handleTravelOpen(interaction) {
       where: { id: character.locationId },
       include: { zone: true },
     });
-    // travelOptions has already dropped the hidden ways this character holds
-    // no key to, and sorted the rest. A locked or shut one is still offered:
-    // seeing the door and being told what opens it is the point of the locked
-    // form, as against the hidden one.
     const rows = await travelOptions(prisma, character, character.locationId);
     destinations = rows.filter((row) => row.passable).map((row) => row.location);
     shut = rows.filter((row) => !row.passable);
@@ -82,7 +74,6 @@ async function handleTravelOpen(interaction) {
     return;
   }
 
-  // Never truncate silently: a missing destination reads as a broken map.
   const truncated = destinations.length - Math.min(destinations.length, MENU_OPTION_LIMIT);
   const shutLine =
     shut.length > 0
@@ -103,16 +94,10 @@ async function handleTravelOpen(interaction) {
 
 
 // loc:gate:{linkId} — the Open/Close button on a modular gate's two anchors.
-//
-// The button is only rendered on the watchtower's starter post, so getting
-// into that room is the whole permission model — anyone who can see the
-// winch may pull it. `toggleGate` still re-checks that the clicker is
-// standing at the gate, because a thread member need not be.
-//
-// The flip is a conditional updateMany whose WHERE clause carries the state
-// the clicker saw, the same shape the move cooldown and the mount claim use.
-// Two watchmen clicking "Close" in the same second means one close and one
-// "somebody just did", never a double toggle that lands back open.
+// Rendered only on the watchtower's starter post; `toggleGate` still
+// re-checks the clicker is standing at the gate. The flip is a conditional
+// updateMany against the state the clicker saw, so two watchmen clicking
+// "Close" in the same second never double-toggle it back open.
 async function handleGateToggle(interaction, linkId) {
   await ack(interaction);
 
@@ -129,11 +114,8 @@ async function handleGateToggle(interaction, linkId) {
     return;
   }
 
-  // Both sides. The anchor no longer carries the gate at all, but it still
-  // lists the ways out, so it is redrawn; the button itself lives on the
-  // watchtower's starter, which is what refreshGateRooms redraws. A gate with
-  // a tower at only one end has nothing to redraw at the other, and that is
-  // fine.
+  // Both sides: the anchor lists the ways out (refreshLocationAnchor), the
+  // button lives on the watchtower's starter (refreshGateRooms).
   for (const locationId of result.locationIds) {
     await refreshLocationAnchor(prisma, locationId).catch((err) =>
       console.error(`Gate anchor refresh failed for ${locationId}:`, err.message ?? err),
@@ -148,15 +130,10 @@ async function handleGateToggle(interaction, linkId) {
 
 
 // loc:keyed:{linkId}:{yes|no} — the answer to "Leave open for the next 24
-// hours?" on the DM a keyed crossing raised.
-//
-// Re-checked rather than trusted: the button was DM'd to a key-holder, but a
-// DM is a durable surface and the key can change hands or be lost between the
-// crossing and the click. Whoever presses it must still hold the key.
-//
-// "Leave it open" is a conditional updateMany against the window the clicker
-// was shown, so two people propping the same door in the same moment cannot
-// stack two windows — the second is told it is already held.
+// hours?" on the DM a keyed crossing raised. Re-checked, not trusted: a DM is
+// durable and the key can change hands between the crossing and the click.
+// "Leave it open" is a conditional updateMany against the window shown, so
+// two people propping the same door can't stack two windows.
 async function handleKeyedPrompt(interaction, payload) {
   await ack(interaction, { update: true });
 
@@ -177,12 +154,9 @@ async function handleKeyedPrompt(interaction, payload) {
 }
 
 
-// Ending a hold you imposed, from the button on your own DM: Release for an
-// old intercept (docs/systemdocs/INTERCEPT.md), Cancel attack for a fight
-// (docs/systemdocs/ATTACK.md). The handleKeyedPrompt shape: update IS the ack,
-// and the buttons come off whatever the answer was. The shared half — who may
-// end whose hold, and the word owed to the other person — is
-// db/lib/dmAnswer.js, so the web's own button cannot drift from this one.
+// Ending a hold you imposed: Release for an intercept (INTERCEPT.md), Cancel
+// attack for a fight (ATTACK.md). Update IS the ack. The shared half lives in
+// db/lib/dmAnswer.js so the web's button cannot drift from this one.
 async function handleHoldEnd(interaction, kind, targetId) {
   await ack(interaction, { update: true });
 
@@ -192,9 +166,7 @@ async function handleHoldEnd(interaction, kind, targetId) {
     discordUserId: interaction.user.id,
   });
   await respond(interaction, { content: `${result.line}`, components: [] });
-  // The gateway twin takes a User, not an id (ARCHITECTURE.md §3) — the
-  // bot/src/lib/offers.js#fanOut shape.
-  for (const dm of result.dms ?? []) {
+  for (const dm of result.dms ?? []) { // gateway twin takes a User, not an id (ARCHITECTURE.md §3)
     const user = await interaction.client.users.fetch(dm.discordUserId).catch(() => null);
     if (!user) continue;
     await sendDm(user, `» ${dm.content}`).catch((err) =>
@@ -204,10 +176,8 @@ async function handleHoldEnd(interaction, kind, targetId) {
 }
 
 
-// One message carries both the passenger list and the confirmation, because
-// Discord cannot keep them on two: an ephemeral reply is a single editable
-// surface, and a second message would leave the first one lying around with
-// live buttons on it.
+// One message carries both the passenger list and the confirmation — an
+// ephemeral reply is a single editable surface.
 async function handleTravelPick(interaction) {
   await ack(interaction, { update: true });
 
@@ -226,9 +196,7 @@ async function handleTravelPick(interaction) {
     return;
   }
 
-  // The cost model in one line, and — when they are about to walk a day's road
-  // with a horse still in their pocket — a warning before the Confirm rather
-  // than a regret after it (docs/systemdocs/CARRY.md §2).
+  // Cost model, and a warning before Confirm rather than a regret after (CARRY.md §2).
   const crossing = Boolean(character.locationId) && character.zoneId !== target.zoneId;
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
@@ -240,14 +208,9 @@ async function handleTravelPick(interaction) {
   const bringRow = buildBringRow(candidates);
   const overflow = candidates.length - Math.min(candidates.length, MENU_OPTION_LIMIT);
 
-  // The party is what decides whether the mount's extra crossing survives, so
-  // the number quoted below has to count it (MAP.md §3a).
-  const party = await partyOf(prisma, character.id);
-  // THIS crossing's own count, not a flat one that ignores where it goes — a
-  // boat's bonus is earned per crossing (db/lib/mounts.js#boatCrossing), so
-  // Forest<->Hills or Hills<->Marshes has to show one more than a crossing
-  // the water does nothing for. `crossing` above is only a boolean ("does
-  // this leave the zone at all"); the actual zone slugs live here.
+  const party = await partyOf(prisma, character.id); // decides whether the mount's extra crossing survives (MAP.md §3a)
+  // THIS crossing's own count: a boat's bonus is per-crossing
+  // (db/lib/mounts.js#boatCrossing), so the zone slugs matter, not just the boolean above.
   const currentZone = character.zoneId
     ? await prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } })
     : null;
@@ -292,11 +255,10 @@ async function handleTravelPick(interaction) {
 }
 
 
-// The Bring select WRITES the party — an escort is a row, not a ten-minute
-// memory of a click (bot/src/lib/locationTravel.js). Anyone ticked who could
-// say no gets the Accept DM instead of being attached, and anyone unticked is
-// put down. deferUpdate rather than an `update` payload because the work has
-// to happen before there is anything to say about it.
+// The Bring select WRITES the party — an escort is a row, not a click memory
+// (bot/src/lib/locationTravel.js). Anyone who could say no gets the Accept
+// DM instead of being attached. deferUpdate since the work must happen
+// before there's anything to say.
 async function handleTravelBring(interaction) {
   await interaction.deferUpdate();
 
@@ -366,15 +328,10 @@ async function handleTravelConfirm(interaction, locationId) {
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
   const stranded = (result.leftBehind ?? []).filter((e) => e.reason !== "held").map((e) => e.character.name);
   if (stranded.length > 0) parts.push(`${listNames(stranded)} couldn't follow.`);
-  // "held" is the one reason the leader IS given, because it is plain to see:
-  // somebody has hold of them (INTERCEPT.md). Every other reason stays unnamed
-  // — a hidden crawl's refusal would announce that the crawl is there.
+  // "held" is the only reason given, since it's plain to see (INTERCEPT.md).
   const heldBack = (result.leftBehind ?? []).filter((e) => e.reason === "held").map((e) => e.character.name);
   if (heldBack.length > 0) parts.push(`Somebody has hold of ${listNames(heldBack)}.`);
-  // The way was too narrow for what they had out — dismounted rather than
-  // refused (db/lib/indoors.js#dismountForNarrowWay), already applied by
-  // performLocationMove by the time this reads it.
-  if (result.dismounted?.length > 0) {
+  if (result.dismounted?.length > 0) { // dismounted, not refused (db/lib/indoors.js#dismountForNarrowWay)
     parts.push(
       `Too narrow for your ${listNames(result.dismounted)} — you leave ${result.dismounted.length === 1 ? "it" : "them"} and go on foot.`,
     );

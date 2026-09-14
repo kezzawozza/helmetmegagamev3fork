@@ -1,29 +1,13 @@
 // The Makeshift Stage: music that plays whether or not anybody is performing.
-//
 // A structure type declares `placement.music: { mood, needs }` in
 // docs/tags.yaml and this sweep, four times a day, posts a line into its
-// Location and lifts the mood of everybody standing there.
-//
-// TWO THINGS HOLD IT BELOW THE MUSICIAN, and both are deliberate. A Musician's
-// /play is +10 to every listener, once per listener per turn, and it costs a
-// real player holding both Instrument and Musician the trouble of showing up
-// (bot/src/events/interactionCreate.js#sootheListeners). A building that paid
-// its full figure on every one of four daily firings would be worth about
-// +32 a day for nothing, which is half again what the ROLE is worth.
-//
-//   1. The mood is rationed once per listener per TURN — the same AuditLog
-//      ration /play keeps, just under its own actionType. A day is two turns,
-//      so the Stage pays about +16 a day against the Musician's +20.
-//   2. It only works while a Boombox is lying about in one of the Location's
-//      Rooms. It is a stage with a stereo on it, not an orchestra.
-//
-// The LINE still posts on all four firings, ration or no: music playing is a
-// fact about the place, and a room that has already been cheered up this turn
-// can still hear it. What it cannot do is cheer them up twice.
-//
-// This lives on the bot rather than in a turn pass because the cadence is
-// wall-clock — every six hours, not every close. It is a plain cron with no
-// request behind it, the same reason whisperPoll and the rite sweep sit here.
+// Location and lifts the mood of everybody standing there — deliberately
+// held below the Musician's /play (+10/listener/turn): mood here is rationed
+// once per listener per TURN under its own actionType (~+16/day vs the
+// Musician's +20), and needs a Boombox lying in one of the Location's Rooms.
+// The LINE still posts on every firing regardless of the ration. Lives on the
+// bot rather than a turn pass since the cadence is wall-clock, like
+// whisperPoll and the rite sweep.
 
 const { prisma } = require("@lifeweb/db");
 const { applyMood } = require("@lifeweb/db/lib/mood");
@@ -31,23 +15,17 @@ const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { placementOf, WORKING_STATUSES } = require("@lifeweb/db/lib/structures");
 
-// Bascinet's line, verbatim. It opens "You hear" because every audible thing
-// in the game does (db/lib/bell.js).
-const MUSIC_LINE = "You hear loud music playing.";
+const MUSIC_LINE = "You hear loud music playing."; // opens "You hear" like every audible thing (db/lib/bell.js)
 
-// One row per listener per turn, the shape REQUESTS.md §1a describes and
-// /play's `mood_soothed_play` already uses. Its own actionType rather than
-// sharing that one, so a Musician playing at a Stage is not silently robbed
-// of their own once-a-turn lift — the two rations are separate lifts.
+// Own actionType rather than sharing /play's, so a Musician isn't silently
+// robbed of their own once-a-turn lift.
 const STAGE_AUDIT_ACTION = "mood_stage";
 
 async function runStagePlay(db = prisma) {
   const result = { played: 0, silent: 0, soothed: 0 };
 
   const rows = await db.structure.findMany({
-    // WORKING_STATUSES: a damaged stage is still a platform with a stereo on
-    // it. Only a ruin goes quiet.
-    where: { status: { in: WORKING_STATUSES } },
+    where: { status: { in: WORKING_STATUSES } }, // a damaged stage still plays; only a ruin goes quiet
     select: {
       id: true,
       typeSlug: true,
@@ -69,20 +47,12 @@ async function runStagePlay(db = prisma) {
   }
   if (!musicBySlug.size) return result;
 
-  // One open turn for the whole sweep. No turn open means no ration to count
-  // against, so nothing is paid — but the music still plays.
-  const openTurn = await db.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
+  const openTurn = await db.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } }); // no turn open, no ration, music still plays
 
   for (const row of rows) {
     const music = musicBySlug.get(row.typeSlug);
     if (!music) continue;
-    // Per-row try/catch: one Location's Discord trouble must not stop the
-    // rest of the sweep.
-    try {
-      // Is the thing that makes the noise actually here? Any Room at this
-      // Location will do — the stash is the floor, and nobody has to be
-      // holding it. A Location with no Rooms can therefore never hold one,
-      // which is a real edge and an acceptable one.
+    try { // per-row: one Location's Discord trouble must not stop the rest of the sweep
       const boombox = await db.roomTag.findFirst({
         where: {
           quantity: { gt: 0 },
@@ -92,10 +62,7 @@ async function runStagePlay(db = prisma) {
         select: { id: true },
       });
       if (!boombox) {
-        // Silence, and deliberately no line about silence. A dead stage says
-        // nothing at all; that absence is how a player learns the boombox is
-        // what matters.
-        result.silent += 1;
+        result.silent += 1; // deliberately no line about silence
         continue;
       }
 
@@ -128,11 +95,7 @@ async function runStagePlay(db = prisma) {
       for (const { id } of listeners) {
         if (paidAlready.has(id)) continue;
         await db.$transaction(async (tx) => {
-          // MUSIC's own kind, with the stage's figure rather than /play's.
-          // applyMood clamps, re-projects the band and sends the band DM
-          // itself; the audit row is the caller's job, which is why it is
-          // written right here beside it (db/lib/mood.js).
-          await applyMood(tx, id, { kind: "MUSIC", base: music.mood });
+          await applyMood(tx, id, { kind: "MUSIC", base: music.mood }); // audit row is the caller's job (db/lib/mood.js)
           await tx.auditLog.create({
             data: {
               actorDiscordUserId: "system",

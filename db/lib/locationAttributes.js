@@ -1,117 +1,58 @@
-// What is true about a place, and how to say it.
-//
-// A Location carries two kinds of fact, and the Examine button shows both
-// without having to know which is which.
-//
-// AUTHORED attributes are written into docs/zones.yaml's per-location
-// `attributes:` map and stored as JSON on Location.attributes. They are
-// properties of the place itself and change only on a sync — "this room is
-// the Depot" is not something that happens, it is something that is.
-//
-// DERIVED lines are read off live state and never authored: whether the ways
-// out stand open, whether the machinery in here is running. The caller loads
-// that state and hands it over as `ctx`, which is why this module can stay
-// Prisma-free and network-free — the same reason db/lib/depot.js gives for
-// living here. These are game facts, and both faces read them.
-//
-// Adding an attribute means adding one entry to ATTRIBUTES. The sync rejects
-// a key that is not in it, so a typo in the YAML is a loud problem at sync
-// time rather than a line that silently never prints.
+// AUTHORED attributes live in docs/zones.yaml's `attributes:` map, change only on sync. DERIVED lines read live state via `ctx` (Prisma-free). Add an attribute in ATTRIBUTES — the sync rejects an unknown key, failing loudly.
 
-// The two keys code matches on rather than merely prints. Exported so the web
-// layer stops writing them as bare literals — a typo in one of those is a
-// button that silently never appears, which is exactly the failure the sync's
-// unknown-key check exists to prevent on the YAML side.
 const GODFLESH_ATTRIBUTE = "godflesh";
 const REFINERY_ATTRIBUTE = "refinery";
 const SAFE_ATTRIBUTE = "safe";
-// The two the mood dial reads (db/lib/mood.js#placeClassOf).
+// WILDERNESS/HAVEN read by the mood dial (db/lib/mood.js#placeClassOf); WHEELS by db/lib/indoors.js, alongside the `indoors` column.
 const WILDERNESS_ATTRIBUTE = "wilderness";
 const HAVEN_ATTRIBUTE = "haven";
-// The one db/lib/indoors.js reads, alongside the `indoors` column.
 const WHEELS_ATTRIBUTE = "wheels";
 
-// key -> { describe(value, ctx) -> string|null }
-//
-// `describe` returning null means "true, but nothing worth saying here" —
-// used by an attribute that only exists to be matched on.
+// key -> { describe(value, ctx) -> string|null }; null means matched-on-only.
 const ATTRIBUTES = {
-  // The Merchant's berth. Marks the one Location the Depot console, the
-  // generator, the turret and the shuttle all belong to, so none of them has
-  // to hardcode a slug. Exists to be matched on: every line worth printing
-  // about the place is derived and arrives through ctx.depot.
+  // The Merchant's berth. Exists to be matched on; lines come via ctx.depot.
   depot: {
     describe: () => null,
   },
-  // Ground nothing may be built on, for the handful of one-off places the
-  // DERIVED rules (indoors, a cave level — db/lib/structures.js#canBuildHere)
-  // don't already cover: the Lifeweb's ground is the first. Exists to be
-  // matched on; the place's own description carries whatever there is to say.
   noBuild: {
     describe: () => null,
   },
 
-  // Marsh open enough that the Godflesh is in reach of a blade. What the
-  // Extract button matches on, so no marsh tile has to be named by slug.
-  // See docs/systemdocs/FACTORY.md.
   godflesh: {
     describe: () => "**Godflesh**: you can cut it out of the water here.",
   },
 
-  // The Godard Factory floor. Laboring here refines Godflesh into Squeeze
-  // instead of paying ⬢, and it is the one place in the game where labor is
-  // legal with no LocationYield row at all.
+  // The Godard Factory floor: labor refines Godflesh into Squeeze instead of paying ⬢, no LocationYield row needed.
   refinery: {
     describe: () => "**Refinery**: laboring here turns Godflesh into Squeeze.",
   },
 
-  // Underground, and nothing in the dark wants you. The Caving Die skips a
-  // Location wearing this (db/lib/cavingPass.js), which is what makes the cave
-  // mouth — Customs and the Depot one hop east of it, between them a sentry, a
-  // floodlight and a shop — the only ground down there you can stand on
-  // without rolling. Says so out loud, because a player choosing where to camp
-  // should be able to read the answer.
+  // Ground the Caving Die skips (db/lib/cavingPass.js) — said out loud so a player can read the answer.
   safe: {
     describe: () => "**Safe**: Caving dice don't roll here.",
   },
 
-  // Open country: nobody lives here, and a night in it wears on you
-  // (docs/systemdocs/MOOD.md). Worn by every Location in the Forest, the Black
-  // Hills and the Marshes that is not a settled place — the Factory, the Farms
-  // and the marsh Village are the exceptions. Walking in costs a little mood,
-  // ending the turn here costs more, and Rough Camper / Outsider soften it.
+  // Open country (docs/systemdocs/MOOD.md); costs mood to walk in, more to end turn here — Rough Camper / Outsider soften it.
   wilderness: {
     describe: () => "**Wilderness**: spending time here is wearying.",
   },
 
-  // A place that settles a person more than any roof does: the Inn, the Keep,
-  // the Sanctuary. The best turn-end relief the dial has.
+  // Settles a person more than any roof: the Inn, Keep, Sanctuary. Best turn-end mood relief there is.
   haven: {
     describe: () => "**Haven**: ending your turn here calms your nerves.",
   },
 
-  // An indoors place a cart or a horse may come into anyway: a warehouse with
-  // a loading ramp, a shop with a bay, a gate wide enough to drive through.
-  // `indoors` answers two questions at once — is there a roof (the mood dial,
-  // Sun Sensitivity, whether you can raise a palisade in here) and do wheels
-  // stay outside — and those two are not the same question. This key splits
-  // them, so the Factory keeps its roof and still admits the wagon its own
-  // Logistics Room says is staged at the ramp. Means nothing outdoors, where
-  // wheels were never in question.
+  // Splits the roof question (`indoors`) from the wheels one. Means nothing outdoors.
   wheels: {
     describe: () => "**Wheels**: you can bring a cart or a horse in here.",
   },
 
-  // A public board somebody can pin a paper to. What the Noticeboard button on
-  // this Location's anchor matches on, so no board has to be named by slug.
-  // See docs/systemdocs/PAPERWORK.md.
+  // A public board to pin a paper to. What Noticeboard matches on. See docs/systemdocs/PAPERWORK.md.
   noticeboard: {
     describe: () => "**Noticeboard**: you can pin paper here.",
   },
 };
 
-// The authored half: whatever is in Location.attributes, in registry order so
-// the readout looks the same in every channel.
 function authoredLines(location, ctx = {}) {
   const attrs = location?.attributes ?? {};
   const lines = [];
@@ -124,26 +65,12 @@ function authoredLines(location, ctx = {}) {
   return lines;
 }
 
-// Does arriving here park a mount at the door? A real column rather than an
-// attribute, because db/lib/indoors.js and db/lib/mounts.js both act on it —
-// with the `wheels` key above as the one authored exception to it.
-//
-// Every reader that asks "may a cart be out here" goes through this rather
-// than the column, so the Factory, Customs and the Depot cannot admit a wagon
-// on one surface and refuse it on another. The readers that ask about the
-// ROOF — the mood dial, Sun Sensitivity, whether anything can be built — keep
-// reading `indoors` straight, which is the whole point of the split.
+// Real column, `wheels` the one authored exception. "Cart out here?" readers use this; ROOF readers keep reading `indoors` straight.
 function parksMounts(location) {
   return Boolean(location?.indoors) && !hasAttribute(location, WHEELS_ATTRIBUTE);
 }
 
-// The placement half of the Examine readout. It reads as an attribute here
-// even though the column is not stored as one.
-//
-// Both halves print. Silence outdoors would have meant the rule was only ever
-// stated in the place it bites, which is the worst moment to learn it. A
-// `wheels` Location says nothing at all: the attribute line above has already
-// said it, and saying it twice would read as an argument.
+// Both halves print — silence outdoors would mean the rule is only stated where it bites. A `wheels` Location says nothing; already said above.
 function placementLine(location) {
   if (hasAttribute(location, WHEELS_ATTRIBUTE)) return null;
   return location?.indoors
@@ -151,13 +78,7 @@ function placementLine(location) {
     : "**Outdoors**: you can use your horse or cart here.";
 }
 
-// The modular gates touching this location. `gates` is [{ farName, isOpen }],
-// the same shape db/lib/syncZones.js#gatesFor already builds for the anchor's
-// button row, so the caller has usually loaded it already.
-//
-// The state, not the verb: the buttons say what a click DOES ("Close the way
-// to Road"), and Examine says what is TRUE ("The way to Road stands open").
-// Saying it the same way twice would make one of them wrong.
+// Says the STATE, not the verb — buttons say what a click DOES, Examine says what IS TRUE.
 function gateLines(gates) {
   return (gates ?? [])
     .slice()
@@ -169,13 +90,7 @@ function gateLines(gates) {
     });
 }
 
-// The Depot's machinery, read off live state and handed over as ctx.depot —
-// { generatorOn, powered, fuelTurnsLeft, turretArmed, shuttleDocked }. The
-// caller loads it; this module stays Prisma-free.
-//
-// Standing in the room has to tell you what the web console tells the
-// Merchant. A turret you cannot see is a trap rather than a threat, and a
-// threat is the more interesting thing to walk into.
+// caller-loaded — must match what the web console tells the Merchant (an unseen turret is a trap, not a threat).
 function depotLines(ctx = {}) {
   const depot = ctx.depot;
   if (!depot) return [];
@@ -190,41 +105,22 @@ function depotLines(ctx = {}) {
     lines.push(`**Generator**: ${days} day${days === 1 ? "" : "s"} of coal left.`);
   }
   lines.push(depot.shuttleDocked ? "**Shuttle**: it's here." : "**Shuttle**: it's not here.");
-  // Only worth a line when it is a danger. A disarmed turret is a fixture, and
-  // saying so every time would train people to stop reading the line that
-  // matters.
   if (depot.turretArmed && depot.powered) {
     lines.push("**Turret**: it's armed.");
   }
   return lines;
 }
 
-// The structures standing (or rising, or ruined) here, read off live state
-// and handed over as ctx.structures — the db/lib/structures.js#structuresAt
-// output. This module cannot import structures.js itself: that module
-// already imports locationAttributes.js (for hasAttribute), and a back-import
-// would make a cycle out of what is meant to be a one-way layering, caller
-// loads, this module only says.
-//
-// One line per structure, oldest first (structuresAt's own order), and a
-// ruin stays on the list rather than dropping off — a ruin is a standing
-// accusation, not scenery that tidies itself away.
+// Can't import structures.js itself (cycle via hasAttribute). Oldest first; a ruin stays on the list rather than dropping off.
 function structureLines(ctx = {}) {
   const structures = ctx.structures;
   if (!structures?.length) return [];
   return structures.flatMap((structure) => {
     const typeName = structure.type?.name ?? structure.typeName;
-    // The defenseNote (a defensive clause, or the siege licence) prints
-    // only while the structure WORKS — COMPLETE or DAMAGED — never off a
-    // wreck or a rising site, or a ruined ram would still license a storm.
-    // Both the note and the structure's own `examine:` are authored as
-    // fragments: the GM Move card splices the note mid-line, and Examine puts
-    // each one after a **topic** of its own.
+    // defenseNote prints only while the structure WORKS (COMPLETE/DAMAGED), never off a wreck — a ruined ram must not still license a storm.
     const note = structure.placement?.defenseNote;
     const noteLines = note ? [`**Defense**: ${note}`] : [];
-    // The builder's inscription replaces the stock examine fragment — a
-    // player's words, sanitized on the way in by web/lib/customCraft.js. » is
-    // the quoted-player-content prefix, same as everywhere else.
+    // Builder's inscription replaces the stock examine fragment, sanitized by web/lib/customCraft.js.
     const inscribed = structure.inscription?.trim();
     switch (structure.status) {
       case "UNDER_CONSTRUCTION":
@@ -248,9 +144,7 @@ function structureLines(ctx = {}) {
   });
 }
 
-// Everything true about where you stand, as prose lines. The labor readout is
-// NOT here: it is a fixed-order table of its own that predates this module
-// (db/lib/laborYield.js#qualityWord), and the caller prints it first.
+// The labor readout is NOT here (db/lib/laborYield.js#qualityWord); the caller prints it first.
 function describeLocation(location, ctx = {}) {
   return [
     placementLine(location),
@@ -261,9 +155,7 @@ function describeLocation(location, ctx = {}) {
   ].filter(Boolean);
 }
 
-// Sync-side validation. Returns the attributes to store, pushing a problem for
-// anything the registry does not know — an unrecognised key is almost always
-// a typo, and a silently-dropped one is a place that never says what it is.
+// Pushes a problem for any key not in the registry — silently dropping it means a place never says what it is.
 function collectAttributes(raw, label, problems) {
   if (raw == null) return {};
   if (typeof raw !== "object" || Array.isArray(raw)) {
@@ -281,8 +173,6 @@ function collectAttributes(raw, label, problems) {
   return out;
 }
 
-// Does this location carry an attribute? The lookup every system that owns a
-// place should use instead of comparing slugs.
 function hasAttribute(location, key) {
   const value = location?.attributes?.[key];
   return value != null && value !== false;

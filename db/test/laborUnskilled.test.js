@@ -1,20 +1,12 @@
-// node --test over the 2026-09-10 hotfix: Laboring stopped being a gate.
-// A character holding no Laboring tag used to be refused outright, on every
-// surface, including the Godard Factory floor — where the skill ladder prices
-// something (⬢) that a refining shift never pays, so the gate locked the
-// Factory's own people out of it for nothing. See docs/systemdocs/LABORING.md
-// §1 and §3b.
-//
-// Nothing here touches Prisma: resolveLaborRateFrom takes a plain ctx, the
-// same split db/test/laborProspecting.test.js uses.
+// Laboring is not a gate: no Laboring tag still labors, just for nothing —
+// including on the Godard Factory floor, which prices a refining shift's
+// skill ladder in ⬢ it never pays (LABORING.md §1, §3b). Nothing here
+// touches Prisma; resolveLaborRateFrom takes a plain ctx.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { resolveLaborRateFrom } = require("../lib/laborAccess");
 
-// The machine format db/lib/resourceDelta.js#rollResourceRange parses. It has
-// to be a real "0-0" and not an empty string: a failed parse pays nothing
-// SILENTLY, which looks identical to this and is a bug rather than a rule.
-const UNPAID = "0-0";
+const UNPAID = "0-0"; // real "0-0", not empty — a failed parse also pays nothing, silently
 
 test("laborAccess: no Laboring tag at all still labors, for nothing", () => {
   const ctx = { yields: { HUNTING: 0.8 }, refinery: false, tagSlugs: new Set(), tools: [] };
@@ -26,7 +18,6 @@ test("laborAccess: no Laboring tag at all still labors, for nothing", () => {
 });
 
 test("laborAccess: a skill that doesn't reach this ground labors for nothing too", () => {
-  // A hunter standing in Town: holds the tags, but nothing here has a row.
   const ctx = {
     yields: {},
     refinery: false,
@@ -59,8 +50,6 @@ test("laborAccess: an empty Factory floor still refuses, tag or no tag", () => {
   assert.match(result.reason, /Godflesh/);
 });
 
-// The regression that matters most: opening the skill gate must not open the
-// two gates that were never about skill.
 test("laborAccess: Exhausted still refuses somebody with no Laboring tag", () => {
   const ctx = { yields: { HUNTING: 0.8 }, refinery: false, tagSlugs: new Set(["exhausted"]), tools: [] };
   const result = resolveLaborRateFrom(ctx, 1, {});
@@ -75,9 +64,6 @@ test("laborAccess: an incapacitated character with no Laboring tag still can't w
 });
 
 test("laborAccess: an unskilled day draws no labor drop", () => {
-  // db/lib/laborDrops.js maps the six real tiers and nothing else, and
-  // db/lib/moveEffects.js's laborDrop effect returns 0 on an unmapped one. The
-  // die is something a skill earns, so the tier is deliberately not in it.
   const { TIER_TO_LABOR_DROP_TYPE } = require("../lib/laborDrops");
   assert.equal(TIER_TO_LABOR_DROP_TYPE.unskilled, undefined);
   assert.equal(TIER_TO_LABOR_DROP_TYPE.basic, "BASIC");

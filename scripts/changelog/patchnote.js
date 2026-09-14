@@ -1,37 +1,23 @@
 // The player-facing patch note. Posted to #patch-notes, not the GM changelog
-// (scripts/changelog/log.js) — different audience, different rule.
-//
-// Same format as the changelog — a heading, then ✚ − ✎ notes — but the words
-// are never derived from a commit, a branch, or a diff. There is no fallback
-// source for them, on purpose: this script refuses outright if you don't
-// supply at least one note. AI-generated prose does not belong in a
-// player-facing patch note; the human at the keyboard writes it. The heading
-// is always the flat "Patch notes" — every entry is one more note under that
-// same banner, not a headline of its own.
+// (scripts/changelog/log.js). Same format — a heading, then ✚ − ✎ notes —
+// but never derived from a commit, branch, or diff: refuses outright with no
+// notes supplied, since the human at the keyboard writes it. Heading is
+// always the flat "Patch notes".
 //
 //   npm run patchnote -- \
 //     "+A confirmation before you step into the dark" \
 //     "-The old silent crossing" \
 //     "Cave rooms are quieter now"
 //
-// Notes land in a thread named for today ("Sat Sep 12"), reused across the
-// day if a matching thread already exists, so a day's patch notes stay
-// together instead of scattering across separate posts.
+// Notes land in a thread named for today ("Sat Sep 12"), reused across the day.
 require("dotenv").config();
 const { normalizeNote, clamp } = require("./log");
 
-// Not a secret — see db/lib/roleIds.js and scripts/changelog/log.js for the
-// reasoning. The env var is a scratch-channel override for testing.
-const CHANNEL_ID = process.env.PATCHNOTE_CHANNEL_ID || "1548386629562007672";
-
-// The heading is always this — never taken from an argument. See the header
-// comment for why: a patch note is one more line under a flat banner, not
-// its own headline.
-const SUBJECT = "Patch notes";
+const CHANNEL_ID = process.env.PATCHNOTE_CHANNEL_ID || "1548386629562007672"; // not a secret; see roleIds.js
+const SUBJECT = "Patch notes"; // always this — never taken from an argument
 
 function threadTitle() {
-  // "Sat Sep 12" — no comma. toLocaleDateString gives "Sat, Sep 12", so build
-  // it from the parts instead of formatting the whole string at once.
+  // "Sat Sep 12", no comma — toLocaleDateString gives "Sat, Sep 12".
   const now = new Date();
   const weekday = now.toLocaleDateString("en-US", { weekday: "short" });
   const month = now.toLocaleDateString("en-US", { month: "short" });
@@ -49,8 +35,6 @@ function collect(argv, flag) {
   return out;
 }
 
-// Positionals not consumed by a flag are all notes — there is no heading
-// argument any more, the subject is always SUBJECT above.
 function positionals(argv) {
   const out = [];
   for (let i = 0; i < argv.length; i += 1) {
@@ -65,8 +49,7 @@ function positionals(argv) {
 }
 
 // Finds (or creates) today's patch-notes thread, then posts the entry into
-// it. #patch-notes may be an ordinary text channel or a forum channel —
-// those need different Discord calls, so the channel's own type decides.
+// it. #patch-notes may be a text or forum channel, needing different calls.
 async function postToThread(title, text) {
   const {
     getChannel,
@@ -101,12 +84,7 @@ async function postToThread(title, text) {
   try {
     thread = await startThread(CHANNEL_ID, title, undefined, null, starter.id);
   } catch (err) {
-    // Don't leave an orphan starter message with no thread behind — a retry
-    // would never find it (it only looks for the THREAD by name) and would
-    // just post another one, leaking a "Sat Sep 12" row into the channel
-    // every time this step fails. Roll the starter back and let the caller's
-    // failure be the only trace.
-    await deleteMessage(CHANNEL_ID, starter.id).catch(() => {});
+    await deleteMessage(CHANNEL_ID, starter.id).catch(() => {}); // no orphan starter; a retry can't find it by name
     throw err;
   }
   await postMessageBatched(thread.id, text);

@@ -1,47 +1,19 @@
-// What a place is worth to labor in, and how that changes.
-//
-// Every Location carries at most four LocationYield rows, one per LaborKind.
-// `base` is what docs/zones.yaml authored; `current` is where the world has
-// drifted it to, and `current` is the only number a payout or the Labor?
-// button ever reads. No row for a (location, kind) pair means that labor is
-// impossible there — the button prints a bare × and the resolver skips it.
-//
-// The model is a mean-reverting random walk with occasional jump events, in
-// the same spirit as a Markov chain: most days nothing much
-// happens, and rarely something does and then wears off. Per turn, per row:
-//
+// Each Location carries up to four LocationYield rows (one per LaborKind);
+// `current` (world-drifted from `base`) is the only number a payout reads —
+// no row means labor is impossible there. Mean-reverting random walk with
+// occasional jump events (docs/systemdocs/LABORING.md):
 //   target  = in an event ? eventTarget : base
 //   current = clamp(current + reversion * (target - current) + noise, 0, CAP)
-//
-// An event does not move `current` itself — it moves what `current` is being
-// pulled toward. That is what makes a swing arrive over a couple of turns
-// rather than as a step change, and what makes it decay on its own once the
-// window closes: clearing eventTarget puts `base` back in the target slot and
-// the same reversion term walks it home. There is no separate recovery path.
-//
-// See docs/systemdocs/LABORING.md.
+// An event moves the TARGET, not `current` — swings arrive over turns and
+// decay on their own once the window closes; no separate recovery path.
 
-// Nothing is ever worth more than double an ordinary spot, or less than
-// nothing. Both ends are reachable but rare — the walk has to be pushed there
-// by an event and held, and the reversion is always pulling it back.
 const YIELD_CAP = 2;
 const YIELD_FLOOR = 0;
 
-// Per-kind volatility. `reversion` is how hard a row is pulled toward its
-// target each turn (higher = snaps back faster); `sigma` is the standard
-// deviation of the daily wobble on top of that. The steady-state spread of the
-// walk is roughly sigma / sqrt(2 * reversion), which is the number that
-// actually shows up in play:
-//
-//   HUNTING      0.12  / sqrt(0.60) ~ +/-0.16   game is thick with it
-//   FISHING      0.07  / sqrt(0.40) ~ +/-0.11   the river is the river, mostly
-//   FARMING      0.025 / sqrt(0.24) ~ +/-0.05   a field is a field
-//   PROSPECTING  0.13  / sqrt(0.44) ~ +/-0.20   a vein runs dry or it doesn't
-//
-// `eventChance` is per row per turn, except FARMING's, which is rolled ONCE
-// for the whole world (see rollEvents) — a blight takes every field at once,
-// and rolling it per-location would fire a dozen times in a month instead of
-// about once.
+// `reversion`/`sigma` steady-state spread ~ sigma / sqrt(2 * reversion):
+//   HUNTING 0.12/sqrt(0.60)~±0.16  FISHING 0.07/sqrt(0.40)~±0.11
+//   FARMING 0.025/sqrt(0.24)~±0.05  PROSPECTING 0.13/sqrt(0.44)~±0.20
+// `eventChance` is per row/turn, except FARMING's — rolled ONCE for the whole world (rollEvents), so a blight hits every field at once.
 const KIND_PARAMS = {
   HUNTING: {
     reversion: 0.3,
@@ -62,22 +34,15 @@ const KIND_PARAMS = {
   FARMING: {
     reversion: 0.12,
     sigma: 0.025,
-    // ~1.8% a turn over a 60-turn (30-day) game is a shade over one event,
-    // which is the "maybe once a 30 day game" this was asked for.
     eventChance: 0.018,
     eventLength: [8, 20],
-    // Not a range: a farming event is one of two named things. A good harvest
-    // is bigger than a bad one is bad, but a bad one is far likelier.
     outcomes: [
       { multiplier: 1.5, weight: 40 },
       { multiplier: 0.55, weight: 60 },
     ],
     global: true,
   },
-  // DRAFT — Bascinet's to retune once Prospecting has played out a bit.
-  // Modelled closest to Hunting (a vein is luck the way a game trail is),
-  // but with a wider magnitude: a strike is worth more than an ordinary
-  // hunting swing, and running dry hurts more too.
+  // DRAFT — Bascinet's to retune.
   PROSPECTING: {
     reversion: 0.22,
     sigma: 0.13,
@@ -94,9 +59,6 @@ function clampYield(value) {
   return Math.max(YIELD_FLOOR, Math.min(YIELD_CAP, value));
 }
 
-// Box-Muller. Math.random() is uniform, and a uniform wobble makes every day
-// equally likely to be a weird one — a normal one makes most days ordinary,
-// which is the whole point of "most places will stay the same".
 function gaussian(rng = Math.random) {
   let u = 0;
   while (u === 0) u = rng();
@@ -121,8 +83,6 @@ function pickOutcome(outcomes, rng = Math.random) {
   return outcomes[outcomes.length - 1];
 }
 
-// Decides this turn's event for one kind. Returns { target, length } to start
-// one, or null. `turn` is the number of the turn being opened.
 function rollEvent(params, base, rng = Math.random) {
   if (rng() >= params.eventChance) return null;
   const multiplier = params.outcomes
@@ -134,13 +94,7 @@ function rollEvent(params, base, rng = Math.random) {
   };
 }
 
-// The pure half: one row plus the turn it is drifting into, out comes what the
-// row should look like afterwards. Split from the database the same way
-// db/lib/laborAccess.js splits its rules, and for the same reason — this is the
-// part worth simulating over sixty turns before trusting it in a live game.
-//
-// `globalEvent` is the world-wide farming event decided once per turn by
-// driftAll, passed down so every farming row starts the same blight together.
+// `globalEvent` is driftAll's once-per-turn farming event, so every row starts the same blight together.
 function driftRow(row, turn, { rng = Math.random, globalEvent = null } = {}) {
   const params = KIND_PARAMS[row.kind];
   if (!params) return null;
@@ -148,8 +102,7 @@ function driftRow(row, turn, { rng = Math.random, globalEvent = null } = {}) {
   let eventTarget = row.eventTarget;
   let eventUntilTurn = row.eventUntilTurn;
 
-  // An expired window is cleared before anything else, so the pull goes back
-  // to `base` on the very turn the event ends rather than a turn later.
+  // Cleared before anything else, so the pull goes back to `base` the turn the event ends, not a turn later.
   if (eventUntilTurn != null && turn >= eventUntilTurn) {
     eventTarget = null;
     eventUntilTurn = null;
@@ -176,8 +129,6 @@ function driftRow(row, turn, { rng = Math.random, globalEvent = null } = {}) {
   return { current, eventTarget, eventUntilTurn };
 }
 
-// Rolls the once-per-world farming event for a turn. Returns null on the
-// overwhelming majority of turns.
 function rollGlobalEvent(rng = Math.random) {
   const params = KIND_PARAMS.FARMING;
   if (rng() >= params.eventChance) return null;
@@ -187,17 +138,14 @@ function rollGlobalEvent(rng = Math.random) {
   };
 }
 
-// Walks every row one turn forward. Pure — takes rows, returns the writes to
-// make — so the turn pass below is just the database half, and a simulation
-// can call this directly.
+// Pure — takes rows, returns the writes to make — so the turn pass below is just the database half; a simulation can call this directly.
 function driftAll(rows, turn, { rng = Math.random } = {}) {
   const globalEvent = rollGlobalEvent(rng);
   const updates = [];
   for (const row of rows) {
     const next = driftRow(row, turn, { rng, globalEvent });
     if (!next) continue;
-    // Skip a write that changes nothing meaningful. Float equality would never
-    // hit, so this is a tolerance — it keeps a no-op turn from writing 168 rows.
+    // Tolerance, not float equality (which would never hit) — keeps a no-op turn from writing 168 rows.
     const unchanged =
       Math.abs(next.current - row.current) < 1e-9 &&
       next.eventTarget === row.eventTarget &&
@@ -208,12 +156,7 @@ function driftAll(rows, turn, { rng = Math.random } = {}) {
   return updates;
 }
 
-// The turn-engine pass. Runs at turn close, AFTER the auto-labor pass, so a
-// turn's payouts used the coefficients that were live during it and what this
-// writes is what the next turn sees.
-//
-// Registered in db/index.js's TURN_PASSES, which is what keeps a random,
-// non-idempotent pass from drifting twice if a turn advance is resumed.
+// Runs AFTER auto-labor. Registered in db/index.js's TURN_PASSES, which keeps this random, non-idempotent pass from drifting twice on a resumed turn advance.
 async function runLaborYieldPass(prisma, turn) {
   const rows = await prisma.locationYield.findMany({
     select: { id: true, kind: true, base: true, current: true, eventTarget: true, eventUntilTurn: true },
@@ -221,9 +164,7 @@ async function runLaborYieldPass(prisma, turn) {
   if (rows.length === 0) return { turnNumber: turn.number, drifted: 0, events: 0 };
 
   const updates = driftAll(rows, turn.number);
-  // Sequential rather than one big transaction: 168 tiny updates on a table
-  // nothing else writes during a turn close, and a partial application is
-  // harmless here — a row that missed a turn's drift is a row that stood still.
+  // Sequential, not one big transaction: partial application is harmless — a row that missed a turn's drift just stood still.
   let events = 0;
   for (const update of updates) {
     const { id, ...data } = update;
@@ -236,10 +177,7 @@ async function runLaborYieldPass(prisma, turn) {
   return { turnNumber: turn.number, drifted: updates.length, events };
 }
 
-// The player-facing scale. A coefficient is never shown as a number — a place
-// is Barren or Bountiful, and working out that Bountiful means 1.6 is the
-// player's job. Bountiful is deliberately hard to reach: at base, only
-// depths-obelisk wears it.
+// Bountiful is deliberately hard to reach — at base, only depths-obelisk wears it.
 const QUALITY_WORDS = [
   { below: 0.3, word: "Barren" },
   { below: 0.6, word: "Scarce" },
@@ -249,8 +187,6 @@ const QUALITY_WORDS = [
   { below: Infinity, word: "Bountiful" },
 ];
 
-// The one place a coefficient becomes a word. `null`/absent (no row at all, or
-// a row that has bottomed out) is the × — there is nothing to find here.
 function qualityWord(current) {
   if (current == null || current <= 0) return "×";
   return QUALITY_WORDS.find((step) => current < step.below).word;

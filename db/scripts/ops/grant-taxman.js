@@ -1,18 +1,10 @@
-// One-off: grants the Taxman tag to every already-ALIVE Headman and Meister
-// — the catch-up for the two seats that now start with it
-// (docs/roles.yaml's starting_tags) but were already playing before this
-// landed. Nothing in the ordinary turn machinery would ever touch their tag
-// list otherwise.
+// One-off: grants the Taxman tag to every already-ALIVE Headman and Meister —
+// the catch-up for the two seats that now start with it (docs/roles.yaml).
 //
 //   node db/scripts/ops/grant-taxman.js           # dry run
 //   node db/scripts/ops/grant-taxman.js --apply   # write + DM
 //
-// Dry-run-by-default with an --apply flag, matching db:prune-tags and the
-// rest of db/scripts/ops/.
-//
-// Grants through addToStack (db/lib/tagWrites.js) — the one module allowed
-// to write CharacterTag rows, the same rule seedMemories follows for
-// LocationVisit.
+// Grants through addToStack (db/lib/tagWrites.js), the one module allowed to write CharacterTag rows.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { addToStack } = require("../../lib/tagWrites");
@@ -80,9 +72,7 @@ async function main() {
     },
   });
 
-  // Post-commit and best-effort, same as the factory-road backfill: a
-  // Discord outage must not undo the grant.
-  for (const [discordUserId, name] of dmTargets) {
+  for (const [discordUserId, name] of dmTargets) { // best-effort; a Discord outage must not undo the grant
     await sendDm(prisma, discordUserId, DM_TEXT).catch((err) =>
       console.error(`  ! DM to ${name} failed: ${err.message}`),
     );

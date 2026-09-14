@@ -1,23 +1,12 @@
-// One-off repair, 2026-09-11. Georgio Novak spent turn 1 standing on the Godard
-// Factory floor and filed his Move as a ROUTINE reading "Refine Godflesh into
-// Squeeze". A Routine applies nothing, and having filed one he was skipped by
-// the auto-labor pass too (db/lib/autoLaborPass.js), so the shift he described
-// never happened. Every gate would have let it: the Logistics Room held the
-// Godflesh, he carries the factory-key that opens it, and a refinery has asked
-// for no Laboring tag since 2026-09-10 (db/lib/laborAccess.js).
-//
-// This runs that shift by hand. It is deliberately the SAME two writes
-// db/lib/refinery.js#applyRefinery makes, in one transaction, so the lump and
-// the cubes can never end up separated — which is the whole reason this is a
-// script and not two clicks. It is written for this one repair and names its
-// ids, rather than being a general "move a tag between a room and a person"
-// tool that nobody asked for.
+// One-off repair. Georgio Novak filed his turn 1 Move as a ROUTINE describing
+// a refining shift that never applied anything, so it never happened even
+// though every gate would have let it. Runs that shift by hand: the SAME two
+// writes db/lib/refinery.js#applyRefinery makes, in one transaction, so the
+// lump and the cubes can never end up separated. Written for this one repair
+// and names its ids, not a general tool.
 //
 //   node db/scripts/ops/refine-georgio-turn-1.js              # dry run
 //   node db/scripts/ops/refine-georgio-turn-1.js --apply      # write
-//
-// Dry-run-by-default with an --apply flag matches db:prune-tags and
-// db:prune-orphan-roles, the other scripts that touch live rows.
 
 const { prisma } = require("../../index");
 const { addToStack, dropRoomTag } = require("../../lib/tagWrites");
@@ -30,9 +19,7 @@ const ROOM_ID = "cmtohb3iq00anj1233k7r460c"; // Godard Factory · Logistics Room
 async function main() {
   const apply = process.argv.includes("--apply");
 
-  // The host, printed before anything else. `dotenv.config()` does not override
-  // an exported DATABASE_URL, so a .env sitting beside this file proves nothing
-  // about where it is actually writing — see CLAUDE.md.
+  // See CLAUDE.md: dotenv does not override an exported DATABASE_URL.
   const host = (process.env.DATABASE_URL ?? "").replace(/.*@/, "").split("/")[0];
   console.log(`Database: ${host || "(unset)"}\n`);
 
@@ -76,9 +63,7 @@ async function main() {
   }
 
   await prisma.$transaction(async (tx) => {
-    // Re-read inside the transaction rather than trusting the count above: this
-    // is live, and the turn is open.
-    const dropped = await dropRoomTag(tx, ROOM_ID, input.id, 1);
+    const dropped = await dropRoomTag(tx, ROOM_ID, input.id, 1); // re-read inside the tx; this is live
     if (!dropped.ok) throw new Error("The room no longer holds a Godflesh to take — nothing was written.");
 
     await addToStack(tx, CHARACTER_ID, output.id, REFINERY_YIELD, {
@@ -86,10 +71,7 @@ async function main() {
       stackable: output.stackable,
     });
 
-    // The ledger. AuditLog is the whole record of what happened to a character
-    // (CLAUDE.md), and a repair that leaves no row behind is a repair nobody
-    // can later explain. Actor "system": no GM pressed a button for this.
-    await tx.auditLog.create({
+    await tx.auditLog.create({ // AuditLog is the whole record; "system" since no GM pressed a button
       data: {
         actionType: "refinery_repair",
         actorDiscordUserId: "system",

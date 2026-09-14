@@ -1,29 +1,11 @@
-// Answering a DM's buttons, from either face.
-//
-// The click used to land in the BOT only -- a DM has no guild, so every one of
-// these handlers lived in bot/src/. Now the web answers them too
-// (db/lib/dmActions.js says why), and the load, the ownership check and the
-// order of the tail are the parts that must not drift between the two. So they
-// live here, once, and each face keeps only what is genuinely its own.
-//
-// This is ARCHITECTURE.md §4 one level up: rather than being a function that
-// returns its Discord work, it COMPOSES the per-kind db/lib functions that
-// already do, and hands the whole pile back. The bot awaits it inline; the web
-// defers it to after(), because awaiting Discord inside a server action
-// freezes the app.
-//
-// What stays per-face, and why it cannot be lifted:
-//   - interaction.update() taking the buttons off the DM. The web has no such
-//     primitive; it re-renders the row instead.
-//   - fetching a Discord User and sending: the bot has a gateway client, the
-//     web has REST (the twin table in ARCHITECTURE.md §3).
-//   - the nickname sync -- buildNickname exists once per face -- so only the
-//     id to sync crosses back.
-//   - room access and the carry drop, both Discord round trips that
-//     web/lib/afterInventoryChange.js deliberately runs inside after().
-//
-// Takes `prisma` as a parameter and is NOT on the @lifeweb/db barrel; require
-// it by path.
+// Answering a DM's buttons, from either face — the load, ownership check and
+// tail order live here once. ARCHITECTURE.md §4 one level up: COMPOSES the
+// per-kind db/lib functions rather than returning Discord work itself; bot
+// awaits it inline, web defers to after() (awaiting Discord in a server
+// action freezes the app). Stays per-face and cannot be lifted: DM button
+// removal, Discord User fetch/send (gateway vs. REST, ARCHITECTURE.md §3),
+// the nickname sync, and room access/carry drop (web/lib/afterInventoryChange.js
+// runs them inside after()). Takes `prisma`, NOT on the @lifeweb/db barrel — require by path.
 const { DM_ACTION, DM_CHOICE } = require("./dmActions");
 const { acceptLesson, declineOffer } = require("./lessons");
 const { acceptBind } = require("./bind");
@@ -39,8 +21,6 @@ const { cancelAttack, ATTACK_CALLED_OFF_DM } = require("./attack");
 const { recordArchiveEvent } = require("./archive");
 const { refuseTax, payPartialTax } = require("./tax");
 
-// Nothing to do, drawn as the reason under the message. Shared so the four
-// families refuse in the same words.
 const GONE = "That offer's gone.";
 const NOT_YOURS = "That's not yours to answer.";
 
@@ -48,9 +28,7 @@ function empty(extra = {}) {
   return { dms: [], sideEffects: { spawn: null, nicknameSyncDiscordUserId: null, roomSyncCharacterIds: [], carryDrop: null, boundNotification: null, ...extra } };
 }
 
-// The Offer half's ownership check. Lifted from bot/src/lib/offers.js, where
-// it was reachable only from a Discord interaction — the web had no way to
-// borrow it and would have had to reinvent it.
+// Lifted from bot/src/lib/offers.js so the web can share it instead of reinventing it.
 async function loadOfferFor(prisma, offerId, discordUserId) {
   const offer = await prisma.offer.findUnique({ where: { id: offerId } });
   if (!offer) return { problem: GONE };
@@ -62,21 +40,14 @@ async function loadOfferFor(prisma, offerId, discordUserId) {
   return { offer, responder, problem: null };
 }
 
-// The post-bind tail, minus its Discord half. settleCarry is a pure Prisma
-// write and belongs here; the drop's delivery and the room sync are round
-// trips the caller runs its own twin of.
-//
-// Best-effort throughout and it never flips `ok` — a room nobody can enter is
-// the channel doctor's problem, not a reason to tell somebody the bind they
-// just accepted failed.
+// Post-bind tail, minus its Discord half (a round trip the caller runs its
+// own twin of). Best-effort throughout, never flips `ok` — a room nobody can
+// enter is the channel doctor's problem, not a reason to fail the bind.
 async function afterBind(prisma, boundId) {
   const out = { roomSyncCharacterIds: [], carryDrop: null, boundNotification: null };
   try {
     out.carryDrop = await settleCarry(prisma, boundId);
     out.roomSyncCharacterIds = [boundId];
-    // The bound character's own id is what the caller needs to notify them —
-    // bot/src/lib/offers.js used to re-query the row a second time for exactly
-    // this, having already had boundId in hand.
     const target = await prisma.character.findUnique({ where: { id: boundId }, select: { discordUserId: true } });
     if (target?.discordUserId) out.boundNotification = { discordUserId: target.discordUserId, content: "Someone bound you." };
   } catch (err) {
@@ -119,15 +90,11 @@ async function answerThreatSpawn(prisma, { id, discordUserId, choice }) {
 
   const out = empty({ spawn: result.sideEffects, nicknameSyncDiscordUserId: discordUserId });
 
-  // A seat with a `brief` (the Thanati — db/lib/threats.js) says what it is
-  // only NOW, to somebody who has accepted. A decline never reads the cult's
-  // doctrine.
+  // A seat with a `brief` (the Thanati — db/lib/threats.js) says what it is only NOW, to somebody who accepted; a decline never reads the doctrine.
   if (result.threat.brief?.length) {
     out.dms.push({ discordUserId, content: result.threat.brief.join("\n") });
   }
 
-  // Two independent try/catches on purpose: a failing archive write must not
-  // suppress the audit row, and neither may cost a character that exists.
   try {
     await prisma.auditLog.create({
       data: {
@@ -156,13 +123,10 @@ async function answerThreatSpawn(prisma, { id, discordUserId, choice }) {
 }
 
 async function answerLobbySeat(prisma, { id, discordUserId }) {
-  // One button, and it declines — accepting a seat is building the character.
   const result = await declineAssignment(prisma, id, discordUserId);
   return { ok: result.ok, line: result.ok ? result.line : result.reason, ...empty() };
 }
 
-// The Refuse click. One button, and it declines — there is no accept, the
-// same LOBBY_SEAT shape as answerLobbySeat above.
 async function answerPendingTax(prisma, { id, discordUserId, choice, amount }) {
   const result =
     choice === DM_CHOICE.PARTIAL
@@ -177,12 +141,8 @@ async function answerKeyedWay(prisma, { id, discordUserId, choice }) {
   return { ok: true, line: result.note ? `${result.line}\n-# ${result.note}` : result.line, ...empty() };
 }
 
-// Letting a prisoner go (docs/systemdocs/INTERCEPT.md). The odd one out of the
-// family: every other kind here is a pending row somebody is being ASKED
-// about, and this is the person who imposed a state ending it — so `id` is the
-// person being held, and the clicker must be the one holding them.
-// releaseHeldBy's WHERE is that check, which is why there is no ownership
-// lookup of its own here.
+// (docs/systemdocs/INTERCEPT.md) The odd one out: `id` is the person being
+// held, and the clicker must be the one holding them — releaseHeldBy's WHERE is that check, so no separate ownership lookup here.
 async function answerInterceptHold(prisma, { id, discordUserId }) {
   const holder = await prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE" },
@@ -195,19 +155,13 @@ async function answerInterceptHold(prisma, { id, discordUserId }) {
   const target = freed[0];
   const dms = [];
   if (target.discordUserId && target.status === "ALIVE") {
-    // Unattributed, the notifyCharacter posture (REQUESTS.md §3): they know
-    // perfectly well who had hold of them, and the game does not need to
-    // confirm it.
     dms.push({ discordUserId: target.discordUserId, content: "You've been let go. You can move again." });
   }
   return { ok: true, line: `You let ${target.name} go.`, ...empty(), dms };
 }
 
-// Breaking off a fight you started (docs/systemdocs/ATTACK.md). The same shape
-// as the release above and the same rule — the initiator answers — but it
-// cannot go through releaseHeldBy, because BOTH sides of a fight are held and
-// only the Attack row knows whether either of them is still in another one.
-// cancelAttack's WHERE is the ownership check.
+// (docs/systemdocs/ATTACK.md) Same rule as above — initiator answers — but
+// can't go through releaseHeldBy since BOTH sides are held; cancelAttack's WHERE is the ownership check.
 async function answerAttackHold(prisma, { id, discordUserId }) {
   const attacker = await prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE" },
@@ -217,10 +171,7 @@ async function answerAttackHold(prisma, { id, discordUserId }) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
   if (!openTurn) return { ok: false, line: GONE, ...empty() };
 
-  // By the face the room saw, never the row. The DM this button sits on says
-  // "you ambushed a hooded figure"; answering it with their real name would
-  // make the button the unmasking tool the whole verb refuses to be
-  // (docs/systemdocs/ATTACK.md §6).
+  // By the face the room saw, never the row — the button must not become the unmasking tool the verb refuses to be (docs/systemdocs/ATTACK.md §6).
   const target = await prisma.character.findUnique({
     where: { id },
     select: { ...IDENTITY_SELECT, status: true },
@@ -240,16 +191,10 @@ async function answerAttackHold(prisma, { id, discordUserId }) {
   return { ok: true, line: `You break off from ${seen}.`, ...empty(), dms };
 }
 
-// The one entry point. `action` is the descriptor off DirectMessage.meta
-// (db/lib/dmActions.js#dmActionOf); `discordUserId` is the CLICKER, resolved
-// by the caller from its own session or interaction and never from anything
-// the client posted.
-//
-// Always returns { ok, line, dms, sideEffects } — a refusal a player caused is
-// never a throw, because the caller writes the reason under their own message.
-// `line` carries the refusal too, never a separate `reason`: both faces print
-// result.line unconditionally, so a refusal that answered on any other key
-// would put a literal "undefined" in front of a player.
+// `action` is the descriptor off DirectMessage.meta (db/lib/dmActions.js#dmActionOf);
+// `discordUserId` is the CLICKER, resolved server-side, never from the client.
+// Always returns { ok, line, dms, sideEffects } — a caused refusal is never a
+// throw; `line` carries the refusal too, since both faces print it unconditionally.
 async function answerDmAction(prisma, { action, choice, discordUserId, amount }) {
   if (!discordUserId) return { ok: false, line: NOT_YOURS, ...empty() };
   const args = { id: action.id, discordUserId, choice, amount };

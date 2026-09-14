@@ -21,10 +21,7 @@ const {
   bucketConfigured, putObject, deleteObject, listObjects, finalKey, liveKey, livePrefix,
 } = require("../../lib/archiveBucket");
 
-// How many nightly packets are kept per game. The newest supersedes the last,
-// so this is a rolling window rather than a history — the permanent copy is
-// the --final one, which is never pruned.
-const KEEP_LIVE = 3;
+const KEEP_LIVE = 3; // rolling window; the permanent --final copy is never pruned
 
 function arg(name) {
   const i = process.argv.indexOf(`--${name}`);
@@ -51,9 +48,7 @@ async function main() {
   const manifest = await exportGame(prisma, { gameId, outPath: out });
   console.log(`  ${manifest.entryCount} entries, seq ${manifest.minSeq ?? "-"}–${manifest.maxSeq ?? "-"}`);
 
-  // Read back what was actually written, before anything is told it exists.
-  // A truncated packet is the same shape as a good one.
-  await verifyPacket(out);
+  await verifyPacket(out); // read back what was written before anything is told it exists
   const size = fs.statSync(out).size;
   console.log(`  verified — ${(size / 1048576).toFixed(2)} MB at ${out}`);
 
@@ -73,10 +68,7 @@ async function main() {
   console.log(`  uploaded to ${key}`);
 
   if (!final) {
-    // Prune this game's nightlies to the newest few. Scoped to
-    // live/<gameId>/ by construction, so it can never reach the final packet:
-    // that one lives under a different prefix and is never pruned.
-    const listed = (await listObjects(livePrefix(gameId)))
+    const listed = (await listObjects(livePrefix(gameId))) // scoped by prefix; can never reach the final packet
       .map((o) => o.key)
       .sort();
     for (const stale of listed.slice(0, Math.max(0, listed.length - KEEP_LIVE))) {

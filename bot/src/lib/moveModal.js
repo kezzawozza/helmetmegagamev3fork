@@ -7,28 +7,19 @@ const {
   RadioGroupBuilder,
 } = require("discord.js");
 
-// The whole Move, in one popup. Replaces the old flow entirely: a message in
-// #turns became a PENDING_TYPE Action, the bot deleted the message and DMed
-// two select menus plus a Confirm button. That leaked the player's identity
-// twice (the typing indicator under their real account, and the message
-// itself in the moment before deletion) and cost four round trips.
-//
-// This is the repo's first modal. It needs discord.js >= 14.27 for the
-// component types below: Label (18) wrapping a TextInput (4) and a RadioGroup
-// (21), plus a bare TextDisplay (10) for the `-#` line. Older builders will
-// silently produce a payload Discord rejects.
-//
-// A modal must be shown within 3 seconds of the interaction and CANNOT be
-// deferred first, so nothing here reads the database — the gates all run on
-// submit (bot/src/events/interactionCreate.js#handleMoveSubmit).
+// The whole Move, in one popup. Needs discord.js >= 14.27 for Label (18)
+// wrapping a TextInput (4) and a RadioGroup (21), plus a bare TextDisplay
+// (10) for the `-#` line — older builders silently produce a payload
+// Discord rejects. A modal must show within 3 seconds and cannot be deferred
+// first, so nothing here reads the database; gates all run on submit
+// (bot/src/events/interactionCreate.js#handleMoveSubmit).
 
 const MOVE_MODAL_ID = "move:new";
 
-// Label.description caps at 100 characters, which the full guidance line
-// overruns, so it lives in the TextDisplay below instead.
-// Labor is on the same radio group as Routine and Gambit because it is the
-// same slot: a turn buys one of the three, and choosing to work is choosing
-// not to act. Filing nothing at all picks Labor for you (db/lib/autoLaborPass.js).
+// Label.description caps at 100 characters, so the full guidance line lives
+// in the TextDisplay below. Labor shares the radio group with Routine and
+// Gambit since it's the same slot; filing nothing picks Labor for you
+// (db/lib/autoLaborPass.js).
 const MOVE_HELP =
   "-# Describe what you're hoping to accomplish — in the broadest sense, the ideal outcome, your intent. " +
   "Mention relevant tags or circumstances that the GMs should consider. " +

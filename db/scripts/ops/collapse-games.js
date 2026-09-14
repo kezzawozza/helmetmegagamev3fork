@@ -1,24 +1,15 @@
 // Start the history over from the game being played now: every other Game row
-// deleted, and the transcript emptied with them.
-//
-// WHY. The Game table accumulates one row per Restart Game, and a week of
-// testing leaves a pile of them, most carrying an epilogue for a game nobody
-// played. Restart Game's own Discard button is the per-game version of this;
-// this script is the one that takes the whole history at once.
-//
-// WHAT IT KEEPS. The game that is CURRENT — its characters, tags, turns,
-// factions, everything GameState points at. Only the historical Game rows and
-// the archive go. The current row keeps its id — a game IS its id — and is
-// stripped of any ending: `Game.endedAt`, `closingNote`, `epilogue`, and the two ending stamps
-// (`nukeDetonatedTurn` / `ascensionFiredTurn`, which are what pin the fireball
-// over every turn announcement — db/lib/turnBanner.js).
-//
-// ArchiveEntry.gameId is a snapshot column, not a foreign key, so deleting
-// Game rows cannot be blocked by the transcript — but the transcript would be
-// orphaned, which is why it goes in the same pass.
+// deleted, and the transcript emptied with them. Restart Game's own Discard
+// button is the per-game version of this; this script takes the whole
+// history at once. Keeps the CURRENT game (characters, tags, turns,
+// factions, everything GameState points at), stripped of any ending
+// (`endedAt`, `closingNote`, `epilogue`, `nukeDetonatedTurn`/
+// `ascensionFiredTurn`). ArchiveEntry.gameId is a snapshot column, not a
+// foreign key, so the transcript is deleted in the same pass rather than
+// left orphaned.
 //
 // DESTRUCTIVE AND NOT UNDOABLE. Take a backup first (`npm run db:backup`).
-// DRY RUN unless given `-- --apply`, the db/scripts/ops convention.
+// DRY RUN unless given `-- --apply`.
 const { prisma, Prisma } = require("../../index");
 
 async function main() {
@@ -41,11 +32,7 @@ async function main() {
   console.log(`Current game: ${state.game.id} (phase ${state.phase})`);
   console.log(`  Game rows           : ${all.length} total, ${doomed.length} to delete`);
   console.log(`  Ids to delete       : ${doomed.map((g) => g.id).join(", ") || "(none)"}`);
-  // A packet lives in the bucket, not in the database, so deleting the Game
-  // row does not delete the file — it deletes the only pointer to it. The
-  // packet is still readable with `npm run archive:exports`, but nothing in
-  // the app will mention it again.
-  const packeted = doomed.filter((g) => g.exportKey);
+  const packeted = doomed.filter((g) => g.exportKey); // packet stays in the bucket; only the pointer goes
   if (packeted.length) {
     console.log(`  Of those, with an archive packet in the bucket: ${packeted.length}`);
     for (const g of packeted) console.log(`    ${g.id} -> ${g.exportKey}`);
@@ -79,11 +66,8 @@ async function main() {
       data: {
         closingNote: null,
         endedAt: null,
-        // The phase is deliberately NOT touched. After a Restart Game it is
-        // CLOSED, which is where a fresh game starts from; forcing RUNNING
-        // here would drop everyone into a game with no lobby behind it.
-        // The countdown goes with the ending. Leaving an armed bomb behind is
-        // how a "fresh" game detonates on its first close.
+        // Phase deliberately NOT touched — forcing RUNNING would drop everyone
+        // into a game with no lobby behind it. Countdown goes with the ending.
         nukeArmedTurn: null,
         nukeDetonatedTurn: null,
         ascensionArmedTurn: null,

@@ -1,11 +1,6 @@
-// Xom's table, and the one thing it is easy to get wrong.
-//
-// WHAT A FAILURE HERE MEANS. db/lib/xom.js holds the weights and
-// db/lib/xomPass.js holds a switch that acts on them, and nothing but this
-// file makes the two agree. A row added to the table with no arm in the switch
-// falls through to `default` and does nothing — silently, once in a hundred
-// closes, for one player, at four in the morning. The key-set assertion below
-// is the whole reason this file exists; the boundary cases are the cheap part.
+// Xom's table. db/lib/xom.js holds the weights and db/lib/xomPass.js holds a
+// switch that acts on them — nothing but this file makes the two agree. A row
+// with no arm falls through to `default` and does nothing, silently.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -20,8 +15,6 @@ const {
 
 test("the weights are Bascinet's numbers, unnormalised", () => {
   assert.equal(XOM_TOTAL_WEIGHT, 101.5);
-  // Half a unit is the row that cannot be expressed by repeating an entry the
-  // way docs/labordrops.yaml does — it is why this table carries numbers.
   assert.equal(XOM_OUTCOMES.find((row) => row.id === "madness").weight, 0.5);
   assert.equal(XOM_OUTCOMES.find((row) => row.id === "nothing").weight, 50);
   assert.equal(
@@ -35,7 +28,6 @@ test("every outcome is reachable, and only within its own band", () => {
   let floor = 0;
   for (const row of XOM_OUTCOMES) {
     const ceiling = floor + row.weight;
-    // Just inside the bottom of the band, the middle, and just inside the top.
     for (const point of [floor + 1e-9, (floor + ceiling) / 2, ceiling - 1e-9]) {
       assert.equal(
         pickXomOutcome(() => point / XOM_TOTAL_WEIGHT),
@@ -49,12 +41,9 @@ test("every outcome is reachable, and only within its own band", () => {
 });
 
 test("a boundary belongs to the row after it, and 1 does not fall off the end", () => {
-  // The first row's weight is 50; exactly 50/101.5 is the START of the second.
   const firstWeight = XOM_OUTCOMES[0].weight;
   assert.equal(pickXomOutcome(() => firstWeight / XOM_TOTAL_WEIGHT), XOM_OUTCOMES[1].id);
-  // Math.random() never returns 1, but a stubbed rng might, and a turn close
-  // must not die on it.
-  assert.equal(pickXomOutcome(() => 1), XOM_OUTCOMES[XOM_OUTCOMES.length - 1].id);
+  assert.equal(pickXomOutcome(() => 1), XOM_OUTCOMES[XOM_OUTCOMES.length - 1].id); // rng might, unlike Math.random()
   assert.equal(pickXomOutcome(() => 0), XOM_OUTCOMES[0].id);
 });
 
@@ -67,9 +56,8 @@ test("every shout is reachable and the picker never falls off the end", () => {
   assert.equal(typeof pickShout(() => 1), "string");
 });
 
-// The one that matters. Read the pass's switch out of the source rather than
-// running it: driving thirteen outcomes through a fake Prisma would test the
-// fake, and what is actually at risk is a row and an arm drifting apart.
+// Reads the pass's switch out of the source rather than running it: a fake
+// Prisma would test the fake, not the row-vs-arm drift actually at risk.
 test("the pass has an arm for every row in the table", () => {
   const source = fs.readFileSync(path.join(__dirname, "..", "lib", "xomPass.js"), "utf8");
   const arms = new Set([...source.matchAll(/case "([a-z]+)":/g)].map((m) => m[1]));
@@ -95,9 +83,6 @@ test("the notices are keyed by outcome id, and the silent ones are silent on pur
   for (const key of Object.keys(NOTICES)) {
     assert.equal(ids.has(key), true, `NOTICES has "${key}", which is not an outcome`);
   }
-  // "nothing" says nothing. The gib's letter is the shared death loop's, and
-  // the mass madness reaches its victims rather than the roller — neither
-  // belongs here.
   for (const silent of ["nothing", "gib", "madness"]) {
     assert.equal(NOTICES[silent], undefined, `"${silent}" must not DM the roller`);
   }

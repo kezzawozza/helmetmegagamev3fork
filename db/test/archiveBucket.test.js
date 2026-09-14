@@ -1,16 +1,8 @@
-// The archive bucket's SigV4 signer.
-//
-// WHAT A FAILURE HERE MEANS. There are now two hand-rolled SigV4 signers in
-// this repo — scripts/db/bucket.py for the terminal, db/lib/archiveBucket.js
-// for the web action and the export script — because the web deployment cannot
-// be assumed to have python3, scripts/, or the bucket credentials. Two signers
-// is a thing that drifts, and it drifts SILENTLY in the worst way: S3 answers a
-// bad signature with SignatureDoesNotMatch, which reads exactly like a wrong
-// secret, so the first guess is always the credentials and never the code.
-//
-// The signatures below were produced by bucket.py's own math on frozen inputs,
-// and bucket.py's GET/list path is the one running in production every night.
-// So this pins the JS to the implementation that is known to work.
+// The archive bucket's SigV4 signer. Two hand-rolled signers exist in this
+// repo (scripts/db/bucket.py and db/lib/archiveBucket.js); if they drift, S3
+// answers with SignatureDoesNotMatch, which reads exactly like a wrong
+// secret. The signatures below were produced by bucket.py's own math on
+// frozen inputs, pinning the JS to the implementation known to work.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 

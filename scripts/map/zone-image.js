@@ -1,16 +1,11 @@
 #!/usr/bin/env node
-// docs/zones.yaml -> a rendered image, via Graphviz's own `dot` binary.
-// Renders straight off zone-dot.js's generator, so the image can never drift
-// from a stale zone.dot sitting on disk.
+// docs/zones.yaml -> a rendered image, via Graphviz's own `dot` binary and
+// zone-dot.js's generator directly (no stale zone.dot on disk).
 //
 //   npm run map:png                 write zone.png at the repo root
-//   npm run map:png -- out.svg      write somewhere else; the extension
-//                                    picks the format (png, svg, pdf, ...
-//                                    anything `dot -T` accepts)
+//   npm run map:png -- out.svg      write somewhere else; extension picks the format
 //
-// Needs Graphviz installed locally (`brew install graphviz` on macOS,
-// `apt install graphviz` on Debian/Ubuntu) — this shells out to `dot`
-// rather than pulling in a WASM renderer as a dependency for one script.
+// Needs Graphviz installed locally (`brew install graphviz` / `apt install graphviz`).
 
 const fs = require("fs");
 const path = require("path");

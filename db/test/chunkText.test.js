@@ -27,8 +27,7 @@ test("a long single-newline roster never cuts inside a line", () => {
     assert.ok(chunk.length <= DISCORD_MESSAGE_LIMIT);
     for (const line of chunk.split("\n")) if (line) seen.push(line);
   }
-  // Every original line survives whole, in order, with nothing invented.
-  const original = text.split("\n").filter(Boolean);
+  const original = text.split("\n").filter(Boolean); // every line survives whole, in order
   assert.deepEqual(seen, original);
 });
 
@@ -38,15 +37,8 @@ test("a single line over the cap is still hard-split", () => {
   assert.deepEqual(chunks, ["intro", "x".repeat(2000), "x".repeat(1000)]);
 });
 
-// ---- The composer's limits -------------------------------------------------
-//
-// WHAT A FAILURE HERE MEANS. A player typed a list of goods into /chat, the
-// box let them type the whole thing, and the send was then refused at 2000
-// characters — the refusal being the first mention that a limit existed. The
-// box now counts, and over one message the send SPLITS instead of refusing.
-// These are the numbers both faces read: db/lib/say.js runs the split and
-// web/app/(app)/chat/Feed.js draws the count off the same module, so a
-// disagreement here is a player being told one thing and getting another.
+// ---- The composer's limits: db/lib/say.js runs the split, Feed.js draws
+// the count off the same module (db/lib/sayLimits.js), so they can't disagree.
 const sayLimits = require("../lib/sayLimits");
 
 test("sayLimits.js has zero requires, so it stays client-safe", () => {
@@ -65,13 +57,10 @@ test("one message stays one message, right up to the cap", () => {
 });
 
 test("a long list splits into as few pieces as it can", () => {
-  // 300 lines of about 20 characters: ~6000 chars, which is the ceiling.
   const list = Array.from({ length: 300 }, (_, i) => `- item number ${i}`).join("\n");
   const pieces = chunkMessage(list);
   assert.ok(pieces.length <= sayLimits.MAX_SAY_PIECES, `expected ≤3 pieces, got ${pieces.length}`);
-  // Nothing is lost and nothing is doubled.
   assert.equal(pieces.join("\n"), list);
-  // And no piece is over what Discord will take.
   for (const piece of pieces) assert.ok(piece.length <= sayLimits.MESSAGE_LIMIT);
 });
 

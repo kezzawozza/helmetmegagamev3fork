@@ -1,13 +1,8 @@
-// node --test over the three buildings Bascinet added on 2026-09-10 — the
-// Brewery, the Rookery and the Makeshift Stage — and the placement keys they
-// are the first users of.
-//
-// Everything covered here is a PURE function, which is the point: the parts of
-// these three that can be got wrong quietly are the sync validators (a bad key
-// is silently dropped, not thrown — normalizePlacement whitelists by
-// construction) and the two gates that decide where a thing may stand and how
-// many birds are owed. The database halves are exercised by hand; these are
-// the ones a regression would otherwise ship.
+// The Brewery, the Rookery and the Makeshift Stage, and the placement keys
+// they're the first users of. Everything here is a PURE function: the sync
+// validators (a bad key is silently dropped — normalizePlacement whitelists
+// by construction) and the two gates deciding where a thing may stand and
+// how many birds are owed.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
@@ -46,8 +41,7 @@ test("placement: absent new keys default to empty, never undefined", () => {
 test("placement: yields.quantity defaults to 1 and skill to nobody", () => {
   const p = normalizePlacement({ yields: { tag: "alcohol", room: "inn-cellar" } });
   assert.equal(p.yields.quantity, 1);
-  // Absent means the thing runs itself; only a named skill gates the pour.
-  assert.equal(p.yields.skill, null);
+  assert.equal(p.yields.skill, null); // absent means it runs itself; only a named skill gates the pour
 });
 
 test("placement: yields.skill rides through and must name a real tag", () => {
@@ -65,9 +59,6 @@ test("placement: yields.skill rides through and must name a real tag", () => {
   );
 });
 
-// The whole reason these validators earn a test: an unknown key is DROPPED,
-// so a typo in docs/tags.yaml produces a building that silently does nothing
-// rather than a sync that fails.
 test("placement: an unknown key is dropped rather than stored", () => {
   const p = normalizePlacement({ fieldwork: true, birdSendsPerDy: 6 });
   assert.equal("birdSendsPerDy" in p, false);
@@ -131,9 +122,6 @@ test("canBuildHere: a named site is the only place its type may stand", () => {
   assert.match(canBuildHere(SQUARE, BREWERY).reason, /only be built in the inn/);
 });
 
-// The rule worth pinning down: naming a site satisfies the INDOORS default
-// and nothing else. The Brewery belongs in a building; a palisade still does
-// not go up in the Cathedral's nave.
 test("canBuildHere: a named site satisfies the indoors default", () => {
   assert.equal(canBuildHere(INN, BREWERY).ok, true);
   assert.equal(canBuildHere(INN, ANYWHERE).ok, false);
@@ -173,15 +161,12 @@ test("birdAllowance: nothing standing here is worth the base one a day", () => {
 test("birdAllowance: a rookery raises it, and a wreck does not", () => {
   const rookery = (status) => ({ status, placement: { birdSendsPerDay: 6 } });
   assert.equal(birdAllowanceFrom([rookery("COMPLETE")]), 6);
-  // A damaged tower is still full of birds.
-  assert.equal(birdAllowanceFrom([rookery("DAMAGED")]), 6);
+  assert.equal(birdAllowanceFrom([rookery("DAMAGED")]), 6); // still full of birds
   assert.equal(birdAllowanceFrom([rookery("RUINED")]), BASE_BIRD_SENDS_PER_DAY);
   assert.equal(birdAllowanceFrom([rookery("UNDER_CONSTRUCTION")]), BASE_BIRD_SENDS_PER_DAY);
   assert.equal(birdAllowanceFrom([rookery("ABANDONED")]), BASE_BIRD_SENDS_PER_DAY);
 });
 
-// Best wins rather than summing — two rookeries are not twice a rookery, the
-// same call structureTools makes for a labor bonus.
 test("birdAllowance: the biggest wins, they never sum", () => {
   const rows = [
     { status: "COMPLETE", placement: { birdSendsPerDay: 6 } },
@@ -199,10 +184,8 @@ test("rookeryCooldown: three minutes, and it reports a unix second to render", (
   const justNow = rookeryCooldown(new Date(now), now);
   assert.equal(justNow.ok, false);
   assert.equal(justNow.secondsLeft, ROOKERY_COOLDOWN_MS / 1000);
-  // A unix SECOND, not a millisecond — it goes straight into a <t:…:R>.
-  assert.equal(justNow.readyAt, Math.ceil((now + ROOKERY_COOLDOWN_MS) / 1000));
+  assert.equal(justNow.readyAt, Math.ceil((now + ROOKERY_COOLDOWN_MS) / 1000)); // unix SECOND for <t:…:R>
 
   assert.equal(rookeryCooldown(new Date(now - ROOKERY_COOLDOWN_MS), now).ok, true);
-  // The boundary belongs to ready: exactly three minutes has elapsed.
-  assert.equal(rookeryCooldown(new Date(now - ROOKERY_COOLDOWN_MS + 1), now).ok, false);
+  assert.equal(rookeryCooldown(new Date(now - ROOKERY_COOLDOWN_MS + 1), now).ok, false); // boundary belongs to ready
 });

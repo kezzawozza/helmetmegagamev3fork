@@ -1,13 +1,8 @@
-// Manual, terminal-invoked push of docs/assets/bot-icon.png to the bot user's
-// Discord avatar. Run with `npm run db:set-bot-avatar`. Never runs
-// automatically — same explicit-push convention as rebuild-info-channel.js.
-//
-// Discord takes an avatar as a base64 data URI on the JSON body of
-// PATCH /users/@me, NOT as a multipart upload (that's attachments — see
-// postAttachment in db/lib/discordRest.js). It accepts PNG/JPEG/GIF only, so
-// the source asset is committed as a PNG even though the art arrived as WebP.
-// No prisma/DB dependency: the avatar is Discord-side state with nothing
-// mirrored locally.
+// Manual push of docs/assets/bot-icon.png to the bot's Discord avatar
+// (`npm run db:set-bot-avatar`). Discord takes it as a base64 data URI on the
+// JSON body of PATCH /users/@me, NOT a multipart upload (that's attachments —
+// postAttachment in db/lib/discordRest.js), PNG/JPEG/GIF only. No prisma/DB
+// dependency: the avatar is Discord-side state with nothing mirrored locally.
 require("dotenv").config();
 const fs = require("node:fs");
 const path = require("node:path");

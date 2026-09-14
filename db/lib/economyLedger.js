@@ -1,63 +1,21 @@
-// The economy ledger's one writer. Every ⬢ that moves, is minted, or is burned
-// gets a row here, written INSIDE the caller's transaction so a row never
-// records a write that rolled back. /gm/economy reads nothing else.
-//
-// Takes `tx` as the first parameter, the db/lib/dm.js convention: db/index.js
-// is what imports this module, so requiring it back would resolve to a partial
-// exports object.
-//
-// Three rules this file exists to hold in one place:
-//
-//   1. `amount` is always POSITIVE and the direction is from -> to. A caller
-//      that has a signed delta passes it and lets `record` sort out which way
-//      round the legs go, so no call site has to think about it.
-//   2. A ledger failure NEVER fails the money move. This needs a SAVEPOINT, not
-//      a try/catch, and the difference is the whole reason this comment is
-//      long. Postgres aborts the entire transaction on a failed statement, and
-//      every statement after it fails with 25P02 until the transaction ends —
-//      so catching the error in JavaScript does NOT un-abort it. A ledger bug
-//      would have taken the player's purchase down with it. The write is
-//      therefore fenced between SAVEPOINT and ROLLBACK TO SAVEPOINT, which is
-//      the only thing that actually makes a nested failure recoverable.
-//   3. A write with no reason is recorded as UNATTRIBUTED, never dropped. An
-//      un-hooked call site is then an ugly bar on the panel instead of silently
-//      missing money.
+// Written INSIDE the caller's transaction (`tx`, db/lib/dm.js convention) so
+// a row never outlives a rollback. Invariants: `amount` always POSITIVE, from
+// -> to; a ledger failure NEVER fails the money move (SAVEPOINT/ROLLBACK, not
+// try/catch — Postgres aborts on 25P02, JS catch cannot un-abort); a reasonless write is UNATTRIBUTED, never dropped.
 const { DEFAULT_REASON } = require("./economyReasons");
 const { readGameState } = require("./gameState");
 
-// The party kinds. "character" and "room" are real rows; the rest are book
-// accounts that exist so every entry has two ends and the supply always adds
-// up.
-//
-// MINT and BURN are the only two things that change the money supply, which is
-// why they are named rather than left as a null end — "where did 400 ⬢ come
-// from" has to be answerable.
+// Book accounts so every entry has two ends; MINT/BURN named rather than a null end, so "where did 400 ⬢ come from" is answerable.
 const MINT = { kind: "world", id: "mint", name: "Minted" };
 const BURN = { kind: "world", id: "burn", name: "Burned" };
-// Off-world. The shuttle is the only door, and ⬢ crossing it are a ware bought
-// and sold at a spread (DEPOT.md) — not a transfer between two players.
 const COMPANY = { kind: "offworld", id: "company", name: "The Company" };
-// The Depot's two books. Deliberately separate accounts, because the station's
-// float and the Merchant's own purse are NOT the same money (DEPOT.md §0g) and
-// summing them would be a lie the panel tells on its front page.
+// Separate accounts: the station's float and the Merchant's purse are NOT the same money (DEPOT.md §0g); summing them would lie on the panel's front page.
 const DEPOT_ACCOUNT = { kind: "depot", id: "account", name: "Depot account" };
 const DEPOT_DEBT = { kind: "depot", id: "debt", name: "The Company's line" };
 
 const MAX_INT4 = 2147483647;
 
-// Runs `fn` fenced by a SAVEPOINT so a failure inside it cannot poison the
-// caller's transaction.
-//
-// This is the only correct shape for "best effort inside somebody else's
-// transaction" on Postgres. Without it, a failed INSERT here puts the
-// connection in 25P02 and every later statement in the caller's $transaction
-// fails too — the money move included. A try/catch alone reads like it handles
-// that and does not.
-//
-// If the savepoint statements themselves are unavailable (a client that does
-// not expose $executeRawUnsafe), fall back to running `fn` bare: the ledger
-// row is still worth attempting, and the caller is no worse off than before
-// this module existed.
+// Fences `fn` with a SAVEPOINT so a failure can't poison the caller's transaction; falls back to running `fn` bare when $executeRawUnsafe is unavailable.
 async function savepointed(tx, fn) {
   if (typeof tx.$executeRawUnsafe !== "function") return fn();
   await tx.$executeRawUnsafe("SAVEPOINT economy_entry");
@@ -71,8 +29,6 @@ async function savepointed(tx, fn) {
   }
 }
 
-// A character or Room resolved to a party. Accepts the shape db/lib/parties.js
-// already returns, so a caller that has a party passes it straight through.
 function characterParty(c) {
   if (!c?.id) return null;
   return { kind: "character", id: c.id, name: c.name ?? null, zoneId: c.zoneId ?? null };
@@ -83,35 +39,19 @@ function roomParty(r) {
   return { kind: "room", id: r.id, name: r.name ?? null, zoneId: r.zoneId ?? r.location?.zoneId ?? null };
 }
 
-// GameState holds the current gameId (there is one row). Looked up once per
-// write when the caller does not supply it — cheap and indexed, and
-// correctness matters more here than the read: a row on the wrong game is a
-// row in the wrong book. Pass `ctx.gameId` to skip it.
-// One lookup per TRANSACTION, not per row. A turn-end pass books a row for
-// every one of 100+ characters, and a findFirst apiece added 100+ round-trips
-// inside the most fragile pass in the game.
-//
-// Keyed on the tx object in a WeakMap so the entry disappears with the
-// transaction — a plain cache would outlive a wipe and start filing new rows
-// under the finished game.
+// One lookup per TRANSACTION, not per row. Pass `ctx.gameId` to skip it. WeakMap-keyed on `tx` so the entry dies with the transaction, not outliving a wipe.
 const gameIdByTx = new WeakMap();
 
 async function currentGameId(tx, ctx) {
   if (ctx?.gameId) return ctx.gameId;
   if (gameIdByTx.has(tx)) return gameIdByTx.get(tx);
-  // readGameState is the house reader for the singleton (db/lib/gameState.js);
-  // every other module finds this row through it, and a writer disagreeing
-  // with the readers about how to find the one row is a latent split-brain.
   const state = await readGameState(tx, { gameId: true });
   const id = state?.gameId ?? null;
   gameIdByTx.set(tx, id);
   return id;
 }
 
-// The one write.
-//
-// `from` and `to` are parties (or the MINT/BURN/COMPANY/DEPOT_* constants).
-// `amount` may arrive signed: negative simply swaps the legs.
+// The one write. `from`/`to` are parties or the MINT/BURN/COMPANY/DEPOT_* constants; `amount` may arrive signed, negative simply swaps the legs.
 async function record(tx, { from, to, form, amount, tag, quantity, unitValue }, ctx = {}) {
   try {
     let a = Math.trunc(Number(amount) || 0);
@@ -124,19 +64,13 @@ async function record(tx, { from, to, form, amount, tag, quantity, unitValue }, 
       src = dst;
       dst = swap;
     }
-    // Both ends missing means nobody can say what happened, and a row like
-    // that is worse than none — it would count toward a total no account
-    // claims. A single world end is fine and normal (a mint, a burn).
+    // Both ends missing would count toward a total no account claims; a single world end (mint, burn) is fine.
     if (!src && !dst) return null;
 
     const gameId = await currentGameId(tx, ctx);
     if (!gameId) return null;
 
-    // `amount` is INTEGER in the database. A stack of a high-priced tag can
-    // multiply past int4 and raise, which before the savepoint below would
-    // have rolled back the player's whole action. Clamped rather than
-    // rejected: a wrong-but-huge number on a report is a bug to find, a lost
-    // purchase is a bug that costs somebody their afternoon.
+    // `amount` is INTEGER; clamped not rejected — a wrong-but-huge report number is a bug to find, a lost purchase costs somebody's afternoon.
     if (a > MAX_INT4) a = MAX_INT4;
 
     return await savepointed(tx, () =>
@@ -161,11 +95,7 @@ async function record(tx, { from, to, form, amount, tag, quantity, unitValue }, 
         actionType: ctx.actionType ?? null,
         auditLogId: ctx.auditLogId ?? null,
         actorDiscordUserId: ctx.actorDiscordUserId ?? null,
-        // WHERE it happened, for the GM zone filter. Taken from whichever end
-        // is a real place when the context did not say — db/lib/parties.js
-        // already selects zoneId onto every party it resolves, so this is
-        // free, and without it every row landed null and the zone filter
-        // matched everything for everybody.
+        // WHERE it happened, for the GM zone filter — without it every row lands null and the filter matches everything for everybody.
         zoneId: ctx.zoneId ?? src?.zoneId ?? dst?.zoneId ?? null,
         zoneName: ctx.zoneName ?? null,
         locationId: ctx.locationId ?? null,
@@ -177,24 +107,18 @@ async function record(tx, { from, to, form, amount, tag, quantity, unitValue }, 
       }),
     );
   } catch (err) {
-    // Rule 2. Never let the book cost somebody their purchase.
     console.error("[economy] ledger write failed:", err?.message ?? err);
     return null;
   }
 }
 
-// A signed change to ONE party's balance, with the other end a world account.
-// This is what the balance chokepoints call: `delta` positive is a mint into
-// the party, negative is a burn out of it.
+// A signed change to ONE party's balance, world account on the other end; `delta` positive mints into the party, negative burns out of it.
 async function recordDelta(tx, party, delta, ctx = {}, form = "BALANCE") {
   if (!party || !delta) return null;
   const d = Math.trunc(Number(delta) || 0);
   return record(tx, d > 0 ? { from: MINT, to: party, form, amount: d } : { from: party, to: BURN, form, amount: -d }, ctx);
 }
 
-// Turn stamps for a context, from whatever the call site happens to be holding.
-// Every caller has SOME shape of the open turn in scope and almost none of them
-// has the same one, so this takes all of them.
 function turnStamp(turn) {
   if (!turn) return { turnId: null, turnNumber: null };
   return { turnId: turn.id ?? null, turnNumber: turn.number ?? null };

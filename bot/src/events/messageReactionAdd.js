@@ -1,9 +1,7 @@
 const { EmbedBuilder } = require("discord.js");
 const { prisma, formatTagRequirement, formatTagArmor, turnsLeft, formatTurnsLeft } = require("@lifeweb/db");
 const { gmRoleIds } = require("@lifeweb/db/lib/roleIds");
-// The 🔍 readout is shared with both eyes on the web — see db/lib/examineRow.js
-// for why it is one module and not three copies of the same rules.
-const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow");
+const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow"); // 🔍 readout is shared with the web's
 const { deleteSpeech, EDIT_WINDOW_MS, WINDOW_REFUSAL } = require("@lifeweb/db/lib/say");
 const { proxyRowFor } = require("../lib/proxy");
 const { findAliveCharacter } = require("../lib/interactionGuild");
@@ -37,13 +35,9 @@ const INSPECT_EMOJIS = ["🔍", "🔎"];
 const STAR_EMOJI = "⭐";
 const FOG_EMOJI = "🌫️";
 const DOSSIER_EMOJI = "⚜️"; // GM only
-// Both, because nobody can tell 📸 and 📷 apart in a picker and refusing one
-// of them would just look broken.
-const CAMERA_EMOJIS = ["📸", "📷"];
+const CAMERA_EMOJIS = ["📸", "📷"]; // nobody can tell them apart in a picker
 
-// Every emoji this file acts on, so an unrecognised one is dropped before the
-// message is fetched.
-const KNOWN_EMOJIS = new Set([
+const KNOWN_EMOJIS = new Set([ // every emoji this file acts on; an unrecognised one is dropped before fetch
   DELETE_EMOJI,
   STAR_EMOJI,
   FOG_EMOJI,
@@ -53,9 +47,8 @@ const KNOWN_EMOJIS = new Set([
   ...CAMERA_EMOJIS,
 ]);
 
-// Saves the message to the reactor's personal Notes list. `proxy` is the
-// archived row for a proxied message, or null; identity falls back to
-// ArchiveEntry, then to the poster's display name for a bot-as-itself post.
+// Saves the message to the reactor's personal Notes. `proxy` falls back to ArchiveEntry, then the
+// poster's display name for a bot-as-itself post.
 async function handleStarReaction(reaction, proxy, user) {
   const message = reaction.message;
 
@@ -68,15 +61,8 @@ async function handleStarReaction(reaction, proxy, user) {
     const character = await prisma.character.findUnique({ where: { id: proxy.characterId } });
     if (!character) return;
     characterId = character.id;
-    // A concealed or forced message is filed under the alias it was posted
-    // as (a hood or a forcesName tag alike). The note is already private to
-    // the starrer, but recording the real name would quietly hand them the
-    // answer the concealment was hiding.
-    characterName = proxy.alias ?? character.name;
-    // And the face, on the same gate: a note showing the real portrait beside
-    // an alias would hand back exactly what the alias withheld. Null means
-    // their own face, which is only ever recorded for a line said under it.
-    avatarPath = proxy.alias ? (proxy.avatarPath ?? null) : null;
+    characterName = proxy.alias ?? character.name; // filed under the alias, so a note never hands back what concealment hid
+    avatarPath = proxy.alias ? (proxy.avatarPath ?? null) : null; // same gate for the face
     zoneId = character.zoneId ?? null;
   } else {
     const archived = await prisma.archiveEntry.findUnique({ where: { discordMessageId: message.id } });
@@ -92,10 +78,7 @@ async function handleStarReaction(reaction, proxy, user) {
     }
   }
 
-  // Plain content covers every bot-as-itself post (none of them are embed-
-  // only). The fallback is only for the 🌫️ fog repost, which can carry a
-  // relayed embed instead of content.
-  const content = message.content || message.embeds?.[0]?.description || message.embeds?.[0]?.title || "";
+  const content = message.content || message.embeds?.[0]?.description || message.embeds?.[0]?.title || ""; // fallback is only for a 🌫️ fog repost
   if (!content && message.attachments?.size === 0) return;
 
   await prisma.note.upsert({
@@ -115,9 +98,8 @@ async function handleStarReaction(reaction, proxy, user) {
   });
 }
 
-// GM-only: everything a GM needs about whoever just spoke, in one DM. No
-// vision gates, concealment ignored. No channel fallback if the DM bounces —
-// that would hand the room the tags and Desire, so it logs and drops.
+// GM-only, no vision gates, concealment ignored. No channel fallback if the DM bounces — that
+// would hand the room the tags and Desire, so it logs and drops.
 async function handleDossierReaction(reaction, proxy, user) {
   const [character, openTurn] = await Promise.all([
     prisma.character.findUnique({
@@ -137,8 +119,7 @@ async function handleDossierReaction(reaction, proxy, user) {
     openTurn
       ? prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id } })
       : null,
-    // Last fulfilled Desire (claimed retroactively — see DESIRES.md §1).
-    prisma.desire.findMany({
+    prisma.desire.findMany({ // last fulfilled Desire, claimed retroactively (DESIRES.md §1)
       where: { characterId: character.id, status: "FULFILLED" },
       orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
       take: 1,
@@ -146,8 +127,7 @@ async function handleDossierReaction(reaction, proxy, user) {
     }),
   ]);
 
-  // GM eyes: the real name and face, with the mask noted rather than worn.
-  const identity = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) });
+  const identity = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) }); // GM eyes: real name/face, mask noted not worn
   const where = [character.location?.name, character.zone?.name].filter(Boolean).join(" · ") || "nowhere";
   const embed = new EmbedBuilder()
     .setTitle(character.name)
@@ -167,9 +147,7 @@ async function handleDossierReaction(reaction, proxy, user) {
     embed.addFields({ name: "Presents as ", value: identity.name, inline: true });
   }
 
-  // Mind Discord's 1024-char embed field cap — a long-lived character can
-  // carry a lot of tags, so the list is trimmed rather than rejected whole.
-  if (character.tags.length > 0) {
+  if (character.tags.length > 0) { // fitField trims to Discord's 1024-char embed field cap
     const rendered = character.tags.map((ct) => {
       const bits = [
         formatTagRequirement(ct.tag),
@@ -214,23 +192,15 @@ async function handleDossierReaction(reaction, proxy, user) {
   await sendDm(user, { embeds: [embed] });
 }
 
-// The readout behind BOTH 🔍 and 📸, and now behind both eyes on the web too:
-// db/lib/examineRow.js is the one implementation, and this is the four lines
-// of Discord that reach it. What used to live here — the BLIND check, the
-// subject load, the officer seat, the doctor's eye, the hood the room saw —
-// all moved there when the web feed learned to offer a look at a hooded line
-// and needed exactly the same answer.
-//
-// Pressed against the row's seq rather than its character id, so the server is
-// the only thing that ever knows who is under the hood.
+// Behind both 🔍 and 📸 (and the web's eyes too): db/lib/examineRow.js is the one implementation.
+// Pressed against the row's seq, not its character id, so only the server ever knows who's under the hood.
 async function readoutForReaction(proxy, user, { bystander = false } = {}) {
   const viewer = await findAliveCharacter(user.id, { select: VIEWER_SELECT });
   if (!viewer) return null;
   return examineRow(prisma, viewer, proxy.seq, { bystander });
 }
 
-// The readout as an embed. Shared by 🔍 and 📸 — a photograph shows the same
-// thing looking at somebody shows, which is the point of the camera.
+// Shared by 🔍 and 📸 — a photograph shows the same thing looking at somebody does.
 function examineEmbed(readout) {
   const embed = new EmbedBuilder();
   if (readout.concealed) {
@@ -266,23 +236,10 @@ function examineEmbed(readout) {
   return embed;
 }
 
-// 📸 — a photograph is an Examine that stopped moving. It reads the subject
-// exactly as 🔍 does and then freezes that reading onto a Tag row, which is a
-// real object: it can be handed over, stashed, stolen and shown to a GM long
-// after the subject has changed clothes.
-//
-// The camera is NOT spent. Holding one is the whole gate; film is not a system
-// anybody asked for. (Consuming a camera is the separate "point it at nothing"
-// path, in web/app/(app)/character/requestActions.js.)
-// One shot per message per photographer. The camera is reusable on purpose, so
-// nothing SPENDS here — which leaves re-reacting the same message as a way to
-// mint unbounded Tag rows, and every one of those is a permanent catalog row
-// that /gm/dev/tags loads unpaginated. This is the bound, and it costs the
-// player nothing real: photographing the same moment twice is the same photo.
-//
-// In memory and volatile across a restart. A restart therefore hands a
-// photographer one more shot of an old message, which is the harmless
-// direction: the print is the same print.
+// 📸 — an Examine that stopped moving, freezing the reading onto a real Tag row. The camera is NOT
+// spent — holding one is the whole gate (consuming one is the separate path in requestActions.js).
+// One shot per message per photographer, in memory and volatile across a restart (harmless: a
+// restart just hands one more shot of an old message, and re-photographing the same moment is the same photo).
 const photographed = new Set();
 const photographKey = (messageId, characterId) => `${messageId}:${characterId}`;
 
@@ -313,8 +270,6 @@ async function handleCameraReaction(reaction, proxy, user) {
   const result = await readoutForReaction(proxy, user, { bystander: true });
   if (!result) return;
   if (result.blocked) {
-    // The refusal names the reason — a blindfold and a bright afternoon are
-    // not the same problem (db/lib/examineVision.js).
     await sendDm(user, `» *${result.blocked}*`, { kind: DM_KIND.QUIET }).catch((err) =>
       console.error(`Couldn't tell ${user.id} why they can't look:`, err),
     );
@@ -322,24 +277,15 @@ async function handleCameraReaction(reaction, proxy, user) {
   }
 
   const { readout } = result;
-  // No transaction: the camera is not spent, so there is nothing that has to
-  // be atomic with the print — and mintPhoto's collision retry cannot run
-  // inside one (db/lib/photoMint.js#createWithRetry).
-  // readout.name is already the PRESENTED identity — presentedIdentity resolves
-  // a forced name ahead of a concealed alias ahead of the real one — so a photo
-  // can never file a name the room did not see.
+  // No transaction: the camera isn't spent, and mintPhoto's collision retry can't run inside one
+  // (db/lib/photoMint.js#createWithRetry). readout.name is already the PRESENTED identity.
   const photo = await mintPhoto(prisma, held.characterId, {
     subject: readout.name,
     caption: photoCaption(readout),
     subjectCharacterId: proxy.characterId ?? null,
   });
-  // Claimed only once the print exists, so a failed mint leaves the shot
-  // available to try again rather than burning it.
-  photographed.add(key);
+  photographed.add(key); // claimed only once the print exists, so a failed mint can retry
 
-  // The photographer is shown what they caught, in the same embed 🔍 builds —
-  // the print is in their hands either way, so hiding it would only make them
-  // open the web app to find out.
   const embed = examineEmbed(readout).setFooter({ text: photo.name });
   await sendDm(user, { embeds: [embed] }).catch((err) => console.error("Camera reaction DM failed:", err));
 }
@@ -351,9 +297,7 @@ async function isGm(reaction, userId) {
   return gmRoleIds().some((id) => member.roles.cache.has(id));
 }
 
-// GM-only: delete the message and repost it as the bot itself (not the
-// character webhook) with identical content/embeds/attachments. Works on
-// any guild message, proxied or not.
+// GM-only: delete and repost as the bot itself, identical content/embeds/attachments.
 async function handleFogReaction(reaction, user) {
   if (!(await isGm(reaction, user.id))) return;
 
@@ -373,17 +317,10 @@ module.exports = {
   async execute(reaction, user) {
     if (user.bot) return;
 
-    // Gate on the gateway payload before paying for a fetch (Partials makes
-    // every reaction in the guild cost two REST calls otherwise).
-    const emojiName = reaction.emoji?.name;
+    const emojiName = reaction.emoji?.name; // gate on the gateway payload before paying for a fetch (Partials costs two REST calls)
 
-    // guildId, not guild: a partial message has the former, not always the
-    // latter. Nothing is reaction-driven in a DM.
-    if (!reaction.message.guildId) return;
-    // Nothing else in the guild is reaction-driven, so an unrecognised emoji
-    // costs one Set lookup and stops here — before the two REST fetches
-    // Partials would otherwise charge for every reaction in the game.
-    if (!KNOWN_EMOJIS.has(emojiName)) return;
+    if (!reaction.message.guildId) return; // guildId, not guild: a partial message may lack the latter
+    if (!KNOWN_EMOJIS.has(emojiName)) return; // unrecognised emoji stops here, before the two REST fetches
 
     if (reaction.partial) await reaction.fetch().catch(() => null);
     if (reaction.message.partial) await reaction.message.fetch().catch(() => null);
@@ -394,9 +331,7 @@ module.exports = {
       return;
     }
 
-    // The transcript row, not an in-memory map. This is what makes ✏️ ❌ 🔍 📸
-    // work on a message posted before the bot last restarted — the map used to
-    // empty on every deploy and quietly make an hour-old scene inert.
+    // The transcript row, not an in-memory map — so ✏️ ❌ 🔍 📸 work on a message posted before the bot last restarted.
     const proxy = await proxyRowFor(reaction.message.id).catch((err) => {
       console.error("Couldn't look up the archived row for a reaction:", err);
       return null;
@@ -404,9 +339,7 @@ module.exports = {
 
     const emoji = reaction.emoji.name;
 
-    // ⭐ doesn't require a proxy, so it comes before the `if (!proxy) return`
-    // bail every other reaction needs.
-    if (emoji === STAR_EMOJI) {
+    if (emoji === STAR_EMOJI) { // doesn't require a proxy, so it comes before the bail every other reaction needs
       if (proxy || reaction.message.author?.id === reaction.client.user.id || reaction.message.webhookId) {
         await handleStarReaction(reaction, proxy, user).catch(() => { });
         await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
@@ -414,9 +347,7 @@ module.exports = {
       return;
     }
 
-    // A row somebody already took back is inert: the Discord message is on its
-    // way out, and there is nothing left to edit, inspect or photograph.
-    if (!proxy || proxy.deletedAt) return;
+    if (!proxy || proxy.deletedAt) return; // an already-deleted row is inert — nothing left to edit, inspect or photograph
 
     const isOwner = user.id === proxy.discordUserId;
 
@@ -432,9 +363,7 @@ module.exports = {
     if (emoji === DELETE_EMOJI) {
       const gm = !isOwner && (await isGm(reaction, user.id));
       if (!isOwner && !gm) return;
-      // The ROW is deleted, and the outbox removes the Discord message. That
-      // is the whole of the ❌ handler now: one writer, and the five-minute
-      // window decided in one place (db/lib/say.js). A GM is not held to it.
+      // The ROW is deleted, the outbox removes the Discord message; the window is decided in one place (db/lib/say.js).
       const result = await deleteSpeech(prisma, { characterId: proxy.characterId, seq: proxy.seq, gm });
       if (!result?.ok && result?.refusal) {
         await sendDm(user, `» *${result.refusal}*`, { kind: DM_KIND.QUIET }).catch((err) =>
@@ -447,18 +376,14 @@ module.exports = {
 
     if (EDIT_EMOJIS.includes(emoji)) {
       if (!isOwner) return;
-      // Refused here as well as inside editSpeech: the modal is a lot of
-      // ceremony to walk somebody through before telling them it was too late.
-      if (Date.now() - new Date(proxy.sentAt).getTime() > EDIT_WINDOW_MS) {
+      if (Date.now() - new Date(proxy.sentAt).getTime() > EDIT_WINDOW_MS) { // refused here too — the modal is a lot of ceremony to walk through before "too late"
         await sendDm(user, `» *${WINDOW_REFUSAL}*`, { kind: DM_KIND.QUIET }).catch((err) =>
           console.error(`Couldn't tell ${user.id} the edit window had closed:`, err),
         );
         await reaction.users.remove(user.id).catch((err) => console.error("Failed to strip reaction:", err));
         return;
       }
-      // A reaction carries no interaction token, so it can only stash the
-      // text and DM a button whose click opens the modal (editModal.js).
-      stashEdit(reaction.message.id, reaction.message.content);
+      stashEdit(reaction.message.id, reaction.message.content); // a reaction carries no token, so it stashes text + DMs a button (editModal.js)
       await sendDm(user, buildEditPrompt(reaction.message.id), { kind: DM_KIND.QUIET }).catch((err) =>
         console.error(`Couldn't send the edit prompt to ${user.id}:`, err),
       );
@@ -467,9 +392,7 @@ module.exports = {
     }
 
     if (INSPECT_EMOJIS.includes(emoji)) {
-      // Reaction clears in the finally, so a thrown error never leaves 🔍
-      // stuck on the message.
-      try {
+      try { // reaction clears in the finally, so a thrown error never leaves 🔍 stuck
         const result = await readoutForReaction(proxy, user);
         if (!result) return;
         if (result.blocked) {

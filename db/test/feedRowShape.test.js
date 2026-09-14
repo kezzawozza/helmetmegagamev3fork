@@ -3,9 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-// The key is an HMAC under AUTH_SECRET, and with none there is no key at all
-// (db/lib/whosHere.js#hoodToken). Set before the module is required, since
-// that is when nothing caches it but the reader wants a stable answer.
+// Set before the module is required, since that's the only stable point for an HMAC key.
 process.env.AUTH_SECRET = process.env.AUTH_SECRET || "test-secret";
 const { feedRowShape } = require("../lib/archive");
 
@@ -46,8 +44,6 @@ test("a row from before the column keeps its secret rather than guessing", () =>
   assert.equal(row.unknownFace, true);
 });
 
-// The leak this shape exists to close: two rows by one speaker, one hooded and
-// one not, must not be matchable by anything the browser is handed.
 test("an aliased row withholds the character id and hands a key instead", () => {
   const row = feedRowShape({ ...base, concealedAlias: "Young Man" });
   assert.equal(row.characterId, null);
@@ -67,8 +63,6 @@ test("two speakers under the same alias do not share a key", () => {
   assert.notEqual(a.speakerKey, b.speakerKey);
 });
 
-// The cache-buster is built from the speaker's updatedAt, so it moves when one
-// particular character is edited — one more thing two rows could be matched on.
 test("an aliased row carries no avatar version, even when the caller supplies one", () => {
   const row = feedRowShape({ ...base, concealedAlias: "Young Man" }, { avatarVersion: 1234 });
   assert.equal(row.avatarVersion, null);

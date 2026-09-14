@@ -1,33 +1,19 @@
 // Removes the room-stash items `db:sync-zones` re-created after players had
-// already carried them off, and the copies of those that have since been
-// picked up. Dry run by default; `-- --apply` writes.
+// already carried them off, and the copies of those since picked up. Dry run
+// by default; `-- --apply` writes.
 //
 //   npm run db:dedupe-room-stash                        # the plan, writes nothing
 //   npm run db:dedupe-room-stash -- --report ~/x.txt    # ...and save it to a file
 //   npm run db:dedupe-room-stash -- --apply             # do it
 //
-// THE BUG THIS CLEANS UP AFTER. `syncZones.js#seedRoomStash` creates a RoomTag
-// only when no row exists — but taking the last unit DELETES the row
-// (tagWrites.js, the `quantity: { lte: 0 }` deleteMany). So "a player emptied
-// this" and "this was never seeded" are the same state, and a re-sync refills
-// the room. The guard only ever worked while at least one unit remained.
-//
-// WHAT COUNTS AS PROOF. A sync writes no AuditLog row, and four other paths
-// that add to a room stack (corpseMint, the refinery revert, structureYieldPass,
-// wantedPoster) are audit-silent by design — so an unexplained rise in a stack
-// is NOT evidence on its own. The only thing that is: a RoomTag row whose
-// `createdAt` falls inside a known sync run, on a room/tag pair that a player
-// had demonstrably drawn down first. Everything else this script reports and
-// refuses to touch.
-//
-// WHICH COPY GOES. The ground one. A player who looted a room keeps what they
-// carried off; what the sync put back on the floor is what disappears. Only
-// when an injected unit has itself been picked up since does this reach into
-// a bag — and then it takes it from whoever picked it up, by the audit trail.
-//
-// Deletions go through dropRoomTag/dropCharacterTag rather than raw prisma:
-// those keep the room lock, the equipped-quantity clamp and the poison payload
-// consistent, which a bare delete would strand.
+// THE BUG: `syncZones.js#seedRoomStash` creates a RoomTag only when no row
+// exists — but taking the last unit DELETES the row, so "emptied" and
+// "never seeded" are the same state and a re-sync refills the room. PROOF: a
+// RoomTag row whose `createdAt` falls inside a known sync run, on a pair a
+// player had demonstrably drawn down first — everything else is reported and
+// left alone. WHICH COPY GOES: the ground one; a player keeps what they
+// carried off. Deletions go through dropRoomTag/dropCharacterTag, not raw
+// prisma, to keep the room lock and clamps consistent.
 require("dotenv").config();
 const fs = require("node:fs");
 const path = require("node:path");
@@ -36,10 +22,7 @@ const { prisma } = require("../../index");
 const { dropRoomTag, dropCharacterTag } = require("../../lib/tagWrites");
 const { sendDm } = require("../../lib/dm");
 
-// The one bad run: `npm run db:sync` against the live game on 2026-09-10.
-// Rows it created are stamped inside this window. Widen it only with the same
-// kind of evidence — a dense RoomTag creation cluster with no audit rows
-// behind it.
+// The one bad run's window; widen only with the same kind of evidence.
 const BURST_START = new Date("2026-09-10T22:34:00.000Z");
 const BURST_END = new Date("2026-09-10T22:35:00.000Z");
 
@@ -48,13 +31,9 @@ const reportIdx = process.argv.indexOf("--report");
 const REPORT_PATH = reportIdx >= 0 ? process.argv[reportIdx + 1] : null;
 
 const DM_TEXT = "A duplicate item was removed.";
-// AuditLog.actorDiscordUserId is NOT NULL and no person is acting here.
-const SYSTEM_ACTOR = "system";
-
-// ---------------------------------------------------------------------------
+const SYSTEM_ACTOR = "system"; // AuditLog.actorDiscordUserId is NOT NULL
 
 // Every authored stash line in docs/zones.yaml as (roomSlug, tagSlug, qty).
-// Rooms live two levels down on a plain zone and three on a group's levels.
 function authoredStashes() {
   const file = path.join(__dirname, "..", "..", "..", "docs", "zones.yaml");
   const doc = yaml.load(fs.readFileSync(file, "utf8"));
@@ -64,9 +43,6 @@ function authoredStashes() {
       for (const [roomSlug, room] of Object.entries(loc.rooms || {})) {
         const stash = room.stash;
         if (!stash) continue;
-        // The short shape is a bare list of slugs, one each; the long one a
-        // map with `resources:` and an `items:` map. `resources` is not our
-        // business — its half of the seed was always correctly conditional.
         if (Array.isArray(stash)) {
           for (const slug of stash) out.set(`${roomSlug}::${slug}`, 1);
         } else if (typeof stash === "object") {

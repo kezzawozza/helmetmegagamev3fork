@@ -1,12 +1,8 @@
 // The Refuse and Partial clicks on a tax DM (docs/tags.yaml's `taxman`
-// description).
-//
-// The DM arrives in the target's DMs, so guild/member are null; the clicker
-// is matched to the row by Discord user id inside db/lib/tax.js.
-// The load, ownership check and the answer itself live in db/lib/dmAnswer.js
-// — this file keeps only what a gateway client can do and REST cannot:
-// the modal, and editing the interaction's own message. There is no fan-out —
-// the taxer reads the outcome off their own Tax dialog.
+// description). guild/member are null in a DM; the clicker is matched by
+// Discord user id in db/lib/tax.js. The load, ownership check and answer
+// live in db/lib/dmAnswer.js — this file keeps only the modal and editing
+// the interaction's own message. No fan-out.
 const { ModalBuilder, LabelBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
@@ -33,8 +29,6 @@ async function handleTaxDecline(interaction, pendingTaxId) {
   await finish(interaction, result);
 }
 
-// showModal IS the acknowledgement, so nothing is read before it but the
-// amount for the field's placeholder. Ownership is decided at submit.
 async function handleTaxPartialOpen(interaction, pendingTaxId) {
   const row = await prisma.pendingTax
     .findUnique({ where: { id: pendingTaxId }, select: { amount: true } })
@@ -62,8 +56,7 @@ async function handleTaxPartialSubmit(interaction, pendingTaxId) {
     amount: interaction.fields.getTextInputValue(TAX_PARTIAL_FIELD),
     discordUserId: interaction.user.id,
   });
-  // A bad number leaves the buttons up so they can try again.
-  if (!result.ok && result.line === "Enter a number.") {
+  if (!result.ok && result.line === "Enter a number.") { // leaves the buttons up so they can try again
     return void (await interaction.reply({ content: `» *${result.line}*`, flags: 64 }).catch(() => {}));
   }
   await finish(interaction, result);

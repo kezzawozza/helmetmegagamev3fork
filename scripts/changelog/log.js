@@ -1,58 +1,30 @@
 // The changelog writer. One entry per push, in CHANGELOG.md and in Discord.
-//
-// The audience is the GM team, not a diff reader. An entry says what changed in
-// the *game* — "the good labor spots now wear out as they are worked" — never
-// which files moved. File paths mean nothing to a GM, and half of them would be
-// noise anyway.
-//
-// So the notes are written by whoever pushes:
+// The audience is the GM team: an entry says what changed in the *game*,
+// never which files moved.
 //
 //   npm run push -- "Subject" "Rebalanced the labor yields" "+Labor? button"
 //
-// The first argument is the heading. Every argument after it is one note. A
-// note may open with its own glyph; without one it is treated as a change (✎).
-//
-//   ✚  something new players or GMs can now do
-//   −  something that went away
-//   ✎  something that works differently now
-//
-// Those three are deliberate: none of them is a Markdown list marker, so the
-// lines render literally on GitHub and in Discord with no code fence around
-// them — which matters, because prose inside a fence does not wrap.
-//
-// `npm run push -- "Subject" --hidden` skips both halves entirely. Some pushes
-// are not the GMs' business, and there is no partial version of that: nothing
-// is written to CHANGELOG.md and nothing is posted.
-//
-// Two subjects are held back by default, whether or not --hidden is passed:
-// the setting's deep lore and the antagonist seats. Players read over GM
-// shoulders and GMs get briefed on those deliberately, in order. See
-// SENSITIVE_PATHS / SENSITIVE_WORDS below.
-//
-// Committed by hand instead? `npm run changelog` reads HEAD and does both. It
-// takes its notes from the commit message body — any body line starting with a
-// glyph, a "-", or a "*" counts, and a bullet wrapped over several lines is
-// folded back into one note.
+// First argument is the heading; each after it is a note, with its own glyph
+// (✚ new, − gone, ✎ changed) or treated as ✎. `--hidden` skips both halves.
+// Lore and antagonist-seat pushes are held back by default — see
+// SENSITIVE_PATHS/SENSITIVE_WORDS. Committed by hand instead? `npm run
+// changelog` reads HEAD's commit body for notes (glyph, "-", or "*" lines,
+// wrapped bullets folded into one).
 require("dotenv").config();
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
-// Not a secret — anyone in the guild can read a channel id, and Bascinet runs
-// in exactly one guild, so there is one correct value and it can never differ
-// per environment. Same reasoning as db/lib/roleIds.js. The env var is an
-// override for a throwaway test channel, not the normal path.
+// Not a secret — anyone in the guild can read a channel id, one guild only.
+// Same reasoning as db/lib/roleIds.js. The env var overrides for a test channel.
 const CHANNEL_ID = process.env.CHANGELOG_CHANNEL_ID || "1545157496304566354";
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const FILE = path.join(ROOT, "CHANGELOG.md");
+const MAX_NOTES = 12; // long enough to read a push at a glance
 
-// Long enough to read a push at a glance, short enough that nobody scrolls.
-const MAX_NOTES = 12;
-
-// Touch one of these and the push is lore or antagonist work. It is withheld
-// unless the pusher says otherwise with --tell-gms, because the GMs are briefed
-// on this material on purpose and in order, not by changelog.
+// Touching one of these is lore or antagonist work, withheld unless
+// --tell-gms — the GMs are briefed on this material deliberately, not by changelog.
 const SENSITIVE_PATHS = [
   "docs/lore.md",
   "docs/archive/",
@@ -60,8 +32,7 @@ const SENSITIVE_PATHS = [
   "docs/systemdocs/THREATS.md",
 ];
 
-// A second net, over the words rather than the files: a note can give away a
-// secret while touching nothing on the list above. This one only warns.
+// A second net over the words rather than the files; this one only warns.
 const SENSITIVE_WORDS = /\b(lore|antagonist|threat seat|the tower'?s secret|bacchus)\b/i;
 
 const HEADER = `# Changelog
@@ -77,8 +48,6 @@ function git(args) {
 
 const GLYPHS = { "✚": "✚", "−": "−", "✎": "✎", "+": "✚", "-": "−", "~": "✎" };
 
-// A note may lead with a glyph ("+Labor? button", "✎ yields drift"). Anything
-// else is a change, which is what most pushes are.
 function normalizeNote(raw) {
   const text = String(raw).trim();
   if (!text) return null;
@@ -97,9 +66,7 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Newest first, so the entry goes directly under the header rather than at the
-// end of a file nobody scrolls to the bottom of.
-function prepend(entry) {
+function prepend(entry) { // newest first, directly under the header
   const existing = fs.existsSync(FILE) ? fs.readFileSync(FILE, "utf8") : null;
   if (!existing) {
     fs.writeFileSync(FILE, `${HEADER}\n${entry}\n`);
@@ -111,8 +78,6 @@ function prepend(entry) {
   fs.writeFileSync(FILE, `${head}\n\n${entry}\n\n${rest}`.trimEnd() + "\n");
 }
 
-// --range is what push.sh passes: after its rebase the work is already
-// committed, so the staged diff holds nothing but CHANGELOG.md itself.
 function changedPaths(staged, range) {
   const raw = range
     ? git(["diff", "--name-only", range])
@@ -126,27 +91,13 @@ function sensitiveHits(paths) {
   return paths.filter((p) => SENSITIVE_PATHS.some((s) => (s.endsWith("/") ? p.startsWith(s) : p === s)));
 }
 
-// Notes from a hand-written commit body: any line that opens with a glyph or an
-// ordinary list marker. Prose paragraphs in the body are left alone.
-//
-// A bullet is a NOTE, not a line, and the two stopped being the same thing the
-// moment somebody wrapped a commit message at 72 columns. This used to filter
-// line by line, which kept the first physical line of each bullet and silently
-// dropped every continuation — so a wrapped body announced itself to the GMs as
-// half-sentences ending in "spread into all four of the" and "which may". The
-// entry read as if the tooling had cut it off, because it had.
-//
-// So: a bullet opens a note, and every following line folds into it until a
-// blank line, the next bullet, or a trailer ends it. Folding with a single
-// space is what un-wraps it — the line breaks were the author's typography, not
-// their meaning.
+// A bullet opens a note; every following line folds into it (single space —
+// un-wrapping the author's typography) until a blank line, the next bullet,
+// or a trailer ends it. Prose paragraphs are left alone.
 const BULLET = /^[✚−✎+\-*]\s*\S/;
 
-// Git trailers (Co-Authored-By, Claude-Session, Signed-off-by) sit at the foot
-// of the body with no blank line above them in some editors, and folding one
-// into the last note would publish it to the GM channel. `Word-word:` followed
-// by a space is the trailer shape; a wrapped prose line almost never looks like
-// that, and erring here just leaves the note where it already ended.
+// Git trailers (Co-Authored-By, Claude-Session, Signed-off-by) can sit with
+// no blank line above them; folding one into the last note would publish it.
 const TRAILER = /^[A-Za-z][A-Za-z0-9-]*:[ \t]/;
 
 function notesFromCommitBody() {
@@ -169,8 +120,6 @@ function notesFromCommitBody() {
       open = line.replace(/^\*/, "✎");
       continue;
     }
-    // Anything else is either the rest of the bullet above or ordinary prose.
-    // Only the first case has somewhere to go.
     if (open) open += ` ${line}`;
   }
   close();
@@ -178,9 +127,7 @@ function notesFromCommitBody() {
   return notes.map(normalizeNote).filter(Boolean);
 }
 
-// Two trailing spaces per line: without a hard break GitHub reflows the notes
-// into one run-on paragraph. Discord needs no such help.
-function fileEntry(subject, notes) {
+function fileEntry(subject, notes) { // two trailing spaces per line: GitHub's hard break
   const body = clamp(notes).map((n, i, all) => (i === all.length - 1 ? n : `${n}  `));
   return [`## ${today()} · ${subject}`, "", ...body].join("\n");
 }
@@ -232,16 +179,13 @@ async function main() {
   const given = msgFlag !== -1 ? collect(argv, "--note") : [...collect(argv, "--note"), ...notesFromCommitBody()];
   const notes = given.map(normalizeNote).filter(Boolean);
 
-  // No notes is fine and common: the subject is already the plain-language
-  // sentence, so the entry is just its heading rather than an empty body.
   if (announceOnly) {
     const hash = git(["rev-parse", "--short", "HEAD"]);
     if (dryRun) {
       console.log(`changelog: would post to ${CHANNEL_ID}\n${discordBody(subject, notes, hash)}`);
       return;
     }
-    // Best-effort by design: the push already succeeded, and a Discord outage
-    // is not a reason to fail the run. Log loudly enough to notice.
+    // Best-effort: a Discord outage is not a reason to fail the run.
     try {
       await announce(subject, notes, hash);
       console.log("changelog: announced to Discord.");
@@ -259,10 +203,7 @@ async function main() {
   prepend(entry);
   console.log(`changelog: logged ${notes.length} note${notes.length === 1 ? "" : "s"}.`);
 
-  // --staged is the push path, and it stops here: the commit has not been made
-  // yet, so there is no hash to announce and no push worth announcing. Every
-  // other invocation is somebody logging a commit by hand, and wants both.
-  if (staged) return;
+  if (staged) return; // push path stops here: no commit yet, so no hash to announce
   const hash = git(["rev-parse", "--short", "HEAD"]);
   try {
     await announce(subject, notes, hash);
@@ -278,6 +219,5 @@ if (require.main === module) {
   });
 }
 
-// Shared with scripts/changelog/patchnote.js, so the ✚ − ✎ format is one
-// definition, not two that can drift apart.
+// Shared with scripts/changelog/patchnote.js.
 module.exports = { normalizeNote, clamp };

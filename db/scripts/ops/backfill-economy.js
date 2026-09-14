@@ -1,36 +1,22 @@
-// Reconstructs the economy ledger from AuditLog rows written before the ledger
-// existed. Run with `npm run db:backfill-economy` to see what it would write,
-// and `-- --apply` to actually write it. Dry-run-by-default with an --apply
-// flag matches db:prune-tags and db:prune-orphan-roles, the other scripts in
-// this directory that touch real rows.
+// Reconstructs the economy ledger from AuditLog rows written before the
+// ledger existed. `npm run db:backfill-economy` to preview, `-- --apply` to
+// write. Additive only, and safe to re-run — each row carries a backfillKey
+// of `<auditLogId>:<n>` under a PARTIAL unique index.
 //
-// Additive only: it creates EconomyEntry rows and deletes nothing. Safe to
-// re-run — every row it writes carries a backfillKey of `<auditLogId>:<n>`
-// under a PARTIAL unique index, so a second pass skips what it already did
-// rather than doubling the book.
-//
-// Two passes:
-//
-//   1. Walk the audit log oldest-first and emit what db/lib/economyAdapter.js
-//      can read out of each `details` blob.
-//   2. Compare every account's reconstructed sum against its LIVE balance and
-//      write one PLUG row for the difference.
-//
-// Pass 2 is not a fudge, it is the honest half. The old passes (hunger, horse
-// upkeep, tax, carry) recorded one total per pass rather than a delta per
-// person, and the Spillway and the overdraw clamp recorded nothing at all — so
-// a perfect reconstruction does not exist. A plug says so out loud and keeps
-// the books closing, and /gm/economy reports plug sizes on its Health section
-// precisely so nobody mistakes them for real history.
+// Two passes: (1) walk the audit log oldest-first, emitting what
+// db/lib/economyAdapter.js can read out of each `details` blob; (2) compare
+// every account's reconstructed sum against its LIVE balance and write one
+// PLUG row for the difference — not a fudge, the honest half, since a
+// perfect reconstruction doesn't exist (hunger/horse-upkeep/tax/carry
+// recorded totals not deltas). /gm/economy reports plug sizes so nobody
+// mistakes them for real history.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { adapt } = require("../../lib/economyAdapter");
 
 const BATCH = 500;
 
-// AuditLog.turnId is null on most rows by design — only the ration-counted
-// actions set it — so the turn comes from createdAt against the turn windows,
-// which is what /gm/audit does too.
+// AuditLog.turnId is null on most rows; turn comes from createdAt instead (/gm/audit does too).
 function turnAt(turns, when) {
   let found = null;
   for (const t of turns) {
@@ -105,9 +91,7 @@ async function main() {
 
     if (rows.length) {
       written += rows.length;
-      // skipDuplicates is what makes a re-run cheap: the partial unique on
-      // backfillKey rejects what pass one already wrote.
-      if (apply) await prisma.economyEntry.createMany({ data: rows, skipDuplicates: true });
+      if (apply) await prisma.economyEntry.createMany({ data: rows, skipDuplicates: true }); // partial unique on backfillKey rejects reruns
     }
   }
 

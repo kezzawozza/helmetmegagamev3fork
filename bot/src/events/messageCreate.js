@@ -29,38 +29,13 @@ const MAX_MENTION_RELAYS = 10;
 module.exports = {
   name: "messageCreate",
   async execute(message) {
-    // Discord narrates the bot's own housekeeping into the channels players
-    // read: a "pinned a message" line for every Location anchor (57 of them on
-    // a fresh provision, plus one per Room thread), a "started a thread" line
-    // wherever a thread is made from a message, and an "added X to the thread"
-    // line every time somebody is let into a private Room or a Conversation.
-    // None of it is for anybody. The last one is the worst of the three,
-    // because it lands mid-scene in the thread people are actually reading and
-    // it names the character being let in, which the DM to that character has
-    // already said in better words.
-    //
-    // RecipientAdd/RecipientRemove are Discord's group-DM message types reused
-    // for thread membership, which is why the names read oddly here.
-    //
-    // THOSE TWO DO NOT WORK, and are left in deliberately. Discord refuses to
-    // delete a thread member-add notice — the call 400s and lands in the catch
-    // below. There is no flag on PUT /thread-members to suppress it either, so
-    // there is no way to be rid of one after it exists. They stay listed so
-    // nobody proposes this again believing it was never tried.
-    //
-    // The actual fix was to stop CAUSING them: thread membership follows
-    // entitlement rather than presence now, so a character is added once when
-    // they get the key and never again on arrival (db/lib/roomAccess.js). The
-    // pin and thread-created notices above are genuinely deletable and this is
-    // still what clears them.
-    //
-    // Scoped to notices the BOT itself caused, so a human pinning something in
-    // #general still leaves the usual trace. Every in-game add runs on the bot
-    // token (db/lib/discordRest.js#addThreadMember and the two
-    // channel.members.add call sites), so that scoping costs us nothing and
-    // still leaves a GM's hand-add in the Discord UI visible. And placed ABOVE
-    // the bot guard on purpose: these are bot-authored by definition, so the
-    // guard below would return before ever seeing them.
+    // Discord narrates the bot's own housekeeping: pin notices, thread-created lines, and
+    // "added X to the thread" (RecipientAdd/RecipientRemove — Discord's group-DM types reused for
+    // thread membership). The last two DO NOT actually delete — Discord 400s a thread member-add
+    // notice and there's no suppress flag — kept listed so nobody retries it believing it wasn't
+    // tried. The real fix is not causing them: thread membership follows entitlement now
+    // (db/lib/roomAccess.js). Scoped to bot-authored notices, so a human pin still leaves a trace;
+    // placed above the bot guard on purpose since these ARE bot-authored.
     if (
       (message.type === MessageType.ChannelPinnedMessage ||
         message.type === MessageType.ThreadCreated ||
@@ -79,15 +54,9 @@ module.exports = {
     if (!message.inGuild()) {
       const attachmentNames = message.attachments.size > 0 ? [...message.attachments.values()].map((a) => a.name) : null;
       const content = message.content || (attachmentNames ? `*(attachment: ${attachmentNames.join(", ")})*` : "");
-      // Every inbound DM is mail for the GMs now. Mechanic edits go through a
-      // button and a modal (bot/src/lib/editModal.js), so nothing a player
-      // types for a mechanic travels as a DM message. The historical
-      // "prompt_reply" rows those used to produce were reclassified QUIET by
-      // the dm_kind migration, so they stay off the desk without a filter.
-      //
-      // Loud on purpose. This insert used to fail into an empty catch, and the
-      // first sign anything was wrong was a player saying their message to
-      // Bascinet never reached the web (CHAT.md §2b). One line per DM is cheap.
+      // Every inbound DM is mail for the GMs. Mechanic edits go through a button and modal
+      // (bot/src/lib/editModal.js), so nothing a player types for a mechanic travels as a DM.
+      // Loud on purpose: a failed insert here is a player's message to Bascinet vanishing silently (CHAT.md §2b).
       console.log(`[dm] inbound from ${message.author.id} (${content.length} chars)`);
       await prisma.directMessage
         .create({
@@ -96,10 +65,7 @@ module.exports = {
             direction: "INBOUND",
             content,
             source: "player",
-            // A player's own words. No sendDm default reaches a raw create,
-            // so this is written out or the message is a NOTICE and never
-            // reaches the desk at all (db/lib/dmKinds.js).
-            kind: DM_KIND.CONVERSATION,
+            kind: DM_KIND.CONVERSATION, // no sendDm default reaches a raw create (db/lib/dmKinds.js)
             discordMessageId: message.id,
             meta: attachmentNames ? { attachments: attachmentNames } : undefined,
           },
@@ -108,36 +74,27 @@ module.exports = {
       return;
     }
 
-    // #turns is the console channel: the Travel/Move/Speak buttons live on an
-    // anchor message there (bot/src/lib/turnsConsole.js), so everything a
-    // player types is simply removed. The report channel is the same kind of
-    // surface (bot/src/lib/reportChannel.js's Open Ticket button).
+    // #turns: the console channel (bot/src/lib/turnsConsole.js), so typed text is simply removed.
+    // The report channel is the same kind of surface (bot/src/lib/reportChannel.js).
     const channelName = message.channel.name?.toLowerCase();
     if (channelName === "turns" || message.channel.id === REPORT_CHANNEL_ID) {
       await message.delete().catch(() => { });
       return;
     }
 
-    // A Location channel's own anchor sits at the top level of the channel,
-    // pinned, and that top level IS the open street — so unlike the retired
-    // zone anchors there is nothing here to sweep. Someone talking in a
-    // Location channel is simply talking in public.
-
+    // A Location channel's own pinned anchor IS the open street, so someone talking there is
+    // simply talking in public — nothing to sweep.
     if (!isDesignatedTupperChannel(message.channel)) return;
 
-    // Activity clock for Conversations. Informational since Bascinet 2
-    // retired inactivity expiry — the message wipe takes them instead — and
-    // debounced to one write per thread per turn; runs before the character
-    // gate on purpose, so a GM talking in a scene counts too.
+    // Activity clock for Conversations — informational, debounced to one write per thread per
+    // turn. Runs before the character gate so a GM talking in a scene counts too.
     if (message.channel.isThread?.()) {
       touchThreadActivity(message.channel.id).catch((err) =>
         console.error("Thread activity write failed:", err),
       );
     }
 
-    // The identity tags ride along on the busiest query the bot runs, rather
-    // than costing a second round trip per message. Two kinds: the one that
-    // dictates a name, and the equipped gear that hides one.
+    // Identity tags ride along on the busiest query the bot runs, rather than a second round trip.
     const character = await findAliveCharacter(message.author.id, {
       include: {
         tags: {
@@ -150,25 +107,17 @@ module.exports = {
     });
     if (!character) return;
 
-    // Which name and face this post goes out under. Precedence is forced >
-    // concealed > own (db/lib/presentedIdentity.js): a held forcesName tag
-    // overrides concealment, which itself needs something concealing actually
-    // EQUIPPED — either forcing it, or letting the standing Character.concealed
-    // toggle (/conceal, or the switch on /character) take effect.
+    // Precedence forced > concealed > own (db/lib/presentedIdentity.js).
     const identity = presentedIdentity(character, {
       forcedName: forcedNameFrom(character.tags),
       concealment: concealmentFrom(character.tags),
     });
 
-    // Captured BEFORE proxying: sendAsCharacter deletes the original message,
-    // and the mention list goes with it.
-    const mentionedRoleIds = [...message.mentions.roles.keys()];
+    const mentionedRoleIds = [...message.mentions.roles.keys()]; // captured before proxying deletes the original
     const channel = message.channel;
 
-    // sendAsCharacter owns the failure path now: it deletes the original on
-    // every route and DMs the player their text back, so a message that can't
-    // be proxied never sits in the channel under their real name. A null means
-    // it refused, and there is no proxied message left to relay mentions for.
+    // sendAsCharacter owns the failure path: deletes the original on every route and DMs the
+    // player their text back. Null means it refused.
     let proxied;
     try {
       proxied = await sendAsCharacter(channel, character, message, { identity });
@@ -178,10 +127,8 @@ module.exports = {
     }
     if (!proxied) return;
 
-    // A concealed (or forced) message deliberately relays nothing: the whole
-    // point is that the room doesn't know who spoke, and a DM naming the
-    // location would hand the target a thread to pull on. A forced identity
-    // is never concealed, so this only ever fires for a real hood.
+    // A concealed (or forced) message relays nothing — a DM naming the location would hand the
+    // target a thread to pull on.
     if (identity.concealed || mentionedRoleIds.length === 0) return;
 
     await handleMentions({ message, channel, proxied, mentionedRoleIds }).catch((err) =>
@@ -190,10 +137,8 @@ module.exports = {
   },
 };
 
-// In-memory debounce: threadId -> the turn number already recorded. A busy
-// thread costs one UPDATE per turn instead of one per message; the sweep also
-// re-derives activity from each thread's last_message_id snowflake, so a
-// restart losing this map costs nothing.
+// In-memory debounce: threadId -> turn number already recorded. A restart losing this map costs
+// nothing — the sweep re-derives activity from each thread's last_message_id snowflake.
 const activityWritten = new Map();
 
 async function touchThreadActivity(threadId) {
@@ -205,32 +150,24 @@ async function touchThreadActivity(threadId) {
     where: { threadId },
     data: { lastActivityTurn: turnNumber ?? undefined, lastActivityAt: new Date() },
   });
-  // Only remember threads we actually track — a Room thread has no
-  // PlayerThread row, and caching its id would just grow the map.
-  if (updated.count > 0 && turnNumber !== null) activityWritten.set(threadId, turnNumber);
+  if (updated.count > 0 && turnNumber !== null) activityWritten.set(threadId, turnNumber); // only threads we actually track
 }
 
-// Two independent things a character-role mention does: notify the player,
-// and — in a Conversation — let them in. Discord won't auto-add a mentioned
-// role's members once the role is assigned to nobody, so the bot does both.
+// Two independent things a character-role mention does: notify the player, and — in a
+// Conversation — let them in.
 async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   const context = resolveChannelContext(channel);
   const mentioned = await resolveMentionedCharacters(mentionedRoleIds);
 
-  // The proxy suppresses the role ping itself (allowedMentions parse:
-  // ["users"]), so a swallowed mention looks exactly like a delivered one.
-  // One line per ping makes it diagnosable from the Railway logs.
+  // The proxy suppresses the role ping itself, so a swallowed mention looks delivered — log it.
   console.log(
     `[mentions] roles=${mentionedRoleIds.join(",")} resolved=${mentioned.length} ` +
     `location=${context.locationId ?? "none"} kind=${context.channelKind ?? "none"}`,
   );
   if (mentioned.length === 0) return;
 
-  // One message can name every character role in the game, and each target
-  // costs a user fetch, a DM channel open, a send and a database insert — all
-  // serialized, all after the room has already seen the message. Ten is well
-  // past any legitimate ping and the refusal names who was dropped, so nothing
-  // goes missing silently.
+  // Each target costs a user fetch, a DM open, a send and a DB insert, all serialized. Ten is well
+  // past any legitimate ping, and the refusal names who was dropped.
   const relayed = mentioned.slice(0, MAX_MENTION_RELAYS);
   const dropped = mentioned.slice(MAX_MENTION_RELAYS);
   if (dropped.length > 0) {
@@ -244,12 +181,9 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
   }
 
   const link = messageLink(message.guildId, channel.id, proxied.id);
-  // Memoised in placeKey.js; the proxy already warmed this channel.
-  const placeKey = await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id }).catch(() => null);
-  // A mention only becomes an invite inside a Conversation. A private Room is
-  // a private thread too, but it is gated on a key tag
-  // (db/lib/roomAccess.js) — letting a ping hand out a seat there would
-  // route straight around the lock.
+  const placeKey = await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id }).catch(() => null); // memoised, already warm
+  // A mention only becomes an invite inside a Conversation — a private Room is gated on a key tag
+  // instead (db/lib/roomAccess.js); a ping would route straight around that lock.
   const conversation = await prisma.playerThread
     .findUnique({ where: { threadId: channel.id }, select: { id: true, locationId: true } })
     .catch((err) => {
@@ -257,17 +191,12 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
       return null;
     });
 
-  // Collected rather than sent one-per-target, so the author gets one DM
-  // instead of one per absent person named.
-  const notHere = [];
+  const notHere = []; // collected, so the author gets one DM instead of one per absent person named
 
   for (const target of relayed) {
     if (conversation) {
-      // A mention into a Conversation is an invite, same contract as /add:
-      // recorded, applied now if the target already stands in the location,
-      // and replayed by applyPendingInvites when they arrive otherwise.
-      // Membership is a DB row now and Discord's member list is its
-      // projection (db/lib/conversations.js), so the row goes first here too.
+      // Same contract as /add: recorded, applied now if the target already stands here, replayed
+      // by applyPendingInvites otherwise. Membership is a DB row; Discord's list is its projection.
       await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
       await prisma.playerThreadInvite
         .upsert({
@@ -276,9 +205,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
           create: { threadId: channel.id, characterId: target.id },
         })
         .catch((err) => console.error("Failed to record thread invite:", err));
-      // A "web only" target has no Discord presence to add (CHAT.md §6) — the
-      // membership row above is the invite, and they read it on /chat.
-      if (target.locationId === conversation.locationId && !target.webOnly) {
+      if (target.locationId === conversation.locationId && !target.webOnly) { // web-only has no Discord presence to add (CHAT.md §6)
         await channel.members.add(target.discordUserId).catch((err) =>
           console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err),
         );

@@ -20,12 +20,8 @@ const { ack, respond, scheduleDismiss } = require("../../lib/respond");
 
 const ZONE_VIEW_ID = "zoneview:pick";
 
-// /zone — the Discord twin of the Zones control at the bottom of the GM
-// desks' inspector. Both write the same GmZoneView rows and both call
-// syncGmZoneRoles, so a GM can toggle from wherever they happen to be.
-//
-// Nothing selected means EVERY zone, which is why the menu's min_values is 0:
-// clearing it is a real answer, not an empty form.
+// /zone — the Discord twin of the Zones control on the GM desks' inspector; both write the same
+// GmZoneView rows. Nothing selected means EVERY zone, so min_values is 0.
 async function handleZoneCommand(interaction) {
   if (!isGmMember(interaction)) {
     await respond(interaction, "GMs only.");
@@ -34,8 +30,7 @@ async function handleZoneCommand(interaction) {
   await ack(interaction);
 
   const [zones, current] = await Promise.all([
-    // Only zones with a seat to hand out — see web/lib/gmZoneView.js.
-    prisma.zone.findMany({
+    prisma.zone.findMany({ // only zones with a seat to hand out (web/lib/gmZoneView.js)
       where: { gmRoleId: { not: null } },
       orderBy: { sortOrder: "asc" },
       select: { id: true, name: true },
@@ -82,9 +77,7 @@ async function handleZoneViewPick(interaction) {
 
   const wanted = interaction.values ?? [];
   await setVisibleZones(prisma, interaction.user.id, wanted);
-  // Outside the write and best-effort, the same posture every Discord fan-out
-  // in the app takes — a rate limit should not cost the GM their choice.
-  await syncGmZoneRoles(prisma, interaction.user.id).catch((err) =>
+  await syncGmZoneRoles(prisma, interaction.user.id).catch((err) => // best-effort: a rate limit shouldn't cost the GM their choice
     console.error("/zone: role sync failed:", err.message ?? err),
   );
 
@@ -119,9 +112,7 @@ async function handleGmCommand(interaction) {
     return;
   }
 
-  // Speaking as the game into a room is a GM act, and this was the one send
-  // path that left no trace of who made it — the message wears the bot's
-  // name, so without this line /gm/audit cannot answer "who said that".
+  // The message wears the bot's name, so without this line /gm/audit can't answer "who said that".
   await prisma.auditLog
     .create({
       data: {
@@ -136,8 +127,7 @@ async function handleGmCommand(interaction) {
 }
 
 
-// /dm: DM a chosen server member as the bot itself, logged via
-// bot/src/lib/dm.js#sendDm like every other bot-sent DM.
+// /dm: DM a chosen server member as the bot itself, logged via bot/src/lib/dm.js#sendDm.
 async function handleGmDmCommand(interaction) {
   if (!isGmMember(interaction)) {
     await respond(interaction, "GMs only.");
@@ -154,9 +144,7 @@ async function handleGmDmCommand(interaction) {
       source: "gm_slash",
       kind: DM_KIND.CONVERSATION,
     });
-    // Same reason /gm writes one: a GM message that reached a player with no
-    // record of who sent it is the gap /gm/audit exists to close. The DM row
-    // itself already carries the author, but the log is the place a GM looks.
+    // Same reason /gm writes one: a DM with no record of who sent it is the gap /gm/audit closes.
     await prisma.auditLog
       .create({
         data: {
@@ -169,9 +157,7 @@ async function handleGmDmCommand(interaction) {
     await respond(interaction, `Sent to ${recipient}.`, { fleeting: true });
   } catch (err) {
     console.error("Failed to send /dm DM:", err);
-    // 50007 is the real closed-DMs code; an over-length message fails the
-    // same way and must not be misreported as closed DMs.
-    const closed = err.code === 50007 || err.status === 403;
+    const closed = err.code === 50007 || err.status === 403; // 50007 is the real closed-DMs code
     await respond(
       interaction,
       closed
@@ -182,20 +168,10 @@ async function handleGmDmCommand(interaction) {
 }
 
 
-// /add and /remove work on two things, and the channel decides which.
-//
-//   - A Conversation (a PlayerThread row): /add records a PlayerThreadInvite
-//     and works on any living character wherever they stand, applied at once
-//     if they are already here and replayed by applyPendingInvites on arrival
-//     (db/lib/threadInvites.js).
-//   - A private Room: /add writes a RoomGuest row, which is the ONE way into
-//     a private thread without one of its access tags. The target has to be
-//     standing here, because the grant is spent the moment they leave
-//     (db/lib/roomAccess.js) — inviting somebody far away would hand them a
-//     row that dies before they ever saw the door.
-//
-// A public Room takes neither: everyone standing in the Location can already
-// read it.
+// /add and /remove work on two things, and the channel decides which: a Conversation (a
+// PlayerThread row; /add records a PlayerThreadInvite, replayed on arrival by
+// db/lib/threadInvites.js) or a private Room (a RoomGuest row, spent the moment they leave —
+// db/lib/roomAccess.js — so the target must already be standing here).
 async function handleThreadMemberCommand(interaction, action) {
   await ack(interaction);
 
@@ -233,11 +209,7 @@ async function handleThreadMemberCommand(interaction, action) {
     return;
   }
 
-  // Being a member IS the permission, and membership is the ROWS
-  // (db/lib/conversations.js) — not Discord's thread-member list, which this
-  // used to fetch. A web-only character is in the rows and in no thread
-  // anywhere, so they were shut out of a door they were standing behind.
-  const actor = await findAliveCharacter(interaction.user.id);
+  const actor = await findAliveCharacter(interaction.user.id); // membership is the ROWS (db/lib/conversations.js), not Discord's thread-member list
   const gm = isGmMember(interaction);
   if (!gm) {
     if (!actor) {
@@ -259,23 +231,14 @@ async function handleThreadMemberCommand(interaction, action) {
     return;
   }
 
-  // What to CALL them in the three sentences below. `target.name` is the real
-  // one and these said it out loud, in a channel, about somebody who might be
-  // standing there in a hood — so the whole point of the disguise came apart
-  // at the door. presentedNameOf is the same resolver the web strip and the
-  // HERE column go through (db/lib/presentedMembers.js).
-  const shown = await presentedNameOf(prisma, target.id, actor);
+  const shown = await presentedNameOf(prisma, target.id, actor); // never `target.name` raw — same resolver the web strip uses
 
   if (action === "remove") {
-    // The ROW is what membership is now (db/lib/conversations.js); the thread
-    // member list below is its projection.
-    await removeConversationMember(prisma, { playerThreadId: row.id, characterId: target.id });
+    await removeConversationMember(prisma, { playerThreadId: row.id, characterId: target.id }); // the ROW is membership; the thread list is its projection
     await prisma.playerThreadInvite
       .deleteMany({ where: { threadId: channel.id, characterId: target.id } })
       .catch((err) => console.error("Failed to delete thread invite:", err));
-    // A web-only member holds no thread seat to take away, and the row above
-    // is the whole of the removal for them.
-    if (target.discordUserId) {
+    if (target.discordUserId) { // web-only holds no thread seat to take away
       try {
         await channel.members.remove(target.discordUserId);
       } catch (err) {
@@ -288,10 +251,8 @@ async function handleThreadMemberCommand(interaction, action) {
     return;
   }
 
-  // Membership first, wherever they are standing. The invite row beside it is
-  // still what replays the DISCORD add when they arrive (db/lib/threadInvites.js)
-  // — but the web feed shows them the conversation the moment they are in it,
-  // which is what makes /add work for a player who never sees the thread.
+  // Membership first, wherever they stand — the invite row replays the Discord add on arrival
+  // (db/lib/threadInvites.js), but the web feed shows the conversation to a player who never sees the thread.
   await addConversationMember(prisma, { playerThreadId: row.id, characterId: target.id });
   await prisma.playerThreadInvite
     .upsert({
@@ -301,10 +262,7 @@ async function handleThreadMemberCommand(interaction, action) {
     })
     .catch((err) => console.error("Failed to record thread invite:", err));
 
-  // A "web only" target is out of every channel on purpose (CHAT.md §6), so
-  // the row above is the whole of the add: they see the conversation on /chat
-  // and the invite row replays the Discord half if they ever come back off it.
-  if (target.locationId === row.locationId && !target.webOnly && target.discordUserId) {
+  if (target.locationId === row.locationId && !target.webOnly && target.discordUserId) { // web-only is out of every channel on purpose (CHAT.md §6)
     try {
       await addThreadMember(channel.id, target.discordUserId);
     } catch (err) {
@@ -322,10 +280,8 @@ async function handleThreadMemberCommand(interaction, action) {
 }
 
 
-// Telling somebody a door opened for them. Discord's own "you were added to a
-// thread" notice is easy to miss and says nothing about where, so this carries
-// the place and a link — never the content, the same rule notifyMentioned
-// keeps (bot/src/lib/mentions.js).
+// Discord's own "added to a thread" notice is easy to miss and says nothing about where, so this
+// carries the place and a link — never the content, same rule as bot/src/lib/mentions.js.
 async function notifyLetIn(interaction, target, threadName, placeName, threadId) {
   if (!target.discordUserId) return;
   const where = placeName ? `${placeName} · ${threadName}` : threadName;
@@ -336,13 +292,8 @@ async function notifyLetIn(interaction, target, threadName, placeName, threadId)
 }
 
 
-// The Room half of /add and /remove. db/lib/roomGuests.js is the rule — the
-// same one the web's member strip asks — and this is only the Discord end of
-// it: resolve the target from the role picker, then hand the id down.
-//
-// The role, rather than a user, is the whole reason /add takes one: the picker
-// then names characters and never Discord accounts, so inviting somebody
-// cannot reveal who plays them (bot/src/lib/commands.js).
+// The Room half of /add and /remove. db/lib/roomGuests.js is the rule; this is the Discord end —
+// resolve the target from the role picker (never a user, so inviting can't reveal who plays them).
 async function handleRoomGuestCommand(interaction, action, room) {
   const role = interaction.options.getRole("character");
   const target = await prisma.character.findFirst({
@@ -350,10 +301,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
     select: { id: true },
   });
   if (!target) {
-    // Worded for somebody who picked a ROLE, which is what this face offers.
-    // db/lib/roomGuests.js says "That isn't a living character." to a caller
-    // that picked a person.
-    await respond(interaction, "That isn't a living character's role.");
+    await respond(interaction, "That isn't a living character's role."); // worded for a ROLE, what this face offers
     return;
   }
 
@@ -365,11 +313,7 @@ async function handleRoomGuestCommand(interaction, action, room) {
     return;
   }
 
-  // The guest's own Chat has to hear about the door as well — the row changed
-  // what places they can read. The web has always done this; the bot never
-  // did, so a guest added from Discord sat looking at a page that would not
-  // show them the room until they reloaded it.
-  await notifyPresence(prisma, result.target.id).catch(() => {});
+  await notifyPresence(prisma, result.target.id).catch(() => {}); // the guest's own Chat has to hear about the door too
   if (result.notify) {
     await notifyLetIn(
       interaction,

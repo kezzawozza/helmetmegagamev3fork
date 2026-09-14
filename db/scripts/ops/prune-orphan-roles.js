@@ -1,14 +1,10 @@
 // Deletes personal character roles in Discord that no living character
-// claims. Role deletion is best-effort at every call site, so a failed
-// DELETE can leave one behind, and Discord's 250-role cap means orphans
-// eventually block new characters from getting a mentionable role. Dry-run
-// by default with an --apply flag, matching db:prune-tags.
-//
-// Conservative by construction: a role is only a candidate when it carries
-// the character-role SIGNATURE below (mentionable AND colour ===
-// hashNameToColor(name), set by ensureCharacterRole), no Character row
-// references it, nobody holds it, it has no permissions, and it isn't
-// integration-managed or a standing role.
+// claims — role deletion is best-effort at every call site, and Discord's
+// 250-role cap means orphans eventually block new characters. Dry-run by
+// default with an --apply flag. Conservative by construction: a role is only
+// a candidate when it carries the character-role SIGNATURE below, no
+// Character row references it, nobody holds it, it has no permissions, and
+// it isn't integration-managed or a standing role.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { discordRequest } = require("../../lib/discordRest");
@@ -26,22 +22,13 @@ const {
   CATATONIC_ROLE_SUFFIX,
 } = require("../../lib/characterRoleAppearance");
 
-// See the header: mentionable, and coloured by a hash of its own name. A
-// Catatonic character's role ("<name> • Catatonic", flat grey —
-// db/lib/characterRoleAppearance.js) fails this on purpose; it's safe anyway,
-// because a claimed role is never a candidate.
 function looksLikeCharacterRole(role) {
   return role.mentionable === true && role.color === hashNameToColor(role.name);
 }
 
-// The Catatonic repaint (db/lib/characterRoleAppearance.js) renames a role to
-// "<name> • Catatonic" in one fixed grey, so it can no longer match the
-// signature above. While a character claims the role that is exactly right —
-// the claim check protects it either way. But a role left behind by a PREVIOUS
-// game is unclaimed AND unmatchable, so the normal sweep can never reach it.
-// --include-catatonic accepts that second exact appearance as well. Every
-// other gate (unclaimed, unheld, permissionless, unmanaged, not standing) is
-// unchanged, so this only widens the net by genuine catatonic leftovers.
+// A Catatonic repaint ("<name> • Catatonic", flat grey) fails the signature
+// above; --include-catatonic accepts that second exact appearance too, for a
+// role left behind by a PREVIOUS game — unclaimed AND unmatchable otherwise.
 function looksLikeCatatonicRole(role) {
   return (
     role.mentionable === true &&
@@ -76,31 +63,20 @@ async function main() {
       where: { discordRoleId: { not: null } },
       select: { discordRoleId: true, name: true, status: true },
     }),
-    // Both role families a zone owns: its access role and its GM seat. The
-    // GM seats are held by GMs rather than characters, so without this they
-    // look exactly like orphans to the sweep below.
-    prisma.zone.findMany({ select: { discordRoleId: true, gmRoleId: true } }),
+    prisma.zone.findMany({ select: { discordRoleId: true, gmRoleId: true } }), // both zone role families
     discordRequest(`/guilds/${guildId}/members?limit=1000`),
   ]);
 
-  // "Permissionless" can't just mean "0". Discord's create-role endpoint
-  // copies @everyone's permissions whenever the field is omitted, and
-  // ensureCharacterRole omitted it for the whole of Bascinet 1 — so every
-  // character role in this guild carries @everyone's exact bitfield and the
-  // gate below rejected all of them, making this script a silent no-op.
-  // A role matching @everyone grants nothing over the baseline, so it counts
-  // as permissionless here; anything ELSE is somebody's real access role.
+  // "Permissionless" can't just mean "0" — Discord copies @everyone's
+  // permissions when the field is omitted, so a role matching @everyone
+  // counts as permissionless too; anything ELSE is a real access role.
   const everyoneRole = roles.find((r) => r.id === guildId);
   const baselinePermissions = new Set(["0", everyoneRole?.permissions].filter(Boolean));
 
   const claimed = new Map(characters.map((c) => [c.discordRoleId, c]));
   const protectedIds = protectedRoleIds();
-  // The zone-access roles ("Zone: Town") and the per-zone GM seats
-  // ("GM: Town") are standing infrastructure, owned by db:sync-zones. Their
-  // signature (unmentionable, color 0) already fails looksLikeCharacterRole,
-  // but protecting them by id keeps this script safe against any future
-  // signature change. Locations wear no role at all since the overwrite
-  // rework, so there is nothing of theirs to protect; a leftover
+  // Zone-access and per-zone GM roles are standing infrastructure; protecting
+  // them by id keeps this safe against a future signature change. A leftover
   // "Location: X" role is db:prune-stale-channels' to retire.
   for (const zone of zones) {
     if (zone.discordRoleId) protectedIds.add(zone.discordRoleId);
@@ -121,8 +97,6 @@ async function main() {
     if (claimed.has(role.id)) reasons.push(`claimed by ${claimed.get(role.id).name}`);
     if (held.has(role.id)) reasons.push("held by a member");
     if (role.managed) reasons.push("managed by an integration");
-    // A name token grants nothing; anything with permissions is somebody's
-    // real access role and is not ours to delete.
     if (role.permissions && !baselinePermissions.has(role.permissions)) {
       reasons.push("carries permissions");
     }
@@ -153,10 +127,7 @@ async function main() {
     return;
   }
 
-  // Sequential: this is a burst of guild-role DELETEs against one per-guild
-  // bucket, which is exactly the pattern the wipe path had to be converted
-  // away from (web/app/(app)/gm/dev/actions.js).
-  let deleted = 0;
+  let deleted = 0; // sequential: a burst of guild-role DELETEs against one per-guild bucket
   for (const role of candidates) {
     try {
       await discordRequest(`/guilds/${guildId}/roles/${role.id}`, { method: "DELETE", allow404: true });

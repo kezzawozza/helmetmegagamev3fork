@@ -1,14 +1,7 @@
 // whosHere()'s `withHoodIds`: the server-only map from a hood's token back to
-// the character behind it.
-//
-// WHAT A FAILURE HERE MEANS. The map is what lets placeMembers() drop a hood
-// who is already in the conversation, or who holds a key to the room, before
-// it offers them — so if it names the wrong person, or names somebody the
-// `concealed` list does not, the picker and the HERE column disagree about
-// who is hidden in the same viewport. And it is a SIBLING key rather than an
-// id on the rows themselves because those rows go to a browser:
-// /api/avatar/<id> takes an id and answers with a face, so shipping one is
-// the unmasking whatever the page draws. The default shape must not carry it.
+// the character behind it. It's a SIBLING key rather than an id on the rows
+// themselves, since those rows go to a browser — /api/avatar/<id> answers
+// with a face, so shipping one is unmasking whatever the page draws.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
@@ -17,9 +10,6 @@ process.env.AUTH_SECRET ||= "test-secret-for-hood-tokens";
 const { whosHere, resolveHoodToken } = require("../lib/whosHere");
 const { hoodToken } = require("../lib/hoodToken");
 
-// lastSightings is never reached: every call passes a sightings Map (empty
-// unless the test says otherwise), so the rows are judged on what is worn
-// right now plus whatever the test has the viewer remember.
 function fakePrisma(rows) {
   return { character: { findMany: async () => rows } };
 }
@@ -40,10 +30,7 @@ const concealingTag = (extra = {}) => ({
 
 const plain = (id, name) => ({ ...base, id, name, concealed: false, age: 30, gender: "MAN", tags: [] });
 const hood = (id, name) => ({ ...base, id, name, concealed: true, age: 20, gender: "MAN", tags: [concealingTag()] });
-// The wish is OFF. A sack tied over the head is not a choice, and it conceals
-// anyway — which is the case peopleHere()'s column filter gets wrong and this
-// one has to get right.
-const sacked = (id, name) => ({
+const sacked = (id, name) => ({ // wish OFF; a sack tied over the head is not a choice, and conceals anyway
   ...base,
   id,
   name,
@@ -52,8 +39,7 @@ const sacked = (id, name) => ({
   gender: "WOMAN",
   tags: [concealingTag({ name: "Sack", forcesConceal: true })],
 });
-// A Beast is openly a Beast: named, not hidden, even under a helmet.
-const beast = (id, name) => ({
+const beast = (id, name) => ({ // openly a Beast: named, not hidden, even under a helmet
   ...base,
   id,
   name,
@@ -65,8 +51,7 @@ const beast = (id, name) => ({
     { equipped: true, tag: { forcedName: "Beast", name: "Apex Form", concealsIdentity: false, concealSprite: null, forcesConceal: false, equipLayer: 0 } },
   ],
 });
-// The wish set with nothing over the face: concealment is derived, not stored.
-const wishing = (id, name) => ({ ...base, id, name, concealed: true, age: 30, gender: "WOMAN", tags: [] });
+const wishing = (id, name) => ({ ...base, id, name, concealed: true, age: 30, gender: "WOMAN", tags: [] }); // wish, nothing over the face
 
 const viewer = { id: "viewer", locationId: "loc", factionId: null };
 
@@ -102,8 +87,6 @@ test("the map is exactly the concealed list — no more, no fewer", async () => 
   const { named, concealed, hoodIds } = await whosHere(prisma, viewer, { withHoodIds: true });
 
   assert.deepEqual(concealed.map((c) => c.token).sort(), [...hoodIds.keys()].sort());
-  // A forced name and a wish with nothing on are both NAMED, so neither is in
-  // the map — the two rows that most easily land in the wrong list.
   assert.deepEqual(named.map((c) => c.name).sort(), ["Ann Vell", "Beast", "Tomas Reeve"]);
   assert.deepEqual([...hoodIds.values()].sort(), ["h1", "s1"]);
 });
@@ -134,12 +117,9 @@ test("nowhere is nobody", async () => {
   assert.equal(hoodIds.size, 0);
 });
 
-// The bug this pairing exists to stop: the lists that MINT a token decide who
-// is hidden from the sighting, so the function that RESOLVES one has to as
-// well. Bob speaks from under a helmet and then takes it off — your sighting
-// still says hooded, so he is offered as "a young man", and resolving that
-// token used to fail because there is nothing over his face now. A person
-// standing in front of you that Transfer answered "Unknown recipient." about.
+// The lists that MINT a token decide who is hidden from the sighting, so the
+// function that RESOLVES one has to as well: an unmasked hood, still offered
+// under the old token, must still resolve.
 test("a hood who unmasks after you heard them is still reachable by their token", async () => {
   const unmasked = plain("h1", "Sir Alder");
   const prisma = fakePrisma([unmasked]);

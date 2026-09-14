@@ -1,18 +1,11 @@
-// Manual, terminal-invoked wipe+rebuild of #info from
-// docs/systemdocs/infochannel.yaml. Run with `npm run db:rebuild-info-channel`.
-// Never runs automatically (no cron, no per-turn hook) — same explicit-push
-// convention as sync-locations.js.
-//
-// This is the DESTRUCTIVE one, and it is no longer the default: every run
-// deletes every message and every thread on the channel, then rebuilds from
-// scratch, which notifies everyone following a thread. Reach for
-// `npm run db:sync-info-channel` instead, which edits what is already there.
-// This one is for when the channel's ORDER is wrong, or somebody has made a
-// mess of it — those are the two things an in-place edit cannot fix.
-//
-// The content half (YAML, generators, directory message) lives in
-// db/lib/infoChannel.js, shared with that script. See
-// docs/systemdocs/INFOCHANNEL.md for the full mechanism writeup.
+// Wipe+rebuild of #info from docs/systemdocs/infochannel.yaml (`npm run
+// db:rebuild-info-channel`). This is the DESTRUCTIVE one and no longer the
+// default: every run deletes every message and thread and rebuilds from
+// scratch, notifying everyone following a thread. Reach for `npm run
+// db:sync-info-channel` instead, which edits in place; this one is for when
+// the channel's ORDER is wrong or it's a mess. The content half (YAML,
+// generators, directory message) lives in db/lib/infoChannel.js
+// (INFOCHANNEL.md).
 require("dotenv").config();
 const path = require("node:path");
 const {
@@ -82,10 +75,8 @@ async function main() {
   console.log("Wiping #info...");
   await wipeChannel(channel.id);
 
-  // Posted before the threads are created, not just before the directory
-  // message: Discord orders a channel oldest-first, and thread creation
-  // itself emits system messages into the timeline. Going first is the only
-  // way the banner is guaranteed to sit above everything else in #info.
+  // Posted before threads are created: Discord orders oldest-first, and
+  // thread creation itself emits system messages into the timeline.
   if (doc.banner) {
     console.log("Posting banner...");
     await postAttachment(channel.id, path.join(DOCS_DIR, doc.banner));

@@ -1,26 +1,11 @@
-// WCAG AA gate for the design tokens in web/app/globals.css.
-//
-// Run with `npm run audit:contrast --workspace=web`. It parses the token
-// values straight out of the stylesheet rather than duplicating them here, so
-// it can never drift from what the app actually ships — edit a colour, re-run
-// this, and it tells you what you broke.
-//
-// Two rules are the ones people break by accident:
-//
-//   * The surface ladder. --bg -> --surface -> --surface-raised must keep
-//     ~1.20 contrast per step or .panel stops reading as a container. The one
-//     documented exception is a light theme whose --surface is already
-//     near-white: there is no headroom above it, so the raised tier is carried
-//     by --e-3 shadow instead. See the limestone block in globals.css.
-//   * --accent vs --accent-text. Text and outlines must use --accent-text;
-//     --accent is a fill. Collapsing them back into one token is what made
-//     every button in the app fail AA.
-//   * The zone code, --zone-fortress/town/forest/hills/marshes/caves/
-//     depths. These are fills
-//     only -- the rule down the side of a .zone-chip -- and are gated at 3.0
-//     against --surface, not AA. Spending one as a text colour ships a 2.x
-//     contrast; that is what the --accent scan below exists to catch for
-//     --accent, and the same discipline applies here.
+// WCAG AA gate for the design tokens in web/app/globals.css (`npm run
+// audit:contrast --workspace=web`). Parses token values straight out of the
+// stylesheet so it can never drift. Two rules people break by accident: the
+// surface ladder (--bg -> --surface -> --surface-raised must keep ~1.20
+// contrast per step, except a near-white --surface which is shadow-carried
+// instead — see the limestone block), and --accent vs --accent-text (text
+// and outlines must use --accent-text; --accent is a fill only). The zone
+// code (--zone-*) is fills only too, gated at 3.0 against --surface, not AA.
 
 const fs = require("fs");
 const path = require("path");
@@ -32,11 +17,7 @@ const AA = 4.5; // WCAG AA, normal-size text
 const LADDER_MIN = 1.2; // per-step surface separation
 const BORDER_MIN = 1.9; // hairline vs the surface it sits on
 const NEAR_WHITE = 0.85; // relative luminance above which raised is shadow-carried
-// The zone code (--zone-*) is a 3px chip rule, never text, so it answers to
-// the large-graphic floor rather than AA. None of the four map-picked hues
-// would ever clear 4.5 -- gating them there would just force them off the
-// palette. See the dusk block in globals.css.
-const ZONE_MARK_MIN = 3.0;
+const ZONE_MARK_MIN = 3.0; // large-graphic floor, not AA — none of the map-picked hues would clear 4.5
 const ZONE_KEYS = ["fortress", "town", "forest", "hills", "marshes", "caves", "depths"];
 
 function parseColor(value) {
@@ -51,9 +32,7 @@ function parseColor(value) {
   return { rgb: parts.slice(0, 3), a: parts[3] === undefined ? 1 : parts[3] };
 }
 
-// Flatten a translucent colour onto an opaque backdrop. Borders and field
-// backgrounds are rgba, so comparing them raw would report nonsense.
-function composite(fg, backdropRgb) {
+function composite(fg, backdropRgb) { // flattens a translucent colour onto an opaque backdrop
   return fg.rgb.map((v, i) => v * fg.a + backdropRgb[i] * (1 - fg.a));
 }
 
@@ -71,17 +50,9 @@ function contrast(a, b) {
   return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 }
 
-// ── color-mix(in oklab, ...) ────────────────────────────────────────────────
-// The Combat tile's eight band colours are not tokens. They are mixes of three
-// tokens, so that the red-through-grey-to-green ramp follows whichever theme
-// is on instead of being written out as eight hex values per theme — which is
-// what CLAUDE.md's no-hardcoded-colour rule requires and what would otherwise
-// have put six unaudited colours on the sheet.
-//
-// A mix has to be reproduced here to be gated, and it has to be reproduced in
-// oklab, because oklab is what the stylesheet asks for: mixing the same two
-// colours in sRGB lands somewhere visibly different, and a gate on the wrong
-// colour is worse than no gate.
+// ── color-mix(in oklab, ...) — the Combat tile's band colours are mixes of
+// three tokens (CLAUDE.md's no-hardcoded-colour rule), reproduced here in
+// oklab since sRGB mixing the same two colours lands visibly different. ────
 function srgbToLinear(v) {
   const s = v / 255;
   return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
@@ -124,9 +95,7 @@ function mixOklab(rgbA, rgbB, weightA) {
   return oklabToRgb(a.map((v, i) => v * weightA + b[i] * (1 - weightA)));
 }
 
-// The ramp, kept in the order and the weights globals.css declares. A band
-// added there without a row here goes unaudited, which is the one way this
-// gate can quietly stop covering the thing it was written for.
+// Order and weights match globals.css; a band added there without a row here goes unaudited.
 const COMBAT_BANDS = [
   ["pitiful", "--danger", null, 1],
   ["weak", "--danger", "--muted", 0.5],
@@ -182,10 +151,7 @@ function main() {
       gate(`${token} on surface`, contrast(composite(parseColor(t[token]), surface), surface), AA);
     }
 
-    // The Combat tile's ramp (COMBAT.md). Every step is body text on a panel,
-    // so every step owes full AA — a band nobody can read is a band that says
-    // nothing, and the whole point of the ramp is that the word and its colour
-    // say the same thing twice.
+    // Combat tile ramp (COMBAT.md): every step is body text on a panel, so every step owes full AA.
     for (const [key, tokenA, tokenB, weight] of COMBAT_BANDS) {
       const a = composite(parseColor(t[tokenA]), surface);
       const rgb = tokenB ? mixOklab(a, composite(parseColor(t[tokenB]), surface), weight) : a;
@@ -198,10 +164,7 @@ function main() {
       AA,
     );
 
-    // Missing token throws on .rgb rather than silently scoring 0 -- which is
-    // exactly what should happen when someone adds a theme block and forgets
-    // the zone code.
-    for (const key of ZONE_KEYS) {
+    for (const key of ZONE_KEYS) { // a missing token throws on .rgb rather than silently scoring 0
       gate(
         `--zone-${key} on surface`,
         contrast(parseColor(t[`--zone-${key}`]).rgb, surface),
@@ -213,13 +176,7 @@ function main() {
     console.log(results.join("\n"));
   }
 
-  // The token gates above can only see globals.css. But --accent's rule is
-  // about how JS *uses* it, and that is exactly where it broke: 14 call sites
-  // were colouring text with --accent (2.96 on dusk's --surface, under even
-  // the 3.0 large-text floor) and no gate here could see any of them. So scan
-  // the source too, and make the header's rule 2 enforceable rather than
-  // aspirational.
-  failures += auditAccentUsage();
+  failures += auditAccentUsage(); // the token gates above can't see how JS *uses* --accent
 
   if (failures) {
     console.error(`\n${failures} contrast gate(s) failed.`);
@@ -229,8 +186,7 @@ function main() {
 }
 
 // Walks web/app and web/lib for var(--accent) used as anything other than a
-// fill or a rule (background, borderColor, boxShadow). That is the whole of
-// what the token is for; text and outlines take --accent-text.
+// fill or a rule; text and outlines take --accent-text.
 function auditAccentUsage() {
   const roots = [path.join(__dirname, "..", "app"), path.join(__dirname, "..", "lib")];
   const offenders = [];
@@ -244,15 +200,9 @@ function auditAccentUsage() {
         fs.readFileSync(full, "utf8")
           .split("\n")
           .forEach((line, i) => {
-            // Allowlist, not denylist. A line can legitimately carry both --
-            // `{ borderColor: "var(--accent)", color: "var(--accent-text)" }` --
-            // so each var(--accent) is attributed to the property it sits
-            // under. But the property is often absent: costColor() used to
-            // `return "var(--accent)"` and let its six callers spend it as a
-            // text colour, which no denylist could see. So anything that is not
-            // demonstrably a fill or a rule is a finding, and a helper that
-            // hands the token out for the caller to decide is exactly the case
-            // worth flagging.
+            // Allowlist, not denylist: each var(--accent) is attributed to
+            // the property it sits under, and anything not demonstrably a
+            // fill or a rule is a finding.
             let from = 0;
             for (;;) {
               const at = line.indexOf("var(--accent)", from);

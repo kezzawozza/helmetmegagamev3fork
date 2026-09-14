@@ -1,15 +1,10 @@
 const { prisma, advanceTurn: advanceTurnInDb } = require("@lifeweb/db");
 
-// Thin wrapper around the shared db.advanceTurn(): adds the audit log entry
-// (process-specific — the announcement, Hunger DMs and message wipe are all
-// composed inside advanceTurn() itself, REST-based, so this needs no gateway
-// client). Called by the nightly cron in ready.js, and safe to call
+// Thin wrapper around the shared db.advanceTurn(): adds the process-specific
+// audit log entry. Called by the nightly cron in ready.js, and safe to call
 // manually as a GM force-advance since it's idempotent about which turn is
-// "current".
-//
-// The side effects are awaited inline here, unlike the web action which defers
-// them past the response: this is a background cron with nobody waiting on it,
-// so the straight-line order keeps the logs readable.
+// "current". Side effects are awaited inline here (unlike the web action,
+// which defers past the response) since nobody is waiting on this cron.
 async function advanceTurn() {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   if (config?.autoTurnAdvanceDisabled) {
@@ -19,16 +14,13 @@ async function advanceTurn() {
 
   const { advanced, refused, previousTurn, newTurn, runSideEffects } = await advanceTurnInDb();
 
-  // The game is not running — in the lobby, or ended. Its clock is stopped
-  // by design (docs/systemdocs/LOBBY.md §1), so this is a quiet skip.
+  // Clock stopped by design (LOBBY.md §1): lobby or ended.
   if (refused === "NOT_RUNNING") {
     console.log("Turn-advance cron skipped: the game is not in its Running phase.");
     return null;
   }
 
-  // Another caller (a GM on the Dev Panel, most likely) won the race and
-  // already advanced the turn. Nothing to log, nothing to announce.
-  if (!advanced) return newTurn;
+  if (!advanced) return newTurn; // another caller already won the race
 
   await prisma.auditLog.create({
     data: {

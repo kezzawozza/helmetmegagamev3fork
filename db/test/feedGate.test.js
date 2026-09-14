@@ -1,11 +1,7 @@
-// node --test over the two rules the SSE feed's gate is made of
-// (web/app/api/feed/route.js#sendRow): what counts as already sent, and what
-// counts as below the wipe line.
-//
-// Both used to be one number — a `lastSeq` high-water mark that answered
-// "already sent?" and carried the wipe clamp folded into it. That is how a
-// message reached Discord and never the website: a row that arrived a moment
-// out of order sat below the mark and was dropped for good.
+// The two rules the SSE feed's gate is made of (web/app/api/feed/route.js
+// #sendRow): what counts as already sent, and what counts as below the wipe
+// line. Was once one `lastSeq` high-water mark — a row arriving a moment out
+// of order sat below the mark and was dropped for good.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { makeSeenSeqs } = require("../lib/seenSeqs");
@@ -19,7 +15,6 @@ test("a seq is remembered once it has been sent", () => {
 });
 
 test("a LOWER seq arriving after a higher one is still new", () => {
-  // The whole point. Under a high-water mark 1505 would be dropped here.
   const seen = makeSeenSeqs();
   seen.add("1506");
   assert.equal(seen.has("1505"), false);
@@ -62,9 +57,8 @@ test("makeSeenSeqs refuses a nonsense bound", () => {
   assert.throws(() => makeSeenSeqs(1.5), TypeError);
 });
 
-// The floor half. A zone summary is wiped on the slower Dawn schedule, so its
-// rows are legitimately older than the turn floor — which is why the gate asks
-// per place instead of clamping every place to the lower of the two.
+// A zone summary wipes on the slower Dawn schedule, so its rows are older
+// than the turn floor — the gate asks per place, not the lower of the two.
 test("a zone summary is measured against the summary floor", () => {
   const floors = { turn: 100n, summary: 10n };
   assert.equal(floorForPlace(floors, "zone:abc"), 10n);

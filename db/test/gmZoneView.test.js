@@ -1,25 +1,15 @@
 // A GM picks a SEAT; the game stores places under LEVELS. This is the fold
-// between the two.
-//
-// WHAT A FAILURE HERE MEANS. The zone picker can only ever offer a zone that
-// has a gmRoleId, so the whole cave system is one tick — "Underground" — but
-// Underground is a CAVE_GROUP: no Locations, no #summary channel, nothing
-// standing in it. Caves and Depths hold all thirteen cave Locations, and
-// their ids are never in GmZoneView. If visibleZoneIds stops expanding the
-// seat, every id-side caller silently loses the cave system: /chat draws no
-// cave places for a GM watching Underground, and the ambient line on /gm/dev
-// refuses every cave Location. That is a bug this repo has already shipped
-// once, on the NAME side, and web/lib/zones.js#inVisibleZones is the twin
-// that has to keep saying the same thing.
-//
-// No database: visibleZoneIds takes its client as a parameter, so the stub
-// below is the whole fixture.
+// between the two: Underground is a CAVE_GROUP with no Locations of its own,
+// while Caves and Depths hold all thirteen cave Locations and are never in
+// GmZoneView directly. If visibleZoneIds stops expanding the seat, a GM
+// watching Underground silently loses the whole cave system. No database:
+// visibleZoneIds takes its client as a parameter, so the stub below is the
+// whole fixture. web/lib/zones.js#inVisibleZones is the twin on the NAME side.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { visibleZoneIds } = require("../lib/gmZoneView");
 
-// The live shape, as of the Underground fix: three surface zones seated on
-// themselves, one CAVE_GROUP, and two CAVE_LEVELs seated on the group.
+// Three surface zones seated on themselves, one CAVE_GROUP, two CAVE_LEVELs.
 const ZONES = [
   { id: "z-town", slug: "town", seatZoneId: "z-town", parentZoneId: null },
   { id: "z-fortress", slug: "fortress", seatZoneId: "z-fortress", parentZoneId: null },
@@ -29,8 +19,6 @@ const ZONES = [
   { id: "z-depths", slug: "depths", seatZoneId: "z-underground", parentZoneId: "z-underground" },
 ];
 
-// Enough Prisma to answer the two queries the function makes, and no more.
-// `zones` is the table; `views` is what one GM has ticked.
 function stub(views, zones = ZONES) {
   return {
     gmZoneView: {
@@ -77,16 +65,12 @@ test("two picks stay two answers, folded independently", async () => {
 });
 
 test("a zone the sync has not backfilled behaves as it did before the fold", async () => {
-  // seatZoneId is nullable in the schema. A row with neither seat nor parent
-  // matches nothing, so it is simply itself — never dropped.
   const zones = [...ZONES, { id: "z-new", slug: "new", seatZoneId: null, parentZoneId: null }];
   const visible = await visibleZoneIds(stub(["z-new"], zones), "gm-1");
   assert.deepEqual([...visible], ["z-new"]);
 });
 
 test("a level ticked directly does not drag its siblings in", async () => {
-  // Nothing offers Caves today, but if something ever did, picking it should
-  // mean Caves — not the whole seat.
   const visible = await visibleZoneIds(stub(["z-caves"]), "gm-1");
   assert.deepEqual([...visible], ["z-caves"]);
 });

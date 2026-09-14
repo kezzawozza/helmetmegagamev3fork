@@ -14,18 +14,13 @@ const { resolveActingMember } = require("./interactionGuild");
 const { ack, respond } = require("./respond");
 
 // The OOC report channel: one anchor post with an Open Ticket button, and a
-// private thread per report with the reporter and every GM in it. See
-// db/lib/reportChannelAccess.js for the id, the access spec and the buttons.
-//
-// Threads here are deliberately NOT recorded as PlayerThread rows. Every
-// sweep — messageWipe, fullWipe, channelDoctor — walks Location channels,
-// SPECIAL_CHANNELS or PlayerThread rows, so an untracked thread
-// under a channel none of them know about is left alone. A report lives until
-// somebody presses Close.
+// private thread per report with the reporter and every GM in it (see
+// db/lib/reportChannelAccess.js). Threads here are deliberately NOT recorded
+// as PlayerThread rows — every sweep walks Location channels,
+// SPECIAL_CHANNELS or PlayerThread rows, so an untracked thread is left
+// alone until Close.
 
-// Thread names are keyed on the Discord username, not the nickname: nicknames
-// are character names and get rewritten by the nickname sync, and the name is
-// how "you already have a ticket open" is found.
+// Keyed on the Discord username, not the nickname, which the nickname sync rewrites.
 function ticketName(user) {
   return `Report – ${user.username}`.slice(0, 100);
 }
@@ -34,10 +29,8 @@ function isReportThread(channel) {
   return channel?.type === ChannelType.PrivateThread && channel.parentId === REPORT_CHANNEL_ID;
 }
 
-// Cache first, then Discord: the cache is cold during the ready window, and
-// fetchActiveThreads at ready never sees an archived thread. An archived
-// ticket still counts — Discord unarchives it on the next message, and a
-// second thread under the same name is exactly what this is here to prevent.
+// Cache first, then Discord: the cache is cold at ready, and an archived
+// ticket still counts (Discord unarchives it on the next message).
 async function findOpenTicket(channel, user) {
   const name = ticketName(user);
   const byName = (t) => t.name === name;
@@ -63,8 +56,7 @@ function isAnchor(message, botUserId) {
 }
 
 // Cold start, every bot ready: re-assert access, make sure the anchor exists
-// (found by its button, not a tracked id — no DB column), and sweep anything
-// else out of the channel. The anchor is not pinned: it is the only message.
+// (found by its button, no DB column), and sweep anything else out.
 async function ensureReportAnchor(guild) {
   const channel = await fetchReportChannel(guild);
   if (!channel) {
@@ -84,8 +76,6 @@ async function ensureReportAnchor(guild) {
   );
 }
 
-// Spam-click guard: a Set for the in-flight create (a double-click races the
-// thread-cache check below otherwise), and a short cooldown after it lands.
 const inFlight = new Set();
 const lastOpened = new Map();
 const OPEN_COOLDOWN_MS = 60_000;
@@ -123,17 +113,12 @@ async function handleReportOpen(interaction) {
       name: ticketName(interaction.user),
       type: ChannelType.PrivateThread,
       invitable: false,
-      // The parent's default is 24h, after which the thread archives itself
-      // and vanishes from the active-thread cache. A week is the longest
-      // Discord allows; a report that idles that long can be reopened.
-      autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
+      autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek, // the longest Discord allows
       reason: "OOC report",
     });
     await thread.members.add(userId);
 
-    // The role's member list is warm: nickname.js fetches every member at
-    // ready. One fetch as a fallback if it somehow isn't. Both GM seats are
-    // pulled in, and deduped — somebody may hold each.
+    // Fallback fetch if the role's member list isn't already warm.
     const roles = gmRoleIds().map((id) => guild.roles.cache.get(id)).filter(Boolean);
     if (roles.some((r) => r.members.size === 0)) {
       await guild.members.fetch().catch(() => {});
@@ -149,9 +134,7 @@ async function handleReportOpen(interaction) {
       );
     }
 
-    // Both GM seats get pinged. They are already in the thread from the loop
-    // above, so this is the nudge rather than the delivery.
-    const pingRoleIds = gmRoleIds();
+    const pingRoleIds = gmRoleIds(); // already in the thread from the loop above; this is the nudge
     const ping = pingRoleIds.map((id) => `<@&${id}>`).join(" ");
     const pinned = await thread.send({
       content:
@@ -163,10 +146,7 @@ async function handleReportOpen(interaction) {
     await pinned.pin().catch((err) => console.error("Report ticket: pin failed:", err));
   } catch (err) {
     console.error("Failed to open an OOC report ticket:", err);
-    // A thread that exists but never got its reporter or its Close button
-    // would answer every retry with "you already have a ticket open". Take
-    // it down so the retry starts clean.
-    if (thread) await thread.delete("failed report ticket").catch(() => {});
+    if (thread) await thread.delete("failed report ticket").catch(() => {}); // so a retry starts clean
     await respond(interaction, "Couldn't create that — try again, or tell a GM.");
     return;
   } finally {
@@ -193,10 +173,7 @@ async function handleReportClose(interaction) {
     return;
   }
 
-  // deferUpdate, not deferReply: the thread is about to go, and a "thinking"
-  // reply would have nowhere to land. Audit before delete so a failed delete
-  // still leaves a record of who tried.
-  await ack(interaction, { update: true });
+  await ack(interaction, { update: true }); // deferUpdate: the thread is about to go
   await prisma.auditLog
     .create({
       data: {
@@ -210,11 +187,9 @@ async function handleReportClose(interaction) {
   try {
     await thread.delete("OOC report closed");
   } catch (err) {
-    // 10003 Unknown Channel: someone else closed it first — that is success.
-    if (err?.code === 10003) return;
+    if (err?.code === 10003) return; // Unknown Channel: someone else closed it first
     console.error("Failed to close an OOC report ticket:", err);
-    // Not respond(): after deferUpdate that would editReply the pinned message.
-    await interaction
+    await interaction // not respond(): after deferUpdate that would editReply the pinned message
       .followUp({ content: "» *Couldn't close that — try again, or tell a GM.*", flags: MessageFlags.Ephemeral })
       .catch(() => {});
   }

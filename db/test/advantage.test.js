@@ -8,7 +8,6 @@ const { scavengingMayFallBack, SCAVENGING_FALLBACK_TO } = require("../lib/laborD
 
 const LUCKY = [{ tag: { slug: "lucky" } }];
 
-// Tested through the public surface: two dice mean the tag was recognised.
 test("Lucky is recognised in both tag shapes, and nothing else is", () => {
   assert.equal(rollWithAdvantage(LUCKY).advantage, true);
   assert.equal(rollWithAdvantage([{ slug: "lucky" }]).advantage, true);
@@ -36,9 +35,6 @@ test("with Lucky two dice are thrown and the better one counts", () => {
   }
 });
 
-// The point of the tag, stated as a number: advantage on a d6 is worth about
-// a full point of average. A regression that quietly rolled once would land
-// near 3.5 and this is what would catch it.
 test("Lucky lifts the average roll by roughly a point", () => {
   const mean = (tags) => {
     let sum = 0;
@@ -54,9 +50,8 @@ test("the roll line names Lucky only when it actually fired", () => {
   assert.equal(formatAdvantage({ rolls: [6, 2], advantage: true }), "(6, 2 — Lucky)");
 });
 
-// Laboring (Scavenging). The pure half only says WHICH faces may fall back;
-// whether one actually does depends on the pool, and lives in
-// pickLaborDropOption where the pool is in hand.
+// Says only WHICH faces may fall back; whether one does depends on the pool
+// (pickLaborDropOption).
 test("Scavenging may fall back from a 4 or a 5, and never from a 1", () => {
   const scav = new Set(["laboring-scavenging"]);
   assert.deepEqual(
@@ -77,11 +72,8 @@ test("scavengingMayFallBack takes an array as readily as a Set", () => {
   assert.equal(scavengingMayFallBack(4, []), false);
 });
 
-// The regression this rule exists for. It began as a blanket 4/5 -> 6 remap,
-// written when 1 and 6 were the only configured faces anywhere; Prospecting
-// then filled in 2, 4 and 5, and a blanket remap became a DOWNGRADE — a
-// fisherman's face 4 pays 10 ⬢ against face 6's 1.56. Falling back only from
-// an EMPTY pool can never take a configured payout away.
+// A blanket 4/5->6 remap became a DOWNGRADE once Prospecting filled in 2, 4,
+// 5. Falling back only from an EMPTY pool can never take a payout away.
 test("the fallback face is the 6, and a 1 is never touched", () => {
   assert.equal(SCAVENGING_FALLBACK_TO, 6);
   assert.equal(scavengingMayFallBack(1, new Set(["laboring-scavenging"])), false);

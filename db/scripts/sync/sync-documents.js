@@ -1,10 +1,5 @@
-// Manual, terminal-invoked sync from docs/documents.yaml -> DB.
-// Run with `npm run db:sync-documents`. The same function
-// (db/lib/syncDocuments.js#syncDocumentsFromYaml) is also called from
-// wipeGameData's "Restart Game" flow (web/app/(app)/gm/dev/actions.js) so a
-// reset lands on the canonical document set.
-//
-// Run this AFTER db:sync-tags and db:sync-roles — assignment references are
+// Manual sync from docs/documents.yaml -> DB (`npm run db:sync-documents`).
+// Run AFTER db:sync-tags and db:sync-roles — assignment references are
 // validated against the Tag/Role/Faction rows those two create.
 require("dotenv").config();
 const { prisma, syncDocumentsFromYaml } = require("../../index");

@@ -1,12 +1,7 @@
 // Bootstraps a fully local dev stack: a local Postgres database, migrated
 // and seeded from the YAML masters, with LOCAL_MODE on so nothing needs a
-// real Discord bot token, guild, or GM role. See docs/systemdocs/LOCAL-DEV.md
-// for what this is FOR — this file is just the "make it so" half of that doc.
-//
-// Safe to re-run: every step is idempotent (skips what's already there
-// rather than recreating it), and it never touches the live database — it
-// only ever writes to .env, the symlinks, and whatever DATABASE_URL points
-// at, which after step 1 is always a local one.
+// real Discord bot token, guild, or GM role (LOCAL-DEV.md). Safe to re-run:
+// every step is idempotent and it never touches the live database.
 //
 //   npm run dev:setup
 
@@ -34,9 +29,7 @@ function readEnvFile(path) {
   return out;
 }
 
-// Never overwrites a value that's already there — this is meant to fill in
-// what's missing, not relitigate a setup someone already has working.
-function ensureEnv() {
+function ensureEnv() { // never overwrites a value already there
   const existing = readEnvFile(ENV_PATH);
   const additions = {};
 
@@ -59,11 +52,8 @@ function ensureEnv() {
   return { ...existing, ...readEnvFile(ENV_PATH) };
 }
 
-// Symlinks so Prisma CLI (cwd db/), the bot (cwd bot/, plain dotenv.config())
-// and Next.js (reads web/.env.local) all see the exact same file rather than
-// three copies that can drift. Skips anything that isn't already a symlink
-// pointing here — a real file there is somebody's own setup, not ours to
-// clobber.
+// Symlinks so Prisma CLI, the bot, and Next.js all see the exact same file
+// rather than three copies that can drift.
 function ensureSymlink(fromRelative, toRelative) {
   const from = resolve(REPO_ROOT, fromRelative);
   const to = resolve(REPO_ROOT, toRelative);
@@ -72,7 +62,6 @@ function ensureSymlink(fromRelative, toRelative) {
       const real = execFileSync("readlink", [from]).toString().trim();
       if (resolve(dirname(from), real) === to) return; // already correct
     } catch {
-      // Not a symlink at all — leave it, it's somebody's real file.
       console.log(`  ! ${fromRelative} already exists and isn't our symlink — leaving it alone`);
       return;
     }
@@ -138,10 +127,7 @@ async function main() {
   run("Generating the Prisma client", "npm run db:generate");
   run("Applying migrations (prisma migrate deploy — non-interactive, no reset prompt)", "npm run db:migrate:deploy");
   run("Syncing zones, tags, roles, desires, documents from the YAML masters", "npm run db:sync");
-  // zones sync runs before tags, so room stashes referencing tag slugs skip
-  // with a warning the first time — SYNC.md says as much. Run it again now
-  // that tags exist to backfill them.
-  run("Re-syncing zones now that tags exist, to backfill room stashes", "npm run db:sync-zones");
+  run("Re-syncing zones now that tags exist, to backfill room stashes", "npm run db:sync-zones"); // SYNC.md
 
   log("Done");
   console.log(

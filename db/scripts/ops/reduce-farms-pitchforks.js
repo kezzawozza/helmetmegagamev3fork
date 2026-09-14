@@ -1,19 +1,13 @@
 // One-off: brings the Farms Fields room stash's pitchfork count down to the
-// new starting quantity (docs/zones.yaml, 4 -> 2). db:sync-zones's own
-// seedRoomStash never revisits a slug once Room.seededStashSlugs has it
-// (db/lib/syncZones.js), so editing the YAML alone does nothing for a game
-// already running — this is that catch-up, for the one room the stash is
-// actually seeded in.
+// new starting quantity (docs/zones.yaml, 4 -> 2) — seedRoomStash never
+// revisits a slug once seeded, so editing the YAML alone does nothing for a
+// running game.
 //
 //   node db/scripts/ops/reduce-farms-pitchforks.js           # dry run
 //   node db/scripts/ops/reduce-farms-pitchforks.js --apply   # write
 //
-// Scoped to the Farms Fields room ONLY, by name — not every pitchfork on the
-// map. A pitchfork sitting in a Smithery or wherever a player left one is
-// something somebody made or carried there; this script has no business
-// touching it. Never raises the count, only lowers it, and only down to the
-// new target — a room already below 2 (players have been taking them) is
-// left alone rather than restocked.
+// Scoped to the Farms Fields room ONLY, by name. Never raises the count, only
+// lowers it to the target — a room already below 2 is left alone.
 require("dotenv").config();
 const { prisma } = require("../../index");
 

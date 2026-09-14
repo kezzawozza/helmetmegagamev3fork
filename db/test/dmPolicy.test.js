@@ -1,11 +1,6 @@
-// The one policy the three sendDm transports share (db/lib/dmPolicy.js).
-//
-// WHAT A FAILURE HERE MEANS. There are three transports and there always will
-// be — gateway, web REST, engine REST — and before this module each one held
-// its own copy of the `»` prefix, the NOTICE default and the row shape. A copy
-// drifts: web/lib/discordGuild.js wrote `source: null` where the other two
-// wrote "bot_auto", for no reason anybody could name. These assertions are the
-// thing that notices the next drift.
+// The one policy the three sendDm transports share (db/lib/dmPolicy.js) —
+// the `»` prefix, the NOTICE default and the row shape. These assertions
+// notice the next drift between them.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { applyDmPrefix, dmLogRow, dedupeKey, describeFailure, DEFAULT_KIND } = require("../lib/dmPolicy");
@@ -13,16 +8,12 @@ const { DM_KIND } = require("../lib/dmKinds");
 
 test("the » prefix is idempotent", () => {
   assert.equal(applyDmPrefix("hello"), "» hello");
-  // The /dm handler writes its own chevron. Two would read as a quote of a
-  // quote.
-  assert.equal(applyDmPrefix("» hello"), "» hello");
+  assert.equal(applyDmPrefix("» hello"), "» hello"); // /dm writes its own chevron; two would quote a quote
   assert.equal(applyDmPrefix(""), "» ");
   assert.equal(applyDmPrefix(null), "» ");
 });
 
 test("dmPolicy's copy of the kind strings still matches dmKinds", () => {
-  // dmPolicy.js may not require anything (it is reachable from a client
-  // component), so it keeps its own copy of these. This is the seam.
   assert.equal(DEFAULT_KIND, DM_KIND.NOTICE);
   assert.equal(dmLogRow({ discordUserId: "u", content: "x" }).kind, DM_KIND.NOTICE);
   assert.equal(dmLogRow({ discordUserId: "u", content: "x", hasEmbeds: true }).kind, DM_KIND.QUIET);
@@ -30,9 +21,7 @@ test("dmPolicy's copy of the kind strings still matches dmKinds", () => {
     dmLogRow({ discordUserId: "u", content: "x", opts: { kind: DM_KIND.CONVERSATION } }).kind,
     DM_KIND.CONVERSATION,
   );
-  // An explicit kind beats the embed default — an inspect readout a person
-  // deliberately classified is not plumbing.
-  assert.equal(
+  assert.equal( // explicit kind beats the embed default
     dmLogRow({ discordUserId: "u", content: "x", hasEmbeds: true, opts: { kind: DM_KIND.CONVERSATION } }).kind,
     DM_KIND.CONVERSATION,
   );
@@ -45,8 +34,7 @@ test("the log row's defaults are the same for every transport", () => {
   assert.equal(row.authorDiscordUserId, null);
   assert.equal(row.clientNonce, null);
   assert.equal(row.discordMessageId, "m1");
-  // undefined, never null: Prisma rejects an explicit null for a Json? column.
-  assert.equal(row.meta, undefined);
+  assert.equal(row.meta, undefined); // never null: Prisma rejects an explicit null for a Json? column
 });
 
 test("a dedupe key is built from ids, so it survives a reordered recipient list", () => {
@@ -54,8 +42,7 @@ test("a dedupe key is built from ids, so it survives a reordered recipient list"
   assert.equal(a, "staged:msg1:u1");
   assert.equal(a, dedupeKey({ scope: "staged", subjectId: "msg1", discordUserId: "u1" }));
   assert.notEqual(a, dedupeKey({ scope: "staged", subjectId: "msg1", discordUserId: "u2" }));
-  // A PUBLIC row has no recipient and still needs exactly one key.
-  assert.equal(dedupeKey({ scope: "staged", subjectId: "msg1" }), "staged:msg1:none");
+  assert.equal(dedupeKey({ scope: "staged", subjectId: "msg1" }), "staged:msg1:none"); // PUBLIC row, no recipient
 });
 
 test("a failure is described the same way wherever it is caught", () => {

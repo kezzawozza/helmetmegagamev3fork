@@ -1,15 +1,8 @@
-// The strength gate on the Attack button (docs/systemdocs/ATTACK.md).
-//
-// WHAT A FAILURE HERE MEANS. This is the only thing standing between a bum and
-// a whole day of the Tribunal Ordinator's time, and it is also the only thing
-// a player ever learns about somebody else's fighting band (COMBAT.md §5). Too
-// loose and the verb is a griefing tool; too tight and it refuses ordinary
-// fights and leaks more than it should.
-//
-// The capped-champion case at the bottom is the one that decided the whole
-// shape: floor:/cap: tags move the BAND after the points are summed, so a
-// bound Expert still scores 55. A score-based gate would let a tied-up
-// champion refuse to be attacked, which is exactly backwards.
+// The strength gate on the Attack button (ATTACK.md), the only thing a
+// player ever learns about somebody else's fighting band (COMBAT.md §5). The
+// capped-champion case decided the shape: floor:/cap: tags move the BAND
+// after points are summed, so a bound Expert still scores 55 — a score-based
+// gate would let a tied-up champion refuse to be attacked.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -54,19 +47,13 @@ test("punching down is never refused", () => {
 });
 
 test("the better half of the tree answers for each side", () => {
-  // A marksman with no melee at all is not a free target: their ranged band is
-  // what a would-be attacker is measured against.
   const marksman = [row("ranged-expert", { tree: "ranged", rung: 4 })];
   assert.equal(bestBandRank(marksman), bandRank("dangerous"));
   assert.equal(attackRefusal([], marksman), TOO_STRONG);
-  // And it works the other way: the marksman may attack a Seasoned swordsman.
   assert.equal(attackRefusal(marksman, [rung(3)]), null);
 });
 
 test("a CAPPED champion is attackable — the case bands exist for", () => {
-  // Bound caps the band at Pitiful while leaving the score at Expert's 55. A
-  // gate reading scores would refuse; a gate reading bands lets a peasant tie
-  // into somebody who is already tied up.
   const boundExpert = [rung(4), row("bound", { tree: "both", cap: "pitiful" })];
   assert.equal(bestBandRank(boundExpert), bandRank("pitiful"));
   assert.equal(attackRefusal([], boundExpert), null);
@@ -83,15 +70,8 @@ test("the tunable is a band count, and it is two", () => {
 });
 
 // ─── Against the catalog as written ─────────────────────────────────────────
-
-// The synthetic cases above pin the arithmetic; this one pins the GAME RULE
-// that falls out of it, off docs/tags.yaml rather than off a made-up tag.
-//
-// Every state that takes a character out of the fight caps their band at
-// Pitiful, so a helpless champion is attackable by anybody — which is the
-// whole reason the gate reads bands. Add an incapacitating tag without a cap
-// and this fails rather than quietly making somebody untouchable while they
-// lie there unconscious.
+// Off docs/tags.yaml rather than a made-up tag: every incapacitating state
+// caps the band at Pitiful, so a helpless champion is attackable by anybody.
 const CATALOG = yaml.load(
   fs.readFileSync(path.join(__dirname, "..", "..", "docs", "tags.yaml"), "utf8"),
 );
@@ -104,9 +84,7 @@ const catalogRow = (slug) => ({
 
 test("a helpless champion is attackable by anybody", () => {
   const champion = ["melee-expert", "melee-swords", "broadsword"].map(catalogRow);
-  // Untouchable on his feet.
-  assert.equal(attackRefusal([], champion), TOO_STRONG);
-  // And not, the moment he is out of it. Every one of these, not just Bound.
+  assert.equal(attackRefusal([], champion), TOO_STRONG); // untouchable on his feet
   for (const slug of ["bound", "crucified", "dying", "catatonic-afk", "paralyzed", "asleep", "unconscious", "seizure"]) {
     assert.equal(
       attackRefusal([], [...champion, catalogRow(slug)]),
@@ -117,16 +95,9 @@ test("a helpless champion is attackable by anybody", () => {
 });
 
 // ─── The hold, end to end ───────────────────────────────────────────────────
-//
-// WHAT A FAILURE HERE MEANS. The hold is two columns on Character and a table,
-// and heldById names ONE opponent while a brawl has several. Every bug this
-// section pins is the same bug: a pointer left naming somebody who has walked
-// out of the fight, and then something that clears "everyone A is holding"
-// freeing a person A no longer has anything to do with. None of it is visible
-// in play — the victim just walks away — so it has to be visible here.
-//
-// A small in-memory stand-in rather than a database: these are the two tables
-// db/lib/attack.js touches and nothing else, and db/test has no Postgres.
+// The hold is two columns on Character and a table; heldById names ONE
+// opponent while a brawl has several. A small in-memory stand-in rather than
+// a database — the two tables db/lib/attack.js touches, and db/test has no Postgres.
 function fakeDb(ids) {
   let rows = [];
   const chars = Object.fromEntries(ids.map((id) => [id, { heldUntil: null, heldById: null, heldReason: null }]));
@@ -176,8 +147,7 @@ function fakeDb(ids) {
         const c = chars[where.id];
         if (!c) return { count: 0 };
         if (where.heldReason?.in && !where.heldReason.in.includes(c.heldReason)) return { count: 0 };
-        // fileAttack's clock guard: never shorten a hold already running longer.
-        if (where.OR) {
+        if (where.OR) { // clock guard: never shorten a hold already running longer
           const ok = where.OR.some(
             (o) => "heldUntil" in o && (o.heldUntil === null ? c.heldUntil == null : c.heldUntil < o.heldUntil.lt),
           );
@@ -205,7 +175,6 @@ const who = (id) => ({ id, name: id.toUpperCase(), discordUserId: null, firstNam
 test("an attack holds both sides, and they read different reasons", async () => {
   const f = fakeDb(["a", "b"]);
   await fileAttack(f.db, { attacker: who("a"), target: who("b"), openTurn: TURN });
-  // The one who started it must never be told "somebody attacked you".
   assert.deepEqual(f.held(), { a: "attacking<-b", b: "attack<-a" });
 });
 
@@ -222,8 +191,7 @@ test("fighting back is its own row, and the roles flip when one side stops", asy
   await fileAttack(f.db, { attacker: who("a"), target: who("b"), openTurn: TURN });
   await fileAttack(f.db, { attacker: who("b"), target: who("a"), openTurn: TURN });
   await cancelAttack(f.db, { attackerId: "a", targetCharacterId: "b", turnId: "t1" });
-  // Only b->a is left, so a is the one being attacked now — and both stay held.
-  assert.deepEqual(f.held(), { a: "attack<-b", b: "attacking<-a" });
+  assert.deepEqual(f.held(), { a: "attack<-b", b: "attacking<-a" }); // only b->a left; both stay held
   await cancelAttack(f.db, { attackerId: "b", targetCharacterId: "a", turnId: "t1" });
   assert.deepEqual(f.held(), { a: "free", b: "free" });
 });
@@ -233,10 +201,7 @@ test("one man leaving a brawl does not unpick it, now or later", async () => {
   await fileAttack(f.db, { attacker: who("a"), target: who("b"), openTurn: TURN });
   await fileAttack(f.db, { attacker: who("c"), target: who("b"), openTurn: TURN });
   await cancelAttack(f.db, { attackerId: "a", targetCharacterId: "b", turnId: "t1" });
-  // a is out; b is still held BY C, not by the pointer to a that a's row left.
   assert.deepEqual(f.held(), { a: "free", b: "attack<-c", c: "attacking<-b" });
-  // THE BUG THIS EXISTS FOR: with a stale heldById of "a", a dying here wiped
-  // b's hold and walked them out of c's fight.
   await closeFightsFor(f.db, "a");
   assert.equal(f.held().b, "attack<-c");
   assert.deepEqual(f.live(), ["c->b"]);
@@ -245,9 +210,7 @@ test("one man leaving a brawl does not unpick it, now or later", async () => {
 test("a death closes the fight from EITHER end", async () => {
   const f = fakeDb(["a", "b"]);
   await fileAttack(f.db, { attacker: who("a"), target: who("b"), openTurn: TURN });
-  // The TARGET dies. A row left live on the far side would pin the attacker
-  // for the rest of the turn, and show as "Holding" over a corpse.
-  await closeFightsFor(f.db, "b");
+  await closeFightsFor(f.db, "b"); // the TARGET dies
   assert.deepEqual(f.held(), { a: "free", b: "free" });
   assert.deepEqual(f.live(), []);
 });

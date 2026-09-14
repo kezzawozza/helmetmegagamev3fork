@@ -1,20 +1,14 @@
 // One-off: grants every ALIVE Merchant and Docker the same starting-memory
 // road to the Factory that db/lib/startingMemories.js#FACTORY_ROAD now gives
-// a character of either role MADE from here on. This is the catch-up for
-// everybody who was already playing before that change landed — nothing in
-// the ordinary turn machinery would ever touch their map otherwise.
+// a character of either role — the catch-up for players from before that
+// change landed.
 //
 //   node db/scripts/ops/grant-factory-road-merchant-docker.js           # dry run
 //   node db/scripts/ops/grant-factory-road-merchant-docker.js --apply   # write + DM
 //
-// Dry-run-by-default with an --apply flag, matching db:prune-tags and the
-// rest of db/scripts/ops/.
-//
 // Reuses seedMemories/startingMemorySlugs rather than writing LocationVisit
-// rows by hand — that is the one module allowed to touch that table
-// (db/lib/locationVisits.js's own header), and it already has the "don't
-// downgrade a stood row" and "skip the Location they're standing on" rules
-// built in.
+// rows by hand (db/lib/locationVisits.js is the one module allowed to touch
+// that table).
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { seedMemories } = require("../../lib/locationVisits");
@@ -76,9 +70,7 @@ async function main() {
     },
   });
 
-  // Post-commit and best-effort, same as dedupe-room-stash.js: a Discord
-  // outage must not undo the map grant.
-  for (const [discordUserId, name] of dmTargets) {
+  for (const [discordUserId, name] of dmTargets) { // best-effort; a Discord outage must not undo the map grant
     await sendDm(prisma, discordUserId, DM_TEXT).catch((err) =>
       console.error(`  ! DM to ${name} failed: ${err.message}`),
     );

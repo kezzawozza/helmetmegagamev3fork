@@ -1,16 +1,12 @@
-// Load an archive packet back into the database. See docs/systemdocs/ARCHIVE.md.
+// Load an archive packet back into the database (ARCHIVE.md).
 //
 //   npm run archive:import -- <file>            # a packet already on disk
 //   npm run archive:import -- --key <s3 key>    # pull it down first
 //   npm run archive:import -- <file> --remap-seq
 //
-// Loading a game back is a read-only inspection of an old game, not a
-// resurrection: the rows land under their own gameId, below the feed floor, and
-// /chat never shows them.
-//
-// It prints what it dropped and what it let default. That report is the point
-// — a tolerant importer that says nothing rots silently as the schema moves,
-// and you find out on the day you need it.
+// Read-only inspection of an old game, not a resurrection: rows land under
+// their own gameId, below the feed floor, and /chat never shows them. Prints
+// what it dropped and what it let default, since a silent tolerant importer rots.
 require("dotenv").config();
 const fs = require("fs");
 const os = require("os");

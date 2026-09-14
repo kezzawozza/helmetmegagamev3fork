@@ -1,20 +1,10 @@
-// The partial unique index on DirectMessage.clientNonce.
-//
-// WHAT A FAILURE HERE MEANS. The nonce is what makes a re-send safe: a
-// composer that never heard the answer to its send tries again with the same
-// id, and the second attempt must be unable to add a second row. That promise
-// lives entirely in an index, and the index lives entirely in migration SQL —
-// Prisma's schema language cannot say WHERE, so nothing in schema.prisma
-// asserts it and `prisma migrate diff` actively offers to drop it. If that
-// drop is ever accepted, everything still compiles and a retried message
-// quietly reaches the player twice.
-//
-// The partial half matters just as much: every other DM writer in the tree
-// passes null, so a plain UNIQUE would let exactly one of them write a row and
-// refuse the rest.
-//
-// Wants a real Postgres, and skips itself unless DATABASE_URL is a local one —
-// the same allowlist db/lib/localDatabase.js uses everywhere else.
+// The partial unique index on DirectMessage.clientNonce: what makes a re-send
+// safe. It lives entirely in migration SQL — Prisma's schema language can't
+// say WHERE, so `prisma migrate diff` actively offers to drop it, and if that
+// drop is accepted a retried message quietly reaches the player twice. The
+// partial half matters too: every other DM writer passes null, so a plain
+// UNIQUE would refuse all but one of them. Wants a real Postgres; skips
+// itself unless DATABASE_URL is local (db/lib/localDatabase.js).
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { isLocalDatabase } = require("../lib/localDatabase");
@@ -44,21 +34,16 @@ test("clientNonce is unique, and null is exempt", { skip: SKIP }, async (t) => {
   const first = await row({ clientNonce: nonce });
   assert.equal(first.clientNonce, nonce);
 
-  // The same nonce again — what a retry of a send that DID get through looks
-  // like from the database's side.
   await assert.rejects(
     () => row({ clientNonce: nonce }),
     (err) => err.code === "P2002",
     "a second row with the same clientNonce must be refused",
   );
 
-  // And null as many times as anybody likes, because every writer without a
-  // composer behind it passes null.
   const a = await row({ clientNonce: null });
   const b = await row({ clientNonce: null });
   assert.notEqual(a.id, b.id);
 
-  // The nonce is the lookup key the send path re-reads by.
   const found = await prisma.directMessage.findFirst({ where: { clientNonce: nonce } });
   assert.equal(found.id, first.id);
 });

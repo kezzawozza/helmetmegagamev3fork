@@ -2,14 +2,9 @@ const { prisma } = require("@lifeweb/db");
 const { markPlayerDeparted } = require("@lifeweb/db/lib/playerDeparture");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("@lifeweb/db/lib/constants");
 
-// A leave no longer kills the character: markPlayerDeparted flags them
-// Catatonic and starts the death countdown (GameConfig.catatonicDeathTurns
-// turns, resolved by db/lib/catatonicDeathPass.js), which runs the full
-// death cleanup. Rejoining in time and speaking in character wakes them.
-//
-// This handler does not call revokeAllCharacterAccess — Discord already
-// stripped the zone roles with the membership. Leaves the bot sleeps
-// through are caught by the startup reconcile (bot/src/lib/leaveReconcile.js).
+// A leave flags the character Catatonic and starts a death countdown (db/lib/catatonicDeathPass.js);
+// rejoining and speaking in character wakes them. Leaves the bot sleeps through are caught by the
+// startup reconcile (bot/src/lib/leaveReconcile.js).
 module.exports = {
   name: "guildMemberRemove",
   async execute(member) {
@@ -21,8 +16,6 @@ module.exports = {
       username: playerName,
     });
 
-    // The GM alert. Every failure is logged loudly, so a deleted channel or
-    // missing permission doesn't make a departure silently invisible.
     const channel = await member.client.channels.fetch(LEAVE_ANNOUNCE_CHANNEL_ID).catch((err) => {
       console.error(`Leave alert: cannot fetch #leave (${LEAVE_ANNOUNCE_CHANNEL_ID}):`, err.message);
       return null;
@@ -35,11 +28,7 @@ module.exports = {
         .catch((err) => console.error(`Leave alert send failed for ${playerName}:`, err.message));
     }
 
-    // The grey "<name> • Catatonic" rename, so the member list shows the
-    // absence at a glance. The role itself stays — it's held by nobody
-    // (PROXYING.md §6), so keeping it leaks nothing, and @-mentions of the
-    // character keep resolving while the body still stands.
-    if (result.roleUpdate) {
+    if (result.roleUpdate) { // grey "<name> • Catatonic" rename; role stays held by nobody (PROXYING.md §6)
       await member.guild.roles
         .edit(result.roleUpdate.roleId, { name: result.roleUpdate.name, color: result.roleUpdate.color })
         .catch((err) =>

@@ -1,22 +1,13 @@
-// In-place sync of #info from docs/systemdocs/infochannel.yaml. Run with
-// `npm run db:sync-info-channel`. This is the one to reach for.
+// In-place sync of #info from docs/systemdocs/infochannel.yaml (`npm run
+// db:sync-info-channel`). This is the one to reach for — Discord sends no
+// notification for an EDIT, so this matches what's live against the YAML,
+// rewrites changed bodies, creates only genuinely new threads.
 //
-// The old rebuild deletes every message and every thread and posts them all
-// again, which pings everyone following a thread for the sake of a typo fix.
-// Discord sends no notification for an EDIT, so this script edits: it matches
-// what is live against the YAML, rewrites the bodies that changed, creates
-// only threads that are genuinely new, and leaves everything else untouched.
-//
-// THE MATCH KEY IS THE THREAD TITLE. Nothing persists a Discord message or
-// thread id — #info has no DB row of any kind — and the title is the thing a
-// GM edits deliberately, so it plays the part `slug` plays in every other
-// sync. Rename a thread in the YAML and this reads as "a new thread, plus an
-// orphan", which is reported rather than guessed at.
-//
-// The one thing it cannot do is REORDER. Threads keep the position Discord
-// gave them, so moving an entry up in the YAML changes the directory listing
-// and not the sidebar. That is the trade for a silent run; when the order
-// itself is wrong, `npm run db:rebuild-info-channel` is still there.
+// THE MATCH KEY IS THE THREAD TITLE — #info has no DB row of any kind, so the
+// title plays the part `slug` plays elsewhere. Renaming a thread reads as "a
+// new thread, plus an orphan", reported rather than guessed at. It cannot
+// REORDER: threads keep Discord's position, so a YAML reorder changes only
+// the directory listing — `npm run db:rebuild-info-channel` is for that.
 //
 // Flags:
 //   --dry-run   print the plan, write nothing
@@ -52,10 +43,7 @@ const {
 const DRY_RUN = process.argv.includes("--dry-run");
 const PRUNE = process.argv.includes("--prune");
 
-// Editing somebody else's message is impossible and deleting one would be
-// rude, so every reconcile below is scoped to messages the bot itself wrote.
-// DISCORD_CLIENT_ID is the bot's user id — db/lib/channelDoctor.js reads it
-// the same way — with /users/@me as the fallback for a .env that lacks it.
+// Every reconcile below is scoped to messages the bot itself wrote.
 let botUserId = null;
 async function getBotUserId() {
   if (botUserId) return botUserId;
@@ -70,12 +58,9 @@ async function ownMessages(channelId) {
   return messages.filter((m) => m.author?.id === me);
 }
 
-// Rewrites `channelId` so the bot's own messages there read exactly `text`,
-// chunked the way postMessageBatched would have posted it. Chunk i is edited
-// onto existing message i, a chunk with no message to land on is posted, and
-// any surplus message past the last chunk is deleted. Identical content is
-// left completely alone — a no-op run should cost nothing and change no
-// message's "(edited)" mark.
+// Rewrites `channelId` so the bot's own messages there read exactly `text`.
+// Chunk i is edited onto message i, a surplus chunk is posted, a surplus
+// message is deleted. Identical content is left completely alone.
 async function reconcileMessages(channelId, text, existing, label) {
   const chunks = chunkMessage(text);
   let edited = 0;
@@ -129,9 +114,7 @@ function assertUniqueTitles(doc) {
     if (seen.has(key)) duplicates.push(thread.title);
     seen.add(key);
   }
-  // Matching is by title, so two threads sharing one would quietly overwrite
-  // each other. Fail before touching Discord rather than halfway through it.
-  if (duplicates.length > 0) {
+  if (duplicates.length > 0) { // matching is by title; fail before touching Discord
     throw new Error(`infochannel.yaml has duplicate thread titles: ${duplicates.join(", ")}`);
   }
 }
@@ -168,9 +151,7 @@ async function main() {
 
       matchedIds.add(live.id);
       threadIds.push(live.id);
-      // You cannot post into or edit inside an archived thread, so wake it
-      // first. Unarchiving notifies nobody.
-      if (live.thread_metadata?.archived && !DRY_RUN) {
+      if (live.thread_metadata?.archived && !DRY_RUN) { // wake it first; unarchiving notifies nobody
         await patchThread(live.id, { archived: false });
       }
       await reconcileMessages(live.id, body, await ownMessages(live.id), entry.title);
@@ -178,9 +159,6 @@ async function main() {
     linksByCategory.push({ name: category.name, intro: category.intro, threadIds });
   }
 
-  // A thread nothing in the YAML names any more. The directory stops linking
-  // it either way, so leaving it costs nothing — deleting somebody's thread
-  // should be asked for, not assumed.
   const orphans = [...byId.values()].filter((t) => !matchedIds.has(t.id));
   for (const thread of orphans) {
     if (PRUNE) {
@@ -191,11 +169,7 @@ async function main() {
     }
   }
 
-  // Top-level messages: the banner (an attachment) plus the directory text.
-  // An attachment cannot be edited in place and reposting it is exactly the
-  // notification this script exists to avoid, so it is only ever posted when
-  // #info has no attachment at all.
-  const topLevel = await ownMessages(channel.id);
+  const topLevel = await ownMessages(channel.id); // banner posted only when #info has none — reposting notifies
   if (doc.banner && !topLevel.some((m) => (m.attachments?.length ?? 0) > 0)) {
     console.log("  banner: posting (none present)");
     if (!DRY_RUN) await postAttachment(channel.id, path.join(DOCS_DIR, doc.banner));
@@ -205,8 +179,6 @@ async function main() {
   const directoryMessages = topLevel.filter((m) => (m.attachments?.length ?? 0) === 0);
   await reconcileMessages(channel.id, directoryMessage, directoryMessages, "directory message");
 
-  // Only a brand new thread leaves one of these behind, so this is usually a
-  // no-op — but it is cheap and it keeps the channel clean.
   if (created > 0 && !DRY_RUN) await deleteThreadCreatedMessages(channel.id);
 
   const threadCount = linksByCategory.reduce((sum, c) => sum + c.threadIds.length, 0);

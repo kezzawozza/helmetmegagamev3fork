@@ -1,15 +1,8 @@
-// node --test over the freeze that makes a look answer for the MOMENT you saw
-// somebody: db/lib/examineSnapshot.js, and the readout it feeds.
-//
-// The bug these lock down is the one a player found. Examining somebody read
-// their gear live, so a cultist could chat bare-faced in Town, walk two zones
-// off, robe up, and every old line of his showed the robes to anyone who
-// clicked the eye. Secret gear and secret business, handed over for free.
-//
-// Prisma-free on purpose, like presentedIdentity.test.js: everything here is
-// the pure half, fed rows in the shape the queries return.
-//
-// Run with: npm test --workspace=db
+// The freeze that makes a look answer for the MOMENT you saw somebody
+// (db/lib/examineSnapshot.js). Locks down a real bug: examining somebody read
+// their gear live, so a cultist could rob up hours after a line was said and
+// every old line showed the robes to anyone who clicked the eye. Prisma-free
+// on purpose, like presentedIdentity.test.js.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
@@ -19,8 +12,6 @@ const {
 } = require("../lib/examineSnapshot");
 const { examineReadout } = require("../lib/examine");
 
-// The catalog rows examineRow fetches live off Tag, in EXAMINE_TAG_SELECT's
-// shape plus the id it looks them up by.
 const catalogTag = (over) => ({
   id: over.id,
   name: over.name,
@@ -53,7 +44,6 @@ const ROBES = catalogTag({
 });
 const KIT = catalogTag({ id: "t-kit", name: "Disguise Kit", slug: "disguise-kit", forcedName: "Tomas Vell" });
 
-// A character row in PRESENTED_STATE_SELECT's shape.
 const speaker = (tags) => ({
   name: "Semyun Varyutskaya",
   appearance: "Tall, with a burn along one jaw.",
@@ -75,14 +65,9 @@ const live = { id: "c1", name: "Semyun Varyutskaya", age: 30, gender: "WOMAN", u
 
 const roundTrip = (character) => readPresentedState(presentedStateFrom(character));
 
-// The headline case, and the whole reason this module exists.
 test("a look answers for the line, not for what they are wearing now", () => {
-  // What the room saw: a sword, no robes.
-  const state = roundTrip(speaker([held(SWORD, { equipped: true })]));
-
-  // The catalog at LOOK time holds the robes too — the cultist has since put
-  // them on, and a live read would have found them.
-  const subject = rehydrateSubject({ live, state, tags: [SWORD, ROBES] });
+  const state = roundTrip(speaker([held(SWORD, { equipped: true })])); // room saw a sword, no robes
+  const subject = rehydrateSubject({ live, state, tags: [SWORD, ROBES] }); // catalog at LOOK time holds robes too
 
   const readout = examineReadout({ subject, openTurnNumber: 9 });
   const names = readout.tags.map((row) => row.name);
@@ -108,13 +93,9 @@ test("a tag since deleted from the catalog drops out rather than throwing", () =
   assert.deepEqual(subject.tags.map((row) => row.tag.name), ["Sword"]);
 });
 
-// The wish and the gear both, which is what presentedIdentity asks for: a
-// hood conceals when the player has asked to be concealed and is wearing
-// something that does it. Both halves are in the snapshot.
 test("a hood frozen on the line still reads as a hood after it comes off", () => {
   const state = roundTrip({ ...speaker([held(ROBES, { equipped: true })]), concealed: true });
-  // The catalog still has the robes; the character no longer wears them.
-  const subject = rehydrateSubject({ live, state, tags: [ROBES] });
+  const subject = rehydrateSubject({ live, state, tags: [ROBES] }); // catalog still has them; character doesn't wear them
   const readout = examineReadout({ subject, openTurnNumber: 9 });
   assert.equal(readout.concealed, true);
   assert.equal(readout.appearance, null);
@@ -124,18 +105,14 @@ test("a forced name frozen on the line survives the kit expiring", () => {
   const state = roundTrip(speaker([held(KIT, { expiresTurn: 12 })]));
   const subject = rehydrateSubject({ live, state, tags: [KIT] });
   const readout = examineReadout({ subject, openTurnNumber: 10 });
-  // A Beast is being something, not hiding: the ordinary read, under the
-  // forced name.
-  assert.equal(readout.concealed, false);
+  assert.equal(readout.concealed, false); // being something, not hiding — ordinary read under the forced name
   assert.equal(readout.name, "Tomas Vell");
 });
 
 test("a duration counts against the turn the line was said in", () => {
   const state = roundTrip(speaker([held(KIT, { expiresTurn: 12 })]));
   const subject = rehydrateSubject({ live, state, tags: [KIT] });
-  // Read at the turn it was said: three turns left. Read against today's turn
-  // it would have been a countdown that is both false and a tell.
-  const row = examineReadout({ subject, openTurnNumber: 10 }).tags.find((t) => t.slug === "disguise-kit");
+  const row = examineReadout({ subject, openTurnNumber: 10 }).tags.find((t) => t.slug === "disguise-kit"); // read at the turn it was said
   assert.match(row.detail ?? "", /3 turns/);
 });
 
@@ -146,8 +123,6 @@ test("the name and the appearance come off the snapshot", () => {
   assert.equal(subject.appearance, "Tall, with a burn along one jaw.");
 });
 
-// A bad row must degrade to the live read, never throw: this is the one look
-// path in the game.
 test("readPresentedState refuses anything it does not recognise", () => {
   assert.equal(readPresentedState(null), null);
   assert.equal(readPresentedState(undefined), null);

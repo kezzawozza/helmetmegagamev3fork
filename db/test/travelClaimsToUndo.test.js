@@ -1,8 +1,6 @@
-// node --test over db/lib/locationTravel.js#travelClaimsToUndo — what
-// restoring a GM-reset (or rejected) Move should also undo on the Character
-// row: the zoneMovesUsed/zoneMovesBonusUsed/zoneMovesTurnId counters every
-// crossing this turn claims against, free or paid, base or bonus. Pure
-// function, no Prisma, no tx.
+// db/lib/locationTravel.js#travelClaimsToUndo: what restoring a GM-reset (or
+// rejected) Move should also undo on the Character row — the
+// zoneMovesUsed/zoneMovesBonusUsed/zoneMovesTurnId counters. Pure function.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { travelClaimsToUndo } = require("../lib/locationTravel");
@@ -10,7 +8,6 @@ const { travelClaimsToUndo } = require("../lib/locationTravel");
 const TURN_A = "turn-a";
 const TURN_B = "turn-b";
 
-// `action`-shaped input: { turnId, characterId, character: {...} }.
 const actionFor = (character, turnId = TURN_A) => ({
   turnId,
   characterId: "char-1",
@@ -36,10 +33,7 @@ test("a free crossing spent this turn resets both counters", () => {
 });
 
 test("a crossing charged to the mount/boat bonus also gives that back", () => {
-  // The base/bonus split (locationTravel.js#movesLeft): a crossing charged
-  // to the bonus pool stays charged to it for the rest of the turn, so
-  // undoing the Action that charged it has to hand back both counters, not
-  // just the flat zoneMovesUsed total.
+  // Base/bonus split, locationTravel.js#movesLeft: undoing must hand back both counters.
   const action = actionFor({
     zoneMovesTurnId: TURN_A,
     zoneMovesUsed: 1,

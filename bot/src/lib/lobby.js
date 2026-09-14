@@ -1,8 +1,5 @@
-// The Decline click on an assignment DM (docs/systemdocs/LOBBY.md §4). The DM
-// arrives in the player's DMs, so guild/member are null; the clicker is matched
-// to the entry by Discord user id inside db/lib/lobby.js. The acknowledgement
-// is interaction.update(): the button comes off and the outcome is written
-// under the text, the same shape as bot/src/lib/threatSpawn.js.
+// The Decline click on an assignment DM (LOBBY.md §4). guild/member are null
+// in a DM; the clicker is matched by Discord user id in db/lib/lobby.js.
 const { prisma } = require("@lifeweb/db");
 const { declineAssignment } = require("@lifeweb/db/lib/lobby");
 

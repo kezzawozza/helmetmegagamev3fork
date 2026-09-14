@@ -1,12 +1,7 @@
-// Read-only report: ALIVE characters who have never registered activity
-// (Character.lastActivityTurn) or whose last activity was turn 1 — i.e.
-// characters that look like they haven't posted since day one — plus anyone
-// who has left the Discord guild (Character.leftGuildAt). Prints only; makes
-// no writes.
-//
-// The buckets themselves live in db/lib/inactivity.js, because the Dev Panel's
-// System reports section shows the same list with a Nudge button beside it and
-// the two must not be able to disagree about who counts as inactive.
+// Read-only report: ALIVE characters with no activity or last active turn 1,
+// plus anyone who has left the guild. Prints only; makes no writes. Buckets
+// live in db/lib/inactivity.js, shared with the Dev Panel's Nudge button so
+// the two can't disagree about who counts as inactive.
 //
 //   npm run db:report-inactive-characters
 require("dotenv").config();

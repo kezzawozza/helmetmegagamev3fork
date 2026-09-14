@@ -9,36 +9,18 @@ const { buildTurnAnnouncement } = require("@lifeweb/db/turnCalendar");
 const { clockFrozen, readGameState } = require("@lifeweb/db/lib/gameState");
 
 // #turns is one rolling message — announcement, turn banner and the
-// Move/Travel buttons on a single post that db/lib/turnAnnouncement.js
-// replaces every turn. See the comment there for why it stopped being three
-// separate messages.
-//
-// Speak used to be the third button. Its destination picker could never list a
-// Room thread or a Conversation, which is where talk actually happens, so the
-// button is gone and /message — which opens the same modal on the channel you
-// run it in — is the whole feature now.
-//
-// This file is now only the COLD START: at ready, make sure that message
-// exists at all. It normally does, and this does nothing. It matters for a
-// fresh guild that has never advanced a turn, and as the backstop for a
-// repost that failed.
-//
-// Restart Game used to be the case that made this file load-bearing: it
-// deletes every message in #turns (db/lib/fullWipe.js) and opens Turn 1
-// without advancing a turn, so players faced an empty channel until the next
-// dawn or dusk. It reposts the console itself now — see finishGameWipe in
-// web/app/(app)/gm/dev/actions.js.
+// Move/Travel buttons — that db/lib/turnAnnouncement.js replaces every turn.
+// This file is only the COLD START: at ready, make sure that message exists
+// at all. It normally does and this does nothing; it matters for a fresh
+// guild that has never advanced a turn, and as the backstop for a failed
+// repost. See finishGameWipe in web/app/(app)/gm/dev/actions.js for Restart
+// Game's own repost.
 
-// Re-asserts who can see and speak in #turns (db/lib/turnsChannelAccess.js:
-// @everyone denied, every zone role allowed the view, so the channel appears
-// the moment a player has a character) and makes sure the console message
-// exists, reusing it across restarts rather than reposting.
+// Re-asserts who can see and speak in #turns (db/lib/turnsChannelAccess.js)
+// and makes sure the console message exists, reusing it across restarts.
 async function ensureTurnsConsole(guild) {
   const channel = [...guild.channels.cache.values()].find(isTurnsChannel);
   if (!channel) {
-    // Silent until now, which made a renamed or missing #turns look identical
-    // to a working one — both the console and the turn announcement find the
-    // channel by exact name, so they fail together and said nothing.
     console.error('Turns console: no text channel named "turns" in', guild.name);
     return;
   }
@@ -53,10 +35,8 @@ async function ensureTurnsConsole(guild) {
     if (existing) return;
   }
 
-  // Nothing tracked, or the tracked message is gone. Repost it against the
-  // open turn so a cold start still shows the turn in progress, and the same
-  // banner it opened with (Turn.banner, not a fresh pick — see
-  // db/lib/turnBanner.js). With no turn open the announcement line is omitted.
+  // Nothing tracked, or the tracked message is gone: repost against the open
+  // turn with its own banner (Turn.banner, not a fresh pick — db/lib/turnBanner.js).
   const [openTurn, frozen, state] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } }),
     clockFrozen(prisma),

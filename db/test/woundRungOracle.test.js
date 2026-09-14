@@ -1,19 +1,10 @@
-// node --test regression that catches a mood-tier drift M2a's own tests
-// cannot: a table generated from the code under test can be uniformly wrong
-// and still agree with itself, so this loads docs/tags.yaml fresh, walks the
-// REAL normalizeTurnsCost (db/lib/tagShapes.js) to build the shape
-// db/lib/mood.js#woundRungOf expects, and checks the result against a FROZEN
-// witness captured before the Brewing rework touched the Move ladder — never
-// against woundRungOf's own idea of the current catalog.
-//
-// A new file rather than a block in mood.test.js: mood.test.js exercises
-// woundRungOf as a pure unit function against hand-built fixtures; this is a
-// whole-catalog sweep against an external oracle, with its own 46-entry table
-// and its own two assertions per slug. Keeping the two apart means a failure
-// here reads as "the catalog moved" rather than getting lost among mood.test.js's
-// dial arithmetic.
-//
-// Run with `npm test --workspace=db`. Nothing here touches Prisma.
+// Regression that catches a mood-tier drift M2a's own tests cannot: loads
+// docs/tags.yaml fresh, walks the REAL normalizeTurnsCost (db/lib/tagShapes.js)
+// to build the shape db/lib/mood.js#woundRungOf expects, and checks it
+// against a FROZEN witness from before the Brewing rework — never against
+// woundRungOf's own idea of the current catalog. Kept apart from
+// mood.test.js's pure-unit fixtures so a failure here reads as "the catalog
+// moved".
 const fs = require("node:fs");
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -25,10 +16,7 @@ const { woundRungOf } = require("../lib/mood");
 
 // FROZEN ORACLE — pasted verbatim from planning/rework-specs/M3-expected.js.
 // Every priced health tag mapped to the mood rung it carried BEFORE the
-// Brewing rework touched the Move ladder. Captured from docs/tags.yaml at
-// commit c8b1086a with woundRungOf as it stood there, then never
-// regenerated. null = outside the three mood-bearing groups
-// (health-wounds / -maiming / -infection).
+// Brewing rework. null = outside the three mood-bearing groups.
 //
 // DO NOT regenerate this from the current catalog or the current function —
 // see M3.md. If an entry here looks wrong, that is a finding to report, not
@@ -82,10 +70,9 @@ const EXPECTED_WOUND_RUNGS = {
   "stuffed": null,
 };
 
-// Every priced health tag in the CURRENT catalog, built into the shape
-// woundRungOf expects — real normalizeTurnsCost, not a hand-parse of the raw
-// "1/N" string. Walked by `group:`, never file position: the health groups
-// are non-contiguous in docs/tags.yaml.
+// Every priced health tag in the CURRENT catalog, built via the real
+// normalizeTurnsCost. Walked by `group:`, never file position — the health
+// groups are non-contiguous in docs/tags.yaml.
 function loadCurrentWoundRungs() {
   const yamlPath = docsPath("tags.yaml");
   if (!yamlPath) throw new Error("Cannot find docs/tags.yaml — see db/lib/repoPaths.js");
@@ -115,9 +102,6 @@ test("every priced health tag's mood rung still matches the pre-rework oracle", 
   const current = loadCurrentWoundRungs();
   const oracleSlugs = Object.keys(EXPECTED_WOUND_RUNGS);
 
-  // The catalog must hold exactly the oracle's 46 slugs — neither more nor
-  // fewer. A future priced health tag SHOULD fail here: the fix is a
-  // deliberate oracle update with a reason, not silently absorbing it.
   const currentSlugs = [...current.keys()].sort();
   const missing = oracleSlugs.filter((slug) => !current.has(slug));
   const added = currentSlugs.filter((slug) => !EXPECTED_WOUND_RUNGS.hasOwnProperty(slug));
@@ -134,8 +118,6 @@ test("every priced health tag's mood rung still matches the pre-rework oracle", 
       `planning/rework-specs/M3-expected.js (and this test's pasted copy) with a reason, not silently ignoring it`,
   );
 
-  // Per-slug, including the nulls, so a tag that accidentally gains or loses
-  // a mood rung fails by name.
   const disagreements = [];
   for (const slug of oracleSlugs) {
     const expected = EXPECTED_WOUND_RUNGS[slug];

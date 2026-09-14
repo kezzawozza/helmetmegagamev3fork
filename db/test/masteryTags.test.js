@@ -1,8 +1,6 @@
-// node --test over the pure halves of the mastery tags (TAGS.md 4a) that are
-// testable without Prisma: Amor Fati's sign-flipping mood multiplier, Second
-// Wind's Health-penalty waiver, and Manic's Desire-slot bypass. Lucky and
-// Scavenging have their own file (advantage.test.js). Run with
-// `npm test --workspace=db`.
+// The pure halves of the mastery tags (TAGS.md 4a): Amor Fati's sign-flipping
+// mood multiplier, Second Wind's Health-penalty waiver, Manic's Desire-slot
+// bypass. Lucky and Scavenging have their own file (advantage.test.js).
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { resolveDelta, multiplierFor, MULTIPLIER_SLUGS, EVENTS } = require("../lib/mood");
@@ -15,11 +13,6 @@ const AMOR = ["amor-fati"];
 // "Unfortunate incidents only serve to make you pleased." A negative factor
 // in the multiplier table, so harm comes back as relief.
 
-// The regression this shape exists for. Amor Fati was a NEGATIVE multiplier
-// for a day, and multiplierFor multiplies every applicable rule together — so
-// it composed with the vulnerability rows and inverted them. The phobias refund
-// points, so stacking one was strictly better AND cheaper; Brave, which costs
-// points, punished you.
 test("a phobia cannot amplify the gift, and Brave cannot shrink it", () => {
   assert.equal(resolveDelta({ kind: "CAVE_TROUBLE", base: -10, heldSlugs: AMOR }), 5);
   assert.equal(resolveDelta({ kind: "CAVE_TROUBLE", base: -10, heldSlugs: [...AMOR, "teratophobia"] }), 5);
@@ -46,8 +39,7 @@ test("the ever-present miseries simply stop landing, and do not become a pleasur
   for (const kind of ["WILDERNESS", "CAVE", "HUNGER", "CORPSE", "NOBLE_MEAL"]) {
     const got = resolveDelta({ kind, base: -10, heldSlugs: AMOR });
     assert.equal(got, 0, `${kind} should be nothing at all, got ${got}`);
-    // Not -0: it adds like zero but prints like a bug.
-    assert.ok(Object.is(got, 0), `${kind} resolved to -0`);
+    assert.ok(Object.is(got, 0), `${kind} resolved to -0`); // not -0
   }
 });
 
@@ -85,8 +77,6 @@ const SECOND_WIND = tag("second-wind", "General", null);
 const WOUND = tag("broken-arm", "Health", { tree: "both", points: -15 }, "health-wounds");
 
 test("a Health penalty outside the waived groups still costs you", () => {
-  // A state of mind and the minor track are Health, and Second Wind is not a
-  // cure for either. Blind stays blind however hard you grit your teeth.
   for (const [slug, group] of [["blind", "health-mind"], ["aching", "health-minor"]]) {
     const row = { tag: { slug, name: slug, category: "Health", group: { slug: group }, fighting: { tree: "both", points: -15 } } };
     const r = fightingSkillFor([SKILL, SECOND_WIND, row], "melee");
@@ -94,9 +84,8 @@ test("a Health penalty outside the waived groups still costs you", () => {
   }
 });
 
-// Illnesses joined the waived set (Bascinet, 2026-09-10), but only down to
-// -1.5 tiers. The catalog breaks cleanly there: everything milder is a cough
-// or a fever you can fight through, everything worse is killing you.
+// Illnesses are waived down to -1.5 tiers: milder is a cough you fight
+// through, worse is killing you.
 test("an ordinary illness is waived and a lethal one is not", () => {
   const illness = (slug, points) =>
     ({ tag: { slug, name: slug, category: "Health", group: { slug: "health-illness" }, fighting: { tree: "both", points } } });
@@ -118,8 +107,6 @@ test("all three wound groups are waived", () => {
   }
 });
 
-// A row whose group was never selected must read as not-a-wound: the penalty
-// keeps counting rather than being waived by accident.
 test("a missing group fails safe", () => {
   const row = { tag: { slug: "deep-wound", name: "deep-wound", category: "Health", fighting: { tree: "both", points: -15 } } };
   const r = fightingSkillFor([SKILL, SECOND_WIND, row], "melee");
@@ -190,9 +177,8 @@ test("Manic still leaves the last claim readable in the slot", () => {
   assert.equal(slot.lastEnded.id, "d1");
 });
 
-// --- Metempsychosis: who the new body turns out to be ---------------------
-// reincarnate() itself needs Prisma, so what is pinned here is the rolling —
-// the part that decides a person — not the transaction around it.
+// --- Metempsychosis: who the new body turns out to be. reincarnate() itself
+// needs Prisma; this pins the rolling, not the transaction around it. -------
 const { randomCharacterName, NAME_CORPUS } = require("../lib/nameCorpus");
 const { GENDERS } = require("../lib/titles");
 const { isDynastyMember } = require("../lib/dynasty");
@@ -221,9 +207,6 @@ test("NEUTRAL draws from both, so over many rolls it reaches each side", () => {
   assert.ok(male > 0 && female > 0, `neutral reached only one pool (${male}/${female})`);
 });
 
-// The three dynasty seats wear the living Baron's last name, so the corpus
-// must hand back none for them — reincarnate() then fetches it. Rolling one
-// would give the Heir a surname that isn't his family's.
 test("a dynasty seat gets no rolled surname", () => {
   for (let i = 0; i < 50; i++) {
     assert.equal(randomCharacterName({ gender: "MAN", lastNameLocked: true }).lastName, null);
@@ -233,8 +216,6 @@ test("a dynasty seat gets no rolled surname", () => {
 
 test("isDynastyMember covers exactly the three seats that inherit the name", () => {
   for (const slug of ["baroness", "heir", "successor"]) assert.equal(isDynastyMember(slug), true, slug);
-  // The Baron is the SOURCE of the name, not an inheritor — and he is
-  // whitelisted, so a reincarnating soul never lands on him anyway.
   for (const slug of ["baron", "migrant", "bum"]) assert.equal(isDynastyMember(slug), false, slug);
 });
 
@@ -252,8 +233,6 @@ test("a rolled age spans 18-65 and reaches both ends", () => {
   assert.equal(hi, REINCARNATION_AGE_MAX);
 });
 
-// A reincarnated body is rolled SHORT of what a player may type, so most souls
-// land in the middle band db/lib/concealedIdentity.js gives no age word to.
 test("the rolled band stops well below the catalog age ceiling", () => {
   assert.ok(REINCARNATION_AGE_MAX < AGE_MAX, "a roll must not reach the wizard's ceiling");
   assert.equal(REINCARNATION_AGE_MAX, 65);

@@ -22,14 +22,9 @@ const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
 const { catchUpMissedMessages } = require("../lib/messageCatchUp");
 
-// Vars this process reads behind a truthiness guard — `if (process.env.X)`,
-// `?? null`, `.filter(Boolean)`. A missing one is not an error, it is a
-// feature that is off with nothing in the log to say so, which is how
-// DISCORD_CURSED_ROLE_ID sat unset on the bot (and set on web) through a whole
-// playtest while every rite and turn-clock death skipped the Cursed role.
-//
-// DATABASE_URL and DISCORD_TOKEN are deliberately absent: without either, this
-// line is never reached at all.
+// Vars this process reads behind a truthiness guard — a missing one is a feature silently OFF,
+// with nothing in the log to say so. DATABASE_URL and DISCORD_TOKEN are absent on purpose: without
+// either, this line is never reached at all.
 const REQUIRED_ENV = [
   ["DISCORD_GUILD_ID", "every REST call"],
   ["DISCORD_CLIENT_ID", "the doctor's check that no zone role outranks the bot"],
@@ -42,9 +37,7 @@ const REQUIRED_ENV = [
   ["VAPID_SUBJECT", "web push from the bot"],
 ];
 
-// Printed, never thrown: guard() in bot/src/index.js would abort the whole
-// ready chain — doctor, nickname sync, cron registration — over a missing
-// turn-ping role.
+// Printed, never thrown: guard() in bot/src/index.js would abort the whole ready chain over a missing turn-ping role.
 function reportMissingEnv() {
   const missing = REQUIRED_ENV.filter(([name]) => !process.env[name]);
   if (missing.length === 0) return;
@@ -60,27 +53,16 @@ module.exports = {
   async execute(client) {
     console.log(`Logged in as ${client.user.tag}`);
 
-    // Awaited, and BEFORE the listener below: the fire-and-forget load inside
-    // recordInvalidResponse marks itself done the moment it starts, so a
-    // response arriving first would leave this call returning empty-handed.
-    // The whole point of the health line below is to report what the LAST
-    // process left behind.
+    // Awaited before the listener below: recordInvalidResponse's fire-and-forget load marks itself
+    // done the moment it starts, so a response arriving first would leave this returning empty-handed.
     await loadBreakerState();
 
     reportMissingEnv();
 
-    // discord.js runs its own REST manager, so everything the gateway client
-    // does — the ~130 nickname syncs below, every channel permission edit,
-    // every proxy send — was invisible to the breaker, which only ever saw
-    // db/lib/discordRest.js's traffic. Both halves share one egress IP and one
-    // Cloudflare counter, so counting half of it against a whole-IP ceiling
-    // was always going to under-report.
-    //
-    // discord.js clones the Response when anything is listening on this event.
-    // That is a real per-request cost, and it is paid deliberately: only the
-    // status is read, never the body, and knowing the true count is worth more
-    // than the clone. The `rateLimited` event would be free but fires on
-    // pre-emptive waits that never produced a 429, which is the wrong number.
+    // discord.js runs its own REST manager, invisible to the breaker, which only ever saw
+    // db/lib/discordRest.js's traffic — both share one egress IP and Cloudflare counter.
+    // discord.js clones the Response when anything listens on this event (a real per-request cost,
+    // paid deliberately) — only the status is read, never the body.
     client.rest.on("response", (request, response) => {
       const status = response?.status;
       if (status === 401 || status === 403 || status === 429) {
@@ -88,10 +70,8 @@ module.exports = {
       }
     });
 
-    // Printed on every connect so a climbing invalid-response count is visible
-    // while it is still a number, not after it has become an hour-long
-    // Cloudflare IP ban. A non-zero value here right after startup means the
-    // previous process died mid-burst — see db/lib/discordRest.js.
+    // Printed on every connect so a climbing count is visible before it becomes a Cloudflare IP
+    // ban. Non-zero right after startup means the previous process died mid-burst (db/lib/discordRest.js).
     const restStats = getInvalidResponseStats();
     console.log(
       `Discord REST health: ${restStats.invalidInWindow}/${restStats.limit} invalid responses in the last 10m` +
@@ -99,8 +79,7 @@ module.exports = {
     );
 
     client.user.setPresence({
-      // Discord renders no markdown and makes no links in a custom status, so
-      // the Handbook is written as a bare URL players can read and type.
+      // No markdown, no links in a custom status, so the Handbook is a bare URL players can type.
       activities: [
         {
           name: "status",
@@ -118,22 +97,16 @@ module.exports = {
         create: { id: 1 },
       })
       .catch((err) => console.error("Failed to upsert GameConfig:", err));
-    // Same for the per-game row: a brand-new database starts CLOSED, in Game 1.
-    await getGameState(prisma).catch((err) => console.error("Failed to upsert GameState:", err));
+    await getGameState(prisma).catch((err) => console.error("Failed to upsert GameState:", err)); // brand-new DB starts CLOSED, Game 1
 
     await refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err));
 
-    // The web feed's Discord half: listen for messages typed into /chat and
-    // post them into their Location channel, plus a catch-up sweep for
-    // anything sent while the bot was down. After refreshLocationChannels so
-    // the channel ids it resolves are the current ones. Never throws.
+    // Web feed's Discord half: /chat messages -> Location channel, plus a catch-up sweep for
+    // downtime. After refreshLocationChannels so channel ids are current. Never throws.
     await startFeedOutbox().catch((err) => console.error("Failed to start the feed outbox:", err));
 
-    // The cheap reconciliation pass: role membership (zone, turn-ping,
-    // cursed) and structural drift, repaired against the DB. A
-    // handful of requests regardless of roster size, so it's safe on every
-    // restart — this is what catches whatever a wipe, a crash or a
-    // rate-limited swap left behind (db/lib/channelDoctor.js).
+    // Cheap reconciliation pass: role membership and structural drift repaired against the DB,
+    // safe on every restart (db/lib/channelDoctor.js).
     {
       const { runChannelDoctor } = require("@lifeweb/db/lib/channelDoctor");
       await runChannelDoctor(prisma, { apply: true, scope: "cheap" })
@@ -145,12 +118,8 @@ module.exports = {
         .catch((err) => console.error("Channel doctor pass failed:", err));
     }
 
-    // Every GM's zone view, materialized as "GM: <Zone>" roles. This is what
-    // seats a BRAND NEW GM without them having to find the control first:
-    // no GmZoneView rows means every zone, and this is what actually hands
-    // them the roles that say so. Also repairs anyone whose grant failed
-    // mid-rate-limit, and anyone who left and came back (Discord strips every
-    // role with the membership). See db/lib/gmZoneRoles.js.
+    // Every GM's zone view, materialized as "GM: <Zone>" roles — seats a brand new GM (no rows
+    // means every zone) and repairs a failed grant or a rejoin (db/lib/gmZoneRoles.js).
     {
       const { syncAllGmZoneRoles } = require("@lifeweb/db/lib/gmZoneRoles");
       const { hasGmRole } = require("@lifeweb/db/lib/roleIds");
@@ -170,13 +139,9 @@ module.exports = {
 
     for (const guild of client.guilds.cache.values()) {
       await syncNicknamesForGuild(guild).catch((err) => console.error("Failed to sync nicknames:", err));
-      // Departures the bot slept through: guildMemberRemove only fires while
-      // the gateway is up, so this diff against live membership is the ONLY
-      // thing that catches a player who left during a restart. Deliberately
-      // after the channel doctor above — its REST burst finishes before this
-      // posts anything, and the two can't fight over a leaver in either
-      // order (the doctor skips users absent from the member map). See
-      // bot/src/lib/leaveReconcile.js for the mass-flag safety rail.
+      // guildMemberRemove only fires while the gateway is up, so this diff against live membership
+      // is the only thing that catches a player who left during a restart. See leaveReconcile.js
+      // for the mass-flag safety rail.
       {
         const { reconcileDepartures } = require("../lib/leaveReconcile");
         await reconcileDepartures(client, guild).catch((err) =>
@@ -185,28 +150,16 @@ module.exports = {
       }
       await ensureTurnsConsole(guild).catch((err) => console.error("Failed to ensure turns console:", err));
       await ensureReportAnchor(guild).catch((err) => console.error("Failed to ensure report anchor:", err));
-      // Warms client.channels.cache with every active thread, private ones
-      // included. GUILD_CREATE only ships a thread the bot is already a
-      // member of, so without this a fresh boot never learns about a private
-      // thread it hasn't posted in since — and a reaction on it never fires
-      // messageReactionAdd at all (Partials.Channel resolves an uncached id
-      // to a typeless payload, which ChannelManager can't turn into a
-      // channel). A thread created after this boot still needs the
-      // per-reaction fallback in messageReactionAdd.js.
+      // Warms client.channels.cache with every active thread, private ones included — GUILD_CREATE
+      // only ships threads the bot already belongs to, so without this a reaction on one never
+      // fires messageReactionAdd. A thread created after boot still needs its per-reaction fallback.
       await guild.channels.fetchActiveThreads().catch((err) => console.error("Failed to warm thread cache:", err));
     }
 
-    // Global, not per-guild: a guild command can never appear in the bot's
-    // DMs. The cost is propagation — a new or renamed command can take up to
-    // an hour to show up. See bot/src/lib/commands.js.
-    await registerCommands(client).catch((err) => console.error("Failed to register slash commands:", err));
+    await registerCommands(client).catch((err) => console.error("Failed to register slash commands:", err)); // bot/src/lib/commands.js
 
-    // Anything typed while we were not listening. Backgrounded on purpose —
-    // it walks every active thread in the guild, and a slow sweep must never
-    // hold up the bot answering an interaction.
-    //
-    // Resolved here rather than reusing the loop above: that `guild` is a
-    // for-of binding whose scope ended, and Bascinet runs in one guild anyway.
+    // Anything typed while we were not listening. Backgrounded — walks every active thread, and a
+    // slow sweep must never hold up an interaction. Resolved here since the for-of `guild` above is out of scope.
     const homeGuild =
       client.guilds.cache.get(process.env.DISCORD_GUILD_ID) ?? client.guilds.cache.first() ?? null;
     if (homeGuild) {
@@ -214,24 +167,10 @@ module.exports = {
         console.error("Message catch-up failed:", err),
       );
 
-      // And again whenever the gateway hands us a FRESH session.
-      //
-      // This listener is registered here, inside `ready`, for a reason worth
-      // keeping: shardReady fires BEFORE ready on the first connect, so by the
-      // time this line runs the opening one is already past. Every shardReady
-      // we see from here is therefore a RE-identify — which is exactly the case
-      // that loses messages.
-      //
-      // The distinction that matters: a RESUME replays the dispatches missed
-      // while the socket was away, so messageCreate fires for all of them and
-      // there is nothing to recover. An IDENTIFY is a new session and those
-      // dispatches are gone for good. Only the second one emits shardReady.
-      //
-      // Deliberately just this pass, not the whole burst above: running the
-      // channel doctor and a guild-wide nickname sync on every network blip
-      // would be a new load problem rather than a fix. catchUpMissedMessages
-      // holds its own single-flight guard, so a flapping connection cannot
-      // stack sweeps.
+      // And again on every FRESH session. shardReady fires before ready on the first connect, so
+      // every one seen here is a RE-identify — the case that loses messages (a RESUME replays
+      // dispatches; an IDENTIFY's are gone for good). Just this pass, not the whole burst above —
+      // catchUpMissedMessages holds its own single-flight guard.
       client.on(Events.ShardReady, (shardId) => {
         console.log(`Shard ${shardId} re-identified; checking for messages missed while it was away.`);
         void catchUpMissedMessages(client, homeGuild, { reason: "reconnect" }).catch((err) =>
@@ -240,15 +179,9 @@ module.exports = {
       });
     }
 
-    // The web app closes a turn and then fans out to Discord from a deferred
-    // after() callback, which a redeploy can kill halfway. That happened on
-    // 2026-09-08: the bomb detonated, twelve characters died in the database,
-    // and the fireball and the Game Ended post were never posted at all. The
-    // bot coming back up is the earliest signal available that somebody's
-    // process just died, so finishing an unsaid turn is one of the catch-up
-    // passes now — waiting for the 04:00 cron is no use to a game that ended
-    // at 22:00. Idempotent and leased: it stands down if a live run holds the
-    // turn, and does nothing at all when there is nothing outstanding.
+    // The web app closes a turn and fans out to Discord from a deferred after() callback, which a
+    // redeploy can kill halfway. The bot coming back up is the earliest signal a process just
+    // died, so finishing an unsaid turn is a catch-up pass — idempotent and leased.
     void resumeTurnSideEffects(prisma).catch((err) =>
       console.error("Resuming an unfinished turn's side effects failed:", err),
     );
@@ -257,34 +190,25 @@ module.exports = {
       console.log("Turn-advance cron fired.");
       advanceTurn()
         .then((turn) =>
-          // Null when a GM's Dev Panel advance won the race — the turn moved,
-          // just not here. Not a failure, so don't log it as one.
+          // Null when a GM's Dev Panel advance won the race — not a failure, so don't log it as one.
           console.log(turn ? `Turn advanced to #${turn.number} (${turn.phase})` : "Turn already advanced elsewhere; skipped."),
         )
         .catch((err) => console.error("Failed to advance turn:", err));
     };
-    // Midnight Chicago time, once a day — one turn per real day. The
-    // staged-arbitration push rides the turn advance, and midnight is the hour
-    // fewest players are mid-scene when the message wipe runs. There used to be a
-    // second job at noon; a turn was half a day then. db/lib/turnClock.js
-    // derives every deadline from this same boundary, so the two must agree.
+    // Midnight Chicago time, once a day. The staged-arbitration push rides the turn advance, and
+    // midnight is the hour fewest players are mid-scene. db/lib/turnClock.js derives every
+    // deadline from this same boundary, so the two must agree.
     cron.schedule("0 0 * * *", runAdvanceTurn, { timezone: "America/Chicago" });
 
-    // Every Room hears who has been whispering in the Conversations linked to
-    // it, aliased, on a stateless 15-minute lookback
-    // (bot/src/lib/whisperPoll.js). Runs on the bot rather than the web app
-    // because it is a plain cron with no request behind it.
-    // A rotten body nags the Location it is in, on a randomized 4-10 hour
-    // timer rather than a cron — the unpredictability is the feature. Self-
-    // rescheduling; see bot/src/lib/deathSmell.js.
+    // Every Room hears who's been whispering nearby, aliased, on a stateless 15-minute lookback
+    // (bot/src/lib/whisperPoll.js).
+    // A rotten body nags its Location on a randomized 4-10 hour timer — unpredictability is the
+    // feature, self-rescheduling (bot/src/lib/deathSmell.js).
     startDeathSmell(prisma);
 
-    // The Thanati's rites fire two minutes after their last requirement lands
-    // and expire twelve hours after their first chant (db/lib/riteSweep.js).
-    // Every minute, so "two minutes" means two or three rather than up to
-    // seventeen.
-    // One sweep in flight at a time: a slow one (Summoning walks every
-    // cultist through Discord) must not overlap the next tick.
+    // Thanati rites fire two minutes after their last requirement lands, expire twelve hours after
+    // their first chant (db/lib/riteSweep.js). Every minute so "two minutes" stays close to true.
+    // One sweep in flight at a time: Summoning walks every cultist through Discord.
     let riteSweepRunning = false;
     cron.schedule("* * * * *", () => {
       if (riteSweepRunning) return;
@@ -299,17 +223,10 @@ module.exports = {
         });
     });
 
-    // The Oracle, once a turn, a couple of minutes after the Move cutoff
-    // (db/lib/oracleCutoff.js). Every minute rather than on a fixed hour: the
-    // cutoff is derived from the turn's own startedAt, so a turn a GM opened
-    // by hand does not lock at 21:00 and a frozen clock never locks at all.
-    // Ticking is also what makes it self-healing — a bot that was down at the
-    // cutoff drafts the moment it is back, as long as the turn is still open.
-    // The check is two cheap queries and declines on all but one tick a day;
-    // the run itself only happens once, because the pages it writes are what
-    // tell the next tick there is nothing left to do.
-    // One run in flight at a time, the rite sweep's guard — seven model calls
-    // can outlast a minute several times over.
+    // The Oracle, once a turn, a couple minutes after the Move cutoff (db/lib/oracleCutoff.js).
+    // Every minute, not a fixed hour: the cutoff derives from the turn's own startedAt, and ticking
+    // makes it self-healing if the bot was down at cutoff. Cheap on every tick but one a day.
+    // One run in flight at a time — seven model calls can outlast a minute several times over.
     let oracleRunning = false;
     cron.schedule("* * * * *", () => {
       if (oracleRunning) return;
@@ -324,11 +241,8 @@ module.exports = {
         });
     });
 
-    // The Makeshift Stage, four times a day (bot/src/lib/stagePlay.js). The
-    // hours are OFFSET off midnight on purpose: advanceTurn holds 0 0 in this
-    // same timezone, and a music sweep must not race a turn close. One sweep
-    // in flight at a time, the rite sweep's guard — a slow one walking every
-    // listener must not overlap the next.
+    // Makeshift Stage, four times a day (bot/src/lib/stagePlay.js). Hours offset off midnight so
+    // it never races advanceTurn's 0 0 in this same timezone. One sweep in flight at a time.
     let stagePlayRunning = false;
     cron.schedule(
       "0 3,9,15,21 * * *",
@@ -353,8 +267,7 @@ module.exports = {
           if (posted > 0) console.log(`Whisper poll: ${posted} room(s) told.`);
         })
         .catch((err) => console.error("Whisper poll failed:", err));
-      // The creation window's reminders and expiries (db/lib/lobbySweep.js).
-      runLobbySweep(prisma)
+      runLobbySweep(prisma) // creation window's reminders and expiries (db/lib/lobbySweep.js)
         .then(({ resent, reminded, expired }) => {
           if (resent || reminded || expired) console.log(`Lobby sweep: ${resent} resent, ${reminded} reminded, ${expired} expired.`);
         })

@@ -4,14 +4,9 @@
 // noise. Nothing in web/, bot/ or db/ imports it — the copy tooling is an
 // authoring aid that never ships.
 
-// ---------------------------------------------------------------------------
-// YAML masters
-// ---------------------------------------------------------------------------
-// `keys` are the prose-bearing key names to pull. A key whose value is a
-// sequence yields one entry per element. Everything else in the file —
-// mechanics fields, and the long authoring comment blocks these files carry —
-// is left strictly alone: reinjection splices single scalars back by byte
-// offset rather than re-serializing, so comments survive untouched.
+// --- YAML masters --- `keys` are the prose-bearing key names to pull.
+// Reinjection splices single scalars back by byte offset rather than
+// re-serializing, so comments survive untouched.
 
 const YAML_SOURCES = [
   {
@@ -56,16 +51,10 @@ const YAML_SOURCES = [
   },
 ];
 
-// ---------------------------------------------------------------------------
-// JavaScript sources
-// ---------------------------------------------------------------------------
-
-// Directories walked for inline copy.
+// --- JavaScript sources ---
 const JS_ROOTS = ["web/app", "web/lib", "bot/src", "db/lib", "db/turnCalendar.js"];
 
-// Never walked. `.claude/worktrees` holds stale duplicate checkouts of bot/
-// and db/ that a repo-wide pass would otherwise rewrite as well.
-const IGNORE_DIRS = [
+const IGNORE_DIRS = [ // .claude/worktrees holds stale duplicate checkouts a repo-wide pass would rewrite too
   ".claude",
   "node_modules",
   ".next",
@@ -74,14 +63,10 @@ const IGNORE_DIRS = [
   "generated",
 ];
 
-// Files that score high on a naive string grep but carry no player-facing
-// text: API paths, name corpora, and CLI console output from the sync scripts.
+// Files that score high on a naive string grep but carry no player-facing text.
 const IGNORE_FILES = [
   "db/lib/discordRest.js",
   "db/lib/nameCorpus.js",
-  // Every entry is a single catalog word (Sir, Lady, Constable) that scores
-  // as copy and isn't — same reasoning as the name corpus above. The prose
-  // that explains titles to a player lives in the pickers, not here.
   "db/lib/titles.js",
   "db/lib/syncTags.js",
   "db/lib/pruneTags.js",
@@ -118,11 +103,7 @@ const COPY_PROPS = new Set([
 const COPY_CALLS = new Set([
   "UserError",
   "sendDm",
-  // The bot's shared responder (bot/src/lib/respond.js). Most handlers now
-  // answer through it rather than through interaction.reply, so without this
-  // their voice would only be caught incidentally by the loose pass below --
-  // which misses anything under LOOSE_MIN_WORDS.
-  "respond",
+  "respond", // the bot's shared responder, bot/src/lib/respond.js
   "confirm",
   "setDescription",
   "setLabel",
@@ -145,10 +126,7 @@ const COPY_CONSTANTS = new Set([
 // hold copy rather than mechanics.
 const COPY_OBJECT_KEYS = new Set(["description", "where", "label", "name", "noun"]);
 
-// discord.js replies carry their text as a `content:` property of an options
-// object rather than a positional argument, so the call has to be matched and
-// then the property read out of it. This is how essentially all of the bot's
-// ephemeral voice is written.
+// discord.js replies carry text as a `content:` property, not positionally.
 const REPLY_CALLS = new Set([
   "reply",
   "followUp",
@@ -163,10 +141,8 @@ const REPLY_KEYS = new Set(["content"]);
 const EMBED_CALLS = new Set(["addFields", "setFooter", "setAuthor"]);
 const EMBED_KEYS = new Set(["name", "value", "text"]);
 
-// Roots where a final loose pass picks up prose held in a plain variable —
-// the bot composes several of its longest lines that way (db/turnCalendar.js's
-// turn announcement, for one). The surface is small enough that the noise
-// stays manageable; web/ is left to the targeted matchers.
+// A final loose pass over these roots picks up prose held in a plain
+// variable; web/ is left to the targeted matchers.
 const LOOSE_ROOTS = ["bot/src", "db/"];
 const LOOSE_MIN_WORDS = 5;
 
@@ -181,18 +157,12 @@ const DUAL_SURFACE_FILES = new Set([
   "db/lib/production.js",
 ]);
 
-// The `»` rule is per-call-site, not per-file. All three sendDm twins apply
-// the prefix automatically, so a hand-written one there doubles up
-// (db/lib/autoLaborPass.js carries a comment about exactly this).
-// Everywhere else — interaction replies, channel posts, bot-composed DMs that
-// pair the line with other formatting — it IS written inline and must stay.
+// The `»` rule is per-call-site: all three sendDm twins apply it
+// automatically, so a hand-written one there doubles up. Everywhere else it
+// IS written inline and must stay.
 const GUILLEMET_AUTO_KINDS = new Set(["call:sendDm"]);
 
-// ---------------------------------------------------------------------------
-// Worksheet grouping — by what the player is looking at, not by directory.
-// First matching rule wins.
-// ---------------------------------------------------------------------------
-
+// --- Worksheet grouping — by what the player is looking at. First matching rule wins. ---
 const JS_GROUPS = [
   { group: "web-gm", test: (f) => f.includes("/gm/") },
   {

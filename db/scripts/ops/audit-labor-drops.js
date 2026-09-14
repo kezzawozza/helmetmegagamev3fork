@@ -1,28 +1,13 @@
 #!/usr/bin/env node
 // Prices out docs/labordrops.yaml — what each pool entry is worth and each
-// pool's ⬢ expected value — so a table can be balanced by the numbers rather
-// than by feel. Reads the YAML straight off disk rather than the synced
-// LaborDropOption table, so it prices a draft before you've even run
-// db:sync-labor-drops.
-//
-// See docs/systemdocs/LABORDROPS.md §2 for the six buckets this groups by,
-// §2a for the requiredTag gate, and §6 for what "not yet configured" means
-// for an empty one.
+// pool's ⬢ expected value. Reads the YAML off disk, so it prices a draft
+// before db:sync-labor-drops runs. See LABORDROPS.md §2 for the six buckets,
+// §2a for requiredTag, §6 for "not yet configured".
 //
 //   npm run db:audit-labor-drops
 //   npm run db:audit-labor-drops -- --zone forest --location forest-west-riverbank
-//     previews the COMBINED pool at that zone/location too, for when a
-//     zone- or location-scoped bucket gets added later.
-//   npm run db:audit-labor-drops -- --zone forest --holds forester
-//     also folds in whatever a Forester standing in the Forest additionally
-//     qualifies for (LABORDROPS.md §2a) — omit --holds to see the baseline
-//     every OTHER character gets, which is what the Combined section shows
-//     by default.
-//   npm run db:audit-labor-drops -- --write
-//     the only flag that TOUCHES the file: rewrites docs/labordrops.yaml's
-//     own comments in place — per-entry value, per-roll own/combined EV,
-//     and a per-category rollup — via db/lib/labordropsAnnotate.js. Every
-//     other flag combination only prints to the terminal. See §6a-§6b.
+//   npm run db:audit-labor-drops -- --zone forest --holds forester   # also folds in a skill's extra pool
+//   npm run db:audit-labor-drops -- --write   # the only flag that TOUCHES the file — rewrites its comments
 const fs = require("node:fs");
 const { prisma } = require("../../index");
 const { loadDoc, parseDoc } = require("../../lib/syncLaborDrops");
@@ -45,11 +30,8 @@ function parseArgs(argv) {
   return out;
 }
 
-// priceEntry and summarize (the per-pool EV maths) now live in
-// db/lib/labordropsEv.js, so they can be exercised by db/test/ directly
-// instead of only by eyeballing this script's stdout. See that module for
-// the OBOL_SLUG/ASSUMED_VALUES branch order this mirrors.
-
+// priceEntry and summarize live in db/lib/labordropsEv.js, exercised by
+// db/test/ directly.
 function bucketLabel(row, zoneNameById, locationNameById, tagsById) {
   const parts = [];
   if (row.laborType) parts.push(`labor type: ${row.laborType.toLowerCase()}`);
@@ -127,8 +109,6 @@ async function main() {
     const [label, roll] = key.split("|||");
     const { priced, hit, ev, unpriced, shares } = summarize(group, tagsById, Number(roll));
     console.log(`${label}, roll ${roll} — ${group.length} entries`);
-    // The per-entry chance is the point of the readout now: a tier name is
-    // only meaningful if you can see what it is worth here.
     priced.forEach((p, i) => {
       const band = bandOf(group[i]) ?? "?";
       console.log(`  ${`${(shares[i] * 100).toFixed(2)}%`.padStart(7)}  ${band.padEnd(18)} ${p.label}`);
@@ -177,13 +157,8 @@ async function main() {
   console.log(`=== Combined pools (what a payout actually draws from${where ? `, at ${where}` : ""}) ===\n`);
 
   for (const [tier, laborType] of Object.entries(TIER_TO_LABOR_DROP_TYPE)) {
-    // The die is 1d6, uniform — the real expected value of ONE Labor here
-    // is (1/6) * sum over every face's combined EV, and a face nobody
-    // configured (almost always 2-5) is a real, counted zero in that sum,
-    // not a face to skip. Printing each configured face next to another
-    // (the old shape) reads as if those numbers add on their own; they
-    // don't without dividing by 6 first, and the unlisted faces belong in
-    // the denominator too.
+    // 1d6 uniform: the real EV of ONE Labor is (1/6) * sum over all six
+    // faces, an unconfigured face counted as a real zero, not skipped.
     let totalEv = 0;
     let totalHitFraction = 0;
     let anyConfigured = false;

@@ -1,15 +1,12 @@
-// The hold an unresolved Caving 1 puts on a caver (docs/systemdocs/CAVING.md
-// §2c). cavingHoldFor is a query rather than a pure comparison, so prisma is
-// stubbed down to the one call each function makes — which also pins the
-// WHERE, since the whole rule is in it: this character, this zone, TROUBLE,
-// still unresolved.
+// The hold an unresolved Caving 1 puts on a caver (CAVING.md §2c).
+// cavingHoldFor is a query, so prisma is stubbed to pin the WHERE, which
+// carries the whole rule: this character, this zone, TROUBLE, still unresolved.
 const test = require("node:test");
 const assert = require("node:assert");
 
 const { cavingHoldFor, cavingHeldIds, CAVING_HOLD_REASON } = require("../lib/cavingPass");
 const { resolveNeighbors } = require("../lib/locationGraph");
 
-// Records the WHERE it was asked, and answers with whatever rows it was given.
 function stubRolls(rows) {
   const seen = [];
   return {
@@ -30,8 +27,6 @@ function stubRolls(rows) {
 test("an unresolved TROUBLE row in this zone is the refusal", async () => {
   const db = stubRolls([{ id: "roll1" }]);
   assert.equal(await cavingHoldFor(db, "char1", "depths"), CAVING_HOLD_REASON);
-  // The whole rule is the WHERE. A resolved row, a QUIET one, or a 1 rolled in
-  // some other zone must not come back from it.
   assert.deepEqual(db.seen[0], {
     characterId: "char1",
     zoneId: "depths",
@@ -45,8 +40,6 @@ test("no row means they may walk", async () => {
 });
 
 test("nowhere to be held from is not a hold", async () => {
-  // A character with no zone — mid-creation, or a row a GM has half-moved —
-  // must not be pinned by a query that would match every zone at once.
   const db = stubRolls([{ id: "roll1" }]);
   assert.equal(await cavingHoldFor(db, "char1", null), null);
   assert.equal(await cavingHoldFor(db, null, "depths"), null);
@@ -65,20 +58,13 @@ test("the party question is one query, and an empty party asks nothing", async (
   assert.equal(empty.seen.length, 0);
 });
 
-// --- The picker ----------------------------------------------------------
-//
-// The point of shutting the picker is that it agrees with the mover. What is
-// worth asserting is the NARROWNESS: a hold takes the ways out of the zone and
-// leaves the level open, which is the whole difference between this and being
-// intercepted.
-
+// --- The picker: a hold takes the ways out of the zone, leaves the level open ---
 const loc = (id, zoneId) => ({ id, zoneId, name: id, sortOrder: 0, zone: { sortOrder: 0, name: zoneId } });
 
 function stubGraph({ rolls }) {
   return {
     locationLink: {
       findMany: async () => [
-        // Deeper into the same cave level, and back up to the surface.
         { aId: "tunnel", bId: "gallery", a: loc("tunnel", "depths"), b: loc("gallery", "depths") },
         { aId: "tunnel", bId: "road", a: loc("tunnel", "depths"), b: loc("road", "town") },
       ],
@@ -100,9 +86,7 @@ test("a held caver may still walk the level, but not out of it", async () => {
 
   assert.equal(byId.road.passable, false, "the way out is shut");
   assert.equal(byId.road.refusal, CAVING_HOLD_REASON);
-  // Shut, not gone — the same shape a locked gate uses, so the way still draws
-  // and says why rather than reading as though it was never there.
-  assert.equal(byId.road.listed, true);
+  assert.equal(byId.road.listed, true); // shut, not gone — same shape a locked gate uses
 });
 
 test("with the roll resolved, the way out opens again", async () => {

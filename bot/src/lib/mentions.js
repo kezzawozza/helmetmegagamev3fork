@@ -2,28 +2,11 @@ const { prisma, buildNarrowcastContext, computeNarrowcastAccess, NARROWCAST_SLUG
 const { sendDm } = require("./dm");
 const { pushToUser } = require("@lifeweb/db/lib/webPush");
 
-// Character-role mentions: who was pinged, may they hear it, and (in a private
-// thread) letting them in.
-//
-// A character's personal Discord role is a mentionable name token —
-// Character.discordRoleId is @unique, so a mentioned role id resolves straight
-// back to one character. Mentioning a GM/spectator/player role resolves to
-// nothing and is silently ignored, which is how non-character roles stay out
-// of this path.
+// Character-role mentions: who was pinged, may they hear it, and (in a private thread) letting
+// them in. Character.discordRoleId is @unique, so a mentioned role resolves to one character.
 
-// Whether a ping in this channel should reach `character` at all.
-//
-// The rule is that a ping must not carry further than a voice would, or it
-// becomes a free cross-map signalling channel. Two cases, because the two
-// kinds of channel mean different things by "in earshot":
-//
-//   - A Location channel is gated on the location: a shout in the Square
-//     does not carry to the Cathedral, because a voice wouldn't.
-//   - A zone's #summary belongs to the whole zone rather than any one
-//     location, so it stays gated on the zone.
-//   - The special channels have no place at all, so they're gated on whether
-//     the target currently *hears that channel* under its own rules — which
-//     reuses db/lib/specialChannels.js rather than inventing a second copy.
+// A ping must not carry further than a voice would: Location gates on location, zone's #summary
+// on zone, special channels on db/lib/specialChannels.js.
 async function canHearPing(character, context) {
   if (NARROWCAST_SLUGS.includes(context.channelKind)) {
     const ctx = await buildNarrowcastContext(prisma, character.id);
@@ -34,18 +17,9 @@ async function canHearPing(character, context) {
   return false;
 }
 
-// The ALIVE characters behind the roles mentioned in `message`. Read BEFORE
-// the message is proxied: sendAsCharacter deletes the original
-// (bot/src/lib/proxy.js), so the caller has to capture mentions first and pass
-// them here.
-//
-// Pinging your own character DOES relay. There used to be a filter dropping
-// the sender's own characters, on the reasoning that nobody needs telling they
-// pinged themselves — but the proxy suppresses the ping itself
-// (allowedMentions parse: ["users"], PROXYING.md §2), so a self-ping was the
-// one case that looked exactly like a broken relay while being working-as-
-// intended, and it is the first thing anyone reaches for to test the feature.
-// A redundant DM to yourself is much cheaper than a feature nobody can verify.
+// The ALIVE characters behind the roles mentioned. Read before proxying deletes the original
+// (bot/src/lib/proxy.js). Self-pings DO relay — the proxy already suppresses the ping itself
+// (PROXYING.md §2).
 async function resolveMentionedCharacters(roleIds) {
   if (roleIds.length === 0) return [];
   return prisma.character.findMany({
@@ -57,20 +31,11 @@ function messageLink(guildId, channelId, messageId) {
   return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
 }
 
-// Deliberately carries where and a link, never the message text. A ping into a
-// private thread the target hasn't joined would otherwise leak the room's
-// content to them, and a DirectMessage row outlives the ❌ that deletes the
-// message it quoted.
-//
-// `placeKey` is the Chat place the message was filed under
-// (db/lib/placeKey.js). It rides in the row's meta so the player's Chat pane
-// can open that place; the desk never shows the row (db/lib/dmKinds.js).
+// Carries where and a link, never the message text — a private thread the target hasn't joined
+// would otherwise leak its content. `placeKey` rides in meta so /chat can open the place.
 async function notifyMentioned(client, character, context, link, { placeKey = null } = {}) {
   const place = context.locationName ?? context.zoneName ?? null;
-  // A special channel has no place at all (db/lib/specialChannels.js), so the
-  // channel's own name is the answer. It used to say "the Watch's radio" flat,
-  // which was one net's old name — and with two of them it named the wrong one.
-  const nowhere = context.channelKind ? `#${context.channelKind}` : "somewhere";
+  const nowhere = context.channelKind ? `#${context.channelKind}` : "somewhere"; // special channel has no place
   const where = context.threadName
     ? `${place ?? "somewhere"} · ${context.threadName}`
     : (place ?? nowhere);
@@ -81,10 +46,7 @@ async function notifyMentioned(client, character, context, link, { placeKey = nu
     source: "mention",
     meta: { placeKey, where },
   }).catch(() => {});
-  // And a browser notification, for a player whose /chat tab is closed. Never
-  // in front of the DM and never allowed to affect it: an unconfigured
-  // deployment is a no-op and every failure is swallowed (db/lib/webPush.js).
-  await pushToUser(prisma, character.discordUserId, {
+  await pushToUser(prisma, character.discordUserId, { // browser notification, after the DM, never affects it
     title: `${character.name} was named`,
     body: `in ${where}`,
     url: placeKey ? `/chat#${encodeURIComponent(placeKey)}` : "/chat",

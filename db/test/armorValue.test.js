@@ -1,11 +1,8 @@
-// node --test over db/lib/armorValue.js — armorWord's word bands and
-// combineArmor's multiplicative stacking. Written after a real bug: a single
-// Breastplate (ballisticArmor 0.2, exactly a band edge) combined through one
-// equipped piece came back as 0.19999999999999996 in IEEE 754, which
-// armorWord's strict `<` read as "Meager" instead of "Sufficient" — invisible
-// as long as combineArmor's only consumer (db/lib/depotTurret.js) fed the
-// float straight into more math, and only visible once something displayed
-// the word.
+// armorWord's word bands and combineArmor's multiplicative stacking. Written
+// after a real bug: a single Breastplate (ballisticArmor 0.2, exactly a band
+// edge) combined through one equipped piece came back as
+// 0.19999999999999996 in IEEE 754, which armorWord's strict `<` read as
+// "Meager" instead of "Sufficient".
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { armorWord, combineArmor, ARMOR_CAP } = require("../lib/armorValue");
@@ -38,8 +35,6 @@ test("combineArmor: nothing equipped is None", () => {
 });
 
 test("combineArmor: a single piece exactly at a band edge lands ON the edge, not just under it", () => {
-  // The exact regression: one 0.2-rated piece must combine back to exactly
-  // 0.2 (word: Sufficient), not 0.19999999999999996 (word: Meager).
   const value = combineArmor([piece(0.2)], "ballisticArmor");
   assert.equal(value, 0.2);
   assert.equal(armorWord(value), "Sufficient");
@@ -56,9 +51,7 @@ test("combineArmor: a bare Tag[] with no `equipped` field still counts — only 
 });
 
 test("combineArmor: two pieces stack multiplicatively on what gets through", () => {
-  // A helmet at 0.4 and a breastplate at 0.25: 0.6 * 0.75 = 0.45 through, so
-  // combined protection is 0.55 — TAGS.md's own worked example.
-  const value = combineArmor([piece(0.4), piece(0.25)], "ballisticArmor");
+  const value = combineArmor([piece(0.4), piece(0.25)], "ballisticArmor"); // TAGS.md's worked example
   assert.equal(value, 0.55);
 });
 

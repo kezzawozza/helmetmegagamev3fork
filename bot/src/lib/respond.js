@@ -1,14 +1,5 @@
-// Acknowledging and answering a Discord interaction correctly.
-//
-// Discord gives a bot three seconds to acknowledge an interaction, so `ack`
-// must run before any database work, not after. A reply over 2000 characters
-// is rejected outright after that work has already committed, so `respond`
-// clamps it instead. Every handler that touches the database calls `ack`
-// first and answers via `respond`, not `interaction.reply` — the exception is
-// a handler that opens a modal, where `showModal` IS the acknowledgement.
-//
-// `respond` also puts the reply through `ephemeralLine`, so the house format —
-// `» *text*` — lives in one place and a call site writes a plain sentence.
+// Discord gives a bot three seconds to acknowledge, so `ack` must run before any database work.
+// `respond` puts the reply through `ephemeralLine`, so a call site just writes a plain sentence.
 
 const { MessageFlags } = require("discord.js");
 const { ephemeralLine } = require("./ephemeralLine");
@@ -16,36 +7,23 @@ const { ephemeralLine } = require("./ephemeralLine");
 const DISCORD_MESSAGE_LIMIT = 2000;
 const TRUNCATION_NOTE = "\n-# …trimmed to fit Discord's 2000-character limit.";
 
-// How long an ephemeral reply sits before it self-deletes. Well inside the
-// interaction token's 15-minute life, and long enough to actually read.
-const FLEETING_DELETE_DELAY_MS = 60_000;
+const FLEETING_DELETE_DELAY_MS = 60_000; // well inside the interaction token's 15-minute life
 
-// Trims to Discord's limit rather than letting the send fail. Truncating a
-// long reply costs the tail of one message; failing loses the whole reply on
-// work that already happened.
+// Trims to Discord's limit rather than letting the send fail on work already done.
 function clampContent(content) {
   const text = String(content ?? "");
   if (text.length <= DISCORD_MESSAGE_LIMIT) return text;
   return text.slice(0, DISCORD_MESSAGE_LIMIT - TRUNCATION_NOTE.length) + TRUNCATION_NOTE;
 }
 
-// Schedules an already-answered interaction's reply (or, for a `deferUpdate`
-// component interaction, its own picker message) to self-delete after
-// FLEETING_DELETE_DELAY_MS. `respond` calls this itself; exported for the
-// handful of sites (a raw `interaction.update(...)`, the Speak flow's own
-// defer/edit pair) that answer without going through `respond` but still
-// want the same 60s expiry.
+// Self-delete after FLEETING_DELETE_DELAY_MS; exported for sites that skip `respond` but still want it.
 function scheduleDismiss(interaction) {
-  // The user may dismiss it, restart their client, or the token may have
-  // gone dead in the meantime — any of which makes this a routine no-op.
   setTimeout(() => {
     interaction.deleteReply().catch(() => {});
   }, FLEETING_DELETE_DELAY_MS);
 }
 
-// Acknowledge before doing any work. `update: true` for a component
-// interaction whose own message is being edited in place, so Discord doesn't
-// post a second "thinking" message above it.
+// `update: true` for a component interaction being edited in place, so Discord posts no second "thinking" message.
 async function ack(interaction, { update = false, ephemeral = true } = {}) {
   if (interaction.deferred || interaction.replied) return;
   try {
@@ -55,22 +33,15 @@ async function ack(interaction, { update = false, ephemeral = true } = {}) {
       await interaction.deferReply(ephemeral ? { flags: MessageFlags.Ephemeral } : {});
     }
   } catch (err) {
-    // A dead token cannot be revived, and a handler that can't ack still has
-    // real work to finish. Log and carry on.
-    console.error("Failed to acknowledge interaction:", err);
+    console.error("Failed to acknowledge interaction:", err); // log and carry on; work still has to finish
   }
 }
 
-// Answers, picking edit/follow-up/reply from what has already happened to
-// this interaction. Never throws: a failed reply must not become an
-// unhandled rejection on top of database work that's already done. Self-
-// deletes after FLEETING_DELETE_DELAY_MS by default; pass `fleeting: false`
-// to opt a specific reply out.
+// Picks edit/follow-up/reply from what's already happened. Never throws. Self-deletes after
+// FLEETING_DELETE_DELAY_MS by default; pass `fleeting: false` to opt out.
 async function respond(interaction, payload, { fleeting = true } = {}) {
   const options = typeof payload === "string" ? { content: payload } : { ...payload };
-  // House format first, clamp second — so the chevron is inside the 2000-char
-  // budget rather than pushing the tail of the sentence past it.
-  if (options.content !== undefined) {
+  if (options.content !== undefined) { // house format first, clamp second, so the chevron stays inside the 2000-char budget
     options.content = clampContent(ephemeralLine(options.content, { components: options.components }));
   }
 

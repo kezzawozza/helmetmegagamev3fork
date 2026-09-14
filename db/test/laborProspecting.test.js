@@ -1,10 +1,6 @@
-// node --test over the Prospecting wiring added 2026-09-09
-// (docs/systemdocs/LABORING.md §2) — the fourth side-grade, alongside
+// Prospecting (LABORING.md §2), the fourth side-grade alongside
 // Hunting/Farming/Fishing. Nothing here touches Prisma; resolveLaborRateFrom
-// takes a plain ctx object, the same split db/lib/laborDrops.js's tests use.
-// End-to-end behavior (the Examine line filtering, the real LocationYield
-// rows) was verified live against the local database instead — see the
-// session notes, not a file here.
+// takes a plain ctx object.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { PRODUCTION_RATES, SPECIALISATION_KINDS, computeRate } = require("../lib/production");

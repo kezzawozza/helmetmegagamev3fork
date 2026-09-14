@@ -15,15 +15,11 @@ test("a Routine or a Labor spends the turn", () => {
   assert.equal(spentBy({ moveKind: "LABOR" }), true);
 });
 
-// The whole reason this reads the kind: writing the fight up first and
-// pressing the button second is the right thing done in the other order.
 test("a Gambit is the exception", () => {
   assert.equal(spentBy({ moveKind: "GAMBIT" }), false);
 });
 
-// db/lib/locationTravel.js files a paid zone crossing with no moveKind at all,
-// and that crossing costs the whole turn. Reading a filed row as "hasn't
-// acted" would let anybody who walked across a boundary pin somebody anyway.
+// A paid zone crossing files with no moveKind at all (db/lib/locationTravel.js).
 test("a filed Move with no kind still spends the turn", () => {
   assert.equal(spentBy({ moveKind: null }), true);
   assert.equal(spentBy({}), true);

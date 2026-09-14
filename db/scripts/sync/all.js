@@ -1,9 +1,6 @@
 // Every YAML master into the database, in the one order that works: zones
-// first (roles resolve a starting zone), then the narrowcast channels (their
-// view grants name the zone roles), tags before roles (starting_tags must
-// exist), desires, documents, labor drops last (nothing depends on it, but it
-// validates against the tag/zone/location catalogs everything above builds).
-// Same sequence as wipeGameData's re-sync.
+// first, narrowcast channels, tags before roles, desires, documents, labor
+// drops last. Same sequence as wipeGameData's re-sync.
 //
 //   npm run db:sync                    # all seven
 //

@@ -9,8 +9,7 @@ const { syncCharacterRoomAccess } = require("@lifeweb/db/lib/roomAccess");
 module.exports = {
   name: "guildMemberAdd",
   async execute(member) {
-    // Caught so a failed log line can't skip the sync work below it — same
-    // reasoning as guildMemberRemove.js, smaller stakes.
+    // Caught so a failed log line can't skip the sync work below it (same reasoning as guildMemberRemove.js).
     await prisma.auditLog
       .create({
         data: {
@@ -21,16 +20,11 @@ module.exports = {
       })
       .catch((err) => console.error(`Failed to log member_joined for ${member.id}:`, err));
 
-    // Covers rejoins where a character already exists from before they left.
-    await syncMemberNickname(member).catch(() => {});
+    await syncMemberNickname(member).catch(() => {}); // covers rejoins where a character already exists
 
-    // A rejoining player whose character is still standing — Catatonic on a
-    // death countdown since they left (playerDeparture.js). Discord stripped
-    // every role with the membership, so without this re-grant they'd come
-    // back to a server that shows them nothing. Clearing leftGuildAt is what
-    // lets the catatonic pass's clear branch wake the character once they
-    // speak or act in character again; the tag and the countdown stay until
-    // then, on purpose — returning is not the same as waking.
+    // A rejoining player whose character is still standing — Catatonic on a death countdown since
+    // they left (playerDeparture.js). Clearing leftGuildAt lets the catatonic pass's clear branch
+    // wake the character once they act in character again; the tag and countdown stay until then.
     const character = await prisma.character
       .findFirst({
         where: { discordUserId: member.id, status: "ALIVE" },
@@ -42,8 +36,7 @@ module.exports = {
       });
     if (!character) return;
 
-    // Captured before the clear: a rejoiner the departure machinery never
-    // saw (left and returned inside one bot outage) still gets their roles
+    // Captured before the clear: a rejoiner departure machinery never saw still gets their roles
     // back below, but isn't announced as Catatonic when they aren't.
     const wasTrackedDeparted = character.leftGuildAt != null;
     if (wasTrackedDeparted) {
@@ -55,12 +48,7 @@ module.exports = {
     await member.roles
       .add(PLAYER_ROLE_ID)
       .catch((err) => console.error(`Failed to re-grant Player to ${member.id}:`, err.message));
-    // The leave stripped everything, so this is a pure re-grant with nothing
-    // to move away from, the same shape Revive uses (CHARACTERS.md §5b): the
-    // member overwrite that opens their one Location channel, the Zone role
-    // that opens #summary, then narrowcast overwrites and private-room
-    // membership.
-    // Turn-ping and the like are left to the channel doctor's next cheap pass.
+    // Pure re-grant, same shape Revive uses (CHARACTERS.md §5b). Turn-ping etc left to the doctor's next cheap pass.
     await restoreStandingRoles(member, character).catch((err) =>
       console.error(`Failed to restore ${character.name}'s standing roles on rejoin:`, err.message),
     );

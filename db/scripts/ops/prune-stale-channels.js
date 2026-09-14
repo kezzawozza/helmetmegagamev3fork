@@ -1,22 +1,13 @@
 // Deletes Discord categories, channels and Zone/Location roles left behind by
 // a PREVIOUS game — objects no row in the database points at any more.
-//
-// Nothing else can do this job. db:sync-zones prunes only what it can see in
-// the DB: a Zone/Location row that left docs/zones.yaml, whose Discord ids it
-// still holds. An object whose DB row is already gone (a whole generation of
-// channels from a game that was wiped, say) is invisible to it, and the
-// channel doctor never deletes a channel at all. So a retired layout lingers
-// forever, next to the live one, under a category with the same name.
-//
-// Dry run by default with an --apply flag, matching db:prune-tags and
-// db:prune-orphan-roles.
-//
-// Conservative by construction — no hardcoded ids. A category is a candidate
-// only when its name matches a live Zone's name AND no DB row references it,
-// so a category the game never owned (Radio, GM, Text Channels) can't be one.
-// Channels are only ever deleted as the children of a candidate category,
-// never on their own account, and the whole run aborts if any candidate turns
-// out to be referenced after all.
+// Nothing else can do this job: db:sync-zones only prunes what it can see in
+// the DB, and the channel doctor never deletes a channel at all, so a
+// retired layout lingers next to the live one under a same-named category.
+// Dry run by default with an --apply flag. Conservative by construction — no
+// hardcoded ids: a category is a candidate only when its name matches a live
+// Zone's AND no DB row references it, channels are only deleted as children
+// of a candidate category, and the run aborts if any candidate turns out to
+// be referenced after all.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { discordRequest, deleteChannel, deleteGuildRole } = require("../../lib/discordRest");
@@ -43,9 +34,7 @@ async function main() {
     prisma.room.findMany({ select: { discordThreadId: true } }),
   ]);
 
-  // Every Discord id the live game still owns. Membership here is an absolute
-  // veto: an id in this set is never deleted, whatever else it looks like.
-  const keep = new Set();
+  const keep = new Set(); // every Discord id the live game still owns; membership is an absolute veto
   for (const z of zones) {
     if (z.discordCategoryId) keep.add(z.discordCategoryId);
     if (z.discordSummaryChannelId) keep.add(z.discordSummaryChannelId);
@@ -65,14 +54,8 @@ async function main() {
     (c) => c.type !== CHANNEL_TYPE_CATEGORY && c.parent_id && staleCategoryIds.has(c.parent_id),
   );
 
-  // --- roles ------------------------------------------------------------
-  // A "Zone: X" role is standing infrastructure owned by db:sync-zones. One
-  // the DB no longer names belongs to a retired layout; deleting it strips it
-  // from every holder in a single call.
-  //
-  // EVERY "Location: X" role is stale by definition now. Locations stopped
-  // wearing roles when the overwrite rework landed, so nothing recreates one
-  // and this is what retires the ones an older sync left behind.
+  // --- roles: EVERY "Location: X" role is stale by definition now — Locations
+  // stopped wearing roles, so nothing recreates one and this retires leftovers.
   const liveRoleIds = new Set(zones.map((z) => z.discordRoleId).filter(Boolean));
   const staleRoles = roles.filter(
     (r) => /^(Zone|Location): /.test(r.name) && !liveRoleIds.has(r.id),
@@ -133,10 +116,7 @@ async function main() {
     return;
   }
 
-  // Sequential on purpose: a burst of DELETEs shares one per-guild rate-limit
-  // bucket, the same reason db:prune-orphan-roles doesn't parallelise.
-  // Children before their category, so a failure can't orphan a channel.
-  let deleted = 0;
+  let deleted = 0; // sequential, one per-guild rate-limit bucket; children before their category
   for (const c of [...staleChildren, ...staleCategories]) {
     try {
       await deleteChannel(c.id);

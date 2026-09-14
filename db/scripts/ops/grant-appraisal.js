@@ -1,28 +1,15 @@
 // One-off: grants every ALIVE character in a seat that would plausibly
-// already know an item's worth the new Appraisal skill
-// (docs/systemdocs/TAGS.md §4a) — the catch-up for everybody who was already
-// playing before it joined the seven roles' starting_tags and the two
-// courtier kits (docs/roles.yaml, docs/tags.yaml).
+// already know an item's worth the new Appraisal skill (TAGS.md §4a) — the
+// catch-up for players from before it joined starting_tags.
 //
 //   node db/scripts/ops/grant-appraisal.js           # dry run
 //   node db/scripts/ops/grant-appraisal.js --apply   # write + DM
 //
-// Dry-run-by-default with an --apply flag, matching db:prune-tags and the
-// rest of db/scripts/ops/ (see grant-factory-road-merchant-docker.js, the
-// template this follows).
-//
-// Two ways in:
-//   - Role slug in ROLE_SLUGS, straight from starting_tags.
-//   - Role "courtier" AND holding a fingerprint of one of the two kits that
-//     now grant it (courtier-manor-lord, courtier-court-artist). The kit
-//     itself is a consumable crate tag — spent at creation — so a courtier
-//     who already took one no longer holds the crate, only what it left
-//     behind. Matched on that instead:
-//       Manor Lord    -> holds `heirloom` or `manor-key`
-//       Court Artist  -> holds `artist` and `musician`
-//
-// Anybody already holding `appraisal` is skipped outright, so a re-run
-// neither double-grants nor double-DMs.
+// Two ways in: role slug in ROLE_SLUGS, or "courtier" holding a fingerprint
+// of one of the two kits (the kit itself is spent at creation, so match on
+// what it left behind: Manor Lord -> `heirloom`/`manor-key`, Court Artist ->
+// `artist`+`musician`). Anybody already holding `appraisal` is skipped, so a
+// re-run neither double-grants nor double-DMs.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { grantTagSlugs } = require("../../lib/tagWrites");
@@ -105,9 +92,7 @@ async function main() {
     },
   });
 
-  // Post-commit and best-effort, same as grant-factory-road-merchant-docker.js:
-  // a Discord outage must not undo the grant.
-  for (const [discordUserId, name] of dmTargets) {
+  for (const [discordUserId, name] of dmTargets) { // best-effort; a Discord outage must not undo the grant
     await sendDm(prisma, discordUserId, DM_TEXT).catch((err) =>
       console.error(`  ! DM to ${name} failed: ${err.message}`),
     );

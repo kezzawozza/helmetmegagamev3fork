@@ -1,17 +1,13 @@
 #!/usr/bin/env node
 // node scripts/revert-guard.js <base>
 //
-// Refuses a push that deletes lines somebody else added recently.
-//
-// Several sessions land on master at once. A session that wrote a file out
-// from a stale read commits the old copy whole, and git sees nothing wrong:
-// the commit simply "removes" the lines another session added an hour ago.
-// That is how be5c3d7c reverted a day of work on 2026-09-12 with no conflict.
-//
-// So: blame every line the outgoing commits delete, as it stands on <base>
-// (origin/master after the rebase). A deleted line whose last author commit
-// is younger than WINDOW_HOURS and is not one of our own outgoing commits is
-// somebody else's fresh work. Past THRESHOLD such lines, stop and name them.
+// Refuses a push that deletes lines somebody else added recently. Several
+// sessions land on master at once; a session that wrote a file out from a
+// stale read commits the old copy whole, and git sees nothing wrong. So:
+// blame every line the outgoing commits delete, as it stands on <base>. A
+// deleted line whose last author commit is younger than WINDOW_HOURS and not
+// one of our own outgoing commits is somebody else's fresh work. Past
+// THRESHOLD such lines, stop and name them.
 const { execFileSync } = require("node:child_process");
 
 const WINDOW_HOURS = 48;

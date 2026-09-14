@@ -6,28 +6,17 @@
 //   npm run map:dot                 write zone.dot at the repo root
 //   npm run map:dot -- out.dot      write somewhere else
 //
-//   dashed   = on_foot (no horse, cart or boat fits) — wins over dotted below,
-//              so an edge that's both hidden and on_foot still reads as on_foot
-//   dotted   = hidden and NOT on_foot (absent from the travel list without the tag)
-//   bold     = modular (a gate with a winch)
-//   gray     = hidden
-//   dark cyan = a Fishing Boat's extra crossing works here (both ends are in
-//              db/lib/mounts.js's WATER_ZONE_SLUGS — Forest, Black Hills,
-//              Marshes — and it isn't on_foot, since nothing stowable can
-//              cross one of those at all)
-//   blue     = crosses a zone otherwise, so the hop costs the Move
-//   label    = whatever locked/hidden/announce/keyed the edge, so the graph
-//              reads like the travel rules rather than just the map
+//   dashed    = on_foot (no horse/cart/boat fits) — wins over dotted below
+//   dotted    = hidden and NOT on_foot
+//   bold      = modular (a gate with a winch)
+//   gray      = hidden
+//   dark cyan = a Fishing Boat's extra crossing works here (WATER_ZONE_SLUGS,
+//               db/lib/mounts.js)
+//   blue      = crosses a zone otherwise, so the hop costs the Move
+//   label     = whatever locked/hidden/announce/keyed the edge
 //
-// Each node's label also carries its `yield:` block (LABORING.md §3) — the
-// authored `base` coefficients, one line per LaborKind. A Location with no
-// row for a kind cannot work it there at all, so an absent line is a `×`,
-// not a zero.
-//
-// A Location only clusters with its zone if it actually connects to another
-// Location IN that zone (hills-mountain doesn't — both its edges leave the
-// Black Hills entirely) — otherwise Graphviz still draws the false adjacency
-// a shared cluster implies, with nothing to lay it out around.
+// Each node's label also carries its `yield:` block (LABORING.md §3); a
+// Location with no row for a kind reads `×`, not a zero.
 
 const fs = require("fs");
 const path = require("path");
@@ -37,22 +26,17 @@ const ROOT = path.resolve(__dirname, "..", "..");
 const ZONES_PATH = path.join(ROOT, "docs", "zones.yaml");
 
 // Fixed display order (the LaborKind enum in schema.prisma), so two
-// Locations' yields line up down the page instead of following whatever
-// order docs/zones.yaml happened to author them in. The emoji keep a node's
-// label short — "🏹 0.5, 🌾 0.3, 🎣 0.9, ⛏️ 0.7" instead of four full words.
+// Locations' yields line up down the page.
 const LABOR_KINDS = ["hunting", "farming", "fishing", "prospecting"];
 const LABOR_EMOJI = { hunting: "🏹", farming: "🌾", fishing: "🎣", prospecting: "⛏️" };
 
-// Mirrors db/lib/mounts.js#WATER_ZONE_SLUGS — the only zones a Fishing Boat's
-// extra crossing works between. Kept as its own small copy rather than a
-// cross-package require, the same call every other doc-derived script here
-// makes: this reads docs/zones.yaml, not the game's runtime state.
+// Mirrors db/lib/mounts.js#WATER_ZONE_SLUGS as its own small copy — this
+// reads docs/zones.yaml, not the game's runtime state.
 const WATER_ZONES = new Set(["forest", "hills", "marshes"]);
 
 // `kind: group` zones (Underground) never appear in connections themselves —
-// only their `levels:` do, each one a real zone id (caves, depths). Flatten
-// them here so the returned map is keyed exactly how connections addresses
-// them (SYNC.md, docs/zones.yaml's own header comment).
+// only their `levels:` do, each a real zone id. Flatten them here so the
+// returned map is keyed exactly how connections addresses them (SYNC.md).
 function collectZones(doc) {
   const zones = new Map(); // zoneId -> { name, locations: Map<locId, { name, yield }> }
   for (const [zoneId, zone] of Object.entries(doc.zones ?? {})) {
@@ -75,9 +59,7 @@ function collectLocations(zoneOrLevel) {
   return locations;
 }
 
-// "🏹 0.5, 🌾 0.3" — omits a kind with no row rather than printing a 0,
-// since no row means the labor can't be done here at all.
-function yieldLabel(yield_) {
+function yieldLabel(yield_) { // omits a kind with no row rather than printing a 0
   if (!yield_) return null;
   const parts = LABOR_KINDS.filter((kind) => yield_[kind] != null).map(
     (kind) => `${LABOR_EMOJI[kind]} ${yield_[kind]}`,
@@ -85,9 +67,7 @@ function yieldLabel(yield_) {
   return parts.length ? parts.join(", ") : null;
 }
 
-// One normalized shape per connections: entry, whichever of the two forms
-// (bare pair or a mapping with `pair:`) it was written as.
-function collectEdges(doc) {
+function collectEdges(doc) { // one normalized shape, bare pair or a mapping with `pair:`
   return (doc.connections ?? []).map((entry) => {
     const isBare = Array.isArray(entry);
     const [a, b] = isBare ? entry : entry.pair;
@@ -112,15 +92,9 @@ function edgeAttrs(edge) {
   const zoneA = edge.a.split("/")[0];
   const zoneB = edge.b.split("/")[0];
   const crossesZone = zoneA !== zoneB;
-  // Boat-eligible by the zone-pair rule mounts.js#boatCrossing checks — minus
-  // on_foot, since blocksOnFoot() refuses a boat (or anything else stowable)
-  // at one of those regardless of which zones it joins.
   const boatWater = !edge.onFoot && WATER_ZONES.has(zoneA) && WATER_ZONES.has(zoneB);
 
-  // on_foot always draws dashed, even on a hidden edge — a line SHAPE is the
-  // one signal here that never competes with color, so it's the one thing
-  // guaranteed legible no matter what else is layered on this edge.
-  const style = [];
+  const style = []; // on_foot always draws dashed, even on a hidden edge
   if (edge.onFoot) style.push("dashed");
   else if (edge.hidden) style.push("dotted");
   if (edge.modular) style.push("bold");
@@ -136,20 +110,12 @@ function edgeAttrs(edge) {
   const color = edge.hidden ? "gray45" : boatWater ? "darkcyan" : crossesZone ? "steelblue" : "black";
   attrs.push(`color="${color}"`);
   if (boatWater || crossesZone) attrs.push("penwidth=1.6");
-  // A real newline here, not the two-character "\n" — JSON.stringify escapes
-  // an actual line break into DOT's `\n` for us. Pre-escaping it ourselves
-  // double-escaped the backslash, so Graphviz printed "\nkeyed" literally
-  // instead of breaking the line.
-  if (label.length) attrs.push(`label=${JSON.stringify(label.join("\n"))}`);
+  if (label.length) attrs.push(`label=${JSON.stringify(label.join("\n"))}`); // real newline; JSON.stringify escapes it to DOT's \n
   return ` [${attrs.join(", ")}]`;
 }
 
-// Light fills only — every node inside is forced to a solid white box
-// (below), so a cluster tint can never eat into label contrast. Picked by
-// what's actually there: the Marshes' standing water, the Fortress's
-// heraldic purple, Town's lamplight, cave grey, and the Depths one notch
-// darker and colder for being further down. Forest and the Black Hills get
-// the same light-touch treatment for consistency, since every zone gets one.
+// Light fills only — every node inside is forced to a solid white box below,
+// so a cluster tint can never eat into label contrast.
 const ZONE_FILL = {
   town: "#fdf6d3",
   fortress: "#e9def2",
@@ -160,12 +126,9 @@ const ZONE_FILL = {
   depths: "#c8ccd6",
 };
 
-// A standalone HTML-like label rather than literal legend edges: real edges
-// would either fight rankdir=LR for a stacked layout or need invisible rank
-// tricks, and a table gives every row equal weight for free. Two separate
-// lists rather than one combined swatch per row, because style and color are
-// genuinely independent channels here — a dashed edge can be black or gray,
-// and knowing that is the whole point of §7's "dashed always wins" rule.
+// A standalone HTML-like label rather than literal legend edges — a table
+// gives every row equal weight for free, and style/color stay two lists
+// since they're independent channels (a dashed edge can be black or gray).
 function legendLines() {
   const row = (glyph, glyphColor, text) =>
     `<TR><TD ALIGN="LEFT"><FONT COLOR="${glyphColor}">${glyph}</FONT></TD>` +
@@ -185,9 +148,7 @@ function legendLines() {
     row("──────", "gray45", "Hidden — always this color, dashed or not"),
     '<TR><TD COLSPAN="2"> </TD></TR>',
     '<TR><TD COLSPAN="2"><B>Location border</B></TD></TR>',
-    // A real nested box-in-a-box, matching the peripheries=2 double border
-    // on an indoors node itself — a word or a single-line glyph couldn't
-    // show "two borders" the way the actual node shape does.
+    // Real nested box-in-a-box, matching the peripheries=2 double border.
     '<TR><TD ALIGN="LEFT"><TABLE BORDER="1" CELLBORDER="1" CELLSPACING="2" CELLPADDING="6"><TR><TD></TD></TR></TABLE></TD>' +
       '<TD ALIGN="LEFT">Indoors — a mount/cart/boat is parked at the door</TD></TR>',
     "</TABLE>",
@@ -204,8 +165,7 @@ function legendLines() {
 }
 
 function buildDot(zones, edges) {
-  // Which nodes have at least one edge to another node in the SAME zone —
-  // the only nodes a cluster's layout can actually justify grouping.
+  // Nodes with at least one edge to another node in the SAME zone.
   const clustered = new Set();
   for (const edge of edges) {
     if (edge.a.split("/")[0] === edge.b.split("/")[0]) {
@@ -232,11 +192,7 @@ function buildDot(zones, edges) {
       const fullId = `${zoneId}/${locId}`;
       const yieldLine = yieldLabel(loc.yield);
       const label = yieldLine ? `${loc.name}\n${yieldLine}` : loc.name;
-      // A double border, not a color or a word: peripheries is the node-shape
-      // equivalent of an edge's line style, and indoors already has its own
-      // mechanic (a mount is parked at the door — CARRY.md §3) rather than
-      // sharing a channel with something else.
-      const peripheries = loc.indoors ? ", peripheries=2" : "";
+      const peripheries = loc.indoors ? ", peripheries=2" : ""; // double border, not a color or word
       const nodeLine = `${dotId(fullId)} [label=${JSON.stringify(label)}${peripheries}];`;
       if (clustered.has(fullId)) lines.push(`    ${nodeLine}`);
       else loose.push(`  ${nodeLine}`);
@@ -255,9 +211,8 @@ function buildDot(zones, edges) {
   return lines.join("\n") + "\n";
 }
 
-// The pure read-YAML-to-dot-text step, exported so scripts/map/zone-image.js
-// can render straight from it without shelling back out to this file or
-// re-reading a .dot that might be stale.
+// The pure read-YAML-to-dot-text step, exported so zone-image.js can render
+// straight from it without re-reading a .dot that might be stale.
 function generateDot() {
   const doc = yaml.load(fs.readFileSync(ZONES_PATH, "utf8"));
   const zones = collectZones(doc);

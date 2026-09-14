@@ -21,18 +21,12 @@ const { LOCATION_MEMBER_ALLOW } = require("@lifeweb/db/lib/zoneChannelSpec");
 const { sendDm } = require("@lifeweb/db/lib/dm");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 
-// The gateway half of the Travel flow. Every rule and every database write
-// lives in db/lib/locationTravel.js so the web app runs the identical ones;
-// this file is the Discord vocabulary around it — the pickers and the REST
-// side effects db/lib/locationMove.js owns.
+// Gateway half of the Travel flow. Rules and writes live in db/lib/locationTravel.js; this is the
+// Discord vocabulary — pickers and the REST side effects db/lib/locationMove.js owns.
 //
-// Custom ids, all "loc:"-namespaced (COMMANDS.md): loc:open (the #turns
-// console button, unchanged since the zone rework and baked into consoles
-// already posted), loc:pick, loc:bring, loc:confirm:{locationId},
-// loc:cancel. The anchor buttons loc:who / loc:secret / loc:converse, and
-// loc:gate:{linkId} for a modular gate — which rides on the watchtower's
-// starter post rather than an anchor — are defined in
-// db/lib/locationAnchorRow.js, because the sync posts them.
+// Custom ids, all "loc:"-namespaced (COMMANDS.md): loc:open, loc:pick, loc:bring,
+// loc:confirm:{locationId}, loc:cancel. loc:who / loc:secret / loc:converse / loc:gate:{linkId}
+// live in db/lib/locationAnchorRow.js instead, because the sync posts them.
 
 // Discord's hard cap on select-menu options, and on max_values with them.
 const MENU_OPTION_LIMIT = 25;
@@ -42,18 +36,11 @@ const BRING_ID = "loc:bring";
 const CONFIRM_PREFIX = "loc:confirm:";
 const CANCEL_ID = "loc:cancel";
 
-// NOTHING is parked between clicks any more. The drag multi-select used to
-// hold its picks in an in-memory Map for ten minutes, because Discord hands
-// the Confirm button no memory of the select before it — a restart between
-// the two clicks silently cost a player their passengers. An escort is a row
-// on the follower now (Character.escortedById), so the select writes it
-// immediately and Confirm reads it back from the database. The Map, its TTL
-// and its three helpers are gone.
+// Nothing is parked between clicks: an escort is a row on the follower (Character.escortedById),
+// so the select writes it immediately and Confirm reads it back from the database.
 
-// The mover, loaded with exactly the shape performLocationMove and
-// escortAuthority need — a partial row here would silently mis-authorize an
-// escort. ESCORT_SELECT is the wider of the two shapes (it carries the
-// faction relation the authority reads), so it is the one to load.
+// Loaded with exactly the shape performLocationMove and escortAuthority need — a partial row would
+// silently mis-authorize an escort. ESCORT_SELECT is the wider shape (carries the faction relation).
 async function loadMover(discordUserId) {
   return prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE" },
@@ -67,10 +54,8 @@ function listNames(names) {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-// `from` is the mover's current location (null on a first placement, which is
-// arrival rather than travel and costs nothing). The option description is
-// the whole cost model in one line: a step inside the zone is free on a
-// cooldown, an edge that leaves the zone spends the Move.
+// `from` null means first placement (arrival, not travel, costs nothing). The description is the
+// cost model in one line: a step inside the zone is free on a cooldown, an edge that leaves it spends the Move.
 function buildLocationSelectRow(locations, from) {
   const shown = locations.slice(0, MENU_OPTION_LIMIT);
   const menu = new StringSelectMenuBuilder()
@@ -91,14 +76,9 @@ function buildLocationSelectRow(locations, from) {
   return new ActionRowBuilder().addComponents(menu);
 }
 
-// Who you are taking with you — the Discord twin of the party rack on /chat.
-// Null when nobody here can be brought: an empty select menu is rejected by
-// Discord, and a disabled one just asks a question with no answer.
-//
-// Unlike the drag select this replaces, it is NOT bound to a destination and
-// it does not have to be re-answered before every hop. It sets the party, and
-// the party persists. It is pre-ticked with whoever is already following, so
-// deselecting somebody is how you put them down.
+// Who you are taking with you — the Discord twin of the party rack on /chat. Null when nobody can
+// be brought (an empty select menu is rejected by Discord). Not bound to a destination — it sets
+// the party and it persists, pre-ticked with whoever is already following; deselecting puts them down.
 function buildBringRow(candidates) {
   const shown = candidates.slice(0, MENU_OPTION_LIMIT);
   if (shown.length === 0) return null;
@@ -140,9 +120,7 @@ async function applyBring(mover, pickedIds, turn) {
 
   for (const id of picked) {
     const candidate = byId.get(id);
-    // A picker is a hint; this is the lock. Somebody who walked off between
-    // the menu being drawn and it being answered simply isn't taken.
-    if (!candidate || candidate.attached) continue;
+    if (!candidate || candidate.attached) continue; // a picker is a hint; this is the lock
     if (candidate.verdict === "ASK") {
       if (!turn) continue;
       const target = await prisma.character.findUnique({ where: { id }, select: ESCORT_SELECT });
@@ -154,9 +132,7 @@ async function applyBring(mover, pickedIds, turn) {
       }
       continue;
     }
-    // FORCED is taken rather than agreed with, so a leader already holding
-    // the column is not a reason to refuse — the same call the web's
-    // bringAlong makes (db/lib/escort.js#attach).
+    // FORCED is taken rather than agreed with (same call the web's bringAlong makes, db/lib/escort.js#attach).
     if (await attach(prisma, mover.id, id, { takeover: candidate.verdict === "FORCED" })) {
       out.attached.push(candidate.name);
     }
@@ -174,19 +150,15 @@ function buildConfirmRow(locationId) {
   );
 }
 
-// Executes a validated move. performLocationMove owns the rules and the
-// writes; everything below is the Discord work it deliberately leaves to its
-// caller, run per moved character and never allowed to throw — a failed role
-// swap must not make a committed move look refused. The channel doctor
-// reconciles whatever a miss here leaves.
+// Executes a validated move. performLocationMove owns rules and writes; everything below is the
+// Discord work left to the caller, run per character and never allowed to throw — a failed role
+// swap must not make a committed move look refused. The channel doctor reconciles any miss here.
 async function performMove(character, targetLocation) {
   const result = await performLocationMove(prisma, character, targetLocation);
   if (!result.ok) return result;
 
-  // Followers the way would not take. They have already been detached and are
-  // still standing where they were; both sides are owed a word, and the
-  // leader's must not say WHY — naming a hidden crawl's refusal would
-  // announce that the crawl is there (MAP.md §2a).
+  // Followers the way wouldn't take, already detached. The leader's message must not say WHY —
+  // naming a hidden crawl's refusal would announce that the crawl is there (MAP.md §2a).
   for (const entry of result.leftBehind ?? []) {
     if (character.discordUserId) {
       await sendDm(
@@ -208,26 +180,19 @@ async function performMove(character, targetLocation) {
     }
   }
 
-  // Sequential on purpose: each entry is a handful of REST calls, and firing
-  // a whole dragged party's worth at once is the shape that trips the
-  // invalid-response breaker (db/lib/discordRest.js).
+  // Sequential: firing a whole dragged party's REST calls at once trips the invalid-response breaker (db/lib/discordRest.js).
   for (const entry of result.moved) {
     await applyLocationMoveSideEffects(prisma, {
       characterId: entry.character.id,
       fromLocationId: entry.fromLocationId,
       toLocationId: entry.toLocationId,
-      // Only ever computed for the mover themselves — performLocationMove
-      // checks the mover's own equipped mount against the edge, never a
-      // dragged passenger's.
-      dismounted: entry.character.id === character.id ? result.dismounted : undefined,
+      dismounted: entry.character.id === character.id ? result.dismounted : undefined, // mover only, never a dragged passenger's
     }).catch((err) =>
       console.error(`Move side effects failed for ${entry.character.name}:`, err.message ?? err),
     );
   }
 
-  // The Caving Die's "on arrival" trigger — see db/lib/locationTravel.js and
-  // docs/systemdocs/CAVING.md. Null on any zone that isn't a cave level, or
-  // if the character had already rolled for this turn some other way.
+  // Caving Die "on arrival" trigger (db/lib/locationTravel.js, CAVING.md). Null off a cave level.
   for (const entry of result.moved) {
     if (!entry.cavingDm) continue;
     await sendDm(prisma, entry.cavingDm.discordUserId, entry.cavingDm.content).catch((err) =>
@@ -235,25 +200,18 @@ async function performMove(character, targetLocation) {
     );
   }
 
-  // Anybody who was laying in wait here (docs/systemdocs/INTERCEPT.md). Built
-  // inside performLocationMove and sent from out here, the same split the
-  // Caving DM above uses.
+  // Anybody laying in wait here (INTERCEPT.md). Built inside performLocationMove, sent from here.
   for (const dm of result.interceptDms ?? []) {
     await sendDm(prisma, dm.discordUserId, dm.content, {
       kind: dm.kind,
       authorDiscordUserId: dm.authorDiscordUserId ?? null,
       components: dm.components,
       meta: dm.meta,
-      // Player-typed text rides in these. cleanMessage() already took the
-      // broadcast pings out of the stored copy; this is the belt to those
-      // braces.
-      allowedMentions: { parse: [] },
+      allowedMentions: { parse: [] }, // belt-and-braces: cleanMessage() already stripped broadcast pings
     }).catch((err) => console.error(`Intercept DM to ${dm.discordUserId} failed:`, err.message ?? err));
   }
 
-  // Being carried off is the one thing that happens to a player without them
-  // pressing anything, so it is the one thing that has to be told. Corpses
-  // and departed accounts are skipped. db/lib/dm.js#sendDm writes the "»".
+  // Being carried off happens without the player pressing anything, so it has to be told.
   for (const entry of result.moved) {
     if (entry.character.id === character.id) continue;
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
@@ -270,17 +228,10 @@ async function performMove(character, targetLocation) {
   return result;
 }
 
-// A rejoining player comes back with every role stripped by Discord AND with
-// their Location overwrite swept by the guildMemberRemove path, so this is a
-// pure re-grant with nothing to move away from — the same shape Revive uses
-// (CHARACTERS.md §5b). Gateway-side because guildMemberAdd already holds the
-// member; the Location half is REST, because an overwrite is a channel edit
-// rather than a member edit.
+// A rejoining player comes back with every role stripped and their Location overwrite swept by
+// guildMemberRemove, so this is a pure re-grant — same shape Revive uses (CHARACTERS.md §5b).
 async function restoreStandingRoles(member, character) {
-  // A "web only" character holds no Discord access on purpose, so a rejoin
-  // restores nothing (docs/systemdocs/CHAT.md §6). Their sight of the game is
-  // /chat, which never went away.
-  if (character.webOnly) return;
+  if (character.webOnly) return; // web-only holds no Discord access on purpose (CHAT.md §6)
 
   const zoneRoleId = character.zone?.discordRoleId ?? null;
   if (zoneRoleId) {

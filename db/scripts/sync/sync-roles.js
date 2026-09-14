@@ -1,11 +1,7 @@
-// Manual, terminal-invoked sync from docs/roles.yaml -> the Zone/Faction/Role
-// tables. Run with `npm run db:sync-roles`. The same logic
-// (db/lib/syncRoles.js#syncRolesFromYaml) is also called from wipeGameData's
-// "Restart Game" flow (web/app/(app)/gm/dev/actions.js).
-//
-// Run AFTER db:sync-locations and db:sync-tags — roles resolve a starting
-// Location by slug and validate starting_tags against the Tag catalog, and
-// will throw rather than half-apply if either hasn't been synced yet.
+// Manual sync from docs/roles.yaml -> the Zone/Faction/Role tables (`npm run
+// db:sync-roles`). Run AFTER db:sync-locations and db:sync-tags — roles
+// resolve a starting Location by slug and validate starting_tags against the
+// Tag catalog, and will throw rather than half-apply if either hasn't synced yet.
 require("dotenv").config();
 const { prisma, syncRolesFromYaml } = require("../../index");
 

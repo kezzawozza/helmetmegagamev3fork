@@ -2,10 +2,8 @@
 //
 //   npm run archive:exports
 //
-// EXITS 1 if the current game has no packet from the last 36 hours, which is
-// the same gate `npm run db:backups` applies to the dumps and for the same
-// reason: the way a backup system fails is not loudly, it is by going quiet
-// months before anyone looks.
+// EXITS 1 if the current game has no packet from the last 36 hours — a
+// backup system fails quietly, not loudly.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { listObjects, livePrefix, ARCHIVE_PREFIX } = require("../../lib/archiveBucket");

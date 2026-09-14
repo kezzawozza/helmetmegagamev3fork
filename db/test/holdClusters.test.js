@@ -1,17 +1,8 @@
-// The Other lens's clustering (docs/systemdocs/ATTACK.md §7).
-//
-// WHAT A FAILURE HERE MEANS. A GM reads this lens to find out who cannot
-// leave, and both ways of getting it wrong are quiet.
-//
-// Cluster too WIDE and two unrelated scraps in two rooms merge into one row
-// that names people who never met — and the ✕ beside one of them calls off a
-// fight in a different room. Cluster too NARROW and a group ambush is back to
-// being twelve rows a GM reads as twelve unrelated events, which is the whole
-// thing this replaced.
-//
-// The id is the third silent one. It comes off the OLDEST edge on purpose: an
-// id derived from the member set is a NEW id the moment a fourth person
-// joins, which drops the GM's keyboard cursor mid-read.
+// The Other lens's clustering (ATTACK.md §7): a GM reads this to find out who
+// cannot leave. Too WIDE and unrelated scraps merge into one row; too NARROW
+// and a group ambush is back to being twelve unrelated-looking rows. The id
+// comes off the OLDEST edge on purpose — one derived from the member set
+// would remint itself the moment a fourth person joins.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
@@ -21,7 +12,6 @@ let seq = 0;
 function who(id) {
   return { id, name: id, discordUserId: `u-${id}`, updatedAt: new Date(0), roleTitle: "", zone: { name: "Town" } };
 }
-// `at` orders the edges; everything else is what ATTACK_INCLUDE selects.
 function attack(attackerId, targetId, { at = ++seq, locationId = "loc-gate", fromAmbush = false, cancelledAt = null } = {}) {
   return {
     id: `atk-${attackerId}-${targetId}`,
@@ -99,9 +89,7 @@ test("every edge called off turns the row Called off", () => {
   assert.equal(out[0].statusLabel, "Called off");
 });
 
-// Being jumped outranks doing the jumping — the settleHold rule in
-// db/lib/attack.js. The row must not disagree with the sentence that person
-// reads off every shut way.
+// Being jumped outranks doing the jumping (settleHold in db/lib/attack.js).
 test("somebody on both ends reads as held", () => {
   seq = 0;
   const out = rows([attack("ada", "bram"), attack("bram", "cade")]);

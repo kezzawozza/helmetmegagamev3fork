@@ -1,20 +1,14 @@
 #!/usr/bin/env node
 // Everything about one character that decides whether they are hidden, and
-// from what. Read-only, always — this answers a question, it does not repair
-// anything.
+// from what. Read-only, always.
 //
 //   npm run db:inspect-character -- "Semyun"
 //
-// It exists because the two switches on /character are the two a player is
-// most likely to report as broken, and neither leaves a trace anywhere a GM
-// can read. "Play from the web" is a column plus a burst of best-effort
-// Discord calls, and concealment is not stored at all — it is derived at read
-// time from the column AND what is equipped, so `concealed: true` on its own
-// means nothing (PROXYING.md §5). Both answers are computed here by the same
-// functions every send path asks, rather than restated.
-//
-// Matches on a case-insensitive fragment of the name, so a first name is
-// enough, and prints every match rather than guessing which one was meant.
+// "Play from the web" and concealment neither leave a trace anywhere a GM can
+// read — concealment is derived at read time from the column AND what is
+// equipped, so `concealed: true` alone means nothing (PROXYING.md §5). Both
+// answers are computed here by the same functions every send path asks.
+// Matches on a case-insensitive fragment of the name and prints every match.
 const { prisma } = require("../../index");
 const {
   CONCEALMENT_TAG_FIELDS,
@@ -24,11 +18,7 @@ const {
 } = require("../../lib/presentedIdentity");
 const { HANDS_TAG_FIELDS, findEquipProblem, handsFor, handsUsed } = require("../../lib/equipSlots");
 
-// db/lib/webOnly.js keeps this as its own constant rather than a config
-// column. Imported would be better, but it is not exported and this script
-// has no business changing that module's surface — so it is read from the
-// stamp instead, and a drift here only mis-states the clock.
-const WEB_ONLY_COOLDOWN_SECONDS = 7200;
+const WEB_ONLY_COOLDOWN_SECONDS = 7200; // mirrors db/lib/webOnly.js's own unexported constant
 
 function stamp(date) {
   return date ? date.toISOString() : "never";
@@ -54,10 +44,7 @@ async function main() {
     where: { id: 1 },
     select: { playPanelEnabled: true },
   });
-  // Off, and "Play from the web" is neither drawn nor honoured for anybody who
-  // is not already web-only — a hand-posted "on" is discarded server-side
-  // (web/app/(app)/character/actions.js). That is the first thing to rule out.
-  console.log(`GameConfig.playPanelEnabled: ${config?.playPanelEnabled !== false}`);
+  console.log(`GameConfig.playPanelEnabled: ${config?.playPanelEnabled !== false}`); // first thing to rule out
 
   const characters = await prisma.character.findMany({
     where: { name: { contains: fragment, mode: "insensitive" } },
@@ -112,10 +99,6 @@ async function main() {
     console.log(`    last flipped ${stamp(c.webOnlyChangedAt)}`);
     console.log(`    ${cooldownLine(c.webOnlyChangedAt)}`);
     if (c.webOnly && c.roomThreadRoomIds?.length) {
-      // setWebOnly clears this column as it sheds the threads, so anything
-      // left here is a flip whose Discord half did not finish. The channel
-      // doctor's CHEAP pass — the one that runs on every bot start — does not
-      // cover threads; only `npm run db:doctor -- --apply --full` does.
       console.log(`    STILL RECORDED IN ${c.roomThreadRoomIds.length} room thread(s): the flip's Discord half did not finish`);
     }
 

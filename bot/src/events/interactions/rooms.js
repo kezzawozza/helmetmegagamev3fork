@@ -52,24 +52,15 @@ const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { ack, respond, scheduleDismiss } = require("../../lib/respond");
 
-// The Council Room's Intercom button, and its modal.
-//
-// showModal IS the acknowledgement and must be the first thing that happens —
-// a deferred interaction can no longer open one, and Discord allows three
-// seconds. So the button does no database work at all, and every check waits
-// for the submit. That is not a hole: an ephemeral modal outlives the player
-// walking out of the Keep, so an open-time check would have to be re-run at
-// submit anyway.
+// showModal IS the acknowledgement and must be first — every check waits for the submit, since an
+// open-time check would have to be re-run there anyway.
 async function handleIntercomOpen(interaction, roomId) {
   await interaction.showModal(buildIntercomModal(roomId));
 }
 
 
-// A quest's Interact button (docs/systemdocs/QUESTS.md). The only work here is
-// reading the quest's title for the modal's heading — everything that decides
-// whether the press is allowed waits for the submit, because the modal outlives
-// the player walking out of the cave. showModal IS the acknowledgement, so no
-// ack() here.
+// A quest's Interact button (QUESTS.md). Only reads the title for the modal heading; everything
+// that decides whether the press is allowed waits for the submit.
 async function handleQuestOpen(interaction, questId) {
   const quest = await prisma.quest.findUnique({
     where: { id: questId },
@@ -83,10 +74,7 @@ async function handleQuestOpen(interaction, questId) {
 }
 
 
-// Every gate lives in db/lib/quests.js#questInteract, which both faces call:
-// the quest is still open, they are still standing there, the door is still
-// theirs, and they have not already moved. This handler's whole job is to hand
-// it the typed intention and say what came back.
+// Every gate lives in db/lib/quests.js#questInteract, which both faces call.
 async function handleQuestSubmit(interaction, questId) {
   await ack(interaction);
 
@@ -110,9 +98,7 @@ async function handleQuestSubmit(interaction, questId) {
 }
 
 
-// The big red button in the Censor's Office. Opening the modal is not the act
-// — the typed word is — so this only has to find out which way the switch is
-// currently thrown. showModal IS the acknowledgement, so no ack() here.
+// Opening the modal isn't the act — the typed word is — so this only checks which way the switch is thrown.
 async function handleTurretOpen(interaction, roomId) {
   const room = await prisma.room.findUnique({ where: { id: roomId }, select: { slug: true } });
   if (room?.slug !== CENSOR_OFFICE_ROOM_SLUG) {
@@ -123,9 +109,7 @@ async function handleTurretOpen(interaction, roomId) {
 }
 
 
-// The rope in the Bell Tower. Opening the modal is not the act — the typed
-// word is — so nothing is checked here but the room. showModal IS the
-// acknowledgement, so no ack().
+// The typed word is the act, not opening the modal, so only the room is checked here.
 async function handleBellOpen(interaction, roomId) {
   const room = await prisma.room.findUnique({ where: { id: roomId }, select: { slug: true } });
   if (room?.slug !== BELL_ROOM_SLUG) {
@@ -136,21 +120,12 @@ async function handleBellOpen(interaction, roomId) {
 }
 
 
-// Pray, in the Shrine of an Old Man (docs/zones.yaml, under depths-chasm).
-//
-// A confirm, not the bell's type-the-word modal, and the difference is
-// deliberate. RING is a speed bump on a LOUD act — typing it says "you are
-// about to disturb a hundred people". Pressing this disturbs nobody; what it
-// does is hand you a permanent tag that can kill you and shut every goal on
-// your sheet but one. The right friction for that is being told what the
-// bargain is, so the confirm says it.
+// A confirm, not the bell's type-the-word modal: praying disturbs nobody, but hands a permanent
+// tag that can kill you, so the friction is being told the bargain.
 const PRAY_CONFIRM_PREFIX = "room:pray:go:";
 
-
-// Alive, standing in the shrine's Location, and admitted through the door.
-// Re-run at confirm as well as at open: the ephemeral outlives somebody
-// climbing back out of the Chasm, and reaching the shrine is the only
-// safeguard on it.
+// Alive, standing here, admitted through the door. Re-run at confirm too, since the ephemeral
+// outlives somebody climbing back out of the Chasm.
 async function prayGate(interaction, roomId) {
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) return { error: "You don't have a living character." };
@@ -227,9 +202,7 @@ async function handlePrayConfirm(interaction, roomId) {
     })
     .catch((err) => console.error("Pray audit log failed:", err));
 
-  // Anybody else standing in the shrine sees it happen, and nothing leaves the
-  // room — the tag is `catalog: secret` and this is the only place it is ever
-  // announced at all.
+  // Witnessed only within the shrine — the tag is `catalog: secret` and never announced elsewhere.
   const witnessed = `${character.name} kneels, and the face seems to lean down.`;
   await sceneLineAt(prisma, { roomId: room.id, text: witnessed }).catch(() => {});
   const thread = await prisma.room
@@ -264,9 +237,7 @@ async function handleBellSubmit(interaction, roomId) {
     await respond(interaction, "There's no bell here.");
     return;
   }
-  // Decided at submit, never at open: the modal outlives somebody walking back
-  // down the tower stairs, and reaching the rope is the only safeguard on it.
-  if (character.locationId !== room.locationId) {
+  if (character.locationId !== room.locationId) { // decided at submit — reaching the rope is the only safeguard
     await respond(interaction, `You're not standing in the ${room.name} any more.`);
     return;
   }
@@ -275,14 +246,11 @@ async function handleBellSubmit(interaction, roomId) {
     return;
   }
 
-  // The cooldown is read AFTER the word, so a modal somebody abandoned never
-  // reports a wait they were not going to trigger anyway.
+  // Cooldown read AFTER the word, so an abandoned modal never reports a wait it wasn't going to trigger.
   const state = await prisma.gameState.findUnique({ where: { id: 1 }, select: { bellRungAt: true } });
   const { ok, secondsLeft } = bellCooldown(state?.bellRungAt);
   if (!ok) {
-    // Minutes, not the raw seconds this used to print: at a half-hour cooldown
-    // "1487s" is arithmetic homework rather than an answer.
-    const minutes = Math.max(1, Math.ceil(secondsLeft / 60));
+    const minutes = Math.max(1, Math.ceil(secondsLeft / 60)); // minutes, not raw seconds
     await respond(
       interaction,
       `The bell is on cooldown. About ${minutes} more minute${minutes === 1 ? "" : "s"}.`,
@@ -330,17 +298,12 @@ async function handleTurretSubmit(interaction, roomId) {
     await respond(interaction, "There's no button here.");
     return;
   }
-  // Decided at submit, never at open: the modal outlives somebody walking out
-  // of the Garrison, and reaching the switch is the only safeguard on it.
-  if (character.locationId !== room.locationId) {
+  if (character.locationId !== room.locationId) { // decided at submit — reaching the switch is the only safeguard
     await respond(interaction, `You're not standing in the ${room.name} any more.`);
     return;
   }
 
-  // Re-read rather than trusting what the modal was built against — two people
-  // in the office can open it at the same moment, and the word they were asked
-  // to type is what says which way they meant to throw it.
-  const armed = await gatehouseTurretArmed(prisma);
+  const armed = await gatehouseTurretArmed(prisma); // re-read, not trusted from the modal: two people could open it at once
   if (!turretWordMatches(interaction.fields.getTextInputValue(TURRET_WORD_FIELD), armed)) {
     await respond(interaction, "You leave the button alone.");
     return;
@@ -349,9 +312,7 @@ async function handleTurretSubmit(interaction, roomId) {
   const next = !armed;
   await prisma.gameState.update({ where: { id: 1 }, data: { gatehouseTurretArmed: next } });
 
-  // The yard hears it, and that is the only warning anybody in it gets. Best
-  // effort — the switch is thrown either way.
-  const gatehouse = await prisma.location
+  const gatehouse = await prisma.location // the yard's only warning; best-effort, switch throws either way
     .findUnique({ where: { slug: GATEHOUSE_LOCATION_SLUG }, select: { discordChannelId: true } })
     .catch(() => null);
   if (gatehouse?.discordChannelId) {
@@ -412,12 +373,7 @@ async function handleIntercomSubmit(interaction, roomId) {
     await respond(interaction, `You can't get the words out — you're ${voice.block.name}.`);
     return;
   }
-  const { sent, failed } = await broadcastIntercom(prisma, body);
-
-  // The transcript is broadcastIntercom's own job since phase 4: it writes one
-  // SYSTEM row per zone it reached, so the announcement lands in each zone's
-  // feed on /chat as well as in /archive. The single row that used to be
-  // written here had no place key and so was invisible in Chat.
+  const { sent, failed } = await broadcastIntercom(prisma, body); // writes its own SYSTEM row per zone (/chat + /archive)
 
   await prisma.auditLog
     .create({
@@ -430,18 +386,11 @@ async function handleIntercomSubmit(interaction, roomId) {
     })
     .catch((err) => console.error("Intercom audit failed:", err.message ?? err));
 
-  // Say what actually happened. A PA that reached four zones out of five is
-  // not a failure, but the speaker has to know which one nobody heard. One
-  // for the whole message, riding the last line rather than the first.
-  const note = failed.length > 0 ? `\n-# Nothing came through in ${failed.join(", ")}.` : "";
+  const note = failed.length > 0 ? `\n-# Nothing came through in ${failed.join(", ")}.` : ""; // a partial reach isn't a failure, but say which zones missed it
   await respond(interaction, `» *Your voice goes out across Ravenheart.*${note}`, { fleeting: true });
 }
 
-// Custom IDs below are "loc:"-namespaced for the travel flow off the Travel
-// button on the #turns console (bot/src/lib/turnsConsole.js, whose button
-// keeps its historical "loc:open" id) and off the three buttons on every
-// Location channel's anchor; "conv:" is the Conversation flow; "move:" and
-// "say:" are the unrelated Move and Speak modals.
+// Custom IDs below: "loc:" is the travel flow, "conv:" the Conversation flow, "move:"/"say:" the Move/Speak modals.
 
 
 module.exports = {

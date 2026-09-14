@@ -1,8 +1,7 @@
 const { prisma } = require("@lifeweb/db");
 const { dmLogRow } = require("@lifeweb/db/lib/dmPolicy");
 
-// Renders one embed (an EmbedBuilder instance or a plain object) to
-// readable text: title, description, then each field as "**name**: value".
+// Renders one embed to readable text: title, description, then each field as "**name**: value".
 function embedText(e) {
   const data = e?.data ?? e ?? {};
   const lines = [data.title, data.description];
@@ -20,25 +19,19 @@ function contentOf(payload) {
   return parts.join("\n");
 }
 
-// Every DM the bot sends is logged so the GM message inbox has a full
-// record without needing to also intercept every call site individually.
+// Every DM the bot sends is logged so the GM inbox has a full record with no per-call-site intercept.
 async function sendDm(user, payload, opts = {}) {
   const dm = await user.createDM();
   const sent = await dm.send(payload);
-  // db/lib/dmPolicy.js holds the kind/source defaults the other two
-  // transports use. The embeds and `meta` are read off the PAYLOAD here rather
-  // than off opts — this twin carries them there — so the three reaction
-  // handlers that send one still need no opts at all: an inspect readout is
-  // plumbing, and plumbing is QUIET.
+  // db/lib/dmPolicy.js holds the kind/source defaults. Embeds/`meta` read off the payload, not
+  // opts, so the reaction handlers that send one need no opts at all (an inspect readout is QUIET).
   const hasEmbeds = Boolean(payload?.embeds?.length);
   await prisma.directMessage
     .create({
       data: {
         ...dmLogRow({
           discordUserId: user.id,
-          // No `»` here: this transport's callers write their own where they
-          // want one, and a payload may be an embed with no text at all.
-          content: contentOf(payload),
+          content: contentOf(payload), // no `»` here: callers write their own
           opts,
           discordMessageId: sent?.id ?? null,
           hasEmbeds,

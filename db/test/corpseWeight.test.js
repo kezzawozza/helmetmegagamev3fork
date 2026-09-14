@@ -10,8 +10,6 @@ test("an ordinary body is the base weight", () => {
   assert.equal(corpseBodyWeight(held("literate", "brave")), BASE_CORPSE_LBS);
 });
 
-// The base sits under GameConfig.carryWeightLbs (71) on purpose: one body is
-// carryable on its own, and it costs you most of your back.
 test("a plain body fits under the default carry cap", () => {
   assert.ok(corpseBodyWeight([]) < 71);
 });
@@ -28,12 +26,10 @@ test("build multipliers compose rather than fighting", () => {
   assert.ok(corpseBodyWeight(held("giant", "fat")) > corpseBodyWeight(held("giant")));
 });
 
-// Stacked penalties must never reach a body you cannot feel picking up.
 test("no combination makes a body weightless", () => {
   assert.ok(corpseBodyWeight(held("frail", "dwarf")) >= MIN_BODY_LBS);
 });
 
-// Strength is not mass, and taxing a bought trait for realism is a poor trade.
 test("Strong is deliberately not a weight modifier", () => {
   assert.equal(corpseBodyWeight(held("strong")), BASE_CORPSE_LBS);
 });
@@ -57,15 +53,11 @@ test("a quantity counts once per unit", () => {
   assert.equal(gearWeight([{ ...item("obol", 2), quantity: 4 }]), 8);
 });
 
-// carry.js#rowWeight owns both of these rules; this only has to not undo them.
 test("untradeable rows and Assets never weigh on the pallbearer", () => {
   assert.equal(gearWeight([item("neck-graft", 10, { tradeable: false })]), 0);
   assert.equal(gearWeight([item("horse", 900, { category: "Assets" })]), 0);
 });
 
-// A body with no public room to fall into lands on its own character's sheet,
-// so counting the sheet blindly would have a corpse weighing partly itself —
-// and every recompute would add that weight again.
 test("a corpse never counts toward its own weight", () => {
   assert.equal(gearWeight([item("custom-ada-corpse", 50, { corpseOfCharacterId: "c1" })]), 0);
   assert.equal(gearWeight([item("nekker-corpse", 35, { group: { slug: "items-corpse" } })]), 0);

@@ -1,26 +1,9 @@
-// The confirm-inside-a-transition deadlock, as a test.
-//
-// WHAT A FAILURE HERE MEANS. A component is doing
-//
-//     startTransition(async () => { const ok = await confirm({…}); … })
-//
-// and the control it belongs to will hang forever. `confirm()` resolves on a
-// click, so the state update that mounts the dialog has to render immediately;
-// inside an async transition React schedules it at transition priority, the
-// transition cannot commit until the promise settles, and the promise cannot
-// settle until somebody clicks a dialog that was never committed. The dialog
-// never appears, `isPending` stays true, every control bound to it sits
-// disabled, and the server action is never called. Only a refresh escapes.
-//
-// The fix is always the same shape — confirm FIRST, outside the transition:
-//
-//     const ok = await confirm({…});
-//     if (!ok) return;
-//     startTransition(async () => { … });
-//
-// This is written down in DESIGN-SYSTEM.md §8 and in the comments of the files
-// that hit it. It still happened five times, which is why prose was not
-// enough and this exists instead.
+// The confirm-inside-a-transition deadlock, as a test. `startTransition(async
+// () => { await confirm({…}) })` hangs forever: confirm()'s dialog needs an
+// immediate render, but an async transition schedules it at transition
+// priority, which can't commit until the promise settles, which can't settle
+// until the never-rendered dialog is clicked. Fix: confirm FIRST, outside the
+// transition. See DESIGN-SYSTEM.md §8.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -42,11 +25,8 @@ function jsFilesUnder(dir) {
 }
 
 // The transition's OWN callback body, by brace matching from its opening `{`.
-// A fixed-size window was tried first and it accused ObjectivesPanel.js, whose
-// transition is three lines long and whose correctly-written confirm sits in
-// the next function down. Braces inside strings could in principle skew the
-// count; in practice these bodies are ordinary code, and a false positive here
-// is loud and easy to read rather than silent.
+// Braces inside strings could in principle skew the count, but a false
+// positive here is loud and easy to read rather than silent.
 function transitionBody(source, from) {
   const open = source.indexOf("{", from);
   if (open === -1) return "";

@@ -1,9 +1,6 @@
-// The `wheels` attribute: an indoors Location a cart may come into anyway.
-// docs/systemdocs/CARRY.md §3.
-//
-// The point of these is the SPLIT. `indoors` used to answer two questions at
-// once, and the three places wearing `wheels` have to keep answering "is there
-// a roof" the old way while answering "do wheels stay outside" the new one.
+// The `wheels` attribute: an indoors Location a cart may come into anyway
+// (CARRY.md §3). `indoors` used to answer two questions at once; wheels
+// splits "is there a roof" from "do wheels stay outside".
 const test = require("node:test");
 const assert = require("node:assert");
 const fs = require("node:fs");
@@ -22,23 +19,17 @@ test("parksMounts: a roof parks a cart, a roof with wheels does not", () => {
   assert.equal(parksMounts(CHAPEL), true);
   assert.equal(parksMounts(FACTORY), false);
   assert.equal(parksMounts(FIELD), false);
-  // Nowhere at all is nowhere to park: a caller with no Location loaded must
-  // never blind-refuse an equip.
   assert.equal(parksMounts(null), false);
 });
 
 test("wheels moves nothing but the cart", () => {
-  // Still under a roof for the dial...
   assert.equal(placeClassOf(FACTORY), "INDOORS");
-  // ...and still no palisade in the warehouse.
   assert.match(canBuildHere(FACTORY).reason, /indoors/);
 });
 
 test("a wheels Location says so once, not twice", () => {
   const lines = describeLocation(FACTORY);
   assert.ok(lines.some((line) => line.startsWith("**Wheels**")));
-  // The placement line is suppressed there — two lines about the same cart
-  // would read as an argument.
   assert.ok(!lines.some((line) => line.startsWith("**Indoors**")));
   assert.ok(describeLocation(CHAPEL).some((line) => line.startsWith("**Indoors**")));
 });

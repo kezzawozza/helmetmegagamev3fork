@@ -1,19 +1,12 @@
-// One-off: grants Repent the full human organ set — the same nine pieces
-// (two eyes, two hands, two feet, one tongue, one stomach, one heart) an
-// untouched corpse now gives up to a single Butcher.
+// One-off: grants Repent the full human organ set an untouched corpse gives
+// up to a single Butcher.
 //
 //   node db/scripts/ops/grant-repent-organs.js           # dry run
 //   node db/scripts/ops/grant-repent-organs.js --apply   # write
 //
-// Dry-run-by-default with an --apply flag, matching db:prune-tags and the
-// rest of db/scripts/ops/. Matches the name the way inspect-character.js
-// does — a case-insensitive fragment — and refuses to write unless exactly
-// one character matches, so a typo or a duplicate name can't send this to
-// the wrong sheet.
-//
-// The grant list comes from harvestableOrgans([]) (db/lib/mutilate.js) —
-// the same untouched-subject case Butcher itself uses now — rather than
-// re-typing the six counts here.
+// Matches the name as a case-insensitive fragment and refuses to write
+// unless exactly one character matches. The grant list comes from
+// harvestableOrgans([]) (db/lib/mutilate.js) rather than re-typing it.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { addToStack } = require("../../lib/tagWrites");

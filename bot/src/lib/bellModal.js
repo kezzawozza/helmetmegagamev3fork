@@ -7,13 +7,9 @@ const {
 } = require("discord.js");
 
 // The confirm on the Sound Bell button in the Cathedral's Bell Tower
-// (db/lib/roomStarterRow.js). A modal rather than a bare button because one
-// click is heard in four zones at once, and a misclick that wakes the whole
-// barony is not a mistake you can take back.
-//
-// The room id rides in the customId so the submit handler can re-check where
-// the ringer is standing. An ephemeral modal outlives somebody walking down
-// out of the tower, so permission is decided at submit, never at open.
+// (db/lib/roomStarterRow.js). A modal, not a bare button, since one click is
+// heard in four zones at once. The room id rides the customId so the submit
+// handler can re-check where the ringer is standing, at submit, never at open.
 
 const { RING_WORD, bellWordMatches } = require("@lifeweb/db/lib/bell");
 

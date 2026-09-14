@@ -1,24 +1,10 @@
 const { prisma } = require("@lifeweb/db");
 const { gmRoleIds } = require("@lifeweb/db/lib/roleIds");
 
-// Every player-facing command is registered globally with a BotDM context
-// (see bot/src/lib/commands.js), so `interaction.guild` and
-// `interaction.member` are null whenever one is run from the bot's DMs.
-// Bascinet is single-guild, so the guild is recoverable from the environment —
-// but no handler should reach for interaction.guild directly, or it works in
-// a channel and throws in a DM.
-//
-// Returns { guild, member } with either possibly null: a null guild means
-// DISCORD_GUILD_ID is unset or the bot is not in it, a null member means the
-// player has left.
-//
-// DESTRUCTURE THE RESULT. The wrapper object is always truthy, so assigning it
-// to a bare `member` and reading `.id` yields undefined rather than failing —
-// and Prisma drops an undefined filter instead of matching nothing, so
-// `where: { discordUserId: undefined, status: "ALIVE" }` quietly resolves to an
-// ARBITRARY living character. That shipped twice; use actingCharacter() below
-// rather than writing the lookup by hand a third time. db/lib/parties.js
-// carries the same warning for the same reason.
+// `interaction.guild`/`interaction.member` are null from a DM (BotDM context, commands.js).
+// Returns { guild, member }, either possibly null. DESTRUCTURE THE RESULT: a bare `member.id` off
+// the wrapper is undefined, and Prisma drops an undefined filter rather than matching nothing — an
+// ARBITRARY living character comes back. Use actingCharacter() below instead. db/lib/parties.js carries the same warning.
 async function resolveActingMember(interaction) {
   const guild =
     interaction.guild ??
@@ -34,19 +20,15 @@ async function resolveActingMember(interaction) {
   return { guild, member };
 }
 
-// The GM gate. interaction.member is null in a DM, which would silently read
-// as "not a GM" — that is the right answer (no GM command is DM-able, see
-// commands.js), but it should be a decision rather than an accident.
+// interaction.member is null in a DM, which reads as "not a GM" — the right answer (commands.js).
 function isGmMember(interaction) {
   if (!interaction.inGuild()) return false;
   const roles = interaction.member?.roles.cache;
   if (!roles) return false;
-  // Either seat: gmRoleIds() carries the Gamemaster role and the Trial one.
-  return gmRoleIds().some((id) => roles.has(id));
+  return gmRoleIds().some((id) => roles.has(id)); // Gamemaster or Trial seat
 }
 
-// The falsy guard is the whole point: without it an absent id resolves to
-// whichever living character the database hands back first.
+// The falsy guard: without it an absent id resolves to whichever living character comes back first.
 async function findAliveCharacter(discordUserId, args = {}) {
   if (!discordUserId) return null;
   return prisma.character.findFirst({
@@ -55,9 +37,7 @@ async function findAliveCharacter(discordUserId, args = {}) {
   });
 }
 
-// The acting character, resolved from the interaction rather than from anything
-// the client sent. `args` carries the caller's own select/include. Null when the
-// guild or member is unreachable, or the player has no living character.
+// Resolved from the interaction, never from anything the client sent. Null when unreachable.
 async function actingCharacter(interaction, args = {}) {
   const { member } = await resolveActingMember(interaction);
   if (!member?.id) return null;

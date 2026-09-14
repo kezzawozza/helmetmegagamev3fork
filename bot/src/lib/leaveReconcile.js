@@ -1,26 +1,15 @@
-// The startup catch-up for departures the bot slept through. The
-// guildMemberRemove handler only fires while the gateway is connected, so a
-// player who left during a restart or outage used to vanish without an
-// alert, an audit row, or any cleanup — forever. This pass diffs the living
-// roster against actual guild membership on every ready and runs the same
-// shared departure path (db/lib/playerDeparture.js) for anyone missed.
-//
-// Ordering: called from ready.js AFTER the channel doctor and the nickname
-// sync, so the doctor's REST burst is finished before this posts anything.
-// The two can't fight over a leaver in either order — the doctor's role
-// reconcile skips any user absent from the member map.
-//
-// Idempotent via the `leftGuildAt: null` filter: a restart loop re-alerts
-// nobody. Players who left with no living character are deliberately out of
-// scope — there is no row to mark, so they'd re-alert on every boot.
+// The startup catch-up for departures the bot slept through: the
+// guildMemberRemove handler only fires while the gateway is connected. This
+// pass diffs the living roster against actual guild membership on every
+// ready and runs the shared departure path (db/lib/playerDeparture.js) for
+// anyone missed. Called from ready.js AFTER the channel doctor and the
+// nickname sync. Idempotent via the `leftGuildAt: null` filter.
 const { prisma } = require("@lifeweb/db");
 const { markPlayerDeparted } = require("@lifeweb/db/lib/playerDeparture");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("@lifeweb/db/lib/constants");
 
 async function reconcileDepartures(client, guild) {
-  // Gateway fetch, not REST: it rides the shard connection, costs nothing
-  // against the request budget, and returns the full collection or throws.
-  const members = await guild.members.fetch();
+  const members = await guild.members.fetch(); // gateway fetch, not REST — costs nothing against the request budget
 
   const alive = await prisma.character.findMany({
     where: { status: "ALIVE", leftGuildAt: null },
@@ -28,11 +17,7 @@ async function reconcileDepartures(client, guild) {
   });
   const candidates = alive.filter((character) => !members.has(character.discordUserId));
 
-  // The hard rail. The single worst outcome of this pass is a truncated or
-  // empty member fetch reading as a mass exodus and putting half the living
-  // roster on a death countdown. An empty guild is never real here, and more
-  // than a handful of simultaneous unnoticed leaves means the data is wrong,
-  // not the players gone — bail loudly and touch nothing.
+  // The hard rail: a truncated fetch must never read as a mass exodus.
   const limit = Math.max(5, Math.ceil(alive.length * 0.2));
   if (members.size === 0 || candidates.length > limit) {
     const message =

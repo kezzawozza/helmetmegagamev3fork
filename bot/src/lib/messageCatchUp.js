@@ -1,23 +1,11 @@
-// Messages typed while the bot was not listening.
-//
-// The bot only proxies what `messageCreate` hands it, so anything typed while
-// the gateway was away is missed three ways at once, and the first is the one
-// that matters:
-//
-//   1. The mask leaks. The raw message sits in the channel under the player's
-//      REAL Discord account and nickname. Hiding that is the load-bearing rule
-//      of the whole proxy (docs/systemdocs/PROXYING.md §2).
-//   2. It never reaches the web. /chat and /archive render ArchiveEntry rows
-//      and never read Discord, so no row means invisible forever.
-//   3. The next turn wipe deletes it, so it vanishes having never been kept.
-//
-// This is the mirror of bot/src/lib/feedOutbox.js#drainFeedOutbox — that one
-// replays web rows that never reached Discord, this one replays Discord
-// messages that never reached the database — and it takes the same posture:
-// windowed, sequential, and safe to run twice.
-//
-// It is NOT rare. Railway rebuilds both services on every push, so the bot
-// restarts many times a day and every restart is one of these windows.
+// Messages typed while the bot was not listening. The bot only proxies what
+// `messageCreate` hands it, so anything typed while the gateway was away is
+// missed three ways: the mask leaks (raw message under the player's REAL
+// account, PROXYING.md §2), it never reaches the web (no ArchiveEntry row),
+// and the next turn wipe deletes it unkept. Mirrors
+// bot/src/lib/feedOutbox.js#drainFeedOutbox in the other direction; same
+// posture: windowed, sequential, safe to run twice. NOT rare — Railway
+// rebuilds on every push.
 const { Collection, PermissionFlagsBits } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const { snowflakeForTimestamp, messageTimestamp } = require("@lifeweb/db/lib/discordRest");
@@ -29,46 +17,23 @@ const { isDesignatedTupperChannel, resolveChannelContext } = require("./channels
 const { attachmentPlaceholders } = require("./proxy");
 const { sendDm } = require("./dm");
 
-// Two windows, because "recover it" means two different things depending on
-// how long the words have been sitting there.
-//
-// Inside REPOST the gap was short enough that the scene is still the scene, so
-// the message gets the full ordinary treatment and nobody can tell. Between
-// REPOST and SCAN, putting an hours-old line back into a room that moved on
-// would read as somebody talking to themselves, so the words are kept and the
-// leak is closed but Discord is left alone — the same reasoning the outbox
-// gives for its own window.
-//
-// SCAN is a ceiling rather than a promise: the turn wipe empties these channels
-// every turn, so Discord rarely still holds even that much. One turn plus slack.
+// Two windows: inside REPOST the scene is still the scene, so the message
+// gets the full ordinary treatment. Between REPOST and SCAN an hours-old line
+// would read as talking to oneself, so the words are kept and the leak
+// closed but Discord is left alone. SCAN is a ceiling, not a promise — the
+// turn wipe empties these channels every turn.
 const REPOST_WINDOW_MS = 2 * 60 * 60 * 1000;
 const SCAN_WINDOW_MS = 26 * 60 * 60 * 1000;
 
-// Per channel. A room that really produced more than this while the bot was
-// down is a room having a party, and the tail of it is not worth the requests.
-const PER_CHANNEL_LIMIT = 100;
-
-// Leave the newest few seconds alone. By the time this runs the gateway is
-// live, so a message this recent may be in `messageCreate`'s hands right now —
-// and both of us proxying it would post it twice.
-const SETTLE_MS = 10 * 1000;
-
-// A flapping gateway can re-identify every few seconds. One sweep at a time,
-// and not more often than this, or a bad connection becomes a request storm —
-// the shape bot/src/index.js warns can trip Discord's IP ban.
-const MIN_INTERVAL_MS = 60 * 1000;
+const PER_CHANNEL_LIMIT = 100; // more than this while the bot was down is a room having a party
+const SETTLE_MS = 10 * 1000; // leave the newest few seconds alone; messageCreate may still be handling them
+const MIN_INTERVAL_MS = 60 * 1000; // a flapping gateway can re-identify every few seconds
 
 let running = false;
 let lastRunAt = 0;
 
-// Every channel a player can be proxied in. `isDesignatedTupperChannel` is the
-// same predicate messageCreate gates on — it handles threads itself, by their
-// parent — so this cannot drift from the real rule. Top-level Location
-// channels are deliberately outside it: players hold no Send there, and what
-// is left is a GM typing, whose words are their own.
-//
-// Active threads come from ONE request. Auto-archive is seven days everywhere,
-// so no thread can archive inside a turn and the active set is complete.
+// Every channel a player can be proxied in. `isDesignatedTupperChannel` is
+// the same predicate messageCreate gates on, so this cannot drift.
 async function candidateChannels(guild) {
   const found = new Collection();
   const active = await guild.channels.fetchActiveThreads().catch((err) => {
@@ -76,9 +41,7 @@ async function candidateChannels(guild) {
     return null;
   });
   for (const thread of active?.threads?.values() ?? []) found.set(thread.id, thread);
-  // The non-thread half — zone #summary and #cerberon — lives in the ordinary
-  // channel cache rather than the thread list.
-  for (const channel of guild.channels.cache.values()) {
+  for (const channel of guild.channels.cache.values()) { // non-thread half: zone #summary and #cerberon
     if (!found.has(channel.id)) found.set(channel.id, channel);
   }
   return [...found.values()].filter((channel) => {
@@ -90,14 +53,9 @@ async function candidateChannels(guild) {
   });
 }
 
-// Can we actually take a raw message down in here?
-//
-// This is the guard that matters most, and it runs BEFORE anything is posted.
-// Recovering a message means reposting it and then deleting the original; if
-// the delete is going to fail, the repost would come back on the next restart
-// and the one after that — a duplicate per restart until the turn wipe, which
-// on this deploy cadence is a lot of them. So a channel the bot cannot tidy is
-// a channel it does not touch at all.
+// Can we actually take a raw message down in here? Runs BEFORE anything is
+// posted: if the delete would fail, the repost would duplicate on every
+// restart until the turn wipe, so a channel the bot cannot tidy isn't touched.
 function canTidy(channel, guild) {
   const me = guild.members.me;
   if (!me) return false;
@@ -105,24 +63,16 @@ function canTidy(channel, guild) {
   return Boolean(perms?.has(PermissionFlagsBits.ManageMessages));
 }
 
-// What is still sitting in one channel that the bot never handled.
-//
-// No cursor, and deliberately no watermark column: the ordinary path DELETES
-// the player's message as its last step, so a raw message still standing is by
-// definition one nobody proxied. Existence is the marker, which is also what
-// makes the whole pass safe to run twice.
-//
-// It is worth saying why the obvious cursor is wrong, because it looks right.
-// Taking the newest ArchiveEntry.discordMessageId for the channel and asking
-// for messages `after` it would skip work: the stored id is the WEBHOOK
-// repost's, minted later than the raw message it replaced, so the cursor sits
-// ahead of anything still waiting. One failed delete and that message is
-// skipped by every future run — the message that most needed recovering.
+// What is still sitting in one channel that the bot never handled. No
+// cursor, deliberately: the ordinary path DELETES the player's message last,
+// so a raw message still standing is by definition unproxied — existence is
+// the marker. A watermark cursor would be wrong: the stored
+// ArchiveEntry.discordMessageId is the WEBHOOK repost's, minted later than
+// the raw message, so it would sit ahead of anything still waiting.
 async function missedIn(channel, sinceMs, settleBefore) {
   const after = snowflakeForTimestamp(sinceMs);
   const fetched = await channel.messages.fetch({ after, limit: PER_CHANNEL_LIMIT }).catch((err) => {
-    // A thread the wipe deleted between listing and reading is ordinary.
-    if (err?.status !== 404 && err?.status !== 403) {
+    if (err?.status !== 404 && err?.status !== 403) { // a thread the wipe deleted meanwhile is ordinary
       console.error(`Catch-up: couldn't read ${channel.name ?? channel.id}:`, err.message ?? err);
     }
     return null;
@@ -131,37 +81,23 @@ async function missedIn(channel, sinceMs, settleBefore) {
   return selectMissed([...fetched.values()], { channelId: channel.id, settleBefore });
 }
 
-// Which of a channel's messages this pass is allowed to touch. Pure, and
-// exported for the tests — every clause here is one that would cost something
-// real if it were dropped.
+// Which of a channel's messages this pass is allowed to touch. Pure, exported for tests.
 function selectMissed(messages, { channelId, settleBefore }) {
   return messages
     .filter((m) => !m.author?.bot && !m.webhookId && !m.system)
-    // A thread's opening message carries the THREAD's own id, and deleting it
-    // destroys the whole thread rather than one line. messageWipe.js guards the
-    // same thing by keeping Room.starterMessageId.
-    .filter((m) => m.id !== channelId)
+    .filter((m) => m.id !== channelId) // a thread's opening message deleting it destroys the whole thread
     .filter((m) => m.createdTimestamp <= settleBefore)
-    // Oldest first: a scene replayed backwards is worse than one replayed late.
-    .sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+    .sort((a, b) => a.createdTimestamp - b.createdTimestamp); // oldest first
 }
 
-// Put it back in the room, or just keep the words? Pure, and the one decision
-// the whole feature turns on.
 function recoveryKind(createdTimestamp, now = Date.now()) {
   return createdTimestamp >= now - REPOST_WINDOW_MS ? "repost" : "file";
 }
 
-// Keep the words, close the leak, leave the room alone. The out-of-window half.
-//
-// The row carries the message's REAL timestamp, which is the point — it lands
-// in /archive where it was actually said rather than where the bot woke up. It
-// carries no discordMessageId, because there is no character post to point at.
-//
-// Such a row is inert to the outbox: feedOutbox.js#pushRow opens by refusing
-// anything whose `source` is not "WEB". Worth stating here because it is not
-// obvious, and a future edit to that guard would quietly start reposting
-// hours-old text into rooms that have moved on.
+// Keep the words, close the leak, leave the room alone — the out-of-window
+// half. The row carries the message's REAL timestamp and no
+// discordMessageId. Inert to the outbox: feedOutbox.js#pushRow refuses
+// anything whose `source` isn't "WEB".
 async function fileWithoutReposting(channel, character, message) {
   const placeKey = await placeKeyForChannel(prisma, {
     channelId: channel.id,
@@ -173,11 +109,8 @@ async function fileWithoutReposting(channel, character, message) {
     content: message.content,
     source: "DISCORD",
   });
-  // A refusal means the character could not have said it anyway — Mute,
-  // Paralyzed, empty after the transforms. Drop the words rather than record
-  // something the gates would have turned away, and do NOT hand it back: a
-  // "you were too quiet to shout" DM hours late is noise. The delete still
-  // happens, because the leak is not conditional on the line being sayable.
+  // A refusal (Mute, Paralyzed, etc) drops the words rather than recording
+  // what the gates would have refused; the delete still happens regardless.
   if (prepared.ok) {
     const context = resolveChannelContext(channel);
     await recordSpeech(prisma, prepared, {
@@ -196,10 +129,7 @@ async function fileWithoutReposting(channel, character, message) {
   return prepared.ok;
 }
 
-// The raw message under the player's real name. Retried once — a transient
-// failure is worth a second go, and leaving one standing is the failure that
-// actually costs somebody something.
-async function deleteLeak(message) {
+async function deleteLeak(message) { // retried once — leaving one standing is the failure that costs something
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       await message.delete();
@@ -217,9 +147,7 @@ async function deleteLeak(message) {
   return false;
 }
 
-// One line per player per run, not one per message: somebody who wrote thirty
-// lines during an outage must not get thirty DMs.
-async function tellFiledWithoutReposting(client, entries) {
+async function tellFiledWithoutReposting(client, entries) { // one DM per player per run, not per message
   for (const [discordUserId, count] of entries) {
     const user = await client.users.fetch(discordUserId).catch(() => null);
     if (!user) continue;
@@ -231,11 +159,9 @@ async function tellFiledWithoutReposting(client, entries) {
   }
 }
 
-// The sweep. Returns a small tally for the caller's log line.
-//
-// Sequential throughout, never Promise.all: this walks every active thread in
-// the guild, and a fan-out across them is exactly the shape that bursts
-// Discord's rate-limit buckets (docs/systemdocs/ARCHITECTURE.md §5).
+// The sweep. Returns a small tally for the caller's log line. Sequential
+// throughout, never Promise.all — a fan-out bursts Discord's rate-limit
+// buckets (ARCHITECTURE.md §5).
 async function catchUpMissedMessages(client, guild, { reason = "startup" } = {}) {
   if (running) return null;
   if (Date.now() - lastRunAt < MIN_INTERVAL_MS) return null;
@@ -244,19 +170,14 @@ async function catchUpMissedMessages(client, guild, { reason = "startup" } = {})
   const tally = { channels: 0, reposted: 0, filed: 0, skipped: 0, leaked: 0 };
   const filedFor = new Map();
 
-  // Required late, not at module load: bot/src/events/messageCreate.js requires
-  // this module's neighbours, and a top-level require here would close the
-  // circle before either module finished defining its exports.
-  const { execute: handleMessage } = require("../events/messageCreate");
+  const { execute: handleMessage } = require("../events/messageCreate"); // late require avoids a circular close
 
   try {
     const sinceMs = startedAt - SCAN_WINDOW_MS;
     const settleBefore = startedAt - SETTLE_MS;
 
     for (const channel of await candidateChannels(guild)) {
-      // Nothing has been said in here since before the window — no request.
-      // This is what keeps a quiet guild's sweep down to one call in total.
-      const lastAt = channel.lastMessageId ? messageTimestamp(channel.lastMessageId) : null;
+      const lastAt = channel.lastMessageId ? messageTimestamp(channel.lastMessageId) : null; // no request if nothing's been said in-window
       if (lastAt !== null && lastAt < sinceMs) continue;
 
       const missed = await missedIn(channel, sinceMs, settleBefore);
@@ -280,21 +201,14 @@ async function catchUpMissedMessages(client, guild, { reason = "startup" } = {})
       const byUser = new Map(alive.map((c) => [c.discordUserId, c]));
 
       for (const message of missed) {
-        // No living character is the same answer messageCreate gives: leave it
-        // alone. Nobody is behind it in the fiction, so no mask can slip.
-        if (!byUser.has(message.author.id)) {
+        if (!byUser.has(message.author.id)) { // no living character: same answer messageCreate gives
           tally.skipped += 1;
           continue;
         }
         try {
           if (recoveryKind(message.createdTimestamp, startedAt) === "repost") {
-            // The ordinary handler, re-entered whole. It re-reads the character
-            // and identity, proxies, records, deletes, and relays mentions —
-            // and inside the window every one of those is still the right thing
-            // to do, since the jump link points at a message that exists and a
-            // role chip never notifies on its own. A recovered message is meant
-            // to be indistinguishable from one caught live, and the surest way
-            // to manage that is to run the same code.
+            // The ordinary handler, re-entered whole, so a recovered message
+            // is indistinguishable from one caught live.
             await handleMessage(message);
             tally.reposted += 1;
           } else {
@@ -322,9 +236,7 @@ async function catchUpMissedMessages(client, guild, { reason = "startup" } = {})
 
   await tellFiledWithoutReposting(client, filedFor).catch(() => {});
 
-  // Silent when there was nothing to do, which is the common case — a clean
-  // deploy should print nothing at all.
-  if (tally.reposted || tally.filed || tally.skipped) {
+  if (tally.reposted || tally.filed || tally.skipped) { // silent on a clean deploy
     const seconds = Math.round((Date.now() - startedAt) / 100) / 10;
     console.log(
       `Catch-up (${reason}): ${tally.reposted} reposted, ${tally.filed} filed, ${tally.skipped} skipped` +

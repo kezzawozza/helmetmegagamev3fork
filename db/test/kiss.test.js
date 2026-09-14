@@ -1,19 +1,8 @@
-// node --test over the pure half of kissing (db/lib/kiss.js): who may kiss
-// whom. That is the whole rule set — everything else in the feature is the
-// Offer handshake it shares with Bind and Confession, and two applyMood calls.
-//
-// The three things worth pinning, because each is a decision somebody could
-// undo by accident:
-//
-//   1. ACT implies KISS (db/lib/incapacitation.js#expandCaps), so the helpless
-//      are refused without a second list to maintain — Bascinet's call that a
-//      kiss needs somebody who can answer.
-//   2. mute keeps it. TAGS.md §5f: over-gating that tag "removed the PLAYER
-//      from the game rather than the character from a conversation".
-//   3. A covered face is DERIVED from concealsIdentity, never a slug list, so
-//      a helmet added to the catalog tomorrow is covered by it today.
-//
-// Run with: npm test --workspace=db
+// The pure half of kissing (db/lib/kiss.js): who may kiss whom. Three things
+// worth pinning: ACT implies KISS (db/lib/incapacitation.js#expandCaps), so
+// the helpless are refused with no second list to maintain; mute keeps it
+// (TAGS.md §5f); a covered face is DERIVED from concealsIdentity, never a
+// slug list, so a new helmet is covered automatically.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { kissAuthority, kissBlock, KISS_SELECT, KISS_COOLDOWN_MS } = require("../lib/kiss");
@@ -22,8 +11,6 @@ const { KISS_BLOCKING_SLUGS } = require("../lib/constants");
 
 const HERE = "loc-1";
 
-// A CharacterTag row as the loaders shape it. `worn` is what makes a
-// concealing piece count — concealmentFrom ignores anything not equipped.
 const tag = (slug, over = {}) => ({
   equipped: false,
   tag: { slug, name: slug, concealsIdentity: false, concealSprite: null, forcesConceal: false, equipLayer: null, ...over },
@@ -60,7 +47,6 @@ test("two ordinary people standing together may kiss", () => {
 
 test("every helpless state refuses, through ACT rather than a second list", () => {
   for (const slug of INCAPACITATING_SLUGS) {
-    // The premise: these are ACT blockers, and expandCaps turns that into KISS.
     assert.ok(blockerFor([tag(slug)], ACT), `${slug} should block ACT`);
     assert.ok(blockerFor([tag(slug)], KISS), `${slug} should block KISS`);
     assert.ok(kissAuthority(person(), other({ tags: [tag(slug)] })), `${slug} target should refuse`);
@@ -94,8 +80,6 @@ test("every fiction blocker refuses, from either side", () => {
 });
 
 test("taste, belief and appearance keep the button", () => {
-  // The convention is that a build locks DESIRES, not verbs — Eunuch and
-  // Prudish already lock the `romance` family in docs/tags.yaml.
   for (const slug of ["prudish", "eunuch", "pacifist", "saint", "chaplain", "pious", "ugly", "unhygienic", "disfigured", "leper", "pox", "consumptive", "demoness"]) {
     assert.equal(kissAuthority(person(), other({ tags: [tag(slug)] })), null, `${slug} should be allowed`);
   }
@@ -104,7 +88,6 @@ test("taste, belief and appearance keep the button", () => {
 test("a covered face refuses both ways, derived from concealsIdentity", () => {
   assert.ok(kissAuthority(person({ tags: [hood()] }), other()));
   assert.ok(kissAuthority(person(), other({ tags: [hood()] })));
-  // A catalog piece nobody has heard of works the same — the rule is the flag.
   assert.ok(kissAuthority(person(), other({ tags: [hood("brand-new-helm", { name: "Brand New Helm" })] })));
 });
 
@@ -132,8 +115,6 @@ test("a concealed target is unreachable, the presence.js rule", () => {
 });
 
 test("KISS_SELECT carries what the rules actually read", () => {
-  // A row loaded without `equipped` or the concealment fields reports every
-  // hood as a bare face, which fails in the one direction it must not.
   for (const field of ["id", "name", "status", "locationId", "concealed", "buriedAt", "discordUserId", "tags"]) {
     assert.ok(KISS_SELECT[field], `KISS_SELECT is missing ${field}`);
   }
