@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · A horse and cart can ride indoors now — except underground
+
+✎ A horse or cart no longer gets parked at the door of the Cathedral, Sanctuary, Inn or other surface buildings  
+✎ Underground, in the Caves and the Depths, a roof still leaves your mount outside, same as before  
+✚ The Square now connects directly to the North Gate and the Underquarter, so leaving town north no longer strands a cart in the Cathedral or Sanctuary
+
 ## 2026-09-14 · Sing when your hands are empty
 
 ✎ /play now works without an instrument too — a character with none sings instead  
