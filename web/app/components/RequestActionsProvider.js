@@ -98,7 +98,7 @@ export default function RequestActionsProvider({
   // server — placementOfferedHere fails open on it.
   locationSlug = null,
   // Lessons (LESSONS.md): who could teach you what, and whom you could teach.
-  canTeach = false,
+  teachCostsMove = true,
   teachers = [],
   learners = [],
   // Confession (CONFESSION.md). `confessors` is who here can hear one;
@@ -318,7 +318,7 @@ export default function RequestActionsProvider({
     hasSurgicalSite,
     surgicalSitePenalty,
     hasMoved,
-    canTeach,
+    teachCostsMove,
     teachers,
     learners,
     confessors,
@@ -457,7 +457,10 @@ export default function RequestActionsProvider({
       // player reads why instead of DMing to ask.
       gateReason: { examine: examineBlocked, extract: extractBlocked, kiss: kissBlocked },
       canLearn: teachers.length > 0,
-      canTeach,
+      // Symmetrical with canLearn: a list the server already filtered to who
+      // is standing here and what they could actually take off you.
+      canTeach: learners.length > 0,
+      teachCostsMove,
       // Your own sheet only. Greying this on whether a chaplain happens to be
       // standing here would announce their presence to anyone who glanced at
       // their own page — the rule at the top of actionRegistry.js.
@@ -519,7 +522,8 @@ export default function RequestActionsProvider({
       kissBlocked,
       kissTargets,
       teachers,
-      canTeach,
+      learners,
+      teachCostsMove,
       mySins,
       hasBird,
       hasRavenDraught,

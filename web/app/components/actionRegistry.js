@@ -82,9 +82,9 @@ export const ACTION_HELP = {
   poison:
     "Lace a meal or drink you're holding, dose someone that's helpless, or drink it yourself.",
   learn:
-    "Learning a skill is a Gambit. It succeeds on a 5 or a 6. It also takes the teacher's turn.",
+    "Learning a skill is a Gambit. Teachers with the Teaching skill are better at it.",
   teach:
-    "Offer to teach a skill. The learner succeeds on a 5 or a 6. It takes your turn too.",
+    "Offer to teach a skill you have. It takes your whole turn unless you hold Teaching.",
   confess:
     "Confessing a tag is a Gambit. It succeeds on a 5 or a 6. It also takes the confessor's turn.",
   move: "Forcibly move an incapacitated or Bound person. If you're a Leader, you can also move people within your own faction.",
@@ -185,8 +185,9 @@ export const ACTION_SECTIONS = [
         label: "Disguise",
         show: "canDisguise",
       },
-      // Both grey on a list the server already filtered to who could teach
-      // YOU (or whom you could teach) — a fact about your own sheet.
+      // Both grey on a list the server already filtered to who holds a skill
+      // you could take (or whom you could pass one to) — a fact about your own
+      // sheet, not a readout of who is standing nearby.
       {
         mode: "learn",
         icon: DocumentsIcon,
@@ -200,6 +201,8 @@ export const ACTION_SECTIONS = [
         label: "Teach Skill",
         gate: "canTeach",
         gateReason: "You have nothing to teach that anyone here could learn.",
+        // Not gated on holding Teaching any more: anyone can teach, the tag
+        // only decides what it costs you and what they need to roll.
       },
       // Gated on whether YOU have anything to confess — your own sheet,
       // never on whether a chaplain happens to be standing here.

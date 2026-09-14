@@ -36,6 +36,7 @@
     "db:doctor": "node db/scripts/ops/doctor.js",
     "db:backfill-economy": "node db/scripts/ops/backfill-economy.js",
     "db:prune-tags": "node db/scripts/ops/prune-tags.js",
+    "db:convert-lecturers": "node db/scripts/ops/convert-lecturers.js",
     "db:dedupe-room-stash": "node db/scripts/ops/dedupe-room-stash.js",
     "db:check-config": "node db/scripts/ops/check-config-registry.js",
     "db:audit-labor-drops": "node db/scripts/ops/audit-labor-drops.js",

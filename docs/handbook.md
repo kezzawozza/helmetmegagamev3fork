@@ -434,7 +434,7 @@ Some people are simply out of your league, and the button will say so rather tha
 
 An **ambush** is the same thing sprung from cover: set an Intercept to Ambush, and whoever walks into it is attacked the moment they arrive — you included, since you are in the fight too.
 
-**Teaching:** Most skills can be taught by someone standing with you who holds them. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. If they do, teaching becomes their Routine for the turn, and learning becomes your Gambit — you succeed on a roll of 5 or 6, or 4, 5, or 6 if the teacher has the Drill Instructor tag and it's a fighting skill. A teacher with the Lecturing tag can teach up to three students on one Routine.
+**Teaching:** Most skills can be taught by someone standing with you who holds them, and anybody can teach — you don't need a tag for it. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. If they do, learning becomes your Gambit. How hard it is depends on who's teaching you: an ordinary person spends their whole turn on it and you succeed on a 6; someone with the Teaching tag spends no Move at all, can take up to three students a turn, and you succeed on a 5 or 6; and you succeed on a 4, 5, or 6 if the teacher has the Drill Instructor tag and it's a fighting skill.
 
 ### Examining Tags
 
@@ -512,7 +512,7 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 | **Consume** | Consumes an item tag (drinking alcohol, eating food). Clicking the tag performs the same action. | When holding a consumable item. |
 | **Transfer** | Give ⬢ or a tag from yourself or a Room stash you're in, to someone standing with you or to a Room stash. Giving only — the only way to take something from someone else is Loot, and only if they're dead or helpless. Not everything can change hands — a house isn't portable, and some things are part of you. | When holding something you can transfer. |
 | **Learn Skill** | Ask someone standing with you who teaches a skill to teach it to you. Files as your Gambit if they accept. | Always. |
-| **Teach Skill** | Offer to teach a skill to someone standing with you. Files as your Routine if they accept. | When holding the skill. |
+| **Teach Skill** | Offer to teach a skill to someone standing with you. Files as your Routine if they accept, unless you hold Teaching — then it costs you nothing. | When holding the skill. |
 
 **People here**
 

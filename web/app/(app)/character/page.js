@@ -4,7 +4,8 @@ import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import {
   LESSON_CATALOG_SELECT,
   teachableSkills,
-  isTeacher,
+  teachesFree,
+  lessonThreshold,
 } from "@lifeweb/db/lib/lessons";
 import {
   prisma,
@@ -919,9 +920,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // Who can pay: you, anyone here, or a room stash here (same as Craft).
   const healParties = { characters: peopleParties, rooms };
 
-  // Lessons (LESSONS.md). `teachers`: everyone here who can teach, with
-  // skills they could teach ME. `learners`: when I hold Teaching, what I
-  // could teach them. `pendingOffers`: the handshakes I'm part of this turn.
+  // Lessons (LESSONS.md). Anyone can teach now, so `teachers` is everyone
+  // here who holds a skill I could take off them, each skill carrying what I'd
+  // need to roll for it; `learners` is the same list the other way round.
+  // `pendingOffers`: the handshakes I'm part of this turn.
   const lessonCatalog = await prisma.tag.findMany({
     select: LESSON_CATALOG_SELECT,
   });
@@ -936,29 +938,31 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     tags: c.tags,
   }));
   const teachers = hereForLessons
-    .filter((c) => isTeacher(c))
     .map((c) => ({
       id: c.id,
       name: c.name,
+      // Per skill, not per teacher: Drill Instructor only moves the threshold
+      // on a fighting skill, so one teacher can offer two different numbers.
       skills: teachableSkills(c, meForLessons, lessonCatalog).map((t) => ({
         id: t.id,
         name: t.name,
+        threshold: lessonThreshold(c, t),
       })),
     }))
     .filter((c) => c.skills.length > 0);
-  const canTeach = isTeacher(meForLessons);
-  const learners = canTeach
-    ? hereForLessons
-        .map((c) => ({
-          id: c.id,
-          name: c.name,
-          skills: teachableSkills(meForLessons, c, lessonCatalog).map((t) => ({
-            id: t.id,
-            name: t.name,
-          })),
-        }))
-        .filter((c) => c.skills.length > 0)
-    : [];
+  const learners = hereForLessons
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      skills: teachableSkills(meForLessons, c, lessonCatalog).map((t) => ({
+        id: t.id,
+        name: t.name,
+        threshold: lessonThreshold(meForLessons, t),
+      })),
+    }))
+    .filter((c) => c.skills.length > 0);
+  // Teaching is free for a tag holder and a whole Routine for everybody else.
+  const teachCostsMove = !teachesFree(meForLessons);
   // Confession (CONFESSION.md). Only the penitent gets a menu — no list is
   // built for a chaplain, which would show everybody's addictions unasked.
   const confessors = here
@@ -1076,7 +1080,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       holdsResearch: holdsResearch,
       atCathedral: atCathedral,
       researchOptions: researchOptions,
-      canTeach: canTeach,
+      teachCostsMove: teachCostsMove,
       knownRecipeIds: knownRecipeIds,
       deathMaskCorpses: deathMaskCorpses,
       craftProjects: craftProjects,

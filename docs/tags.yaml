@@ -459,29 +459,20 @@ tags:
     purchasableAfterStart: true
 
   # --- Teaching (docs/systemdocs/LESSONS.md) -----------------------------
-  # Learn Skill / Teach Skill on the sheet. Teaching is the door; Lecturing
-  # widens one Routine to three students; the Drill Instructor rung is gated
-  # by general-cerberon. All three are Skills, standalone like Climbing or
-  # Stealth, and none is teachable: you can't be taught to teach. Bascinet's
-  # words, unmarked.
+  # Learn Skill / Teach Skill on the sheet. Teaching is NOT a door — anybody
+  # can teach what they know, it just costs them their Routine and their
+  # student needs a 6. The tag is what makes it free, repeatable and easier;
+  # the Drill Instructor rung is gated by general-cerberon. The Lecturing rung
+  # was removed on 2026-09-14, its three-student cap folded into Teaching
+  # itself. Both are Skills, standalone like Climbing or Stealth, and neither
+  # is teachable: you can't be taught to teach. Bascinet's words, unmarked.
+  # [PLAYER TEXT — Bascinet to rewrite the description below]
   teaching:
     catalog: all
     name: Teaching
     category: skills
-    description: "You can train someone in a skill you have. It's a Routine move for you; the learner has to make a Gambit. They'll succeed in a 5 or a 6."
+    description: "You can train someone in a skill you have, and it costs you no Move at all — up to three people a turn. They'll succeed in a 5 or a 6. Without this tag, teaching takes your whole turn and they need a 6."
     pointCost: 4
-    visible: false
-    purchasable: true
-    purchasableAfterStart: true
-    teachable: false
-
-  teaching-lecturing:
-    catalog: all
-    name: Teaching (Lecturing)
-    category: skills
-    parentTag: teaching
-    description: "You can train up to 3 people at the same time. It's a Routine move for you; the learner(s) have to make a Gambit. They'll succeed in a 5 or a 6."
-    pointCost: 5
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -2249,7 +2240,7 @@ tags:
     purchasableAfterStart: true
 
   # Reads against the Teaching Skills document (docs/documents.yaml), which
-  # sets the teaching baseline at a 6. Change one and change the other.
+  # sets the untaught baseline at a 6. Change one and change the other.
   # Teaching (Drill Instructor) replaced the old Drillmaster here in 9/2026.
   # A Skill like the rest of the Teaching tree, but it keeps the Cerberon
   # group so the group's `requiredTag: cerberon` gates it: the Cerberi and the
@@ -2262,7 +2253,7 @@ tags:
     category: skills
     group: general-cerberon
     requiredTag: teaching
-    description: "When someone tries to learn a fighting skill from you, they succeed on a 4, 5, or a 6. Stacks with Lecturing."
+    description: "When someone tries to learn a fighting skill from you, they succeed on a 4, 5, or a 6."
     pointCost: 3
     visible: false
     purchasable: true

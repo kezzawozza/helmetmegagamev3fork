@@ -56,7 +56,8 @@ documents:
     name: Teaching Skills
     public: true
     tags: []
-    description: "Skills can be taught. Find someone who holds the skill and the {tag:teaching} tag, and press Learn Skill on your sheet — or they press Teach Skill. Teaching is a Routine for the teacher; learning is a Gambit for the student. The student learns the skill on a 5 or 6. Someone with {tag:teaching-lecturing} can take up to three students at once. A {tag:teaching-drill-instructor}'s students succeed on a 4 when the skill is a fighting skill."
+    # [PLAYER TEXT — Bascinet to rewrite]
+    description: "Skills can be taught. Find someone standing with you who holds the skill and press Learn Skill on your sheet — or they press Teach Skill. Learning is a Gambit for the student. Anyone can teach what they know: it takes the teacher's whole turn, and the student learns on a 6. Someone with the {tag:teaching} tag spends no Move at all, can take up to three students a turn, and their students learn on a 5 or 6. A {tag:teaching-drill-instructor}'s students succeed on a 4 when the skill is a fighting skill."
   production:
     name: Producing Resources
     public: true

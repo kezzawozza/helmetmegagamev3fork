@@ -11,7 +11,8 @@ deliberately removed, and everything below is written as a delta from it.
   own `psychological` tags, and presses **Confess**. That is their **Gambit**
   for the turn.
 - The chaplain gets a DM with Accept / Decline. Accepting spends the
-  chaplain's **Routine**. There is no Lecturing rung: one confession is one
+  chaplain's **Routine**, always — unlike teaching, no tag buys that Move
+  back, and there is no second rung: one confession is one
   whole day, and a queue outside the box is the intended texture.
 - At turn end the penitent's d6 plus the ordinary Gambit modifier (Hunger,
   Afraid, Panic — `db/lib/gambitModifier.js`) is checked against **5**. On a

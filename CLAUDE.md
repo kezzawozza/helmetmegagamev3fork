@@ -347,6 +347,11 @@ npm run db:doctor                    # the channel doctor: diffs Discord roles/
                                      #   start. See CHANNELS.md.
 npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
                                      #   DRY RUN unless given `-- --apply`.
+npm run db:convert-lecturers         # one-off: moves everyone off the retired
+                                     #   Teaching (Lecturing) tag onto plain
+                                     #   Teaching. DRY RUN unless given
+                                     #   `-- --apply`. Run db:prune-tags after
+                                     #   it. See LESSONS.md 6.
 npm run db:prune-orphan-roles        # deletes Discord character roles no living
                                      #   character claims. DRY RUN unless given
                                      #   `-- --apply`. Guards the 250-role cap.

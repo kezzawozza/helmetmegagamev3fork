@@ -1,12 +1,19 @@
 // Lessons: the Learn Skill / Teach Skill handshake (docs/systemdocs/LESSONS.md).
 //
 // A lesson is an Offer of kind LESSON between a teacher and a learner around
-// one teachable skill. Either side may start it from their sheet; the other
-// gets a DM with Accept / Decline. Accepting files BOTH Moves for the turn —
-// the learner's Gambit and the teacher's Routine — and the lesson pass
-// (db/lib/lessonPass.js) rolls the result at turn end. This is the game's
-// first code-adjudicated Gambit: a fixed threshold on the modified die,
-// nothing for a GM to narrate.
+// one teachable skill. ANYONE may teach — the Teaching tag is not a door any
+// more, it is what makes teaching cheap and good. Either side may start it
+// from their sheet; the other gets a DM with Accept / Decline.
+//
+// Accepting always files the learner's Gambit. It files a Routine for the
+// teacher only when the teacher LACKS Teaching: an untrained teacher spends
+// their day on it and their student needs a 6. A Teaching holder spends
+// nothing, may already have locked in some other Move, and carries up to
+// TEACHING_CAPACITY students a turn; their student needs a 5.
+//
+// The lesson pass (db/lib/lessonPass.js) rolls the result at turn end. This is
+// the game's first code-adjudicated Gambit: a fixed threshold on the modified
+// die, nothing for a GM to narrate.
 //
 // Takes `prisma` as the first parameter (the db/lib/dm.js convention) and is
 // NOT on the @lifeweb/db barrel; require it by path. Web files the offer and
@@ -21,10 +28,10 @@ const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const {
   TEACHING_SLUG,
-  LECTURING_SLUG,
   DRILL_INSTRUCTOR_SLUG,
   FIGHTING_GROUP_SLUG,
-  LECTURE_CAPACITY,
+  TEACHING_CAPACITY,
+  UNTAUGHT_LESSON_THRESHOLD,
   LESSON_THRESHOLD,
   DRILL_THRESHOLD,
 } = require("./constants");
@@ -108,10 +115,11 @@ function heldSlugs(character) {
   );
 }
 
-// Holds Teaching, or Lecturing (its upgrade replaces it on the sheet).
-function isTeacher(character) {
-  const slugs = heldSlugs(character);
-  return slugs.has(TEACHING_SLUG) || slugs.has(LECTURING_SLUG);
+// Does this character teach for FREE? Everyone can teach; holding Teaching is
+// what makes it cost no Move. Deliberately not called isTeacher any more —
+// that name read as "may teach at all", which is now true of everybody.
+function teachesFree(character) {
+  return heldSlugs(character).has(TEACHING_SLUG);
 }
 
 // The skills `teacher` can teach `learner` right now: teachable, held by the
@@ -150,17 +158,20 @@ function teachableSkills(teacher, learner, catalog) {
   });
 }
 
-// 5, or 4 for a fighting skill under a Drill Instructor. On the modified die.
+// What the student needs on the modified die, in order: 4 for a fighting skill
+// under a Drill Instructor, 5 from anyone else holding Teaching, 6 from someone
+// teaching what they know with no idea how to teach it. Drill Instructor's
+// requiredTag is Teaching, so the first two rungs can never disagree.
 function lessonThreshold(teacher, skill) {
-  const drill =
-    heldSlugs(teacher).has(DRILL_INSTRUCTOR_SLUG) &&
-    skill?.group?.slug === FIGHTING_GROUP_SLUG;
-  return drill ? DRILL_THRESHOLD : LESSON_THRESHOLD;
-}
-
-// How many learners one teacher's Routine can carry this turn.
-function teacherCapacity(teacher) {
-  return heldSlugs(teacher).has(LECTURING_SLUG) ? LECTURE_CAPACITY : 1;
+  const slugs = heldSlugs(teacher);
+  if (
+    slugs.has(DRILL_INSTRUCTOR_SLUG) &&
+    skill?.group?.slug === FIGHTING_GROUP_SLUG
+  )
+    return DRILL_THRESHOLD;
+  return slugs.has(TEACHING_SLUG)
+    ? LESSON_THRESHOLD
+    : UNTAUGHT_LESSON_THRESHOLD;
 }
 
 // --- shared checks -------------------------------------------------------
@@ -178,31 +189,47 @@ async function openTurnAndWindow(db) {
   return { turn, locked };
 }
 
-// A teacher's Move slot: free, or an existing lesson Routine with room on it
-// (Lecturing). Returns { ok, action, reason }.
-async function teacherSlot(db, teacher, turnId) {
+// Can this teacher take this lesson on? Two different questions, depending on
+// the tag. Returns { ok, free, reason } — `free` says no Routine is owed, so
+// acceptLesson knows not to file one.
+//
+// A Teaching holder's Move slot is never read: teaching costs them nothing and
+// they may be laboring, travelling or running a Gambit at the same time. Their
+// only limit is TEACHING_CAPACITY students a turn, counted off the offers
+// themselves rather than off an Action id, because there is no Action.
+//
+// Everyone else owes a whole Routine, so any Move already locked in refuses —
+// which is also what caps an untrained teacher at one student a turn.
+async function teacherSlot(db, teacher, turnId, { excludeOfferId } = {}) {
+  if (teachesFree(teacher)) {
+    const taken = await db.offer.count({
+      where: {
+        kind: "LESSON",
+        turnId,
+        teacherId: teacher.id,
+        status: { in: ["ACCEPTED", "RESOLVED"] },
+        // acceptLesson claims THIS offer before it asks, so it would otherwise
+        // count itself and turn a cap of three into a cap of two.
+        ...(excludeOfferId ? { id: { not: excludeOfferId } } : {}),
+      },
+    });
+    if (taken >= TEACHING_CAPACITY)
+      return {
+        ok: false,
+        reason: `${teacher.name} can't take on another student this turn.`,
+      };
+    return { ok: true, free: true };
+  }
   const action = await db.action.findFirst({
     where: { characterId: teacher.id, turnId },
+    select: { id: true },
   });
-  if (!action) return { ok: true, action: null };
-  if (!(action.gmNotes ?? "").includes("auto:lesson"))
-    return {
-      ok: false,
-      reason: `${teacher.name} has already locked in a Move this turn.`,
-    };
-  const taken = await db.offer.count({
-    where: {
-      teacherActionId: action.id,
-      status: { in: ["ACCEPTED", "RESOLVED"] },
-    },
-  });
-  if (taken >= teacherCapacity(teacher)) {
-    return {
-      ok: false,
-      reason: `${teacher.name} can't take on another student this turn.`,
-    };
-  }
-  return { ok: true, action };
+  return action
+    ? {
+        ok: false,
+        reason: `${teacher.name} has already locked in a Move this turn.`,
+      }
+    : { ok: true, free: false };
 }
 
 async function learnerSlot(db, learner, turnId) {
@@ -223,7 +250,7 @@ async function learnerSlot(db, learner, turnId) {
 // now (at accept, both are).
 async function validateLesson(
   db,
-  { teacher, learner, tag, turnId, checkSlotsFor },
+  { teacher, learner, tag, turnId, checkSlotsFor, excludeOfferId },
 ) {
   if (!teacher || teacher.status !== "ALIVE")
     return "That teacher isn't around any more.";
@@ -232,7 +259,8 @@ async function validateLesson(
   if (teacher.id === learner.id) return "You can't teach yourself.";
   if (!isHere(teacher, learner)) return notHereMessage(learner);
   if (!isHere(learner, teacher)) return notHereMessage(teacher);
-  if (!isTeacher(teacher)) return `${teacher.name} can't teach.`;
+  // No "can you teach at all?" check: everyone can. What the tag changes is
+  // the threshold and whether a Routine is owed, both handled elsewhere.
   if (!tag) return "Unknown skill.";
   const catalog = await db.tag.findMany({ select: LESSON_CATALOG_SELECT });
   if (
@@ -243,7 +271,7 @@ async function validateLesson(
   for (const who of checkSlotsFor) {
     const slot =
       who === teacher.id
-        ? await teacherSlot(db, teacher, turnId)
+        ? await teacherSlot(db, teacher, turnId, { excludeOfferId })
         : await learnerSlot(db, learner, turnId);
     if (!slot.ok) return slot.reason;
   }
@@ -346,7 +374,7 @@ async function createLessonOffer(
 
 // --- accepting -------------------------------------------------------------
 
-function confirmLines(action, teacherName, learnerName) {
+function confirmLines(action) {
   return action.moveKind === "GAMBIT"
     ? [
         `» ${action.description}`,
@@ -442,11 +470,15 @@ async function acceptLesson(prisma, offer, responder) {
         },
       });
 
-      // The teacher's Routine: new, or a Lecturer's existing one widened.
-      const slot = await teacherSlot(tx, teacher, turn.id);
+      // The teacher's Routine — owed only by a teacher without the tag. A
+      // Teaching holder files nothing, so the offer's teacherActionId stays
+      // null and there is no Move for a GM to reject or for the desk to show.
+      const slot = await teacherSlot(tx, teacher, turn.id, {
+        excludeOfferId: offer.id,
+      });
       if (!slot.ok) throw new LessonRefused(slot.reason);
-      let teacherAction = slot.action;
-      if (!teacherAction) {
+      let teacherAction = null;
+      if (!slot.free) {
         teacherAction = await tx.action.create({
           data: {
             characterId: teacher.id,
@@ -462,12 +494,6 @@ async function acceptLesson(prisma, offer, responder) {
             gmNotes: "auto:lesson",
           },
         });
-      } else {
-        const base = teacherAction.description.replace(/\.\s*$/, "");
-        teacherAction = await tx.action.update({
-          where: { id: teacherAction.id },
-          data: { description: `${base}, ${tag.name} to ${learner.name}.` },
-        });
       }
 
       await tx.offer.update({
@@ -475,7 +501,7 @@ async function acceptLesson(prisma, offer, responder) {
         data: {
           threshold,
           learnerActionId: learnerAction.id,
-          teacherActionId: teacherAction.id,
+          teacherActionId: teacherAction?.id ?? null,
         },
       });
 
@@ -494,7 +520,7 @@ async function acceptLesson(prisma, offer, responder) {
             tagName: tag.name,
             threshold,
             learnerActionId: learnerAction.id,
-            teacherActionId: teacherAction.id,
+            teacherActionId: teacherAction?.id ?? null,
           },
         },
       });
@@ -504,7 +530,11 @@ async function acceptLesson(prisma, offer, responder) {
     if (!result.ok) return result;
 
     const learnerLines = confirmLines(result.learnerAction);
-    const teacherLines = confirmLines(result.teacherAction);
+    // A teacher who spent nothing has no Move to confirm, so they get a line of
+    // their own instead of a Move block. [PLAYER TEXT — Bascinet to rewrite]
+    const teacherLines = result.teacherAction
+      ? confirmLines(result.teacherAction)
+      : `» *Teaching ${tag.name} to ${learner.name}. It costs you no Move.*`;
     const responderIsLearner = responder.id === learner.id;
     return {
       ok: true,
@@ -663,7 +693,8 @@ async function cancelOffersForCharacter(db, characterId) {
 module.exports = {
   LESSON_CATALOG_SELECT,
   teachableSkills,
-  isTeacher,
+  teachesFree,
+  lessonThreshold,
   createLessonOffer,
   acceptLesson,
   declineOffer,

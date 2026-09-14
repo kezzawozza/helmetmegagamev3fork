@@ -100,12 +100,16 @@ const ENGRAVE_RESOURCE_COST = 4;
 // Turns a person's corpse stays fresh. Monster corpses never rot.
 const CORPSE_ROT_TURNS = 3;
 
-// The Teaching tree (LESSONS.md): Lecturing widens one Routine to LECTURE_CAPACITY; a Drill Instructor's students succeed on a 4 for FIGHTING_GROUP_SLUG skills.
+// The Teaching tree (LESSONS.md). Anyone may teach: it costs them their
+// Routine and their student needs UNTAUGHT_LESSON_THRESHOLD. TEACHING_SLUG
+// costs its holder no Move at all, carries up to TEACHING_CAPACITY students a
+// turn, and drops the student to LESSON_THRESHOLD; a Drill Instructor's
+// students succeed on DRILL_THRESHOLD for FIGHTING_GROUP_SLUG skills.
 const TEACHING_SLUG = "teaching";
-const LECTURING_SLUG = "teaching-lecturing";
 const DRILL_INSTRUCTOR_SLUG = "teaching-drill-instructor";
 const FIGHTING_GROUP_SLUG = "skills-fighting";
-const LECTURE_CAPACITY = 3;
+const TEACHING_CAPACITY = 3;
+const UNTAUGHT_LESSON_THRESHOLD = 6;
 const LESSON_THRESHOLD = 5;
 const DRILL_THRESHOLD = 4;
 
@@ -206,10 +210,10 @@ module.exports = {
   ENGRAVE_RESOURCE_COST,
   CORPSE_ROT_TURNS,
   TEACHING_SLUG,
-  LECTURING_SLUG,
   DRILL_INSTRUCTOR_SLUG,
   FIGHTING_GROUP_SLUG,
-  LECTURE_CAPACITY,
+  TEACHING_CAPACITY,
+  UNTAUGHT_LESSON_THRESHOLD,
   LESSON_THRESHOLD,
   DRILL_THRESHOLD,
   CHAPLAIN_SLUG,
