@@ -50,12 +50,17 @@
 #   map, so the file and the drawing can be lined up. Authoring metadata
 #   only — there is no column for it and no code reads it.
 # - indoors (locations only): true for a place you walk INTO rather than
-#   across. A cart or a mount is unequipped on arrival, with a DM, and cannot
-#   be equipped while a character stands here — so its carry bonus is parked
-#   at the door with it (docs/systemdocs/CARRY.md §3). The anchor message says
-#   so in a -# line of its own, written by syncZones, so nobody has to be told
-#   twice. Default false; a Room never carries it, since a Room is inside its
-#   Location by definition.
+#   across. Underground (a Location whose zone kind is CAVE_LEVEL — the Caves,
+#   the Depths) a cart or a mount is unequipped on arrival, with a DM, and
+#   cannot be equipped while a character stands here — so its carry bonus is
+#   parked at the door with it (docs/systemdocs/CARRY.md §3). On the surface
+#   this no longer costs anything: a horse and a cart ride into an indoors
+#   Location same as the open ground outside it, and `indoors` only keeps
+#   answering the roof questions there — the mood dial, Sun Sensitivity,
+#   whether a palisade can be raised. Where it does park a mount, the anchor
+#   message says so in a -# line of its own, written by syncZones, so nobody
+#   has to be told twice. Default false; a Room never carries it, since a Room
+#   is inside its Location by definition.
 # - attributes (locations only): a map of extra facts about the place, keyed
 #   by the registry in db/lib/locationAttributes.js. Each one the Examine
 #   button turns into a sentence. A key the registry does not know is a sync
@@ -2347,11 +2352,13 @@ connections:
   # --- Town -------------------------------------------------------------
   - [town/north-gate, town/cathedral]
   - [town/north-gate, town/sanctuary]
+  - [town/north-gate, town/square]
   - [town/cathedral, town/square]
   - [town/sanctuary, town/square]
   - [town/sanctuary, town/old-cock-inn]
   - [town/sanctuary, town/underquarter]
   - [town/underquarter, town/old-cock-inn]
+  - [town/underquarter, town/square]
   - [town/square, town/old-cock-inn]
   - [town/square, town/south-gate]
 

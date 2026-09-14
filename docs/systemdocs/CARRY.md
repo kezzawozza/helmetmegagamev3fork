@@ -268,8 +268,12 @@ rider could bank the mount's bonus crossing on a ride that never survives the
 threshold (`MAP.md` §2c).
 
 A Location marked `indoors: true` in `docs/zones.yaml` — the Cathedral, the
-Sanctuary, the Inn, the Keep, the Undercroft — is a place you walk
-into, and you do not bring a horse into a chapel. On arrival
+Sanctuary, the Inn, the Keep, the Undercroft — is a place you walk into. **On
+the surface that roof no longer costs you the reins**: a horse and a cart ride
+into a chapel same as the square outside it. **Underground it still does** —
+every Location in the Caves and the Depths is authored `indoors: true`, since
+there is no open sky down there, and that roof is the one that still parks a
+mount at the door. On arrival somewhere that counts,
 `db/lib/indoors.js#parkMountsIndoors` unequips them and DMs the character;
 `equipOne` refuses to put them back on while they stand there. The anchor
 message says so in its own `-#` line, written by `syncZones` and hashed with
@@ -286,6 +290,11 @@ ground and whose whole business is loading crates of Squeeze onto a wagon;
 **Customs**, a gate built to be driven through; and the **Depot**, a shop that
 ships by the wagonload. Without it the last hundred feet of every Squeeze run
 were done on foot, one 68 lb crate a trip, because an unequipped cap is 71 lb.
+The Factory is on the surface, so `parksMounts` already let its wagon through
+before the attribute is even read — `wheels` still earns its keep there on the
+Examine line, which reads once as "Wheels" instead of twice as "Wheels" and
+"Indoors". Underground, on Customs and the Depot, it is load-bearing: without
+it those two would park a mount at the door same as the rest of the Caves.
 
 Every reader that asks "may a mount be out here" goes through
 `locationAttributes.js#parksMounts(location)` rather than the column — the

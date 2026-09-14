@@ -1,5 +1,7 @@
 // Parking a cart or a mount — at an indoor door, or on a way too narrow for it (CARRY.md §3, MAP.md §3).
-// A Location marked `indoors: true` unequips anything stowable on arrival, unless it also carries the
+// A Location marked `indoors: true` unequips anything stowable on arrival, but only underground
+// (`zone.kind === "CAVE_LEVEL"`) — every Caves/Depths Location is `indoors: true`, so that's the one
+// place a roof still costs the reins; a surface roof no longer does — unless it also carries the
 // `wheels` attribute (Godard Factory, Customs, the Depot — built to be driven into). A LocationLink
 // marked `onFoot: true` unequips on crossing instead of refusing it. Nothing is ever DROPPED for this
 // — settleCarry's overflow just makes someone Overburdened. Takes `prisma`, off the @lifeweb/db barrel (carry.js posture).
@@ -27,7 +29,7 @@ async function parkMountsIndoors(prisma, characterId, locationId) {
   if (!characterId || !locationId) return [];
   const location = await prisma.location.findUnique({
     where: { id: locationId },
-    select: { indoors: true, attributes: true },
+    select: { indoors: true, attributes: true, zone: { select: { kind: true } } },
   });
   // Not the column — an indoors Location wearing `wheels` is one you drive
   // into (locationAttributes.js#parksMounts).

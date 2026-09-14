@@ -65,17 +65,26 @@ function authoredLines(location, ctx = {}) {
   return lines;
 }
 
-// Real column, `wheels` the one authored exception. "Cart out here?" readers use this; ROOF readers keep reading `indoors` straight.
+// Real column, `wheels` the one authored exception. Only parks a mount
+// underground (`zone.kind === "CAVE_LEVEL"`) — every Caves/Depths Location is
+// `indoors: true`, so that's the one place a roof still costs the reins; a
+// surface roof no longer does. "Cart out here?" readers use this; ROOF
+// readers keep reading `indoors` straight.
 function parksMounts(location) {
-  return Boolean(location?.indoors) && !hasAttribute(location, WHEELS_ATTRIBUTE);
+  if (!location?.indoors || hasAttribute(location, WHEELS_ATTRIBUTE)) return false;
+  return location?.zone?.kind === "CAVE_LEVEL";
 }
 
-// Both halves print — silence outdoors would mean the rule is only stated where it bites. A `wheels` Location says nothing; already said above.
+// Both halves print — silence outdoors would mean the rule is only stated
+// where it bites. A `wheels` Location says nothing; already said above. Reads
+// `parksMounts`'s answer, not the raw `indoors` column, since a surface
+// Location no longer parks anything at the door.
 function placementLine(location) {
   if (hasAttribute(location, WHEELS_ATTRIBUTE)) return null;
-  return location?.indoors
+  if (!location?.indoors) return "**Outdoors**: you can use your horse or cart here.";
+  return parksMounts(location)
     ? "**Indoors**: you can't equip a cart or horse here."
-    : "**Outdoors**: you can use your horse or cart here.";
+    : "**Indoors**: you can still bring a horse or cart in here.";
 }
 
 // Says the STATE, not the verb — buttons say what a click DOES, Examine says what IS TRUE.

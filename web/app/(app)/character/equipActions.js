@@ -30,7 +30,7 @@ async function resolveActor() {
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
     select: {
       id: true,
-      location: { select: { indoors: true, attributes: true, name: true } },
+      location: { select: { indoors: true, attributes: true, name: true, zone: { select: { kind: true } } } },
       tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } }, // name is read by the boat/mount clash below
     },
   });
@@ -67,7 +67,10 @@ export async function equipOne(characterTagId) {
   // The gates below only fire on the FIRST unit out — none of these slugs is stackable.
   const firstUnitOut = held.equippedQuantity === 0;
 
-  // A cart doesn't come into a chapel (CARRY.md §3) — `parksMounts`, not `indoors`. Gates equip only; incapacitation above runs both ways.
+  // A cart doesn't come into an indoors Location underground (CARRY.md §3) —
+  // a surface chapel no longer parks it, only the Caves and the Depths do —
+  // `parksMounts`, not `indoors`. Gates equip only; incapacitation above runs
+  // both ways.
   if (firstUnitOut && STOWABLE_SLUGS.has(held.tag.slug) && parksMounts(character.location)) {
     return { error: `You can't set up ${held.tag.name} inside ${character.location.name}.` };
   }
