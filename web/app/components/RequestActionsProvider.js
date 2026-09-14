@@ -191,6 +191,9 @@ export default function RequestActionsProvider({
   // and that the target is bound or otherwise incapacitated
   // (INCAPACITATING_SLUGS — TORTURE.md §8). Reuses `doseTargets` above.
   canBrand = false,
+  // Break Restraints: you hold `bound`. Your own sheet, the same HIDDEN rule
+  // as Extract — the action re-checks the tag and the Move itself.
+  canBreakRestraints = false,
   // The datacard, and the device itself. Both facts about your own sheet.
   hasDatacard = false,
   hasDevice = false,
@@ -488,6 +491,7 @@ export default function RequestActionsProvider({
       canTorture,
       canMutilate,
       canBrand,
+      canBreakRestraints,
       hasDatacard,
       hasDevice,
       isThanati,
@@ -535,6 +539,7 @@ export default function RequestActionsProvider({
       canTorture,
       canMutilate,
       canBrand,
+      canBreakRestraints,
       hasDatacard,
       hasDevice,
       isThanati,

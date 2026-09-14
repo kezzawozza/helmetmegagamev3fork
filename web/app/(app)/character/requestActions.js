@@ -38,6 +38,7 @@ import {
   lootCharacterRequestImpl,
   bindCharacterRequestImpl,
   freeCharacterRequestImpl,
+  breakRestraintsRequestImpl,
   crucifyCharacterRequestImpl,
   tortureCharacterRequestImpl,
   disguiseSelfRequestImpl,
@@ -143,6 +144,9 @@ export async function bindCharacterRequest(input) {
 }
 export async function freeCharacterRequest(input) {
   return guarded(() => freeCharacterRequestImpl(input));
+}
+export async function breakRestraintsRequest() {
+  return guarded(() => breakRestraintsRequestImpl());
 }
 export async function crucifyCharacterRequest(input) {
   return guarded(() => crucifyCharacterRequestImpl(input));

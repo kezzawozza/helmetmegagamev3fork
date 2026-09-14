@@ -134,6 +134,7 @@ import {
   formatTortureRoll,
   buildTortureEmbed,
 } from "@lifeweb/db/lib/torture";
+import { resolveBreakRestraints, formatBreakRestraintsRoll } from "@lifeweb/db/lib/breakRestraints";
 import {
   EXAMINE_SUBJECT_SELECT,
   tortureReadout,
@@ -1515,6 +1516,86 @@ export async function freeCharacterRequestImpl({
   notifyCharacter(target, "Someone freed you.");
   revalidateAll();
   return {};
+}
+
+// --- Break Restraints -------------------------------------------------------
+
+// A Bound character's own struggle against the knots (LESSONS.md §3c). No
+// `needs` on requireCharacter — `bound` blocks ACT (db/lib/incapacitation.js),
+// so gating on it would make this button unreachable for the one character
+// who needs it. Instant and no dialog (web/components/actions/index.js's
+// INSTANT table) — the tooltip already says what it does.
+//
+// Filed as a ROUTINE already PASSED (fileAutoRoutine), the same shape Torture
+// uses and for the same reason: it resolves the instant it's pressed, so a
+// GAMBIT row would have the turn-end push announce the same die a second
+// time. It spends the Move either way, success or not.
+export async function breakRestraintsRequestImpl() {
+  const { session, character } = await requireCharacter();
+
+  const bound = await requireBoundTag(prisma);
+  if (!character.tags.some((ct) => ct.tagId === bound.id))
+    throw new UserError("You aren't restrained.");
+
+  const openTurn = await getOpenTurn();
+  await requireFreeMove(character, openTurn);
+
+  const heldSlugs = character.tags.map((ct) => ct.tag.slug);
+  // 0 on the same turn the bind landed; boundSinceTurnNumber is only ever
+  // null for a character who was already bound before this column existed.
+  const turnsElapsed = character.boundSinceTurnNumber == null
+    ? 0
+    : openTurn.number - character.boundSinceTurnNumber;
+
+  // The character's own die — their Lucky or Inspired bends it, the same
+  // side gambitMods work on any other Gambit roll.
+  const roll = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
+  const result = resolveBreakRestraints({ die: roll.die, turnsElapsed, heldSlugs });
+  const rollLine = result.automatic
+    ? null
+    : formatBreakRestraintsRoll({ die: roll.die, threshold: result.threshold, rolls: roll.rolls });
+  const outcome = result.success ? "broke free" : "still bound";
+
+  await prisma.$transaction(async (tx) => {
+    await consumeInspiredIfUsed(tx, character.id, roll.source);
+    if (result.success) {
+      await dropCharacterTag(tx, character.id, bound.id);
+      await tx.character.update({
+        where: { id: character.id },
+        data: { boundSinceTurnNumber: null },
+      });
+    }
+    await fileAutoRoutine(
+      tx,
+      character,
+      openTurn,
+      `Tried to break their restraints${rollLine ? `: ${rollLine}` : ""} — ${outcome}.`,
+      "auto:breakRestraints",
+    );
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_break_restraints",
+      targetCharacterId: character.id,
+      turnId: openTurn.id,
+      details: {
+        automatic: result.automatic,
+        die: roll.die,
+        threshold: result.threshold,
+        success: result.success,
+      },
+    });
+  });
+
+  await afterInventoryChange(character.id);
+  revalidateAll();
+  return {
+    success: result.success,
+    line: result.success
+      ? result.automatic
+        ? "The knots finally give. You're free."
+        : `${rollLine}. The ropes give way — you're free.`
+      : `${rollLine}. The knots hold.`,
+  };
 }
 
 // --- Crucifixion -----------------------------------------------------------

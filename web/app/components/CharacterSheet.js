@@ -60,6 +60,7 @@ export default function CharacterSheet({
   canTorture = false,
   canMutilate = false,
   canBrand = false,
+  canBreakRestraints = false,
   hasDatacard = false,
   hasStepstone = false,
   stepstoneTargets = [],
@@ -270,6 +271,7 @@ export default function CharacterSheet({
         canTorture={canTorture}
         canMutilate={canMutilate}
         canBrand={canBrand}
+        canBreakRestraints={canBreakRestraints}
         hasDatacard={hasDatacard}
         hasStepstone={hasStepstone}
         stepstoneTargets={stepstoneTargets}

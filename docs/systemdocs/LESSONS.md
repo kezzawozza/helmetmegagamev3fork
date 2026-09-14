@@ -128,6 +128,60 @@ re-checks co-presence, alive, not already bound, same open turn, then
 row, used by both doors. Consent DMs **name the actor**; the old rule that a
 victim's DM never does still holds for Loot and Harm.
 
+### 3c. Break Restraints: a Bound character's own struggle
+
+The one self-service door onto shedding `bound` — Free (§3b's rescue button)
+still needs somebody else standing there. **Break Restraints**
+(`breakRestraintsRequestImpl`, `web/app/(app)/character/actions/misc.js`) is
+a Bound character's own Gambit at freedom, once a turn, and the odds get
+better automatically the longer they've been tied up.
+
+**The gate is holding `bound`, and nothing else.** `requireCharacter()` is
+called with no `needs` — `bound` blocks `ACT` (`db/lib/incapacitation.js`),
+so requiring it would make the button unreachable for the one character who
+needs it. Hidden, not greyed, the same rule Extract follows (`FACTORY.md`
+§3): whether you're Bound is your own sheet's fact.
+
+**It spends the Move**, filed instantly through `fileAutoRoutine` as a
+ROUTINE already PASSED — the same shape Torture uses, and for the same
+reason: it resolves the moment it's pressed, so a real GAMBIT row would have
+the turn-end push announce the same die a second time. No confirm dialog
+either (`web/components/actions/index.js`'s `INSTANT` table) — the tooltip
+already says what pressing it does.
+
+**The clock**: `Character.boundSinceTurnNumber`, stamped with `turn.number`
+by `applyBind` the moment `bound` is freshly granted (not on a re-bind of
+someone already tied up), the same claim-token shape as `extractDayKey`
+(`FACTORY.md` §3) — a plain column, not a foreign key, so deleting a turn
+never cascades into a character row. Read back each attempt as
+`openTurn.number - boundSinceTurnNumber`, 0 on the same turn the bind
+landed.
+
+**The threshold table** (`db/lib/breakRestraintsThreshold`, pure and
+Prisma-free like `torture.js`'s own `thresholdFor`) — a `null` threshold
+means automatic, no roll needed at all:
+
+| Holds | Turn 1 | Turn 2 | Turn 3+ |
+|---|---|---|---|
+| neither | needs 5 or 6 | needs 3–6 | automatic |
+| Escape Artist | needs 3–6 | automatic | automatic |
+| Giant | needs 4–6 | needs 3–6 | automatic |
+| **Escape Artist and Giant together** | **automatic** | automatic | automatic |
+
+Escape Artist shifts the whole ladder one turn early — their turn 1 plays
+like everyone else's turn 2. Giant only sweetens turn 1; Bascinet gave no
+reason to shift its later turns, so turn 2+ falls back to the base ladder.
+Escape Artist and Giant together is Bascinet's own ruling (2026-09-24):
+instant, from turn 1, no exceptions — not merely the better of the two.
+No Hunger/mood Gambit modifiers apply; this is a flat die-vs-threshold
+check.
+
+On success, `dropCharacterTag` removes `bound` and `boundSinceTurnNumber` is
+cleared. **A GM manually stripping `bound` from `/gm/dev` leaves the column
+stale** until the character is bound again — accepted, not fixed:
+`applyBind`'s fresh-grant check overwrites it correctly on the next real
+bind, and the button is hidden the whole time `bound` is absent anyway.
+
 ## 4. The web
 
 - `character/page.js` builds `teachers` (everyone here who can teach, each
