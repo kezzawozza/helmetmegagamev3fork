@@ -62,11 +62,18 @@ export default function DesirePanel({
   function submitClaim(reason) {
     setError(null);
     startTransition(async () => {
-      const res = await claimDesire({
-        slotIndex: claiming.slotIndex,
-        slug: claiming.entry.slug,
-        reason,
-      });
+      let res;
+      try {
+        res = await claimDesire({
+          slotIndex: claiming.slotIndex,
+          slug: claiming.entry.slug,
+          reason,
+        });
+      } catch {
+        // A page left open across a deploy throws here instead of answering; without the catch that took the
+        // whole page to the error screen.
+        return setError("Could not reach the server. Nothing was changed.");
+      }
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setClaiming(null);
     });

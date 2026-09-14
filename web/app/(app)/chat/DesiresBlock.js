@@ -61,7 +61,14 @@ export default function DesiresBlock({ view }) {
   function submitClaim(reason) {
     setError(null);
     startTransition(async () => {
-      const res = await claimDesire({ slotIndex: claiming.slotIndex, slug: claiming.entry.slug, reason });
+      let res;
+      try {
+        res = await claimDesire({ slotIndex: claiming.slotIndex, slug: claiming.entry.slug, reason });
+      } catch {
+        // A page left open across a deploy calls an action the new build doesn't know. That throws, and a throw
+        // here took the whole page to the error screen.
+        return setError("Could not reach the server. Nothing was changed.");
+      }
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setClaiming(null);
       // The slots came down with the page and the catalog's cooldowns just
@@ -132,12 +139,19 @@ export default function DesiresBlock({ view }) {
         title="Claim Desire"
         submitLabel="Claim"
         busy={pending}
+        reasonRequired
         onCancel={() => !pending && setClaiming(null)}
         onConfirm={submitClaim}
       >
         <p className="text-sm">
           <RichText text={claiming?.entry?.name} /> — {claiming?.entry?.tier} Tag Point
           {claiming?.entry?.tier === 1 ? "" : "s"}, into slot {(claiming?.slotIndex ?? 0) + 1}
+        </p>
+        <p className="text-xs text-muted">
+          You get the points immediately, but tell the GMs how you pulled it off.
+        </p>
+        <p className="text-xs text-muted">
+          A scene staged only to claim this doesn&apos;t count — write what actually happened.
         </p>
       </RequestDialog>
     </div>

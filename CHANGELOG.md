@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Claiming a Desire from Chat works again
+
+✎ The claim box on Chat now asks how you pulled it off; before, every claim there was refused  
+✎ A page left open across a deploy no longer crashes to 'That page didn't load' when you claim a Desire  
+✎ After a deploy, an old open page reloads itself instead of breaking
+
 ## 2026-09-14 · Anyone can teach now
 
 ✎ You no longer need the Teaching tag to teach — anybody can pass on a skill they hold, but it takes their whole turn and the student needs a 6  
