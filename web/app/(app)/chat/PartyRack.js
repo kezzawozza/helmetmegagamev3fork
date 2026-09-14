@@ -21,6 +21,13 @@ import useVisiblePoll from "./useVisiblePoll";
 // costs the extra crossing the mount buys and nothing else. On foot there are
 // no seats at all and none of that language draws: walking any number of
 // people has never cost anything and still doesn't.
+//
+// RIDING is the other half: a passenger cannot lead a party of their own
+// (db/lib/escort.js#escortAuthority — a passenger picking up followers of
+// their own left an orphaned sub-party nobody's move ever walked). So while
+// `data.riding` is set, this draws who you're being brought along WITH
+// instead of a "Bring somebody" picker — there is nothing here for you to
+// drive.
 
 // The same minute HereList polls on, and for the same reason: somebody
 // walking up to you has to appear without a reload.
@@ -74,22 +81,34 @@ export default function PartyRack() {
     ) : null;
   }
 
-  const { party, candidates, incoming, seats } = data;
+  const { party, candidates, incoming, seats, riding } = data;
   // Only the people you have NOT already got. The rack shows the party; the
   // picker shows who else is standing here.
   const pickable = candidates.filter((c) => !c.attached);
   const seat = seatLine(seats, party.length);
 
   // Nothing to draw and nothing to offer — no empty panel under the place
-  // card for somebody standing alone in a field.
-  if (party.length === 0 && pickable.length === 0 && incoming.length === 0) return null;
+  // card for somebody standing alone in a field. Riding always draws: being
+  // brought along is exactly the thing this panel exists to say.
+  if (!riding && party.length === 0 && pickable.length === 0 && incoming.length === 0) return null;
 
   return (
     <div className="chat-party">
-      <p className="chat-section-title">
-        Bringing · {party.length}
-        {seat && <span className="text-muted"> · {seat.label}</span>}
-      </p>
+      {riding ? (
+        <>
+          <p className="chat-section-title">With {riding.leaderName}</p>
+          {riding.companions.length > 0 && (
+            <p className="text-sm text-muted">
+              Also along: {riding.companions.map((c) => c.name).join(", ")}
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="chat-section-title">
+          Bringing · {party.length}
+          {seat && <span className="text-muted"> · {seat.label}</span>}
+        </p>
+      )}
 
       {/* An ask aimed at YOU. The Accept and Cancel on the Discord DM are
           unreachable for a player who never opens Discord, and this panel is
@@ -118,7 +137,7 @@ export default function PartyRack() {
         </div>
       ))}
 
-      {party.length > 0 && (
+      {!riding && party.length > 0 && (
         <div className="equip-slots party-slots">
           {party.map((person, index) => (
             <div
@@ -152,9 +171,9 @@ export default function PartyRack() {
         </div>
       )}
 
-      {seat?.warning && <p className="chat-quiet-line">⚠ {seat.warning}</p>}
+      {!riding && seat?.warning && <p className="chat-quiet-line">⚠ {seat.warning}</p>}
 
-      {pickable.length > 0 && (
+      {!riding && pickable.length > 0 && (
         <>
           <button
             type="button"

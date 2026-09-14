@@ -45,7 +45,16 @@ function escortAuthority(leader, target, turnNumber = null) {
   if (!leader?.locationId || !target) return null;
   if (target.id === leader.id) return null;
   if (target.buriedAt) return null;
-  // Location grain, and a corpse is where it lies. Deliberately stricter than the old canDrag, which reached across the whole zone.
+  // A passenger is not a driver. Somebody already being brought along by
+  // somebody ELSE may not start bringing anyone of their own — no exceptions,
+  // FORCED included, or a captor who gets swept up themselves would still be
+  // walking off with their prisoner in tow. This is the leader-side mirror of
+  // the `target.escortedById` guard below; without it, attaching an existing
+  // leader to a new one left their own followers dangling on a sub-party no
+  // move ever walked (attach() below is the other half — it releases one).
+  if (leader.escortedById) return null;
+  // Location grain, and a corpse is where it lies. Deliberately stricter than
+  // the old canDrag, which reached across the whole zone.
   if (target.locationId !== leader.locationId) return null;
 
   // FORCE COMES FIRST, and that ordering is the whole point of this block: a prisoner is not somebody's to keep by having asked first, so a friendly arrangement must never outrank the rope.
@@ -93,6 +102,7 @@ function escortRefusal(leader, target) {
   if (target.buriedAt) return "They're in the ground.";
   // The one wording every "they aren't here" refusal in the game shares (db/lib/presence.js), so this one doesn't invent a second.
   if (!leader?.locationId || target.locationId !== leader.locationId) return notHereMessage(target);
+  if (leader.escortedById) return "You're being brought along yourself.";
   if (target.escortedById && target.escortedById !== leader.id) return "They're already with somebody.";
   return "You can't take them along.";
 }
@@ -141,6 +151,13 @@ async function attach(prisma, leaderId, targetId, { tx = null, takeover = false 
       : { id: targetId, OR: [{ escortedById: null }, { escortedById: leaderId }] },
     data: { escortedById: leaderId },
   });
+  if (claimed.count > 0) {
+    // A passenger cannot lead a party of their own (escortAuthority above),
+    // so whoever THIS target was themselves bringing along is released the
+    // moment somebody else picks them up — otherwise it would sit as an
+    // orphaned sub-party nobody's move ever walks (MAP.md §3a).
+    await releaseParty(prisma, targetId, { tx: db });
+  }
   return claimed.count > 0;
 }
 
@@ -199,6 +216,10 @@ async function acceptEscort(prisma, offer, _responder) {
   if (!actor || !target) return refuse("They aren't here any more.");
   // They may have walked apart between the ask and the answer. The window is still stamped — saying yes is saying yes — but nobody is attached to somebody standing somewhere else.
   const together = actor.locationId && actor.locationId === target.locationId;
+  // A passenger cannot lead (escortAuthority): the asker may themselves have
+  // been picked up between the ask and the answer, and accepting then stamps
+  // the consent window but attaches nobody.
+  const attaches = together && !actor.escortedById;
 
   await prisma.$transaction(async (tx) => {
     await tx.character.update({
@@ -206,9 +227,15 @@ async function acceptEscort(prisma, offer, _responder) {
       data: {
         escortConsentToId: actor.id,
         escortConsentUntilTurn: turn.number + CONSENT_TURNS,
-        ...(together ? { escortedById: actor.id } : {}),
+        ...(attaches ? { escortedById: actor.id } : {}),
       },
     });
+    if (attaches) {
+      // attach()'s identical comment: a passenger cannot lead a party of
+      // their own, so accepting releases whoever the target themselves was
+      // bringing along.
+      await releaseParty(prisma, target.id, { tx });
+    }
     await tx.offer.updateMany({
       where: { id: offer.id, status: "PENDING" },
       data: { status: "ACCEPTED", respondedAt: new Date(), resolvedAt: new Date() },
@@ -223,7 +250,7 @@ async function acceptEscort(prisma, offer, _responder) {
           follower: target.name,
           leader: actor.name,
           untilTurn: turn.number + CONSENT_TURNS,
-          attached: Boolean(together),
+          attached: attaches,
         },
       },
     });
@@ -231,16 +258,20 @@ async function acceptEscort(prisma, offer, _responder) {
 
   return {
     ok: true,
-    line: together
+    line: attaches
       ? `You're with ${actor.name} now.`
-      : `You agreed, but ${actor.name} isn't here any more.`,
+      : together
+        ? `You agreed, but ${actor.name} can't bring you along right now.`
+        : `You agreed, but ${actor.name} isn't here any more.`,
     dms: actor.discordUserId
       ? [
           {
             discordUserId: actor.discordUserId,
-            content: together
+            content: attaches
               ? `${target.name} is with you.`
-              : `${target.name} agreed, but you've moved away.`,
+              : together
+                ? `${target.name} agreed, but you can't bring them along right now.`
+                : `${target.name} agreed, but you've moved away.`,
           },
         ]
       : [],

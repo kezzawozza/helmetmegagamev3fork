@@ -450,7 +450,7 @@ one answer:
 | `FORCED` | a corpse; anyone holding an `INCAPACITATING_SLUGS` tag; a member of the faction you lead | attaches at once |
 | `CONSENTED` | somebody whose standing agreement to *you* has not lapsed | attaches at once |
 | `ASK` | any other living character standing with you | files an `ESCORT` `Offer` and DMs them |
-| `null` | not standing with you, hooded, yourself, buried, or **willingly** following somebody else | not offered |
+| `null` | not standing with you, hooded, yourself, buried, **willingly** following somebody else, or **you yourself are being brought along** | not offered |
 
 **Force beats an arrangement.** The three `FORCED` branches are reached
 *before* the `escortedById` guard, so a captor takes their prisoner off
@@ -515,6 +515,21 @@ follower leaves by leaving. A helpless one never reaches that line. Death
 releases everyone following the dead character and clears their own standing
 agreement — but **not** their `escortedById`, because a corpse is still
 something a person can carry.
+
+**A passenger is not a driver.** `escortAuthority` returns `null` for every
+target the instant `leader.escortedById` is set — no exception, FORCED
+included, or a captor who gets swept up themselves would still be walking off
+with their prisoner in tow. This closed a real hole: somebody already being
+brought along could still open their own picker and attach followers of their
+own, which left an orphaned sub-party the moment their own leader moved —
+nobody's walk ever reads two levels of `escortedById` deep. The web's
+`PartyRack.js` reflects this rather than fighting it: while `escortedById` is
+set, the rack draws who you're being brought along **with** (your leader,
+plus anyone else the same leader has) instead of a "Bring somebody" picker.
+`attach()` and `acceptEscort()` are the other half of the same rule — either
+one releasing the target's own party (`releaseParty`) the moment somebody
+picks them up, so a chain can never form by attaching in the other order
+either (an already-leading character getting picked up themselves).
 
 **Seats decide the mount's bonus, not the party's size.** There is no cap on
 how many people you take. `fastTravelCapacity` (horse 2, horse + cart 6,
