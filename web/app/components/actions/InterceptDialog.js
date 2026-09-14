@@ -44,6 +44,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
   const [names, setNames] = useState([]);
   const [anyConcealed, setAnyConcealed] = useState(false);
   const [anyPerson, setAnyPerson] = useState(false);
+  const [outsideZoneOnly, setOutsideZoneOnly] = useState(false);
   const [holding, setHolding] = useState([]);
   const [place, setPlace] = useState(null);
   const [limits, setLimits] = useState({ names: 12, message: 300 });
@@ -67,6 +68,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
           setNames(res.watch.names);
           setAnyConcealed(res.watch.anyConcealed);
           setAnyPerson(res.watch.anyPerson);
+          setOutsideZoneOnly(Boolean(res.watch.outsideZoneOnly));
           setPlace(res.watch.place ?? null);
         }
       })
@@ -89,7 +91,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
       onClose={onClose}
       onSubmit={() =>
         submit(
-          () => setIntercept({ mode, message, names, anyConcealed, anyPerson }),
+          () => setIntercept({ mode, message, names, anyConcealed, anyPerson, outsideZoneOnly }),
           (res) => onDone(noticeLine(verb, res)),
         )
       }
@@ -121,7 +123,23 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
           >
             Any concealed person
           </button>
+          {/* Not a "who" — it narrows whichever who you picked, names included, so
+              "Any person" does not subsume it the way it subsumes the chip above and
+              this one never greys out. */}
+          <button
+            type="button"
+            className="chip"
+            data-active={outsideZoneOnly ? "true" : undefined}
+            aria-pressed={outsideZoneOnly}
+            onClick={() => setOutsideZoneOnly((on) => !on)}
+          >
+            Only from outside the zone
+          </button>
         </div>
+        <p className="text-xs text-muted">
+          Off, you stop everyone who walks in. On, only people who came from another zone — so
+          the locals pass by.
+        </p>
       </div>
 
       <NameChips

@@ -4276,6 +4276,13 @@ model InterceptWatch {
   anyConcealed Boolean @default(false)
   anyPerson    Boolean @default(false)
 
+  // Only catch somebody who crossed INTO this zone on the move that brought
+  // them here. The gate guard's mute button: a watch at the town gate is for
+  // strangers coming up the road, not for the townsfolk crossing their own
+  // square all day. Read at FIRE time against each arrival's own previous
+  // zone, so an escort party is judged one person at a time.
+  outsideZoneOnly Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -19,8 +19,8 @@ whole of "you can only follow one person". Editing is an upsert; there is no
 history to keep, so the `AuditLog` row written on each save is the only record
 of what a watch said at the time.
 
-It carries a Location, a mode, a message, a list of typed names, and two
-dragnet flags.
+It carries a Location, a mode, a message, a list of typed names, two
+dragnet flags, and one filter on where an arrival came from (§2a).
 
 **Setting or editing one is free**, whether or not your Move for the turn is
 already spent — laying in wait carries no gate of its own (Attack keeps its
@@ -120,6 +120,36 @@ name to an id when the watch is saved would make the dialog a **roster oracle**,
 answering "is there anybody called that?" to anyone who probed it.
 `matchesTypedName` is exact and takes either the full display name or the bare
 `First Last`.
+
+## 2a. Coming up the road, or just crossing the square
+
+`outsideZoneOnly`, off by default, and `db/lib/intercept.js#originHolds` is the
+whole of it: on, a watch only catches somebody who **crossed into this zone** on
+the move that brought them here.
+
+It exists because a Safe watch at the town gate was stopping the same townsfolk
+every day with the same line. The `InterceptHit` ration (§5) already caps that at
+once per person per turn, but once per person per turn is still everybody who
+lives there — and the watch was meant for strangers coming up the road.
+
+Three things about it are deliberate:
+
+- **It is not a "who".** `anyPerson` subsumes `anyConcealed`, and this is
+  subsumed by neither: it narrows whichever who you picked, typed names
+  included. So it never greys out, and `setInterceptImpl` does not clear it the
+  way it clears `anyConcealed`.
+- **It is not folded into `matchesArrival`.** That function is the hood rule and
+  only the hood rule (§2). Where you came from is geography, not a face, and
+  `matchesArrival` stays pure over an identity.
+- **An arrival with no previous zone counts as outside.** An unknown origin is a
+  stranger; the other way round would be a hole in a watch somebody deliberately
+  turned on.
+
+Each arrival is judged **on its own journey**, not on the mover's — a leader
+crossing a border can be carrying somebody who never left the zone, so
+`performLocationMove` hands `fireWatches` a `fromZoneId` per arrival beside the
+destination's `zoneId`. That per-arrival `fromZoneId` is computed in
+`db/lib/locationTravel.js` and, until this, was written and never read.
 
 ## 3. The hold
 
@@ -241,6 +271,9 @@ meant to build.
 - A Safe watch reports its whole haul in one line to its owner. An Ambush is
   one DM per victim, because each carries a Release button and a button answers
   about exactly one person (`db/lib/dmActions.js#dmAction`).
+- **The zone filter is checked BEFORE the ration is claimed.** A local a watch
+  deliberately ignored must not burn that turn's one catch, or a stranger
+  arriving later the same turn would walk straight through.
 - **You catch a given person at most once a turn.** `InterceptHit`, and the
   `@@unique([interceptorId, targetCharacterId, turnId])` **is** the enforcement
   — the insert is what claims the catch, so two arrivals in one tick cannot
@@ -365,6 +398,13 @@ The two dragnets sit in their own `.chip-row` **above** the names, because ✕ h
 to mean exactly one thing in a row and "anyone who comes" is not a name somebody
 typed. "Any person" subsumes "any concealed person" and is stored as the only
 one, so the greying-out is true rather than merely drawn.
+
+**Only from outside the zone** (§2a) is a third chip in that same row, and it is
+the odd one there: the other two are a who, and this narrows whichever who you
+picked. It buys a whole new control's worth of clutter otherwise — a checkbox of
+its own under a dialog that already runs to five fields — and the row is a row of
+toggles, which is exactly what it is. So it never greys, and one line under the
+row says what it does, since nothing in this dialog is a tooltip.
 
 ## 9. The audit
 
