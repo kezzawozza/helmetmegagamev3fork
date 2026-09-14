@@ -12,11 +12,14 @@ import Tooltip from "./Tooltip";
 // an unknown intrinsic size, which next/image would refuse without explicit
 // dimensions.
 
-// A glowing ring around the whole face — the mobile signal (name text may
-// not show in a cramped column, but the portrait always does) and a second,
+// A thin ring around the whole face — the mobile signal (name text may not
+// show in a cramped column, but the portrait always does) and a second,
 // at-a-glance cue on desktop beside HereList's own "online" subtext.
 // Absolutely positioned to exactly overlay the face inside wrap()'s relative
-// span, so it works whether or not CatatonicDot is also present.
+// span, so it works whether or not CatatonicDot is also present. --accent
+// rather than --positive: a ring is a rule, one of the two things --accent is
+// ever allowed to be (DESIGN-SYSTEM.md), and it already carries its own value
+// per theme (dusk/dawn/limestone) rather than one green fixed everywhere.
 function OnlineRing({ size }) {
   return (
     <span
@@ -27,7 +30,7 @@ function OnlineRing({ size }) {
         width: size,
         height: size,
         borderRadius: "var(--r-full)",
-        boxShadow: "0 0 0 2px var(--positive), 0 0 5px 1px var(--positive)",
+        boxShadow: "0 0 0 1px var(--accent)",
         pointerEvents: "none",
       }}
     />

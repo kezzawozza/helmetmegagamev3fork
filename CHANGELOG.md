@@ -13,6 +13,10 @@ Entries below predate this format and list files instead.
 ✎ A Drill Instructor's students still succeed on a 4 on a fighting skill  
 − Teaching (Lecturing), folded into Teaching itself. Nobody was compensated, but existing holders get moved onto plain Teaching rather than losing the lot  
 
+## 2026-09-14 · The online ring is thinner, quieter, and matches the theme
+
+✎ The green glow around an online player's face is now a thin, plain ring in the theme's accent colour
+
 ## 2026-09-14 · Travel offers no longer read as lesson offers
 
 ✎ An offer to take someone along showed up on the web as a lesson offer, for both people  
