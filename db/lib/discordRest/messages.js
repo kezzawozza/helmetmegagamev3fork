@@ -26,12 +26,9 @@ async function postAttachment(channelId, filePath, content = "", components = un
   return discordRequest(`/channels/${channelId}/messages`, { method: "POST", formData: buildBody });
 }
 
-// `allowedMentions` is opt-in, and omitting it lets Discord parse everything
-// in `content` — which is right for bot-composed text and wrong for anything
-// a player typed. Pass one whenever the content carries user text; the proxy
-// (bot/src/lib/proxy.js) and the intercom (db/lib/intercom.js) both do.
-// `embeds` is a list of plain embed objects (Discord's own JSON shape). The
-// only sender of one from this side is the torture DM (db/lib/torture.js).
+// `allowedMentions` opt-in: omitting it lets Discord parse everything in
+// `content`, wrong for anything a player typed (see proxy.js, intercom.js).
+// `embeds` is Discord's own JSON shape; only torture.js sends one.
 async function postMessage(channelId, content, components = undefined, allowedMentions = undefined, embeds = undefined) {
   return discordRequest(`/channels/${channelId}/messages`, {
     method: "POST",
@@ -52,8 +49,7 @@ async function postMessageBatched(channelId, text) {
   }
 }
 
-// Edits a message the bot itself sent — used to rewrite a forum post's
-// STARTER message (id == thread id) in place rather than recreate the post.
+// Rewrites a forum post's STARTER message (id == thread id) in place.
 async function editMessage(channelId, messageId, content, components = undefined) {
   return discordRequest(`/channels/${channelId}/messages/${messageId}`, {
     method: "PATCH",
@@ -117,9 +113,8 @@ function messageTimestamp(messageId) {
   }
 }
 
-// Bulk-delete takes 2-100 ids and rejects the WHOLE batch if any one is over
-// 14 days old, so ids are split by age: young ones bulk-delete together, old
-// ones go one at a time up to the cap.
+// Bulk-delete rejects the WHOLE batch if any id is over 14 days old, so ids
+// split by age: young ones bulk-delete together, old ones go one at a time.
 async function bulkDeleteMessages(channelId, messageIds) {
   const cutoff = Date.now() - BULK_DELETE_MAX_AGE_MS;
   const young = [];
@@ -155,11 +150,8 @@ async function bulkDeleteMessages(channelId, messageIds) {
   }
 }
 
-
-// Everything in a channel or thread except one nominated message — a
-// Location channel's pinned anchor, a Room thread's starter (which, unlike a
-// forum post's, has an id of its own). `before` bounds it the way the Dawn
-// wipe's cutoff bounds every other clear.
+// Everything in a channel or thread except one nominated message. `before`
+// bounds it the way the Dawn wipe's cutoff bounds every other clear.
 async function clearMessagesExcept(channelId, keepId, { before } = {}) {
   const messages = await fetchAllMessages(channelId, { before });
   const toDelete = messages.filter((m) => m.id !== keepId).map((m) => m.id);

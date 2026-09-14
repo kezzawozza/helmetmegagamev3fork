@@ -2,19 +2,12 @@ import { prisma } from "@lifeweb/db";
 import { DATE_PRESETS, auditFamily, familyPrefixes, knownTypesInFamily, familiesInBand } from "@/lib/auditNarrative";
 import { parseQuery } from "@/lib/fuzzySearch";
 
-// The audit log's filter parser and WHERE builder, shared by the page and the
-// export action so a CSV can never disagree with the screen it was taken from.
-//
-// Filtering is SERVER-side here, unlike every other list in the app
-// (DataTable.js). The audit table is unbounded and append-only — it is already
-// the app's biggest — so it can never be shipped whole to a browser and sorted
-// there. That is also why the whole filter state lives in the URL: a view a GM
-// wants to paste at another GM has to survive being a link.
+// The audit log's filter parser and WHERE builder, shared by the page and export so a CSV can never disagree.
+// Filtering is SERVER-side (unlike DataTable.js), and the whole filter state lives in the URL so a view survives being a link.
 
 export const PAGE_SIZE = 60;
 
-// Repeatable params arrive from URLSearchParams as either a string or an array
-// depending on how many were set; normalize once at the door.
+// Repeatable params arrive from URLSearchParams as a string or an array; normalize once at the door.
 function list(raw) {
   if (raw == null) return [];
   const values = Array.isArray(raw) ? raw : [raw];
@@ -25,12 +18,7 @@ function one(raw) {
   return raw == null ? "" : String(Array.isArray(raw) ? raw[0] : raw).trim();
 }
 
-// A `YYYY-MM-DD` query param as a real Date, or null. Null is the right answer
-// for anything unparseable: an unfiltered page is a reasonable response to a
-// nonsense date, and a thrown Prisma error is not. new Date("banana") is an
-// Invalid Date that Prisma rejects, which used to throw inside the page render
-// and — with no error boundary in the app — take the whole route to a raw
-// digest screen.
+// A `YYYY-MM-DD` query param as a real Date, or null on anything unparseable (a thrown Prisma error is not).
 function parseDateParam(raw, timeSuffix) {
   const text = one(raw);
   if (!text) return null;
@@ -38,16 +26,12 @@ function parseDateParam(raw, timeSuffix) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-// Reads the raw searchParams object into the one shape everything downstream
-// uses. Pure — no queries — so the page can echo it straight back into the
-// filter controls and into pageHref().
+// Reads searchParams into the one shape everything downstream uses; pure, so the page can echo it back.
 export function parseAuditParams(params) {
   return {
     q: one(params?.q),
     families: list(params?.family),
-    // Which half of the log to read. Empty means the default: what players
-    // did. "all" opts into the machine lines too. A named family wins over
-    // both, since picking one is a more specific request than either.
+    // Which half of the log to read. Empty defaults to player; "all" opts into machine lines too.
     band: ["player", "machine", "all"].includes(one(params?.band)) ? one(params.band) : "",
     types: list(params?.type),
     actors: list(params?.actor),
@@ -55,9 +39,7 @@ export function parseAuditParams(params) {
     targets: list(params?.target),
     factions: list(params?.faction),
     zones: list(params?.zone),
-    // WHERE it happened — AuditLog.locationId/roomId, forward-only (see
-    // schema.prisma). A different axis from `zones` above, which is the
-    // target's FACTION zone.
+    // WHERE it happened — AuditLog.locationId/roomId, forward-only. Distinct from `zones` above, the target's FACTION zone.
     locations: list(params?.location),
     rooms: list(params?.room),
     turnFrom: one(params?.turnFrom),
@@ -69,12 +51,7 @@ export function parseAuditParams(params) {
   };
 }
 
-// Everything the WHERE needs that is not in the URL: which Discord IDs are
-// GMs, which characters belong to which faction and zone (now also their
-// role title, for role:-scoped search), where the turn boundaries fall, and
-// the guild's Discord handles (for @handle / user:-scoped search — a
-// username lives in Discord, not in any table). One call, so the page and
-// the export share the cost shape.
+// Everything the WHERE needs that isn't in the URL: GM ids, character->faction/zone/role, turn boundaries, guild handles.
 export async function loadAuditContext({ gmIds, guildMembers }) {
   const [characters, turns] = await Promise.all([
     prisma.character.findMany({
@@ -87,16 +64,13 @@ export async function loadAuditContext({ gmIds, guildMembers }) {
         faction: { select: { id: true, name: true, zoneId: true, zone: { select: { id: true, name: true } } } },
       },
     }),
-    // Ascending, because bucketing a timestamp into a turn is a walk forward
-    // through the boundaries.
+    // Ascending: bucketing a timestamp into a turn is a walk forward through the boundaries.
     prisma.turn.findMany({ select: { number: true, phase: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
   ]);
   return { characters, turns, gmIds: new Set(gmIds ?? []), guildMembers: guildMembers ?? [] };
 }
 
-// Which turn a timestamp fell in — the last turn that had started by then.
-// AuditLog carries no turnId, and stamping one would only cover rows written
-// from today onward, so this derives it for the whole history instead.
+// Which turn a timestamp fell in — the last turn started by then. AuditLog carries no turnId, so this derives it for the whole history.
 export function turnAt(turns, when) {
   let found = null;
   for (const turn of turns) {
@@ -108,8 +82,7 @@ export function turnAt(turns, when) {
 
 function turnWindow(turns, fromNumber, toNumber) {
   const from = fromNumber ? turns.find((t) => t.number === Number(fromNumber)) : null;
-  // The window ENDS where the turn after `to` began — a turn's rows run until
-  // the next one opens, and the last turn's run until now.
+  // The window ENDS where the turn after `to` began — a turn's rows run until the next one opens.
   const after = toNumber ? turns.find((t) => t.number === Number(toNumber) + 1) : null;
   return { gte: from?.startedAt ?? null, lt: after?.startedAt ?? null };
 }
@@ -135,9 +108,8 @@ function presetWindow(preset, turns) {
   }
 }
 
-// A family clause matches its KNOWN types plus anything carrying one of its
-// prefixes — so an action type added at a call site next month still lands in
-// the right family without a change to auditNarrative.js.
+// A family clause matches its KNOWN types plus anything carrying one of its prefixes, so a new action
+// type lands in the right family without a change to auditNarrative.js.
 function familyClause(family) {
   const known = knownTypesInFamily(family);
   const prefixes = familyPrefixes(family);
@@ -145,17 +117,11 @@ function familyClause(family) {
     ...(known.length ? [{ actionType: { in: known } }] : []),
     ...prefixes.map((p) => ({ actionType: { startsWith: p } })),
   ];
-  // A family with neither (only Lifeweb, whose members are all overrides)
-  // still has its known list, so this is defensive rather than reachable.
+  // Defensive rather than reachable: only Lifeweb (all overrides) would hit the fallback.
   return branches.length ? { OR: branches } : { actionType: { in: [] } };
 }
 
-// Ids whose `details` blob mentions the search text. Prisma cannot express a
-// cast-to-text LIKE over a Json column, and the alternative — pulling every
-// row into node to scan — is not a search, it is a table dump. The LIMIT is
-// the honest cost of an unindexable full-table ILIKE: a `q` that appears in
-// more than this many details blobs alone will match only the newest of them,
-// which beats either a timeout or dropping the branch entirely.
+// Ids whose `details` blob mentions the search text (Prisma can't LIKE a Json column). LIMIT is the honest cost of an unindexable ILIKE.
 const DETAILS_SEARCH_LIMIT = 5000;
 
 async function detailsMatchIds(q) {
@@ -168,8 +134,7 @@ async function detailsMatchIds(q) {
   return rows.map((r) => r.id);
 }
 
-// Discord handles a term matches — a username lives in Discord, not in any
-// table, so this is the whole reason ctx carries guildMembers.
+// Discord handles a term matches — a username lives in Discord, not in any table.
 function matchGuildMemberIds(guildMembers, term) {
   const lower = term.toLowerCase();
   return guildMembers
@@ -177,9 +142,7 @@ function matchGuildMemberIds(guildMembers, term) {
     .map((m) => m.id);
 }
 
-// Characters whose `getter` field contains `term` — split into the actor
-// branch (their Discord id) and the target branch (their character id),
-// since either can carry a role:/faction:/zone: hit.
+// Characters whose `getter` field contains `term`, split into actor (Discord id) and target (character id) branches.
 function matchCharacterIds(characters, term, getter) {
   const lower = term.toLowerCase();
   const matched = characters.filter((c) => (getter(c) ?? "").toLowerCase().includes(lower));
@@ -192,12 +155,8 @@ const SCOPED_FIELD_GETTERS = {
   zone: (c) => c.faction?.zone?.name,
 };
 
-// One word of a parsed query (see web/lib/fuzzySearch.js#parseQuery) into a
-// Prisma OR clause. A scoped word (role:/faction:/zone:/username:) narrows to
-// that one branch; a bare word, or an explicit text:/notes: scope, gets the
-// full-breadth search every unscoped query has always run. An empty result
-// set on a scoped word (e.g. role:xyz matching nobody) correctly resolves to
-// "no rows", not "ignore the scope" — { in: [] } is a real Prisma empty set.
+// One word of a parsed query (fuzzySearch.js#parseQuery) into a Prisma OR clause; a scoped word narrows to
+// that branch, an empty match resolving to "no rows" via a real { in: [] }.
 async function wordWhere(word, ctx) {
   const term = word.term;
   if (!term) return null;
@@ -227,17 +186,14 @@ async function wordWhere(word, ctx) {
   };
 }
 
-// Builds the Prisma WHERE. Async only because of the details-text branch
-// above; everything else is derived from the context the caller already
-// loaded.
+// Builds the Prisma WHERE. Async only because of the details-text branch above.
 export async function buildAuditWhere(filters, ctx) {
   const and = [];
 
   if (filters.families.length) {
     and.push({ OR: filters.families.map(familyClause) });
   } else if (filters.band !== "all") {
-    // The default view. Without this the turn engine's per-character rows bury
-    // everything a person actually did.
+    // The default view — without this the turn engine's per-character rows bury what a person actually did.
     const band = filters.band || "player";
     and.push({ OR: familiesInBand(band).map(familyClause) });
   }
@@ -248,8 +204,7 @@ export async function buildAuditWhere(filters, ctx) {
     and.push({ actorDiscordUserId: { in: filters.actors } });
   }
 
-  // "system" is a literal actorDiscordUserId the turn engine writes, not a
-  // real Discord ID — so Player is "neither a GM nor the engine".
+  // "system" is a literal actorDiscordUserId the turn engine writes; Player means "neither a GM nor the engine".
   if (filters.actorKind === "gm") {
     and.push({ actorDiscordUserId: { in: [...ctx.gmIds] } });
   } else if (filters.actorKind === "system") {
@@ -262,10 +217,7 @@ export async function buildAuditWhere(filters, ctx) {
     and.push({ targetCharacterId: { in: filters.targets } });
   }
 
-  // Faction and zone are properties of the TARGET character, and zone means
-  // their faction's zone rather than where they are standing — the rule
-  // ZoneChip states. Resolved to character ids here because AuditLog carries
-  // neither column.
+  // Faction/zone are TARGET-character properties (zone = their faction's zone); resolved to character ids.
   if (filters.factions.length) {
     const set = new Set(filters.factions);
     and.push({
@@ -279,10 +231,7 @@ export async function buildAuditWhere(filters, ctx) {
     });
   }
 
-  // WHERE it happened. Unlike faction/zone above these are real columns, so
-  // no resolving through character ids — and forward-only: a row filed
-  // before the column existed is NULL, and NULL never matches an `in`, which
-  // is the correct behaviour here (see the schema comment on AuditLog).
+  // WHERE it happened: real columns, forward-only — a pre-column row is NULL, which never matches `in`.
   if (filters.locations.length) {
     and.push({ locationId: { in: filters.locations } });
   }
@@ -290,9 +239,7 @@ export async function buildAuditWhere(filters, ctx) {
     and.push({ roomId: { in: filters.rooms } });
   }
 
-  // Date: an explicit from/to wins over a preset, and a turn range narrows
-  // whatever is left. They compose rather than override, so "this turn" plus a
-  // From date is an intersection and not a surprise.
+  // Date: from/to, preset and turn range all compose (AND), so "this turn" plus a From date intersects rather than overrides.
   const windows = [];
   if (filters.preset) windows.push(presetWindow(filters.preset, ctx.turns));
   if (filters.turnFrom || filters.turnTo) windows.push(turnWindow(ctx.turns, filters.turnFrom, filters.turnTo));
@@ -304,10 +251,7 @@ export async function buildAuditWhere(filters, ctx) {
   }
 
   if (filters.q) {
-    // Split on whitespace into bare terms (match anything) and field:term /
-    // @term scopes (match one branch only) — see parseQuery. Each word is
-    // its own AND entry, so "role:smith caves" is a real two-term AND, not
-    // one long substring the way a single `contains: q` was.
+    // Split into bare terms and field:/@ scopes; each word is its own AND entry.
     const { bare, scoped } = parseQuery(filters.q);
     const words = [...bare.map((term) => ({ term, field: null })), ...scoped];
     for (const word of words) {

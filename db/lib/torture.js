@@ -1,41 +1,27 @@
-// Torture, the pure half (docs/systemdocs/TORTURE.md). A Torturer picks a
-// Bound person standing where they are, one die is rolled, and this file says
-// whether they broke. Prisma-free, the same posture as the top of mood.js:
-// the web action loads the rows, this decides, the test reads it directly.
-//
-// Off the @lifeweb/db barrel on purpose; require it by path.
+// Torture, the pure half (docs/systemdocs/TORTURE.md). A Torturer picks a Bound person standing where they are, one die is rolled, and this file
+// says whether they broke. Prisma-free: the web action loads the rows, this decides, the test reads it directly. Off the @lifeweb/db barrel.
 const { TORTURER_SLUG, TORTURING_EQUIPMENT_SLUG } = require("./constants");
 const { formatAdvantage } = require("./advantage");
 const { HEALTH_CATEGORY } = require("./medicalVision");
 
-// die + bonuses must reach this. A 1 on the die always fails, whatever the
-// bonuses add up to (Bascinet, 2026-09-06) — a torturer with all three +1s
-// would otherwise break anyone but a Relentless target on every roll.
+// die + bonuses must reach this. A 1 on the die always fails, whatever the bonuses add up to.
 const TORTURE_BASE_THRESHOLD = 4;
 
-// What the TARGET holds moves the bar. Hardest wins when several apply, which
-// only ever means Relentless over Brave: Brave and Craven already conflict.
+// What the TARGET holds moves the bar. Hardest wins when several apply, which only ever means Relentless over Brave: Brave and Craven already conflict.
 const TARGET_THRESHOLDS = Object.freeze([
   { slug: "relentless", threshold: 6 },
   { slug: "brave", threshold: 5 },
   { slug: "craven", threshold: 2 },
 ]);
 
-// What the TORTURER brings. Each is +1; a new one is an append here. The
-// equipment is "in reach" rather than held — the same three reaches Surgical
-// Equipment has (db/lib/equipmentReach.js) — so the caller resolves it and
-// passes the boolean. The knife only has to be carried, not drawn.
+// What the TORTURER brings. Each is +1. Equipment is "in reach" rather than held, so the caller resolves it and passes the boolean.
 const TORTURE_BONUSES = Object.freeze([
   { key: "equipment", label: "Torturing Equipment", value: 1 },
   { slug: "trench-knife", label: "Trench Knife", value: 1 },
   { slug: "cruel", label: "Cruel", value: 1 },
 ]);
 
-// Everything a broken person gives up, minus what the room could already see
-// or a medic could already read: wounds and the transient statuses (Bound,
-// Hungry, the meal markers). Those are not secrets, and they would bury the
-// ones that are. Tag.category stores the DISPLAY name. (The fear bands used
-// to be on that list; the mood dial is not a tag at all now — MOOD.md.)
+// Everything a broken person gives up, minus what the room/medic could already see: wounds and transient statuses. Tag.category stores the DISPLAY name.
 const STATUS_CATEGORY = "Status";
 const REVEAL_EXCLUDED_CATEGORIES = new Set([HEALTH_CATEGORY, STATUS_CATEGORY]);
 
@@ -55,8 +41,7 @@ function thresholdFor(targetSlugs) {
   return threshold;
 }
 
-// [{ label, value }], the shape gambitModifier.js returns, so the two lists
-// concatenate and print through one formatter.
+// [{ label, value }], the shape gambitModifier.js returns, so the two lists concatenate and print through one formatter.
 function tortureBonuses({ torturerSlugs = [], equipmentInReach = false } = {}) {
   const held = toSet(torturerSlugs);
   return TORTURE_BONUSES.filter((b) => (b.key === "equipment" ? equipmentInReach : held.has(b.slug))).map(
@@ -64,9 +49,7 @@ function tortureBonuses({ torturerSlugs = [], equipmentInReach = false } = {}) {
   );
 }
 
-// `gambitMods` is gambitModifiers(torturerTags, { hungerStreak, mood }) — Hungry,
-// Ecstatic, Afraid, Panicking — computed by the caller because those read Character columns
-// this file never sees. They count here exactly as they would on any Gambit.
+// `gambitMods` is gambitModifiers(torturerTags, { hungerStreak, mood }) — computed by the caller since those read Character columns this file never sees.
 function resolveTorture({ die, rolls = null, torturerSlugs = [], targetSlugs = [], equipmentInReach = false, gambitMods = [] }) {
   const modifiers = [...tortureBonuses({ torturerSlugs, equipmentInReach }), ...gambitMods];
   const total = die + modifiers.reduce((sum, m) => sum + m.value, 0);
@@ -74,35 +57,26 @@ function resolveTorture({ die, rolls = null, torturerSlugs = [], targetSlugs = [
   return { die, rolls, total, threshold, success: die !== 1 && total >= threshold, modifiers };
 }
 
-// Which of a subject's CharacterTag rows a break gives up.
 function revealedTags(characterTags = []) {
   return characterTags.filter((ct) => ct?.tag && !REVEAL_EXCLUDED_CATEGORIES.has(ct.tag.category));
 }
 
-// "Rolled a 5 +1 Cruel −1 Hungry against 4" — U+2212 minus, matching the
-// bot's roll line and formatGambitModifiers.
-// `rolls` is every die actually thrown — two of them when the torturer holds
-// Lucky (db/lib/advantage.js), which is the ONE place in the game a player sees
-// that tag do its work. Everywhere else the die is either withheld until the
-// turn-end reveal or never printed at all, so a fifteen-point tag would
-// otherwise look exactly like ordinary good fortune.
+// "Rolled a 5 +1 Cruel −1 Hungry against 4" — U+2212 minus, matching the bot's roll line. `rolls` is every die actually thrown — two when the
+// torturer holds Lucky, the ONE place in the game a player sees that tag do its work.
 function formatTortureRoll({ die, modifiers, threshold, rolls = null }) {
   const mods = modifiers.map((m) => `${m.value > 0 ? "+" : "−"}${Math.abs(m.value)} ${m.label}`).join(" ");
   const luck = formatAdvantage({ rolls, advantage: (rolls?.length ?? 0) > 1 });
   return `Rolled a ${die}${luck ? ` ${luck}` : ""}${mods ? ` ${mods}` : ""} against ${threshold}`;
 }
 
-// Discord's field cap. Same trim the bot's examineEmbed applies.
+// Discord's field cap, same trim the bot's examineEmbed applies.
 const FIELD_MAX = 1024;
 function fitField(text) {
   return text.length <= FIELD_MAX ? text : `${text.slice(0, FIELD_MAX - 1)}…`;
 }
 const BULLET = " • ";
 
-// The DM a break earns, as plain JSON — no discord.js in web/, and the REST
-// sender posts the object as-is. Laid out like the bot's examineEmbed: title,
-// description, fields, a portrait thumbnail. `avatarUrl` is absolute; the
-// caller prefixes its origin.
+// The DM a break earns, as plain JSON — no discord.js in web/, the REST sender posts the object as-is. `avatarUrl` is absolute; the caller prefixes its origin.
 function buildTortureEmbed({ name, avatarUrl, tags, desires, thanatiNames }) {
   const fields = [];
   fields.push({

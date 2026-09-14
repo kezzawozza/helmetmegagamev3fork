@@ -1,33 +1,26 @@
-// The roll: who gets which seat when the game starts (docs/systemdocs/LOBBY.md
-// §3). A pure function over plain data, so Preview and Start run exactly the
-// same thing and the test file can too.
+// The roll: who gets which seat when the game starts (docs/systemdocs/
+// LOBBY.md §3). A pure function over plain data, so Preview and Start run
+// exactly the same thing and the test file can too.
 //
-// Ported from tgstation's SSjob.divide_occupations
-// (code/controllers/subsystem/job.dm):
-//
+// Ported from tgstation's SSjob.divide_occupations:
 //   1. shuffle the readied players;
-//   2. the head-of-staff pass — for HIGH, then MEDIUM, then LOW, every
-//      unassigned player who wants a leader seat at that level gets one, at
-//      random among the open ones they may hold;
-//   3. the main pass — the same three levels over every seat;
+//   2. head-of-staff pass — HIGH, then MEDIUM, then LOW, every unassigned
+//      player who wants a leader seat at that level gets one at random;
+//   3. main pass — same three levels over every seat;
 //   4. whoever is left gets their jobless fallback: the overflow seat they
-//      named (Commoner or Migrant, both unlimited) or a walk back to the lobby.
+//      named (Commoner/Migrant, both unlimited) or a walk back to the lobby.
 //
-// Two deliberate departures. There is no "overflow first" pass: Commoner and
-// Migrant are ordinary rows in the priority list, and the fallback dropdown is
-// the overflow. And no head is ever forced — a whitelisted seat nobody
-// whitelisted wants stays empty and is reported as a warning instead.
-//
-// The shuffle and every pick come from a seeded generator, so a draft the
-// superadmin previewed is the draft Start commits, hand-set rows included.
+// No "overflow first" pass — the fallback dropdown is the overflow. No head
+// is ever forced; an unwanted whitelisted seat stays empty and is a warning.
+// The shuffle and every pick come from a seeded generator, so a previewed
+// draft is the draft Start commits, hand-set rows included.
 
 const { roleCapacity } = require("./roleCapacity");
 
 const LEVEL_ORDER = ["HIGH", "MEDIUM", "LOW"];
 const OVERFLOW_SLUG = { COMMONER: "commoner", MIGRANT: "migrant" };
 
-// A 32-bit hash of any string, then mulberry32 over it. Small, dependency-free,
-// and good enough for a shuffle — this is not a security boundary.
+// Good enough for a shuffle — not a security boundary.
 function hashSeed(seed) {
   let h = 2166136261;
   const text = String(seed ?? "");
@@ -80,7 +73,7 @@ function assignRoles({ players, roles, taken = new Map(), playerCount, leaderWhi
 
   const order = shuffled(players, rng);
 
-  // Leader pass, then everyone: the same loop, once restricted to leader seats.
+  // Leader pass, then everyone: same loop, once restricted to leader seats.
   for (const leadersOnly of [true, false]) {
     for (const level of LEVEL_ORDER) {
       for (const player of order) {
@@ -97,8 +90,7 @@ function assignRoles({ players, roles, taken = new Map(), playerCount, leaderWhi
     }
   }
 
-  // The jobless fallback. An overflow seat is unlimited, so it is always open;
-  // if the YAML ever lost it, the player walks back to the lobby instead.
+  // Overflow is unlimited so always open; if the YAML ever lost it, walk to lobby.
   const bySlug = new Map(roles.map((r) => [r.slug, r]));
   for (const player of order) {
     if (result.has(player.discordUserId)) continue;
@@ -128,8 +120,7 @@ function assignRoles({ players, roles, taken = new Map(), playerCount, leaderWhi
   return { rows, warnings, seed: String(seed ?? "") };
 }
 
-// A fresh seed for a preview or a re-roll: time plus a little noise, short
-// enough to read off the panel.
+// Time plus a little noise, short enough to read off the panel.
 function newSeed() {
   return `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
 }

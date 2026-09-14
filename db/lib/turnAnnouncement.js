@@ -1,9 +1,8 @@
 // REST-only turn announcement, called from db/index.js#advanceTurn() — the
 // single implementation for both the bot's cron path and the web Dev
 // Panel's manual "End Turn" button. Takes `prisma` as a parameter rather
-// than `require("../index")`, since db/index.js is the one importing this
-// module — requiring it back would be a circular require resolving to a
-// partial (prisma-less) exports object.
+// than `require("../index")`, since that would be a circular require
+// resolving to a partial (prisma-less) exports object.
 const fs = require("node:fs");
 const path = require("node:path");
 const { getGuildChannels, postMessage, deleteMessage, postAttachment } = require("./discordRest");
@@ -16,20 +15,13 @@ const { isTurnsChannel } = require("./turnsChannelAccess");
 const { TURN_BANNER_DIR, turnBannerPath } = require("./turnBanner");
 const { pushToUser, vapidPublicKey } = require("./webPush");
 
-// #turns is ONE rolling message: the turn announcement, the banner and
-// the player console on a single post, deleted and reposted each turn — one
-// message has no ordering problem to solve. Discord renders content, then
-// attachments, then components, which is exactly the wanted layout:
-//
-//   DAY 4 · DUSK                 <- content
-//   [ turn banner ]              <- attachment
-//   Travel   Move   Speak        <- components, always last
-//
-// and the buttons are at the bottom of the channel by construction.
+// #turns is ONE rolling message: announcement, banner and console on a
+// single post, deleted and reposted each turn. Discord renders content, then
+// attachments, then components — content/banner/buttons in exactly that
+// order, buttons at the bottom by construction.
 //
 // `push: false` reposts the console without the "turn has opened" web push —
-// End Game rebuilds the console so its Move cutoff goes away, and nobody's
-// phone should say a turn opened.
+// End Game rebuilds the console so its Move cutoff goes away.
 async function postTurnsAnnouncement(prisma, newTurn, note, { push = true } = {}) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
@@ -39,9 +31,8 @@ async function postTurnsAnnouncement(prisma, newTurn, note, { push = true } = {}
   const turnsChannel = channels.find(isTurnsChannel);
   if (!turnsChannel) return;
 
-  // The Move-cutoff clause is omitted when the clock is frozen — auto-advance
-  // paused, or the game not running — since there is then no scheduled end to
-  // count back from (db/lib/turnClock.js).
+  // Move-cutoff clause omitted when frozen: no scheduled end to count back
+  // from (db/lib/turnClock.js).
   const text = [
     buildTurnAnnouncement(newTurn, note, { clockFrozen: await clockFrozen(prisma) }),
     CONSOLE_TEXT,
@@ -56,30 +47,22 @@ async function postTurnsAnnouncement(prisma, newTurn, note, { push = true } = {}
   const sent = await postTurnsConsole(prisma, turnsChannel.id, text, newTurn, config, state);
   if (!sent) console.error("Turn announcement: nothing could be posted to #turns");
 
-  // AFTER the announcement, never before it: a turn opens whether or not
-  // anybody's browser hears about it. Best-effort throughout — an unconfigured
-  // deployment is a no-op (db/lib/webPush.js) and nothing here can throw.
+  // AFTER the announcement, never before: a turn opens either way. Best-
+  // effort throughout — an unconfigured deployment is a no-op.
   if (!push) return;
   await pushTurnOpen(prisma, text).catch((err) =>
     console.error("Turn announcement: push failed:", err),
   );
 }
 
-// Between one push and the next, so a hundred players do not become a hundred
-// requests in the same instant. The turn has already opened by the time this
-// runs, so a few seconds spent walking the list costs nobody anything.
+// Between one push and the next, so a hundred players don't become a hundred
+// requests in the same instant.
 const TURN_PUSH_GAP_MS = 40;
 
-// Every player holding a living character, told the day has turned. One query
-// for the distinct Discord accounts, then one send each — db/lib/webPush.js
-// returns early for an account with no subscribed browser, which is most of
-// them.
+// Every player holding a living character, told the day has turned.
 async function pushTurnOpen(prisma, text) {
-  // Asked once, before the roster: without VAPID keys every send below is a
-  // no-op and the gap between them would be four wasted seconds on the turn.
+  // Asked once, before the roster: no VAPID keys means every send is a no-op.
   if (!vapidPublicKey()) return;
-  // The banner's first line is the day and the phase ("DAY 4 · DUSK"), which
-  // is the whole of what a notification needs to say.
   const firstLine = String(text ?? "").split("\n").find((line) => line.trim()) ?? "";
   const players = await prisma.character.findMany({
     where: { status: "ALIVE" },
@@ -97,18 +80,16 @@ async function pushTurnOpen(prisma, text) {
   }
 }
 
-// Posts the rolling message and records its id, replacing whatever was there.
-// Shared with the bot's cold-start path (bot/src/lib/turnsConsole.js) so the
-// console can never exist in two shapes.
+// Posts the rolling message and records its id. Shared with the bot's
+// cold-start path (bot/src/lib/turnsConsole.js) so the console can never
+// exist in two shapes.
 async function postTurnsConsole(prisma, channelId, text, turn, config, state = null) {
   if (config?.turnsConsoleChannelId === channelId && config.turnsConsoleMessageId) {
     await deleteMessage(channelId, config.turnsConsoleMessageId).catch(() => {});
   }
 
   // A missing asset must cost the guild its banner, never its announcement —
-  // but it must not do so SILENTLY. Both failure modes are logged and
-  // distinguished: absent from disk is a deploy problem, a rejected upload is
-  // a permissions or payload problem.
+  // but not SILENTLY: absent from disk vs. a rejected upload are logged apart.
   const bannerFile = turnBannerPath(turn, state);
   if (turn && !bannerFile) {
     console.error(
@@ -123,8 +104,7 @@ async function postTurnsConsole(prisma, channelId, text, turn, config, state = n
       return null;
     });
   }
-  // No banner, or the upload failed: the announcement and the buttons still go
-  // out, just without the picture.
+  // No banner, or upload failed: the announcement and buttons still go out.
   if (!sent) {
     sent = await postMessage(channelId, text, [TURNS_CONSOLE_ROW]).catch((err) => {
       console.error("Turn announcement: post failed:", err);
@@ -137,12 +117,9 @@ async function postTurnsConsole(prisma, channelId, text, turn, config, state = n
       where: { id: 1 },
       data: { turnsConsoleChannelId: channelId, turnsConsoleMessageId: sent.id },
     });
-    // Sweep anything else that landed in #turns since the last turn — a
-    // stray GM message, an orphaned console from before a config reset.
-    // #turns is not in SPECIAL_CHANNELS, so the message wipe never reaches it;
-    // this is that channel's only cleanup, and it runs every turn, not just
-    // at Dawn. Best-effort: a sweep failure must not cost the turn
-    // announcement that already went out.
+    // #turns is not in SPECIAL_CHANNELS, so the message wipe never reaches
+    // it; this is that channel's only cleanup. Best-effort: a sweep failure
+    // must not cost the announcement that already went out.
     await clearMessagesExcept(channelId, sent.id).catch((err) => {
       console.error("Turn announcement: #turns sweep failed:", err);
     });

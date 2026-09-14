@@ -1,23 +1,15 @@
 // Who is qualified to treat what, and — because of that — who can SEE what.
-//
-// Two things live here that used to live only in web/lib/healRequests.js. The
-// skill-tier walk moved down because the bot needs it too now: 🔍-inspecting
-// someone shows you the ailments YOU could treat as routine, even the ones
-// nobody else can see. A doctor prodding a belly knows appendicitis; the man
-// standing next to them sees a person having a bad day.
-//
-// Same posture as inspectVision.js: no Prisma import, required by subpath from
-// both bot/ and web/, so the rule can't drift between the two faces of the
-// game. web/lib/healRequests.js re-exports the two ancestry helpers so its own
-// callers keep importing from where they always did.
+// 🔍-inspecting someone shows you the ailments YOU could treat as routine,
+// even ones nobody else can see. Same posture as inspectVision.js: no Prisma
+// import, required by subpath from both bot/ and web/. web/lib/healRequests.js
+// re-exports the two ancestry helpers so its callers keep importing from
+// where they always did.
 
-// Tag.parentTagId is the replacing tier chain (Medical (Basic) -> (Skilled) ->
-// (Expert)). Holding a higher tier has to satisfy a requirement written
-// against a lower one, or a surgeon would be unable to do a nurse's job.
-//
-// `tags` is the flat catalog as [{ id, parentTagId }]; the result maps a tag id
-// to itself plus every ancestor above it. Cycle-guarded, since nothing in the
-// schema stops a chain from looping back on itself.
+// Tag.parentTagId is the replacing tier chain (Medical Basic -> Skilled ->
+// Expert). A higher tier must satisfy a requirement written against a lower
+// one, or a surgeon couldn't do a nurse's job. `tags` is the flat catalog as
+// [{ id, parentTagId }]; result maps a tag id to itself plus every ancestor.
+// Cycle-guarded, since nothing in the schema stops a chain looping back.
 function buildSkillAncestry(tags) {
   const parentOf = new Map((tags ?? []).map((t) => [t.id, t.parentTagId ?? null]));
   const ancestry = new Map();
@@ -43,30 +35,17 @@ function satisfiedSkillIds(heldTagIds, ancestry) {
   return satisfied;
 }
 
-// The Health category's display name, as stored in Tag.category (syncTags
-// writes the display name, not the YAML slug — the same casing trap the
-// concealed-inspect filter used to sidestep by testing a group slug).
+// Health category's display name, as stored in Tag.category (syncTags writes
+// the display name, not the YAML slug).
 const HEALTH_CATEGORY = "Health";
 
-// Can a bystander see this tag on this character at all?
-//
-// The plain vision gate, before any of the medical reasoning below layers
-// exceptions on top of it. Four states (Tag.inspectVisibility): never, always,
-// only while it is equipped — a dagger in a pocket is nobody's business, a
-// drawn one is — or only while the subject is going under their own name.
-// Both of the bot's 🔍 embeds route through here rather than testing the enum
-// by hand, so the concealed read and the ordinary one can't drift on what
-// "visible" means.
-//
-// NAMED is a reputation rather than a thing. Wanted says the Cerberon know
-// your FACE, so a hood or a Disguise Kit's false name has to take it off the
-// read — otherwise the hooded stranger is an unknown young man whose tags
-// name him. `identityVisible` is the caller's answer to "is this subject
-// wearing their own name right now"; db/lib/examine.js computes it from
-// presentedIdentity(). It defaults TRUE so no existing caller changes
-// behaviour by not passing it — a NAMED tag is ordinary until somebody hides.
-//
-// `tag` needs inspectVisibility; `characterTag` needs equipped.
+// Can a bystander see this tag on this character at all? The plain vision
+// gate, before medical reasoning layers exceptions on top. Four states
+// (Tag.inspectVisibility): never, always, only while equipped, or only while
+// the subject is going under their own name. NAMED is a reputation rather
+// than a thing — a hood or false name takes it off the read.
+// `identityVisible` defaults TRUE so no existing caller changes behaviour by
+// not passing it. `tag` needs inspectVisibility; `characterTag` needs equipped.
 function seenByBystander(tag, characterTag, identityVisible = true) {
   if (tag?.inspectVisibility === "ALWAYS") return true;
   if (tag?.inspectVisibility === "NAMED") return Boolean(identityVisible);
@@ -74,32 +53,22 @@ function seenByBystander(tag, characterTag, identityVisible = true) {
   return false;
 }
 
-// "Could this character treat that affliction without rolling for it?"
-//
-// Routine is the whole point of the word: a Gambit is by definition NOT
-// routine, so a tier-7 affliction stays hidden even from an Expert who could
-// attempt it. And a tag with no requirementSkills at all is not something
-// anyone treats — the untreatable tier-0 ailments (Vomiting, a Migraine, a
-// Concussion) are nobody's professional business.
-//
-// `tag` needs requirementSkills (at least { id }) and requirementGambit.
+// "Could this character treat that affliction without rolling for it?" A
+// Gambit is by definition NOT routine, so a tier-7 affliction stays hidden
+// even from an Expert who could attempt it. A tag with no requirementSkills
+// is nobody's professional business. `tag` needs requirementSkills (at least
+// { id }) and requirementGambit.
 function canTreatAsRoutine(tag, satisfied) {
   const skills = tag?.requirementSkills ?? [];
   if (skills.length === 0 || tag.requirementGambit) return false;
   return skills.every((skill) => satisfied.has(skill.id));
 }
 
-// What an inspector sees of a subject's tags, and why.
-//
-// Returns the subject's CharacterTag rows that should be shown, each wrapped
-// as { characterTag, viaSkill } — `viaSkill` true when the row is here ONLY
-// because the inspector is qualified for it. Callers mark those differently:
-// the patient isn't showing this to the room, so a medic shouldn't repeat it
-// as though it were common knowledge.
-//
-// `characterTags` is the subject's rows as `{ tag: { ... } }`; `satisfied` is
-// satisfiedSkillIds() for the INSPECTOR, and `identityVisible` is passed
-// straight through to seenByBystander (see there).
+// What an inspector sees of a subject's tags, and why. Returns rows to show
+// as { characterTag, viaSkill } — `viaSkill` true when shown ONLY because the
+// inspector is qualified, so callers can avoid repeating it as common
+// knowledge. `satisfied` is satisfiedSkillIds() for the INSPECTOR;
+// `identityVisible` passes straight through to seenByBystander.
 function medicallyVisibleTags(characterTags = [], satisfied = new Set(), identityVisible = true) {
   const out = [];
   for (const ct of characterTags) {
@@ -109,10 +78,7 @@ function medicallyVisibleTags(characterTags = [], satisfied = new Set(), identit
       out.push({ characterTag: ct, viaSkill: false });
       continue;
     }
-    // Only afflictions. A doctor's training says nothing about whether
-    // somebody is secretly a Demoness — and nothing below needs to think about
-    // equip state either, since a Health tag is never `equippable`. Nobody
-    // wears appendicitis.
+    // Only afflictions — a doctor's training says nothing about whether someone is secretly a Demoness.
     if (tag.category !== HEALTH_CATEGORY) continue;
     if (canTreatAsRoutine(tag, satisfied)) out.push({ characterTag: ct, viaSkill: true });
   }

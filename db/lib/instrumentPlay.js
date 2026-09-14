@@ -1,17 +1,10 @@
-// /play, the `instrument` tag's one verb. Shared between the bot's own
-// slash command and the web's Chat composer (COMMANDS.md, `db/lib/roll.js`'s
-// castDie is the template this follows) so a lute plays the same way — same
-// cooldown, same mood soothe, same room line — on both faces.
-//
-// WHY THE ROOM LINE IS FULL SIZE, NOT `-#` SUBTEXT. CLAUDE.md says a line the
-// WORLD says into a channel is subtext, and the ambient line to the parent
-// Location channel below obeys that. The scene half deliberately does not, at
-// Bascinet's direction: the room is where the performance is happening, so it
-// is an event in the scene rather than scenery under it. Don't "fix" the
-// asymmetry — it is the feature.
-//
-// Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
-// db/lib/dm.js convention; require it by path.
+// /play, the `instrument` tag's one verb. Shared between the bot's slash command and the web's Chat
+// composer (COMMANDS.md, db/lib/roll.js's castDie is the template) so a lute plays the same way — same
+// cooldown, mood soothe, room line — on both faces. WHY THE ROOM LINE IS FULL SIZE, NOT `-#` SUBTEXT:
+// CLAUDE.md says a line the WORLD says into a channel is subtext, and the ambient line to the parent
+// Location channel below obeys that, but the room is where the performance is happening — an event in
+// the scene, not scenery under it — so the scene half deliberately does not; don't "fix" the asymmetry.
+// Takes `prisma` as a parameter, off the @lifeweb/db barrel like db/lib/dm.js; require it by path.
 
 const { sceneLine } = require("./scene");
 const { ambientLine } = require("./ambientLine");
@@ -23,16 +16,13 @@ const { INSTRUMENT_SLUG, MUSICIAN_SLUG, MUSICIAN_PYTHAGOREAN_SLUG } = require(".
 
 const NOTE_GLYPHS = ["♫", "♩", "♪", "♬"];
 
-// AuditLog-backed, not an in-memory Map: the bot and the web are two separate
-// Railway services, so a Map in either one only cools that one face down.
-// This is the same reasoning REQUESTS.md gives for rationing by row instead
-// of by column — the row is the one thing both processes can both see.
+// AuditLog-backed, not an in-memory Map — bot and web are separate Railway services, so a Map in
+// either only cools that one face down (REQUESTS.md's reasoning for rationing by row, not column).
 const PLAY_COOLDOWN_MS = 5 * 60_000;
 const PLAY_AUDIT_ACTION = "instrument_played";
 const PLAY_SOOTHE_AUDIT_ACTION = "mood_soothed_play";
 
-// Three glyphs, repeats allowed — "a random combination of 3", not three
-// distinct ones, so ♩♩♪ is a legal result.
+// Three glyphs, repeats allowed — so ♩♩♪ is a legal result.
 function noteFlourish() {
   return Array.from({ length: 3 }, () => NOTE_GLYPHS[Math.floor(Math.random() * NOTE_GLYPHS.length)]).join("");
 }
@@ -41,10 +31,8 @@ function held(character, slug) {
   return (character.tags ?? []).some((ct) => ct.tag?.slug === slug && (ct.quantity ?? 1) > 0);
 }
 
-// +10 mood to every living character standing at the musician's Location, the
-// musician included. The ration is an AuditLog row per listener with turnId
-// set (REQUESTS.md §1a); /play is rate-limited to one every few minutes and a
-// room holds a dozen people at most, so the rows stay few.
+// +10 mood to every living character at the musician's Location, musician included. Rationed by an
+// AuditLog row per listener with turnId set (REQUESTS.md §1a).
 async function sootheListeners(prisma, musician, { quadruple = false } = {}) {
   if (!musician.locationId) return;
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
@@ -68,10 +56,8 @@ async function sootheListeners(prisma, musician, { quadruple = false } = {}) {
   for (const { id } of listeners) {
     if (soothedAlready.has(id)) continue;
     await prisma.$transaction(async (tx) => {
-      // Musician (Pythagorean) quadruples it. Passed as an explicit `base`
-      // rather than added to mood.js's MULTIPLIERS: that table is only
-      // consulted for harm, and it keys on the LISTENER's tags — this is the
-      // player's own doing, and it lands on everyone in the room.
+      // Musician (Pythagorean) quadruples it. Passed as an explicit `base` rather than added to
+      // mood.js's MULTIPLIERS — that table is consulted only for harm, keyed on the LISTENER's tags.
       await applyMood(tx, id, { kind: "MUSIC", base: EVENTS.MUSIC * (quadruple ? 4 : 1) });
       await tx.auditLog.create({
         data: {
@@ -88,7 +74,6 @@ async function sootheListeners(prisma, musician, { quadruple = false } = {}) {
 }
 
 // `character` needs { id, discordUserId, locationId, tags: [{ tag: { slug, quantity? } }] }.
-// Returns { ok, line } or { ok: false, error }.
 async function playInstrument(prisma, character, placeKey) {
   if (!character?.id) return { ok: false, error: "You don't have a living character." };
   if (!placeKey) return { ok: false, error: "There's nobody here to hear it." };
@@ -113,8 +98,7 @@ async function playInstrument(prisma, character, placeKey) {
     ? `You hear an instrument playing, beautifully. ${noteFlourish()}`
     : `You hear an instrument playing, badly. ${noteFlourish()}`;
 
-  // The archive row first: it is what Chat shows, and it is the only half a
-  // web-only player ever sees. Full size — see the header note.
+  // Archive row first — it's what Chat shows, and the only half a web-only player ever sees.
   await sceneLine(prisma, { placeKey, text: line, signed: false });
 
   let target = null;
@@ -126,8 +110,7 @@ async function playInstrument(prisma, character, placeKey) {
     console.error("Play post failed:", err.message ?? err);
   }
 
-  // Claimed only once the performance itself has happened, so a dead channel
-  // never costs the cooldown for a row that still landed in the archive.
+  // Claimed only after the performance happens, so a dead channel never costs the cooldown.
   await prisma.auditLog
     .create({
       data: {
@@ -139,19 +122,16 @@ async function playInstrument(prisma, character, placeKey) {
     })
     .catch((err) => console.error("Play audit log failed:", err));
 
-  // A musician's playing settles everyone in earshot, once per listener per
-  // turn (MOOD.md). Only a MUSICIAN's: a bad performance calms nobody.
-  // Wrapped, so the dial can never swallow the performance.
+  // A musician's playing settles everyone in earshot, once per listener per turn (MOOD.md) — a bad
+  // performance calms nobody. Wrapped so the dial can never swallow the performance.
   if (isMusician) {
     await sootheListeners(prisma, character, { quadruple: held(character, MUSICIAN_PYTHAGOREAN_SLUG) }).catch((err) =>
       console.error(`play: soothing failed for ${character.id}:`, err.message ?? err),
     );
   }
 
-  // ...and the street outside hears it, small. `target.channelId` is already
-  // the parent Location channel — discordTargetForPlaceKey resolves a Room or
-  // Conversation's owning channel for exactly this reason (the outbox needs
-  // it for the webhook), so no second lookup is needed here.
+  // ...and the street outside hears it, small. `target.channelId` is already the parent Location
+  // channel — discordTargetForPlaceKey resolves a Room/Conversation's owning channel already.
   if (target?.channelId) {
     await postMessage(target.channelId, ambientLine(line)).catch(() => null);
   }

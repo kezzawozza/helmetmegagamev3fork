@@ -1,31 +1,16 @@
-// What a photograph shows, as one line of prose.
-//
-// Pure — no prisma, no I/O — the same posture as db/lib/examine.js, which is
-// where its input comes from. A photo is an Examine that stopped moving: the
-// camera reads the subject exactly as a bystander standing there would, and
-// then that reading is frozen onto a Tag row forever, however the subject
-// changes afterwards. That freeze is the whole feature. A photo of a man
-// wearing a Knight's Helmet is evidence he wore one, and it stays evidence
-// after he takes it off.
-//
-// See docs/systemdocs/PORTRAITS.md for the avatar side of a face, which this
-// deliberately does not touch — a photo is words, and words can be handed to
-// somebody who was not there.
+// What a photograph shows, as one line of prose. Pure — no prisma, no I/O —
+// same posture as db/lib/examine.js, its input source. A photo is an Examine
+// that stopped moving: frozen onto a Tag row forever, however the subject
+// changes afterwards. See docs/systemdocs/PORTRAITS.md for the avatar side
+// of a face, which this deliberately does not touch.
 
-// A photo is a THING, so it says what it shows in one breath rather than in
-// the embed's labelled fields. Ailments and equipment run together for the
-// same reason: a picture does not separate the wound from the armour, it just
-// shows you both.
+// A photo is a THING: says what it shows in one breath, not labelled fields.
 function joinBits(bits) {
   return bits.filter(Boolean).join(" · ");
 }
 
-// The caption, from an examineReadout() result.
-//
-// The concealed branch is the readout's own: a hood in a photograph is still a
-// hood, and nothing about pointing a camera at somebody gets past it. What
-// survives is what a bystander could see anyway — the drawn dagger, the
-// bandaged hand — which is exactly what examineReadout already decided.
+// From an examineReadout() result. The concealed branch is the readout's own
+// — a hood in a photograph is still a hood.
 function photoCaption(readout) {
   if (readout.concealed) {
     return `${readout.line} ${joinBits([...readout.ailments, ...readout.equipment])}`.trim();
@@ -36,10 +21,8 @@ function photoCaption(readout) {
   return [appearance, tags].filter(Boolean).join(" ");
 }
 
-// `Photo (Young Man)`. The subject goes in the NAME rather than only the
-// description, because a photo is something you sort through a stack of — a
-// pile of rows all called "Photo" would be unusable, and the name is the only
-// thing an inventory list, a stash and a Transfer dialog all show.
+// `Photo (Young Man)`. Subject in the NAME, not just description — the name
+// is the only thing an inventory list, a stash and a Transfer dialog show.
 function photoName(subject) {
   return `Photo (${subject})`;
 }

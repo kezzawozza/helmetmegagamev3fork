@@ -1,29 +1,12 @@
-// Taking a picture: the row that comes out of a camera.
-//
-// This is the FIFTH runtime authoring door onto the tag catalog, beside
-// docs/tags.yaml, the GM form at /gm/dev/tags, the corpse/headstone/crate
-// minters and db/lib/paperMint.js — which this file is modelled on almost
-// line for line. Every row carries `custom: true` so db:sync-tags never sees
-// it and db:prune-tags skips it, plus `ephemeral: true` so a Restart Game
-// sweeps it up.
-//
-// Takes `prisma` (or a tx) as a parameter, the db/lib/dm.js convention, and
-// stays off the @lifeweb/db barrel.
-//
-// A photo lives in the PAPER group, which is a chip colour and nothing else —
-// the paper SYSTEM matches on `paperKind`, and a photo carries none, so it can
-// never be written on, sealed, pinned to a noticeboard or put behind the
-// literacy gate. A printed photograph is a piece of card in your pocket, and
-// that is the shelf it belongs on.
+// Taking a picture: a runtime authoring door onto the tag catalog, modelled on db/lib/paperMint.js. Every row carries `custom: true` (db:sync-tags/db:prune-tags skip it) and `ephemeral: true` (Restart Game sweeps it).
+// A photo lives in the PAPER group for its chip colour only — it carries no `paperKind`, so it can never be written on, sealed, or pinned to a noticeboard.
 
 const { PAPER_GROUP_SLUG, noteCode } = require("./paper");
 const { createWithRetry } = require("./paperMint");
 const { photoName } = require("./photo");
 const { addToStack } = require("./tagWrites");
 
-// Same shape paperMint.js's customSlug uses, and for the same reason: two
-// photos of one man on one day are genuinely different objects, so the
-// uniquifier is the owner and the clock rather than anything about the subject.
+// Same shape as paperMint.js's customSlug: uniquifier is owner+clock.
 function photoSlug(characterId, attempt = 0) {
   const stamp = Date.now().toString(36);
   const rand = Math.random().toString(36).slice(2, 7);
@@ -36,19 +19,13 @@ const PHOTO_SHAPE = {
   custom: true,
   ephemeral: true,
   tradeable: true,
-  // Weightless, the same call paperMint.js makes: a photograph against a carry
-  // cap measured in pounds is noise.
+  // Weightless like paperMint.js. One photo is one photo, so not stackable. Binnable like paper — Destroy is what you do with an unwanted item.
   weightLbs: 0,
-  // One photo is one photo. Two shots of the same man are not the same object.
   stackable: false,
-  // Binnable, for paper's reason (db/lib/paperMint.js): a photo is an item,
-  // and Destroy is what you do with an item you no longer want.
   removable: true,
   purchasable: false,
   purchasableAfterStart: false,
-  // A photo in your pocket is not something the room can read over your
-  // shoulder. WHO is in it is the whole secret, and the name carries that —
-  // so the name is exactly what an Examine must not show.
+  // WHO is in it is the secret; an Examine must not show the name.
   inspectVisibility: "HIDDEN",
 };
 
@@ -57,34 +34,14 @@ async function photoGroupId(tx) {
   return group?.id ?? null;
 }
 
-// createWithRetry comes from db/lib/paperMint.js rather than being retyped —
-// it is the same loop over the same @unique on Tag.slug.
-//
-// ** Everything below hands it the TOP-LEVEL client, never a transaction. **
-// Postgres aborts a whole transaction the moment one statement in it fails, so
-// a catch-and-retry inside `$transaction` can only raise 25P02 on the second
-// attempt. That matters far more for a photo than for anything else that
-// retries this way: `Photo (Young Man)` is a name the game produces over and
-// over, so the collision is the NORMAL case rather than a millionth-write
-// freak. Hence createPhotoRow, which the transactional caller runs first and
-// attaches afterwards.
+// createWithRetry is from db/lib/paperMint.js. **Everything below hands it the TOP-LEVEL client, never a transaction** — Postgres aborts on one failed statement, and a name collision here is the NORMAL case, not a freak.
 
-// The second and later photos of the same face. A print code rather than a
-// "(2)" suffix, paperMint.js's reasoning exactly: "Photo (Young Man)" and
-// "Photo (Young Man) (2)" would look related and are not — they are two
-// different young men as often as they are two shots of one.
+// Second and later photos of the same face get a print code, not a "(2)" suffix — two shots of one man aren't the same as two different men, paperMint.js's reasoning.
 function disambiguated(subject, attempt) {
   return attempt === 0 ? photoName(subject) : photoName(`${subject} · ${noteCode()}`);
 }
 
-// The row, and nothing else. `db` must be the top-level client (see
-// createWithRetry). Creating it puts it in nobody's hands — `attachPhoto`
-// does that — so the two halves can straddle a transaction boundary.
-//
-// An orphaned row, if the caller's transaction then rolls back, costs nothing:
-// it is `ephemeral`, so a Restart Game sweeps it, and
-// web/lib/referenceData.js only ships an ephemeral row to whoever HOLDS it, so
-// a photo in nobody's hands reaches no browser at all.
+// The row, and nothing else — `db` must be the top-level client. Creating it puts it in nobody's hands (`attachPhoto` does that); an orphaned row costs nothing since it's `ephemeral`.
 async function createPhotoRow(db, ownerId, { name, caption, inspectVisibility, subjectCharacterId = null }) {
   const groupId = await photoGroupId(db);
 
@@ -93,13 +50,9 @@ async function createPhotoRow(db, ownerId, { name, caption, inspectVisibility, s
     groupId,
     slug: photoSlug(ownerId, attempt),
     name: name(attempt),
-    // Whose picture it is, for a rite that needs "a photograph of the target"
-    // (db/lib/riteIngredients.js). A snapshot id; the name stays the only
-    // thing a reader sees.
+    // Whose picture it is, for a rite needing "a photograph of the target" (db/lib/riteIngredients.js).
     photoOfCharacterId: subjectCharacterId ?? null,
-    // Unlike paper, the description IS the content and it is stored plainly —
-    // safe for the referenceData reason above. There is no literacy gate on a
-    // picture, which is the whole point of one.
+    // Unlike paper, the description IS the content — no literacy gate on a picture.
     description: caption,
     ...(inspectVisibility ? { inspectVisibility } : {}),
   }));
@@ -107,19 +60,13 @@ async function createPhotoRow(db, ownerId, { name, caption, inspectVisibility, s
   return tag;
 }
 
-// Puts a created row into somebody's hands. Safe inside a transaction — it is
-// the half that has to be atomic with whatever the caller is also writing.
+// Puts a created row into somebody's hands. Safe inside a transaction.
 async function attachPhoto(tx, ownerId, tag) {
   await addToStack(tx, ownerId, tag.id, 1, {});
   return tag;
 }
 
-// The whole thing, for a caller with nothing else to make atomic: the 📸
-// reaction, which spends nothing — the camera is reusable, so there is no
-// charge to keep in step with the print.
-//
-// `subject` is the PRESENTED name (db/lib/photo.js#photoSubject) and `caption`
-// the frozen readout (#photoCaption).
+// The whole thing, for the 📸 reaction (spends nothing). `subject` is the PRESENTED name (db/lib/photo.js#photoSubject); `caption` is the frozen readout.
 async function mintPhoto(db, ownerId, { subject, caption, subjectCharacterId = null }) {
   const tag = await createPhotoRow(db, ownerId, {
     name: (attempt) => disambiguated(subject, attempt),

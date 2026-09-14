@@ -1,30 +1,18 @@
-// SERVER ONLY. This module imports the Prisma barrel (through
-// referenceData.js), so importing it from a "use client" file bundles every
-// server-only module into the browser, and the first Node-only module (fs)
-// throws at load. Pure helpers a client component needs go in their own
-// import-free file (see stagingReach.js).
+// SERVER ONLY: imports the Prisma barrel via referenceData.js. Client-safe helpers go in their own import-free file (stagingReach.js).
 import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
 import { statusWord, WORKING_STATUSES } from "@lifeweb/db/lib/structures";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 
-// The DTO mappers the adjudication desk's queue is built from, in one
-// place so the two callers (an RSC and a server action) can't drift.
-
-// The includes each mapper expects, exported for the same reason: a query
-// missing one produces a DTO with silently empty fields rather than an error.
+// The DTO mappers the adjudication desk's queue is built from, one place so the RSC and server-action callers can't drift.
 export const MOVE_INCLUDE = {
   character: {
     include: {
-      // faction.zone is the ZONE SEAT this row answers to — a faction always
-      // banks on a seat zone, never on a cave level; `zone` is the PRESENCE
-      // zone, where they physically stand, which is what the desk labels.
+      // faction.zone is the ZONE SEAT (never a cave level); `zone` is the PRESENCE zone the desk labels.
       faction: { include: { zone: true } },
       zone: true,
-      // The presence zone's name alone used to be all a Move could show —
-      // Character.locationId is the authoritative "where they stand" since
-      // Bascinet 2 (MAP.md §1), so the desk needs the Location's name too.
+      // Character.locationId is the authoritative "where they stand" (MAP.md §1), so the desk needs it too.
       location: { select: { id: true, name: true } },
       tags: {
         select: {
@@ -45,20 +33,14 @@ export const STAGED_EFFECT_INCLUDE = {
 
 export const STAGED_MESSAGE_INCLUDE = {
   recipients: { include: { character: { select: { id: true, name: true, updatedAt: true } } } },
-  // `kind` so the tray can say where a declaration actually goes: a cave
-  // level has no #summary and fans out to its Location channels instead.
+  // `kind`: a cave level has no #summary and fans out to its Location channels instead.
   zone: { select: { id: true, name: true, kind: true } },
   turn: { select: { id: true, number: true } },
-  // One row per send (db/lib/stagedDelivery.js). The tray used to be able to
-  // say only "Sent, some failed" off a JSON blob; with these it can say which
-  // recipient, and whether the retry is still running.
+  // One row per send (db/lib/stagedDelivery.js) — lets the tray say which recipient, and retry state.
   deliveries: true,
 };
 
-// The Caving lens' row shape. Same "one mapper, both callers" rule as the Move
-// rows above: page.js builds the open turn's rows and getMoveHistory builds a
-// past turn's, so cavingRollRow has to be the single source. lootTag and
-// lootUndoneAt are what let a FIND offer Undo (see CAVING.md §4).
+// The Caving lens' row shape; same single-source rule as the Move rows above. lootTag/lootUndoneAt let a FIND offer Undo (CAVING.md §4).
 export const CAVING_ROLL_INCLUDE = {
   character: {
     select: {
@@ -71,10 +53,7 @@ export const CAVING_ROLL_INCLUDE = {
     },
   },
   zone: { select: { name: true } },
-  // Where they walked in. The Die rolls once per LOCATION now, so one
-  // character can hold several rolls in a turn and the zone alone no longer
-  // tells them apart — which matters most for the TROUBLE row a GM has to
-  // narrate, since "somewhere in the Caves" is not a place to set a scene in.
+  // The Die rolls once per LOCATION, so the zone alone no longer tells rolls apart — matters for TROUBLE rows a GM narrates.
   location: { select: { name: true } },
   lootTag: { select: { name: true } },
 };
@@ -83,25 +62,15 @@ function isConfirmed(a) {
   return a.status === "CONFIRMED" || a.status === "ADJUDICATED";
 }
 
-// The label is always the review-status label — a live lock never masks it.
-// A lock renders separately, as presence (a GmAvatar chip — see
-// QueueRail.js), never folded into the status a Save/Solve check reads.
+// The label is always the review-status label — a live lock renders separately, as presence (QueueRail.js).
 export function moveStatusLabel(a, now) {
   if (!isConfirmed(a)) return MOVE_PIPELINE_LABELS[a.status] ?? a.status;
   return MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open";
 }
 
-// "+3 ⬢" / "rolled 5–12 ⬢ → +8". Takes anything carrying the two columns, so
-// a raw Action row works as well as a mapped one.
-//
-// "0-0" is the machine expression for a Labor that was never going to pay ⬢ —
-// a shift on the Factory floor, or a day worked with no skill that reaches
-// this ground (db/lib/laborAccess.js). Printing "rolled 0–0 ⬢" for those said
-// nothing twice, so they fall through to null and the desks render their own
-// em dash.
+// "+3 ⬢" / "rolled 5–12 ⬢ → +8". "0-0" (a Labor that never paid ⬢, db/lib/laborAccess.js) falls through to null.
 export function declaredLabel(a) {
-  // A 0-0 Labor rolls a real 0, so the payout it carries is 0 ⬢ — the range
-  // and the value have to drop together or "→ 0 ⬢" is left standing alone.
+  // The range and the value must drop together or "→ 0 ⬢" is left standing alone.
   const unpaid = a.resourceRollExpression === "0-0";
   const parts = [];
   if (a.resourceRollExpression && !unpaid)
@@ -111,20 +80,15 @@ export function declaredLabel(a) {
   return parts.length ? parts.join(" → ") : null;
 }
 
-// What actually paid at the push — the appliedEffects snapshot as one line.
-// Same form as db/lib/moveEffects.js#describeMoveEffects, written out here so
-// the web side doesn't pull a db/lib module in just to print "+5 ⬢".
+// What actually paid at the push, same form as db/lib/moveEffects.js#describeMoveEffects, duplicated to avoid a db/lib import.
 export function paidLabel(applied) {
   const parts = [];
   for (const [key, value] of Object.entries(applied ?? {})) {
     if (!value) continue;
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
-    // Legacy rows recorded a bare `1`, always meaning a plain Exhausted grant.
+    // Legacy rows recorded a bare `1`, meaning a plain Exhausted grant.
     else if (key === "exhausted") parts.push(value?.slug === "tired" ? "Tired" : "Exhausted");
-    // Mirrors the laborDrop arm of describeMoveEffects. Without it the desk
-    // printed "laborDrop: [object Object]" — the cost of the deliberate
-    // duplication at the top of this function is that both halves have to
-    // learn a new effect key.
+    // Mirrors the laborDrop arm of describeMoveEffects — both halves must learn a new effect key together.
     else if (key === "laborDrop") {
       parts.push(
         value.kind === "TAG"
@@ -137,14 +101,7 @@ export function paidLabel(applied) {
   return parts.join(", ");
 }
 
-// "Palisade — standing: A ring of sharpened stakes…" — one line per
-// structure at a Location, in creation order. The defenseNote prints ONLY
-// while the structure actually works (WORKING_STATUSES — COMPLETE or
-// DAMAGED): a ruined Battering Ram must not hand the desk a siege licence its
-// wreck no longer grants. The status word still prints for every row, so the
-// ruin stays visible as scenery. Imported, not mirrored: this module is
-// server-only (it already imports the db barrel), so there is no reason
-// for a second copy of the list that gates the licence.
+// One line per structure. defenseNote prints ONLY while WORKING_STATUSES holds — a ruined Battering Ram must not hand the desk a licence its wreck no longer grants.
 const NOTE_STATUSES = new Set(WORKING_STATUSES);
 
 function standingHereLines(structures) {
@@ -155,7 +112,6 @@ function standingHereLines(structures) {
   });
 }
 
-// ctx: { usernameById, now, structuresByLocationId }
 export function moveRow(a, { usernameById, now, structuresByLocationId }) {
   const username = usernameById.get(a.character.discordUserId) ?? a.character.discordUserId;
   return {
@@ -163,11 +119,9 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     characterId: a.characterId,
     characterName: a.character.name,
     avatarVersion: a.character.updatedAt.getTime(),
-    // AFK marker for the queue row's avatar badge — read straight off the
-    // tags MOVE_INCLUDE already loads, so the History lens gets it too.
+    // AFK marker for the queue row's avatar badge, read off the tags MOVE_INCLUDE already loads.
     catatonic: a.character.tags.some((ct) => ct.tag?.slug === CATATONIC_SLUG),
-    // The player desk keys on discordUserId, not characterId — carried here
-    // so a Move can link straight to that player's conversation.
+    // The player desk keys on discordUserId — carried here so a Move can link straight to that conversation.
     discordUserId: a.character.discordUserId,
     discordUsername: username,
     roleTitle: a.character.roleTitle ?? "",
@@ -181,25 +135,15 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     gmNotes: a.gmNotes ?? "",
     rollLabel: rollLabel(a),
     statusLabel: moveStatusLabel(a, now),
-    // The enum itself, alongside the display label — clients branch on this,
-    // not on the string, so a locale/wording change to the label can never
-    // silently break a `solved` check (MoveDesk.js).
+    // The enum itself, alongside the label — clients branch on this, not the string (MoveDesk.js).
     reviewStatus: a.moveReviewStatus,
-    // Where they stand. Key name kept because MoveDesk and InspectorColumn
-    // still read `locationLabel`. Character.locationId is the authoritative
-    // place since Bascinet 2 (MAP.md §1), so this is "Zone · Location" when
-    // they're placed, falling back to the presence zone alone for the rare
-    // character with no Location yet.
+    // Key name kept because MoveDesk/InspectorColumn still read `locationLabel` (MAP.md §1).
     locationLabel: a.character.location
       ? `${a.character.zone?.name ?? "?"} · ${a.character.location.name}`
       : a.character.zone?.name || "Unassigned",
-    // The bare zoneId alongside the label above — PublicComposer needs the
-    // id to preselect the Move's own zone, not just its name.
+    // PublicComposer needs the id to preselect the Move's own zone, not just its name.
     zoneId: a.character.zone?.id ?? null,
-    // "Fine House — half-built" per structure standing at the filer's
-    // Location, for the Move card's "Standing here" line. Bulk-loaded by the
-    // caller (one query for every Move on the desk, not one per row) and
-    // handed in keyed by locationId; empty when there's nothing built there.
+    // Per-structure "Standing here" line, bulk-loaded by the caller and keyed by locationId.
     standingHere: standingHereLines(structuresByLocationId?.get(a.character.locationId ?? "")),
     resources: a.character.resources,
     tags: a.character.tags.map((ct) => ({
@@ -222,28 +166,22 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
   };
 }
 
-// ctx: { usernameById, locationNameById, openTurn }
 export function stagedEffectRow(e, { usernameById, locationNameById, openTurn }) {
   return {
     id: e.id,
     moveId: e.moveId,
     cavingRollId: e.cavingRollId,
     batchId: e.batchId,
-    // Nullable: an old, pre-Silo-removal faction-to-faction transfer has no
-    // character end.
+    // Nullable: an old, pre-Silo-removal faction-to-faction transfer has no character end.
     targetCharacterId: e.targetCharacterId,
     targetName: e.targetCharacterId ? (e.targetCharacter?.name ?? "(deleted)") : null,
     targetAvatarVersion: e.targetCharacter?.updatedAt ? e.targetCharacter.updatedAt.getTime() : null,
     resources: e.payload?.resources ?? 0,
     tagPoints: e.payload?.tagPoints ?? 0,
     tagOps: e.payload?.tagOps ?? [],
-    // { from: {kind,id,name}, to: {kind,id,name}, amount } — mutually
-    // exclusive with `resources`, see StagedEffect.payload in schema.prisma.
+    // { from, to, amount } — mutually exclusive with `resources`, see StagedEffect.payload in schema.prisma.
     transfer: e.payload?.transfer ?? null,
-    // { id, name, locationName } — a room's stash, mutually exclusive with
-    // every character key above. Read straight off the payload rather than
-    // through a name map like locationName below: the snapshot is what the GM
-    // staged, and it survives the room being pruned before the push.
+    // A room's stash, mutually exclusive with every character key above; read off the payload so it survives the room being pruned.
     room: e.payload?.room ?? null,
     roomTagOps: e.payload?.roomTagOps ?? [],
     roomResources: e.payload?.roomResources ?? 0,
@@ -251,12 +189,7 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
     locationName: e.payload?.locationId
       ? (locationNameById.get(e.payload.locationId) ?? "(deleted location)")
       : null,
-    // { gib, reason } — a staged death, mutually exclusive with every other
-    // character key above (db/lib/stagedPush.js short-circuits on it before
-    // any of them). appliedDeath mirrors what applyOneStagedEffect actually
-    // wrote to appliedEffect.death once pushed: { claimed: false, ... } means
-    // the target was already dead by push time, a clean no-op rather than a
-    // failure.
+    // { gib, reason }: a staged death (db/lib/stagedPush.js short-circuits on it); appliedDeath mirrors the write — { claimed: false } is a no-op, not a failure.
     death: e.payload?.death ? { gib: e.payload.gib === true, reason: e.payload.reason ?? null } : null,
     appliedDeath: e.appliedEffect?.death ?? null,
     applied: Boolean(e.appliedAt),
@@ -265,15 +198,11 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
     createdByDiscordUserId: e.createdByDiscordUserId ?? null,
     turnNumber: e.turn?.number ?? null,
     missed: openTurn ? e.turnId !== openTurn.id && !e.appliedAt : !e.appliedAt,
-    // The staged lists are drawn oldest-first — the order they were queued in
-    // is the order they push in. The desk store sorts its own rows now
-    // (deskStore.js), so the sort key has to ride on the row rather than
-    // living only in the ORDER BY page.js happened to ask for.
+    // The desk store sorts its own rows (deskStore.js), so the sort key rides on the row, not the query's ORDER BY.
     createdAtMs: e.createdAt.getTime(),
   };
 }
 
-// ctx: { usernameById, openTurn }
 export function stagedMessageRow(m, { usernameById, openTurn }) {
   return {
     id: m.id,
@@ -291,9 +220,7 @@ export function stagedMessageRow(m, { usernameById, openTurn }) {
     })),
     sent: Boolean(m.sentAt),
     deliveryFailures: m.deliveryFailures ?? null,
-    // Per-recipient delivery state, newest truth. Empty for a message pushed
-    // before the Delivery table existed — the blob above is what those still
-    // read, which is why both are here.
+    // Per-recipient delivery state; empty for a pre-Delivery-table message, which reads deliveryFailures instead.
     deliveries: (m.deliveries ?? []).map((d) => ({
       characterId: d.characterId,
       name: d.name,
@@ -305,25 +232,11 @@ export function stagedMessageRow(m, { usernameById, openTurn }) {
     createdByDiscordUserId: m.createdByDiscordUserId ?? null,
     turnNumber: m.turn?.number ?? null,
     missed: openTurn ? m.turnId !== openTurn.id && !m.sentAt : !m.sentAt,
-    // See stagedEffectRow above.
     createdAtMs: m.createdAt.getTime(),
   };
 }
 
-// A picture waiting to be looked at (docs/systemdocs/PORTRAITS.md §1a).
-//
-// Not a fight, and that is the point — the lens is named for its shape rather
-// than its contents, and this is the next thing that is neither a Move nor a
-// die. It shares the row DTO so the lens's search, filters and sort need no
-// second vocabulary.
-//
-// NO ZONE, on purpose. inVisibleZones keeps a row with no zone visible to
-// every GM ("better seen twice than by nobody"), which is the right answer for
-// a portrait: it belongs to nobody's patch of map, and a picture only the
-// Marshes GM can see is a picture nobody reviews.
-//
-// `avatarData` is never selected into this — it is ~145KB a piece, and the
-// browser fetches each face itself through /api/avatar/[characterId].
+// A picture waiting to be looked at (docs/systemdocs/PORTRAITS.md §1a). NO ZONE on purpose: inVisibleZones keeps a zoneless row visible to every GM.
 export const AVATAR_REVIEW_SELECT = {
   id: true,
   name: true,
@@ -335,8 +248,7 @@ export const AVATAR_REVIEW_SELECT = {
 
 export function avatarReviewRow(c, { usernameById, catatonicIds }) {
   return {
-    // Prefixed so it can never collide with an Attack or InterceptHit id in a
-    // lens that merges all three into one keyed list.
+    // Prefixed so it can never collide with an Attack or InterceptHit id in a merged lens.
     id: `avatar:${c.id}`,
     kind: "AVATAR",
     kindLabel: "Portrait",
@@ -352,9 +264,7 @@ export function avatarReviewRow(c, { usernameById, catatonicIds }) {
     zoneName: "",
     locationName: null,
     statusLabel: "New",
-    // A picture is not a scene, so there is nobody to list and nothing to
-    // call off — but the fields are present so the lens can read every row it
-    // holds with one vocabulary.
+    // Nobody to list, nothing to call off — present so the lens can read every row with one vocabulary.
     people: [],
     holds: [],
     searchText: c.name,
@@ -362,15 +272,8 @@ export function avatarReviewRow(c, { usernameById, catatonicIds }) {
   };
 }
 
-// A fulfilled, catalog-backed Desire claim waiting on a GM
-// (docs/systemdocs/DESIRES.md §6, `db/lib/desireReview.js`). Shares
-// `avatarReviewRow`'s two-line row shape: this lens is queue-shaped like
-// every other one here, so it needs no second vocabulary for search/sort.
-//
-// Unlike the portrait queue, an ALREADY-REVIEWED row stays in the rail
-// rather than dropping out — `desireReviewWhere()` deliberately doesn't
-// filter on `reviewedAt`, so a GM can see what they already cleared. The row
-// component is what dims it and hides its buttons.
+// A fulfilled, catalog-backed Desire claim waiting on a GM (DESIRES.md §6, db/lib/desireReview.js). Unlike the
+// portrait queue, an ALREADY-REVIEWED row stays: `desireReviewWhere()` doesn't filter on `reviewedAt`.
 export const DESIRE_CLAIM_INCLUDE = {
   template: { select: { name: true, tier: true, verifyQuery: true } },
   character: {
@@ -422,12 +325,7 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
     discordUsername: nameFor,
     roleTitle: c.character.roleTitle ?? "",
     factionZoneName: c.character.faction?.zone?.name ?? "",
-    // Where the die actually rolled, which for a caving row is the only zone
-    // that means anything. It used to read the SEAT zone first and fall back
-    // to this, so a Factory member (seated in the Marshes) who walked into the
-    // Caves produced a roll the lens printed as "Marshes" — and, because
-    // inVisibleZones gates on the same value, one a Caves GM could not see at
-    // all. A CavingRoll is always in a cave; the seat is beside the point.
+    // Where the die actually rolled — the only zone that means anything for a caving row; the seat is beside the point.
     zoneName: c.zone?.name ?? "",
     locationName: c.location?.name ?? null,
     die: c.die,
@@ -438,10 +336,7 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
     lootTagName: c.lootTag?.name ?? null,
     lootUndoneAt: c.lootUndoneAt ? c.lootUndoneAt.getTime() : null,
     statusLabel: c.resolvedAt ? "Resolved" : "Needs attention",
-    // A TROUBLE roll is created unresolved, and the only hand that resolves one
-    // writes its own id — so resolved with no resolver means the turn-end push
-    // let it go (db/lib/cavingPass.js#releaseUnresolvedCavingRolls). Worth
-    // saying out loud on the desk: nobody adjudicated this, the clock did.
+    // Resolved with no resolver means the turn-end push let it go (db/lib/cavingPass.js#releaseUnresolvedCavingRolls).
     autoResolved: Boolean(c.resolvedAt) && c.kind === "TROUBLE" && !c.resolvedByDiscordUserId,
     resolvedAt: c.resolvedAt ? c.resolvedAt.toISOString() : null,
     resolvedByUsername: c.resolvedByDiscordUserId
@@ -453,8 +348,7 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
   };
 }
 
-// One copy of each distinct held tag across a set of Moves, for TagChip
-// rendering — bounded by the catalog, not the row count.
+// One copy of each distinct held tag across a set of Moves, for TagChip rendering.
 export function tagsByIdFor(actions) {
   const tagsById = {};
   for (const action of actions) {
@@ -465,6 +359,5 @@ export function tagsByIdFor(actions) {
   return tagsById;
 }
 
-// stagingReaches lives in ./stagingReach.js so MoveDesk.js can import it
-// without dragging this module's Prisma imports into the browser.
+// stagingReaches lives in ./stagingReach.js so MoveDesk.js can import it without this module's Prisma imports.
 export { stagingReaches } from "./stagingReach";

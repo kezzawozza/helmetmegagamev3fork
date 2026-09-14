@@ -1,22 +1,13 @@
-// The place-bound affordances, declared once for both faces.
-//
-// A Location channel's pinned anchor and a Room thread's starter post carry
-// buttons; Chat's place panel carries the same list as web dialogs. Until
-// phase 3 those were two hand-kept lists in two files, and adding a button to
-// one was no reminder at all to add it to the other.
-//
-// The catalog below is the shared half — an id, the label a player reads, and
-// the Discord custom-id prefix the bot routes on. `affordancesFor` is the
-// per-character half, which needs prisma: which rooms this character can get
-// into, which gates they are standing at, whether the way they came through
-// is theirs to hold open. db/lib/locationAnchorRow.js and
-// db/lib/roomStarterRow.js build their buttons off the catalog, so a new
-// affordance is one entry here plus its dialog.
-//
-// The two halves cannot be one function: an anchor is ONE message for
-// everybody standing in the street, so it can only carry what is true of the
-// place. Anything true of a person — a key, a stash they may open — is a
-// dialog on the web and a refusal on Discord.
+// The place-bound affordances, declared once for both faces. A Location
+// channel's pinned anchor and a Room thread's starter post carry buttons;
+// Chat's place panel carries the same list. The catalog below is the shared
+// half — id, label, Discord custom-id prefix; `affordancesFor` is the
+// per-character half (which rooms/gates this character can reach).
+// db/lib/locationAnchorRow.js and db/lib/roomStarterRow.js build their
+// buttons off the catalog, so a new affordance is one entry here plus its
+// dialog. The two halves can't be one function: an anchor is ONE message for
+// everybody in the street, so it carries only what's true of the place —
+// anything true of a person is a dialog on the web, a refusal on Discord.
 
 const { hasNoticeboard } = require("./noticeboard");
 const { QUEST_INTERACT_PREFIX } = require("./questText");
@@ -27,16 +18,12 @@ const { linksFor, gateOperable, endpoints, isHeldOpen } = require("./locationGra
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 
 // The one room with a big red button on the wall (docs/zones.yaml). Named
-// here rather than imported from gatehouseTurret.js because that module pulls
-// in the whole turret engine, and the sync loads this file to draw a row.
+// here rather than imported from gatehouseTurret.js, which pulls in the whole turret engine.
 const CENSOR_OFFICE_ROOM_SLUG = "garrison-censors-office";
 
 // The four rooms that work a gate. Every modular edge in docs/zones.yaml has
-// exactly one of these at one of its ends, and the Open/Close button renders
-// on that room's starter post and NOWHERE ELSE — not on either endpoint's
-// Location anchor, which is where it used to live. A portcullis has a winch,
-// and the winch is in the tower; you should not be able to drop one from the
-// open road.
+// exactly one of these; Open/Close renders on that room's starter post and
+// NOWHERE ELSE — the winch is in the tower, not on the open road.
 const WATCHTOWER_ROOM_SLUGS = new Set([
   "gatehouse-watchtower", //  fortress/gatehouse <-> fortress/road
   "customs-watchtower", //    caves/customs      <-> caves/caves-approach
@@ -44,9 +31,7 @@ const WATCHTOWER_ROOM_SLUGS = new Set([
   "south-gate-watchtower", // town/south-gate    <-> forest/forest-south
 ]);
 
-// Not a prefix but one fixed id, shared with the #turns console and the
-// /travel command: travel needs no location context, because the handler
-// reads the mover's own locationId.
+// Not a prefix but one fixed id: travel needs no location context, since the handler reads the mover's own locationId.
 const TRAVEL_CUSTOM_ID = "loc:open";
 const WHOS_HERE_PREFIX = "loc:who:";
 const NOTICEBOARD_PREFIX = "loc:notice:";
@@ -61,16 +46,12 @@ const ROOM_TURRET_PREFIX = "room:turret:";
 const ROOM_BELL_PREFIX = "room:bell:";
 const ROOM_PRAY_PREFIX = "room:pray:";
 
-// `tone` is what the affordance MEANS, never a colour: Discord maps it to a
-// button style and the web maps it to a .btn variant, so neither face reaches
-// for a look the other cannot express.
+// `tone` is what the affordance MEANS, never a colour — each face maps it to its own look.
 const GO = "go";
 const PLAIN = "plain";
 const DANGER = "danger";
 
-// Everything on a Location's anchor, in the order it draws. Travel is first
-// and is the one people are here to press — the others answer a question
-// about where you already are, and this one is how you leave.
+// Everything on a Location's anchor, in the order it draws. Travel is first — the others answer where you already are, this is how you leave.
 const LOCATION_AFFORDANCES = [
   { id: "travel", label: "Travel", tone: GO, customId: () => TRAVEL_CUSTOM_ID },
   { id: "whosHere", label: "Who's here?", tone: PLAIN, prefix: WHOS_HERE_PREFIX },
@@ -85,13 +66,9 @@ const LOCATION_AFFORDANCES = [
 // Intercom is on exactly one (the Council Room), Toggle Turret on exactly one
 // other (the Censor's Office), Sound Bell on the Cathedral's Bell Tower.
 const ROOM_AFFORDANCES = [
-  // A Quest's one button, and the only affordance in the game that is not a
-  // standing fact about a place — a GM staged it, and closing the quest takes
-  // it away again (docs/systemdocs/QUESTS.md). First in the row because it is
-  // the thing anybody walking in here came to press.
-  //
-  // The QUEST id rides in the custom_id, not the room id, because the quest
-  // outlives its room: closing one deletes the thread and keeps the record.
+  // A Quest's one button, and the only affordance that isn't a standing fact
+  // about a place — a GM staged it (QUESTS.md). Quest id rides in the
+  // custom_id, not the room id, since the quest outlives its room.
   {
     id: "questInteract",
     label: "Interact",
@@ -107,8 +84,7 @@ const ROOM_AFFORDANCES = [
     prefix: ROOM_INTERCOM_PREFIX,
     when: (room) => room?.slug === INTERCOM_ROOM_SLUG,
   },
-  // The only red button in the game. It arms a gun that does not check who
-  // anyone is, so it should not look like the others.
+  // The only red button in the game: arms a gun that doesn't check who anyone is.
   {
     id: "turret",
     label: "Toggle Turret",
@@ -123,9 +99,7 @@ const ROOM_AFFORDANCES = [
     prefix: ROOM_BELL_PREFIX,
     when: (room) => room?.slug === BELL_ROOM_SLUG,
   },
-  // The Shrine of an Old Man, at the bottom of the Chasm. Danger, and not
-  // because it is loud: it is the only button in the game that hands you a
-  // permanent tag which can kill you, and there is no way back off it.
+  // The Shrine of an Old Man: the only button that hands you a permanent tag that can kill you, with no way back off it.
   {
     id: "pray",
     label: "Pray",
@@ -135,15 +109,13 @@ const ROOM_AFFORDANCES = [
   },
 ];
 
-// `subject` is the whole row the affordance was resolved against, for the one
-// def that needs a field off it rather than the id it is keyed by.
+// `subject` is the whole row the affordance resolved against, for the one def needing a field off it rather than its id.
 function customIdFor(def, id, subject = null) {
   return def.customId ? def.customId(id, subject) : `${def.prefix}${id}`;
 }
 
-// The Location affordances that apply to this place. `location` may be a bare
-// id, in which case the conditional ones are dropped — nothing can be decided
-// about a place that is only a string.
+// Location affordances for this place. `location` may be a bare id, dropping
+// conditional ones — nothing can be decided about a place that's only a string.
 function locationAffordances(location) {
   const id = typeof location === "string" ? location : location?.id;
   const known = typeof location === "string" ? null : location;
@@ -166,22 +138,17 @@ function roomAffordances(room) {
   }));
 }
 
-// The label a gate button wears. The far side is named because a location can
-// hold two gates and "Close" alone would be a coin flip, and the verb is what
-// the click DOES, not what the gate currently is.
+// The label a gate button wears. Far side named because a location can hold
+// two gates and "Close" alone would be a coin flip.
 function gateLabel({ isOpen, farName }) {
   return `${isOpen ? "Close" : "Open"} the way to ${farName}`;
 }
 
-// EVERYTHING this character can do where they are standing, as one ordered
-// list. Chat's place panel is a render of this and nothing else.
-//
-// Each entry is { id, label, tone, kind, roomId?, linkId?, roomName? }.
-// `kind` is the group it draws under: "place" for the Location's own, "room"
-// for a room's, "gate" for a way that can be worked, "keyed" for one that can
-// be held open.
-//
-// `character` needs { id, locationId, role: { slug }, tags: [{ tag: { slug } }] }.
+// EVERYTHING this character can do where they are standing, one ordered
+// list; Chat's place panel is a render of this and nothing else. Each entry
+// is { id, label, tone, kind, roomId?, linkId?, roomName? } — `kind` is
+// "place"/"room"/"gate"/"keyed". `character` needs { id, locationId, role:
+// { slug }, tags: [{ tag: { slug } }] }.
 async function affordancesFor(prisma, character) {
   if (!character?.locationId) return [];
 
@@ -202,9 +169,7 @@ async function affordancesFor(prisma, character) {
 
   const out = locationAffordances(location).map((entry) => ({ ...entry, kind: "place" }));
 
-  // A room's buttons, for every room this character can actually get into —
-  // a locked door offers nothing, which is the same answer Discord gives by
-  // simply not showing them the thread.
+  // A room's buttons, for every room this character can actually get into — a locked door offers nothing.
   const open = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
   for (const room of open) {
     for (const entry of roomAffordances(room)) {
@@ -212,10 +177,7 @@ async function affordancesFor(prisma, character) {
     }
   }
 
-  // The gates. Reaching the watchtower IS the permission — the winch is in
-  // the tower, so anyone the tower's `access:` list lets in may work it, on
-  // either face. There is no second opener predicate to disagree with the
-  // room.
+  // Reaching the watchtower IS the permission — anyone the tower's `access:` list lets in may work the gate.
   const towerHere = open.some((room) => WATCHTOWER_ROOM_SLUGS.has(room.slug));
   const tagSlugs = (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean);
   for (const link of links ?? []) {
@@ -233,10 +195,8 @@ async function affordancesFor(prisma, character) {
     });
   }
 
-  // A keyed door is not a gate: it has no winch and no button on any anchor.
-  // It offers one thing, and only to whoever holds its key — leave it propped
-  // for a day. Already-held ways are listed so the panel can say so rather
-  // than offering a click that refuses.
+  // A keyed door is not a gate: no winch, no anchor button. Only the key
+  // holder gets it, and already-held ways are listed rather than offering a click that refuses.
   for (const link of links ?? []) {
     if (!link.keyed) continue;
     if (!tagSlugs.includes(link.requiredTagSlug)) continue;

@@ -1,28 +1,19 @@
 // The Trinket turn-end pass (docs/systemdocs/TRINKETS.md), run from
-// db/index.js#resolveNeeds() in the same slot as Lessons/Research/Confessions
-// — order among the four does not matter, they share no state.
+// db/index.js#resolveNeeds() alongside Lessons/Research/Confessions — order
+// doesn't matter, they share no state.
 //
-// Every OPEN Trinket Gambit (Action.gmNotes: "auto:trinket", filed by
-// web/app/(app)/character/trinketActions.js) is rolled here: the stored die
-// face, clamped up by the skilled floor, mapped straight to a tier and a
-// base sell price (TRINKETS.md §1). Ingredient value is added on top, the
-// finished Trinket is minted onto the smith's sheet with mintCustomCraft
-// (db/lib/customCraftMint.js), and the Action is marked SOLVED with a reveal
-// DM — the tier and the item, which a bare die face could never say on its
-// own (a player has no reason to know face 6 means Masterwork).
+// Every OPEN Trinket Gambit is rolled here: the stored die face, clamped up
+// by the skilled floor, mapped to a tier and base sell price (TRINKETS.md
+// §1). Ingredient value is added, the Trinket is minted with mintCustomCraft
+// (db/lib/customCraftMint.js), and the Action marked SOLVED with a reveal DM.
 //
-// DELIBERATELY does not touch db/lib/gambitModifier.js. Every other Gambit
-// this shape (Lessons, Confession) folds Hunger/mood into the roll via
-// `Action.diceModifier`; Trinket's Action never has one set (it is left at
-// its default of 0). The skilled floor below is a flat promise — "a trained
-// smith never rolls worse than Normal" — and if a hungry skilled smith got
-// clamped up to face 3 and then knocked back down by a −1 Hungry modifier,
-// that promise would be a lie on exactly the turns it matters most. So this
-// pass reads `diceRoll` alone and stops there.
+// DELIBERATELY does not touch db/lib/gambitModifier.js — the skilled floor
+// is a flat promise ("a trained smith never rolls worse than Normal"), and
+// folding in Hunger/mood via `Action.diceModifier` could knock it back down
+// on exactly the turns it matters most. Reads `diceRoll` alone.
 //
-// Returns Discord work as data, never sends it — same contract as
-// db/lib/lessonPass.js; db/index.js treats a null return as a failed pass to
-// retry rather than a turn with nothing to do.
+// Returns Discord work as data, never sends it (db/lib/lessonPass.js's
+// contract); a null return is a failed pass to retry.
 const { SMITHING_SKILLED_SLUG } = require("./constants");
 const { mintCustomCraft } = require("./customCraftMint");
 const { addToStack } = require("./tagWrites");
@@ -40,10 +31,8 @@ const TIERS = [
   { name: "Masterwork", price: 60 },
 ];
 
-// A smith holding {tag:smithing-skilled} never rolls Awful or Poor — training
-// buys a floor, not just a better average. Plain {tag:smithing} has none.
-// Exported for the test file, which checks this in isolation from the rest
-// of the pass (no prisma needed to verify a clamp rule).
+// A smith holding {tag:smithing-skilled} never rolls Awful or Poor.
+// Exported for the test file to check in isolation (no prisma needed).
 function clampFace(face, heldSlugs) {
   if (heldSlugs?.has(SMITHING_SKILLED_SLUG) && face < 3) return 3;
   return face;
@@ -67,10 +56,7 @@ async function runTrinketPass(prisma, turn) {
 
   const baseTag = await prisma.tag.findUnique({ where: { slug: "trinket" } });
   if (!baseTag) {
-    // The catalog row is missing (docs/tags.yaml never synced, or pruned) —
-    // every filed Trinket fails together rather than one at a time, and the
-    // pass retries next close the same way `runLessonPass` retries a whole
-    // failed offer rather than half-applying it.
+    // Catalog row missing: every filed Trinket fails together, retries next close.
     console.error('Trinket pass: no {tag:trinket} catalog row — is docs/tags.yaml synced?');
     return { turnNumber: turn.number, resolved: 0, failed: actions.length, dms: [] };
   }
@@ -92,8 +78,7 @@ async function runTrinketPass(prisma, turn) {
             tags: { select: { tag: { select: { slug: true } } } },
           },
         });
-        // A GM deleted the character's Move, or the character since died —
-        // either way there is nothing left to resolve for them.
+        // A GM deleted the Move, or the character died — nothing to resolve.
         if (!character) return null;
 
         const heldSlugs = new Set(character.tags.map((ct) => ct.tag?.slug).filter(Boolean));
@@ -114,12 +99,9 @@ async function runTrinketPass(prisma, turn) {
         const composedName = details.name || `${tier.name} Trinket`;
         const composedDescription = details.description || baseTag.description;
 
-        // The tier joins the dedup key alongside the ingredients: two smiths
-        // (or the same smith twice) rolling the same tier off the same
-        // ingredients stack onto one custom row, same as two identical
-        // dishes do — but a Good Trinket and a Masterwork Trinket built from
-        // the same inlay must NOT collide just because their words matched,
-        // or the second one silently inherited the first roll's price.
+        // Tier joins the dedup key: same tier + ingredients stack onto one
+        // custom row, but a Good and a Masterwork off the same inlay must
+        // NOT collide and inherit the wrong price.
         const cookedFrom = [...ingredientSlugs, `tier:${tier.name.toLowerCase()}`].sort();
 
         const { tag: minted } = await mintCustomCraft(tx, baseTag, {

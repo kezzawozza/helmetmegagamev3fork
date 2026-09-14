@@ -1,6 +1,4 @@
-// Webhook-level REST helpers: the tupper webhook cache, executing/editing/
-// deleting webhook messages, and postAsCharacter, the REST twin of the bot's
-// proxy that posts player-authored text as a character.
+// Webhook-level REST helpers: the tupper webhook cache, executing/editing/deleting webhook messages, and postAsCharacter.
 
 const { chunkMessage } = require("../chunkText");
 const { presentedIdentity } = require("../presentedIdentity");
@@ -11,9 +9,7 @@ const WEBHOOK_NAME = "Bascinet Tupper";
 // Discord JSON error code for a webhook that no longer exists.
 const UNKNOWN_WEBHOOK = 10015;
 
-// REST twin of bot/src/lib/proxy.js#fetchOrCreateWebhook — reuse the bot's
-// webhook on a channel, create one only if there isn't one. Cached per
-// channel for the process lifetime so a per-character loop isn't a GET each.
+// REST twin of bot/src/lib/proxy.js#fetchOrCreateWebhook. Cached per channel for process lifetime.
 const webhookCache = new Map();
 
 function forgetChannelWebhook(channelId) {
@@ -41,14 +37,8 @@ async function fetchOrCreateChannelWebhook(channelId) {
   return { id: created.id, token: created.token };
 }
 
-// `auth: false`: the webhook token in the URL IS the credential — a bot auth
-// header alongside it can make Discord reject the request. Bucketed at
-// roughly 5 per 5 seconds per channel, so a 429 here is routine.
-// `threadId` is how a webhook posts into a thread: the webhook itself belongs
-// to the PARENT channel (Discord will not create one on a thread), and the
-// execute call names the thread in the query. `wait=true` stays either way —
-// without it Discord answers 204 and the outbox never learns the message id it
-// has to store to be able to edit or delete the message later.
+// `auth: false`: the webhook token in the URL IS the credential — a bot auth header alongside it can make Discord reject the request.
+// `threadId` names the thread in the query since the webhook itself belongs to the parent channel. `wait=true` stays either way, or Discord answers 204 with no message id to store for later edit/delete.
 async function executeWebhook({ id, token }, { content, username, avatarUrl, threadId = null }) {
   const query = threadId ? `?wait=true&thread_id=${threadId}` : "?wait=true";
   return discordRequest(`/webhooks/${id}/${token}${query}`, {
@@ -64,11 +54,7 @@ async function executeWebhook({ id, token }, { content, username, avatarUrl, thr
   });
 }
 
-// Editing and deleting a webhook message need the thread id too, for the same
-// reason: without it Discord looks the message up in the parent channel, does
-// not find it, and 404s. Both are what bot/src/lib/feedOutbox.js uses — since
-// phase 1 the outbox is the ONLY thing that edits or deletes a proxied
-// message, on either face.
+// Editing/deleting need the thread id too, or Discord looks in the parent channel and 404s. Used by bot/src/lib/feedOutbox.js.
 async function editWebhookMessage({ id, token }, messageId, content, threadId = null) {
   const query = threadId ? `?thread_id=${threadId}` : "";
   return discordRequest(`/webhooks/${id}/${token}/messages/${messageId}${query}`, {
@@ -78,8 +64,7 @@ async function editWebhookMessage({ id, token }, messageId, content, threadId = 
   });
 }
 
-// allow404: a message somebody already removed by hand is the outcome this
-// was asking for, not an error.
+// allow404: a message already removed by hand is not an error.
 async function deleteWebhookMessage({ id, token }, messageId, threadId = null) {
   const query = threadId ? `?thread_id=${threadId}` : "";
   return discordRequest(`/webhooks/${id}/${token}/messages/${messageId}${query}`, {
@@ -89,36 +74,9 @@ async function deleteWebhookMessage({ id, token }, messageId, threadId = null) {
   });
 }
 
-// REST equivalent of a tupper proxy. Chunked, since its one caller posts
-// player-authored text that can exceed 2000 chars, and it returns the FIRST
-// message — what the archive anchors to. `forcedName` (Tag.forcedName) and
-// `concealment` (loadConcealment) are both resolved by the CALLER, which has a
-// prisma handle; this module deliberately has none. See
-// db/lib/presentedIdentity.js. `threadId` posts into a Room or Conversation
-// thread under `channelId`, and the webhook is still the parent channel's —
-// see executeWebhook.
-//
-// The REST twin of bot/src/lib/proxy.js#postAsCharacterTo, so it has to reach
-// the same answer that one does: forced > concealed > own. `character` must
-// therefore carry the columns presentedIdentity reads — `concealed`, `age`,
-// `gender`, `name`, `updatedAt` — which is what the caller selects
-// (bot/src/lib/feedOutbox.js#pushRow).
-//
-// It used to keep a concealment only when it FORCED itself, and override the
-// column to match, on this argument: an auto-filed summary should ignore
-// /conceal, because going unnamed in conversation says nothing about the
-// paperwork — while it must NOT ignore forced concealment, because that is no
-// choice, and a character with a sack over their head filing a report under
-// their own name and face would hand back exactly the identity the sack took
-// away. The argument is sound and this was never the place for it: there has
-// been no auto-filing caller since the function was written. The only one is
-// the relay that carries every line typed on /chat to Discord — so what the
-// rule actually did was let a voluntary hood resolve correctly into the
-// archive row and then post that line to the channel under the speaker's real
-// name and real face. The hood worked on /chat and did nothing on Discord.
-//
-// If game-composed text ever needs that behaviour, it belongs at the caller,
-// which is the only thing that knows what it is filing.
+// REST twin of bot/src/lib/proxy.js#postAsCharacterTo: forced > concealed > own. Chunked (returns the FIRST message, what the archive anchors to).
+// `forcedName`/`concealment` are resolved by the CALLER (this module has no prisma handle) — see db/lib/presentedIdentity.js. `character` must carry
+// `concealed`, `age`, `gender`, `name`, `updatedAt` (bot/src/lib/feedOutbox.js#pushRow). `threadId` posts into a Room/Conversation thread; webhook stays the parent channel's.
 async function postAsCharacter(channelId, character, content, { forcedName = null, concealment = null, threadId = null } = {}) {
   const chunks = chunkMessage(String(content ?? ""));
   if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content, forcedName, concealment, threadId);

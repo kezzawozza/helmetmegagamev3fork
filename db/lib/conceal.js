@@ -1,36 +1,17 @@
-// /conceal, as a rule rather than as a handler. Both faces call it —
-// bot/src/events/interactionCreate.js#handleConcealCommand and the web's Chat
-// composer — so the refusals read the same wherever you meet them.
-//
-// A standing state, not a per-message prefix. While it is on, every message
-// proxies under the alias with the unknown silhouette, and Who's here lists
-// the alias instead of the name.
-//
-// Three refusals, in order:
-//
-//   - A held forcesName tag refuses outright. That identity is fixed, and
-//     there is nothing to hide.
-//   - A bare face has nothing to toggle. Concealment is a property of what
-//     you are wearing, not a free action.
-//   - Something that FORCES concealment is already hiding you, and it does
-//     not come off by asking. The column is left alone in that case, so
-//     whatever the player last chose is what they go back to when the thing
-//     comes off. That line has to say which way the refusal points, and an
-//     older one ("take it off first") said the opposite of the truth: a
-//     forcesConceal piece is ALREADY hiding you — presentedIdentity conceals
-//     on piece.forced alone — so a player who read it reasonably concluded
-//     their helmet had broken concealment rather than granted it. Name the
-//     piece where we know it.
-//
-// Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
-// db/lib/dm.js convention; require it by path.
+// /conceal as a rule, not a handler — both faces call it (bot/src/events/interactionCreate.js#
+// handleConcealCommand and the web's Chat composer), so refusals read the same everywhere. A standing
+// state: while on, every message proxies under the alias with the unknown silhouette, and Who's here
+// lists the alias. Refusals in order: a held forcesName tag refuses outright (identity is fixed);
+// a bare face has nothing to toggle; a forcesConceal piece is already hiding you and doesn't come off
+// by asking — the concealed column is left alone so the player's last choice resumes once it's off,
+// and the message must say a forcesConceal piece is ALREADY hiding you (not "take it off first",
+// which says the opposite). Takes `prisma` as a parameter, off the @lifeweb/db barrel like db/lib/dm.js;
+// require it by path.
 
 const { loadForcedName, loadConcealment } = require("./presentedIdentity");
 const { concealedAlias, withArticle } = require("./concealedIdentity");
 
-// `character` needs { id, concealed, age, gender } and, for the audit row,
-// { discordUserId }. Returns { ok, concealed, alias, line } or
-// { ok: false, error }.
+// `character` needs { id, concealed, age, gender } and { discordUserId } for the audit row.
 async function toggleConceal(prisma, character) {
   if (!character?.id) return { ok: false, error: "You don't have a living character." };
 

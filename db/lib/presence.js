@@ -1,29 +1,18 @@
-// "Here": the one co-presence rule both faces of the game judge by.
-//
-// A character can act on someone standing at the same Location who hasn't
-// hidden their face — and, for the actions that work on a body, on an
-// unburied corpse. Location-grain since Bascinet 2; a concealed character is
-// off every picker and every gate because /conceal is the game's "you don't
-// know who this is", and naming them would undo it. A corpse can't hold a
-// hood up, so the dead show when `allowDead` asks for them.
+// "Here": the one co-presence rule both faces of the game judge by. A
+// character can act on someone at the same Location who hasn't hidden their
+// face, and — for body actions — an unburied corpse. A concealed character
+// is off every picker and gate since /conceal is "you don't know who this
+// is", and naming them would undo it.
 //
 // web/lib/peopleHere.js binds these to prisma for the web app; the bot's
 // offer handlers (bot/src/lib/offers.js) and db/lib/lessons.js call them
-// directly. No Prisma import here on purpose — same posture as
-// inspectVision.js.
+// directly. No Prisma import here, same posture as inspectVision.js.
 
-// The Prisma where-clause for "everyone here but me".
-//
-// Always strict about hoods, and it has no opt-out on purpose. Transfer is the
-// one action that reaches a concealed person, and it does NOT come through
-// here: it asks db/lib/whosHere.js instead, which splits on what is actually
-// over the face rather than on the column this clause reads. Mixing the two
-// was the bug — somebody wearing a sack with the wish left off is concealed by
-// whosHere's reckoning and bare-faced by this one, so they were offered twice,
-// the second time under their real name.
-//
-// isHere() below still takes `allowConcealed`, because the re-check on a
-// posted id is the half Transfer does keep (web/lib/transferReach.js).
+// Always strict about hoods, no opt-out: Transfer is the one action that
+// reaches a concealed person, and it does NOT come through here — it asks
+// db/lib/whosHere.js instead, which splits on what is actually over the
+// face rather than this column. isHere() below still takes
+// `allowConcealed`, the re-check Transfer keeps (web/lib/transferReach.js).
 function hereWhere(character, { includeDead = false } = {}) {
   return {
     locationId: character.locationId,
@@ -35,9 +24,7 @@ function hereWhere(character, { includeDead = false } = {}) {
   };
 }
 
-// The gate. Both rows need `locationId`; the target also `status`,
-// `concealed` and `buriedAt`. Reaching yourself is free — you are always
-// where you are. An unplaced actor reaches no one: nowhere is not everywhere.
+// Reaching yourself is free. An unplaced actor reaches no one.
 function isHere(actor, target, { allowDead = false, allowConcealed = false } = {}) {
   if (!actor?.locationId || !target) return false;
   if (target.id === actor.id) return true;
@@ -47,10 +34,8 @@ function isHere(actor, target, { allowDead = false, allowConcealed = false } = {
   return false;
 }
 
-// The select a caller adds to a target row so isHere can judge it.
 const HERE_FIELDS = { id: true, locationId: true, status: true, concealed: true, buriedAt: true };
 
-// One message for every "they aren't here" refusal, so the actions agree.
 function notHereMessage(target) {
   return target?.name ? `${target.name} isn't here.` : "They aren't here.";
 }

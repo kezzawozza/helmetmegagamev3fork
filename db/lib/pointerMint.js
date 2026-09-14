@@ -1,27 +1,8 @@
-// The Pointer Device Kit's pair: two runtime-minted Tag rows that always
-// point at each other. Modelled on db/lib/photoMint.js almost line for line —
-// the sixth runtime authoring door, alongside docs/tags.yaml, the GM form,
-// the corpse/headstone/crate minters, paperMint.js and photoMint.js. Every
-// row carries `custom: true` (db:sync-tags never sees it, db:prune-tags
-// skips it) and `ephemeral: true` (a Restart Game sweeps it up).
-//
-// Deliberately NOT mintCustomCraft — that function dedups on
-// name+description+cookedFrom, and both halves of a pair share the exact
-// same name and description on purpose. A second call with identical
-// arguments would hand back the FIRST row again instead of minting a
-// second, so this is its own small mint instead.
-//
-// A pair is found by slug alone: `custom-pointer-<code>-a` and
-// `custom-pointer-<code>-b`, never a schema column — the same "find a
-// runtime-minted row by slug prefix" idiom db/lib/disguiseMint.js already
-// uses. `<code>` is a random 3-digit number, retried on collision against
-// BOTH halves at once (a single-slug retry, the kind createWithRetry does,
-// cannot check two slugs together) — the same posture noteCode()/
-// shipmentId() take elsewhere in this codebase: a plain random code, not a
-// monotonic counter, because nothing here needs global ordering.
-//
-// Takes `prisma` (or a tx) as a parameter, the db/lib/dm.js convention, and
-// stays off the @lifeweb/db barrel.
+// The Pointer Device Kit's pair: two runtime-minted Tag rows that always point at each other. Modelled on db/lib/photoMint.js. Every row carries
+// `custom: true` (db:sync-tags/db:prune-tags skip it) and `ephemeral: true` (Restart Game sweeps it). Deliberately NOT mintCustomCraft — that dedups
+// on name+description+cookedFrom, and both halves of a pair share the exact same name/description, so a second call would hand back the FIRST row.
+// A pair is found by slug alone: `custom-pointer-<code>-a`/`-b`, the same "slug prefix" idiom db/lib/disguiseMint.js uses. `<code>` is a random
+// 3-digit number, retried on collision against BOTH halves at once. Takes `prisma` (or a tx), stays off the @lifeweb/db barrel.
 const { createWithRetry } = require("./paperMint");
 const { addToStack } = require("./tagWrites");
 
@@ -33,15 +14,12 @@ function pointerSlug(code, half) {
   return `${POINTER_SLUG_PREFIX}${code}-${half}`;
 }
 
-// Whether a slug names one of these — the gate a sheet button checks, and
-// the same test the reader uses to confirm what it just loaded really is a
-// pointer device rather than something else entirely that happens to match.
+// Whether a slug names one of these — the gate a sheet button checks.
 function isPointerDeviceSlug(slug) {
   return typeof slug === "string" && slug.startsWith(POINTER_SLUG_PREFIX);
 }
 
-// "155-A" swaps to "155-B" and back — the whole "find the other one" query
-// starts here. Null for anything that isn't a pointer device slug.
+// "155-A" swaps to "155-B" and back. Null for anything that isn't a pointer device slug.
 function partnerSlugOf(slug) {
   if (!isPointerDeviceSlug(slug)) return null;
   const rest = slug.slice(POINTER_SLUG_PREFIX.length);
@@ -55,16 +33,9 @@ async function pointerGroupId(db, baseTag) {
   return baseTag?.groupId ?? null;
 }
 
-// ** Hands `db` the TOP-LEVEL client, never a transaction. ** Postgres
-// aborts a whole transaction the moment one statement in it fails, so a
-// catch-and-retry inside $transaction can only raise 25P02 on the second
-// try. Callers grant the finished rows inside their own transaction instead
-// (attachPointerPair, below), the same split photoMint.js's mintPhoto and
-// the camera's print used to.
-//
-// `baseTag` is the Pointer Device Kit's own catalog row — its category,
-// group, weight and stackability (false: two devices are two objects, not
-// one stack of two) carry over to both halves.
+// ** Hands `db` the TOP-LEVEL client, never a transaction. ** Postgres aborts a whole transaction on one failed statement, so a catch-and-retry
+// inside $transaction can only raise 25P02 on the second try. Callers grant the finished rows in their own transaction instead (attachPointerPair).
+// `baseTag` is the Pointer Device Kit's own catalog row — its category, group, weight and stackability (false) carry over to both halves.
 async function mintPointerPair(db, baseTag) {
   const groupId = await pointerGroupId(db, baseTag);
   for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -94,8 +65,7 @@ async function mintPointerPair(db, baseTag) {
     if (!a) continue;
     const b = await createWithRetry(db, () => ({ ...shape("b"), slug: pointerSlug(code, "b") }));
     if (!b) {
-      // The "a" half minted but "b" lost the race — never leave an orphan
-      // half sitting in the catalog for nobody to ever hold.
+      // "a" minted but "b" lost the race — never leave an orphan half in the catalog.
       await db.tag.delete({ where: { id: a.id } }).catch(() => {});
       continue;
     }
@@ -104,20 +74,15 @@ async function mintPointerPair(db, baseTag) {
   throw new Error("Couldn't mint a free pointer pair — try again.");
 }
 
-// Puts both halves into one character's hands — they bought a KIT of two, to
-// hand one away later via ordinary Transfer. Safe inside a transaction.
+// Puts both halves into one character's hands — a KIT of two, hand one away later via ordinary Transfer. Safe inside a transaction.
 async function attachPointerPair(tx, ownerId, pair) {
   await addToStack(tx, ownerId, pair.a.id, 1, {});
   await addToStack(tx, ownerId, pair.b.id, 1, {});
   return pair;
 }
 
-// Where the OTHER half of a pair physically is, as a locationId, or null if
-// it is nowhere the map can name — same three-home shape db/lib/nuke.js's
-// deviceLocationId walks (a character's sheet, a room stash, or inside a
-// crate's JSON contents, which no `where: { tagId }` can find directly),
-// written fresh here rather than imported so this stays fully separate from
-// that secret plot's own code.
+// Where the OTHER half of a pair physically is, as a locationId, or null — same three-home shape as db/lib/nuke.js's deviceLocationId (a character's
+// sheet, a room stash, or inside a crate's JSON contents), written fresh here to stay separate from that secret plot's own code.
 async function locatePointerPartner(prisma, slug) {
   const tag = await prisma.tag.findUnique({ where: { slug }, select: { id: true } });
   if (!tag) return null;

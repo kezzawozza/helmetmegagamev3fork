@@ -1,24 +1,15 @@
-// Faction Leader/Treasurer authority — who may see how many Resources a
-// faction's members are holding. (Until 9/2026 the same pair managed the
-// faction's Silo; a silo is a Room the faction points at now, and the seat
-// also carries who may re-point it and who answers an application.)
-//
-// This lives in db/lib rather than web/lib because both faces of the game ask
-// the question: the web app on /faction, and the bot on the 🔍 inspect
-// reaction (bot/src/events/messageReactionAdd.js). web/lib/factionPermissions
-// is a thin re-export that binds the singleton prisma, so web call sites keep
-// the shorter (discordUserId, factionId) signature. (db/lib/factionConstants
-// needs no such shim — it binds nothing, so the web imports it directly.)
-//
-// Takes `prisma` as a parameter rather than require("../index") — same reason
-// as dm.js/turnAnnouncement.js — and is deliberately NOT spread into the
-// db/index.js barrel; require it by path.
+// Faction Leader/Treasurer authority — who may see how many Resources a faction's members hold; the
+// seat also carries who may re-point the faction's Silo Room and who answers an application. Lives in
+// db/lib because both faces ask the question: the web app on /faction, and the bot on the 🔍 inspect
+// reaction (bot/src/events/messageReactionAdd.js). web/lib/factionPermissions is a thin re-export that
+// binds the singleton prisma, so web call sites keep the shorter (discordUserId, factionId) signature.
+// Takes `prisma` as a parameter rather than require("../index") (dm.js/turnAnnouncement.js reasoning)
+// and is deliberately NOT in the db/index.js barrel; require it by path.
 
 const { isUnaffiliated } = require("./factionConstants");
 
-// Seeing member Resources is available to a faction's Leader and Treasurer —
-// plain booleans on Character (see faction/actions.js#setFactionLeader /
-// setTreasurer), so a Treasurer without the isLeader flag still qualifies.
+// Seeing member Resources is available to a faction's Leader and Treasurer — plain booleans on
+// Character, so a Treasurer without the isLeader flag still qualifies.
 async function getMyFactionRole(prisma, discordUserId, factionId) {
   const character = await prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE" },
@@ -32,9 +23,8 @@ async function getMyFactionRole(prisma, discordUserId, factionId) {
     },
   });
 
-  // Unaffiliated is not a faction (FACTIONS.md §1a): nobody is its officer,
-  // however the flags happen to be set, or an Unaffiliated "Leader" would see
-  // what every unaffiliated character in the game is carrying.
+  // Unaffiliated is not a faction (FACTIONS.md §1a) — nobody is its officer, or an Unaffiliated
+  // "Leader" would see what every unaffiliated character carries.
   if (!character || character.factionId !== factionId || isUnaffiliated(character.faction)) {
     return { character, isLeader: false, isTreasurer: false, isOfficer: false };
   }
@@ -43,9 +33,8 @@ async function getMyFactionRole(prisma, discordUserId, factionId) {
   return { character, isLeader, isTreasurer, isOfficer: isLeader || isTreasurer };
 }
 
-// Walks parentFactionId up to the root, returning ancestor faction IDs
-// nearest-first. Visited-set guards against a cycle slipping through despite
-// the write-side check in gm/dev/actions.js#updateFaction.
+// Walks parentFactionId to the root, returning ancestor faction IDs nearest-first. Visited-set guards
+// against a cycle slipping through despite the write-side check in gm/dev/actions.js#updateFaction.
 async function getFactionAncestorIds(prisma, factionId) {
   const ids = [];
   const seen = new Set([factionId]);

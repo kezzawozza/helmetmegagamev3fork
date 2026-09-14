@@ -5,24 +5,18 @@
 const { discordRequest, THREAD_CREATE_MAX_RETRY_AFTER_MS } = require("./core");
 const { patchChannel, getChannel } = require("./channels");
 
-// type 11 = GUILD_PUBLIC_THREAD, no starter message — the caller posts it.
-// `rateLimitPerUser` is the thread's own slowmode, in seconds. A thread does
-// NOT inherit its parent channel's, and Discord only takes it at creation or
-// through a PATCH — which is why db/lib/syncZones.js re-asserts it on every
-// pass beside `archived: false`.
-//
-// `messageId`, when given, threads off an EXISTING message instead
-// (`POST /channels/{id}/messages/{messageId}/threads`) — Discord derives the
-// type from the message, so `type` is omitted on that path.
+// type 11 = GUILD_PUBLIC_THREAD, no starter message. `rateLimitPerUser` is
+// the thread's own slowmode; a thread does NOT inherit its parent's, so
+// db/lib/syncZones.js re-asserts it every pass. `messageId`, when given,
+// threads off an EXISTING message instead, and `type` is omitted on that path.
 async function startThread(channelId, name, autoArchiveMinutes = 10080, rateLimitPerUser = null, messageId = null) {
   const path = messageId
     ? `/channels/${channelId}/messages/${messageId}/threads`
     : `/channels/${channelId}/threads`;
   return discordRequest(path, {
     method: "POST",
-    // Thread creation is the one route Discord rate-limits by the MINUTE. A
-    // Restart Game wipe creates 129 of them in a row, and giving up at the 30 s
-    // cap is how a wipe ended with no Room threads and no anchors (2026-09-06).
+    // Discord rate-limits thread creation by the MINUTE; giving up at the
+    // 30s cap is how a wipe once ended with no Room threads or anchors.
     maxRetryAfterMs: THREAD_CREATE_MAX_RETRY_AFTER_MS,
     body: {
       name,
@@ -40,8 +34,7 @@ async function createForumPost(
   forumChannelId,
   { name, content, appliedTags = [], autoArchiveMinutes = 10080, components = undefined, allowedMentions = undefined },
 ) {
-  // allowedMentions: pass one whenever content carries user text — Discord's
-  // default parses everything, and a character named "@everyone" would ping.
+  // allowedMentions: pass one whenever content carries user text.
   const message = { content, ...(components ? { components } : {}), ...(allowedMentions ? { allowed_mentions: allowedMentions } : {}) };
   return discordRequest(`/channels/${forumChannelId}/threads`, {
     method: "POST",
@@ -59,9 +52,6 @@ async function createForumPost(
 async function startPrivateThread(channelId, name, autoArchiveMinutes = 10080, rateLimitPerUser = null) {
   return discordRequest(`/channels/${channelId}/threads`, {
     method: "POST",
-    // Thread creation is the one route Discord rate-limits by the MINUTE. A
-    // Restart Game wipe creates 129 of them in a row, and giving up at the 30 s
-    // cap is how a wipe ended with no Room threads and no anchors (2026-09-06).
     maxRetryAfterMs: THREAD_CREATE_MAX_RETRY_AFTER_MS,
     body: {
       name,
@@ -108,9 +98,7 @@ async function listThreadMembers(threadId) {
   return members;
 }
 
-// A thread is a channel, so this is patchChannel under a clearer name.
-// flags bit 1 (value 2) is PINNED, pinning a forum post to the top of its
-// forum — there is no /pins endpoint for forum posts.
+// flags bit 1 (value 2) is PINNED — no /pins endpoint for forum posts.
 const THREAD_FLAG_PINNED = 2;
 
 async function patchThread(threadId, payload) {
@@ -163,7 +151,6 @@ async function getForumTagId(channelId, tagName) {
   const channel = await getChannel(channelId);
   return channel.available_tags?.find((t) => t.name === tagName)?.id ?? null;
 }
-
 
 module.exports = {
   startThread,

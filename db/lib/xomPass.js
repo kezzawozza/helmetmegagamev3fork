@@ -1,40 +1,23 @@
 // The Xom pass: what a plaything of the god of chance and disorder pays for
-// the privilege, once per turn close, forever.
+// the privilege, once per turn close, forever. Everyone holding
+// {tag:old-ways-xom} rolls once on the weighted table in db/lib/xom.js —
+// unnormalised, see that file on why the table is code not YAML.
 //
-// Everyone holding {tag:old-ways-xom} rolls once on the weighted table in
-// db/lib/xom.js. Half the time nothing happens; the rest of the time something
-// does, and roughly one turn in a hundred it is fatal. Bascinet's numbers,
-// unnormalised — see that file on why the table is code and not YAML.
+// SLOT: right after "dawnAfflictions", before "carry" — all load-bearing:
+//   - AFTER expirySweep (a blind deleteMany over expiresTurn would sweep a
+//     Seizure/Madness the moment it landed; same rule hungerPass runs under).
+//   - AFTER tagExpiry, so a tag progressed this close is on the sheet already.
+//   - AFTER dyingDeath/catatonicDeath/nukeExplosion/ascension, so Xom cannot gib a corpse.
+//   - BEFORE carry, so new weight is seen the same close.
+//   - BEFORE mood, so a moved character pays the night where Xom put them.
 //
-// SLOT: right after "dawnAfflictions", before "carry". Every constraint lands
-// on that one place, and they are all load-bearing:
+// NOTHING HERE TALKS TO DISCORD (TURN-ENGINE.md §2). Tag grants ride the
+// `notices` array into tagExpiryDms; teleport/conversation/shout come back as
+// `teleports`/`conversations`/`shouts` for db/lib/turnSideEffects.js to carry
+// out after the transaction commits.
 //
-//   - AFTER expirySweep, because the sweep is a blind deleteMany over
-//     expiresTurn and a Seizure (1 turn) or Madness (2) granted before it
-//     would be swept the moment it landed. Same rule hungerPass runs under.
-//   - AFTER tagExpiry, so a tag that progressed this close is on the sheet
-//     before this reads it.
-//   - AFTER dyingDeath / catatonicDeath / nukeExplosion / ascension. Anyone
-//     they killed is already DEAD, so the ALIVE filter drops them for free and
-//     Xom cannot gib a corpse. The bomb wins ties, which is right: a blast is
-//     a fact about the map and a god's whim is not.
-//   - BEFORE carry. Five rats, a grenade and two bottles is about 11 kg of new
-//     weight, and the carry pass has to see it in the same close or
-//     Overburdened lands a day late.
-//   - BEFORE mood, which pays the night for wherever a character is standing.
-//     Somebody Xom moved should pay it where Xom put them.
-//
-// NOTHING HERE TALKS TO DISCORD (TURN-ENGINE.md §2). The tag grants ride the
-// `notices` array into tagExpiryDms like the dawn afflictions do; the three
-// outcomes that are Discord-shaped — the teleport, the conversation it opens,
-// and the shout — come back as `teleports` / `conversations` / `shouts` for
-// db/lib/turnSideEffects.js to carry out after the transaction commits.
-//
-// NOT IDEMPOTENT, by construction. resolvedPasses is what stops a resumed
-// advance re-rolling the table, and it matters more here than anywhere else in
-// the engine.
-//
-// Takes `prisma` as a parameter — see db/lib/dm.js.
+// NOT IDEMPOTENT, by construction — resolvedPasses stops a resumed advance
+// re-rolling the table. Takes `prisma` as a parameter — see db/lib/dm.js.
 const { CATATONIC_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 const { grantTagSlugs, replaceLowerTiers } = require("./tagWrites");
@@ -58,20 +41,14 @@ const {
 } = require("./xom");
 const { alivePassCharacters } = require("./aliveCharacters");
 
-// The Church and the Order of the Silver Cross, which is who "the Inquisition
-// and the clergy" are: the inquisitor seat lives under the Order
-// (docs/roles.yaml), and there is no Faction of either name to query. Read off
-// ROLE_GROUPS rather than hardcoded here, so the day a third clerical faction
-// is added the picker and this both learn about it at once.
+// The Church and the Order of the Silver Cross, who "the Inquisition and the
+// clergy" are — no Faction of either name to query, so read off ROLE_GROUPS.
 const CLERGY_FACTION_SLUGS =
   ROLE_GROUPS.find((group) => group.slug === "clergy")?.factionSlugs ?? [];
 
-// What the holder is told, per outcome. One line each, in the house style the
-// dawn afflictions set — the tag in bold, no explanation of the mechanic. This
-// is the ONE way a Xom event tells anybody anything: nothing is broadcast to a
-// zone, because the tag is `catalog: secret` and a zone-wide post would
-// reverse-engineer the whole thing inside two turns and hand the Church a list
-// of names.
+// What the holder is told, per outcome — the ONE way a Xom event tells
+// anybody anything. Nothing broadcasts to a zone: the tag is `catalog:
+// secret`, and a zone-wide post would hand the Church a list of names.
 const NOTICES = {
   feces: XOM_FECES_LINE,
   rats: "Your pack is heavier. Five skinned cave rats, still warm.",
@@ -101,10 +78,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
   const holders = await alivePassCharacters(prisma, {
     where: {
       tags: { some: { tag: { slug: OLD_WAYS_XOM_SLUG } } },
-      // A Catatonic character is a player who has stopped answering. Moving
-      // them across the map and pinging a live player into a scene with a
-      // mannequin produces a scene nobody can play, so the god loses interest
-      // in them until they come back.
+      // Catatonic characters stopped answering — the god loses interest until they come back.
       NOT: { tags: { some: { tag: { slug: CATATONIC_SLUG } } } },
     },
     select: {
@@ -133,9 +107,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
   const conversations = [];
   const shouts = [];
   const outcomes = {};
-  // Two holders can each roll a half-weight outcome in one close. Firing the
-  // mass madness twice would double-DM two entire factions and read as a bug,
-  // so the first one wins and the second falls through to nothing.
+  // Firing mass madness twice would double-DM two entire factions; the first wins.
   let massMadnessFired = false;
   let rolled = 0;
 
@@ -145,13 +117,10 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
     }
   };
 
-  // `turn.number + 1` and not `turn.number`: this runs while that turn is being
-  // CLOSED, and expiryFrom counts its argument as the tag's first LIVE turn.
-  // Passing the closing turn would give a 1-turn Seizure zero of them.
-  //
-  // Returns true only when something actually landed. grantTagSlugs answers []
-  // for a slug missing from the catalog and `{ added: 0 }` for a non-stackable
-  // tag already held, and announcing either would be a letter about nothing.
+  // `turn.number + 1`, not `turn.number`: this runs while that turn is being
+  // CLOSED, and expiryFrom counts its argument as the first LIVE turn.
+  // Returns true only when something actually landed — announcing a no-op
+  // grant would be a letter about nothing.
   const grant = async (character, slugs) => {
     const granted = await prisma
       .$transaction((tx) => grantTagSlugs(tx, character.id, slugs, turn.number + 1))
@@ -162,9 +131,8 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
     return Array.isArray(granted) && granted.some((row) => (row.added ?? 0) > 0);
   };
 
-  // Sequential, never Promise.all: applyDeathToRow claims its row
-  // conditionally, the teleport writes a locationId that the next holder's
-  // target query may read, and massMadnessFired is mutable state.
+  // Sequential, never Promise.all: applyDeathToRow claims conditionally, a
+  // teleport writes locationId the next holder's query may read, massMadnessFired is mutable.
   for (const character of holders) {
     rolled += 1;
     const held = new Set(character.tags.map((ct) => ct.tag.slug));
@@ -202,8 +170,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
         break;
 
       case "rage":
-        // Already Raging: the grant is a no-op on a non-stackable tag, so
-        // announcing one would be a letter about nothing.
+        // Already Raging: a no-op grant on a non-stackable tag.
         if (held.has(RAGE_SLUG)) { outcome = "nothing"; break; }
         if (await grant(character, [RAGE_SLUG])) tell(character, NOTICES.rage);
         else outcome = "nothing";
@@ -218,8 +185,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
               select: { id: true },
             });
             if (!tag) return false;
-            // The ladder's own rule (TAGS.md §3): the lower rungs come off, or
-            // the sheet carries Melee (Expert) under Melee (Legendary) forever.
+            // The ladder's own rule (TAGS.md §3): lower rungs come off, or Melee (Expert) sits under Legendary forever.
             await replaceLowerTiers(tx, character.id, tag.id);
             const granted = await grantTagSlugs(tx, character.id, [MELEE_LEGENDARY_SLUG], turn.number + 1);
             return granted.some((row) => (row.added ?? 0) > 0);
@@ -234,8 +200,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
       }
 
       case "gib": {
-        // Captured before applyDeathToRow nulls it — the thunk still owes
-        // Discord this role's deletion.
+        // Captured before applyDeathToRow nulls it — the thunk still owes Discord this role's deletion.
         const discordRoleId = character.discordRoleId;
         const { claimed } = await applyDeathToRow(prisma, character, {
           turn,
@@ -246,8 +211,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
           return { claimed: false };
         });
         if (!claimed) { outcome = "nothing"; break; }
-        // The god eats its own: vaporizeTags takes old-ways-xom with
-        // everything else, so nobody rolls this table from beyond the grave.
+        // The god eats its own: vaporizeTags takes old-ways-xom too, so nobody rolls this from beyond the grave.
         deaths.push({
           characterId: character.id,
           name: character.name,
@@ -261,11 +225,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
 
       case "shout":
         if (!character.locationId) { outcome = "nothing"; break; }
-        // The line is chosen here; shout() itself runs in the side-effect
-        // thunk, because it claims an AuditLog row and hands back a fan-out
-        // that has to be posted. Its gates stay intact — a Mute holder simply
-        // does not shout, and one who shouted in the last five minutes has
-        // nothing left in the throat.
+        // Line chosen here; shout() itself runs in the side-effect thunk (it claims an AuditLog row). Gates stay intact — Mute or a recent shout still blocks it.
         shouts.push({
           characterId: character.id,
           discordUserId: character.discordUserId,
@@ -277,8 +237,8 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
         break;
 
       case "lonely": {
+        // Nobody else standing anywhere.
         const target = await pickCompany(prisma, character.id, rng);
-        // Nobody else standing anywhere: the god has nothing to work with.
         if (!target) { outcome = "nothing"; break; }
         const from = character.locationId;
         const moved = await prisma.character
@@ -325,9 +285,8 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
   return { turnNumber: turn.number, rolled, outcomes, notices, deaths, teleports, conversations, shouts };
 }
 
-// A random other living character who is standing somewhere. Read fresh per
-// teleport rather than from a snapshot taken at the top of the pass, so
-// somebody gibbed a moment ago is already gone from the pool.
+// A random other living character standing somewhere. Read fresh per
+// teleport, not from a snapshot, so a just-gibbed character is already gone.
 async function pickCompany(prisma, characterId, rng) {
   const candidates = await alivePassCharacters(prisma, {
     where: { id: { not: characterId }, locationId: { not: null } },
@@ -338,16 +297,10 @@ async function pickCompany(prisma, characterId, rng) {
   return { id: pick.id, name: pick.name, locationId: pick.locationId, locationName: pick.location?.name ?? null };
 }
 
-// Madness on every living clergy character at once, the roller included — the
-// god does not check whose side anybody is on.
-//
-// Two arms because a character's own faction can drift from the one their seat
-// belongs to, and a Set because the two overlap for most people.
-//
-// Madness is NOT stackable, so a second dose on somebody who already has it is
-// a documented no-op that leaves their existing expiresTurn alone. That is the
-// right behaviour and deliberate: a second helping of the same madness should
-// not extend the first. Don't "fix" it.
+// Madness on every living clergy character at once, roller included — the
+// god does not check sides. Two arms because a character's own faction can
+// drift from their seat's. NOT stackable, so a second dose on someone who
+// already has it is a documented no-op leaving expiresTurn alone. Don't "fix" it.
 async function strikeTheClergy(prisma, turn, madnessTag) {
   if (CLERGY_FACTION_SLUGS.length === 0 || !madnessTag) return [];
   const victims = await alivePassCharacters(prisma, {

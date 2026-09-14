@@ -1,21 +1,10 @@
-// The rite catalog: every Thanati rite, the dictionary the Words of the
-// Circle are rolled from, the roll itself, and the matcher that decides
-// whether a line of speech chanted one (docs/systemdocs/THANATI.md).
-//
-// Pure and dependency-free on purpose — the Grimoire document is composed
-// from this on a server render, the chant hook reads it on every message,
-// and the tests run it without a database.
-//
-// THERE IS NO RITE BUTTON. A rite happens because robed, Inspired cultists
-// said this game's word for it in a room whose floor holds the ingredients
-// (db/lib/riteChant.js). What each rite DOES is db/lib/riteEffects.js, keyed
-// by `key`, run by the sweep. Names, descriptions, minimums and ingredient
-// lines are Bascinet's words, verbatim and unsigned, apart from the {tag:…}
-// links and the ⬢ glyph for quantities (CLAUDE.md).
+// The rite catalog: every Thanati rite, the dictionary the Words of the Circle are rolled from, the roll itself, and the matcher that decides
+// whether a line of speech chanted one (docs/systemdocs/THANATI.md). Pure and dependency-free — the Grimoire, the chant hook and tests all read it.
+// THERE IS NO RITE BUTTON: a rite happens because robed, Inspired cultists said this game's word for it in a room holding the ingredients
+// (db/lib/riteChant.js). What each rite DOES is db/lib/riteEffects.js, keyed by `key`, run by the sweep. Names/descriptions/minimums/ingredient
+// lines are Bascinet's words, verbatim and unsigned, apart from the {tag:…} links and the ⬢ glyph for quantities (CLAUDE.md).
 
-// Bascinet's dictionary, spelling preserved. Matching is case- and
-// punctuation-insensitive (normalizeChant), so the odd capital and the curly
-// apostrophe cost nothing. One duplicate in the source list is folded.
+// Bascinet's dictionary, spelling preserved. Matching is case- and punctuation-insensitive (normalizeChant).
 const THANATI_DICTIONARY = Object.freeze([
   "apigami", "stragarana", "vilomaxus", "rudsceleratus", "cruo", "crunatus",
   "pretiacruento", "cruentu", "cruensseasrjit", "cruonit", "shaantitus", "domus",
@@ -27,17 +16,12 @@ const THANATI_DICTIONARY = Object.freeze([
   "durbentia", "lokemundux",
 ]);
 
-// How long the room has to meet a rite's requirements after the first counted
-// chant, and how long the room then has to add chanters before it fires.
+// How long the room has to meet a rite's requirements after the first counted chant, and how long it then has to add chanters before it fires.
 const WINDOW_MS = 12 * 60 * 60_000;
 const GRACE_MS = 2 * 60_000;
 
-// An ingredient is one of:
-//   { tag, count }        a stack on the room floor (RoomTag)
-//   { resources: n }      ⬢ on the room floor (Room.resources)
-//   { kind }              "bound-person" | "corpse" | "photograph" | "weapon" —
-//                         found in the room by db/lib/riteIngredients.js and
-//                         handed to the effect rather than eaten.
+// An ingredient is { tag, count } (RoomTag stack), { resources: n } (⬢ on the floor), or { kind } — "bound-person"|"corpse"|"photograph"|"weapon",
+// found by db/lib/riteIngredients.js and handed to the effect rather than eaten.
 const RITES = [
   {
     key: "initial",
@@ -187,18 +171,11 @@ function riteByKey(key) {
   return RITES_BY_KEY.get(key) ?? null;
 }
 
-// Lowercase, letters only, one space between words. NFKC first so a
-// full-width or composed character folds to its plain form. Both the rolled
-// phrase and the spoken line go through this, so "Crudux, CRUO!" and
-// "crudux cruo" are the same chant, and `exim’ha` matches `exim'ha`.
+// Lowercase, letters only, one space between words. NFKC first so a full-width or composed character folds to its plain form. Both the rolled
+// phrase and the spoken line go through this, so "Crudux, CRUO!" and "crudux cruo" are the same chant, and `exim’ha` matches `exim'ha`.
 function normalizeChant(text) {
   return String(text ?? "")
-    // Tokens first, and this is not cosmetic. An archived line carries its
-    // mentions as `{char:<cuid>}` (db/lib/say.js), a cuid is [a-z0-9], and the
-    // letters-only rule below shatters one into runs it then treats as WHOLE
-    // WORDS — so `{char:c1cruo2xk9pq}` contains the word "cruo". For a robed,
-    // Inspired speaker that is a real chant off an accidental mention. Same
-    // vector for {resource:…}, photo codes and any id pasted into a room.
+    // Tokens first: an archived line carries mentions as `{char:<cuid>}`, and the letters-only rule below would shatter one into words like "cruo".
     .replace(/\{[^{}]*\}/g, " ")
     .normalize("NFKC")
     .toLowerCase()
@@ -207,22 +184,15 @@ function normalizeChant(text) {
     .replace(/\s+/g, " ");
 }
 
-// Whole-word containment: the phrase's words appear in order, as words, not
-// as the inside of a longer word. "cruo" does not match "cruonit".
+// Whole-word containment: the phrase's words appear in order, as words, not inside a longer word. "cruo" does not match "cruonit".
 function containsPhrase(normalizedText, normalizedPhrase) {
   if (!normalizedPhrase) return false;
   const haystack = ` ${normalizedText} `;
   return haystack.includes(` ${normalizedPhrase} `);
 }
 
-// One to three distinct words per rite, shuffled, joined by a space. A phrase
-// that equals, contains or is contained in another rite's phrase is rerolled:
-// matching is "contains", so a nested pair would fire two rites off one line.
-//
-// `existing` is a TOP-UP: any phrase already rolled for a rite is kept as-is
-// and counted among the taken, and only the rites missing from it are rolled.
-// That is what lets a running game gain a rite — the words are rolled once per
-// game and a new catalog entry would otherwise have none, forever.
+// One to three distinct words per rite, shuffled. A phrase that equals, contains or is contained in another rite's phrase is rerolled, since
+// matching is "contains". `existing` is a TOP-UP: any phrase already rolled is kept as-is, letting a running game gain a new catalog rite.
 function rollRiteWords(rng = Math.random, rites = RITES, existing = null) {
   const words = [...THANATI_DICTIONARY];
   const out = {};
@@ -269,8 +239,7 @@ function matchRites(content, words) {
   return keys;
 }
 
-// Whether one ingredient list can be judged off a room floor alone. The
-// person/corpse/photograph/weapon kinds are the scripted rite's to resolve.
+// Whether one ingredient list can be judged off a room floor alone — the person/corpse/photograph/weapon kinds are the scripted rite's to resolve.
 function floorIngredients(rite) {
   return (rite?.ingredients ?? []).filter((i) => i.tag || i.resources);
 }

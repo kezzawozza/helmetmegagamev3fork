@@ -1,55 +1,14 @@
-// Which name and face the room sees when a character speaks. Three cases, in
-// order of precedence:
-//
-//   forced    — a held tag carries Tag.forcedName (Apex Form -> "Beast"). The
-//               character posts under that name with the letter plaque for its
-//               initial, never their own face, and cannot conceal.
-//   concealed — something concealing is EQUIPPED and either forces it or the
-//               character chose it: the vague alias from concealedIdentity.js
-//               and that item's own plated sprite.
-//   own       — Character.name and /api/avatar/<id>.
-//
-// Resolved at READ time from the live row plus the held tags, the same posture
-// as the letter plaque and the Catatonic role suffix: nothing on the Character
-// row is rewritten when the tag lands, so two Beasts never collide on
-// Character.name and a GM table still shows who it is.
-//
-// `alias` is "the name the room saw when it was not the real one" — set for
-// both the concealed and the forced case, and what recordArchiveMessage
-// freezes into ArchiveEntry.concealedAlias so /archive renders
-// `Beast (Jorren Vask)` the way it renders a hood. `concealed` stays true only
-// for a real hood: the impoverished 🔍 embed and the no-relay rule in
-// messageCreate.js are about hiding, and a Beast is not hiding.
-//
-// Concealment is DERIVED, not just stored. Character.concealed is only the
-// player's wish; it takes effect solely while a Tag.concealsIdentity item is
-// equipped, and a Tag.forcesConceal item overrides the column entirely. So a
-// row left concealed after the mask came off resolves back to the real face on
-// its own, and no backfill or catch-up pass is needed for either direction.
-//
-// presentedIdentity / forcedNameFrom / concealmentFrom / letterPlaqueFile are
-// pure; loadForcedName and loadConcealment are the two queries, for call sites
-// that already hold a Character without its tags. Spread into the @lifeweb/db
-// barrel beside concealedIdentity.js.
+// forced (Tag.forcedName; posts under that initial, never their own face, and
+// cannot conceal), concealed (equipped item's alias+sprite), or own. DERIVED, never stored.
 const { concealedAlias, isConcealedAlias } = require("./concealedIdentity");
 
-// The shape concealmentFrom returns, for the legacy fallback above: concealed
-// with no idea what by. It draws the blank letter plaque, which is the same
-// tile a nameless initial already lands on — a real file, because the one
-// caller that can reach this state is a Discord webhook avatar
-// (db/lib/discordRest.js) and Discord cannot render the web's question-mark
-// plate. web/public/assets/unknown.png is gone.
+// Fallback plaque: the caller here is a Discord webhook avatar
+// (db/lib/discordRest.js), which cannot render the web's question-mark plate.
 const UNSLOTTED = { sprite: null, forced: false };
 const BLANK_PLAQUE = "/assets/letters/_default.webp";
-// Where a concealing item's own sprite is served from. A hood's face comes
-// from here and nothing else's does, which is what makes it readable back off
-// a row (see wasHooded).
-const HELM_PREFIX = "/assets/helms/";
+const HELM_PREFIX = "/assets/helms/"; // a hood's face; see wasHooded.
 
-// The Tag columns concealmentFrom reads. Exported so the eight call sites that
-// resolve an identity select the same set — miss one and concealment silently
-// stops working at that surface only, which is the worst way for this to fail.
-// Pair it with `equipped: true` on the CharacterTag itself.
+// Exported so every call site resolving an identity selects the same fields.
 const CONCEALMENT_TAG_FIELDS = {
   name: true,
   concealsIdentity: true,
@@ -58,8 +17,7 @@ const CONCEALMENT_TAG_FIELDS = {
   equipLayer: true,
 };
 
-// The forced name off a character's tags — CharacterTag[] (with .tag) or bare
-// Tag[]. First one wins; the catalog is not expected to stack two.
+// Forced name off a character's tags; first one wins.
 function forcedNameFrom(tags) {
   if (!Array.isArray(tags)) return null;
   for (const entry of tags) {
@@ -70,17 +28,7 @@ function forcedNameFrom(tags) {
   return null;
 }
 
-// What a roster row is CALLED, for a list that has already excluded hoods.
-//
-// The third hand-rolled copy of `forced ?? name` was in web/lib/peoplePools.js
-// and it did not exist: every action picker on /character printed
-// Character.name straight, so a Beast's real name reached Heal, Loot, Bind,
-// Harm, Kiss, Teach and Confess while whosHere() and Attack got it right. A
-// forced name is not concealment — a Beast is openly a Beast — so the row
-// keeps its real id and only the label changes.
-//
-// It does NOT handle a hood, deliberately: a list that can contain one wants
-// whosHere()'s two-list answer, not a name.
+// Label for a roster row already excluding hoods; not a hood-safe helper.
 function rosterName(row) {
   return forcedNameFrom(row?.tags) ?? row?.name ?? null;
 }
@@ -93,38 +41,23 @@ async function loadForcedName(prisma, characterId) {
   return forcedNameFrom(held ? [held] : []);
 }
 
-// What is over this character's face, from CharacterTag[] (with .tag). Returns
-// the OUTERMOST equipped concealing piece — highest Tag.equipLayer — because
-// that is the one an onlooker actually sees: a coif under a knight's helm is a
-// coif nobody can see. `forced` is true when ANY equipped piece forces it, not
-// just the outermost, so a sack over a helmet still cannot be talked off.
-//
-// `name` rides along for one reason: /conceal has to refuse a forced piece, and
-// "not while you are wearing that" is a much worse sentence than one that says
-// which thing. It is the outermost piece's name, so it matches the sprite.
-//
-// Returns null when nothing conceals, which is what gates /conceal.
+// Returns the OUTERMOST equipped concealing piece (highest Tag.equipLayer);
+// `forced` true if ANY equipped piece forces it. Null when nothing conceals.
 function concealmentFrom(tags) {
   if (!Array.isArray(tags)) return null;
   let best = null;
   let forced = false;
   for (const entry of tags) {
-    // A bare Tag[] has no equipped flag; only a CharacterTag row can be worn,
-    // and unworn gear conceals nobody.
     if (entry?.equipped !== true) continue;
     const tag = entry?.tag ?? entry;
     if (!tag?.concealsIdentity || !tag?.concealSprite) continue;
     if (tag.forcesConceal) forced = true;
-    // A concealing tag with no slot sorts below every slotted one rather than
-    // being dropped — it still conceals, it just loses a tie.
     const layer = Number.isInteger(tag.equipLayer) ? tag.equipLayer : 0;
     if (!best || layer > best.layer) best = { sprite: tag.concealSprite, layer, name: tag.name ?? null };
   }
   return best ? { sprite: best.sprite, name: best.name ?? null, forced } : null;
 }
 
-// The query form, for a caller holding a bare Character. Selects only what
-// concealmentFrom reads.
 async function loadConcealment(prisma, characterId) {
   const held = await prisma.characterTag.findMany({
     where: { characterId, equipped: true, tag: { concealsIdentity: true } },
@@ -136,17 +69,13 @@ async function loadConcealment(prisma, characterId) {
   return concealmentFrom(held);
 }
 
-// Which tile under web/public/assets/letters/ a name gets: its first letter,
-// upper-cased. Accented, non-Latin, numeric and empty initials all land on the
-// blank plaque rather than 404ing or falling back to a wrong letter. Shared by
-// the avatar route (own plaque) and the forced case below (forced plaque).
+// The letters/ tile for a name: its upper-cased first letter, or blank plaque.
 function letterPlaqueFile(name) {
   const initial = (name?.trim()?.[0] ?? "").toUpperCase();
   return /^[A-Z]$/.test(initial) ? `${initial}.webp` : "_default.webp";
 }
 
-// avatarPath is site-relative; the bot prefixes WEB_BASE_URL, the web app
-// uses it as-is.
+// avatarPath is site-relative; the bot prefixes WEB_BASE_URL.
 function presentedIdentity(character, { forcedName = null, concealment = undefined } = {}) {
   if (forcedName) {
     return {
@@ -157,18 +86,13 @@ function presentedIdentity(character, { forcedName = null, concealment = undefin
       forced: true,
     };
   }
-  // `concealment` undefined means the caller did not load tags and cannot say.
-  // Fall back to the column alone: that errs toward hiding somebody who should
-  // be visible, never toward exposing somebody who should not be, which is the
-  // only safe direction for this to fail in.
+  // Fall back to the column alone — errs toward hiding, never toward exposing.
   const piece = concealment === undefined ? (character.concealed ? UNSLOTTED : null) : concealment;
   if (piece && (piece.forced || character.concealed)) {
     const alias = concealedAlias(character);
     return {
       name: alias,
-      // Everyone in the same mask looks the same on purpose — the sprite says
-      // WHAT is over the face, never who is behind it, so a concealed avatar
-      // is never a fingerprint.
+      // The sprite says WHAT is over the face, never who is behind it.
       avatarPath: piece.sprite ? `/assets/helms/${piece.sprite}.webp` : BLANK_PLAQUE,
       alias,
       concealed: true,
@@ -185,30 +109,8 @@ function presentedIdentity(character, { forcedName = null, concealment = undefin
   };
 }
 
-// Was an ARCHIVED line spoken from under a hood, or under a forced name?
-// ArchiveEntry.concealedAlias holds both — a Beast is being something, not
-// hiding — so something else has to tell them apart, and everything this
-// reads is frozen on the row at send time.
-//
-// Both call sites used to answer it by comparing the row's alias against the
-// speaker's CURRENT forced name. That works right up until the forced name
-// goes away, and one of them is built to: a Disguise Kit tag lasts three turns
-// and is swept at turn advance. After the sweep the comparison found no name
-// to match, so every line the character had said while disguised started
-// rendering as the impoverished concealed readout — on the web's Look at and
-// on Discord's 🔍 alike, since both ask this one question.
-//
-// Two frozen signals settle it without asking what anybody holds today:
-//
-//   1. presentedAvatarPath is the face the room actually saw. A hood wears the
-//      concealing item's own sprite and nothing else ever does.
-//   2. A hood's alias can only be one of the nine concealedIdentity.js can
-//      build, so an alias outside that set was a forced name.
-//
-// `forcedName` is the old tiebreaker, kept for the sliver both signals leave:
-// a row from before presentedAvatarPath existed whose forced name happens to
-// read like an alias. Pass it when the caller has it cheaply; without it an
-// ambiguous row reads as a hood, which is the safe direction to be wrong in.
+// Hood vs. forced name for an ARCHIVED line, from signals frozen at send time
+// (presentedAvatarPath, alias shape); ambiguous reads as a hood, safe to be wrong.
 function wasHooded(row, { forcedName = null } = {}) {
   const alias = row?.concealedAlias;
   if (!alias) return false;

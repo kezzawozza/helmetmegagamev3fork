@@ -22,8 +22,7 @@ const { buildRoomBody, buildAnchorBody } = require("./bodies");
 
 // --- Room threads ------------------------------------------------------
 
-// Finds a thread already under the channel with this exact title, so
-// syncRoomThread can adopt it instead of creating a duplicate (a retried
+// Adopt an existing thread instead of creating a duplicate (a retried
 // create Discord already applied).
 async function findExistingThread(channelId, title, snapshot, kind) {
   const active = await listActiveThreadsForChannel(channelId, snapshot);
@@ -36,8 +35,7 @@ async function findExistingThread(channelId, title, snapshot, kind) {
   return archived.find((t) => t.name === title) ?? null;
 }
 
-// Writes a room's starter into a thread that has none recorded: first chunk
-// becomes the starter (pinned in-thread), the rest follow.
+// First chunk becomes the starter (pinned in-thread), the rest follow.
 async function writeRoomStarter(threadId, chunks, components) {
   const starter = await postMessage(threadId, chunks[0], components);
   for (const chunk of chunks.slice(1)) await postMessage(threadId, chunk);
@@ -48,25 +46,20 @@ async function writeRoomStarter(threadId, chunks, components) {
   return starter.id;
 }
 
-// One thread per room under its location's channel, sync-owned: starter =
-// the room body, reconciled by hash. Never locked (players roleplay inside
-// it); the message wipe clears replies but never the starter. Returns
-// "created" | "updated" | "unchanged" | "skipped".
-// Rooms carry NO slowmode (Bascinet, 2026-09-06): the 5-minute one belongs to
-// #summary alone, and a Room thread is moment-to-moment talk. Zero is still
-// asserted on every pass, the same way `archived: false` is, because a thread
-// briefly carried 30 s during the Location-goes-quiet change and Discord keeps
-// a thread's rate limit per thread — nothing else would ever clear it.
+// One thread per room, sync-owned: starter = the room body, reconciled by
+// hash. Never locked; the message wipe clears replies but never the starter.
+// Returns "created" | "updated" | "unchanged" | "skipped". Rooms carry NO
+// slowmode (the 5-minute one belongs to #summary alone); zero is asserted on
+// every pass the same way `archived: false` is, since Discord keeps a
+// thread's rate limit per thread and nothing else would ever clear it.
 const ROOM_SLOWMODE_SECONDS = 0;
 
 async function syncRoomThread(prisma, room, location, snapshot, liveState) {
   if (!location?.discordChannelId) return "skipped";
 
   const body = buildRoomBody(room, liveState);
-  // Hashed with its button row, as the anchor is, so adding a button to the
-  // starter re-posts it once and never again — and a gate's open/shut state is
-  // INSIDE that row, which is what makes the button re-render itself after a
-  // flip rather than sit there lying about the gate.
+  // Hashed with its button row, as the anchor is: a gate's open/shut state is
+  // INSIDE that row, so the button re-renders after a flip.
   const components = await roomComponents(prisma, room, location.id);
   const hash = hashBody(body + JSON.stringify(components));
   const chunks = chunkMessage(body);
@@ -141,9 +134,8 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
   return "updated";
 }
 
-// The modular gates on one location, shaped for locationGateRow. Reads the
-// graph rather than taking it from the sync's own state, because the button
-// handler refreshes an anchor too and has no sync state to hand.
+// Reads the graph rather than the sync's own state, since the button handler
+// refreshes an anchor too and has no sync state to hand.
 async function gatesFor(prisma, locationId) {
   const links = await linksFor(prisma, locationId);
   return links
@@ -156,13 +148,10 @@ async function gatesFor(prisma, locationId) {
     .sort((x, y) => x.farName.localeCompare(y.farName));
 }
 
-// The components a Room's starter post carries: its own button row, plus — for
-// the four watchtowers — one Open/Close button per modular gate touching the
-// Location the room is in. That second row is the ONLY place a gate button
-// renders (db/lib/roomStarterRow.js#WATCHTOWER_ROOM_SLUGS).
-//
-// A separate action row rather than more buttons on the first, which keeps
-// Storage/Intercom/Turret/Bell clear of Discord's five-per-row cap.
+// A Room's starter row, plus — for watchtowers — one Open/Close button per
+// modular gate on the Location, the ONLY place a gate button renders
+// (db/lib/roomStarterRow.js#WATCHTOWER_ROOM_SLUGS). A separate action row
+// keeps Storage/Intercom/Turret/Bell clear of Discord's five-per-row cap.
 async function roomComponents(prisma, room, locationId) {
   const rows = [roomStarterRow(room)];
   if (WATCHTOWER_ROOM_SLUGS.has(room.slug)) {
@@ -172,18 +161,15 @@ async function roomComponents(prisma, room, locationId) {
 }
 
 // The pinned anchor message in a location's channel. Hash-gated on body +
-// components; a message a GM deleted by hand is reposted.
-//
-// The gate button used to live here, on BOTH endpoints. It does not any more —
-// it is on the watchtower's starter post instead (roomComponents above), so
-// nobody drops a portcullis from the open road.
+// components; a message a GM deleted by hand is reposted. The gate button is
+// on the watchtower's starter post instead (roomComponents above), so nobody
+// drops a portcullis from the open road.
 async function syncLocationAnchor(prisma, location, rooms) {
   if (!location.discordChannelId) return "skipped";
 
   const body = buildAnchorBody(location, rooms);
-  // The whole set of rows, not just the id: the Noticeboard button is
-  // conditional on this location's `attributes` (db/lib/noticeboard.js), and
-  // adding Travel pushed a boarded location onto a second row.
+  // Whole set of rows, not just the id: Noticeboard is conditional on
+  // `attributes` (db/lib/noticeboard.js), Travel pushed a second row.
   const components = locationAnchorRows(location);
   const hash = hashBody(`${body} ${JSON.stringify(components)}`);
 

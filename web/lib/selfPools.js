@@ -36,32 +36,19 @@ import {
   computeHiddenDesireTagIds,
 } from "@/lib/desireProjection";
 
-// Everything a surface needs to draw a character's OWN state, the way
-// web/lib/peoplePools.js does for the people standing near them. It lived
-// inside web/app/(app)/character/page.js while the sheet was the only place
-// that drew it; Chat's YOU column is the second.
-//
-// Every gate is evaluated HERE, server-side. The client never runs the gate
-// logic and never receives a hidden template.
-//
-// `character` needs { id, tags: [{ tagId, tag }], role: { slug } }.
-//
-// `withCatalog: false` is Chat's ask: the picker is closed on almost
-// every page load, and the evaluated catalog is ~271 templates. The slot half
-// — which slots are open, what was last claimed in each — costs one query, so
-// that is what the first paint carries. Chat fetches the other half
-// through a server action the first time somebody opens the picker.
+// Everything a surface needs to draw a character's OWN state (as web/lib/peoplePools.js does for
+// people nearby). Every gate is evaluated HERE, server-side. `withCatalog: false` is Chat's ask: the
+// picker is closed on most loads, so the first paint carries only the slot half.
 export async function loadDesireView(character, { openTurn, gameConfig, withCatalog = true } = {}) {
   const desireSlots = gameConfig?.desireSlots ?? 2;
   const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 1;
-  // Manic. The client needs no flag of its own: slotStates below already comes
-  // back unlocked for a holder, and the sheet labels a slot off that.
+  // Manic: slotStates below already comes back unlocked for a holder; the sheet labels a slot off that.
   const slotsNeverLock = desireSlotsNeverLock(character.tags ?? []);
   const heldTags = (character.tags ?? []).map((ct) => ct.tag);
   const heldDesireTagIds = new Set((character.tags ?? []).map((ct) => ct.tagId));
   const openTurnNumber = openTurn?.number ?? 0;
 
-  // ALL statuses — the gate evaluator needs the whole history.
+  // ALL statuses: the gate evaluator needs the whole history.
   const history = await prisma.desire.findMany({
     where: { characterId: character.id },
     select: {
@@ -130,10 +117,7 @@ export async function loadDesireView(character, { openTurn, gameConfig, withCata
     desireSlots,
   });
 
-  // The `hidden` half (db/lib/desireGates.js) never reaches this variable.
-  // A "locked" entry (unmet requires, or a family a held tag shuts) is
-  // dropped here too. Cooldown/once-ever-done rows stay, since those are
-  // claimed already, just not claimable right now.
+  // The `hidden` half never reaches this variable; a "locked" entry is dropped too, cooldown rows stay.
   view.catalog = visible
     .filter(({ state }) => state !== "locked")
     .map(({ template, state, availableFromTurn, slotLocks }) => ({
@@ -156,33 +140,18 @@ export async function loadDesireView(character, { openTurn, gameConfig, withCata
 }
 
 // ---- Letters, seals, books and the Bird ------------------------------------
-//
-// Everything the paperwork dialogs need (docs/systemdocs/PAPERWORK.md, §Bird),
-// as the exact props RequestActionsProvider takes. It was written inline in
-// web/app/(app)/character/page.js while the sheet was the only surface that
-// opened those dialogs; Chat's composer is the second, and a second copy
-// of these gates would be a second answer to "can this character write".
-//
-// `character` needs { id, locationId, tags: [{ tagId, quantity, tag }],
-// location: { indoors }, birdTurnId, birdDaySends }.
-//
-// The TEXT of a paper never comes back from here — only an excerpt, and only
-// for a reader. The dialogs fetch the whole thing on demand
-// (character/paperActions.js#readMyPaper), so an unreadable sheet is never
-// sitting in a client payload waiting to be read out of the page source.
+// Everything the paperwork dialogs need (PAPERWORK.md, §Bird), shared between the sheet and Chat's
+// composer. The TEXT of a paper never comes back from here — only an excerpt for a reader; the dialogs
+// fetch the whole thing on demand (character/paperActions.js#readMyPaper).
 export async function loadLettersView(character, { openTurn = null } = {}) {
   const tags = character.tags ?? [];
   const hasBird = holdsBirdAndLetters(tags);
-  // Letters AND eyes — the same predicate the tag chips, the noticeboard and
-  // paperActions.js all use, so the button, the chip and the server's refusal
-  // can never disagree.
+  // Letters AND eyes — the same predicate the tag chips, the noticeboard and paperActions.js all use.
   const canReadNow = canRead(tags, {
     phase: openTurn?.phase ?? null,
     indoors: character.location?.indoors ?? true,
   });
-  // Something to write ON: a blank sheet, a blank book, or a note already
-  // started. A sealed letter does not count — you would have to break the seal
-  // first, and a written book is finished for good.
+  // Something to write ON: a blank sheet, a blank book, or a note already started; a sealed letter doesn't count.
   const writables = tags.filter(
     (ct) =>
       ct.tag.slug === PAPER_SLUG ||
@@ -190,7 +159,6 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
       ct.tag.paperKind === "PAPER",
   );
   const canWrite = canReadNow && writables.length > 0;
-  // Wax stamps in hand, and letters worth closing.
   const seals = tags.filter((ct) => isSeal(ct.tag));
   const hasSeal = seals.length > 0;
   const sealables = tags.filter(
@@ -202,19 +170,15 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
     tagId: ct.tagId,
     name: ct.tag.name,
     blank: ct.tag.slug === PAPER_SLUG,
-    // A blank book wants a title as well as a body, and takes six times the
-    // text. The dialog reads this off the chosen option.
+    // A blank book wants a title as well as a body, and takes six times the text.
     book: ct.tag.slug === BLANK_BOOK_SLUG,
     quantity: ct.quantity,
-    // Enough to tell two notes apart in a dropdown, and only for a reader.
     excerpt:
       canReadNow && ct.tag.paperKind === "PAPER"
         ? (ct.tag.paperText ?? "").trim().slice(0, 60)
         : null,
   }));
-  // Everything a bird could carry. Sealed letters included — a courier does
-  // not have to be able to read what they are carrying, which is rather the
-  // use of an illiterate one.
+  // Everything a bird could carry, sealed letters included — a courier need not read what it carries.
   const letterOptions = tags
     .filter((ct) => ct.tag.paperKind === "PAPER" || ct.tag.paperKind === "SEALED")
     .map((ct) => ({
@@ -235,21 +199,13 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
       tagId: ct.tagId,
       name: ct.tag.name,
       excerpt: canReadNow ? (ct.tag.paperText ?? "").trim().slice(0, 60) : null,
-      // A sheet that arrived untitled may be labelled at the wax, and one that
-      // already has a title may not — the writer named it and a second hand
-      // does not get to rename it. The dialog hides its title field off this;
-      // paperMint.js#sealWithMark is the lock behind it.
+      // An untitled sheet may be labelled at the wax; a titled one may not — the writer named it.
       titled: Boolean((ct.tag.paperTitle ?? "").trim()),
     })),
   };
 
-  // Compared against the in-game DAY (birdTurnId stores the day), not the
-  // turn. Advisory only — the server's conditional claim is the real gate.
-  //
-  // It is a COUNT against an allowance now, not a boolean: a Rookery standing
-  // where they are is worth several flights a day (db/lib/rookery.js). Read
-  // the allowance only for somebody actually holding a bird — 56 of the 57
-  // Locations have no rookery and should not pay for a query to find that out.
+  // Compared against the in-game DAY, advisory only. A COUNT against an allowance, not a boolean
+  // (db/lib/rookery.js), read only for somebody holding a bird.
   const birdAllowance = hasBird
     ? birdAllowanceFrom(
         await structuresAt(prisma, character.locationId, { statuses: WORKING_STATUSES }),
@@ -259,16 +215,12 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
     Boolean(openTurn) && character.birdTurnId === String(describeTurn(openTurn).day);
   const birdSentToday = sameDay && (character.birdDaySends ?? 0) >= birdAllowance;
 
-  // The Raven Draught (REQUESTS.md) reaches anybody, anywhere, once. It shares
-  // the Bird's recipient list below rather than building a second one — both
-  // are "every character in the game", and two queries would be two chances
-  // for one of them to start filtering by liveness and become a casualty list.
+  // The Raven Draught (REQUESTS.md) reaches anybody, anywhere, once; shares the Bird's recipient list below.
   const hasRavenDraught = tags.some(
     (ct) => ct.tag.slug === "raven-draught" && ct.quantity > 0,
   );
 
-  // Recipient list is EVERY character regardless of status; a letter to a dead
-  // name never arrives. Only fetched for someone holding a bird or a draught.
+  // Recipient list is EVERY character regardless of status; a letter to a dead name never arrives.
   const birdTargets = hasBird || hasRavenDraught
     ? await prisma.character.findMany({
         where: { id: { not: character.id } },
@@ -276,7 +228,6 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
         orderBy: { name: "asc" },
       })
     : [];
-  // Everywhere standable except the two deep cave levels (birdZones()).
   const birdZones = hasBird
     ? birdZonesOf(
         await prisma.zone.findMany({
@@ -286,15 +237,8 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
       ).map((z) => ({ id: z.id, name: z.name }))
     : [];
 
-  // Letters the bird is still standing over, waiting for something to carry
-  // back (docs/systemdocs/BIRD.md). Not gated on `hasBird`: the bird that
-  // brought it is the one that takes the answer, so replying needs no bird of
-  // your own — only the letters in your hands and the ability to work it.
-  //
-  // The window is the turn it arrived in and the one after. The authority is
-  // db/lib/birdReply.js#birdReplyWindow, which the answer re-runs; this is the
-  // read-side half, so a shut window greys the button rather than opening a
-  // dialog that can only refuse.
+  // Letters the bird is still standing over (BIRD.md); not gated on `hasBird`, only the letters in hand.
+  // The window mirrors db/lib/birdReply.js#birdReplyWindow, so a shut window greys the button instead of opening a dialog that refuses.
   const birdReplies =
     canReadNow && letterOptions.length > 0
       ? (
@@ -312,8 +256,7 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
           })
         ).map((m) => ({
           id: m.id,
-          // A GM letter is signed with whatever name the GM wrote it under,
-          // which is already the snapshot in senderName (BIRD.md §9).
+          // A GM letter is signed with whatever name the GM wrote it under (BIRD.md §9).
           senderName: m.senderName,
         }))
       : [];
@@ -336,20 +279,10 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
 }
 
 // ---- The faction, for Chat's Faction panel ------------------------------
-//
-// The same loaders /faction runs — web/lib/factionView.js#loadFaction and the
-// Leader/Treasurer test in db/lib/factionPermissions.js — so the two surfaces
-// can never disagree about who is in a faction or who may see a member's ⬢
-// (FACTIONS.md §5-6).
-//
-// `resources` is on a roster row ONLY for a Leader or a Treasurer of that same
-// faction. It is left off the object entirely rather than nulled, because this
-// crosses into a client component and an absent key cannot be read out of the
-// page source.
-//
-// Returns null for a character with no faction, and for the Unaffiliated
-// placeholder — which is not a faction (FACTIONS.md §1a) and has no roster
-// worth a section in the column.
+// The same loaders /faction runs (factionView.js#loadFaction, factionPermissions.js), so the two
+// surfaces can never disagree about who may see a member's ⬢ (FACTIONS.md §5-6). `resources` is left
+// off the roster object entirely rather than nulled, since this crosses into a client component and an
+// absent key can't be read out of the page source. Returns null for no faction, or Unaffiliated (FACTIONS.md §1a).
 export async function loadFactionView(session, character) {
   if (!session?.discordUserId || !character?.id) return null;
 
@@ -366,10 +299,7 @@ export async function loadFactionView(session, character) {
   const faction = await loadFaction(factionId);
   if (!faction || isUnaffiliated(faction)) return null;
 
-  // Only the officer bit is read now. There used to be a line under the name
-  // saying which seat the VIEWER holds, and it is gone: the roster below
-  // already marks the Leader and the Treasurer, so it told an officer
-  // something they could read two rows down and everyone else nothing at all.
+  // Only the officer bit is read: the roster below already marks the Leader and the Treasurer.
   const { isOfficer } = await getMyFactionRole(session.discordUserId, faction.id);
 
   return {
@@ -386,9 +316,7 @@ export async function loadFactionView(session, character) {
       avatarVersion: c.updatedAt?.getTime?.() ?? null,
       ...(isOfficer ? { resources: c.resources } : {}),
     })),
-    // The silo is a Room, so it already has a place key — the panel's Silo
-    // button just selects it, and only when the viewer's own places carry it
-    // (a shut door means the room is not in their list at all).
+    // The silo is a Room with its own place key; the panel's Silo button just selects it.
     silo: faction.siloRoom
       ? {
           roomId: faction.siloRoom.id,

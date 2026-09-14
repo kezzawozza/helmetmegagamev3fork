@@ -1,13 +1,8 @@
-// Reads ONLY the `families:` / `familyGroups:` headers of docs/desires.yaml —
-// never the `desires:` list below them, so a caller that just needs to
-// validate a family key doesn't pay for parsing the whole catalog.
-//
-// A MISSING file is NOT an error here: db/lib/syncTags.js requires this
-// module so a tag's `desires.locks` families can be checked at db:sync-tags
-// time, and a repo with no desires.yaml must still be able to sync tags — it
-// just can't validate any `desires:` block against real families, so it gets
-// an empty set and every reference throws (the same failure a typo would
-// produce).
+// Reads ONLY the `families:` / `familyGroups:` headers of docs/desires.yaml, never the `desires:` list
+// below them, so a caller that just needs to validate a family key doesn't parse the whole catalog. A
+// MISSING file is NOT an error — db/lib/syncTags.js requires this module to check a tag's
+// `desires.locks` families at db:sync-tags time, and a repo with no desires.yaml must still sync tags;
+// it just gets an empty set and every reference throws (same failure a typo would produce).
 
 const fs = require("node:fs");
 const yaml = require("js-yaml");
@@ -16,8 +11,7 @@ const { entriesOf } = require("./yamlEntries");
 
 let cachedDoc;
 
-// The parsed file, or {} when absent. Cached for the life of the process —
-// this module never invalidates at runtime, same posture as before.
+// The parsed file, or {} when absent. Cached for the life of the process — never invalidates at runtime.
 function loadDoc() {
   if (cachedDoc !== undefined) return cachedDoc;
   const file = docsPath("desires.yaml");
@@ -40,11 +34,10 @@ function desireFamilyKeys() {
   return cachedKeys;
 }
 
-// { key, name, group, color } per family, in header order. `group` names a
-// familyGroups entry and `color` is a freeform hex — both are picker-only
-// data (web/app/components/DesireCatalog.js) the sync never reads, so either
-// may be absent and comes back null. Kept as a separate export so a caller
-// that only wants the Set (the common case, validation) never carries names.
+// { key, name, group, color } per family, in header order. `group` names a familyGroups entry and
+// `color` is a freeform hex — both picker-only data (web/app/components/DesireCatalog.js) the sync
+// never reads, so either may be absent and comes back null. Separate export so a caller that only
+// wants the Set (validation) never carries names.
 function desireFamilies() {
   if (cachedFamilies !== undefined) return cachedFamilies;
   cachedFamilies = entriesOf(loadDoc().families, "key")
@@ -58,8 +51,7 @@ function desireFamilies() {
   return cachedFamilies;
 }
 
-// { key, name } per familyGroups entry, in header order — the hue clusters
-// the picker's tab bar is built from.
+// { key, name } per familyGroups entry, in header order — the hue clusters the picker's tab bar is built from.
 function desireFamilyGroups() {
   if (cachedGroups !== undefined) return cachedGroups;
   cachedGroups = entriesOf(loadDoc().familyGroups, "key")

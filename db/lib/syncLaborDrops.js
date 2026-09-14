@@ -1,15 +1,6 @@
-// docs/labordrops.yaml -> LaborDropOption. Called by `npm run
-// db:sync-labor-drops`. See docs/systemdocs/LABORDROPS.md for the shape.
-//
-// DESTRUCTIVE, unconditionally: every row is deleted and rebuilt from the
-// YAML on every run, the same posture as db:sync-documents (SYNC.md §1) —
-// nothing in the game ever points AT a LaborDropOption row (no CharacterTag,
-// no Action), so there is no player state a partial upsert would need to
-// protect.
-//
-// Run AFTER db:sync-zones and db:sync-tags: every tag/zone/location slug
-// named below is validated against those catalogs, and an unknown one throws
-// rather than half-applying.
+// docs/labordrops.yaml -> LaborDropOption. Called by `npm run db:sync-labor-drops`. See docs/systemdocs/LABORDROPS.md for the shape. DESTRUCTIVE,
+// unconditionally: every row is deleted and rebuilt each run, same posture as db:sync-documents (SYNC.md §1) — nothing points AT this row. Run
+// AFTER db:sync-zones and db:sync-tags: every tag/zone/location slug named below is validated against those catalogs.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
@@ -30,24 +21,12 @@ function loadDoc() {
   return yaml.load(fs.readFileSync(requireDocsPath("labordrops.yaml"), "utf8"));
 }
 
-// YAML rarity name -> the LaborDropRarity enum. The six are
-// db/lib/labordropsRarity.js's TIERS, which are cavingLoot.js's.
+// YAML rarity name -> the LaborDropRarity enum. The six are db/lib/labordropsRarity.js's TIERS.
 const RARITY_BY_NAME = new Map(TIERS.map((t) => [t, t.toUpperCase().replace(/-/g, "_")]));
 
-// One pool item -> a partial LaborDropOption row, or throws.
-//
-// Two shapes. A bare scalar is a pad or a ⬢ delta: "nothing" (any case) is
-// the explicit no-result, "+N"/"-N" is a Resources change. Neither is an item
-// and neither takes a rarity — they sit in their own bands.
-//
-// Anything you can actually find is an object carrying its rarity:
-//
-//     - { slug: blind-fish, rarity: common }
-//
-// The rarity is REQUIRED on a tag, and that is the point of the shape: under
-// the old uniform draw an entry's odds came from how many times it had been
-// copy-pasted, which meant nobody ever had to say how rare a thing was
-// supposed to be. Now they do, once, in a word.
+// One pool item -> a partial LaborDropOption row, or throws. Two shapes: a bare scalar is "nothing" (explicit no-result) or "+N"/"-N" (a Resources
+// change) — neither takes a rarity. Anything findable is an object carrying its rarity: `{ slug: blind-fish, rarity: common }`. Rarity is REQUIRED
+// on a tag so an entry's odds come from a stated word, not from how many times it was copy-pasted.
 function parsePoolEntry(raw, where, tagIdBySlug) {
   if (raw && typeof raw === "object" && !Array.isArray(raw)) {
     const slug = String(raw.slug ?? "").trim();
@@ -75,9 +54,7 @@ function parsePoolEntry(raw, where, tagIdBySlug) {
   if (/^nothing$/i.test(value)) return { kind: "NOTHING" };
   const bonus = /^([+-]\d+)$/.exec(value);
   if (bonus) return { kind: "RESOURCES", resourceAmount: Number(bonus[1]) };
-  // A bare slug used to be legal and is the commonest way this file will be
-  // edited wrong from here on, so it gets its own message rather than
-  // "unknown tag".
+  // A bare slug is the commonest way this file gets edited wrong, so it gets its own message rather than "unknown tag".
   if (tagIdBySlug.has(value)) {
     throw new Error(
       `labordrops.yaml: "${value}" in ${where} needs a rarity — write { slug: ${value}, rarity: common }`,
@@ -94,14 +71,8 @@ function parseRoll(key, where) {
   return n;
 }
 
-// A scope node — the leaf shared by every bucket — is a map whose keys are
-// EITHER a die face 1-6 (a plain pool) OR the literal key "requiresTag" (a
-// map of skill slug -> another scope node, gated on that tag on top of
-// `scope`). "requiresTag" nests under any bucket, at any depth, because it's
-// a plain recursive call: LABORDROPS.md §2a is Forester nested under
-// zone.forest, but laborType.hunting.requiresTag.forester or even
-// requiresTag.forester.requiresTag.butcher (double-gated) parse the same way
-// with no special-casing.
+// A scope node is a map whose keys are EITHER a die face 1-6 (a plain pool) OR the literal key "requiresTag" (a map of skill slug -> another scope
+// node, gated on that tag). "requiresTag" nests at any depth via plain recursion — a double-gated requiresTag.a.requiresTag.b parses the same way.
 function rowsFromScopeNode(node, where, scope, catalogs) {
   const rows = [];
   for (const [key, value] of Object.entries(node ?? {})) {
@@ -121,10 +92,7 @@ function rowsFromScopeNode(node, where, scope, catalogs) {
     if (!Array.isArray(value)) {
       throw new Error(`labordrops.yaml: ${where} roll ${key} must be a list`);
     }
-    // Repeat-to-weight is gone (db/lib/labordropsRarity.js), so a slug twice
-    // in one pool no longer means "twice as likely" — it means somebody
-    // copy-pasted. Silently it would just make the entry share its band with
-    // itself, which is a bug that looks like a balance decision.
+    // Repeat-to-weight is gone (db/lib/labordropsRarity.js), so a slug twice in one pool means somebody copy-pasted, not "twice as likely".
     const seen = new Set();
     for (const raw of value) {
       const row = parsePoolEntry(raw, `${where} roll ${key}`, catalogs.tagIdBySlug);
@@ -239,7 +207,5 @@ async function syncLaborDropsFromYaml(prisma) {
   return { total: rows.length };
 }
 
-// loadDoc/parseDoc are exported for db/scripts/ops/audit-labor-drops.js,
-// which reads docs/labordrops.yaml straight off disk (no sync required
-// first) to price out a table while it's still being drafted.
+// loadDoc/parseDoc are exported for db/scripts/ops/audit-labor-drops.js, which reads the YAML straight off disk (no sync required first).
 module.exports = { syncLaborDropsFromYaml, loadDoc, parseDoc };

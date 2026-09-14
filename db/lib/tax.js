@@ -1,8 +1,6 @@
 // The tax button's back half: filing a PendingTax row per target and
 // answering the Refuse click (docs/tags.yaml's `taxman` description,
-// TaxDialog.js). Resolving the filed rows at turn close is db/lib/taxPass.js
-// — this file only covers "file it" and "refuse it".
-//
+// TaxDialog.js). Resolving filed rows at turn close is db/lib/taxPass.js.
 // Takes `prisma` as a parameter and is deliberately not on the @lifeweb/db
 // barrel; require it by path, the db/lib/dm.js convention.
 const { DM_ACTION, dmAction } = require("./dmActions");
@@ -10,9 +8,7 @@ const { DM_ACTION, dmAction } = require("./dmActions");
 const PENDING_TAX_DECLINE_PREFIX = "tax-decline:";
 const PENDING_TAX_PARTIAL_PREFIX = "tax-partial:";
 
-// What the amount reads as, for the DM and the "you pay" line — the only two
-// places a filed tax's currency turns into words. Obols get no glyph (they
-// aren't the resources ledger — DEPOT.md), just the plain word.
+// Obols get no glyph (not the resources ledger — DEPOT.md), just the word.
 function taxUnit(kind, amount) {
   return kind === "OBOL" ? `${amount} obol${amount === 1 ? "" : "s"}` : `${amount} ⬢`;
 }
@@ -25,9 +21,8 @@ function taxDmText({ taxerName, taxerRole, amount, kind }) {
   );
 }
 
-// Raw component JSON, the same shape as db/lib/lobby.js#declineComponents —
-// one button, and it is the decline. The web draws the same pair off
-// DM_ACTION_LABELS; only Discord needs the row built by hand.
+// Raw component JSON (db/lib/lobby.js#declineComponents shape); only Discord
+// needs the row built by hand, the web draws it off DM_ACTION_LABELS.
 function taxDeclineComponents(pendingTaxId) {
   return [
     {
@@ -40,15 +35,10 @@ function taxDeclineComponents(pendingTaxId) {
   ];
 }
 
-// Files one PendingTax row per target, inside one transaction, plus one
-// tax_filed AuditLog row per target (a straight record, not a cooldown clock
-// — the cooldown is tax_refused, written only on decline).
-//
+// Files one PendingTax row per target plus one tax_filed AuditLog row (a
+// straight record, not a cooldown clock — the cooldown is tax_refused).
 // `targets` is [{ id, discordUserId, name, amount, kind }], already validated
-// and clamped by the caller (taxRequestImpl re-derives the roster
-// server-side — see requestActions.js). `kind` defaults to "RESOURCES" for a
-// caller that never heard of Obols. Returns the DM payloads for the caller's
-// after().
+// by the caller. Returns the DM payloads for the caller's after().
 async function fileTax(prisma, { taxer, taxerRole, turn, targets }) {
   const rows = [];
   await prisma.$transaction(async (tx) => {
@@ -97,14 +87,10 @@ async function fileTax(prisma, { taxer, taxerRole, turn, targets }) {
 const GONE = "That offer's gone.";
 const NOT_YOURS = "That's not yours to answer.";
 
-// The Refuse click. One button, and it always declines — there is no accept,
-// the same LOBBY_SEAT shape (declineAssignment is the direct template).
-//
-// Also declines every OTHER still-pending PendingTax against this same
-// target filed this same turn: the lockout says nobody in the faction may
-// retarget them, so a second officer's row filed in the same window can't
-// beat the refusal to the wire.
-// The row, if it is still open and the clicker is its target.
+// The Refuse click always declines, no accept (LOBBY_SEAT shape). Also
+// declines every OTHER still-pending PendingTax against this same target
+// this turn, so a second officer's row can't beat the refusal to the wire.
+// The row, if still open and the clicker is its target.
 async function loadOwnTax(prisma, pendingTaxId, discordUserId) {
   const row = await prisma.pendingTax.findUnique({ where: { id: pendingTaxId } });
   if (!row) return { problem: GONE };

@@ -1,33 +1,26 @@
-// Seat holds for a role in progress on the creation wizard. Without this, a
-// player who picks a capacity-1 role at step 1 and spends ten minutes on the
-// tag menu can lose the seat at Confirm with no warning ("someone took my
-// role"). This is the wizard-side half; the actual race-closing lock lives
-// in createActions.js's create transaction — see the header comment there.
+// Seat holds for a role in progress on the creation wizard, so a player who
+// picks a capacity-1 role and spends ten minutes on the tag menu doesn't lose
+// the seat at Confirm with no warning. Wizard-side half; the race-closing
+// lock lives in createActions.js's create transaction.
 //
-// Takes `prisma` as its first parameter, the same convention as
-// db/lib/dm.js and db/lib/factionPermissions.js, and deliberately not spread
-// into the @lifeweb/db barrel for the same reason: db/lib/roleCapacity.js
-// (the seat-cap math this module builds on) IS in the barrel, so requiring
-// this by path keeps the two call shapes distinct rather than colliding.
+// Takes `prisma` as its first parameter (db/lib/dm.js convention),
+// deliberately off the @lifeweb/db barrel — db/lib/roleCapacity.js (the
+// seat-cap math this builds on) IS in the barrel, so requiring by path keeps
+// the two call shapes distinct.
 const { roleCapacity } = require("./roleCapacity");
 const { heldSeats, heldSeatsByRole } = require("./seatCount");
 
-// 30 minutes: long enough to read the tag menu carefully, short enough that
-// an abandoned tab frees a unique seat the same session. Refreshed on every
-// step advance in the wizard, not just on the initial pick.
+// Long enough to read the tag menu, short enough that an abandoned tab frees
+// a unique seat the same session. Refreshed on every wizard step advance.
 const RESERVATION_TTL_MS = 30 * 60 * 1000;
 
-// Deletes reservations that have expired for one role. Called inline by
-// every read/write below rather than from a cron job — expiry only ever
-// needs to be correct at the moment someone is checking capacity.
+// Called inline by every read/write below rather than from a cron job.
 async function sweepExpired(tx, roleId) {
   await tx.roleReservation.deleteMany({ where: { roleId, expiresAt: { lt: new Date() } } });
 }
 
-// Attempts to hold (or extend) a seat for discordUserId. Takes a row lock on
-// the Role first — same pattern as equipActions.js's equip-slot check and
-// gm/dev/characters/[characterId]/actions.js — so two concurrent reservers
-// serialize instead of both reading the same stale count.
+// Takes a row lock on the Role first so two concurrent reservers serialize
+// instead of both reading the same stale count.
 async function reserveRole(prisma, discordUserId, roleId, playerCount) {
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${roleId} FOR UPDATE`;
@@ -37,16 +30,13 @@ async function reserveRole(prisma, discordUserId, roleId, playerCount) {
     if (!role) return { ok: false, reason: "ROLE_NOT_FOUND" };
 
     const cap = roleCapacity(role, playerCount);
-    // The caller's own existing hold on THIS role doesn't count against
-    // itself — re-reserving to push the expiry out must never fail. Lobby
-    // assignments count too (db/lib/seatCount.js).
+    // Caller's own hold on THIS role doesn't count against itself.
     if ((await heldSeats(tx, role, { excludeDiscordUserId: discordUserId })) >= cap) {
       return { ok: false, reason: "ROLE_FULL" };
     }
 
     const expiresAt = new Date(Date.now() + RESERVATION_TTL_MS);
-    // @unique on discordUserId: a player can hold exactly one seat, ever.
-    // Reserving a different role while already holding one releases the
+    // @unique on discordUserId: reserving a different role releases the
     // first as part of the same upsert.
     await tx.roleReservation.upsert({
       where: { discordUserId },
@@ -57,12 +47,8 @@ async function reserveRole(prisma, discordUserId, roleId, playerCount) {
   });
 }
 
-// The picker's count: seated characters (ALIVE, plus DEAD on a permanent
-// seat — roleCapacity.js#seatHolderStatuses) plus live reservations and live
-// lobby assignments by everyone EXCEPT the caller, so a player's own hold
-// renders their role as available to them and taken to everyone else. Takes
-// role rows ({ id, slug }) rather than ids because the slug decides which
-// statuses count.
+// The picker's count, everyone EXCEPT the caller, so a player's own hold
+// renders their role available to them and taken to everyone else.
 async function takenCounts(prisma, roles, excludeDiscordUserId) {
   if (roles.length === 0) return new Map();
   await prisma.roleReservation.deleteMany({

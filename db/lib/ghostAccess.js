@@ -1,20 +1,11 @@
-// The Ghost role's seat — read-only visibility for the dead. A player who dies
-// keeps it until buried or engraved (docs/documents.yaml, Respawning); while
-// it is on they see every zone (cave levels included) plus #cerberon, but
-// private threads stay invisible as to any non-member.
-//
-// This file is CHANNEL ACCESS ONLY. Whether a player is Cursed — migrant/bum
-// only, six fewer points — is a database question, and db/lib/curse.js answers
-// it. Nothing here is read to decide anything about a player.
-//
-// Mirrors db/lib/spectatorAccess.js except ADD_REACTIONS is allowed (so a
-// ghost can still ⭐ a message onto their own /notes page; it used to carry
-// the 🌬️ wind whisper too, which is gone — a body reports itself now, from
-// bot/src/lib/deathSmell.js) and MANAGE_THREADS is denied by name. The role's
-// COLOR is pinned to 0 by ensureGhostRoleAppearance — a colored role would out
-// who is dead in the member list. The role id is hardcoded in
-// db/lib/roleIds.js; it used to be the env var DISCORD_CURSED_ROLE_ID, which
-// is exactly how it came to be set on one Railway service and not the other.
+// The Ghost role's seat — read-only visibility for the dead. A player who dies keeps it until buried
+// or engraved (docs/documents.yaml, Respawning); while on they see every zone (cave levels included)
+// plus #cerberon, but private threads stay invisible to non-members. CHANNEL ACCESS ONLY — whether a
+// player is Cursed (migrant/bum only, six fewer points) is a database question db/lib/curse.js
+// answers; nothing here decides anything about a player. Mirrors db/lib/spectatorAccess.js except
+// ADD_REACTIONS is allowed (so a ghost can still ⭐ onto their own /notes page) and MANAGE_THREADS is
+// denied by name. Role COLOR is pinned to 0 by ensureGhostRoleAppearance — a colored role would out
+// who is dead in the member list. Role id is hardcoded in db/lib/roleIds.js, not an env var.
 const { putChannelOverwrite, patchGuildRole } = require("./discordRest");
 const { GHOST_ROLE_ID } = require("./roleIds");
 
@@ -42,17 +33,14 @@ function ghostRoleId() {
   return GHOST_ROLE_ID;
 }
 
-// The overwrite object for inlining into a createChannel()
-// permission_overwrites array at provisioning time — same shape as
-// spectatorOverwrite() and the GM overwrite, so call sites can spread it.
-// Never empty: the id is a constant.
+// The overwrite object for inlining into a createChannel() permission_overwrites array, same shape as
+// spectatorOverwrite() and the GM overwrite so call sites can spread it. Never empty: id is a constant.
 function ghostOverwrite() {
   return [{ id: GHOST_ROLE_ID, type: 0, allow: GHOST_ALLOW.toString(), deny: GHOST_DENY.toString() }];
 }
 
-// The REST equivalent, for channels that already exist. A single PUT that
-// adds/updates just this one overwrite without disturbing the channel's
-// others, so it is safe to re-run.
+// The REST equivalent, for channels that already exist. One PUT that adds/updates just this
+// overwrite without disturbing the channel's others — safe to re-run.
 async function applyGhostOverwrite(channelId) {
   if (!channelId) return false;
   await putChannelOverwrite(channelId, GHOST_ROLE_ID, {
@@ -62,10 +50,8 @@ async function applyGhostOverwrite(channelId) {
   return true;
 }
 
-
-// Pins the ghost role's appearance: color 0 (Discord renders the holder with
-// the default name color, no tint), never hoisted. One PATCH, idempotent,
-// called from the zone sync and the channel doctor.
+// Pins the ghost role's appearance: color 0 (default name color, no tint), never hoisted. One PATCH,
+// idempotent, called from the zone sync and the channel doctor.
 async function ensureGhostRoleAppearance() {
   await patchGuildRole(GHOST_ROLE_ID, { color: 0, hoist: false });
   return true;

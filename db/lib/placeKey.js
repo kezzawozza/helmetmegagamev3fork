@@ -1,23 +1,8 @@
-// Place keys: the one string that names WHERE something was said, shared by
-// the two faces.
-//
-// A Discord channel id is not enough on its own — a Location has a channel, a
-// Room has a thread, a Conversation has a thread, and a Zone has a summary
-// channel, and the live feed has to subscribe to one of those without caring
-// which kind it is. So every row carries a key of the form `loc:<id>`,
-// `room:<id>`, `conv:<id>`, `zone:<id>` or `net:<slug>`, a snapshot string with
-// no FK behind it, exactly like every other id column on ArchiveEntry.
-//
-// `net:` is the odd one: it names a SPECIAL CHANNEL (db/lib/specialChannels.js)
-// — a radio net — and its id is the registry slug rather than a row id, because
-// there is no row. It exists so a radio is a place on the web at all: without a
-// key, a message typed on a frequency is archived against nowhere, cannot be
-// listed by feedAccess, cannot be subscribed to, and cannot be relayed back to
-// Discord by the outbox.
-//
-// Takes `prisma` as a parameter rather than requiring db/index.js, same reason
-// as archive.js and dm.js: db/index.js imports this module, so requiring it
-// back would resolve to a partial exports object.
+// Place keys: the one string naming WHERE something was said, shared by both
+// faces — `loc:<id>`, `room:<id>`, `conv:<id>`, `zone:<id>` or `net:<slug>`, a
+// snapshot string with no FK behind it. `net:` names a SPECIAL CHANNEL
+// (db/lib/specialChannels.js) by its registry slug, since there is no row.
+// Takes `prisma` as a parameter rather than requiring db/index.js: that would resolve to a partial exports object.
 
 const { SPECIAL_CHANNELS } = require("./specialChannels");
 
@@ -37,14 +22,11 @@ function placeKeyForZone(zoneId) {
   return zoneId ? `zone:${zoneId}` : null;
 }
 
-// The id here is the registry slug, not a row id — a special channel has no row.
 function placeKeyForNet(slug) {
   return slug ? `net:${slug}` : null;
 }
 
-// Memoised for a minute, the way archive.js#currentGameId is: this sits
-// inline with the hottest path in the bot (every proxied message), and the
-// channel layout only changes when db:sync-zones runs.
+// Memoised for a minute (like archive.js#currentGameId): hot path, layout rarely changes.
 const CHANNEL_TTL_MS = 60 * 1000;
 const channelMemo = new Map(); // channelId -> { key, at }
 
@@ -52,10 +34,7 @@ function forgetPlaceKeys() {
   channelMemo.clear();
 }
 
-// `channelId` is the THREAD's own id when the message was said inside a
-// thread, matching what resolveChannelContext stores. `parentId` is the
-// channel that thread hangs under, used only as a fallback so a thread nobody
-// has a row for still resolves to the Location around it.
+// `channelId` is the THREAD's own id inside a thread; `parentId` is the fallback channel.
 async function placeKeyForChannel(prisma, { channelId, parentId = null } = {}) {
   if (!channelId) return null;
 
@@ -67,8 +46,7 @@ async function placeKeyForChannel(prisma, { channelId, parentId = null } = {}) {
   return key;
 }
 
-// Which special channel this id is, if any. One GameConfig read, shared by the
-// two directions below.
+// Which special channel this id is, if any.
 async function netKeyForChannel(prisma, channelId) {
   if (!channelId) return null;
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
@@ -78,8 +56,7 @@ async function netKeyForChannel(prisma, channelId) {
 }
 
 async function resolveChannelKey(prisma, channelId, parentId) {
-  // Ordered cheapest-first by how often each kind is written to. All four are
-  // indexed lookups, so the cost of a miss is small.
+  // Ordered cheapest-first; all four are indexed lookups.
   const location = await prisma.location.findFirst({
     where: { discordChannelId: channelId },
     select: { id: true },
@@ -104,16 +81,11 @@ async function resolveChannelKey(prisma, channelId, parentId) {
   });
   if (zone) return placeKeyForZone(zone.id);
 
-  // A special channel (db/lib/specialChannels.js) — a radio net. It has no
-  // row of its own, so it is matched against the ids on GameConfig. Last of
-  // the direct lookups because it is the rarest, and the whole resolve is
-  // memoised per channel by placeKeyForChannel above.
+  // A radio net (db/lib/specialChannels.js) has no row, so it's last and rarest.
   const netKey = await netKeyForChannel(prisma, channelId);
   if (netKey) return netKey;
 
-  // A thread nobody has a row for — a forum scene, say — still belongs to the
-  // Location its parent channel is, which is the place a reader would expect
-  // to find it under.
+  // A thread nobody has a row for still belongs to its parent's Location.
   if (parentId && parentId !== channelId) {
     const parent = await prisma.location.findFirst({
       where: { discordChannelId: parentId },
@@ -125,15 +97,10 @@ async function resolveChannelKey(prisma, channelId, parentId) {
   return null;
 }
 
-// The snapshot columns an ArchiveEntry carries beside its place key, resolved
-// from the key alone. The Discord proxy gets these free from the channel it
-// was typed in (bot/src/lib/channels.js#resolveChannelContext); a web send has
+// Snapshot columns an ArchiveEntry carries beside its place key, resolved from
+// the key alone (bot/src/lib/channels.js#resolveChannelContext gets these free);
 // only the key, and the two must agree or /archive renders the same scene two
 // different ways.
-//
-// `channelKind` matches what the proxy stamps: "location" for a Location
-// channel and for the threads hanging off it, "summary" for a zone's
-// #summary.
 async function archiveContextForPlaceKey(prisma, placeKey) {
   const empty = { zoneId: null, zoneName: null, channelKind: null, threadName: null };
   const parsed = parsePlaceKey(placeKey);
@@ -176,9 +143,7 @@ async function archiveContextForPlaceKey(prisma, placeKey) {
     };
   }
 
-  // A radio net stands in no zone at all, and its channelKind is the registry
-  // slug — the same string bot/src/lib/channels.js stamps on a message typed
-  // there, so /archive files both faces' lines as one scene.
+  // A radio net's channelKind is the registry slug, matching bot/src/lib/channels.js's stamp.
   if (parsed.kind === "net") {
     const entry = SPECIAL_CHANNELS.find((c) => c.slug === parsed.id);
     if (!entry) return empty;
@@ -202,24 +167,15 @@ function parsePlaceKey(placeKey) {
   return { kind, id };
 }
 
-// Normalises whatever a logAudit call site already has in hand into
-// {locationId, roomId} for AuditLog's own columns (see schema.prisma).
-// Accepts:
-//   - {locationId, roomId} — passed through as-is
-//   - a character-ish object with .locationId — no room, since the server
-//     never learns which thread a character-sheet button was pressed from
-//   - a place key string (loc:/room:/conv:/zone:/net:)
-//
-// A row with a room ALWAYS carries its location too, derived from
-// Room.locationId — otherwise filtering by a Location loses everything that
-// happened in its rooms, the opposite of the point. zone: and net: carry no
-// Location (a radio net stands in no zone at all) and resolve to nulls.
+// Normalises a logAudit call site's place into {locationId, roomId} for
+// AuditLog (schema.prisma): {locationId,roomId}, a character-ish object (no
+// room, since the server never learns which thread a character-sheet button
+// was pressed from), or a place key string. A room row ALWAYS carries its
+// location too, derived from Room.locationId. zone:/net: resolve to nulls.
 async function placePairForAudit(prisma, place) {
   const empty = { locationId: null, roomId: null };
   if (!place) return empty;
 
-  // {locationId, roomId} passthrough, or a character-ish object — both just
-  // need a locationId key. A character has no roomId, which reads as null.
   if (typeof place === "object" && "locationId" in place) {
     return { locationId: place.locationId ?? null, roomId: place.roomId ?? null };
   }
@@ -245,34 +201,20 @@ async function placePairForAudit(prisma, place) {
     return { locationId: conversation.locationId, roomId: conversation.roomId ?? null };
   }
 
-  // zone: and net: — no Location to stamp.
   return empty;
 }
 
-// A SCENE is somewhere people are standing together and can hear each other:
-// a Room thread or a Conversation. Not a Location, which is the street's
-// scenery and takes no voice at all — its members hold no Send there, and
-// what happens on it happens through the anchor's buttons. Not a zone
-// #summary either, which is a broadcast rather than a place anybody stands in.
-//
-// This is the gate for the three moment-to-moment verbs — shout, play, roll —
-// and it lives here so the two faces cannot drift: the bot resolves a channel
-// to a key with placeKeyForChannel above and asks this, the web asks it of the
-// key the browser sent. Before it, Discord and the web disagreed about where
-// each of the three was legal, and the web's half was a hidden menu entry with
-// nothing behind it.
+// A SCENE is a Room thread or a Conversation — not a Location (no voice; the
+// anchor's buttons handle it) and not a zone #summary (a broadcast). Gate for
+// shout/play/roll, shared so the two faces cannot drift on where each is legal.
 function isScenePlaceKey(placeKey) {
   const kind = parsePlaceKey(placeKey)?.kind;
   return kind === "room" || kind === "conv";
 }
 
-// Where on Discord a place key points, for the outbox: the channel a webhook
-// belongs to, plus the thread to post into when there is one.
-//
-// A webhook cannot be created on a thread — Discord hangs it off the parent
-// channel and the execute call carries `?thread_id=`. So `channelId` here is
-// always the channel that owns the webhook, and `threadId` is non-null only
-// for a Room or a Conversation.
+// Where on Discord a place key points, for the outbox. A webhook cannot be
+// created on a thread, so `channelId` is always the owning channel and
+// `threadId` is non-null only for a Room or Conversation.
 async function discordTargetForPlaceKey(prisma, placeKey) {
   const parsed = parsePlaceKey(placeKey);
   if (!parsed) return null;
@@ -311,8 +253,7 @@ async function discordTargetForPlaceKey(prisma, placeKey) {
     return zone?.discordSummaryChannelId ? { channelId: zone.discordSummaryChannelId, threadId: null } : null;
   }
 
-  // The web -> Discord half of a radio net. A net is a plain channel, so it
-  // carries no thread, the way a Location does not.
+  // A net is a plain channel, so it carries no thread.
   if (parsed.kind === "net") {
     const entry = SPECIAL_CHANNELS.find((c) => c.slug === parsed.id);
     if (!entry) return null;

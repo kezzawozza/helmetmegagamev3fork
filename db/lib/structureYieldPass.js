@@ -1,32 +1,9 @@
-// What a building MAKES, every turn, by standing there.
-//
-// A structure type declares `placement.yields: { tag, room, quantity }` in
-// docs/tags.yaml and this pours it into that Room's floor at every close. The
-// Brewery is the first and so far only one: it stands at the Old Cock Inn and
-// racks a cask down in the inn cellar.
-//
-// THE PRODUCE GOES ON A FLOOR, NOT INTO POCKETS, and that is the whole design.
-// An earlier draft handed a bottle to everyone standing at the Location, which
-// made a 15 ⬢ building into the best mood engine in the game — Alcohol is +30
-// on consume, the largest single lift there is (MOOD.md §6), and Ecstatic's
-// brake had shipped the day before on the argument that the good half of the
-// dial is meant to cost something. A stash is a place people have to walk to,
-// carry from, and can be robbed of. `inn-cellar` is keyed (`access: [inn-key]`
-// in docs/zones.yaml), so the beer belongs to somebody in particular.
-//
-// The destination room need NOT be at the structure's own Location — naming it
-// by slug is what lets the brewery at the inn fill the cellar under it.
-//
-// SOMEBODY HAS TO BE MINDING IT. `yields.skill` names a skill, and the turn
-// produces nothing unless a living character who counts as having it is
-// standing at the structure's Location when the turn closes. A brewery is not
-// a machine; it is a trade, and it runs while a brewer is there and stops when
-// they wander off. "Counts as" is the tier ladder, so Brewing (Skilled)
-// satisfies a `brewing-basic` requirement even though holding the higher tier
-// replaces the lower row outright (db/lib/tagWrites.js#replaceLowerTiers).
-//
-// Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
-// db/lib/dm.js convention; require it by path.
+// What a building MAKES, every turn, by standing there. A structure type declares `placement.yields: { tag, room, quantity }` in docs/tags.yaml
+// and this pours it into that Room's floor at every close (the Brewery racks a cask in the inn cellar). THE PRODUCE GOES ON A FLOOR, NOT INTO
+// POCKETS — a stash is a place people walk to, carry from, and can be robbed of. The destination room need NOT be the structure's own Location —
+// naming it by slug is what lets the brewery at the inn fill the cellar under it. SOMEBODY HAS TO BE MINDING IT: `yields.skill` names a skill, and
+// the turn produces nothing unless a living character counting as having it stands at the structure's Location at close. "Counts as" is the tier
+// ladder, so Brewing (Skilled) satisfies a `brewing-basic` requirement even though it replaces the lower row outright (tagWrites.js#replaceLowerTiers).
 
 const { addToRoomStack } = require("./tagWrites");
 const { ambientLine } = require("./ambientLine");
@@ -35,24 +12,15 @@ const { placementOf } = require("./structures");
 const { buildSkillAncestry, satisfiedSkillIds } = require("./medicalVision");
 const { alivePassCharacters } = require("./aliveCharacters");
 
-// Structures that are actually WORKING. Deliberately COMPLETE only, and
-// stricter than WORKING_STATUSES: a palisade still fences you in when it is
-// DAMAGED, but a damaged brewery is one nobody is minding. Same call the
-// labor bonus makes (db/lib/laborAccess.js).
+// Structures that are actually WORKING. Deliberately COMPLETE only, stricter than WORKING_STATUSES: a damaged brewery is one nobody is minding.
 const YIELDING_STATUSES = ["COMPLETE"];
 
-// Does anybody standing here count as having `skillSlug`? The tier ladder is
-// the whole subtlety: holding Brewing (Skilled) REPLACES the Basic row rather
-// than adding to it, so a plain slug test would find no brewer in a room full
-// of good ones. satisfiedSkillIds walks each held tag's parent chain, which is
-// the same answer requireRecipeSkills gives a crafter.
+// Does anybody standing here count as having `skillSlug`? Holding Brewing (Skilled) REPLACES the Basic row rather than adding to it, so a plain
+// slug test would miss the brewer. satisfiedSkillIds walks each held tag's parent chain, the same answer requireRecipeSkills gives a crafter.
 async function someoneTending(prisma, locationId, skillSlug) {
   if (!locationId) return false;
   const skill = await prisma.tag.findUnique({ where: { slug: skillSlug }, select: { id: true } });
-  // A skill slug the catalog does not have: fail SOFT and OPEN, matching how
-  // the room and tag lookups below treat a cross-master rename. A building
-  // that quietly stopped working would be much harder to notice than one that
-  // kept going.
+  // A skill slug the catalog does not have: fail SOFT and OPEN — a building that quietly stopped working is harder to notice than one that kept going.
   if (!skill) {
     console.warn(`structureYield: yields.skill "${skillSlug}" is not a tag — not gating on it.`);
     return true;
@@ -77,8 +45,7 @@ async function runStructureYieldPass(prisma, turn) {
   });
   if (!rows.length) return result;
 
-  // One query for the catalog, joined in JS — typeSlug is a string rather than
-  // a relation on purpose (schema.prisma), so there is nothing to include.
+  // One query for the catalog, joined in JS — typeSlug is a string rather than a relation on purpose (schema.prisma).
   const types = await prisma.tag.findMany({
     where: { slug: { in: [...new Set(rows.map((r) => r.typeSlug))] } },
     select: { id: true, slug: true, placement: true },
@@ -93,25 +60,12 @@ async function runStructureYieldPass(prisma, turn) {
   for (const row of rows) {
     const spec = yieldsBySlug.get(row.typeSlug);
     if (!spec) continue;
-    // Per-row try/catch: one bad catalog entry must not cost the whole pass,
-    // the posture every other pass keeps.
+    // Per-row try/catch: one bad catalog entry must not cost the whole pass.
     try {
-      // THE CLAIM, and the reason this pass is safe to re-enter. The turn
-      // engine records finished passes on Turn.resolvedPasses and a killed
-      // advance resumes, so "did I already pour for this turn" has to be
-      // answerable from the row itself. lastUpkeepTurnId has been sitting in
-      // the schema unused for exactly this — its comment calls it "a claim
-      // column for a FUTURE decay/upkeep pass". This is that pass.
-      //
-      // Conditional updateMany, so the WHERE is the check: two advances
-      // racing cannot both pour.
-      //
-      // The OR-with-null is NOT decoration. `NOT: { lastUpkeepTurnId: turn.id }`
-      // reads as `NOT (col = '…')`, which SQL evaluates to UNKNOWN — not true —
-      // when the column is NULL, so a structure that had never yielded matched
-      // nothing and every brewery in the game poured exactly zero. This is the
-      // same shape the Bird's day claim spells out for the same reason
-      // (requestActions.js), and it is the shape to copy.
+      // THE CLAIM, and the reason this pass is safe to re-enter — "did I already pour for this turn" has to be answerable from the row itself,
+      // via lastUpkeepTurnId. Conditional updateMany, so the WHERE is the check: two advances racing cannot both pour.
+      // The OR-with-null is NOT decoration: `NOT: { lastUpkeepTurnId: turn.id }` evaluates to UNKNOWN (not true) when the column is NULL, so a
+      // structure that had never yielded would match nothing and pour zero forever. Same shape as the Bird's day claim (requestActions.js).
       const { count } = await prisma.structure.updateMany({
         where: {
           id: row.id,
@@ -121,11 +75,8 @@ async function runStructureYieldPass(prisma, turn) {
       });
       if (count === 0) continue;
 
-      // Cross-master references, resolved here rather than at sync time:
-      // docs/tags.yaml names a room and a tag out of docs/zones.yaml and its
-      // own catalog, and the two syncs run independently (SYNC.md). So both
-      // fail SOFT — a rename leaves a brewery that makes nothing and says so
-      // in the log, rather than throwing a turn close.
+      // Cross-master references (docs/tags.yaml names a room from docs/zones.yaml, and the two syncs run independently, SYNC.md) fail SOFT —
+      // a rename leaves a brewery that makes nothing and says so in the log, rather than throwing a turn close.
       const [room, tag] = await Promise.all([
         prisma.room.findUnique({
           where: { slug: spec.room },
@@ -141,9 +92,7 @@ async function runStructureYieldPass(prisma, turn) {
         continue;
       }
 
-      // Is anybody minding it? Read AFTER the claim above on purpose: an
-      // unminded turn is still a turn that has been accounted for, so a
-      // brewery nobody tended does not bank the day and pour two tomorrow.
+      // Read AFTER the claim above: an unminded turn is still accounted for, so a brewery nobody tended does not bank the day and pour two tomorrow.
       if (spec.skill) {
         const minded = await someoneTending(prisma, row.locationId, spec.skill);
         if (!minded) {
@@ -168,13 +117,8 @@ async function runStructureYieldPass(prisma, turn) {
     }
   }
 
-  // Scenery, posted best-effort and catch-logged rather than handed to the
-  // turn's side-effect ledger. The ledger's payload is a fixed list of keys
-  // that a resume replays, and a line saying a cask appeared is not worth a
-  // new one: the STATE is already durable and already idempotent above, so
-  // the worst a lost post costs is that somebody finds the beer instead of
-  // being told about it. Sequential, not Promise.all — the rate-limit
-  // discipline soundBroadcast.js and deathSmell.js both keep.
+  // Scenery, posted best-effort and catch-logged rather than through the turn's side-effect ledger — the STATE is already durable above, so the
+  // worst a lost post costs is somebody finding the beer instead of being told. Sequential, not Promise.all — same rate-limit discipline as soundBroadcast.js.
   for (const line of result.lines) {
     await postMessage(line.threadId, line.text).catch((err) =>
       console.error("Structure yield line failed:", err),

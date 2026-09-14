@@ -1,16 +1,9 @@
 // Antagonist objectives: scoring them, listing them, and the end-of-game
-// reveal (docs/systemdocs/THREATS.md §6a). The catalog of kinds is
-// db/lib/objectiveKinds.js; the rows are the Objective table.
-//
+// reveal (docs/systemdocs/THREATS.md §6a). Catalog of kinds:
+// db/lib/objectiveKinds.js; rows are the Objective table.
 // THREE CHECKERS decide a scripted kind, all read on demand rather than in a
-// turn pass — a death is already an ArchiveEntry, the bomb is already a stamp
-// on GameState, and a target's status is already on the row. Nothing here
-// needs to run at turn close to be right at game end.
-//
-// The GM's PIN wins over any checker. Scripted kinds start unpinned (null: the
-// game decides); manual kinds are never unpinned, since the pin is the only
-// answer they have.
-//
+// turn pass. The GM's PIN wins over any checker; scripted kinds start
+// unpinned, manual kinds are never unpinned since the pin is their only answer.
 // Takes `prisma` as a parameter (the db/lib/dm.js convention) and stays off
 // the @lifeweb/db barrel.
 
@@ -20,9 +13,7 @@ const { threatBySeatTag, partyOf, PARTIES } = require("./threats");
 const { hasAttribute, WILDERNESS_ATTRIBUTE } = require("./locationAttributes");
 
 // Can this Location be the target of "Blow up [Location]"? Above ground and
-// not wilderness — the spec's "non-wilderness and non-caving". The page
-// filters the dropdown by this and the action refuses by it. Needs the row's
-// `attributes` and `zone.kind`.
+// not wilderness. Needs the row's `attributes` and `zone.kind`.
 function locationEligible(location) {
   return location?.zone?.kind === "SURFACE" && !hasAttribute(location, WILDERNESS_ATTRIBUTE);
 }
@@ -35,10 +26,9 @@ async function loadDeaths(prisma, gameId) {
 }
 
 // The most deaths any one in-game day saw. Two turns make a day
-// (db/lib/turnFormat.js#turnDay); a row with no turn number belongs to no day.
-// The bomb's turn is left out entirely (Bascinet, 2026-09-07): the blast kills
-// everyone above ground at once, and that is the Tribunal's objective, not a
-// Thanati bloodbath.
+// (db/lib/turnFormat.js#turnDay); a row with no turn number belongs to no
+// day. The bomb's turn is left out entirely: the blast is the Tribunal's
+// objective, not a Thanati bloodbath.
 function maxDeathsInOneDay(deaths, { excludeTurn = null } = {}) {
   const perDay = new Map();
   for (const d of deaths) {
@@ -51,11 +41,9 @@ function maxDeathsInOneDay(deaths, { excludeTurn = null } = {}) {
   return max;
 }
 
-// Every row's answer, batched: one character read for every target, one state
-// read, one death read — each only if some row needs it and the caller did not
-// hand it over (buildEpilogue already holds state and deaths).
-//
-// Returns Map<id, { done, source }>, source being "pinned" or "script".
+// Every row's answer, batched: one character read for every target, one
+// state read, one death read, each only if some row needs it and the caller
+// didn't hand it over. Returns Map<id, { done, source }>.
 async function evaluateObjectives(prisma, rows, { state = null, deaths = null } = {}) {
   const results = new Map();
   const targetIds = new Set();
@@ -70,9 +58,7 @@ async function evaluateObjectives(prisma, rows, { state = null, deaths = null } 
     if (kind?.script === "deathsInOneDay") needDeaths = true;
   }
 
-  // Counting deaths needs the state too: its gameId scopes the rows (an
-  // ArchiveEntry outlives Restart Game) and its nukeDetonatedTurn is the turn
-  // left out of the count.
+  // Counting deaths needs the state too: gameId scopes the rows and nukeDetonatedTurn is left out of the count.
   const mustLoadState = (needState || needDeaths) && !state;
   const [targets, loadedState] = await Promise.all([
     targetIds.size
@@ -86,9 +72,7 @@ async function evaluateObjectives(prisma, rows, { state = null, deaths = null } 
       : state,
   ]);
   const gameId = loadedState?.gameId ?? null;
-  // Off the Game row, not GameState — see db/lib/turnBanner.js. The GameState
-  // copy belongs to no game in particular, so after a restart the Tribunal
-  // scored a detonation that had happened in somebody else's game.
+  // Off the Game row, not GameState (db/lib/turnBanner.js) — the GameState copy belongs to no game in particular.
   const nukeTurn = loadedState?.game?.nukeDetonatedTurn ?? null;
   const loadedDeaths = needDeaths && !deaths ? await loadDeaths(prisma, gameId) : deaths;
 
@@ -105,8 +89,7 @@ async function evaluateObjectives(prisma, rows, { state = null, deaths = null } 
     const kind = objectiveKind(row.kind);
     let done = false;
     switch (kind?.script) {
-      // DEAD exactly. CURSED is a dead enum value, not a state
-      // (docs/systemdocs/CHARACTERS.md); a Revive un-scores this until pinned.
+      // DEAD exactly (CHARACTERS.md); a Revive un-scores this until pinned.
       case "characterDead":
         done = statusOf.get(row.targetCharacterId) === "DEAD";
         break;
@@ -117,8 +100,7 @@ async function evaluateObjectives(prisma, rows, { state = null, deaths = null } 
         done = nukeTurn != null;
         break;
       default:
-        // A manual kind with no pin — should not exist, the actions refuse it —
-        // reads as not done rather than as a throw.
+        // A manual kind with no pin — the actions refuse it — reads as not done, not a throw.
         done = false;
     }
     results.set(row.id, { done, source: "script" });
@@ -126,8 +108,8 @@ async function evaluateObjectives(prisma, rows, { state = null, deaths = null } 
   return results;
 }
 
-// The rows, described and scored, oldest first. The helper the coming
-// objective-reveal rite will call for one party; /gm/dev calls it for all.
+// The rows, described and scored, oldest first — called for one party by the
+// objective-reveal rite, for all by /gm/dev.
 async function listObjectives(prisma, { partyKey = null, state = null, deaths = null } = {}) {
   const rows = await prisma.objective.findMany({
     where: partyKey ? { partyKey } : {},
@@ -148,9 +130,8 @@ async function listObjectives(prisma, { partyKey = null, state = null, deaths = 
   });
 }
 
-// Which seat a character answers for within a party, when they hold more than
-// one of its tags. The Thanati Leader holds `thanati` too; the seat whose grant
-// includes the others' tags is the one that names them.
+// Which seat a character answers for within a party, when holding more than
+// one of its tags — the seat whose grant includes the others' tags names them.
 function primarySeat(seats) {
   return (
     seats.find((s) => seats.every((o) => o === s || (s.assign?.tagSlugs ?? []).includes(o.seatTagSlug))) ??
@@ -158,11 +139,9 @@ function primarySeat(seats) {
   );
 }
 
-// Who sits in each party: Map<partyKey, [{ id, name, seat }]>, a leader first
-// and then in the order given. `characters` are rows with `id`, `name` and
-// their seat tags as `tags: [{ tag: { slug } }]` — what buildEpilogue loads and
-// what /gm/dev reshapes its seat rows into, so the two surfaces can never
-// disagree about who is in a party.
+// Who sits in each party: Map<partyKey, [{ id, name, seat }]>, leader first.
+// `characters` are rows with `id`, `name`, seat tags as `tags: [{ tag: {
+// slug } }]` — what both buildEpilogue and /gm/dev supply.
 function membersByParty(characters) {
   const members = new Map();
   for (const c of characters) {
@@ -177,7 +156,7 @@ function membersByParty(characters) {
     for (const [key, seats] of byParty) {
       const seat = primarySeat(seats);
       if (!members.has(key)) members.set(key, []);
-      // Leader-ness: this seat's grant includes another party seat's tag.
+        // leads: this seat's grant includes another party seat's tag.
       members.get(key).push({ id: c.id, name: c.name, seat: seat.name, leads: seats.length > 1 });
     }
   }
@@ -188,12 +167,9 @@ function membersByParty(characters) {
   return members;
 }
 
-// The reveal: every party somebody actually sat in, its members and its
-// scored objectives. `characters` are the rows buildEpilogue loads, in
-// createdAt order, so nothing is read twice.
-//
-// A party with objectives and no member is left out. It never existed in
-// play, and printing its prep would only confuse the room.
+// The reveal: every party somebody actually sat in, its members and scored
+// objectives. A party with objectives and no member is left out — printing
+// its prep would only confuse the room.
 async function buildAntagonistReveal(prisma, { characters, deaths = null, state = null }) {
   const members = membersByParty(characters);
   if (members.size === 0) return [];
@@ -218,8 +194,7 @@ async function buildAntagonistReveal(prisma, { characters, deaths = null, state 
 //   Ash was a Judge.
 //   Ash (Thanati Leader), Wren, Lark were the Thanati. Their objectives were:
 //   Kill Corvin. **Success!** / Deface the icon. **Failed!**
-// A seat name is appended only when it differs from the party's. The article
-// is a literal "a": every seat name starts with a consonant.
+// Seat name appended only when it differs from the party's.
 function formatAntagonistLines(reveal) {
   return (reveal ?? []).map((party) => {
     const names = party.members.map((m) => (m.seat !== party.partyName ? `${m.name} (${m.seat})` : m.name));
@@ -228,7 +203,6 @@ function formatAntagonistLines(reveal) {
         ? `${names[0]} was a ${party.partyName}.`
         : `${names.join(", ")} were the ${party.partyName}.`;
     if (party.objectives.length === 0) return head;
-    // A sentence keeps its own stop; one without gets a full stop.
     const list = party.objectives
       .map((o) => {
         const text = o.text.trim();
@@ -240,10 +214,8 @@ function formatAntagonistLines(reveal) {
   });
 }
 
-// A rite pinning its own objective (docs/systemdocs/THANATI.md §4): every row
-// of the party for these kinds that names this character goes to Success.
-// The pin is the GM's answer everywhere else; here the game is the one
-// answering, and a GM can still pin it back.
+// A rite pinning its own objective (THANATI.md §4): every row of the party
+// for these kinds naming this character goes to Success. A GM can still pin it back.
 async function fulfillObjectives(db, { partyKey, kinds, targetCharacterId }) {
   if (!partyKey || !kinds?.length || !targetCharacterId) return 0;
   const { count } = await db.objective.updateMany({

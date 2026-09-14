@@ -1,34 +1,17 @@
-// Opening a conversation: the one copy of it.
-//
-// A conversation is a private Discord thread hanging off a LOCATION channel
-// (Discord has no threads inside threads, so a Room is only the link the
-// whisper poll reads) plus a PlayerThread row and a PlayerThreadMember per
-// member. The row is the truth and Discord's thread membership is its
-// projection — db/lib/conversations.js says so at length, and warns that the
-// several callers are exactly why these functions are shared.
-//
-// This file exists because that warning came true. The bot's Converse modal
-// and Chat's Converse dialog had grown two near-identical copies of the
-// sequence below, and db/lib/xomPass.js needed a third. Both originals now
-// call this instead.
-//
-// It does the DISCORD half, so it is post-commit work like everything else in
-// db/lib/locationMove.js: callers run it after their own writes have landed,
-// and it never throws — a caller gets `{ ok: false, error }` and decides what
-// to say.
-//
-// Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
-// db/lib/dm.js convention; require it by path.
+// Opening a conversation: the one copy of it. A conversation is a private Discord thread hanging off
+// a LOCATION channel (Discord has no threads inside threads, so a Room is only the link the whisper
+// poll reads) plus a PlayerThread row and a PlayerThreadMember per member — the row is the truth and
+// Discord's thread membership is its projection (db/lib/conversations.js). Does the DISCORD half, so
+// post-commit work like everything else in db/lib/locationMove.js: callers run it after their own
+// writes land, and it never throws — a caller gets `{ ok: false, error }`. Takes `prisma` as a
+// parameter, off the @lifeweb/db barrel like db/lib/dm.js; require it by path.
 const { startPrivateThread, addThreadMember } = require("./discordRest");
 const { addConversationMember } = require("./conversations");
 
-// `characterIds` is everybody who should be in it, creator included; each is
-// added as a row first and to the Discord thread second, because a failed
-// thread add must never decide whether the conversation shows up in somebody's
-// places. A "web only" character is deliberately left off the Discord side
-// (CHAT.md §6) — their row is their membership.
-//
-// Returns { ok, conversation, threadId } or { ok: false, error }.
+// `characterIds` is everybody who should be in it, creator included; each is added as a row first,
+// then to the Discord thread, so a failed thread add never decides whether the conversation shows up
+// in somebody's places. A "web only" character is left off the Discord side (CHAT.md §6) — their row
+// is their membership.
 async function openConversationThread(
   prisma,
   { locationId, roomId = null, name, characterIds = [], creatorCharacterId = null } = {},

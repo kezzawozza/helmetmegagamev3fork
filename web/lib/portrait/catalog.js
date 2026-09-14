@@ -1,72 +1,47 @@
 // The portrait catalog: parts, palettes, and valid-selection rules. See
-// docs/systemdocs/PORTRAITS.md.
-//
-// Shared by both renderers (PortraitMaker.js preview, render.js save) so a
-// saved portrait matches the picker. Keep free of node:/sharp/Prisma — a
-// client component imports this.
+// docs/systemdocs/PORTRAITS.md. Shared by both renderers so a saved portrait
+// matches the picker. Keep free of node:/sharp/Prisma — a client component imports this.
 
-// Sprite sheets: 128x128 tiles, six per row, row-major (index 13 = row 2,
-// col 1) — the artist's layout (web/assets/portrait-source-notes.txt).
 export const TILE = 128;
 const SHEET_COLS = 6;
 
 // Output size, matching AVATAR_SIZE in web/app/(app)/character/actions.js.
 export const CANVAS = 256; // an integer multiple of TILE, so nearest-neighbour stays crisp
 
-// The art sits left of tile centre (ink spans x 16..104, centre 60 not 64).
-// SHIFT_X corrects that so the bust reads centred in the plaque.
+// SHIFT_X corrects the art's off-centre placement so the bust reads centred.
 export const SHIFT_X = 5;
 
-// The bust is head+jaw only, so at 1:1 the chin hard-cuts at the plate's
-// bottom edge. BUST_PX scales up then crops back to CANVAS, bottom-anchored,
-// to push that cut below frame; FADE_* fades the rest into shadow.
+// BUST_PX scales up then crops back to CANVAS, bottom-anchored, pushing the chin cut below frame; FADE_* fades the rest into shadow.
 export const BUST_PX = 320;
 
-// CROP_X/CROP_Y (fractions of CANVAS) are measured, not taste — 0.08 clips
-// the least of the hair/headwear crown loss. Both renderers import these;
-// don't move without re-measuring.
+// CROP_X/CROP_Y (fractions of CANVAS) are measured, not taste; don't move without re-measuring.
 export const NUDGE_Y = 0.08;
-// Heads are three-quarter, not frontal, so strict x-centring reads off-
-// centre; NUDGE_X -0.03 corrects it while keeping margin on the widest tile.
 export const NUDGE_X = -0.03;
 
 export const CROP_X = Math.round((BUST_PX - CANVAS) / 2 - NUDGE_X * CANVAS);
 export const CROP_Y = Math.round(BUST_PX - CANVAS - NUDGE_Y * CANVAS);
 
 export const FADE_HEIGHT = 0.3; // fraction of CANVAS the gradient covers, from the bottom
-// Must match TINT / DARKEN in web/scripts/generate-letters.js and
-// FADE_TINT / FADE_DARKEN in web/scripts/generate-helms.js.
-//
-// BLACK as of 2026-09-06: the plate's tone map crushes its bottom edge to zero,
-// so a fade toward anything lighter would lift that edge back up. The fade is
-// still what sinks the bust's chin cut into the plate — that is its job here.
+// Must match TINT / DARKEN in web/scripts/generate-letters.js and FADE_TINT / FADE_DARKEN in web/scripts/generate-helms.js.
 export const FADE_TINT = { r: 0, g: 0, b: 0 };
 export const FADE_DARKEN = 1;
 
 export const SHEET_DIR = "/assets/portrait";
-// The tinted-stone plate the letter plaques use (web/scripts/generate-letters.js),
-// minus their inset rule.
+// The tinted-stone plate the letter plaques use (web/scripts/generate-letters.js).
 export const PLATE_SRC = `${SHEET_DIR}/plate.webp`;
 
-// Palettes — flat placeholder ramps swapped in a pixel loop; each ramp is
-// keyed positionally (entry N replaces entry N), never by name or luminance.
-
-// Skin, 8 tones. Slot 1 is the cranium (the shadowed crown, seen only when
-// bald or under thin hair) and slots 6-7 are small highlights.
+// Palettes: flat ramps swapped in a pixel loop, keyed positionally, never by name or luminance.
 const SKIN_SRC = ["#f3c99e", "#d3bea8", "#bc9485", "#ca9071", "#845e4b", "#f2b39c", "#e5ba8d", "#fde9d5"];
 
-// Hair, 7 tones — used by the hair, beard and (via BROW_SRC below) brow sheets.
 const HAIR_SRC = ["#6c4620", "#865c32", "#423024", "#32231d", "#a58264", "#4e4742", "#fae0c5"];
 
-// Brows are painted as one flat tone, so they get the darkest hair slot
-// (index 3) and nothing else.
+// Brows are painted as one flat tone, so they get the darkest hair slot (index 3).
 const BROW_SRC = "#312723";
 const BROW_HAIR_SLOT = 3;
 
 const PUPIL_SRC = ["#1e3c5a", "#3c5a78", "#5a7896"];
 
-// Skin ramps are from the artist's Colour_Examples.png; deeper tones'
-// missing slots are least-squares fitted from the shown five. Light to dark.
+// Skin ramps are from the artist's Colour_Examples.png; deeper tones' missing slots are least-squares fitted. Light to dark.
 const SKIN_TONES = [
   { id: "porcelain", ramp: ["#f5d9c6", "#decec9", "#d3adb7", "#d8b2ab", "#9a616a", "#f3c8c2", "#edc6ad", "#fde9d5"] },
   { id: "rose", ramp: ["#f9c2ad", "#d9b7b2", "#d196a2", "#de9692", "#a76363", "#f7aea8", "#f8af93", "#ffdfda"] },
@@ -77,8 +52,7 @@ const SKIN_TONES = [
   { id: "umber", ramp: ["#864e37", "#7c4242", "#5b2c2c", "#592e1d", "#3a1823", "#744331", "#7b4730", "#9a5651"] },
 ];
 
-// All thirteen hair ramps are the artist's, taken from the same sheet. The
-// three unnatural ones carry `fantasy` — see the gating note further down.
+// All thirteen hair ramps are the artist's; the three fantasy ones carry `fantasy`.
 const HAIR_COLORS = [
   { id: "black", label: "Black", ramp: ["#252528", "#323037", "#221b1e", "#1b130f", "#52575f", "#2a2a2f", "#b3b4bf"] },
   { id: "dark-brown", label: "Dark brown", ramp: ["#49301b", "#634222", "#322217", "#261a14", "#865d3b", "#342b24", "#d19e6a"] },
@@ -95,8 +69,6 @@ const HAIR_COLORS = [
   { id: "teal", label: "Teal", fantasy: true, ramp: ["#32565a", "#3a7b76", "#2c3a3f", "#1b1f22", "#63b5ae", "#374446", "#9ed9d4"] },
 ];
 
-// Eye ramps are ours, not the artist's placeholder sheet. Same three-slot
-// shape (shadow, iris, catchlight).
 const EYE_COLORS = [
   { id: "dark-brown", label: "Dark brown", ramp: ["#2e2119", "#46301f", "#6b4a2e"] },
   { id: "brown", label: "Brown", ramp: ["#4a3220", "#6b4a2b", "#94693c"] },
@@ -110,9 +82,7 @@ const EYE_COLORS = [
   { id: "crimson", label: "Crimson", fantasy: true, ramp: ["#6b1414", "#a81c1c", "#d64a4a"] },
 ];
 
-// Layers — draw order bottom to top, the artist's own; not reorderable
-// (jaw over hair-back, hair-front over brows). `tints` says which palettes
-// touch a sheet, so the browser can re-tint four instead of all fifteen.
+// Layers — draw order bottom to top, the artist's own; not reorderable. `tints` says which palettes touch a sheet.
 export const LAYERS = [
   { key: "cranium", file: "cranium.png", group: null, tints: ["skin"] },
   { key: "accessoryBack", file: "accessory-back.png", group: "accessory", tints: [] },
@@ -131,9 +101,7 @@ export const LAYERS = [
   { key: "hairFront", file: "hair-front.png", group: "hair", tints: ["hair"] },
 ];
 
-// Groups — what the player picks. A group can drive two layers at once
-// (hairstyle = HairFront + HairBack at the same index). `fantasy` indices
-// indices are never shown: `allowFantasy` is hardcoded false at every caller.
+// Groups — what the player picks. `fantasy` indices are never shown: `allowFantasy` is hardcoded false at every caller.
 export const GROUPS = [
   { key: "face", label: "Face", count: 26, optional: false },
   { key: "eyes", label: "Eyes", count: 26, optional: false },
@@ -144,7 +112,6 @@ export const GROUPS = [
   { key: "ears", label: "Ears", count: 14, optional: true, fantasy: [9, 10, 11, 12, 13] },
   { key: "hair", label: "Hair", count: 28, optional: true },
   { key: "beard", label: "Facial hair", count: 14, optional: true },
-  // Freckles, scars, moles, warpaint.
   { key: "marks", label: "Marks", count: 15, optional: true },
   // Glasses, monocles, eyepatches, piercings — plus 4 (antlers) and 5 (horns).
   { key: "accessory", label: "Extras", count: 12, optional: true, fantasy: [4, 5] },
@@ -152,27 +119,19 @@ export const GROUPS = [
 
 const GROUP_BY_KEY = new Map(GROUPS.map((g) => [g.key, g]));
 
-// Which hair and beard indices read MASCULINE. Nothing in the artist's set
-// reads feminine-only, so this is a one-sided list: an index in here is men
-// only, and everything else is unisex. Randomize honours it (see
-// randomizableParts below); the picker deliberately does not, because a player
-// choosing by hand is not second-guessed. Indices, not labels — the picker
-// draws them as index + 1, so hair 0 is the "Hair 1" tile, which is bald.
+// Hair/beard indices that read MASCULINE — a one-sided list; Randomize honours it, the picker does not.
 const MASCULINE_PARTS = {
   hair: [0, 3, 4, 5, 7, 11, 13, 17, 18, 19, 25],
-  // Every beard but 0 (clean-shaven, the empty tile).
   beard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
 };
 
-// The colour pickers, kept beside GROUPS so the modal can render both from one
-// list and normalizeSelection can validate both in one loop.
+// Kept beside GROUPS so the modal can render both from one list.
 export const COLOR_GROUPS = [
   { key: "skin", label: "Skin", options: SKIN_TONES },
   { key: "hairColor", label: "Hair colour", options: HAIR_COLORS },
   { key: "eyeColor", label: "Eye colour", options: EYE_COLORS },
 ];
 
-// A plain, unremarkable human — what an unset portrait opens on.
 const DEFAULT_SELECTION = Object.freeze({
   face: 0,
   eyes: 0,
@@ -189,7 +148,6 @@ const DEFAULT_SELECTION = Object.freeze({
   eyeColor: 1,
 });
 
-/** Whether an option in a part group is allowed right now. */
 function isPartAllowed(groupKey, index, allowFantasy) {
   const group = GROUP_BY_KEY.get(groupKey);
   if (!group) return false;
@@ -197,19 +155,16 @@ function isPartAllowed(groupKey, index, allowFantasy) {
   return allowFantasy || !group.fantasy?.includes(index);
 }
 
-/** The indices of `group` a player may pick from, in display order. */
 export function allowedParts(group, allowFantasy) {
   const all = Array.from({ length: group.count }, (_, i) => i);
   return allowFantasy ? all : all.filter((i) => !group.fantasy?.includes(i));
 }
 
-/** The options of a colour group a player may pick from. */
 export function allowedColors(options, allowFantasy) {
   return allowFantasy ? options : options.filter((o) => !o.fantasy);
 }
 
-// Coerces anything into a safe-to-render selection — invalid, missing, or
-// fantasy-while-gated values fall back to DEFAULT_SELECTION.
+// Coerces anything into a safe-to-render selection — invalid values fall back to DEFAULT_SELECTION.
 export function normalizeSelection(raw, { allowFantasy = false } = {}) {
   const input = raw && typeof raw === "object" ? raw : {};
   const out = {};
@@ -230,7 +185,6 @@ export function normalizeSelection(raw, { allowFantasy = false } = {}) {
   return out;
 }
 
-/** Parses a stored Character.portrait string. Null/garbage yields the default. */
 export function parseSelection(json, { allowFantasy = false } = {}) {
   if (!json) return { ...DEFAULT_SELECTION };
   try {
@@ -240,21 +194,16 @@ export function parseSelection(json, { allowFantasy = false } = {}) {
   }
 }
 
-/** The indices Randomize may draw from — allowedParts, narrowed by gender.
- * Only WOMAN narrows: MAN and NEUTRAL draw from the whole set, the same way a
- * NEUTRAL character draws from both name pools (db/lib/nameCorpus.js). */
+// Only WOMAN narrows the draw pool; MAN and NEUTRAL draw from the whole set.
 function randomizableParts(group, allowFantasy, gender) {
   const parts = allowedParts(group, allowFantasy);
   if (gender !== "WOMAN") return parts;
   const masculine = MASCULINE_PARTS[group.key];
   if (!masculine) return parts;
   const narrowed = parts.filter((i) => !masculine.includes(i));
-  // A classification that ever swallowed a whole group would hand `pick` an
-  // empty array and put `undefined` in the selection; fall back instead.
   return narrowed.length ? narrowed : parts;
 }
 
-/** A random, fully valid selection — the modal's Randomize button. */
 export function randomSelection({
   allowFantasy = false,
   gender = "NEUTRAL",
@@ -270,13 +219,11 @@ export function randomSelection({
   return out;
 }
 
-/** "#rrggbb" -> the 24-bit integer 0xrrggbb, the key both pixel loops use. */
 function packHex(hex) {
   return Number.parseInt(hex.slice(1), 16);
 }
 
-/** Source->target colour substitution for one selection (packed RGB -> [r,g,b]);
- * unmapped pixels (lip red, eye white, horn bone) pass through untouched. */
+// Source->target colour substitution; unmapped pixels pass through untouched.
 export function buildPalette(selection) {
   const map = new Map();
   const add = (srcRamp, dstRamp) => {
@@ -300,7 +247,6 @@ export function buildPalette(selection) {
   return map;
 }
 
-/** Rewrites an RGBA buffer in place through a palette from buildPalette. */
 export function recolor(data, palette) {
   for (let i = 0; i < data.length; i += 4) {
     if (data[i + 3] === 0) continue;
@@ -312,7 +258,6 @@ export function recolor(data, palette) {
   }
 }
 
-/** Where a tile index sits on its sheet. */
 export function tileRect(index) {
   return {
     left: (index % SHEET_COLS) * TILE,

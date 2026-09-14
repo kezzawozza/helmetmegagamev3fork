@@ -1,31 +1,24 @@
 // The objective catalog: every kind of win condition a GM can hand an
 // antagonist party (docs/systemdocs/THREATS.md §6a). Pure and dependency-free
-// on purpose — the /gm/dev Objectives panel is a client component fed from
-// this by its page, so nothing here may require anything with node deps.
+// — the /gm/dev Objectives panel is a client component fed from this, so
+// nothing here may require anything with node deps.
 //
 // A kind is:
-//
-//   pick        what the GM's dropdown reads — the spec's bracketed form.
-//   label       the template the row renders through, with {target},
-//               {location}, {value} or {text} filled from the row's snapshots.
+//   pick        the GM's dropdown text — the spec's bracketed form.
+//   label       template rendered through, {target}/{location}/{value}/{text}
+//               filled from the row's snapshots.
 //   parties     which parties may take it (db/lib/threats.js party keys);
 //               null means any, which only `custom` is.
-//   weight      "MINOR" | "MAJOR" | null. Display only: the final rite pays per
-//               completed objective, not per weight.
-//   target      what the second control on the Add row asks for:
-//               "character" | "leader" | "inquisitor-or-baron" | "location" |
-//               "number" | "text" | null. A leader is a character whose Role
-//               has requiresWhitelist; "inquisitor-or-baron" is a role slug in
+//   weight      "MINOR" | "MAJOR" | null. Display only.
+//   target      what the Add row's second control asks for. "leader" is a
+//               character whose Role has requiresWhitelist;
+//               "inquisitor-or-baron" is a slug in
 //               INQUISITOR_OR_BARON_ROLE_SLUGS (the Baroness is not one).
-//   script      null = the GM says whether it happened. Otherwise the name of
-//               a checker in db/lib/objectives.js and the game decides, unless
-//               the GM pins an answer.
-//   startsDone  manual kinds only: the pin a fresh row starts with. Only
-//               `celebrate` starts at Success.
-//   placeholder true = the thing it asks for (a rite) does not exist yet, so
-//               it is hand-scored until it does. The panel says so.
-//
-// `pick` and `label` are Bascinet's words from the objectives spec.
+//   script      null = the GM says whether it happened; else a checker name
+//               in db/lib/objectives.js, unless the GM pins an answer.
+//   startsDone  manual kinds only, the pin a fresh row starts with.
+//   placeholder true = the thing it asks for doesn't exist yet, hand-scored
+//               until it does.
 
 const OBJECTIVE_KINDS = [
   {
@@ -149,7 +142,6 @@ const OBJECTIVE_KINDS = [
     pick: "Custom",
     label: "{text}",
     parties: null,
-    // The GM picks one, or none, on the Add row.
     weight: null,
     target: "text",
     script: null,
@@ -158,12 +150,10 @@ const OBJECTIVE_KINDS = [
 
 const KINDS_BY_KEY = new Map(OBJECTIVE_KINDS.map((k) => [k.key, k]));
 
-// The set a party gets from the "Add the standard set" button. Only the
-// Tribunal has one: both its objectives need no target.
+// The set a party gets from the "Add the standard set" button.
 const PARTY_DEFAULTS = { tribunal: ["detonate-nuke", "celebrate"] };
 
-// "Inquisitor or Baron" in the spec, and exactly those two — Bascinet ruled
-// the Baroness out (2026-09-07).
+// "Inquisitor or Baron" in the spec — the Baroness is ruled out.
 const INQUISITOR_OR_BARON_ROLE_SLUGS = new Set(["inquisitor", "baron"]);
 
 const OBJECTIVE_WEIGHTS = ["MINOR", "MAJOR"];
@@ -172,13 +162,12 @@ function objectiveKind(key) {
   return KINDS_BY_KEY.get(key) ?? null;
 }
 
-// The kinds one party may take, catalog order, `custom` last.
+// Catalog order, `custom` last.
 function kindsForParty(partyKey) {
   return OBJECTIVE_KINDS.filter((k) => k.parties == null || k.parties.includes(partyKey));
 }
 
-// The row's sentence, from its snapshots. A target that has since lost its
-// name reads as "somebody" / "somewhere" rather than as a hole.
+// A target that has since lost its name reads as "somebody"/"somewhere".
 function describeObjective(row) {
   const kind = objectiveKind(row.kind);
   const template = kind?.label ?? "{text}";

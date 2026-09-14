@@ -1,61 +1,33 @@
-// What happens to the tags a character already holds when a seat lands on
-// them (THREATS.md §3).
+// What happens to tags a character already holds when a seat lands on them
+// (THREATS.md §3). A seat's incompatible tags are `conflictsWith` edges plus
+// anything in the same exclusive group. For a NEW character point-buy never
+// offers those; for an EXISTING one, Assign runs this in two sweeps.
 //
-// A seat's incompatible tags are `conflictsWith` edges on the seat tag, plus
-// anything in the same exclusive group (a Belief, for the Thanati). For a NEW
-// character the point-buy simply never offers those. For an EXISTING one,
-// Assign runs this, in two sweeps.
+// SWEEP 1 — unconditional, ignores `conflictsWith`: every ADDICTION goes
+// (no seat wants that Desire slot back); a PERSONALITY tag goes only where
+// it actually LOCKS one of the seat's own Desires, asked of the real
+// evaluator (db/lib/desireGates.js), not a hand-kept list. Both refund their
+// points — `pointCost` on a drawback is negative, so the balance MAY go
+// negative deliberately (the store's check is `cost > tagPoints`, so debt
+// just blocks further buying rather than being quietly forgiven).
 //
-// SWEEP 1 — what the seat CLEARS OUT OF ITS OWN WAY. Unconditional, and the
-// half that does not care about `conflictsWith` at all:
+// SWEEP 2 — older pairwise/exclusive rules: a pairwise conflict with
+// POSITIVE cost is removed and refunded; zero/negative cost is
+// GRANDFATHERED (a drawback refunded would be farmed); an exclusive-group
+// clash is always removed, refunding max(cost, 0).
 //
-//   * every ADDICTION goes. A cultist whose bottom Desire slot is spoken for
-//     by the next drink is not doing the Dark Lord's work, and no seat wants
-//     that slot back on a per-seat basis — so this is the whole group, for
-//     every antagonist seat.
-//   * a PERSONALITY tag goes only where it actually LOCKS one of the seat's
-//     own Desires. Asked of the real evaluator (db/lib/desireGates.js), not
-//     a hand-kept list: Pacifist locks `violence` and the Thanati want a
-//     churchman dead, so it goes; Kleptomaniac locks `wealth`, which no
-//     Thanati Desire is in, so it stays. A seat that opens no Desires of its
-//     own therefore strips no Personality tags, only Addictions.
-//
-// Both take their points back with them. `pointCost` on a drawback is
-// negative, so the same increment that refunds a purchase charges for a flaw
-// — the player banked 4 for Alcoholic and the seat has just deleted
-// Alcoholic. The balance MAY go negative, deliberately: the store's check is
-// `cost > tagPoints`, so a character in debt simply buys nothing until they
-// have worked it off, which is the honest arithmetic rather than a floor that
-// quietly forgives the difference.
-//
-// SWEEP 2 — the older pairwise/exclusive rules, unchanged:
-//
-//   * a pairwise conflict with a POSITIVE cost is removed and its points go
-//     back to Character.tagPoints — the player paid for something the seat
-//     now forbids, and the seat should not cost them the purchase;
-//   * a pairwise conflict with a zero or negative cost is GRANDFATHERED —
-//     kept, because a drawback refunded would be a drawback farmed, and a
-//     free tag refunded is nothing;
-//   * an exclusive-group clash is always removed, refunding max(cost, 0):
-//     two Beliefs cannot be held at once, whatever they cost.
-//
-// Sweep 1 runs FIRST so the two can never disagree about the same tag.
-// Pacifist is both a `conflictsWith` edge on the seat tag AND a `violence`
-// lock; taken by sweep 2 first it would be reported as "kept, drawbacks and
-// all" in the same DM that says it was stripped.
-//
-// Runs inside Assign's transaction, AFTER the seat tags are on the sheet, and
-// returns what it did so the DM can say so. Never touches equipped state on
-// what it keeps.
+// Sweep 1 runs FIRST so the two never disagree about the same tag — e.g.
+// Pacifist is both a `conflictsWith` edge and a `violence` lock. Runs inside
+// Assign's transaction, AFTER seat tags land, and returns what it did so the
+// DM can say so. Never touches equipped state on what it keeps.
 const { unionLockClauses, lockedReasonForTemplate } = require("./desireGates");
 const { joinList } = require("./roomStash");
 
 const ADDICTION_GROUP = "general-addictions";
 const PERSONALITY_GROUP = "general-personality";
 
-// The two checks mirror web/lib/characterCreation.js#conflictingTag and
-// #exclusiveConflict, restated here because that module is ESM for the
-// browser and this one runs inside a db transaction.
+// Mirrors web/lib/characterCreation.js#conflictingTag and #exclusiveConflict,
+// restated here since that module is ESM for the browser.
 function pairwiseConflict(seat, other) {
   return seat.conflictsWithIds.includes(other.id);
 }
@@ -63,14 +35,11 @@ function pairwiseConflict(seat, other) {
 function exclusiveClash(seat, other) {
   if (!seat.exclusive || !other.exclusive) return false;
   if ((seat.groupId ?? null) !== (other.groupId ?? null)) return false;
-  // A requiredTag-linked pair (Fundamentalist on Post-Christian) is the one
-  // sanctioned stack, same as the creation rule.
+  // A requiredTag-linked pair is the one sanctioned stack, same as the creation rule.
   return seat.requiredTagId !== other.id && other.requiredTagId !== seat.id;
 }
 
-// Every non-retired Desire the seat's own tags open. A retired template is
-// excluded for the same reason db:prune-tags stops counting one as a blocker:
-// it is in nobody's catalog, so a lock on it is in nobody's way.
+// Every non-retired Desire the seat's own tags open — a retired template is in nobody's catalog, so a lock on it is in nobody's way.
 async function seatDesireTemplates(tx, seatTagIds) {
   if (!seatTagIds.length) return [];
   return tx.desireTemplate.findMany({
@@ -79,10 +48,8 @@ async function seatDesireTemplates(tx, seatTagIds) {
   });
 }
 
-// Would holding this tag lock any of them? The slot-agnostic scope is the
-// right one here: an Addiction's `slot: bottom` clause is the only scoped
-// shape in the catalog and Addictions are taken wholesale above, so nothing
-// reaches this that needs a slot to answer.
+// Would holding this tag lock any of them? Slot-agnostic scope is right here:
+// Addictions (the only scoped shape) are taken wholesale above.
 function blocksSeatDesires(tag, templates) {
   if (!Array.isArray(tag.desireLocks) || tag.desireLocks.length === 0) return false;
   const pairs = unionLockClauses([tag]);
@@ -123,8 +90,7 @@ async function resolveSeatConflicts(tx, characterId, seatTagIds) {
   let points = 0;
   let clawedBack = 0;
 
-  // Sweep 1: Addictions outright, Personality tags that lock the seat's own
-  // Desires. Before sweep 2, so a tag both rules name is only reported once.
+  // Sweep 1, before sweep 2 so a tag both rules name is only reported once.
   const templates = await seatDesireTemplates(tx, [...seatIds]);
   for (const other of held) {
     if (seatIds.has(other.tagId)) continue;
@@ -166,8 +132,7 @@ async function resolveSeatConflicts(tx, characterId, seatTagIds) {
   if (toDelete.size) {
     await tx.characterTag.deleteMany({ where: { characterId, tagId: { in: [...toDelete] } } });
   }
-  // `!== 0` rather than `> 0`: sweep 1's clawback is a negative net, and a
-  // seat that strips exactly as much as it refunds writes nothing.
+  // `!== 0`, not `> 0`: sweep 1's clawback is a negative net.
   if (points !== 0) {
     await tx.character.update({ where: { id: characterId }, data: { tagPoints: { increment: points } } });
   }
@@ -177,7 +142,6 @@ async function resolveSeatConflicts(tx, characterId, seatTagIds) {
 // One line for the DM, or null when nothing happened.
 function describeSeatConflicts({ refunded, removed, kept, stripped = [], clawedBack = 0 }) {
   const parts = [];
-  // Sweep 1 first, because it is the sentence that costs the player points.
   if (stripped.length) {
     const names = joinList(stripped.map((s) => s.name));
     const taken = clawedBack === 1 ? "1 tag point has" : `${clawedBack} tag points have`;

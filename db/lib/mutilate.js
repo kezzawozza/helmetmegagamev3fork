@@ -1,19 +1,14 @@
 // Mutilate: taking one piece off a bound person or a corpse.
 // docs/systemdocs/TORTURE.md §6 owns the design; this is the table behind it.
 //
-// Pure and PRISMA-FREE on purpose, the rule db/lib/corpses.js states at the
-// top of its own file: the Mutilate dialog is a client component and needs
-// MUTILATE_PARTS to build its menu, so anything prisma-shaped in here drags
-// the @lifeweb/db barrel into the browser bundle and kills the route with a
-// node:fs error. Off the barrel too — require it by path.
+// Pure and PRISMA-FREE on purpose (db/lib/corpses.js states the same rule):
+// the Mutilate dialog is a client component that needs MUTILATE_PARTS to
+// build its menu, so anything prisma-shaped here drags the @lifeweb/db
+// barrel into the browser bundle. Off the barrel too — require by path.
 
 // One press, one piece. Each part is a LADDER: the first press grants the
-// first rung, the second replaces it with the second, and there is no third
-// because nobody has three eyes.
-//
-// `lethal` is a fact about the part rather than about the rung, because both
-// lethal parts are one-rung ladders. A corpse ignores it — the subject is
-// already dead and the tag is all that lands.
+// first rung, the second replaces it with the second, no third rung exists.
+// `lethal` is a fact about the part, not the rung — a corpse ignores it.
 const MUTILATE_PARTS = Object.freeze([
   { key: "eye", label: "Eye", itemSlug: "eye", ladder: ["missing-eye", "blind"], lethal: false },
   { key: "tongue", label: "Tongue", itemSlug: "tongue", ladder: ["mute"], lethal: false },
@@ -27,15 +22,9 @@ function partFor(key) {
   return MUTILATE_PARTS.find((p) => p.key === key) ?? null;
 }
 
-// Which rung this press lands on, given what the subject already holds.
-//
-// Walked from the TOP down rather than the bottom up: a subject who somehow
-// holds both rungs — Blind bought at creation on top of a Missing Eye a GM
-// granted — is at the top of the ladder, and counting upward would read them
-// as being on the first rung and take a third eye.
-//
-// Returns null when the ladder is spent, which the caller turns into a
-// refusal. Never a partial result: an unknown part key is null too.
+// Walked from the TOP down: a subject holding both rungs (Blind bought at
+// creation on top of a GM-granted Missing Eye) is at the top of the ladder,
+// not miscounted onto a nonexistent third eye. Null when spent or unknown.
 function resolveMutilation(partKey, subjectSlugs) {
   const part = partFor(partKey);
   if (!part) return null;
@@ -67,10 +56,8 @@ function resolveMutilation(partKey, subjectSlugs) {
 }
 
 // What Butcher hands over in one pass: every part run to the END of its
-// ladder, skipping whatever's already been taken. Unlike resolveMutilation
-// (one press, one rung) this returns however many rungs are left per part —
-// e.g. an untouched eye is worth 2 Eyeballs (missing-eye, then blind), same
-// as pressing Mutilate on it twice.
+// ladder. Unlike resolveMutilation (one press, one rung) this returns
+// however many rungs are left — an untouched eye is worth 2 Eyeballs.
 function harvestableOrgans(subjectSlugs) {
   const held = new Set(subjectSlugs ?? []);
   return MUTILATE_PARTS.map((part) => {

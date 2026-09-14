@@ -1,15 +1,12 @@
-// Which title a character has earned the right to wear, and which form of it
-// they wear. Every word is granted by a tag the character holds or the role
-// they took, and `Character.gender` picks the form of a gendered title
-// (Lord/Lady/Noble for Nobility). An entry is one TITLE, not one word —
-// `words` is a plain string or a map keyed by gender. Hardcoded rather than a
-// YAML master, for the same reason as db/lib/roleIds.js: single guild, one
-// correct value. Pure — no prisma, no I/O — so a client component can import
-// it through web/lib/characterName.js without dragging PrismaClient in.
+// Which title a character has earned, and which form of it they wear. Every
+// word is granted by a tag or a role; `Character.gender` picks the form of a
+// gendered title. An entry is one TITLE, not one word — `words` is a plain
+// string or a map keyed by gender. Hardcoded rather than a YAML master, for
+// the reason db/lib/roleIds.js gives: single guild, one correct value. Pure —
+// no prisma, no I/O — so a client component can import it through
+// web/lib/characterName.js without dragging PrismaClient in.
 
-// Matches the Gender enum in db/prisma/schema.prisma exactly. One vocabulary
-// across the schema, the server actions and the pickers, so nothing has to map
-// between casings.
+// Matches the Gender enum in db/prisma/schema.prisma exactly.
 const GENDERS = Object.freeze(["MAN", "WOMAN", "NEUTRAL"]);
 
 const TITLES = Object.freeze([
@@ -18,69 +15,45 @@ const TITLES = Object.freeze([
   { words: "Constable", tags: ["cerberon"] },
   { words: "Censor", roles: ["censor"] },
 
-  // Noble. The baron/baroness roles also grant the `nobility` tag, so whoever
-  // holds one of those seats is offered Lord/Lady/Noble as well — deliberate,
-  // a Baron may prefer to be styled Lord.
-  //
-  // Both seats share one entry: those roles lock their holder's gender
-  // (Role.lockedGender), so the word is settled either way, and going through
-  // gender means someone seated as `baron` who is a woman is styled Baroness
-  // rather than Baron.
+  // Noble. Baron/baroness also grant `nobility`, so its holder is offered
+  // Lord/Lady/Noble too — deliberate, a Baron may prefer to be styled Lord.
   { words: { MAN: "Sir", WOMAN: "Dame", NEUTRAL: "Ser" }, tags: ["knighted"] },
   { words: { MAN: "Lord", WOMAN: "Lady", NEUTRAL: "Noble" }, tags: ["nobility"] },
   { words: { MAN: "Baron", WOMAN: "Baroness", NEUTRAL: "Baron" }, roles: ["baron", "baroness"] },
 
-  // Clerical. The `bishop` role grants the `chaplain` tag, so a Bishop is
-  // offered Father/Mother/Reverend too.
+  // Clerical. `bishop` role grants `chaplain` tag, so Bishops get this too.
   { words: { MAN: "Father", WOMAN: "Mother", NEUTRAL: "Reverend" }, tags: ["chaplain"] },
-  // Monastic, and two institutions share the word: the Mortii by tag, and the
-  // Incarn — a warrior monk — by role. One entry rather than two, because a
-  // second entry spelling Brother again would trip assertTitlesResolve's
-  // listed-twice check, and because it is genuinely the same title. Same shape
-  // as Doctor below, which is earned by a tag or either of two roles.
+  // Monastic: Mortii by tag, Incarn (warrior monk) by role, same title.
   { words: { MAN: "Brother", WOMAN: "Sister", NEUTRAL: "Sibling" }, tags: ["mortus"], roles: ["incarn"] },
   { words: "Bishop", roles: ["bishop"] },
 
-  // Learned. Doctor comes from the middle rung of the medical chain rather
-  // than the top, so it is a practising physician's title and not a mastery
-  // award — and the Serpent carries it by role regardless of what they buy.
+  // Doctor is the middle rung of the medical chain, a practising physician's
+  // title, not a mastery award — the Serpent carries it by role regardless.
   { words: "Doctor", tags: ["medical-skilled"], roles: ["esculap", "serpent"] },
   { words: "Professor", roles: ["scholastic"] },
 
-  // Trade. Master is the craft-master's word, ungendered — mastery of a
-  // trade says nothing about who holds it.
+  // Master is the craft-master's word, ungendered.
   { words: "Master", roles: ["metalsmith", "innkeeper", "headman"] },
 ]);
 
-// The word this entry gives a character of this gender. A flat `words` reads
-// the same for everyone; an unknown gender falls back to the neutral form
-// rather than throwing, so a bad value degrades to the word that claims least.
+// An unknown gender falls back to the neutral form rather than throwing.
 function wordFor(entry, gender) {
   if (typeof entry.words === "string") return entry.words;
   return entry.words[gender] ?? entry.words.NEUTRAL;
 }
 
-// Every word any character could wear, in table order. The GM dev panel offers
-// this whole list ungated: a GM putting a title on someone is the one path
-// that should never be second-guessed, and it is the only way to clear a title
-// the player can no longer re-select.
+// Every word any character could wear, in table order. The GM dev panel
+// offers this whole list ungated: a GM setting a title should never be
+// second-guessed.
 const TITLE_WORDS = Object.freeze(
   TITLES.flatMap((t) => (typeof t.words === "string" ? [t.words] : GENDERS.map((g) => t.words[g]))).filter(
     (word, i, all) => all.indexOf(word) === i,
   ),
 );
 
-// The words this character may wear. `tagSlugs` is everything they hold —
-// bought, granted by their role, or handed over by a GM — `roleSlug` is their
-// role, and `gender` picks the form. A character with neither tag nor role
-// match earns nothing, which is the common case: most of Ravenheart is
-// untitled.
-//
-// One word per earned title, never three: the gendered variants are not a
-// choice the player makes.
-//
-// Order follows the table, so a picker rendering this gets the registers in
-// ladder order rather than alphabetically.
+// The words this character may wear. One word per earned title, never the
+// gendered variants together — those aren't a player choice. Order follows
+// the table (ladder order, not alphabetical).
 function earnedTitles({ tagSlugs = [], roleSlug = null, gender = "NEUTRAL" } = {}) {
   const held = new Set(tagSlugs);
   return TITLES.filter(
@@ -90,13 +63,10 @@ function earnedTitles({ tagSlugs = [], roleSlug = null, gender = "NEUTRAL" } = {
   ).map((t) => wordFor(t, gender));
 }
 
-// Fails the sync if a title references a tag or role that isn't in the
-// catalog, or if a gendered entry is missing a form.
-//
-// Called from syncRoles, which runs after syncTags (SYNC.md), so both catalogs
-// exist by then. A bad slug here is silent otherwise: the title simply becomes
-// unearnable, and nobody finds out until a player asks why they can't be
-// styled Doctor.
+// Fails the sync if a title references an unknown tag/role or a gendered
+// entry is missing a form. Called from syncRoles, which runs after syncTags
+// (SYNC.md); a bad slug here is otherwise silent until a player asks why they
+// can't be styled Doctor.
 async function assertTitlesResolve(prisma) {
   const [tags, roles] = await Promise.all([
     prisma.tag.findMany({ select: { slug: true } }),
@@ -120,8 +90,7 @@ async function assertTitlesResolve(prisma) {
           problems.push(`"${label}" has no ${gender} form`);
           continue;
         }
-        // A shared word across two forms is fine and deliberate (Baron covers
-        // MAN and NEUTRAL), so only flag a repeat across DIFFERENT entries.
+        // A shared word across two forms of the SAME entry is fine (Baron).
         if (seen.has(word) && !GENDERS.some((g) => g !== gender && entry.words[g] === word)) {
           problems.push(`"${word}" is listed twice`);
         }

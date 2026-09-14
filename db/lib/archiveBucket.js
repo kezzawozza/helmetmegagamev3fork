@@ -1,19 +1,9 @@
-// The archive packets' side of the backup bucket, in JavaScript.
-//
-// Why not just shell out to scripts/db/bucket.py, which already signs SigV4 by
-// hand? Because the callers are not all shells. The GM's Archive button is a
-// Next.js server action, and reaching bucket.py from there would assume three
-// things about the web deployment that are not true today: that python3 is in
-// the image, that scripts/ ships with it, and that the S3_* credentials — which
-// belong to the backup service — are set on it.
-//
-// So this is the PROGRAMMATIC path, shared by the web action and the export
-// script the way db/lib always is. bucket.py keeps its own verbs for the human
-// one: `bucket.py archives`, `getkey`, `rm` are what you reach for at a
-// terminal, and they need nothing installed.
-//
-// No SDK. SigV4 is about forty lines of hmac and Node has crypto, which is the
-// same argument bucket.py's docstring makes.
+// The archive packets' side of the backup bucket, in JavaScript — the PROGRAMMATIC path, shared by
+// the web action and the export script. Not scripts/db/bucket.py (which signs SigV4 by hand too):
+// the GM's Archive button is a Next.js server action, and reaching bucket.py from there would assume
+// python3, scripts/, and the backup service's S3_* credentials are all on the web deployment, which
+// they aren't. bucket.py keeps its own verbs (`archives`, `getkey`, `rm`) for the terminal. No SDK —
+// SigV4 is about forty lines of hmac and Node has crypto.
 
 const crypto = require("crypto");
 
@@ -26,9 +16,8 @@ function env() {
   return { endpoint, bucket, ak, sk, region, ok: Boolean(endpoint && bucket && ak && sk) };
 }
 
-// Whether this process can reach the bucket at all. The web app asks before
-// offering to archive, so a GM gets "this deployment has no bucket
-// credentials" instead of a signature error five minutes in.
+// Whether this process can reach the bucket at all — the web app asks before offering to archive, so
+// a GM gets "no bucket credentials" instead of a signature error five minutes in.
 function bucketConfigured() {
   return env().ok;
 }
@@ -38,8 +27,8 @@ const ARCHIVE_PREFIX = () => process.env.S3_ARCHIVE_PREFIX || "archives";
 const hmac = (key, msg) => crypto.createHmac("sha256", key).update(msg).digest();
 const sha256hex = (buf) => crypto.createHash("sha256").update(buf).digest("hex");
 
-// SigV4 wants the query sorted by key and each part percent-encoded, and
-// encodeURIComponent leaves !'()* alone where S3 does not.
+// SigV4 wants the query sorted by key and percent-encoded; encodeURIComponent leaves !'()* alone
+// where S3 does not.
 function encode(s) {
   return encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
 }
@@ -58,13 +47,12 @@ async function call(method, key = "", params = null, body = null) {
   const amzdate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const datestamp = amzdate.slice(0, 8);
 
-  // The payload is hashed into BOTH the canonical request and the
-  // x-amz-content-sha256 header. A body that is sent but not hashed fails as
-  // SignatureDoesNotMatch, which looks exactly like a wrong secret.
+  // Payload is hashed into BOTH the canonical request and x-amz-content-sha256 — a body sent but not
+  // hashed fails as SignatureDoesNotMatch, which looks exactly like a wrong secret.
   const payload = body ?? Buffer.alloc(0);
   const sha = sha256hex(payload);
 
-  // Each path segment is encoded, but the separators are not.
+  // Each path segment encoded, separators not.
   const uri = "/" + key.split("/").map(encode).join("/");
   const query = params ? canonicalQuery(params) : "";
   const headers = `host:${host}\nx-amz-content-sha256:${sha}\nx-amz-date:${amzdate}\n`;
@@ -93,8 +81,7 @@ async function putObject(key, body) {
   if (!res.ok) {
     throw new Error(`archiveBucket: PUT ${key} failed (${res.status}) ${(await res.text()).slice(0, 300)}`);
   }
-  // A single-part PUT returns the body's MD5 as the ETag, so the object can be
-  // checked against what was sent without downloading it again.
+  // A single-part PUT returns the body's MD5 as the ETag, checkable without downloading it again.
   return (res.headers.get("etag") || "").replace(/"/g, "");
 }
 
@@ -113,8 +100,7 @@ async function deleteObject(key) {
   }
 }
 
-// Every object under a prefix, as { key, size, modified }. Paged, because a
-// bucket that has been running for a year holds more than one page.
+// Every object under a prefix, as { key, size, modified }. Paged — a year-old bucket holds more than one page.
 async function listObjects(prefix) {
   const out = [];
   let token = null;

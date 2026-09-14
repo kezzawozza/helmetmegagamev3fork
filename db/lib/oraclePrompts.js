@@ -1,27 +1,17 @@
 // The Oracle's two system prompts, and the built-in defaults a fresh install
 // runs on. See docs/systemdocs/ORACLE.md.
 //
-// GameConfig.oracleCorrespondentPrompt / oracleEditorPrompt override these, and
-// are edited from /gm/dev?s=oracle. NULL there means "use the default below" —
-// so the panel can show the real text, a GM can tune it live without a deploy,
-// and clearing the box gets the shipped version back rather than an empty
-// prompt. Same reasoning as docs/handbook.md being read at runtime.
+// GameConfig.oracleCorrespondentPrompt / oracleEditorPrompt override these,
+// edited from /gm/dev?s=oracle. NULL means "use the default below" — a GM can
+// tune it live without a deploy, and clearing the box gets the shipped
+// version back rather than an empty prompt.
 //
-// The register is the point. Encyclopedic prose is not only what was asked for,
-// it is the best hallucination brake available: a model told to write plainly
-// and cite nothing but the rows it was handed has very little room to invent,
-// where one told to write atmospherically must invent to comply.
-//
-// The register was never the problem, though. The first prompts said how to
-// write and nothing about how to ORGANISE, so the model organised a page the
-// only way its input was organised — one row at a time — and a zone page came
-// back as a per-character ledger: everybody's arrival, everybody's inventory,
-// the roster read back at the reader. Which is exactly what a gamemaster can
-// already get from the desks. So both prompts now open by saying what the page
-// is FOR, spend a block on what to leave out, and name the headings to write
-// under. The synthesis has to be licensed explicitly too: "prefer omission to
-// inference" reads as "do not connect anything" unless you also say that
-// setting two given rows beside each other is the job.
+// The register is the point: encyclopedic prose told to cite nothing but the
+// rows it was handed has little room to invent, where atmospheric prose must
+// invent to comply. Both prompts also say what the page is FOR, what to leave
+// out, and what headings to write under — without that, a model organises a
+// page the only way its input is organised, one row at a time, and a zone
+// page becomes a per-character ledger instead of a synthesis.
 
 const CORRESPONDENT_PROMPT = `You are writing one zone's page of a per-turn record kept for the gamemasters of Ravenheart. They read it in the three hours between the Moves locking and the turn closing, while they decide the unsolved ones. Write for that.
 
@@ -95,9 +85,8 @@ After the front page, output a line containing only the word THREADS. No heading
 name | one sentence on where it stands
 A thread is something running across more than one turn that a gamemaster will want to keep track of. Carry forward a thread from the previous front pages if it is still live, using the same name, so it can be followed. Drop one that has ended.`;
 
-// The prompt actually used, config over default. An empty or whitespace-only
-// stored value reads as "not set" rather than as an empty prompt: a GM who
-// cleared the textarea meant to reset it, not to ship a model no instructions.
+// Config over default. Whitespace-only reads as "not set": a GM who cleared
+// the textarea meant to reset it, not ship a model no instructions.
 function correspondentPrompt(config) {
   const stored = config?.oracleCorrespondentPrompt;
   return stored && String(stored).trim() ? String(stored) : CORRESPONDENT_PROMPT;
@@ -108,10 +97,8 @@ function editorPrompt(config) {
   return stored && String(stored).trim() ? String(stored) : EDITOR_PROMPT;
 }
 
-// The editor's reply is one document: prose, then a THREADS line, then the
-// threads. Split it here rather than asking for JSON — a small model holds a
-// plain shape far more reliably than a nested one, and a malformed tail costs
-// the threads rail rather than the whole front page.
+// Split here rather than ask for JSON: a small model holds a plain shape far
+// more reliably, and a malformed tail costs only the threads rail.
 function splitEditorReply(text) {
   const raw = String(text ?? "");
   const match = raw.match(/^[ \t]*THREADS[ \t]*$/m);

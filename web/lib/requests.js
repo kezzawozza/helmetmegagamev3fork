@@ -2,61 +2,24 @@ import { prisma, placePairForAudit } from "@lifeweb/db";
 import { MAX_REASON_LENGTH } from "@/lib/constants";
 import { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "@/lib/tagRequests";
 
-// What is left of the old Request system: the per-turn rations, and the one
-// helper every player action writes its audit row through. A player action
-// applies its effect and logs it in the same transaction, and there is no
-// review step and no Undo. See docs/systemdocs/REQUESTS.md.
+// What is left of the old Request system: the per-turn rations, and the one helper every player action writes its audit row through. See docs/systemdocs/REQUESTS.md.
 
 export { MAX_REASON_LENGTH };
 
-// The free pool a medic's 0-turn cures share, whatever their tier
-// (docs/systemdocs/TAGS.md §5c, M2). First aid, bandaging, setting a simple
-// break — cures repriced to `turnsCost: 0` — are free actions up to this many
-// a turn; past it, each one spills into the medical family's Move at 1/4
-// (web/lib/craftBudget.js#craftMoveCost). This replaced the old per-tier
-// MEDICAL_TIER_CAPS, which rationed every cure that cost a TURN — those are
-// billed the Move's own fractions now (CRAFTING.md §2a), and no longer
-// counted here at all.
-//
-// Gambits are not counted here either: a gambit heal files a Move, and
-// Action's @@unique([characterId, turnId]) already allows exactly one of those
-// a turn.
+// The free pool a medic's 0-turn cures share, whatever their tier (TAGS.md §5c, M2); past it, spills into the medical family's Move at 1/4 (craftBudget.js#craftMoveCost).
 export const MEDICAL_SIMPLE_PER_TURN = 4;
 
-// isDeadSimple and DEAD_SIMPLE_PER_TURN live in tagRequests.js now (recipe
-// facts a client component can reach); imported above for the counters below
-// and re-exported further down so server-side imports keep working.
+// isDeadSimple and DEAD_SIMPLE_PER_TURN live in tagRequests.js now; re-exported below.
 
-// The free allowance a 0-turn recipe has each turn: its own `perTurn` ration
-// if it sets one, otherwise the shared Dead Simple pool. Null means "no
-// allowance to count" — either the recipe costs a Move (so the Action rations
-// it) or it is a 0-turn recipe outside both schemes, which stays a free
-// action with no ceiling.
-//
-// Units past the allowance are no longer simply refused: for a recipe with a
-// craft family they spill into the Move at 1/allowance each
-// (web/lib/craftBudget.js, docs/systemdocs/CRAFTING.md §2a). This function is
-// only the number, so the server's enforcement and the page's readout can
-// never disagree about what "free" means.
+// The free allowance a 0-turn recipe has each turn: its own `perTurn` ration, else the shared Dead
+// Simple pool, else null. Past it, units spill into the Move at 1/allowance each (craftBudget.js, CRAFTING.md §2a).
 export function craftAllowance(tag) {
   if ((tag?.requirementTurns ?? 1) !== 0) return null;
   if (tag?.requirementPerTurn != null) return tag.requirementPerTurn;
   return isDeadSimple(tag) ? DEAD_SIMPLE_PER_TURN : null;
 }
 
-// Units of ONE recipe already made this turn, for a tag that sets its own
-// `perTurn` (Tag.requirementPerTurn). Distinct from the Dead Simple pool
-// below: that one is a shared allowance across every 0-turn recipe, this is a
-// ration on a single item.
-//
-// Every counter here counts `request_craft_tag` AuditLog rows — the one row
-// grantCrafted writes per grant — because that row is the whole record of a
-// craft now (REQUESTS.md §1a). `AuditLog.turnId` is what separates this
-// turn's work from last turn's.
-// A custom craft grants a MINTED row and records the recipe it came off as
-// `details.baseTagId` (grantCrafted) — the ration is a fact about the
-// RECIPE, so every counter here bills against that id, or three custom
-// Lavish Meals would dodge the three-a-turn the plain ones obey.
+// Units of ONE recipe made this turn (Tag.requirementPerTurn); a custom craft bills against `details.baseTagId`, its base recipe, so custom Lavish Meals don't dodge the plain ones' ration.
 function effectiveTagId(details) {
   return details?.baseTagId ?? details?.tagId;
 }
@@ -81,8 +44,6 @@ export async function unitsOfTagThisTurn(db, characterId, turnId, tagId) {
   }, 0);
 }
 
-// Dead Simple units already filed this turn (DEAD_SIMPLE_PER_TURN).
-// `db` is prisma or a tx client.
 export async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
   const filed = await craftsThisTurn(db, characterId, turnId);
   const filedTagIds = [
@@ -105,11 +66,8 @@ export async function deadSimpleUnitsThisTurn(db, characterId, turnId) {
   }, 0);
 }
 
-// Every rationed recipe's free units left this turn, in one query, keyed by
-// tag id: `{ per, left }`. The Craft dialog's readout, so it can say which
-// units of an order are free and which spill into the Move. `tags` is the
-// page's catalog rows — they must carry `requirementTurns`,
-// `requirementPerTurn` and `requirementSkills.slug` or nothing is rationed.
+// Every rationed recipe's free units left this turn, keyed by tag id: `{ per, left }`. The Craft
+// dialog's readout; `tags` must carry `requirementTurns`, `requirementPerTurn` and `requirementSkills.slug`.
 export async function craftFreeUnits(db, characterId, turnId, tags) {
   const out = {};
   const rationed = tags.filter((t) => craftAllowance(t) != null);
@@ -135,16 +93,8 @@ export async function craftFreeUnits(db, characterId, turnId, tags) {
 }
 
 
-// A player action writes one AuditLog row and nothing else. There is no
-// Request table any more and no Undo: the player acts, the row records what
-// happened, and a GM repairs by hand from /gm/dev if they must. `details` is
-// therefore the ONLY record — where the old Request.effect carried a restore
-// snapshot, that snapshot belongs in here now.
-// `place` says WHERE this happened, for /gm/audit's room/location filter —
-// whatever the call site already has in hand: {locationId, roomId}, a
-// character (its .locationId is used, no room), or a place key string
-// (db/lib/placeKey.js). Optional and additive: omitted, the row stamps
-// nowhere, exactly as it did before this column existed.
+// A player action writes one AuditLog row and nothing else — no Request table, no Undo; `details` is
+// the ONLY record. `place` (for /gm/audit's filter) is optional: {locationId, roomId}, a character, or a place key (db/lib/placeKey.js).
 export async function logAudit(tx, { actorDiscordUserId, actionType, targetCharacterId, turnId, details, place }) {
   const { locationId, roomId } = await placePairForAudit(tx, place);
   return tx.auditLog.create({
@@ -159,4 +109,3 @@ export async function logAudit(tx, { actorDiscordUserId, actionType, targetChara
     },
   });
 }
-

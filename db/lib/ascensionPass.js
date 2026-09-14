@@ -1,37 +1,21 @@
-// Ravenheart burns. The Rite of Ascension's other half, and the second way a
-// game can end (docs/systemdocs/THANATI.md §9, docs/systemdocs/LOBBY.md §7).
-//
-// ORDERING IS LOAD-BEARING, for the reason nukeExplosionPass.js gives and one
-// more of its own. It must run AFTER the staged push and tagExpiry, because
-// the one thing that calls this off is the cult leader dying — and a killing
-// adjudicated this turn has to beat the clock. If this ran first, a town that
-// stormed the hideout and won would still burn.
-//
-// WHO DIES: EVERYONE. Every ALIVE character, with no zone exemption at all —
-// which is the one line that separates this ending from the bomb's. The nuke
-// spares the two cave levels, because being under the rock is the whole
-// escape; here the rock is what Ravenheart is swallowed into, so there is
-// nowhere to have been. Gibbed, like the blast: nothing is left to loot, bury
-// or butcher afterwards, and there is no afterwards.
-//
-// DB writes only. The Discord fan-out comes back as `broadcast` and `deaths`
-// for the
-// side-effect thunk, the catatonicDeathPass.js contract — a pass that posts
-// inside the turn transaction is a pass that wedges a turn on a 429.
-//
-// Takes `prisma` as a parameter — see db/lib/dm.js.
+// Ravenheart burns — the Rite of Ascension's other half, and the second way a game can end
+// (docs/systemdocs/THANATI.md §9, docs/systemdocs/LOBBY.md §7). Ordering is load-bearing (reason
+// nukeExplosionPass.js gives, plus one more): must run AFTER the staged push and tagExpiry, since only
+// the cult leader dying calls it off, and a killing adjudicated this turn has to beat the clock — run
+// first and a town that stormed and won the hideout would still burn. WHO DIES: everyone ALIVE, with
+// no zone exemption (unlike the nuke, which spares the cave levels) — gibbed, nothing left to loot,
+// bury or butcher. DB writes only; the Discord fan-out returns as `broadcast`/`deaths` for the side-
+// effect thunk (catatonicDeathPass.js contract — posting inside the turn transaction risks wedging a
+// turn on a 429). Takes `prisma` as a parameter — see db/lib/dm.js.
 const { applyDeathToRow } = require("./characterDeath");
 const { alivePassCharacters } = require("./aliveCharacters");
 
-// What every #summary reads, verbatim from Bascinet. No @everyone: the warning
-// two turns ago was the one worth waking somebody for, and by the time this
-// posts there is nothing left to do about it.
+// What every #summary reads, verbatim from Bascinet. No @everyone — the warning two turns ago was
+// worth waking somebody for; by now there's nothing left to do about it.
 const ASCENSION_LINE = "Ravenheart is consumed by ravenous hellfire and swallowed into the earth.";
 
-// What each victim is told. Without a `reason` the shared death-DM loop in
-// db/index.js interpolates it anyway, and everybody gets "You have died.
-// undefined" — the bug db/lib/nukeExplosionPass.js records having shipped once
-// already.
+// Without a `reason` the shared death-DM loop in db/index.js interpolates it anyway, giving "You have
+// died. undefined" — shipped once already (db/lib/nukeExplosionPass.js).
 const ASCENSION_DEATH_REASON =
   "the hellfire took Ravenheart and everything standing in it.";
 
@@ -43,21 +27,17 @@ async function runAscensionPass(prisma, turn) {
     include: { game: { select: { id: true, ascensionFiredTurn: true } } },
   });
 
-  // Not armed, or armed for a turn that has not come yet. Returning an object
-  // rather than null matters: null means "did not run, retry forever" and
-  // would wedge every turn from here on.
+  // Not armed, or armed for a future turn. Return an object, not null — null means "retry forever"
+  // and would wedge every turn from here on.
   const armedTurn = state?.ascensionArmedTurn ?? null;
   if (armedTurn == null || armedTurn > turn.number) return { turnNumber: turn.number, ...IDLE };
 
-  // Already happened IN THIS GAME. Read off the Game row rather than
-  // GameState, the reason db/lib/nukeExplosionPass.js gives: turn numbers
-  // restart every game, so the GameState stamp could not tell a fresh game
-  // from the one that burned.
+  // Already happened in THIS game — read off Game, not GameState, since turn numbers restart every
+  // game and the GameState stamp can't tell a fresh game from the one that burned.
   if (state?.game?.ascensionFiredTurn != null) return { turnNumber: turn.number, ...IDLE };
 
-  // "It stops ONLY if the cult leader is killed." A dangling id — the row
-  // deleted by a Restart, or no leader recorded at all — reads as gone, which
-  // cancels, which is the safe direction.
+  // Stops ONLY if the cult leader is killed; a dangling id (Restart-deleted row, or none recorded)
+  // reads as gone, which cancels — the safe direction.
   const leaderId = state?.ascensionLeaderCharacterId ?? null;
   const leader = leaderId
     ? await prisma.character.findUnique({ where: { id: leaderId }, select: { id: true, name: true, status: true } })
@@ -74,8 +54,8 @@ async function runAscensionPass(prisma, turn) {
     };
   }
 
-  // Claim it before anything else, the bomb's rule: a crash halfway through
-  // cannot leave a world that burns again on the next close.
+  // Claim it before anything else (the bomb's rule) — a crash halfway through must not leave a world
+  // that burns again on the next close.
   await prisma.gameState.update({
     where: { id: 1 },
     data: { ascensionFiredTurn: turn.number, ascensionArmedTurn: null },
@@ -99,9 +79,8 @@ async function runAscensionPass(prisma, turn) {
 
   const deaths = [];
   for (const character of doomed) {
-    // Sequential, never Promise.all, and gibbed — the bomb's rule and for the
-    // bomb's reasons (db/lib/nukeExplosionPass.js). The conditional claim
-    // inside applyDeathToRow is what stops a resumed turn killing twice.
+    // Sequential, never Promise.all, and gibbed — the bomb's rule (db/lib/nukeExplosionPass.js). The
+    // conditional claim inside applyDeathToRow stops a resumed turn killing twice.
     const { claimed } = await applyDeathToRow(prisma, character, {
       turn,
       gib: true,
@@ -112,8 +91,7 @@ async function runAscensionPass(prisma, turn) {
       characterId: character.id,
       name: character.name,
       discordUserId: character.discordUserId,
-      // Captured before applyDeathToRow nulls it — the thunk still owes
-      // Discord this role's deletion.
+      // Captured before applyDeathToRow nulls it — the thunk still owes Discord this role's deletion.
       discordRoleId: character.discordRoleId,
       zoneId: character.zoneId,
       reason: ASCENSION_DEATH_REASON,

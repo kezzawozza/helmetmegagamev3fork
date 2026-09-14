@@ -1,20 +1,8 @@
-// Spawning a threat: turning an offer into a character.
-//
-// The GM presses SPAWN on /gm/dev?s=assignments, which writes a ThreatSpawn
-// row and DMs the target a blurb with Accept / Decline buttons. The click
-// lands in the BOT (a DM has no guild), so the work that both faces need
-// lives here and the bot handler stays thin — bot/src/lib/threatSpawn.js.
-//
-// This module does the DATABASE half only and RETURNS what the caller must
-// then do to Discord (ARCHITECTURE.md's returned-side-effects pattern). It
-// cannot do that half itself: creating the personal role and placing the
-// character are REST calls the two faces already own differently.
-//
-// The transaction deliberately mirrors createCharacter's
-// (web/app/(app)/character/createActions.js), which until now was the only
-// code that had ever written a Character row. Where it differs, it is because
-// nobody is picking: the name is rolled, the gender comes from the seat, and
-// there is no point-buy cart to validate.
+// Spawning a threat: turning an offer into a character. The GM presses SPAWN on /gm/dev?s=assignments, which writes a ThreatSpawn row and DMs the
+// target Accept/Decline buttons. The click lands in the BOT (a DM has no guild), so this shared work lives here — bot/src/lib/threatSpawn.js stays thin.
+// This module does the DATABASE half only and RETURNS what the caller must do to Discord (ARCHITECTURE.md's returned-side-effects pattern) — creating
+// the personal role and placing the character are REST calls the two faces already own differently. The transaction mirrors createCharacter's
+// (web/app/(app)/character/createActions.js); where it differs, nobody is picking — the name is rolled, the gender comes from the seat.
 const { parseStartingTag } = require("./startingTags");
 const { roleCapacity } = require("./roleCapacity");
 const { heldSeats } = require("./seatCount");
@@ -37,9 +25,7 @@ const {
 } = require("./threats");
 const { ambientEverywhere } = require("./worldBroadcast");
 
-// The two buttons on an offer DM. Raw component JSON rather than discord.js
-// builders, because the web sends this one and only the bot has the library —
-// same shape as the Bird's Reply button (db/lib/bird.js).
+// The two buttons on an offer DM. Raw component JSON rather than discord.js builders, since the web sends this one and only the bot has the library.
 function spawnOfferComponents(spawnId) {
   return [
     {
@@ -52,11 +38,7 @@ function spawnOfferComponents(spawnId) {
   ];
 }
 
-// A tag list written as SLUGS with an optional count — "obol x4".
-// parseStartingTag splits the count off. Both sources speak slug now: a seat's
-// list in db/lib/threats.js always did, and a role's startingTagSlugs does
-// since db:sync-roles resolves the authored names, so there is one lookup here
-// where there used to be two and a merge.
+// A tag list written as SLUGS with an optional count — "obol x4". parseStartingTag splits the count off.
 function parseSlugEntries(entries = []) {
   const wanted = new Map();
   for (const entry of entries) {
@@ -66,15 +48,10 @@ function parseSlugEntries(entries = []) {
   return wanted;
 }
 
-// Every tag a spawn hands over: the seat's own grant (the Demoness tag and
-// Hungerless), its starting kit (a dagger, four obols), and whatever the role
-// it lands in grants anyone. Resolved in one pass so a missing slug is a clean
-// refusal rather than a half-granted character.
+// Every tag a spawn hands over: the seat's own grant, its starting kit, and whatever the role it lands in grants anyone. Resolved in one pass so a
+// missing slug is a clean refusal rather than a half-granted character.
 async function resolveSpawnTags(db, threat, role) {
-  // The seat's own two lists and the role's, all slugs, all one map. Largest
-  // count wins where a tag arrives from two directions at once, which is what
-  // parseSlugEntries' summing would otherwise get wrong — so the role's
-  // entries are folded in with a max rather than added.
+  // The seat's own two lists and the role's, all slugs, all one map — largest count wins where a tag arrives from two directions at once.
   const seatSlugs = parseSlugEntries([
     ...(threat.assign?.tagSlugs ?? []),
     ...(threat.spawn?.tagSlugs ?? []),
@@ -87,9 +64,7 @@ async function resolveSpawnTags(db, threat, role) {
 
   const tags = await db.tag.findMany({ where: { slug: { in: [...bySlug.keys()] } } });
 
-  // Only the SEAT's own slugs are a hard error. A role's list has already been
-  // validated by db:sync-roles, and a tag pruned out from under it should not
-  // make the seat unspawnable.
+  // Only the SEAT's own slugs are a hard error — a role's list is already validated by db:sync-roles.
   const missing = [...seatSlugs.keys()].filter((s) => !tags.some((t) => t.slug === s));
   if (missing.length) {
     return { error: `The ${threat.name} seat names tags that aren't in the catalog: ${missing.join(", ")}.` };
@@ -98,8 +73,7 @@ async function resolveSpawnTags(db, threat, role) {
   return { tags: tags.map((tag) => ({ tag, quantity: bySlug.get(tag.slug) ?? 1 })) };
 }
 
-// The tags an ASSIGN hands to an existing character — the seat's grant only,
-// never the spawn kit. Returns [{ tag, quantity }].
+// The tags an ASSIGN hands to an existing character — the seat's grant only, never the spawn kit.
 async function resolveAssignTags(db, threat) {
   const bySlug = parseSlugEntries(threat.assign?.tagSlugs ?? []);
   if (!bySlug.size) return { tags: [] };
@@ -111,9 +85,7 @@ async function resolveAssignTags(db, threat) {
   return { tags: tags.map((tag) => ({ tag, quantity: bySlug.get(tag.slug) ?? 1 })) };
 }
 
-// Accepts an offer. Returns { ok, line, character, sideEffects } or
-// { ok: false, reason } — never throws for a refusal a player caused, because
-// the caller writes the reason under their own DM.
+// Accepts an offer. Never throws for a refusal a player caused — the caller writes the reason under their own DM.
 async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
   const spawn = await prisma.threatSpawn.findUnique({
     where: { id: spawnId },
@@ -141,9 +113,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
   ]);
   if (resolved.error) return { ok: false, reason: `${resolved.error}` };
 
-  // A spawned character's location may be overridden by the GM; the role's
-  // own start is the fallback. The denormalization contract says zoneId is
-  // written from the SAME location in the same statement.
+  // Location may be overridden by the GM; the role's own start is the fallback. zoneId is written from the SAME location in the same statement.
   const locationId = spawn.locationId ?? spawn.role.startingLocationId ?? null;
   const location =
     spawn.locationId && spawn.location
@@ -155,8 +125,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
   const firstName = randomSpawnName(threat.spawn.gender);
   const name = formatCharacterName({ honorific: null, firstName, title: null, lastName: null });
 
-  // Stamped before the transaction: a tag with a catalog duration must arrive
-  // already carrying expiresTurn, since nothing backfills it later.
+  // Stamped before the transaction: a tag with a catalog duration must arrive already carrying expiresTurn, since nothing backfills it later.
   const tagRows = [];
   for (const { tag, quantity } of resolved.tags) {
     tagRows.push({
@@ -170,14 +139,12 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
   let created;
   try {
     created = await prisma.$transaction(async (tx) => {
-      // The lock that actually closes the seat race — Prisma runs READ
-      // COMMITTED, so counting without it can seat two people at once.
+      // The lock that actually closes the seat race — Prisma runs READ COMMITTED, so counting without it can seat two people at once.
       await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${spawn.roleId} FOR UPDATE`;
       const taken = await heldSeats(tx, spawn.role, { excludeDiscordUserId: discordUserId });
       if (taken >= roleCapacity(spawn.role, effectivePlayerCount(config, state))) throw new Error("ROLE_FULL");
 
-      // Re-read under the lock: two clicks on the same button race here, and
-      // the status check above is only an early out.
+      // Re-read under the lock: two clicks race here; the status check above is only an early out.
       const fresh = await tx.threatSpawn.findUnique({ where: { id: spawn.id }, select: { status: true } });
       if (fresh?.status !== "PENDING") throw new Error("ALREADY_ANSWERED");
 
@@ -232,19 +199,15 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
     ok: true,
     character: created,
     threat,
-    // What the caller must do to Discord, in order. Each is best-effort and
-    // none of them may cost the create — same posture as createCharacter's
-    // tail.
+    // What the caller must do to Discord, in order — each best-effort, none may cost the create.
     sideEffects: {
       characterId: created.id,
       discordUserId,
       bareName: formatBareName({ firstName, lastName: null }),
       toLocationId: created.locationId,
-      // Which seat this was, so the side-effect step can tell whether the
-      // whole map should hear a shuttle come down.
+      // threatSlug: so the side-effect step can tell whether the whole map should hear a shuttle come down. roleSlug: decides what this
+      // character already knows of the map (db/lib/startingMemories.js).
       threatSlug: threat.slug,
-      // The role's slug decides what this character already knows of the map
-      // (db/lib/startingMemories.js), seeded after placement below.
       roleSlug: spawn.role.slug,
     },
     turn: openTurn,
@@ -268,22 +231,15 @@ async function declineThreatSpawn(prisma, spawnId, discordUserId) {
 }
 
 
-// The Discord half of an accept, run post-commit and entirely best-effort:
-// none of it may cost a character that already exists. Lives here rather than
-// on either face because the accept happens in the BOT (a DM has no guild)
-// while everything it needs is REST, which db/lib/discordRest.js already owns.
-//
-// The personal role is a MENTIONABLE NAME TOKEN held by nobody — channel
-// access rides the zone role and the Location overwrite instead
-// (CHANNELS.md §3), which is what applyLocationMoveSideEffects hands out.
+// The Discord half of an accept, run post-commit and entirely best-effort: none of it may cost a character that already exists. Lives here because
+// the accept happens in the BOT (a DM has no guild) while everything it needs is REST (db/lib/discordRest.js). The personal role is a MENTIONABLE
+// NAME TOKEN held by nobody — channel access rides the zone role and the Location overwrite instead (CHANNELS.md §3).
 async function applySpawnSideEffects(prisma, sideEffects) {
   const { characterId, discordUserId, bareName, toLocationId, threatSlug, roleSlug } = sideEffects;
 
   try {
     const { name, color } = characterRoleAppearance(bareName);
-    // permissions: "0" is NOT the API default — the create-role endpoint
-    // copies @everyone's bits when the field is omitted, which makes the role
-    // look like a real access role to db:prune-orphan-roles.
+    // permissions: "0" is NOT the API default — omitting it copies @everyone's bits, which fools db:prune-orphan-roles into treating it as real access.
     const role = await createGuildRole({ name, color, hoist: false, mentionable: true, permissions: "0" });
     await prisma.character.update({ where: { id: characterId }, data: { discordRoleId: role.id } });
   } catch (err) {
@@ -298,10 +254,7 @@ async function applySpawnSideEffects(prisma, sideEffects) {
     }).catch((err) => console.error("Spawn placement failed:", err));
   }
 
-  // The map this seat wakes up with — the same seeding createCharacter does
-  // (createActions.js), after placement for the same reason: arrival has
-  // already recorded where they stand. Without it a Tribune landed in the
-  // Black Hills knowing nothing but the one Location under their feet.
+  // The map this seat wakes up with — same seeding createCharacter does, after placement, since arrival has already recorded where they stand.
   if (roleSlug) {
     try {
       const character = await prisma.character.findUnique({
@@ -317,15 +270,10 @@ async function applySpawnSideEffects(prisma, sideEffects) {
     }
   }
 
-  // A spawned threat is alive again, so the ghost seat comes off. The curse
-  // itself needs no write — db/lib/curse.js derives it, and this character
-  // being ALIVE is already the answer.
+  // A spawned threat is alive again, so the ghost seat comes off — the curse itself needs no write, db/lib/curse.js derives it.
   await removeMemberRole(discordUserId, GHOST_ROLE_ID).catch(() => {});
 
-  // The Tribunal arrives by shuttle, and everybody sees it. Every Location on
-  // the map, not a range from an origin — the sky is not a noise. Last, and
-  // best-effort like everything else here: a failed broadcast must not cost
-  // somebody their character.
+  // The Tribunal arrives by shuttle: every Location on the map, not a range from an origin — the sky is not a noise.
   if (SHUTTLE_ARRIVAL_SLUGS.has(threatSlug)) {
     await ambientEverywhere(prisma, "You see a shuttle in the sky. It landed nearby.", {
       signed: false,

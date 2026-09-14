@@ -1,61 +1,26 @@
-// The threat catalog: every antagonist seat in the game, in one place.
-//
-// A threat is three things at once, and which ones an entry carries is what
-// tells them apart:
-//
-//   optIn      a checkbox in the lobby and on the wizard's Antagonists step.
-//              Consent data — a player says which seats they are open to being
-//              handed. Either `true`, or `{ name, whitelist }`: `name` is the
-//              PUBLIC name the checkbox wears when it differs from the seat's
-//              ("Succubus" for the Demoness, so the 18+ nature is plain;
-//              "Cultist" for a Thanati, so the word never appears), and
-//              `whitelist: true` locks the box to holders of the Whitelist
-//              Discord role — the same role that gates leader seats.
-//   assign     a real seat a GM can hand to an existing character. Grants the
-//              tags and points named here and DMs the seat's Role charter.
-//   spawn      the same seat, handed to somebody with no character: a whole
-//              new one, offered over DM and accepted with a button.
-//
-// HALF THE OPT-INS ARE DECOYS. They carry `optIn` and nothing else, so ticking
-// one tells a GM about consent without telling the player which seats are
-// real. The hand-run briefs (Brigands, Monsters, the Sympathizer) are not
-// entries at all — they live in SECRETS.md, since nothing here reads prose.
-//
-// A seat's INCOMPATIBLE TAGS are not listed here: they are `conflictsWith`
-// edges on the seat tag itself in docs/tags.yaml, so the store and Add Tag
-// refuse them for a holder without knowing what a threat is. Assign resolves
-// what a character already holds (db/lib/seatConflicts.js).
-//
-// Kept in code rather than a table for the same reason as db/lib/roleIds.js:
-// fixed values that can never differ per environment, so a row would only add
-// a join and a way to drift.
-//
-// Alphabetized by `name` so catalog order *is* display order and nothing
-// downstream has to sort. That ordering is also what hides the real seats
-// among the decoys on the wizard.
-//
-// No prose lives here, with one exception (`brief`, below). What a seated
-// player reads is the Role's own charter from docs/roles.yaml (intro +
-// description), sent by the seat DM in web/app/(app)/gm/dev/threatActions.js.
-// The hand-run briefs — Brigands, Monsters, the Sympathizer — are in
-// SECRETS.md.
-//
-// A PARTY is the group a seat scores its objectives with (db/lib/objectives.js)
-// and is named as in the end-of-game reveal: "Ash, Wren were the Thanati."
-// Seats that carry no `party` are SOLO — the Demoness and the Judge answer for
-// themselves, and the reveal says "Maeris was a Demoness."
+// The threat catalog: every antagonist seat, in one place. A threat is three
+// things: optIn (a lobby/wizard checkbox — consent data, `true` or
+// `{name, whitelist}`; `name` is the PUBLIC name when it differs, e.g.
+// "Succubus" for the Demoness, "Cultist" for a Thanati, so the word never
+// appears; `whitelist: true` locks it to the Whitelist Discord role), assign
+// (a real seat a GM hands to an existing character, granting the tags/points
+// here and DMing the Role charter), and spawn (the same seat as a whole new
+// character, offered over DM). HALF THE OPT-INS ARE DECOYS — `optIn` alone,
+// so ticking one tells a GM about consent without naming the real seats; the
+// hand-run briefs (Brigands, Monsters, the Sympathizer) live in SECRETS.md,
+// not here. INCOMPATIBLE TAGS are `conflictsWith` edges on the seat tag in
+// docs/tags.yaml, not listed here. Kept in code, not a table, for the reason
+// db/lib/roleIds.js gives: fixed values that can never differ per environment.
+// Alphabetized by `name` so catalog order *is* display order, which also hides
+// the real seats among the decoys. No prose here except `brief` below — a
+// seated player reads the Role's own charter. A PARTY is the group a seat
+// scores objectives with; seats with no `party` are SOLO in the reveal.
 const THANATI_PARTY = { key: "thanati", name: "Thanati" };
 const TRIBUNAL_PARTY = { key: "tribunal", name: "Tribunal" };
 
-// THE ONE EXCEPTION TO "NO PROSE IN THE CATALOG". Bascinet pulled the per-seat
-// blurbs on 2026-09-06 because each was a second, drafted copy of the Role's
-// charter. The Thanati have no Role of their own — spawn.roleSlug is null and
-// the GM picks a cover role — so there is no charter for these words to
-// duplicate and nowhere else for them to live. Assign sends the brief in place
-// of the generic "You are now the X!" opener; Spawn sends it above the cover
-// role's charter, since one is what they are and the other is what they
-// pretend to be. Bascinet's own wording, verbatim and unsigned. A seat WITH a
-// role of its own never gets one of these: write it on the role.
+// THE ONE EXCEPTION TO "NO PROSE IN THE CATALOG": the Thanati have no Role of
+// their own (spawn.roleSlug is null, the GM picks a cover role), so nowhere
+// else for this to live. A seat WITH a role of its own never gets one of these: write it on the role.
 const THANATI_BRIEF = [
   "You are a Thanati. Crudux Cruo! This reality is flawed to its core. Lord Tzchernobog will deliver a new, perfect reality once this one has come to an end, when the last human observer has passed into nothingness.",
   "Read the Thanati document for more information.",
@@ -75,8 +40,6 @@ const THREATS = [
     name: "Archon",
     optIn: true,
   },
-  // The Bastard is a figure in the Court's story, and the box is whitelisted
-  // because the name alone promises a seat at the top of it.
   {
     slug: "bastard",
     name: "Bastard",
@@ -85,27 +48,17 @@ const THREATS = [
   {
     slug: "demoness",
     name: "Demoness",
-    // "Succubus" on the checkbox: the word says 18+ and lewd out loud, which
-    // is the consent the box is there to collect. Whitelisted for the same
-    // reason.
     optIn: { name: "Succubus", whitelist: true },
     assignable: true,
-    // How the roster finds who holds this seat. Derived from the tag rather
-    // than stored on the character, so a GM granting it by hand from
-    // /gm/dev/characters/[id] still shows up.
-    seatTagSlug: "demoness",
+    seatTagSlug: "demoness", // derived from the tag, not stored, so a hand grant still shows up.
     zone: "Fortress",
-    // Rough Camper: she sleeps where she hunts (docs/systemdocs/MOOD.md).
     assign: { tagPoints: 7, tagSlugs: ["demoness", "hungerless", "beautiful", "rough-camper"] },
     spawn: {
       gender: "WOMAN",
-      // null: the seat has no default role, so the GM picks one when offering.
-      roleSlug: null,
+      roleSlug: null, // no default role; the GM picks one when offering.
       resources: 3,
       tagPoints: 7,
-      // parseStartingTag syntax (db/lib/startingTags.js) — "x4" is a stack
-      // count, not four entries, which a name-set lookup would collapse.
-      tagSlugs: ["dagger", "obol x4"],
+      tagSlugs: ["dagger", "obol x4"], // "x4" is a stack count (parseStartingTag), not four entries.
     },
   },
   {
@@ -115,7 +68,6 @@ const THREATS = [
     assignable: true,
     seatTagSlug: "judge",
     zone: "Town, or Cave",
-    // Nothing out there frightens him, and little else does (MOOD.md).
     assign: { tagPoints: 17, tagSlugs: ["cruel", "judge", "rough-camper", "outsider", "brave"] },
     spawn: {
       gender: "MAN",
@@ -140,13 +92,7 @@ const THREATS = [
     name: "Skinless",
     optIn: true,
   },
-  // THE THANATI. Two real seats behind two public names — "Cultist Leader"
-  // and "Cultist" — so the word Thanati is never on a checkbox. Both grant the
-  // `thanati` Belief (docs/tags.yaml), which is what makes a holder one; the
-  // leader wears the `thanati-leader` tag on top, which is how the roster tells
-  // the two seats apart. Every cultist also arrives knowing the Underquarter
-  // Basements (the cult's usual start, docs/zones.yaml) and Literate, so the
-  // Grimoire is readable to them. Points are Bascinet's: 4 and 7.
+  // THE THANATI: two real seats behind two public names so the word Thanati is never on a checkbox.
   {
     slug: "thanati",
     name: "Thanati",
@@ -183,11 +129,7 @@ const THREATS = [
       tagSlugs: ["thanati-mask", "underquarter-basements", "literate", "obol x4"],
     },
   },
-  // THE TRIBUNAL. Both carry `spawn.locationSlug`, which nothing else does:
-  // the seat knows where its own shuttle puts down, so a GM offering one does
-  // not have to remember. The Fracturing Waterway is the busiest node in the
-  // Hills — an open bridge, four ways out, both crossings into the Marshes.
-  // They put down in plain sight rather than in a corner, on purpose.
+  // THE TRIBUNAL. Both carry `spawn.locationSlug`, which nothing else does — the seat knows where its own shuttle puts down.
   {
     slug: "tribunal-ordinator",
     name: "Tribunal Ordinator",
@@ -198,9 +140,7 @@ const THREATS = [
     party: TRIBUNAL_PARTY,
     assign: {
       tagPoints: 10,
-      // Mirrors the tribunal-ordinator Role's starting_tags (docs/roles.yaml).
-      // Assign and Spawn are separate lists over the same seat, so a kit change
-      // has to land in both or a GM's two buttons hand out different soldiers.
+      // Mirrors tribunal-ordinator's starting_tags (docs/roles.yaml); Assign/Spawn are separate lists, keep both in sync.
       tagSlugs: [
         "ordinator-insignia",
         "cataphract-armor",
@@ -230,8 +170,7 @@ const THREATS = [
     party: TRIBUNAL_PARTY,
     assign: {
       tagPoints: 10,
-      // Mirrors the tribune Role's starting_tags (docs/roles.yaml) — see the
-      // Ordinator's note above on why both lists have to move together.
+      // Mirrors tribune's starting_tags — see the Ordinator's note above.
       tagSlugs: [
         "tribunal-helmet",
         "heavy-infantry-armor",
@@ -249,8 +188,7 @@ const THREATS = [
       tagPoints: 10,
     },
   },
-  // Retired from the live game (docs/archive/windlander.yaml); the box stays as
-  // a decoy.
+  // Retired (docs/archive/windlander.yaml); the box stays as a decoy.
   {
     slug: "windlander",
     name: "Windlander",
@@ -258,15 +196,11 @@ const THREATS = [
   },
 ];
 
-// The seats that arrive by shuttle. Spawning one tells the whole map that
-// something came down — db/lib/threatSpawn.js. A set rather than a flag on the
-// entries so a future Tribunal seat joins by adding one line here.
+// Seats that arrive by shuttle (db/lib/threatSpawn.js). A set, not a flag, so a future seat joins with one line.
 const SHUTTLE_ARRIVAL_SLUGS = new Set(["tribunal-ordinator", "tribune"]);
 
 const THREATS_BY_SLUG = new Map(THREATS.map((t) => [t.slug, t]));
 
-// The public name a checkbox wears, and whether it is whitelisted. Both read
-// off the `optIn` shape so a decoy and a real seat are indistinguishable here.
 function optInName(threat) {
   return (typeof threat.optIn === "object" && threat.optIn?.name) || threat.name;
 }
@@ -275,33 +209,26 @@ function optInWhitelisted(threat) {
   return typeof threat.optIn === "object" && threat.optIn?.whitelist === true;
 }
 
-// The checkbox list, in PUBLIC-name order so the lobby and the wizard read as
-// an alphabetical list whatever the seats behind it are called.
+// PUBLIC-name order, so the lobby/wizard read as alphabetical whatever the seat is called.
 const OPT_IN_THREATS = THREATS.filter((t) => t.optIn).sort((a, b) =>
   optInName(a).localeCompare(optInName(b)),
 );
 const ANTAGONISTS = OPT_IN_THREATS;
 const ANTAGONIST_SLUGS = new Set(OPT_IN_THREATS.map((t) => t.slug));
 
-// Every seat a GM can hand out. Assignable and spawnable are the same set:
-// anything that can be given to an existing character can also arrive as a
-// new one.
+// Assignable and spawnable are the same set.
 const ASSIGNABLE_THREATS = THREATS.filter((t) => t.assignable);
 
-// Slug -> the tag that means "holds this seat", for the roster's derivation.
 const SEAT_TAG_SLUGS = ASSIGNABLE_THREATS.map((t) => t.seatTagSlug).filter(Boolean);
 
 function threatBySlug(slug) {
   return THREATS_BY_SLUG.get(slug) ?? null;
 }
 
-// The one entry, if any, whose seat tag this slug is. Lets the roster turn a
-// held tag back into the seat it stands for.
 function threatBySeatTag(tagSlug) {
   return ASSIGNABLE_THREATS.find((t) => t.seatTagSlug === tagSlug) ?? null;
 }
 
-// The party a seat scores with: its own `party`, or itself when it has none.
 // `solo` is what the reveal reads to choose "was a" over "were the".
 function partyOf(threat) {
   if (!threat) return null;
@@ -309,8 +236,7 @@ function partyOf(threat) {
   return { key: threat.slug, name: threat.name, solo: true };
 }
 
-// Every party, deduped, in catalog order — the order the Objectives cards on
-// /gm/dev?s=antagonists and the reveal both use.
+// Every party, deduped, in catalog order (Objectives cards + reveal).
 const PARTIES = (() => {
   const seen = new Map();
   for (const t of ASSIGNABLE_THREATS) {
@@ -324,11 +250,8 @@ function partyByKey(key) {
   return PARTIES.find((p) => p.key === key) ?? null;
 }
 
-// Whatever the form posted, reduced to known opt-in slugs, deduped, in
-// catalog order. The wizard's checkboxes are UX; this is the boundary that
-// keeps junk out of the column, same posture as normalizeHonorific's
-// allowlist. A slug that has since left the catalog is dropped here, which is
-// why renaming one needs no data migration.
+// Whatever the form posted, reduced to known opt-in slugs. A slug that has
+// since left the catalog is dropped here, so renaming one needs no data migration.
 function normalizeAntagonistSlugs(input, { whitelisted = true } = {}) {
   const posted = new Set(
     (Array.isArray(input) ? input : [input])
@@ -340,25 +263,16 @@ function normalizeAntagonistSlugs(input, { whitelisted = true } = {}) {
     .map((t) => t.slug);
 }
 
-// Slugs -> PUBLIC names, in catalog order. Unknown slugs are dropped rather
-// than rendered raw, so a stale value can never leak into the UI. Public
-// rather than real on purpose: this is what a player ticked, and a GM table
-// showing "Demoness" beside a box that said "Succubus" is a puzzle nobody
-// needs.
+// Slugs -> PUBLIC names. Unknown slugs are dropped rather than rendered raw, so a stale value can never leak into the UI.
 function antagonistNames(slugs) {
   const held = new Set(slugs ?? []);
   return OPT_IN_THREATS.filter((t) => held.has(t.slug)).map(optInName);
 }
 
-// The slugs a player without the Whitelist role may not tick. The lobby and
-// the wizard grey these; the server drops them (normalizeAntagonistSlugs's
-// `whitelisted` option) so a hand-posted form cannot slip one through.
+// Slugs a player without the Whitelist role may not tick; server drops them too.
 const WHITELISTED_OPT_IN_SLUGS = new Set(OPT_IN_THREATS.filter(optInWhitelisted).map((t) => t.slug));
 
-// A spawned character needs a name and there is nobody to type one, so one is
-// rolled. These are plain names — each is written to Character.name, the
-// Discord nickname and the personal role title, all of which are matched or
-// worn as identity rather than read as prose.
+// A spawned character has nobody to type a name, so one is rolled.
 const SPAWN_NAMES = {
   WOMAN: [
     "Maeris", "Ilvane", "Corrin", "Sabeth", "Vessa", "Orlaith",
@@ -383,9 +297,7 @@ function randomSpawnName(gender) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-// Button customId prefixes for the spawn offer. The web builds the buttons and
-// the bot routes the clicks, so the strings live here rather than on either
-// side — the REST/gateway twin convention (ARCHITECTURE.md).
+// The web builds the buttons, the bot routes clicks — REST/gateway twin convention (ARCHITECTURE.md).
 const THREAT_SPAWN_ACCEPT_PREFIX = "threat-spawn-accept:";
 const THREAT_SPAWN_DECLINE_PREFIX = "threat-spawn-decline:";
 
@@ -407,9 +319,7 @@ module.exports = {
   optInWhitelisted,
   WHITELISTED_OPT_IN_SLUGS,
   randomSpawnName,
-  // Kept under the old names: the column is still Character.antagonistOptIns
-  // and every caller of these two is about that column.
-  ANTAGONISTS,
+  ANTAGONISTS, // kept under the old name — the column is still Character.antagonistOptIns.
   ANTAGONIST_SLUGS,
   normalizeAntagonistSlugs,
   antagonistNames,

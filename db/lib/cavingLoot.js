@@ -1,24 +1,14 @@
-// The Caving Die's loot table — code, not YAML, because this is mechanics
-// (a weighted draw) rather than player-facing catalog data. See
-// docs/systemdocs/CAVING.md for the full table and the reasoning behind the
-// weights. db/lib/cavingPass.js is the only caller.
-//
-// Two-stage draw on a roll of 6: pick a tier by the standing zone's column
-// below, then pick uniformly among that tier's slugs. Slugs are validated
-// against the live Tag catalog by validateCavingLoot() — call that once at
-// startup (bot/src/index.js and web's instrumentation hook), not per-roll,
-// so a typo fails loud instead of handing a player nothing on the one 6
-// they rolled all week.
+// The Caving Die's loot table — code, not YAML, since this is mechanics (a weighted draw) rather than
+// player-facing catalog data. See docs/systemdocs/CAVING.md for the full table and weight reasoning.
+// db/lib/cavingPass.js is the only caller. Two-stage draw on a roll of 6: pick a tier by the standing
+// zone's column below, then pick uniformly among that tier's slugs. Slugs are validated against the
+// live Tag catalog by validateCavingLoot() — call once at startup (bot/src/index.js, web's
+// instrumentation hook), not per-roll, so a typo fails the deploy rather than a player's roll.
 
 const TIERS = ["ultracommon", "common", "uncommon", "rare", "extremely-rare", "nearly-impossible"];
 
-// Column sums to 1 (checked by validateCavingLoot).
-// Two columns since the Bascinet 2 map, which replaced the three cave levels
-// (Caverns / Railroad / Aberrant Pits) with two: Caves and Depths. Caves keeps
-// the old Caverns column unchanged. Depths takes the old Aberrant Pits column
-// unchanged, rather than the middle Railroad one, because it is now the only
-// deep place on the map and has to carry what all three tiers below the
-// surface used to.
+// Each column sums to 1 (checked by validateCavingLoot). Depths carries the old Aberrant Pits column
+// unchanged, since it's the only deep place left on the map.
 const WEIGHTS_BY_ZONE = {
   caves: {
     ultracommon: 0.65,
@@ -38,13 +28,11 @@ const WEIGHTS_BY_ZONE = {
   },
 };
 
-// Tier contents, by slug. Weapon/armor tiers pull representative slugs off
-// SMITHING.md §3/§4's ladder (Dead Simple/Simple -> Moderate/High Quality ->
-// Exceptional/Gunpowder) rather than every entry in it.
+// Tier contents, by slug. Weapon/armor tiers pull representative slugs off SMITHING.md §3/§4's ladder
+// rather than every entry in it.
 const LOOT_TABLE = {
-  // rock-salt is ultracommon on Bascinet's call (docs/systemdocs/COOKING.md):
-  // it should be the thing a cook can always get and is never pleased to see,
-  // which is exactly what this tier is for.
+  // rock-salt is ultracommon on Bascinet's call (docs/systemdocs/COOKING.md) — the thing a cook can
+  // always get and is never pleased to see.
   ultracommon: ["cave-fungus", "saltpeter", "purring-maggot", "rock", "rock-salt"],
   common: ["cudgel", "purse", "cracked-bone-club", "sling", "skinned-cave-rat", "old-coin", "coal"],
   uncommon: [
@@ -96,10 +84,8 @@ const LOOT_TABLE = {
   "nearly-impossible": ["energy-shield", "power-fist", "neoclassic-rw10", "stepstone", "dark-eye-lenses", "motorcycle"],
 };
 
-// Validated once at process startup against the live Tag catalog (see
-// bot/src/index.js and web's instrumentation.js), not on every roll —
-// throwing here means "the loot table references something that isn't in
-// docs/tags.yaml", which should fail the deploy, not the next player's roll.
+// Validated once at process startup (bot/src/index.js, web's instrumentation.js), not per roll —
+// throwing here means the loot table references something absent from docs/tags.yaml.
 async function validateCavingLoot(prisma) {
   const allSlugs = new Set(Object.values(LOOT_TABLE).flat());
   const found = await prisma.tag.findMany({ where: { slug: { in: [...allSlugs] } }, select: { slug: true } });
@@ -116,8 +102,7 @@ async function validateCavingLoot(prisma) {
   }
 }
 
-// Draws a tier for the given cave-level zone slug (caves/depths), then a slug
-// uniformly within it. Returns { tier, slug }.
+// Draws a tier for the given cave-level zone slug (caves/depths), then a slug uniformly within it.
 function drawLoot(zoneSlug) {
   const weights = WEIGHTS_BY_ZONE[zoneSlug];
   if (!weights) throw new Error(`db/lib/cavingLoot.js: no loot weights for zone "${zoneSlug}"`);

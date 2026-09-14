@@ -1,29 +1,9 @@
-// What a rite needs, judged against the room (docs/systemdocs/THANATI.md §4).
-//
-// Two kinds of ingredient. The FLOOR kinds — `{ tag, count }` stacks and
-// `{ resources }` — are read off the room's stash and consumed by the sweep.
-// The RESOLVED kinds — a bound person, a corpse, a photograph, a weapon — are
-// things the rite acts on rather than eats, and they are found here so the
-// chant hook, the sweep and the effect all agree about which one:
-//
-//   bound-person   a living Bound character at the room's Location who can
-//                  get into this room (key or guest row). Leaders first.
-//   corpse         a corpse tag lying on this floor, and the dead character it
-//                  is a handle to.
-//   photograph     a photo on this floor (first) or in a participant's hands,
-//                  resolved to the living character it pictures.
-//   weapon         a weapon stack on this floor, picked at random.
-//
-// Per-rite constraints live here too — Conversion skips the Pious and the
-// already converted, Judgement and Madness refuse a Pious target or one on
-// hallowed ground, Fulfillment wants the leader in the room and only fires
-// once a game, Ascension refuses while the world is already ending — so a rite
-// that cannot work never fires and never eats its floor. That last part is the
-// whole reason they live up here: the sweep consumes the floor BEFORE it runs
-// the handler, so a refusal from inside an effect would already have swallowed
-// the ingredients.
-//
-// Takes `db` as a parameter, the db/lib/dm.js convention.
+// What a rite needs, judged against the room (docs/systemdocs/THANATI.md §4). Two kinds of ingredient. FLOOR kinds — `{ tag, count }` stacks and
+// `{ resources }` — are read off the room's stash and consumed by the sweep. RESOLVED kinds — bound-person, corpse, photograph, weapon — are found
+// here rather than eaten, so the chant hook, sweep and effect all agree which one (bound-person: a living Bound character at the Location who can
+// get into this room, leaders first; corpse: a corpse tag with the dead character it's a handle to; photograph: on the floor first or in a
+// participant's hands, resolved to who it pictures; weapon: a random weapon stack). Per-rite constraints (Conversion/Judgement/Madness/Fulfillment/
+// Ascension) live here too, since the sweep consumes the floor BEFORE the handler runs — a refusal from inside an effect would already have eaten it.
 const { floorIngredients } = require("./rites");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
@@ -31,16 +11,14 @@ const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 const BOUND_SLUG = "bound";
 const PIOUS_SLUG = "pious";
 const WEAPON_GROUP_SLUG = "items-weapons";
-// "Hallowed grounds", for Summoning and Judgement: the Cathedral. A slug list
-// rather than a Location attribute so it needs no zone sync to land.
+// A slug list rather than a Location attribute, so it needs no zone sync.
 const HALLOWED_LOCATION_SLUGS = Object.freeze(["cathedral"]);
 
 function pick(list) {
   return list.length ? list[Math.floor(Math.random() * list.length)] : null;
 }
 
-// The rites that pick a target off a photograph and refuse a Pious one, or one
-// standing on hallowed ground.
+// The rites that pick a target off a photograph and refuse a Pious one, or one on hallowed ground.
 const HALLOWED_PROOF_RITES = new Set(["judgement", "madness"]);
 
 function onHallowedGround(location) {
@@ -95,7 +73,6 @@ async function boundCandidates(db, room, { excludeSlugs = [] } = {}) {
     if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) continue;
     out.push({ ...c, slugs, leader: Boolean(c.role?.requiresWhitelist) });
   }
-  // Leaders first (Bascinet: "If two bound people, prioritize leaders").
   return out.sort((a, b) => Number(b.leader) - Number(a.leader) || a.name.localeCompare(b.name));
 }
 
@@ -130,8 +107,7 @@ async function pictured(db, tag) {
   }
   const name = nameOnPhoto(tag.name);
   if (!name) return null;
-  // Two living characters may share a name (db/lib/corpseMint.js), and an old
-  // print cannot say which: an ambiguous name resolves to nobody.
+  // Two living characters may share a name, and an old print cannot say which: an ambiguous name resolves to nobody.
   const matches = await db.character.findMany({
     where: { name, status: "ALIVE" },
     take: 2,
@@ -140,9 +116,7 @@ async function pictured(db, tag) {
   return matches.length === 1 ? matches[0] : null;
 }
 
-// Photographs on the floor first, then in the participants' hands. Returns
-// { holder: { kind: "room", id } | { kind: "character", id }, tag, target } or
-// null. Random among the floor's prints.
+// Photographs on the floor first, then in the participants' hands. Random among the floor's prints.
 async function photographInReach(db, roomId, participants = []) {
   const photoWhere = { custom: true, OR: [{ photoOfCharacterId: { not: null } }, { name: { startsWith: "Photo (" } }] };
   const floor = await db.roomTag.findMany({
@@ -150,11 +124,7 @@ async function photographInReach(db, roomId, participants = []) {
     select: { tag: { select: { id: true, name: true, photoOfCharacterId: true } } },
   });
   const candidates = floor.map((r) => ({ holder: { kind: "room", id: roomId }, tag: r.tag }));
-  // Hands are collected ALWAYS, not only when the floor is bare. "Floor first"
-  // is a preference, and reading it as an exclusion meant one stale print of a
-  // dead character lying on the floor blocked every photograph rite forever
-  // while a good print sat in a chanter's pocket. The floor still wins: it is
-  // shuffled and searched first, hands only after it runs out.
+  // Hands are collected ALWAYS, not only when the floor is bare — "floor first" is a preference, not an exclusion. Floor is shuffled and searched first.
   if (participants.length) {
     const held = await db.characterTag.findMany({
       where: { characterId: { in: participants.map((p) => p.characterId) }, quantity: { gt: 0 }, tag: photoWhere },
@@ -178,7 +148,6 @@ async function photographInReach(db, roomId, participants = []) {
   return null;
 }
 
-// A random weapon stack on this floor. Melee or ranged: the group is the test.
 async function weaponOnFloor(db, roomId) {
   const rows = await db.roomTag.findMany({
     where: { roomId, quantity: { gt: 0 }, tag: { group: { slug: WEAPON_GROUP_SLUG } } },
@@ -188,8 +157,7 @@ async function weaponOnFloor(db, roomId) {
   return row ? row.tag : null;
 }
 
-// Everything a rite needs, or what is missing. `room` needs { id, kind,
-// locationId, accessTagSlugs, location: { slug } }.
+// Everything a rite needs, or what is missing.
 async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
   const missing = [];
   const resolved = {};
@@ -217,9 +185,7 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
     }
   }
 
-  // Judgement: "Does not work on Pious people or people in the Cathedral."
-  // Madness says the same thing in Bascinet's other words — "Does not work on
-  // hallowed people or places" — so it is one rule with two spellings, not two.
+  // Judgement and Madness say the same thing in two spellings — one rule, not two.
   if (HALLOWED_PROOF_RITES.has(rite.key) && resolved.photograph) {
     const t = resolved.photograph.target;
     const slugs = new Set(t.tags.map((ct) => ct.tag.slug));
@@ -229,11 +195,8 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
     if (slugs.has(PIOUS_SLUG) || onHallowedGround(at)) missing.push("target");
   }
 
-  // Fulfillment and Ascension have conditions the floor cannot express, and
-  // they are checked HERE rather than in the handler for one reason: the
-  // sweep eats the floor before it runs the handler. A refusal upstairs
-  // rearms the attempt and costs nothing; a refusal downstairs would have
-  // swallowed a sceptre, a mitre and 250 ⬢ for no effect.
+  // Fulfillment and Ascension have conditions the floor cannot express, checked HERE rather than in the handler since the sweep eats the floor
+  // before the handler runs — a refusal upstairs rearms the attempt for free; a refusal downstairs would have swallowed the ingredients for nothing.
   if (rite.key === "fulfillment" || rite.key === "ascension") {
     const state = await db.gameState.findUnique({
       where: { id: 1 },
@@ -245,9 +208,7 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
       },
     });
     if (rite.key === "fulfillment") {
-      // "You may only perform this rite once, and your leader must be
-      // present!" The leader may walk in later, so a missing one is a rearm
-      // and not a failure.
+      // The leader may walk in later, so a missing one is a rearm, not a failure.
       if (state?.fulfillmentFiredAt != null) missing.push("already-performed");
       const leaders = await db.character.count({
         where: {
@@ -257,17 +218,12 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
       });
       if (leaders === 0) missing.push("leader");
     } else {
-      // The world can only end once PER GAME, and it may already be ending.
-      // The fired stamp comes off the Game row: the GameState copy outlived
-      // its game, so a restart left the rite permanently refusing itself
-      // because the PREVIOUS world had already burned.
+      // The world can only end once PER GAME. The fired stamp comes off the Game row, not GameState, or a restart would leave the rite refusing
+      // itself forever because the PREVIOUS world had already burned.
       if (state?.ascensionArmedTurn != null || state?.game?.ascensionFiredTurn != null) {
         missing.push("already-running");
       }
-      // And there has to be a leader to lose. Without one the rite would arm a
-      // countdown whose only cancel condition is already true, so it would eat
-      // a sceptre, a mitre and 250 ⬢, warn the whole map, and then call itself
-      // off two turns later with nothing said to anybody.
+      // There has to be a leader to lose, or the rite would arm a countdown whose cancel condition is already true.
       const leaders = await db.character.count({
         where: { status: "ALIVE", tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_LEADER_SLUG } } } },
       });

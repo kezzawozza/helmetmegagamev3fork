@@ -1,31 +1,27 @@
-// The chant hook: every line a character says on either face passes through
+// The chant hook: every line a character says passes through
 // db/lib/say.js#recordSpeech, which hands the written row to noteChant() here
-// (docs/systemdocs/THANATI.md §4). There is no Rite button — this is how a rite
-// begins, and the sweep (db/lib/riteSweep.js) is how it ends.
+// (docs/systemdocs/THANATI.md §4). There is no Rite button — this is how a
+// rite begins, and the sweep (db/lib/riteSweep.js) is how it ends.
 //
-// A chant COUNTS when all of these hold:
-//   - it was said in a Room's thread, or in a Conversation linked to a Room;
-//   - the line contains this game's Word of the Circle for some rite;
-//   - the speaker is wearing robes and holds Dark Inspiration.
-// It then joins (or opens) the RiteAttempt for that rite in that room, and the
-// attempt is re-judged: enough distinct chanters and every ingredient present
-// (db/lib/riteIngredients.js) → READY, the two-minute clock starts, and the
-// room hears one line.
+// A chant COUNTS when: said in a Room's thread or a linked Conversation; the
+// line contains a Word of the Circle; the speaker wears robes and holds Dark
+// Inspiration. It then joins (or opens) the room's RiteAttempt for that rite,
+// re-judged: enough distinct chanters + every ingredient present
+// (db/lib/riteIngredients.js) → READY, the two-minute clock starts.
 //
-// The same hook also carries a rite's ANSWER: the Rite of Panic fires and then
-// waits for a participant to name a zone in the same room (riteEffects.js).
+// Same hook also carries a rite's ANSWER: Rite of Panic fires then waits for
+// a participant to name a zone in the same room (riteEffects.js).
 //
-// Best-effort, and it must NEVER slow or fail the message it rides on: the
-// caller fires it without awaiting and every path here is caught. Takes `db`
-// as a parameter, the db/lib/dm.js convention.
+// Best-effort, must NEVER slow or fail the message it rides on: the caller
+// fires it without awaiting and every path here is caught. Takes `db` as a
+// parameter (db/lib/dm.js convention).
 const { WINDOW_MS, GRACE_MS, riteByKey, matchRites } = require("./rites");
 const { ensureRiteWords } = require("./riteWords");
 const { chanterReady } = require("./thanati");
 const { resolveIngredients } = require("./riteIngredients");
 const { roomLine, answerPanic } = require("./riteEffects");
 
-// Bascinet's line, verbatim and unsigned. Posted once per attempt, the moment
-// the last requirement lands.
+// Posted once per attempt, the moment the last requirement lands.
 const TENSE_LINE = "You feel tense... Anyone else who wants to participate should join in now.";
 
 const ROOM_SELECT = {
@@ -63,8 +59,7 @@ async function distinctChanters(db, attemptId) {
   return [...seen].map(([characterId, name]) => ({ characterId, name }));
 }
 
-// Re-judge an OPEN attempt. Idempotent: the READY write is guarded on readyAt
-// still being null, so a second judge racing this one posts nothing twice.
+// Idempotent: READY write is guarded on readyAt still being null.
 async function evaluateAttempt(db, attempt, room = null) {
   const rite = riteByKey(attempt.riteKey);
   if (!rite || attempt.status !== "OPEN") return false;
@@ -85,8 +80,7 @@ async function evaluateAttempt(db, attempt, room = null) {
   return true;
 }
 
-// The live attempt for this rite in this room, or a fresh one. READY counts
-// as live so a late chanter inside the grace window is still a participant.
+// READY counts as live so a late chanter inside the grace window still counts.
 async function attemptFor(db, rite, room) {
   const since = new Date(Date.now() - WINDOW_MS);
   const live = await db.riteAttempt.findFirst({
@@ -95,14 +89,10 @@ async function attemptFor(db, rite, room) {
   });
   if (live) return live;
   const created = await db.riteAttempt.create({ data: { riteKey: rite.key, roomId: room.id, roomName: room.name } });
-  // Two chanters posting the Word in the same second both miss the read
-  // above and both create. There is no unique index to refuse the second, so
-  // the loser folds into the oldest live attempt and its own row goes — a
-  // split would leave two half-counted attempts that never fire.
-  // `id` breaks a timestamp tie. openedAt defaults to now() and two rows
-  // created in the same tick compare equal, so with openedAt alone each racer
-  // could read itself as the oldest — neither deletes, and the room ends with
-  // two half-counted attempts that each need the full minChanters again.
+  // Two chanters in the same second can both miss the read above and both
+  // create; no unique index refuses the second, so the loser folds into the
+  // oldest live attempt. `id` breaks an openedAt tie (same-tick rows compare
+  // equal, so without it neither deletes and both stay half-counted).
   const oldest = await db.riteAttempt.findFirst({
     where: { riteKey: rite.key, roomId: room.id, status: { in: ["OPEN", "READY"] }, openedAt: { gte: since } },
     orderBy: [{ openedAt: "asc" }, { id: "asc" }],

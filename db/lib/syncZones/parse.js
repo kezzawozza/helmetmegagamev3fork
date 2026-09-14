@@ -12,9 +12,8 @@ const KIND_BY_YAML = { surface: "SURFACE", group: "CAVE_GROUP" };
 
 // --- Pass 0: parse + validate ------------------------------------------
 
-// Flattens the YAML into zone, location and room entries plus the location
-// graph. Throws on anything structurally wrong; a bad master must fail
-// before the first write.
+// Flattens the YAML into zone/location/room entries plus the location graph.
+// Throws on anything structurally wrong; a bad master must fail before the first write.
 function parseZonesYaml(doc) {
   const zoneEntries = [];
   const locationEntries = [];
@@ -75,7 +74,7 @@ function parseZonesYaml(doc) {
     }
   }
 
-  // Zone, location and room slugs share one namespace.
+  // Zone/location/room slugs share one namespace.
   const seen = new Set();
   for (const entry of [...zoneEntries, ...locationEntries, ...roomEntries]) {
     if (seen.has(entry.slug)) problems.push(`duplicate slug "${entry.slug}"`);
@@ -98,9 +97,7 @@ function parseZonesYaml(doc) {
     if (entry) connections.push(entry);
   }
 
-  // Two entries for one pair would each try to claim the same unique row,
-  // and the later one would silently win. Almost always a copy-paste of a
-  // mirrored edge that the format no longer wants stated twice.
+  // Two entries for one pair would claim the same unique row, the later silently winning.
   const seenPairs = new Set();
   for (const entry of connections) {
     const key = [entry.a, entry.b].sort().join(" <-> ");
@@ -133,15 +130,9 @@ function parseZonesYaml(doc) {
 //     keyed: true
 //     on_foot: true
 //
-// The bare-pair form is kept because most of the map is plain roads, and a
-// mapping for each of them would triple the file for nothing.
-//
-// `locked` and `hidden` are the same requirement with different visibility,
-// so they share one column and `hidden` sets the flag as well. Tag and Role
-// slugs are NOT validated here: tags and roles sync after zones (SYNC.md's
-// working order), so an FK or a catalog lookup would make the master
-// unloadable. db:doctor validates them instead — the same trade the room
-// `access:` list already makes.
+// `locked`/`hidden` are the same requirement with different visibility, one
+// column, `hidden` sets the flag too. Tag/Role slugs are NOT validated here —
+// tags and roles sync after zones (SYNC.md) — db:doctor validates them instead.
 const ANNOUNCE_BY_KEYWORD = new Map([
   ["true_name", "TRUE_NAME"],
   ["gate", "TRUE_NAME"],
@@ -218,11 +209,7 @@ function parseConnection(raw, locationByRef, problems) {
     entry.hidden = hides;
   }
 
-  // A way no horse or cart fits through. Unlike everything else here it gates
-  // on what the traveller has EQUIPPED rather than what they hold, and unlike
-  // Location.indoors it refuses at the threshold instead of parking the mount
-  // on arrival — which is the point, since arrival is after the free crossing
-  // an equipped mount buys has already been spent.
+  // A way no horse or cart fits through — gates on what's EQUIPPED, refuses at the threshold rather than parking the mount on arrival.
   if (spec.on_foot != null) {
     if (typeof spec.on_foot !== "boolean") {
       problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean on_foot: ${JSON.stringify(spec.on_foot)}`);
@@ -231,9 +218,7 @@ function parseConnection(raw, locationByRef, problems) {
     }
   }
 
-  // `keyed` only means anything on a way that is shut to somebody: it offers
-  // the key-holder the chance to hold it open for the next 24 hours. On an
-  // edge with no requirement there is nothing to hold.
+  // `keyed` only means anything on a way shut to somebody — holds it open 24h. No requirement, nothing to hold.
   if (spec.keyed != null) {
     if (typeof spec.keyed !== "boolean") {
       problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean keyed: ${JSON.stringify(spec.keyed)}`);
@@ -259,14 +244,9 @@ function parseConnection(raw, locationByRef, problems) {
   return entry;
 }
 
-// The per-location `yield:` block -> { HUNTING: 0.5, ... }. A kind left out is
-// a kind that cannot be worked there at all, which is a different thing from a
-// kind worth zero — no LocationYield row is written for it, and the Labor?
-// button prints a bare x.
-//
-// Validated rather than trusted: a typo like `hunitng: 0.5` would otherwise
-// silently disable hunting somewhere, and the symptom (one location quietly
-// paying nothing) is nearly invisible in play.
+// Per-location `yield:` block -> { HUNTING: 0.5, ... }. A kind left out cannot
+// be worked there at all, different from worth zero. Validated rather than
+// trusted: a typo like `hunitng: 0.5` would silently disable hunting somewhere.
 const YIELD_KINDS = {
   hunting: "HUNTING",
   farming: "FARMING",
@@ -294,8 +274,7 @@ function collectYields(location, problems) {
       problems.push(`location "${location.id}" yield.${key} must be a number between 0 and ${YIELD_MAX}`);
       continue;
     }
-    // A zero is almost certainly a mistake — write nothing rather than a row
-    // the resolver would skip anyway, and say so.
+    // A zero is almost certainly a mistake — say so rather than write nothing silently.
     if (value === 0) {
       problems.push(`location "${location.id}" yield.${key} is 0; omit the key instead`);
       continue;
@@ -305,13 +284,10 @@ function collectYields(location, problems) {
   return out;
 }
 
-// A room's `stash:` in two shapes. The short one is a plain list of slugs,
-// one each — the way every stash in the file was written before the Armory
-// needed six helmets. The long one is a map with `resources:` and an
-// `items:` map of slug -> count. Both normalise to the same
-// { resources, items: [[slug, quantity], ...] } so seedRoomStash sees one
-// shape. A count that isn't a positive whole number is a PROBLEM, not a
-// silent 1: a typo'd quantity is a room that quietly holds the wrong thing.
+// A room's `stash:` in two shapes: a plain list of slugs (one each), or a map
+// with `resources:` and `items:` (slug -> count). Both normalise to
+// { resources, items: [[slug, quantity], ...] }. A count that isn't a
+// positive whole number is a PROBLEM, not a silent 1.
 function parseStash(raw, roomId, problems) {
   const empty = { resources: 0, items: [] };
   if (raw == null) return empty;
@@ -356,12 +332,10 @@ function parseStash(raw, roomId, problems) {
   return out;
 }
 
-// A Location's `structures:` — the things that were simply always standing
-// there, like the Square's cross. A flat list of placement-tag slugs; the seed
-// (seedLocationStructures) creates one COMPLETE row each. Slugs are not
-// checked against the catalog here, for the reason `stash:` and `access:`
-// give: tags sync after zones, so the lookup happens at seed time and an
-// unknown slug warns and skips.
+// A Location's `structures:` — things always standing there, like the
+// Square's cross. Flat list of placement-tag slugs; seedLocationStructures
+// creates one COMPLETE row each. Not checked against the catalog here — tags
+// sync after zones, so the lookup happens at seed time.
 function parseStructures(raw, locationId, problems) {
   if (raw == null) return [];
   if (!Array.isArray(raw)) {
@@ -428,24 +402,19 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
 }
 
 // The overwrite targets this sync may DELETE. @everyone is deliberately NOT
-// in the set: its ViewChannel deny is the overwrite the whole privacy model
-// rests on, so no future spec edit can strip a channel's privacy here.
-//
-// Neither is any MEMBER target, and that is now load-bearing rather than
-// incidental. A Location channel is opened to whoever is standing in it by a
-// per-member overwrite that no spec names, so a wildcard here — or a member
-// id finding its way into roleIds — would evict every player from the map on
-// the next sync. Only role ids belong in this set.
+// in the set — its ViewChannel deny is what the whole privacy model rests on.
+// Neither is any MEMBER target: a Location channel is opened per-member to
+// whoever stands in it, and a wildcard here would evict every player on the
+// next sync. Only role ids belong in this set.
 function managedOverwriteIds(roleIds) {
   return new Set(
     [...gmRoleIds(), SPECTATOR_ROLE_ID, ghostRoleId(), ...roleIds].filter(Boolean),
   );
 }
 
-// Reconciles one channel's overwrites against the spec: PUT everything the
-// spec names, then DELETE any managed target it no longer names. One request
-// per target, never a wholesale PATCH, which would evict grants this sync
-// doesn't own (narrowcast).
+// Reconciles one channel's overwrites: PUT everything the spec names, then
+// DELETE any managed target no longer named. One request per target, never a
+// wholesale PATCH, which would evict grants this sync doesn't own (narrowcast).
 async function reconcileChannelOverwrites(channelId, want, managed) {
   const wanted = new Map(want.permission_overwrites.map((o) => [o.id, o]));
   const changes = [];
@@ -458,8 +427,7 @@ async function reconcileChannelOverwrites(channelId, want, managed) {
     });
   }
 
-  // allow404 deliberately NOT passed: a recorded channel id pointing at
-  // nothing is worth failing this target over.
+  // allow404 deliberately NOT passed: a recorded channel id pointing at nothing is worth failing over.
   const live = await getChannel(channelId);
   for (const existing of live?.permission_overwrites ?? []) {
     if (wanted.has(existing.id)) continue;

@@ -1,24 +1,9 @@
-// The spectator role — an observer seat that sees every Location channel,
-// #turns and the narrowcast channels, read-only, WHILE THE GAME IS ON.
-//
-// "On" is GameState.phase RUNNING or ENDED (docs/systemdocs/LOBBY.md §1).
-// During CLOSED and LOBBY the seat is denied view outright, so a GM testing
-// the world before launch — intercom @here, the fireball's @everyone, every
-// ambient line — pings nobody who only came to watch. The overwrite is
-// ALWAYS present on a managed channel and only its bits change with the
-// phase, which is what lets the ordinary reconcile (syncZones.js#
-// reconcileChannelOverwrites) carry it without adding or stripping a target.
-//
-// Applied at provisioning (not swapped per-Move like a character's personal
-// role, since a spectator sees everywhere at once), re-asserted by every
-// spec-driven reconcile, and swept on every phase transition by
-// syncSpectatorAccess below — with the channel doctor's cheap scope as the
-// backstop for a transition whose after() died.
-//
-// The deny list is wider than SendMessages: ViewChannel alone still leaves
-// a forum channel postable and a thread writable, and Location `-private`
-// channels grant @everyone CreatePrivateThreads — denying the thread perms
-// explicitly is what "read-only, no private threads" requires.
+// The spectator role — an observer seat that sees every Location channel, #turns and the narrowcast channels, read-only, WHILE THE GAME IS ON.
+// "On" is GameState.phase RUNNING or ENDED (docs/systemdocs/LOBBY.md §1); during CLOSED and LOBBY the seat is denied view outright, so a GM testing
+// the world before launch pings nobody who only came to watch. The overwrite is ALWAYS present on a managed channel and only its bits change with
+// the phase, so the ordinary reconcile can carry it without adding or stripping a target. Applied at provisioning, re-asserted by every spec-driven
+// reconcile, and swept on every phase transition by syncSpectatorAccess below. The deny list is wider than SendMessages: ViewChannel alone still
+// leaves a forum channel postable and a thread writable, so the thread perms are denied explicitly.
 const { putChannelOverwrite, getGuildChannels } = require("./discordRest");
 const { SPECTATOR_ROLE_ID } = require("./roleIds");
 const { SPECIAL_CHANNELS } = require("./specialChannels");
@@ -51,34 +36,26 @@ async function spectatorsVisibleNow(db) {
   return spectatorsVisible(state?.phase);
 }
 
-// The bits for one phase. Hidden is not "no overwrite": it is an explicit
-// deny of View, so a channel whose @everyone somehow allows view still hides.
+// The bits for one phase. Hidden is not "no overwrite": it's an explicit deny of View, so a channel whose @everyone somehow allows view still hides.
 function spectatorBits(visible) {
   return visible
     ? { allow: SPECTATOR_ALLOW.toString(), deny: SPECTATOR_DENY.toString() }
     : { allow: "0", deny: (SPECTATOR_DENY | PERM_VIEW_CHANNEL).toString() };
 }
 
-// The overwrite object for inlining into a createChannel()
-// permission_overwrites array at provisioning time — same shape as
-// syncLocations' gmChannelOverwrite, so call sites can spread it.
+// The overwrite object for inlining into a createChannel() permission_overwrites array at provisioning time.
 function spectatorOverwrite({ visible = true } = {}) {
   return [{ id: SPECTATOR_ROLE_ID, type: 0, ...spectatorBits(visible) }];
 }
 
-// The REST equivalent, for channels that already exist. A single PUT that
-// adds/updates just this one overwrite without disturbing the channel's
-// others (unlike PATCHing the whole permission_overwrites array), so it is
-// safe to re-run and safe alongside the @everyone and GM overwrites.
+// The REST equivalent, for channels that already exist. A single PUT that updates just this one overwrite without disturbing the channel's others.
 async function applySpectatorOverwrite(channelId, { visible = true } = {}) {
   if (!channelId) return false;
   await putChannelOverwrite(channelId, SPECTATOR_ROLE_ID, spectatorBits(visible));
   return true;
 }
 
-// Every channel the seat is managed on: zone categories and summaries,
-// Location channels, #turns, the narrowcast channels. Read off the DB's own
-// pointers, never guessed from names.
+// Every channel the seat is managed on. Read off the DB's own pointers, never guessed from names.
 async function managedSpectatorChannels(db) {
   const [zones, locations, config] = await Promise.all([
     db.zone.findMany({ select: { name: true, discordCategoryId: true, discordSummaryChannelId: true } }),
@@ -98,8 +75,7 @@ async function managedSpectatorChannels(db) {
   }
   for (const l of locations) if (l.discordChannelId) out.push({ id: l.discordChannelId, label: l.name });
   if (config?.turnsConsoleChannelId) out.push({ id: config.turnsConsoleChannelId, label: "#turns" });
-  // Walked, not hand-listed — the same way accessSweep, messageWipe and the
-  // doctor read the registry. A new special channel is zero-touch here.
+  // Walked, not hand-listed, so a new special channel is zero-touch here.
   for (const entry of SPECIAL_CHANNELS) {
     const id = config?.[entry.configKey];
     if (id) out.push({ id, label: `#${entry.slug}` });
@@ -107,9 +83,7 @@ async function managedSpectatorChannels(db) {
   return out;
 }
 
-// Which managed channels carry the wrong bits for `visible`, given a live
-// channel list (getGuildChannels). Pure over its inputs so the doctor can
-// diff without a second fetch.
+// Which managed channels carry the wrong bits for `visible`. Pure over its inputs so the doctor can diff without a second fetch.
 function spectatorDrift(managed, liveChannels, visible) {
   const want = spectatorBits(visible);
   const liveById = new Map(liveChannels.map((c) => [c.id, c]));
@@ -123,8 +97,7 @@ function spectatorDrift(managed, liveChannels, visible) {
   return drifted;
 }
 
-// The sweep run on every phase transition: PUTs only where the live bits
-// differ, so a transition that changes nothing costs one channel list.
+// The sweep run on every phase transition: PUTs only where the live bits differ.
 async function syncSpectatorAccess(db) {
   const [visible, managed, live] = await Promise.all([
     spectatorsVisibleNow(db),

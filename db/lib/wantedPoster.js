@@ -1,49 +1,24 @@
-// The world puts a face up — Wanted and Debtor alike.
-//
-// A character who turns up already Wanted (the tag is a creation-time buy)
-// has a bounty on them before they have done anything, and three sheets go up
-// the moment they arrive: one in the garrison mess, where the soldiers who
-// might collect it eat; one in the Censor's office, where the paperwork
-// lives; and one nailed to the board in the Square, where everybody in Town
-// walks past it.
-//
-// Debtor works the same shape, in different rooms: one loose sheet in the
-// Merchant's office, one on the Customs storefront counter, one pinned to the
-// Customs noticeboard. Its line never names a zone — the debt is the debt
-// wherever the debtor is standing.
-//
-// The Wanted line names the zone the character STARTED in and never updates.
-// That is what a wanted poster is — a snapshot of where somebody was last
-// seen, going stale the moment they move.
-//
-// Three separate sheets, not one: NoticePost.tagId is @unique, so a pinned
-// poster cannot also be sitting in a stash.
-//
-// Takes `prisma` as a parameter, the db/lib/dm.js convention, and stays off
-// the @lifeweb/db barrel.
+// The world puts a face up — Wanted and Debtor alike. A character who turns up already Wanted (a creation-time buy) gets three sheets the moment
+// they arrive: one in the garrison mess, one in the Censor's office, one pinned to the board in the Square. Debtor works the same shape in
+// different rooms, and its line never names a zone — the debt is the debt wherever the debtor stands. The Wanted line names the zone the character
+// STARTED in and never updates — a snapshot going stale the moment they move. Three separate sheets, not one: NoticePost.tagId is @unique, so a
+// pinned poster cannot also be sitting in a stash. Takes `prisma`, stays off the @lifeweb/db barrel.
 
 const { mintUnownedPaper } = require("./paperMint");
 const { addToRoomStack } = require("./tagWrites");
 const { expiryFrom } = require("./turnFormat");
 const { DEBTOR_SLUG } = require("./constants");
-// The tag itself lives in wanted.js; this file is only the paper. Both are
-// re-exported below so the callers that always imported them from here still
-// can.
+// The tag itself lives in wanted.js; this file is only the paper. Both re-exported below.
 const { WANTED_SLUG, isWanted } = require("./wanted");
 
-// The Merchant advanced him half of it; the paper says the rest.
 const DEBTOR_DEBT_OBOLS = 40;
 const DEBTOR_STARTING_OBOLS = 20;
 
-// Long enough to outlast the brigand (or the debt). NoticePost.expiresTurn is
-// required and db/lib/noticeboardPass.js destroys the paper with the post, so
-// a poster with no clock is not an option — this is the clock that reads as
-// "indefinitely".
+// NoticePost.expiresTurn is required, so a poster needs a clock — this is the one that reads as "indefinitely".
 const POSTER_TURNS = 30;
 
-// One spec per kind of notice: who authored it, which two rooms get a loose
-// sheet, which Location's noticeboard gets the pinned one, how the text
-// reads, and whether that text needs a zone name to make sense.
+// One spec per kind of notice: who authored it, which two rooms get a loose sheet, which Location's noticeboard gets the pinned one, the text, and
+// whether that text needs a zone name.
 const NOTICE_SPECS = {
   WANTED: {
     author: "The Cerberon",
@@ -61,15 +36,12 @@ const NOTICE_SPECS = {
   },
 };
 
-// True when a freshly created character bought Debtor.
 function isDebtor(heldSlugs) {
   const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
   return held.has(DEBTOR_SLUG);
 }
 
-// Puts the three sheets up for one notice spec. Best-effort by contract:
-// every caller wraps it, because a poster may never cost a character that
-// already exists.
+// Puts the three sheets up for one notice spec. Best-effort by contract: a poster may never cost a character that already exists.
 async function postNotices(prisma, character, openTurn, spec) {
   const zoneName = character?.zone?.name ?? character?.zoneName ?? null;
   if (!character?.id) return { rooms: 0, pinned: false };
@@ -87,10 +59,8 @@ async function postNotices(prisma, character, openTurn, spec) {
     select: { id: true },
   });
 
-  // One transaction per sheet rather than one for all three. createWithRetry
-  // re-creates on a name collision, and Postgres aborts a whole transaction
-  // on the first failed statement — so batching them would turn one unlucky
-  // waybill code into three lost posters (the trap paperMint.js documents).
+  // One transaction per sheet rather than one for all three — Postgres aborts a whole transaction on the first failed statement, so batching
+  // would turn one unlucky waybill code into three lost posters.
   let posted = 0;
   for (const room of rooms) {
     await prisma.$transaction(async (tx) => {
@@ -108,8 +78,7 @@ async function postNotices(prisma, character, openTurn, spec) {
         data: {
           locationId: board.id,
           tagId: tag.id,
-          // Nullable by design: a notice outlives whoever pinned it, and
-          // neither the Cerberon nor the Merchant are a character.
+          // Nullable by design: a notice outlives whoever pinned it, and neither the Cerberon nor the Merchant are a character.
           postedById: null,
           postedTurn: turnNumber,
           expiresTurn: expiryFrom(turnNumber, POSTER_TURNS),

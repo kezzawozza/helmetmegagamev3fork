@@ -1,22 +1,13 @@
 // The message wipe: called from db/index.js#advanceTurn() on EVERY turn while
-// GameConfig.messageWipeEnabled is on.
-//
-// TWO CADENCES, and the split is the whole point of this file. A turn is one
-// real day, but Dawn and Dusk alternate, so anything gated on Dawn only comes
-// round every 48 hours. Roleplay should not outlive the day it happened in:
-//
-//   every turn  — a Location channel down to its pinned anchor, every Room
-//                 thread down to its starter, every Conversation deleted
-//                 outright (there is no persistence any more), and every
-//                 special channel the registry marks `wipe: "clear"`.
-//   Dawn only   — a zone's #summary. It is the abstracted, slowmoded channel
-//                 the adjudication results land in, so it is allowed the
-//                 longer life the rest no longer gets.
-//
-// Every rule is bounded by a CUTOFF (the moment the turn advance's side
-// effects began), so it can't eat its own push's #summary post or a message
-// sent while the wipe is still walking there. Sequential, not Promise.all, to
-// respect Discord's rate limits.
+// GameConfig.messageWipeEnabled is on. TWO CADENCES:
+//   every turn — a Location channel down to its pinned anchor, every Room
+//                thread down to its starter, every Conversation deleted
+//                outright, and every special channel marked `wipe: "clear"`.
+//   Dawn only  — a zone's #summary, the abstracted slowmoded channel
+//                adjudication results land in.
+// Every rule is bounded by a CUTOFF (when the turn advance's side effects
+// began), so it can't eat its own push's #summary post or an in-flight
+// message. Sequential, not Promise.all, to respect Discord's rate limits.
 const { SPECIAL_CHANNELS } = require("./specialChannels");
 const {
   fetchAllMessages,
@@ -35,16 +26,14 @@ const {
   readRequestMetrics,
 } = require("./discordRest");
 
-// The cutoff: one instant, expressed two ways. `before` is the synthetic
-// snowflake handed to Discord's message cursor; `ms` is the same moment in
-// milliseconds, for the thread ids we have to judge ourselves.
+// One instant, two ways: `before` is the synthetic snowflake for Discord's
+// message cursor; `ms` is the same moment for thread ids we judge ourselves.
 function buildCutoff(cutoffMs) {
   return { ms: cutoffMs, before: snowflakeForTimestamp(cutoffMs) };
 }
 
-// True for anything created after the wipe's cutoff. An id we can't parse is
-// treated as old, which is the conservative read for a blind sweep: it stays
-// under the ordinary rules rather than silently becoming immortal.
+// An id we can't parse is treated as old — stays under ordinary rules
+// rather than silently becoming immortal.
 function isAfterCutoff(snowflakeId, cutoff) {
   const at = messageTimestamp(snowflakeId);
   return at !== null && at >= cutoff.ms;
@@ -69,9 +58,8 @@ async function collectThreads(channelId, activeSnapshot) {
   return [...byId.values()];
 }
 
-// Adopt a thread the DB doesn't know: write the row rather than delete the
-// thread. First seen at the wipe after it appears, so it always survives one
-// turn — and from then on it lives under the ordinary rules.
+// Adopt a thread the DB doesn't know: write the row instead of deleting it,
+// so it survives one turn and then lives under the ordinary rules.
 async function adoptThread(prisma, thread, location) {
   return prisma.playerThread
     .create({
@@ -96,12 +84,10 @@ async function deletePlayerThread(prisma, threadId) {
 async function wipeLocation(prisma, location, roomsByThreadId, rowsByThreadId, activeSnapshot, cutoff) {
   if (!location.discordChannelId) return;
 
-  // allow404: a channel someone deleted by hand is an ordinary state for a
-  // blind sweep, not a reason to abandon it.
+  // allow404: a channel deleted by hand is ordinary for a blind sweep.
   const channel = await getChannel(location.discordChannelId, { allow404: true });
   if (!channel) return;
 
-  // The open street: everything but the pinned anchor.
   await clearMessagesExcept(location.discordChannelId, location.anchorMessageId, { before: cutoff.before });
 
   const threads = await collectThreads(location.discordChannelId, activeSnapshot);
@@ -109,7 +95,7 @@ async function wipeLocation(prisma, location, roomsByThreadId, rowsByThreadId, a
     const room = roomsByThreadId.get(thread.id);
     if (room) {
       await clearMessagesExcept(thread.id, room.starterMessageId, { before: cutoff.before });
-      // A room that idled into the archive comes back at the wipe.
+      // An idled-into-archive room comes back at the wipe.
       if (thread.thread_metadata?.archived) {
         await patchThread(thread.id, { archived: false }).catch((err) =>
           console.error(`Message wipe: unarchive of room ${room.name} failed:`, err.message),
@@ -118,10 +104,8 @@ async function wipeLocation(prisma, location, roomsByThreadId, rowsByThreadId, a
       continue;
     }
 
-    // A thread younger than the cutoff was opened while this very wipe was
-    // running. Leave it entirely — deleting it would destroy a conversation
-    // whose author is still looking at it. It comes under the ordinary rules
-    // next turn, exactly like an adopted thread.
+    // A thread younger than the cutoff was opened mid-wipe — leave it, its
+    // author may still be looking at it; ordinary rules apply next turn.
     if (isAfterCutoff(thread.id, cutoff)) continue;
 
     let row = rowsByThreadId.get(thread.id);
@@ -133,12 +117,9 @@ async function wipeLocation(prisma, location, roomsByThreadId, rowsByThreadId, a
   }
 }
 
-// `cutoffMs` is the moment the turn advance's side effects began — see
-// db/index.js#runSideEffects and the CUTOFF rule in the file header above.
-// Defaults to "now" so a hand-run wipe still can't eat its own tail.
-//
-// `wipeSummaries` is the Dawn half: true only when the newly-opened turn is a
-// DAWN. Everything else in here runs every turn regardless.
+// `cutoffMs` is when the turn advance's side effects began (see
+// db/index.js#runSideEffects); defaults to "now" so a hand-run wipe can't eat
+// its own tail. `wipeSummaries` is the Dawn half, true only on a DAWN turn.
 async function runMessageWipe(prisma, { cutoffMs = Date.now(), wipeSummaries = false } = {}) {
   const startedAt = Date.now();
   const cutoff = buildCutoff(cutoffMs);
@@ -157,8 +138,7 @@ async function runMessageWipe(prisma, { cutoffMs = Date.now(), wipeSummaries = f
   const roomsByThreadId = new Map(rooms.map((r) => [r.discordThreadId, r]));
   const rowsByThreadId = new Map(playerThreads.map((row) => [row.threadId, row]));
 
-  // Fetched ONCE for the whole wipe — the endpoint is guild-wide. A thread
-  // created mid-wipe is missed until the next one, same as always.
+  // Fetched ONCE for the whole wipe — the endpoint is guild-wide.
   const activeThreads = await fetchActiveThreads().catch((err) => {
     console.error("Message wipe: active-thread snapshot failed, falling back to per-channel fetches:", err);
     return null;
@@ -166,10 +146,8 @@ async function runMessageWipe(prisma, { cutoffMs = Date.now(), wipeSummaries = f
 
   const failures = [];
 
-  // Each step is timed and counted, and lands in the SystemReport below. The
-  // wipe is the longest thing the bot does and nobody could say which part of
-  // it was the slow part; a per-location request count answers that from the
-  // Dev Panel instead of from a stopwatch.
+  // Each step is timed and counted, landing in the SystemReport below, so the
+  // Dev Panel can answer which part of the wipe was slow.
   const timeStep = async (name, fn) => {
     const at = Date.now();
     const metrics = beginRequestMetrics();
@@ -187,8 +165,8 @@ async function runMessageWipe(prisma, { cutoffMs = Date.now(), wipeSummaries = f
   let locationCount = 0;
   for (const zone of zones) {
     console.log(`Message wipe: ${zone.name}`);
-    // The one Dawn-only target. The zone loop still runs every turn — it has
-    // to, for the Locations underneath it.
+    // The one Dawn-only target; the zone loop still runs every turn for the
+    // Locations underneath it.
     if (wipeSummaries && zone.discordSummaryChannelId) {
       try {
         await timeStep(`${zone.name} / summary`, () => clearMessages(zone.discordSummaryChannelId, cutoff.before));
@@ -197,8 +175,7 @@ async function runMessageWipe(prisma, { cutoffMs = Date.now(), wipeSummaries = f
         console.error(`Message wipe: ${zone.name} #summary failed, continuing:`, err.message);
       }
     }
-    // Each location inside its own try, so one stale channel id costs one
-    // room rather than every room after it.
+    // Own try per location, so one stale channel id costs one room.
     for (const location of zone.locations) {
       locationCount += 1;
       try {
@@ -243,8 +220,6 @@ async function runMessageWipe(prisma, { cutoffMs = Date.now(), wipeSummaries = f
         finishedAt: new Date(),
         ok: failures.length === 0,
         summary: {
-          // Which of the two cadences this run was. A Dusk run leaves every
-          // #summary standing; without this the report can't say so.
           summaries: wipeSummaries,
           zones: zones.length,
           locations: locationCount,

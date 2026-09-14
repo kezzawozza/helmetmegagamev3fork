@@ -1,26 +1,17 @@
-// Working a gate, on either face. The transactional flip and the keyed door's
-// 24-hour hold used to live inside two Discord button handlers, so Chat
-// could only have carried a second copy of the rules about who may touch a
-// portcullis. They live here, and the bot's handlers call them.
-//
-// Neither of these touches Discord. Redrawing the watchtower's starter row
-// after a flip is a Discord-only follow-up, and it stays bot-side: the
-// caller is handed back `locationIds` and does its own redraw. A NOTIFY the
-// bot listened for would have been a second channel to keep alive for one
-// message that only ever fires from a click the bot or the web already
-// answered.
+// Working a gate, on either face — shared so Chat and the bot's button handlers don't carry two
+// copies of the rules about who may touch a portcullis. Neither of these touches Discord: redrawing
+// the watchtower's starter row after a flip stays bot-side, since the caller is handed back
+// `locationIds` and does its own redraw.
 const { gateOperable, endpoints, isHeldOpen, KEYED_OPEN_MS } = require("./locationGraph");
 
-// `character` needs { id, locationId }. Working a gate reads nothing else:
-// the winch is in the watchtower, so the room they clicked in already
-// answered who they are.
+// `character` needs { id, locationId }. Working a gate reads nothing else — the winch is in the
+// watchtower, so the room they clicked in already answered who they are.
 const GATE_CHARACTER_SELECT = {
   id: true,
   name: true,
   locationId: true,
 };
 
-// Returns { ok: true, opened, farName, locationIds } or { ok: false, error }.
 // Every refusal is a sentence a player reads, so both faces say the same one.
 async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
   if (!character) return { ok: false, error: "You don't have a living character." };
@@ -28,16 +19,13 @@ async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
   const link = await prisma.locationLink.findUnique({ where: { id: linkId }, include: { a: true, b: true } });
   // Covers "not modular" — whatever a stale button claimed.
   if (!gateOperable(link)) return { ok: false, error: "There's no gate here." };
-  // You have to be standing on one side of it.
   if (character.locationId !== link.aId && character.locationId !== link.bId) {
     return { ok: false, error: "You aren't standing at that gate." };
   }
 
   const wantOpen = !link.isOpen;
-  // The checks above read a snapshot, and the flip must not trust it across
-  // time: a re-sync can turn the edge into an ordinary (non-modular) way, and
-  // two watchmen can click in the same second. Lock the row, re-read, and
-  // re-run both predicates.
+  // The checks above read a snapshot; the flip must not trust it across time — a re-sync can turn
+  // the edge into an ordinary way, and two watchmen can click in the same second. Lock, re-read, re-run.
   let outcome = "flipped";
   await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "LocationLink" WHERE "id" = ${link.id} FOR UPDATE`;
@@ -75,14 +63,10 @@ async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
   };
 }
 
-// The answer to "leave it open for the next 24 hours?" — the DM's Yes/No, and
-// Chat's Hold open button.
-//
-// Re-checked rather than trusted: the prompt was raised for a key-holder, but
-// a DM is a durable surface and the key can change hands between the crossing
-// and the answer. Whoever answers must still hold the key. "Leave it open" is
-// a conditional updateMany against the window they were shown, so two people
-// propping the same door in the same moment cannot stack two windows.
+// The answer to "leave it open for the next 24 hours?" — the DM's Yes/No, and Chat's Hold open button.
+// Re-checked rather than trusted: a DM is durable and the key can change hands between the crossing
+// and the answer, so whoever answers must still hold it. A conditional updateMany against the window
+// they were shown means two people propping the same door in the same moment can't stack two windows.
 async function holdKeyedOpen(prisma, { discordUserId, linkId, hold }) {
   const link = await prisma.locationLink.findUnique({ where: { id: linkId }, include: { a: true, b: true } });
   if (!link?.keyed) return { ok: false, error: "There's no door here." };

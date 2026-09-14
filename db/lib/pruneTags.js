@@ -31,35 +31,25 @@ function yamlGroupSlugs() {
   return new Set(entriesOf(doc?.groups, "slug").map((g) => g.slug));
 }
 
-// Every reason a Tag row must survive, gathered in one pass.
-//
-// Role.startingTagSlugs stores slugs (db:sync-roles resolves the authored
-// names as it validates them), and an entry may carry a count
-// ("Obol x5"), so it goes through the shared parser rather than being read
-// raw — otherwise a tag only ever granted with a count reads as unreferenced
-// and gets pruned. Document.tagSlugs stores real slugs.
-// expiresInto entries are a bare slug or { oneOf: [slug, slug] }.
+// Every reason a Tag row must survive, gathered in one pass. An entry may
+// carry a count ("Obol x5"), so it goes through the shared parser rather
+// than being read raw. expiresInto entries are a bare slug or
+// { oneOf: [slug, slug] }.
 function expiresIntoSlugs(entries) {
   if (!Array.isArray(entries)) return [];
   return entries.flatMap((e) => (typeof e === "string" ? [e] : (e?.oneOf ?? [])));
 }
 
-// A gate only counts if the thing holding it is still live: a TagGroup that
-// docs/taggroups.yaml no longer declares is itself about to be pruned below,
-// and a DesireTemplate the desire sync has soft-retired is never offered
-// again (its m2m join rows cascade when the tag goes). Counting either would
-// let a retired catalog pin its own gate tag forever.
+// A gate only counts if the thing holding it is still live — counting a
+// retired TagGroup or soft-retired DesireTemplate would pin its gate tag
+// forever.
 async function collectReferences(prisma, liveGroupSlugs) {
   const [held, poisonedCharacterCounts, poisonedRoomCounts, crateCarriers, parents, required, groupGates, skills, roles, documents, conflicts, desireTags, consumers, structures] =
     await Promise.all([
       prisma.characterTag.groupBy({ by: ["tagId"], _count: { tagId: true } }),
-      // Poison references (fix round M4b, fix 6): a poison Tag can sit at
-      // poisonedCount 0 on the sheet where it was FIRST granted (or not be
-      // held as an item at all any more) while still tainting a stack
-      // elsewhere as poisonPayload — pruning it there would leave a live
-      // dose pointing at a catalog row that no longer exists, which reads to
-      // consume/drop-path code as "not poisoned" the next time anything
-      // touches that row (a silent no-op cure, not a loud failure).
+      // A poison Tag can sit unheld while still tainting a stack elsewhere as
+      // poisonPayload — pruning it would leave a live dose pointing at a
+      // catalog row that no longer exists (a silent no-op cure).
       prisma.characterTag.groupBy({
         by: ["poisonPayload"],
         where: { poisonPayload: { not: null } },
@@ -71,8 +61,7 @@ async function collectReferences(prisma, liveGroupSlugs) {
         _count: { poisonPayload: true },
       }),
       // A packed crate's manifest (Tag.crateContents) carries poison state
-      // per line item (packageItemsRequestImpl) — the same live-dose case,
-      // one JSON hop further away.
+      // per line item — same live-dose case, one JSON hop further away.
       prisma.tag.findMany({
         where: { crateContents: { not: null } },
         select: { id: true, crateContents: true },
@@ -119,16 +108,12 @@ async function collectReferences(prisma, liveGroupSlugs) {
           expiresInto: true,
         },
       }),
-      // A Structure names its type by slug (Structure.typeSlug), not an FK —
-      // same reasoning as consumeTargets below. Any status counts: a
-      // half-built or ruined Structure still stands somewhere, matched by the
-      // catalog slug the prune is about to delete.
+      // A Structure names its type by slug, not an FK. Any status counts.
       prisma.structure.groupBy({ by: ["typeSlug"], _count: true }),
     ]);
 
-  // Tag-to-tag references keep the id of the tag that MAKES the reference, so
-  // the prune can discount one that is itself on the way out: a spell naming
-  // its own expiry marker must not keep the marker alive when both go.
+  // Keep the id of the tag that MAKES the reference, so the prune can
+  // discount one that is itself on the way out.
   const from = (sourceId, targets) => targets.map((target) => ({ sourceId, target }));
   return {
     heldCount: new Map(held.map((h) => [h.tagId, h._count.tagId])),
@@ -162,10 +147,8 @@ async function collectReferences(prisma, liveGroupSlugs) {
       ]),
     ),
     structureCount: new Map(structures.map((s) => [s.typeSlug, s._count])),
-    // Every slug any tag names by slug rather than FK: consumesInto,
-    // consumesIntoUnless (targets and blocking slugs), consumesIntoDurations,
-    // and expiresInto. None of these is a real DB relation, so this list is
-    // the only thing that stops the delete.
+    // Every slug any tag names by slug rather than FK — the only thing
+    // stopping the delete, since none of these is a real DB relation.
     consumeTargets: consumers.flatMap((t) =>
       from(t.id, [
         ...t.consumesInto,
@@ -235,9 +218,8 @@ async function pruneTagsFromYaml(prisma, { apply = false } = {}) {
     else candidates.push(tag);
   }
 
-  // Fixpoint: start by assuming every candidate goes, then keep any that a
-  // blocker pins. A kept candidate's own references become live again, which
-  // can pin another, so loop until nothing new is kept.
+  // Fixpoint: a kept candidate's references become live again, which can
+  // pin another, so loop until nothing new is kept.
   let deletable = candidates;
   const pinned = new Map();
   for (;;) {
@@ -268,9 +250,8 @@ async function pruneTagsFromYaml(prisma, { apply = false } = {}) {
   return { deletable, skipped, deleted, groups };
 }
 
-// TagGroups the YAML no longer declares. A group survives while any tag
-// still points at it — a tag that is itself only a dry-run candidate counts
-// as surviving, so the dry run under-reports rather than over-promises.
+// TagGroups the YAML no longer declares; a dry-run candidate tag still
+// counts as surviving, so the dry run under-reports rather than over-promises.
 async function pruneGroups(prisma, liveGroupSlugs, { apply, deletedTagIds }) {
   const stale = await prisma.tagGroup.findMany({
     where: { slug: { notIn: [...liveGroupSlugs] } },

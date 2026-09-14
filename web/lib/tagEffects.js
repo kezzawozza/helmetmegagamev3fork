@@ -4,17 +4,11 @@ import { moveParty, InsufficientResourcesError } from "@lifeweb/db/lib/resourceT
 import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
 import { UserError } from "@/lib/actionResult";
 
-// The shared write primitives every player action and GM microaction moves
-// tags and ⬢ through. This file also held REQUEST_EFFECTS — the per-type
-// Undo/Edit table behind the Requests tab — until player actions stopped
-// filing Requests and there was nothing left to undo. Every function below
-// runs INSIDE a prisma transaction.
+// The shared write primitives every player action and GM microaction moves tags and ⬢ through. Every function below runs INSIDE a prisma transaction.
 
 // --- shared primitives ------------------------------------------------
 
-// Moves a party's balance by a signed delta and REFUSES rather than going
-// negative — the write IS the check, a conditional update that only matches
-// while the balance still covers the amount, safe under concurrent requests.
+// Moves a party's balance by a signed delta and REFUSES rather than going negative — the write IS the check.
 export async function moveResources(tx, party, delta, ctx) {
   try {
     await moveParty(tx, party, delta, ctx);
@@ -25,10 +19,7 @@ export async function moveResources(tx, party, delta, ctx) {
   }
 }
 
-// `ctx` used to feed the Silo ledger, and was accepted and ignored while that
-// ledger was gone; it is now threaded through to moveParty, which is what
-// actually records the ledger row. A party of a kind moveParty doesn't know
-// (an old row naming a faction Silo) is a silent no-op.
+// `ctx` is threaded through to moveParty, which records the ledger row.
 export async function creditResources(tx, party, amount, ctx) {
   if (!party || !amount) return;
   await moveResources(tx, party, amount, ctx);
@@ -44,21 +35,12 @@ async function moveBlood(tx, delta) {
   await bumpBlood(tx, delta);
 }
 
-// --- stacks -----------------------------------------------------------
-// A stackable tag is ONE CharacterTag row carrying a count, never N rows.
-// These four are the only writers that know about quantity.
+// --- stacks: a stackable tag is ONE CharacterTag row carrying a count, never N rows. -----------------
 
 export { addToStack };
 
-// Restores a CharacterTag from a snapshot taken before removal. Uses an
-// upsert since the player may have re-acquired it elsewhere; the update
-// branch INCREMENTS rather than overwrites, since the snapshot quantity is
-// what this request took away, not the character's total.
-//
-// `snapshot.poisonedCount`/`poisonPayload` (M4): merging into a row that
-// already carries a DIFFERENT payload dilutes the incoming units clean
-// rather than refusing — "poisons don't mix", same rule addToStack enforces
-// for a Craft/Grant path; this is Transfer and Loot's landing side.
+// Restores a CharacterTag from a snapshot. Upserts (the player may have re-acquired it elsewhere); the
+// update branch INCREMENTS. `poisonedCount`/`poisonPayload` (M4) dilute clean on merge, same "poisons don't mix" rule addToStack enforces.
 export async function restoreCharacterTag(tx, characterId, snapshot) {
   const n = Math.max(1, Math.trunc(snapshot.quantity ?? 1));
   const incomingPoisoned =
@@ -97,18 +79,9 @@ export { dropCharacterTag };
 export { grantTagSlugs };
 export { addToRoomStack, dropRoomTag };
 
-// --- party-shaped tag moves ------------------------------------------
-// A TRANSFER_TAG end is a character or a Room stash (CARRY.md); these two
-// branch on `party.kind` so the undo never has to.
+// --- party-shaped tag moves: a TRANSFER_TAG end is a character or a Room stash (CARRY.md) ------------
 
-// Takes `quantity` of a tag off a party. A room's decrement is the check
-// (two players can pull the same stack in the same tick); a character's
-// holding was snapshotted when the request was filed.
-//
-// Returns `{ poisonedTaken, poisonPayload }` (M4) — how many of the units
-// leaving were drawn poisoned, and with what, so a caller moving a stack
-// (Transfer, Loot) can carry that state onward through `giveTagTo` below.
-// Ignored by every caller that doesn't need it.
+// Takes `quantity` of a tag off a party; a room's decrement is the check. Returns `{ poisonedTaken, poisonPayload }` (M4) for `giveTagTo`.
 export async function takeTagFrom(tx, party, tagId, quantity) {
   if (!party?.id || !tagId) return { poisonedTaken: 0, poisonPayload: null };
   if (party.kind === "room") {
@@ -119,22 +92,11 @@ export async function takeTagFrom(tx, party, tagId, quantity) {
   return dropCharacterTag(tx, party.id, tagId, quantity);
 }
 
-// Puts a snapshot { tagId, quantity, expiresTurn, source, poisonedCount,
-// poisonPayload } back on a party. Both branches INCREMENT and re-assert the
-// snapshot's clock, so a stash-then-undo can't launder an expiry — and, as of
-// M4, addToStack/addToRoomStack apply the same "poisons don't mix" dilution
-// on the poisoned half: a merge into a row already carrying a DIFFERENT
-// payload arrives clean, silently, rather than refusing.
+// Puts a snapshot back on a party; both branches INCREMENT and re-assert the snapshot's clock.
 export async function giveTagTo(tx, party, snapshot) {
   if (!party?.id || !snapshot?.tagId) return;
   if (party.kind === "room") {
-    // The Spillway. Nothing is written, so nothing can be fished back out —
-    // which is also why the TRANSFER_TAG undo below skips its `takeTagFrom`
-    // on a destroyed line rather than throwing "no longer holds that".
-    //
-    // Except for what the trough cannot eat. The slug lookup only runs on this
-    // branch, which is two rooms in the whole map, so the ordinary transfer
-    // path is untouched.
+    // The Spillway: nothing written, nothing fished back out — except what the trough cannot eat.
     if (party.destroysContents) {
       const tag = await tx.tag.findUnique({
         where: { id: snapshot.tagId },

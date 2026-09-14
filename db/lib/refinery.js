@@ -1,47 +1,34 @@
-// The Godard Factory floor: a day's labor that pays in cubes instead of ⬢.
-//
-// Everywhere else in the game a Labor resolves to a "min-max" range of
-// Resources (docs/systemdocs/LABORING.md §4). A refinery is the one exception,
-// and it is a Location attribute rather than a slug so nothing here has to
-// know where the Factory is: `refinery: true` in docs/zones.yaml, checked
-// through db/lib/locationAttributes.js#hasAttribute.
-//
-// One Godflesh in, eight Squeeze out, once per day like any other Labor. The
-// input may be in the worker's own hands OR in any Room stash at the Location
-// they can get into — the Logistics Room is where a shift's haul actually
-// lives, and making somebody carry a 28 lb lump around the floor all day to
-// prove they own it would be silly.
-//
-// Prisma is a parameter, never a require: this sits in db/lib/ and the barrel
-// would resolve to a partial exports object (the db/lib/dm.js convention).
+// The Godard Factory floor: a day's labor that pays in cubes instead of ⬢
+// (the one exception to docs/systemdocs/LABORING.md §4's min-max range). A
+// Location attribute, not a slug: `refinery: true` in docs/zones.yaml,
+// checked through db/lib/locationAttributes.js#hasAttribute. One Godflesh in,
+// eight Squeeze out, once per day. Input may be in the worker's own hands OR
+// any Room stash at the Location they can enter — nobody should have to carry
+// a 28 lb lump around the floor all day to prove they own it. Prisma is a
+// parameter, never a require (db/lib/dm.js convention).
 const { accessibleRooms } = require("./roomAccess");
 const { addToStack, dropCharacterTag, dropRoomTag, addToRoomStack } = require("./tagWrites");
 const { hasAttribute, REFINERY_ATTRIBUTE } = require("./locationAttributes");
 const { GODFLESH_SLUG } = require("./godflesh");
 
 const REFINERY_OUTPUT_SLUG = "squeeze";
-// Eight cubes is a day's work, and the number the economy is balanced on:
-// docs/systemdocs/FACTORY.md carries the arithmetic.
+// The economy is balanced on this number (docs/systemdocs/FACTORY.md).
 const REFINERY_YIELD = 8;
 
 function isRefinery(location) {
   return hasAttribute(location, REFINERY_ATTRIBUTE);
 }
 
-// Where the input can be found for one worker, or null when there is none.
-// `rooms` is the Room rows at their Location that hold Godflesh, already
-// narrowed to the ones they may enter.
-//
-//   { kind: "held" } | { kind: "room", roomId }
+// { kind: "held" } | { kind: "room", roomId } | null. `rooms` is already
+// narrowed to ones the worker may enter.
 function inputSource({ holdsInput = false, rooms = [] } = {}) {
   if (holdsInput) return { kind: "held" };
   const room = rooms[0];
   return room ? { kind: "room", roomId: room.id } : null;
 }
 
-// The bulk half, for the auto-labor pass: every Room at any of these Locations
-// that is holding Godflesh, with the keys it wants. Two queries for a whole
-// roster rather than two per character.
+// The bulk half, for the auto-labor pass: two queries for a whole roster
+// rather than two per character.
 async function loadRefineryStashes(prisma, locationIds) {
   if (!locationIds?.length) return { roomsByLocation: new Map(), guestsByCharacter: new Map() };
   const rooms = await prisma.room.findMany({
@@ -105,10 +92,9 @@ async function refineryInput(prisma, character) {
   );
 }
 
-// Runs one refining shift inside the caller's transaction. Returns the
-// snapshot to stamp on Action.appliedEffects, or null when there was nothing
-// to work — the snapshot is what Undo reads, never live state
-// (docs/systemdocs/REQUESTS.md §2).
+// Runs one refining shift. Returns the snapshot to stamp on
+// Action.appliedEffects (null if nothing to work) — what Undo reads, never
+// live state (docs/systemdocs/REQUESTS.md §2).
 async function applyRefinery(tx, characterId, locationId) {
   const location = await tx.location.findUnique({
     where: { id: locationId ?? "" },
@@ -143,20 +129,16 @@ async function applyRefinery(tx, characterId, locationId) {
     holdsInput: heldSlugs.has(GODFLESH_SLUG),
     rooms: accessibleRooms(rooms, heldSlugs, new Set(guests.map((g) => g.roomId))),
   });
-  // `{ empty: true }` rather than null, and the difference matters: null means
-  // "this was not a refinery at all" and stamps nothing, while this means "you
-  // spent your day on the Factory floor and there was nothing to work". Three
-  // refugees and one lump is the NORMAL case whenever the stash runs thin, and
-  // two of them going quietly Exhausted with no explanation is the worst thing
-  // the whole feature could do to a player.
+  // `{ empty: true }`, not null: null means "not a refinery"; this means "you
+  // spent your day on the floor and there was nothing to work" — the NORMAL
+  // case when the stash runs thin.
   if (!source) return { empty: true };
 
   if (source.kind === "held") {
     await dropCharacterTag(tx, characterId, input.id, 1);
   } else if (!(await dropRoomTag(tx, source.roomId, input.id, 1)).ok) {
-    // Somebody else's shift took the last lump between the bulk read and this
-    // write — the auto-labor pass resolves everyone against one snapshot, so
-    // this is a race the design invites rather than an anomaly.
+    // Somebody else's shift took the last lump first — a race the auto-labor
+    // pass's single-snapshot design invites, not an anomaly.
     return { empty: true };
   }
 
@@ -171,10 +153,8 @@ async function applyRefinery(tx, characterId, locationId) {
   };
 }
 
-// The exact inverse of the snapshot: the cubes come off, and the lump goes
-// back where it was taken from — the worker's hands or the room's floor.
+// Exact inverse: cubes come off, the lump returns to where it was taken from.
 async function revertRefinery(tx, characterId, snapshot) {
-  // A shift that found nothing moved nothing; there is no inverse to run.
   if (!snapshot || snapshot.empty) return;
   const consumed = snapshot?.consumed;
   const produced = snapshot?.produced;

@@ -1,13 +1,6 @@
-// The audit log, in English. AuditLog.actionType is a free-form string chosen
-// at each call site, and `details` is an untyped Json blob whose shape only
-// that call site knows — this module is the one place that maps each pairing
-// to meaning.
-//
-// A renderer returns SEGMENTS, not a string (AuditFeed/AuditInspector own how
-// a segment draws). An unregistered actionType MUST still render — the
-// fallback prettifies the string and derives a family from its prefix, never
-// blank, never a throw. No Prisma, no server imports: AuditFeed is a client component.
-
+// The audit log, in English — maps each AuditLog.actionType/details pairing to meaning.
+// An unregistered actionType MUST still render via the fallback, never blank, never a throw.
+// No Prisma, no server imports: AuditFeed is a client component.
 
 const t = (v) => ({ k: "t", v });
 const em = (v) => ({ k: "em", v });
@@ -17,18 +10,14 @@ const zone = (v) => (v ? { k: "zone", v: String(v) } : null);
 const actor = () => ({ k: "actor" });
 const target = () => ({ k: "target" });
 
-// A Resources amount. Per CLAUDE.md the glyph REPLACES the word, so this is
-// never written beside one.
+// Per CLAUDE.md the glyph REPLACES the word, so this is never written beside one.
 const res = (n) => (Number.isFinite(Number(n)) ? { k: "res", v: Number(n) } : null);
 
-// "×3", omitted entirely at 1 — a quantity of one is the default and saying so
-// is noise on every single tag line.
+// "×3", omitted entirely at 1 — noise on every single tag line otherwise.
 const qty = (n) => (Number(n) > 1 ? { k: "qty", v: Number(n) } : null);
 
 
-// One line summarising a batch of applied tag ops, for the Dev Panel's
-// per-gesture tag rows. `tags` is applyTagOpsInTx's `applied` array, so an
-// entry is {op, name, quantity}. Survives an old row with a missing name.
+// `tags` is applyTagOpsInTx's `applied` array ({op, name, quantity}). Survives an old row with a missing name.
 function tagOpSummary(tags) {
   const parts = [];
   for (const op of tags.slice(0, 4)) {
@@ -43,13 +32,7 @@ function tagOpSummary(tags) {
   return parts.join(", ");
 }
 
-// A transfer's `d.from` / `d.to` are each {kind: "character"|"room", id, name}
-// (web/app/(app)/character/requestActions.js#transferRequestImpl). `payload`
-// is the chip/qty/res segments describing what moved. Four shapes:
-//   room -> character   "took X from the Depot stash"
-//   character -> room   "left X in the Depot stash"
-//   character -> character  "handed X to Brannoc"
-//   character -> (destroyed) "tipped X into the trough"
+// `d.from`/`d.to` are {kind, id, name} (web/app/(app)/character/requestActions.js#transferRequestImpl).
 function transferSegments(d, ...payload) {
   const from = d?.from;
   const to = d?.to;
@@ -66,29 +49,14 @@ function transferSegments(d, ...payload) {
   if (to?.kind === "character") {
     return [actor(), t("handed"), ...parts, t("to"), em(to.name)];
   }
-  // Old rows, or a shape this fallback hasn't been taught — say the actor
-  // and the payload rather than nothing.
+  // A shape this fallback hasn't been taught — say the actor and the payload rather than nothing.
   return [actor(), t("transferred"), ...parts];
 }
 
-// `prefix` is what the fallback matches on, so the order here matters: the
-// first prefix that matches wins, and "superadmin_" has to beat nothing while
-// "request_" has to beat nothing either. They do not overlap today; keep it
-// that way rather than adding precedence rules.
-// `band` splits the log in two, and it is the whole reason /gm/audit is
-// readable: the turn engine writes a row per character per pass, so a hundred
-// players' actual doings sit under thousands of machine lines. "player" is
-// what a person did on their own sheet; "machine" is the engine, the staging
-// desk and GM tooling. The page defaults to the player band.
-//
-// The `request_` prefix outlived the Request table on purpose — renaming ~35
-// action types would orphan every row already written under the old names,
-// and the label below is what a GM actually reads.
+// `prefix` is what the fallback matches on; first match wins, prefixes must not overlap. `band` splits
+// the log into "player" (own sheet) vs. "machine" (engine/staging/GM); page defaults to player.
 export const AUDIT_FAMILIES = {
-  // craft_/build_ are the mid-project rows (craft_started, build_continued,
-  // …) — player actions that never carried the request_ prefix, and without
-  // a family here they matched NEITHER band and only surfaced under
-  // "Everything".
+  // craft_/build_ never carried the request_ prefix; without this family they'd only surface under "Everything".
   request: { label: "Player action", band: "player", prefixes: ["request_", "desire_", "craft_", "build_"] },
   move: { label: "Move", band: "player", prefixes: ["move_", "caving_roll"] },
   faction: { label: "Faction", band: "player", prefixes: ["faction_"] },
@@ -112,10 +80,7 @@ export function familiesInBand(band) {
     .map(([key]) => key);
 }
 
-// The quick date ranges. Here rather than beside the WHERE that consumes them
-// (web/lib/auditQuery.js) because the filter rail is a client component, and
-// that module imports Prisma — one shared constant would otherwise drag the
-// whole data layer into the browser bundle.
+// Here rather than beside the WHERE in web/lib/auditQuery.js, which imports Prisma — this stays client-safe.
 export const DATE_PRESETS = {
   today: "Today",
   "24h": "Last 24h",
@@ -123,20 +88,14 @@ export const DATE_PRESETS = {
   "7d": "Last 7 days",
 };
 
-// `d` is entry.details ?? {}. Every accessor below has to survive a null,
-// a missing key and an old row written before a key existed — this table is
-// read against years of history, not against today's call sites.
-//
-// `tone` is the StatusPill vocabulary (good / warn / bad / muted / accent /
-// neutral) and defaults to neutral. `bad` is reserved for the genuinely
-// destructive; see DESTRUCTIVE below.
+// `d` is entry.details ?? {}; every accessor must survive a null or missing key — read against years of history.
+// `tone` is the StatusPill vocabulary, defaults to neutral; `bad` is reserved for DESTRUCTIVE below.
 
 const R = {
   // ---- Player actions (web/lib/requests.js#logAudit) ----
   request_add_tag: (d) => [actor(), t("added"), chip(d.tagName), qty(d.quantity), t("for"), res(d.resourcesSpent)],
   request_remove_tag: (d) => [actor(), t("dropped"), chip(d.tagName), qty(d.quantity), t("for"), res(d.resourcesSpent)],
-  // The craft-era names for the two rows above — same shapes, so the feed
-  // says the item and the price instead of falling back to the bare type.
+  // The craft-era names for the two rows above — same shapes.
   request_craft_tag: (d) => [actor(), t("made"), chip(d.tagName), qty(d.quantity), t("for"), res(d.resourcesSpent)],
   request_destroy_tag: (d) => [actor(), t("destroyed"), chip(d.tagName), qty(d.quantity)],
   request_consume_tag: (d) => [
@@ -151,17 +110,12 @@ const R = {
     ...(d.totalPoints ? [t(`for ${d.totalPoints} point${d.totalPoints === 1 ? "" : "s"}`)] : []),
   ],
   request_heal_character: (d) => [actor(), t("healed"), target(), ...effectTail(d)],
-  // The old request_move_character line is gone with MOVE_CHARACTER itself.
-  // Rows already in the log still render through the fallback, which is why
-  // nothing needs backfilling.
+  // The old request_move_character line is gone; existing rows render through the fallback.
   escort_consented: (d) => [actor(), t("agreed to follow"), target(), t(`until turn ${d.untilTurn}`)],
   request_change_name: (d) => [actor(), t("renamed from"), em(d.previousName), t("to"), em(d.name)],
   request_loot_character: (d) => [actor(), t("looted"), target(), ...effectTail(d)],
   request_crucify_character: (d) => [actor(), t("crucified"), target(), ...(d?.locationName ? [t("at"), em(d.locationName)] : [])],
-  // Intercept (docs/systemdocs/INTERCEPT.md). The `set` row is one per save,
-  // since the watch itself is overwritten and this is the only record of what
-  // it said at the time. `fired` names the person by the face the room saw,
-  // never their true name — the same rule the DMs run under.
+  // Intercept (docs/systemdocs/INTERCEPT.md). `fired` names the person by the face the room saw, never their true name.
   request_intercept_set: (d) =>
     d?.stopped
       ? [actor(), t(d?.reason === "moved" ? "left, so the watch ended" : "stopped watching the road")]
@@ -184,16 +138,11 @@ const R = {
     ...(d?.locationName ? [t("at"), em(d.locationName)] : []),
   ],
   request_intercept_released: () => [actor(), t("let"), target(), t("go")],
-  // Attack (docs/systemdocs/ATTACK.md). An ambush that fired writes its own
-  // request_intercept_fired row above and no second one here, so these two are
-  // the button only.
+  // Attack (docs/systemdocs/ATTACK.md); an ambush that fired writes request_intercept_fired above.
   request_attack_filed: () => [actor(), t("attacked"), target()],
   request_attack_cancelled: () => [actor(), t("broke off from"), target()],
   request_loot_resources: (d) => [actor(), t("looted"), res(d.amount ?? d.resources), t("from"), target()],
-  // A transfer moves between two parties, each {kind: "character"|"room", id, name}.
-  // The verb and preposition read by direction, so a pickup, a deposit, a
-  // hand-off and a Spillway destruction each say the true shape of the act —
-  // not a fixed "gave ... to" that only ever fit one of the four.
+  // Verb and preposition read by direction, so pickup/deposit/hand-off/Spillway each say the true shape.
   request_transfer_resources: (d) => transferSegments(d, res(d.amount ?? d.resources)),
   request_loot_tag: (d) => [actor(), t("looted"), chip(d.tagName), qty(d.quantity), t("from"), em(d.fromName)],
   request_transfer_tag: (d) => transferSegments(d, chip(d.tagName), qty(d.quantity)),
@@ -201,8 +150,7 @@ const R = {
   request_donate_blood: (d) => [actor(), t("donated blood to the Lifeweb"), ...bloodTail(d)],
   request_feed_person: (d) => [actor(), t("fed a person to the Lifeweb"), ...bloodTail(d)],
   request_feed_person_killed: (d) => [t("The Lifeweb took"), em(d.targetName), t("— fed by"), actor()],
-  // Kept so old rows still render — nothing writes these any more, since
-  // claiming a Desire became retroactive (DESIRES.md §1).
+  // Kept so old rows still render — nothing writes these any more (DESIRES.md §1).
   desire_set: (d) => [actor(), t("set a Desire worth"), points(d.points), ...(d.text ? [t("—"), em(quote(d.text))] : [])],
   desire_cancelled: () => [actor(), t("cancelled their Desire")],
   desire_auto_cancelled: (d) => [t("A Desire of"), target(), t("was auto-cancelled"), ...(d?.desireName ? [t("—"), em(quote(d.desireName))] : [])],
@@ -219,9 +167,7 @@ const R = {
     ...(d.diceRoll != null ? [t("— rolled"), em(String(d.diceRoll)), ...(d.diceModifier ? [em(signed(d.diceModifier))] : [])] : []),
   ],
   move_rejected: (d) => [actor(), t("rejected a Move"), ...(d.description ? [t("—"), em(quote(d.description))] : [])],
-  // The three `move_${mode}` modes the adjudication desk writes — see the
-  // mode allowlist in (desk)/gm/turns/actions.js. Any mode added there without
-  // a line here still renders through the `move_` prefix fallback.
+  // move_${mode} modes from the adjudication desk; a mode with no line here renders via the `move_` fallback.
   move_solve: () => [actor(), t("solved a Move for"), target()],
   move_unsolve: () => [actor(), t("reopened a Move for"), target()],
   move_save: () => [actor(), t("edited a Move for"), target()],
@@ -233,27 +179,23 @@ const R = {
 
   // ---- GM actions ----
   gm_character_applied: () => [actor(), t("edited"), target(), t("from the dev panel")],
-  // Tag changes commit one gesture at a time rather than riding Apply, so
-  // they get their own line — details.tags carries what actually moved.
+  // Tag changes commit one gesture at a time; details.tags carries what actually moved.
   gm_character_tag_applied: (d) => [
     actor(),
     t("changed tags on"),
     target(),
     ...(d.tags?.length ? [chip(tagOpSummary(d.tags))] : []),
   ],
-  // The kill nulls nothing, but a LATER delete leaves the row with no target
-  // to link — details.name is the snapshot that keeps the line readable.
+  // A LATER delete leaves the row with no target to link — details.name is the snapshot fallback.
   gm_character_killed: (d, e) => [actor(), t("killed"), e.target ? target() : em(d.name)],
   gm_character_revived: () => [actor(), t("revived"), target()],
   gm_character_deleted: (d) => [actor(), t("DELETED the character"), em(d.name)],
   gm_character_discord_resync: () => [actor(), t("resynced"), target(), t("with Discord")],
-  // No possessives anywhere in this table: .audit-line lays segments out with
-  // a gap, so "X" + "'s turn" renders as "X 's turn".
+  // No possessives anywhere in this table: .audit-line's gap would render "X" + "'s turn" as "X 's turn".
   gm_turn_spent: (d) => [actor(), t("spent a turn for"), target(), ...(d.turn ? [t(`on turn ${d.turn}`)] : [])],
   gm_turn_restored: () => [actor(), t("restored a turn for"), target()],
   gm_dm_sent: (d) => [actor(), t("DM'd"), target(), ...lengthTail(d)],
-  // A DM reply's target is a Discord user, and a bare snowflake in a sentence
-  // is worse than a gap — the inspector links the id under Details.
+  // A DM reply's target is a Discord user; the inspector links the id under Details.
   gm_dm_reply: (d, e) => [
     actor(), t("replied to"), e.target ? target() : em("a player"), ...msgTail(d.message),
   ],
@@ -267,8 +209,7 @@ const R = {
   gm_custom_tag_created: (d) => [actor(), t("created the custom tag"), chip(d.name)],
   gm_custom_tag_updated: (d) => [actor(), t("edited the custom tag"), chip(d.name)],
   gm_custom_tag_deleted: (d) => [actor(), t("deleted the custom tag"), chip(d.name)],
-  // gm_desire_set: kept for the same reason as desire_set above; a GM now
-  // AWARDS a Desire (gm_desire_fulfilled) or REVOKES one (gm_desire_cancelled).
+  // gm_desire_set kept for old rows; a GM now AWARDS (gm_desire_fulfilled) or REVOKES (gm_desire_cancelled).
   gm_desire_set: (d) => [actor(), t("set a Desire for"), target(), t("worth"), points(d.points)],
   gm_desire_fulfilled: (d) => [actor(), t("awarded a Desire to"), target(), t("worth"), points(d.points)],
   gm_desire_cancelled: () => [actor(), t("revoked a Desire of"), target()],
@@ -306,8 +247,7 @@ const R = {
   ],
   member_joined: (d) => [em(d.username ?? "Someone"), t("joined the guild")],
   member_left: (d) => [em(d.username ?? "Someone"), t("left the guild"), ...(d.characterName ? [t("—"), em(d.characterName)] : [])],
-  // Kept so old rows still render: players opened forum topics and private
-  // threads before Bascinet 2 replaced both with Conversations.
+  // Kept so old rows still render (Bascinet 2 replaced both with Conversations).
   player_topic_created: () => [actor(), t("opened a public topic")],
   player_thread_created: () => [actor(), t("opened a conversation")],
   thread_persistence_changed: () => [actor(), t("changed a thread's persistence")],
@@ -321,9 +261,7 @@ const R = {
   ooc_report_closed: (d) => [actor(), t("closed an OOC report ticket"), ...(d.name ? [t("—"), em(d.name)] : [])],
 
   // ---- System (actor is "system") ----
-  // The weather clause is dead for new rows — weather was deleted — but the
-  // audit log is history, and rows written while it existed still carry the
-  // field. Guarded, so keeping it costs one line and old turns stay readable.
+  // Weather was deleted; the clause is guarded so old rows that carry it still read.
   turn_advanced: (d) => [
     t("Turn"), em(String(d.number ?? "?")), t("opened —"), em(titleCase(d.phase)),
     ...(d.weather ? [t("·"), em(titleCase(d.weather))] : []),
@@ -356,20 +294,15 @@ const R = {
     actor(), t("seated a GM in"),
     ...(d.zoneNames?.length ? joinZones(d.zoneNames) : [t("no zone")]),
   ],
-  // The single-zone predecessor, kept so the years of rows already written
-  // under it still read.
+  // The single-zone predecessor, kept so old rows still read.
   superadmin_gm_zone_assigned: (d, e) => [
     actor(), t("seated a GM in"), zone(name(e, d.zoneId)) ?? em("no zone"),
   ],
 };
 
-// A Move's review status is set from a `move_${mode}` template, so the modes
-// beyond the two spelled out above arrive here as strings this file never saw.
-// The fallback handles them; these are only the ones worth phrasing.
+// Modes beyond the two spelled out above arrive as strings this file never saw; the fallback handles them.
 
-
-// Rows a GM scanning for "what went wrong" needs to find. Everything else is
-// routine, and marking routine work as alarming would defeat the point.
+// Rows a GM scanning for "what went wrong" needs to find.
 const DESTRUCTIVE = new Set([
   "gm_character_deleted",
   "gm_character_killed",
@@ -388,7 +321,7 @@ const DESTRUCTIVE = new Set([
   "member_left",
 ]);
 
-// Something did not work. Distinct from destructive: nobody chose it.
+// Something did not work — distinct from destructive: nobody chose it.
 const WARNING = new Set([
   "gm_message_delivery_failed",
   "staged_push_delivery_failed",
@@ -404,10 +337,9 @@ function auditTone(actionType) {
 }
 
 
-// Explicit overrides for the handful whose name does not carry their family.
+// Overrides for the handful whose name does not carry their family.
 const FAMILY_OVERRIDES = {
-  // A find is something that happened TO a player, so it belongs in the band
-  // a GM reads by default. Neither name matches the `caving_roll` prefix.
+  // A find happened TO a player; neither name matches the `caving_roll` prefix.
   caving_loot_granted: "move",
   caving_loot_undone: "gm",
   request_donate_blood: "lifeweb",
@@ -436,8 +368,7 @@ export function auditFamily(actionType) {
   return "system";
 }
 
-// The known action types per family, for the filter's WHERE clause. Anything
-// unknown is caught by the prefix branch beside it — see buildAuditWhere.
+// The known action types per family; unknown ones are caught by the prefix branch — see buildAuditWhere.
 export function knownTypesInFamily(family) {
   return Object.keys(R).filter((k) => auditFamily(k) === family);
 }
@@ -447,9 +378,7 @@ export function familyPrefixes(family) {
 }
 
 
-// `entry` is the flat DTO built in the audit page — see that file. It carries
-// `names`, a plain id -> name object covering tags, factions and zones, so a
-// renderer can turn a bare id in `details` into a word.
+// `entry` carries `names`, an id -> name object (tags, factions, zones) so a renderer can name a bare id.
 export function describeAudit(entry) {
   const type = entry?.actionType ?? "";
   const details = entry?.details && typeof entry.details === "object" ? entry.details : {};
@@ -460,8 +389,7 @@ export function describeAudit(entry) {
     try {
       segments = render(details, entry);
     } catch {
-      // A row written years ago under a different payload shape must not take
-      // the page down with it. Fall through to the prettified name.
+      // A row under an old payload shape must not take the page down with it.
       segments = null;
     }
   }
@@ -475,8 +403,7 @@ export function describeAudit(entry) {
   };
 }
 
-// "request_add_tag" -> "Request add tag". Deliberately plain: it should read
-// as an unregistered type rather than pass for a real sentence.
+// "request_add_tag" -> "Request add tag" — deliberately plain, reads as unregistered rather than a sentence.
 export function prettifyActionType(actionType) {
   if (!actionType) return "Unknown action";
   const words = actionType.replace(/_/g, " ").trim();
@@ -485,8 +412,7 @@ export function prettifyActionType(actionType) {
 
 function fallback(type, entry) {
   const head = [actor(), t("—"), em(prettifyActionType(type))];
-  // Naming the target still tells a GM who a strange row is about, which is
-  // most of what they came for.
+  // Naming the target still tells a GM who a strange row is about.
   return entry?.target ? [...head, t("on"), target()] : head;
 }
 
@@ -509,8 +435,7 @@ function joinZones(list) {
   return out;
 }
 
-// Request effects are a free-form delta object; surface the two keys that
-// appear across all of them and leave the rest to the inspector.
+// Request effects are a free-form delta object; surface the two common keys, leave the rest to the inspector.
 function effectTail(d) {
   const bits = [];
   if (Number.isFinite(Number(d.resources))) bits.push(t("—"), res(d.resources));
@@ -551,9 +476,7 @@ function points(n) {
   return em(Number.isFinite(v) ? `${v} point${v === 1 ? "" : "s"}` : "points");
 }
 
-// A bare id out of `details` turned into its name, using the lookup the page
-// built. Falls back to nothing rather than to a cuid — a raw id in a sentence
-// is worse than a gap, and the inspector shows it anyway.
+// A bare id turned into its name via the page's lookup; falls back to nothing rather than a raw cuid.
 function name(entry, id) {
   if (!id) return null;
   return entry?.names?.[id] ?? null;

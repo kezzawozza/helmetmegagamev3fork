@@ -1,20 +1,7 @@
-// Quests: a piece of content a GM stages at runtime, anywhere on the map,
-// without a YAML edit and without a deploy. See docs/systemdocs/QUESTS.md.
-//
-// A quest mints ONE Room -- a Discord thread and a place on the web -- at an
-// existing Location, and hangs a single button on its starter post. Pressing
-// Interact files the presser's Move for the turn as a Gambit, with whatever
-// they declare as its description. That is the whole mechanic, and it is
-// deliberately the whole mechanic: a quest spends the one thing a character
-// already has to spend, so staging one adds no new economy and no new ration.
-//
-// The Room is the only one in the game docs/zones.yaml does not master, which
-// is why Room.questId exists -- syncZones.js's stale-room prune skips it.
-// Everything else about it is an ordinary Room: the same thread, the same
-// starter post, the same private-thread membership rules.
-//
-// Takes `prisma` as a parameter, the db/lib/dm.js convention, and is
-// deliberately not on the @lifeweb/db barrel. Require it by path.
+// Quests: a piece of content a GM stages at runtime, anywhere on the map, without a YAML edit and without a deploy. See docs/systemdocs/QUESTS.md.
+// A quest mints ONE Room at an existing Location with a single Interact button; pressing it files the presser's Move for the turn as a Gambit —
+// deliberately the whole mechanic, so staging one adds no new economy and no new ration. The Room is the only one docs/zones.yaml does not master
+// (Room.questId exists so syncZones.js's stale-room prune skips it) — otherwise an ordinary Room. Takes `prisma`, deliberately not on the @lifeweb/db barrel.
 const { deleteThread } = require("./discordRest");
 const { syncRoomThread } = require("./syncZones");
 const { syncCharacterRoomAccess, questAllowedRoomIds } = require("./roomAccess");
@@ -44,8 +31,7 @@ function cleanList(value) {
   return [...new Set((Array.isArray(value) ? value : []).map((v) => String(v).trim()).filter(Boolean))];
 }
 
-// How many turns a quest has left, or null when it stands until closed. Shared
-// with the GM panel so the rail and the room agree about the same number.
+// How many turns a quest has left, or null when it stands until closed. Shared with the GM panel.
 function turnsRemaining(quest, currentTurnNumber) {
   if (quest?.expiresTurn == null || currentTurnNumber == null) return null;
   return quest.expiresTurn - currentTurnNumber + 1;
@@ -56,8 +42,7 @@ async function openTurnNumber(prisma) {
   return turn?.number ?? null;
 }
 
-// Everything syncRoomThread needs to write the starter post, plus the fields
-// roomAffordances reads to decide the Interact button is there at all.
+// Everything syncRoomThread needs, plus what roomAffordances reads to decide the Interact button is there at all.
 const ROOM_SELECT = {
   id: true,
   slug: true,
@@ -79,9 +64,7 @@ async function locationFor(prisma, locationId) {
   });
 }
 
-// Push the room's thread and starter post to match the row. Swallowed on
-// purpose: a quest that exists in the database but could not reach Discord is
-// still a quest on the web, and the channel doctor is the backstop.
+// Push the room's thread and starter post. Swallowed on purpose — a quest that could not reach Discord is still a quest on the web; the channel doctor is the backstop.
 async function pushRoom(prisma, room, location) {
   if (!location?.discordChannelId) return "skipped";
   try {
@@ -92,15 +75,8 @@ async function pushRoom(prisma, room, location) {
   }
 }
 
-// Everyone the quest's door state could have changed for -- and ONLY them.
-// A full sweep here would be 100+ recomputes on every save, so the set is the
-// union of the old and new gates: anybody named on either allowlist, and
-// anybody holding a key either version asked for. Nobody else's entitlement
-// can have moved, and syncCharacterRoomAccess is a full recompute per person.
-//
-// A PUBLIC quest room needs no membership at all -- Discord gates a public
-// thread on its parent channel, which the Location overwrite already handles
-// -- so it only costs anything when a gate was set on one side or the other.
+// Everyone the quest's door state could have changed for, and ONLY them — the union of the old and new gates, since a full sweep would be 100+ recomputes.
+// A PUBLIC quest room needs no membership (Discord gates a public thread on its parent channel via the Location overwrite already).
 async function resyncAccess(prisma, before, after) {
   const names = new Set([...(before?.allowedCharacterIds ?? []), ...(after?.allowedCharacterIds ?? [])]);
   const slugs = [...new Set([...(before?.accessTagSlugs ?? []), ...(after?.accessTagSlugs ?? [])])];
@@ -144,8 +120,7 @@ async function createQuest(
       description: body,
       locationId: location.id,
       createdTurn: turnNumber,
-      // Null when no turn is open, which is the same answer a notice gets:
-      // it stands until somebody closes it by hand.
+      // Null when no turn is open: stands until somebody closes it by hand.
       expiresTurn: Number.isFinite(duration) && duration > 0 ? expiryFrom(turnNumber, duration) : null,
       createdById: createdById ?? null,
       accessTagSlugs: tags,
@@ -155,8 +130,7 @@ async function createQuest(
 
   const room = await prisma.room.create({
     data: {
-      // The quest id IS the slug's uniqueness, so two quests with the same
-      // title at the same place cannot collide.
+      // The quest id IS the slug's uniqueness.
       slug: `quest-${quest.id}`,
       name: name.slice(0, 100),
       description: body,
@@ -174,9 +148,7 @@ async function createQuest(
   return { ok: true, quest: await prisma.quest.findUnique({ where: { id: quest.id } }) };
 }
 
-// Edit one. The starter message is rewritten IN PLACE by syncRoomThread's hash
-// path -- never reposted, because a repost pings every thread follower, the
-// same reason db:sync-info-channel edits by default.
+// Edit one. The starter message is rewritten IN PLACE by syncRoomThread's hash path — never reposted, since a repost pings every thread follower.
 async function updateQuest(prisma, questId, patch = {}) {
   const quest = await prisma.quest.findUnique({ where: { id: questId }, include: { room: true } });
   if (!quest) return { ok: false, error: "That quest is gone." };
@@ -192,8 +164,7 @@ async function updateQuest(prisma, questId, patch = {}) {
   if (patch.allowedCharacterIds !== undefined) data.allowedCharacterIds = cleanList(patch.allowedCharacterIds);
   if (patch.expiresTurns !== undefined) {
     const duration = Number(patch.expiresTurns);
-    // Re-based on the CURRENT turn, so "give it three more days" means three
-    // more from today rather than three from whenever it was staged.
+    // Re-based on the CURRENT turn: "three more days" means from today, not from when it was staged.
     const turnNumber = await openTurnNumber(prisma);
     data.expiresTurn = Number.isFinite(duration) && duration > 0 ? expiryFrom(turnNumber, duration) : null;
   }
@@ -212,9 +183,7 @@ async function updateQuest(prisma, questId, patch = {}) {
       },
       select: ROOM_SELECT,
     });
-    // A thread cannot change between public and private after it is created,
-    // which is the same limit syncZones.js works around by recreating the
-    // thread. Do that here too, or the door would silently stay as it was.
+    // A thread cannot change public/private after creation — recreate it, like syncZones.js does, or the door silently stays as it was.
     if (kind !== quest.room.kind && room.discordThreadId) {
       await deleteThread(room.discordThreadId).catch(() => {});
       await prisma.room.update({
@@ -232,17 +201,13 @@ async function updateQuest(prisma, questId, patch = {}) {
   return { ok: true, quest: next };
 }
 
-// Shut one. The room goes; the record stays. `status` is CLOSED when a GM said
-// so and EXPIRED when the clock did, and nothing else reads the difference
-// yet -- but "did somebody end this or did it run out" is exactly the question
-// a GM asks a week later, so the two are not collapsed.
+// Shut one. The room goes; the record stays. `status` is CLOSED (a GM said so) or EXPIRED (the clock did) — kept apart for the GM asking a week later.
 async function closeQuest(prisma, questId, { status = "CLOSED" } = {}) {
   const quest = await prisma.quest.findUnique({ where: { id: questId }, include: { room: true } });
   if (!quest) return { ok: false, error: "That quest is gone." };
   if (quest.status !== "OPEN") return { ok: true, quest };
 
-  // Spoken before the thread is deleted, so anybody sitting in it sees why it
-  // went. Scenery, so it cannot take the close down with it.
+  // Spoken before the thread is deleted so anybody sitting in it sees why. Scenery, so it can't take the close down with it.
   if (quest.room?.discordThreadId) {
     await roomLine(prisma, quest.room, "Whatever was happening here is over.").catch(() => {});
   }
@@ -261,8 +226,7 @@ async function closeQuest(prisma, questId, { status = "CLOSED" } = {}) {
   return { ok: true, quest: next };
 }
 
-// The clock. Runs beside the noticeboard sweep in db/index.js -- a quest
-// nobody closed blows away the same way a notice nobody tore down does.
+// The clock. Runs beside the noticeboard sweep in db/index.js.
 async function expireQuestsPass(prisma, turnNumber) {
   if (turnNumber == null) return { closed: 0 };
   let closed = 0;
@@ -284,10 +248,7 @@ async function expireQuestsPass(prisma, turnNumber) {
   return { closed };
 }
 
-// Somebody pressed Interact. Every gate is re-run here rather than trusted
-// from wherever the button was drawn: a modal outlives the person walking
-// away, and a hidden button is a hint, not a lock.
-//
+// Somebody pressed Interact. Every gate is re-run here rather than trusted from wherever the button was drawn — a hidden button is a hint, not a lock.
 // `character` needs { id, status, zoneId, locationId, discordUserId }.
 async function questInteract(prisma, { questId, character, intention, actorDiscordUserId }) {
   const said = String(intention ?? "").trim().slice(0, INTENTION_MAX);
@@ -298,8 +259,7 @@ async function questInteract(prisma, { questId, character, intention, actorDisco
   if (!quest || quest.status !== "OPEN") return { ok: false, error: "That's over." };
   if (character.locationId !== quest.locationId) return { ok: false, error: "You aren't there any more." };
 
-  // The same two doors accessibleRooms() reads, asked directly because the
-  // room may be PUBLIC, in which case there is nothing to ask.
+  // The same two doors accessibleRooms() reads, asked directly since the room may be PUBLIC, in which case there is nothing to ask.
   if (questRoomKind(quest) === "PRIVATE") {
     const allowedByName = quest.allowedCharacterIds.includes(character.id);
     let allowedByKey = false;
@@ -313,9 +273,7 @@ async function questInteract(prisma, { questId, character, intention, actorDisco
     if (!allowedByName && !allowedByKey) return { ok: false, error: "This isn't yours to touch." };
   }
 
-  // The one-Move-a-turn rule, asked before fileMove so the refusal can be the
-  // exact sentence the quest surface promised. fileMove enforces it too, and
-  // its @@unique([characterId, turnId]) is the real gate underneath both.
+  // The one-Move-a-turn rule, asked before fileMove so the refusal reads as the quest's own sentence — fileMove's @@unique([characterId, turnId]) is the real gate underneath both.
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
   if (!openTurn) return { ok: false, error: "Your turn isn't open — nothing was recorded." };
   const already = await prisma.action.findFirst({
@@ -330,9 +288,7 @@ async function questInteract(prisma, { questId, character, intention, actorDisco
     moveKind: "GAMBIT",
     description: `${quest.title} — ${said}`,
   });
-  // A Move filed between the check above and this line is the race the unique
-  // index catches; it comes back here as fileMove's own refusal, and the
-  // player should still read the sentence they were promised.
+  // A Move filed between the check above and here is the race the unique index catches; it comes back as fileMove's own refusal.
   if (!filed.ok) return { ok: false, error: filed.error };
 
   await prisma.questInteraction
@@ -353,16 +309,14 @@ async function questInteract(prisma, { questId, character, intention, actorDisco
         actorDiscordUserId: actorDiscordUserId ?? character.discordUserId ?? null,
         actionType: "quest_interact",
         targetCharacterId: character.id,
-        // Stamped because three per-turn rations count audit rows
-        // (REQUESTS.md §1a), and a ration added later must not read zero.
+        // Three per-turn rations count audit rows (REQUESTS.md §1a).
         turnId: filed.openTurn.id,
         details: { questId: quest.id, title: quest.title, actionId: filed.action.id },
       },
     })
     .catch(() => {});
 
-  // The room hears that somebody moved, and never what they said they were
-  // doing -- that is between them and the GM until the push.
+  // The room hears that somebody moved, never what they said — that's between them and the GM until the push.
   if (quest.room) {
     await roomLine(prisma, quest.room, "Somebody sets to work.").catch(() => {});
   }
