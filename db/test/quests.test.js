@@ -2,7 +2,7 @@
 //
 // WHAT A FAILURE HERE MEANS. A quest room is the only Room in the game that
 // docs/zones.yaml does not master — a GM stages it at runtime, so its slug is
-// in no YAML file. db/lib/syncZones.js's pass-4 prune deletes every Room whose
+// in no YAML file. db/lib/syncZones/sync.js's pass-4 prune deletes every Room whose
 // slug the YAML does not name, thread and row together. Without the
 // `questId: null` guard on that query, the next `db:sync-zones` — or the next
 // Restart Game, which calls the same function — silently deletes every live
@@ -24,9 +24,9 @@ const { roomAffordances, QUEST_INTERACT_PREFIX } = require("../lib/placeAffordan
 const questText = require("../lib/questText");
 
 test("the zone sync's stale-room prune exempts quest rooms", () => {
-  const source = fs.readFileSync(path.join(__dirname, "..", "lib", "syncZones.js"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "..", "lib", "syncZones", "sync.js"), "utf8");
   const match = source.match(/const staleRooms = await prisma\.room\.findMany\(\{[\s\S]*?\}\);/);
-  assert.ok(match, "could not find the stale-room prune in syncZones.js — has it been renamed?");
+  assert.ok(match, "could not find the stale-room prune in syncZones/sync.js — has it been renamed?");
   assert.match(
     match[0],
     /questId:\s*null/,
