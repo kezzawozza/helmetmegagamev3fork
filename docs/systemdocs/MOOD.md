@@ -262,7 +262,8 @@ they did before.
 | Consume anything at all that grants `ate-meal` | +5 | same |
 | Fulfil a Desire (player claim or GM award) | +10 per point | both award sites |
 | A confession the die absolved | +15 | `confessionPass.js` |
-| A **Musician's** `/play`, once per listener per turn (Musician (Pythagorean): ×4, +40) | +10 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
+| A **Musician's** `/play` with an instrument, once per listener per turn (Musician (Pythagorean): ×4, +40) | +10 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
+| A **Musician's** `/play` with no instrument — sung — same ration (Musician (Pythagorean): ×4, +32) | +8 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
 | Walk into the Cathedral, once per turn | +10 **to Fine only** | `applyArrivalMood` |
 | Be healed of a wound | +½ what it took | `healCharacterRequestImpl` |
 

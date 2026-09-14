@@ -2384,8 +2384,8 @@ export async function playHere(placeKey) {
   });
   if (me.error) return { ok: false, error: me.error };
 
-  // A Room or a Conversation, the same gate /shout and /roll take above: an
-  // instrument is played in front of the people you are standing with.
+  // A Room or a Conversation, the same gate /shout and /roll take above: a
+  // performance happens in front of the people you are standing with.
   if (!isScenePlaceKey(placeKey)) {
     return { ok: false, error: "There's nobody here to hear it." };
   }

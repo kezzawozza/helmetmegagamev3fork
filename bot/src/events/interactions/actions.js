@@ -380,10 +380,11 @@ async function handleRollCommand(interaction) {
 }
 
 
-// /play: the Instrument tag's one verb. db/lib/instrumentPlay.js is the
-// shared implementation — the web's Chat composer offers the same command
-// (COMMANDS.md), and a cooldown or a mood soothe that only one face knew
-// about would be a lute a player could dodge by switching apps.
+// /play: plays with an instrument in hand, sings without one.
+// db/lib/instrumentPlay.js is the shared implementation — the web's Chat
+// composer offers the same command (COMMANDS.md), and a cooldown or a mood
+// soothe that only one face knew about would be a performance a player could
+// dodge by switching apps.
 async function handlePlayCommand(interaction) {
   await ack(interaction);
 

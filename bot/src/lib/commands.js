@@ -110,12 +110,13 @@ const commandDefinitions = [
     .setName("message")
     .setDescription("Say something as your character, without anyone seeing you type.")
     .setContexts(ANYWHERE),
-  // Guild-only for the same reason /roll below is: an instrument played into a
-  // DM has no audience, and the audience is the whole feature. The Instrument
-  // tag is the gate; the Musician tag decides which of the two lines it plays.
+  // Guild-only for the same reason /roll below is: a performance played into
+  // a DM has no audience, and the audience is the whole feature. Holding the
+  // Instrument tag decides whether it plays or sings; the Musician tag
+  // decides which of the two lines it gets and whether it soothes the room.
   new SlashCommandBuilder()
     .setName("play")
-    .setDescription("Play your instrument, for the room to hear.")
+    .setDescription("Play your instrument, or sing if you have none, for the room to hear.")
     .setContexts(GUILD_ONLY),
   // Guild-only, /play's reason: a shout with nobody to hear it is not a shout.
   //

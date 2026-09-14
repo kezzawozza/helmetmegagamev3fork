@@ -521,9 +521,9 @@ rolls. Do not read the mastery prices as a new general scale; an ordinary tag
 is still priced off the table above. **Pilgrim is the first deliberate
 exception, priced at 1** — off the scale entirely, Gunboat's call.
 **Instrument is the second, also at 1** — Bascinet's call: it buys no
-advantage whatsoever, only the `/play` line, and the Minstrel gets it free
-with the role, so pricing it at a full band would have made an object nobody
-but a Minstrel would ever own. **Pack
+advantage whatsoever, only the instrument half of `/play` (anyone can sing
+without one), and the Minstrel gets it free with the role, so pricing it at a
+full band would have made an object nobody but a Minstrel would ever own. **Pack
 Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
 the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
 at 3** — between the 2 and 5 bands, the same kind of deliberate outlier as

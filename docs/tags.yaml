@@ -6754,9 +6754,10 @@ tags:
     consumesInto: [fertilized-fields]
 
   # A lute, a fiddle, a set of pipes — the player decides which. Off the point
-  # scale at 1 (TAGS.md §4a): the tag buys no advantage at all, only /play,
-  # and the Minstrel gets it free with the role. Anyone may buy one at
-  # creation, and a holder without Musician plays badly, which is the point.
+  # scale at 1 (TAGS.md §4a): the tag buys no mechanical advantage, only the
+  # instrument half of /play (anyone can sing without one), and the Minstrel
+  # gets it free with the role. Anyone may buy one at creation, and a holder
+  # without Musician plays badly, which is the point.
   instrument:
     catalog: all
     name: Instrument

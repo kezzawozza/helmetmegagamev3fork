@@ -42,7 +42,7 @@ Each command declares its contexts:
 | `/travel` | — | Living character | Guild, DM | `handleTravelOpen` — the same picker, under the name people reach for |
 | `/conceal` | — | Living character | Guild, DM | `handleConcealCommand` |
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
-| `/play` | — | Living character holding an Instrument | Guild | `handlePlayCommand` |
+| `/play` | — | Living character (an Instrument plays; without one, sings) | Guild | `handlePlayCommand` |
 | `/shout` | `message` | Living character | Guild | `handleShoutCommand` — carries across the Location graph (§2d) |
 | `/roll` | — | Anyone | Guild | `handleRollCommand` |
 | `/add` | `character` (role) | Conversation or private-Room member, or GM | Guild | `handleThreadMemberCommand` |

@@ -104,8 +104,8 @@ export const COMMANDS = [
   },
   {
     name: "play",
-    description: "Play your instrument, for the room to hear.",
-    // Same gate as /shout and /roll: an instrument is played in front of the
+    description: "Play your instrument, or sing if you have none, for the room to hear.",
+    // Same gate as /shout and /roll: a performance happens in front of the
     // people you are standing with, not into the street or a zone summary.
     where: ["room", "conv"],
     args: [],
