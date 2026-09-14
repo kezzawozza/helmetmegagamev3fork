@@ -564,8 +564,9 @@ Two things specific to this dialog. The recipient list is **one `whosHere()`
 call**, named people and hoods together, and not `peopleHere()` plus
 `whosHere()`: those split on different things — the `concealed` column versus
 what is actually over the face — so a character in a sack was offered twice,
-the second time under their real name. And the receiving DM ("You were handed
-…") names no giver, the same silence the aliased room line above keeps.
+the second time under their real name. And the receiving DM names the giver
+the same way the room line above does: "Ada handed you …", or "A young man
+handed you …" from a hood.
 
 The two older actions, `transferTagRequest` and `transferResourcesRequest`,
 still exist for their `LOOT` direction and for anything else that calls them.

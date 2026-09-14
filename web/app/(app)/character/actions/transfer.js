@@ -16,6 +16,7 @@ import {
   forcedNameFrom,
   concealmentFrom,
 } from "@lifeweb/db/lib/presentedIdentity";
+import { aliasSubject } from "@lifeweb/db/lib/concealedIdentity";
 import { logAudit } from "@/lib/requests";
 import { UserError } from "@/lib/actionResult";
 import { isTradeable } from "@/lib/tagRequests";
@@ -287,10 +288,13 @@ export async function transferRequestImpl({
   // `moveId` ties one act together. This writes one audit row per tag stack
   // plus one for the ⬢, so handing in two stacks and 30 ⬢ is three rows; the
   // ledger groups on this to print it as the one thing it was.
-  const by = presentedIdentity(character, {
+  const identity = presentedIdentity(character, {
     forcedName: forcedNameFrom(character.tags),
     concealment: concealmentFrom(character.tags),
-  }).name;
+  });
+  const by = identity.name;
+  // The recipient's DM names the giver the way shout.js does: a hood gets "A young man", not the Title Case alias.
+  const giver = identity.concealed ? aliasSubject(character) : identity.name;
   const moveId = crypto.randomUUID();
   // The Spillway (Room.destroysContents). Nothing is written on the receiving
   // end — giveTagTo and moveParty both refuse — so the effect has to say so,
@@ -408,7 +412,7 @@ export async function transferRequestImpl({
   if (toCharacterId && toCharacterId !== character.id) {
     notifyCharacter(
       { id: to.id, discordUserId: to.discordUserId },
-      `You were handed ${goods}.`,
+      `${giver} handed you ${goods}.`,
     );
   }
   // The room hears about it, aliased (CARRY.md): leaving something is public
