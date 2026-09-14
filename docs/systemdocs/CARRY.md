@@ -88,7 +88,7 @@ carry is decided by their keyring, and pricing paperwork just makes players do
 arithmetic about it. Written as an explicit `0` rather than omitted — omitting
 `weight:` means the tag is not cargo at all, which is a different claim. A
 0-weight unit is also never a candidate for the overflow drop (§5): shedding it
-could not help, so the shuffle would only waste draws on letters while the
+could not help, so it would only waste draws on letters while the
 anvil stayed put.
 
 **Price an item off this table, not by feel** — the same discipline the point
@@ -373,15 +373,23 @@ deliberately left behind so the growth stays unclaimed and the next settle
 retries. The write is a conditional `updateMany` on the previous pair, so two
 settles racing on the same growth cannot both shed.
 
-**What drops.** `drawDrops` shuffles the droppable units and takes from the
-front until the excess is covered, shedding back to the **ordinary cap** rather
-than to the ceiling — landing someone exactly on 1.5× would leave them one
-letter from spilling again every turn. Weightless units are not candidates at
-all, or the shuffle would spend its draws on letters while the anvil stayed
-put. Two things are never in the bag: multiplier tags (dropping the Cart to fix
-being over would shrink the cap again and loop) and equipped gear (being
-disarmed by an overfull pack reads badly). Every ⬢ over the ⬢ ceiling spills
-the same way. Audit: `carry_overflow_dropped` with the manifest.
+**What drops.** `drawDrops` takes the droppable units **newest-acquired
+first** — `CharacterTag.acquiredAt`, bumped on every top-up
+(`tagWrites.js#addToStack`, `tagEffects.js#restoreCharacterTag`), not just the
+row's original creation — until the excess is covered, shedding back to the
+**ordinary cap** rather than to the ceiling — landing someone exactly on 1.5×
+would leave them one letter from spilling again every turn. This was a
+Fisher–Yates shuffle until 2026-09-13: a random pick could shed whatever a
+character already owned to make room for something somebody had just handed
+them, which turned Transfer into a way to make a stranger drop their own
+things onto a public floor for the taking. Newest-first means the thing that
+just arrived is what goes back on the ground; an older holding is only ever
+touched once that isn't enough on its own. Weightless units are not candidates
+at all, or this would spend draws on letters while the anvil stayed put. Two
+things are never in the bag: multiplier tags (dropping the Cart to fix being
+over would shrink the cap again and loop) and equipped gear (being disarmed by
+an overfull pack reads badly). Every ⬢ over the ⬢ ceiling spills the same way.
+Audit: `carry_overflow_dropped` with the manifest.
 
 **Nowhere to put it down** — unplaced, or a Location with no public room — and
 the character simply stays over the ceiling with the watermark held back; the

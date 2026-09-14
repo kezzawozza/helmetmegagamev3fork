@@ -98,6 +98,12 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
       quantity: existing.quantity + n,
       poisonedCount: samePoison ? existing.poisonedCount + incomingPoisoned : existing.poisonedCount,
       poisonPayload: existing.poisonPayload ?? (samePoison ? poisonPayload : null),
+      // A top-up is a fresh acquisition of the units that just landed, even
+      // though a stack is one fungible row — db/lib/carry.js#drawDrops reads
+      // this to shed the newest-received weight first on an overflow, and a
+      // row frozen at its very first unit would never read as "newest" again
+      // no matter how much was piled onto it since.
+      acquiredAt: new Date(),
     },
   });
   await recordTagMoney(tx, characterParty({ id: characterId }), tagId, n, options.econ);
