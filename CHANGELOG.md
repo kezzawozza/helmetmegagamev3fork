@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Fix a bot-crashing syntax error from the last dead-exports sweep
+
+✎ The bot was down: a comment got mangled into a stray statement in proxy.js, and the bot crashed on every restart
+
 ## 2026-09-14 · Retire the deferred-travel drain and other code nothing calls
 
 ✎ The old deferred-travel arrival pass and every write to the journey columns are gone; every crossing has landed at once since the map change  

@@ -388,8 +388,7 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
 
 module.exports = {
   loadVoiceState,
-  // For bot/src/lib/messageCatchUp.js,
-  which files a recovered message's
+  // For bot/src/lib/messageCatchUp.js, which files a recovered message's
   // attachments the same way the live path does rather than losing them.
   attachmentPlaceholders,
   proxyRowFor,
