@@ -3,9 +3,9 @@ import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import {
   LESSON_CATALOG_SELECT,
-  teachableSkills,
+  learnableSkills,
+  knownTeachableSkills,
   teachesFree,
-  lessonThreshold,
 } from "@lifeweb/db/lib/lessons";
 import {
   prisma,
@@ -920,9 +920,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // Who can pay: you, anyone here, or a room stash here (same as Craft).
   const healParties = { characters: peopleParties, rooms };
 
-  // Lessons (LESSONS.md). Anyone can teach now, so `teachers` is everyone
-  // here who holds a skill I could take off them, each skill carrying what I'd
-  // need to roll for it; `learners` is the same list the other way round.
+  // Lessons (LESSONS.md). Nobody's skills are read off their sheet for this:
+  // `teachers` is everyone here, each offered what *I* could learn, and
+  // `learners` is everyone here, each offered what *I* know. Whether the pair
+  // actually works is found out by asking (db/lib/lessons.js#acceptLesson).
+  // No threshold either — it named the teacher's Teaching and Drill Instructor.
   // `pendingOffers`: the handshakes I'm part of this turn.
   const lessonCatalog = await prisma.tag.findMany({
     select: LESSON_CATALOG_SELECT,
@@ -932,35 +934,12 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })),
   };
   // rosterName, not c.name — a forced name is what an offer addresses (web/lib/peoplePools.js).
-  const hereForLessons = here.map((c) => ({
-    id: c.id,
-    name: rosterName(c),
-    tags: c.tags,
-  }));
-  const teachers = hereForLessons
-    .map((c) => ({
-      id: c.id,
-      name: c.name,
-      // Per skill, not per teacher: Drill Instructor only moves the threshold
-      // on a fighting skill, so one teacher can offer two different numbers.
-      skills: teachableSkills(c, meForLessons, lessonCatalog).map((t) => ({
-        id: t.id,
-        name: t.name,
-        threshold: lessonThreshold(c, t),
-      })),
-    }))
-    .filter((c) => c.skills.length > 0);
-  const learners = hereForLessons
-    .map((c) => ({
-      id: c.id,
-      name: c.name,
-      skills: teachableSkills(meForLessons, c, lessonCatalog).map((t) => ({
-        id: t.id,
-        name: t.name,
-        threshold: lessonThreshold(meForLessons, t),
-      })),
-    }))
-    .filter((c) => c.skills.length > 0);
+  const hereForLessons = here.map((c) => ({ id: c.id, name: rosterName(c) }));
+  const skillChip = (t) => ({ id: t.id, name: t.name });
+  const learnable = learnableSkills(meForLessons, lessonCatalog).map(skillChip);
+  const myTeachable = knownTeachableSkills(meForLessons, lessonCatalog).map(skillChip);
+  const teachers = learnable.length ? hereForLessons.map((c) => ({ ...c, skills: learnable })) : [];
+  const learners = myTeachable.length ? hereForLessons.map((c) => ({ ...c, skills: myTeachable })) : [];
   // Teaching is free for a tag holder and a whole Routine for everybody else.
   const teachCostsMove = !teachesFree(meForLessons);
   // Confession (CONFESSION.md). Only the penitent gets a menu — no list is

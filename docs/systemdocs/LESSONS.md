@@ -209,17 +209,19 @@ bind, and the button is hidden the whole time `bound` is absent anyway.
 
 ## 4. The web
 
-- `character/page.js` builds `teachers` (everyone here holding a skill I could
-  take, each skill carrying its own `threshold` so the chip can say what I need
-  to roll off **that** teacher) and `learners`, the same list the other way
-  round. Both are built for everyone present now, not just tag holders. Only
-  skills that could actually change hands cross the wire — never another sheet.
+- **Nobody's skills are shown.** `character/page.js` builds `teachers` as
+  everyone here, each offered what *I* could learn (`learnableSkills`), and
+  `learners` as everyone here, each offered what *I* know
+  (`knownTeachableSkills`). No threshold is shown before an offer is accepted —
+  it named the teacher's Teaching or Drill Instructor. The only way to find out
+  what someone knows is to ask them, and they see you ask.
+- The offer goes out whatever the other sheet holds. A teacher who doesn't know
+  the skill is told so ("…You don't know it.") and can only decline; if the pair
+  can't do it anyway, **Accept is answered as a decline** (`acceptLesson`), so the
+  initiator gets the same "declined the lesson" either way. Only the initiator's
+  own side refuses up front ("You can't learn X right now.", "You don't know X.").
   `pendingOffers` is every PENDING offer I'm part of this turn; `SheetTurn.js`
   shows it under "This turn" ("Waiting for Ada to accept…").
-- **This is a skill-scanner of the room, and that is accepted.** Since anyone
-  can teach, the Learn menu now names everyone standing here who holds a skill
-  I lack. That falls out of the rule; designing around it would mean hiding
-  teachers who could really teach me.
 - `actionRegistry.js`: `learn` greys on `canLearn` (`teachers.length > 0`) and
   `teach` on `canTeach` (`learners.length > 0`) — both lists the server already
   filtered, so greying is allowed. `teachCostsMove` (do I lack Teaching?) is a

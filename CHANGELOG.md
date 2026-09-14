@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Learn and Teach no longer show other people's skills
+
+✎ Learn Skill lists everyone here and the skills you could learn; Teach lists everyone here and the skills you know. Nobody's sheet is shown  
+✎ The roll you need is shown only after the lesson is accepted  
+✎ Asking someone who doesn't know the skill still sends the offer; they can only decline, and you just see that they declined
+
 ## 2026-09-14 · Hooded people no longer show up in Learn Skill and other people lists
 
 ✎ Someone in a hood that hides the face (a Cerberus Helmet, a bag, a plague doctor mask) was still listed by real name in Learn, Teach, Heal, Kiss and the other pickers; now they are hidden like anyone who used /conceal

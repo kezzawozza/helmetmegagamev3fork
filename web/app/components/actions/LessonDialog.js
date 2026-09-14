@@ -13,10 +13,10 @@ import { learnRequest, teachRequest, confessRequest } from "@/app/(app)/characte
 // them, or a sin of yours (LESSONS.md, CONFESSION.md). All three are offers
 // the other side accepts in Discord or on /chat, so the notice says so.
 //
-// The partner lists are the page's own, resolved server-side against who holds
-// something you could take (or take from you); nothing here greys on who is
-// nearby. Anyone can teach now, so a skill chip carries what the learner needs
-// to roll off THAT teacher — a 6 from someone untrained, a 5 from a teacher.
+// The partner lists are the page's own. For lessons they never read the other
+// sheet: the skills are what YOU could learn or what YOU know, and whether the
+// pair works is found out by asking (LESSONS.md §4). No threshold is shown —
+// it would give away the teacher's Teaching.
 const VERBS = {
   learn: {
     title: "Learn Skill",

@@ -134,13 +134,28 @@ function teachesFree(character) {
 // it — a lesson can't skip a prerequisite the store won't, and it can't skip a
 // conflict either. Soft Hands has never done a day's labor, and no amount of
 // being taught changes that.
+//
+// Split in two so neither side's picker has to read the OTHER sheet: Learn
+// lists learnableSkills(me), Teach lists knownTeachableSkills(me), and only
+// the server ever puts the two together.
 function teachableSkills(teacher, learner, catalog) {
+  const known = new Set(knownTeachableSkills(teacher, catalog).map((t) => t.id));
+  return learnableSkills(learner, catalog).filter((t) => known.has(t.id));
+}
+
+// Teachable skills this character holds (or holds a higher tier of).
+function knownTeachableSkills(teacher, catalog) {
   const parentOf = parentMap(catalog);
   const teacherHeld = heldTagIds(teacher);
+  return catalog.filter((tag) => tag.teachable && holdsTier(teacherHeld, tag.id, parentOf));
+}
+
+// Teachable skills this character could take from somebody who knows them.
+function learnableSkills(learner, catalog) {
+  const parentOf = parentMap(catalog);
   const learnerHeld = heldTagIds(learner);
   return catalog.filter((tag) => {
     if (!tag.teachable) return false;
-    if (!holdsTier(teacherHeld, tag.id, parentOf)) return false;
     if (holdsTier(learnerHeld, tag.id, parentOf)) return false;
     if (tag.parentTagId && !holdsTier(learnerHeld, tag.parentTagId, parentOf))
       return false;
@@ -267,12 +282,8 @@ async function validateLesson(
   // No "can you teach at all?" check: everyone can. What the tag changes is
   // the threshold and whether a Routine is owed, both handled elsewhere.
   if (!tag) return "Unknown skill.";
-  const catalog = await db.tag.findMany({ select: LESSON_CATALOG_SELECT });
-  if (
-    !teachableSkills(teacher, learner, catalog).some((t) => t.id === tag.id)
-  ) {
-    return `${teacher.name} can't teach ${learner.name} ${tag.name} right now.`;
-  }
+  // Whether the pair can do THIS skill is not checked here: its refusal would
+  // name what the other sheet holds. The callers check their own side.
   for (const who of checkSlotsFor) {
     const slot =
       who === teacher.id
@@ -327,6 +338,16 @@ async function createLessonOffer(
   });
   if (problem) return { ok: false, reason: problem };
 
+  // Only the initiator's own side can refuse here. The other side's is never
+  // told to the initiator — the offer goes out regardless, and a teacher who
+  // doesn't know it can only decline, which reads like any other decline.
+  const catalog = await prisma.tag.findMany({ select: LESSON_CATALOG_SELECT });
+  const teacherKnows = knownTeachableSkills(teacher, catalog).some((t) => t.id === tag.id);
+  if (initiatorId === learnerId && !learnableSkills(learner, catalog).some((t) => t.id === tag.id))
+    return { ok: false, reason: `You can't learn ${tag.name} right now.` };
+  if (initiatorId === teacherId && !teacherKnows)
+    return { ok: false, reason: `You don't know ${tag.name}.` };
+
   const responder = initiatorId === teacherId ? learner : teacher;
   if (!responder.discordUserId)
     return { ok: false, reason: `${responder.name} can't be reached.` };
@@ -363,7 +384,9 @@ async function createLessonOffer(
   const content =
     initiatorId === learnerId
       ? // Bascinet's line.
-        `*${learner.name}* wants to try and learn *${tag.name}* from you. Accept?`
+        teacherKnows
+        ? `*${learner.name}* wants to try and learn *${tag.name}* from you. Accept?`
+        : `*${learner.name}* wants to try and learn *${tag.name}* from you. You don't know it.`
       : `*${teacher.name}* offers to teach you *${tag.name}*. Accept?`;
   return {
     ok: true,
@@ -429,6 +452,15 @@ async function acceptLesson(prisma, offer, responder) {
         })
       : null,
   ]);
+  // The pair can't do this skill (the teacher never knew it, or the learner
+  // can't take it): answered as a plain decline, so the initiator learns
+  // nothing about the other sheet they wouldn't from a "no".
+  if (teacher && learner && tag) {
+    const catalog = await prisma.tag.findMany({ select: LESSON_CATALOG_SELECT });
+    if (!teachableSkills(teacher, learner, catalog).some((t) => t.id === tag.id))
+      return declineOffer(prisma, offer, responder);
+  }
+
   const problem = await validateLesson(prisma, {
     teacher,
     learner,
@@ -698,6 +730,8 @@ async function cancelOffersForCharacter(db, characterId) {
 module.exports = {
   LESSON_CATALOG_SELECT,
   teachableSkills,
+  learnableSkills,
+  knownTeachableSkills,
   teachesFree,
   lessonThreshold,
   createLessonOffer,
