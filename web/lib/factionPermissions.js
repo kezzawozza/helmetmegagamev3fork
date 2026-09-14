@@ -1,7 +1,4 @@
-// Thin prisma-binding shim over db/lib/factionPermissions.js, which is the
-// real home of this logic now that the bot needs it too (the 🔍 inspect
-// reaction shows member Resources to a faction's Leader/Treasurer). Web call
-// sites keep the shorter signature and never pass prisma.
+// Prisma-binding shim over db/lib/factionPermissions.js (the bot needs it too). Web call sites never pass prisma.
 import { prisma } from "@lifeweb/db";
 import * as shared from "@lifeweb/db/lib/factionPermissions";
 

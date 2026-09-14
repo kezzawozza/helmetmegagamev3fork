@@ -1,32 +1,12 @@
-// Tag writes shared by both faces of the game — the bot's GM `/heal` command
-// and every web/lib/tagEffects.js caller both go through these (which
-// re-exports them), so a tag write is never implemented twice.
-//
-// Every function here takes a transaction client (`tx`) as its first
-// parameter rather than reaching for the singleton, so a caller can compose
-// it into a larger transaction — the db/lib/dm.js convention.
+// Tag writes shared by both faces — the bot's GM `/heal` command and every web/lib/tagEffects.js caller go through these, so a write is never implemented twice.
+// Every function takes a transaction client (`tx`) first rather than the singleton, so a caller can compose it into a larger transaction (the db/lib/dm.js convention).
 const { expiryFrom } = require("./turnFormat");
 const { drawPoisonedUnits } = require("./poison");
 const { pricedTag } = require("./pricedTags");
 const { record, characterParty, roomParty, MINT, BURN } = require("./economyLedger");
 
-// The economy side of a tag write. `addToStack`/`dropCharacterTag` and their
-// room-stash twins are ~135-call-site hot paths — a wound, a skill, most
-// crafting ingredients carry no price at all — so this is the one place that
-// decides whether a write is money moving in a coat (docs/systemdocs/DEPOT.md
-// §0g) or just a tag, and it costs those callers nothing extra: `pricedTag`
-// answers from an in-memory cache, never a query on this path.
-//
-// `holder` is a party (characterParty/roomParty) already resolved by the
-// caller, `signedQuantity` is positive for an add and negative for a drop —
-// negative flips `from`/`to` the same way economyLedger#record does for a
-// signed amount, so the direction here only has to be gotten right once.
-// `options.econ` lets a call site override `from`/`to` (a real counterparty
-// instead of the MINT/BURN default) and/or pass a `reason` — everything else
-// on the context rides along unchanged.
-//
-// Never throws: a bookkeeping miss must not cost a player their item, same
-// rule as chargeWoundMood just above.
+// The economy side of a tag write — decides whether a write is money moving in a coat (docs/systemdocs/DEPOT.md §0g) or just a tag, at zero extra cost to the ~135 hot-path callers since `pricedTag` answers from an in-memory cache.
+// `signedQuantity` positive is an add, negative a drop (flips `from`/`to` the way economyLedger#record does). `options.econ` overrides `from`/`to`/`reason`. Never throws: a bookkeeping miss must not cost a player their item.
 async function recordTagMoney(tx, holder, tagId, signedQuantity, econ = {}) {
   if (!holder || !signedQuantity) return;
   try {
@@ -61,28 +41,13 @@ async function recordTagMoney(tx, holder, tagId, signedQuantity, econ = {}) {
   }
 }
 
-// The money half of the same bargain clampEquippedQuantity strikes.
-//
-// The four call sites named in the comment above spend a stack with a raw
-// guarded decrement instead of dropCharacterTag, each for its own concurrency
-// reason — and that also skipped the ledger hook that lives inside
-// dropCharacterTag. An obol or a priced ware leaving a sheet that way moved
-// real money and left no row, drifting the holder permanently.
-//
-// So: call this right where you already call clampEquippedQuantity, with the
-// quantity that actually left. An unpriced tag (a wound, a skill, a lure with
-// no catalog price) records nothing, which is most of them.
+// The money half of the same bargain clampEquippedQuantity strikes: the raw guarded-decrement call sites skip dropCharacterTag's ledger hook, so a priced ware leaving that way drifted the holder permanently. Call this right where you already call clampEquippedQuantity, with the quantity that actually left.
 async function recordSpentTagMoney(tx, holder, tagId, quantity, econ = {}) {
   await recordTagMoney(tx, holder, tagId, -Math.abs(quantity || 0), econ);
 }
 const { INSPIRED_SLUG } = require("./constants");
 
-// A wound landing on a sheet frightens its owner (docs/systemdocs/MOOD.md).
-// Both creators below call this for the row they just made — a stack going up
-// or an already-held tag is not a new wound, so only the `!existing` branches
-// do. Required lazily: db/lib/mood.js is the module that owns the rule, and a
-// top-level require here would be a cycle. Wrapped: a mood hiccup must never
-// fail a tag write.
+// A wound landing on a sheet frightens its owner (docs/systemdocs/MOOD.md). Only the `!existing` branches call this — a stack going up isn't a new wound. Required lazily to avoid a cycle with db/lib/mood.js. Wrapped: a mood hiccup must never fail a tag write.
 async function chargeWoundMood(tx, characterId, tagIds) {
   try {
     await require("./mood").applyWoundMood(tx, characterId, tagIds);
@@ -91,21 +56,8 @@ async function chargeWoundMood(tx, characterId, tagIds) {
   }
 }
 
-// Adds `quantity` of a tag, creating the row or incrementing an existing
-// one. Non-stackable tags are pinned at 1 no matter what is asked for, so a
-// caller that forgot to check `tag.stackable` can't mint a phantom stack.
-// `options.stackable` is the catalog flag and nothing else — no caller, GM
-// surface included, may pass true for a tag the catalog says doesn't stack.
-//
-// `options.poisonedCount`/`options.poisonPayload` (the medical pass, M4):
-// how many of the incoming units are tainted, and with what (the poison
-// tag's id) — how Transfer and Loot carry a poisoned stack's state across
-// the same primitive an ordinary hand-over uses. "Poisons don't mix": a
-// batch merging into a row that already carries a DIFFERENT payload arrives
-// CLEAN — the concentration is silently diluted rather than refused, since a
-// refusal here would tell the recipient their food was tainted. A caller
-// that never passes these two (every ordinary grant) is unaffected — the
-// defaults are the no-poison case.
+// Adds `quantity` of a tag, creating or incrementing. Non-stackable tags are pinned at 1, so a caller that forgot to check `tag.stackable` can't mint a phantom stack; `options.stackable` must match the catalog flag.
+// `options.poisonedCount`/`poisonPayload`: how Transfer/Loot carry a poisoned stack's state. "Poisons don't mix" — merging into a row with a DIFFERENT payload arrives CLEAN (diluted, not refused, since a refusal would tell the recipient their food was tainted).
 async function addToStack(tx, characterId, tagId, quantity, options = {}) {
   const {
     source = "GM_GRANT",
@@ -132,19 +84,11 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
       },
     });
     await chargeWoundMood(tx, characterId, [tagId]);
-    // Record what was ACTUALLY written (`n`, already pinned to 1 for a
-    // non-stackable tag above), never the raw `quantity` argument.
+    // Record what was ACTUALLY written (`n`), never the raw `quantity` argument.
     await recordTagMoney(tx, characterParty({ id: characterId }), tagId, n, options.econ);
     return created;
   }
-  // Latent (M4 fix round): an already-held NON-stackable tag is left
-  // entirely alone, poison options included — matching grantTagSlugs' own
-  // rule that an existing non-stackable row's expiry/state is never
-  // clobbered by a second grant. No caller passes poisonedCount for a
-  // non-stackable tag today (poison rides on food/drink stacks, which are
-  // always stackable), so this is a dropped-on-the-floor case that has never
-  // actually fired rather than an observed bug. Nothing was written, so
-  // nothing is recorded.
+  // An already-held NON-stackable tag is left entirely alone, poison options included — matches grantTagSlugs' rule that an existing non-stackable row's state is never clobbered by a second grant. Nothing written, nothing recorded.
   if (!stackable) return existing;
   const samePoison =
     !existing.poisonPayload || !poisonPayload || existing.poisonPayload === poisonPayload;
@@ -160,23 +104,8 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
   return updated;
 }
 
-// Removes `quantity` of a tag, deleting the row once nothing is left. Pass
-// null (the default) to drop the whole holding however large the stack —
-// that is what an ordinary, non-stackable tag always wants.
-//
-// Returns `{ poisonedTaken, poisonPayload }` (M4): how many of the units
-// that just left were drawn poisoned, and with what — a hypergeometric draw
-// against the row AS IT STOOD before this call, so the odds are exactly
-// `poisonedCount / quantity` per unit. Every caller that doesn't care (most
-// of them — dropping a climbed drinking rung, a cured tag, a spent
-// ingredient) simply ignores the return value, same as before this returned
-// anything at all.
-// A unit taken off a stack is never one that is equipped — equippedQuantity
-// is clamped down to whatever quantity remains, freeing the slot(s) that
-// frees, rather than leaving it pointing past the end of a shorter stack.
-// This is the single place quantity ever shrinks without an explicit equip
-// op, so it is the one place that has to know the invariant
-// (equippedQuantity <= quantity) can break and put it back.
+// Removes `quantity` of a tag, deleting the row once empty. Pass null (default) to drop the whole holding. Returns `{ poisonedTaken, poisonPayload }`: a hypergeometric draw against the row as it stood before this call (`poisonedCount / quantity` odds per unit); most callers ignore it.
+// equippedQuantity is clamped down to whatever quantity remains — the single place quantity ever shrinks without an explicit equip op, so it's the one place that must restore the (equippedQuantity <= quantity) invariant.
 async function dropCharacterTag(tx, characterId, tagId, quantity = null, options = {}) {
   const existing = await tx.characterTag.findUnique({
     where: { characterId_tagId: { characterId, tagId } },
@@ -189,17 +118,11 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null, options
   const poisonPayload = poisonedTaken > 0 ? existing.poisonPayload : null;
   if (take >= existing.quantity) {
     await tx.characterTag.delete({ where: { id: existing.id } });
-    // `take` may exceed what was actually held (a caller asking for more
-    // than remains) — the row only ever had `existing.quantity` to give up,
-    // so that, not the request, is what actually left the sheet.
+    // `take` may exceed what was held — `existing.quantity`, not the request, is what actually left.
     await recordTagMoney(tx, characterParty({ id: characterId }), tagId, -existing.quantity, options.econ);
     return { poisonedTaken, poisonPayload };
   }
-  // Payload-clear invariant (fix round, M4): once the units actually LEAVING
-  // take the poisonedCount to zero, the row must not keep pointing at a
-  // payload that no longer taints anything — a stale poisonPayload with
-  // poisonedCount 0 is a permanent false "already tainted" lock on a clean
-  // stack (poisonItemRequestImpl's refusal reads exactly this pair).
+  // Payload-clear invariant: once units leaving take poisonedCount to zero, the row must not keep a stale poisonPayload — that pair would lock a clean stack as "already tainted" (poisonItemRequestImpl's refusal reads it).
   const remainingPoisoned = existing.poisonedCount - poisonedTaken;
   const remaining = existing.quantity - take;
   const equippedQuantity = Math.min(existing.equippedQuantity, remaining);
@@ -217,12 +140,7 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null, options
   return { poisonedTaken, poisonPayload };
 }
 
-// db/lib/advantage.js#rollWithAdvantage reports which tag granted advantage
-// on a Gambit roll (`source`), and Inspired is the one of the two that has
-// to disappear the moment it wins — Lucky is a permanent mastery tag, never
-// touched here. Every true-Gambit call site calls this right after rolling,
-// inside the same transaction the roll itself happens in. A no-op if the
-// roll came from Lucky, or from nothing at all.
+// db/lib/advantage.js#rollWithAdvantage reports which tag granted advantage (`source`); Inspired must disappear the moment it wins, Lucky is permanent and never touched here. Called right after rolling, in the same transaction. No-op for Lucky or nothing.
 async function consumeInspiredIfUsed(tx, characterId, source) {
   if (source !== "inspired") return;
   const held = await tx.characterTag.findFirst({
@@ -232,26 +150,8 @@ async function consumeInspiredIfUsed(tx, characterId, source) {
   if (held) await dropCharacterTag(tx, characterId, held.tagId);
 }
 
-// A stack shrunk by a raw quantity decrement OUTSIDE dropCharacterTag —
-// riteEffects.js#spendFromHolder, thanatiActions.js#spendCharacterTag, and
-// cavingPass.js's musk-lure spend — each a guarded conditional updateMany
-// rather than dropCharacterTag, for its own concurrency reason documented at
-// its call site (dropCharacterTag reads then writes, "the wrong shape for
-// money").
-//
-// requestActions.js#consumeRecipeItems used to be the fourth and is not any
-// more: it guards with a read and then calls dropCharacterTag, so it is
-// hooked like any ordinary drop. It stayed named here long after that changed,
-// which sent a later reader looking for a bypass that no longer existed. Every one of those needs this
-// run right after, the same clamp dropCharacterTag applies inline: a stack
-// spent down to fewer units than are equipped frees the slots that frees,
-// rather than leaving equippedQuantity pointing past the end of it.
-//
-// A single atomic UPDATE, safe to call unconditionally after any decrement —
-// the WHERE only ever matches a row the decrement actually left
-// over-equipped, so it is a no-op the rest of the time. Keyed on
-// (characterId, tagId) rather than the row id because not every call site has
-// read the row first.
+// A stack shrunk by a raw quantity decrement OUTSIDE dropCharacterTag — riteEffects.js#spendFromHolder, thanatiActions.js#spendCharacterTag, cavingPass.js's musk-lure spend — each a guarded conditional updateMany for its own concurrency reason (dropCharacterTag reads then writes, "the wrong shape for money"). Each needs this run right after, the same clamp dropCharacterTag applies inline.
+// A single atomic UPDATE, safe to call unconditionally after any decrement — the WHERE only matches a row left over-equipped. Keyed on (characterId, tagId) since not every call site has read the row first.
 async function clampEquippedQuantity(tx, characterId, tagId) {
   await tx.$executeRaw`
     UPDATE "CharacterTag"
@@ -262,11 +162,7 @@ async function clampEquippedQuantity(tx, characterId, tagId) {
   `;
 }
 
-// A chain replaces upward (TAGS.md §3): gaining Melee (Trained) takes Melee
-// (Basic) off the sheet. Drops every held ancestor of `tagId` — the tiers
-// below it in its own parentTagId chain — and returns snapshots of what came
-// off so a caller can record them for Undo. Reads the catalog itself, so a
-// caller with no chain map (the lesson pass, Craft) needs nothing loaded.
+// A chain replaces upward (TAGS.md §3): gaining Melee (Trained) takes Melee (Basic) off the sheet. Drops every held ancestor of `tagId` and returns snapshots for Undo. Reads the catalog itself, so a caller with no chain map needs nothing loaded.
 async function replaceLowerTiers(tx, characterId, tagId) {
   const catalog = await tx.tag.findMany({ select: { id: true, name: true, parentTagId: true } });
   const byId = new Map(catalog.map((t) => [t.id, t]));
@@ -294,30 +190,15 @@ async function replaceLowerTiers(tx, characterId, tagId) {
   return replaced;
 }
 
-// Grants a list of tag SLUGS to one character — what a consumed tag turns
-// into (Tag.consumesInto: a meal becoming Ate Meal, a crate unpacking into
-// its contents), and what a removed one leaves behind (Tag.removesInto: the
-// treated-wound aftermath). Slugs rather than ids because that is what the
-// catalog carries, specifically so a slug may REPEAT: listing one twice is
-// the only way to ask for two of something.
-//
-// Returns the snapshot Undo needs — one entry per distinct slug, with
-// `added` being what was ACTUALLY put on the sheet. That is 0 for a
-// non-stackable tag the character already held, which is left entirely alone
-// (expiry included: their existing one is the live truth, and clobbering it
-// would silently extend or cut short something they already had). Undo may
-// only take back what this request really added.
+// Grants a list of tag SLUGS — what a consumed tag turns into (Tag.consumesInto) or a removed one leaves behind (Tag.removesInto). Slugs, not ids, so one may REPEAT (the only way to ask for two of something).
+// Returns the snapshot Undo needs: `added` is what was ACTUALLY put on the sheet — 0 for an already-held non-stackable tag, left entirely alone (its existing expiry is the live truth). Undo may only take back what this request really added.
 async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = null) {
   if (!slugs?.length) return [];
 
   const owed = new Map();
   for (const slug of slugs) owed.set(slug, (owed.get(slug) ?? 0) + 1);
 
-  // The chrism's ward: a `blessed` character's soul cannot be claimed while
-  // the anointing holds (docs/tags.yaml `blessed`; the chrism recipe). The
-  // block is absolute on purpose — a GM who really means it strips Blessed
-  // first — and the skipped grant reports itself in the snapshot
-  // (`warded: true, added: 0`) instead of silently vanishing.
+  // The chrism's ward: a `blessed` character's soul cannot be claimed while the anointing holds (docs/tags.yaml `blessed`). Absolute on purpose — a GM who means it strips Blessed first — and the skipped grant reports itself (`warded: true, added: 0`) instead of silently vanishing.
   const SOUL_CLAIM_SLUGS = ["broken", "broken-enslaved"];
   let blessedHeld = null;
   const isWarded = async (slug) => {
@@ -344,9 +225,7 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
       granted.push({ tagId: tag?.id ?? null, tagName: tag?.name ?? slug, slug, added: 0, warded: true });
       continue;
     }
-    // Unknown slugs are rejected at sync time (db/lib/syncTags.js), so this
-    // can only be a row predating a catalog edit — skip it rather than fail
-    // the whole request.
+    // Unknown slugs are rejected at sync time (db/lib/syncTags.js); skip rather than fail the whole request.
     const tag = tagBySlug.get(slug);
     if (!tag) continue;
 
@@ -355,22 +234,10 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
     });
 
     if (!existing) {
-      // A granted tag with its own duration starts its clock now, which is
-      // what makes a chain work (meal -> Ate Meal that the sweep clears).
-      // expiryFrom counts `turnNumber` itself as the tag's first live turn,
-      // so a 1-turn grant runs out when this turn closes.
-      //
-      // A per-grant override (Tag.consumesIntoDurations, resolved by
-      // web/lib/consumeGrants.js) wins over the tag's own duration, so one
-      // status can outlast itself depending on what produced it — Bliss
-      // leaves you High a turn longer than the raw fungus does.
+      // A granted tag's own duration starts its clock now (what makes a chain work: meal -> Ate Meal). expiryFrom counts `turnNumber` as the first live turn, so a 1-turn grant runs out when this turn closes.
+      // A per-grant override (Tag.consumesIntoDurations, web/lib/consumeGrants.js) wins over the tag's own duration — Bliss leaves you High a turn longer than raw fungus does.
       const durationTurns = durations?.[slug] ?? tag.defaultDurationTurns;
-      // Backstop, not a front gate. Every caller is supposed to have resolved a
-      // turn already (db/lib/grantExpiry.js#expiryForGrant defers to the next
-      // one when an advance is in flight). Getting here with a timed tag and no
-      // turn number means a caller skipped that, and the row would land with a
-      // null expiresTurn — which never matches the sweep's `lte`, i.e. the tag
-      // would be permanent and silent. Loud is better than that.
+      // Backstop, not a front gate: every caller must have resolved a turn (db/lib/grantExpiry.js#expiryForGrant). Skipping that would land a null expiresTurn that never matches the sweep's `lte` — a permanent, silent tag. Loud is better.
       if (durationTurns && turnNumber == null) {
         throw new Error(
           `grantTagSlugs: no turn number for timed tag "${slug}" (${durationTurns} turns) — ` +
@@ -408,42 +275,16 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
 }
 
 // --- Room stashes (docs/systemdocs/CARRY.md) ---------------------------
-//
-// A Room's stash is the game's first MULTI-ACTOR inventory: two players
-// standing in the same public room can pull the same stack in the same tick.
-// dropCharacterTag can afford a read-then-write because a character has one
-// actor; here the decrement IS the check — the conditional-updateMany lesson
-// from resourceTransfer.js#moveParty.
+// A Room's stash is the game's first MULTI-ACTOR inventory: two players can pull the same stack in the same tick. dropCharacterTag can afford read-then-write (one actor); here the decrement IS the check (the conditional-updateMany lesson from resourceTransfer.js#moveParty).
 
-// The room-stash serializer (fix round M4b, fix 2), same idiom as
-// requestActions.js#lockCharacter: a raw row lock Postgres holds to the end
-// of the caller's transaction, so two writers queue up instead of both
-// reading the same RoomTag snapshot. Locks the ROOM row rather than the
-// RoomTag row — a Room always exists (the stash line may not, especially on
-// the create path addToRoomStack's `!existing` branch covers), and every
-// caller into this file already has a roomId in hand with nothing more to
-// look up first.
-//
-// Lock order: every caller that locks BOTH a Character row and a Room row in
-// the same transaction must take the character lock(s) first — this module
-// never takes a character lock itself, so the ordering is enforced entirely
-// by call-site discipline. Audited at the fix's writing: no caller of
-// dropRoomTag/addToRoomStack locks a Character row afterward in the same
-// transaction, so there is no established call site to invert.
+// The room-stash serializer, same idiom as requestActions.js#lockCharacter: a raw row lock held to the end of the transaction, so writers queue instead of reading the same RoomTag snapshot. Locks the ROOM row (always exists, unlike a stash line) rather than RoomTag.
+// Lock order: any caller locking both a Character and a Room row must take the character lock first — enforced entirely by call-site discipline, since this module never takes a character lock itself.
 function lockRoom(tx, roomId) {
   return tx.$queryRaw`SELECT "id" FROM "Room" WHERE "id" = ${roomId} FOR UPDATE`;
 }
 
-// Adds `quantity` of a tag to a room, creating the row or incrementing it.
-// Deliberately NO non-stackable pin: two players can each leave their
-// Longbow here and the row must go to 2. The pin is a rule about what one
-// CHARACTER can hold, and addToStack re-applies it on the way out.
-// `expiresTurn` carries over from the holder's row; an earlier clock wins
-// when stacks with different clocks merge, so stashing never extends one.
-//
-// `poisonedCount`/`poisonPayload` (M4) — same contract as addToStack's:
-// merging into a row that already carries a DIFFERENT payload dilutes the
-// incoming units clean rather than refusing.
+// Adds `quantity` of a tag to a room. Deliberately NO non-stackable pin: two players can each leave a Longbow and the row must go to 2 (the pin is a rule about one CHARACTER's hold; addToStack re-applies it on the way out). Earlier clock wins on merge, so stashing never extends one.
+// `poisonedCount`/`poisonPayload`: same contract as addToStack's — a DIFFERENT payload dilutes clean rather than refusing.
 async function addToRoomStack(
   tx,
   roomId,
@@ -453,12 +294,7 @@ async function addToRoomStack(
 ) {
   const n = Math.max(1, Math.trunc(quantity ?? 1));
   const incomingPoisoned = poisonedCount > 0 ? Math.min(Math.trunc(poisonedCount), n) : 0;
-  // Room lock (fix round M4b, fix 2): taken BEFORE the read below, so two
-  // first-poison stashes landing on the same clean row can no longer both
-  // see `existing.poisonPayload === null` and both increment — the second
-  // writer now queues behind the first and re-reads the row it actually
-  // left behind. Covers the create path too (a Room row always exists to
-  // lock, even when this RoomTag line doesn't yet).
+  // Room lock taken BEFORE the read below, so two first-poison stashes on the same clean row can't both see `poisonPayload === null` and both increment — the second queues and re-reads. Covers the create path (a Room row always exists to lock).
   await lockRoom(tx, roomId);
   const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
   if (!existing) {
@@ -483,14 +319,7 @@ async function addToRoomStack(
     data: {
       quantity: { increment: n },
       expiresTurn: clocks.length ? Math.min(...clocks) : null,
-      // The room-merge race (fix round, M4): two stashes landing on this row
-      // in the same instant both read `existing.poisonedCount` from the SAME
-      // snapshot above, same trap the quantity column solves with
-      // `{ increment }`. So the poison columns are only ever written when
-      // this merge actually ADDS poison (atomically) — a clean merge or a
-      // different-payload dose ("lost in the mix") leaves both columns
-      // entirely out of the update, so a concurrent taker's decrement or
-      // payload-clear is never overwritten with this snapshot's stale copy.
+      // Same trap `{ increment }` solves for quantity: the poison columns are only written when this merge actually ADDS poison, so a concurrent taker's decrement or payload-clear is never overwritten by a stale snapshot.
       ...(incomingPoisoned > 0 && samePoison
         ? {
             poisonedCount: { increment: incomingPoisoned },
@@ -503,27 +332,14 @@ async function addToRoomStack(
   return updated;
 }
 
-// Removes `quantity` of a tag from a room (null = the whole stack). Returns
-// `{ ok, poisonedTaken, poisonPayload }` — `ok` false when the stack no
-// longer covers it (a concurrent taker got there first), so the caller can
-// refuse cleanly instead of overdrawing. `poisonedTaken`/`poisonPayload` (M4)
-// mirror dropCharacterTag's: a hypergeometric draw against the row as it
-// stood before the decrement, ignored by every caller that doesn't move
-// poison state onward.
+// Removes `quantity` of a tag from a room (null = whole stack). Returns `{ ok, poisonedTaken, poisonPayload }` — `ok` false when a concurrent taker got there first, so the caller refuses cleanly. Poison fields mirror dropCharacterTag's.
 async function dropRoomTag(tx, roomId, tagId, quantity = null, options = {}) {
-  // Room lock (fix round M4b, fix 2): taken before either read below. Two
-  // concurrent 1-unit withdrawals off a quantity=2/poisoned=1 row used to
-  // both draw against the SAME unlocked snapshot — both could draw clean
-  // and delete the row out from under the poisoned unit, or a valid
-  // withdrawal could be refused by a stale read. Serializing on the Room
-  // row means the second caller now re-reads whatever the first actually
-  // left behind.
+  // Room lock taken before either read below: two concurrent withdrawals off the same row could both draw against a stale snapshot, deleting it out from under a poisoned unit. Serializing means the second caller re-reads what the first left.
   await lockRoom(tx, roomId);
   if (quantity == null) {
     const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
     await tx.roomTag.deleteMany({ where: { roomId, tagId } });
-    // `quantity = null` drops the WHOLE holding — record what was actually
-    // there (`existing.quantity`), not a request that named no number at all.
+    // `quantity = null` drops the WHOLE holding — record `existing.quantity`, the actual amount, not a request naming no number.
     if (existing?.quantity) {
       await recordTagMoney(tx, roomParty({ id: roomId }), tagId, -existing.quantity, options.econ);
     }
@@ -536,27 +352,13 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null, options = {}) {
     ? drawPoisonedUnits(existing.quantity, existing.poisonedCount, n)
     : 0;
   const poisonPayload = poisonedTaken > 0 ? existing.poisonPayload : null;
-  // Negative-count guard (fix round, M4): `poisonedCount` is read from the
-  // SAME pre-lock snapshot as `quantity` above, but only `quantity` has its
-  // own where-guard keeping the decrement conditional on committed state — a
-  // concurrent drop between the read and this write could already have taken
-  // some of the poisoned units, and an unconditional `decrement` would drive
-  // the column negative. Guarding it the same way `quantity` already is
-  // restores "the decrement IS the check" for both columns, not just one: a
-  // stale poisonedTaken now fails the whole write (count stays 0) rather than
-  // partially applying.
+  // Negative-count guard: `poisonedCount` is read from the same pre-lock snapshot as `quantity`, but only `quantity` has a where-guard — a concurrent drop could already have taken poisoned units, driving an unconditional decrement negative. Guarding both restores "the decrement IS the check": a stale poisonedTaken now fails the whole write instead of partially applying.
   const { count } = await tx.roomTag.updateMany({
     where: { roomId, tagId, quantity: { gte: n }, poisonedCount: { gte: poisonedTaken } },
     data: { quantity: { decrement: n }, poisonedCount: { decrement: poisonedTaken } },
   });
   if (count === 0) return { ok: false, poisonedTaken: 0, poisonPayload: null };
-  // Payload-clear invariant (fix round, M4): the decrement above can take
-  // poisonedCount to exactly 0 in the same statement that shrinks quantity,
-  // so there is no single atomic write that clears poisonPayload only when
-  // the RESULT lands on zero — a second, itself-guarded update covers it.
-  // Idempotent and cheap: it only touches a row that both needs it and still
-  // exists (the delete below may remove it first on some other path, but
-  // never before this one runs).
+  // Payload-clear invariant: the decrement can take poisonedCount to 0 in the same statement that shrinks quantity, so no single atomic write clears poisonPayload only then — a second, itself-guarded update covers it. Idempotent and cheap.
   await tx.roomTag.updateMany({
     where: { roomId, tagId, poisonedCount: { lte: 0 }, poisonPayload: { not: null } },
     data: { poisonPayload: null },

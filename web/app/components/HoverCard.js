@@ -4,29 +4,12 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { createPortal } from "react-dom";
 import { placePanel } from "./portalPlacement";
 
-// A hover/focus panel that renders into document.body instead of next to its
-// trigger. Was once the codebase's only portal; ThingsDrawer.js's action menu
-// is the second, sharing this file's viewport-placement math via
-// portalPlacement.js. It exists for one reason:
-// an in-tree tooltip is clipped by every scrolling ancestor it happens to sit
-// under — .doc-sheet, .table-scroll, .list-scroll, .message-list, .modal-panel,
-// .app-rail. A tag chip near the top of an open document threw its tooltip
-// into the sheet's own scroll region, so you saw the bottom half only.
-//
-// position: fixed alone does NOT fix that: .doc-card sets a transform on
-// hover, and a transformed ancestor becomes the containing block even for
-// fixed children. Escaping to document.body is the part that actually holds.
-//
-// A click (or Enter/Space) on the trigger pins the panel open — it stays
-// visible after the pointer leaves, so the reader can reach into it (e.g. to
-// click a nested chip or the Consume button). Any onClick/onKeyDown a caller
-// passes still runs; HoverCard just also toggles the pin.
-//
-// `pinnable={false}` is for wrapping something that is ALREADY a control — a
-// room row in the Chat places column. There the wrapper takes no tab stop
-// (the child button has one, and focus bubbles), a click is the child's
-// click and nothing else, and Enter/Space are left alone so they still
-// activate the child. Hover and focus still open the panel; nothing pins it.
+// Hover/focus panel portaled to document.body — escapes scrolling-ancestor
+// clipping (.doc-sheet, .table-scroll, etc) and .doc-card's hover transform,
+// which becomes a containing block even position:fixed can't escape in place.
+// Click/Enter/Space pins it open so the reader can reach into it; `pinnable={false}`
+// wraps an already-interactive child (Chat's places column rows) — no tab stop, click
+// and keys pass through to the child untouched, hover/focus still open the panel.
 export default function HoverCard({ children, panel, className = "", pinnable = true, ...triggerProps }) {
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
@@ -74,10 +57,7 @@ export default function HoverCard({ children, panel, className = "", pinnable = 
 
   useEffect(() => {
     if (!open) return;
-    // Fixed positioning detaches on scroll. Unpinned, that's still the
-    // simplest fix — close rather than chase it. Pinned, the reader
-    // deliberately opened this and may be about to click into it, so
-    // reposition instead of yanking it away under them.
+    // Fixed positioning detaches on scroll: unpinned, close rather than chase it; pinned, reposition instead.
     const onScrollOrResize = () => {
       if (pinned) place();
       else setHovering(false);
@@ -97,9 +77,7 @@ export default function HoverCard({ children, panel, className = "", pinnable = 
     };
   }, [open, pinned, place]);
 
-  // While pinned, a click anywhere outside the trigger and the portaled
-  // panel unpins it — the usual "click away to dismiss" a pinned popover
-  // needs, since the panel no longer closes on pointerleave.
+  // While pinned, a click outside the trigger and the portaled panel unpins it.
   useEffect(() => {
     if (!pinned) return;
     const onPointerDown = (e) => {
@@ -128,10 +106,7 @@ export default function HoverCard({ children, panel, className = "", pinnable = 
       >
         {children}
       </span>
-      {/* `panel &&`: a caller may have nothing to say for a given row, or may
-          want the panel out of the way for a moment (ThingsDrawer.js drops it
-          while its action menu is open). Without this that renders an empty
-          tooltip box next to the trigger. */}
+      {/* `panel &&`: without it, no panel content renders an empty tooltip box. */}
       {open &&
         panel &&
         createPortal(
@@ -144,8 +119,7 @@ export default function HoverCard({ children, panel, className = "", pinnable = 
             style={
               pos
                 ? { top: pos.top, left: pos.left, maxHeight: pos.maxHeight }
-                : // Measured on the first layout pass; keep it off-screen until
-                  // then rather than letting it flash in the corner.
+                : // Off-screen until the first layout pass measures it.
                   { top: 0, left: 0, visibility: "hidden" }
             }
           >

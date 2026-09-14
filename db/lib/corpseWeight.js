@@ -1,42 +1,16 @@
-// What a body weighs.
-//
-// A corpse used to weigh nothing at all, which meant a character could walk a
-// pile of them across the map — while a Graga corpse (75 lb) or a nekker's
-// (45 lb) has always been real cargo. See docs/systemdocs/CORPSES.md and
-// docs/systemdocs/CARRY.md §2.
-//
-// Two parts, and the second one is the interesting half:
-//
-//   the BODY   — a base weight bent by the build the character actually had.
-//   their GEAR — because "a corpse is a handle to a dead character's sheet,
-//                not a container" (CORPSES.md §1). Their belongings never move
-//                off the Character row, so whoever hauls the body is hauling
-//                the plate armour still on it. Strip a body first and it gets
-//                markedly easier to carry, which is the right lesson.
-//
-// The number is STORED on the corpse Tag's `weightLbs` rather than computed at
-// read time. db/lib/carry.js#rowWeight reads that one column, and every
-// readout on both faces — the Overburdened check, the overflow drop, the
-// "44 / 71 lb" line — flows from it. Making one tag's weight dynamic would
-// have meant threading the dead character's sheet through all of them,
-// including client components. So it is a derived value kept fresh instead:
-// minted with the corpse, and recomputed whenever the body is looted.
+// What a body weighs (CORPSES.md, CARRY.md §2). Two parts: the BODY (base weight bent by build), and
+// their GEAR — because "a corpse is a handle to a dead character's sheet, not a container" (CORPSES.md
+// §1), so belongings never move off the Character row and whoever hauls the body hauls the armour too.
+// STORED on the corpse Tag's `weightLbs`, not computed at read time — db/lib/carry.js#rowWeight reads
+// that one column. A derived value kept fresh: minted with the corpse, recomputed whenever looted.
 const { CORPSE_GROUP_SLUG } = require("./constants");
 const { rowWeight } = require("./carry");
 
-// A human body, and the anchor for everything below. Deliberately under the
-// 71 lb base cap (GameConfig.carryWeightLbs) rather than near it: carrying
-// somebody should cost you most of your back and still leave you able to walk
-// with your own kit. It sits between the spindly nekker at 35 and the pink
-// skinless at 55, which is about right for a person.
+// A human body. Deliberately under the 71 lb base cap (GameConfig.carryWeightLbs) rather than near it.
 const BASE_CORPSE_LBS = 50;
 
-// The build, as multipliers rather than flat adds, so they compose sanely — a
-// frail dwarf is light twice over and lands at 28 lb rather than at zero.
-//
-// `strong` is deliberately NOT here. Muscle does weigh more than the lack of
-// it, but the difference is small next to these, and quietly taxing a trait
-// somebody spent points on is a poor way to spend that realism.
+// The build, as multipliers rather than flat adds, so they compose sanely — a frail dwarf lands at 28
+// lb, not zero. `strong` is deliberately NOT here — the difference is small and not worth taxing.
 const BUILD_MULTIPLIERS = [
   ["giant", 1.5],   // a behemoth among humanity — lands on the Graga's 75
   ["fat", 1.3],
@@ -44,15 +18,10 @@ const BUILD_MULTIPLIERS = [
   ["dwarf", 0.7],   // very short
 ];
 
-// Never lighter than this however the traits stack, so a body is always
-// something you notice picking up.
+// Never lighter than this however the traits stack.
 const MIN_BODY_LBS = 20;
 
-// The body alone, from the tags the character held in life. Pure — no prisma —
-// so a caller that already has the sheet can ask without a query.
-//
-// Accepts CharacterTag[] (with .tag) or a bare list of slugs, because the two
-// call sites hold different shapes and neither should have to reshape first.
+// The body alone. Pure — no prisma. Accepts CharacterTag[] (with .tag) or a bare list of slugs.
 function corpseBodyWeight(tags = []) {
   const slugs = new Set(
     (tags ?? [])
@@ -66,16 +35,9 @@ function corpseBodyWeight(tags = []) {
   return Math.max(MIN_BODY_LBS, Math.round(lbs));
 }
 
-// What the dead character is still carrying, which travels with the body.
-//
-// The corpse tag itself is excluded, and that is not tidiness: a body whose
-// Location had no public room is dropped onto its own character's sheet
-// (CORPSES.md §1), so counting the sheet blindly would have a corpse weighing
-// partly itself, and every recompute would add its own weight again.
-//
-// Untradeable rows are skipped for the same reason carry.js skips them — a
-// graft in the neck is part of the person, not cargo — and Assets are exempt
-// there too, so a horse standing nearby never lands on the pallbearer.
+// What the dead character is still carrying. The corpse tag itself is excluded — a corpse can be
+// dropped onto its own character's sheet (CORPSES.md §1), so counting blindly would double-count it.
+// Untradeable rows and Assets are skipped, same as carry.js.
 function gearWeight(characterTags = []) {
   let lbs = 0;
   for (const ct of characterTags ?? []) {
@@ -83,9 +45,6 @@ function gearWeight(characterTags = []) {
     if (!tag) continue;
     if (tag.corpseOfCharacterId) continue;
     if (tag.group?.slug === CORPSE_GROUP_SLUG) continue;
-    // rowWeight, not a second spelling of it: untradeable rows and the whole
-    // Assets category are already exempt there, and two copies of that rule
-    // would disagree the first time one of them changed.
     lbs += rowWeight(ct);
   }
   return Math.round(lbs * 10) / 10;
@@ -110,8 +69,7 @@ const WEIGHT_SELECT = {
   },
 };
 
-// Body plus gear, for one dead character. Returns null when there is nothing
-// to weigh, so a caller can leave the column alone rather than write a zero.
+// Body plus gear. Returns null when there is nothing to weigh, so a caller can leave the column alone.
 async function corpseWeightFor(prisma, characterId) {
   if (!characterId) return null;
   const row = await prisma.character
@@ -121,12 +79,8 @@ async function corpseWeightFor(prisma, characterId) {
   return corpseBodyWeight(row.tags) + gearWeight(row.tags);
 }
 
-// Write it back onto the body. Called when the corpse is minted and again
-// whenever the sheet it is a handle to changes hands — looting a body lightens
-// it, which is the whole reason this is not a constant.
-//
-// Best-effort and silent on a miss: a corpse whose weight is a few pounds
-// stale is not worth failing a loot over.
+// Write it back onto the body — called on mint and again whenever the sheet changes hands. Best-effort
+// and silent on a miss: a corpse a few pounds stale is not worth failing a loot over.
 async function refreshCorpseWeight(prisma, characterId) {
   if (!characterId) return null;
   try {

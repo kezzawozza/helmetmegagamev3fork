@@ -1,35 +1,14 @@
-// "Is that kit within reach?" — the one question Craft and Heal both ask about
-// a piece of standing equipment (docs/systemdocs/CRAFTING.md, TAGS.md §5c).
-//
-// Two kits use this. WORKSHOP EQUIPMENT is what lets you smith or build at
-// all; SURGICAL EQUIPMENT (and, since M6b, the lesser PORTABLE SURGICAL
-// PACK) is what lets a tier-6/7 cure happen outside a Surgical Theater —
-// see needsSurgicalSite() and healCharacterRequestImpl for the pack's own
-// −1 die penalty when it's the only thing enabling the site. Both kits are
-// heavy Items rather than Assets on purpose: somebody had to haul them
-// there, and a Sanctuary operating theatre or a Factory floor is simply a
-// room where somebody already did.
-//
-// Reach is NOT re-derived here. It is the same predicate the private-room
-// threads are synced with — standing in the room's Location, and admitted to
-// the room — so a door and a gate can never disagree about The Charon. See
-// db/lib/roomAccess.js#accessibleRooms and web/lib/transferReach.js.
-//
-// Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
-// db/lib/dm.js convention; require it by path.
+// "Is that kit within reach?" — the one question Craft and Heal both ask about standing equipment
+// (docs/systemdocs/CRAFTING.md, TAGS.md §5c). Two kits use this: WORKSHOP EQUIPMENT and SURGICAL
+// EQUIPMENT/PORTABLE SURGICAL PACK (see needsSurgicalSite() and healCharacterRequestImpl for the
+// pack's −1 die penalty). Reach is NOT re-derived here — same predicate the private-room threads use
+// (db/lib/roomAccess.js#accessibleRooms, web/lib/transferReach.js). Takes `prisma`, off the barrel (db/lib/dm.js convention).
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { structuresAt } = require("./structures");
 
-// True when the character holds the tag, one sits in a Room stash they can
-// get into at the Location they are standing in, or a COMPLETE structure
-// standing there provides it — a Forge declaring `provides:
-// [workshop-equipment]` serves everyone on the ground, permanently, no
-// hauling and no door (db/lib/structures.js). COMPLETE only: a half-built
-// or damaged forge serves nobody, which is what makes Damage worth doing.
-//
-// `character` needs { id, locationId }. Held tags are re-read rather than
-// taken from a passed row: every caller here is a server action re-checking
-// what a client claimed, and a stale row is exactly what it must not trust.
+// True when the character holds the tag, a Room stash at their Location has it, or a COMPLETE
+// structure there provides it (db/lib/structures.js). `character` needs { id, locationId }. Held tags
+// are re-read, not taken from a passed row — every caller is a server action re-checking a client claim.
 async function hasEquipmentInReach(prisma, character, slug) {
   if (!character?.id || !slug) return false;
 

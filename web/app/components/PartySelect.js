@@ -1,31 +1,9 @@
-// One end of a movement of things or ⬢: a person standing here or a Room
-// stash here, as the "character:<id>" / "room:<id>" keys resolveParty()
-// parses server-side.
-//
-// Players are a flat, alphabetical list, deliberately NOT nested under their
-// faction — that grouping would leak allegiances to anyone who opened the
-// dropdown. The list itself is already narrowed to who is at your Location
-// (web/lib/peopleHere.js).
-//
-// An entry may carry `kind: "hood"`, which writes "hood:<token>" instead. That
-// is a concealed person, listed by their alias — Transfer is the one caller
-// that offers them, and the token is an opaque handle rather than an id
-// (db/lib/whosHere.js#hoodToken).
-//
-// Lives here rather than inside the Transfer dialog because Heal and Craft
-// ask the same question ("who pays for this?") over the same people.
-//
-// `rooms` — the Room stashes at the character's Location they can get into
-// (docs/systemdocs/CARRY.md), as "room:<id>". `selfId` puts "(you)" after
-// your own name so a payer or destination list reads right.
-//
-// `silo` — the character's own faction silo, when the "Rooms here" list
-// cannot carry it: either it is elsewhere in the zone, or it is a locked room
-// at this very Location that `accessibleRooms` filtered out. That second case
-// is the mail slot (FACTIONS.md §4a) — you may deposit into a silo you cannot
-// open, and without this group the picker would hide the one destination the
-// server actually allows. Only ever passed for a DESTINATION: you deposit
-// from across the zone, and take things out only by standing in the room.
+// One end of a movement of things or ⬢: a person or Room stash here, as the "character:<id>" / "room:<id>" keys
+// resolveParty() parses server-side. Players are flat/alphabetical, deliberately NOT nested under faction — that
+// would leak allegiances. `kind: "hood"` writes "hood:<token>" for a concealed person (db/lib/whosHere.js#hoodToken).
+// `rooms` — Room stashes at the character's Location (docs/systemdocs/CARRY.md). `silo` — the character's own
+// faction silo when "Rooms here" can't carry it, e.g. the locked mail slot (FACTIONS.md §4a); only ever passed as a
+// DESTINATION, since you deposit from across the zone but take things out only by standing in the room.
 import Select from "./Select";
 
 export default function PartySelect({ label, value, onChange, characters, rooms, hint, selfId = null, silo = null }) {

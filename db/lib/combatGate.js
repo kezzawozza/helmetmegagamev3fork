@@ -1,18 +1,9 @@
-// THE GATE ON ATTACK (docs/systemdocs/ATTACK.md §5a).
-//
-// Attack is free, and that is what made it a lever: with your Move already
-// filed on something else, pressing it only pins somebody where they stand
-// for the rest of the day. The doc has the whole argument.
+// THE GATE ON ATTACK (docs/systemdocs/ATTACK.md §5a). Attack is free, so it's a lever: with your Move
+// already filed, pressing it only pins somebody for the rest of the day.
 
-// A Move already filed spends the turn — unless it is a GAMBIT, which is the
-// fight itself written up first and the button pressed second.
-//
-// NO moveKind counts as spent, not as nothing filed. db/lib/locationTravel.js
-// files a paid zone crossing with the column left null, and that crossing cost
-// the whole turn; reading it as "hasn't acted" would let anybody who walked
-// across a boundary pin somebody anyway, which is the exact case this exists
-// for. Kept as the row test rather than the kind so a second writer that
-// forgets the column fails closed too.
+// A Move already filed spends the turn — unless it's a GAMBIT. NO moveKind counts as spent, not as
+// nothing filed — db/lib/locationTravel.js files a paid zone crossing with the column left null, and
+// that crossing cost the turn. Kept as the row test, not the kind, so a writer that forgets the column fails closed.
 function spentBy(action) {
   return Boolean(action) && action.moveKind !== "GAMBIT";
 }
@@ -30,9 +21,8 @@ async function moveSpent(db, characterId, turnId) {
   );
 }
 
-// The heldReasonFor shape (db/lib/intercept.js): the sentence or null, so the
-// dialog that greys a button and the server action that refuses the post can
-// never disagree about why.
+// The heldReasonFor shape (db/lib/intercept.js): sentence or null, so the button greying and the
+// server action refusal never disagree about why.
 async function attackMoveBlock(db, characterId, turnId) {
   return (await moveSpent(db, characterId, turnId)) ? ATTACK_MOVE_SPENT : null;
 }

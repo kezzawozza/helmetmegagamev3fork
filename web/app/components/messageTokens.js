@@ -4,22 +4,10 @@ import InfoIcon from "./InfoIcon";
 import CharacterAvatar from "./CharacterAvatar";
 import { useCharacterMentions } from "./CharacterMentionsProvider";
 
-// The short token vocabulary a MESSAGE is allowed to resolve, shared by every
-// renderer that draws one — the feed, a DM, a starred line, the transcript, a
-// journal entry.
-//
-// It lives here rather than in ChatMarkdown.js because those five surfaces used
-// to disagree about it: /chat resolved the tokens, MarkdownContent had never
-// been given remarkTokens at all so a DM printed literal braces, and the
-// transcript and the Journal went through RichText, which resolves the WHOLE
-// catalog. One copy, so they cannot drift again.
-//
-// Deliberately short. A message is a player writing, and the catalog tokens
-// ({tag:…}, {resource:…}, {document:…}) are authored reference syntax —
-// resolving them here would let anyone mint a live chip mid-scene. RichText.js
-// is still the full-fat renderer, and it is still right for authored prose (a
-// tag description, a Desire, an appearance). An unresolved token falls back to
-// its literal text, the contract richTokens.js states for every kind.
+// The short token vocabulary a MESSAGE is allowed to resolve, shared by every renderer that draws one (feed, DM,
+// starred line, transcript, journal entry) — one copy so they cannot drift again. Deliberately short: the catalog
+// tokens ({tag:…}, {resource:…}, {document:…}) are authored reference syntax, and resolving them here would let
+// anyone mint a live chip mid-scene; RichText.js is still the full-fat renderer for authored prose.
 
 // A {char:…} payload is `<id>` or `<id>|<name it was sent under>`. Split on the
 // FIRST bar only: an id never contains one, and a name might.
@@ -30,34 +18,10 @@ export function splitCharPayload(payload) {
   return { id: raw.slice(0, bar).trim(), frozenName: raw.slice(bar + 1).trim() || null };
 }
 
-// A {char:<id>} in a message. The map comes from CharacterMentionsProvider,
-// which /chat fills from two lists: the people standing here, and the wider
-// directory of everybody whose name is safe to print
-// (web/lib/mentionDirectory.js).
-//
-// The NAME comes off the token when the token carries one. A mention is the one
-// piece of a row that used to be resolved live, so putting a hood on rewrote
-// what every past line had said and a Mulligan rename renamed somebody in
-// history. Everything else about a row's identity is frozen at send time
-// (ArchiveEntry.characterName, .concealedAlias, .presentedAvatarPath); this is
-// the same rule, carried in the token itself so it survives being copied into a
-// Note or quoted into a journal entry.
-//
-// The FACE is gated on the same frozen name: it is only drawn when the
-// directory resolves that id AND still calls them what the token froze. That
-// fails safe in both directions, the rule Note.presentedAvatarPath already
-// follows — somebody since renamed loses their face here rather than gaining
-// the wrong one.
-//
-// It used to depend on a hood as well, and that was backwards: the directory
-// is rebuilt on every render, so the little portrait beside an old mention
-// winked out the moment its subject pulled a mask on anywhere in the world and
-// came back when it came off — a live mask detector, readable by anybody who
-// could see any line that ever named them. Nothing about a mention may change
-// because of what its subject is wearing now (web/lib/mentionDirectory.js).
-//
-// A miss with no frozen name draws a person-shaped blank, because a cuid in
-// braces is not a visible unresolved reference, it is a line that looks broken.
+// A {char:<id>} in a message. The map comes from CharacterMentionsProvider (web/lib/mentionDirectory.js). The
+// NAME is frozen in the token itself, same rule as ArchiveEntry.characterName/.concealedAlias/.presentedAvatarPath,
+// so a later rename or hood can't rewrite what a past line said. The FACE is gated on that same frozen name — only
+// drawn when the directory still resolves that id to it — so a renamed character loses the face rather than gaining the wrong one; a miss with no frozen name draws a person-shaped blank rather than a raw cuid.
 export function CharMention({ payload }) {
   const mentionsById = useCharacterMentions();
   const { id, frozenName } = splitCharPayload(payload);

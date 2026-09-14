@@ -1,73 +1,28 @@
-// The mood dial (docs/systemdocs/MOOD.md).
-//
-// Every character carries Character.mood, a signed number from +82 down to
-// −100 that no player ever sees as a number. What they see is ONE WORD, in
-// its own box on the sheet, projected from the band the dial sits in:
-//
-//   +64…+82 Ecstatic (+1)
-//   +46…+64 Happy      +28…+46 Pleased    +10…+28 Content
-//   −10…+10 Fine
-//   −10…−28 Uncomfortable   −28…−46 Stressed   −46…−64 Anxious
-//   −64…−82 Afraid (−1)     −82…−100 Panicking (−2)
-//
-// The world drags it down: a night in the wilderness or the caves, a wound, a
-// bad Caving Die, hunger, being bound or crucified, a death nearby. Shelter
-// brings it back: a roof, a haven, the Cathedral — but only ever back up to
-// Fine and never past it, which is what `capAtFine` on a term means. Going
-// higher takes something a character DOES: a drink, a good meal, tea, a smoke,
-// music, a confession, a fulfilled Desire.
-// Held tags scale the HARM — Brave halves everything, Rough Camper / Outsider
-// / Spelunker / Pale soften the outdoors and the caves, the phobias sharpen
-// one kind each — and GameConfig.moodIntensity (k) scales both directions:
-// harm × k, relief ÷ k. k = 0 is the off switch.
-//
-// This used to be the fear dial, 0–100 with the sign the other way up and
-// five status tags standing in for the word. The tags are gone: a band is a
-// derived reading of one number, and making it a CharacterTag row meant a GM
-// grant could fight the dial for the same @@unique([characterId, tagId]).
-//
-// Layout. The top half is pure (no Prisma) and is what db/test/mood.test.js
-// exercises: the tables, the band and rung derivations, the multiplier stack.
-// The bottom half is the Prisma-in-tx surface every hook calls:
-//
-//   applyMood(tx, id, { kind, base })      one event
-//   applyMoodTerms(tx, id, terms)          several at once (the turn pass)
-//   applyWoundMood(tx, id, tagIds)         "these tag rows just landed"
-//
-// Every function takes `tx` first (the db/lib/dm.js convention) so a hook can
-// ride inside the transaction that caused it. This module makes no network
-// call; a band-change DM is handed back to the caller AND, unless told not to,
-// scheduled through the sender db/index.js registers (setMoodDmSender) a
-// moment after the surrounding transaction has had time to commit. The turn
-// pass passes `notify: false` and carries its DMs back for the thunk instead.
-//
-// Deliberately NOT on the @lifeweb/db barrel — require it by subpath, so
-// web/lib code can import the pure half without dragging the client along.
-//
-// No require of ./tagWrites here, on purpose: tagWrites requires THIS module
-// for applyWoundMood, and a cycle would hand one of them a half-built export.
+// The mood dial (docs/systemdocs/MOOD.md). Character.mood is a signed number
+// (+82..−100) shown to players as one word (band), from Panicking to Ecstatic;
+// see MOOD.md for the table. Harm/relief terms are scaled by held tags
+// (Brave, Rough Camper/Outsider/Spelunker/Pale, the phobias) and by
+// GameConfig.moodIntensity (k: harm × k, relief ÷ k; k=0 disables).
+// Top half is pure (db/test/mood.test.js exercises it); bottom half is the
+// Prisma-in-tx surface (applyMood, applyMoodTerms, applyWoundMood), each
+// taking `tx` first per the db/lib/dm.js convention so hooks ride the caller's
+// transaction. No network call here — a band-change DM is handed back and,
+// unless told not to, scheduled via setMoodDmSender after commit; the turn
+// pass passes `notify: false` and carries DMs back itself.
+// Not on the @lifeweb/db barrel — require by subpath so web/lib can use the
+// pure half without the Prisma client. No require of ./tagWrites here: it
+// requires this module for applyWoundMood, and a cycle would break one.
 const { hasAttribute, SAFE_ATTRIBUTE, WILDERNESS_ATTRIBUTE, HAVEN_ATTRIBUTE } = require("./locationAttributes");
 const { DYING_SLUG, IMPERTURBABLE_SLUG, AMOR_FATI_SLUG, WOUND_TAG_GROUPS } = require("./constants");
 
 
-// Still asymmetric, but by one band rather than by a whole half: Ecstatic
-// mirrors Afraid exactly — same width, same distance from Fine, +1 against its
-// −1 — and Panicking is the one band with no twin. There is still more room to
-// be terrified than to be delighted, just not as much more.
+// Ecstatic mirrors Afraid (same width/distance from Fine), Panicking has no twin.
 const MOOD_MAX = 82;
 const MOOD_MIN = -100;
 
-// Ten bands, 18 wide, symmetric about Fine but for Panicking, which has no
-// twin. The boundary belongs to the FURTHER band on both sides — −10 is
-// Uncomfortable, +10 is Content, −82 is Panicking, +64 is Ecstatic — which is
-// why bandOf flips which end is open at 0.
-//
-// `tone` is the vocabulary the sheet colours by (web/app/components/
-// StatusPill.js's rule: the call site names a meaning, the stylesheet picks
-// the colour). `gambit` is the die modifier, read by db/lib/gambitModifier.js.
-// THREE bands carry one, and they are the three extremes: Ecstatic at +1
-// against Afraid's −1, and Panicking's −2 alone at the bottom. The six in the
-// middle are flavour — Content, Pleased and Happy roll what Fine rolls.
+// Ten bands, 18 wide, symmetric about Fine but for Panicking. `tone` is read
+// by web/app/components/StatusPill.js; `gambit` (die modifier, db/lib/gambitModifier.js)
+// is nonzero only on the three extremes — Ecstatic +1, Afraid −1, Panicking −2.
 const MOOD_BANDS = Object.freeze([
   { min: -Infinity, max: -82, key: "panicking", label: "Panicking", tone: "bad", gambit: -2 },
   { min: -82, max: -64, key: "afraid", label: "Afraid", tone: "bad", gambit: -1 },
@@ -83,41 +38,23 @@ const MOOD_BANDS = Object.freeze([
   { min: 64, max: Infinity, key: "ecstatic", label: "Ecstatic", tone: "good", gambit: 1 },
 ]);
 
-// The only bands anybody hears about, and the rule is the dice: a band that
-// moves a Gambit is worth a line either way, which is why Ecstatic is in here
-// beside the two that cost. The other six are a word on the sheet and nothing
-// in the inbox — a player crossing 28 and back used to get two DMs about being
-// Stressed, which buried the ones that matter.
+// DMed bands are the three that move a Gambit; the other six are sheet-only.
 const DM_BAND_KEYS = new Set(["afraid", "panicking", "ecstatic"]);
 
 // What a night somewhere is worth, on top of the drift. Exactly one applies,
 // chosen by placeClassOf. Harm is negative, comfort positive.
 const PLACE_TERMS = Object.freeze({ CAVE: -14, WILDERNESS: -10, OPEN: 4, INDOORS: 6, HAVEN: 12 });
 
-// Every mood slides back toward Fine overnight, from BOTH sides — but not at
-// the same speed. A fright wears off slowly; a good evening is mostly gone by
-// morning. Neither ever overshoots 0.
-//
-// The asymmetry is the point: fear and grief are the half of the dial a
-// character has to live with, and delight is the half they have to keep
-// earning. A drink or a kiss is worth having on the day, not for the week.
+// Overnight slide toward Fine from both sides, never overshooting 0: fear
+// wears off slowly (drift up small), a good evening is mostly gone by morning.
 const MOOD_DRIFT_UP = 4;
 const MOOD_DRIFT_DOWN = 40;
 
-// Walking somewhere frightening costs a step charge (arrivalTermFor), and a
-// step is cheap: five walks into the marshes used to be the whole
-// Uncomfortable band, on the first day, before a single turn had closed. So
-// movement is rationed — everything a character's own legs can take off the
-// dial in one open turn, together, stops here. Nothing else is capped: a
-// wound, a death seen, a turret burst and the nightly place term all land in
-// full.
-//
-// The ration counts the delta that ACTUALLY LANDED, after the multipliers and
-// after GameConfig.moodIntensity. Capping the base instead would quietly hand
-// Brave (factor 0.5) twice the allowance of anybody else, which is backwards.
-// Character.moveMoodTurnId / moveMoodUsed hold the running total (a positive
-// magnitude), the same shape as zoneMovesTurnId / zoneMovesUsed in
-// locationTravel.js.
+// Movement mood is rationed per open turn (walking is cheap and repeatable);
+// nothing else is capped. The ration counts the delta that actually landed,
+// after multipliers and moodIntensity, not the base — else Brave would get
+// double the allowance. Character.moveMoodTurnId/moveMoodUsed track it, same
+// shape as zoneMovesTurnId/zoneMovesUsed in locationTravel.js.
 const MOVE_MOOD_TURN_CAP = 15;
 
 // Base values, signed: harm is negative, relief positive. applyMood defaults

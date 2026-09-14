@@ -1,21 +1,10 @@
-// The Appraisal skill's per-viewer projection: whether a tag object grows a
-// `valueObols` key. Each loader that ships tag data to a browser (see
-// referenceData.js#getVisibleTags, character/page.js, pointBuyCatalog.js,
-// documents/page.js) calls this once it knows whether ITS viewer holds
-// Appraisal — TagDetails.js has no hooks and no viewer context of its own
-// (it must keep rendering on the server), so the gate lives here instead of
-// at render time.
-//
-// Three states, deliberately: the key is ABSENT for a non-appraiser (no row
-// draws — a loader nobody updated leaks nothing), `null` for an appraiser
-// looking at a tag with no sellablePrice, and a number otherwise. No
-// requires, so this stays safe inside a "use client" bundle.
+// The Appraisal skill's per-viewer projection: whether a tag object grows a `valueObols` key. Each
+// loader shipping tag data to a browser calls this once it knows whether ITS viewer holds Appraisal
+// — TagDetails.js has no viewer context of its own, so the gate lives here, not at render time.
+// Three states: key ABSENT for a non-appraiser, `null` for no sellablePrice, a number otherwise.
 export function appraise(tag, canAppraise) {
   if (!tag) return tag;
-  // Always drops the raw `sellablePrice` column, appraiser or not — a payload
-  // that shipped it unconditionally and only hid the row in the UI would
-  // still leak the number to anyone reading dev tools, which defeats the
-  // point of gating this behind a skill at all.
+  // Always drops the raw `sellablePrice` column — leaving it in the payload would leak it via dev tools.
   const { sellablePrice, ...rest } = tag;
   if (!canAppraise) return rest;
   return { ...rest, valueObols: sellablePrice ?? null };

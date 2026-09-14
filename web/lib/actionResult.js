@@ -1,16 +1,7 @@
-// Validation errors have to come back from a server action as *data*, never as
-// a thrown Error.
-//
-// In a production build Next.js redacts anything thrown out of a Server
-// Component render or a Server Action and replaces it with React error #441
-// ("The specific message is omitted in production builds…"), logging the real
-// message server-side only. So every `catch (e) { setError(e.message) }` in a
-// client component is dead code against a throwing action: the player sees a
-// React error code instead of "You don't have that many ⬢".
-//
-// The contract: an action resolves to `{ ok: true, ...payload }` or
-// `{ ok: false, error }`. Callers branch on `ok` and never use try/catch for
-// validation.
+// Validation errors must come back from a server action as *data*, never a thrown Error — production
+// Next.js redacts a thrown error to React error #441, so a throwing action shows the player a code
+// instead of "You don't have that many ⬢". Contract: `{ ok: true, ...payload }` or
+// `{ ok: false, error }`. Callers branch on `ok`, never try/catch, for validation.
 
 import { deployVersion } from "@/lib/deployVersion";
 
@@ -21,16 +12,11 @@ export class UserError extends Error {
   }
 }
 
-// Runs `fn` and converts a UserError into a failed result. Anything else is
-// rethrown untouched, so genuine faults keep their stack and their server-side
-// log entry — and so does `redirect()`/`notFound()`, which work *by* throwing
-// and would silently stop working if this swallowed everything.
-// Every result also carries `version`, the build that answered it. A desk
-// client passes the result through noteActionVersion() (useDeskVersion.js),
-// which is how a deploy latches the desk's stale flag on the first mutation
-// after it lands rather than on the next 45s poll — the window in which a
-// post-mutation refresh() was still a hard navigation. It is written FIRST,
-// so an action that returns a `version` of its own still wins.
+// Runs `fn` and converts a UserError into a failed result. Anything else rethrows untouched — genuine
+// faults keep their log entry, and `redirect()`/`notFound()` (which work by throwing) keep working.
+// Every result also carries `version` (the build that answered it), read by noteActionVersion()
+// (useDeskVersion.js) to latch a desk's stale flag on the first post-deploy mutation. Written FIRST
+// so an action's own `version` still wins.
 export async function guarded(fn) {
   try {
     const out = await fn();

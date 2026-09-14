@@ -1,20 +1,13 @@
-// What 🔍-inspecting another character shows you beyond their appearance.
-//
-// Seductive (the Demoness tag, docs/tags.yaml's hidden `demoness` category) is
-// the one tag that buys automatic, free read access to another sheet's last
-// fulfilled Desire. Mindreading reads the same fact only via a GM-adjudicated
-// Gambit.
-//
-// No Prisma import; imported by subpath from both bot/ and web/ so the rule
-// can't drift between the two faces of the game.
+// What 🔍-inspecting another character shows you beyond their appearance. Seductive (the Demoness
+// tag, docs/tags.yaml's hidden `demoness` category) buys automatic read access to a sheet's last
+// fulfilled Desire; Mindreading reads the same fact only via a GM-adjudicated Gambit. No Prisma
+// import; imported by subpath from both bot/ and web/ so the rule can't drift.
 const { SEDUCTIVE_DEMONESS_SLUG } = require("./constants");
 
-// A list, not a bare slug, so another tag can be added without touching the
-// check below.
+// A list, not a bare slug, so another tag can be added without touching the check below.
 const DESIRE_SIGHT_SLUGS = [SEDUCTIVE_DEMONESS_SLUG];
 
-// Accepts the CharacterTag[] shape used everywhere else in the app
-// (`{ tag: { slug } }`), and tolerates a bare Tag[] as well.
+// Accepts CharacterTag[] (`{ tag: { slug } }`) or a bare Tag[].
 function slugSet(characterTags) {
   return new Set((characterTags ?? []).map((ct) => ct?.tag?.slug ?? ct?.slug).filter(Boolean));
 }

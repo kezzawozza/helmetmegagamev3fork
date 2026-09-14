@@ -2,20 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 
-// Who is writing something, per place. The same module-level-store-read-
-// through-useSyncExternalStore shape as feedStore.js and seenStore.js.
-//
-// Nothing here is durable and nothing here is a row: a typing event is a fact
-// about the next six seconds. The server never sends one for the viewer's own
-// character (web/app/api/feed/route.js), so this store holds other people
-// only, and it holds the PRESENTED name the hub resolved — a concealed
-// character types under their alias, the way they speak under it.
+// Who is writing something, per place. Same module-store shape as feedStore.js/seenStore.js.
+// A typing event is a fact about the next six seconds, not a row. The server never sends
+// one for the viewer's own character (web/app/api/feed/route.js), and it holds the
+// PRESENTED name — a concealed character types under their alias, the way they speak under it.
 
-// How long one event keeps somebody on the line. Discord re-raises its own
-// typing event about every ten seconds while a person keeps typing, and the
-// web composer's throttle is four, so six is long enough to bridge a web
-// typist's gap and short enough that somebody who wandered off mid-sentence
-// stops being announced.
+// How long one event keeps somebody on the line: long enough to bridge Discord's ~10s
+// re-raise and the web composer's 4s throttle, short enough to stop announcing a wanderer.
 const LIVE_MS = 6000;
 
 const EMPTY = Object.freeze([]);
@@ -34,9 +27,7 @@ function subscribe(cb) {
   return () => listeners.delete(cb);
 }
 
-// Rebuilds one place's frozen name list. Sorted by when each person was last
-// heard from, so a line naming two people does not reshuffle them on every
-// keystroke.
+// Rebuilds one place's frozen name list, sorted by last-heard so it doesn't reshuffle.
 function rebuild(placeKey) {
   const live = state.byPlace.get(placeKey);
   const names = live
@@ -46,9 +37,7 @@ function rebuild(placeKey) {
   state.views.set(placeKey, names.length === 0 ? EMPTY : Object.freeze(names));
 }
 
-// Drops everybody whose last event has aged out, and stops itself once nobody
-// anywhere is typing — an interval that ran forever on an idle page would be
-// the one thing on this screen keeping a phone's radio awake.
+// Drops aged-out entries and stops itself once nobody is typing, so it can't keep a phone's radio awake.
 function sweep() {
   const now = Date.now();
   let changed = false;
@@ -107,7 +96,6 @@ export function useTyping(placeKey) {
 }
 
 // The sentence itself, so Chat and anything that embeds it read the same.
-// Three people is where naming them stops helping and starts being a list.
 export function typingLine(names) {
   if (!names || names.length === 0) return null;
   if (names.length === 1) return `${names[0]} is typing…`;

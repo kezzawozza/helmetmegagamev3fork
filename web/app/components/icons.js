@@ -1,15 +1,7 @@
-// The app's icon set: Lucide (https://lucide.dev), re-exported under the
-// names the rest of the app already imports, so a call site never has to know
-// which library is underneath. Every icon renders on Lucide's 24×24 grid with
-// round caps and joins, in currentColor, at the 1.6 stroke the hand-drawn set
-// used — thinner than Lucide's default 2, which reads heavy at the 15px the
-// .icon-btn frame and the 20px the nav rail draw these at.
-//
-// Sizing is the caller's job, same as before: `width`/`height` props for a
-// one-off (IconButton passes 15), CSS on `svg` for a family (.rail-item).
-//
-// Nine glyphs have no Lucide equivalent and stay hand-drawn at the bottom of
-// the file, redrawn to Lucide's conventions so they sit in the same weight.
+// The app's icon set: Lucide (https://lucide.dev), re-exported under the names the rest of the app already
+// imports. Every icon renders on Lucide's 24×24 grid, round caps and joins, currentColor, at 1.6 stroke (thinner
+// than Lucide's default 2, which reads heavy at 15-20px). Sizing is the caller's job: `width`/`height` for a
+// one-off, CSS on `svg` for a family. Nine glyphs with no Lucide equivalent stay hand-drawn at the bottom of the file.
 
 import {
   User,
@@ -73,8 +65,7 @@ import {
 
 const STROKE = 1.6;
 
-// Wraps a Lucide component so the house stroke is the default and any prop a
-// call site passes (width, height, className, aria-*) still wins.
+// Wraps a Lucide component so the house stroke is the default and any prop a call site passes still wins.
 function lucide(Glyph, name) {
   function Icon(props) {
     return <Glyph strokeWidth={STROKE} {...props} />;
@@ -97,54 +88,37 @@ export const DocumentsIcon = lucide(FileText, "DocumentsIcon");
 // The Handbook rail tab.
 export const HelpIcon = lucide(CircleHelp, "HelpIcon");
 export const NotesIcon = lucide(Star, "NotesIcon");
-// The Store is where Tag Points get spent, so it reads as commerce rather
-// than another list.
+// The Store is where Tag Points get spent, so it reads as commerce rather than another list.
 export const StoreIcon = lucide(ShoppingBag, "StoreIcon");
-// A lidded box of records, not another sheet of paper — the Archive is the
-// game's kept history, and needs to read as a different kind of thing from
-// Documents (reference prose) sitting next to it on the rail.
+// A lidded box of records, not another sheet of paper — needs to read differently from Documents on the rail.
 export const ArchiveIcon = lucide(Archive, "ArchiveIcon");
 export const MapIcon = lucide(MapGlyph, "MapIcon");
 export const SignOutIcon = lucide(LogOut, "SignOutIcon");
-// The Dev-panel jump — a keep: the panel is where a GM rebuilds someone from
-// the foundations up.
+// The Dev-panel jump — a keep: the panel is where a GM rebuilds someone from the foundations up.
 export const KeepIcon = lucide(Castle, "KeepIcon");
 export const EyeIcon = lucide(Eye, "EyeIcon");
 export const EditIcon = lucide(Pencil, "EditIcon");
 // The mobile bottom bar's "More" affordance — see NavRail.js's MOBILE_PRIMARY.
 export const MoreIcon = lucide(Ellipsis, "MoreIcon");
-// The phone's Chat top bar: ≡ opens the places drawer, + opens the composer's
-// tools menu (Chat's ChatHead.js and Feed.js).
+// The phone's Chat top bar: ≡ opens the places drawer, + opens the composer's tools menu.
 export const MenuIcon = lucide(Menu, "MenuIcon");
 export const PlusIcon = lucide(Plus, "PlusIcon");
-// Chat's row action bar: pointing an instant camera at what somebody said,
-// the web twin of the 📸 reaction.
+// Chat's row action bar: pointing an instant camera at what somebody said, the web twin of the 📸 reaction.
 export const CameraIcon = lucide(Camera, "CameraIcon");
-// Chat's feed header: searching what was said, over the archive's trigram
-// index (/api/feed/search).
+// Chat's feed header: searching what was said, over the archive's trigram index (/api/feed/search).
 export const SearchIcon = lucide(Search, "SearchIcon");
 
-// Showing somebody out of a conversation or a private room
-// (web/app/(app)/chat/MembersStrip.js). A dismissal, not a deletion:
-// TrashIcon says the person is being thrown away, which is the wrong
-// sentence for "they may not come in here any more".
+// Showing somebody out of a conversation or private room. A dismissal, not a deletion — TrashIcon says "thrown away".
 export const CloseIcon = lucide(X, "CloseIcon");
 
-// The uploaded-portrait queue on /gm/turns: this face is fine, keep it. Paired
-// with CloseIcon for the other answer, and a plain tick rather than a
-// thumbs-up because the GM is signing something off, not liking it.
+// The uploaded-portrait queue on /gm/turns. Plain tick, not thumbs-up: the GM is signing off, not liking it.
 export const CheckIcon = lucide(Check, "CheckIcon");
-// The Chat page: a doorway you speak through. A plain speech bubble would have
-// read as MessageIcon at rail size, which is the GM's inbox.
+// The Chat page: a doorway you speak through. A plain speech bubble would read as MessageIcon (the GM's inbox).
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");
-// Chat's mention chime, at the foot of the places column. Two glyphs
-// rather than one so the state reads at a glance; aria-pressed carries it for
-// everyone else.
+// Chat's mention chime. Two glyphs so the state reads at a glance; aria-pressed carries it for everyone else.
 export const BellIcon = lucide(Bell, "BellIcon");
 export const BellOffIcon = lucide(BellOff, "BellOffIcon");
-// Web Push is ON for this browser. A ringing bell rather than a second plain
-// one, so the push toggle and the chime toggle beside it are told apart at a
-// glance (CHAT.md §5a).
+// Web Push is ON for this browser. A ringing bell so the push toggle and chime toggle are told apart (CHAT.md §5a).
 export const BellRingIcon = lucide(BellRing, "BellRingIcon");
 
 // GM inbox chime mute toggle (NavRail.js). One name, two glyphs.
@@ -153,13 +127,12 @@ export function SpeakerIcon({ muted, ...props }) {
   return <Glyph strokeWidth={STROKE} {...props} />;
 }
 
-// ── Dev Character Panel action bar (docs/systemdocs/DEV-PANEL.md) ──────────
-// One icon per microaction, at 15px inside .icon-btn.
+// ── Dev Character Panel action bar (docs/systemdocs/DEV-PANEL.md) — one icon per microaction, 15px inside .icon-btn.
 
 export const SkullIcon = lucide(Skull, "SkullIcon");
-// Restore turn — a counter-clockwise arrow, the universal "give it back".
+// Restore turn — counter-clockwise arrow, "give it back".
 export const RestoreIcon = lucide(RotateCcw, "RestoreIcon");
-// Spend turn — skip to the end, the mirror of RestoreIcon.
+// Spend turn — skip to the end, mirror of RestoreIcon.
 export const SkipIcon = lucide(SkipForward, "SkipIcon");
 // Inflict wound.
 export const WoundIcon = lucide(HeartCrack, "WoundIcon");
@@ -185,14 +158,9 @@ export const HandOffIcon = lucide(ArrowLeftRight, "HandOffIcon");
 export const LootIcon = lucide(Hand, "LootIcon");
 // Bind — a chain link.
 export const ShackleIcon = lucide(Link, "ShackleIcon");
-// Intercept — a halt sign. Not the Hand that Loot already wears, and not the
-// Link that Bind wears: laying in wait is neither taking nor tying, it is
-// standing in somebody's way (docs/systemdocs/INTERCEPT.md).
+// Intercept — a halt sign, not Loot's Hand or Bind's Link: laying in wait is neither taking nor tying (INTERCEPT.md).
 export const InterceptIcon = lucide(OctagonMinus, "InterceptIcon");
-// Attack — crossed blades. Not the Wound that Harm wears (that is damage
-// already done) and not the halt sign Intercept wears (that is waiting for
-// somebody): this is the moment two people are locked together
-// (docs/systemdocs/ATTACK.md).
+// Attack — crossed blades, distinct from Harm's Wound (damage done) and Intercept's halt sign (waiting) (ATTACK.md).
 export const AttackIcon = lucide(Swords, "AttackIcon");
 // Free — the key that opens it.
 export const KeyIcon = lucide(KeyRound, "KeyIcon");
@@ -200,29 +168,21 @@ export const KeyIcon = lucide(KeyRound, "KeyIcon");
 export const BirdIcon = lucide(Bird, "BirdIcon");
 // The Select trigger's open/close glyph.
 export const ChevronDownIcon = lucide(ChevronDown, "ChevronDownIcon");
-// The Journal's "pin to top" toggle. Deliberately not a star: that page
-// already uses ★ for a starred message, and the Starred tab's [★] means
-// "unstar/delete" — a star meaning "pinned" on one tab and "delete" on the
-// other would overload the same glyph two ways on one page.
+// The Journal's "pin to top" toggle. Not a star: that page already uses ★ for starred/[★] unstar.
 export const PinIcon = lucide(Pin, "PinIcon");
 export const SendIcon = lucide(Send, "SendIcon");
-// Extract — a pick going into the ground. Distinct from the Hammer used by
-// Craft, which a plain axe would not have been.
+// Extract — a pick going into the ground, distinct from Craft's Hammer.
 export const ExtractIcon = lucide(Pickaxe, "ExtractIcon");
-// Torture — the brazier. Distinct from the broken heart Harm and Crucify
-// share, so the three cruelties do not read as one button.
+// Torture — the brazier, distinct from Harm/Crucify's shared broken heart.
 export const TortureIcon = lucide(Flame, "TortureIcon");
 // A quill — the Write action. See docs/systemdocs/PAPERWORK.md.
 export const QuillIcon = lucide(Feather, "QuillIcon");
-// Brand — a stamp coming down. Distinct from Torture's brazier, even though
-// both act on somebody helpless.
+// Brand — a stamp coming down, distinct from Torture's brazier.
 export const BrandIcon = lucide(Stamp, "BrandIcon");
 // Package — a banded crate.
 export const CrateIcon = lucide(Package, "CrateIcon");
 
-// ── Hand-drawn: no Lucide equivalent ────────────────────────────────────────
-// Same 24×24 grid, currentColor, round caps and joins, 1.6 stroke, so they
-// sit at the same weight as the Lucide glyphs around them.
+// ── Hand-drawn: no Lucide equivalent — same 24×24 grid, currentColor, round caps/joins, 1.6 stroke.
 
 function Glyph({ children, ...props }) {
   return (
@@ -254,8 +214,7 @@ export function LifewebIcon(props) {
   );
 }
 
-// Revive. An ankh rather than a plain cross: the cross reads as "add" next to
-// the heal icon, and this button is specifically "bring them back".
+// Revive. An ankh, not a plain cross: the cross reads as "add" next to the heal icon.
 export function AnkhIcon(props) {
   return (
     <Glyph {...props}>
@@ -266,16 +225,10 @@ export function AnkhIcon(props) {
   );
 }
 
-// Butcher — a ham. Lucide has no cleaver, and the hand-drawn one it replaces
-// proved why that is hard: an outlined rectangle at 16px is a saucepan, not a
-// blade. Lucide's own knife (`Slice`) is legible but is the same diagonal as
-// the Pencil. The joint reads as butchery at any size and can't be mistaken
-// for anything else in the strip.
+// Butcher — a ham. Lucide has no cleaver; its knife (`Slice`) shares Pencil's diagonal. The joint reads as butchery at any size.
 export const HamIcon = lucide(Ham, "HamIcon");
 
-// Mutilate — shears. It sits next to Butcher's ham in the grid and has to
-// read as a different verb at 16px: Butcher takes a whole body and gives you
-// meat, this takes a piece off somebody still standing.
+// Mutilate — shears, distinct from Butcher's ham: this takes a piece off somebody still standing.
 export function ShearsIcon(props) {
   return (
     <Glyph {...props}>
@@ -286,9 +239,7 @@ export function ShearsIcon(props) {
   );
 }
 
-// Engrave — the same headstone as Bury, but standing free of the ground and
-// carrying lettering. The two sit side by side in the action grid, so what
-// separates them has to be visible at 16px: no ground line, three rules.
+// Engrave — the same headstone as Bury, standing free of the ground with lettering: no ground line, three rules.
 export function HeadstoneIcon(props) {
   return (
     <Glyph {...props}>
@@ -298,8 +249,7 @@ export function HeadstoneIcon(props) {
   );
 }
 
-// Bury — a headstone in the ground. The rounded top and the ground line read
-// as a grave at 16px, where a cross alone would read as a plus sign.
+// Bury — a headstone in the ground; a cross alone would read as a plus sign at 16px.
 export function GraveIcon(props) {
   return (
     <Glyph {...props}>
@@ -321,9 +271,7 @@ export function SealIcon(props) {
   );
 }
 
-// A hood pulled up over a bare face — the conceal toggle (PROXYING.md §5). The
-// cowl's peak and the shoulders are what read at 16px; there is deliberately
-// nothing inside it, because that is the whole point of the thing.
+// A hood pulled up over a bare face — the conceal toggle (PROXYING.md §5); deliberately nothing inside it.
 export function HoodIcon(props) {
   return (
     <Glyph {...props}>
@@ -334,12 +282,7 @@ export function HoodIcon(props) {
   );
 }
 
-// Lips, for the Kiss verb (docs/systemdocs/KISS.md). Bascinet asked for the
-// lips emoji; 💋 is the only colour glyph that would ever have sat in the verb
-// strip, which is otherwise a row of monochrome line icons that take the
-// theme's colour — so it is drawn instead of pasted. The cupid's bow on top
-// and the fuller lower lip are what read at 16px; the centre line is what
-// stops it looking like a leaf.
+// Lips, for the Kiss verb (KISS.md). Drawn rather than the 💋 emoji, to stay monochrome like the rest of the verb strip.
 export function KissIcon(props) {
   return (
     <Glyph {...props}>

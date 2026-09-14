@@ -740,18 +740,10 @@ that deletion half is why dropping the channel really silenced it.
 
 ### `#intercom` is gone; the PA is a button now
 
-There used to be a third entry. `#intercom` was a standing channel every
-above-ground zone role could see, and that a holder of the **Intercom** tag
-could type into while standing in the Fortress.
-
-It is now a button on the Council Room's starter post — which is what
-`docs/zones.yaml` always said was on that table — broadcasting into every
-zone's own `#summary` instead of into a channel of its own (§7a). That removed
-the channel, the registry entry, the `roleViewZones` grant, the per-member
-speak overwrite and the **Intercom tag**, which is deleted from
-`docs/tags.yaml` and off the Baron's starting list.
-`GameConfig.intercomChannelId` stayed as an orphan column for a while, the way
-`mindlinkChannelId` did; the 2026-09-07 config trim dropped it.
+There is no `#intercom` channel and no **Intercom** tag. The PA is a button
+on the Council Room's starter post instead, broadcasting into every zone's own
+`#summary` (§7a) — which is what `docs/zones.yaml` always said was on that
+table.
 
 The reason is not tidiness. A PA you travel to is not a PA — the announcement
 landed somewhere nobody was standing, and hearing it meant being in a channel

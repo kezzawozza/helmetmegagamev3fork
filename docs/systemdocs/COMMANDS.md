@@ -680,11 +680,9 @@ except 🌫️ and ⭐. Each is stripped back off after being processed.
 | ⚜️ | GM | Full dossier on the speaking character |
 | 🌫️ | GM | Delete and repost as the bot, de-attributing it |
 
-There used to be a 🌬️ ghost whisper here — one haunting line a dead player
-could breathe into a channel, on a 12-real-hour cooldown tracked in a
-`GhostWhisper` table. It is **gone**, along with the table and
-`db/lib/ghostWhisper.js`. A ghost has no voice now. The thing that reports an
-unburied body is the body: `bot/src/lib/deathSmell.js` nags the Location it is
+**A ghost has no voice.** No `GhostWhisper` table, no `db/lib/ghostWhisper.js`.
+The thing that reports an unburied body is the body: `bot/src/lib/deathSmell.js`
+nags the Location it is
 lying in every 4–10 real hours (`CORPSES.md` §5), which says the same thing
 without needing the dead player to be at their keyboard to say it.
 

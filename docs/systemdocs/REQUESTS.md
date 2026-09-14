@@ -20,14 +20,11 @@ whole transaction.
    transaction, through `logAudit()` in `web/lib/requests.js`.
 5. A GM reads it on `/gm/audit`.
 
-**There is no `Request` table any more, and no Undo.** There used to be: every
-action filed a `Request` row alongside its effect, `/gm/turns` carried a
-Requests tab, and `web/lib/tagEffects.js` held a per-type handler that
-could reverse one. All of it is gone — the row was never an approval gate, only
-a review record, and the reason field it demanded was friction on every single
-action a player took.
+**There is no `Request` table, and no Undo.** An action applies its effect and
+writes one `AuditLog` row — no approval gate, no reason field, no reversal
+handler.
 
-**What replaced Undo is the Dev Panel.** A GM repairs a sheet by hand:
+**A GM repairs a sheet by hand, from the Dev Panel:**
 `TagEditor` adds a tag back or takes one off, "Transfer ⬢" reverses a transfer,
 Teleport reverses a move (`DEV-PANEL.md`). For that to be possible the audit
 `details` blob has to carry enough to rebuild what was destroyed, which is why
@@ -292,13 +289,8 @@ with no bespoke expiry column to keep in step.
 > undo it. GM-authored custom tags at `/gm/dev/tags` are a separate system and
 > are untouched (`TAGS.md` §5d).
 
-> **Mood is gone.** `happy` / `unhappy` were two Status tags worth ±1 on the
-> Gambit die, set from a Set Mood button via a `SET_MOOD` request. All of it —
-> the tags, the button, the request type, `db/lib/mood.js` — was removed, along
-> with the `happy` grant on Alcohol, Bliss, Ravenheart Red and the two meals.
-> Drinks now leave `tipsy`, `high` or `euphoric` instead. An older design in
-> `ARCHITECTURE.md` proposed Mood as Character columns; it was never built
-> either.
+> **There is no `SET_MOOD` request, no `happy`/`unhappy` tags, no Set Mood
+> button.** Drinks leave `tipsy`, `high` or `euphoric` instead (`MOOD.md`).
 
 ### Hunger
 

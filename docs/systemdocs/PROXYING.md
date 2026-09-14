@@ -99,12 +99,10 @@ typing indicator if you were already typing there, but it does stop the message
 existing in plain sight under your real name before the proxy removes it. The
 🔊 button that used to front this flow is gone; `COMMANDS.md` §5 says why.
 
-**`recentProxies` is gone** (phase 1 of `CHAT.md`). It was an in-memory map
-tying a proxied message back to its player and character — last 20,000, single
-bot process, wiped on restart — so every deploy quietly made the last hour of
-scene inert to ✏️ ❌ 🔍 📸. `ArchiveEntry.discordMessageId` is unique, so the
-transcript is that map now: `bot/src/lib/proxy.js#proxyRowFor` reads the row and
-the character's player off it, and a database row does not forget.
+**There is no in-memory proxy map.** `ArchiveEntry.discordMessageId` is
+unique, so the transcript itself ties a proxied message back to its player
+and character: `bot/src/lib/proxy.js#proxyRowFor` reads the row, and a
+database row survives a restart where a memory map would not.
 
 ### Who is allowed to speak at all
 

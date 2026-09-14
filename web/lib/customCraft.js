@@ -1,42 +1,25 @@
-// Custom craftables (docs/systemdocs/CRAFTING.md): a `customizable` recipe
-// may be crafted as a player-named item for a surcharge, and the wayside
-// shrine takes a builder's inscription. This module is the ONE place that
-// decides what counts as customized and what the words may contain — shared
-// by the dialog (RequestActionsProvider prices the ⬢ it shows) and the
-// server action (which prices what it charges), so the two can never drift
-// on "is this name blank" the way billedSeen exists to prevent for the Move.
-// Pure — no prisma, no React — importable from either side.
+// Custom craftables (CRAFTING.md): a `customizable` recipe may be crafted as a player-named item for
+// a surcharge. The ONE place deciding what counts as customized and what it costs, shared by the
+// dialog and the server action so the two can never drift. Pure — no prisma, no React.
 
 import { cleanCustomText } from "@lifeweb/db/lib/customText";
 
 export const CUSTOM_SURCHARGE = 1; // ⬢ per unit, on top of the recipe's own
 
-// What THIS recipe charges for the player's words. A recipe may buy them out
-// with `custom: { cost: 0 }` in docs/tags.yaml, and both meals do: a cook
-// naming their own dish is the point of the cooking rework (COOKING.md), not
-// an upsell, and charging for it made every meal in the game anonymous.
-//
-// One verdict, both sides — the dialog prices what it shows with this and
-// craftRequestImpl prices what it charges with this, the same way
-// customCraftFields below is the one verdict on "is this name blank".
+// What THIS recipe charges for the player's words. A recipe may buy it out with `custom: { cost: 0 }`
+// in docs/tags.yaml (both meals do — COOKING.md). One verdict, both sides.
 export function surchargeFor(tag) {
   return tag?.customCost ?? CUSTOM_SURCHARGE;
 }
 
-// The whole custom-words verdict for one recipe: what the words amount to
-// after cleaning, and what they cost. Four call sites priced this by hand —
-// the dialog's readout, its canSubmit, the confirm prompt and the server —
-// and each had to remember the same two rules (a recipe that takes no
-// description must not count one; the surcharge is the recipe's own). Four
-// copies of a price is how a confirm ends up quoting less than the bill.
+// The whole custom-words verdict for one recipe: what the words amount to after cleaning, and what
+// they cost. One shared verdict instead of four call sites pricing it by hand.
 export function customCraftFor(tag, fields) {
   const custom = tag?.customizable
     ? customCraftFields({
         customName: fields?.customName,
-        // A recipe may take a name and no words — the Fine Meal does
-        // (COOKING.md). A description posted at one is dropped rather than
-        // refused: a hidden textarea is a hint, and a stale client is not an
-        // attack.
+        // A recipe may take a name and no words (Fine Meal, COOKING.md); a stray description is
+        // dropped rather than refused — a hidden textarea is a hint, not an attack.
         customDescription: tag.customDescribable === false ? "" : fields?.customDescription,
       })
     : { name: "", description: "", active: false };
@@ -46,10 +29,8 @@ export const CUSTOM_NAME_MAX = 30;
 export const CUSTOM_DESCRIPTION_MAX = 300;
 export const INSCRIPTION_MAX = 200;
 
-// Player-authored text, defanged — see db/lib/customText.js for what it takes
-// out and why. It lives down there rather than here because the bot needs the
-// same scrubber for the GM's noticeboard modal and cannot reach into web/.
-// Re-exported so every caller this module already had is untouched.
+// Player-authored text, defanged — see db/lib/customText.js. Lives there, not here, because the bot
+// needs the same scrubber and cannot reach into web/.
 export { cleanCustomText };
 
 // The single verdict both sides use: the cleaned fields, and whether this
@@ -60,28 +41,18 @@ export function customCraftFields({ customName, customDescription } = {}) {
   return { name, description, active: Boolean(name || description) };
 }
 
-// WHO may customize this recipe. `Tag.customizableSkillSlug` names a tag the
-// character has to be holding — `smithing-skilled` on the arms and armour, so
-// putting your name on a breastplate is a skilled smith's privilege and not
-// something an apprentice does to a cudgel. A recipe with no gate (the meals,
-// the painting, the sketch, the badge, the hat) is open to anyone who can make
-// it, which is what the flag alone used to mean everywhere.
-//
-// No ancestry walk: the one rung above `smithing-skilled` is
-// `smithing-gunpowder`, which carries it as a requiredTag, so anybody further
-// up the ladder holds it already.
+// WHO may customize this recipe. `Tag.customizableSkillSlug` names a tag the character must hold
+// (e.g. `smithing-skilled` on arms and armour). No gate means open to anyone who can make it. No
+// ancestry walk needed: `smithing-gunpowder` carries `smithing-skilled` as a requiredTag already.
 export function mayCustomize(tag, heldSlugs) {
   if (!tag?.customizable) return false;
   if (!tag.customizableSkillSlug) return true;
   return Boolean(heldSlugs?.has(tag.customizableSkillSlug));
 }
 
-// The displayed name always carries the base identity — "Steak Dinner
-// (Lavish Meal)" — so every surface (sheet, trades, 🔍 inspect, hovercards)
-// says what the thing IS with no per-surface work, and a custom name can
-// never impersonate another item outright. A description-only custom keeps
-// the base name with "(custom)" so Tag.name's @unique never collides with
-// the base row itself.
+// Displayed name always carries the base identity — "Steak Dinner (Lavish Meal)" — so a custom name
+// can never impersonate another item. Description-only custom keeps "(custom)" so Tag.name's
+// @unique never collides with the base row.
 export function customCraftName(baseName, name) {
   return name ? `${name} (${baseName})` : `${baseName} (custom)`;
 }

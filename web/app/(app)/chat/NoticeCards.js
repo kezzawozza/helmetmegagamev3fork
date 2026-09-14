@@ -8,30 +8,15 @@ import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { readBoard, readNotice, tearNotice } from "./actions";
 
-// THE NOTICEBOARD, in the street rather than behind a button.
-//
-// A board is an attribute on a Location (db/lib/noticeboard.js), and what is
-// nailed to it is standing there for anyone to read — so it belongs at the
-// top of the Location's own feed, above the scene and pinned there, not
-// filed into the scroll in the order the papers went up. The Noticeboard
-// dialog in the right column keeps its job: pinning one of YOUR papers, which
-// needs a picker.
-//
-// Everything a notice does stays as open as it always was. Anyone standing
-// here may read one or tear one down, including somebody else's.
+// THE NOTICEBOARD, in the street rather than behind a button (db/lib/noticeboard.js).
+// Pinned at the top of the Location's feed, above the scene. The Noticeboard dialog
+// in the right column keeps its own job: pinning one of YOUR papers via its picker.
+// Anyone standing here may read one or tear one down, including somebody else's.
 
-// What a notice says, once it has been read. Two shapes, and which one is
-// drawn is the server's call, never this component's:
-//
-//   plain     the reader could not read it — blind, illiterate, dark, or the
-//             paper is sealed. `text` is the refusal, and it is the SAME
-//             refusal in every one of those cases, so nobody watching learns
-//             which it was. Rendered as flat text.
-//   otherwise the words on the paper, drawn as a sheet.
-//
-// Both go through PaperSheet, which is the one renderer for paper on the web;
-// `reading.paper` is the server's shape and the flat `text`/`plain` pair is
-// only a fallback for a stale tab that fetched before the shape existed.
+// What a notice says once read: `plain` is the refusal (blind, illiterate, dark, sealed —
+// deliberately the SAME text in every case so nobody watching learns which it was),
+// otherwise the paper's words, drawn as a sheet. Both go through PaperSheet; `reading.paper`
+// is the server's shape and flat `text`/`plain` is only a fallback for a stale tab.
 export function NoticeText({ reading, showName = true }) {
   if (!reading?.ok) return null;
   const paper = reading.paper ?? { kind: null, text: reading.text, plain: Boolean(reading.plain) };
@@ -55,9 +40,7 @@ export default function NoticeCards({ version = 0, onChanged }) {
       .catch(() => setBoard(null));
   }, []);
 
-  // Re-read on open and on every pin or tear, wherever it came from — the
-  // dialog in the right column pins to this same board, and a card that did
-  // not know would sit there naming a paper somebody has taken away.
+  // Re-read on open and on every pin or tear — the right-column dialog pins to this same board.
   useEffect(() => {
     load();
   }, [load, version]);
@@ -94,8 +77,7 @@ export default function NoticeCards({ version = 0, onChanged }) {
                   return;
                 }
                 run(tearNotice, notice.id, {
-                  // Whoever owns the version counter re-reads for everybody;
-                  // with nobody listening this component refreshes itself.
+                  // Whoever owns the version counter re-reads for everybody; else refresh self.
                   onOk: (res) => (onChanged ? onChanged(res) : load()),
                 });
               }}
@@ -108,9 +90,7 @@ export default function NoticeCards({ version = 0, onChanged }) {
 
       <FormError>{error}</FormError>
 
-      {/* The same reading the Noticeboard dialog does, in a modal because
-          there is no panel here to put it under. Nobody is told it was
-          read. */}
+      {/* Same reading as the Noticeboard dialog, in a modal — nobody is told it was read. */}
       {reading?.ok && (
         <Modal open title={reading.name} onClose={() => setReading(null)} width="default">
           <NoticeText reading={reading} showName={false} />

@@ -461,88 +461,50 @@ chat that scrolled the document would drag the header off the top every time
 somebody spoke. Tokens only; `npm run audit:contrast --workspace=web` gates it
 like everything else.
 
-### The 2026-09-09 pass
+### Feed and composer details worth knowing
 
-The page worked and was not pleasant: nothing on it had visual weight. Every
-section header in all three columns was the same 11px uppercase muted label,
-every right-column card was styled identically, the feed row mixed `.chat-*`
-with loose Tailwind and had no hover state at all, and the composer had no
-Send button on a desktop. What changed, beyond the aside tabs and the section
-cards described under `ChatAside.js` below:
+- **The feed row lights up under pointer AND keyboard** via `:hover` /
+  `:focus-within`. The row action bar is always in the DOM and revealed by
+  CSS, which is what makes it reachable by tab — a keyboard fires no
+  `mouseenter`. Its buttons sit in the tab order on every row.
+- **Only a line that ARRIVED animates** (`chat-row-in`). `Feed.js` keeps a
+  lazily-filled ref of the seq the place painted with — a ref rather than
+  state, since `react-hooks/set-state-in-effect` is an error here — and sets
+  `data-live` above it.
+- **The composer shows a Send button under a coarse (touch) pointer.** The
+  slowmode clock shows before it bites, and a character count is drawn where
+  a command actually caps its text.
+- **Speech over one message SPLITS.** The count under the box is silent below
+  `COUNT_FROM` (1500), then reads `1742/2000`, then `sends as 2 messages`,
+  then refuses. `db/lib/say.js#sayInPieces` splits the send with
+  `chunkMessage` — the same splitter `postAsCharacter` uses, which breaks on
+  blank lines and then on lines, so a list splits between items rather than
+  through one. Up to `MAX_SAY_PIECES` (3, about 6000 characters); past that
+  it is refused **while typing**, in the same sentence the server would use.
 
-- **A filed Move reads as its words.** Its kind was a `.chip` in the turn chip
-  row — filled, bordered, fully rounded — with the player's own sentence
-  underneath reading as the badge's caption. It is `.chat-move-kind`, a quiet
-  word in front of the words, and the `»` house mark stays.
-- **The feed row lights up under pointer AND keyboard.** Hover moved out of
-  React (`useState` off `onMouseEnter`, re-rendering a row on every mouse
-  crossing) into `:hover` / `:focus-within`. The row action bar is now always
-  in the DOM and revealed by CSS, which is what makes it reachable by tab at
-  all — a keyboard fires no `mouseenter`, so it could never see the bar
-  before. The cost is that the bar's buttons are in the tab order on every
-  row; a roving-tabindex pattern would be the fix if that ever bites.
-- **Only a line that ARRIVED animates.** `chat-row-in` ran on every
-  `.chat-row`, so opening a place faded its whole backlog in at once. `Feed.js`
-  keeps a lazily-filled ref of the seq the place painted with — a ref rather
-  than state, since `react-hooks/set-state-in-effect` is an error here — and
-  sets `data-live` above it.
-- **The jump-to-bottom pill floats** over the feed as *"N new ↓"* instead of
-  taking a layout row between the scroller and the typing line, which pushed
-  the scene up every time somebody scrolled away.
-- **The composer got a Send button on every pointer.** It rendered only under
-  `coarse`, so a mouse had no submit affordance and nothing said Enter would
-  send. The keys are spelled out beside it. The slowmode clock shows before it
-  bites rather than only once it has, and a character count is drawn where a
-  command actually caps its text.
-- **Ordinary speech counts too now, and over one message it SPLITS.** A player
-  typed a list of goods, the box let them type all of it, and the send was then
-  refused at 2000 characters — so the refusal was the first they ever heard of
-  a limit. Two halves to the fix, and the second is the real one:
-  - The count under the box is silent below `COUNT_FROM` (1500), then reads
-    `1742/2000`, then `sends as 2 messages`, then refuses. It reuses
-    `.chat-composer-count` and its `data-over` danger state.
-  - `db/lib/say.js#sayInPieces` splits the send with `chunkMessage` — the
-    splitter `postAsCharacter` already used, which breaks on blank lines and
-    then on lines, so a list splits between items rather than through one.
-    Up to `MAX_SAY_PIECES` (3, about 6000 characters); past that it is refused,
-    **while typing**, in the same sentence the server would use.
-
-  Three things about it are load-bearing. The numbers and the refusal wording
-  live in `db/lib/sayLimits.js`, which has **zero requires** so the client
-  composer can read them (the `dmKinds.js` rule). The `clientId` rides on the
-  FIRST piece only — `feedStore.js` swaps a pending row for the confirmed row
-  carrying its `clientId`, and three rows claiming one twin would fight. And
-  `prepareSpeech` takes a `skipSlowmode` flag for the pieces after the first:
-  slowmode is measured against this character's newest row here, so piece 1
-  would otherwise refuse piece 2 and leave half a message in the room. That
-  only bites in the zone summary (`PLACE_SLOWMODE_MS` is 0), but half a message
-  is worse than a clean refusal.
+  The numbers and the refusal wording live in `db/lib/sayLimits.js`, which has
+  **zero requires** so the client composer can read them (the `dmKinds.js`
+  rule). The `clientId` rides on the FIRST piece only — `feedStore.js` swaps
+  a pending row for the confirmed row carrying its `clientId`, and three rows
+  claiming one twin would fight. `prepareSpeech` takes a `skipSlowmode` flag
+  for the pieces after the first: slowmode is measured against this
+  character's newest row, so piece 1 would otherwise refuse piece 2 and leave
+  half a message in the room. That only bites in the zone summary
+  (`PLACE_SLOWMODE_MS` is 0), but half a message is worse than a clean
+  refusal.
 
   **Web only.** Discord stops a player at 2000 in its own client, so there is
-  nothing on that side to split. An EDIT is also still one message: editing one
-  message into three is a different feature.
-- **Command mode is a strip** (`.chat-cmd-strip`) across the top of the box —
-  name, what it does, an ✕ — replacing `.chat-cmd-chip`, an accent-tinted
-  floating pill.
-- **The `/` and `@` menus highlight under a mouse**, and pointing at a row
-  makes it the active one, so Enter picks what the mouse is over.
+  nothing on that side to split. An EDIT is also still one message: editing
+  one message into three is a different feature.
 - **Sections in the places column fold** (`sectionFold.js`, same
   `useSyncExternalStore` shape). A folded section **still shows anything
   unread in it**, with a count of what it is holding back: folding is for
   shortening a column, not for going deaf.
-- **A breadcrumb** — Zone · Location — above the open place's name, since a
-  conversation and the zone summary are both opened from somewhere.
-- **`.chat-row-head` / `-name` / `-time` / `-body`** replaced the loose
-  Tailwind, and `[data-alias]` tints a name somebody is speaking under a hood
-  or a forced name with.
-- **Touch targets.** `.chat-place` and `.chat-person` were 4px of vertical
-  padding everywhere except inside the phone's sheet; they hold a floor now,
-  44px under a coarse pointer.
+- **A breadcrumb** — Zone · Location — sits above the open place's name.
+- **Touch targets hold a floor of 44px** under a coarse pointer.
 
-**Corrected the same day.** HERE went in as a tab beside the other four, and
-the first playtester to see it said pressing one to find out who is in the room
-was tedious. It is not a tab any more — the people are drawn at the top of the
-Place panel. The reasoning is under `ChatAside.js` below.
+HERE is not a tab: the people in the room are drawn at the top of the Place
+panel instead. The reasoning is under `ChatAside.js` below.
 
 ### The wireframes Bascinet chose
 
@@ -630,13 +592,8 @@ and the button that opens it is hidden too. `.chat-drawer` itself is
 unscoped: a drawer mounts only when its hook says its column is folded, so a
 media query on the class was a second source of truth.
 
-**Under 720px Chat is Discord's channel view** (2026-09-11). Before this a
-phone stacked the app header with its turn chip, a tab strip of places, the
-place head, a strip of faces, the members row, the typing line, a two-row
-composer with Send and ⋯, and then the app's fixed bottom bar — and the
-scene got what was left, which on a 390×844 phone was about a quarter of the
-screen and less with the keyboard up. Now it gets everything but a 48px head
-and a one-line box:
+**Under 720px Chat is Discord's channel view.** The scene gets everything but
+a 48px head and a one-line composer:
 
 ```
 ┌────────────────────────────────────┐
@@ -681,7 +638,7 @@ and a one-line box:
   follow-the-finger — the drawer slides in on its own once the gesture
   lands.
 - **The head is `ChatHead.js`**, one component the feed, the Bascinet pane
-  and the faction panel all wear (each used to hand-roll its own). On a phone
+  and the faction panel all wear. On a phone
   the crumb is dropped, the name is one line, and the description shows only
   once the name has been tapped.
 - **The box is one line and grows** as you type, to about six lines

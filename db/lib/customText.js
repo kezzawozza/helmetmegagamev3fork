@@ -1,20 +1,8 @@
-// Player- and GM-authored text, defanged. Three removals, each closing a real
-// hole: `{` `}` so a description can never form a rich token ({tag:…} and
-// {resource:…} render as REAL chips via richTokens.js — nobody at a keyboard
-// must be able to forge one); `@` because authored names travel into Discord
-// messages that default to parsing mentions; and control characters.
-//
-// This lived in web/lib/customCraft.js, which is where the custom-craft dialog
-// wants it. It moved down here when the bot grew a surface that takes free text
-// too — the GM's noticeboard modal — because bot/ cannot reach into web/, and
-// two copies of an @everyone filter is exactly the shape of bug this function
-// exists to prevent. customCraft.js re-exports it, so every caller it already
-// had is untouched.
-//
-// ZERO DEPENDENCIES, and it must stay that way. Client components import this
-// through customCraft.js; anything required here would be dragged into the
-// browser bundle, and a `node:` builtin arriving that way kills the route with
-// no digest to trace it by.
+// Player- and GM-authored text, defanged: `{` `}` so a description can never forge a rich token
+// ({tag:…}/{resource:…} via richTokens.js), `@` since authored text travels into Discord mention
+// parsing, and control characters. customCraft.js re-exports it for its existing callers.
+// ZERO DEPENDENCIES, and it must stay that way — client components import this through customCraft.js;
+// anything required here gets dragged into the browser bundle.
 
 function cleanCustomText(raw, max) {
   if (typeof raw !== "string") return "";

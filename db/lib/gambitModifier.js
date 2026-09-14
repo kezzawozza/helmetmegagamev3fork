@@ -1,20 +1,7 @@
-// The single source of the summed Gambit die modifier. Two contributors:
-// Hunger at -1 * min(hungerStreak, cap), and the three extreme mood bands
-// (docs/systemdocs/MOOD.md) — Ecstatic at a flat +1, Afraid at a flat -1,
-// Panicking at a flat -2. A mood is one number, so it lands in exactly one
-// band and the three can never sum; the modifier is read straight off the band
-// table. Ecstatic is the only contributor that points UPWARD, so the total can
-// now be positive, and one good night cancels the first hungry turn outright.
-//
-// It stays a list-returning module rather than collapsing to one number,
-// because Action.diceModifier is one Int and the confirm DM still wants the
-// contribution NAMED ("−2 Hungry"). Keeping the shape also means a new
-// contributor is an append here rather than a rewrite of five call sites —
-// which is what happened when the old Mood track was removed and this went
-// from two contributors to one, again when Disappointed brought it back to
-// two, again when the fear dial replaced Disappointed, and again when the
-// fear dial became the mood dial and stopped being a tag.
-//
+// The single source of the summed Gambit die modifier. Two contributors: Hunger at -1 * min(hungerStreak,
+// cap), and the three extreme mood bands (docs/systemdocs/MOOD.md) — Ecstatic +1, Afraid -1, Panicking
+// -2. A mood is one number so the three can never sum. Stays list-returning, not one number: Action.diceModifier
+// is one Int but the confirm DM wants the contribution NAMED ("−2 Hungry"), and a new contributor is an append here.
 // No prisma import, so both bot/ and web/ import it by subpath.
 const { HUNGER_SLUG } = require("./constants");
 const { HUNGER_STREAK_CAP } = require("./hungerPass");
@@ -32,28 +19,15 @@ function hasHunger(characterTags = []) {
   return holds(characterTags, HUNGER_SLUG);
 }
 
-// The escalating half of the Hunger penalty: -1 per consecutive hungry turn
-// (Character.hungerStreak, written by hungerPass.js), floored at
-// -HUNGER_STREAK_CAP — the same cap that grants `dying`. A character with no
-// streak recorded (hungerStreak 0, or the field missing on an older read)
-// still gets -1 as long as they hold the tag, so this can't regress to 0
-// for anyone who has gone hungry at least once.
+// -1 per consecutive hungry turn (Character.hungerStreak, hungerPass.js), floored at -HUNGER_STREAK_CAP
+// (same cap that grants `dying`). No recorded streak still gets -1 as long as the tag is held.
 function hungerModifier(hungerStreak = 0) {
   return -Math.min(Math.max(hungerStreak, 1), HUNGER_STREAK_CAP);
 }
 
-// [{ label, value }] — omitting anything worth 0. This is the breakdown the
-// confirm DM renders; gambitModifierTotal() is the number that goes in the
-// column.
-//
-// `hungerStreak` and `mood` are second arguments, not read off characterTags,
-// because they live on Character rather than on a tag: see the comments on
-// Character.hungerStreak and Character.mood in schema.prisma.
-//
-// EVERY caller must pass `mood`, and select it. A missed one reads undefined
-// and lands in Fine, which quietly hands somebody back a penalty they should be
-// carrying — or pockets an Ecstatic bonus they earned. Either way it is the one
-// way this can go wrong silently.
+// [{ label, value }], omitting anything worth 0 — the confirm DM breakdown; gambitModifierTotal() is
+// the number for the column. `hungerStreak`/`mood` live on Character, not a tag. EVERY caller must
+// pass and select `mood` — a missed one reads undefined and silently lands in Fine.
 function gambitModifiers(characterTags = [], { hungerStreak = 0, mood = 0 } = {}) {
   const out = [];
 

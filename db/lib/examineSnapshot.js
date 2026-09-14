@@ -1,54 +1,19 @@
-// What the room could SEE of a speaker, frozen onto the line they said.
-//
-// A look answers for the MOMENT you saw somebody, never for now. The name and
-// the face have been frozen on the archive row for a long time
-// (ArchiveEntry.concealedAlias, .presentedAvatarPath) and PROXYING.md §5a says
-// so in words — but everything else on the readout was read live off the
-// character, so a cultist could chat bare-faced in Town, walk two zones off,
-// robe up, and every old line of his would show the robes to anybody who
-// clicked the eye. This is the third frozen column, written by the same hand
-// for the same reason.
-//
-// ONE RULE, and it decides every question this file answers:
-//
-//   Character-side frozen. Catalog-side live. Viewer-side live.
-//
-//   * Character-side — appearance, the name, held tags and which were worn,
-//     faction, role, ⬢. What the room could see. Frozen here.
-//   * Catalog-side — a tag's name, armour value, requirement, visibility.
-//     Rules rather than disguise, and a rebalance should reach an old line.
-//     Read live off Tag at look time (db/lib/examine.js#EXAMINE_TAG_SELECT).
-//   * Viewer-side — the doctor's eye, Seductive, the officer's seat, a
-//     Thanati's sight. The looker's own faculties, now. Never frozen; freezing
-//     them would mean snapshotting the cross-product of every possible reader.
-//
-// The payload is deliberately compact, because it rides on every message row
-// in the transcript:
-//
-//   { v: 1, n: name, a: appearance, r: roleTitle, s: resources,
-//     f: factionId, c: concealed, t: [[tagId, 0|1, expiresTurn], …] }
-//
-// EVERY tag the character holds goes in, not a filtered subset. A forcedName
-// or concealsIdentity tag is usually `visible: false`, and presentedIdentity()
-// runs off subject.tags inside examineReadout — prune the hidden rows and a
-// Beast's frozen line reads out under their real name. Health rows behind the
-// doctor's eye are hidden too. Freezing the lot is simpler and it survives the
-// next field somebody adds to the readout.
-//
-// Prisma-free except for loadPresentedState, which takes `prisma` as a
-// parameter rather than requiring the barrel — the db/lib/dm.js convention.
+// What the room could SEE of a speaker, frozen onto the line they said. A look answers for the MOMENT
+// you saw somebody, never for now (PROXYING.md §5a). ONE RULE decides every question this file
+// answers: Character-side frozen (appearance, name, held/worn tags, faction, role, ⬢). Catalog-side
+// live — a tag's name/armour/requirement/visibility, read off Tag at look time (db/lib/examine.js#EXAMINE_TAG_SELECT),
+// so a rebalance reaches old lines. Viewer-side live — the looker's own faculties (doctor's eye,
+// Seductive, an officer's seat), never frozen. Payload is deliberately compact — it rides on every
+// message row: `{ v: 1, n: name, a: appearance, r: roleTitle, s: resources, f: factionId, c: concealed,
+// t: [[tagId, 0|1, expiresTurn], …] }`. EVERY tag goes in, not a filtered subset — pruning hidden rows
+// would let a Beast's frozen line read out under their real name.
+// Prisma-free except loadPresentedState, which takes `prisma` (db/lib/dm.js convention).
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
 
 const SNAPSHOT_VERSION = 1;
 
-// What a WRITER must load to build one. A superset of what loadForcedName and
-// loadConcealment used to fetch separately, which is why db/lib/say.js can
-// drop both for one call to loadPresentedState below.
-//
-// No `quantity` filter, on purpose: neither of those two loaders filtered one
-// and neither does EXAMINE_SUBJECT_SELECT, so a zero-quantity row is visible
-// to Examine today. Matching that exactly means no filter — anything else
-// would be a behaviour change smuggled in under a bug fix.
+// What a WRITER must load to build one — lets db/lib/say.js drop separate calls for one call to
+// loadPresentedState below. No `quantity` filter, matching EXAMINE_SUBJECT_SELECT exactly.
 const PRESENTED_STATE_SELECT = {
   name: true,
   appearance: true,
@@ -83,11 +48,8 @@ function presentedStateFrom(character) {
   };
 }
 
-// The payload back out of the column. NEVER throws and never guesses: an
-// unknown version, a malformed blob or a plain null all return null, and the
-// caller falls back to the live character — which is what every row did before
-// this column existed. This is the one look path in the game, so a bad row has
-// to degrade rather than 500.
+// The payload back out of the column. NEVER throws: an unknown version, a malformed blob, or null all
+// return null, and the caller falls back to the live character rather than a 500.
 function readPresentedState(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   if (value.v !== SNAPSHOT_VERSION) return null;
@@ -114,18 +76,10 @@ function readPresentedState(value) {
   };
 }
 
-// A subject shaped exactly like db/lib/examine.js#EXAMINE_SUBJECT_SELECT, built
-// out of the frozen state plus the live catalog. `live` is the character row —
-// still needed for the three things that are not in-fiction state (`id`,
-// `updatedAt` for the avatar cache-buster, `age`/`gender`).
-//
-// `tags` is REPLACED outright, never merged with the live list. A merge is
-// exactly how the robes get back in.
-//
-// A tag since deleted from the catalog — a pruned row, a spent ephemeral, a
-// torn-up Photo — simply drops out. That fails toward the look losing a detail
-// rather than inventing one, and it is why the snapshot does not freeze tag
-// names as a fallback: a name is catalog data, and catalog data comes live.
+// A subject shaped exactly like db/lib/examine.js#EXAMINE_SUBJECT_SELECT, built from the frozen state
+// plus the live catalog. `live` is still needed for `id`, `updatedAt`, `age`/`gender`. `tags` is
+// REPLACED outright, never merged — a merge is exactly how the robes get back in. A tag since deleted
+// from the catalog simply drops out, failing toward losing a detail rather than inventing one.
 function rehydrateSubject({ live, state, tags = [], faction = null }) {
   const byId = new Map(tags.map((tag) => [tag.id, tag]));
   return {
@@ -141,9 +95,7 @@ function rehydrateSubject({ live, state, tags = [], faction = null }) {
       .map((row) => {
         const tag = byId.get(row.tagId);
         if (!tag) return null;
-        // Drop the id again: EXAMINE_TAG_SELECT does not carry one, and a
-        // subject that differs from the fetched shape is how a reader starts
-        // depending on the difference.
+        // Drop the id again: EXAMINE_TAG_SELECT doesn't carry one.
         const { id, ...rest } = tag;
         return { equipped: row.equipped, expiresTurn: row.expiresTurn, tag: rest };
       })
@@ -151,11 +103,8 @@ function rehydrateSubject({ live, state, tags = [], faction = null }) {
   };
 }
 
-// The one query a writer needs. Returns the payload plus the two identity
-// answers derived from the SAME rows, so db/lib/say.js#prepareSpeech can drop
-// its separate loadForcedName and loadConcealment calls — one query where
-// there were two, and no chance of the three disagreeing about what somebody
-// was holding.
+// The one query a writer needs. Returns the payload plus two identity answers derived from the SAME
+// rows, so db/lib/say.js#prepareSpeech can drop its separate loadForcedName/loadConcealment calls.
 async function loadPresentedState(prisma, characterId) {
   const character = await prisma.character.findUnique({
     where: { id: characterId },

@@ -1,20 +1,9 @@
-// What one of these weighs, for TagChip's hover panel and the GM's tag sheet.
-//
-// The rule is db/lib/carry.js#rowWeight, restated rather than imported: that
-// module requires tagWrites/resourceTransfer/roomStash/roomAnnounce/dm at the
-// top, so importing it here would drag prisma and node:fs into a "use client"
-// bundle (the failure web/lib/formatTagArmor.js's comment describes).
-// actions/MoveThingsDialog.js already inlines the Assets half for the same reason.
-// If rowWeight's rule changes, change both.
-//
-// Three things weigh nothing against the cap and so show no weight at all:
-// Assets (a horse carries itself, a house does not move), anything
-// untradeable (a graft in your neck is part of you, not cargo), and the whole
-// weightless half of the catalog — skills, injuries, statuses, beliefs.
+// What one of these weighs, for TagChip's hover panel and the GM's tag sheet. Restates
+// db/lib/carry.js#rowWeight rather than importing it, which would drag prisma/node:fs into a
+// "use client" bundle. actions/MoveThingsDialog.js inlines the same Assets rule; change both together.
+// Weighs nothing: Assets, anything untradeable, and the weightless half of the catalog.
 
-// The number behind the string: what a stack of these weighs in pounds, 0 for
-// anything the three rules above exempt. Callers that sort or total rows want
-// this rather than the words.
+// What a stack of these weighs in pounds, 0 for anything the rules above exempt.
 export function tagWeightLbs(tag, quantity = 1) {
   if (!tag?.tradeable) return 0;
   if (tag.category === "Assets") return 0;

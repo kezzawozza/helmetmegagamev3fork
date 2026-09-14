@@ -1,25 +1,9 @@
 "use client";
 
-// A single choice from a short list, drawn as chips rather than a <select>.
-//
-// "Who are you tying up?" over four names, "Whose body?" over two, "Which
-// room?" over three — a dropdown hides the whole answer behind a click and
-// then asks for a second one. Chips show every option at once and take one
-// tap. Only for SHORT, LOCAL lists: the Bird's every-character roster and
-// Engrave's typed name keep their own controls, because two hundred chips is
-// worse than a dropdown.
-//
-// `options` is [{ id, label, note?, disabled?, reason?, active? }]. `note`
-// prints beside the label in the muted face — a corpse's yield, "✓ current",
-// a price. The markup is the house .chip-row / data-active / aria-pressed
-// form.
-//
-// `active` on an option overrides the usual "is this THE value" test, which
-// is what lets a caller with more than one live answer borrow this row rather
-// than re-type it. The cooking bench is the one such caller
-// (IngredientSlots.js): its slotted ingredients are each shown active and
-// disabled at once, and without this it would have to choose between the
-// accent and the row.
+// A single choice from a short list, drawn as chips rather than a <select>. Only for SHORT,
+// LOCAL lists — two hundred chips is worse than a dropdown. `options` is [{ id, label,
+// note?, disabled?, reason?, active? }]. `active` overrides the usual "is this THE value"
+// test, letting a caller with more than one live answer borrow this row (IngredientSlots.js).
 
 export default function ChipPicker({
   label = null,

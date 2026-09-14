@@ -1,19 +1,9 @@
 import AppHeader from "@/app/components/AppHeader";
 import MapBoard from "./MapBoard";
 
-// The map as its own page. The overlay on /chat mounts the identical board —
-// this route exists so the map has a link of its own, and because a phone
-// should not be opening a full-bleed board inside the "Here" sheet.
-//
-// It owns its whole screen the way Chat and the (desk) workspaces do: no
-// PageShell, no centred max-width, a 100dvh column that does not scroll. A map
-// in a card was a picture OF a map; the point of this one is that it is the
-// window you look through, and a plate 2144px wide has no business being
-// letterboxed into 46rem.
-//
-// The sign-in gate is the (app) layout's, which redirects before any of this
-// renders. The FOG is loadMap()'s, and is per character rather than per route:
-// there is nothing to gate here beyond being somebody.
+// The map as its own page — a link of its own, and a phone shouldn't open a full-bleed board inside the "Here"
+// sheet. Owns its whole screen like Chat and the (desk) workspaces: no PageShell, no centred max-width, a 100dvh
+// column that doesn't scroll. Sign-in gate is the (app) layout's; the FOG is loadMap()'s, per character not per route.
 
 export const metadata = { title: "Map" };
 

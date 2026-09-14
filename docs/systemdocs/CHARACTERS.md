@@ -626,14 +626,11 @@ loaded**, because the two GM roster desks and the channel doctor all hold the
 whole `Character` table already. `CURSE_SELECT` is exported for callers that
 narrow their `select` — omit `buriedAt` and the rule reads `undefined`.
 
-**It used to be a live Discord role, and that was the bug.** `isCursed(member)`
-read the role off a guild member, so *any* failed role write handed out a free
-full-points unrestricted re-roll: a 429 during the grant, a GM clearing it by
-hand, or a player leaving and rejoining the guild, which strips every role. It
-happened in a playtest — `DISCORD_CURSED_ROLE_ID` was set on the Railway web
-service and not on the bot, so every rite kill and every turn-clock death
-skipped it in silence while web-side kills worked fine, and a sacrificed player
-re-rolled ninety seconds later into an unrestricted seat at full points.
+**Curse must never be read off a live Discord role.** Any failed role write —
+a 429 during the grant, a GM clearing it by hand, a player leaving and
+rejoining the guild — would hand out a free full-points unrestricted re-roll.
+A half-configured deploy (the role env var set on one service, not the other)
+makes this silent rather than loud.
 
 The role still exists, renamed **Ghost**, and now does one job: read-only
 channel access for the dead (`CHANNELS.md` §5, `db/lib/ghostAccess.js`). Its id

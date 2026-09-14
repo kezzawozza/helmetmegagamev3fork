@@ -18,9 +18,7 @@ function TagToken({ payload, fallback }) {
   return tag ? <TagChip tag={tag} /> : fallback;
 }
 
-// Payload is "field:tier", e.g. "herding:laborer" — see
-// db/lib/production.js's PRODUCTION_RATES for the field/tier names. The API
-// ships each tier pre-formatted as `display` ("3", or "0–4" when it rolls).
+// Payload is "field:tier" — see db/lib/production.js's PRODUCTION_RATES. Pre-formatted as `display` ("3" or "0–4").
 function ResourceToken({ payload, fallback }) {
   const { rates } = useProductionRates();
   const [field, tier] = payload.split(":").map((p) => p.trim());
@@ -29,31 +27,21 @@ function ResourceToken({ payload, fallback }) {
   return <ResourceChip value={rate.display} />;
 }
 
-// Payload is Document.key (docs/documents.yaml's `key:`), e.g.
-// "courtstructure". The index carries every written document's name, but a
-// body only for those the reader may open — see getDocumentIndex (lib/referenceData.js).
+// Payload is Document.key. The index carries every document's name, but a body only for those the reader may open.
 function DocumentToken({ payload, fallback }) {
   const { docsByKey } = useDocuments();
   const doc = docsByKey.get(payload.trim());
   return doc ? <DocumentChip doc={doc} /> : fallback;
 }
 
-// Payload is a Character.id, optionally with the name it was mentioned under
-// after a `|`. One implementation, shared with the Markdown renderers
-// (messageTokens.js) — this used to be a second copy, and a second copy of a
-// rule about whose name may be printed is a second answer to it.
+// Payload is a Character.id, optionally with the name mentioned under after a `|`. Shared with messageTokens.js.
 
-// Payload is the tooltip sentence itself, not a lookup key — the one token
-// that can never fail to resolve. It renders the shared "?" glyph, for a
-// footnote that would clutter the line it explains.
+// Payload is the tooltip sentence itself, not a lookup key — the one token that can never fail to resolve.
 function InfoToken({ payload }) {
   return <InfoIcon text={payload.trim()} />;
 }
 
-// Payload is a tag slug carrying Tag.carryBonus ("pack-mule", "cart").
-// Renders the plain sentence "You can carry N more item tags, and M ⬢.",
-// computed from the live GameConfig caps by getCarryReference
-// (lib/referenceData.js) — see docs/systemdocs/CARRY.md.
+// Payload is a tag slug carrying Tag.carryBonus. Computed from live GameConfig caps (CARRY.md).
 function CarryToken({ payload, fallback }) {
   const { lines } = useCarryReference();
   return lines[payload.trim()] ?? fallback;
@@ -85,16 +73,9 @@ const BUBBLE_KINDS = {
   word: WordToken,
 };
 
-// Renders plain text, except any {kind:payload} token (e.g. {tag:slug} or
-// {resource:field:tier}) becomes an inline bubble widget. Each kind owns its
-// own lookup/rendering (TagToken, ResourceToken, ...) so new kinds can be
-// added without touching this dispatch logic. Unknown kinds and unresolved
-// payloads are left as literal text (rather than silently dropped) so a bad
-// reference is easy to spot.
-//
-// This is the full-fat renderer: a {tag:…} becomes a hoverable TagChip. Text
-// that already lives inside a tooltip or a button wants ChipText instead —
-// see richTokens.js, which holds the parser both share.
+// Renders plain text, except any {kind:payload} token becomes an inline bubble widget. Unresolved payloads are
+// left as literal text so a bad reference is easy to spot. Full-fat renderer: a {tag:…} becomes a hoverable
+// TagChip. Text already inside a tooltip or button wants ChipText instead — see richTokens.js.
 export default function RichText({ text, as: Tag = "span" }) {
   if (!text) return null;
 

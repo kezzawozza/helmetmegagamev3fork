@@ -22,27 +22,16 @@ not adjudicate a purchase. The price is then snapshotted into `Request.effect`,
 so re-tuning a number here never changes what an Undo of an older trade
 reverses.
 
-## 0. The rework, and what it changed
-
-The Depot used to be a shop: two panels, a table, and ⬢ moving on and off the
-Merchant's own sheet. It worked and nobody wanted to open it twice. The rework
-turned it into a machine somebody operates, and five things are now true that
-were not before.
+## 0. The system
 
 - **The money is obols (¢), and one obol is one ⬢.** Nothing converts and
   nothing rounds. **The catalog still prices in ⬢** — `depotPrice` and
   `sellablePrice` are what a thing is *worth*, and that has to keep meaning the
   same number whether the Merchant is buying it or a player is haggling over
-  it — so every authored price is already a whole number of obols too.
-  An obol does not compress value, it makes value **physical**: a weightless
-  stackable tag holding the same amount as the number on a sheet, but one you
-  can carry, hand over, stash and have stolen.
-
-  It used to be worth 5 ⬢, and that broke the bottom of the price table. A 3 ⬢
-  cup of tea cost a whole coin to buy and paid nothing at all to sell, because
-  the station took the ceiling one way and the floor the other. Thirty-two
-  wares sold for under a coin and were therefore worth zero at the counter. The
-  rate, the two rounding helpers and the ⬢/¢ display toggle are all gone.
+  it — so every authored price is already a whole number of obols too. An
+  obol makes value **physical**: a weightless stackable tag holding the same
+  amount as the number on a sheet, but one you can carry, hand over, stash
+  and have stolen.
 - **The money belongs to the station, not the Merchant.** It lives on
   `Depot.accountObols`. The licence is tradeable, so handing it over hands over
   the balance too, and that is what makes the card worth stealing.
@@ -52,8 +41,7 @@ were not before.
   whole Depot down with it when the tank empties.
 - **The room can kill you.** A turret, off by default, that reads faces.
 
-Everything below describes the reworked system. `Character.depotDebt` is gone;
-the line lives on `Depot.debtObols`.
+`Character.depotDebt` is gone; the line lives on `Depot.debtObols`.
 
 ## 0a. The moving parts
 
@@ -87,20 +75,13 @@ except the fuel hatch and the two generator switches needs the generator
 
 **Reading really does mean from anywhere.** The console opens for a licence or a
 keycard wherever its holder is standing, with every control greyed and the
-banner reading "You're not at the depot." It used to redirect to `/character`
-instead, which made the Depot rail item — the item follows the licence, not the
-location — behave like a broken link for most of a Merchant's day. The gate that
-stayed is the other one: somebody carrying neither the licence nor a keycard is
-still bounced off the page entirely.
+banner reading "You're not at the depot." Somebody carrying neither the
+licence nor a keycard is bounced off the page entirely.
 
-**The keycard used to operate nothing.** It read the console and cracked
-crates, and that was all. The turn length is what changed it: one turn is one
-real day, so "the Merchant will call the shuttle down when he wakes up" is a
-day of nothing moving, and a player who paid yesterday is still waiting. The
-split is between **labour and money**. A keycard does the work — three server
-actions plus the crate one, all of them either free or paid for out of the
-Docker's own pocket — and cannot spend an obol, draw on the credit line, or
-point the gun at anybody.
+**The split is between labour and money.** A keycard does the work — three
+server actions plus the crate one, all of them either free or paid for out of
+the Docker's own pocket — and cannot spend an obol, draw on the credit line,
+or point the gun at anybody.
 
 Two edges of that are deliberate rather than accidental:
 
@@ -171,11 +152,8 @@ The cycle:
 a *departure* gate, not an arrival one. (`ShuttleState.INBOUND` is declared and
 never written; calling it down lands it immediately.)
 
-`shuttleTurn` is **never null**. It used to be set from `getOpenTurn()`, which
-is legitimately null between advances, and a null clock made both timers read
-"landed this turn" forever: send-up stayed inside its cooldown, the automatic
-departure never fired, and re-calling was refused because the state was not
-`AWAY`. Only SQL could free it. It floors to 0 instead.
+`shuttleTurn` is **never null** — it floors to 0. A null clock reads as
+"landed this turn" forever, wedging both timers permanently.
 
 ## 0e. Crates
 
@@ -191,12 +169,10 @@ hand-packed crate now agree on the ceiling as well as on the halving. What
 comes out is a box with a volume rather than a counter: 99 tea in one crate, an
 anvil most of the way through another.
 
-Crates used to hold **3-8 units of anything**, which made a crate of tea and a
-crate of anvils the same size and burst an order of ⬢ into eleven boxes. That
-band is gone. What survives from it is the shuffle — units are mixed before
-they are packed, so a crate holds a random handful rather than one tidy line
-item — and `MAX_CRATES` (12), past which a huge order simply means fuller
-crates rather than a landing pad buried in tag rows.
+Units are mixed before they are packed, so a crate holds a random handful
+rather than one tidy line item. `MAX_CRATES` (12) caps the count, past which a
+huge order simply means fuller crates rather than a landing pad buried in tag
+rows.
 
 There is a second cap, on **count** rather than weight: `PACKAGE_MAX_UNITS`
 (200). The weight cap does not bound the weightless, and seven Depot wares
@@ -209,9 +185,8 @@ carry weight (half what went in, §5 of `FACTORY.md`), transfers, room stashes a
 deleted once nothing references it.
 
 **A crate is opened by consuming it**, from `/character` or the Things drawer,
-wherever the crate happens to be — not from a button on `/depot`. It used to
-have its own control on the Hold tab, which was the wrong place the moment a
-crate walked off the landing pad in somebody's arms. `crateTagData` sets
+wherever the crate happens to be — not from a button on `/depot`, since a
+crate can walk off the landing pad in somebody's arms. `crateTagData` sets
 `consumable: true`, and `consumeTagRequestImpl` takes a third road out to
 `openCrateRequestImpl` — beside the two that already existed for a sealed
 letter and the Instant Camera, and for the same reason: what falls out of a
@@ -289,11 +264,9 @@ licence, not the keycard, not the role. So:
 **The face is written when the Merchant is created.** Creating a character on
 the `merchant` role calls `setMerchantFace` with that character's own name
 (`web/app/(app)/character/createActions.js`, in the best-effort side-effect
-block; the writer is in `db/lib/depotState.js`). It used to be a GM-only field,
-which meant a new Merchant met a gun he was forbidden to arm and had to go and
-ask somebody to type his name into a form. There is no field for it on
-`/gm/dev` any more either — the face is the Merchant's, written at creation,
-and nothing else sets it.
+block; the writer is in `db/lib/depotState.js`). There is no field for it on
+`/gm/dev` — the face is the Merchant's, written at creation, and nothing else
+sets it.
 
 It is set **once and never resynced**, because a face does not change when the
 papers do. Two consequences worth knowing, both deliberate:
@@ -318,8 +291,7 @@ nothing — the shipped table, `DEFAULT_TURRET_TABLE` in `db/lib/depotTurret.js`
 
 Two fifths dying or dead, two fifths badly hurt, one fifth walking. Standing in
 front of an armed machinegun in shirtsleeves is not meant to be a coin flip on
-being fine, and until this table it was — the old bare column gave a 35% chance
-of a graze or a minor wound.
+being fine.
 
 **Armour bends that curve; it does not replace it.** Every piece of gear carries
 `Tag.ballisticArmor`, 0.0–1.0, and only while `equipped`. Worn pieces combine
@@ -347,12 +319,9 @@ number could fix.
 
 The best kit in the game still buries about one wearer in twenty.
 
-This replaced a hardcoded list of seven body-armour slugs, which knew about
-plate and mail and knew nothing about a single helmet, shield, buckler, pavise
-or the spacesuit — so a character in a closed steel helm rolled bare. A number
-on the tag cannot fall behind the catalog the way that list did the moment
-somebody added a helmet. See §TAGS.md for the two columns and the word scale
-players actually see.
+Armour is read off `Tag.ballisticArmor` directly, so it can never fall behind
+the catalog. See §TAGS.md for the two columns and the word scale players
+actually see.
 
 Light Infantry Armour carrying the highest ballistic value in the game is the
 catalog's own claim about it — "nothing forged in Ravenheart stops a bullet".
@@ -442,11 +411,8 @@ The Merchant is the only faucet of currency in the game.
   is drawn and repaid in obols. Drawing puts money in the account. The cap is
   **refused** rather than clamped, so he is told he hit the ceiling. Nothing in
   code punishes a standing balance — the Company is not code.
-**There is no ⬢ counter any more.** There was one, briefly: a marginless till
-that turned his Resources into obols and back, one for one. It made ⬢ and
-obols the same thing wearing two hats, and it meant importing food was free
-money. ⬢ are a **ware on the shuttle** instead (§3, §4) — the only place they
-change form, and never for nothing.
+**There is no ⬢ counter.** ⬢ are a **ware on the shuttle** instead (§3, §4)
+— the only place they change form, and never for nothing.
 
 **There are two pots, and they are not the same money.** The station's account
 is `Depot.accountObols`; the Merchant's purse is physical `obol` tags on his
@@ -487,9 +453,9 @@ generator gauge, shuttle state, turret lamp — over six tabs: **Order**,
 **Price List**, **Hold**, **Bank**, **Station**, **Ledger**.
 
 The **Bank** is the ATM and Credit, and nothing else. The **Hold** is the
-landing pad, and nothing else. Both used to carry a paragraph of explanation
-under every header and a tooltip on every button; all of it is gone. A control
-whose name does not say what it does is the bug, not the missing tooltip.
+landing pad, and nothing else. No paragraph of explanation, no tooltips: a
+control whose name does not say what it does is the bug, not the missing
+tooltip.
 
 There is no ⬢/¢ toggle any more, and no need for one: an obol is one ⬢, so
 every price column reads the same number in either unit. Prices print in ¢
@@ -528,7 +494,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 | | |
 |---|---|
 | Page | `/depot` (`web/app/(app)/depot/page.js`) |
-| Location | `depot` — the merchant's berth at the cave mouth, one plain hop east of `customs`. The gate used to be the whole Caverns zone, which meant trading from anywhere underground. The Depot was then split off as a Location of its own with **no edge to Customs**, so a migrant who cleared customs could not walk to the shop; the two were merged to fix that, and are two again now that the edge is authored. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading the list works anywhere; trading needs him standing there. |
+| Location | `depot` — the merchant's berth at the cave mouth, one plain hop east of `customs`, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading the list works anywhere; trading needs him standing there. |
 | Gate | the `merchants-license` tag, **not** the Merchant role |
 | Requests | `DEPOT_BUY`, `DEPOT_SELL`, `DEPOT_CREDIT` — auto-applied, GM-reviewed, undoable |
 | Constants | `db/lib/depot.js` |
@@ -577,13 +543,9 @@ and the ream is the same paper at a fifth the price. It is also the only ware
 with no sell-back price at all: a resale market in blank paper is not a thing
 anybody needs.
 
-**Sell-back is 60% of the buy price**, rounded, with a floor of 1 ⬢. It used to
-be ~44%, and the counter was a bad place to stand: the spread ate so much of a
-resale that stocking goods to trade on was barely a living, and the Merchant's
-own seat is supposed to be a trade. Import prices came down ~18% in the same
-pass, so buying in is cheaper and selling on actually pays. The station still
-takes 40%, which is margin enough that round-tripping a rifle for its own sake
-is a slow way to lose money.
+**Sell-back is 60% of the buy price**, rounded, with a floor of 1 ⬢. The
+station still takes 40%, which is margin enough that round-tripping a rifle
+for its own sake is a slow way to lose money.
 
 Six wares carry a **wage floor** instead: `alcohol`, `distilled-coca`,
 `trapping-gear`, `phrygian-tears`, `gladiator-helmet` and
@@ -593,17 +555,13 @@ raise for most of them and would have been a pay cut for `alcohol` (4) and
 `distilled-coca` (10), so those two keep the higher number. The rule is that
 the wage never goes down.
 
-That rule bites on a rebalance, not just on the original pricing. The
-2026-09-11 pass set the Simple rung by wage, and `trapping-gear` sits on that
-rung — which would have cut it from its 16 ⬢ floor. It carries **24**
-instead, its rung's wage paid on its own dearer materials. Re-price a rung and check this list before shipping.
+That rule bites on a rebalance, not just on the original pricing: re-price a
+rung and check this list before shipping, since a wage floor can never drop.
 
-The `fishing-rod` used to be the seventh, and it is the one place the floor
-was wrong: at `turnsCost: 0` the Dead Simple ration mints the margin as a
-FREE action, so 60% of its 12 ⬢ import price (7, against 3 ⬢ of materials)
-was +16 ⬢ a turn on top of an untouched labor day. It sells at the Dead
-Simple convention (cost + the rung's flat markup, so 5 since 2026-09-11)
-instead — the floor never applies to a 0-turn recipe.
+**The floor never applies to a 0-turn recipe.** At `turnsCost: 0` the Dead
+Simple ration mints margin as a FREE action, so `fishing-rod` sells at the
+Dead Simple convention (cost + the rung's flat markup, currently 5) instead of
+60% of its import price.
 
 Six are also creation picks, marked in the Notes column: `jewelry` (2 pt),
 `instant-camera` (2), `sword-cane` (7), `surgical-equipment` (9),
@@ -625,9 +583,9 @@ buying one mid-game is still a real decision.
 | `sky-lantern` | 4 | 2 | |
 | `sweets` | 4 | 2 | Consumes into `ate-meal` |
 | `alcohol` | 5 | 4 | He stocks the local brew too |
-| `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. Cut from 12 ⬢: at that price it was competing with real gear, and a paper-thin disguise is not real gear. |
+| `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source, and it is priced below real gear on purpose: a paper-thin disguise shouldn't compete with it. |
 | `cigarette` | 5 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
-| `coal` | 7 | 4 | The generator's own fuel (§2) — missing from this table until 2026-09-09, though it has always had this `depotPrice`. |
+| `coal` | 7 | 4 | The generator's own fuel (§2) |
 | `silver` | 8 | 5 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source cheaper (`LABORDROPS.md` §2b); this is the fallback. |
 | `boombox` | 11 | 7 | |
 | `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
@@ -657,7 +615,7 @@ buying one mid-game is still a real decision.
 | `silver-sword` | 123 | 74 | |
 | `chainsaw` | 126 | 76 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
 | `neoclassic-rw10` | 134 | 80 | Neoclassic R&W10. Also a 14-pt creation pick. |
-| `energy-shield` | 145 | 87 | **The dearest thing on the shelf that is not a gun.** Stops bullets outright and softens a melee blow — the best odds against the Fortress turret in the game, though a minor wound is still very possible. Caving loot he also imports, and GM-granted until now. |
+| `energy-shield` | 145 | 87 | **The dearest thing on the shelf that is not a gun.** Stops bullets outright and softens a melee blow — the best odds against the Fortress turret in the game, though a minor wound is still very possible. Caving loot he also imports. |
 | `ml-23` | 149 | 89 | A 9mm pistol |
 | `motorcycle` | 171 | 103 | Caving loot he also imports |
 | `adamantium-sword` | 189 | 113 | |
@@ -691,7 +649,7 @@ make it, importing it would be pointless. The three exceptions are all brews —
 Merchant who would rather not wait on a brewer. Each is priced well above what
 brewing one costs, and that gap is the market a brewer sells into (§4).
 
-**`steel` (2026-09-09, repriced 2026-09-10) is the fourth**, and the first that isn't a brew — a
+**`steel` is the fourth**, and the first that isn't a brew — a
 smith with no Prospector bringing up ore can buy the ingot outright instead
 of smelting it himself. Same reasoning as the three brews: priced above what
 the `smithing` recipe itself costs (`SMITHING.md`), so the Merchant is a
@@ -742,18 +700,12 @@ list, `THANATI_WARES`, with one price per ware, spent out of the hideout room's
 floor and the buyer's pockets — ⬢ and obols together, since an obol is one ⬢.
 No `depotPrice` on any of it, and nothing there ever reaches the station.
 
-**Three numbers moved in the Butchering change** (`CORPSES.md`), and they are
-off the bands above on purpose. `skinless-brain` went 10 → 40 then **40 → 25**
-when the Godard Factory opened: the 10 read the Skinless as a slightly harder
-Graga, which they are not — they are the only ingredient in the catalog that has
-to be talked out of being a person first — but at 40 a single organ stood level
-with a whole day of industry, and read as a shortcut past it. 25 keeps it well
-clear of a Graga Sac without competing with a wagon.
-`dreamers-draught` went 16 → **60**, staying
-above its own ingredient, because the point of that recipe is that the brain is
-the cheap part. `painting` went 60 → 48, a flat 20% nerf, and then 48 →
-**41**, a further 15%; over its 4 turns that is ~10 ⬢/turn, still the best
-rate a craftable pays.
+**Three prices sit off the bands above on purpose.** `skinless-brain` is 25 —
+clear of a Graga Sac's 8, without standing level with a whole day of industry
+(it is the only ingredient in the catalog that has to be talked out of being a
+person first). `dreamers-draught` is 60, above its own ingredient, because the
+point of that recipe is that the brain is the cheap part. `painting` is 41 —
+over its 4 turns that is ~10 ⬢/turn, still the best rate a craftable pays.
 
 **`human-flesh` is deliberately not sellable at all.** Butchering is free and
 every death mints a corpse, so a price on it would be a code-enforced ⬢ faucet
@@ -761,11 +713,11 @@ hanging off a free action. It stays `tradeable`, so the market for it is other
 players.
 
 **Smithed gear's markup is `resourceCost + round(rate(skill) × turnsCost^1.3)`, per item —
-not a flat multiplier of the tier.** A flat "+1/3 of the tier" markup used to make
+not a flat multiplier of the tier.** A flat "+1/3 of the tier" markup makes
 Exceptional (3 turns, `smithing-skilled`) pay out *worse* per turn than Moderate or High
-Quality (1–2 turns, the same skill gate), and made Dead Simple's turn-free 4-a-turn cap
-look like a strictly better business than ever touching the higher rungs. Two things now
-have to be paid for on purpose, not by accident: the skill it took to unlock the tier, and
+Quality (1–2 turns, the same skill gate), and makes Dead Simple's turn-free 4-a-turn cap
+look like a strictly better business than ever touching the higher rungs. Two things must
+be paid for on purpose: the skill it took to unlock the tier, and
 the turns sunk into one item once you're there.
 
 `rate(skill)` scales with the cumulative point cost of the skill chain a tier is gated
@@ -773,44 +725,32 @@ behind:
 
 | Skill gate | Cumulative pt | Rate | Why |
 |---|---|---|---|
-| `crafting` / `smithing` | 5 | 2 ⬢/turn | Dead Simple and Simple both sit here. Crafting's own price fell to 2 on 2026-09-10, but the rate is left at the 5-pt `smithing` reading — the two gate the same Dead Simple rung and it should not pay two different wages |
+| `crafting` / `smithing` | 5 | 2 ⬢/turn | Dead Simple and Simple both sit here. Crafting and `smithing` gate the same Dead Simple rung, so both read the same 5-pt rate — it should not pay two different wages |
 | `smithing-skilled` | 10 | 5 ⬢/turn | Moderate, High Quality, Exceptional |
 | `smithing-gunpowder` | 19 | 9 ⬢/turn | Gunpowder — nearly double the skill investment, so nearly double the rate |
 
-The `turnsCost^1.3` exponent is what makes rate-per-turn climb *inside* a skill bracket
+The `turnsCost^1.3` exponent makes rate-per-turn climb *inside* a skill bracket
 too, not just jump between brackets — a deliberate, mild superlinear curve so tying up
-more turns in one item is rewarded a little more than proportionally, not just
-proportionally. The formula's raw rates read 2 → 5 → 6 → 7 → 11 ⬢/turn, and the shipped
-prices now sit well above it. Three passes put them there and none re-derived the
-formula: the ~15% materials rebalance cut every rung's `resourceCost`, then on
-2026-09-11 **every sell price on the ladder was lifted and the curve deliberately
-flattened** — a smith could not make a living against a Merchant who sets his own buy
-price (§4), and the bottom of the ladder paid worst of all — and then on 2026-09-12 a
-further ~5% came off `resourceCost` again (`SMITHING.md` §2), same reasoning as the
-first cut: a smith's own margin widens a little more, `sellablePrice` untouched. What
-still has to hold is the SHAPE: never falling. The shipped per-turn profits are now
+more turns in one item is rewarded a little more than proportionally. The formula's raw
+rates read 2 → 5 → 6 → 7 → 11 ⬢/turn; the shipped prices sit above it, a deliberately
+wider smith's margin (see `SMITHING.md` §2 for `resourceCost`). What
+must hold is the SHAPE: never falling. The shipped per-turn profits are
 
 | rung | ⅓-turn | Simple | Moderate | High Quality | Gunpowder |
 |---|---|---|---|---|---|
 | ⬢/turn | 9 | 10 | 16 | 18 | 22.5 |
 
-with Dead Simple's 12 sitting outside the curve for the reason below.
-
-**Flatter is the point, and it is a reversal.** The ladder used to run 3 → 7 → 8 → 15,
-a nearly five-fold spread from the bottom rung to the top, which meant the first two
-rungs were somewhere you passed through rather than somewhere anybody worked. It now
-runs 9 → 22.5, two and a half fold. The top was left where it was and everything under
-it brought up: the low rungs a little, the middle a good deal more.
+with Dead Simple's 12 sitting outside the curve for the reason below. The curve is
+deliberately flat — nearly two and a half fold bottom to top, not the five-fold spread a
+naive multiplier gives — because a smith could not otherwise make a living against a
+Merchant who sets his own buy price, and the low rungs paid worst of all.
 
 **Set these by the WAGE, not by a multiplier on the price.** A quarter off a 9 ⬢ sword
 is most of its 3 ⬢ profit; a quarter off a 59 ⬢ musketoon is half again of its 30. The
 margin is a small difference of two larger numbers, so a percentage on the price lands
-as a wildly uneven percentage on the wage — the 2026-09-11 pass started as a flat 25%
-and had to have two rungs hand-corrected before it even shipped. Pick the ⬢/turn you
+as a wildly uneven percentage on the wage. Pick the ⬢/turn you
 want, multiply by the turns, add the `resourceCost`. Then read the table above and check
-nothing overtook the rung above it. (Moderate was 8 for a while, exactly tying High
-Quality — the flat-wage bug — and dropped a point on 2026-09-07 to restore the climb.)
-1.3 is a judgment
+nothing overtook the rung above it. 1.3 is a judgment
 call, not a derived constant: high enough to feel like a real reward for committing
 turns, low enough that Exceptional doesn't dwarf Moderate the way a steeper exponent
 would. Re-tune it here first if a tier ever needs adjusting, rather than hand-editing
@@ -818,41 +758,32 @@ one item's `sellablePrice`.
 
 **Dead Simple is the one exception, kept outside the formula on purpose.** It costs 0
 turns, so `rate × 0^1.3` would price it at raw material cost with no margin at all.
-Instead it keeps a flat token markup — **+3 ⬢** since the 2026-09-11 pass, up from +1 —
-and its rationing stays the 4-unit/turn cap (`SMITHING.md` §2) rather than a turn cost.
-It was never meant to compete turn-for-turn with the ladder above it, so it does not have
-to clear the same per-turn bar.
+Instead it keeps a flat token markup — **+3 ⬢** — and its rationing stays the 4-unit/turn
+cap (`SMITHING.md` §2) rather than a turn cost. It was never meant to compete turn-for-turn
+with the ladder above it, so it does not have to clear the same per-turn bar.
 
-**It cannot be tuned finely, and it is the number here worth watching.** The 4-unit
+**It cannot be tuned finely, and it is the number worth watching.** The 4-unit
 ration means one ⬢ on the price is four on the wage, so the smallest change available at
-this rung is ±4 ⬢/turn — which is why it reads 12 now, above the two rungs over it, with
+this rung is ±4 ⬢/turn — which is why it reads 12, above the two rungs over it, with
 no intermediate setting to reach for. And it costs no turn, so it stacks on top of an
-untouched labor day: exactly the shape that made the `fishing-rod`'s 60% floor a problem
-further up this section. If any part of this pass wants revisiting, it is this one.
+untouched labor day: the same shape that made the `fishing-rod`'s 60% floor a problem
+further up this section.
 
 The Dead Simple rung spans two skills — `crafting` gates the cloth and wood half,
-`smithing` the metal — and **both halves take the same markup**, which is the same
-reasoning the rate table above gives for leaving `crafting`'s rate at the `smithing`
-reading. A padded cap and a work knife are one rung and pay one wage.
+`smithing` the metal — and **both halves take the same markup**, for the same
+reasoning the rate table above gives for pricing `crafting` at the `smithing`
+rate. A padded cap and a work knife are one rung and pay one wage.
 
 The four 1/3-turn Simple pieces (Spear, Dagger, Silver Knife, Phrygian Spear —
 `SMITHING.md` §2) get the same treatment for the same reason: `2 × (1/3)^1.3` rounds to
 0, so they carry a flat markup instead and sell at **9**. Three a turn is 9 ⬢/turn,
 against the rung's full-turn 10 — quick work is paid about the rung's rate, never a
-better one. Integer prices are why it is 9 and not exactly 10; round the quick pieces
-DOWN when they will not land clean, never up, or the rung above them is overtaken.
-
-A further 5% came off the Gunpowder tier on 2026-09-10 (31→29, 20→19), again without
-re-deriving `sellablePrice`, which widens that margin once more on purpose. A second ~5%
-cut on 2026-09-12 (`SMITHING.md` §2) took the tier's own `resourceCost` 29→28 and Bore
-Pistol's 19→18, same posture — `sellablePrice` untouched again.
+better one. Round the quick pieces DOWN when they will not land clean on an integer,
+never up, or the rung above them is overtaken.
 
 Two items break from their tier's baseline `resourceCost` and price accordingly: Bore
 Pistol (18 ⬢ to make, cheaper than Musketoon/Bomb's 28) still prices under them, at 56
-against 74 — same relative gap as the tier. A materials-cost rebalance dropped the Gunpowder tier's
-`resourceCost` ~15% (37→31, 23→20) without re-deriving `sellablePrice` off the formula,
-so both sit a little above what a fresh `resourceCost + rate × turnsCost^1.3` run would
-give today — a slightly wider margin for the smith, on purpose, not drift.
+against 74 — same relative gap as the tier.
 
 `ravenheart-red` is the top of the ordinary brews on purpose. It costs 4 ⬢ and
 needs no ingredient at all, so a Skilled brewer with nothing else going on can
@@ -883,11 +814,9 @@ So a Merchant who also takes Brewing (Skilled) can file `ADD_TAG` for
 and repeat — unbounded within a single turn. 71 craftable tags are sellable,
 topping out at 49 ⬢ for the Gunpowder rung.
 
-Until the Merchant Update the sell side was inert data, so an uncharged recipe
-only ever produced a *tag* a GM could look at. Pricing the output in code is
-what turned it into a faucet. The only thing standing in front of it today is
-a GM reading the `ADD_TAG` queue, which is the same backstop crafting has
-always had — but it is now guarding money rather than goods.
+The only thing standing in front of it today is a GM reading the `ADD_TAG`
+queue — the same backstop crafting has always had, now guarding money rather
+than goods.
 
 Two ways to close it, neither taken yet: charge the recipe's ⬢ in code inside
 `addTagRequestImpl`, or cap `DEPOT_SELL` per turn. The first is the real fix

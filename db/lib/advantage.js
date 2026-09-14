@@ -1,37 +1,14 @@
-// Dice advantage: roll twice, keep the better die. Two things grant it:
-// Lucky (TAGS.md §4a), a permanent mastery tag never removed by rolling, and
-// Inspired (Black River Mud), a one-shot consumable buff that has to
-// disappear the moment it wins a Gambit rather than by its timer alone —
-// which is why rollWithAdvantage reports WHICH one fired, so a Gambit call
-// site knows whether it owes a consume afterward (db/lib/tagWrites.js's
-// consumeInspiredIfUsed). Lucky is never consumed; Inspired always is, when
-// it's the one that granted the roll.
-//
-// This is a sibling of db/lib/gambitModifier.js rather than part of it, and the
-// split is the point. A modifier is a number added to a die and named in the
-// confirm DM ("−2 Hungry"); Action.diceModifier is one Int and stores the sum.
-// Advantage is neither — it changes which die you rolled, not what you add to
-// it, so folding it into the modifier list would have meant a modifier whose
-// value depends on a roll that has not happened yet.
-//
-// Every d6 a CHARACTER rolls goes through here: the Gambit itself, the Caving
-// Die, the labor drop die, and the Gambit-shaped rolls that Confession,
-// Lessons and Torture make. A die nobody in particular rolls (a resource
-// range, a loot draw) keeps using rollDie.
-//
+// Dice advantage: roll twice, keep the better die. Lucky (TAGS.md §4a) is a permanent mastery tag;
+// Inspired (Black River Mud) is one-shot and must be consumed via db/lib/tagWrites.js#consumeInspiredIfUsed
+// when it's the one that fired, which is why rollWithAdvantage reports WHICH source granted the roll.
+// Sibling of db/lib/gambitModifier.js, not part of it: advantage changes which die is rolled, not what's added.
+// Every d6 a CHARACTER rolls goes through here (Gambit, Caving Die, labor drop, Confession/Lessons/Torture rolls).
 // No prisma import, so bot/ and web/ both require it by subpath.
 const { LUCKY_SLUG, INSPIRED_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
 
-// Accepts the CharacterTag[] shape used everywhere else in the app
-// (`{ tag: { slug } }`), and tolerates a bare Tag[] — the same tolerance
-// gambitModifier.js's own `holds` has, and for the same reason: half the
-// callers have one shape and half the other.
-//
-// `gambitOnly` opts a caller into ALSO checking Inspired — the Caving Die
-// and the labor drop die call rollWithAdvantage too (for Lucky), but
-// Inspired grants advantage on "your next Gambit" specifically, not the
-// next d6 of any kind, so only a true Gambit-shaped roll passes this.
+// Accepts CharacterTag[] (`{ tag: { slug } }`) or a bare Tag[].
+// `gambitOnly` also checks Inspired, which grants advantage on the next Gambit specifically, not any d6.
 function holdsAdvantage(characterTags, { gambitOnly = false } = {}) {
   const held = characterTags ?? [];
   if (held.some((ct) => (ct?.tag?.slug ?? ct?.slug) === LUCKY_SLUG)) return LUCKY_SLUG;
@@ -39,16 +16,8 @@ function holdsAdvantage(characterTags, { gambitOnly = false } = {}) {
   return null;
 }
 
-// -> { die, rolls, advantage, source }. `rolls` is every die actually
-// thrown, in the order thrown, so a surface can show the discarded one — a
-// player who is paying 15 points (or smoking a rare powder) for this should
-// see it working, and a good roll that looks exactly like an ordinary good
-// roll is a tag nobody can tell they own. `die` is always the one that
-// counts, so a caller that does not care about the breakdown can read that
-// field alone and behave as it did before. `source` is `"lucky"` /
-// `"inspired"` / `null` — a true-Gambit caller passing `gambitOnly: true`
-// uses it to know whether it owes db/lib/tagWrites.js#consumeInspiredIfUsed
-// afterward; Lucky is never consumed.
+// -> { die, rolls, advantage, source }. `rolls` shows every die thrown so a surface can show the discarded one.
+// `source` (`"lucky"`/`"inspired"`/null) tells a Gambit caller whether it owes db/lib/tagWrites.js#consumeInspiredIfUsed.
 function rollWithAdvantage(characterTags, sides = 6, { gambitOnly = false } = {}) {
   const source = holdsAdvantage(characterTags, { gambitOnly });
   if (!source) {

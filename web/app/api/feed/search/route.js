@@ -3,26 +3,12 @@ import { withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { feedWipeFloors } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 
-// GET /api/feed/search?q=&place= — what was said, anywhere this viewer can
-// hear it.
-//
-// THREE letters, not two. A GIN trigram index is built out of three-character
-// grams, so an ILIKE whose pattern is shorter than one gram has nothing in the
-// index to match and Postgres falls back to reading every row in
-// ArchiveEntry. Two letters was a sequential scan of the whole archive on
-// every second keystroke.
-//
-// The index is already there: ArchiveEntry_content_trgm_idx, a GIN trigram
-// index that lives only in raw migration SQL (which is why `prisma migrate
-// diff` keeps proposing to drop it — CLAUDE.md's note). An `ILIKE '%q%'` is
-// exactly the shape it covers, so this is a raw query rather than a Prisma
-// `contains`: the same shape the GM desk's conversation search uses
-// (web/app/(desk)/gm/players/actions.js), parameterised, never concatenated.
-//
-// THE GATE IS THE PLACE LIST. `placesFor` is the one answer to "where may you
-// read" (CHAT.md §5a), and this searches inside it and nowhere else — so a
-// zone summary a character cannot hear is not searchable from Chat, and a
-// GM's search is bounded by their GmZoneView the same way their feed is.
+// GET /api/feed/search?q=&place= — what was said, anywhere this viewer can hear it.
+// THREE letters, not two — below that a GIN trigram index can't match, and Postgres falls
+// back to a full scan. The index, ArchiveEntry_content_trgm_idx, is raw migration SQL only
+// (why `prisma migrate diff` keeps proposing to drop it — CLAUDE.md's note); this is a raw
+// parameterised query, never concatenated. THE GATE IS THE PLACE LIST: `placesFor` is the
+// one answer to "where may you read" (CHAT.md §5a).
 export const dynamic = "force-dynamic";
 
 const RESULT_ROWS = 30;
@@ -44,23 +30,19 @@ export async function GET(request) {
 
   const places = await placesFor(prisma, viewer.character, viewer.options);
   const wanted = params.get("place");
-  // A named place has to be one of theirs, and asking for one that is not is
-  // a refusal rather than a silent widening.
+  // A named place has to be one of theirs; asking for one that is not is a refusal, not a silent widening.
   const scope = wanted ? places.filter((entry) => entry.placeKey === wanted) : places;
   if (wanted && scope.length === 0) {
     return Response.json({ error: "You aren't there." }, { status: 403 });
   }
   if (scope.length === 0) return Response.json({ rows: [] });
 
-  // Nothing from before the last wipe, the same floors the feed, the history
-  // route and the place watermarks all read (db/lib/feedWipe.js). A search
-  // spans every place the viewer can see, and a zone summary clears on the
-  // slower Dawn schedule, so the floor is picked per row below.
+  // Nothing from before the last wipe, the same floors the feed reads (db/lib/feedWipe.js).
+  // A zone summary clears on the slower Dawn schedule, so the floor is picked per row below.
   const floors = await feedWipeFloors(prisma);
 
-  // LIKE metacharacters escaped, so a query holding % or _ searches for those
-  // characters instead of turning into a wildcard. Backslash is Postgres's
-  // default LIKE escape, so no ESCAPE clause is needed.
+  // LIKE metacharacters escaped, so % or _ in the query search literally. Backslash is
+  // Postgres's default LIKE escape, so no ESCAPE clause is needed.
   const pattern = `%${q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
   const keys = Prisma.join(scope.map((entry) => entry.placeKey));
 
@@ -85,9 +67,7 @@ export async function GET(request) {
     LIMIT ${RESULT_ROWS}
   `;
 
-  // The place's NAME, so a hit reads "the Council Room" rather than
-  // "room:clx…". It is the viewer's own list, so nothing here names a place
-  // they could not already see in their column.
+  // The place's NAME, so a hit reads "the Council Room" rather than "room:clx…".
   const nameByKey = new Map(scope.map((entry) => [entry.placeKey, entry.name]));
   const shaped = await withAvatarVersions(prisma, rows);
   return Response.json({

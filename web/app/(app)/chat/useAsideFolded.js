@@ -2,24 +2,11 @@
 
 import { useSyncExternalStore } from "react";
 
-// The breakpoint at which the right column folds: under it the column has
-// nowhere to stand and its sections come up in the ⋯ sheet instead. 900px,
-// the same number as the `56.25rem` media block in globals.css — the CSS
-// hides the column and shows the ⋯, this hook decides which one MOUNTS, and
-// if the two disagreed there would be a band with neither. The phone's own
-// breakpoint (720px, where the places column folds into the ≡ drawer) is
-// the same arrangement one step down: useNarrow.js.
-//
-// CSS already hides the column there, but hiding is not unmounting — both
-// copies were mounting, so a phone ran two TravelNodes loads, two stash reads
-// and two affordance states against one screen. Chat.js renders ONE of them
-// off this hook, and the CSS rule stays as belt and braces.
-//
-// Mirrors web/app/components/useIsCoarsePointer.js: a media query is exactly
-// the external mutable value useSyncExternalStore is for, and reading it in
-// an effect would be both a frame late and a react-hooks/set-state-in-effect
-// error. The server snapshot is false, so a first paint is the desktop shape
-// and the client corrects it.
+// The breakpoint at which the right column folds into the ⋯ sheet: 900px, matching the `56.25rem` media block in
+// globals.css — CSS hides the column, this hook decides which one MOUNTS, so they must agree or there'd be a band
+// with neither. Chat.js renders only ONE off this hook to avoid double-mounting (two TravelNodes loads, etc).
+// Mirrors useIsCoarsePointer.js: a media query is the external value useSyncExternalStore is for; reading it in an
+// effect would be a frame late and a react-hooks/set-state-in-effect error. Server snapshot is false (desktop shape).
 const QUERY = "(max-width: 56.25rem)";
 
 function subscribe(callback) {

@@ -550,15 +550,12 @@ phrasing it positively keeps a zone kind added later out of the stone's reach
 until somebody decides it should be in. Destination only — stepping *out* of
 the caves is fine.
 
-**It used to be limited to somewhere you had STOOD, and that was a security
-boundary.** The `seen` half of the fog is written for every **listed**
-neighbour, and §2 above is explicit that `listed` is weaker than `passable`: a
-locked door or a shut portcullis is listed on purpose, so you know the door is
-there and cannot open it. Accepting `stood` only meant the stone could reach
-nowhere the character had not already got into legitimately.
-
-**That boundary is gone, deliberately, and the consequence is real**: the stone
-is now a way past every locked gate on the surface. The Undercroft is reached
+**There is no STOOD-only restriction, deliberately, and the consequence is
+real: the stone is a way past every locked gate on the surface.** The `seen`
+half of the fog is written for every **listed** neighbour, and §2 above is
+explicit that `listed` is weaker than `passable` — a locked door or a shut
+portcullis is listed on purpose, so you know it's there and cannot open it.
+The stone does not care. The Undercroft is reached
 by a `hidden: elevator-key` connection and the Charon is down there; the
 Brigand camp, the Keep and the Underquarter are all surface Locations behind
 gates a stone-holder no longer needs to open. The caves are the one thing still

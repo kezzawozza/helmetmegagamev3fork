@@ -12,11 +12,8 @@ import { deleteEntry, togglePin } from "./journalActions";
 
 const SEARCH_FIELDS = [(e) => e.title, (e) => e.body, (e) => e.labels.join(" ")];
 
-// DataTable's filterDefs compares one value per row, not a set, so an entry
-// carrying several labels only files under its FIRST one here — a real but
-// small gap (search already covers every label via SEARCH_FIELDS above, and
-// a private journal rarely wants more than one label per entry). Widening
-// DataTable itself to a multi-value filter is out of scope for this page.
+// DataTable's filterDefs compares one value per row, so a multi-label entry files
+// under its FIRST label only — search already covers every label via SEARCH_FIELDS.
 const FILTER_DEFS = [{ key: "label", label: "Label", value: (e) => e.labels[0] ?? "" }];
 
 const SORT_OPTIONS = [
@@ -25,23 +22,10 @@ const SORT_OPTIONS = [
   { key: "turnNumber", dir: "desc", label: "Latest turn" },
 ];
 
-// A body long enough to want a fold. Mirrors ExpandableText.js's own
-// character-count heuristic, but that component renders a plain string —
-// this page needs the same clamp-and-More behaviour around a rendered body
-// instead, so it's a small local twin rather than a prop ExpandableText
-// doesn't have a use for anywhere else.
-//
-// The body goes through ChatMarkdown, the same renderer /chat draws a line
-// with. It used to be RichText, which resolved the tokens but rendered no
-// Markdown at all, so a journal entry showed its author literal asterisks —
-// and RichText is the FULL catalog resolver, which meant a player could type
+// A body long enough to want a fold. Mirrors ExpandableText.js's character-count heuristic,
+// but clamps around a rendered body instead of a plain string. Goes through ChatMarkdown,
+// not RichText — RichText is the FULL catalog resolver, and a player could type
 // {tag:apex-form} into their own journal and mint a live chip out of it.
-// A journal body is player-typed text and gets the short vocabulary.
-//
-// `whitespace-pre-wrap` is gone with it: Markdown owns the layout now, so a
-// blank line is a paragraph and a single newline folds, the way it already
-// does everywhere else the same words could be read. (Not remark-breaks —
-// teaching one surface a different rule is what this change is undoing.)
 function EntryBody({ text }) {
   const [open, setOpen] = useState(false);
   const clean = (text ?? "").trim();
@@ -99,9 +83,7 @@ export default function JournalList({ entries, onEdit }) {
       initialSort: { key: "updatedAtMs", dir: "desc" },
     });
 
-  // Pinned entries float to the top of whatever the chosen sort already
-  // produced — sorted on a copy, per DataTable.js's own discipline, since
-  // `visible` may be the same array identity as `rows`.
+  // Pinned entries float to the top; sorted on a copy since `visible` may be === `rows`.
   const pageSize = 50;
   const ordered = useMemo(() => [...visible].sort((a, b) => Number(b.pinned) - Number(a.pinned)), [visible]);
   const pageRows = ordered.slice((page - 1) * pageSize, page * pageSize);
@@ -126,9 +108,7 @@ export default function JournalList({ entries, onEdit }) {
     setPendingPins((prev) => new Map(prev).set(entry.id, next));
     startTransition(async () => {
       const res = await togglePin(entry.id, next);
-      // A failure (e.g. the row is gone) reverts the optimistic override
-      // rather than leaving the pin showing a state the row never reached —
-      // the next server read is the truth once the override is dropped.
+      // A failure reverts the optimistic override; the next server read is the truth.
       if (!res?.ok) {
         setPendingPins((prev) => {
           const next = new Map(prev);

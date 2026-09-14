@@ -1,26 +1,9 @@
-// The upkeep for every animal on the horse's family tree: 1 ⬢ per turn, per
-// species, from everyone holding one — run from db/index.js#resolveNeeds() so
-// the bot's cron advance and the Dev Panel's "End turn" button behave
-// identically. See TURN-ENGINE.md for the ordering.
-//
-// Takes `prisma` as a parameter — see db/lib/dm.js for why.
-//
-// Two rules worth stating outright, because both are the opposite of what the
-// rest of the horse does:
-//
-//   * HELD, not equipped. db/lib/mounts.js gates the free zone move on
-//     `equipped`, and an indoors Location parks the animal at the door. The
-//     feed ignores all of that: an animal in your pocket still eats, so stowing
-//     it is not a way to skip the bill.
-//   * Can't pay, nothing happens. A character under the cost is charged
-//     nothing and keeps the animal — no starving marker, no runaway. Same shape
-//     as the Hunger pass's 0 ⬢ case, and the reason each species' charge fits
-//     in one updateMany below.
-//
-// A THIRD rule, new with the Arelitz: each species bills SEPARATELY. A
-// character holding both a Horse and an Arelitz (Warbeast) pays 2 ⬢ this
-// turn, not 1 — they are two different animals with two different mouths,
-// and the pass never merges the slugs into one query to avoid that.
+// The upkeep for every animal on the horse's family tree: 1 ⬢ per turn, per species, from everyone
+// holding one — run from db/index.js#resolveNeeds() so the bot's cron and the Dev Panel's "End turn"
+// button behave identically (TURN-ENGINE.md). Takes `prisma` as a parameter — see db/lib/dm.js for why.
+// Three rules, each the opposite of what the rest of the horse does: HELD, not equipped, so stowing an
+// animal doesn't skip the bill; can't pay means nothing happens (no starving marker, no runaway); and
+// each species bills SEPARATELY — a Horse plus an Arelitz Warbeast pays 2 ⬢, not 1.
 const { HORSE_SLUG, HORSE_UPKEEP_COST, UPKEEP_SLUGS } = require("./constants");
 
 async function runHorseUpkeepPass(prisma, turn) {
@@ -33,9 +16,7 @@ async function runHorseUpkeepPass(prisma, turn) {
     return null;
   }
 
-  // The floor is structural rather than a Math.max on an earlier read: the
-  // where-guard matches its own decrement, so resources can never go negative
-  // and a character who cannot afford the feed simply isn't matched.
+  // The floor is structural: the where-guard matches its own decrement, so resources can never go negative.
   let fed = 0;
   for (const tag of tags) {
     const { count } = await prisma.character.updateMany({

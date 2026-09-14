@@ -3,28 +3,10 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import MarkdownContent from "./MarkdownContent";
 
-// The result notice: one line that says what a button just did.
-//
-// Every player action used to end with the dialog closing and nothing else —
-// no "Ada is tied up.", no "Offer sent." A verb that changes something out of
-// view read as a dead button. This is the one place a success is spoken, so
-// every surface says it the same way: RequestActionsProvider raises one after
-// each action, from the sentence the server sent back or the one the client
-// composed (actions/noticeLines.js).
-//
-//   const notice = useNotice();
-//   notice("Ada is tied up.");
-//   notice({ text: "Your comrades.", rows: [{ name, note, mark }] });
-//   notice({ text: res.error, tone: "bad" });
-//
-// Mounted once in layout.js, like ConfirmProvider. It renders a fixed stack
-// (.notice-stack) that is NOT a .modal-overlay — Modal.js#dialogHoldsKeyboard
-// counts those, and a notice must never make a desk think a dialog is open.
-//
-// Timers: a card dismisses itself after `ttl` (twice that when it carries
-// rows), and hovering or focusing it holds the clock. State is only ever set
-// from a click path or inside a timeout callback — never synchronously in an
-// effect, which is an error in this repo.
+// The result notice: one line that says what a button just did. Mounted once in layout.js;
+// its stack (.notice-stack) is NOT a .modal-overlay — Modal.js#dialogHoldsKeyboard counts
+// those, and a notice must never make a desk think a dialog is open. State is only ever set
+// from a click path or inside a timeout callback — never synchronously in an effect, which is an error in this repo.
 
 const NoticeContext = createContext(null);
 
@@ -102,8 +84,7 @@ export default function NoticeProvider({ children }) {
   return (
     <NoticeContext.Provider value={value}>
       {children}
-      {/* Always mounted so the live region exists before the first notice —
-          a region that appears with its first message is announced by nobody. */}
+      {/* Always mounted so the live region exists before the first notice. */}
       <div className="notice-stack" role="status" aria-live="polite" aria-atomic="false">
         {cards.map((card) => (
           <div
@@ -119,12 +100,8 @@ export default function NoticeProvider({ children }) {
             }}
           >
             <div className="notice-body">
-              {/* Markdown, not a raw string. A notice carries the same
-                  sentence the bot would have DM'd — `» *The datacard points
-                  towards Road.*` — and printed literally it showed the
-                  asterisks. MarkdownContent is the DM renderer, which is what
-                  this is: a line the game says to one person, not a scene, so
-                  it gets Discord's vocabulary but none of remarkChat. */}
+              {/* Markdown, not a raw string — a notice carries the same DM sentence
+                  the bot would send, so it needs Discord's vocabulary (not remarkChat). */}
               <MarkdownContent content={card.text} className="notice-text" />
               {card.rows && (
                 <ul className="notice-rows">

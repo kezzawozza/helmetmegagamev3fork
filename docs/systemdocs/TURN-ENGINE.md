@@ -429,9 +429,7 @@ So, in order:
   a re-run must not tell somebody a second time that they died. The existing
   per-call `.catch()`es stay — those stop one dead channel taking a loop down,
   which is a different job.
-- **Staged deliveries no longer rest on a step key at all.** They used to — one
-  key per recipient, recorded even when the DM bounced, which is how a resumed
-  push learned to skip exactly the people it had failed to reach. Each send now
+- **Staged deliveries do not rest on a step key at all.** Each send
   has a `Delivery` row it claims before sending and stamps after
   (`db/lib/stagedDelivery.js`, `ADJUDICATION.md` §1a), and that claim is what
   keeps a resume from sending twice. The step key stays, one per *message*, as
@@ -530,11 +528,9 @@ frame as the `#info` banner so both channels read as one system. They are built
 by `docs/assets/make-turn-banners.js`, which holds the per-plate crop window and
 colour grade — run it again and you get the same eight files.
 
-There used to be a **weather** system here: a Markov chain rolling
-clear/fog/rain/storm off the previous turn, a sentence about it in the
-announcement, and a banner keyed on the result. It gated no mechanic. It is gone,
-and with it `Turn.weather`, `GameState.nextWeather`, the `Weather` enum and the
-GM's next-weather override.
+**There is no weather system.** `Turn.weather`, `GameState.nextWeather` and
+the `Weather` enum are orphaned columns from a removed feature — nothing
+reads or writes them, and no GM control exists for a next-weather override.
 
 **Which plate.** `db/lib/turnBanner.js` picks one when the turn opens and writes
 it to `Turn.banner`. The pick avoids whatever the last turn **of the same phase**

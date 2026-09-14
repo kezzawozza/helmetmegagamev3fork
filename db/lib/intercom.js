@@ -1,38 +1,19 @@
-// Ravenheart's PA. A button on the table in the Council Room, which is what
-// docs/zones.yaml has always said is there.
-//
-// It used to be #intercom, a standing Discord channel a tag-holder typed
-// into. That made the PA a place you went rather than a thing in a room, and
-// it cost a channel, a registry entry, a per-member access rule and a tag to
-// say so. Now the announcement lands where people already are: their own
-// zone's #summary.
-//
-// The Black Hills do not hear it. The barony's writ thins out across the
-// river, and no speaker was ever strung that far. The two cave levels need no
-// exclusion — they have no #summary at all, so the rock swallows the PA for
-// free.
-//
-// Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
-// db/lib/dm.js convention; require it by path.
+// Ravenheart's PA — a button on the table in the Council Room (docs/zones.yaml). The announcement
+// lands in each zone's own #summary. The Black Hills do not hear it (no speaker strung that far); the
+// two cave levels have no #summary at all, so the rock swallows it for free. Takes `prisma`, off the
+// @lifeweb/db barrel (db/lib/dm.js convention).
 const { postMessage } = require("./discordRest");
 const { sceneLineAt } = require("./scene");
 
-// The Council Room, hardcoded for the db/lib/roleIds.js reason: one guild, one
-// correct value, and a missing env var would have been a silent no-op.
+// The Council Room, hardcoded for the db/lib/roleIds.js reason.
 const INTERCOM_ROOM_SLUG = "keep-council-room";
 
 // Zone slugs the PA does not reach. `hills` is the Black Hills.
 const OUT_OF_RANGE_ZONE_SLUGS = ["hills"];
 
-// The body is player-typed, so `parse: ["everyone"]` is doing two jobs: it
-// lets OUR @here through, and it blocks every user and role ping somebody
-// might type into the box. That is the same posture proxy.js takes with
-// character speech, pointed the other way.
-//
-// But `parse: ["everyone"]` is one permission covering both @everyone and
-// @here — Discord has no way to allow the quieter one alone. So the body is
-// defanged first (below). Otherwise anybody at that table could escalate to
-// @everyone, which wakes people who are offline, just by typing it.
+// The body is player-typed, so `parse: ["everyone"]` lets OUR @here through while blocking any ping
+// somebody types — but it's one permission covering both @everyone and @here, so the body is also
+// defanged below, or anybody at the table could escalate to @everyone.
 const ALLOWED_MENTIONS = { parse: ["everyone"] };
 
 // Break a typed @everyone/@here without eating the word: a zero-width space
@@ -46,14 +27,8 @@ function defang(text) {
 // would ping @here once per chunk.
 const MAX_BODY = 1200;
 
-// Deliberately NOT ambientLine. Every other line the world says is scenery and
-// belongs in `-#` subtext, under the conversation rather than in it — but a PA
-// is the opposite of scenery. It is a loudspeaker. It carries an @here, and
-// delivering the loudest notification Discord has in the quietest text Discord
-// renders was exactly backwards. This one is full size.
-//
-// Full size also means the body can carry newlines safely: there is no
-// per-line prefix left to break.
+// Deliberately NOT ambientLine — a PA is the opposite of scenery, it's a loudspeaker carrying an
+// @here, so it's full size. That also means the body can carry newlines safely (no per-line prefix to break).
 function intercomLine(text) {
   const body = defang(String(text ?? "").trim().slice(0, MAX_BODY));
   // Supply a full stop only when the speaker didn't end on one themselves,
@@ -62,13 +37,8 @@ function intercomLine(text) {
   return `@here You hear a voice from the intercom: ${body}${stop}`;
 }
 
-// Posts to every zone in range, sequentially and individually caught. Never
-// Promise.all a Discord fan-out (docs/systemdocs/TURN-ENGINE.md) — the burst
-// of 429s is what earns an IP-level ban.
-//
-// Returns { sent, failed } rather than throwing: a PA that reached four zones
-// out of five is not a failed announcement, and the caller has to be able to
-// say so.
+// Posts to every zone in range, sequentially and individually caught. Never Promise.all a Discord
+// fan-out (docs/systemdocs/TURN-ENGINE.md). Returns { sent, failed } rather than throwing.
 async function broadcastIntercom(prisma, text) {
   const content = intercomLine(text);
   const zones = await prisma.zone.findMany({
@@ -87,11 +57,8 @@ async function broadcastIntercom(prisma, text) {
       failed.push(zone.name);
       console.error(`Intercom broadcast to ${zone.name} failed:`, err.message ?? err);
     }
-    // ONE ROW PER ZONE, not one for the broadcast. It used to be a single row
-    // written by the Speak handler, which read correctly in /archive and was
-    // invisible in Chat: a zone feed can only show a row filed against its
-    // own place key. The @here is Discord's alone — a notification is not part
-    // of what was said.
+    // ONE ROW PER ZONE, not one for the broadcast — a zone feed can only show a row filed against its
+    // own place key. The @here is Discord's alone, not part of what was said.
     await sceneLineAt(prisma, {
       zoneId: zone.id,
       text: content.replace(/^@here\s+/, ""),

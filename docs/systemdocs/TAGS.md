@@ -512,9 +512,9 @@ per tag.** A `mastery` tag (§4) is bought mid-game with points a character
 earned, never out of the 12 a build opens with, so the ceiling that keeps one
 tag from eating a whole starting budget is not the constraint on it. They are
 priced 12–15 and are meant to be (**Smithing (Gunpowder) is the one exception,
-at 9** — made `mastery` on 2026-09-10 so no character starts a gunsmith, and
-left at its old price because 10 pt of prerequisites already stand in front of
-it, `SMITHING.md` §1): a capstone should cost about what a
+at 9** — `mastery` so no character starts a gunsmith, and left at its old
+price because 10 pt of prerequisites already stand in front of it,
+`SMITHING.md` §1): a capstone should cost about what a
 character's whole first sheet did. Lucky at 15 is the highest price in the
 catalog and the deliberate top of this band — it bends every die a character
 rolls. Do not read the mastery prices as a new general scale; an ordinary tag
@@ -526,64 +526,51 @@ with the role, so pricing it at a full band would have made an object nobody
 but a Minstrel would ever own. **Pack
 Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
 the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
-at 3** — between the 2 and 5 bands, Bascinet's own call, the same kind of
-deliberate outlier as Pack Mule; don't read a pattern into it. **Fast
-Metabolism is a fourth, at −6** — between the −5 and −7 bands, Bascinet's
-call; it is the only tag that changes the *size* of the per-turn upkeep rather
-than exempting somebody from it (`TURN-ENGINE.md` §2 step 8). **Leper is a
-fifth, at −1** — below the −2 band, and the reason is arithmetic rather than
-taste: it is the `requiredTag` on the Leper's Hood, which costs 0, so at −2 the
-pair would have *paid* a player to take a free hood. **Depressed is a sixth,
-at −8** — between the −7 and −9 bands, and the one price on this page set by a
-rule rather than a feel: `DESIRES.md` §5 prices a Personality tag by how much
-of the Desire catalog it closes against how much it opens, and Depressed
-closes everything and opens nothing, so it is that band's floor. **Camouflage is a seventh, at 3** — lowered from 4, Bascinet's call, the same
-between-bands spot as Teaching (Drill Instructor). It buys no code: nothing
-reads the slug, and "nearly invisible when ambushing in a forested area" is
-adjudicated the way Mindreading's Gambit is. Teaching (Lecturing) sits on-scale at 5, the ordinary Moderate band
-(`LESSONS.md` §1); **Teaching itself dropped to 4 on 2026-09-10**, Bascinet's
-call, the same between-bands spot. **Crafting dropped to 2 the same day** —
-back onto the Minor band from Moderate, and on-scale there: it gates the Dead
+at 3** — between the 2 and 5 bands, the same kind of deliberate outlier as
+Pack Mule. **Fast Metabolism is a fourth, at −6** — between the −5 and −7
+bands; it is the only tag that changes the *size* of the per-turn upkeep
+rather than exempting somebody from it (`TURN-ENGINE.md` §2 step 8). **Leper
+is a fifth, at −1** — below the −2 band, and the reason is arithmetic rather
+than taste: it is the `requiredTag` on the Leper's Hood, which costs 0, so at
+−2 the pair would have *paid* a player to take a free hood. **Depressed is a
+sixth, at −8** — between the −7 and −9 bands, and the one price on this page
+set by a rule rather than a feel: `DESIRES.md` §5 prices a Personality tag by
+how much of the Desire catalog it closes against how much it opens, and
+Depressed closes everything and opens nothing, so it is that band's floor.
+**Camouflage is a seventh, at 3.** It buys no code: nothing reads the slug,
+and "nearly invisible when ambushing in a forested area" is adjudicated the
+way Mindreading's Gambit is. Teaching (Lecturing) sits on-scale at 5, the
+ordinary Moderate band (`LESSONS.md` §1); **Teaching itself is 4**, the same
+between-bands spot. **Crafting is 2** — the Minor band: it gates the Dead
 Simple rung and miscellaneous production, not a rung of the smithing chain
 (`SMITHING.md` §1).
 **Torturing Equipment is 0** — unpurchasable, like the other kits' `purchasable:
 false` rows; what it costs is its recipe (`TORTURE.md` §5), not a price.
-**Appraisal is 1** — below the 2-point floor, Bascinet's call: it grants no
+**Appraisal is 1** — below the 2-point floor: it grants no
 advantage in play, only a readout of a number the catalog already held
 (`Tag.sellablePrice`), so it doesn't earn a full Minor band. Seven roles
 (Merchant, Arbiter, Baron, Docker, Geschef, Banneret, Innkeeper) and two
 Courtier kits (Manor Lord, Court Artist) get it free in `starting_tags`.
 
-**The Personality batch of 2026-09-05 sits partly off-band too, again
-Bascinet's call rather than a new scale.** Poor Swimmer is −1 (below the −2
-band, alongside Leper). Claustrophobia and Guilt Ridden are each
-−3 (between −2 and −5). Motion Sickness, Insomniac and Lazy are each −4
-(also between −2 and −5). Pyrophobia and Teratophobia sit on-scale at the
-ordinary −2 band. Hemophobia and Agoraphobia (2026-09-06) are −4 each,
-Bascinet's call, the same off-band spot as Motion Sickness and Insomniac.
+**Several Personality and combat/trait tags sit off-band too, each a
+deliberate call rather than a new scale:**
 
-**The Tag Redo batch of 2026-09-05 moved a lot of the catalog off-band, and
-that is Bascinet's call rather than a new scale.** Fourteen tags now sit
-between bands: Adventurer 3, Dagger 3, Death Wish 3, Knuckle Duster 3,
-Pickpocket 3, Skeleton Wedge 3 and Nine Lives 3 (between 2 and 5); Brave was 4 here too, but the fear-dial batch of
-2026-09-06 moved it to 5 (repriced for its new ×0.5 on every mood harm,
-MOOD.md) — it sits on the ordinary 5 band now, so drop it from this
-off-band list. Escape Artist 4, Esoteric 4, Lockpicking 4, Pavise 4 and
-Camouflage 4 (also between 2 and 5); Light Sleeper and Old Blood at 1 (below
-the 2 band, alongside Pilgrim and Instrument). Don't read a pattern into any
-of them.
+| Tag | pointCost | Note |
+|---|---|---|
+| Poor Swimmer, Leper, Light Sleeper, Old Blood, Steady, Pilgrim, Instrument | −1 / 1 | below the 2/−2 floor |
+| Claustrophobia, Guilt Ridden | −3 | between −2 and −5 |
+| Dense | −3 | alongside Tremor, same magnitude of nuisance |
+| Motion Sickness, Insomniac, Lazy, Hemophobia, Agoraphobia | −4 | between −2 and −5 |
+| Pyrophobia, Teratophobia | −2 | on-scale |
+| Adventurer, Dagger, Death Wish, Knuckle Duster, Pickpocket, Skeleton Wedge, Nine Lives | 3 | between 2 and 5 |
+| Escape Artist, Esoteric, Lockpicking, Pavise | 4 | between 2 and 5 |
+| Brave | 5 | on-scale (repriced for its ×0.5 on every mood harm, `MOOD.md`) |
+| Ranged (Throwing Weapons) | 4 | vs. a nominal sidegrade price of 10 |
+| Ranged (Sniper) | 7 | on the Melee (Flamboyant) precedent — "at long range" is a real condition of its own |
+| Reckless Attacker, Monster Hunter | 5 | ungated for Guerrilla's reason |
+| Drunken Master | 5 | gated behind Alcoholic — a −4 discount nothing else in the group pays |
 
-**The combat and traits batch of 2026-09-06 adds seven more off-band calls,
-again Bascinet's rather than a new scale.** Steady is 1 (below the 2 band,
-alongside Pilgrim, Instrument, Light Sleeper and Old Blood). Ranged (Throwing
-Weapons) is 4 and Ranged (Sniper) 7, against a nominal sidegrade price of 10 —
-Sniper on the Melee (Flamboyant) precedent, since "at long range" is a real
-condition of its own rather than a situational-but-free one. Reckless Attacker
-and Monster Hunter are 5 each, both ungated for Guerrilla's reason. Drunken
-Master is 5 and gated behind Alcoholic, so it is bought at a −4 discount
-nothing else in the group pays. Dense is −3 (between −2 and −5, alongside
-Tremor, which is the same magnitude of nuisance). Don't read a pattern into
-any of them — and note that the sidegrade band now has four exceptions
+Don't read a pattern into any of them. The sidegrade band has four exceptions
 (Flamboyant, Sniper, Throwing Weapons, Guerrilla), so "sidegrades cost 10" is
 a starting point rather than a rule.
 
@@ -937,10 +924,9 @@ has since been deleted outright along with the channel it opened.
   in the YAML. `db/lib/turnFormat.js#expiryFrom(firstLiveTurn, duration)` —
   and its mid-turn wrapper `expiryFor(tag, openTurn)`, re-exported from
   `web/lib/turnFormat.js` — is the one place that arithmetic lives; use it
-  rather than open-coding a turn number plus a duration again. This was a real bug: `grantTag`
-  on `/gm/dev` and `addTagRequest` both left it null, so a GM-granted
-  Paralyzed sat on the sheet forever while its tooltip advertised "Lasts 1
-  turn".
+  rather than open-coding a turn number plus a duration again. Miss this and a
+  timed tag reads permanent on the sheet while its tooltip still advertises a
+  duration.
 
 ### How a duration is displayed
 
@@ -990,10 +976,9 @@ them).
   Craft menu (Add Tag, renamed), and Craft now enforces the recipe's
   `requirement.skills` server-side rather than leaving them as GM-review
   guidance — see §3b and `CRAFTING.md` §2.
-- `healable` — whether the Heal menu offers this tag. Replaced an older
-  heuristic (any Health-category tag with a `requirement:` block); the flag
-  is what `web/lib/healRequests.js#isHealable` reads now, and it's what's set
-  `true` on every health tag with a cure, `false` everywhere else — see §5c.
+- `healable` — whether the Heal menu offers this tag.
+  `web/lib/healRequests.js#isHealable` reads it, set `true` on every health
+  tag with a cure and `false` everywhere else — see §5c.
 - `teachable` — whether this tag is a skill Learn Skill / Teach Skill will
   offer. Set `true` on every entry in the `skills` category except the
   Teaching tree itself (Teaching, Lecturing, Drill Instructor are `false` —
@@ -1815,20 +1800,16 @@ to every browser on every page, and the runtime set has no ceiling — every
 letter anybody writes is a row. Paper is what made that urgent; crates had the
 same problem quietly.
 
-## 6. Things that used to be tags and aren't anymore
+## 6. Not tags
 
-`Leader` and `Treasurer` were retired as tags in the same rework that
-introduced this system (and were finally removed from `docs/roles.yaml`'s
-`starting_tags` too, in favor of per-role `leader:`/`treasurer:` booleans) — both are now plain booleans on `Character`
-(`isLeader`, `isTreasurer`), assigned dynamically by a GM (Leader) or by a
-GM/the faction's own Leader (Treasurer) from `/faction`
-(`web/app/(app)/faction/actions.js`), exactly as before — only the storage
-mechanism changed, not who can assign what. `Courtier` survived too, and still gates `Manor` via that tag's `requiredTag` (§3). `Mortus` survived the
-"Role" category's retirement as an ordinary General tag since it drives real
-logic elsewhere — it gates `/lifeweb` nav visibility. `Hunter` survived
-alongside it for the same reason, but has since been retired: hunting is now
-just a flavor of laboring (`LABORING.md`), and no `hunter` entry remains in
-`docs/tags.yaml`.
+`Leader` and `Treasurer` are plain booleans on `Character` (`isLeader`,
+`isTreasurer`), **not tags** — no `starting_tags` entry, no `docs/tags.yaml`
+row. Assigned dynamically by a GM (Leader) or by a GM/the faction's own
+Leader (Treasurer) from `/faction` (`web/app/(app)/faction/actions.js`).
+`Courtier` is still a tag and gates `Manor` via `requiredTag` (§3). `Mortus`
+is still a tag too — an ordinary General one that gates `/lifeweb` nav
+visibility. `Hunter` is gone entirely: hunting is now just a flavor of
+laboring (`LABORING.md`).
 
 ## 7. Where the code lives
 
@@ -1993,12 +1974,10 @@ nobody can see is not concealment, it is a missing image. Build the files with
 
 ### `equipSlot` / `equipLayer` / `twoHanded`
 
-There used to be a flat count, `GameConfig.equipSlots` — six things, then ten,
-whatever they were — and for a long time it was the only limit, so a character
-with free slots could ready eight swords, and later three helmets. **It is
-retired** (2026-09-13): the column stays in the schema, unread and listed under
-`INTERNAL_KEYS` in `db/lib/gameConfigFields.js`, and the slot is the whole
-rule. Every `equippable` tag names one; sync throws on one that doesn't.
+`GameConfig.equipSlots`, a flat count, is retired: the column stays in the
+schema, unread and listed under `INTERNAL_KEYS` in
+`db/lib/gameConfigFields.js`. The slot is the whole rule now. Every
+`equippable` tag names one; sync throws on one that doesn't.
 
 `equipSlot:` is the other half — `HEAD`, `BODY`, `SHIELD`, `WEAPON`,
 `ACCESSORY` and `MOUNT`, the table below. `HEAD`, `BODY` and `MOUNT` are
@@ -2076,14 +2055,10 @@ are the polearms, the great swords, the bows and the long guns, and the
 refusal names which of them is eating two. The rig calls the row **Held**, and
 prints `n/4` on it the way the accessories row does.
 
-There used to be a **`SHIELD`** slot beside this one, holding exactly one
-thing under the title "Off hand". It was a second rule for the same place on
-the body, so it was folded in here (2026-09-14) and the hands went from three
-to four — which is precisely what the two slots already allowed together, so
-no living character was left wearing a set the rules refuse. Two consequences
-worth knowing: a shield now costs a hand like anything else, and **two shields
-at once are legal**, because hands are the only limit on what you hold. The
-enum value is **retired, not deleted** — Postgres cannot drop one, so it stays
+**A shield costs a hand like anything else, and two shields at once are
+legal** — hands are the only limit on what you hold. The old separate
+`SHIELD` slot enum value is **retired, not deleted** — Postgres cannot drop
+one, so it stays
 in `schema.prisma` while `EQUIP_SLOTS` in `db/lib/equipSlots.js` leaves it
 out, which makes sync throw on any YAML still naming it.
 
@@ -2330,22 +2305,17 @@ runtime by `db/lib/depotCrates.js` with `custom: true` **and `ephemeral: true`**
 one per crate, carrying their contents in `Tag.crateContents` and their manifest
 in `description`. `db:prune-tags` skips custom rows, so they survive a prune.
 
-This doc used to claim the row was "deleted once nothing references it any
-more". **That was never true** — nothing deleted it, and every crate ever landed
-was a permanent orphan sitting in the catalog across every game. `ephemeral` is
-the fix; see §5e.
+Nothing deletes this row on its own — every crate ever landed would be a
+permanent orphan in the catalog otherwise. `ephemeral` is the fix; see §5e.
 
 See `docs/systemdocs/DEPOT.md` §0e.
 
 ## 5f. What a status tag takes away
 
-`db/lib/incapacitation.js` used to be a single flat Set, and that set was the
-only answer the game had to "can this character do this?". It covered the
-physical half and had nothing to say about the other one, so a Paralyzed
-character could shout across a Location and a Mute one could talk all day —
-`mute` cost −7 points and appeared in no line of code anywhere.
-
-It is now a table. Each slug names the capabilities it removes:
+`db/lib/incapacitation.js` is a table, not a flat Set: a status tag needs to
+answer "can this character do this?" per capability, not as one blanket flag,
+or a Paralyzed character could shout and a Mute one could talk all day. Each
+slug names the capabilities it removes:
 
 | Tag | ACT | SPEAK | SHOUT | |
 |---|---|---|---|---|

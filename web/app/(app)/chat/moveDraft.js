@@ -1,24 +1,8 @@
 "use client";
 
-// The Move a player is part-way through typing, kept in this browser until
-// they file it.
-//
-// A Move is the one thing a turn buys and a filed one is final, so the words
-// leading up to it are worth more than most drafts — and until now Escape, a
-// stray backdrop click or a closed laptop threw a paragraph away with nothing
-// to get it back from. It is a per-viewer convenience about unsent text, so
-// localStorage is the right home: it never needs to reach another device, and
-// the server must not hold half a Move that was never filed.
-//
-// Keyed by character AND turn, so yesterday's abandoned draft never surfaces
-// inside today's dialog and one browser signed into two characters never hands
-// one of them the other's half-written day. Read in a useState initializer
-// rather than an effect —
-// react-hooks/set-state-in-effect is an error in this repo, and the dialog
-// only ever mounts on a click, so there is no server render to mismatch.
-//
-// Every accessor is wrapped: a private window or blocked site data throws on
-// the accessor itself, and an empty box is the correct fallback.
+// The Move a player is part-way through typing, kept in this browser until filed — the
+// server must not hold half a Move that was never filed. Keyed by character AND turn.
+// Every accessor is wrapped: a private window or blocked site data throws on the accessor itself.
 
 const PREFIX = "chat:move-draft:";
 
@@ -48,9 +32,7 @@ export function writeDraft(characterId, turnNumber, text) {
   }
 }
 
-// Called once the Move is actually filed. Also sweeps drafts left behind by
-// earlier turns, so a browser that has played a month does not carry a month
-// of dead paragraphs.
+// Called once the Move is filed. Also sweeps drafts left behind by earlier turns.
 export function clearDraft() {
   try {
     const stale = [];

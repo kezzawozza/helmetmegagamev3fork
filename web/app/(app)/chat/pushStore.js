@@ -2,18 +2,10 @@
 
 import { useSyncExternalStore } from "react";
 
-// Whether this BROWSER is subscribed to Web Push, held in a module store the
-// way feedStore.js and seenStore.js are.
-//
-// A store rather than component state for the reason every other one here is:
-// react-hooks/set-state-in-effect is an error in this repo, and everything
-// this answers — is there a PushManager, does the deployment have VAPID keys,
-// is there already a subscription — is an async question about the browser
-// that has to be asked outside a render. The effect calls initPush(); the
-// answers land in here and the toggle re-reads them.
-//
-// Nothing here is a permission check. The routes it posts to resolve the
-// account from the session (web/app/api/push/subscribe/route.js).
+// Whether this BROWSER is subscribed to Web Push, held in a module store like feedStore.js
+// and seenStore.js: react-hooks/set-state-in-effect is an error in this repo, and these are
+// async questions about the browser asked outside a render. Nothing here is a permission
+// check — the routes it posts to resolve the account from the session (web/app/api/push/subscribe/route.js).
 
 let state = { ready: false, supported: false, key: null, on: false, busy: false };
 const listeners = new Set();
@@ -53,11 +45,8 @@ function urlBase64ToUint8Array(base64) {
 
 let started = false;
 
-// Asked once per tab, after the first paint. Three things have to be true
-// before the toggle is worth drawing at all: the browser has a PushManager (an
-// iOS home-screen app does, a Safari tab does not), the deployment has keys
-// (the key route 404s without them), and — for the ON state — this browser
-// already holds a subscription.
+// Asked once per tab. The toggle needs: a PushManager (iOS home-screen app yes, Safari tab
+// no), the deployment's keys (the key route 404s without them), and the ON state.
 export async function initPush() {
   if (started) return;
   started = true;
@@ -72,8 +61,7 @@ export async function initPush() {
     const res = await fetch("/api/push/key");
     if (res.ok) key = (await res.json())?.key ?? null;
   } catch {
-    // Offline, or the route is down. No toggle rather than a toggle that
-    // cannot work.
+    // Offline, or the route is down. No toggle rather than a toggle that cannot work.
   }
   if (!key) {
     emit({ ready: true, supported: false });
@@ -86,16 +74,13 @@ export async function initPush() {
     const existing = registration ? await registration.pushManager.getSubscription() : null;
     on = Boolean(existing);
   } catch {
-    // A browser that refuses to say is treated as not subscribed; pressing
-    // the button asks it properly.
+    // A browser that refuses to say is treated as not subscribed; pressing the button asks it properly.
   }
   emit({ ready: true, supported: true, key, on });
 }
 
-// The toggle. Subscribing registers the worker, asks for permission and posts
-// the subscription; unsubscribing tells the browser and then the server, in
-// that order, so a half-done unsubscribe leaves a row that the first 410 from
-// the push service cleans up (db/lib/webPush.js).
+// The toggle. Unsubscribing tells the browser and then the server, in that order, so a
+// half-done unsubscribe leaves a row that the first 410 from the push service cleans up (db/lib/webPush.js).
 export async function togglePush() {
   if (state.busy || !state.supported || !state.key) return;
   emit({ busy: true });
@@ -118,8 +103,7 @@ export async function togglePush() {
 
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
-      // Denied is sticky in every browser: the button goes back to off and
-      // the player changes it in the site settings if they want it.
+      // Denied is sticky in every browser: the button goes back to off.
       emit({ on: false });
       return;
     }
@@ -136,8 +120,7 @@ export async function togglePush() {
     });
     emit({ on: res.ok });
   } catch {
-    // Every failure here is the browser refusing something. Nothing to say
-    // that the button not turning on does not already say.
+    // Every failure here is the browser refusing something.
     emit({ on: false });
   } finally {
     emit({ busy: false });

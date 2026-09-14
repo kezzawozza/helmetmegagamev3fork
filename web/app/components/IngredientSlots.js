@@ -2,27 +2,10 @@
 
 import ChipPicker from "./ChipPicker";
 
-// The cooking bench (docs/systemdocs/COOKING.md): the ordered ingredient
-// slots a meal recipe takes, over the pantry of everything you are carrying
-// that can go in one.
-//
-// The SLOTS are what this file is for. The pantry under them is ChipPicker's
-// row, borrowed rather than re-typed — a chip is a chip, and the one thing
-// this needed that it did not have (more than one live answer at a time) is
-// now a per-option `active`. What ChipPicker cannot be is the slots
-// themselves: it is a single-value picker, and these are ordered positions
-// that mean different things (a Lavish Meal requires its first and offers its
-// second).
-//
-// What the cook is told is the TASTE and nothing else. No mood figure, no
-// effect list, no hint that the thing they are about to serve will make
-// somebody vomit. That is Bascinet's call (2026-09-09) and it is enforced a
-// layer down too: web/lib/referenceData.js#cookedTasteOnly cuts the block to
-// its taste before it ever reaches a browser, so there is nothing here to
-// leak even by accident.
-//
-// A greyed chip is a hint — every slot is re-checked server-side by
-// resolveIngredientSlots, which owns membership, possession and the count.
+// The cooking bench (docs/systemdocs/COOKING.md): ordered ingredient slots (this file) over
+// a pantry borrowed from ChipPicker's row. The cook is told the TASTE and nothing else —
+// web/lib/referenceData.js#cookedTasteOnly cuts the block before it reaches a browser. A
+// greyed chip is a hint — resolveIngredientSlots re-checks server-side.
 
 export default function IngredientSlots({
   min = 0,
@@ -54,9 +37,7 @@ export default function IngredientSlots({
                 key={i}
                 className="slot"
                 data-required={required ? "true" : undefined}
-                // The first empty slot is where the next chip lands, so it
-                // says so rather than leaving the cook to guess which of two
-                // identical boxes is next.
+                // The first empty slot is where the next chip lands.
                 data-next={i === picked.length ? "true" : undefined}
               >
                 <span className="slot-tag">{required ? "Needed" : "Optional"}</span>
@@ -81,19 +62,15 @@ export default function IngredientSlots({
         })}
       </div>
 
-      {/* Bounded, because ChipPicker's own header is right that two hundred
-          chips is worse than a dropdown: 58 tags in the catalog carry a
-          `cooked` block, and a hoarder can be holding a lot of them. The row
-          scrolls inside its own box rather than pushing the slots and the
-          Craft button off the bottom of the modal. */}
+      {/* Bounded: the row scrolls inside its own box rather than pushing the slots and
+          the Craft button off the bottom of the modal. */}
       <div className="pantry">
       <ChipPicker
         options={options.map((o) => ({
           id: o.slug,
           label: o.name,
           note: `×${o.held}`,
-          // Slotted chips read as chosen AND refuse a second click; a stack
-          // too short for the batch, or a full set of slots, only refuses.
+          // Slotted chips read as chosen AND refuse a second click.
           active: picked.includes(o.slug),
           disabled: picked.includes(o.slug) || o.held < quantity || full,
         }))}

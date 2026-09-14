@@ -1,14 +1,6 @@
-// Everything the Oracle reads, turned into one text block per zone.
-// See docs/systemdocs/ORACLE.md.
-//
-// This module is the whole of the Oracle's access to game state, which is
-// deliberate: what a correspondent may see is a question with a right answer,
-// and it should be answerable by reading one file.
-//
-// Three things here are easy to get wrong and are each commented where they
-// happen: the turn window runs lock to lock and is derived rather than read off
-// AuditLog's turnId, tags are filtered to the two categories that actually
-// move, and a concealed character is written with both faces rather than one.
+// Everything the Oracle reads, turned into one text block per zone. See docs/systemdocs/ORACLE.md.
+// This module is the whole of the Oracle's access to game state, deliberately, so what a correspondent may see is answerable by reading one file.
+// Three things here are easy to get wrong, commented where they happen: the turn window runs lock to lock (derived, not read off AuditLog's turnId), tags are filtered to the two categories that actually move, and a concealed character is written with both faces.
 
 const { auditLinesFor, AGGREGATE } = require("./oracleAudit");
 const { moveCutoffAt } = require("./turnClock");
@@ -21,51 +13,15 @@ const {
 const { PARTIES } = require("./threats");
 const { listObjectives, membersByParty } = require("./objectives");
 
-// The only two tag categories worth re-reading every turn. A character's
-// Beliefs and Skills are bought at creation and never move, so shipping all
-// 699 tags' worth of catalog every turn would pay repeatedly for a constant —
-// and crowd out the moves, which are the part that changes.
-//
-// Health and status are the two that DO move: injuries, the mood band, Tipsy,
-// Ate Meal. Everything else reaches the Oracle as a CHANGE, through the audit
-// lines, rather than as a standing fact.
+// The only two tag categories worth re-reading every turn — Beliefs and Skills are bought at creation and never move, so shipping the whole catalog would pay repeatedly for a constant. Health/status DO move (injuries, mood band, Tipsy, Ate Meal); everything else reaches the Oracle as a CHANGE through the audit lines.
 const LIVE_TAG_CATEGORIES = ["health", "status"];
 
-// ArchiveEntry kinds that are events rather than speech. These are already
-// turn-stamped, which AuditLog rows are not.
+// ArchiveEntry kinds that are events rather than speech; already turn-stamped, unlike AuditLog rows.
 const BEAT_KINDS = ["DEATH", "CHARACTER_CREATED", "DESIRE_FULFILLED", "LIFEWEB", "TRAVEL"];
 
-// The turn's wall-clock window, LOCK TO LOCK.
-//
-// It has to be derived, because AuditLog.turnId is NULL on most rows: the
-// column exists for the per-turn rations and is not a general "which turn was
-// this" stamp. /gm/audit derives the same way. Filtering audit rows on turnId
-// would silently return almost nothing, which reads as a quiet turn rather than
-// as the bug it is.
-//
-// Cutoff to cutoff rather than start to end, because that is when the Oracle
-// now runs. Turn N's page is written at N's Move cutoff, so it can only see as
-// far as that; the three hours after it — the late chat, the GM's own
-// adjudications, and everything the midnight push fires — belong to N+1's page,
-// which is the first one written after they happened. Windowing on startedAt
-// instead would ask each page for three hours that did not exist yet when it
-// was drafted, and no page would ever carry them.
-//
-// The floor is the last turn that was actually CHRONICLED, not simply the last
-// turn. Those differ, and using the wrong one loses days.
-//
-// A turn with a frozen clock or one shorter than the lock gets no page at all,
-// and moveCutoffAt() cannot tell you that: it is a pure function of startedAt
-// and hands back a 21:00 for every turn that has one, lock or no lock. Anchor
-// on the previous turn and a frozen Tuesday reads as covered when nothing ever
-// covered it. Anchor on the last turn that has a page and the frozen days fall
-// inside the next real page's window, which is where they belong.
-//
-// The clamp is the other half. A turn a GM opens at 23:00 ends at midnight, so
-// its derived cutoff is 21:00 — two hours BEFORE it began. Left alone that
-// pulls the floor backwards and two pages chronicle the same evening twice.
-//
-// Pure, so all of that is testable without a database.
+// The turn's wall-clock window, LOCK TO LOCK. Derived because AuditLog.turnId is NULL on most rows (it's for per-turn rations, not a general stamp — /gm/audit derives the same way); filtering on turnId would silently return almost nothing.
+// Cutoff to cutoff, not start to end: turn N's page is written at N's Move cutoff, so the three hours after it belong to N+1's page, the first one written after they happened. The floor is the last turn actually CHRONICLED, not simply the last turn — moveCutoffAt() can't tell a frozen/short turn apart, so anchoring on the last turn WITH a page keeps frozen days inside the next real page's window instead of reading as already covered.
+// The clamp: a turn opened at 23:00 ends at midnight, so its derived cutoff (21:00) is BEFORE it began — left alone that pulls the floor backwards and double-chronicles an evening. Pure, so all of this is testable without a database.
 function windowBetween(anchorTurn, turn) {
   const to = moveCutoffAt(turn) ?? new Date();
   if (!anchorTurn) return { from: turn.startedAt, to };
@@ -76,9 +32,7 @@ function windowBetween(anchorTurn, turn) {
 }
 
 async function turnWindow(prisma, turn) {
-  // The newest earlier turn that has a page. Falls through to the newest
-  // earlier turn of any kind when the Oracle has never run — enabling it
-  // mid-game should not make its first page a chronicle of the entire game.
+  // The newest earlier turn that has a page, falling through to any earlier turn when the Oracle has never run — enabling it mid-game should not make its first page a chronicle of the entire game.
   const anchor =
     (await prisma.turn.findFirst({
       where: { number: { lt: turn.number }, oraclePages: { some: {} } },
@@ -93,12 +47,7 @@ async function turnWindow(prisma, turn) {
   return windowBetween(anchor, turn);
 }
 
-// How the Oracle refers to somebody.
-//
-// ORACLE.md: real names, with the mask annotated. A GM reading this needs to
-// know both that it was Bram and that the room did not know that — writing only
-// the true name hides that a disguise was in play, and writing only the alias
-// makes a character impossible to follow across turns.
+// How the Oracle refers to somebody. ORACLE.md: real names, with the mask annotated — a GM needs to know both that it was Bram and that the room didn't know that; the true name alone hides the disguise, the alias alone makes a character impossible to follow.
 function displayName(character) {
   const tags = character.tags ?? [];
   const presented = presentedIdentity(character, {
@@ -117,9 +66,7 @@ function liveTagNames(character) {
     .map((row) => (row.quantity > 1 ? `${row.tag.name} ×${row.quantity}` : row.tag.name));
 }
 
-// One Move as one line. diceRoll and diceModifier are kept apart in the schema
-// on purpose — a GM must be able to tell a natural 5 from a modified one — so
-// they are reported apart here too rather than silently summed.
+// One Move as one line. diceRoll and diceModifier are kept apart in the schema on purpose (a GM must tell a natural 5 from a modified one), so they're reported apart here too.
 function moveLine(action, name) {
   const bits = [`${name} | ${action.moveKind ?? "MOVE"}`];
   if (action.diceRoll != null) {
@@ -135,11 +82,7 @@ function moveLine(action, name) {
   return `${bits.join(" | ")}\n  "${String(action.description ?? "").replace(/\s+/g, " ").trim()}"`;
 }
 
-// A StagedEffect's `appliedEffect` snapshot into one line, same posture as
-// db/lib/moveEffects.js#describeMoveEffects: short and deterministic rather
-// than prose, and silently skipping a key it doesn't recognise rather than
-// throwing — a shape this file hasn't been taught yet should read as nothing
-// worth reporting, not as a crash.
+// A StagedEffect's `appliedEffect` snapshot into one line, same posture as db/lib/moveEffects.js#describeMoveEffects: short and deterministic, silently skipping a key it doesn't recognise rather than throwing.
 function describeStagedEffect(snapshot) {
   const bits = [];
   if (Number.isInteger(snapshot?.resources) && snapshot.resources !== 0) {
@@ -159,32 +102,14 @@ function describeStagedEffect(snapshot) {
   return bits.join(", ");
 }
 
-// Load once, slice per zone. Six queries for the whole turn rather than six per
-// zone: the correspondents run in parallel and would otherwise stampede the
-// pool at exactly the moment turn rollover is already contending for it.
-// zoneId -> its seat zone's id, for every zone — not just the six seats.
-// Presence is finer than the seats a GM/correspondent is scoped to
-// (`db/lib/seatZone.js`): the two cave levels, `caves` and `depths`, are
-// CHILD zones of the seat `underground`, so `Character.zoneId` (and every
-// other zoneId this file reads) can legitimately read `caves` for a
-// character standing exactly where the Underground correspondent is meant to
-// see them.
-//
-// `seatZone.js`'s own comment claims every writer already stamps the seat id
-// on Action/StagedMessage rows, but the live data disagrees — most Action
-// rows carry the raw presence zoneId, only `db/lib/locationTravel.js:544`
-// actually calls `seatZoneIdFor`. So this file resolves defensively rather
-// than trust that invariant: every zoneId comparison below goes through this
-// map first. A future query that compares a raw `zoneId === zone.id` without
-// it will quietly lose the cave levels the same way this bug did.
+// Load once, slice per zone: six queries for the whole turn rather than six per zone, since the correspondents run in parallel and would stampede the pool during turn rollover. Maps zoneId -> its seat zone's id for every zone, since presence is finer than the seats a GM/correspondent is scoped to (`db/lib/seatZone.js`) — `caves`/`depths` are CHILD zones of the seat `underground`.
+// `seatZone.js` claims every writer stamps the seat id, but the live data disagrees (most Action rows carry the raw presence zoneId), so this file resolves defensively: every zoneId comparison below goes through this map first. A future raw `zoneId === zone.id` comparison will quietly lose the cave levels.
 async function loadSeatByZoneId(prisma) {
   const zones = await prisma.zone.findMany({ select: { id: true, seatZoneId: true } });
   return new Map(zones.map((z) => [z.id, z.seatZoneId ?? z.id]));
 }
 
-// `seatByZoneId` is optional so this stays safe against a caller/fixture that
-// predates it and never built one; a map really is expected once `material`
-// comes from `loadTurnMaterial`.
+// `seatByZoneId` is optional so this stays safe against a caller/fixture that never built one; a map is expected once `material` comes from `loadTurnMaterial`.
 function resolveSeat(zoneId, seatByZoneId) {
   return seatByZoneId?.get(zoneId) ?? zoneId;
 }
@@ -210,22 +135,14 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
         select: {
           quantity: true,
           equipped: true,
-          // slug is `membersByParty`'s own admission ticket (db/lib/objectives.js)
-          // — it's how a character is recognised as sitting a threat seat at
-          // all, for the Threats correspondent below.
+          // slug is `membersByParty`'s own admission ticket (db/lib/objectives.js) — how a character is recognised as sitting a threat seat, for the Threats correspondent below.
           tag: { select: { ...CONCEALMENT_TAG_FIELDS, category: true, slug: true } },
         },
       },
     },
   });
 
-  // Who sits a threat seat right now, and which party they answer for — the
-  // same helper the end-of-game reveal uses (db/lib/objectives.js), so the
-  // Threats page can never disagree with `/gm/dev?s=antagonists` about who is
-  // seated. Objectives are read only for a party that actually has someone
-  // seated: an unseated party "never existed in play" (buildAntagonistReveal's
-  // own rule) and printing its prep here would be the same thing this file
-  // exists to avoid — showing a GM game state nobody is currently acting on.
+  // Who sits a threat seat and which party they answer for — the same helper the end-of-game reveal uses (db/lib/objectives.js), so this page can never disagree with `/gm/dev?s=antagonists`. Objectives are read only for a party with someone seated: an unseated party "never existed in play" (buildAntagonistReveal's rule).
   const threatMembers = membersByParty(characters);
   const objectivesByParty = new Map(
     await Promise.all(
@@ -237,17 +154,7 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
   );
 
   const [actions, auditRows, beats, chat, stagedMessages, stagedEffects, spawns, rites] = await Promise.all([
-    // Moves go by the WINDOW too, not by turnId, and for a reason that only
-    // shows up once the run moved to the cutoff: the auto-labor pass files a
-    // Move for everybody who filed none, and it does that at the PUSH — three
-    // hours after this turn's page is written (db/lib/autoLaborPass.js, a
-    // TURN_PASS). Stamped turnId N, created after N's page exists. On the FK
-    // they would appear in no page ever, and in a hundred-player game they are
-    // most of the Moves there are. The window catches them in N+1, beside the
-    // audit lines that say what they paid.
-    //
-    // A player's own Move is unaffected: it can only be filed before the lock,
-    // so it lands in its own turn's window either way.
+    // Moves go by the WINDOW, not turnId: the auto-labor pass files a Move for everybody who filed none, at the PUSH — three hours after N's page is written (db/lib/autoLaborPass.js). Stamped turnId N but created after N's page exists, so on the FK it would appear in no page ever. The window catches it in N+1. A player's own Move is unaffected — filed before the lock, so it lands in its own window either way.
     prisma.action.findMany({
       where: { createdAt: { gte: window.from, lt: window.to } },
       select: {
@@ -274,16 +181,8 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
         details: true,
       },
     }),
-    // Beats and chat go by the WINDOW, not by turnNumber, and the difference
-    // matters now that the run happens at the cutoff. An entry stamped
-    // turnNumber N but sent after N's lock does not exist yet when N's page is
-    // written, and a page keyed on turnNumber N+1 would never look for it —
-    // so the last three hours of every day would fall out of the record
-    // entirely. The window is the authority; the stamp is not.
-    //
-    // sentAt rather than createdAt: the table carries both, and every index is
-    // on sentAt. createdAt has none, so filtering on it would put a sequential
-    // scan of the whole transcript on this path once a turn.
+    // Beats and chat go by the WINDOW, not turnNumber: an entry stamped N but sent after N's lock doesn't exist yet when N's page is written, and a page keyed on N+1 would never look for it. The window is the authority; the stamp is not.
+    // sentAt, not createdAt: every index is on sentAt, so filtering on createdAt would put a sequential scan of the whole transcript on this path once a turn.
     prisma.archiveEntry.findMany({
       where: { sentAt: { gte: window.from, lt: window.to }, kind: { in: BEAT_KINDS } },
       orderBy: { sentAt: "asc" },
@@ -296,21 +195,8 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
           select: { zoneId: true, characterName: true, concealedAlias: true, content: true },
         })
       : Promise.resolve([]),
-    // A GM's own turn narration — the tray a GM fills during adjudication,
-    // ADJUDICATION.md §1 — SENT by the window's push, same reasoning as the
-    // Move comment above: a message staged during N's three-hour window and
-    // sent at N's push is created after N's page exists, so it belongs to
-    // N+1's window and this is where it is caught. Read by sentAt, the same
-    // column stagedPush.js stamps once delivery is actually attempted, so a
-    // row still sitting in the tray (nothing pushed yet) is correctly
-    // invisible — the Oracle reports what happened, not what a GM is drafting.
-    //
-    // PUBLIC and PRIVATE are both read: a PRIVATE row went out as a DM, never
-    // through the room's own channel, so it never became a chat line or an
-    // ArchiveEntry at all — the Oracle had no other way to learn a landmine
-    // took someone's leg off if the only trace of it was a DM. This is a GM
-    // tool query, not a player-facing feed, so the privacy argument that keeps
-    // a PRIVATE staged message off chat and the archive does not apply here.
+    // A GM's own turn narration (ADJUDICATION.md §1), same reasoning as the Move comment above: staged during N's window, sent at N's push, so it belongs to N+1's window. Read by sentAt, same column stagedPush.js stamps on delivery, so an undelivered row is correctly invisible.
+    // PUBLIC and PRIVATE are both read: a PRIVATE row went out as a DM with no other trace, and this is a GM tool query, not a player-facing feed, so the privacy argument that keeps it off chat/archive doesn't apply here.
     prisma.stagedMessage.findMany({
       where: { sentAt: { gte: window.from, lt: window.to } },
       select: {
@@ -320,13 +206,7 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
         recipients: { select: { character: { select: { id: true, zoneId: true } } } },
       },
     }),
-    // The mechanical half of the same tray — a resource burn, a tag grant,
-    // a staged relocation (StagedEffect, ADJUDICATION.md §1). `appliedAt` is
-    // this row's own delivery stamp, so the window logic is identical to the
-    // narration query above. `targetCharacterId` is nullable only for a
-    // Room -> Room transfer (schema comment on the column), which has no zone
-    // of its own to land in and is dropped by describeStagedEffect below
-    // finding no character to place it against.
+    // The mechanical half of the same tray (StagedEffect, ADJUDICATION.md §1); `appliedAt` is the delivery stamp, same window logic as the narration query. `targetCharacterId` is nullable only for a Room -> Room transfer, dropped here for having no character to place it against.
     prisma.stagedEffect.findMany({
       where: { appliedAt: { gte: window.from, lt: window.to } },
       select: {
@@ -335,11 +215,7 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
         targetCharacter: { select: { zoneId: true, name: true } },
       },
     }),
-    // The one lifecycle table with no audit row of its own (db/lib/threatSpawn.js
-    // stamps status/resolvedAt and nothing else) — createdAt catches an offer
-    // made this window, resolvedAt catches one accepted, declined or cancelled
-    // in it. A spawn can appear twice across two windows (offered in one,
-    // resolved in the next) which is correct: each half is its own event.
+    // The one lifecycle table with no audit row of its own — createdAt catches an offer made this window, resolvedAt catches one resolved in it. A spawn can appear twice across two windows, correctly, since each half is its own event.
     prisma.threatSpawn.findMany({
       where: {
         OR: [
@@ -383,12 +259,7 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
   };
 }
 
-// The audit rows one zone's page is built from.
-//
-// An audit row carries no zone, so it is placed by its ACTOR's current
-// position. That is approximate — somebody can act in Town and walk to the
-// Fortress before the turn closes — and it is the right approximation: the
-// alternative is a row appearing in no zone's input at all.
+// The audit rows one zone's page is built from. An audit row carries no zone, so it's placed by its ACTOR's current position — approximate (somebody could act in Town then walk to the Fortress), but the alternative is a row appearing in no zone's input at all.
 function auditRowsForZone(material, zone) {
   const here = material.characters.filter((c) => resolveSeat(c.zoneId, material.seatByZoneId) === zone.id);
   const hereIds = new Set(here.map((c) => c.id));
@@ -398,18 +269,8 @@ function auditRowsForZone(material, zone) {
   });
 }
 
-// Which once-a-turn lines each zone must NOT report — the map runOracle hands
-// to the six calls, one Set each.
-//
-// "Hunger was charged" is true of the whole game, not of a zone, so exactly one
-// page says it. That used to be a single mutable Set threaded through six calls
-// made in order, which only works while the calls ARE in order; the six run at
-// once now, so the claim is settled here first, before any of them start.
-//
-// Same answer as the sequential version gave: zones are walked in the order
-// runOracle has them, and the first one holding a row of that type claims it.
-// A zone with no such row claims nothing, so a line never lands on a page whose
-// own rows never mentioned it.
+// Which once-a-turn lines each zone must NOT report — the map runOracle hands to the six calls, one Set each. "Hunger was charged" is true of the whole game, not a zone, so exactly one page says it: the claim is settled here, up front, since the six correspondents run at once and cannot thread a mutable Set between them.
+// Zones are walked in the order runOracle has them, and the first one holding a row of that type claims it; a zone with no such row claims nothing.
 function aggregatesSeenByZone(material, zones) {
   const seenByZone = new Map();
   const taken = new Set();
@@ -426,9 +287,7 @@ function aggregatesSeenByZone(material, zones) {
   return seenByZone;
 }
 
-// The user message for one zone. `aggregatesSeen` is the once-a-turn lines some
-// other zone has already claimed (see above), so "hunger was charged" lands in
-// one zone's input rather than all six.
+// The user message for one zone. `aggregatesSeen` is the once-a-turn lines another zone has already claimed (see above), so "hunger was charged" lands in one zone's input rather than all six.
 function zoneBlock(material, zone, { aggregatesSeen, memory = [] }) {
   const here = material.characters.filter((c) => resolveSeat(c.zoneId, material.seatByZoneId) === zone.id);
   const hereIds = new Set(here.map((c) => c.id));
@@ -456,13 +315,7 @@ function zoneBlock(material, zone, { aggregatesSeen, memory = [] }) {
     .filter((b) => resolveSeat(b.zoneId, material.seatByZoneId) === zone.id)
     .map((b) => `${b.kind} | ${b.content}`);
 
-  // A GM's own turn narration and its mechanical effects (StagedMessage/
-  // StagedEffect, loaded in the window above). A PUBLIC message lands by its
-  // own zoneId; a PRIVATE one — a DM with no room trace at all — lands by
-  // wherever its recipient(s) are NOW, the same live-position approximation
-  // auditRowsForZone above already makes for an audit row with no zone of its
-  // own. One line per message even with several recipients here, since it is
-  // one thing that was said, not one per reader.
+  // A GM's own turn narration and its mechanical effects. A PUBLIC message lands by its own zoneId; a PRIVATE one (a DM with no room trace) lands by wherever its recipient(s) are NOW, the same live-position approximation auditRowsForZone makes. One line per message even with several recipients.
   const staged = [
     ...(material.stagedMessages ?? [])
       .filter(
@@ -499,11 +352,7 @@ function zoneBlock(material, zone, { aggregatesSeen, memory = [] }) {
   };
 }
 
-// Lifecycle actionTypes that describe the GM's OWN bookkeeping about a threat
-// seat, rather than something a seat-holder did in the fiction — a GM offering
-// a spawn, pinning an objective. auditRowsForZone would never surface these
-// anyway (none carries a locationId), so pulling them here by actionType alone
-// is safe: they cannot double up on a zone page.
+// Lifecycle actionTypes describing the GM's OWN bookkeeping about a threat seat (offering a spawn, pinning an objective), rather than a seat-holder's fiction. auditRowsForZone never surfaces these (no locationId), so pulling them here by actionType alone is safe.
 const THREAT_LIFECYCLE_TYPES = new Set([
   "threat_assigned",
   "threat_spawn_offered",
@@ -516,13 +365,7 @@ const THREAT_LIFECYCLE_TYPES = new Set([
 
 const SPAWN_VERB = { PENDING: "offered", ACCEPTED: "accepted", DECLINED: "declined", CANCELLED: "cancelled" };
 
-// The Threats correspondent's page. Shaped exactly like a zone's — PRESENT,
-// MOVES, EVENTS, STAGED — because it is read into the front page's zone list
-// the same way (ORACLE.md), just scoped to seat-holders instead of a place.
-// There is no real Zone row behind it, so `resolveSeat` never enters here:
-// membership comes from `db/lib/objectives.js#membersByParty`, the same
-// helper the end-of-game reveal uses, so this page can never disagree with
-// /gm/dev?s=antagonists about who is seated.
+// The Threats correspondent's page. Shaped like a zone's (PRESENT, MOVES, EVENTS, STAGED) since it's read into the front page's zone list the same way (ORACLE.md), scoped to seat-holders instead of a place. No real Zone row, so `resolveSeat` never enters — membership comes from `db/lib/objectives.js#membersByParty`.
 function threatsBlock(material, { aggregatesSeen, memory = [] }) {
   const seatById = new Map();
   for (const [partyKey, members] of material.threatMembers ?? []) {
@@ -545,9 +388,7 @@ function threatsBlock(material, { aggregatesSeen, memory = [] }) {
     .filter((action) => hereIds.has(action.characterId))
     .map((action) => moveLine(action, material.names.byCharacterId.get(action.characterId) ?? "somebody"));
 
-  // A seat-holder's own actions (from the general audit log, the same rows
-  // zoneBlock draws on) plus the GM's bookkeeping about the seats themselves —
-  // two different questions, both worth this page.
+  // A seat-holder's own actions (the same rows zoneBlock draws on) plus the GM's bookkeeping about the seats — two different questions, both worth this page.
   const ownRows = material.auditRows.filter((row) => {
     const actor = here.find((c) => c.discordUserId === row.actorDiscordUserId);
     return Boolean(actor) || (row.targetCharacterId && hereIds.has(row.targetCharacterId));
@@ -562,10 +403,7 @@ function threatsBlock(material, { aggregatesSeen, memory = [] }) {
 
   const riteLines = (material.rites ?? []).map((r) => `rite | ${r.riteKey} | ${r.roomName} | ${r.status}`);
 
-  // Current score, not a diff — Objective has no completion timestamp to
-  // window on (schema comment on the model), so this reads as a snapshot every
-  // turn and leans on the model's own three-turn memory to notice a change,
-  // the same way a zone correspondent notices somebody circling the gatehouse.
+  // Current score, not a diff — Objective has no completion timestamp to window on, so this is a snapshot every turn, leaning on the model's own three-turn memory to notice a change.
   const objectiveLines = [...(material.objectivesByParty ?? new Map())].flatMap(([partyKey, rows]) =>
     rows.map((row) => {
       const state = row.pinned === true ? "success" : row.pinned === false ? "failed" : "undecided";
@@ -605,26 +443,14 @@ function threatsBlock(material, { aggregatesSeen, memory = [] }) {
   };
 }
 
-// The model writes {char:Ada Vance}. Stored text uses the canonical mention
-// grammar, {char:<id>|<Name>} (db/lib/characterMentions.js), so this rewrites
-// one into the other against the turn's roster before the page is saved.
-//
-// Resolving at WRITE time rather than at render time is what makes an invented
-// name harmless: a name no character answers to loses its braces and becomes
-// ordinary prose. A model that hallucinates a person therefore produces a
-// sentence about a stranger, never a live link to one — and never a link to the
-// WRONG one, which is what matching loosely at render time would eventually do.
-//
-// Note the two regexes cannot collide: characterMentions.js's TOKEN_RE matches
-// [A-Za-z0-9_-] only, so a name with a space in it is invisible to the existing
-// mention machinery right up until this function has finished with it.
+// The model writes {char:Ada Vance}. Stored text uses the canonical mention grammar, {char:<id>|<Name>} (db/lib/characterMentions.js), so this rewrites one into the other against the turn's roster before the page is saved.
+// Resolving at WRITE time is what makes an invented name harmless: a name nobody answers to loses its braces and becomes ordinary prose, never a live link to the wrong character. The two regexes cannot collide: characterMentions.js's TOKEN_RE matches [A-Za-z0-9_-] only, so a name with a space is invisible to it until this function finishes.
 const NAME_TOKEN_RE = /\{char:([^{}|\n]{1,80})\}/g;
 
 function linkCharacterTokens(text, characters) {
   if (!text) return "";
 
-  // Both the bare name and the annotated form the Oracle is told to write, so
-  // `{char:Bram Holt}` resolves whether or not the model appended the mask.
+  // Both the bare name and the annotated form the Oracle is told to write, so `{char:Bram Holt}` resolves either way.
   const byName = new Map();
   for (const character of characters) {
     if (character.name) byName.set(character.name.toLowerCase(), character.id);
@@ -632,19 +458,10 @@ function linkCharacterTokens(text, characters) {
 
   return String(text).replace(NAME_TOKEN_RE, (raw, inner) => {
     const name = inner.trim();
-    // The roster is asked FIRST, and the order is the whole point. A MONONYM —
-    // Adeliz, Grendel, Weasel — is a real character name that also looks
-    // exactly like a cuid to a shape test: letters, no spaces. Checking the
-    // id-shape first therefore mistook every single-word name for an id
-    // already resolved and handed it back untouched, so `{char:Adeliz}` was
-    // stored as a token pointing at nobody, and the one name in the sentence a
-    // GM most wants to click was the one that could never be clicked.
+    // The roster is asked FIRST, and the order is the whole point: a MONONYM (Adeliz, Grendel, Weasel) looks exactly like a cuid to a shape test, so checking id-shape first would mistake every single-word name for an already-resolved id and hand it back unlinked.
     const id = byName.get(name.toLowerCase());
     if (id) return `{char:${id}|${name}}`;
-    // Nobody answers to it. Either it is already a canonical id, which is left
-    // exactly as it is, or the model invented a person — and an invented name
-    // loses its braces and becomes ordinary prose rather than a live link to
-    // the wrong character (ORACLE.md §5).
+    // Nobody answers to it: either it's already a canonical id (left as-is), or the model invented a person, and an invented name loses its braces rather than becoming a live link to the wrong character (ORACLE.md §5).
     if (/^[A-Za-z0-9_-]{1,64}$/.test(name)) return raw;
     return name;
   });

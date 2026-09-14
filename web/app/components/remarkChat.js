@@ -3,39 +3,14 @@
 // no bundler and no build step.
 import wrapRuns from "./chatRuns.js";
 
-// The two things a chat line does that a document never does, as one remark
-// plugin. It runs alongside remark-gfm, remarkTokens and remarkDiscord in
-// ChatMarkdown.js, so all of it lands in the same tree react-markdown renders
-// from — which is what lets a spoiler sit inside a quote, or a mention inside a
-// spoiler, without any of the three knowing about the others.
-//
-//   ||like this||   a spoiler, hidden until it is clicked
-//   "like this"     quoted speech, tinted with --speech
-//
-// `-#` subtext used to live here too. It moved to remarkSubtext.js, because it
-// is Discord's syntax rather than ours and every surface needs it — a DM was
-// showing players a literal "-#".
-//
-// Why speech is worth tinting at all: a Chat row is a paragraph of mixed
-// narration and dialogue, and in a wall of them the words somebody actually
-// SAID are the ones a reader is scanning for. Discord solves this by giving
-// everybody a coloured name and nothing else; the tint does it inside the
-// line.
-//
-// BOTH PASSES SCAN SIBLINGS, not one text node — chatRuns.js says why, and it
-// is the difference between `he said "*get out*"` being tinted and not. Until
-// that existed, a quote or a spoiler holding any emphasis, bold, strikethrough,
-// code span, link or mention was silently skipped, which is most of them.
+// The two things a chat line does that a document never does, as one remark plugin alongside remark-gfm,
+// remarkTokens and remarkDiscord in ChatMarkdown.js — `||like this||` a spoiler, `"like this"` quoted speech
+// (tinted with --speech, since the words somebody SAID are what a reader scans a wall of narration for).
+// BOTH PASSES SCAN SIBLINGS, not one text node — chatRuns.js says why (so `he said "*get out*"` still tints).
 
-// Not greedy, no newlines, and capped: an unmatched quote at the top of a long
-// message must not swallow the rest of it looking for a partner. Both curly and
-// straight marks, because a phone keyboard produces the curly pair without
-// asking — and `“` may only open while `”` may only close, which is what a
-// phone gives you anyway.
-//
-// `openTight` is the rule that a quote opens on a real character: `he said " `
-// mid-sentence is punctuation, not the start of speech. There is deliberately
-// no matching rule on the closing mark.
+// Not greedy, no newlines, capped: an unmatched quote must not swallow the rest of a long message looking for a
+// partner. Both curly and straight marks (phone keyboards produce the curly pair without asking).
+// `openTight`: a quote opens on a real character, since `he said " ` mid-sentence is punctuation, not speech.
 const SPEECH = {
   open: /["“]/,
   close: /["”]/,
@@ -64,8 +39,7 @@ function element(hName, className, children) {
 
 export default function remarkChat() {
   return (tree) => {
-    // Spoilers before speech, so a quote inside a hidden line is still a quote
-    // once it is revealed.
+    // Spoilers before speech, so a quote inside a hidden line is still a quote once revealed.
     wrapRuns(tree, SPOILER);
     wrapRuns(tree, SPEECH);
   };

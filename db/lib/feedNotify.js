@@ -1,45 +1,24 @@
-// The pub/sub half of the live feed: one Postgres NOTIFY per archived row.
-//
-// Postgres is the only thing the bot and the web app share, so it is also the
-// message bus. A row is written, then its seq and place key go out on
-// `bascinet_feed`; the web's SSE hub (web/lib/feedHub.js) fans it out to the
-// browsers watching that place, and the bot's outbox (bot/src/lib/feedOutbox.js)
-// picks up the WEB rows it has to post on to Discord.
-//
-// The payload is deliberately tiny — just enough to find the row again. NOTIFY
-// has an 8000-byte ceiling and a listener that trusted the payload's contents
-// would be reading data it never re-authorised.
-//
-// Best-effort like every other write in archive.js: a failed notify costs a
-// browser its instant update, and the client's next reconnect catches up from
-// its cursor anyway. It is never worth throwing a player's message away over.
+// The pub/sub half of the live feed: one Postgres NOTIFY per archived row, on `bascinet_feed`. The
+// web's SSE hub (web/lib/feedHub.js) fans it out; the bot's outbox (bot/src/lib/feedOutbox.js) picks
+// up WEB rows to post to Discord. Payload is deliberately tiny — NOTIFY has an 8000-byte ceiling and a
+// listener re-checks who may see the row rather than trusting the payload. Best-effort: a failed
+// notify costs a browser its instant update; the next reconnect catches up from its cursor.
 
 const FEED_CHANNEL = "bascinet_feed";
 
-// `op` says what happened to the row: "new" (default), "edit" or "delete".
-// A listener still loads the row and re-checks who may see it — the op only
-// tells it which of the three things to do, never what the row says.
-//
-// `clientId` is the one thing on this payload that is not about finding the
-// row: it is the token the web composer stamped on its optimistic copy. The
-// stream is usually QUICKER than the send's own answer, so without it the tab
-// that spoke meets its own message as a stranger — a second row, a second
-// React key, a second avatar request — until the POST comes back. It is a
-// browser-supplied string carried straight back to that browser, so nothing
-// downstream is allowed to trust it for anything but matching.
+// `op`: "new" (default), "edit" or "delete" — the listener still loads and re-checks who may see it.
+// `clientId` is the composer's optimistic-copy token: the stream is usually quicker than the send's
+// own answer, so without it the sending tab would meet its own message as a stranger (second row,
+// second React key) until the POST returns. Browser-supplied, trusted only for matching.
 async function notifyFeed(prisma, { seq, placeKey, op = "new", clientId = null } = {}) {
   if (seq === null || seq === undefined || !placeKey) return false;
   try {
-    // seq is a BigInt off the row; JSON.stringify cannot serialise one, so it
-    // goes over the wire as a string and every reader parses it back with
-    // BigInt(), never Number() — past 2^53 a Number cursor silently stops
-    // moving.
+    // seq is a BigInt; goes over the wire as a string, parsed back with BigInt(), never Number().
     const payload = JSON.stringify({
       seq: String(seq),
       placeKey,
       op,
-      // Clamped: the payload has an 8000-byte ceiling and this half of it
-      // came off a request body.
+      // Clamped: this half of the payload came off a request body.
       ...(typeof clientId === "string" && clientId ? { clientId: clientId.slice(0, 64) } : {}),
     });
     await prisma.$executeRaw`SELECT pg_notify(${FEED_CHANNEL}, ${payload})`;

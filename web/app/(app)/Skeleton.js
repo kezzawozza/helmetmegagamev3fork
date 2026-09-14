@@ -1,12 +1,7 @@
 import PageShell from "@/app/components/PageShell";
 
-// The generic body skeleton, for a page in this group with no shaped one of
-// its own. It deliberately renders no title: unlike every other skeleton here
-// it cannot know whose page it is standing in for.
-//
-// It is NOT a loading.js any more — see the note in PageShell.js#SkeletonPage.
-// Nothing in this app has a route-level loading.js now; a skeleton is only
-// ever a Suspense fallback INSIDE a page, for the snapshot swap.
+// The generic body skeleton for a page with no shaped one of its own. Renders no title — it can't know whose page
+// it stands in for. Not a route-level loading.js (see PageShell.js#SkeletonPage): only a Suspense fallback inside a page.
 export default function Loading() {
   return (
     <PageShell>

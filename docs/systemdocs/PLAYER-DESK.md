@@ -4,24 +4,12 @@
 Companion to [`ADJUDICATION.md`](ADJUDICATION.md) (its sibling desk) and
 [`DEV-PANEL.md`](DEV-PANEL.md) (where a GM actually edits a sheet).
 
-## 1. What it replaced, and why
+## 1. The structural fix
 
-Two screens, both weak in the same direction.
-
-**`/gm/messages`** was a support-grade inbox inside `PageShell width="wide"`,
-so it spent most of a desktop on gutters. Worse, its conversation list was
-built from a `groupBy` over `DirectMessage` filtered to rows that *had* a
-message — so it could only ever list players who had **already written**.
-There was no way to start a conversation. The thread route worked fine for a
-character with no history; nothing linked to it.
-
-**`/gm/players`** was a nine-column table with two bulk verbs and a recursive
-faction table beside it. It could not answer "who still hasn't moved this
-turn", which is the question that comes up most in the back half of a turn.
-
-They are one desk now. The rail is the **union** of "everyone with a
-conversation" and "everyone with a character", which is what makes a first
-message possible at all — that is the structural fix, not a new button.
+This desk merges the roster and the message inbox into one screen. The rail
+is the **union** of "everyone with a conversation" and "everyone with a
+character" (§4), which is what makes starting a first conversation possible
+at all.
 
 ## 2. The shell
 
@@ -600,11 +588,9 @@ value *is* that store, read through `useSyncExternalStore` — picks it up.
 
 ## 7. GM notes (removed)
 
-The GM-notes tab (`NotesTab.js`, and the `listGmNotes`/`addGmNote`/
-`deleteGmNote` actions) was removed from the desk on 2026-08-31. The
-`GmCharacterNote` table still exists in the schema — nothing reads or writes
-it any more — and stays orphaned on purpose. Dropping the table is a later,
-deliberate migration, not a side effect of this removal.
+There is no GM-notes tab. `GmCharacterNote` still exists in the schema —
+nothing reads or writes it — and stays orphaned on purpose; dropping it is a
+separate, deliberate migration.
 
 ## 8. Getting between the desks
 

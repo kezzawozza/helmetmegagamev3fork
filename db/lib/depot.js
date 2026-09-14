@@ -1,63 +1,36 @@
-// The Merchant's Depot: the shared constants and pure helpers behind
-// /depot and the three DEPOT_* request kinds. See docs/systemdocs/DEPOT.md.
-//
-// This lives in db/lib rather than web/lib because the numbers are game
-// balance, not page logic — the same reason production.js is here. Nothing in it touches Prisma or the network, so it is safe on the
-// barrel and safe to import from either face.
+// The Merchant's Depot: shared constants and pure helpers behind /depot and the three DEPOT_* request
+// kinds (docs/systemdocs/DEPOT.md). Lives in db/lib because the numbers are game balance, not page
+// logic. Touches no Prisma/network, so it's safe on the barrel and safe from either face.
 
-// The tag that opens the counter. Holding it is the whole permission model:
-// the /depot route gate, the server-action re-check, and (in fiction) the
-// reason the Depot's mini-turret does not shoot you. It is tradeable, so the
-// Merchant handing it away really does hand away the Depot.
+// The tag that opens the counter — the /depot route gate, the server-action re-check, and the reason
+// the Depot's turret doesn't shoot you. Tradeable, so handing it away hands away the Depot.
 const MERCHANT_LICENSE_SLUG = "merchants-license";
 
-// The Merchant's ROLE, which is a different thing from the licence above: the
-// licence is a tradeable tag and this is the seat somebody rolled. Only one
-// thing reads it — creating a character on this role tells the Depot's turret
-// whose face to spare, so the Merchant is not left with a gun he cannot arm.
-// A slug predicate rather than a schema flag, the same shape as
-// db/lib/dynasty.js, because it is one role and not a property of roles.
+// The Merchant's ROLE (a seat, not the tradeable licence above). A slug predicate, same shape as
+// db/lib/dynasty.js, since it's one role, not a role property. Tells the Depot's turret whose face to spare.
 const MERCHANT_ROLE_SLUG = "merchant";
 
 function isMerchantRole(slug) {
   return slug === MERCHANT_ROLE_SLUG;
 }
 
-// Where the shuttle is parked. Buying and selling both require standing here,
-// the same way the Lifeweb requires the Fortress — you cannot trade with a
-// craft you are not next to.
-//
-// A LOCATION slug from docs/zones.yaml, not a zone one. The gate used to be
-// the whole Caverns zone, which meant trading from anywhere underground.
-// Standing there is now literal — and the place is the Depot, which is a
-// Location of its own again, one plain hop east of the sentry post at
-// Customs. That hop is authored in `connections:`; without it this constant
-// would name a shop nobody who cleared customs could reach.
+// Where the shuttle is parked — a LOCATION slug (docs/zones.yaml), one hop east of Customs via
+// `connections:`. Buying/selling both require standing here, same as the Lifeweb requiring the Fortress.
 const DEPOT_LOCATION_SLUG = "depot";
 
-// Resources across the shuttle, and the reason the Merchant's own ⬢ counter
-// is gone. The station imports ⬢ at RESOURCE_IMPORT_PRICE and pays
-// RESOURCE_EXPORT_PRICE for them coming back, so the round trip loses money
-// in both directions. That asymmetry is the point: a marginless counter made
-// ⬢ and obols the same thing wearing two hats, and importing food was free.
-// It also means the spread can never be run in a loop to print obols, which
-// is the same invariant db/lib/syncTags.js enforces for every priced tag.
+// The station imports ⬢ at RESOURCE_IMPORT_PRICE and pays RESOURCE_EXPORT_PRICE for them back, so the
+// round trip always loses money — the spread can never be run in a loop to print obols (db/lib/syncTags.js
+// enforces the same invariant for every priced tag).
 const RESOURCE_IMPORT_PRICE = 2;
 const RESOURCE_EXPORT_PRICE = 1;
 
-// The id the ⬢ row carries on the Order and Price List tables. Resources are
-// not a Tag, so there is nothing to key a row on — this sentinel stands in,
-// and the order action splits it out before it ever reaches a Tag lookup. It
-// can never collide with a cuid.
+// Sentinel id the ⬢ row carries on Order/Price List tables — Resources aren't a Tag. Never collides with a cuid.
 const RESOURCE_WARE_ID = "resources";
 
-// One sanity bound on a single line item, so a fat-fingered quantity cannot
-// file a request for ten thousand vials. Well above any real purchase.
+// Sanity bound on a single line item — a fat-fingered quantity can't file for ten thousand vials.
 const DEPOT_MAX_QUANTITY = 99;
 
-// Coerce a client-supplied quantity to a whole number inside the allowed
-// range. Returns null for anything that is not a usable count, so callers can
-// reject rather than silently trade 1 of something the player asked 0 of.
+// Coerce a client-supplied quantity into range; null for anything unusable, so callers reject rather than trade 1.
 function normalizeQuantity(raw) {
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 1 || n > DEPOT_MAX_QUANTITY) return null;

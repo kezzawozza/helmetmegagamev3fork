@@ -342,13 +342,10 @@ it changed** — `patch`, built by `web/lib/deskRows.js#deskPatchFor` and folded
 into the same store. So a Solve marks the row Solved because the Solve
 happened, not because a page refetch came back afterwards and said so.
 
-That distinction is the whole point. The desk used to write, call
-`router.refresh()`, and hope: when the refresh didn't run — the deploy-stale
-gate had latched (`useDeskVersion.js`), or the answer raced something else —
-the write had landed in the database and the screen never moved. A GM pressed
-Solve, saw Solve still offered, and pressed it again. Nothing on the desk waits
-on a refetch any more. The 120-second poll is a correctness backstop, not the
-way anybody's work appears.
+That distinction is the whole point: nothing on the desk waits on a refetch —
+if it did, a GM could press Solve, see Solve still offered because the
+refresh hadn't landed, and press it again. The 120-second poll is a
+correctness backstop, not the way anybody's work appears.
 
 **The reconciliation rule.** Every row carries `asOfMs`, the database's own
 clock at the moment it was read (`web/lib/pgClock.js` — never the web
@@ -696,7 +693,7 @@ two parties to move ⬢ between. The tray kept a hand-rolled copy of this row
 for a while, which is exactly the drift the shared component exists to stop:
 `+ Room` was added once, here, and all three surfaces got it — `+ Death`
 joined the same way. And **one Preview push**, on the tray beside the rows it
-previews; the desk header used to carry a second.
+previews.
 
 The **Result box on both desks is a draft, not component state**
 (`web/app/(desk)/gm/turns/deskDraft.js`) — the Move desk's Result and Kind
@@ -705,15 +702,12 @@ together, the Caving desk's Result, each keyed by row and mirrored to
 source of truth and storage is a best-effort mirror, never the other way
 round. A draft **wins over the saved row** while it exists, counts as dirty
 (so the poll stands down and closing asks first), and is cleared by the save,
-solve, reject or resolve that puts it on the row. Before this, those two
-boxes were the only editors on either desk in no storage tier at all: anything
-that replaced the column took the narration with it.
-With nothing selected **Escape does nothing**. It used to navigate to
-`/gm/players`, which made the desk read as a mode you were trapped in rather
-than a page — one stray keystroke and the whole workspace was gone. The rail
-is how you leave. The tray also
-grew a search box, an All/Effects/Messages/Public filter, and an Expand
-toggle for combing through a big push (`StagingTray.js`).
+solve, reject or resolve that puts it on the row.
+
+With nothing selected **Escape does nothing** — it does not navigate away.
+The rail is how you leave. The tray also carries a search box, an
+All/Effects/Messages/Public filter, and an Expand toggle for combing through
+a big push (`StagingTray.js`).
 
 ## 4. The push, from this page's side
 

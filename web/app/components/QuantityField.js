@@ -1,26 +1,12 @@
 "use client";
 
-// The one quantity control in the app: − / number / +, with the clamp in a
-// single place. Before this there were nine hand-rolled <input type="number">
-// doing the same job, and they had already drifted — CraftDialog offered 99 of
-// anything while Destroy/Transfer/Loot clamped to the held count, and widths
-// ran 4rem / 7rem / 10rem depending on which one you landed on.
-//
-// `value` is a STRING draft, not a number, so an empty box doesn't snap back
-// to the minimum mid-edit. Every caller already worked that way; this just
-// keeps it honest. onChange is handed a string too.
-//
-// Two shapes:
-//   - default: wrapped in a .field with its own label, for dialogs.
-//   - inline:  bare, for a row in a list or table. Pass `ariaLabel`.
-//
-// `allowBlank` lets an empty box mean something — the adjudication composer's
-// remove box reads blank as "the whole holding" — in which case the steppers
-// treat blank as `blankValue` and clearing the box is a real choice.
-//
-// `onCommit` is for a caller that must not act on every keystroke: it fires on
-// blur, and straight after a − / + press (which is already a finished
-// gesture). Typing "12" one digit at a time would otherwise commit a 1 first.
+// The one quantity control in the app: − / number / +, with the clamp in a single place.
+// `value` is a STRING draft, not a number, so an empty box doesn't snap back to the minimum
+// mid-edit; onChange is handed a string too. Two shapes: default (wrapped in a .field with
+// its own label) and inline (bare, pass `ariaLabel`). `allowBlank` lets an empty box mean
+// something — e.g. the adjudication composer's remove box reads blank as "the whole holding" —
+// steppers then treat blank as `blankValue`. `onCommit` fires on blur and after a −/+ press
+// (a finished gesture), not on every keystroke — typing "12" would otherwise commit a 1 first.
 
 // Parse a draft to a number, or null when it isn't one. Exported so a caller
 // can read the same value the buttons act on rather than re-deriving it.

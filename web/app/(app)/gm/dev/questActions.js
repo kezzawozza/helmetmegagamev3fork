@@ -1,15 +1,9 @@
 "use server";
 
 // The Quests panel's verbs, behind /gm/dev?s=quests (docs/systemdocs/QUESTS.md).
-//
-// The work itself is db/lib/quests.js, because the bot files Interacts against
-// the same rows and a quest closed from the web and a quest expired by the
-// nightly sweep must go the same way. What is here is the gate, the GmZoneView
-// scope and the audit row — the things a server action owes, and a server
-// action only.
-//
-// Every one of them re-checks what the UI already checked. A server action is
-// a public endpoint, and a hidden button is a hint, not a lock.
+// The work itself is db/lib/quests.js, shared with the bot's Interact handler; what is
+// here is the gate, the GmZoneView scope and the audit row. Every one of them re-checks
+// what the UI already checked. A server action is a public endpoint, and a hidden button is a hint, not a lock.
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
@@ -20,10 +14,8 @@ function repaint() {
   revalidatePath("/gm/dev");
 }
 
-// The same GmZoneView scope every desk applies, and the same one
-// sendAmbientLine applies: a GM cannot stage, edit or close a quest in a zone
-// they are not watching. No rows means every zone, so nobody is locked out by
-// never having chosen.
+// The same GmZoneView scope every desk applies: a GM cannot stage, edit or close a quest
+// in a zone they are not watching. No rows means every zone.
 async function inScope(session, locationId) {
   const allowed = await visibleZoneIds(prisma, session.discordUserId);
   if (!allowed) return { ok: true };
@@ -125,10 +117,8 @@ export async function updateQuestAction(input) {
   return { ok: true };
 }
 
-// Closing is the ordinary end of a quest, so it is a GM verb rather than a
-// superadmin one — the same tier that staged it. It is not destructive in the
-// sense /gm/dev reserves that word for: the record survives, and only the
-// thread and the Room go.
+// Closing is the ordinary end of a quest, so it is a GM verb, not superadmin — the record
+// survives, only the thread and the Room go.
 export async function closeQuestAction(input) {
   let session;
   try {
@@ -157,9 +147,7 @@ export async function closeQuestAction(input) {
   return { ok: true };
 }
 
-// Deleting takes the RECORD too — who pressed Interact on it and what they
-// said they were doing. That is the only genuinely lossy verb here, so it is
-// superadmin, the same tier a faction or a tag delete asks for.
+// Deleting takes the RECORD too, the only genuinely lossy verb here, so it is superadmin.
 export async function deleteQuestAction(input) {
   let session;
   try {
@@ -172,8 +160,7 @@ export async function deleteQuestAction(input) {
   const quest = await prisma.quest.findUnique({ where: { id: questId }, select: { id: true, title: true } });
   if (!quest) return { error: "That quest is gone." };
 
-  // Shut it first, so the thread and the Room go the same way they would
-  // otherwise — a delete must not leave an orphaned thread behind.
+  // Shut it first — a delete must not leave an orphaned thread behind.
   await closeQuest(prisma, quest.id, { status: "CLOSED" }).catch(() => {});
   // QuestInteraction is onDelete: Cascade, so the presses go with it.
   await prisma.quest.delete({ where: { id: quest.id } });

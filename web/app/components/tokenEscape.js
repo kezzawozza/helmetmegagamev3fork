@@ -1,34 +1,10 @@
-// Making the inside of a {kind:payload} token inert, before anything parses it.
-//
-// A token's payload is `[^}]+` — anything at all. So a character called
-// `Bob *the Blade* Marley`, or an `{info:costs `5` ⬢}`, carries live Markdown
-// into the middle of a token, remark-parse cuts the paragraph there, and
-// remarkTokens.js — which needs the whole `{…}` inside one text node — never
-// matches it. What the reader gets is a raw `{char:cmtt…` with an italic name
-// beside it: a line that looks broken rather than a visibly unresolved one.
-//
-// Unlike a quote or a spoiler, a token is not something formatting belongs
-// INSIDE. Its payload is an id, a name, a price — text to be read literally —
-// so the fix is not to teach the pass to span siblings, it is to make sure the
-// paragraph is never cut there at all. Every Markdown-active character inside a
-// token gets a backslash, remark parses none of them, and remark hands the
-// payload back as one text node with the backslashes gone.
-//
-// Done HERE, at render, rather than by writing the escapes into the row. What
-// is STORED has to keep matching the visibility query in web/lib/feedAccess.js
-// — a Prisma `contains` on `{char:<id>|` is how a mentioned player earns the
-// right to read the row that mentions them (CHAT.md §5) — plus its JS twin,
-// db/lib/characterMentions.js#mentionsCharacter. Escaping on the way in would
-// have needed both of those, and every row already written, to agree on a new
-// shape. This pass needs none of it, and it repairs the rows already in the
-// database.
-//
-// This began life as escapeTokenBars in markdownPlugins.js, escaping the bar
-// alone: remark-gfm splits a table ROW on bars at block level, before any of
-// this runs, so `{char:cmtt…|Ada}` in a table cell was torn in half and printed
-// its cuid at the reader. The bar is still in the set below for that reason;
-// the rest are here for the splitting above. It lives in its own file, with no
-// imports, so db/test/chatFormatting.test.js can load it with no build step.
+// Making the inside of a {kind:payload} token inert, before anything parses it. A token's payload is `[^}]+`, so
+// live Markdown inside one (e.g. `Bob *the Blade* Marley`) gets the paragraph cut there and remarkTokens.js —
+// which needs the whole `{…}` inside one text node — never matches it, leaving a raw `{char:cmtt…` visible.
+// Every Markdown-active character inside a token is escaped so the paragraph is never cut there at all.
+// Done HERE at render, not by writing escapes into the row: what is STORED has to keep matching the visibility
+// query in web/lib/feedAccess.js (a Prisma `contains` on `{char:<id>|`, CHAT.md §5) and its JS twin
+// db/lib/characterMentions.js#mentionsCharacter. No imports, so db/test/chatFormatting.test.js loads it with no build step.
 
 const TOKEN = /\{\w+:[^}]*\}/;
 

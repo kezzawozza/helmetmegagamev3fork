@@ -1,17 +1,10 @@
-// The {kind:payload} inline-reference syntax, split from its rendering.
-//
-// RichText.js renders {tag:...} as a hoverable TagChip; ChipText.js renders a
-// bare ChipLabel with no tooltip, for use inside another chip's tooltip. The
-// parser lives here to avoid an import cycle (RichText renders TagChip, which
-// renders ChipText).
-// remarkTokens.js parses the same syntax for Markdown, with its own RegExp —
-// a `g`-flag RegExp's mutable lastIndex can't be shared between exec loops.
+// The {kind:payload} inline-reference syntax, split from its rendering. Lives here to avoid an import cycle
+// (RichText renders TagChip, which renders ChipText). remarkTokens.js parses the same syntax separately for
+// Markdown, since a `g`-flag RegExp's mutable lastIndex can't be shared between exec loops.
 export const TOKEN_SOURCE = "\\{(\\w+):([^}]+)\\}";
 
-// Returns an ordered list of parts: { text } for literal runs, and
-// { kind, payload, raw } for each token. `raw` is the token exactly as
-// written, which is what a caller renders when it can't resolve one — an
-// unresolved reference should be visible, not silently dropped.
+// Ordered parts: { text } for literal runs, { kind, payload, raw } for tokens. `raw` is what a caller renders
+// when it can't resolve one — an unresolved reference should be visible, not silently dropped.
 export function splitTokens(text) {
   const parts = [];
   let lastIndex = 0;
@@ -27,15 +20,9 @@ export function splitTokens(text) {
   return parts;
 }
 
-// Whether this text names this character, in either spelling of a mention.
-//
-// The web twin of db/lib/characterMentions.js#mentionsCharacter, kept here
-// because the two callers are a client store and a client component and
-// neither should drag the db workspace into the browser bundle for a string
-// scan. Both spellings, because a mention carries the name it was sent under
-// now (`{char:<id>|<Name>}`) and only a row written before that is bare — three
-// places asked this question by building the string themselves, and a widened
-// grammar silently stops matching at one of them and not the others.
+// Whether this text names this character. Web twin of db/lib/characterMentions.js#mentionsCharacter, kept here
+// so a client store/component doesn't drag the db workspace into the bundle. Both spellings, since a mention
+// carries the name it was sent under (`{char:<id>|<Name>}`) and only an older row is bare.
 export function mentionsCharacter(text, characterId) {
   if (typeof text !== "string" || !characterId) return false;
   return text.includes(`{char:${characterId}}`) || text.includes(`{char:${characterId}|`);

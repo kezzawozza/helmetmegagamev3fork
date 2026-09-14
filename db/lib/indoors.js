@@ -1,31 +1,12 @@
-// Parking a cart or a mount — at an indoor door, or on a way too narrow for
-// it (docs/systemdocs/CARRY.md §3, MAP.md §3).
-//
-// A Location marked `indoors: true` in docs/zones.yaml is a place you walk
-// INTO — the Cathedral, the Sanctuary, the Inn, the Keep, the Undercroft. You
-// cannot bring a horse into a chapel, so arriving unequips anything stowable
-// and says so. The exception is authored, not guessed: an indoors Location
-// carrying the `wheels` attribute — the Godard Factory, Customs, the Depot —
-// is a place built to be driven into, and keeps its roof for everything else. A LocationLink marked `onFoot: true` is the
-// other trigger for the same thing: a crawl, a cliff path, a lift, a culvert
-// too tight for a horse or a cart — crossing one unequips it instead of
-// refusing the crossing outright. Either way the carry bonus goes with it,
-// which is the whole point: the cap shrinks, and the character is very likely
-// Overburdened until they take the reins again.
-//
-// Nothing is ever DROPPED for this. settleCarry's overflow is
-// acquisition-driven, so losing capacity makes someone Overburdened and no
-// more — never dumps a cart's contents on the ground.
-//
-// Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the same
-// posture as carry.js, because locationMove.js requires it.
+// Parking a cart or a mount — at an indoor door, or on a way too narrow for it (CARRY.md §3, MAP.md §3).
+// A Location marked `indoors: true` unequips anything stowable on arrival, unless it also carries the
+// `wheels` attribute (Godard Factory, Customs, the Depot — built to be driven into). A LocationLink
+// marked `onFoot: true` unequips on crossing instead of refusing it. Nothing is ever DROPPED for this
+// — settleCarry's overflow just makes someone Overburdened. Takes `prisma`, off the @lifeweb/db barrel (carry.js posture).
 const { STOWABLE_SLUGS } = require("./mounts");
 const { parksMounts } = require("./locationAttributes");
 
-// Unequips every stowable a character currently has out. Returns the display
-// names, so a caller can DM them — this module does no Discord work of its
-// own. Shared by both triggers below: whatever brought them here, the
-// character ends up on their own two feet the same way.
+// Unequips every stowable a character currently has out. Returns display names for a caller to DM.
 async function unequipStowables(prisma, characterId) {
   const held = await prisma.characterTag.findMany({
     where: { characterId, equipped: true, tag: { slug: { in: [...STOWABLE_SLUGS] } } },
@@ -35,9 +16,7 @@ async function unequipStowables(prisma, characterId) {
 
   await prisma.characterTag.updateMany({
     where: { id: { in: held.map((ct) => ct.id) } },
-    // equippedQuantity too, not just the boolean — left stale it would go on
-    // spending a slot nobody can see is spent. None of STOWABLE_SLUGS is
-    // stackable, so 0 is exactly "not equipped" for these.
+    // equippedQuantity too, not just the boolean — left stale it spends a slot nobody can see is spent.
     data: { equipped: false, equippedQuantity: 0 },
   });
   return held.map((ct) => ct.tag.name);
