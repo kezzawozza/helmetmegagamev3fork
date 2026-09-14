@@ -5635,11 +5635,14 @@ label.chip {
   max-width: none;
 }
 
-/* The Bulk actions roster: a scrolling box of check rows rather than a native
-   <select multiple>, which offered no search, no place names and no way to see
-   what you had picked without scrolling it. Capped rather than page-length —
-   the panel beside it has to stay on screen while you scroll the list. */
-.bulk-picker {
+/* A scrolling box of check rows rather than a native <select multiple>, which
+   offered no search, no second line per row and no way to see what you had
+   picked without scrolling it. Capped rather than page-length — whatever sits
+   beside it has to stay on screen while you scroll the list. Bulk actions'
+   roster and the quest gates (GatePicker.js) both wear it; a call site that
+   needs a shorter box passes an inline max-height, which beats this rule
+   because unlayered CSS outranks Tailwind's @layer utilities. */
+.check-picker {
   max-height: 22rem;
   overflow-y: auto;
   border: 1px solid var(--border);
@@ -9565,33 +9568,14 @@ button.equip-cell-face:focus-visible {
 
 /* The Quests panel (docs/systemdocs/QUESTS.md). A rail of what is staged
    beside the one that is selected, because scanning a list and working on a
-   form are two different shapes and one wide table serves neither. */
-.quest-desk {
-  display: grid;
-  grid-template-columns: minmax(260px, 22rem) 1fr;
-  gap: var(--sp-4);
-  align-items: start;
-}
+   form are two different shapes and one wide table serves neither.
 
-.quest-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-  min-width: 0;
-}
-
-.quest-rail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-
-.quest-rail-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-}
-
+   Almost all of what used to live here is gone, into the house classes it was
+   quietly reimplementing: a rail row is `.select-card .panel p-3` like every
+   other picker in the app, its second line is `.desk-staged-sub`, the cards
+   are `.desk-card`, and the two-column split and the board grid are Tailwind
+   utilities with their own breakpoints. What is left is the one zone heading
+   the rail groups by. */
 .quest-rail-zone {
   font-size: var(--fs-xs);
   letter-spacing: 0.06em;
@@ -9600,55 +9584,3 @@ button.equip-cell-face:focus-visible {
   padding: var(--sp-2) 0 var(--sp-1);
 }
 
-.quest-rail-item {
-  appearance: none;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  padding: var(--sp-2);
-  font: inherit;
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  /* The 44px touch floor, met by the two stacked lines rather than padding. */
-  min-height: 44px;
-}
-
-.quest-rail-item:hover {
-  border-color: var(--border);
-}
-
-.quest-rail-item[data-active="true"] {
-  border-color: var(--accent);
-  background: var(--surface-2);
-}
-
-.quest-rail-title {
-  font-weight: 600;
-}
-
-.quest-rail-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--sp-2);
-}
-
-/* Every board in the game at once. Two up where there is room, one where
-   there is not — a board is a short list and a full-width row of them would
-   be mostly whitespace. */
-.quest-board-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
-  gap: var(--sp-4);
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .quest-desk {
-    grid-template-columns: 1fr;
-  }
-}

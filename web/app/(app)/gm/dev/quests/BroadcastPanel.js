@@ -14,9 +14,9 @@
 import { useMemo, useState, useTransition } from "react";
 
 import FormError from "@/app/components/FormError";
-import CheckField from "@/app/components/CheckField";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { sendAmbientLine } from "@/app/(app)/gm/dev/actions";
+import GatePicker from "./GatePicker";
 
 export default function BroadcastPanel({ zones, prefill }) {
   const confirm = useConfirm();
@@ -29,7 +29,12 @@ export default function BroadcastPanel({ zones, prefill }) {
   // effect: QuestsSection keys this component on the prefill, so a second
   // Advertise remounts it instead of syncing state to a prop
   // (react-hooks/set-state-in-effect is an error in this repo).
-  const [picked, setPicked] = useState(prefill?.zoneId ? [prefill.zoneId] : []);
+  // Only a zone the picker actually offers. A cave has no #summary channel, so
+  // it is never in this list — and a quest usually lives in a cave. Seeding
+  // the raw id anyway ticked nothing, said "0 of 5 picked", and still lit up
+  // Say it, which then failed with "Nothing went out."
+  const offered = Boolean(prefill?.zoneId) && zones.some((z) => z.id === prefill.zoneId);
+  const [picked, setPicked] = useState(offered ? [prefill.zoneId] : []);
   const [text, setText] = useState(prefill?.text ?? "");
 
   // Mirrors db/lib/ambientLine.js exactly: `-#` is per LINE, so a two-line
@@ -44,10 +49,6 @@ export default function BroadcastPanel({ zones, prefill }) {
   );
 
   const all = picked.length === zones.length && zones.length > 0;
-
-  function toggle(zoneId) {
-    setPicked((prev) => (prev.includes(zoneId) ? prev.filter((z) => z !== zoneId) : [...prev, zoneId]));
-  }
 
   async function send() {
     setError(null);
@@ -81,53 +82,67 @@ export default function BroadcastPanel({ zones, prefill }) {
   }
 
   return (
-    <div className="panel">
-      <div className="panel-header">
-        <span>Where it goes</span>
-        <button
-          type="button"
-          className="btn-quiet"
-          onClick={() => setPicked(all ? [] : zones.map((z) => z.id))}
-        >
-          {all ? "None" : "Everywhere"}
-        </button>
-      </div>
+    <div className="desk-card grid items-start gap-4 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+      {/* The same picker the quest gates use, so Everywhere / None / the count
+          are one implementation rather than a bespoke header button. */}
+      <GatePicker
+        label="Where it goes"
+        items={zones}
+        value={picked}
+        onChange={setPicked}
+        allLabel="Everywhere"
+        emptyLabel="No zone matches."
+        filterPlaceholder="Zone name…"
+      />
 
-      <div className="chip-row">
-        {zones.map((zone) => (
-          <CheckField key={zone.id}>
-            <input type="checkbox" checked={picked.includes(zone.id)} onChange={() => toggle(zone.id)} />
-            {zone.label}
-          </CheckField>
-        ))}
-      </div>
+      <div className="flex min-w-0 flex-col gap-3">
+        {prefill && !offered ? (
+          <p className="text-sm text-muted">
+            {prefill.zoneName ?? "That zone"} has no summary channel to advertise into — pick
+            somewhere the word would travel from instead.
+          </p>
+        ) : null}
 
-      <div className="field">
-        <label className="field-label" htmlFor="broadcast-text">
-          The line
-        </label>
-        <textarea id="broadcast-text" rows={3} value={text} onChange={(e) => setText(e.target.value)} />
-      </div>
+        <div className="field">
+          <label className="field-label" htmlFor="broadcast-text">
+            The line
+          </label>
+          <textarea
+            id="broadcast-text"
+            rows={3}
+            value={text}
+            // Only on the remount an Advertise caused — prefill is null on a
+            // plain visit, so opening the tab never steals focus.
+            autoFocus={Boolean(prefill)}
+            onChange={(e) => setText(e.target.value)}
+          />
+        </div>
 
-      {text.trim() ? (
+        {/* Always drawn, never conditional: a preview that appears on the first
+            keystroke shoves Say it down the page mid-sentence
+            (DESIGN-SYSTEM.md §5, "reserve the space a conditional line will
+            take"). */}
         <div className="field">
           <span className="field-label">What they read</span>
-          <pre className="text-sm text-muted">{preview}</pre>
+          <div className="panel p-3">
+            <pre className="mono whitespace-pre-wrap break-words text-sm">
+              {text.trim() ? preview : <span className="text-muted">Nothing yet.</span>}
+            </pre>
+          </div>
         </div>
-      ) : null}
 
-      {note ? <p className="text-sm text-muted">{note}</p> : null}
-      <FormError>{error}</FormError>
-
-      <div className="modal-actions">
-        <button
-          type="button"
-          className="btn"
-          disabled={pending || picked.length === 0 || !text.trim()}
-          onClick={send}
-        >
-          Say it
-        </button>
+        <div className="ops-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={pending || picked.length === 0 || !text.trim()}
+            onClick={send}
+          >
+            {pending ? "Saying it…" : "Say it"}
+          </button>
+          {note ? <span className="self-center text-sm text-muted">{note}</span> : null}
+          <FormError>{error}</FormError>
+        </div>
       </div>
     </div>
   );

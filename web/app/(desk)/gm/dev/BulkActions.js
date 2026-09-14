@@ -163,7 +163,7 @@ export default function BulkActions({ characters, locations, tags }) {
           </label>
         </div>
 
-        <div className="bulk-picker">
+        <div className="check-picker">
           {visible.map((c) => (
             <CheckField key={c.id} checked={pickedSet.has(c.id)} onChange={() => toggle(c.id)}>
               <span className="flex flex-wrap items-baseline gap-2">
