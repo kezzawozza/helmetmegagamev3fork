@@ -9,8 +9,7 @@ Entries below predate this format and list files instead.
 ## 2026-09-14 · Sing when your hands are empty
 
 ✎ /play now works without an instrument too — a character with none sings instead  
-✎ A Musician's singing settles the room for +8 (Pythagorean: +32), the instrument's own +10/+40 unchanged  
-− -
+✎ A Musician's singing settles the room for +8 (Pythagorean: +32), the instrument's own +10/+40 unchanged
 
 ## 2026-09-14 · Fix a bot-crashing syntax error from the last dead-exports sweep
 
