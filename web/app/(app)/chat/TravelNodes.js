@@ -8,7 +8,7 @@ import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, travelFoot, openedByLabel } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadTravel, travelTo } from "./actions";
 
 // TRAVEL: every way out of here as a node you can see. Loaded on mount and
@@ -87,14 +87,21 @@ export default function TravelNodes({ onDone, pick = null }) {
   // earned per crossing.
   const nextTurn = Boolean(chosen?.crossesZone && chosen.freeLeft <= 0);
 
-  // Go is the only door onto travel (MAP.md §6c) — a zone crossing stops here
-  // and asks again in the shared dialog, since it spends something and carries whoever is with you.
-  const go = async (option) => {
+  // Travel, in one place. Go is the only door onto it, the way the map's is
+  // (MAP.md §6c) — clicking a node only ever picks it.
+  //
+  // A zone crossing stops here and asks again, in the shared dialog. It is the
+  // one move that spends something, carries whoever is with you, and cannot be
+  // walked back for free.
+  //
+  // Push on is the same door with a die in it (MAP.md §3): its own confirm,
+  // then the same action with `exert` set.
+  const go = async (option, { exert = false } = {}) => {
     if (option.crossesZone) {
-      const asked = crossingConfirm(option, option.freeLeft, data.partySize);
+      const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert });
       if (!(await confirm(asked))) return;
     }
-    run(travelTo, { locationId: option.id }, {
+    run(travelTo, { locationId: option.id, exert }, {
       onOk: (res) => {
         setTarget(null);
         onDone?.(res);
@@ -145,7 +152,7 @@ export default function TravelNodes({ onDone, pick = null }) {
               )}
               {/* Flat ChipLabel, not TagChip — an interactive chip can't live inside this button. */}
               {via && <ChipLabel tag={via} />}
-              <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted)}</span>
+              <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted, data.moved)}</span>
             </button>
             );
           })}
@@ -154,9 +161,7 @@ export default function TravelNodes({ onDone, pick = null }) {
 
       {chosen && (
         <div className="chat-travel-confirm">
-          <p className="text-sm">
-            {nextTurn ? `To ${chosen.name}. This one spends your Move.` : `To ${chosen.name}.`}
-          </p>
+          <p className="text-sm">{crossingLine(chosen, nextTurn, data.moved)}</p>
 
           {/* Who comes along is the party rack's business now — an escort persists, so only the count is owed here. */}
           {data.partySize > 0 && (
@@ -167,14 +172,33 @@ export default function TravelNodes({ onDone, pick = null }) {
 
           <FormError>{error}</FormError>
           <div className="chat-buttons">
-            <button
-              type="button"
-              className="btn"
-              disabled={pending}
-              onClick={() => go(chosen)}
-            >
-              Go
-            </button>
+            {/* Go is the Move. Once it is spent a crossing with no travel
+                left has no Go to offer — the server would only refuse it —
+                so the button leaves rather than lying (MAP.md §3). */}
+            {!(nextTurn && data.moved) && (
+              <button
+                type="button"
+                className="btn"
+                disabled={pending}
+                onClick={() => go(chosen)}
+              >
+                Go
+              </button>
+            )}
+            {/* The other way across once the travels and the Move are gone:
+                on a die. Only drawn where the server would say yes —
+                canExert is its refusal, asked ahead of time. */}
+            {nextTurn && chosen.canExert && (
+              <button
+                type="button"
+                className="btn"
+                disabled={pending}
+                title="Exert yourself for another free travel."
+                onClick={() => go(chosen, { exert: true })}
+              >
+                Push on
+              </button>
+            )}
             <button type="button" className="btn-quiet" disabled={pending} onClick={() => setTarget(null)}>
               Cancel
             </button>

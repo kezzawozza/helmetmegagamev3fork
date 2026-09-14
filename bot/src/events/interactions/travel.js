@@ -7,6 +7,7 @@ const {
   PICK_ID,
   BRING_ID,
   CONFIRM_PREFIX,
+  EXERT_PREFIX,
   CANCEL_ID,
   loadMover,
   listNames,
@@ -16,6 +17,10 @@ const {
   freeZoneMovesReason,
   buildConfirmRow,
   freeMovesLeft,
+  exertRefusal,
+  exertEdgeFor,
+  exertEdgeSentence,
+  exertResultLine,
   stowedMounts,
   performMove,
 } = require("../../lib/locationTravel");
@@ -220,15 +225,41 @@ async function handleTravelPick(interaction) {
       toZoneSlug: target.zone?.slug ?? null,
     })
     : null;
-  const seatWarning = crossing ? freeZoneMovesReason(character, party.length) : null;
+  const seatWarning = crossing ? freeZoneMovesReason(character, party.length, { config, openTurn }) : null;
+  // Push on: the crossing on a die instead of the Move (MAP.md §3), offered
+  // only where performLocationMove would say yes.
+  const acted =
+    crossing && openTurn
+      ? Boolean(await prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } }))
+      : false;
+  const exertWhy =
+    crossing && left === 0
+      ? exertRefusal(character, config, openTurn, {
+        crossing: { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: target.zone?.slug ?? null },
+        left,
+        acted,
+      })
+      : null;
+  const canExert = crossing && left === 0 && exertWhy === null;
+  // Once the Move is spent a crossing with no free move left has no Confirm
+  // to offer — the web surfaces drop Go the same way (MAP.md §3).
+  const spent = crossing && left === 0 && acted;
 
+  // The same sentence the web confirm carries about which way the die leans,
+  // when it does — the picker is the only place a Discord player reads the
+  // odds before committing.
+  const exertNote = canExert ? exertEdgeSentence(exertEdgeFor(character.tags ?? [])) : null;
   const cost = !character.locationId
     ? "-# Arriving costs you nothing."
     : !crossing
       ? "-# You have free zone moves left, so this is free."
       : left > 0
         ? `-# Crossing into ${target.zone.name} uses 1 of your ${left} free ${left === 1 ? "move" : "moves"} this turn.`
-        : `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move.`;
+        : !acted
+          ? `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move.`
+          : canExert
+            ? `-# You have no free moves left and your Move is spent, so crossing into ${target.zone.name} means pushing on, risking exhaustion and possible injury.${exertNote ? ` ${exertNote}` : ""}`
+            : `-# You have no free moves left and your Move is spent, so you can't cross into ${target.zone.name} this turn.${exertWhy ? ` ${exertWhy}` : ""}`;
 
   const stowed = crossing ? stowedMounts(character.tags) : [];
   const stowedLine =
@@ -248,7 +279,7 @@ async function handleTravelPick(interaction) {
       ]
         .filter(Boolean)
         .join("\n"),
-      components: [bringRow, buildConfirmRow(locationId)].filter(Boolean),
+      components: [bringRow, buildConfirmRow(locationId, { exert: canExert, go: !spent })].filter(Boolean),
     },
     { fleeting: false },
   );
@@ -291,7 +322,8 @@ async function handleTravelBring(interaction) {
 }
 
 
-async function handleTravelConfirm(interaction, locationId) {
+// `exert` is the Push on button: the same move with a die in it (MAP.md §3).
+async function handleTravelConfirm(interaction, locationId, { exert = false } = {}) {
   await interaction.deferUpdate();
 
   const [character, target] = await Promise.all([
@@ -307,7 +339,7 @@ async function handleTravelConfirm(interaction, locationId) {
     return;
   }
 
-  const result = await performMove(character, target);
+  const result = await performMove(character, target, { exert });
   if (!result.ok) {
     await respond(interaction, { content: `${result.reason}`, components: [] });
     return;
@@ -318,6 +350,7 @@ async function handleTravelConfirm(interaction, locationId) {
     .map((entry) => entry.character.name);
   const parts = [`» Moved to **${target.name}**.`];
   if (result.spentTurn) parts.push("Your Move is spent.");
+  if (result.exert) parts.push(exertResultLine(result.exert));
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0

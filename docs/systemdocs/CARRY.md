@@ -194,6 +194,12 @@ crossing per *day*. Now:
   someone Escort you.
 - Past the allowance, a crossing files the `MOVE` Action as it always did.
   Once you have acted, you cannot cross.
+- Or **push on**, once the Move is spent too: one more crossing a turn on foot
+  on a d6 — 1 Sprained Ankle, 2–3 Exhausted, 4–5 Tired, 6 Winded
+  (`MAP.md` §3). Once a turn, never while riding, boated on the water, lamed,
+  bleeding out, Exhausted or Overburdened. Already Tired, 2–5 is Exhausted.
+  Quick-Footed, Caffeinated, Stimulant High (and Lucky) keep the better of
+  two dice; Fat and Old keep the worse.
 - A **free** crossing lands at once. A **paid** one is a day's walk and only
   lands next turn (`MAP.md` §3) — the Move goes now, the traveller stands still
   until the turn turns.

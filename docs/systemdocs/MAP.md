@@ -383,6 +383,36 @@ A free move files no Action at all. **Acting and crossing on your Move are
 mutually exclusive within a turn, in either order** — the enforcement is
 `@@unique([characterId, turnId])` on `Action`.
 
+**Pushing on.** Once the free crossings are gone AND the Move is spent — on a
+paid crossing or on anything else — a walker can take one more crossing a turn
+on a die: the extra gamble to go the distance, a Push on button in Go's place
+on the Travel panel, `/map` and the `#turns` picker — Go (Discord's Confirm)
+is hidden once the Move is spent, since it could only refuse, and the node's
+foot reads `exertion`, or `next turn` when the push on would be refused too
+(the refusal is written on the confirm strip). The crossing lands like any
+other, files no Action, and is refused while the Move is still unspent (the
+surfaces read the turn's Action row, `performLocationMove` reads it again).
+So three zones a day on foot is the ceiling: free, paid, pushed. The d6, Lucky keeping the better of
+two and nothing else on it (no mood or hunger modifier — a hungry, frightened
+walker is exactly who pushes on, and a −4 would make the injury a certainty the
+confirm text does not admit): **1** grants Sprained Ankle, **2–3** Exhausted,
+**4–5** one rung up the Tired ladder (`db/lib/laborFatigue.js`), **6** Winded — a
+turn's visible mark with no effect (`docs/tags.yaml`).
+Fatigue is granted at turn N+1 so it costs the whole next turn, the same clock
+a day's Labor runs on — so a Tired walker reads 1 ankle, 2–5 Exhausted, 6
+Winded. Winded itself is granted at N and swept when this turn closes: it only
+marks that you pushed on today, with nothing to carry over. A few traits pull the die (`db/lib/advantage.js#rollWithEdge`): Lucky,
+Quick-Footed, Caffeinated and Stimulant High each vote to keep the better of
+two dice, Fat and Old to keep the worse; the count decides and a tie rolls
+once (`EXERT_BETTER_SLUGS` / `EXERT_WORSE_SLUGS`). Refused while riding,
+boated on the water, lamed, too hurt to march (`EXERT_REFUSAL_SLUGS`: Arterial
+Bleed, Punctured Lung, Gut Wound, Sepsis, Blind Drunk — none of which restrict
+ACT), Exhausted (top of the ladder: nothing left to lose but the ankle would
+make it a free gamble) or Overburdened, and once a turn — `exertRefusal` is
+the list, and the surfaces ask it before drawing the button. No Action is filed, so a push on never shows
+in the Moves history; the `AuditLog` row `exert_crossing` is the record.
+`performLocationMove(..., { exert: true })`, `pushOn`, `exertOutcome`.
+
 **Mounts.** `horse` and `motorcycle`
 (`db/lib/mounts.js#FAST_TRAVEL_SLUGS`) each add one free crossing, **and it refreshes every
 turn** rather than once a day — a horse carries you at Dawn and again at Dusk.
@@ -403,9 +433,14 @@ through the gap never earns the bonus to begin with (§2c).
 The allowance is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`, with
 `zoneMovesBonusUsed` counting how many of those went on a bonus, all three
 claimed by a conditional `updateMany` whose WHERE is the check, so two tabs
-cannot both spend the last one. The **`FAST_TRAVEL` Request is retired** —
-there's no separate route through `requestActions.js`; a mount is just a
-larger allowance.
+cannot both spend the last one. A push on claims `zoneMovesUsed` too, and
+never the bonus counter, so the base pool reading OVER the base allowance is
+how `exertedThisTurn` knows it already happened — there is no column for it.
+A GM's undo of a paid Move zeroes both counters (`travelClaimsToUndo`) and so
+forgets the push on along with the free crossings; GM-gated, accepted.
+
+The **`FAST_TRAVEL` Request is retired** — there's no separate route through
+`requestActions.js`; a mount is just a larger allowance.
 
 **Travel brings your escort party.** Who follows is not a parameter and never
 reaches `performLocationMove` from a client — it is read off

@@ -8,7 +8,7 @@ import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, travelFoot, openedByLabel } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadMap } from "./actions";
 import { travelTo } from "../chat/actions";
 
@@ -83,6 +83,10 @@ export default function MapBoard({ onClose = null }) {
   const [layer, setLayer] = useState(null);
   const { run, pending, error } = useActionRunner();
   const confirm = useConfirm();
+  // What the last move said — "that spent your Move", the Push on die. The
+  // Travel panel hands its line to the chat; the board has nowhere else to
+  // put it, so it goes on the card of the place you now stand.
+  const [note, setNote] = useState(null);
   // useId() returns a string with punctuation React reserves (":r0:"), which
   // is legal in an id but not in a url(#…) reference. Stripped to word
   // characters so the mask resolves.
@@ -514,13 +518,18 @@ export default function MapBoard({ onClose = null }) {
   // (MAP.md §6c). A zone crossing asks again on top of that, in the shared
   // confirm: it spends something, it carries whoever is with you, and it
   // cannot be walked back for free.
-  const go = async (node) => {
+  //
+  // Push on is the same door with a die in it (MAP.md §3): its own confirm,
+  // then the same action with `exert` set.
+  const go = async (node, { exert = false } = {}) => {
     if (node.crossesZone) {
-      const asked = crossingConfirm(node, node.freeLeft ?? 0, data?.travel?.partySize ?? 0);
+      const asked = crossingConfirm(node, node.freeLeft ?? 0, data?.travel?.partySize ?? 0, { exert });
       if (!(await confirm(asked))) return;
     }
-    run(travelTo, { locationId: node.id }, {
-      onOk: () => {
+    setNote(null);
+    run(travelTo, { locationId: node.id, exert }, {
+      onOk: (res) => {
+        setNote(res?.line ?? null);
         setSel(null);
         setNonce((n) => n + 1);
         router.refresh();
@@ -741,8 +750,10 @@ export default function MapBoard({ onClose = null }) {
             travel={travel}
             pending={pending}
             error={error}
+            note={note}
             onCancel={() => setSel(null)}
             onGo={() => go(card)}
+            onExert={() => go(card, { exert: true })}
           />
         ) : (
           <EmptyState>You aren&apos;t on the map yet.</EmptyState>
@@ -757,7 +768,7 @@ export default function MapBoard({ onClose = null }) {
                 {/* The tag of theirs that opens it, where one does — the same
                     chip the Travel panel and the card below draw. */}
                 <ViaChip slug={n.openedBy} />
-                <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.mounted)}</span>
+                <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.mounted, travel?.moved)}</span>
               </button>
             ))}
           </div>
@@ -823,7 +834,7 @@ function ViaChip({ slug }) {
   );
 }
 
-function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
+function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onExert }) {
   const isHere = here && node.id === here.id;
   const reachable = canTravelTo(node, here);
   // node's OWN count, not the header's ambient one — a boat's bonus is
@@ -847,6 +858,7 @@ function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
       {node.description && <p className="text-sm">{node.description}</p>}
 
       {isHere && <p className="chat-quiet-line">You are standing here.</p>}
+      {isHere && note && <p className="text-sm">{note}</p>}
       {!isHere && node.state === "seen" && (
         <p className="chat-quiet-line">You have not been here.</p>
       )}
@@ -869,7 +881,7 @@ function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
         <div className="map-confirm">
           {reachable ? (
             <>
-              <p className="text-sm">{nextTurn ? `To ${node.name}. This one spends your Move.` : `To ${node.name}.`}</p>
+              <p className="text-sm">{crossingLine(node, nextTurn, travel?.moved)}</p>
               {travel?.partySize > 0 && (
                 <p className="chat-quiet-line">
                   {travel.partySize === 1 ? "One person" : `${travel.partySize} people`} with you.
@@ -877,9 +889,26 @@ function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
               )}
               <FormError>{error}</FormError>
               <div className="chat-buttons">
-                <button type="button" className="btn" disabled={pending} onClick={onGo}>
-                  Go
-                </button>
+                {/* Same rule as the Travel panel: Go is the Move, and once
+                    that is spent a crossing with no travel left has none to
+                    offer, so the button leaves (MAP.md §3). */}
+                {!(nextTurn && travel?.moved) && (
+                  <button type="button" className="btn" disabled={pending} onClick={onGo}>
+                    Go
+                  </button>
+                )}
+                {/* Same button the Travel panel draws, for the same reason. */}
+                {nextTurn && node.canExert && (
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={pending}
+                    title="Exert yourself for another free travel."
+                    onClick={onExert}
+                  >
+                    Push on
+                  </button>
+                )}
                 <button type="button" className="btn-quiet" disabled={pending} onClick={onCancel}>
                   Cancel
                 </button>

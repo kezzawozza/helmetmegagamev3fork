@@ -1953,6 +1953,10 @@ model Character {
   // GameConfig.freeZoneMovesPerTurn a turn; an EQUIPPED mount adds one; being
   // Overburdened takes them all away. Past the allowance a crossing spends the
   // Move instead, exactly as it always did.
+  // A push on (docs/systemdocs/MAP.md §3) claims this counter too — and only
+  // this one, never zoneMovesBonusUsed below — which is how
+  // db/lib/locationTravel.js#exertedThisTurn tells one happened: the base
+  // pool reading over the base allowance.
   //
   // Keyed on the TURN, not the day — a mount now carries you in both halves of
   // one day, which is the whole point of the rework. Claimed by a conditional

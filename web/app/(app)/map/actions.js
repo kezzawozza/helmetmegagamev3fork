@@ -14,7 +14,13 @@ import {
   ESCORT_SELECT as MOVER_SELECT,
   partyOf,
 } from "@lifeweb/db/lib/escort";
-import { freeMovesLeft, freeZoneMovesReason } from "@lifeweb/db/lib/locationTravel";
+import {
+  freeMovesLeft,
+  freeZoneMovesReason,
+  exertRefusal,
+  exertEdgeFor,
+  exertEdgeSentence,
+} from "@lifeweb/db/lib/locationTravel";
 import { nodeAt, plateSize, PLATE_SRC } from "@/lib/mapNodes";
 import { zoneKey } from "@/lib/zones";
 
@@ -77,6 +83,12 @@ async function buildMap({ character, unfogged }) {
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
     character?.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } }) : null,
   ]);
+  // Whether the Move is spent — a push on is only offered after it is
+  // (MAP.md §3). The same read the Travel panel and the sheet make.
+  const acted =
+    character && openTurn
+      ? Boolean(await prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } }))
+      : false;
 
   const known = character
     ? await knownLocations(prisma, character.id)
@@ -108,6 +120,20 @@ async function buildMap({ character, unfogged }) {
     const here = Boolean(character?.locationId && location.id === character.locationId);
     const near = adjacent.get(location.id) ?? null;
     const stood = unfogged || known.stood.has(location.id);
+    // THIS crossing's own count, not a flat one shared by every node — a
+    // boat's bonus is earned per crossing (db/lib/mounts.js#boatCrossing),
+    // so Forest<->Hills or Hills<->Marshes shows one more than a crossing
+    // the water does nothing for. Only worth asking for an adjacent node;
+    // a merely-known one has no crossing to weigh yet.
+    const crossing = { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: location.zone?.slug ?? null };
+    const freeLeft = near ? freeMovesLeft(character, config, openTurn, party.length, crossing) : null;
+    // The server's own refusal of a push on here, asked ahead of time
+    // (MAP.md §3); null is yes. Same question the Travel panel asks per
+    // option, and the reason is shown once the Move is spent and this was
+    // the only way across.
+    const exertWhy = near?.crossesZone
+      ? exertRefusal(character, config, openTurn, { crossing, left: freeLeft, acted })
+      : null;
 
     nodes.push({
       id: location.id,
@@ -129,14 +155,13 @@ async function buildMap({ character, unfogged }) {
       adjacent: Boolean(near),
       passable: Boolean(near?.passable),
       crossesZone: Boolean(near?.crossesZone),
-      // THIS crossing's own count (db/lib/mounts.js#boatCrossing), not a flat
-      // one shared by every node; only worth asking for an adjacent node.
-      freeLeft: near
-        ? freeMovesLeft(character, config, openTurn, party.length, {
-            fromZoneSlug: currentZone?.slug ?? null,
-            toZoneSlug: location.zone?.slug ?? null,
-          })
-        : null,
+      freeLeft,
+      // Whether Push on belongs on the card for this crossing (MAP.md §3).
+      canExert: Boolean(near?.crossesZone && exertWhy === null),
+      exertWhy,
+      // Which way the push on's die leans, said before they commit. Null when
+      // it doesn't; the same sentence the Travel panel carries.
+      exertNote: near?.crossesZone ? exertEdgeSentence(exertEdgeFor(character?.tags ?? [])) : null,
       dismounts: Boolean(near?.dismounts),
       reason: near?.refusal ?? null,
       // Same field the Travel panel draws a chip from; only ever set for a tag this character already holds.
@@ -180,9 +205,12 @@ async function buildMap({ character, unfogged }) {
       ? {
           held: heldReasonFor(character),
           freeLeft: freeMovesLeft(character, config, openTurn, party.length),
-          freeReason: freeZoneMovesReason(character, party.length),
+          freeReason: freeZoneMovesReason(character, party.length, { config, openTurn }),
           mounted: onFootBlocked,
           partySize: party.length,
+          // The Move already spent this turn: Go leaves the card and the push
+          // on is the only way across a zone with no travel left (MAP.md §3).
+          moved: acted,
         }
       : null,
     known: nodes.length,

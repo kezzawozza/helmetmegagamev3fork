@@ -30,6 +30,10 @@ import {
   performLocationMove,
   freeMovesLeft,
   freeZoneMovesReason,
+  exertRefusal,
+  exertEdgeFor,
+  exertEdgeSentence,
+  exertResultLine,
 } from "@lifeweb/db/lib/locationTravel";
 import {
   ESCORT_SELECT as MOVER_SELECT,
@@ -400,11 +404,17 @@ export async function loadTravel() {
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  const [options, party, currentZone] = await Promise.all([
+  const [options, party, currentZone, action] = await Promise.all([
     travelOptions(prisma, character, character.locationId),
     partyOf(prisma, character.id),
     character.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } }) : null,
+    // Whether the Move is spent — a push on is only offered after it is
+    // (MAP.md §3). The same read the sheet's hasMoved makes.
+    openTurn
+      ? prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } })
+      : null,
   ]);
+  const acted = Boolean(action);
 
   return {
     ok: true,
@@ -413,37 +423,75 @@ export async function loadTravel() {
     // The AMBIENT count, before a destination is picked. Both count the
     // party, so a mount's extra crossing is already reflected (MAP.md §3a).
     freeLeft: freeMovesLeft(character, config, openTurn, party.length),
-    freeReason: freeZoneMovesReason(character, party.length),
-    // Whether there's anything to dismount at all.
+    freeReason: freeZoneMovesReason(character, party.length, { config, openTurn }),
+    // Whether there's anything to dismount at all — the node list only
+    // marks a specific way or a specific destination as a consequence when
+    // this is true, since neither "on foot" nor "indoors" means anything to
+    // somebody already walking.
     mounted: blocksOnFoot(equippedSlugs(character.tags ?? [])),
-    options: options.map((row) => ({
-      id: row.location.id,
-      name: row.location.name,
-      // Already loaded via locationGraph's LINK_INCLUDE, no extra query.
-      description: row.location.description || null,
-      zoneName: row.location.zone?.name ?? null,
-      zoneSlug: row.location.zone?.slug ?? null,
-      // A CAVE_LEVEL destination the Caving Die actually rolls at (CAVING.md
-      // §2) — excludes the two `safe` Locations the Die skips (§2a).
-      caveLevel:
-        row.location.zone?.kind === "CAVE_LEVEL" && !hasAttribute(row.location, SAFE_ATTRIBUTE),
-      crossesZone: row.crossesZone,
-      passable: row.passable,
-      // THIS destination's own count: a boat's bonus is earned per crossing
-      // (db/lib/mounts.js#boatCrossing), so it can differ from the ambient one above.
-      freeLeft: freeMovesLeft(character, config, openTurn, party.length, {
-        fromZoneSlug: currentZone?.slug ?? null,
-        toZoneSlug: row.location.zone?.slug ?? null,
-      }),
-      // Where a mount parks on arrival (db/lib/indoors.js), not every roofed Location.
-      indoors: parksMounts(row.location),
-      // Too narrow to ride through — dismounts instead of refusing.
-      dismounts: Boolean(row.dismounts),
-      // Only ever a tag they hold (locationGraph.js#crossingCheck).
-      openedBy: row.openedBy ?? null,
-      // crossingCheck's field is `refusal`, not `reason`.
-      reason: row.refusal ?? null,
-    })),
+    // The Move already spent this turn: Go leaves the strip and the push on
+    // is the only way across a zone with no travel left (MAP.md §3).
+    moved: acted,
+    options: options.map((row) => {
+      // Which way the push on's die leans for this character, said before
+      // they commit (MAP.md §3). Null when it doesn't.
+      const exertNote = exertEdgeSentence(exertEdgeFor(character.tags ?? []));
+      const exertOpts = { crossing: null, left: 0, acted };
+      // THIS destination's own count, unlike the ambient one above — a boat's
+      // bonus is earned per crossing (db/lib/mounts.js#boatCrossing), so
+      // Forest<->Hills or Hills<->Marshes has to show one more than a
+      // crossing the water does nothing for, even though both are "a zone
+      // crossing" equally as far as `crossesZone` is concerned.
+      const crossing = { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: row.location.zone?.slug ?? null };
+      const freeLeft = freeMovesLeft(character, config, openTurn, party.length, crossing);
+      // The server's own refusal of a push on here, asked ahead of time
+      // (MAP.md §3); null is yes. Shown once the Move is spent and this is
+      // the only way across, so a player knows why the way is shut till
+      // next turn.
+      const exertWhy = row.crossesZone
+        ? exertRefusal(character, config, openTurn, { ...exertOpts, crossing, left: freeLeft })
+        : null;
+      return {
+        id: row.location.id,
+        name: row.location.name,
+        // Already loaded: locationGraph's LINK_INCLUDE pulls whole Location rows
+        // on both ends of a link, so this costs no query. The node draws it so
+        // the way out says what it leads to, not just where.
+        description: row.location.description || null,
+        zoneName: row.location.zone?.name ?? null,
+        zoneSlug: row.location.zone?.slug ?? null,
+        // A CAVE_LEVEL destination the Caving Die actually rolls at —
+        // travelCost.js#crossingConfirm reads this to warn before a zone
+        // crossing lands somebody underground (CAVING.md §2). Excludes Customs
+        // and the Depot, the two `safe` Locations the Die skips (CAVING.md
+        // §2a) — warning about a die that will not roll would be simply wrong.
+        caveLevel:
+          row.location.zone?.kind === "CAVE_LEVEL" && !hasAttribute(row.location, SAFE_ATTRIBUTE),
+        crossesZone: row.crossesZone,
+        passable: row.passable,
+        freeLeft,
+        // Whether the Push on button belongs on the strip for this crossing.
+        canExert: row.crossesZone && exertWhy === null,
+        exertWhy,
+        exertNote,
+        // A Location a mount gets parked at on arrival (db/lib/indoors.js) —
+        // which is not every Location with a roof over it.
+        indoors: parksMounts(row.location),
+        // A way too narrow to ride or push through — crossing it dismounts
+        // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
+        dismounts: Boolean(row.dismounts),
+        // Which of this character's own tags opens the way, when one does — the
+        // node draws it as that tag's chip, so a climb you paid Mountaineering
+        // for says so instead of looking like every other road. Only ever a tag
+        // they hold (locationGraph.js#crossingCheck), so there is nothing here to
+        // leak.
+        openedBy: row.openedBy ?? null,
+        // crossingCheck's field is `refusal`, not `reason` — this was silently
+        // dropping the actual message (e.g. the locked/shut wording) and
+        // falling back to the node's generic "no way".
+        reason: row.refusal ?? null,
+      };
+    }),
     partySize: party.length,
   };
 }
@@ -569,15 +617,19 @@ export async function answerEscort({ offerId, accept } = {}) {
   return result.ok ? { ok: true, line: result.line } : { ok: false, error: result.reason };
 }
 
-export async function travelTo({ locationId } = {}) {
+// `exert`: the Push on button — one more crossing on a die instead of the
+// Move (MAP.md §3). performLocationMove refuses it wherever it doesn't apply.
+export async function travelTo({ locationId, exert = false } = {}) {
   const me = await actor(MOVER_SELECT);
   if (me.error) return { ok: false, error: me.error };
 
   const target = await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } });
   if (!target) return { ok: false, error: "That place no longer exists." };
 
-  // Who comes along is read off Character.escortedById inside the move's own transaction — nothing to re-authorize here (MAP.md §3a).
-  const result = await performLocationMove(prisma, me.character, target);
+  // Who comes along is read off Character.escortedById inside the move's own
+  // transaction — nothing is posted from the browser, so there is nothing to
+  // re-authorize here (MAP.md §3a).
+  const result = await performLocationMove(prisma, me.character, target, { exert: exert === true });
   if (!result.ok) return { ok: false, error: result.reason };
 
   // Followers the way would not take, already detached. The leader's line
@@ -636,6 +688,7 @@ export async function travelTo({ locationId } = {}) {
     );
   }
   if (result.spentTurn) parts.push("That crossing spent your Move.");
+  if (result.exert) parts.push(exertResultLine(result.exert));
   if (brought.length > 0) parts.push(`Bringing ${brought.join(", ")}.`);
   if (stranded.length > 0) parts.push(`You can't move ${stranded.join(", ")} through here.`);
   if (heldBack.length > 0) parts.push(`Somebody has hold of ${heldBack.join(", ")}.`);
@@ -1768,6 +1821,10 @@ export async function sendToGms(content, clientNonce) {
       direction: "INBOUND",
       content: text,
       source: "player",
+      // A player's own words, the same as the bot's inbound log. Without
+      // this the row takes the NOTICE default and never lights the desk
+      // (db/lib/dmKinds.js).
+      kind: DM_KIND.CONVERSATION,
       clientNonce: nonce,
       meta: { via: "play" },
     },

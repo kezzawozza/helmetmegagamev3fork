@@ -612,13 +612,21 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const carry = carryStatus(character, gameConfig);
   // Free zone crossings left this turn (CARRY.md §2). Resolved server-side so no allowance math reaches the client bundle.
   const zoneMoves = freeMovesLeft(character, gameConfig, openTurn);
-  const zoneMovesReason = freeZoneMovesReason(character);
-  // Craft (CRAFTING.md): recipes whose every skill this character holds (or
-  // a higher tier), decided here and re-checked by craftRequest. Ingredient
-  // hiding keeps a recipe you have no path to out of the picker (a fresh
-  // crafter isn't offered Miasma before seeing a corpse). An ingredient
-  // tag's own catalogVisibility isn't on tagCatalog above, so it's resolved
-  // with one more targeted query.
+  const zoneMovesReason = freeZoneMovesReason(character, 0, { config: gameConfig, openTurn });
+  // Craft (CRAFTING.md): the recipes whose every skill this character holds
+  // (or a higher tier of), decided here and re-checked by craftRequest. The
+  // client filters its picker to these ids and nothing else.
+  //
+  // Ingredient hiding started as menu hygiene and is now also half of the
+  // secrecy story: the Recipes tab drops a recipe naming an ingredient the
+  // reader was not sent (web/lib/recipeCatalog.js), and hidden-recipe tag
+  // descriptions no longer name their ingredients. Here it keeps a recipe you
+  // have no path to yet out of the picker, so a fresh crafter isn't offered
+  // Miasma before they've ever seen a corpse. An ingredient tag's own
+  // catalogVisibility isn't on the tagCatalog query above (it usually isn't
+  // craftable/purchasable itself), so the slugs and groups a craftable
+  // recipe's requirementItems name are resolved with one more targeted
+  // query.
   const restrictedTagSlugs = new Set();
   const restrictedGroupSlugs = new Set();
   for (const t of tagCatalog) {
