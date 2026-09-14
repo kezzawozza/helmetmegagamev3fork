@@ -102,8 +102,14 @@ async function netPlacesFor(prisma, characterId) {
 // The places one living character may read, in the order the left column
 // draws them: where you are, the rooms off it, the conversations you are in,
 // then the zone's summary — and the radio nets, which are nowhere.
-async function placesFor(prisma, character, { gm = false, discordUserId = null } = {}) {
+//
+// `gm` and `ghost` are the two ways of reading with no living character at
+// all: a GM over the zones they watch, a dead player over every zone. Both
+// come from web/lib/feedAccess.js#loadFeedViewer and nothing here reads a
+// role to decide either.
+async function placesFor(prisma, character, { gm = false, ghost = false, discordUserId = null } = {}) {
   if (gm) return gmPlacesFor(prisma, discordUserId);
+  if (ghost) return ghostPlacesFor(prisma);
   if (!character?.id) return [];
   // A radio works even with no Location, so the column isn't empty.
   const nets = await netPlacesFor(prisma, character.id);
@@ -215,11 +221,50 @@ async function gmPlacesFor(prisma, discordUserId) {
   // Folds a seat down onto the zones it owns, so "Underground" arrives as
   // Underground + Caves + Depths with the cave Locations (db/lib/gmZoneView.js).
   const visible = await visibleZoneIds(prisma, discordUserId);
-  // A CAVE_GROUP is a Discord category/GM seat, never a place — no Locations,
-  // no #summary; its two levels carry the places instead.
+  return watchedPlacesFor(prisma, {
+    zoneIds: visible ? [...visible] : null,
+    privateRooms: true,
+    conversations: true,
+    channellessSummaries: true,
+    nets: SPECIAL_CHANNELS,
+  });
+}
+
+// The ghost seat, on the web. A dead player reads every zone's summary, its
+// Locations and their public Rooms, and the nets that declare `ghostsMaySee`
+// — exactly what the Ghost role's overwrite lets them see on Discord
+// (CHANNELS.md §5, db/lib/ghostAccess.js), and nothing more: a private Room
+// or a conversation is a private thread there, invisible to any non-member,
+// so it stays out of the column here too. Speaking in none of it; a ghost
+// has no voice (docs/documents.yaml, Respawning). Until this existed a dead
+// player's Chat was the DM thread and an empty column, while the same person
+// on Discord could read the whole map.
+//
+// A cave level's summary is left out for the same reason: the level has no
+// #summary channel (CAVING.md §1), so its zone place here is a web-only
+// surface the Discord seat never shows. A GM reads it because a GM reads
+// everything; a ghost reads what the role reads.
+async function ghostPlacesFor(prisma) {
+  return watchedPlacesFor(prisma, {
+    zoneIds: null,
+    privateRooms: false,
+    conversations: false,
+    channellessSummaries: false,
+    nets: SPECIAL_CHANNELS.filter((entry) => entry.ghostsMaySee),
+  });
+}
+
+// The read-only list both watchers above draw from: every place inside
+// `zoneIds` (null means every zone), flat, zone by zone. `privateRooms`,
+// `conversations` and `channellessSummaries` are what separates the GM's
+// seat from the ghost's.
+async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, channellessSummaries, nets }) {
+  // A CAVE_GROUP is a Discord category and a GM seat, never a place: it holds
+  // no Locations and the sync gives it no #summary channel, so listing it
+  // would draw a row that opens nothing. Its two levels carry the places.
   const zoneWhere = {
     kind: { not: "CAVE_GROUP" },
-    ...(visible ? { id: { in: [...visible] } } : {}),
+    ...(zoneIds ? { id: { in: zoneIds } } : {}),
   };
 
   const zones = await prisma.zone.findMany({
@@ -229,6 +274,7 @@ async function gmPlacesFor(prisma, discordUserId) {
       id: true,
       name: true,
       description: true,
+      discordSummaryChannelId: true,
       locations: {
         orderBy: { name: "asc" },
         select: {
@@ -237,10 +283,13 @@ async function gmPlacesFor(prisma, discordUserId) {
           description: true,
           attributes: true, // for hasNoticeboard below — a JSON blob, not a join
           rooms: {
+            ...(privateRooms ? {} : { where: { kind: "PUBLIC" } }),
             orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
             select: { id: true, name: true, description: true, kind: true },
           },
-          playerThreads: { orderBy: { createdAt: "asc" }, select: { id: true, name: true } },
+          playerThreads: conversations
+            ? { orderBy: { createdAt: "asc" }, select: { id: true, name: true } }
+            : false,
         },
       },
     },
@@ -248,15 +297,17 @@ async function gmPlacesFor(prisma, discordUserId) {
 
   const list = [];
   for (const zone of zones) {
-    list.push(
-      place({
-        placeKey: placeKeyForZone(zone.id),
-        kind: "zone",
-        name: zone.name,
-        description: zone.description ?? "",
-        canSpeak: false,
-      }),
-    );
+    if (channellessSummaries || zone.discordSummaryChannelId) {
+      list.push(
+        place({
+          placeKey: placeKeyForZone(zone.id),
+          kind: "zone",
+          name: zone.name,
+          description: zone.description ?? "",
+          canSpeak: false,
+        }),
+      );
+    }
     for (const location of zone.locations) {
       list.push(
         place({
@@ -280,7 +331,7 @@ async function gmPlacesFor(prisma, discordUserId) {
           }),
         );
       }
-      for (const conversation of location.playerThreads) {
+      for (const conversation of location.playerThreads ?? []) {
         list.push(
           place({
             placeKey: placeKeyForConversation(conversation.id),
@@ -293,9 +344,11 @@ async function gmPlacesFor(prisma, discordUserId) {
     }
   }
 
-  // Radio nets, flat and last: belong to no zone, but a GM holds both
-  // channels on Discord so the desk shouldn't be the one place they can't read one.
-  for (const entry of SPECIAL_CHANNELS) {
+  // The radio nets, flat and last. They belong to no zone, so GmZoneView has
+  // nothing to say about them and there is nowhere to nest them — but a GM
+  // holds both channels on Discord, so withholding them here would only make
+  // the desk the one place a GM cannot read a frequency.
+  for (const entry of nets) {
     list.push(
       place({
         placeKey: placeKeyForNet(entry.slug),
@@ -322,7 +375,8 @@ async function mayReadPlace(prisma, character, placeKey, options) {
   return Boolean(await findPlace(prisma, character, placeKey, options));
 }
 
-// A Location is read-only for everybody; every place is read-only for a GM.
+// Reading and writing parted company in phase 2: a Location is read-only for
+// everybody, and every place is read-only for a GM and for a ghost.
 async function mayWritePlace(prisma, character, placeKey, options) {
   const found = await findPlace(prisma, character, placeKey, options);
   return Boolean(found?.canSpeak);

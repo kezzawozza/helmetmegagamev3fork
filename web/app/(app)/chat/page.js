@@ -87,12 +87,14 @@ async function FreshChat({ userId }) {
   const gameConfig = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   if (gameConfig && !gameConfig.playPanelEnabled) redirect("/character");
 
-  // No living character, and not a GM: they still get Bascinet's column. The
-  // DM thread is the account's, not the body's (./actions.js#gmThread), and
-  // for a web-only player it is the ONLY place a seat offer or any other bot
-  // message can be read at all — Discord is not an option they have. This used
-  // to return `empty` and draw a dead page.
-  if (!viewer.character && !viewer.gm) {
+  // No living character, not a GM and not a ghost: they still get Bascinet's
+  // column. The DM thread is the account's, not the body's
+  // (./actions.js#gmThread), and for a web-only player it is the ONLY place a
+  // seat offer or any other bot message can be read at all — Discord is not an
+  // option they have. This used to return `empty` and draw a dead page. A
+  // ghost falls through to the full Chat below, read-only over every zone,
+  // the way a GM with no character does (db/lib/feedAccess.js#ghostPlacesFor).
+  if (!viewer.character && !viewer.gm && !viewer.ghost) {
     return (
       <SnapshotFresh
         scope="play"
@@ -450,7 +452,7 @@ async function FreshChat({ userId }) {
   // unread dot before the pane has ever been opened (./DmPane.js, CHAT.md
   // §2b). Through the player chair's noise filter, so a mention relay lights
   // the dot the way any other word from Bascinet does.
-  const newestDm = viewer.character
+  const newestDm = viewer.character || viewer.ghost
     ? await prisma.directMessage.findFirst({
         where: withoutDmNoise(
           { discordUserId: viewer.discordUserId, direction: "OUTBOUND" },
@@ -523,6 +525,9 @@ async function FreshChat({ userId }) {
     // A GM with no living character reads every zone they may see and may
     // take a line down (web/app/api/feed/delete/route.js).
     gm: Boolean(viewer.gm),
+    // A dead player with no living character reads every zone, and speaks
+    // nowhere (db/lib/feedAccess.js#ghostPlacesFor).
+    ghost: Boolean(viewer.ghost),
     gmZones,
     // The 📷 on somebody else's line, only for a character actually
     // carrying one. photographRow() re-checks the sheet, so this is the

@@ -18,7 +18,7 @@ const MAX_QUERY = 80;
 export async function GET(request) {
   const viewer = await loadFeedViewer();
   if (!viewer.discordUserId) return Response.json({ error: "Sign in first." }, { status: 401 });
-  if (!viewer.character && !viewer.gm) {
+  if (!viewer.character && !viewer.gm && !viewer.ghost) {
     return Response.json({ error: "You have no living character." }, { status: 403 });
   }
 

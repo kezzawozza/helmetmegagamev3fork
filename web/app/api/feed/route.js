@@ -2,6 +2,7 @@ import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { feedWipeFloors, floorForPlace, lowestFloor, placeSeqWhere } from "@lifeweb/db/lib/feedWipe";
 import { makeSeenSeqs } from "@lifeweb/db/lib/seenSeqs";
+import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { loadFeedViewer, loadFeedCharacter, placesFor } from "@/lib/feedAccess";
 import { subscribeToPlace, subscribeToPresence, subscribeToTyping, subscribeToDm } from "@/lib/feedHub";
 
@@ -24,7 +25,7 @@ const PING_MS = 25_000;
 export async function GET(request) {
   const viewer = await loadFeedViewer();
   if (!viewer.discordUserId) return new Response("Not signed in.", { status: 401 });
-  if (!viewer.character && !viewer.gm) return new Response("No living character.", { status: 403 });
+  if (!viewer.character && !viewer.gm && !viewer.ghost) return new Response("No living character.", { status: 403 });
 
   const { searchParams } = new URL(request.url);
   // ONE place, for a reader who only wants one. The GM desk's Scene tab is
@@ -271,8 +272,10 @@ export async function GET(request) {
       // The fifth event: a DirectMessage for this account, already shaped for
       // the player and already past the desk's noise filter (feedHub.js). No
       // cursor and no catch-up — the pane refetches its page on open and on a
-      // reconnect (CHAT.md §2b). A GM with no character has a desk for this.
-      const unsubscribeDm = viewer.character
+      // reconnect (CHAT.md §2b). A GM with no character has a desk for this;
+      // a ghost has nothing else, and it is where the word that they have
+      // been buried, or brought back, arrives.
+      const unsubscribeDm = viewer.character || viewer.options?.ghost
         ? subscribeToDm(viewer.discordUserId, (row) => {
             write(`event: dm\ndata: ${JSON.stringify(row)}\n\n`);
           })
@@ -280,7 +283,24 @@ export async function GET(request) {
 
       // Railway's proxy closes an idle connection, and so do some corporate
       // ones. A comment line keeps it warm and costs nothing to parse.
-      const ping = setInterval(() => write(": ping\n\n"), PING_MS);
+      //
+      // A ghost's stream also asks, on the same beat, whether they are still
+      // one. Their list was decided once at open, and nothing above fires for
+      // a viewer with no character — so a burial, an engraving, a rite, a
+      // spawn or a reincarnation would otherwise leave this connection
+      // reading every room in the game for as long as the tab stayed open.
+      // The same one rule as loadFeedViewer (db/lib/curse.js), one indexed
+      // lookup every PING_MS; the moment it says no, the stream ends and the
+      // reconnect opens as whoever they now are.
+      const ping = setInterval(() => {
+        write(": ping\n\n");
+        if (!viewer.options?.ghost) return;
+        isPlayerCursed(prisma, viewer.discordUserId)
+          .then((still) => {
+            if (!still) finish();
+          })
+          .catch(() => {});
+      }, PING_MS);
       ping.unref?.();
 
       const finish = () => {
