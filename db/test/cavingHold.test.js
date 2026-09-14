@@ -1,6 +1,8 @@
-// The hold an unresolved Caving 1 puts on a caver (CAVING.md §2c).
-// cavingHoldFor is a query, so prisma is stubbed to pin the WHERE, which
-// carries the whole rule: this character, this zone, TROUBLE, still unresolved.
+// The hold a Caving 1 puts on a caver for the rest of the turn
+// (docs/systemdocs/CAVING.md §2c). cavingHoldFor is a query rather than a
+// pure comparison, so prisma is stubbed down to the one call each function
+// makes — which also pins the WHERE, since the whole rule is in it: this
+// character, this zone, TROUBLE, in the turn that is still open.
 const test = require("node:test");
 const assert = require("node:assert");
 
@@ -24,14 +26,18 @@ function stubRolls(rows) {
   };
 }
 
-test("an unresolved TROUBLE row in this zone is the refusal", async () => {
+test("a TROUBLE row in this zone on the open turn is the refusal", async () => {
   const db = stubRolls([{ id: "roll1" }]);
   assert.equal(await cavingHoldFor(db, "char1", "depths"), CAVING_HOLD_REASON);
+  // The whole rule is the WHERE. A QUIET row, a 1 rolled in some other zone, or
+  // one from a turn already pushed must not come back from it — and NOT
+  // resolvedAt: a GM's Mark resolved decides the encounter, but what was
+  // decided only reaches the caver at the push, so it must not free them.
   assert.deepEqual(db.seen[0], {
     characterId: "char1",
     zoneId: "depths",
     kind: "TROUBLE",
-    resolvedAt: null,
+    turn: { status: "OPEN" },
   });
 });
 

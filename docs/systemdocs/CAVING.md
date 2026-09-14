@@ -159,19 +159,28 @@ it is what lets the lens say *where*.
 
 ### 2c. A 1 pins you in the zone
 
-**An unresolved `TROUBLE` row stops the caver leaving the zone it happened
-in.** Until this existed the row waited for a GM and the caver did not wait
-with it — they walked out of the Depths, and a GM ended up adjudicating a
-monster in the dark for somebody standing in Town.
+**A `TROUBLE` row stops the caver leaving the zone it happened in for the
+rest of the turn.** Until this existed the row waited for a GM and the caver
+did not wait with it — they walked out of the Depths, and a GM ended up
+adjudicating a monster in the dark for somebody standing in Town.
+
+The hold ends with the **turn**, not with the roll being resolved. A GM's
+**Mark resolved** says the encounter has been decided; what was decided — the
+staged effect, message or death wired to the roll — only reaches the caver at
+the push. When the hold was keyed on `resolvedAt` instead, a caver was free the
+moment the GM finished deciding and hours before the bite landed, so the
+consequences of a 1 in the Caves arrived on somebody standing in the Forest.
+The push closes the turn, so the hold can never outlive it either: a 1 nobody
+adjudicates lifts on its own at the push, with nothing to sweep.
 
 `cavingHoldFor(prisma, characterId, zoneId)` (`db/lib/cavingPass.js`) is the
 one predicate. It is the Caving twin of `heldReasonFor` (`INTERCEPT.md`) and
 deliberately not the same thing:
 
 - **It is a query, not a comparison.** The answer lives in `CavingRoll`
-  (`kind: TROUBLE`, `resolvedAt: null`) and nowhere on `Character`, so unlike
-  a hold it costs a lookup — which is why the picker asks only when there is a
-  zone crossing on offer to shut.
+  (`kind: TROUBLE`, on the turn that is still `OPEN`) and nowhere on
+  `Character`, so unlike a hold it costs a lookup — which is why the picker
+  asks only when there is a zone crossing on offer to shut.
 - **It takes the way OUT and nothing else.** Walking the level is still free,
   so a party can regroup, camp or push deeper while they wait. An intercept is
   a hand on your shoulder; this is a locked door at the top of the stairs.
@@ -195,17 +204,17 @@ Summoning (`db/lib/riteEffects.js`) is untouched too, for the reason it
 already ignores `heldUntil`: it is somebody else's act on the character, not a
 walk.
 
-**Nothing auto-resolves at turn end.** Only **Mark resolved** on the Caving
-desk clears the row, so a 1 nobody adjudicates holds a player in place
-indefinitely — which is the point, and is also new GM load on top of what §2a
-already added. The Caving lens' default "Needs attention" filter is now the
-list of people who cannot leave.
+**Mark resolved does not free anyone.** It is the desk's word for "decided",
+and the Caving lens' default "Needs attention" filter is the list of rolls a GM
+has not decided yet — not the list of people who cannot leave, which is
+everybody with a 1 on the open turn. A GM who does want somebody out early
+has the Dev Panel's Teleport, which ignores the hold by design.
 
 ### What each face means
 
 | Die | Kind | What happens |
 |---|---|---|
-| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* The caver also takes −10 mood, tripled by Teratophobia (`MOOD.md`), **and cannot leave the zone until it is resolved** (§2c). |
+| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* The caver also takes −10 mood, tripled by Teratophobia (`MOOD.md`), **and cannot leave the zone until the turn ends** (§2c). |
 | 2–5 | `QUIET` | Stamped resolved at creation. No GM attention — the row exists as a record (so the lens' default filter, and a GM skimming the log, both read the truth). The player still gets one line: *"Caving Die: 3 — Nothing happens."* |
 | 6 | `FIND` | Draws a loot tier and a tag (below), grants it, and DMs the player what they found. Also resolved at creation — the grant already landed. |
 
@@ -224,16 +233,14 @@ followed the stink instead. One lure, one trouble; the next 1 is real.
 ### 2d. The push lets go of what nobody adjudicated
 
 **A `TROUBLE` roll still unresolved when the turn is pushed is resolved by the
-push**, and §2c's hold lifts with it
-(`db/lib/cavingPass.js#releaseUnresolvedCavingRolls`, run from `db/index.js`
-directly after the staged push).
+push** (`db/lib/cavingPass.js#releaseUnresolvedCavingRolls`, run from
+`db/index.js` directly after the staged push).
 
-It has to be. The hold is right while the turn is open and a GM is working, and
-wrong the moment the turn closes: the Caving lens goes **read-only** on a past
-turn (`ADJUDICATION.md` §3), so a roll nobody reached is a roll nobody *can*
-reach — and the caver is left standing in the dark with no way out and nobody
-able to give them one. History caving stays read-only; this is the release valve
-instead.
+This is the desk's bookkeeping, not the hold's: §2c's hold ends with the turn
+whether or not anyone resolved the roll. But the Caving lens goes
+**read-only** on a past turn (`ADJUDICATION.md` §3), so a roll nobody reached
+would otherwise sit under "Needs attention" forever with nobody able to reach
+it. History caving stays read-only; this is the release valve instead.
 
 What it writes: `resolvedAt`, and nothing else. **`resolvedByDiscordUserId`
 stays null, and that null is the marker** — a `TROUBLE` row is created

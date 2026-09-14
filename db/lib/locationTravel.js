@@ -212,8 +212,11 @@ async function performLocationMove(prisma, character, targetLocation) {
 
   let openTurn = null;
   if (crossedZone) {
-    // An unresolved 1 on the Caving Die pins them where it happened until a GM adjudicates
-    // it (CAVING.md §2c). Inside this branch, not beside heldReasonFor above — this one blocks only the way OUT of the zone; walking the level is still free, which lets a party regroup while they wait.
+    // A 1 on the Caving Die pins them where it happened until the turn ends —
+    // resolved or not (docs/systemdocs/CAVING.md §2c). Inside this branch
+    // and not beside the heldReasonFor gate above, because this one takes the
+    // way OUT of the zone and nothing else — walking the level is still free,
+    // which is also what lets a party regroup while they wait.
     const cavingHold = await cavingHoldFor(prisma, character.id, currentLocation.zoneId);
     if (cavingHold) return { ok: false, reason: cavingHold };
 
