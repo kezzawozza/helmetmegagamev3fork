@@ -22,23 +22,15 @@ import { auth } from "@/lib/auth";
 // crosses that boundary, so nothing else needs to know it exists.
 class EquipRefusalError extends Error {}
 
-// Equipping is instant and writes no Request and no AuditLog. That is
-// deliberate: it costs nothing, the player can undo it themselves in one tap,
-// and at 100+ players a row per toggle would drown /gm/audit and the Requests
-// tab in noise. Contrast TRANSFER_RESOURCES, which moves something real and so
-// has to be reviewable — see docs/systemdocs/REQUESTS.md.
-//
-// A slot holds one physical item, so a stackable tag's own count is not one
-// on/off flag any more — CharacterTag.equippedQuantity says how many of the
-// stack are out, each spending its own slot. equipOne and unequipOne below
-// move that number by exactly one at a time; there is no bulk toggle on this
-// path (the Dev Panel's GM batch, db/lib/tagOps.js, is the one place that
-// still equips or clears a whole holding in one gesture).
+// Equipping is instant and writes no Request/AuditLog — costs nothing,
+// undoable in one tap, and a row per toggle at 100+ players would drown
+// /gm/audit (contrast TRANSFER_RESOURCES, REQUESTS.md). A slot holds one
+// physical item: CharacterTag.equippedQuantity says how many of a stack are
+// out, each spending its own slot; equipOne/unequipOne move it one at a time
+// (the Dev Panel's GM batch, db/lib/tagOps.js, is the one bulk path).
 
-// Shared by both directions: the session-resolved living character, and the
-// incapacitation gate that blocks equipping AND unequipping alike — a hostage
-// who could take the sack off their own head would not be much of a hostage.
-// Never trusts a posted id: a server action is a public endpoint.
+// Shared by both directions: resolved character plus the incapacitation gate
+// blocking equip AND unequip alike. Never trusts a posted id.
 async function resolveActor() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -48,9 +40,7 @@ async function resolveActor() {
     select: {
       id: true,
       location: { select: { indoors: true, attributes: true, name: true } },
-      // `equipped` and the tag NAME are both read by the boat/mount clash
-      // below, which has to name the thing already out loud.
-      tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
+      tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } }, // name is read by the boat/mount clash below
     },
   });
   if (!character) return { error: "No living character." };
@@ -85,25 +75,18 @@ export async function equipOne(characterTagId) {
     return { error: `You don't have another ${held.tag.name} to equip.` };
   }
 
-  // The gates below only ever fire on the FIRST unit out — none of
-  // STOWABLE_SLUGS, FAST_TRAVEL_SLUGS or WATER_TRAVEL_SLUGS is stackable, so
-  // this is exactly the old `!held.equipped` check, just spelled for a count.
+  // The gates below only fire on the FIRST unit out — none of these slugs is stackable.
   const firstUnitOut = held.equippedQuantity === 0;
 
-  // A cart does not come into a chapel (docs/systemdocs/CARRY.md §3) — though
-  // it does come into a warehouse with a ramp, which is what `parksMounts`
-  // asks rather than reading the `indoors` column. Arriving already unequipped
-  // it; this stops it going straight back on. This one
-  // gates the equip direction only — taking the cart off at the door is the
-  // whole point of it. The incapacitation check above is the gate that runs
-  // both ways.
+  // A cart doesn't come into a chapel (CARRY.md §3) — `parksMounts` asks that
+  // rather than reading `indoors`. Gates the equip direction only; the
+  // incapacitation check above runs both ways.
   if (firstUnitOut && STOWABLE_SLUGS.has(held.tag.slug) && parksMounts(character.location)) {
     return { error: `You can't set up ${held.tag.name} inside ${character.location.name}.` };
   }
 
-  // Motion Sickness: the only gate is here, on equipping a mount or a boat
-  // yourself. A dragged passenger with no mount of their own is handled in
-  // db/lib/locationTravel.js instead — this can't stop that, only what you equip.
+  // Motion Sickness: only gated here, on equipping yourself. A dragged
+  // passenger with no mount of their own is handled in db/lib/locationTravel.js instead.
   if (
     firstUnitOut &&
     (FAST_TRAVEL_SLUGS.has(held.tag.slug) || WATER_TRAVEL_SLUGS.has(held.tag.slug)) &&
@@ -112,10 +95,7 @@ export async function equipOne(characterTagId) {
     return { error: `Your stomach won't have it — you can't ride ${held.tag.name}.` };
   }
 
-  // You are either riding or poling. The boat and the road kit compete for the
-  // same free crossing, and having both out would stack two of them, so each
-  // refuses while the other is equipped. Checked in both directions — the
-  // player may reach this from either tag.
+  // Riding or poling, not both — boat and road kit compete for the same free crossing. Checked in both directions.
   if (firstUnitOut) {
     const conflicting = WATER_TRAVEL_SLUGS.has(held.tag.slug)
       ? BOAT_CONFLICT_SLUGS
@@ -132,13 +112,9 @@ export async function equipOne(characterTagId) {
     }
   }
 
-  // Counting inside the transaction is NOT enough on its own: Prisma runs at
-  // READ COMMITTED, so two tabs (or one impatient double-tap) both read the
-  // same worn set, both see room, and both write — which is exactly what
-  // happens without the lock below. Taking a row lock on the Character first
-  // serializes every equip for this one character, so the second attempt reads
-  // the first's committed set. Contention is per-character, i.e. only ever
-  // between one player's own clients.
+  // Counting inside the transaction is NOT enough alone: Prisma runs at READ
+  // COMMITTED, so two tabs could both read the same worn set and both write.
+  // The row lock on Character serializes every equip for this character.
   try {
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Character" WHERE id = ${character.id} FOR UPDATE`;
@@ -154,16 +130,10 @@ export async function equipOne(characterTagId) {
           tag: { select: { name: true, equipSlot: true, equipLayer: true, twoHanded: true } },
         },
       });
-      // The player's own toggle REFUSES rather than sheds — reaching for a
-      // fifth weapon is a choice, and the refusal names which ones to put
-      // down. Only an involuntary change sheds (db/lib/tagOps.js).
-      //
+      // The player's own toggle REFUSES rather than sheds — only an involuntary change sheds (db/lib/tagOps.js).
       // Hands come from everything HELD, since a maiming is never equipped.
-      // NOT `held` — that name is already the one row this equip is about,
-      // read above and used by the update three lines up. Shadowing it here
-      // put that use in the temporal dead zone of this `const`, so every
-      // single equip threw `Cannot access 'held' before initialization`
-      // before the transaction did anything.
+      // NOT named `held` — that shadows the row already bound above, which
+      // once threw `Cannot access 'held' before initialization`.
       const holdings = await tx.characterTag.findMany({
         where: { characterId: character.id, quantity: { gt: 0 } },
         select: { tag: { select: HANDS_TAG_FIELDS } },
@@ -182,8 +152,7 @@ export async function equipOne(characterTagId) {
   return { equipped: true };
 }
 
-// Puts one unit back — the last one out also clears `equipped`. Units of a
-// stack are fungible, so which physical one comes off makes no difference.
+// Puts one unit back — the last one out also clears `equipped`.
 export async function unequipOne(characterTagId) {
   const actor = await resolveActor();
   if (actor.error) return actor;
@@ -201,34 +170,20 @@ export async function unequipOne(characterTagId) {
     where: { id: held.id },
     data: { equippedQuantity, equipped: equippedQuantity > 0 },
   });
-  // Unequipping a Cart shrinks the carry cap, so the sheet has to be settled
-  // against it — Overburdened goes on. Nothing is dropped for a shrink
-  // (CARRY.md §1), so putting the cart down at an inn door is safe.
+  // Unequipping a Cart shrinks the carry cap; Overburdened goes on but nothing is dropped for a shrink (CARRY.md §1).
   await afterInventoryChange([character.id]);
   revalidatePath("/character");
   return { equipped: equippedQuantity > 0 };
 }
 
-// Take something out of a room stash and put it on, in one gesture.
-//
-// The board's empty cells list what a reachable room is holding beside what
-// you carry (EquipBoard.js), because a player pointed out the alternative:
-// open Transfer, take the thing, close it, find the slot, try it on. This is
-// that sequence with the middle taken out.
-//
-// TWO ACTS, NOT ONE, and deliberately not merged. The take goes through the
-// ordinary transferRequest — so it files its TRANSFER_TAG the same as any
-// other, and the room says "a young man takes a Padded Cap" in its own thread
-// the same as any other (CARRY.md §7). Reaching into the stash from here must
-// cost exactly what reaching into it from the dialog costs, and the only way
-// to be sure of that is to call the same function. transferRequest re-resolves
-// the actor and re-checks reach itself; nothing here is trusted.
-//
-// If the wearing half then refuses — a second helm, a fifth hand — THE TAKE
-// STILL STANDS. It is in your pack, the sentence says so, and it is one click
-// to put it on something else or drop it back. The alternative is unwinding a
-// committed transfer, which would mean a second audit row saying a thing was
-// taken and returned, for a slot clash the player can see on the board.
+// Take something out of a room stash and put it on, in one gesture — the
+// same sequence as Transfer-then-equip with the middle taken out
+// (EquipBoard.js). TWO ACTS, NOT ONE, deliberately not merged: the take goes
+// through the ordinary transferRequest, which re-resolves the actor and
+// re-checks reach, so it costs exactly what reaching into it from the dialog
+// costs. If the wearing half then refuses, THE TAKE STILL STANDS — it's in
+// your pack, one click to place elsewhere, rather than unwinding a committed
+// transfer for a slot clash the player can already see on the board.
 export async function takeAndEquip({ roomId, tagId }) {
   const actor = await resolveActor();
   if (actor.error) return actor;
@@ -244,9 +199,7 @@ export async function takeAndEquip({ roomId, tagId }) {
   });
   if (took?.error) return { error: took.error };
 
-  // The row the transfer just made or grew. Found by tag rather than by an id
-  // the transfer returned, because a stack already part-held merges into the
-  // existing row instead of creating one.
+  // Found by tag, not the transfer's returned id — a part-held stack merges into the existing row instead of creating one.
   const held = await prisma.characterTag.findFirst({
     where: { characterId: character.id, tagId: String(tagId) },
     select: { id: true },

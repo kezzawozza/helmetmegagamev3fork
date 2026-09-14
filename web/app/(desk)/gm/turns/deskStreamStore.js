@@ -3,25 +3,19 @@
 import { useSyncExternalStore } from "react";
 
 // Whether this adjudication tab's live channel is being pushed to or is
-// limping along on its backstop poll. A module store rather than component
-// state because the stream effect writes it, and a setState from an effect is
-// the react-hooks/set-state-in-effect error this repo treats as fatal.
+// limping along on its backstop poll. Module store, not component state,
+// because the stream effect writes it (react-hooks/set-state-in-effect).
 //
-//   live      the stream is connected, or has never yet failed
-//   backstop  the stream has dropped more than once in a row and the slow
-//             poll is carrying the desk. One failure says nothing — a laptop
-//             waking drops it every time — so the chip waits for two.
-//   fatal     the stream never opened after several tries, which is what a
-//             signed-out session or a lost GM role looks like from here (a 204
-//             closes an EventSource without ever firing `open`).
+//   live      connected, or has never yet failed
+//   backstop  dropped more than once in a row; the chip waits for two since
+//             one failure alone is common (e.g. a laptop waking)
+//   fatal     never opened after several tries — a signed-out session or lost
+//             GM role (a 204 closes an EventSource without firing `open`)
 //
-// A SIBLING OF inboxStreamStore.js RATHER THAN A SHARED ONE. The two are the
-// same six lines today and it was tempting to generalise them, but they are
-// not one thing: a GM can have both desks open in one tab-set and each has to
-// answer for itself, and the states are already drifting — this desk will
-// grow "a frame is buffered behind a dirty Result box", which means nothing on
-// the inbox. One store shared between them would have to be keyed, and a keyed
-// store for two callers is a worse trade than twenty duplicated lines.
+// A SIBLING OF inboxStreamStore.js RATHER THAN A SHARED ONE: a GM can have
+// both desks open at once and each answers for itself; the states are
+// already drifting apart, so a shared keyed store is a worse trade than the
+// duplication.
 
 const LIVE = "live";
 const BACKSTOP = "backstop";

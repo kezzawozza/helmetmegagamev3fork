@@ -1,12 +1,5 @@
-// The OOC report channel — one anchor post with an Open Ticket button, and a
-// private thread per report. Hardcoded id rather than an env var, for the
-// roleIds.js reason: one guild, one correct value, not a secret. Access is
-// re-asserted on every bot ready (bot/src/lib/reportChannel.js): @everyone
-// can't see it, Player can, GMs can also manage threads. Nobody is denied
-// SEND_MESSAGES on the channel itself — the bot deletes whatever lands
-// there, GMs included, so it stays one post tall without a lock. The two
-// custom ids are routed by exact equality in
-// bot/src/events/interactionCreate.js — change one here and there together.
+// The OOC report channel — one anchor post with an Open Ticket button, and a private thread per report. Hardcoded id rather than an env var, for the roleIds.js reason: one guild, one correct value, not a secret. @everyone can't see it, Player can, GMs can also manage threads; the bot deletes whatever lands on the channel itself so it stays one post tall without a lock.
+// The two custom ids are routed by exact equality in bot/src/events/interactionCreate.js — change one here and there together.
 const { putChannelOverwrite } = require("./discordRest");
 const { PLAYER_ROLE_ID, gmRoleIds } = require("./roleIds");
 
@@ -42,8 +35,7 @@ const PERM_SEND_MESSAGES_IN_THREADS = 274877906944n;
 const PLAYER_ALLOW = PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS | PERM_ATTACH_FILES | PERM_ADD_REACTIONS;
 const GM_ALLOW = PLAYER_ALLOW | PERM_MANAGE_THREADS | PERM_MANAGE_MESSAGES;
 
-// Idempotent single-target PUTs, so nothing else set by hand on the channel
-// is disturbed — same reasoning as spectatorAccess.js.
+// Idempotent single-target PUTs, so nothing else set by hand on the channel is disturbed.
 async function syncReportChannelAccess() {
   const guildId = process.env.DISCORD_GUILD_ID;
   if (!guildId || !process.env.DISCORD_TOKEN) return { ok: false, reason: "unconfigured" };

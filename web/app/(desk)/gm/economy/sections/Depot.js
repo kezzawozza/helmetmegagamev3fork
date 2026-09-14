@@ -5,16 +5,10 @@ import EmptyState from "@/app/components/EmptyState";
 import { SectionHead } from "./shared";
 
 // --- The Depot -----------------------------------------------------------
-//
-// The station's books. `books` is depotBooks() — nulls, not zeros, when
-// there is no Depot row at all, so this section can say "not provisioned"
-// rather than draw a Restart Game as an empty ledger.
-//
-// DEPOT.md §0g: the station's account and the Merchant's own purse are TWO
-// POTS, and the ATM is the only door between them. This section never sums
-// them — the Merchant's held obols aren't even queried here, because
-// summing "the station's money" with "his money" is exactly the mistake
-// the doc calls out.
+// `books` is depotBooks() — nulls, not zeros, when there's no Depot row, so
+// this can say "not provisioned" rather than draw an empty ledger. DEPOT.md
+// §0g: the station's account and the Merchant's own purse are TWO POTS, the
+// ATM the only door between them — this section never sums them.
 export function Depot({ books, generatorOn, generatorFuel, fuelMax, shuttleState, tradePoints }) {
   if (books.accountObols == null) {
     return (

@@ -225,9 +225,7 @@ import {
 
 // --- Destroy -------------------------------------------------------------
 
-// Drops an item you hold (`Tag.removable`, derived from the category in
-// db/lib/syncTags.js). No refund and no ⬢ field: destroying is
-// throwing away, and a cure is Heal's job (docs/systemdocs/TAGS.md §5).
+// Drops an item you hold (`Tag.removable`). No refund, no ⬢ field — destroying is throwing away; a cure is Heal's job (TAGS.md §5).
 export async function destroyTagRequestImpl({
   tagId,
   quantity: rawQuantity,

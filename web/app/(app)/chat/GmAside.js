@@ -11,38 +11,14 @@ import GmSayBox from "./GmSayBox";
 import { useAsideTab } from "./asideTabStore";
 import { gmPlaceView } from "./actions";
 
-// THE GM's RIGHT COLUMN.
-//
-// A GM used to get two controls here — a Noticeboard button and the zone rail
-// — because page.js builds the player's whole `aside` off viewer.character and
-// GM mode is the absence of one. So the person reading every scene in the game
-// had the least on the page: no idea who was standing in the room they were
-// reading, what was stashed in it, or which way out was shut.
-//
-// It is the SAME SHAPE as ChatAside, deliberately: the same tab strip, the same
-// .chat-aside-tabs / .chat-tabstrip / .chat-aside-panel, the same remembered
-// tab. CHAT.md §8 set that posture for the desk's Scene tab — a GM reading a
-// scene should be reading the player's page, not a GM-flavoured copy of it —
-// and the column follows it. PlaceCard is literally the player's component.
-//
-// What it is NOT is a second copy of the player's column with the buttons
-// greyed out. A GM has no hands: nothing here drops, takes, transfers or
-// travels. Everything is a readout, plus the one thing a GM does to a place,
-// which is say something into it.
-//
-// The data comes from one server action rather than from page.js. A player
-// stands in one place and the page re-renders when they move; a GM changes
-// place by clicking, and re-rendering the server tree on every click is the
-// exact thing CHAT.md §1 says this page does not do.
+// The GM's right column. SAME SHAPE as ChatAside on purpose (CHAT.md §8): same
+// tab strip/classes, PlaceCard is the player's own component. A GM has no
+// hands — everything here is a readout plus GmSayBox. Loads via one server
+// action, not page.js, since re-rendering the server tree per click is what
+// CHAT.md §1 says this page must not do.
 
-// A room's contents, as chips. Shared by the Place tab's room list and the
-// Room tab, so a stash reads the same either way.
-//
-// The app's REAL tag chips, the same ones the player's own column draws. These
-// used to be a bare span wearing a native `title` of the chip's own name — a
-// tooltip that repeated the label — so the GM reading a scene could see that
-// there was a letter on the floor and never what it said. Pinnable, unlike the
-// player's: nothing here is a button, so a click has no other meaning.
+// A room's contents, as chips — shared by Place and Room tabs. Real TagChips,
+// same as the player's column; unlike the player's, nothing here is a button.
 function Things({ things, resources }) {
   if (!things?.length && !resources) return <p className="chat-quiet-line">Empty.</p>;
   return (
@@ -55,17 +31,10 @@ function Things({ things, resources }) {
   );
 }
 
-// WHO IS ACTUALLY STANDING THERE.
-//
-// The player's HereList is not reused, and that is on purpose rather than for
-// want of trying: it polls off the reader's own Location, and its menu is the
-// sheet's request dialogs — heal, loot, bind — none of which a GM has a body
-// to do. What a GM wants from a name is the Dev Panel, so that is what a name
-// is: DevPanelModal is already built to open over any desk without leaving it.
-//
-// Every row is real. A hood hides somebody from the room, not from the host,
-// so the name is the name and `presentedAs` says what the room sees instead —
-// which is the one thing the player's own list can never tell a GM.
+// The player's HereList is not reused on purpose: its menu is request dialogs
+// (heal, loot, bind) a GM has no body to do. A name opens the Dev Panel instead.
+// Every row is real — a hood hides somebody from the room, not the host, so
+// `presentedAs` says what the room sees instead.
 function GmHereList({ people, onOpen }) {
   if (!people?.length) return <EmptyState>Nobody is standing here.</EmptyState>;
   return (
@@ -98,9 +67,8 @@ function GmHereList({ people, onOpen }) {
 
 export default function GmAside({ selected, gmZones, onPlaceChanged }) {
   const placeKey = selected?.placeKey ?? null;
-  // The answer is STAMPED with the place it was asked about, the way
-  // RoomPanel's stash read is: a slow reply for a place the GM has already
-  // clicked past is rendered for nobody rather than under the wrong name.
+  // Answer is STAMPED with the place asked about, so a slow reply for a place
+  // already clicked past renders for nobody rather than under the wrong name.
   const [view, setView] = useState(null);
   const [open, setOpen] = useState(null);
 
@@ -124,10 +92,7 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
   const fresh = view?.placeKey === placeKey ? view : null;
   const kind = fresh?.ok ? fresh.kind : null;
 
-  // The tabs this place actually has. A room adds its own, the way the
-  // player's column does; a zone summary and a radio net have no Location
-  // under them, so they get neither Room nor Travel rather than two panels
-  // that would have nothing to draw.
+  // A zone summary or radio net has no Location, so gets neither Room nor Travel.
   const placed = kind === "loc" || kind === "room" || kind === "conv";
   const tabs = [
     (placed || kind === "zone") && { id: "place", label: "Place" },
@@ -168,10 +133,7 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
       >
         {fresh && !fresh.ok && <EmptyState>{fresh.error}</EmptyState>}
 
-        {/* A zone summary is not somewhere anybody stands, so there is nobody
-            here and nothing stashed. What it IS is the zone and the Locations
-            under it — which is the one readout that tells a GM what the
-            channel they are reading actually covers. */}
+        {/* A zone summary: the zone and its Locations, not people or stash. */}
         {openTab === "place" && fresh?.ok && kind === "zone" && (
           <>
             <div className="chat-card">
@@ -196,10 +158,7 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
         {openTab === "place" && fresh?.ok && placed && (
           <>
             <GmHereList people={fresh.people} onOpen={setOpen} />
-            {/* The player's own card, unchanged. `fixtures` is empty and
-                `onFixture` absent: the Location's buttons are things you do
-                standing there, and the one a GM can work — the board — is
-                below, where it reads as a GM's copy rather than a player's. */}
+            {/* The player's own card, unchanged; `fixtures`/`onFixture` omitted since those buttons need a body standing there. */}
             <PlaceCard place={fresh.place} zone={fresh.zone} lines={fresh.lines} />
 
             {fresh.members && (
@@ -289,8 +248,7 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
         )}
       </div>
 
-      {/* Bottom-pinned by .chat-aside-tabs > .desk-inspector-zones, the same
-          rule that held it when it was this column's only tenant. */}
+      {/* Bottom-pinned by .chat-aside-tabs > .desk-inspector-zones. */}
       {gmZones && <GmZoneRail zones={gmZones.selectable} selectedIds={gmZones.selectedIds} />}
 
       {open && <DevPanelModal characterId={open} onClose={() => setOpen(null)} />}

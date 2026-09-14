@@ -18,30 +18,19 @@ import { freeMovesLeft, freeZoneMovesReason } from "@lifeweb/db/lib/locationTrav
 import { nodeAt, plateSize, PLATE_SRC } from "@/lib/mapNodes";
 import { zoneKey } from "@/lib/zones";
 
-// The map's one loader. Both surfaces call it — the /map route and the overlay
-// on /chat — so the fog is computed in exactly one place.
-//
-// THE FOG IS REAL, NOT CSS. A Location this character does not know is absent
-// from the payload entirely rather than sent and hidden: a server action is a
-// public endpoint, and anything shipped to the browser is shipped to the
-// player. The same goes for edges — a hidden crawl somebody lacks the tag for
-// is indistinguishable here from no edge at all, which is the wording rule
-// crossingCheck already enforces on refusals (MAP.md §2a).
-//
-// Travel itself is NOT here. Moving stays with travelTo on /chat, so there is
-// one mover and one set of rules; this only says what a hop would cost, using
-// the same numbers the Travel panel does.
+// The map's one loader (/map and the /chat overlay both call it). THE FOG IS
+// REAL, NOT CSS: an unknown Location is absent from the payload entirely,
+// since a server action is a public endpoint and anything shipped is shipped
+// to the player (MAP.md §2a). Travel itself is NOT here — moving stays with
+// travelTo on /chat, so there is one mover and one set of rules.
 
-// A zone is underground if it is a cave LEVEL. Caves and Depths are the two;
-// their CAVE_GROUP parent ("Underground") is a category and a GM seat, never a
-// place, so it never carries a Location and never appears here.
+// A zone is underground if it is a cave LEVEL; the CAVE_GROUP parent
+// ("Underground") is a category and never carries a Location.
 function layerOfZone(zone) {
   return zone?.kind === "CAVE_LEVEL" ? "under" : "surface";
 }
 
-// Customs is a Caves Location whose building is drawn on the surface plate. It
-// is the threshold between the two layers, so it draws on both — otherwise the
-// way underground appears to start nowhere.
+// Customs draws on both layers — the threshold, so the way underground doesn't start nowhere.
 const BOTH_LAYERS = new Set(["customs"]);
 
 export async function loadMap() {
@@ -53,20 +42,14 @@ export async function loadMap() {
     select: MOVER_SELECT,
   });
 
-  // A GM with no living character reads the whole plate. They are running the
-  // game; a fogged map would be a tool that hides the thing it is for. A GM
-  // who IS playing somebody gets their character's map like anyone else —
-  // /map sits in the player half of the rail, not the job half.
+  // A GM with no living character reads the whole plate; a GM playing somebody gets their character's fogged map like anyone else.
   if (!character) {
     const { isGm } = await getGmSession();
     if (!isGm) return { ok: false, error: "You have no living character." };
     return buildMap({ character: null, unfogged: true });
   }
 
-  // Self-healing. applyLocationMoveSideEffects records every arrival, but it
-  // runs post-commit and every caller swallows its errors, so a dropped write
-  // would leave a permanent hole. Re-recording where they stand on every open
-  // costs one upsert and closes that gap.
+  // Self-healing: applyLocationMoveSideEffects's post-commit write can drop, so re-recording here closes that gap.
   if (character.locationId) {
     await recordArrival(prisma, character, character.locationId).catch(() => {});
   }
@@ -99,25 +82,18 @@ async function buildMap({ character, unfogged }) {
     ? await knownLocations(prisma, character.id)
     : { stood: new Set(), seen: new Set() };
 
-  // Where they can go from here, already gated and costed — the same call the
-  // Travel panel makes, so the two can never disagree about a hop. Somebody
-  // being held is asked too: travelOptions shuts every way and writes the
-  // reason onto each row, so the board still draws instead of going blank.
+  // Same call the Travel panel makes, so the two never disagree about a hop.
   const neighbours = character?.locationId ? await travelOptions(prisma, character, character.locationId) : [];
   const adjacent = new Map(neighbours.map((row) => [row.location.id, row]));
 
   const party = character ? await partyOf(prisma, character.id) : [];
 
-  // What is INSIDE the places they have been. Only those: a room is a door in
-  // a wall you have to have stood in front of, and listing the Cathedral's
-  // private rooms to somebody who has only glimpsed it from the Square would
-  // be telling them about a door they have never seen.
+  // Only places they have stood — a room is a door you must have stood in front of.
   const inside = await roomsInside(prisma, character, unfogged, known.stood);
 
   const tagSlugs = new Set((character?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
   const onFootBlocked = blocksOnFoot(equippedSlugs(character?.tags ?? []));
-  // One clock for the whole graph, so a propped-open way cannot lapse halfway
-  // through the loop and draw open at one end and shut at the other.
+  // One clock for the whole graph, so a way can't lapse halfway through the loop.
   const now = new Date();
 
   const visible = (id) => unfogged || known.seen.has(id) || adjacent.has(id);
@@ -125,8 +101,7 @@ async function buildMap({ character, unfogged }) {
   const nodes = [];
   for (const location of locations) {
     if (!visible(location.id)) continue;
-    // Placed on the art, or not drawn. A Location added to docs/zones.yaml but
-    // never measured onto the plate would otherwise stack on the origin.
+    // Not drawn if never measured onto the plate.
     const at = nodeAt(location.slug);
     if (!at) continue;
 
@@ -145,30 +120,17 @@ async function buildMap({ character, unfogged }) {
       layer: layerOfZone(location.zone),
       both: BOTH_LAYERS.has(location.slug),
       state: here ? "here" : stood ? "stood" : "seen",
-      // A place seen once from next door is a name and a colour. The
-      // description is what standing there buys you — or what an open way out
-      // is already telling you about where it leads.
-      //
-      // `near.passable`, NOT `near`: a locked door and a shut gate are ways
-      // you can SEE and cannot use, and reading the room on the other side of
-      // one is exactly the thing being locked out of it is supposed to
-      // prevent. You get the name, the colour and the reason, and nothing
-      // else until you get through.
+      // `near.passable`, NOT `near`: a locked/shut way is visible but blocked,
+      // and its description stays hidden until it's actually open.
       description: stood || near?.passable ? location.description || null : null,
-      // Rooms and conversations only where they have actually stood — see
-      // roomsInside(). Absent, not empty, everywhere else.
+      // Rooms/conversations only where actually stood — see roomsInside().
       inside: inside.get(location.id) ?? null,
-      // The mount question, not the roof one: a Location you drive into is
-      // drawn as an ordinary node (locationAttributes.js#parksMounts).
       indoors: parksMounts(location),
       adjacent: Boolean(near),
       passable: Boolean(near?.passable),
       crossesZone: Boolean(near?.crossesZone),
-      // THIS crossing's own count, not a flat one shared by every node — a
-      // boat's bonus is earned per crossing (db/lib/mounts.js#boatCrossing),
-      // so Forest<->Hills or Hills<->Marshes shows one more than a crossing
-      // the water does nothing for. Only worth asking for an adjacent node;
-      // a merely-known one has no crossing to weigh yet.
+      // THIS crossing's own count (db/lib/mounts.js#boatCrossing), not a flat
+      // one shared by every node; only worth asking for an adjacent node.
       freeLeft: near
         ? freeMovesLeft(character, config, openTurn, party.length, {
             fromZoneSlug: currentZone?.slug ?? null,
@@ -177,33 +139,25 @@ async function buildMap({ character, unfogged }) {
         : null,
       dismounts: Boolean(near?.dismounts),
       reason: near?.refusal ?? null,
-      // The tag of theirs that opens the way here, if one does. Same field the
-      // Travel panel draws a chip from, and safe for the same reason: it is
-      // only ever set for a tag this character already holds.
+      // Same field the Travel panel draws a chip from; only ever set for a tag this character already holds.
       openedBy: near?.openedBy ?? null,
     });
   }
 
   const shown = new Set(nodes.map((n) => n.id));
 
-  // An edge draws only when both ends are known AND the way is LISTED for this
-  // character. `listed` is weaker than `passable` (MAP.md §2a): a locked door
-  // draws dashed and says why, a hidden crawl draws nothing at all and reads
-  // exactly like two places with no way between them.
+  // Draws only when both ends are known AND the way is LISTED (MAP.md §2a):
+  // `listed` is weaker than `passable`, so a locked door draws dashed but a hidden crawl draws nothing.
   const edges = [];
   for (const link of links) {
     if (!shown.has(link.aId) || !shown.has(link.bId)) continue;
     const verdict = crossingCheck(link, { tagSlugs, onFootBlocked, now });
-    // The GM sees every way, including the ones no character could. Only the
-    // `listed` filter is lifted — the verdict itself still decides how a way
-    // is drawn, so a shut gate reads as shut on their board too.
+    // The GM sees every way; only the `listed` filter is lifted.
     if (!unfogged && !verdict.listed) continue;
     edges.push({
       a: link.aId,
       b: link.bId,
       gate: gateOf(link, verdict),
-      // Drawn as a solid accent line rather than a plain grey one: a road only
-      // your own trait opens is worth seeing on the plate, not just in the card.
       openedBy: verdict.openedBy ?? null,
     });
   }
@@ -224,8 +178,6 @@ async function buildMap({ character, unfogged }) {
     edges,
     travel: character
       ? {
-          // Somebody has hold of them (INTERCEPT.md) — the banner over the
-          // board. Every node's own refusal already says it too.
           held: heldReasonFor(character),
           freeLeft: freeMovesLeft(character, config, openTurn, party.length),
           freeReason: freeZoneMovesReason(character, party.length),
@@ -238,17 +190,9 @@ async function buildMap({ character, unfogged }) {
   };
 }
 
-// What is inside each place the character has stood in: its public rooms, the
-// private ones they may actually enter, and their own conversations there.
-//
-// Three separate lists rather than one, because they are three different kinds
-// of thing — a public room is a place anyone can walk into, a private one is a
-// door you hold the key to, and a conversation is people, not architecture.
-//
-// The private filter is accessibleRooms(), the SAME predicate the channel
-// doctor, the Secret rooms? button and the Transfer dialog use, and it needs
-// the guest ids as well as the tags or somebody let in by hand is shown no
-// door at all. There is no second copy of that rule here.
+// Public rooms, private rooms they may enter, and their own conversations.
+// Private filter is accessibleRooms(), the SAME predicate the channel doctor,
+// Secret rooms? and Transfer use — no second copy of that rule here.
 async function roomsInside(prisma, character, unfogged, stoodIds) {
   const ids = unfogged ? undefined : [...stoodIds];
   if (!unfogged && ids.length === 0) return new Map();
@@ -285,9 +229,7 @@ async function roomsInside(prisma, character, unfogged, stoodIds) {
   return out;
 }
 
-// What to draw the line as. Only the two states a player can DO something
-// about get a mark — a locked way sends you looking for the key, a shut one
-// sends you to the winch. Everything else is just a road.
+// What to draw the line as. Only states a player can DO something about get a mark.
 function gateOf(link, verdict) {
   if (verdict.passable) return null;
   if (link.modular && !link.isOpen) return "shut";

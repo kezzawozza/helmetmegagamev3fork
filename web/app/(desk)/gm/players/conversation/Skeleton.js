@@ -1,10 +1,7 @@
 import { SkeletonBar } from "@/app/components/PageShell";
 
-// Renders inside the desk shell layout.js already painted — neither the rail
-// nor the inspector re-suspends when you pick a different person — so this
-// fills the conversation only. It lost its `desk-dossier` half when the
-// dossier folded into the shared inspector, which is a column of the shell
-// now and paints straight through a navigation.
+// Renders inside the desk shell layout.js already painted — neither rail nor
+// inspector re-suspends on picking a different person — so this fills only the conversation.
 export default function Loading() {
   return (
     <div className="desk-person">

@@ -9,29 +9,15 @@ import TagChip from "./TagChip";
 import { useTags } from "./TagsProvider";
 import { peopleToExamine, examineCharacter } from "@/app/(app)/character/examineActions";
 
-// Look at — the Examine control on the Actions grid.
-//
-// One of two entries on that grid which file no Request (ReadDialog.js is the
-// other), so it gets its own plain modal rather than being forced through the
-// Requests popup: there is no reason to type, nothing for a GM to review and
-// nothing to undo. See examineActions.js for why the feature exists at all.
-//
-// Two round trips on purpose. The roster loads when the dialog opens, so it is
-// current rather than baked into the page render; the readout loads when a
-// name is picked, so opening the dialog never fetches everybody's sheet.
-//
-// `targetId` skips the picker. Chat opens this from a person's row in HERE
-// and from a line in the feed, where the reader has already said who they mean
-// — asking them to find that same person again in a dropdown would be a worse
-// dialog than the sheet's. It is only a shortcut past the ROSTER: the readout
-// is the same one round trip, and examineCharacter() re-resolves the looker
-// from the session and re-checks co-presence, so a stale or invented id is
-// refused rather than answered.
+// Look at — the Examine control. One of two grid entries filing no Request
+// (ReadDialog.js is the other), so it gets its own plain modal. See
+// examineActions.js for why the feature exists. Two round trips on purpose:
+// roster loads when the dialog opens, readout loads when a name is picked.
+// `targetId` skips the picker but not the re-check: examineCharacter()
+// re-resolves the looker and re-checks co-presence, so a stale id is refused.
 export default function ExamineDialog({ open, onClose, targetId = null }) {
   if (!open) return null;
-  // Keyed on the target, so opening the dialog on a second person while the
-  // first is still on screen starts a fresh look rather than reusing the old
-  // one's state.
+  // Keyed on the target so a second person starts a fresh look, not reused state.
   return <ExamineDialogBody key={targetId ?? "picker"} onClose={onClose} targetId={targetId} />;
 }
 
@@ -41,9 +27,7 @@ function ExamineDialogBody({ onClose, targetId = null }) {
   const [chosen, setChosen] = useState(targetId ?? "");
   const [look, setLook] = useState({ loading: preset, readout: null, error: null });
 
-  // One fetch or the other, never both: a caller who already named somebody
-  // has no use for the roster, and loading it anyway would put a list of who
-  // is standing nearby into a dialog that was asked one question.
+  // One fetch or the other, never both.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -108,20 +92,9 @@ function ExamineDialogBody({ onClose, targetId = null }) {
   );
 }
 
-// The readout itself, exported: /chat's HERE column draws it for a hood and
-// its feed draws it for a photograph, and all three used to hand-roll their
-// What you can see on them, as hoverable chips.
-//
-// It used to be a comma-separated line of bare names, which meant the one
-// surface where you are deliberately sizing somebody up was the one place a
-// tag would not tell you what it was. The catalog is already in the tree
-// (TagsProvider, mounted in the root layout), so resolving the readout's slug
-// against it costs no round trip and adds nothing to the payload — the readout
-// still carries only what this viewer is allowed to know.
-//
-// A slug the catalog does not have falls back to the old plain chip. That is a
-// custom or system-authored tag (a corpse, a written note), which has no
-// catalog entry to hover by design.
+// What you can see, as hoverable chips. The catalog is already in the tree
+// (TagsProvider), so resolving a slug costs no round trip. A slug the catalog
+// does not have falls back to a plain chip — a custom or system-authored tag by design.
 function SeenTags({ tags }) {
   const { tagsBySlug } = useTags();
   return (
@@ -133,9 +106,7 @@ function SeenTags({ tags }) {
           return (
             <span key={t.slug ?? t.name} className="inline-flex items-center gap-1">
               {full ? <TagChip tag={full} /> : <span className="chip">{t.name}</span>}
-              {/* The detail is about THIS sighting — turns left, "your
-                  diagnosis" — not about the tag, so it stays outside the chip
-                  and out of the hover panel. */}
+              {/* The detail is about THIS sighting, not the tag, so it stays outside the chip. */}
               {t.detail && <span className="text-xs text-muted">({t.detail})</span>}
             </span>
           );
@@ -145,21 +116,12 @@ function SeenTags({ tags }) {
   );
 }
 
-// own poorer copy of this block off the same object.
 export function Readout({ readout }) {
   return (
     <div className="panel flex flex-col gap-3" style={{ padding: "0.75rem" }}>
       <div className="flex items-center gap-2">
-        {/* A plain <img>, not CharacterAvatar: that component builds its own
-            /api/avatar/<id> URL, which would serve the real face for somebody
-            standing here under a hood. presentedIdentity already decided which
-            face this is — the silhouette, a letter plaque or their own — and
-            the whole point is to render THAT and nothing else. */}
-        {/* Openable, and the same rule holds through the zoom: it is handed
-            `avatarPath` and shows exactly that, so a hood stays a hood. This
-            Readout is itself inside a dialog — Modal settles Escape by focus
-            first and mount order second, so the face closes on its own without
-            taking the examine window with it. */}
+        {/* A plain <img>, not CharacterAvatar: that would build its own
+            /api/avatar/<id> URL and serve the real face under a hood. */}
         <AvatarZoom src={readout.avatarPath} name={readout.name}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -181,15 +143,11 @@ export function Readout({ readout }) {
 
       {readout.tags.length > 0 && <SeenTags tags={readout.tags} />}
 
-      {/* Role is same-faction knowledge; ⬢ is a Leader/Treasurer of their own
-          faction reading their own roster. Both decided in db/lib/examine.js,
-          so this surface and 🔍 answer alike. */}
+      {/* Role/⬢ visibility both decided in db/lib/examine.js. */}
       <Line label="Role" values={readout.roleTitle ? [readout.roleTitle] : null} />
       <Line label="Resources" values={readout.resources != null ? [`${readout.resources} ⬢`] : null} />
 
-      {/* Rendered only when the looker holds the sight that buys it. A subject
-          with nothing to read prints the same words either way, so the field
-          never reports more than it should — db/lib/inspectVision.js. */}
+      {/* Only when the looker holds the sight that buys it — db/lib/inspectVision.js. */}
       {readout.desire && (
         <div className="field">
           <span className="field-label">Last Desire</span>

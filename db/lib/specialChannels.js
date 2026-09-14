@@ -1,18 +1,5 @@
-// The registry of SPECIAL CHANNELS — standing channels outside the zone
-// system. Each entry fully describes a channel: provisioning, static role
-// grants, per-character access, wipe behavior, ghost visibility and tupper
-// routing all derive from it. Adding a channel is one entry here plus one
-// GameConfig id column.
-//
-// Access rules stay CODE: they're real logic over tags and zones, not data a
-// YAML mini-language could express cleanly.
-//
-// #cerberon and #27.065 are the two radio nets. #intercom used to be a third: a standing
-// channel a tag-holder typed into, viewable by every above-ground zone role.
-// It is now a button on the table in the Council Room (db/lib/intercom.js),
-// which broadcasts into each zone's own #summary — so the PA is a thing in a
-// room again rather than a place you travel to. Its GameConfig column stays
-// as an orphan, the way mindlinkChannelId did.
+// The registry of SPECIAL CHANNELS — standing channels outside the zone system. Each entry fully describes a channel: provisioning, static role grants, per-character access, wipe behavior, ghost visibility and tupper routing all derive from it. Access rules stay CODE, not a YAML mini-language.
+// #cerberon and #27.065 are the two radio nets. #intercom is now a button in the Council Room (db/lib/intercom.js); its GameConfig column stays as an orphan.
 
 const SPECIAL_CHANNELS = [
   {
@@ -24,8 +11,7 @@ const SPECIAL_CHANNELS = [
     wipe: "clear",
     ghostsMaySee: true,
     roleViewZones: [],
-    // Possession is what matters — a bracelet transferred to a character
-    // outside the Cerberon still opens the channel.
+    // Possession is what matters — a bracelet transferred outside the Cerberon still opens the channel.
     member: (ctx) => {
       if (ctx.tagSlugs.has("radio-system-cerberon")) return { view: true, send: true };
       if (ctx.tagSlugs.has("radio-bracelet-cerberon")) return { view: true, send: false };
@@ -42,18 +28,14 @@ const SPECIAL_CHANNELS = [
     wipe: "clear",
     ghostsMaySee: true,
     roleViewZones: [],
-    // No listener-only half here the way the Cerberon net has one: there is a
-    // single radio, and it both hears and speaks.
+    // No listener-only half here: there is a single radio, and it both hears and speaks.
     member: (ctx) => (ctx.tagSlugs.has("radio-27065") ? { view: true, send: true } : null),
   },
 ];
 
 const NARROWCAST_SLUGS = SPECIAL_CHANNELS.map((c) => c.slug);
 
-// Loads the inputs the member rules need for one character. Slugs, not ids —
-// the rules are authored against docs/zones.yaml's fixed identifiers. The
-// zone is read THROUGH the location (one authority), falling back to the
-// denormalized Character.zoneId only for an unplaced character.
+// Slugs, not ids — the rules are authored against docs/zones.yaml's fixed identifiers. Zone is read THROUGH the location, falling back to Character.zoneId only for an unplaced character.
 async function buildNarrowcastContext(prisma, characterId) {
   const [row, tags] = await Promise.all([
     prisma.character.findUnique({
@@ -77,8 +59,6 @@ async function buildNarrowcastContext(prisma, characterId) {
   };
 }
 
-// Returns { cerberon: {view,send}|null, ... } — null means the character gets no
-// member overwrite on that channel.
 function computeNarrowcastAccess(ctx) {
   return Object.fromEntries(SPECIAL_CHANNELS.map((entry) => [entry.slug, entry.member(ctx)]));
 }

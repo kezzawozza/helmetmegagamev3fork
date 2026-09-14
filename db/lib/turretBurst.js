@@ -1,29 +1,11 @@
-// The noise a turret makes. Separate from db/lib/turretPass.js because that
-// file must never depend on Discord: being shot is a database fact and is
-// resolved above every DISCORD_TOKEN guard in the codebase. This is the part
-// that happens afterwards, and is allowed to fail.
-//
-// Two volumes, on purpose. In the Location the gun is standing in, the burst is
-// the loudest thing in the room and is full-size text. Everywhere else in the
-// zone it is a sound carrying over rooftops, so it goes as `-#` subtext through
-// db/lib/ambientLine.js like every other thing the world says.
-//
-// It fires on EVERY burst, grazes included. A gun that only makes noise when it
-// draws blood is a gun nobody can learn to avoid, and the whole point of the
-// Gatehouse is that the yard is visibly dangerous before you walk into it.
-//
-// Once per BURST, never once per victim: the turn-end sweep shoots everyone
-// standing there in one go (db/lib/turretPass.js#sweepTurretAt), and five
-// identical lines for five people would read as five guns.
-//
+// The noise a turret makes. Separate from db/lib/turretPass.js because that file must never depend on Discord — being shot is a database fact, resolved above every DISCORD_TOKEN guard. This is the part that happens afterwards, and is allowed to fail.
+// Two volumes: full-size in the Location the gun is standing in, `-#` subtext (db/lib/ambientLine.js) elsewhere in the zone. Fires on EVERY burst, grazes included, so the Gatehouse yard is visibly dangerous before you walk into it. Once per BURST, never once per victim (db/lib/turretPass.js#sweepTurretAt).
 // Takes `prisma` as a parameter; see db/lib/dm.js for why.
 const { ambientLine } = require("./ambientLine");
 const { postMessage } = require("./discordRest");
 const { sceneLineAt } = require("./scene");
 
 const BURST_SOUND = "You hear a machinegun open up. RRATATAT!";
-// The room the gun is in gets it full size; ambientLine renders the copy that
-// carries to the rest of the zone as subtext.
 const BURST_TEXT = BURST_SOUND;
 
 async function announceTurretBurst(prisma, locationId) {
@@ -37,8 +19,6 @@ async function announceTurretBurst(prisma, locationId) {
 
   let sent = 0;
 
-  // The room the gun is in, first and at full size — whoever is standing there
-  // should see it before anyone a zone away does.
   if (here.discordChannelId) {
     try {
       await postMessage(here.discordChannelId, BURST_TEXT);
@@ -51,9 +31,7 @@ async function announceTurretBurst(prisma, locationId) {
 
   if (!here.zoneId) return { sent };
 
-  // Sequential and individually caught. Never Promise.all a Discord fan-out
-  // (docs/systemdocs/TURN-ENGINE.md) — the burst of 429s is what earns an
-  // IP-level ban, and a zone can hold a dozen Locations.
+  // Sequential and individually caught. Never Promise.all a Discord fan-out (docs/systemdocs/TURN-ENGINE.md) — the burst of 429s is what earns an IP-level ban.
   const elsewhere = await prisma.location.findMany({
     where: { zoneId: here.zoneId, id: { not: here.id }, discordChannelId: { not: null } },
     select: { id: true, name: true, discordChannelId: true },

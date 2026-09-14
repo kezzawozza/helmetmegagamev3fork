@@ -1,26 +1,13 @@
-// Writes the game transcript (ArchiveEntry), the store behind /archive.
-//
-// Rows are recorded at SEND time rather than reconstructed at Dawn. The old
-// db/lib/messageWipe.js archived by reading every message back out of Discord and
-// re-posting it into a single #archive channel — hundreds of sequential posts
-// down one ~1 msg/sec lane, the most expensive thing the bot did, and it grew
-// with player count. It also had to guess at two fields it can now be told
-// outright: the character (matched by *current* name, so a rename
-// mis-attributed everything they had ever said) and the turn (inferred by
-// comparing timestamps against Turn.gameDate).
-//
-// Takes `prisma` as a parameter rather than require("../index"), same reason
-// as dm.js and turnAnnouncement.js: db/index.js imports this module, so
-// requiring it back would resolve to a partial (prisma-less) exports object.
-// Deliberately NOT spread into the @lifeweb/db barrel — require it by path.
+// Writes the game transcript (ArchiveEntry), the store behind /archive. Rows are
+// recorded at SEND time, not reconstructed later, so the character and turn are told outright instead of guessed (a rename or a timestamp-vs-Turn.gameDate comparison would misattribute them).
+// Takes `prisma` as a parameter rather than require("../index") — db/index.js imports this module, so requiring back would resolve to a partial (prisma-less) exports object. Deliberately NOT spread into the @lifeweb/db barrel — require it by path.
 
 const { Prisma } = require("@prisma/client");
 const { notifyFeed } = require("./feedNotify");
 const { hoodToken } = require("./whosHere");
 const { loadPresentedState } = require("./examineSnapshot");
 
-// The columns the live feed needs off a row, and nothing else. Kept beside
-// feedRowShape below so the two never drift.
+// The columns the live feed needs off a row, and nothing else — kept beside feedRowShape below so the two never drift.
 const FEED_ROW_SELECT = {
   seq: true,
   placeKey: true,
@@ -36,55 +23,14 @@ const FEED_ROW_SELECT = {
 };
 
 // One archived row as the wire shape /chat and /api/feed speak.
-//
-// `name` is the PRESENTED name: a concealed or forced send was written under
-// its alias, and that is the only name the room ever heard. `avatarPath` is
-// the same answer for the FACE — the mask or plaque frozen onto the row at
-// send time, null when the room saw the character's own face and the client
-// should ask /api/avatar for it. `discordUserId` is never sent — the whole
-// point of the proxy is that the web page has no more idea who is behind a
-// character than a Discord channel does.
-//
-// A row with an alias and no path predates the column, and cannot be given one
-// now: the sprite lived on the Tag equipped at the time. It gets `unknownFace`
-// and the question-mark plate rather than a guess, because the only wrong
-// direction here is exposing somebody the room could not see.
-//
-// `characterId` is WITHHELD on a hooded row, and this is the load-bearing
-// line in the file. Shipping it on every row meant a browser holding one
-// hooded line and one named line could match them by id and read the hood
-// straight off — the exact unmasking db/lib/whosHere.js#hoodToken exists to
-// prevent, sitting in plain JSON. It stayed harmless only while nothing on
-// the page used the id of an aliased row, which stopped being true the moment
-// the eye moved onto hooded lines.
-//
-// `speakerKey` is what replaces it: the same HMAC that file mints, so
-// consecutive lines from one hood still group into a run, and so a player can
-// still recognise their OWN hooded lines — the page is handed its own key and
-// compares. The browser cannot compute one, so it correlates hoods with hoods
-// and never a hood with a name.
-//
-// Withheld per ROW rather than per reader on purpose: web/lib/feedHub.js
-// shapes one row and fans it out to every watcher of a place, so anything
-// decided per reader here would be decided for whoever happened to be first.
-// Ownership is a client-side hint either way — every edit and delete
-// re-resolves the actor from the session (db/lib/say.js).
-//
-// `avatarVersion` goes with the id. It is a cache-buster built from the
-// speaker's updatedAt, and a timestamp that moves when one particular
-// character is edited is one more thing two rows could be matched on.
-//
-// `seq` is a BigInt on the row and a STRING here. JSON.stringify throws on a
-// BigInt, and a Number would lose precision at the far end of the range.
+// `name`/`avatarPath` are the PRESENTED identity — alias/frozen face if concealed, else null so the client asks /api/avatar. `discordUserId` is never sent. A row with an alias and no path predates the column and gets `unknownFace` + the question-mark plate rather than a guess — the only wrong direction here is exposing somebody the room couldn't see.
+// `characterId` is WITHHELD on a hooded row — the load-bearing line in this file. Shipping it on every row would let a browser match a hooded line to a named one by id and read the hood straight off, the exact unmasking db/lib/whosHere.js#hoodToken exists to prevent. `speakerKey` replaces it: the same HMAC that file mints, so consecutive hooded lines still group and a player can still recognise their OWN hooded lines (the page compares its own key) — the browser can only correlate hood-with-hood, never hood-with-name.
+// Withheld per ROW, not per reader — feedHub.js fans one row out to every watcher of a place, so a per-reader decision here would be decided for whoever happened to be first; ownership stays a client-side hint, every edit/delete re-resolves the actor server-side (say.js). `avatarVersion` (a cache-buster off the speaker's updatedAt) is withheld the same way — another id two rows could be matched on. `seq` is a BigInt on the row and a STRING here: JSON.stringify throws on a BigInt, and a Number would lose precision at the far end of the range.
 function feedRowShape(row, extra = {}) {
   if (!row) return null;
-  // Any row said under a name that is not their own — a hood, or a forced
-  // name like Apex Form's Beast. Both wear a face that is not theirs
-  // (db/lib/presentedIdentity.js), so both withhold the id behind it.
+  // Any row said under a name that isn't their own (a hood, or a forced name like Apex Form's Beast) wears a face that isn't theirs (presentedIdentity.js), so both withhold the id behind it.
   const hooded = Boolean(row.concealedAlias);
-  // Pulled out of `extra` rather than left to the spread below, or a caller
-  // that knows the speaker's updatedAt (withAvatarVersions, feedHub) would put
-  // the cache-buster back on a hooded row after this took it off.
+  // Pulled out of `extra`, or a caller that knows the speaker's updatedAt (withAvatarVersions, feedHub) would put the cache-buster back on a hooded row after this took it off.
   const { avatarVersion, ...rest } = extra;
   return {
     seq: String(row.seq),
@@ -105,19 +51,9 @@ function feedRowShape(row, extra = {}) {
   };
 }
 
-// A batch of rows shaped with ONE `?v=` per character.
-//
-// feedRowShape falls back to the row's own sentAt when nobody hands it an
-// avatarVersion, and that is a different number on every line — so a page of
-// rows asked /api/avatar/<id> for the same face once per row, and a reader
-// watched a portrait blink down the whole scene. The live NOTIFY path already
-// passes the right number (web/lib/feedHub.js#avatarVersionFor); this is the
-// same answer for the three surfaces that render a batch instead of a row:
-// the first paint of /chat, the stream's catch-up, and /api/feed/history.
-//
-// ArchiveEntry.characterId is a SNAPSHOT string rather than a foreign key, so
-// a row whose character has since been deleted simply misses the map and
-// keeps the old fallback.
+// A batch of rows shaped with ONE `?v=` per character — feedRowShape falls back to
+// the row's own sentAt when nobody hands it an avatarVersion, a different number per row, so a page asked /api/avatar/<id> once per line and a reader watched a portrait blink down the scene. Same answer as the live NOTIFY path (feedHub.js#avatarVersionFor) for the three surfaces that render a batch: /chat's first paint, the stream's catch-up, /api/feed/history.
+// ArchiveEntry.characterId is a SNAPSHOT string, not a foreign key, so a row whose character has since been deleted just misses the map and keeps the old fallback.
 async function withAvatarVersions(prisma, rows, extra = {}) {
   const list = Array.isArray(rows) ? rows : [];
   const ids = [...new Set(list.map((row) => row?.characterId).filter(Boolean))];
@@ -136,10 +72,7 @@ async function withAvatarVersions(prisma, rows, extra = {}) {
 
 // --------------------------------------------------------------- /archive
 
-// The columns the transcript reads, on top of the feed's. `id` is the React
-// key and the anchor a citation points at; the rest are what the page groups
-// and styles by, and every one of them was being loaded and thrown away
-// before (docs/systemdocs/ARCHIVE.md §5).
+// The columns the transcript reads, on top of the feed's — `id` is the React key/citation anchor; the rest is what the page groups and styles by (docs/systemdocs/ARCHIVE.md §5).
 const ARCHIVE_ROW_SELECT = {
   ...FEED_ROW_SELECT,
   id: true,
@@ -151,21 +84,8 @@ const ARCHIVE_ROW_SELECT = {
   channelKind: true,
 };
 
-// A page of transcript rows, shaped for the browser.
-//
-// It goes through feedRowShape rather than around it, and that is the whole
-// point: the archive names the character behind every hood, but it must still
-// not hand a browser the pieces to correlate a hooded line with a named one by
-// id. feedRowShape withholds `characterId` on an aliased row and substitutes
-// the HMAC `speakerKey`; re-shaping these rows by hand would quietly undo it.
-//
-// The archive DOES render `alias (Real Name)` where the feed shows only the
-// alias — that is deliberate and is why the page stays shut until the game is
-// over — so `realName` rides along explicitly rather than being smuggled back
-// into `name`.
-//
-// One `?v=` per character, not per row: withAvatarVersions' comment explains
-// why, and a transcript of a busy day is the surface that showed it worst.
+// A page of transcript rows, shaped for the browser. Goes through feedRowShape rather
+// than around it — the archive names the character behind every hood but must still not hand the browser the pieces to correlate a hooded line with a named one by id; feedRowShape withholds `characterId` and substitutes `speakerKey`, and re-shaping by hand would quietly undo that. The archive DOES render `alias (Real Name)` where the feed shows only the alias — deliberate, and why the page stays shut until the game is over — so `realName` rides along explicitly rather than being smuggled into `name`. One `?v=` per character, not per row (see withAvatarVersions).
 async function archiveRowsShape(prisma, rows) {
   const list = Array.isArray(rows) ? rows : [];
   const ids = [...new Set(list.map((row) => row?.characterId).filter(Boolean))];
@@ -192,9 +112,7 @@ async function archiveRowsShape(prisma, rows) {
   });
 }
 
-// Every write here is best-effort and swallows its own failure. A transcript
-// row is never worth breaking a player's message over, and the proxy path
-// calls this inline with the send. Failures are logged, not thrown.
+// Every write here is best-effort and swallows its own failure — a transcript row is never worth breaking a player's message over, and the proxy calls this inline with the send. Failures are logged, not thrown.
 async function safely(label, fn) {
   try {
     return await fn();
@@ -204,10 +122,8 @@ async function safely(label, fn) {
   }
 }
 
-// Which game a row belongs to: GameState.gameId, memoised for half a minute
-// so a message costs no extra round trip. The wipe swaps the id; a stale memo
-// for up to thirty seconds after a wipe stamps a row nobody will read, which
-// is fine — the wipe also drops every character who could have written one.
+// Which game a row belongs to: GameState.gameId, memoised for half a minute so a
+// message costs no extra round trip. The wipe swaps the id; a stale memo for up to thirty seconds after a wipe stamps a row nobody will read, which is fine — the wipe also drops every character who could have written one.
 const GAME_ID_TTL_MS = 30 * 1000;
 let gameIdMemo = { id: null, at: 0 };
 
@@ -224,38 +140,15 @@ function forgetGameId() {
   gameIdMemo = { id: null, at: 0 };
 }
 
-// The open turn, so a row can be stamped with when it happened in the fiction.
-// Callers that already hold the turn (advanceTurn, the auto-labor pass) pass
-// it in to skip the lookup.
+// The open turn, so a row can be stamped with when it happened in the fiction. Callers that already hold the turn (advanceTurn, the auto-labor pass) pass it in to skip the lookup.
 async function resolveTurn(prisma, turn) {
   if (turn) return turn;
   return prisma.turn.findFirst({ where: { status: "OPEN" } });
 }
 
-// One proxied character message. `concealedAlias` is non-null only for a
-// /conceal send — both halves are kept, since the panel renders
-// "Young Man (Sir Alder)": the alias is what the room saw, characterName is
-// who it actually was. `presentedAvatarPath` is the face that went with it,
-// frozen the same way and null whenever the room saw their own.
-// `rethrow` is for the one caller that needs to SEE a failure: the proxy
-// claims its row before posting to Discord (bot/src/lib/proxy.js), and the
-// whole point of that claim is the P2002 a redelivered messageCreate raises on
-// `sourceDiscordMessageId`. safely() would swallow it and the second post would
-// go out anyway. Every other caller keeps the swallow — an archive write must
-// never be the thing that breaks a turn pass.
-// What the room could see of the speaker, for the freeze this row carries.
-//
-// The caller usually supplies it — db/lib/say.js builds it out of the same
-// query that resolves the identity, so the proxy path pays nothing extra. When
-// it does not, this loads it, so the invariant is one sentence: EVERY message
-// row with a character and a place carries a snapshot.
-//
-// The placeKey guard is the same rule db/lib/examineRow.js reads by: a row with
-// no place can never carry a look, so freezing one would be pure waste.
-//
-// Never allowed to fail the send. The proxy calls with `rethrow: true` and a
-// message it loses is lost for good, while a snapshot it loses just degrades
-// that line to the live read it would have had anyway.
+// One proxied character message. `concealedAlias` is non-null only for a /conceal send — both halves are kept since the panel renders "Young Man (Sir Alder)": the alias is what the room saw, characterName who it actually was. `presentedAvatarPath` is the face that went with it, frozen the same way, null when the room saw their own.
+// `rethrow` is for the one caller that needs to SEE a failure: the proxy claims its row before posting to Discord (bot/src/lib/proxy.js), and the point of that claim is the P2002 a redelivered messageCreate raises on `sourceDiscordMessageId` — safely() would swallow it and a second post would go out. Every other caller keeps the swallow: an archive write must never be the thing that breaks a turn pass.
+// What the room could see of the speaker, for the freeze this row carries. The caller usually supplies it (say.js builds it from the same query that resolves identity, so the proxy path pays nothing extra); when it doesn't, this loads it, so the invariant is one sentence: EVERY message row with a character and a place carries a snapshot. The placeKey guard matches examineRow.js: a row with no place can never carry a look, so freezing one would be waste. Never allowed to fail the send — the proxy calls with `rethrow: true` and a lost message is lost for good, while a lost snapshot just degrades that line to the live read it would have had anyway.
 async function resolvePresentedState(prisma, entry) {
   if (entry.presentedState !== undefined) return entry.presentedState;
   if (!entry.character?.id || !entry.placeKey) return null;
@@ -288,33 +181,23 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
         characterName: entry.character?.name ?? null,
         concealedAlias: entry.concealedAlias ?? null,
         presentedAvatarPath: entry.presentedAvatarPath ?? null,
-        // The third frozen column. DbNull rather than null is how a Json
-        // column is told to hold a SQL NULL — a bare null is the other kind of
-        // nothing on a Json field, and "not frozen" is the one meant here.
+        // The third frozen column. DbNull, not null, is how a Json column is told to hold a SQL NULL — a bare null is the other kind of nothing on a Json field, and "not frozen" is the one meant here.
         presentedState: presentedState ?? Prisma.DbNull,
         content: entry.content ?? "",
         discordMessageId: entry.discordMessageId ?? null,
-        // The player's original message, when one produced this row. The
-        // unique index on it is what stops a redelivered Discord event
-        // becoming a second post — see the field's note in schema.prisma.
+        // The player's original message, when one produced this row. The unique index on it is what stops a redelivered Discord event becoming a second post — see the field's note in schema.prisma.
         sourceDiscordMessageId: entry.sourceDiscordMessageId ?? null,
         channelKind: entry.channelKind ?? null,
         threadName: entry.threadName ?? null,
         discordChannelId: entry.discordChannelId ?? null,
         placeKey: entry.placeKey ?? null,
         source: entry.source ?? "DISCORD",
-        // A row the bot itself just posted is already on Discord, so the
-        // outbox has nothing to do with it. A WEB row leaves this null, which
-        // is exactly what the outbox looks for.
+        // A row the bot itself just posted is already on Discord, so the outbox has nothing to do with it; a WEB row leaves this null, exactly what the outbox looks for.
         discordSyncedAt: entry.discordMessageId ? new Date() : null,
       },
     });
 
-    // After the insert, never inside it: a listener woken before the row is
-    // committed would look it up and find nothing.
-    //
-    // `clientId` rides along so the tab that typed this meets its own row as
-    // the row it already drew, rather than as a second one (db/lib/feedNotify.js).
+    // After the insert, never inside it: a listener woken before the row is committed would look it up and find nothing. `clientId` rides along so the tab that typed this meets its own row as the one it already drew, rather than a second one (feedNotify.js).
     if (row.placeKey) {
       await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey, clientId: entry.clientId ?? null });
     }
@@ -323,9 +206,7 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
   return rethrow ? run() : safely("message write", run);
 }
 
-// A system event — a turn opening, a death, a fulfilled Desire. Same table as
-// messages so the two interleave chronologically and the transcript reads as a
-// diary rather than a chat log with no context.
+// A system event — a turn opening, a death, a fulfilled Desire. Same table as messages so the two interleave chronologically and the transcript reads as a diary, not a chat log with no context.
 async function recordArchiveEvent(prisma, entry) {
   return safely(`${entry.kind} write`, async () => {
     const [turn, gameId] = await Promise.all([resolveTurn(prisma, entry.turn), currentGameId(prisma)]);
@@ -351,9 +232,7 @@ async function recordArchiveEvent(prisma, entry) {
   });
 }
 
-// The row that a Discord message id belongs to. Since phase 1 this is what
-// the reactions look themselves up with, in place of the in-memory
-// recentProxies map that a restart emptied.
+// The row a Discord message id belongs to — what reactions look themselves up with, in place of the in-memory recentProxies map a restart used to empty.
 async function archiveRowForMessage(prisma, discordMessageId) {
   if (!discordMessageId) return null;
   return prisma.archiveEntry.findUnique({
@@ -374,14 +253,8 @@ async function archiveRowForMessage(prisma, discordMessageId) {
   });
 }
 
-// Take a row back that nobody should have seen — the proxy's claim row when
-// the Discord post it was written for then failed.
-//
-// Soft, and it notifies, for the same reason deleteSpeech is: the insert has
-// already woken every stream watching that place, so a hard delete would leave
-// those tabs holding a line Discord never heard. Not deleteSpeech itself, which
-// is the PLAYER's take-back and enforces an edit window and an owner — this is
-// the bot tidying up after itself.
+// Take a row back that nobody should have seen — the proxy's claim row when the
+// Discord post it was written for then failed. Soft, and it notifies, for the same reason deleteSpeech is: the insert already woke every stream watching that place, so a hard delete would leave those tabs holding a line Discord never heard. Not deleteSpeech itself (the PLAYER's take-back, with an edit window and an owner check) — this is the bot tidying up after itself.
 async function retractArchiveRow(prisma, id) {
   return safely("row retraction", async () => {
     const row = await prisma.archiveEntry.update({

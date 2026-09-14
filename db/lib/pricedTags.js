@@ -1,26 +1,10 @@
-// A cache of the tags the economy ledger cares about: anything with a price
-// (`sellablePrice` or `depotPrice`), plus the obol tag itself, which carries
-// no price column but is worth exactly 1 ⬢ by definition (db/lib/depotState.js).
-//
-// db/lib/tagWrites.js calls `pricedTag` on every quantity write — addToStack,
-// dropCharacterTag, and their room-stash twins — and there are on the order of
-// 135 call sites feeding those four functions. An extra SELECT per write would
-// put a query on that hot path for every wound, skill and corpse tag too, most
-// of which will never price out to anything. So this is a lazily-loaded,
-// process-memory Map instead: load once, then answer from memory, with a TTL
-// short enough that a `db:sync-tags` run is picked up without a bot/web
-// restart.
-//
-// Takes `tx`/`prisma` as a parameter rather than requiring db/index.js back —
-// the db/lib/dm.js convention, since db/index.js is what requires THIS module,
-// and requiring the barrel from inside db/lib/ resolves to a partial exports
-// object.
+// A cache of tags the economy ledger cares about: priced tags plus the obol tag, worth exactly 1 ⬢ by definition (db/lib/depotState.js). tagWrites.js calls `pricedTag` on ~135 hot-path write call sites, so this is a lazily-loaded, process-memory Map with a TTL short enough to pick up a `db:sync-tags` run without a restart.
+// Takes `tx`/`prisma` as a parameter rather than requiring db/index.js back — the db/lib/dm.js convention, since requiring the barrel from inside db/lib/ resolves to a partial exports object.
 const { OBOL_SLUG } = require("./depotState");
 
 const TTL_MS = 5 * 60 * 1000;
 
-// Module-level, not per-tx: the whole point is to survive across calls and
-// across transactions. Reset only by TTL expiry or an explicit invalidate.
+// Module-level, not per-tx: survives across calls/transactions; reset only by TTL expiry or an explicit invalidate.
 let cache = null; // Map<tagId, entry>
 let loadedAt = 0;
 
@@ -50,24 +34,12 @@ async function loadCache(tx) {
   return cache;
 }
 
-// Returns `{ slug, sellablePrice, depotPrice, stackable, isObol }` for a tag
-// that carries money weight, or null for a tag that doesn't (or on any
-// failure — a bookkeeping miss must never cost a player their item, so this
-// NEVER throws into a caller).
+// Returns a priced-tag record or null (including on any failure) — a bookkeeping miss must never cost a player their item, so this NEVER throws into a caller.
 async function pricedTag(tx, tagId) {
   if (!tagId) return null;
   try {
     if (!isFresh()) {
-      // NOT shared across callers, deliberately. An in-flight promise was
-      // reused here so a TTL lapse cost one query rather than many — but the
-      // promise carried whichever caller's `tx` won the race, so a second
-      // transaction ended up awaiting a query issued on the first one's
-      // connection. If the first rolled back, the second got an error for a
-      // reason that had nothing to do with it, and its tag write went
-      // unrecorded with nothing to retry it.
-      //
-      // Each caller loading on its own tx costs a handful of duplicate reads
-      // once every TTL. That is the cheaper mistake by a wide margin.
+      // NOT shared across callers, deliberately — an in-flight promise reused across transactions would tie a second tx to the first one's connection, so a rollback on one wrongly errors the other. A few duplicate reads per TTL is the cheaper mistake.
       await loadCache(tx);
     }
     return cache?.get(tagId) ?? null;

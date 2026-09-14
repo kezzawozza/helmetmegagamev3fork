@@ -1,10 +1,7 @@
 "use server";
 
-// The Oracle desk's one write. See docs/systemdocs/ORACLE.md.
-//
-// Reading is done by the page as a server component; the only thing a GM does
-// to a page here is rewrite it, and that is the whole correction mechanism —
-// there is no regenerate, so an edit has to stick.
+// The Oracle desk's one write. See docs/systemdocs/ORACLE.md. Reading is done
+// server-side; a GM's only action is rewriting a page — no regenerate, so an edit has to stick.
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
@@ -13,9 +10,8 @@ import { getGmSession } from "@/lib/discordGuild";
 
 const MAX_BODY = 20_000;
 
-// Every GM, not just a superadmin: the desk is a GM surface, and the settings
-// behind it are the superadmin part. The layout gate already ran, but a server
-// action is a public endpoint and re-checks for itself.
+// Every GM, not just a superadmin — the settings behind the desk are the
+// superadmin part. Re-checks for itself; a server action is a public endpoint.
 async function requireGm() {
   const session = await auth();
   if (!session?.discordUserId) throw new Error("Not authorized.");
@@ -30,9 +26,8 @@ export async function saveSynopsis({ id, body }) {
   const text = String(body ?? "").trim().slice(0, MAX_BODY);
   if (!text) return { ok: false, error: "A page cannot be empty." };
 
-  // editedAt is what stops a later run replacing this text, and what tells the
-  // desk to draw the page as a person's rather than a draft. Stamped here and
-  // never cleared: a page somebody took the trouble to fix stays fixed.
+  // editedAt stops a later run replacing this text and tells the desk to draw
+  // it as a person's page rather than a draft. Never cleared once stamped.
   const row = await prisma.oracleSynopsis.update({
     where: { id: String(id) },
     data: {

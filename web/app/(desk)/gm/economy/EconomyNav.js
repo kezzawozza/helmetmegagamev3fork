@@ -1,11 +1,7 @@
 import Link from "next/link";
 
-// The economy desk's section rail — a plain server component, same posture as
-// gm/dev/OpsNav.js: no usePathname, because every section is the same route
-// and the active one comes from ?s=, which the page already knows.
-//
-// All ten sections are built now — Goods, The Depot and Factions were the
-// last three, moved up from the "Coming later" group they used to sit in.
+// The economy desk's section rail — a plain server component, same posture
+// as gm/dev/OpsNav.js: no usePathname, the active one comes from ?s=.
 const BUILT = [
   { key: "pulse", label: "Pulse" },
   { key: "ledger", label: "Ledger" },

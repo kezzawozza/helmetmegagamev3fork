@@ -6,14 +6,9 @@ import StatusPill from "@/app/components/StatusPill";
 import DiscordAvatar from "@/app/components/DiscordAvatar";
 import CharacterLink from "@/app/components/CharacterLink";
 
-// The Gamemaster roster. Hand-rolled <table> markup and a bespoke empty row
-// before this; now the same engine and the same empty state as every other
-// list in the app (DESIGN-SYSTEM §5, §5a).
-//
-// No search box and no pager: a guild has a handful of GMs, and a filter
-// over six rows is chrome pretending to be a feature. What it does get is
-// sortable headers, because "who is a Trial GM" is the question this table
-// exists to answer and it was previously answered by reading every row.
+// The Gamemaster roster — same table engine and empty state as every other
+// list (DESIGN-SYSTEM §5, §5a). No search box or pager: a handful of GMs, a
+// filter over six rows is chrome. Sortable headers instead, since "who is a Trial GM" is the real question.
 
 const COLS = 3;
 

@@ -3,44 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConfirm } from "./ConfirmProvider";
 
-// Guards a panel that holds unsaved edits. Exiting by ANY route other than an
-// explicit save has to be confirmed, and confirming discards the edits — the
-// rule the adjudication panels are held to.
-//
-// Two layers: guardedClose() covers in-app exits (overlay click, Cancel,
-// Escape), and a beforeunload listener covers the browser-level ones (reload,
-// tab close, back). The browser dialog's wording is fixed by the user agent;
-// only whether it appears is ours to control.
-// Module-level counter, incremented/decremented alongside each instance's own
-// dirty flag. It's the only cross-component way to ask "is ANYTHING dirty
-// right now" (the live-refresh poll on /gm/turns needs exactly that, without
-// prop-drilling every panel's guard up to Workspace). Backward compatible:
-// nothing else has to change to keep working.
+// Guards a panel with unsaved edits. Two layers: guardedClose() covers
+// in-app exits, a beforeunload listener covers browser-level ones. The
+// browser dialog's wording is fixed by the user agent, only whether it
+// appears is ours. Module-level counter answers "is ANYTHING dirty right
+// now" cross-component, for the live-refresh poll on /gm/turns.
 let dirtyInstances = 0;
 export function isAnyDirty() {
   return dirtyInstances > 0;
 }
 
-// `initialDirty` is for a panel that opens ALREADY holding unsaved content —
-// the composer behind "Stage as message" arrives prefilled with the GM's whole
-// outcome. Without it that composer is born clean, so Escape, a backdrop click
-// or Cancel discarded the message with no confirm, no beforeunload and no
-// trace. That is how a staged message came to never be staged.
-// `alsoDirty` is for a panel whose unsaved content lives OUTSIDE this hook —
-// the desk drafts (deskDraft.js), which survive a reload and so are already
-// there on the first render, before anybody has typed anything this mount.
-// It is a plain boolean the caller derives, ORed into `dirty`; its
-// contribution to the counter is owned by its own effect below rather than by
-// markDirty/markClean, so the two can never fight over one instance's 1.
-//
-// `alsoDirtyHoldsPoll` is the one place those two audiences come apart. A
-// draft restored from storage is unsaved work for as long as it exists — it is
-// guarded on close and on unload, no argument. But it is only SOMEBODY WRITING
-// RIGHT NOW for as long as somebody is writing, and isAnyDirty() is what
-// stands the 120s backstop poll down. A draft left on a row last week held
-// that poll down for ever, so a caller whose outside content has gone cold
-// passes false and keeps the close guard without keeping the desk frozen.
-// Typing calls markDirty(), which gates the poll again for this sitting.
+// `initialDirty`: opens ALREADY holding unsaved content. `alsoDirty`: unsaved
+// content OUTSIDE this hook (deskDraft.js), ORed into `dirty`, counted by its
+// own effect below. `alsoDirtyHoldsPoll`: a restored draft is guarded on
+// close regardless, but only holds the 120s backstop poll while someone is actively writing.
 export default function useDirtyGuard({
   enabled = true,
   initialDirty = false,
@@ -51,17 +27,13 @@ export default function useDirtyGuard({
   const [selfDirty, setDirty] = useState(initialDirty);
   const dirty = selfDirty || alsoDirty;
   const dirtyRef = useRef(initialDirty);
-  // Whether this instance currently contributes its 1 to dirtyInstances. The
-  // single source of truth for the counter, so registering, marking and
-  // unmounting can never double-count in either direction.
+  // Single source of truth for whether this instance's 1 is counted, so
+  // registering/marking/unmounting can never double-count.
   const counted = useRef(false);
 
-  // Counter mutations stay OUT of the setState updaters: React may call an
-  // updater twice (StrictMode, or a rebase in a concurrent transition), and
-  // `dirtyInstances` is a side effect — a replayed markClean used to be able
-  // to drive it below this instance's real contribution, which silently
-  // un-gated the 45s poll and the switch-rows confirm. Same discipline as
-  // QueueRail.js's scroll handling.
+  // Counter mutations stay OUT of setState updaters: React may call an
+  // updater twice (StrictMode, concurrent transition), which must never
+  // drive dirtyInstances below this instance's real contribution.
   const markDirty = useCallback(() => {
     dirtyRef.current = true;
     if (!counted.current) {
@@ -79,9 +51,7 @@ export default function useDirtyGuard({
     setDirty(false);
   }, []);
 
-  // Register an initially-dirty panel's contribution, and drop whatever this
-  // instance still holds on unmount — unsaved edits in flight (e.g. a hard
-  // navigation past beforeunload) must not leave the counter stuck positive.
+  // Register an initially-dirty contribution and drop it on unmount, so it can't leave the counter stuck positive.
   useEffect(() => {
     if (dirtyRef.current && !counted.current) {
       counted.current = true;
@@ -107,8 +77,7 @@ export default function useDirtyGuard({
     if (!enabled || !dirty) return undefined;
     const onBeforeUnload = (e) => {
       e.preventDefault();
-      // Legacy browsers require returnValue to be set for the prompt to show.
-      e.returnValue = "";
+      e.returnValue = ""; // legacy browsers require this to show the prompt
       return "";
     };
     window.addEventListener("beforeunload", onBeforeUnload);

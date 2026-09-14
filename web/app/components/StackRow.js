@@ -4,29 +4,12 @@ import TagChip from "./TagChip";
 import { parseQuantity } from "./QuantityField";
 
 // A stack you are choosing some of: name · how many there are · − n + · All.
-//
-// The name is a TagChip when the caller hands over the tag, so the row says
-// what the thing IS on hover — where it is worn, what it stops, what it does in
-// a fight — exactly as the Depot, the Tag Catalog and the sheet's own rail
-// already do. This dialog was the one list in the app showing a bare name, and
-// a player reported the consequence: the only way to find out which slot a
-// helmet took was to carry it home and try it on. A caller with no tag to give
-// (a helpless person's pockets, which are deliberately named and not described
-// — REQUESTS.md §5b) still passes a plain name and gets the old row.
-//
-// The weight rides UNDER the name rather than on the hover, because it is the
-// one fact that decides the answer while the dialog is open: the carry cap is
-// right there in the projection line. Everything else is a hover away.
-//
-// This replaces the checkbox-then-"How many?" pair that Transfer, Loot,
-// Package and Purchase Gear each drew their own way: tick a box, and a second
-// control appeared to say how many. One row does both — the count IS the
-// choice, and 0 is "none of that".
-//
-// `picks` is { [id]: "3" } — string drafts, the way QuantityField keeps its
-// value, so a half-typed box is not snapped mid-edit. Every change hands back
-// a NEW object (react-hooks/immutability is an error here); a 0 removes the
-// key, so Object.keys(picks) is still "what was chosen".
+// Name is a TagChip when the caller hands over the tag, so the row says what
+// the thing IS on hover. A caller with no tag (a helpless person's pockets,
+// deliberately named and not described — REQUESTS.md §5b) gets a plain name.
+// One row replaces the checkbox-then-"How many?" pair — the count IS the choice.
+// `picks` is { [id]: "3" } — string drafts (QuantityField). Every change
+// hands back a NEW object (react-hooks/immutability is an error here); a 0 removes the key.
 
 function stackLabel(name, quantity) {
   return quantity > 1 ? `${name} ×${quantity}` : name;

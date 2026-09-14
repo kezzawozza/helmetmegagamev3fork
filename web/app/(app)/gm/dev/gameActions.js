@@ -25,14 +25,8 @@ import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { listGuildMembers, sendDm } from "@/lib/discordGuild";
 
-// The game's lifecycle: CLOSED -> LOBBY -> RUNNING -> ENDED, and the two ways
-// back (Close lobby, Resume). Every transition is superadmin-only and checks
-// the phase it is leaving, so a double click or a stale tab is a refusal
-// rather than a second transition. See docs/systemdocs/LOBBY.md §1.
-//
-// Every action returns { ok } or { ok: false, error } — the Game section's
-// client component renders the error in place, since there is no error.js
-// under /gm/dev to land on.
+// Lifecycle: CLOSED -> LOBBY -> RUNNING -> ENDED. Every transition is
+// superadmin-only and checks the phase it is leaving. See docs/systemdocs/LOBBY.md §1.
 
 async function requireSuperadmin() {
   const session = await auth();
@@ -53,9 +47,7 @@ function refresh() {
   revalidatePath("/", "layout");
 }
 
-// Every phase change re-checks who may watch: spectators see the channels
-// only while the game is on (db/lib/spectatorAccess.js). Post-commit and
-// best-effort; the doctor's cheap scope catches a sweep that died.
+// Rechecks who may watch (db/lib/spectatorAccess.js). Post-commit and best-effort.
 function sweepSpectators() {
   after(() =>
     syncSpectatorAccess(prisma).catch((err) => console.error("Spectator sweep failed:", err)),
@@ -78,9 +70,7 @@ export async function openLobby() {
   return { ok: true };
 }
 
-// Back to Closed. Readied players keep their rows — the entries are per game
-// and the lobby may reopen — but nobody can ready or change anything until it
-// does.
+// Back to Closed. Readied players keep their rows for when the lobby reopens.
 export async function closeLobby() {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
@@ -94,7 +84,7 @@ export async function closeLobby() {
   return { ok: true };
 }
 
-// The Discord roles of every guild member, for the roll's whitelist check.
+// Discord roles of every guild member, for the roll's whitelist check.
 async function memberRoleMap() {
   const members = await listGuildMembers();
   return new Map(members.map((m) => [m.id, m.roles]));
@@ -113,9 +103,8 @@ export async function previewAssignment() {
   return { ok: true };
 }
 
-// Hand-sets one row of the draft. A superadmin may name any role, whitelist
-// or not — that is the override — but commit still refuses a seat over
-// capacity. An empty slug sends the player back to the lobby.
+// Hand-sets one row of the draft; commit still refuses a seat over capacity.
+// An empty slug sends the player back to the lobby.
 export async function setDraftRow({ discordUserId, roleSlug }) {
   await requireSuperadmin();
   const state = await getGameState(prisma);
@@ -135,15 +124,10 @@ export async function setDraftRow({ discordUserId, roleSlug }) {
   return { ok: true };
 }
 
-// Starts the clock. With readied players this commits the previewed draft —
-// re-validated under a lock, so a lobby that changed since the preview is a
-// refusal rather than a wrong roll. With nobody readied (a GM test game) it
-// just flips the phase. Turn 1 is already open — the wipe creates it — so it
-// is restamped to now; the bot's cron does the rest from the next midnight.
-// The DMs go out after the commit, one at a time, and then the #turns console
-// is reposted: the one the wipe left was built with the clock frozen, so it
-// carried no Move cutoff, and a bare line under it left the buttons stranded
-// above the newest message.
+// Starts the clock: commits the previewed draft (re-validated under a lock,
+// so a stale lobby is a refusal not a wrong roll), or just flips the phase
+// with nobody readied. Turn 1 gets restamped to now; #turns is reposted after
+// so the console carries a real Move cutoff instead of the frozen-clock one.
 export async function startGame() {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
@@ -197,15 +181,9 @@ export async function startGame() {
 }
 
 // Stops the clock, opens the archive, writes the reveal (db/lib/gameEnd.js)
-// and posts it to #turns. The closing note is the superadmin's epilogue,
-// shown above the roster.
-//
-// The post is AWAITED, not deferred to after(): the ending is already
-// committed, so a failed post cannot cost it, and the superadmin is the only
-// person who can do anything about a reveal that never landed. It used to run
-// in after() with the error swallowed to console, so a game ended and never
-// announced returned a clean ok. `posted: false` now says so, and the Game
-// section offers the repost below.
+// and posts it to #turns. The post is AWAITED, not deferred to after(): the
+// ending is already committed, so `posted: false` tells the superadmin a
+// reveal never landed and the Game section offers the repost below.
 export async function endGame(formData) {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
@@ -219,9 +197,7 @@ export async function endGame(formData) {
   revalidatePath("/archive");
   sweepSpectators();
 
-  // The console first, so the reveal is the last thing in #turns: the clock is
-  // frozen now, so the rebuilt announcement drops its Move cutoff instead of
-  // naming a time nothing happens at. Then the reveal itself.
+  // The console first, so the reveal is the last thing in #turns.
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } });
   if (openTurn) {
     await postTurnsAnnouncement(prisma, openTurn, null, { push: false }).catch((err) =>
@@ -235,10 +211,8 @@ export async function endGame(formData) {
   return { ok: true, posted };
 }
 
-// Posts the reveal to #turns again, from the epilogue already stored on the
-// Game row. For an End Game whose post did not land — Discord down, #turns
-// not yet configured. Nothing is rebuilt, so pressing it twice posts the same
-// words twice; that is the superadmin's call.
+// Posts the reveal again from the stored epilogue. Nothing is rebuilt, so
+// pressing it twice posts the same words twice; that is the superadmin's call.
 export async function repostGameEnded() {
   await requireSuperadmin();
   const state = await prisma.gameState.findUnique({ where: { id: 1 }, include: { game: true } });

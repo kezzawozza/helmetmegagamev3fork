@@ -2,42 +2,24 @@
 
 import { useSyncExternalStore } from "react";
 
-// The Bascinet conversation's store — the DirectMessage rows this player can
-// see, kept the way feedStore.js keeps the scene: module-level state read
-// through useSyncExternalStore, so a row landing on the stream re-renders the
-// pane and nothing needs a provider.
-//
-// Much smaller than feedStore.js on purpose. There is one conversation, not a
-// map of places; rows are keyed by the row's own id rather than a seq, because
-// DirectMessage has no seq and this store never has to agree with a cursor —
-// the pane refetches its page on open and after a reconnect (CHAT.md §2b),
-// and a row that arrives twice is the same id twice.
-//
-// Every rebuild makes a new array. react-hooks/immutability is an error in
-// this repo, and a mutated array would not re-render anyway.
+// The Bascinet conversation's store — kept the way feedStore.js keeps the
+// scene: module-level state read through useSyncExternalStore. Rows are keyed
+// by the row's own id, not a seq (DirectMessage has none); the pane refetches
+// on open and after a reconnect (CHAT.md §2b). Every rebuild makes a new
+// array — react-hooks/immutability is an error in this repo.
 
 const EMPTY = Object.freeze([]);
 
 const state = {
-  // id -> row, as the server shaped it: { id, direction, content, source,
-  // createdAt, meta }.
-  byId: new Map(),
-  // Frozen, ascending by createdAt then id.
-  rows: EMPTY,
-  // Whether the pane has loaded its first page. Until then it draws the
-  // skeleton rather than "nothing here yet".
-  seeded: false,
+  byId: new Map(), // id -> row: { id, direction, content, source, createdAt, meta }
+  rows: EMPTY, // frozen, ascending by createdAt then id
+  seeded: false, // whether the pane has loaded its first page
   hasMore: false,
-  // The newest thing Bascinet said, as epoch ms — what the unread dot compares
-  // against (seenStore.js compares BigInt strings, and epoch ms is one). Seeded
-  // from the page so the dot is right before the pane has ever opened.
+  // Newest thing Bascinet said, epoch ms — what the unread dot compares
+  // against (seenStore.js). Seeded from the page so the dot is right before the pane ever opens.
   newestOutboundMs: null,
-  // Bumped when the tab's EventSource reconnects. A reconnect can have missed
-  // a row, and this path has no seq to catch up from, so the pane refetches.
-  reconnects: 0,
-  // The snapshot useSyncExternalStore hands out — rebuilt on every change,
-  // never mutated, so a render that sees the same object can skip.
-  snapshot: null,
+  reconnects: 0, // bumped on EventSource reconnect, so the pane refetches
+  snapshot: null, // rebuilt on every change, never mutated
 };
 
 const listeners = new Set();
@@ -76,9 +58,7 @@ function rebuild() {
   });
 }
 
-// Every write goes through this pair: rebuild the snapshot, then tell the
-// subscribers. read() below rebuilds WITHOUT telling anybody — it runs during
-// a render, and notifying from there is the thing React warns about.
+// read() below rebuilds WITHOUT telling anybody — it runs during a render, and notifying from there is what React warns about.
 function commit() {
   rebuild();
   emit();
@@ -105,22 +85,18 @@ export function useDmState() {
   return useSyncExternalStore(subscribe, read, readServer);
 }
 
-// The page's own answer for the newest thing Bascinet said, before any row has
-// been fetched. Only ever moves the number forward.
+// Only ever moves the number forward.
 export function seedNewestOutbound(ms) {
   if (ms === null || ms === undefined) return;
   const n = Number(ms);
   if (!Number.isFinite(n)) return;
   if (state.newestOutboundMs !== null && state.newestOutboundMs >= n) return;
   state.newestOutboundMs = n;
-  // Called from Chat.js's state INITIALIZER, i.e. during a render, before
-  // anything has subscribed — so nobody is notified here and nobody needs to
-  // be: useSyncExternalStore reads the snapshot when it subscribes.
+  // Called from Chat.js's state INITIALIZER, during a render before anyone has subscribed, so no notify needed.
   rebuild();
 }
 
-// The first page, or a fresh copy of it after a reconnect. Rows already held
-// (a live one that landed while the fetch was out) stay.
+// The first page, or a fresh copy after a reconnect. Already-held rows stay.
 export function seedDmRows(rows, hasMore) {
   for (const row of rows ?? []) if (row?.id) state.byId.set(row.id, row);
   state.seeded = true;
@@ -135,9 +111,7 @@ export function prependDmRows(rows, hasMore) {
   commit();
 }
 
-// One row off the stream, or the one the composer's send came back with. The
-// same id twice is a no-op, which is what makes the stream and the action
-// racing each other harmless.
+// The same id twice is a no-op, so the stream and the action racing each other is harmless.
 export function addDmRow(row) {
   if (!row?.id) return;
   const had = state.byId.get(row.id);

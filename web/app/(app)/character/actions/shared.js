@@ -22,38 +22,26 @@ import { after } from "next/server";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 
 // File-local helpers and constants shared by 2+ action groups under
-// web/app/(app)/character/actions/. See web/app/(app)/character/requestActions.js
-// for the public server-action wrappers.
-
-// Every player-initiated change that applies immediately and is reviewed
-// afterwards. Each action: authenticate, re-validate everything the client
-// sent (a server action is a public endpoint), then apply the effect and
-// write the Request + AuditLog rows in ONE transaction.
-
+// web/app/(app)/character/actions/. See requestActions.js for the public
+// server-action wrappers. Each action: authenticate, re-validate everything
+// the client sent (a server action is a public endpoint), apply the effect
+// and write the Request + AuditLog rows in ONE transaction.
 
 // `needs` is a capability from db/lib/incapacitation.js — pass ACT and the
 // action refuses for anyone Bound, Dying, Paralyzed, Catatonic, mid-Seizure
-// or out cold, naming the tag that stopped them. Hung here rather than
-// re-written at each call site because this function already loads every held
-// tag with its catalog row, so the gate costs no extra query, and because the
-// inline copies it replaces had drifted: some actions checked, most didn't.
-//
-// Omit it for the handful that shouldn't care. Reading your own sheet is not
-// an act, and neither is paperwork.
+// or out cold, naming the tag that stopped them. Omit it for the handful
+// that shouldn't care — reading your own sheet is not an act, nor is paperwork.
 export async function requireCharacter({ needs = null } = {}) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    // The held tags carry their GROUP as well as themselves: resolveRecipeItems
-    // matches a recipe's `{ group: … }` ingredient against it, and
-    // db/lib/corpses.js#isCorpseTag is a group check too.
+    // Held tags carry their GROUP too: resolveRecipeItems matches a recipe's `{ group }` ingredient, and isCorpseTag is a group check.
     include: {
       tags: {
         include: { tag: { include: { group: { select: { slug: true } } } } },
       },
-      // Half of db/lib/reading.js's `where` — Sun Sensitivity needs to know
-      // whether there is a roof overhead.
+      // Half of db/lib/reading.js's `where` — Sun Sensitivity needs to know whether there's a roof.
       location: { select: { indoors: true } },
       role: { select: { slug: true } },
     },
@@ -87,9 +75,7 @@ export function parseCount(raw, { min = 0, max = Number.MAX_SAFE_INTEGER } = {})
 
 // --- Parties ------------------------------------------------------------
 
-// "character:<id>" / "room:<id>" on both ends. Lives in db/lib/parties.js
-// beside applyTransfer, so every transfer surface resolves the same key;
-// re-exported here (prisma bound).
+// "character:<id>" / "room:<id>" on both ends; re-exported here (prisma bound) from db/lib/parties.js beside applyTransfer.
 export function resolveParty(key, opts) {
   return dbResolveParty(prisma, key, opts);
 }
@@ -102,18 +88,11 @@ export function lockCharacter(tx, characterId) {
 }
 
 // --- The craft Move budget (docs/systemdocs/CRAFTING.md §2a) -----------
-//
-// A craft that costs less than a whole Move files the same auto:craft Action
+// A craft costing less than a whole Move files the same auto:craft Action
 // every craft with turns files, and writes a LEDGER on it
-// (`Action.craftBudget`): the family of work the Routine is committed to, how
-// much of the Move is spent, and what was made. The next craft that turn reads
-// that ledger back — same family, and enough left, or it is refused.
-//
-// Nothing is derived and nothing is cached: the row IS the record, which is
-// why a GM Reject hands the whole turn back with one delete
-// (web/lib/moveEconomy.js#deleteActionRestoringTurn needs no knowledge of any
-// of this). There is no per-craft Undo; a GM reversing one craft by hand
-// gets no budget back either — Reject is the full reset.
+// (`Action.craftBudget`): family, how much of the Move is spent, what was
+// made. Nothing is derived or cached — the row IS the record, so a GM Reject
+// hands the whole turn back with one delete. No per-craft Undo.
 
 export const MOVE_SPENT = "You've already used your Move this turn.";
 
@@ -125,12 +104,9 @@ export function craftLedgerDescription(entries) {
   return `Crafting this turn: ${made.join(", ")}.`;
 }
 
-// Heal's own ledger line (M2, docs/systemdocs/CRAFTING.md §2a /
-// TAGS.md §5c) — same shape as craftLedgerDescription, but "Treating" is the
-// medic's verb, and a fresh string rather than a parameter on that one so the
-// existing crafting copy stays exactly as it was. spendCraftMove picks
-// between the two by family, since a turn's Routine is always one or the
-// other and never both.
+// Heal's own ledger line (M2, TAGS.md §5c) — same shape as
+// craftLedgerDescription but "Treating" is the medic's verb; spendCraftMove
+// picks between the two by family.
 export function healLedgerDescription(entries) {
   const made = entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name));
   return `Treating this turn: ${made.join(", ")}.`;
@@ -140,36 +116,27 @@ export function craftLedgerEntry(tag, cost) {
   return {
     tagId: tag.id,
     name: tag.name,
-    // The free half of a straddling order is derivable: qty - num billed.
-    qty: cost.freeQty + cost.billedQty,
+    qty: cost.freeQty + cost.billedQty, // free half of a straddling order is derivable: qty - num billed
     num: cost.num,
     den: cost.den,
   };
 }
 
-// Reads the turn's Action against what this craft needs. Returns the ledger to
-// extend — null when there is no Action yet and this craft will file one — or
-// throws the refusal.
-//
-// Called TWICE for every budget craft: once outside the transaction, so
-// somebody who cannot act is told before a single ⬢ moves, and again inside it
-// under the Character row lock, where the answer is the one that counts.
+// Reads the turn's Action against what this craft needs. Returns the ledger
+// to extend — null when there's no Action yet — or throws the refusal.
+// Called TWICE for every budget craft: once outside the transaction (fast
+// fail), again inside under the Character row lock (the answer that counts).
 export function checkCraftMove(action, need) {
-  // Asked for more than a turn holds — 20 work knives is five Moves' worth of
-  // spill — which an empty turn would otherwise wave through, since there is
-  // no ledger yet to fail against.
+  // Asked for more than a turn holds, which an empty turn would otherwise wave through with no ledger yet to fail against.
   if (!fitsInRemaining(need, WHOLE_MOVE)) {
     throw new UserError(
       "That's more than a turn's work — make fewer at once.",
     );
   }
   if (!action) return null;
-  // A recipe with no craft family can neither lock a Routine nor share one, in
-  // either direction — so anything already filed stops it.
+  // A recipe with no craft family can neither lock a Routine nor share one — anything already filed stops it.
   if (!need.family) throw new UserError(MOVE_SPENT);
-  // `includes`, not equality: other machinery APPENDS to gmNotes (the staged
-  // push does, on Actions it claims), and an appended note must not strand a
-  // half-spent ledger behind "Move already used".
+  // `includes`, not equality: other machinery APPENDS to gmNotes, and an appended note must not strand a half-spent ledger.
   if (!(action.gmNotes ?? "").includes("auto:craft") || !action.craftBudget)
     throw new UserError(MOVE_SPENT);
   const ledger = action.craftBudget;
@@ -195,15 +162,10 @@ export function checkCraftMove(action, need) {
 
 // The fast fail, outside the transaction. Replaces requireFreeMove on the
 // craft path only — Bury, Engrave, Extract and the build sites still take a
-// whole clean Move and keep it.
+// whole clean Move.
 export async function resolveCraftMove(character, openTurn, need) {
   if (!openTurn) throw new UserError("No turn is open.");
-  // Same source requireFreeMove reads (review fix, M2): moveWindow() takes
-  // `clockFrozen`, not `autoTurnAdvanceDisabled` — the two prior reads here
-  // built an options object moveWindow never destructured, so the lock check
-  // silently always ran with clockFrozen defaulted false. clockFrozen(prisma)
-  // is the one real answer (db/lib/gameState.js): phase !== RUNNING OR the
-  // config flag, in one round trip.
+  // moveWindow() takes `clockFrozen`, not `autoTurnAdvanceDisabled` — clockFrozen(prisma) is the one real answer (db/lib/gameState.js).
   const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
   if (locked) throw new UserError("Moves are locked for this turn.");
   const action = await prisma.action.findFirst({
@@ -213,16 +175,13 @@ export async function resolveCraftMove(character, openTurn, need) {
   checkCraftMove(action, need);
 }
 
-// Claims the Move — or the slice of it — this craft needs, inside the caller's
-// transaction. Everything checkCraftMove looked at outside is read again here
-// under the Character row lock, because two tabs can both have passed the
-// cheap check a moment ago. The `@@unique([characterId, turnId])` P2002 catch
-// in fileAutoRoutine stays the backstop underneath even that.
-//
-// `description` is what the Action says when this craft is the one that files
-// it. A project turn passes its own "(2/3)" line and keeps it — a project
-// never shares a turn, so nothing rebuilds it. A fractional craft passes none,
-// and gets the running list of everything made this turn instead.
+// Claims the Move — or the slice of it — this craft needs, inside the
+// caller's transaction, re-checked under the Character row lock since two
+// tabs can both have passed the cheap check a moment ago. The
+// `@@unique([characterId, turnId])` P2002 catch in fileAutoRoutine is the
+// backstop underneath even that. `description` is what the Action says when
+// this craft files it — a project passes its own "(2/3)" line and keeps it;
+// a fractional craft passes none and gets the running made-this-turn list.
 export async function spendCraftMove(
   tx,
   { character, openTurn, need, entry, description = null },
@@ -233,8 +192,7 @@ export async function spendCraftMove(
     select: { id: true, gmNotes: true, craftBudget: true },
   });
   const ledger = checkCraftMove(existing, need);
-  // No family, no ledger: the craft takes the whole Move the way it always
-  // has, and the next one that turn is refused by the Action's own existence.
+  // No family, no ledger: takes the whole Move, and the next craft that turn is refused by the Action's own existence.
   if (!need.family) {
     return {
       action: await fileAutoRoutine(
@@ -255,8 +213,7 @@ export async function spendCraftMove(
     usedDen: used.den,
     entries,
   };
-  // Medical shares this exact ledger (M2) but reads "Treating", not
-  // "Crafting" — the family already says which, since a turn commits to one.
+  // Medical shares this exact ledger (M2) but reads "Treating", not "Crafting".
   const line =
     description ??
     (need.family === "medical" ? healLedgerDescription(entries) : craftLedgerDescription(entries));
@@ -273,9 +230,7 @@ export async function spendCraftMove(
       budget,
     };
   }
-  // `updateMany` + count, not `update`: a GM Reject deletes the Action row
-  // without taking the Character lock, and racing it should read as "your
-  // turn was just reset", not as a raw P2025.
+  // `updateMany` + count, not `update`: racing a GM Reject should read as "your turn was just reset", not a raw P2025.
   const { count } = await tx.action.updateMany({
     where: { id: existing.id },
     data: { craftBudget: budget, description: line },
@@ -294,9 +249,7 @@ export async function loadBuildGround(locationId) {
     select: {
       id: true,
       name: true,
-      // The site gate matches on this (placement.locations) — a Brewery
-      // belongs at the inn and nowhere else.
-      slug: true,
+      slug: true, // site gate matches on this (placement.locations)
       indoors: true,
       attributes: true,
       discordChannelId: true,

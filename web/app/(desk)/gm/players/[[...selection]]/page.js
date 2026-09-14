@@ -11,23 +11,14 @@ import { listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
 
-// The roster, and the desk's ONLY route.
-//
-// An optional catch-all (the same shape /gm/turns uses) rather than a plain
-// page beside a [discordUserId] sibling, because selecting a conversation is
-// no longer a navigation — it is client state (players/selection.js), and the
-// URL follows it by pushState. This route therefore has to stay mounted
-// whether or not somebody is open, so that closing a conversation reveals the
-// roster underneath instead of an empty column.
-//
-// The `selection` param is deliberately unread here. It exists so
-// /gm/players/<id> resolves to a real route on a cold load; who is open is
-// read from the path by the selection store, and DeskMiddle draws the
-// conversation over this.
-//
-// The heavy loads live here rather than in the layout on purpose. The tag
-// catalog and the faction tree are only needed by this view, and the layout
-// re-runs on every router.refresh().
+// The roster, and the desk's ONLY route — an optional catch-all (same shape
+// /gm/turns uses) since selecting a conversation is client state
+// (players/selection.js) rather than a navigation, and this route must stay
+// mounted so closing a conversation reveals the roster underneath. The
+// `selection` param is deliberately unread — it exists so /gm/players/<id>
+// resolves on a cold load; who's open comes from the selection store.
+// Heavy loads live here, not the layout: the tag catalog and faction tree
+// are only needed by this view, and the layout re-runs on every router.refresh().
 
 // Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
 // mounts the shell, and streams FreshPlayerRoster in behind it. A browser that has
@@ -46,24 +37,18 @@ export default async function PlayerRosterPage({ searchParams }) {
 
 async function FreshPlayerRoster({ searchParams, userId }) {
   const [tags, factions, visibleZones, openTurn, params] = await Promise.all([
-    // The whole catalog, gates and all: bulk tagging is a GM grant, which
-    // deliberately ignores requiredTag and the TagGroup gate (TAGS.md).
+    // The whole catalog, gates and all — bulk tagging is a GM grant that deliberately ignores requiredTag and the TagGroup gate (TAGS.md).
     prisma.tag.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],
       select: {
         id: true,
         name: true,
-        // For the roster's Catatonic column — the one slug this page reads.
-        slug: true,
+        slug: true, // for the roster's Catatonic column
         category: true,
         description: true,
         pointCost: true,
-        // ChipLabel's mastery star. A GM handing out Lucky from this picker
-        // should see that they are granting a capstone.
-        mastery: true,
-        // The bulk-tag picker sorts chain-aware; without parentTagId the
-        // chain walk degrades to plain alphabetical.
-        parentTagId: true,
+        mastery: true, // ChipLabel's mastery star
+        parentTagId: true, // bulk-tag picker sorts chain-aware; degrades to alphabetical without it
         group: { select: { name: true } },
       },
     }),
@@ -82,20 +67,14 @@ async function FreshPlayerRoster({ searchParams, userId }) {
       include: { faction: { include: { zone: true } }, zone: true },
       take: 1000,
     }),
-    // Cursed is a live Discord role, not a DB field. listGuildMembers is
-    // TTL-cached, so the layout having already called it costs nothing here.
-    listGuildMembers(),
-    // "Has this player moved yet this turn" is the single most-asked question
-    // in the back half of a turn and the old table could not answer it.
+    listGuildMembers(), // TTL-cached, so the layout already calling it costs nothing here
+    // "Has this player moved yet this turn" — the most-asked question in the back half of a turn.
     openTurn
       ? prisma.action
           .findMany({ where: { turnId: openTurn.id }, select: { characterId: true } })
           .then((rows) => new Set(rows.map((r) => r.characterId)))
       : Promise.resolve(new Set()),
-    // Ids, not a count: the roster's fuzzy search matches on tag NAMES now
-    // ("who is a smith", "who has Pale"), and the count falls out of the same
-    // rows for free. Names come from the `tags` catalog already loaded above,
-    // so this stays one query either way.
+    // Ids, not a count: fuzzy search matches tag NAMES now, and the count falls out of the same rows for free.
     prisma.characterTag.findMany({ select: { characterId: true, tagId: true } }),
   ]);
 
@@ -108,20 +87,13 @@ async function FreshPlayerRoster({ searchParams, userId }) {
     if (list) list.push(name);
     else tagNamesByCharacter.set(ct.characterId, [name]);
   }
-  // Who's AFK, from rows already in hand — heldTags is the full CharacterTag
-  // table and the catalog is loaded above, so this costs no extra query.
+  // Who's AFK, from rows already in hand — no extra query.
   const catatonicTagId = tags.find((t) => t.slug === CATATONIC_SLUG)?.id ?? null;
   const catatonicCharacterIds = new Set(
     heldTags.filter((ct) => ct.tagId === catatonicTagId).map((ct) => ct.characterId),
   );
-  // Who is cursed is a database question now (db/lib/curse.js), not a Discord
-  // role — and the rows it reads are the ones already loaded above, so this
-  // costs no extra query.
-  const cursed = cursedUserIds(characters);
-  // Same map PlayerRail already builds for the rail's fuzzy search — the
-  // roster table gets it too, so it can find someone by Discord handle
-  // without a second query.
-  const memberById = new Map(members.map((m) => [m.id, m]));
+  const cursed = cursedUserIds(characters); // a database question now (db/lib/curse.js), not a Discord role
+  const memberById = new Map(members.map((m) => [m.id, m])); // same map PlayerRail builds, so the table finds a Discord handle without a second query
 
   return (
     <SnapshotFresh

@@ -1,12 +1,8 @@
 "use client";
 
-// The Dev Panel's Send Letter form. See docs/systemdocs/BIRD.md §9.
-//
-// A client component for two reasons, both of which a bare
-// <form action={...}> in the server page could not do: the seal fields have to
-// appear only once Sealed is on, and the action's refusals ("no turn is open",
-// "they're past reading it") have to land somewhere the GM can read them. Same
-// call BioForm.js makes, for the same reason.
+// The Dev Panel's Send Letter form. See BIRD.md §9. Client component so the
+// seal fields can appear only once Sealed is on, and the action's refusals
+// land somewhere the GM can read them — same call BioForm.js makes.
 
 import { useActionState, useState } from "react";
 import FormError from "@/app/components/FormError";

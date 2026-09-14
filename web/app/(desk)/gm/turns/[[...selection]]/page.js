@@ -36,11 +36,9 @@ import { ATTACK_INCLUDE, INTERCEPT_HIT_INCLUDE, otherHoldRows } from "@/lib/hold
 
 // The adjudication workspace's server half: one load, all DTOs, no
 // Prisma-shaped object across the boundary. The queue is the OPEN turn's
-// Moves — under staged arbitration a resolved turn's Moves are already
-// pushed, so nothing here can still be done to them — plus the newest
-// Requests, which keep their own review lifecycle. A past turn is readable
-// through the History lens, but it fetches itself (actions.js#getMoveHistory);
-// all this file ships for it is the picker's list of resolved turns.
+// Moves plus the newest Requests. A past turn is readable through the
+// History lens but fetches itself (actions.js#getMoveHistory) — this file
+// only ships the picker's list of resolved turns.
 
 
 function turnLabel(turn) {
@@ -51,26 +49,15 @@ function turnLabel(turn) {
 
 
 // THE SELECTION IS A SEARCH PARAM, NOT A PATH SEGMENT, and that is the whole
-// reason the desk stops throwing GMs' work away.
-//
-// It used to be a path: /gm/turns/move/<id>, mirrored in with replaceState so
-// picking a row cost no RSC fetch. But Next's patched replaceState moves the
-// router's canonicalUrl with it, so the NEXT router.refresh() — every desk
-// mutation does one, and the backstop poll does one every two minutes —
-// refetched the route at a path whose dynamic params had changed. Next treats
-// that as a different segment and REMOUNTS it: the workspace, the rail, the
-// open Move desk and every piece of React state under them, gone, with no
-// navigation and no reload to explain it. That is the "the desk randomly
-// redraws and eats what I was typing" bug. A search param changes no segment,
-// so the same refresh is a plain props update. Measured both ways.
-//
-// `history` is the fourth type: a Move on a RESOLVED turn, opened read-only.
-// It never overlaps `move` — the open turn's Move is always `move`, and a
-// history URL naming one is redirected below.
-//
-// `sel` reads "<type>/<id>". The old path form still resolves — the catch-all
-// route stays, and every /gm/turns/<type>/<id> link elsewhere in the app lands
-// on the redirect below — so nobody's bookmark or pasted link breaks.
+// reason the desk stops throwing GMs' work away: a path form's replaceState
+// moved canonicalUrl with it, so the next router.refresh() (every mutation
+// does one) refetched at changed dynamic params — Next treats that as a
+// different segment and REMOUNTS the whole workspace, no navigation or
+// reload to explain it. A search param changes no segment, so the same
+// refresh is a plain props update. `history` is a fourth type: a Move on a
+// RESOLVED turn, opened read-only, never overlapping `move`. `sel` reads
+// "<type>/<id>" — the old path form still resolves via the redirect below,
+// so no bookmark or pasted link breaks.
 function parseSelection(sel) {
   if (typeof sel !== "string") return null;
   const [type, id, ...rest] = sel.split("/");
@@ -84,26 +71,20 @@ function legacyPathSelection(segments) {
   return parseSelection(segments.join("/"));
 }
 
-// Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
-// mounts the shell, and streams FreshTurnsWorkspace in behind it. A browser that has
-// been here before paints its last data in the first frame.
+// Snapshotted (web/lib/snapshot, CHAT.md §5c): reads the session, mounts the
+// shell, streams FreshTurnsWorkspace in behind it.
 export default async function TurnsWorkspacePage({ params, searchParams }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
   const { selection } = await params;
-  // An old path-shaped deep link, from a bookmark or from one of the Links
-  // elsewhere in the app. One hop onto the query form and it behaves like
-  // everything else from then on.
+  // An old path-shaped deep link — one hop onto the query form.
   const legacy = legacyPathSelection(selection);
   if (legacy) redirect(turnsSelectionHref(legacy));
   const { sel } = await searchParams;
   return (
-    // remountOnFresh={false}: the workspace re-seeds itself when its props
-    // change — every row it draws goes through the desk store, which folds the
-    // stored snapshot and the fresh payload together by the database's clock
-    // (deskStore.js). The remount was there to stop an island holding stale
-    // props in state, and it took the Result box a GM had already started
-    // typing with it. Nothing here needs it any more.
+    // remountOnFresh={false}: the workspace re-seeds via the desk store
+    // (deskStore.js) rather than remounting, which used to take a GM's
+    // in-progress Result box with it.
     <SnapshotPage scope={`gm-turns:${sel ?? ""}`} userId={session.discordUserId} render={TurnsView} fallback={<Loading />} remountOnFresh={false}>
       <Suspense fallback={null}>
         <FreshTurnsWorkspace searchParams={searchParams} userId={session.discordUserId} />
@@ -115,11 +96,8 @@ export default async function TurnsWorkspacePage({ params, searchParams }) {
 async function FreshTurnsWorkspace({ searchParams, userId }) {
   const { sel } = await searchParams;
   const parsedSelection = parseSelection(sel);
-  // Only the turn's END is derived here now, for the push countdown below — the
-  // Move cutoff moved into the header chip every page wears (LockChip.js), which
-  // reads it from the root layout. turnEndsAt does not care whether the clock is
-  // frozen, so this no longer needs clockFrozen() alongside it. The big batch
-  // below still waits on openTurn — it filters by turn id.
+  // Only the turn's END is derived here, for the push countdown — the Move
+  // cutoff moved to the header chip (LockChip.js). The big batch below still waits on openTurn — it filters by turn id.
   const openTurn = await getOpenTurn();
   const endsAt = openTurn ? turnEndsAt(openTurn) : null;
 
@@ -149,10 +127,8 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
           include: MOVE_INCLUDE,
         })
       : [],
-    // The Caving lens — every roll on the open turn. See
-    // docs/systemdocs/CAVING.md. No "strays from earlier turns" clause
-    // like stagedEffects/stagedMessages below: a CavingRoll is never
-    // "unapplied", it just sits resolved or not.
+    // The Caving lens — every roll on the open turn (CAVING.md). No "strays
+    // from earlier turns" clause like stagedEffects/stagedMessages below.
     openTurn
       ? prisma.cavingRoll.findMany({
           where: { turnId: openTurn.id },
@@ -161,10 +137,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         })
       : [],
     // The Other lens — everything holding somebody in place this turn
-    // (docs/systemdocs/ATTACK.md). Turn-scoped like the Caving lens above, and
-    // cancelled rows ride along rather than being filtered out: a fight
-    // somebody started and called off is still something a GM may need to know
-    // happened.
+    // (ATTACK.md). Cancelled rows ride along rather than being filtered out.
     openTurn
       ? prisma.attack.findMany({
           where: { turnId: openTurn.id },
@@ -172,8 +145,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
           include: ATTACK_INCLUDE,
         })
       : [],
-    // Its intercept half. An AMBUSH files an Attack above, so what is left
-    // here is the two-minute Safe stops.
+    // Its intercept half — AMBUSH files an Attack above, so this is the two-minute Safe stops.
     openTurn
       ? prisma.interceptHit.findMany({
           where: { turnId: openTurn.id },
@@ -182,20 +154,16 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         })
       : [],
     // Uploaded portraits nobody has looked at yet (PORTRAITS.md §1a). NOT
-    // scoped to the open turn, unlike everything above it: a picture is not a
-    // thing that happened this turn, it is a thing that is still true — and a
-    // queue that emptied itself at every turn end would be a review surface
-    // that reviewed nothing.
+    // scoped to the open turn — a picture is a thing that's still true, not
+    // a thing that happened this turn.
     prisma.character.findMany({
       where: avatarReviewWhere(prisma),
       orderBy: { avatarSetAt: "desc" },
       select: AVATAR_REVIEW_SELECT,
     }),
     // The Desires lens — fulfilled, catalog-backed claims still waiting on a
-    // GM (docs/systemdocs/DESIRES.md §6). NOT scoped to the open turn, same
-    // reasoning as the portrait queue above: a claim is a thing that happened
-    // and is still waiting, not a thing that happens again every turn. Newest
-    // first, capped — a GM works the top of this list, not the bottom of it.
+    // GM (DESIRES.md §6). NOT scoped to the open turn, same reasoning as the
+    // portrait queue above. Newest first, capped.
     prisma.desire.findMany({
       where: desireReviewWhere(),
       orderBy: { createdAt: "desc" },
@@ -214,8 +182,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       orderBy: { createdAt: "asc" },
       include: STAGED_MESSAGE_INCLUDE,
     }),
-    // Recipient and mass-apply pickers. Living characters only — a staged
-    // message to someone who dies mid-turn keeps its recipient row anyway.
+    // Recipient and mass-apply pickers. Living characters only.
     prisma.character.findMany({
       where: { status: "ALIVE" },
       orderBy: { name: "asc" },
@@ -233,16 +200,10 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     prisma.zone.findMany({
       where: { kind: { not: "CAVE_GROUP" } },
       orderBy: { sortOrder: "asc" },
-      // `kind` so the composer can say where a cave declaration actually goes:
-      // a CAVE_LEVEL has no #summary and fans out to its Location channels.
-      select: { id: true, name: true, kind: true },
+      select: { id: true, name: true, kind: true }, // `kind`: a CAVE_LEVEL has no #summary and fans out to its Locations
     }),
-    // The effect composer's search space: the whole catalog. TAG_CHIP_FIELDS
-    // is what TagChip/ChipLabel need to render coloured with a working
-    // tooltip (group, category, description, …) — this used to be a lean,
-    // bespoke select missing all of that, which is why chips here rendered
-    // uncoloured with an empty tooltip. See referenceData.js's own comment;
-    // this is the second time that regression happened.
+    // The effect composer's search space. TAG_CHIP_FIELDS is what
+    // TagChip/ChipLabel need to render coloured with a working tooltip — see referenceData.js's own comment.
     prisma.tag.findMany({
       orderBy: { name: "asc" },
       select: {
@@ -254,23 +215,17 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     getVisibleZones(),
     listSelectableZones(),
     getGmProfiles(),
-    // The History lens's turn picker. Just the labels — a resolved turn's
-    // Moves are fetched on demand by getMoveHistory when a GM actually
-    // opens the lens, so the open turn's desk never pays for history it
-    // isn't looking at (and neither does the 45s router.refresh()).
+    // The History lens's turn picker. Just the labels — Moves fetch on demand via getMoveHistory.
     prisma.turn.findMany({
       where: { status: "RESOLVED" },
       orderBy: { number: "desc" },
       select: { id: true, number: true, phase: true },
     }),
-    // Discord usernames, who is Catatonic and the Location names. The clock
-    // every row is stamped with is NOT in here — it is read below, after this
-    // whole batch has resolved.
+    // Discord usernames, Catatonic status, Location names — the clock every
+    // row stamps with is NOT here, read below after this batch resolves.
     deskRowContext({ openTurn }),
-    // The staged room composer's picker. Deliberately NOT filtered to rooms
-    // with a provisioned thread the way /gm/dev's ambient-line picker is: that
-    // one posts a message and needs somewhere to post it, while a stash exists
-    // whether Discord knows about the room or not.
+    // The staged room composer's picker — NOT filtered to a provisioned
+    // thread like /gm/dev's ambient-line picker, since a stash exists whether Discord knows about the room or not.
     prisma.room.findMany({
       orderBy: [{ location: { zone: { sortOrder: "asc" } } }, { location: { sortOrder: "asc" } }, { name: "asc" }],
       select: {
@@ -283,14 +238,10 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   ]);
 
   const { usernameById, catatonicIds, locationRows, locationNameById, now } = ctx;
-  // The staged room composer's options, narrowed to the zones this GM watches.
-  // Null means every zone (web/lib/gmZoneView.js), so a GM who never touched
-  // the control sees the whole map. The <select> is only a hint — the action
-  // re-checks the same seat before it writes.
-  //
-  // Read here rather than in deskRowContext: a staged room row carries its own
-  // name snapshot, so nothing on the patch path needs this list, and
-  // deskPatchFor runs on every mutation and every live-desk frame.
+  // The staged room composer's options, narrowed to zones this GM watches.
+  // Null means every zone (web/lib/gmZoneView.js). The <select> is only a
+  // hint — the action re-checks the seat. Read here, not in deskRowContext,
+  // since deskPatchFor runs on every mutation and live-desk frame and needs none of this.
   const stagingRooms = (visibleZones ? rooms.filter((r) => visibleZones.some((z) => z.id === r.location.zoneId)) : rooms).map(
     (r) => ({
       id: r.id,
@@ -306,22 +257,17 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
 
   const tagsById = tagsByIdFor(actions);
 
-  // One bulk load for every Location on the queue, not one query per row —
-  // see web/lib/deskRows.js#structuresByLocation.
+  // One bulk load for every Location on the queue, not one query per row — see deskRows.js#structuresByLocation.
   const structuresByLocationId = await structuresByLocation(
     actions.map((a) => a.character.locationId),
   );
 
-  // THE CLOCK IS READ LAST, and the order is load-bearing. Every row shipped
-  // below is stamped with `asOfMs`, and the client's desk store keeps the
-  // newer of two copies of a row (deskStore.js) — which is what lets the
-  // stored snapshot and the fresh payload both fold in without the page having
-  // to remount. Read the clock alongside the queries instead and this payload
-  // can carry a stamp from AFTER a Solve whose rows it was read before,
-  // out-ranking that Solve's own patch and putting the Move back in the queue.
-  // Read after every query has resolved and the stamp can only under-claim,
-  // which is the direction the newer-wins rule is safe in. Same order, and the
-  // same reason, in deskRows.js#deskPatchFor.
+  // THE CLOCK IS READ LAST, and the order is load-bearing. Every row is
+  // stamped with `asOfMs`, and the client desk store keeps the newer of two
+  // copies (deskStore.js) — reading the clock alongside the queries instead
+  // could stamp this payload AFTER a Solve whose rows it read before,
+  // out-ranking that Solve's patch. Read after every query resolves, so the
+  // stamp can only under-claim. Same order, same reason, in deskRows.js#deskPatchFor.
   const asOfMs = await pgNowMs();
 
   const moves = actions.map((a) => moveRow(a, { usernameById, now, structuresByLocationId }));
@@ -330,11 +276,9 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   const cavingRows = cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds }));
 
   // What each person filed this turn, for the Other lens's Move chips. Built
-  // off `moves` rather than off `actions` and costing no second query: a chip
-  // can then only exist for a Move the client actually holds, so it is
-  // structurally impossible to draw one that opens an empty desk. A character
-  // may hold more than one (an auto-filed Travel beside their Gambit — Action
-  // carries no unique on characterId+turnId), so each gets its own chip.
+  // off `moves`, not `actions` — a chip can then only exist for a Move the
+  // client actually holds. A character may hold more than one (an auto-filed
+  // Travel beside their Gambit), so each gets its own chip.
   const movesByCharacterId = new Map();
   for (const m of moves) {
     const list = movesByCharacterId.get(m.characterId) ?? [];
@@ -342,17 +286,14 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     movesByCharacterId.set(m.characterId, list);
   }
 
-  // The Other lens's one merged list. An Ambush is already an Attack row, so
-  // the two halves never name the same event twice.
+  // The Other lens's one merged list — an Ambush is already an Attack row, so the two halves never name the same event twice.
   const otherCtx = { usernameById, catatonicIds, movesByCharacterId };
   const otherRows = [
     ...otherHoldRows(attacks, interceptHits, otherCtx),
     ...avatarsToReview.map((c) => avatarReviewRow(c, otherCtx)),
   ];
 
-  // The Desires lens' own row list — a fifth lens, not folded into Other:
-  // a desire claim is a thing to review, not a hold on anyone, and it needs
-  // no Move chips or fight strip.
+  // The Desires lens' own row list — a fifth lens, not folded into Other: a claim isn't a hold on anyone.
   const desireCtx = { usernameById, catatonicIds };
   const desireRows = desireClaims.map((d) => desireClaimRow(d, desireCtx));
 
@@ -361,17 +302,12 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   const effects = stagedEffects.map((e) => stagedEffectRow(e, effectCtx));
   const messages = stagedMessages.map((m) => stagedMessageRow(m, messageCtx));
 
-  // A /gm/turns/history/<id> deep link, so one GM can send another the exact
-  // past Move and have it open on arrival. The lens fetches the rest of that
-  // turn on its own; this is only the one row the URL names. A row that turns
-  // out to be on the OPEN turn isn't history at all — it is still live work,
-  // so the URL corrects itself to /gm/turns/move/<id>.
+  // A /gm/turns/history/<id> deep link — the URL names the one row; a row
+  // that turns out to be on the OPEN turn isn't history, so it redirects to /gm/turns/move/<id>.
   let initialHistory = null;
-  // The Caving twin of the deep link above: a /gm/turns/caving/<id> link naming
-  // a roll on a RESOLVED turn (the open turn's rolls are already in cavingRows,
-  // so this only fires for a past one). Preloads the one row and its staged
-  // work so the History lens opens straight to it, the same one-shot as
-  // initialHistory — Workspace flips the lens to History · Caving on arrival.
+  // The Caving twin — a /gm/turns/caving/<id> link naming a roll on a
+  // RESOLVED turn (open-turn rolls are already in cavingRows). Preloads it
+  // so History opens straight to it; Workspace flips to History · Caving on arrival.
   let initialCaving = null;
   if (parsedSelection?.type === "history") {
     const past = await prisma.action.findUnique({
@@ -394,9 +330,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       ]);
       initialHistory = {
         turnId: past.turnId,
-        // No structuresByLocationId, deliberately: a past Move under today's
-        // ground would lie, and the history desk shows no Standing-here line.
-        move: moveRow(past, { usernameById, now }),
+        move: moveRow(past, { usernameById, now }), // no structuresByLocationId: today's ground would lie about a past Move
         effects: pastEffects.map((e) => stagedEffectRow(e, effectCtx)),
         messages: pastMessages.map((m) => stagedMessageRow(m, messageCtx)),
         tagsById: tagsByIdFor([past]),
@@ -431,15 +365,10 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     }
   }
 
-  // `label` is built by the same turnLabel() the resolved turns are, so the
-  // History lens can list the open turn in its Turn dropdown alongside them
-  // with no second formatting rule to keep in sync (Workspace.js only appends
-  // the "· open" suffix).
-  // `endsAtMs` rides along so the desk's push countdown can tick against the
-  // same turnClock derivation everything else uses, instead of the header
-  // re-deriving the cron's boundary hours in the browser (it did, and held the
-  // old two-a-day rule). Present even when there is no Move lock — a short
-  // manual turn still ends at a real time.
+  // `label` uses the same turnLabel() as resolved turns, so History's Turn
+  // dropdown needs no second formatting rule. `endsAtMs` lets the push
+  // countdown tick against the same turnClock derivation everything else
+  // uses, present even with no Move lock — a short manual turn still ends at a real time.
   const openTurnDto = openTurn
     ? {
         id: openTurn.id,
@@ -455,11 +384,8 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       scope={`gm-turns:${sel ?? ""}`}
       userId={userId}
       data={{
-        // The database's own clock at the read above, and the turn these rows
-        // belong to. The client's desk store folds every payload in against
-        // them (deskStore.js): the stored snapshot and the fresh payload both
-        // land, newer wins, and a turn that opened underneath an idle desk
-        // drops the old queue instead of merging with it.
+        // The database's clock and turn these rows belong to — the desk
+        // store folds every payload against them (deskStore.js), newer wins.
         asOfMs: asOfMs,
         turnId: openTurn?.id ?? null,
         initialSelection: parsedSelection,

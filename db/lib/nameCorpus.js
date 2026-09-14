@@ -1,9 +1,5 @@
-// The pool the "Randomize" button and the /character Bio panel draw from.
-// Kept in code, not YAML, so a client component can import it. Pure: no
-// prisma, no node: builtins, no I/O.
-
-// Central/Eastern European, Iberian, and British given names and surnames
-// from OpenXcom's SoldierName/*.nam files (GPL-3.0).
+// The pool the "Randomize" button and the /character Bio panel draw from. Kept in code, not YAML, so a client component can import it. Pure: no prisma, no node: builtins, no I/O.
+// Central/Eastern European, Iberian, and British given names and surnames from OpenXcom's SoldierName/*.nam files (GPL-3.0).
 const SLAVIC_WEST = "slavic-west"; // Polish, Czech, Slovak
 const HUNGARIAN = "hungarian";
 const ROMANIAN = "romanian";
@@ -53,11 +49,7 @@ const MEDIEVAL_SURNAMES = expand([
   [BRITISH, "Adams", "Anderson", "Baker", "Clarke", "Fraser", "Mackenzie", "Taylor", "Wallace"],
 ]);
 
-// The non-medieval pool: cosmopolitan given names and object/noun
-// nicknames, including RimWorld colonist nicknames
-// (rimworldwiki.com/wiki/User:Paintsimmon/NameinGame). These carry no
-// region — pairing with a regional surname is the point. The Witcher pool
-// below pairs with its own surnames instead.
+// The non-medieval pool: cosmopolitan given names and object/noun nicknames, including RimWorld colonist nicknames (rimworldwiki.com/wiki/User:Paintsimmon/NameinGame). These carry no region — pairing with a regional surname is the point.
 function freezeNames(names) {
   return Object.freeze(names.map((name) => Object.freeze({ name, region: null })));
 }
@@ -107,9 +99,7 @@ const FLAVOUR_FEMALE = freezeNames([
   ...FLAVOUR_NEUTRAL_NAMES,
 ]);
 
-// Tags a given name as belonging to the Witcher batch, so
-// randomCharacterName reaches for FLAVOUR_WITCHER_SURNAMES instead of a
-// medieval one.
+// Tags a given name as belonging to the Witcher batch, so randomCharacterName reaches for FLAVOUR_WITCHER_SURNAMES instead of a medieval one.
 const WITCHER = "witcher";
 
 // Three Hearts of Stone (DLC) characters, kept as their own category.
@@ -137,8 +127,7 @@ const FLAVOUR_CHANCE = 1 / 3;
 // Of a flavour roll, how often it narrows to the three-name Witcher batch.
 const WITCHER_SHARE_OF_FLAVOUR = 1 / 10;
 
-// How often a medieval given name is paired with a surname from a
-// different region.
+// How often a medieval given name is paired with a surname from a different region.
 const CROSS_REGION_CHANCE = 0.15;
 
 // Which given-name pool a character's gender implies.
@@ -154,11 +143,7 @@ function poolsFor(gender, medieval) {
   }
 }
 
-/**
- * One rolled name. `random` is injectable so the distribution is testable
- * without stubbing globals. Returns `{ firstName, lastName }`; `lastName` is
- * null when `lastNameLocked` (see db/lib/dynasty.js).
- */
+// `random` is injectable so the distribution is testable without stubbing globals; `lastName` is null when `lastNameLocked` (see db/lib/dynasty.js).
 function randomCharacterName({ gender = "NEUTRAL", random = Math.random, lastNameLocked = false } = {}) {
   const pick = (arr) => arr[Math.floor(random() * arr.length)];
 

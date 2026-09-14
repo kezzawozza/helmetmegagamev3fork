@@ -5,23 +5,13 @@ import { EmptyRow } from "@/app/components/EmptyState";
 import StatusPill from "@/app/components/StatusPill";
 import { gameTitle, shortId } from "@/lib/gameLabel";
 
-// Every game there has ever been, and the way into each one's transcript.
-//
-// This exists because a game stopped having a number. The ordinal was the only
-// thing tying the Game rows together into something a GM could look at, and
-// looking at them matters — which restart was the real one, how long it ran,
-// whether its transcript is still in the database or out in a packet.
-//
-// A plain table rather than the useTableState engine: a handful of rows, and
-// nothing to search or sort. Same call as the Gamemasters roster.
-//
-// Most of the numbers come out of Game.epilogue, which is written when a game
-// ends (db/lib/epilogue.js#buildEpilogue) — so a game still running has none of
-// them and shows a dash. The archive count is the exception: it is counted live,
-// because the epilogue's copy is a snapshot from the moment the game ended, and
-// the game being played has no epilogue at all. A game whose rows have left the
-// database (`archivedAt`) has no live count either, so it shows the count the
-// packet was written with.
+// Every game there has ever been, and the way into each one's transcript —
+// which restart was the real one, how long it ran, whether its transcript is
+// still in the database or out in a packet. A plain table, not useTableState:
+// a handful of rows, nothing to search or sort (same call as the Gamemasters
+// roster). Most numbers come from Game.epilogue (db/lib/epilogue.js), so a
+// running game shows a dash; the archive count is counted live instead, and
+// falls back to the packet's own count once the rows have left the database (`archivedAt`).
 const COL_COUNT = 8;
 
 function ending(game, isCurrent) {
@@ -33,13 +23,10 @@ function ending(game, isCurrent) {
   }
   if (game.endedAt) return { tone: "muted", label: "Ended" };
   if (isCurrent) return { tone: "good", label: "Running" };
-  // A row with no ending and no claim on the present: a restart that opened a
-  // game nobody played, which is most of what a test week leaves behind.
-  return { tone: "neutral", label: "Never finished" };
+  return { tone: "neutral", label: "Never finished" }; // a restart nobody played
 }
 
-// The three packet states, in the order ARCHIVE.md gives them: no packet, a
-// packet with the rows still in the database, and the rows gone into it.
+// The three packet states, in ARCHIVE.md's order: no packet, rows still in the database, rows gone into it.
 function packet(game) {
   if (game.archivedAt) return { tone: "muted", label: "Archived away" };
   if (game.exportKey) return { tone: "good", label: "Exported" };

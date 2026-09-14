@@ -1,17 +1,6 @@
-// The Grimoire's body (docs/systemdocs/THANATI.md), composed on the server
-// from the rite catalog and this game's rolled Words of the Circle. The
-// Document row in docs/documents.yaml holds only the `{grimoire}` marker, so
-// the YAML never carries generated prose and a new game's words need no sync.
-//
-// One block per rite, in catalog order, in exactly the shape Bascinet gave:
-//
-//   **Name** | Minimum cultists: N | Ingredients: …
-//   description
-//   Word of the Circle: {word:…}
-//
-// The word rides in a {word:} token (RichText / DocumentMarkdown / ChipText)
-// so it renders as a chip. Hard breaks (two trailing spaces) keep the three
-// lines inside one paragraph.
+// The Grimoire's body (docs/systemdocs/THANATI.md), composed server-side from the rite catalog and
+// this game's rolled Words of the Circle. The `{grimoire}` marker in docs/documents.yaml means the
+// YAML never carries generated prose. The word rides in a {word:} token to render as a chip.
 import { RITES } from "@lifeweb/db/lib/rites";
 
 export const GRIMOIRE_DOCUMENT_KEY = "grimoire";
@@ -31,8 +20,6 @@ export function grimoireBody(words = {}) {
   }).join("\n\n");
 }
 
-// Swap the marker for the body on the one document that carries it. Every
-// other row passes through untouched.
 export function expandGrimoire(document, words) {
   if (document?.key !== GRIMOIRE_DOCUMENT_KEY) return document;
   if (document.description.trim() !== GRIMOIRE_MARKER) return document;

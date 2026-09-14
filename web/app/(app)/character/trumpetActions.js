@@ -9,30 +9,21 @@ import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { broadcastTrumpet, TRUMPET_COOLDOWN_MS } from "@lifeweb/db/lib/trumpet";
 import { auth } from "@/lib/auth";
 
-// Sounding a trumpet is heard across the Location graph — db/lib/trumpet.js for
-// the reach, db/lib/soundBroadcast.js for how it carries. This is the web half:
-// the button is on your own Character page rather than in Discord, because
-// "only if you have one" is a per-reader question and a Discord button sits on
-// an anchor message everybody shares.
-//
-// It writes an AuditLog row, unlike equipping. Blowing a trumpet is heard by
-// most of the barony and cannot be taken back, so a GM asked "who did that"
-// should have an answer — the same reasoning the bell rope's row follows.
+// Sounding a trumpet is heard across the Location graph — db/lib/trumpet.js
+// for reach, db/lib/soundBroadcast.js for how it carries. Web half: the
+// button lives on the Character page, not Discord, since "only if you have
+// one" is a per-reader question. Writes an AuditLog row, unlike equipping —
+// heard by most of the barony and can't be taken back (bell rope's reasoning).
 
-// One clock per character, in this process's memory — the `lastShouted` pattern
-// from the bot's /shout handler. In memory rather than a column because the
-// cooldown is a courtesy against spam, not game state anybody reasons about; a
-// deploy clearing it costs nothing. Per character rather than global because
-// two heralds in two zones are two trumpets.
+// One clock per character, in process memory (the bot's `lastShouted`
+// pattern) — a courtesy against spam, not game state, so a deploy clearing it costs nothing.
 const lastSounded = new Map();
 
 export async function soundTrumpet() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
-  // The character comes from the session, never from the client: a server
-  // action is a public endpoint, so an id posted directly would let anyone
-  // sound somebody else's trumpet from somebody else's Location.
+  // From the session, never a posted id — a server action is a public endpoint.
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
     select: {
@@ -44,8 +35,7 @@ export async function soundTrumpet() {
   });
   if (!character) return { ok: false, error: "No living character." };
 
-  // Every gate the page already applied, re-applied. The button being hidden
-  // is a hint, not a lock.
+  // Every gate the page already applied, re-applied — hidden button is a hint, not a lock.
   if (!character.tags.some((ct) => ct.tag.slug === TRUMPET_SLUG)) {
     return { ok: false, error: "You aren't carrying a trumpet." };
   }
@@ -53,8 +43,7 @@ export async function soundTrumpet() {
     return { ok: false, error: "You're nowhere." };
   }
 
-  // ACT, not SPEAK: a trumpet takes breath AND hands, so being Bound stops you
-  // where it deliberately would not stop a shout.
+  // ACT, not SPEAK: a trumpet takes breath AND hands, so Bound stops it where a shout deliberately isn't stopped.
   const blocker = blockerFor(character.tags, ACT);
   if (blocker) {
     return { ok: false, error: `You can't play the instrument — you're ${blocker.name}.` };
@@ -68,9 +57,7 @@ export async function soundTrumpet() {
       error: `Your lips need about ${minutes} more minute${minutes === 1 ? "" : "s"}.`,
     };
   }
-  // Claimed BEFORE the posting loop, not after: the loop is a couple of dozen
-  // REST calls and takes real seconds, which is exactly long enough for a
-  // second click to slip past a cooldown stamped at the end.
+  // Claimed BEFORE the posting loop — a couple dozen REST calls, long enough for a second click to slip past a cooldown stamped at the end.
   lastSounded.set(character.id, Date.now());
 
   await prisma.auditLog
@@ -84,10 +71,7 @@ export async function soundTrumpet() {
     })
     .catch((err) => console.error("Trumpet audit log failed:", err));
 
-  // Post-commit and catch-logged, the requestActions.js#speakAtSite
-  // discipline: a Discord outage must never roll back work that really
-  // happened, and two dozen REST calls must not hold the click open
-  // (ARCHITECTURE.md §5).
+  // Post-commit and catch-logged (requestActions.js#speakAtSite discipline, ARCHITECTURE.md §5).
   const locationId = character.locationId;
   after(() =>
     broadcastTrumpet(prisma, locationId).catch((err) =>

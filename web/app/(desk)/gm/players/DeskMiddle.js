@@ -12,27 +12,19 @@ import {
 import PersonShell from "./conversation/PersonShell";
 import ConversationSkeleton from "./conversation/Skeleton";
 
-// The desk's middle column: the roster, with a conversation drawn over it when
-// one is open.
-//
-// `children` is the roster route, which is now the desk's only route and stays
-// mounted the whole time. That is what makes closing a conversation instant —
-// the roster is already there, with its search, sort and scroll intact,
-// rather than being re-fetched by a navigation back to it.
-//
-// Opening somebody is a fetch, not a navigation, and the difference is the
-// whole point: a fetch can be ABORTED. Click three people quickly and the
-// first two requests are dropped the moment you move on, where three RSC
-// navigations would each have run to completion with the third waiting behind
-// the other two.
+// The desk's middle column: the roster, with a conversation drawn over it
+// when one is open. `children` is the roster route, the desk's only route,
+// staying mounted the whole time — closing a conversation is instant since
+// the roster is already there, search/sort/scroll intact. Opening somebody
+// is a fetch, not a navigation, so it can be ABORTED — click three people
+// quickly and the first two are dropped rather than each running to completion.
 export default function DeskMiddle({ children, gmProfiles, myDiscordUserId }) {
   const selected = useSelection();
   const entry = useThread(selected);
 
   useEffect(() => {
     if (!selected) return undefined;
-    // Already loaded: draw it and ask for nothing. This is the cache paying
-    // off — reopening somebody costs no request at all.
+    // Already loaded: draw it and ask for nothing — the cache paying off.
     if (getThread(selected)?.status === "ready") return undefined;
 
     const controller = new AbortController();
@@ -66,8 +58,7 @@ export default function DeskMiddle({ children, gmProfiles, myDiscordUserId }) {
         if (controller.signal.aborted) return;
         noteReady(selected, payload);
       } catch (err) {
-        // An abort is the ordinary case — the GM moved on — and is not an
-        // error anybody should be shown.
+        // An abort is the ordinary case — the GM moved on, not an error to show.
         if (controller.signal.aborted || err?.name === "AbortError") return;
         noteError(selected, "The conversation could not be loaded.");
       }
@@ -76,16 +67,10 @@ export default function DeskMiddle({ children, gmProfiles, myDiscordUserId }) {
     return () => controller.abort();
   }, [selected]);
 
-  // The roster is HIDDEN, never unmounted. It used to be swapped out for the
-  // conversation, and everything it was holding went with it: the search box,
-  // the column filters, the sort, and a half-built bulk selection. Opening
-  // somebody to check one thing and coming back to a reset roster is the
-  // "the page reset itself" a GM sees.
-  //
-  // The wrapper is display:contents while it shows, so <main class="desk-main">
-  // is still the desk grid's own column; hidden, it drops out of layout
-  // entirely and the conversation takes the column instead. Its position in
-  // the tree never changes, which is what keeps the state.
+  // The roster is HIDDEN, never unmounted, so opening somebody and coming
+  // back never resets the search/filters/sort/selection. The wrapper is
+  // display:contents while shown, so desk-main is still the grid's own
+  // column; hidden, it drops out of layout and the conversation takes its place.
   return (
     <>
       <div className="desk-hideable" hidden={!!selected}>
@@ -96,21 +81,16 @@ export default function DeskMiddle({ children, gmProfiles, myDiscordUserId }) {
   );
 
   function body() {
-    // A payload we already had stays on screen while a refetch is in flight, so
-    // reopening never flashes empty. Only a conversation with nothing cached
-    // draws the skeleton.
+    // A payload we already had stays on screen while a refetch is in flight, so reopening never flashes empty.
     if (entry?.payload) {
       return (
         <PersonShell
-          // Keyed on the conversation: the pane seeds local state from its props
-          // (the loaded page, the claim, the composer's draft), so switching
-          // person has to be a remount. This is what the route change used to do.
+          // Keyed on the conversation: the pane seeds local state from its
+          // props, so switching person has to be a remount.
           key={selected}
           {...entry.payload}
-          // The route answers in REST's shape — `messages` / `hasMore` — and the
-          // pane takes the props it always took, which name themselves `initial`
-          // because it copies them into state once. Spreading the payload alone
-          // left both undefined and the pane threw on its first render.
+          // The route answers in REST shape (`messages`/`hasMore`); the pane
+          // copies them into state as `initial*` once — spreading alone left both undefined.
           initialMessages={entry.payload.messages}
           initialHasMore={entry.payload.hasMore}
           gmProfiles={gmProfiles}
@@ -120,11 +100,8 @@ export default function DeskMiddle({ children, gmProfiles, myDiscordUserId }) {
     }
 
     if (entry?.status === "error") {
-      // Its own error state rather than components/ErrorPanel, which carries a
-      // DeskHeader of its own — a second header inside the column — and says
-      // "that page didn't load", which is not what happened. error.js still
-      // covers a render THROW; this covers a failed fetch, which no boundary
-      // can see.
+      // Own error state, not components/ErrorPanel (a second DeskHeader).
+      // error.js covers a render THROW; this covers a failed fetch, which no boundary can see.
       return (
         <div className="desk-person">
           <div className="panel m-3 flex flex-col items-start gap-3 p-4">

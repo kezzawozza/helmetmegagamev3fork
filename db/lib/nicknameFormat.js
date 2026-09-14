@@ -1,9 +1,4 @@
-// The guild nickname budget: base account name, a separator, the character's
-// bare name, clamped to Discord's 32-char cap and split roughly evenly when
-// the two together don't fit. Shared because bot/src/lib/nickname.js (the
-// gateway sync) and web/lib/discordGuild.js (the REST sync) used to keep this
-// in sync by hand — see CLAUDE.md on db/lib for why a shared rule belongs here
-// instead of two copies that can drift.
+// The guild nickname budget: base account name, a separator, the character's bare name, clamped to Discord's 32-char cap and split roughly evenly when the two don't fit. Shared between bot/src/lib/nickname.js and web/lib/discordGuild.js — see CLAUDE.md on db/lib for why a shared rule belongs here instead of two copies that can drift.
 const NICK_MAX = 32;
 const NICK_SEP = " | ";
 

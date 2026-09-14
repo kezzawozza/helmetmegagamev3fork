@@ -19,11 +19,9 @@ import { renderPortrait } from "@/lib/portrait/render";
 
 const AVATAR_SIZE = 256;
 
-// Driven by useActionState in web/app/components/BioForm.js, hence the
-// leading `_prevState`. Returning { error } rather than throwing is the rule
-// in web/lib/actionResult.js: Next redacts anything thrown out of a Server
-// Action into React error #441, so the avatar size check below used to reach
-// the player as a digest instead of a sentence.
+// Driven by useActionState in BioForm.js, hence the leading `_prevState`.
+// Returns { error } rather than throwing (web/lib/actionResult.js) — Next
+// redacts a throw out of a Server Action into React error #441.
 export async function updateCharacterProfile(_prevState, formData) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -33,62 +31,40 @@ export async function updateCharacterProfile(_prevState, formData) {
   });
   if (!character) redirect("/character");
 
-  // A character's name and GENDER are SET AT CREATION and never read from this
-  // form again — honorific, firstName, lastName and gender are all ignored
-  // here, however the form is posted. The greyed inputs on the sheet are the
-  // hint; this silence is the lock, same posture as `title`.
-  //
-  // Gender deliberately does NOT get `age`'s null-until-set conditional below:
-  // there is no unset state to leave open. It is chosen once and only a GM can
-  // correct it, from /gm/dev/characters/[characterId].
-  //
-  // The one exception for the name is the Mulligan Potion (docs/tags.yaml),
-  // which is a CHANGE_NAME request handled by
-  // character/requestActions.js#changeNameRequestImpl — it applies immediately
-  // and a GM can undo it. Gender has no such exception.
+  // Name and GENDER are SET AT CREATION and never read from this form again —
+  // ignored here however the form is posted, same posture as `title`. Gender
+  // has no unset state to leave open; only a GM can correct it from
+  // /gm/dev/characters/[characterId]. The one exception for the name is the
+  // Mulligan Potion (docs/tags.yaml), a CHANGE_NAME request handled by
+  // requestActions.js#changeNameRequestImpl. Gender has no such exception.
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
-  // "Play from the web" (docs/systemdocs/CHAT.md §6). NOT written with the rest
-  // of the form: flipping it is a burst of Discord work on its own cooldown, so
-  // it goes through db/lib/webOnly.js#setWebOnly below and only when the value
-  // actually changed — saving the Bio card twice must not spend the cooldown.
+  // "Play from the web" (CHAT.md §6). NOT written with the rest of the form:
+  // flipping it burns its own cooldown (db/lib/webOnly.js#setWebOnly below),
+  // so it applies only when the value actually changed.
   const webOnly = formData.get("webOnly") === "on";
-  // The conceal toggle. No Discord side effect: the proxy pipeline resolves
-  // concealment at send time (PROXYING.md). A forced identity (Tag.forcedName
-  // — Apex Form's "Beast") locks it off: the switch renders disabled, and this
-  // is the lock behind it. The same tag fixes the face, so an upload is
-  // dropped too.
+  // The conceal toggle — no Discord side effect, the proxy pipeline resolves
+  // it at send time (PROXYING.md). A forced identity (Tag.forcedName) locks
+  // it off, and fixes the face, so an upload is dropped too.
   const forcedName = await loadForcedName(prisma, character.id);
-  // And the gear gate, the same one /conceal applies. Without something
-  // concealing EQUIPPED there is nothing to turn on; under something that
-  // forces it there is no choice either way, so the stored preference is left
-  // exactly as it was rather than being quietly rewritten by a form post.
+  // The gear gate too — without something concealing EQUIPPED, or under
+  // something that forces it, the stored preference is left exactly as it
+  // was rather than rewritten by a form post.
   const concealment = forcedName ? null : await loadConcealment(prisma, character.id);
-  // Whether the switch was OFFERED, which is the only case its value may be
-  // read in. AvatarField.js renders it `disabled` under a forced identity,
-  // under something that forces concealment, and — the one this is really
-  // about — while nothing concealing is equipped. A disabled checkbox posts
-  // nothing, and a missing checkbox reads as "off", so treating those three as
-  // an answer wrote `false` over a standing wish the player never touched:
-  // take a hood off for a moment, save the Bio card for any other reason (the
-  // appearance, the turn ping, "Play from the web"), and the hood no longer
-  // worked when it went back on. Nothing said so, and /conceal refuses to set
-  // it again while the gear is off, so there was no way back from the page
-  // that broke it.
-  //
-  // Leaving the column alone is safe in the direction that matters:
-  // concealment is derived at read time, so a row left `concealed: true` with
-  // a bare face resolves back to the real face on its own
-  // (db/lib/presentedIdentity.js). The stored preference is a wish, not a
-  // state, and only the player retracts it.
+  // Whether the switch was OFFERED, the only case its value may be read.
+  // AvatarField.js disables it under a forced identity, forced concealment,
+  // or nothing concealing equipped — a disabled/missing checkbox reads as
+  // "off", so treating it as an answer would silently clear the player's
+  // standing wish (a hood taken off briefly, unrelated save). Leaving the
+  // column alone is safe: concealment is derived at read time, so a stored
+  // `concealed: true` with a bare face resolves to the real face on its own
+  // (db/lib/presentedIdentity.js) — the preference is a wish, only the player retracts it.
   const concealOffered = Boolean(concealment) && !concealment.forced;
   const avatar = forcedName ? null : formData.get("avatar");
 
-  // Age is set once and then fixed. The input renders `disabled` after the
-  // first save so it submits nothing, but that is only the UI half — this is
-  // the lock: a non-null age is never overwritten, however the form is posted.
-  // A GM can still change it from /gm/dev/characters/[characterId].
+  // Age is set once and then fixed — a non-null age is never overwritten,
+  // however the form is posted. A GM can still change it from /gm/dev/characters/[characterId].
   const rawAge = Number.parseInt(formData.get("age")?.toString() ?? "", 10);
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
@@ -98,9 +74,7 @@ export async function updateCharacterProfile(_prevState, formData) {
   if (age !== null && character.age === null) data.age = age;
 
   // The UI hides the file input while GameConfig.avatarUploadsEnabled is off
-  // (see AvatarField.js), but that's presentation only — a server action is
-  // a public endpoint, so this is the actual gate. Off means everyone falls
-  // through to their letter plaque (see "Character proxying" in CLAUDE.md).
+  // (AvatarField.js), but that's presentation only — this is the real gate.
   const gameConfig = await prisma.gameConfig.findUnique({
     where: { id: 1 },
     select: { avatarUploadsEnabled: true, playPanelEnabled: true },
@@ -112,34 +86,21 @@ export async function updateCharacterProfile(_prevState, formData) {
     try {
       const buffer = Buffer.from(await avatar.arrayBuffer());
       data.avatarData = await sharp(buffer)
-        // BEFORE the resize, not after. .rotate() with no argument applies the
-        // EXIF Orientation tag, and a phone held sideways writes upright pixels
-        // plus that tag. Resizing first would cover-crop the unrotated frame —
-        // a sideways band out of the middle of the photo, stood upright. The
-        // browser bakes orientation in for pictures it can shrink itself
-        // (lib/shrinkImage.js); this covers everything it could not read, and
-        // is a no-op on pixels carrying no tag.
-        //
-        // Do NOT reach for .withMetadata() here. sharp strips metadata by
-        // default and that default is load-bearing: a phone photo carries GPS
-        // coordinates, and /api/avatar/[characterId] serves these bytes
-        // publicly with a year-long immutable cache.
+        // BEFORE the resize, not after — .rotate() applies the EXIF
+        // Orientation tag, and resizing first would cover-crop the unrotated
+        // frame. Do NOT reach for .withMetadata() here: sharp strips metadata
+        // by default and that's load-bearing — a phone photo carries GPS
+        // coordinates, and /api/avatar/[characterId] serves these bytes publicly with a year-long immutable cache.
         .rotate()
         .resize(AVATAR_SIZE, AVATAR_SIZE, { fit: "cover" })
         .webp({ quality: 85 })
         .toBuffer();
       data.avatarMimeType = "image/webp";
-      // What puts them in the GM's review queue (db/lib/avatarReview.js).
-      // Stamped HERE and nowhere else: not by setPortraitAvatar, whose faces
-      // are assembled from committed sheets and have nothing to review, and
-      // not off `updatedAt`, which every rename and appearance edit bumps.
-      // Re-uploading after a GM kept the last one stamps it again, which is
-      // what brings the row back.
+      // Puts them in the GM's review queue (db/lib/avatarReview.js). Stamped
+      // HERE and nowhere else — not off `updatedAt`, which every rename bumps.
       data.avatarSetAt = new Date();
     } catch (err) {
-      // sharp throws on anything it can't decode, and the file picker's
-      // accept="image/*" is a hint rather than a guarantee. Nothing has been
-      // written yet, so refusing here leaves the sheet as it was.
+      // sharp throws on anything it can't decode; accept="image/*" is a hint, not a guarantee. Nothing written yet.
       console.error("Failed to process an uploaded avatar:", err);
       return { error: "That image couldn't be read. Try a JPEG or a PNG." };
     }
@@ -147,17 +108,11 @@ export async function updateCharacterProfile(_prevState, formData) {
 
   const updated = await prisma.character.update({ where: { id: character.id }, data });
 
-  // Before the Discord calls below, because the flag is what decides whether
-  // any of them may run at all. A refusal is returned as it is worded, and the
-  // rest of the save STANDS — the appearance the player just typed is not
-  // thrown away because a cooldown had two minutes left on it.
+  // Before the Discord calls below — a refusal is returned as worded, and the rest of the save STANDS.
   let webOnlyError = null;
-  // While Chat is off (GameConfig.playPanelEnabled) the switch is drawn
-  // only for a player who is ALREADY web-only, so they can come back
-  // (AvatarField.js). For everyone else the form carries no value — and a
-  // missing checkbox reads as "off", not "unchanged" — so the field is ignored
-  // outright rather than read: a hand-posted "on" is a hint, not a lock, and
-  // nobody is flipped either way.
+  // While Chat is off, the switch is drawn only for a player already
+  // web-only (AvatarField.js); for everyone else a missing checkbox reads as
+  // "off, not unchanged", so the field is ignored outright.
   const playEnabled = gameConfig?.playPanelEnabled !== false;
   const webOnlyWanted = playEnabled || character.webOnly ? webOnly : false;
   if (webOnlyWanted !== character.webOnly) {
@@ -172,29 +127,20 @@ export async function updateCharacterProfile(_prevState, formData) {
   }
 
   await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
-  // A web-only player holds no turn-ping role: the ping lives in the #turns
-  // console, and web-only closes #turns to them (db/lib/webOnly.js). NOT read
-  // off `updated` — that row was written before the flip above and still says
-  // whatever they walked in as. A refused flip leaves them where they were.
+  // A web-only player holds no turn-ping role (db/lib/webOnly.js). NOT read
+  // off `updated` — written before the flip above; a refused flip leaves them where they were.
   const webOnlyNow = webOnlyError ? character.webOnly : webOnlyWanted;
   await setTurnPingRole(session.discordUserId, updated.turnPingOptIn && !webOnlyNow).catch(() => {});
-  // Kept as a self-heal, not a rename: the name can no longer change here, so
-  // this only ever creates a personal role that went missing.
-  await ensureCharacterRole(updated).catch(() => {});
+  await ensureCharacterRole(updated).catch(() => {}); // self-heal: only ever creates a role that went missing
   revalidatePath("/character");
   if (webOnlyError) return { error: webOnlyError };
-  // `avatarUploaded` is what BioForm hangs the confirmation on. It has to come
-  // back from here rather than being assumed at the call site: the upload
-  // branch is skipped when uploads are off or no file was attached, and a
-  // confirmation for a picture nobody sent is the same lie this whole change
-  // is undoing.
+  // Has to come back from here — the upload branch is skipped when uploads
+  // are off or no file was attached, and a confirmation for nothing sent would lie.
   return { ok: true, avatarUploaded: data.avatarData !== undefined };
 }
 
-// Builds and stores a portrait from a selection the modal posted. The
-// selection is indices only — the picture is rendered here, from the committed
-// sprite sheets, so nothing the client sends can become arbitrary avatar
-// bytes. See docs/systemdocs/PORTRAITS.md.
+// Builds and stores a portrait from a selection the modal posted — indices
+// only, rendered here from committed sprite sheets so nothing the client sends can become arbitrary avatar bytes. See PORTRAITS.md.
 export async function setPortraitAvatar(rawSelection) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -205,14 +151,12 @@ export async function setPortraitAvatar(rawSelection) {
   });
   if (!character) redirect("/character");
 
-  // The face is fixed while a forced identity is held (Tag.forcedName); the
-  // button is hidden, and this is the lock.
+  // The face is fixed while a forced identity is held (Tag.forcedName); the button is hidden, this is the lock.
   if (await loadForcedName(prisma, character.id)) {
     return { ok: false, error: "Your face is not yours to change right now." };
   }
 
-  // Anything invalid, out of range, or fantasy-while-gated silently becomes
-  // the default for that slot, so this cannot throw on a malformed post.
+  // Anything invalid, out of range, or fantasy-while-gated silently becomes the default for that slot.
   const selection = normalizeSelection(rawSelection, { allowFantasy: false });
 
   const avatarData = await renderPortrait(selection);
@@ -223,11 +167,8 @@ export async function setPortraitAvatar(rawSelection) {
       avatarData,
       avatarMimeType: "image/webp",
       portrait: JSON.stringify(selection),
-      // A built face replaces whatever upload was there, so it takes that
-      // upload out of the review queue with it. A non-null `portrait` already
-      // excludes this row (db/lib/avatarReview.js), but leaving a stale
-      // timestamp behind would make the queue's state depend on two columns
-      // agreeing rather than one saying it.
+      // A built face takes the upload out of the review queue with it —
+      // leaving a stale timestamp would make the queue depend on two columns agreeing rather than one.
       avatarSetAt: null,
     },
   });
@@ -236,10 +177,8 @@ export async function setPortraitAvatar(rawSelection) {
   return { ok: true };
 }
 
-// Drops whatever picture is set — a built portrait or an uploaded one — and
-// falls back to the letter plaque. Nothing is stored for the default: the
-// avatar route derives it from firstName at read time, so clearing these three
-// columns IS the reset.
+// Drops whatever picture is set and falls back to the letter plaque. Nothing
+// stored for the default — the avatar route derives it from firstName, so clearing these three columns IS the reset.
 export async function resetAvatarToDefault() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -252,10 +191,7 @@ export async function resetAvatarToDefault() {
 
   await prisma.character.update({
     where: { id: character.id },
-    // avatarSetAt goes with the picture: a player who takes their own upload
-    // down has left the GM nothing to review, and a row pointing at a face
-    // that is gone would be a queue item nobody can act on.
-    data: { avatarData: null, avatarMimeType: null, portrait: null, avatarSetAt: null },
+    data: { avatarData: null, avatarMimeType: null, portrait: null, avatarSetAt: null }, // avatarSetAt goes with the picture
   });
 
   revalidatePath("/character");

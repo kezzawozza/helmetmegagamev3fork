@@ -2,14 +2,11 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-// The live inbox's client store — what LiveInboxPoller.js fills, and what
-// the rail and conversation pane read. Module-level state read through
-// useSyncExternalStore, so nothing needs a provider.
-//
-// patches: per conversation, rail fields that moved, stamped with the DB
-// clock read time; the rail applies a patch (mergeRailRows) only when newer
-// than its row. feeds: per conversation, message rows arrived since load.
-//
+// The live inbox's client store — what LiveInboxPoller.js fills, read by the
+// rail and conversation pane. Module-level, read through useSyncExternalStore.
+// patches: per conversation, rail fields that moved, stamped with DB clock
+// read time; applied (mergeRailRows) only when newer than the held row.
+// feeds: per conversation, message rows arrived since load.
 // Every rebuild makes a new Map/array — react-hooks/immutability is an error.
 
 const EMPTY_PATCHES = new Map();
@@ -17,10 +14,8 @@ const EMPTY_READ_OVERRIDES = new Map();
 const EMPTY_FEED = Object.freeze([]);
 const SEEN_CAP = 2000;
 
-// How long a read override is allowed to stand before it is dropped on age
-// alone. It normally clears the moment the server echoes a cursor at or past
-// it; this only catches the case where that echo never comes (the row stopped
-// being touched at all), so it is generous rather than tight.
+// How long a read override stands before dropping on age alone — normally
+// clears on the server's echo; this only catches the echo never arriving.
 const READ_OVERRIDE_MAX_AGE_MS = 5 * 60_000;
 
 const state = {
@@ -28,9 +23,7 @@ const state = {
   feeds: new Map(),
   cursorMs: 0,
   seen: new Set(),
-  // discordUserId -> { cursorMs, atMs }. "This GM has read this conversation
-  // up to cursorMs", known here before any server row says so.
-  readOverrides: new Map(),
+  readOverrides: new Map(), // discordUserId -> { cursorMs, atMs }, known before any server row says so
 };
 const listeners = new Set();
 
@@ -73,12 +66,9 @@ function byTimeThenId(a, b) {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-// Folds one poll result in. `sinceMs` is the cursor the request was made
-// with (0 on the first tick), and `announce` says whether anything found is
-// news — the first tick looks back two minutes at things that were already
-// there when the GM arrived, and those must not ring. Returns the INBOUND
-// arrivals worth announcing (an id plus the conversation), which is what
-// decides whether to chime.
+// Folds one poll result in. `sinceMs` is the request's cursor (0 on first
+// tick); `announce` says whether anything found is news — the first tick's
+// two-minute lookback must not ring. Returns INBOUND arrivals worth announcing.
 export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
   let changed = false;
   const inbound = [];
@@ -89,11 +79,9 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
     const next = new Map(state.patches);
     for (const patch of delta.rail) {
       if (!patch?.discordUserId) continue;
-      // Older than what is already held, so it has nothing to say. Two paths
-      // feed this store — the stream and a 30s full=1 backstop — and the
-      // backstop's answer is built from a read that can predate a frame the
-      // stream has already delivered. Setting unconditionally is how a row
-      // that had just gone to zero unread came back saying 3.
+      // Older than what's held has nothing to say — the stream and the 30s
+      // backstop poll can race, and setting unconditionally would let a
+      // stale backstop answer overwrite a fresher zero-unread state.
       const prev = next.get(patch.discordUserId);
       if (prev && prev.asOfMs > delta.nowMs) continue;
       next.set(patch.discordUserId, { ...patch, asOfMs: delta.nowMs });
@@ -102,12 +90,9 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
     changed = true;
   }
 
-  // Two shapes arrive here, and both are folded the same way. `thread`
-  // (singular) is the backstop poll's, which asks about one conversation —
-  // whichever is open. `threads` (plural) is the stream's: it carries rows for
-  // EVERY conversation that moved, because the stream no longer takes an
-  // "open" parameter (see api/gm/inbox-stream). Folding both through one
-  // function is what keeps the two paths from drifting.
+  // `thread` (singular) is the backstop poll's, for whichever conversation is
+  // open. `threads` (plural) is the stream's, for EVERY conversation that
+  // moved. Folded through one function so the two paths don't drift.
   const thread = delta?.thread;
   const threadList = [
     ...(thread?.discordUserId ? [thread] : []),
@@ -133,16 +118,13 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
     changed = true;
   }
 
-  // Inbound rows on conversations that are NOT open never reach `feeds` (the
-  // server only ships the open thread), so the chime hears about them from
-  // the rail patch instead. A conversation can be in the patch set for other
-  // reasons too (its read cursor moved), so "inbound" alone isn't news —
-  // only an inbound last message newer than the cursor we asked with is.
+  // Inbound rows on conversations that are NOT open never reach `feeds`, so
+  // the chime hears about them from the rail patch instead — but "inbound"
+  // alone isn't news, only a last message newer than the asked-for cursor is.
   if (announce && Array.isArray(delta?.rail)) {
     for (const patch of delta.rail) {
       if (patch?.lastDirection !== "INBOUND") continue;
-      // Already announced above, as a row rather than as a rail patch.
-      if (openThreadIds.has(patch.discordUserId)) continue;
+      if (openThreadIds.has(patch.discordUserId)) continue; // already announced above, as a row
       if (!(patch.lastAtMs > sinceMs)) continue;
       const key = `rail:${patch.discordUserId}:${patch.lastAtMs}`;
       if (state.seen.has(key)) continue;
@@ -159,19 +141,13 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
   return { inbound };
 }
 
-// The GM has read this conversation, said here before the server has been
-// told — or before it has answered. mergeRailRows lays it over the row as a
-// last step, so the badge clears on the click rather than on the next frame.
-//
-// Two callers, and they mean different things. The optimistic one guesses the
-// cursor from the BROWSER's clock, which is a guess about another machine's
-// time and can be minutes out in either direction. The server's answer is the
-// cursor that was actually written, so it REPLACES the guess rather than
-// having to beat it: a browser running two minutes fast would otherwise leave
-// its own over-claiming guess standing, and every inbound message the player
-// sent in those two minutes would arrive already counted as read — the badge
-// simply not coming back. Raising is right between two guesses; replacing is
-// right when the truth arrives.
+// The GM has read this conversation, said here before the server has
+// answered. mergeRailRows lays it over the row last, so the badge clears on
+// click rather than on the next frame. Two callers: the optimistic one
+// guesses the cursor from the BROWSER's clock (can be minutes off), so the
+// server's later answer REPLACES rather than has to beat that guess — a
+// fast browser clock would otherwise strand its own over-claiming guess and
+// the badge would never come back.
 export function noteConversationRead(discordUserId, cursorMs, { fromServer = false } = {}) {
   if (!discordUserId || !Number.isFinite(cursorMs)) return;
   const prev = state.readOverrides.get(discordUserId);
@@ -183,10 +159,8 @@ export function noteConversationRead(discordUserId, cursorMs, { fromServer = fal
   emit();
 }
 
-// Drops an override once the server's own rows have caught up to it, or once
-// it is simply old. Called from an effect, never during render: it changes
-// store state, and mergeRailRows has to stay a pure function of its arguments
-// (it has two useMemo callers).
+// Drops an override once the server has caught up, or once it's old. Called
+// from an effect, never during render — mergeRailRows must stay pure (two useMemo callers).
 export function reconcileReadOverrides(rows, rowsAsOfMs) {
   if (state.readOverrides.size === 0) return;
   const cutoff = Date.now() - READ_OVERRIDE_MAX_AGE_MS;
@@ -217,18 +191,14 @@ export function useThreadFeed(discordUserId) {
 }
 
 // Lays the live patches over the layout's rows. A patch applies as a whole or
-// not at all — its fields came from one consistent read, and mixing half of
-// it with half a row could say "handled" against a newer message. A patch
-// for someone the rail has never seen (a guild member with no character who
-// just wrote for the first time) carries a whole `row` to append.
+// not at all — mixing half a patch with half a row could say "handled"
+// against a newer message. A patch for someone the rail has never seen
+// carries a whole `row` to append.
 export function mergeRailRows(rows, patches, rowsAsOfMs, readOverrides = EMPTY_READ_OVERRIDES) {
   if ((!patches || patches.size === 0) && readOverrides.size === 0) return rows;
-  // A read override is applied PER FIELD, after the whole-row patch above,
-  // and it touches one field only: the unread count. It is not part of the
-  // patch's "all or nothing" rule, because it did not come from the server's
-  // read at all — it is what this GM did a moment ago. lastDirection stays
-  // alone on purpose: having read somebody does not make it your turn to
-  // have written last.
+  // A read override applies PER FIELD (unread count only), not part of the
+  // patch's all-or-nothing rule since it's local, not from a server read.
+  // lastDirection stays alone: reading somebody isn't the same as writing last.
   const applyRead = (row) => {
     const o = readOverrides.get(row.discordUserId);
     if (!o || !(o.cursorMs > (row.lastReadAtMs ?? 0))) return row;

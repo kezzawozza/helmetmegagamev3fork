@@ -1,8 +1,5 @@
-// Shared template -> db/lib/desireGates.js projection. requiresAnyRoleSlugs/requiresNotRoleSlugs are
-// slug arrays (an FK would block db:sync-roles pruning); the evaluator wants `{ slug, name }`
-// objects. Every caller MUST go through this: an unresolved slug is kept as `{ slug, name: slug }`
-// rather than dropped, because desireGates.js treats an empty list as NO constraint — dropping a
-// slug would silently open a role-gated Desire. Pure, no prisma handle: caller hoists one query.
+// Every caller MUST go through this: an unresolved slug is kept as `{ slug, name: slug }` rather
+// than dropped, because desireGates.js treats an empty list as NO constraint.
 export function projectDesireTemplateForGates(roleBySlug, template) {
   const resolveRole = (slug) => roleBySlug.get(slug) ?? { slug, name: slug };
 
@@ -13,8 +10,6 @@ export function projectDesireTemplateForGates(roleBySlug, template) {
   };
 }
 
-// Builds the roleBySlug Map for projectDesireTemplateForGates above. Pass every template that will
-// be projected in this request so the single query covers all of them.
 export async function loadRoleBySlugForTemplates(prisma, templates) {
   const slugs = new Set();
   for (const t of templates) {
@@ -27,12 +22,8 @@ export async function loadRoleBySlugForTemplates(prisma, templates) {
   return new Map(roleRows.map((r) => [r.slug, r]));
 }
 
-// Tag ids a desire may be gated on WITHOUT the gate being named back to the player
-// (db/lib/desireGates.js: a locked reason must never name a hidden tag). Two sources: a group's key
-// tag (TagGroup.requiredTagId) and any SECRET tag — the latter catches a tag like the Thanati Belief
-// that sits in a public-looking group with no requiredTag of its own. Shared by every caller
-// evaluating the catalog for a character; devPanelData.js deliberately passes an empty Set instead,
-// since that page is superadmin-only and nothing should be withheld from a GM's own view.
+// A locked reason must never name a hidden tag (db/lib/desireGates.js). Two sources: a group's key
+// tag and any SECRET tag. devPanelData.js passes an empty Set instead — superadmin-only, nothing withheld.
 export async function computeHiddenDesireTagIds(prisma, heldTagIds) {
   const [gates, secrets] = await Promise.all([
     prisma.tagGroup.findMany({

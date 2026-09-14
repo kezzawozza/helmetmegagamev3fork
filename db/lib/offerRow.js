@@ -1,10 +1,4 @@
-// The two buttons on a consent DM (docs/systemdocs/LESSONS.md): Accept and
-// Decline, keyed by the Offer's id the way the Bird's Reply button is keyed
-// by its letter (db/lib/bird.js). Shared by both Offer kinds — the bot
-// handler reads the kind off the row, not off the button.
-//
-// Constants live here, in db/, so the web action that sends the DM and the
-// bot handler that answers the click can't drift on the prefix.
+// The two buttons on a consent DM (docs/systemdocs/LESSONS.md): Accept and Decline, keyed by the Offer's id. Shared by both Offer kinds — the bot handler reads the kind off the row, not off the button. Constants live here, in db/, so the web action and the bot handler can't drift on the prefix.
 const OFFER_ACCEPT_PREFIX = "offer:accept:";
 const OFFER_DECLINE_PREFIX = "offer:decline:";
 
@@ -20,12 +14,7 @@ function offerButtonRow(offerId) {
   ];
 }
 
-// The escort ask (db/lib/escort.js) wears the same two prefixes, so the bot's
-// router and bot/src/lib/offers.js need no new branch to find it — only the
-// kind switch inside handleOfferAccept knows the difference. What changes is
-// the chrome: green rather than blurple, and "Cancel" rather than "Decline",
-// because being taken along is an invitation and declining one is not a
-// refusal of anything.
+// The escort ask (db/lib/escort.js) wears the same two prefixes, so the bot's router needs no new branch to find it. What changes is the chrome: green rather than blurple, and "Cancel" rather than "Decline" — being taken along is an invitation, not a refusal.
 function escortButtonRow(offerId) {
   return [
     {

@@ -1,31 +1,6 @@
-// The post-commit tail of every server action that changes what a character
-// holds — tags or ⬢. One helper so no writer forgets a step, and so the
-// steps run in the one order that is correct:
-//
-//   1. settleCarry — Overburdened on/off, and the overflow drop when a Cart
-//      or Pack Mule just left (db/lib/carry.js, CARRY.md). FIRST, because a
-//      drop can take a private-room key off the sheet.
-//   2. narrowcast + room access — recomputed from the post-drop holdings,
-//      and both in after(), for the reason spelled out below.
-//   3. the drop's Discord work, in after(), off the request's critical path.
-//   4. corpse follow — a body that changed hands is a body that moved, and
-//      the dead sheet has to catch up before anyone tries to loot it
-//      (db/lib/corpseFollow.js, CORPSES.md).
-//
-// Everything is best-effort and catch-logged: a missed sync is the channel
-// doctor's problem (CHANNELS.md §6) and a missed settle self-heals at the
-// next one. Never call this inside a transaction.
-//
-// Steps 2 and 3 are Discord round trips and step 4 is not, which is the whole
-// reason the two syncs sit in after() rather than being awaited. Room access
-// walks every private room in the game one call at a time
-// (db/lib/roomAccess.js), so equipping a hat used to hold the browser for
-// several seconds while the bot talked to Discord about rooms nobody was
-// standing in. Nothing the caller re-renders reads either sync: the character
-// page derives accessibleRooms from tags and RoomGuest rows, never from live
-// thread membership, so ordering these after revalidatePath changes nothing a
-// player sees. settleCarry and reconcileCorpses stay awaited, because the
-// render does read what they write.
+// Post-commit tail for every server action that changes a character's tags or ⬢: settleCarry,
+// narrowcast/room access, the drop's Discord work, corpse follow, in that order, best-effort and
+// catch-logged — a missed sync is the channel doctor's problem (CHANNELS.md §6). Never call this inside a transaction.
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { settleCarry, deliverCarryDrop } from "@lifeweb/db/lib/carry";
@@ -34,9 +9,6 @@ import { reconcileCorpses } from "@lifeweb/db/lib/corpseFollow";
 import { refreshCorpseWeight } from "@lifeweb/db/lib/corpseWeight";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 
-// `characters`: ids or rows (anything with `.id`), one or many. Rows are
-// re-read rather than trusted — several call sites hold a row loaded before
-// their own transaction ran, and the settle may have changed it again.
 export async function afterInventoryChange(characters) {
   const ids = [...new Set([].concat(characters).filter(Boolean).map((c) => (typeof c === "string" ? c : c.id)))];
   for (const id of ids) {
@@ -44,26 +16,13 @@ export async function afterInventoryChange(characters) {
       console.error(`settleCarry failed for ${id}:`, err);
       return null;
     });
-    // A dead character's body weighs what they weigh PLUS what is still on
-    // their sheet (db/lib/corpseWeight.js), so looting one lightens it for
-    // whoever is carrying it. settleCarry above returns early for anybody not
-    // ALIVE, so this is the only thing that keeps a corpse's weight honest.
-    // No-ops for the living, who have no corpse row.
     await refreshCorpseWeight(prisma, id).catch(() => {});
     const row = await prisma.character
       .findUnique({ where: { id }, select: { id: true, discordUserId: true, locationId: true, status: true } })
       .catch(() => null);
     after(() => syncCharacterNarrowcastAccess(id).catch(() => {}));
-    // The FULL recompute, deliberately. An inventory change is a tag change, and
-    // a key gained or lost changes what this character may enter anywhere on the
-    // map — this used to pass `locationOnly` and would now silently miss a room
-    // in another zone. It is affordable because entitlement changes are rare;
-    // the per-move cost that made narrowing worth it is gone
-    // (db/lib/roomAccess.js).
     if (row) after(() => syncCharacterRoomAccess(prisma, row).catch(() => {}));
     if (settled?.drop) after(() => deliverCarryDrop(prisma, settled).catch(() => {}));
   }
-  // Once, after the whole batch: a transfer moves a corpse between two
-  // characters and both ends are in `ids`, so per-id would just do it twice.
   if (ids.length) await reconcileCorpses(prisma).catch((err) => console.error("corpse follow failed:", err));
 }

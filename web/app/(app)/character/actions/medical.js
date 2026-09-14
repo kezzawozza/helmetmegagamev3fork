@@ -71,25 +71,16 @@ import {
 
 // --- Tags -------------------------------------------------------------
 
-// The two per-turn craft counters — `unitsOfTagThisTurn` and
-// `deadSimpleUnitsThisTurn` — now live in web/lib/requests.js beside
-// `craftAllowance`, because character/page.js has to read the same numbers to
-// tell the Craft dialog how many free units are left.
+// The two per-turn craft counters live in web/lib/requests.js beside
+// `craftAllowance`, since character/page.js reads the same numbers for the Craft dialog.
 
 // 0-turn cures already worked this turn, against MEDICAL_SIMPLE_PER_TURN
-// (M2, docs/systemdocs/TAGS.md §5c) — the shared free-first-aid pool.
-//
-// Counts REQUESTS, not units — one heal is one patient — and only the ones
-// that cost NO turn of work: a turns-costing cure never draws on this pool at
-// all any more, it bills the medical family's Move instead
-// (healCharacterRequestImpl below). A gambit heal is never in here either,
-// because it files a Move and the Action unique constraint rations those on
-// its own. INVERTED from the pre-M2 predicate (`turns > 0`), which counted
-// this pool's opposite against the old per-tier daily cap.
-// Keyed on the MEDIC — actorDiscordUserId — and NOT on targetCharacterId,
-// which is the patient the row is about. Counting the patient's axis caps the
-// wrong person: a medic treating other people would never be counted at all,
-// and someone who had been treated four times could not treat anybody.
+// (M2, TAGS.md §5c) — the shared free-first-aid pool. Counts REQUESTS, not
+// units, and only ones costing NO turn of work — a turns-costing cure bills
+// the medical family's Move instead (healCharacterRequestImpl below); a
+// gambit heal is never in here, rationed by the Action unique constraint.
+// Keyed on the MEDIC, not targetCharacterId — counting the patient's axis
+// caps the wrong person.
 async function routineHealsThisTurn(db, discordUserId, turnId) {
   if (!turnId || !discordUserId) return 0;
   const filed = await db.auditLog.findMany({
@@ -106,17 +97,15 @@ async function routineHealsThisTurn(db, discordUserId, turnId) {
 // Treating someone else's affliction — the only request whose subject isn't
 // the filer, so most ids below are the TARGET's. Three gates, all
 // re-checked here: the medic holds a Medical skill, the patient is standing
-// here (web/lib/peopleHere.js), and the affliction's own requirementSkills
-// are satisfied. The PAYER is ungated beyond being here, same bet as Craft.
+// here (web/lib/peopleHere.js), and the affliction's requirementSkills are
+// satisfied. The PAYER is ungated beyond being here, same bet as Craft.
 export async function healCharacterRequestImpl({
   targetCharacterId,
   tagId,
   payerKey,
   // Mirrors craftRequestImpl's billedSeen contract (CRAFTING.md §2a): 1 if
-  // the dialog showed this as costing the Move, 0 if it showed free. The
-  // server never bills more than the dialog acknowledged — a stale pool
-  // reading that would silently spend a Move gets the "reload" refusal
-  // instead (review fix, M2).
+  // the dialog showed this as costing the Move, 0 if free. Never bills more
+  // than the dialog acknowledged — a stale reading gets "reload" instead (review fix, M2).
   billedSeen: rawBilledSeen,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
@@ -125,8 +114,7 @@ export async function healCharacterRequestImpl({
     throw new UserError("You aren't anywhere you could treat someone.");
   }
 
-  // The flat catalog, so holding a higher tier still satisfies a requirement
-  // written against the base skill.
+  // Flat catalog, so a higher tier still satisfies a requirement written against the base skill.
   const catalog = await prisma.tag.findMany({
     select: { id: true, slug: true, parentTagId: true },
   });
@@ -154,25 +142,15 @@ export async function healCharacterRequestImpl({
   if (!held || !isHealable(held.tag))
     throw new UserError("That isn't something you can treat.");
 
-  // Above your tier, or the top rung of the ladder, and it is a GAMBIT rather
-  // than a refusal (docs/systemdocs/TAGS.md §5c). Nothing is out of reach any
-  // more; what changes is whether you roll for it.
+  // Above your tier, or the top rung, is a GAMBIT rather than a refusal
+  // (TAGS.md §5c) — nothing is out of reach, only whether you roll for it.
   const gambit = isGambitHeal(held.tag, satisfied);
-  // Surgery needs a site (M3, TAGS.md §5c; reworked M6b): a tier-6/7 cure —
-  // read off the cure's own required skill, needsSurgicalSite — refuses
-  // outright without SOMETHING enabling the site. Two things can enable it
-  // now: the fixed Surgical Equipment kit (or a COMPLETE Surgical Theater,
-  // which hasEquipmentInReach already treats as satisfying the same reach —
-  // the same way a Forge satisfies Workshop Equipment), or, failing that, a
-  // Portable Surgical Pack. Neither is consumed; both are ordinary standing
-  // held/room-stashed gear.
-  //
-  // The two are NOT equivalent. A real site (fixed kit or Theater) carries no
-  // penalty at all — it is simply what surgery is supposed to look like. The
-  // portable pack is a worse stand-in: when it's the ONLY thing enabling the
-  // site, the Gambit rolls at −1. Reaching for the fixed kit or a Theater
-  // always wins outright and erases the penalty; the portable never adds a
-  // bonus of its own.
+  // Surgery needs a site (M3, TAGS.md §5c; reworked M6b): a tier-6/7 cure
+  // refuses outright without something enabling it — the fixed Surgical
+  // Equipment kit (or a COMPLETE Surgical Theater, same reach path as a
+  // Forge satisfying Workshop Equipment), or, failing that, a Portable
+  // Surgical Pack. Neither is consumed. NOT equivalent: a real site carries
+  // no penalty; the portable pack alone rolls the Gambit at −1, and a fixed site/Theater always erases that penalty.
   const needsSite = needsSurgicalSite(held.tag);
   const fixedSiteReach = needsSite
     ? await hasEquipmentInReach(prisma, character, SURGICAL_EQUIPMENT_SLUG)
@@ -186,28 +164,19 @@ export async function healCharacterRequestImpl({
       "You need surgical equipment to proceed.",
     );
   }
-  // The die penalty only ever applies to a surgery Gambit resting on the
-  // portable pack alone — a non-site-gated Gambit (reaching above your tier
-  // on an ordinary cure) never touches either kit, and a fixed site or
-  // Theater in reach cancels the penalty outright, pack or no pack.
+  // The die penalty only applies to a surgery Gambit resting on the portable
+  // pack alone; a fixed site or Theater in reach always cancels it.
   const surgicalPenalty = gambit && needsSite && !fixedSiteReach && portablePackReach;
 
   const openTurn = await getOpenTurn();
 
-  // The medical Move budget (M2, docs/systemdocs/CRAFTING.md §2a /
-  // TAGS.md §5c): a routine cure joins the same craft-budget arithmetic
-  // crafting uses. Family is hardcoded "medical" and passed as an override —
-  // never derived via craftFamily, which would drop a skill-less cure like
-  // choking into the generic `craft` family. Returns null for a free cure:
-  // no turn open at all (the pre-M2 posture — no turn, no Move economy,
-  // nothing to bill and nothing rationed), or a 0-turn cure still inside the
-  // day's shared MEDICAL_SIMPLE_PER_TURN pool. A turns-costing cure is never
-  // free; the old per-tier daily case cap it used to be checked against is
-  // gone, replaced entirely by the Move fraction.
-  //
-  // Priced twice, like every other budget craft: here for a fast fail, and
-  // again inside the transaction under the row lock, since two simultaneous
-  // heals would otherwise both read the same pool count and pass.
+  // The medical Move budget (M2, CRAFTING.md §2a / TAGS.md §5c): a routine
+  // cure joins the same craft-budget arithmetic crafting uses. Family is
+  // hardcoded "medical", never derived via craftFamily (which would drop a
+  // skill-less cure like choking into the generic `craft` family). Returns
+  // null for a free cure: no turn open, or still inside the shared
+  // MEDICAL_SIMPLE_PER_TURN pool. Priced twice, like every budget craft: here
+  // for a fast fail, and again under the row lock, since two simultaneous heals could otherwise both pass.
   const priceHeal = async (db) => {
     if (!openTurn) return null;
     if (countsAgainstHealCap(held.tag, gambit)) {
@@ -221,11 +190,8 @@ export async function healCharacterRequestImpl({
     return craftMoveCost(held.tag, { quantity: 1, family: "medical" });
   };
 
-  // The player is never billed more than the dialog showed them (review fix,
-  // M2 — mirrors craftRequestImpl's acknowledgeBill). Priced here for the
-  // fast fail, and AGAIN inside the transaction, where a concurrent heal may
-  // have eaten the free pool between the two — the in-tx copy is what
-  // actually holds.
+  // Never billed more than the dialog showed (review fix, M2 — mirrors
+  // craftRequestImpl's acknowledgeBill). Priced again inside the transaction, which is what actually holds.
   const billedSeen = parseCount(rawBilledSeen, { min: 0, max: 1 }) ?? 0;
   const acknowledgeBill = (moveCost) => {
     if ((moveCost ? 1 : 0) > billedSeen) {
@@ -237,8 +203,7 @@ export async function healCharacterRequestImpl({
 
   let outsideMoveCost = null;
   if (gambit) {
-    // A roll costs the Move, and Action's @@unique([characterId, turnId]) is
-    // what makes it one gambit heal a turn — no separate check needed.
+    // A roll costs the Move; Action's @@unique([characterId, turnId]) makes it one gambit heal a turn.
     await requireFreeMove(character, openTurn);
   } else {
     outsideMoveCost = await priceHeal(prisma);
@@ -279,12 +244,10 @@ export async function healCharacterRequestImpl({
     },
     resourcesSpent: cost,
     payer: { kind: payer.kind, id: payer.id, name: payer.name },
-    // A gambit heal is an ATTEMPT: the die is rolled at turn close and the GM
-    // applies the outcome from /gm/turns, so nothing has left the patient yet.
-    // `pending` is what tells Undo that no tag came off, and it is never
-    // cleared — it stays true because it stays TRUE. The request charged a fee
-    // and filed a Move, and that is all it ever did; whatever the GM writes
-    // afterwards is their own edit, with its own audit row and its own undo.
+    // A gambit heal is an ATTEMPT — die rolled at turn close, GM applies the
+    // outcome from /gm/turns, nothing has left the patient yet. `pending`
+    // tells Undo no tag came off, and it stays TRUE forever — the request
+    // only charged a fee and filed a Move; whatever the GM writes later is their own edit.
     gambit,
     pending: gambit,
     surgicalPenalty,
@@ -304,20 +267,13 @@ export async function healCharacterRequestImpl({
   const aftermathSlugs = gambit ? [] : rollTagChain(held.tag.removesInto);
 
   await prisma.$transaction(async (tx) => {
-    // Re-priced under a row lock. Two tabs would otherwise both read the same
-    // pool count or ledger and both pass (requestActions.js's Dead Simple cap
-    // has the same pair of checks for the same reason). The lock is taken
-    // here rather than left to spendCraftMove alone, because a heal that
-    // re-prices to FREE under lock (the pool had room a moment ago and still
-    // does) still needs the lock to hold across that re-read.
+    // Re-priced under a row lock — two tabs would otherwise both read the
+    // same pool count and pass (requestActions.js's Dead Simple cap does the same pair of checks).
     if (!gambit) {
-      // Deadlock avoidance (review fix, round 3): the medic and the patient
-      // are two different Character rows once this is an administered heal,
-      // and this transaction locks both (Move billing here, the patient
-      // re-check further down) — lock them in sorted-id order, not
-      // medic-then-patient, or two medics treating each other at the same
-      // instant lock in opposite orders and deadlock (Postgres surfaces an
-      // unresolved cycle as a raw 40P01, not a UserError).
+      // Deadlock avoidance (review fix, round 3): this transaction locks
+      // both the medic and patient rows, so lock in sorted-id order — not
+      // medic-then-patient — or two medics treating each other lock in
+      // opposite orders and deadlock (Postgres surfaces this as a raw 40P01, not a UserError).
       const lockIds =
         target.id !== character.id ? [character.id, target.id].sort() : [character.id];
       for (const id of lockIds) await lockCharacter(tx, id);
@@ -325,11 +281,8 @@ export async function healCharacterRequestImpl({
       const moveCost = await priceHeal(tx);
       acknowledgeBill(moveCost);
       if (moveCost) {
-        // The fast fail only ran resolveCraftMove — which checks the Move
-        // window itself — when the OUTSIDE price already billed. A heal that
-        // goes from free to billed only here (the pool filled between the two
-        // reads) must re-check the window before writing a ledger, the same
-        // race craftRequestImpl's spill re-check guards (review fix, M2).
+        // A heal that goes from free to billed only here (pool filled
+        // between reads) must re-check the window, the same race craftRequestImpl's spill re-check guards (review fix, M2).
         if (!outsideMoveCost) {
           const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
           if (locked) throw new UserError("Moves are locked for this turn.");
@@ -346,21 +299,15 @@ export async function healCharacterRequestImpl({
     await debitResources(tx, payer, cost);
 
     if (gambit) {
-      // The Move that carries the roll. Same shape as a learner's Lesson
-      // Gambit (db/lib/lessons.js) — filed CONFIRMED with the die already
-      // rolled, left OPEN for the GM, revealed to the player at turn close by
-      // the staged push. The patient's tag is untouched: a roll that has not
-      // been read cannot have cured anything, and a failed one can leave them
-      // worse (docs/systemdocs/TAGS.md §5c).
+      // Same shape as a learner's Lesson Gambit (db/lib/lessons.js) — filed
+      // CONFIRMED with the die already rolled, revealed at turn close by the
+      // staged push. Patient's tag untouched: an unread roll can't have
+      // cured anything, and a failed one can leave them worse (TAGS.md §5c).
       // requireFreeMove() ran above, but the P2002 catch is what actually
-      // holds — @@unique([characterId, turnId]) is the real gate, and two tabs
-      // submitting at once get past a check that read the table a moment ago.
-      // It is also what rations gambit heals to one a turn without a second
-      // count. Same posture as fileAutoRoutine().
+      // holds — @@unique([characterId, turnId]) rations two racing tabs to one gambit heal a turn.
       let action;
       try {
-        // Lucky or Inspired keeps the better of two dice (db/lib/advantage.js);
-        // Inspired is spent the instant it wins one.
+        // Lucky or Inspired keeps the better of two dice; Inspired spends the instant it wins one.
         const healGambitAdvantage = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
         await consumeInspiredIfUsed(tx, character.id, healGambitAdvantage.source);
         action = await tx.action.create({
@@ -390,15 +337,10 @@ export async function healCharacterRequestImpl({
       }
       effect.actionId = action.id;
     } else {
-      // Patient-side race (review fix, M2): two medics treating the same
-      // wound in the same instant both pass the outside gates, both bill ⬢
-      // and a Move fraction, and dropCharacterTag on an already-gone row is
-      // a silent no-op — the loser would look successful and cure nothing.
-      // The TARGET row is already locked (self-heal's own row, via the
-      // sorted-order lock above); re-read the held row under that lock.
-      // Whoever loses the race gets a clean refusal instead of a phantom
-      // success, and the whole transaction — the ⬢ and the Move it already
-      // claimed included — rolls back with it.
+      // Patient-side race (review fix, M2): dropCharacterTag on an
+      // already-gone row is a silent no-op, so the target row (already
+      // locked via the sorted-order lock above) is re-read under that lock —
+      // the loser gets a clean refusal and the whole transaction rolls back.
       const heldNow = await tx.characterTag.findUnique({
         where: { characterId_tagId: { characterId: target.id, tagId: held.tagId } },
       });
@@ -421,10 +363,8 @@ export async function healCharacterRequestImpl({
         openTurn?.number ?? null,
       );
       // Being treated gives back half of what the wound cost the mood
-      // (MOOD.md) — woundMoodFor is signed, hence the minus.
-      // Only a routine cure — a gambit heal leaves the affliction on them. The
-      // held row's tag was loaded without its group, which the rung needs, so
-      // it is re-read here rather than trusted.
+      // (MOOD.md) — woundMoodFor is signed, hence the minus. The held row's
+      // tag was loaded without its group, which the rung needs, so re-read here.
       const woundTag = await tx.tag.findUnique({
         where: { id: held.tagId },
         select: {

@@ -1,28 +1,7 @@
-// The buttons on a Room's starter post. Storage is on every one of them and
-// prints what is lying in the room's stash (docs/systemdocs/CARRY.md);
-// Intercom is on exactly one, the Council Room, and works the PA
-// (db/lib/intercom.js); Toggle Turret is on exactly one other, the Censor's
-// Office, and works the gun in the fortress yard
-// (db/lib/gatehouseTurret.js); Sound Bell is on the Cathedral's Bell Tower and
-// carries across the Location graph (db/lib/bell.js). The four watchtowers get a SECOND
-// row on top of this one — the gate button — composed by
-// db/lib/syncZones.js#roomComponents rather than here, because it needs the
-// graph and this file has no prisma. Raw component JSON for the same reason as
-// locationAnchorRow.js — the sync posts it over REST from db/, which has no
-// discord.js, while the bot answers the click.
-//
-// The room id rides in the custom_id so the handler needs no thread→Room
-// lookup. Routed by prefix in bot/src/events/interactionCreate.js — change
-// it here and you must change it there.
-//
-// This row is hashed into Room.postHash, so adding a button here is enough:
-// the next db:sync-zones rewrites the one starter that changed and leaves the
-// rest of them untouched.
+// The buttons on a Room's starter post: Storage (docs/systemdocs/CARRY.md), Intercom on the Council Room (db/lib/intercom.js), Toggle Turret on the Censor's Office (db/lib/gatehouseTurret.js), Sound Bell on the Cathedral's Bell Tower (db/lib/bell.js). Watchtowers get a SECOND row composed by db/lib/syncZones.js#roomComponents. Raw component JSON, same reason as locationAnchorRow.js — the sync posts it over REST from db/, which has no discord.js.
+// The room id rides in the custom_id, routed by prefix in bot/src/events/interactionCreate.js — change it here and you must change it there. This row is hashed into Room.postHash.
 
-// The LABELS and the predicates live in db/lib/placeAffordances.js, so a
-// room's starter post and Chat's place panel cannot drift about what a
-// room offers. What is left here is Discord's shape: one row, and a style
-// per tone.
+// Labels and predicates live in db/lib/placeAffordances.js; this file is just Discord's shape (one row, a style per tone).
 const {
   DANGER: DANGER_TONE,
   CENSOR_OFFICE_ROOM_SLUG,

@@ -1,15 +1,8 @@
-// Shared helpers for the channel doctor's sweeps. Split out of
-// db/lib/channelDoctor.js verbatim (W2d).
 const { addMemberRole, removeMemberRole } = require("../discordRest");
 const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID, GHOST_ROLE_ID, gmRoleIds } = require("../roleIds");
 const { hashNameToColor } = require("../roleColor");
 
-// See db/scripts/ops/prune-orphan-roles.js for the signature's provenance:
-// mentionable and coloured by a hash of its own name is something nothing
-// else in the guild reproduces by accident. A Catatonic character's role
-// ("<name> • Catatonic", flat grey — db/lib/characterRoleAppearance.js)
-// fails this on purpose; it's protected anyway, because a claimed role is
-// skipped before the signature is ever tested.
+// mentionable and coloured by a hash of its own name is something nothing else in the guild reproduces by accident. A Catatonic character's role fails this on purpose but is protected anyway — a claimed role is skipped before the signature is ever tested.
 function looksLikeCharacterRole(role) {
   return role.mentionable === true && role.color === hashNameToColor(role.name);
 }
@@ -27,8 +20,7 @@ function standingRoleIds() {
   );
 }
 
-// One finding: { check, target, problem, repaired }. `repaired` is false on a
-// dry run, and false when the repair itself failed (then `error` says why).
+// `repaired` is false on a dry run, and false when the repair itself failed (then `error` says why).
 function makeReporter(findings, apply) {
   return async function report(check, target, problem, repair) {
     const finding = { check, target, problem, repaired: false };
@@ -44,8 +36,7 @@ function makeReporter(findings, apply) {
   };
 }
 
-// Membership reconciliation for one role: everyone in `shouldHave` holds it,
-// nobody else does. `holders` is the live member list filtered to this role.
+// Membership reconciliation for one role: everyone in `shouldHave` holds it, nobody else does.
 async function reconcileRoleMembership({ roleId, label, shouldHave, members, report }) {
   if (!roleId) return;
   const want = new Set(shouldHave);

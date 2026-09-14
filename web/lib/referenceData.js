@@ -13,15 +13,10 @@ import {
   composeChipTag,
 } from "@/lib/tagChipRows";
 
-// The three datasets behind the {tag:…} / {resource:…} / {document:…}
-// inline reference syntax. The root layout calls these
-// un-awaited and streams the promises into client providers, so the data
-// rides the initial response instead of a post-hydration round trip.
+// The three datasets behind the {tag:…} / {resource:…} / {document:…} inline reference syntax.
+// The root layout calls these un-awaited and streams the promises into client providers.
 
-
-// The tag-chip primitives live in tagChipRows.js — the shape and the composer
-// that fills it belong together. Re-exported here because a dozen callers have
-// always imported them from this module and the path is not the point.
+// Re-exported from tagChipRows.js since a dozen callers already import them from here.
 export {
   DESIRE_UNLOCK_SELECT,
   TAG_CHIP_FIELDS,
@@ -42,30 +37,17 @@ export async function getVisibleTags() {
       })
     : null;
 
-  // A signed-out caller, or one with no living character, holds nothing.
   const ctx = await chipContextFor(character);
   const held = ctx.heldIds;
 
-  // Runtime-minted rows — written paper, sealed letters, crates, headstones —
-  // are game state, not catalog, and there is no ceiling on how many of them
-  // the game accumulates. Shipping every one to every browser on every page
-  // would grow this payload for the rest of the game, so a caller sees only
-  // the ones they are actually holding. (This was already true of crates; it
-  // just had no consequences until paper made the set unbounded.)
-  //
-  // Sequential rather than parallel with the character read, because the held
-  // ids are the filter.
+  // Runtime-minted rows (paper, sealed letters, crates, headstones) are unbounded game state, so a
+  // caller sees only the ones they hold. Sequential, since the held ids are the filter.
   const tags = await prisma.tag.findMany({
     where: { OR: [{ ephemeral: false }, { id: { in: [...held] } }] },
     select: CHIP_ROW_SELECT,
   });
 
-  // A recipe line must not print an ingredient this viewer has no path to —
-  // the same rule the /documents catalogs apply (web/lib/recipeCatalog.js).
-  // "Visible" here is public-or-held: this payload ships GM-catalog rows to
-  // everyone and hides them at render time, so the list itself cannot stand
-  // in for what the viewer may READ. Dreamer's Draught keeps its recipe line
-  // for the brewer holding a Skinless Brain and goes quiet for everyone else.
+  // A recipe line must not print an ingredient this viewer has no path to (web/lib/recipeCatalog.js).
   const readableSlugs = new Set(
     tags
       .filter((t) => t.catalogVisibility === "ALL" || held.has(t.id))
@@ -81,11 +63,7 @@ export async function getVisibleTags() {
 
 
 
-// Computed live from productionCoefficient so docs/documents.yaml's printed
-// numbers never drift from actual payout. Each tier ships a pre-formatted
-// `display` string so no client component has to import @lifeweb/db, which
-// would drag PrismaClient into a "use client" bundle. Must be computed
-// per-request — productionCoefficient is a live dial on /gm/dev.
+// Must be computed per-request — productionCoefficient is a live dial on /gm/dev.
 export async function getProductionRates() {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   const coefficient = config?.productionCoefficient ?? 1;
@@ -105,10 +83,7 @@ export async function getProductionRates() {
   return { coefficient, rates };
 }
 
-// The {carry:slug} token (RichText.js): the sentence a carry tag's
-// description ends with, pre-formatted per tag from the live caps so the
-// client never imports @lifeweb/db. Keyed by slug so a description only
-// names itself and the multiplier stays single-sourced in docs/tags.yaml.
+// Pre-formatted per tag from the live caps so the client never imports @lifeweb/db.
 export async function getCarryReference() {
   const [config, tags] = await Promise.all([
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { carryWeightLbs: true, carryResourceCap: true } }),
@@ -129,11 +104,8 @@ function excerptOf(description) {
   return `${flat.slice(0, flat.lastIndexOf(" ", EXCERPT_CHARS))}…`;
 }
 
-// The document index for {document:key} chips. Does not ship every
-// document to every reader: `name` ships for every written document (so a
-// locked chip can say which one), `source`/`excerpt` only when the reader
-// may read it. Visibility rules live in web/lib/documentAccess.js, shared
-// with /documents. Session-dependent — must never be cached across callers.
+// `name` ships for every written document, `source`/`excerpt` only when the reader may read it.
+// Session-dependent — must never be cached across callers.
 export async function getDocumentIndex() {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) return [];
@@ -151,8 +123,6 @@ export async function getDocumentIndex() {
   ]);
 
   const character = readerFromCharacter(characterRow);
-  // The host, not every GM — see the same gate in (app)/documents/page.js
-  // for why this stopped being "holds no zone seat".
   const isMasterGm = isGm && isSuperadmin(session.discordUserId);
 
   return documents.filter(isWritten).map((d) => {

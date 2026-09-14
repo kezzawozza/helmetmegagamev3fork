@@ -1,13 +1,9 @@
-// syncZones Ordering: keeps Discord category and channel positions matching
-// the YAML's sortOrder. Split out of db/lib/syncZones.js — see that file.
+// syncZones Ordering: keeps Discord category and channel positions matching the YAML's sortOrder.
 const { getGuildChannels, patchChannel, patchGuildChannelPositions } = require("../discordRest");
 const { CHANNEL_TYPE_CATEGORY } = require("./shared");
 
-// Cave levels share one category, so their location channels interleave
-// there: level.sortOrder * this + location.sortOrder.
+// Cave levels share one category; location channels interleave as level.sortOrder * this + location.sortOrder.
 const LEVEL_CHANNEL_STRIDE = 10;
-
-// --- Ordering ----------------------------------------------------------
 
 async function sortZoneCategories(prisma) {
   const zones = await prisma.zone.findMany({ where: { discordCategoryId: { not: null } } });
@@ -30,11 +26,7 @@ async function sortZoneCategories(prisma) {
   if (updates.length > 0) await patchGuildChannelPositions(updates);
 }
 
-// Per surface zone: #summary then its location channels in sortOrder, under
-// the zone's category. Per cave level: its location channels under the
-// group's category, offset by level. `parent_id` must NOT ride along in the
-// bulk position PATCH (Discord 400 code 40009 — reparenting is one channel
-// at a time), so drifted channels are repaired separately first.
+// Per surface zone: #summary then its location channels in sortOrder. Per cave level: location channels offset by level. `parent_id` must NOT ride along in the bulk position PATCH (Discord 400 code 40009), so drifted channels are repaired separately first.
 async function sortZoneChannels(prisma) {
   const zones = await prisma.zone.findMany({
     orderBy: { sortOrder: "asc" },

@@ -1,15 +1,7 @@
-// Only ever rendered as layout.js's `{children}` — the layout already draws
-// the one AppHeader above where Suspense cuts in. All this needs to hold still
-// is the band's height and the three-column body.
-//
-// 300 is what the band actually measures now that the identity cluster carries
-// the name, the role and faction and a 9rem face (SHEET.md §2). It was 120,
-// which was already short of the mark and got shorter, so the page jumped when
-// Suspense resolved.
-//
-// It cannot know which of the four kinds is arriving (the sheet, the lobby,
-// the wizard, a closed door), so it traces the sheet: that is the common case
-// by a long way, and the one a player sees every day.
+// Rendered as layout.js's `{children}` below the AppHeader; holds still the
+// band's height (300, matching the identity cluster's face+name, SHEET.md §2)
+// and the three-column body. Traces the sheet layout since that's the common
+// case, even though it can't know which of the four kinds is really arriving.
 export default function Loading() {
   return (
     <div className="sheet-body" aria-hidden="true">

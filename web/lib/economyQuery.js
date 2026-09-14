@@ -3,38 +3,18 @@ import { reasonFlow, reasonLabel, FLOW } from "@lifeweb/db/lib/economyReasons";
 import { creditAvailableObols } from "@lifeweb/db/lib/depotState";
 
 // The read side of the economy ledger — everything /gm/economy asks the
-// database, in one place. Nothing here writes.
-//
-// Two rules run through all of it:
-//
-//   1. AGGREGATES STAY WHOLE. A GM who cannot see the Caves still sees the
-//      Caves' ⬢ in the total supply, because the moment a total starts
-//      depending on who is looking, every number on the page becomes a
-//      different number per reader and the books stop balancing. Zone scoping
-//      and redaction hide WHO, never HOW MUCH.
-//   2. The ledger is a record, not a balance. Live balances are read straight
-//      off Character/Room/Depot; the ledger's job is to be COMPARED against
-//      them (see reconcile below), and a drift is the finding, not a bug to
-//      paper over.
+// database. Nothing here writes. Aggregates stay whole (zone scoping hides
+// WHO, never HOW MUCH); the ledger is a record, COMPARED against live
+// balances (reconcile below), so a drift is the finding, not a bug to hide.
 
-// What a plain GM is shown instead of a name they are not entitled to. The
-// same word web/app/components/remarkDiscord.js already prints for a mention
-// it will not resolve, so the panel speaks the language the rest of the app
-// speaks.
+// What a plain GM sees instead of a name they are not entitled to.
 const REDACTED = "someone";
 
-// Every status whose ⬢ are real. CURSED used to be missing here and present in
-// reconcile(), so a cursed purse counted as drift on Health and was invisible
-// in the supply total a GM would open to check that drift against. The money
-// exists; the books see it. Gini is the one deliberate exception — it asks
-// about inequality among the living and stays ALIVE-only.
+// Statuses whose ⬢ are real; CURSED included since that money still exists.
 export const HOLDING_STATUSES = ["ALIVE", "DEAD", "CURSED"];
 
-// --- live state ---------------------------------------------------------
-
-// The money supply, right now, by form. This is read from the balances
-// themselves rather than summed out of the ledger on purpose: it is the
-// number the ledger gets checked AGAINST.
+// The money supply, right now, by form — read from balances themselves,
+// since this is the number the ledger gets checked AGAINST.
 export async function liveSupply() {
   const [chars, rooms, depot, coin, goods] = await Promise.all([
     prisma.character.aggregate({ _sum: { resources: true }, where: { status: { in: HOLDING_STATUSES } } }),
@@ -54,16 +34,12 @@ export async function liveSupply() {
     debt,
     manifest,
     goods,
-    // Debt is money the station owes, so it comes off the top. Goods are
-    // valued, not minted, and are reported beside the total rather than inside
-    // it — a town's larder is wealth, but calling it money supply would make
-    // every crafted loaf look like inflation.
+    // Debt comes off the top; goods are reported beside the total, not in it.
     total: balance + coin + account + manifest - debt,
   };
 }
 
-// Physical obols, on sheets and in stashes. One obol is one ⬢ (DEPOT.md), so
-// the count IS the value.
+// Physical obols. One obol is one ⬢ (DEPOT.md), so the count IS the value.
 async function coinInWorld() {
   const [held, stashed] = await Promise.all([
     prisma.characterTag.aggregate({ _sum: { quantity: true }, where: { tag: { slug: "obol" } } }),
@@ -72,9 +48,7 @@ async function coinInWorld() {
   return (held._sum.quantity ?? 0) + (stashed._sum.quantity ?? 0);
 }
 
-// Every priced tag in the world at its catalog value. Deliberately excludes
-// the obol, which is counted as COIN above and would otherwise be double
-// counted.
+// Every priced tag at catalog value. Excludes obol (counted as COIN above).
 async function goodsValueInWorld() {
   const priced = await prisma.tag.findMany({
     where: { OR: [{ sellablePrice: { not: null } }, { depotPrice: { not: null } }], slug: { not: "obol" } },
@@ -92,24 +66,15 @@ async function goodsValueInWorld() {
   return n;
 }
 
-// An order paid for but not yet landed. Money already gone from the account,
-// so it belongs in the supply — it is somewhere, just not here yet.
+// An order paid for but not yet landed — already gone from the account.
 function manifestValue(manifest) {
   if (!Array.isArray(manifest)) return 0;
   return manifest.reduce((n, l) => n + (Number(l?.quantity) || 0) * (Number(l?.unitPrice) || 0), 0);
 }
 
-// --- the invariant ------------------------------------------------------
-
-// For every account: does the sum of its ledger legs equal its live balance?
-//
-// This is the panel's best feature and the reason the ledger is worth having.
-// A non-zero drift means something moved money without telling the book — the
-// Health section lists them, and the number is the size of the hole.
-//
-// PLUG rows are included on purpose. They exist precisely so the pre-ledger
-// history closes, and excluding them would report every account as drifting by
-// its opening balance.
+// Does the sum of each account's ledger legs equal its live balance? PLUG
+// rows are included so pre-ledger history closes instead of every account
+// drifting by its opening balance.
 export async function reconcile(gameId, { limit = 50 } = {}) {
   const [legs, chars, rooms, booked] = await Promise.all([
     prisma.$queryRaw`
@@ -141,13 +106,7 @@ export async function reconcile(gameId, { limit = 50 } = {}) {
   }
   rows.sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift));
 
-  // Bounded. Unbounded, this returned a row for every account holding any ⬢ —
-  // which before a backfill is all of them — and shipped the lot to the client
-  // on the FRONT PAGE, where the badge then read as a catastrophe on day one.
-  //
-  // `backfilled` is what tells those two states apart: with no ledger history
-  // at all, every account "drifts" by its whole balance and the honest reading
-  // is "nothing has been booked yet", not "the books are broken".
+  // Bounded, since unbounded this shipped every holding account to the client.
   const total = rows.length;
   const drift = rows.reduce((n, r) => n + Math.abs(r.drift), 0);
   return {
@@ -160,22 +119,10 @@ export async function reconcile(gameId, { limit = 50 } = {}) {
   };
 }
 
-// --- reading the book ---------------------------------------------------
-
-// The zone filter as a Prisma WHERE fragment rather than a post-filter.
-//
-// This has to happen in the query, not after it. Filtering a page of rows
-// AFTER fetching it leaves the count and the page boundaries describing the
-// unscoped table: a zone-restricted GM gets a "page 3 of 40" that is neither,
-// and pages that render half empty.
-//
-// Filters on zoneId, not zoneName. The ledger stamps the id straight off the
-// party it was handed (db/lib/parties.js already selects it), so there is no
-// name to resolve at write time — and db/lib/gmZoneView.js#visibleZoneIds
-// already folds a seat onto the cave levels it owns, which the name side has
-// to redo by hand. Null means every zone, and a row with no zone stays visible
-// to everyone, both the same rules inVisibleZones holds for the in-memory
-// lists.
+// The zone filter as a Prisma WHERE fragment, not a post-filter — filtering
+// after fetching leaves the count/page boundaries describing the unscoped
+// table. Filters on zoneId (db/lib/parties.js stamps it at write time), not
+// zoneName. Null means every zone; a row with no zone stays visible to all.
 export function zoneWhere(visibleZoneIds) {
   if (!visibleZoneIds) return {};
   const ids = [...visibleZoneIds];
@@ -183,11 +130,8 @@ export function zoneWhere(visibleZoneIds) {
   return { OR: [{ zoneId: null }, { zoneId: { in: ids } }] };
 }
 
-// One page of entries. Server-side paged, the /gm/audit posture, because this
-// table is the longest thing in the game by the end of a month.
-//
-// `visibleZoneIds` is folded into the WHERE so the count and the paging
-// describe what this GM can actually see.
+// One page of entries, server-side paged like /gm/audit; `visibleZoneIds`
+// folds into the WHERE so the count and paging match what this GM can see.
 export async function ledgerPage({ gameId, page = 1, pageSize = 50, where = {}, visibleZoneIds = null }) {
   const skip = (Math.max(1, page) - 1) * pageSize;
   const filter = { gameId, ...where, ...zoneWhere(visibleZoneIds) };
@@ -198,15 +142,8 @@ export async function ledgerPage({ gameId, page = 1, pageSize = 50, where = {}, 
   return { rows, total, page, pageSize, pages: Math.max(1, Math.ceil(total / pageSize)) };
 }
 
-// Per-turn totals for the charts, grouped straight off the ledger.
-//
-// There was an EconomyTurnRollup cache here for a while. It is gone: nothing
-// ever built it during play, so in a live game it was empty or stale, and the
-// one button that refreshed it silently dropped every row with no turn number
-// — which is most of them — permanently shrinking the charts of whoever
-// pressed it. A cache that is never written is not a cache, it is a second
-// answer to the same question. If this groupBy ever gets slow, cache it
-// somewhere that is actually kept warm.
+// Per-turn totals for the charts, grouped straight off the ledger — no
+// rollup cache; a cache nobody writes to is worse than none.
 export async function flowsByTurn({ gameId, fromTurn = null, toTurn = null }) {
   const turnFilter = {};
   if (fromTurn != null) turnFilter.gte = Number(fromTurn);
@@ -230,10 +167,8 @@ export async function flowsByTurn({ gameId, fromTurn = null, toTurn = null }) {
   }));
 }
 
-// Mint, burn and hand-over per turn — the three lines on the Pulse chart.
-// INTERNAL reasons are excluded from velocity: an ATM withdrawal is the same ⬢
-// changing coat, and counting it as trade would make a quiet turn at the Depot
-// look like a boom.
+// Mint, burn and hand-over per turn, the three Pulse chart lines. INTERNAL
+// reasons excluded: an ATM withdrawal is coat-changing, not trade.
 export function supplySeries(rows) {
   const byTurn = new Map();
   for (const r of rows) {
@@ -255,14 +190,8 @@ export function supplySeries(rows) {
   return series;
 }
 
-// --- concentration ------------------------------------------------------
-
-// The Gini coefficient over live purses, and the Lorenz points to draw beside
-// it. Answers "is one person sitting on everything", which is the question
-// that makes a GM open this page in the first place.
-//
-// 0 is perfect equality, 1 is one person holding it all. An empty or
-// all-zero world is reported as 0 rather than NaN.
+// Gini coefficient over live purses, plus Lorenz points. 0 is equal, 1 is
+// one person holding it all; an all-zero world reports 0, not NaN.
 export function gini(values) {
   const xs = values.filter((v) => Number.isFinite(v) && v >= 0).sort((a, b) => a - b);
   const n = xs.length;
@@ -280,10 +209,7 @@ export function gini(values) {
   return { gini: Math.max(0, Math.min(1, g)), lorenz };
 }
 
-// --- what a given GM may read ------------------------------------------
-
-// Redaction. The amount, the reason and the turn always survive; only the
-// counterparty is withheld, and only from a GM who is not a superadmin.
+// Only the counterparty is withheld, and only from a non-superadmin GM.
 export function redactEntry(entry, { unredacted = false } = {}) {
   const label = reasonLabel(entry.reason);
   if (unredacted || !entry.secret) return { ...entry, reasonLabel: label, redacted: false };
@@ -299,15 +225,8 @@ export function redactEntry(entry, { unredacted = false } = {}) {
   };
 }
 
-// --- flows: who trades with whom ----------------------------------------
-
 // The biggest character<->room hand-overs in a turn range, for the ArcWeb
-// "who trades with whom" chart. Grouped straight off the snapshot columns
-// (fromName/toName), the same reason `ledgerPage` never joins back to
-// Character/Room: those rows can outlive the account they named.
-//
-// `form: "BALANCE"` only — a GOODS or COIN transfer is a different kind of
-// hand-over, and mixing the two would sum ⬢ against item counts.
+// chart. `form: "BALANCE"` only — mixing GOODS/COIN would sum ⬢ against item counts.
 export async function counterpartyEdges({ gameId, fromTurn = null, toTurn = null, limit = 40 }) {
   const turnFilter = {};
   if (fromTurn != null) turnFilter.gte = Number(fromTurn);
@@ -330,12 +249,7 @@ export async function counterpartyEdges({ gameId, fromTurn = null, toTurn = null
     .slice(0, limit);
 }
 
-// --- goods -----------------------------------------------------------------
-
-// Every priced tag in the world, with how much of it exists and how much of
-// it has ever moved through the ledger. One groupBy per side (held, stashed,
-// traded) rather than a query per tag — the same posture as
-// goodsValueInWorld above.
+// Every priced tag: how much exists, and how much has moved through the ledger.
 export async function goodsCatalog() {
   const tags = await prisma.tag.findMany({
     where: {
@@ -372,12 +286,8 @@ export async function goodsCatalog() {
   });
 }
 
-// --- the Depot's books ------------------------------------------------
-
-// The Depot singleton plus what a GM actually wants to read off it: how much
-// credit is left, and what the outstanding manifest is worth. Returns nulls
-// rather than zeros when there is no Depot row yet, so the section can tell
-// "not provisioned" from "provisioned and empty".
+// Returns nulls, not zeros, when there is no Depot row yet, so "not
+// provisioned" reads apart from "provisioned and empty".
 export async function depotBooks() {
   const depot = await prisma.depot.findFirst();
   if (!depot) {
@@ -405,12 +315,7 @@ export async function depotBooks() {
   };
 }
 
-// --- faction treasuries --------------------------------------------------
-
-// Every faction's silo balance — the Room it banks in, per FACTIONS.md/
-// CARRY.md ("there is no faction-level balance"). Follows the inline
-// siloRoom-include pattern web/app/(app)/faction/page.js already uses rather
-// than inventing a second shape for the same relation.
+// Every faction's silo balance — the Room it banks in (FACTIONS.md/CARRY.md).
 export async function factionTreasuries() {
   const factions = await prisma.faction.findMany({
     select: {

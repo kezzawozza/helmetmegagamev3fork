@@ -1,19 +1,11 @@
-// Shared rules for character creation, used by the wizard UI, the
-// createCharacter server action, and the GM panel, so budgets never
-// disagree.
-//
-// Pure functions only — no Discord, no DB — kept out of the @lifeweb/db
-// barrel so this can be bundled for the browser.
+// Shared rules for character creation, used by the wizard, createCharacter
+// and the GM panel, so budgets never disagree. Pure functions only.
 import { roleCapacity, SPAWN_ONLY_ROLE_SLUGS, isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
 
-// Points forfeited by a cursed player's next character (see isPlayerCursed
-// in db/lib/curse.js).
 export const CURSED_POINT_PENALTY = 6;
 
-// Defaults for the two drawback ceilings, used only when GameConfig has no
-// row yet. The live values are GameConfig.maxDrawbackTags and
-// maxDrawbackPoints, both editable on /gm/dev. A build stops at whichever it
-// reaches first — TAGS.md §4a has the reasoning.
+// Defaults for the two drawback ceilings (GameConfig.maxDrawbackTags/
+// maxDrawbackPoints, editable on /gm/dev); a build stops at whichever it reaches first — TAGS.md §4a.
 export const DEFAULT_MAX_DRAWBACK_TAGS = 6;
 export const DEFAULT_MAX_DRAWBACK_POINTS = 13;
 
@@ -22,44 +14,24 @@ export function negativeTagCount(tags) {
   return tags.reduce((count, t) => ((t.pointCost ?? 0) < 0 ? count + 1 : count), 0);
 }
 
-// What those drawbacks claim back, as a POSITIVE magnitude — so it compares
-// with maxDrawbackPoints directly and nothing has to do a sign dance.
-//
-// Deliberately the RAW pointCost, never effectiveCost: the tier-chain discount
-// exists so upgrading Melee (Basic) to (Trained) bills only the difference,
-// and no drawback is a tier of another. Running them through it would only
-// give a future negative-cost chain a quiet way past the cap.
+// Raw pointCost, never effectiveCost — the tier-chain discount would give a
+// future negative-cost chain a quiet way past the cap.
 export function negativeTagPoints(tags) {
   return tags.reduce((sum, t) => ((t.pointCost ?? 0) < 0 ? sum - t.pointCost : sum), 0);
 }
 
-// The only roles a cursed player may take. Matched by Role.slug.
 export const CURSED_ROLE_SLUGS = ["migrant", "bum"];
 
-// Spawn-only seats (the Tribunal) are HIDDEN from the picker rather than
-// greyed, unlike a whitelisted seat, which greys itself and says why. Greying
-// is right for a seat you might get later and wrong for one that is a
-// surprise. The list itself lives in db/lib/roleCapacity.js so the lobby's
-// roll reads the same one.
+// Spawn-only seats are HIDDEN, unlike a whitelisted seat, which greys itself.
 export { SPAWN_ONLY_ROLE_SLUGS, isSpawnOnly };
 
-// budget = config base, then EITHER the role's bonus OR the curse penalty,
-// clamped at 0.
-//
-// The curse REPLACES the bonus rather than netting against it (Bascinet,
-// 2026-09-10). Both roles a cursed player may take carry a bonus — Migrant's
-// is the largest in the game — so netting them meant a curse cost 6 points on
-// paper and left a cursed Migrant better off than most of the roster. Coming
-// back cursed is supposed to hurt, and now it reads the way it is described:
-// a flat -6 against the base, whatever seat you take.
+// The curse REPLACES a role's bonus rather than netting against it: both
+// cursed-eligible roles carry a bonus, and netting would leave a cursed
+// character better off than most of the roster.
 export function computeBudget({ startingTagPoints, role, cursed }) {
   const base = startingTagPoints ?? 0;
   const modifier = role?.extraStartingPoints ?? 0;
-  // A curse cancels a role's BONUS but never its penalty. Both seats a cursed
-  // player may take carry a modifier and they point opposite ways: Migrant
-  // gives +6, Bum takes 3 away. Wiping the modifier outright would have made
-  // a cursed Bum better off than an uncursed one, which is the wrong
-  // direction for a tag that is supposed to be a punishment.
+  // Cancels the BONUS but never the penalty, or a cursed Bum would beat an uncursed one.
   const bonus = cursed ? Math.min(0, modifier) : modifier;
   const penalty = cursed ? CURSED_POINT_PENALTY : 0;
   return Math.max(0, base + bonus - penalty);
@@ -69,11 +41,8 @@ function totalCost(tags) {
   return tags.reduce((sum, tag) => sum + (tag.pointCost ?? 0), 0);
 }
 
-// --- Tier chains (parentTag) and prerequisites (requiredTag) ---
-// A tier chain (e.g. Melee Basic -> Trained -> Skilled) replaces its lower
-// tier rather than stacking. requiredTag is a non-replacing prerequisite.
-
-// tag -> [tag, ...ancestors] via parentTagId, closest-first.
+// A tier chain replaces its lower tier rather than stacking; requiredTag is
+// non-replacing. tag -> [tag, ...ancestors] via parentTagId, closest-first.
 export function chainOf(tag, tagsById) {
   const chain = [];
   let current = tag;
@@ -94,7 +63,6 @@ export function cumulativeCost(tag, tagsById) {
   return totalCost(chainOf(tag, tagsById));
 }
 
-// The highest-cost chain member already held/selected, or null.
 function heldChainMember(tag, tagsById, heldOrSelectedIds) {
   const held = new Set(heldOrSelectedIds);
   const chain = chainOf(tag, tagsById);
@@ -109,22 +77,19 @@ function heldChainMember(tag, tagsById, heldOrSelectedIds) {
   return best;
 }
 
-// Cost to acquire `tag`, minus whatever's already paid via a lower tier.
 export function effectiveCost(tag, tagsById, heldOrSelectedIds) {
   const held = heldChainMember(tag, tagsById, heldOrSelectedIds);
   const base = cumulativeCost(tag, tagsById);
   return held ? base - cumulativeCost(held, tagsById) : base;
 }
 
-// Other ids of the same chain, to drop when `tag` is newly selected.
 export function chainSiblingsToRemove(tag, tagsById, heldOrSelectedIds) {
   const chainIds = new Set(chainOf(tag, tagsById).map((t) => t.id));
   chainIds.delete(tag.id);
   return heldOrSelectedIds.filter((id) => chainIds.has(id));
 }
 
-// Held/selected ids that sit ABOVE `tag` in its own chain — non-empty means
-// acquiring `tag` would be a downgrade, which every purchase path rejects.
+// Non-empty means acquiring `tag` would be a downgrade, which every purchase path rejects.
 export function heldHigherTiers(tag, tagsById, heldOrSelectedIds) {
   return heldOrSelectedIds.filter((id) => {
     if (id === tag.id) return false;
@@ -143,8 +108,7 @@ export function holdsRequirement(requiredTagId, tagsById, heldOrSelectedIds) {
   });
 }
 
-// Combines both prerequisites: the per-tag requiredTag and the whole-group
-// gate behind a hidden category (TAGS.md §3).
+// Combines the per-tag requiredTag and the whole-group gate (TAGS.md §3).
 export function requirementSatisfied(tag, tagsById, heldOrSelectedIds) {
   return (
     holdsRequirement(tag.requiredTagId, tagsById, heldOrSelectedIds) &&
@@ -152,9 +116,7 @@ export function requirementSatisfied(tag, tagsById, heldOrSelectedIds) {
   );
 }
 
-// --- Exclusive tags (Tag.exclusive) ---
-// At most one `exclusive` tag per group, except a requiredTag-linked pair.
-// Not a menu gate — enforced server-side; a GM grant bypasses it.
+// At most one `exclusive` tag per group, except a requiredTag-linked pair. Enforced server-side.
 export function exclusiveConflict(tag, heldOrSelectedIds, byId) {
   if (!tag.exclusive) return null;
   for (const id of heldOrSelectedIds) {
@@ -168,9 +130,6 @@ export function exclusiveConflict(tag, heldOrSelectedIds, byId) {
   return null;
 }
 
-// --- Conflicting tags (Tag.conflictsWith) ---
-// A pairwise conflict edge, symmetrized by db:sync-tags (SYNC.md pass 6).
-// Enforced server-side; a GM grant bypasses it.
 export function conflictingTag(tag, heldOrSelectedIds, byId) {
   const conflictIds = tag.conflictsWithIds;
   if (!conflictIds?.length) return null;
@@ -182,49 +141,28 @@ export function conflictingTag(tag, heldOrSelectedIds, byId) {
   return null;
 }
 
-// --- Role-gated tags (Tag.excludedRoleSlugs / Tag.onlyRoleSlugs) ---
-// A seat that can never take this tag: Devoted Follower isn't for a Migrant,
-// a Mercenary or a Bum, who have nobody to be devoted to. Unlike the gates
-// above this one never depends on what else is held, so it filters the menu
-// outright rather than dimming a row. Enforced server-side too; a GM grant
-// bypasses it.
-//
-// Two spellings, and a tag uses at most one of them (syncTags.js throws on
-// both). `excludedRoleSlugs` names the seats shut out; `onlyRoleSlugs` names
-// the only seats let in — Mime's Vow is a Minstrel's, and nobody else's.
-// Both funnel through this one function so the menu, createCharacter and the
-// store's buyTags cannot drift on which gate they honour.
+// A seat that can never take this tag, filtered outright (not menu-dimmed).
+// A tag uses at most one spelling (syncTags.js throws on both):
+// `excludedRoleSlugs` shuts seats out, `onlyRoleSlugs` is the only ones let in.
 export function roleExcluded(tag, roleSlug) {
   const only = tag.onlyRoleSlugs ?? [];
-  // No seat resolved yet: an open tag stays open, a whitelisted one stays
-  // shut. Guessing the other way would flash a Minstrel-only row at everybody
-  // before the role picker has been touched.
   if (only.length > 0) return !roleSlug || !only.includes(roleSlug);
   if (!roleSlug) return false;
   return (tag.excludedRoleSlugs ?? []).includes(roleSlug);
 }
 
-// --- Commoner kits ------------------------------------------------------
-// The three trades a Commoner picks between (docs/tags.yaml), each an
-// onlyRoles-gated consumable crate that unpacks into a laboring specialisation
-// and its tools. createCharacter hands the Farmer to any Commoner who reached
-// the end of the wizard without a trade — free, because it costs 0 points, so
-// granting it can never overrun a budget already spent.
+// The three trades a Commoner picks between; createCharacter defaults to the Farmer.
 export const COMMONER_KIT_SLUGS = ["commoner-farmer", "commoner-fisherman", "commoner-hunter"];
 export const DEFAULT_COMMONER_KIT_SLUG = "commoner-farmer";
 
-// "Without a trade" has to mean the specialisations too, not just the crates.
-// Buying `laboring-fishing` outright is the expensive way to the same place (7
-// points against the kit's 1), and somebody who did that does not also want a
-// Farmer crate unpacking a second specialisation for free.
+// Buying `laboring-fishing` outright (7 pts vs. the kit's 1) must not also grant a Farmer crate.
 export const LABORING_SPECIALISATION_SLUGS = [
   "laboring-farming",
   "laboring-hunting",
   "laboring-fishing",
 ];
 
-// Tags a character may actually see and buy. Menus must derive category
-// tabs from THIS, or an all-locked category advertises its own secret.
+// Menus must derive category tabs from THIS, or an all-locked category advertises its own secret.
 export function unlockedTags(tags, tagsById, heldOrSelectedIds, keepIds = []) {
   const keep = new Set(keepIds);
   return tags.filter(
@@ -242,15 +180,7 @@ export function isRoleSelectable({ role, cursed, leaderWhitelisted }) {
   return CURSED_ROLE_SLUGS.includes(role.slug);
 }
 
-// Which catalog tags the point-buy menu offers. `afterStartOnly` distinguishes
-// creation (every purchasable tag) from the mid-game store (purchasableAfterStart
-// only). Also excludes anything the role already grants.
-//
-// The two flag lines below are mirrors of each other, and between them they say
-// the three things a tag can be: creation-only (purchasableAfterStart: false),
-// both menus (neither flag), or store-only (mastery). A mastery tag is bought
-// with points earned in play rather than out of a starting budget, so the
-// wizard never offers one however affordable it looks.
+// A mastery tag is bought with points earned in play, so the wizard never offers one.
 export function purchasableTags({ tags, afterStartOnly, grantedNames = [], roleSlug = null }) {
   const granted = new Set(grantedNames);
   return tags.filter((tag) => {
@@ -273,7 +203,6 @@ function chainKey(tag, tagsById) {
   return { root: chain[chain.length - 1].name, depth: chain.length };
 }
 
-// Shared menu sort: "group" (chain-aware, default), "cost", or "name".
 export function sortForMode(tags, mode, tagsById) {
   if (mode === "cost") return sortTagsForMenu(tags);
   if (mode === "name") return [...tags].sort((a, b) => a.name.localeCompare(b.name));
@@ -284,8 +213,7 @@ export function sortForMode(tags, mode, tagsById) {
   });
 }
 
-// Prerequisite names for a "Requires: …" line. Callers must have fetched
-// the requiredTag relations alongside the ids.
+// Callers must have fetched the requiredTag relations alongside the ids.
 export function prerequisiteNames(tag) {
   const names = [tag.requiredTag?.name, tag.group?.requiredTag?.name];
   return [...new Set(names.filter(Boolean))];
@@ -301,8 +229,7 @@ export function menuCategories(tags) {
   return [...new Set(tags.map((tag) => tag.category))].sort((a, b) => a.localeCompare(b));
 }
 
-// Sign and colour describe the player's point pool, not tag valence: a
-// drawback grants points (green), an advantage spends them (accent).
+// Sign/colour describe the player's point pool, not tag valence.
 export function formatCost(pointCost) {
   const delta = -(pointCost ?? 0);
   return delta > 0 ? `+${delta}` : String(delta);
@@ -317,8 +244,7 @@ export function costColor(pointCost) {
 
 export { roleCapacity };
 
-// Shared "does this tag match what I typed" filter. Deliberately NOT a
-// gate — callers must run this AFTER unlockedTags().
+// Deliberately NOT a gate — callers must run this AFTER unlockedTags().
 function fold(value) {
   return (value ?? "")
     .toString()

@@ -4,44 +4,16 @@ import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { reportDeskReset } from "./blackBox";
 
 // What a GM has typed into a desk row but not yet saved — the Move desk's
-// Result box and Kind switch, and the Caving desk's Result box.
-//
-// Those two were the last editors on either desk in no storage tier at all.
-// Everything else a GM types is held somewhere: the reply box has dmDraft.js,
-// the rail's view state has useSessionState.js, the rows themselves have
-// deskStore.js. The Result box had useState and nothing else, so anything
-// that replaced the column — a deploy-window hard navigation, an error
-// boundary, a stray reload — took the narration with it.
-//
-// Same shape as dmDraft.js, and for the same reason: MEMORY is the source of
-// truth and localStorage is a best-effort mirror, never the other way round.
-// A full quota makes setItem throw, and a store that read back from storage
-// would freeze the GM's typing mid-sentence.
-//
-// Keyed by row: "move:<id>" and "caving:<id>". A draft is a whole object (the
-// Move desk edits two fields together), replaced wholesale on every write, so
-// useSyncExternalStore's identity check is satisfied by the stored reference.
-//
-// The DRAFT WINS over the row while it exists. Clearing it is what hands the
-// editor back to the saved value, so every save, solve, reject and resolve
-// clears its own key.
-//
-// A DRAFT IS NOT FOREVER. It used to be: written once, kept until something
-// cleared it, and until then counted as unsaved work by everything that asks.
-// A week-old draft nobody was looking at stood the 120s backstop poll down
-// permanently, buffered the live stream's frames for that row for ever, and
-// sat on top of a Move another GM had long since solved. So every draft is now
-// stamped with the turn it belongs to and the moment it was last touched, and
-// three rules follow from the stamps:
-//
-//   - It is pruned when the turn rolls over, or when the row it belongs to is
-//     no longer on the desk (pruneDeskDrafts, called from seedDesk).
-//   - It only holds the backstop poll down for THIS SITTING: after
-//     DRAFT_FRESH_MS untouched it is still shown, still guarded on unload,
-//     and still the thing the editor renders — it just stops claiming the
-//     desk is mid-sentence. Typing makes it fresh again.
-//   - It only buffers live frames while an editor holding it is actually
-//     MOUNTED. A draft for a row nobody has open is not somebody writing.
+// Result box and Kind switch, and the Caving desk's Result box; both used to
+// hold this in bare useState, so a hard navigation or error boundary lost it.
+// Same shape as dmDraft.js: MEMORY is the source of truth, localStorage a
+// best-effort mirror, never the other way round. Keyed by row ("move:<id>" /
+// "caving:<id>"); DRAFT WINS over the saved row while it exists (every save,
+// solve, reject, resolve clears its own key). Each draft is stamped with its
+// turn and last-touched time, so it can be pruned on turn rollover or when
+// its row leaves the desk (pruneDeskDrafts, via seedDesk), stops holding the
+// backstop poll down after DRAFT_FRESH_MS untouched, and only buffers live
+// stream frames while an editor holding it is actually MOUNTED.
 
 const DRAFT_FRESH_MS = 10 * 60 * 1000;
 
@@ -71,17 +43,12 @@ function subscribe(callback) {
 }
 
 // Exported for DeskStream.js, which buffers a live frame for a row somebody is
-// mid-sentence in and drains the buffer when the draft is cleared. The draft
-// map IS the desk's record of which rows are dirty — keyed, unlike
-// useDirtyGuard's global counter, which cannot say WHICH panel is dirty.
+// mid-sentence in and drains it when the draft clears — the draft map IS the
+// desk's record of which rows are dirty, keyed unlike useDirtyGuard's global counter.
 export const subscribeToDeskDrafts = subscribe;
 
-// Whether a row is holding unsaved text right now AND somebody has it open.
-// `key` is the same "move:<id>" / "caving:<id>" the editors use.
-//
-// The mount test is what stops the stream buffering a row's frames for ever:
-// a draft left behind on a row nobody is looking at is recoverable text, not
-// an interrupted sentence, and the desk should keep showing that row moving.
+// Whether a row is holding unsaved text right now AND somebody has it open —
+// the mount test stops the stream buffering frames forever for an abandoned draft.
 export function deskDraftHeld(key) {
   if (!(mounts.get(key) > 0)) return false;
   return readDeskDraft(key) != null;
@@ -95,10 +62,7 @@ export function deskDraftFresh(key, nowMs = Date.now()) {
   return nowMs - (entry.writtenAt ?? 0) < DRAFT_FRESH_MS;
 }
 
-// Seeded from storage ONCE per key, then never read from storage again except
-// when another tab's `storage` event says the value moved. A refusal or a bad
-// JSON blob memoises null, so a blocked accessor isn't retried on every
-// render.
+// Seeded from storage ONCE per key, re-read only on another tab's `storage` event. A refusal or bad JSON memoises null.
 function readDeskEntry(key) {
   if (!key) return null;
   const held = drafts.get(key);
@@ -114,9 +78,7 @@ function readDeskEntry(key) {
   return stored;
 }
 
-// A stored blob from before the stamps existed is still somebody's narration,
-// so it is read rather than thrown away — it just counts as written at the
-// epoch, which makes it stale and unpinned to any turn, which is what it is.
+// A stored blob from before the stamps existed is still read, just counted as written at the epoch (stale, unpinned to any turn).
 function normalise(raw) {
   if (!raw || typeof raw !== "object") return null;
   if (raw.value && typeof raw.value === "object" && "writtenAt" in raw) {
@@ -142,8 +104,7 @@ export function writeDeskDraft(key, value) {
     if (entry) window.localStorage.setItem(storageKey(key), JSON.stringify(entry));
     else window.localStorage.removeItem(storageKey(key));
   } catch {
-    // Full, private, or blocked. The draft is safe in memory for this tab's
-    // lifetime; only surviving a reload is lost.
+    // Full, private, or blocked; the draft still survives in memory for this tab.
   }
 }
 
@@ -157,14 +118,9 @@ export function noteDeskDraftTurn(turnId) {
   currentTurnId = turnId ?? null;
 }
 
-// Drop every stored draft that the desk can no longer account for: one
-// stamped with a different turn (the turn rolled over under it), and one whose
-// row is not on the desk any more (somebody rejected or deleted it). Called
-// from seedDesk, which is the one place that knows both answers.
-//
-// It walks localStorage rather than the memo, because the whole point is the
-// keys this tab has never read — a draft left behind by a session three turns
-// ago is invisible to the memo and is exactly what accumulates.
+// Drop every stored draft the desk can no longer account for: wrong turn, or
+// row no longer on the desk. Called from seedDesk, which knows both answers.
+// Walks localStorage rather than the memo, since that's the accumulating case.
 export function pruneDeskDrafts(liveKeys) {
   let stored = [];
   try {
@@ -179,13 +135,10 @@ export function pruneDeskDrafts(liveKeys) {
   for (const key of new Set([...stored, ...drafts.keys()])) {
     const entry = readDeskEntry(key);
     if (!entry) continue;
-    // A draft written before the stamps existed carries no turn, so it is
-    // judged on membership alone rather than being swept for a null.
+    // A draft with no turn stamp is judged on membership alone.
     const wrongTurn = entry.turnId != null && entry.turnId !== currentTurnId;
     if (!wrongTurn && liveKeys.has(key)) continue;
-    // Never sweep a row somebody has open and has typed into. Whatever the
-    // membership arithmetic says, deleting the sentence being written in front
-    // of the GM is never the right answer — it goes when the panel closes.
+    // Never sweep a row somebody has open and typed into — it goes when the panel closes.
     if (deskDraftHeld(key)) continue;
     drafts.set(key, null);
     changed = true;
@@ -198,10 +151,9 @@ export function pruneDeskDrafts(liveKeys) {
   if (changed) emit();
 }
 
-// Another tab wrote or cleared a draft. The memo is this tab's only reader, so
-// it is invalidated rather than patched — the next read goes to storage and
-// gets whatever the other tab left. Without this, two open desks each held
-// their own idea of the same Result box until one of them reloaded.
+// Another tab wrote or cleared a draft; invalidate rather than patch the
+// memo, so the next read goes to storage — without this two open desks each
+// held their own idea of the same Result box until one reloaded.
 if (typeof window !== "undefined") {
   window.addEventListener("storage", (event) => {
     if (event.storageArea && event.storageArea !== window.localStorage) return;
@@ -217,18 +169,14 @@ if (typeof window !== "undefined") {
   });
 }
 
-// Returns the held draft, or null when the row's own saved values are what
-// the editor should show. Mounting also registers this key as OPEN, which is
-// what lets the live stream tell "somebody is writing here" from "somebody
-// left words here once".
+// Returns the held draft, or null. Mounting also registers this key as OPEN,
+// which is what lets the live stream tell "writing here" from "left words here once".
 export function useDeskDraft(key) {
   const get = useCallback(() => readDeskDraft(key), [key]);
   useEffect(() => {
     if (!key) return undefined;
     mounts.set(key, (mounts.get(key) ?? 0) + 1);
-    // A panel opening onto text it never saved means something took the panel
-    // away mid-sentence. Worth one line (blackBox.js) — that used to be the
-    // only trace the desk left of resetting itself.
+    // A panel opening onto unsaved text means something took it mid-sentence. Worth one line (blackBox.js).
     if (readDeskDraft(key) != null && !reportedDrafts.has(key)) {
       reportedDrafts.add(key);
       reportDeskReset(`draft restored on ${key}`);

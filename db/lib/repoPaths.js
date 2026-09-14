@@ -1,14 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-// Where docs/ actually is at runtime. A plain `path.join(__dirname, ...)`
-// breaks under Turbopack, which inlines __dirname as a literal that resolves
-// to the wrong tree in the Next server build (only in the WEB container —
-// the bot runs unbundled, where __dirname is real). serverExternalPackages
-// does NOT fix it: @lifeweb/db is a workspace symlink, so Next treats it as
-// first-party source to bundle regardless. So the search below starts from
-// somewhere a bundler cannot rewrite: __dirname first (the direct answer
-// when real), process.cwd() as the fallback that survives bundling.
+// Where docs/ actually is at runtime. A plain `path.join(__dirname, ...)` breaks under Turbopack, which inlines __dirname as a literal resolving to the wrong tree in the Next server build. serverExternalPackages does NOT fix it (@lifeweb/db is a workspace symlink, bundled regardless), so the search starts from __dirname first, process.cwd() as the fallback that survives bundling.
 
 const MARKER = "zones.yaml"; // identifies OUR docs/, not some other one
 const MAX_UP = 6;
@@ -38,21 +31,13 @@ function docsDir() {
   return cached;
 }
 
-// Joins onto docs/, or returns null when docs/ cannot be found at all. Callers
-// that read a YAML master should throw on null — a sync with no master is not
-// a sync. The turn banner treats null as "no banner", which is the same
-// thing it already did for a missing file.
+// Joins onto docs/, or null when it cannot be found. Callers reading a YAML master should throw on null — a sync with no master is not a sync.
 function docsPath(...segments) {
   const dir = docsDir();
   return dir ? path.join(dir, ...segments) : null;
 }
 
-// Joins onto the repo ROOT — docs/'s parent, found the same way. Used to
-// reach web/public from db/, which only the asset-existence checks in
-// syncTags.js need. Those checks treat a null (or a missing directory) as
-// "cannot verify" rather than as a failure: docs/ is what ships everywhere
-// this code runs, and web/public may not be laid out the same way inside a
-// Next standalone build. A sync must not fail over a check it cannot perform.
+// Joins onto the repo ROOT. Used to reach web/public from db/ for syncTags.js's asset-existence checks, which treat a null as "cannot verify" — a sync must not fail over a check it cannot perform.
 function repoPath(...segments) {
   const dir = docsDir();
   return dir ? path.join(path.dirname(dir), ...segments) : null;

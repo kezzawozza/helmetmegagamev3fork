@@ -4,21 +4,14 @@ import StatusPill from "@/app/components/StatusPill";
 import { useInboxStreamState } from "./players/inboxStreamStore";
 import { useDeskStreamState } from "./turns/deskStreamStore";
 
-// Says so when a desk's live channel has dropped to its backstop poll.
-//
-// Shared shape for the player desk's inbox stream and the adjudication
-// desk's own channel — a dropped stream that looks alive is worse than one
-// that never existed. Renders nothing while the stream is up, which is
-// almost always. Labels are the one thing that differs between the two
-// desks, so they come in as props; `InboxStreamChip` and `DeskStreamChip`
-// below are the two desks' actual call sites, each just its hook plus its
-// own words.
+// Says so when a desk's live channel has dropped to its backstop poll —
+// shared shape for the player desk's inbox and the adjudication desk's
+// channel. Renders nothing while up. Labels differ per desk and come in as
+// props; `InboxStreamChip`/`DeskStreamChip` below are the actual call sites.
 function StreamStatusChip({ state, fatalLabel, warnLabel, fatalTitle, warnTitle }) {
   if (state === "live") return null;
   const fatal = state === "fatal";
-  // A warning, not a neutral label: the desk is running on its backstop
-  // poll. It used to be a plain .chip, indistinguishable from the turn
-  // chip beside it, which is the one thing a dropped stream must not be.
+  // A warning, not a neutral label — must not be indistinguishable from the turn chip beside it.
   return (
     <StatusPill tone={fatal ? "bad" : "warn"} title={fatal ? fatalTitle : warnTitle}>
       {fatal ? fatalLabel : warnLabel}
@@ -26,10 +19,7 @@ function StreamStatusChip({ state, fatalLabel, warnLabel, fatalTitle, warnTitle 
   );
 }
 
-// PLAYER-DESK.md §9a's objection to a push feed: "a dropped stream that
-// looks alive is exactly the failure class this desk has already been
-// burned by". The desk is still correct when this shows (the 30s poll
-// carries it) — this just says it is running on the slow path.
+// PLAYER-DESK.md §9a. Still correct when this shows (the 30s poll carries it) — just says it's on the slow path.
 export function InboxStreamChip() {
   const state = useInboxStreamState();
   return (
@@ -43,10 +33,8 @@ export function InboxStreamChip() {
   );
 }
 
-// The turns desk's twin, for the same reason: the desk is still correct when
-// this shows (the 120s poll in Workspace.js carries it, and a GM's own work
-// never depended on either) — but another GM's staging can now be two
-// minutes stale, and that is worth a word.
+// The turns desk's twin — still correct when this shows (120s poll in
+// Workspace.js carries it), but another GM's staging can be two minutes stale.
 export function DeskStreamChip() {
   const state = useDeskStreamState();
   return (

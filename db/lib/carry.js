@@ -1,23 +1,9 @@
-// Carry caps, the Overburdened status and the overflow drop
-// (docs/systemdocs/CARRY.md).
-//
+// Carry caps, the Overburdened status and the overflow drop (CARRY.md).
 // A character carries two loads against two caps: POUNDS of gear against
-// GameConfig.carryWeightLbs, and ⬢ against carryResourceCap. Both are moved by
-// the SUM of every carryBonus they hold. Over a cap is allowed and
-// grants `overburdened`; over 1.5× it is not allowed at all, and whatever
-// pushed them there is set down where they stand.
-//
-// The pure half at the top has no prisma and no I/O, so a client component
-// can import it for a "7 / 10 items" readout without dragging the barrel
-// into the browser bundle (ARCHITECTURE.md §2). settleCarry below is the
-// stateful half: pull-based and post-commit, the same posture as
-// roomAccess.js#syncCharacterRoomAccess, because the writers that change what
-// a character holds are many and scattered (ten of them bypass tagWrites.js
-// with raw deleteMany) and a push from any one of them would miss the rest.
-//
-// Takes `prisma` as a parameter and stays OFF the @lifeweb/db barrel —
-// db/index.js's turn engine imports this, so requiring the barrel back would
-// resolve to a partial exports object. Require it by path.
+// GameConfig.carryWeightLbs, and ⬢ against carryResourceCap. Both are moved by the SUM of every carryBonus they hold. Over a cap is allowed and grants `overburdened`; over 1.5× it is not allowed at all, and whatever pushed them there is set down where they stand.
+// The pure half at the top has no prisma and no I/O, so a client component can import
+// it for a "7 / 10 items" readout without dragging the barrel into the browser bundle (ARCHITECTURE.md §2). settleCarry below is the stateful half: pull-based and post-commit, same posture as roomAccess.js#syncCharacterRoomAccess, since the writers that change what a character holds are many and scattered (ten bypass tagWrites.js with raw deleteMany) and a push from any one would miss the rest.
+// Takes `prisma` as a parameter and stays OFF the @lifeweb/db barrel — db/index.js's turn engine imports this, so requiring the barrel back would resolve to a partial exports object. Require it by path.
 const { OVERBURDENED_SLUG } = require("./constants");
 const { addToStack, dropCharacterTag, addToRoomStack } = require("./tagWrites");
 const { moveParty } = require("./resourceTransfer");
@@ -29,52 +15,32 @@ const { sendDm } = require("./dm");
 // two-decimal bonuses stays exact, never a float epsilon.
 const MULT_SCALE = 1000;
 
-// The floor under the summed bonuses. Penalties add up, and the catalog holds
-// enough of them that a thoroughly broken body could reach zero or go negative
-// — a 0 lb cap would leave a character permanently Overburdened with nothing
-// they could put down to fix it.
+// The floor under the summed bonuses — penalties add up, and the catalog holds enough of them that a thoroughly broken body could reach zero or go negative; a 0 lb cap would leave a character permanently Overburdened with nothing they could put down to fix it.
 const MIN_MILLI = 250;
 
-// How far past a cap a character may go before the goods simply cannot be
-// theirs. Between 1× and this they are Overburdened; past it, an acquisition
-// is refused and an involuntary gain is set down on the spot.
+// How far past a cap a character may go before the goods simply cannot be theirs. Between 1× and this they're Overburdened; past it, an acquisition is refused and an involuntary gain is set down on the spot.
 const HARD_CAP_RATIO = 1.5;
 
-// The category (Tag.category holds the DISPLAY name, not the YAML slug — see
-// syncTags.js) whose tags never weigh on your back. A horse carries itself, a
-// cart rolls, a house does not move at all.
+// The category (Tag.category holds the DISPLAY name, not the YAML slug — syncTags.js) whose tags never weigh on your back. A horse carries itself, a cart rolls, a house doesn't move at all.
 const WEIGHTLESS_CATEGORY = "Assets";
 
-// Does this row's carryBonus count right now?
-//
-// A vehicle has to be in your hands: an unequipped Cart is parked, and it
-// hauls nothing. A body does not — Pack Mule, Frail and a broken rib are not
-// `equippable` at all, and so could never be equipped. Testing `equippable`
-// rather than listing slugs keeps the rule in the catalog where the rest of a
-// tag's behaviour lives.
+// Does this row's carryBonus count right now? A vehicle has to be in your hands — an
+// unequipped Cart is parked and hauls nothing. A body doesn't — Pack Mule, Frail and a broken rib aren't `equippable` at all. Testing `equippable` rather than listing slugs keeps the rule in the catalog where the rest of a tag's behaviour lives.
 function multiplierApplies(ct) {
   const m = ct?.tag?.carryBonus;
   if (!(typeof m === "number" && Number.isFinite(m) && m !== 0)) return false;
   return ct.tag.equippable ? ct.equipped === true : true;
 }
 
-// SUM of every ACTIVE Tag.carryBonus, as a milli-multiplier (1000 = ×1). Per
-// ROW, not per unit: nothing carrying a bonus is stackable.
-//
-// Additive rather than multiplicative, which matters now that bodies can carry
-// a penalty. Multiplied, Frail ×0.9 took 60 lb off a character pulling a cart
-// and 12 lb off a peasant — the same frailty, five times the bite, decided by
-// gear it has nothing to do with. Added, a frail body costs everyone the same
-// 12 lb.
+// SUM of every ACTIVE Tag.carryBonus, as a milli-multiplier (1000 = ×1). Per ROW, not
+// per unit — nothing carrying a bonus is stackable. Additive, not multiplicative, now that bodies can carry a penalty: multiplied, Frail ×0.9 took 60 lb off a character pulling a cart and 12 lb off a peasant — same frailty, five times the bite, decided by unrelated gear. Added, a frail body costs everyone the same 12 lb.
 function carryMultiplier(characterTags = []) {
   let sum = 0;
   for (const ct of characterTags) if (multiplierApplies(ct)) sum += ct.tag.carryBonus;
   return Math.max(MIN_MILLI, Math.round((1 + sum) * MULT_SCALE));
 }
 
-// One line per active bonus, for the hover breakdown on /character. The player
-// should be able to see exactly what is holding their cap up — or pushing it
-// down.
+// One line per active bonus, for the hover breakdown on /character — the player should see exactly what's holding their cap up, or pushing it down.
 function carryBreakdown(characterTags = []) {
   return characterTags.filter(multiplierApplies).map((ct) => ({
     slug: ct.tag.slug,
@@ -83,9 +49,7 @@ function carryBreakdown(characterTags = []) {
   }));
 }
 
-// What one row weighs. Assets are exempt entirely; anything untradeable is
-// part of you rather than cargo (a graft in your neck), and so are skills,
-// injuries and statuses, which carry no weight in the catalog anyway.
+// What one row weighs. Assets are exempt entirely; anything untradeable is part of you rather than cargo (a graft in your neck), and so are skills, injuries and statuses, which carry no weight in the catalog anyway.
 function rowWeight(ct) {
   const tag = ct?.tag;
   if (!tag?.tradeable) return 0;
@@ -111,8 +75,7 @@ function carryCaps(config, milli = MULT_SCALE) {
   };
 }
 
-// The ceiling nothing may cross, derived rather than stored so a GM raising
-// the base cap moves both lines together.
+// The ceiling nothing may cross, derived rather than stored so a GM raising the base cap moves both lines together.
 function carryHardCaps(caps) {
   return {
     weight: Math.floor(caps.weight * HARD_CAP_RATIO),
@@ -141,13 +104,8 @@ function carryStatus(character, config) {
   };
 }
 
-// The one guard every DELIBERATE acquisition asks before it writes: Transfer,
-// Craft, /store, the Depot, Loot, pulling out of a room stash. An involuntary
-// gain (a Labor payout, Caving loot, a GM grant) does NOT ask — it lands, and
-// settleCarry sets down whatever will not fit.
-//
-// Returns { ok } or { ok: false, reason }, so a caller can hand the sentence
-// straight to the player.
+// The one guard every DELIBERATE acquisition asks before it writes — Transfer, Craft,
+// /store, the Depot, Loot, pulling out of a room stash. An involuntary gain (a Labor payout, Caving loot, a GM grant) does NOT ask — it lands, and settleCarry sets down whatever won't fit. Returns { ok } or { ok: false, reason }, so a caller can hand the sentence straight to the player.
 function carryAdmits(character, config, { weightLbs = 0, resources = 0 } = {}) {
   const caps = carryCaps(config, carryMultiplier(character?.tags));
   const hard = carryHardCaps(caps);
@@ -172,12 +130,8 @@ function carryAdmits(character, config, { weightLbs = 0, resources = 0 } = {}) {
   return { ok: true };
 }
 
-// The sentence a carry tag's description ends with, computed from the live
-// config: what THIS bonus does to the base caps on its own. Bascinet's
-// wording; the ⬢ glyph replaces the word per CLAUDE.md's Resources rule.
-//
-// Two branches, because a bonus can now be negative and "You can carry -60
-// more lb" is not a sentence anybody should read.
+// The sentence a carry tag's description ends with, computed from the live config —
+// what THIS bonus does to the base caps on its own. Bascinet's wording; the ⬢ glyph replaces the word per CLAUDE.md's Resources rule. Two branches, since a bonus can now be negative and "You can carry -60 more lb" isn't a sentence anybody should read.
 function carryBonusLine(config, bonus) {
   const base = carryCaps(config, MULT_SCALE);
   const moved = carryCaps(config, Math.round((1 + (bonus ?? 0)) * MULT_SCALE));
@@ -228,19 +182,8 @@ const CHARACTER_SELECT = {
 
 let warnedMissingTag = false;
 
-// Draws random UNITS out of the droppable holdings until `excessLbs` pounds
-// have been shed. Returns [{ tagId, tagName, quantity, expiresTurn }]
-// aggregated per tag. Carry-bonus tags and equipped gear are never in the bag:
-// dropping the Cart to fix being over would shrink the cap again and loop, and
-// being disarmed by an overfull pack reads badly.
-//
-// "Equipped gear" means only the equipped UNITS, not the whole row — three
-// swords equipped out of five leaves the other two exactly as droppable as
-// anything else in the pack, since a slot only protects what is actually in
-// it.
-//
-// A weightless unit can never help, so it is not even a candidate — otherwise
-// the shuffle would spend draws on letters while the anvil stayed put.
+// Draws random UNITS out of the droppable holdings until `excessLbs` pounds have been
+// shed. Returns [{ tagId, tagName, quantity, expiresTurn }] aggregated per tag. Carry-bonus tags and equipped gear are never in the bag: dropping the Cart to fix being over would shrink the cap again and loop, and being disarmed by an overfull pack reads badly. "Equipped gear" means only the equipped UNITS, not the whole row — three swords equipped out of five leaves the other two exactly as droppable as anything else, since a slot only protects what's actually in it. A weightless unit can never help, so it's not even a candidate — otherwise the shuffle would spend draws on letters while the anvil stayed put.
 function drawDrops(characterTags, excessLbs) {
   const units = [];
   for (const ct of characterTags) {
@@ -276,8 +219,7 @@ function drawDrops(characterTags, excessLbs) {
   return [...taken.values()];
 }
 
-// The holdings as they stand after a drop manifest is applied, so the load can
-// be recomputed without a second read inside the transaction.
+// The holdings as they stand after a drop manifest is applied, so the load can be recomputed without a second read inside the transaction.
 function applyDrops(characterTags, taken) {
   const byTag = new Map(taken.map((t) => [t.tagId, t.quantity]));
   return characterTags
@@ -289,29 +231,14 @@ function applyDrops(characterTags, taken) {
     .filter((ct) => (ct.quantity ?? 1) > 0);
 }
 
-// Recomputes one character's load against their caps and makes the sheet
-// agree with it: grants or clears `overburdened`, and — when they are past the
-// HARD cap (1.5×, carryAdmits above) — sets the excess down in a random public
-// room at their Location.
-//
-// The drop is acquisition-driven, never capacity-driven, and
-// Character.carryWeightSeen / carryResourcesSeen are what tell the two apart:
-// a load that has not GROWN since the last settle sheds nothing, however far
-// the cap may have fallen beneath it. So unequipping a cart at an inn door, or
-// a GM lowering the base cap, makes people Overburdened and no more. Only
-// goods that arrived without asking — a Labor payout, Caving loot, a GM grant
-// — can push someone past the ceiling, and only those get set down.
-// Deliberate acquisitions are refused by carryAdmits() before they land.
-//
-// Returns null when there was nothing to do; otherwise
-// { characterId, over, granted, removed, drop } where `drop` carries the
-// Discord work for deliverCarryDrop(). Nothing here talks to Discord: web
-// callers deliver in after(), the turn pass hands the drops to runSideEffects.
-//
-// With nowhere to put anything down (unplaced, or a Location with no public
-// room) the character simply stays over the ceiling and the next settle — on
-// arrival, or at turn close — retries for free. `{ drop: false }` settles the
-// status without ever shedding, which is what the sync's rebase wants.
+// Recomputes one character's load against their caps and makes the sheet agree with
+// it: grants or clears `overburdened`, and — past the HARD cap (1.5×, carryAdmits above) — sets the excess down in a random public room at their Location.
+// The drop is acquisition-driven, never capacity-driven — Character.carryWeightSeen /
+// carryResourcesSeen are what tell the two apart: a load that hasn't GROWN since the last settle sheds nothing, however far the cap has fallen beneath it, so unequipping a cart at an inn door or a GM lowering the base cap makes people Overburdened and no more. Only goods that arrived without asking (a Labor payout, Caving loot, a GM grant) can push someone past the ceiling, and only those get set down — deliberate acquisitions are refused by carryAdmits() before they land.
+// Returns null when there was nothing to do; otherwise { characterId, over, granted,
+// removed, drop } where `drop` carries the Discord work for deliverCarryDrop(). Nothing here talks to Discord: web callers deliver in after(), the turn pass hands the drops to runSideEffects.
+// With nowhere to put anything down (unplaced, or a Location with no public room) the
+// character simply stays over the ceiling and the next settle (arrival, or turn close) retries for free. `{ drop: false }` settles the status without ever shedding, what the sync's rebase wants.
 async function settleCarry(prisma, characterId, { drop = true } = {}) {
   if (!characterId) return null;
   return prisma.$transaction(async (tx) => {
@@ -328,10 +255,8 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
     let resources = character.resources;
     let over = load > caps.weight || resources > caps.resources;
 
-    // The watermark is the whole of what distinguishes an ACQUISITION from a
-    // capacity SHRINK. A load that has not grown since the last settle sheds
-    // nothing, however far over the ceiling the cap has fallen beneath it —
-    // which is what lets a cart be parked at an inn door without emptying it.
+    // The watermark is the whole of what distinguishes an ACQUISITION from a capacity
+    // SHRINK. A load that hasn't grown since the last settle sheds nothing, however far over the ceiling the cap has fallen — this is what lets a cart be parked at an inn door without emptying it.
     const seenWeight = character.carryWeightSeen ?? 0;
     const seenResources = character.carryResourcesSeen ?? 0;
     const weightGrew = load > seenWeight;
@@ -343,11 +268,8 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
     if (drop && ((load > hard.weight && weightGrew) || (resources > hard.resources && resourcesGrew))) {
       const room = await pickRandomPublicRoom(tx, character.locationId);
       if (!room) {
-        // Nowhere to put it down — unplaced, or a Location with no public
-        // room. Hold the watermark back so the growth is still unclaimed and
-        // the next settle (on arrival, or at turn close) retries for free.
-        // Advancing it here would mark the load "seen" and the shed would
-        // never happen at all.
+        // Nowhere to put it down — unplaced, or a Location with no public room. Hold the
+        // watermark back so the growth stays unclaimed and the next settle (arrival, or turn close) retries for free — advancing it here would mark the load "seen" and the shed would never happen.
         deferred = true;
         await tx.auditLog.create({
           data: {
@@ -358,16 +280,11 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
           },
         });
       } else {
-        // Shed back to the ORDINARY cap, not to the ceiling. Landing a
-        // character exactly on 1.5× would leave them permanently one letter
-        // away from spilling again, and re-dropping every turn.
+        // Shed back to the ORDINARY cap, not the ceiling — landing a character exactly on 1.5× would leave them one letter from spilling again, re-dropping every turn.
         const tags = load > hard.weight && weightGrew ? drawDrops(character.tags, load - caps.weight) : [];
         for (const t of tags) {
-          // LAUNDERING CLASS (fix round, M4): the spill is an ordinary
-          // stack move, same Transfer pattern as everywhere else a stack
-          // changes hands — thread dropCharacterTag's poison draw straight
-          // into the room the same way, or the Overburdened shed would
-          // bleach a poisoned stack clean on its way to the ground.
+          // LAUNDERING CLASS (fix round, M4): the spill is an ordinary stack move, same
+          // Transfer pattern as everywhere else a stack changes hands — thread dropCharacterTag's poison draw straight into the room, or the Overburdened shed would bleach a poisoned stack clean on its way to the ground.
           const { poisonedTaken, poisonPayload } = await dropCharacterTag(tx, character.id, t.tagId, t.quantity);
           await addToRoomStack(tx, room.id, t.tagId, t.quantity, {
             expiresTurn: t.expiresTurn,
@@ -411,10 +328,8 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
       }
     }
 
-    // Advance the watermark to what they are actually carrying now — after any
-    // shed, so a shed load is what the next settle compares against. The
-    // conditional WHERE is the claim: two settles racing on the same growth
-    // must not both shed, and the loser simply sees no growth next time.
+    // Advance the watermark to what they're actually carrying now — after any shed, so a
+    // shed load is what the next settle compares against. The conditional WHERE is the claim: two settles racing on the same growth must not both shed, the loser sees no growth next time.
     if (!deferred && (load !== seenWeight || resources !== seenResources)) {
       await tx.character.updateMany({
         where: { id: character.id, carryWeightSeen: seenWeight, carryResourcesSeen: seenResources },
@@ -445,8 +360,7 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
   });
 }
 
-// The Discord half of a drop: a DM to the character and an aliased line in
-// the room. Run after the settle's transaction has committed.
+// The Discord half of a drop: a DM to the character and an aliased line in the room. Run after the settle's transaction has committed.
 async function deliverCarryDrop(prisma, result) {
   const drop = result?.drop;
   if (!drop) return;

@@ -6,16 +6,12 @@ import { getGmProfiles } from "@/lib/gmProfiles";
 import { guarded, UserError } from "@/lib/actionResult";
 import { buildAuditWhere, loadAuditContext, parseAuditParams } from "@/lib/auditQuery";
 
-// The current filter, as a file.
-//
-// A server action is a public endpoint, so the GM gate is re-applied here
-// rather than trusted from the desk that called it — and the WHERE is rebuilt
-// from the same parser the page uses, so an export can never disagree with the
-// screen it was taken from.
+// The current filter, as a file. A server action is a public endpoint, so
+// the GM gate is re-applied here, and the WHERE is rebuilt from the same
+// parser the page uses so an export can never disagree with its screen.
 
-// The log is unbounded and append-only. A GM asking for "everything" wants a
-// file they can open, not a browser tab that dies building a 400MB string, so
-// the export is capped and says so in its own last line.
+// The log is unbounded and append-only, so the export is capped rather than
+// building a 400MB string, and says so in its own last line.
 const EXPORT_LIMIT = 10000;
 
 async function exportAuditImpl({ params }) {

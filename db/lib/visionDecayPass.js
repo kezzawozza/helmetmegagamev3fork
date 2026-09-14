@@ -1,16 +1,5 @@
-// Five drinks of Moonshine and the lights go out.
-//
-// {tag:damaged-vision} is the only stackable tag in the catalog whose COUNT
-// means something. Nothing else in the engine reads a quantity as a threshold:
-// expiresInto (db/lib/tagExpiryPass.js) fires off a clock and knows nothing
-// about stacks, and the stackable sweep in db/index.js sheds one unit at a
-// time. So counting is a pass of its own, which is also the honest shape —
-// this is a slow accumulation somebody chose five times, not something that
-// happened to them on a timer.
-//
-// The whole stack comes off when it fires. Blind is terminal enough that
-// leaving four notches behind would only ask "damaged toward what?"
-//
+// Five drinks of Moonshine and the lights go out. {tag:damaged-vision} is the only stackable tag in the catalog whose COUNT means something — nothing else in the engine reads a quantity as a threshold, so counting is a pass of its own.
+// The whole stack comes off when it fires. Blind is terminal enough that leaving four notches behind would only ask "damaged toward what?"
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const { BLIND_SLUG } = require("./examineVision");
 
@@ -34,8 +23,7 @@ async function runVisionDecayPass(prisma, turn) {
       character: { select: { name: true, discordUserId: true } },
     },
   });
-  // An object, not null: db/index.js reads null as "this pass failed, retry it
-  // next advance" and gates markDone on truthiness.
+  // An object, not null: db/index.js reads null as "retry next advance" and gates markDone on truthiness.
   if (rows.length === 0) return { turnNumber: turn.number, blinded: 0, dms: [] };
 
   const blind = await prisma.tag.findUnique({ where: { slug: BLIND_SLUG }, select: { id: true } });
@@ -48,14 +36,10 @@ async function runVisionDecayPass(prisma, turn) {
   for (const row of rows) {
     try {
       await prisma.$transaction(async (tx) => {
-        // The delete is the claim: a concurrent write that already cleared the
-        // stack means somebody else handled this character, and deleteMany
-        // matching nothing is how we find that out without a second read.
+        // The delete is the claim: deleteMany matching nothing means somebody else already handled this character.
         const { count } = await tx.characterTag.deleteMany({ where: { id: row.id } });
         if (count === 0) return;
-        // skipDuplicates rather than an upsert: a character who is somehow
-        // already Blind keeps the row they have, with its own source and
-        // clock, the same rule db/lib/tagExpiryPass.js follows.
+        // skipDuplicates rather than an upsert: an already-Blind character keeps their own row, same rule as db/lib/tagExpiryPass.js.
         await tx.characterTag.createMany({
           data: [{ characterId: row.characterId, tagId: blind.id, source: "EVENT", expiresTurn: null }],
           skipDuplicates: true,
@@ -67,8 +51,6 @@ async function runVisionDecayPass(prisma, turn) {
     }
   }
 
-  // Described here, sent by advanceTurn()'s runSideEffects() — a per-player
-  // Discord round trip inside resolveNeeds() would hold "End turn" open.
   return {
     turnNumber: turn.number,
     blinded: blinded.length,

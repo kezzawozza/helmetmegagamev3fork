@@ -1,8 +1,4 @@
-// The Thanati as a cult rather than a seat: who is one, who leads, where the
-// hideout is, what the network sells, and the roster line Recall Comrades
-// sends (docs/systemdocs/THANATI.md). The seats themselves are in
-// db/lib/threats.js; the rites in db/lib/rites.js.
-//
+// The Thanati as a cult rather than a seat: who is one, who leads, the hideout, the network's shop, and Recall Comrades' roster line (docs/systemdocs/THANATI.md). Seats live in db/lib/threats.js; rites in db/lib/rites.js.
 // Takes `db` as a parameter where it queries, the db/lib/dm.js convention.
 
 const THANATI_SLUG = "thanati";
@@ -16,21 +12,14 @@ const GHOUL_SLUG = "ghoul";
 const SERVANT_SLUG = "servant-of-tzchernobog";
 const RAGE_SLUG = "rage";
 
-// What counts as "wearing the robes" for a chant: the plain ones, or the
-// Rite of Reflection's imbued pair.
+// "Wearing the robes" for a chant: plain, or the Rite of Reflection's imbued pair.
 const ROBE_SLUGS = Object.freeze([BLACK_ROBES_SLUG, SHIMMERING_ROBES_SLUG]);
 
-// What Recover Equipment hands back: whichever of these the cultist is not
-// holding.
+// What Recover Equipment hands back: whichever of these the cultist lacks.
 const RECOVERABLE_SLUGS = Object.freeze([BLACK_ROBES_SLUG, THANATI_MASK_SLUG]);
 
-// The network's shelf. ONE price per ware, not two: an obol is one ⬢
-// everywhere else in the game (DEPOT.md), the two columns here were always
-// equal, and the shelf now takes both currencies in the same purchase, so a
-// split price would have had no meaning anyway. Bascinet's numbers.
-//
-// This list is also what "Thanati equipment" means for the Black Robes'
-// combat line.
+// The network's shelf. ONE price per ware, not two: an obol is one ⬢ everywhere else (DEPOT.md), and the shelf takes both currencies in the same purchase.
+// This list is also what "Thanati equipment" means for the Black Robes' combat line.
 const THANATI_WARES = Object.freeze([
   { slug: "stack-of-paper", price: 3 },
   { slug: "black-robes", price: 3 },
@@ -59,8 +48,7 @@ function isThanatiLeader(heldSlugs) {
   return heldSlugs.has(THANATI_LEADER_SLUG);
 }
 
-// Every living cultist, the leader first, then by name. `roleTitle` is the
-// character's own role name as shown on their sheet.
+// Every living cultist, leader first, then by name. `roleTitle` is the character's own role name.
 async function listComrades(db) {
   const rows = await db.character.findMany({
     where: { status: "ALIVE", tags: { some: { tag: { slug: THANATI_SLUG } } } },
@@ -84,15 +72,13 @@ function formatComrades(rows) {
   return `Your comrades are: ${parts.join(BULLET)}`;
 }
 
-// The hideout Room, or null when unset or when the room it pointed at is gone
-// (a zone sync recreates rooms; the pointer is a snapshot id on purpose).
+// The hideout Room, or null when unset or the pointed-at room is gone (a zone sync recreates rooms; the pointer is a snapshot id on purpose).
 async function hideoutRoom(db) {
   const state = await db.gameState.findUnique({ where: { id: 1 }, select: { thanatiHideoutRoomId: true } });
   if (!state?.thanatiHideoutRoomId) return null;
   return db.room.findUnique({
     where: { id: state.thanatiHideoutRoomId },
-    // `kind` and `accessTagSlugs` ride along for accessibleRooms: Purchase
-    // Gear checks the BUYER's key against this room, not just their Location.
+    // `kind`/`accessTagSlugs` ride along for accessibleRooms: Purchase Gear checks the BUYER's key against this room, not just their Location.
     select: {
       id: true,
       name: true,

@@ -1,16 +1,7 @@
-// Dependency-free fuzzy person-search. No fuzzy-match library exists in the
-// repo; keep it that way — this is the one shared implementation, reused by
-// the messages inbox and (per the plan) the bulk composer's recipient filter.
-//
-// The point is typo tolerance plus "found by anything about them": searching
-// "Innkeeper" should surface the character holding the Innkeeper role, and
-// "Bastad" should surface every member of the Bastards' Camp faction, not
-// just literal name substrings.
+// Dependency-free fuzzy person-search, the one shared implementation — typo
+// tolerance plus "found by anything about them" (role, faction, etc), not just name substrings.
 
-// Field weights: name beats role beats faction beats username beats zone
-// beats tag beats status/kind beats free text beats notes beats message
-// preview. Higher wins when a query matches more than one field on the same
-// row (matchedField reports the highest-weighted hit).
+// Field weights, highest wins on a multi-field hit (matchedField reports it).
 const FIELD_WEIGHTS = {
   name: 100,
   role: 80,
@@ -25,10 +16,7 @@ const FIELD_WEIGHTS = {
   preview: 20,
 };
 
-// field:term aliases — several words for the same slot, so a GM doesn't have
-// to remember the exact key. An unrecognised prefix is deliberately NOT an
-// error (see parseQuery below): only names listed here ever get treated as a
-// field scope.
+// field:term aliases. An unrecognised prefix is ordinary text, not a scope.
 const FIELD_ALIASES = {
   name: "name",
   role: "role",
@@ -49,11 +37,8 @@ const FIELD_ALIASES = {
   notes: "notes",
 };
 
-// Splits a raw query into bare terms (match any field) and scoped terms
-// (field:term, or @term as shorthand for username:term — match one field
-// only). A colon after an unrecognised word is ordinary text, not a scope —
-// "note: he lied" must not eat the rest of the query — so only a prefix
-// listed in FIELD_ALIASES is ever treated as a scope.
+// Splits a query into bare terms (any field) and scoped terms (field:term, or
+// @term for username:term) — a colon after an unrecognised word stays plain text.
 export function parseQuery(query) {
   const bare = [];
   const scoped = [];
@@ -75,9 +60,7 @@ export function parseQuery(query) {
   return { bare, scoped };
 }
 
-// Tier bonuses, added on top of the field weight so an exact hit on a lower
-// field can still lose to a substring hit on a higher one only when they're
-// close — tune conservatively; ordering by field matters most.
+// Tier bonuses on top of field weight; field ordering matters most.
 const TIER_EXACT = 40;
 const TIER_PREFIX = 30;
 const TIER_SUBSTRING = 20;
@@ -97,8 +80,7 @@ function tokenize(str) {
     .filter(Boolean);
 }
 
-// Bounded Levenshtein distance — returns Infinity as soon as it's certain the
-// distance exceeds `max`, so a search over hundreds of rows stays cheap.
+// Bounded Levenshtein — bails once distance is certain to exceed `max`.
 function boundedLevenshtein(a, b, max) {
   if (Math.abs(a.length - b.length) > max) return max + 1;
   const alen = a.length;
@@ -127,13 +109,10 @@ function maxDistanceFor(tokenLength) {
   return 0;
 }
 
-// Scores one query token against one field's token list. Returns the best
-// tier bonus found, or null if nothing matched within tolerance.
+// Best tier bonus for one query token against one field, or null.
 function scoreTokenAgainstField(qToken, fieldTokens, fieldWhole) {
   if (!qToken) return null;
 
-  // Exact token match, or the field-as-a-whole equals the token (covers
-  // single-word fields where "whole" and "token" coincide anyway, cheap).
   if (fieldTokens.includes(qToken) || fieldWhole === qToken) return TIER_EXACT;
 
   for (const ft of fieldTokens) {
@@ -150,16 +129,8 @@ function scoreTokenAgainstField(qToken, fieldTokens, fieldWhole) {
   return null;
 }
 
-// scoreMatch(query, fields) — `fields` is { name, role, faction, username,
-// zone, tag, status, kind, text, notes, preview }, any subset, string (or
-// array — joined for tokenizing) or null/undefined.
-//
-// `query` may mix bare words (match any field) with field:term / @term
-// scopes (match only that field) — see parseQuery. Every word in the query,
-// scoped or bare, must match SOME allowed field (AND across words); the
-// row's score is the sum of each word's best (field weight + tier) hit, and
-// matchedField reports the highest-weighted field any word matched, for the
-// match-reason subtext.
+// Every word (bare or scoped) must match SOME allowed field (AND across
+// words); score sums each word's best hit, matchedField is the highest-weighted field hit.
 export function scoreMatch(query, fields) {
   const { bare, scoped } = parseQuery(query);
   const words = [
@@ -183,9 +154,7 @@ export function scoreMatch(query, fields) {
   let bestFieldWeight = -1;
 
   for (const word of words) {
-    // A scoped word restricted to an unrecognised or absent field (e.g.
-    // role:x on a row with no role) simply can't match — that's a real
-    // "no", not "ignore the scope".
+    // A scoped word on an absent field can't match — real "no", not "ignore".
     const candidates = word.field ? fieldEntries.filter((fe) => fe.key === word.field) : fieldEntries;
     const qTokens = tokenize(word.term);
     if (qTokens.length === 0) return null;

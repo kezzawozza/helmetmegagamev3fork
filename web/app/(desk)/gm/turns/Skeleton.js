@@ -1,16 +1,11 @@
 import DeskHeader from "@/app/components/DeskHeader";
 import { SkeletonBar } from "@/app/components/PageShell";
 
-// A desk skeleton — deliberately not SkeletonPage, which assumes the PageShell
-// chrome this route group doesn't have. It draws the same FRAME the real desk
-// draws so only the content swaps: the real DeskHeader with skeleton meta and
-// actions sized like Workspace.js's, the three columns, and the push tray strip
-// that is always on screen (StagingTray.js's `.desk-tray` / `.desk-tray-bar`,
-// mirrored here rather than reinvented).
-//
-// The meta bars are not decoration. `.desk-header` is flex-wrap, so a header
-// skeleton carrying nothing but a title is one line where the real one is two,
-// and the whole desk jumps up when the queue lands.
+// Deliberately not SkeletonPage — draws the real desk's own FRAME so only the
+// content swaps: DeskHeader with skeleton meta sized like Workspace.js's, the
+// three columns, and the push tray strip (mirrors StagingTray.js's
+// `.desk-tray` / `.desk-tray-bar`). The meta bars matter: `.desk-header` is
+// flex-wrap, so a title-only skeleton is one line where the real one is two.
 export default function Loading() {
   return (
     <div className="desk-shell">

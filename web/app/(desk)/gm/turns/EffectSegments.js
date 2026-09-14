@@ -1,9 +1,7 @@
 import TagChip from "@/app/components/TagChip";
 
 // Renders effectSegments() (stagedFormat.js) — a hoverable TagChip for a
-// resolved tag op, plain text otherwise. Falls back to a flat span for a tag
-// that's since fallen out of the catalog, the same "unknown tag" case
-// EffectComposer.js's own tag chips already handle.
+// resolved tag op, plain text otherwise, flat span for a since-deleted tag.
 export default function EffectSegments({ segments }) {
   if (!segments.length) return "nothing";
   return segments.map((seg, i) => (

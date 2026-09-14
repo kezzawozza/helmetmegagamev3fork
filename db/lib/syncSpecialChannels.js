@@ -1,19 +1,6 @@
-// Provisioning + reconciliation for the SPECIAL CHANNELS registry
-// (db/lib/specialChannels.js) — #cerberon, and whatever joins it.
-// Run by db/scripts/sync/sync-narrowcast-channels.js (`npm run
-// db:sync-narrowcast-channels`) and from wipeGameData's Restart Game flow.
-//
-// Everything here derives from the registry entry: the category, the channel,
-// its topic, the @everyone deny, the spectator/ghost seats, and the static
-// zone-role view grants. Per-CHARACTER access (the entry's member rule) is
-// applied elsewhere, as tags/zone change — see the two
-// syncCharacterNarrowcastAccess twins.
-//
-// Unlike the pre-rework version this reconciles on every run, not just at
-// creation: topics drift, zone roles get recreated, and a channel that
-// misses its roleView grants is a channel nobody can hear. The NAME is
-// reconciled too — see the patch below for why. Only the channel's ID is
-// one-time.
+// Provisioning + reconciliation for the SPECIAL CHANNELS registry (db/lib/specialChannels.js). Run by `npm run db:sync-narrowcast-channels` and from wipeGameData's Restart Game flow.
+// Everything here derives from the registry entry: category, channel, topic, @everyone deny, spectator/ghost seats, and static zone-role view grants. Per-CHARACTER access is applied elsewhere, as tags/zone change — see the two syncCharacterNarrowcastAccess twins.
+// This reconciles on every run, not just at creation — topics drift, zone roles get recreated, and a channel missing its roleView grants is a channel nobody can hear. The NAME is reconciled too; only the channel's ID is one-time.
 const {
   getGuildChannels,
   createChannel,
@@ -34,10 +21,7 @@ const CHANNEL_TYPE_CATEGORY = 4;
 
 const CATEGORY_NAME = "Radio";
 
-// Memoized for the length of one run. Every entry shares the one "Radio"
-// category, and `guildChannels` was fetched BEFORE this run created anything —
-// so without the memo the second entry sees a category that is neither in its
-// stale config nor in the stale channel list, and cuts a duplicate.
+// Memoized for the length of one run — without it the second entry sees a category in neither its stale config nor the stale channel list, and cuts a duplicate.
 async function ensureCategory(prisma, config, guildChannels, categoryConfigKey, memo) {
   if (memo.has(categoryConfigKey)) return memo.get(categoryConfigKey);
   const id = await resolveCategory(prisma, config, guildChannels, categoryConfigKey);
@@ -50,8 +34,7 @@ async function resolveCategory(prisma, config, guildChannels, categoryConfigKey)
   if (knownId && guildChannels.some((c) => c.id === knownId && c.type === CHANNEL_TYPE_CATEGORY)) {
     return knownId;
   }
-  // Recover a category that already exists in Discord by name (e.g. the DB
-  // was rebuilt) rather than creating a duplicate.
+  // Recover a category that already exists in Discord by name rather than creating a duplicate.
   const existing = guildChannels.find(
     (c) => c.type === CHANNEL_TYPE_CATEGORY && c.name === CATEGORY_NAME,
   );
@@ -64,7 +47,6 @@ async function resolveCategory(prisma, config, guildChannels, categoryConfigKey)
 }
 
 async function syncSpecialChannels(prisma) {
-  // The spectator seat sees these only while the game is on (LOBBY.md §1).
   const spectatorsVisible = await spectatorsVisibleNow(prisma);
   const guildId = process.env.DISCORD_GUILD_ID;
   if (!guildId || !process.env.DISCORD_TOKEN) {
@@ -76,7 +58,6 @@ async function syncSpecialChannels(prisma) {
   const stats = { provisioned: [], reparented: [], roleGrants: 0, roleRevokes: 0 };
   const categoryIds = new Map();
 
-  // Zone roles for the static roleView grants, resolved once by slug.
   const zones = await prisma.zone.findMany({
     where: { discordRoleId: { not: null } },
     select: { slug: true, discordRoleId: true },
@@ -97,8 +78,7 @@ async function syncSpecialChannels(prisma) {
     let known = channelId ? guildChannels.find((c) => c.id === channelId) : null;
 
     if (!known) {
-      // Recover an unparented same-name channel from a rebuilt DB before
-      // creating a duplicate.
+      // Recover an unparented same-name channel from a rebuilt DB before creating a duplicate.
       const existing = guildChannels.find(
         (c) => c.type === CHANNEL_TYPE_TEXT && c.name === entry.slug,
       );
@@ -118,21 +98,13 @@ async function syncSpecialChannels(prisma) {
       }
       await prisma.gameConfig.update({ where: { id: 1 }, data: { [entry.configKey]: channelId } });
     } else if (known.parent_id !== categoryId) {
-      // A single PATCH with just parent_id, per CHANNELS.md's warning against
-      // combining it with bulk position updates.
+      // A single PATCH with just parent_id, per CHANNELS.md's warning against combining it with bulk position updates.
       await patchChannel(channelId, { parent_id: categoryId });
       stats.reparented.push(entry.slug);
     }
 
-    // Reconciled every run from here down. @everyone is denied view/send;
-    // ATTACH_FILES is denied and never granted back by any player-facing
-    // overwrite. GM gets an explicit attach allow so moderation posts with
-    // attachments still work.
-    // The NAME is reconciled too, not just the topic. It used not to be, and
-    // that is the whole reason #cerberon spent two migrations still called
-    // #watch: provisioning set the name once, nothing ever looked at it again,
-    // and no sweep could see the drift — the doctor checks member overwrites
-    // only. Renaming an existing channel keeps its id and its history.
+    // Reconciled every run from here down. @everyone is denied view/send; ATTACH_FILES is denied and never granted back by any player-facing overwrite. GM gets an explicit attach allow so moderation posts with attachments still work.
+    // The NAME is reconciled too, not just the topic — the doctor checks member overwrites only, so nothing else can see name drift. Renaming an existing channel keeps its id and history.
     await patchChannel(channelId, {
       name: entry.slug,
       topic: entry.topic,
@@ -144,7 +116,6 @@ async function syncSpecialChannels(prisma) {
     await putChannelOverwrite(channelId, guildId, {
       deny: (PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES).toString(),
     });
-    // One per GM seat — Gamemaster and Trial Gamemaster both hear these.
     for (const gmRoleId of gmRoleIds()) {
       await putChannelOverwrite(channelId, gmRoleId, {
         allow: (PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES).toString(),
@@ -153,7 +124,6 @@ async function syncSpecialChannels(prisma) {
     await applySpectatorOverwrite(channelId, { visible: spectatorsVisible });
     if (entry.ghostsMaySee) await applyGhostOverwrite(channelId);
 
-    // The static zone-role floor: every listed zone's role hears the channel.
     const wantedZones = new Set(entry.roleViewZones ?? []);
     for (const slug of wantedZones) {
       const roleId = roleBySlug.get(slug);
@@ -162,10 +132,7 @@ async function syncSpecialChannels(prisma) {
       stats.roleGrants += 1;
     }
 
-    // ...and the floor's other half: a zone dropped from roleViewZones must
-    // actually go deaf, so any zone-role overwrite the registry no longer
-    // lists comes off. Scoped to known zone roles — GM/spectator/cursed
-    // overwrites are never candidates.
+    // A zone dropped from roleViewZones must actually go deaf. Scoped to known zone roles — GM/spectator/cursed overwrites are never candidates.
     for (const overwrite of known?.permission_overwrites ?? []) {
       if (overwrite.type !== 0) continue;
       const slug = slugByRole.get(overwrite.id);

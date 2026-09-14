@@ -50,34 +50,21 @@ function revalidate() {
 }
 
 // ---- Arrest Warrant --------------------------------------------------------
-// A badge holder writes a name down and that man is Wanted.
-//
-// The name is TYPED rather than picked, the reasoning Engrave gives: a
-// dropdown here would be a roster of everybody alive in Ravenheart, handed to
-// anyone who opened the dialog. It is the whole name, too — first names repeat
-// constantly, and a warrant sworn out against the wrong Jorren is not a thing
-// the game should make easy. Either form counts, the full display name or the
-// plain First Last, so an honorific the officer never learned is not a wall.
-//
-// A name TWO living men answer to warrants BOTH of them. This used to refuse
-// and hand the job to a GM, which meant a Cerberon could not act at all on the
-// two Alexander Ivanovs in the game — and the refusal was the wrong reading
-// anyway: the law does not know which one it wants, so it wants both. The
-// selection is warrantTargets() in db/lib/wanted.js, which is pure and tested.
-//
-// It costs NOTHING: no Move, no ⬢, no Routine filed. And it deliberately does
-// NOT call postWantedPosters (db/lib/wantedPoster.js) — no paper goes up. The
-// only way anyone finds out is by looking the man in the face, which is
-// exactly what `visible: named` makes worth doing.
+// A badge holder writes a name down and that man is Wanted. The name is
+// TYPED, not picked (Engrave's reasoning: a dropdown would be a full roster
+// handed to anyone), and is the whole name so a warrant against the wrong
+// Jorren isn't easy. A name TWO living men answer to warrants BOTH of them —
+// the law doesn't know which one it wants (warrantTargets() in
+// db/lib/wanted.js, pure and tested). Costs NOTHING — no Move, no ⬢, no
+// Routine — and deliberately does NOT call postWantedPosters: no paper goes
+// up, the only way anyone finds out is by looking the man in the face.
 async function arrestWarrantRequestImpl({ name: rawName }) {
   const { session, me } = await cerberon({ needsBadge: true });
 
   const typed = rawName?.toString().trim().slice(0, FULL_NAME_LIMIT) ?? "";
   if (!typed) throw new UserError("Whose name?");
 
-  // A composed name is not something Prisma can compare against, so the living
-  // roster comes back and warrantTargets does the rest. It is a hundred rows
-  // of four short columns; the query Engrave does is the same shape.
+  // A composed name isn't something Prisma can compare against, so the living roster comes back and warrantTargets does the rest.
   const candidates = await prisma.character.findMany({
     where: { status: "ALIVE" },
     select: {
@@ -91,17 +78,12 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
   const { matched, targets, skippedSelf, alreadyWanted } = warrantTargets(candidates, typed, {
     selfId: me.id,
   });
-  // Three refusals, and each has to say which of the three it is — "nobody by
-  // that name" and "everybody who answers to it is already wanted" look
-  // identical from the officer's side otherwise.
+  // Three refusals, each distinct — "nobody by that name" vs. "already wanted" look identical from the officer's side otherwise.
   if (matched === 0) throw new UserError("There's nobody with that name.");
   if (targets.length === 0) {
-    // grantTagSlugs would no-op on a non-stackable tag already held, so this
-    // is here to say so out loud rather than report a success that did
-    // nothing.
+    // grantTagSlugs would silently no-op on a non-stackable tag already held.
     if (alreadyWanted > 0) throw new UserError("That person is already marked as wanted.");
-    // Nothing left and nobody already wanted means the only match was the
-    // officer themselves. A namesake would have survived the filter.
+    // Nothing left and nobody already wanted: the only match was the officer themselves.
     if (skippedSelf > 0) throw new UserError("Swear it out on somebody else.");
     throw new UserError("There's nobody with that name.");
   }
@@ -110,9 +92,7 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
   await prisma.$transaction(async (tx) => {
     for (const target of targets) {
       await grantTagSlugs(tx, target.id, [WANTED_SLUG], openTurn?.number ?? null);
-      // One row PER MAN, not one for the act. /gm/audit is read by target, so
-      // a single row naming two people would leave the second man's sheet
-      // with no record of why he is wanted.
+      // One row PER MAN — /gm/audit is read by target, so a shared row would leave the second man's sheet with no record.
       await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
         actionType: "request_arrest_warrant",
@@ -122,8 +102,7 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
           name: target.name,
           typed,
           by: me.name,
-          // Only present when the name was ambiguous, so a GM reading the row
-          // can see this man was caught by a namesake's warrant.
+          // Only present when the name was ambiguous.
           ...(matched > 1 ? { answeringToThatName: matched } : {}),
         },
       });
@@ -145,15 +124,10 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
 }
 
 // ---- Check Wanted ----------------------------------------------------------
-// The warrant book, read as a notice under the officer's own cursor — the
-// Recall Comrades shape exactly (thanatiActions.js). Costs nothing and spends
-// no Move.
-//
-// It lists a hooded man the same as a bare-faced one, on purpose. This is a
-// RECORD, not an act of looking: a name does not come off the book because
-// somebody pulled a hood up. That is the whole point of the pairing — the book
-// says Jorren Vask is wanted, the stranger in the Square reads as an unknown
-// young man, and closing that gap is the game.
+// The warrant book, read as a notice — same shape as Recall Comrades
+// (thanatiActions.js). Costs nothing, spends no Move. Lists a hooded man the
+// same as a bare-faced one, on purpose: this is a RECORD, not an act of
+// looking, and closing the gap between the name and the stranger is the game.
 async function checkWantedImpl() {
   const { session, me } = await cerberon();
   const rows = await listWanted(prisma);

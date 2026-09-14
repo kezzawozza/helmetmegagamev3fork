@@ -1,24 +1,14 @@
-// The sheet's tag rail, bucketed: which card a held tag goes in, how the rows
-// inside it are ordered and sub-grouped, and the one value each row shows on
-// its right. Pure functions over CharacterTag[] (with .tag and the group
-// joined), so the rail component only draws.
-//
-// The category is docs/tags.yaml's own; the sub-groups are TagGroup names,
-// which already carry the colour the chip's left rule wears (taggroups.yaml).
-// Status is deliberately absent: the band's StatusStrip carries those chips,
-// the same way the Chat's YOU column does (SHEET.md).
+// The sheet's tag rail, bucketed: which card a held tag goes in, how rows are ordered and
+// sub-grouped, and the one value each row shows on its right. Pure functions over CharacterTag[].
+// Status is deliberately absent: the band's StatusStrip carries those chips (SHEET.md).
 
 import { turnsLeft, tagDuration } from "@lifeweb/db/lib/turnFormat";
 import { armorWord } from "@lifeweb/db/lib/armorValue";
 import { tagWeightLbs } from "./formatTagWeight";
 
-// Fixed display order rather than alphabetical or catalog order — Health
-// (whatever is currently wrong with you) first, then what you know, what
-// you carry, what stands, who you are.
 const CARD_ORDER = ["Health", "Skills", "Items", "Assets", "General", "Meta", "Demoness"];
 
-// Case-folded: the catalog has held both "Items" and "items", and two cards
-// headed the same word is a bug on sight.
+// Case-folded: the catalog has held both "Items" and "items".
 function canonicalCategory(raw) {
   const trimmed = raw?.trim() || "Other";
   return CARD_ORDER.find((c) => c.toLowerCase() === trimmed.toLowerCase()) ?? trimmed;
@@ -29,8 +19,6 @@ function rank(category) {
   return i === -1 ? CARD_ORDER.length : i;
 }
 
-// What a row weighs, stack included — the number the Items card sorts and
-// totals on, from the same rule the string is built out of.
 function rowWeight(ct) {
   return tagWeightLbs(ct.tag, ct.quantity ?? 1);
 }
@@ -42,21 +30,18 @@ export function carryBonusLabel(bonus) {
   return `${pct > 0 ? "+" : "−"}${Math.abs(pct)}% carry`;
 }
 
-// What a Laboring tool adds, in the kind's own word (LABORING.md §5).
+// (LABORING.md §5)
 function laborBonusLabel(laborBonus) {
   if (!laborBonus?.kind || !laborBonus?.amount) return null;
   return `+${laborBonus.amount} ${laborBonus.kind}`;
 }
 
-// The one thing worth reading at a glance for a row. Picked in the order a
-// player cares: a clock beats a weight beats a stack count.
-//   { text, tone } — tone "danger" for a tag on its last turn.
+// { text, tone } — a clock beats a weight beats a stack count; tone "danger" on a tag's last turn.
 export function rowValue(ct, currentTurn = null) {
   const tag = ct.tag;
   const left = turnsLeft(ct.expiresTurn, currentTurn);
   const duration = tagDuration(left, null);
   if (duration) return { text: duration.badge, tone: left === 1 ? "danger" : null };
-  // "1 lb each · 3 lb" is the tooltip's wording; the row wants the total.
   const weight = tagWeightLbs(tag, ct.quantity ?? 1);
   if (weight > 0) return { text: `${weight} lb`, tone: null };
   const armor = tag.ballisticArmor ?? tag.meleeArmor;
@@ -69,16 +54,13 @@ export function rowValue(ct, currentTurn = null) {
   return null;
 }
 
-// Health: soonest to run out first, the untimed ones after, alphabetical
-// within a tie.
 function healthOrder(a, b, currentTurn) {
   const la = turnsLeft(a.expiresTurn, currentTurn) ?? Infinity;
   const lb = turnsLeft(b.expiresTurn, currentTurn) ?? Infinity;
   return la - lb || a.tag.name.localeCompare(b.tag.name);
 }
 
-// Sub-groups by TagGroup, in catalog order of first appearance, groupless
-// last. Each { key, name, color, rows }.
+// Sub-groups by TagGroup, groupless last. Each { key, name, color, rows }.
 function byGroup(rows) {
   const groups = new Map();
   for (const ct of rows) {
@@ -91,16 +73,10 @@ function byGroup(rows) {
   return list;
 }
 
-/**
- * Every card the rail draws, in order.
- * @returns {Array<{ key, title, count, groups: Array<{key,name,color,rows}>, weight? }>}
- */
 export function buildCards(characterTags = [], { currentTurn = null } = {}) {
   const buckets = new Map();
   for (const ct of characterTags) {
     const category = canonicalCategory(ct.tag?.category);
-    // The band's strip carries these; a second copy in the rail was a scroll
-    // stop for no new information.
     if (category === "Status") continue;
     if (!buckets.has(category)) buckets.set(category, []);
     buckets.get(category).push(ct);
@@ -134,14 +110,11 @@ export function buildCards(characterTags = [], { currentTurn = null } = {}) {
   return cards;
 }
 
-// The next rung above a held skill: the catalog tag whose parentTagId is this
-// one, and that the character does not already hold. Null when the ladder
-// ends here.
+// The catalog tag whose parentTagId is this one and not already held; null when the ladder ends here.
 export function nextRung(ct, catalog = [], heldTagIds = new Set()) {
   return catalog.find((t) => t.parentTagId === ct.tag.id && !heldTagIds.has(t.id)) ?? null;
 }
 
-// The filter box's test: name or description, case-folded.
 export function matchesQuery(ct, query) {
   if (!query) return true;
   const q = query.trim().toLowerCase();

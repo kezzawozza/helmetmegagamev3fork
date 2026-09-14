@@ -1,28 +1,12 @@
-// A "party" is either a character or a Room stash, resolved to one uniform
-// shape so a transfer never has to branch on which side of it it's looking
-// at. Promoted out of web/app/(app)/character/requestActions.js so the
-// turn-end push (db/lib/stagedPush.js, CommonJS, no Next.js request context)
-// and every GM transfer surface can resolve the same key the player-facing
-// TRANSFER_RESOURCES request does. Faction Silos used to be the third kind;
-// they were removed in 9/2026 (FACTIONS.md).
-//
-// Takes `prisma` as the first parameter, same reason as db/lib/dm.js:
-// db/index.js is the one importing this module, so requiring it back would
-// resolve to a partial (prisma-less) exports object.
+// A "party" is either a character or a Room stash, resolved to one uniform shape so a transfer never has to branch on which side of it it's looking at. The turn-end push (db/lib/stagedPush.js) and every GM transfer surface resolve the same key the player-facing TRANSFER_RESOURCES request does.
+// Takes `prisma` as the first parameter, same reason as db/lib/dm.js: db/index.js is the one importing this module, so requiring it back would resolve to a partial (prisma-less) exports object.
 
-// "character:<id>" / "room:<id>". A posted key of just "character" (no
-// colon, no id) used to leave `id` undefined — Prisma DELETES an undefined
-// field from a where clause rather than matching nothing, so "find the
-// character with this id" quietly became "find any living character". `?? ""`
-// matches nobody, which is the answer a malformed key deserves.
+// "character:<id>" / "room:<id>". Prisma DELETES an undefined field from a where clause rather than matching nothing, so a malformed key with no id would quietly match "any living character" — `?? ""` matches nobody instead.
 async function resolveParty(prisma, key, { allowDead = false } = {}) {
   const [kind, id] = (key ?? "").split(":");
   if (!id) return null;
   if (kind === "character") {
-    // Looting is the one caller that walks past the ALIVE filter — a corpse
-    // is still a "party" whose ⬢ someone else can pull. Every other caller
-    // (SEND transfer, healing payer, every GM transfer) leaves the flag off
-    // and gets the original ALIVE-only lookup.
+    // Looting is the one caller that walks past the ALIVE filter — a corpse is still a "party" whose ⬢ someone else can pull. Every other caller leaves the flag off.
     const statusFilter = allowDead ? { in: ["ALIVE", "DEAD"] } : "ALIVE";
     const c = await prisma.character.findFirst({
       where: { id: id ?? "", status: statusFilter },
@@ -38,8 +22,6 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
         discordUserId: true,
       },
     });
-    // locationId/concealed/status/buriedAt are what web/lib/peopleHere.js#isHere
-    // judges reach on.
     return c
       ? {
           kind,
@@ -55,9 +37,7 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
         }
       : null;
   }
-  // A Room's stash (docs/systemdocs/CARRY.md): reach is "standing in this
-  // Location, and admitted to this room", decided by web/lib/transferReach.js
-  // with db/lib/roomAccess.js#accessibleRooms.
+  // A Room's stash (docs/systemdocs/CARRY.md): reach is "standing in this Location, and admitted to this room" (web/lib/transferReach.js, db/lib/roomAccess.js#accessibleRooms).
   if (kind === "room") {
     const r = await prisma.room.findUnique({
       where: { id: id ?? "" },
@@ -84,9 +64,7 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
           locationName: r.location.name,
           roomKind: r.kind,
           accessTagSlugs: r.accessTagSlugs,
-          // The Godard Factory's Spillway, and nothing else. Carried on the
-          // party rather than looked up again by every writer, so the one
-          // place that puts things into a room can see it.
+          // The Godard Factory's Spillway, carried on the party rather than looked up again by every writer.
           destroysContents: r.destroysContents === true,
           discordThreadId: r.discordThreadId,
         }

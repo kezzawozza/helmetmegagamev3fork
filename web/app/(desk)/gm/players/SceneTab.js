@@ -7,22 +7,13 @@ import { seedRows, applyRow, removeRow } from "@/app/(app)/chat/feedStore";
 import { noteTyping } from "@/app/(app)/chat/typingStore";
 import { getCharacterScene } from "./actions";
 
-// The Scene tab: what is being said where this character is standing, live, in
-// the inspector column (docs/systemdocs/CHAT.md §8).
-//
-// It is Chat's own `Feed` — not a GM-flavoured copy of it. The runs, the
-// faces, the subtext lines, the `-#`, the tinted speech and the typing line all
-// come out identically, which is the whole point: a GM reading a scene should
-// be reading the same page the players are, not a transcript of it.
-//
-// Read-only twice over. `readOnly` drops the composer, and the GM place list
-// carries `canSpeak: false` on every entry anyway (db/lib/feedAccess.js) — a
-// GM speaks nowhere, and watching is not standing there.
-//
-// One place at a time, through `/api/feed?place=`. A GM's full place list is
-// every place in every zone they may see, which is hundreds of subscriptions
-// to watch one room; the parameter narrows the stream without touching the
-// gate behind it.
+// The Scene tab: what is being said where this character is standing, live,
+// in the inspector column (CHAT.md §8). It is Chat's own `Feed`, not a
+// GM-flavoured copy — a GM reading a scene should read the same page the
+// players are. Read-only twice over: `readOnly` drops the composer, and the
+// GM place list carries `canSpeak: false` everywhere (db/lib/feedAccess.js).
+// One place at a time through `/api/feed?place=` — narrows the stream
+// without touching the gate behind it.
 
 const SELF = { characterId: null, name: null, avatarVersion: null };
 
@@ -30,14 +21,9 @@ export default function SceneTab({ characterId }) {
   const [state, setState] = useState({ status: "loading", places: [], locationName: null, error: null });
   const [selected, setSelected] = useState(null);
 
-  // The place list for this character. Refetched per mount rather than cached
-  // with the base tabs: where somebody is standing is exactly the fact that
-  // changes while a GM has the desk open.
-  //
-  // Nothing is set synchronously in here — react-hooks/set-state-in-effect is
-  // an error in this repo. Switching to another person REMOUNTS this component
-  // (InspectorHost keys it on the character), so there is no stale state to
-  // clear on the way in.
+  // Refetched per mount, not cached — where somebody stands changes while a
+  // GM has the desk open. Switching person REMOUNTS this component
+  // (InspectorHost keys it on character), so no stale state to clear.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -55,8 +41,7 @@ export default function SceneTab({ characterId }) {
     };
   }, [characterId]);
 
-  // What was said before now, then the stream for what happens next — the same
-  // two halves Chat uses, and in the same order.
+  // What was said before now, then the stream for next — same two halves Chat uses, same order.
   useEffect(() => {
     if (!selected) return undefined;
     let cancelled = false;

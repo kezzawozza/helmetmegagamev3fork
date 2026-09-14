@@ -1,18 +1,6 @@
-// Filing a Move, on either face. This is the Action row and every gate in
-// front of it: the open turn, the move window, the one-Move-a-turn rule, the
-// incapacitation block and Labor's rate. It came out of the bot's Move modal
-// submit handler, which was the only place in the game that knew how to file
-// one — so Chat's Move dialog could only ever have been a second copy.
-//
-// It writes no Discord and composes no confirmation: the bot's `confirmMove`
-// still writes the DM's lines, and the web renders its own. What comes back
-// is the Action, plus the labor rate when there is one, so either face can
-// say what was filed.
-//
-// A filed Move is FINAL. There used to be an editMove beside this one, with a
-// once-a-turn cap on changing the kind because re-confirming re-rolls; the
-// rule now is simply that you get one Move and it stands. Only a GM changes a
-// filed Move, from /gm/dev. Old `move_edited` rows stay in the audit log.
+// Filing a Move, on either face — the Action row and every gate in front of it: the open turn, the move window, the one-Move-a-turn rule, the incapacitation block and Labor's rate.
+// Writes no Discord and composes no confirmation: the bot's `confirmMove` still writes the DM's lines, and the web renders its own. Returns the Action plus the labor rate when there is one.
+// A filed Move is FINAL — you get one Move and it stands. Only a GM changes a filed Move, from /gm/dev. Old `move_edited` rows stay in the audit log.
 const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
 const { blockerFor, ACT } = require("./incapacitation");
@@ -23,7 +11,6 @@ const MOVE_KINDS = new Set(["ROUTINE", "GAMBIT", "LABOR"]);
 const DESCRIPTION_MAX = 2000;
 
 // `character` needs { id, zoneId, locationId, discordUserId }.
-// Returns { ok: true, action, laborRate, openTurn } or { ok: false, error }.
 async function fileMove(prisma, { character, actorDiscordUserId, moveKind, description }) {
   if (!character) return { ok: false, error: "You don't have a living character." };
   if (!MOVE_KINDS.has(moveKind)) return { ok: false, error: "Pick a kind of Move first." };
@@ -35,8 +22,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (!openTurn) return { ok: false, error: "Your turn isn't open — your Move wasn't recorded." };
 
-  // Re-checked here rather than only where the dialog opened: a form can sit
-  // open across the cutoff. Before the Action row, so a refusal costs no turn.
+  // Re-checked here, not just where the dialog opened — a form can sit open across the cutoff. Before the Action row, so a refusal costs no turn.
   const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
   if (locked) return { ok: false, error: "Moves for this turn are locked." };
 
@@ -48,10 +34,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
     return { ok: false, error: "You've already locked in a Move this turn — this one wasn't recorded." };
   }
 
-  // The same gate every other action runs (db/lib/incapacitation.js): Bound,
-  // Dying, Crucified, out cold — none of them files a Move. Checked after the
-  // already-acted test so a refusal costs nothing, and before the Action row
-  // so a refused Move never lands on the desk.
+  // The same gate every other action runs (db/lib/incapacitation.js). Checked after the already-acted test so a refusal costs nothing, and before the Action row so a refused Move never lands on the desk.
   const heldTags = await prisma.characterTag.findMany({
     where: { characterId: character.id },
     select: { tag: { select: { slug: true, name: true } } },
@@ -61,8 +44,6 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
     return { ok: false, error: `You can't act right now — you're ${stuck.name}. Nothing was recorded.` };
   }
 
-  // Labor is its own kind, not a checkbox riding along with a Routine — so
-  // picking it IS forgoing the day's other business.
   let resourceRollExpression = null;
   let laborRate = null;
   if (moveKind === "LABOR") {
@@ -70,12 +51,10 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
     if (!laborRate.ok) return { ok: false, error: `${laborRate.reason}` };
     resourceRollExpression = laborRate.expression;
   }
-  // The tier that won, stamped once here — see Action.laborTier's comment in
-  // schema.prisma for why this is never recomputed later.
+  // Stamped once here — see Action.laborTier's comment in schema.prisma for why this is never recomputed later.
   const laborTier = laborRate?.tier ?? null;
 
-  // @@unique([characterId, turnId]) is the real gate; a retried submit at
-  // rollover must not become a second Move.
+  // @@unique([characterId, turnId]) is the real gate; a retried submit at rollover must not become a second Move.
   let action;
   try {
     action = await prisma.action.create({
@@ -90,8 +69,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
         resourceRollExpression,
         laborTier,
         zoneId: character.zoneId ?? null,
-        // Stamped at filing time. A free zone move costs no Action, so by the
-        // time a Labor pays at turn close they may be standing somewhere else.
+        // Stamped at filing time — a free zone move costs no Action, so by turn close they may be standing somewhere else.
         locationId: character.locationId ?? null,
       },
     });
@@ -107,9 +85,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
       actorDiscordUserId: actorDiscordUserId ?? character.discordUserId ?? null,
       actionType: "move_submitted",
       targetCharacterId: character.id,
-      // Three per-turn rations COUNT audit rows (REQUESTS.md §1a), so every
-      // row a turn can hold gets its turn stamped even when nothing reads it
-      // yet — a ration added later would otherwise silently read zero.
+      // Three per-turn rations COUNT audit rows (REQUESTS.md §1a), so every row gets its turn stamped even when nothing reads it yet.
       turnId: openTurn.id,
       details: { actionId: action.id, kind: moveKind, tier: laborRate?.tier ?? null },
     },

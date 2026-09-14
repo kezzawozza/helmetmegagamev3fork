@@ -5,22 +5,10 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { zoneKey } from "@/lib/zones";
 
 // The transcript as a dense reading surface (docs/systemdocs/ARCHIVE.md §5):
-// one line per thing said, under a sticky day header and a scene line, with
-// runs of event rows folded into one muted line each.
-//
-// Grouping is by CONSECUTIVE runs over the rows as they arrive, never by
-// bucketing the whole list: rows come in the query's order, and bucketing
-// would silently reorder a view sorted newest-first. The one pre-pass below
-// builds a flat list of blocks; nothing mutates during render.
-//
-// Three things this draws that the old version did not, all off columns the
-// archive already stored and threw away:
-//
-//   - a WORLD line (source SYSTEM) reads as subtext rather than as somebody
-//     called "Unknown" saying it, which is how /chat has always drawn them
-//   - a scene is keyed on placeKey, so two rooms that share a name stay two
-//     scenes and a renamed one stays one
-//   - the frozen face, behind a toggle
+// one line per thing said, under a sticky day header and scene line, with
+// event rows folded into one muted line each. Grouping is by CONSECUTIVE runs
+// over the rows in query order, never bucketing the whole list — that would
+// silently reorder a view sorted newest-first.
 
 const FOLD_LABEL = {
   CHARACTER_CREATED: (n) => `${n} arrived`,
@@ -48,16 +36,12 @@ function dayLabel(row) {
   return `Day ${Math.ceil(row.turnNumber / 2)}`;
 }
 
-// The channelKinds that mean "a place in the world", and so are already
-// covered by zoneName. Anything else with no zone is a standing channel
-// outside the zone system — a radio net — and the channel's own name is the
-// only thing that tells two of them apart. Without this both nets filed
-// under one "Elsewhere" scene, police traffic interleaved with the cult's.
+// channelKinds meaning "a place in the world", already covered by zoneName.
+// Anything else with no zone is a standing channel outside the zone system.
 const PLACED_KINDS = new Set(["summary", "location", "scene", "intercom"]);
 
-// The place, as a key and as words. The KEY is placeKey where there is one —
-// the display string merges two rooms that happen to share a name and splits
-// one that got renamed, which is exactly the pair of bugs this avoids.
+// The KEY is placeKey where there is one, since the display string alone
+// merges two same-named rooms and splits a renamed one.
 function sceneOf(row) {
   const named = row.channelKind && !PLACED_KINDS.has(row.channelKind) ? `#${row.channelKind}` : null;
   const place = row.zoneName ?? named ?? "Elsewhere";
@@ -70,13 +54,8 @@ function sceneOf(row) {
   };
 }
 
-// A concealed message keeps both halves: the alias is what the room saw, the
-// real name is who it was. Together they make the finished archive readable as
-// one story — and are why the archive stays shut until the game ends.
-//
-// Two spans rather than one string, so the real name can be dimmed: at a
-// glance you read the scene as the room read it, and the answer is there when
-// you want it.
+// A concealed message keeps both halves: alias (what the room saw) and real
+// name, as two spans so the real name can be dimmed rather than merged.
 function speakerParts(row) {
   if (row.alias) return { shown: row.alias, real: row.realName ?? null };
   return { shown: row.realName ?? row.name ?? null, real: null };
@@ -106,8 +85,7 @@ function buildBlocks(rows, { groupScenes = true } = {}) {
       blocks.push({ type: "day", key: `d${row.id}`, label: dayLabel(row), phase: phaseWord(row.turnPhase) });
     }
     if (row.kind === "TURN_START") {
-      // The header IS this row — the day line above already says everything it
-      // carries, so the row itself is not rendered.
+      // The day line above already says everything this row carries.
       continue;
     }
     const scene = sceneOf(row);
@@ -150,8 +128,7 @@ function Row({ row, showPlace, portraits, onPick, onCite }) {
     <div className="archive-row" id={`e${row.id}`} data-world={world ? "true" : undefined}>
       <span className="archive-row-time">{clock(row.sentAt)}</span>
       <span className="archive-row-who">
-        {/* A world line has no speaker at all. It used to print "Unknown",
-            which read as a bug rather than as the room itself talking. */}
+        {/* A world line has no speaker at all — not "Unknown". */}
         {world ? null : (
           <>
             {portraits ? (
@@ -160,10 +137,7 @@ function Row({ row, showPlace, portraits, onPick, onCite }) {
                 name={speaker.shown ?? ""}
                 version={row.avatarVersion}
                 src={row.avatarPath ?? undefined}
-                // A line said under an alias before the game recorded what was
-                // over the speaker's face. It cannot be given one now — the
-                // sprite lived on the tag they were wearing then — so it keeps
-                // its secret and draws the plate.
+                // Can't recover a face recorded before the game tracked it — keeps its secret, draws the plate.
                 unknown={row.unknownFace}
                 size={18}
               />
@@ -172,8 +146,7 @@ function Row({ row, showPlace, portraits, onPick, onCite }) {
               type="button"
               className="archive-row-name"
               onClick={() => onPick?.({ character: row.characterId })}
-              // A hooded row carries no id to filter on — that withholding is
-              // what stops a browser matching a hood to a name.
+              // A hooded row carries no id, which stops matching a hood to a name.
               disabled={!row.characterId}
               title={row.characterId ? `Only ${speaker.real ?? speaker.shown}` : undefined}
             >
@@ -219,9 +192,7 @@ export default function ArchiveTranscript({ rows, groupScenes = true, portraits 
                   <li key={r.id} id={`e${r.id}`}>
                     <span className="archive-row-time">{clock(r.sentAt)}</span>
                     <span className="archive-fold-mark">{FOLD_MARK[r.kind] ?? "·"}</span>
-                    {/* Through the same renderer as a speech row: these carry
-                        {char:…} and {tag:…} tokens too, and printing them raw
-                        showed players the braces. */}
+                    {/* Same renderer as a speech row: these carry {char:…}/{tag:…} tokens too. */}
                     <ChatMarkdown content={r.content} />
                   </li>
                 ))}

@@ -1,13 +1,5 @@
-// How many of a role's seats are spoken for, from every direction at once:
-// characters sitting in them (ALIVE, plus DEAD on a seat that never reopens),
-// a live wizard hold (RoleReservation), and a live lobby assignment
-// (LobbyEntry ASSIGNED with a future expiresAt — LOBBY.md §4). One function
-// so the picker, the wizard's hold, createCharacter's race check, a threat
-// spawn and the roll itself cannot disagree about what "full" means.
-//
-// `excludeDiscordUserId` leaves out the caller's OWN hold and assignment, so
-// re-reserving to slide an expiry never fails against itself and an assigned
-// player's own seat reads as available to them.
+// How many of a role's seats are spoken for: characters sitting in them (ALIVE, plus DEAD on a seat that never reopens), a live wizard hold (RoleReservation), and a live lobby assignment (LobbyEntry ASSIGNED with a future expiresAt — LOBBY.md §4). One function so every caller agrees what "full" means.
+// `excludeDiscordUserId` leaves out the caller's OWN hold and assignment, so re-reserving to slide an expiry never fails against itself.
 
 const { seatHolderStatuses, isPermanentSeat } = require("./roleCapacity");
 
@@ -23,10 +15,7 @@ async function heldSeats(db, role, { excludeDiscordUserId = null, now = new Date
   return seated + reserved + assigned;
 }
 
-// The same count for MANY roles at once, as three groupBys rather than three
-// queries per role: the picker, the roll and the draft check all want the
-// whole board. Takes role rows ({ id, slug }) because the slug decides which
-// statuses count. Returns Map<roleId, held>.
+// The same count for MANY roles at once, as three groupBys rather than three queries per role. Returns Map<roleId, held>.
 async function heldSeatsByRole(db, roles, { excludeDiscordUserId = null, now = new Date() } = {}) {
   if (roles.length === 0) return new Map();
   const roleIds = roles.map((r) => r.id);

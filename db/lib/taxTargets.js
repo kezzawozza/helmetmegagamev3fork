@@ -1,30 +1,15 @@
-// Who a Taxman can see and tax (docs/tags.yaml's `taxman` description,
-// TaxDialog.js). Takes `prisma` as the first parameter, the db/lib/dm.js
-// convention — the turn pass, the web action and the backfill script all
-// want the same reading of "who is in my faction and where do they stand."
-// Deliberately not on the @lifeweb/db barrel; require it by path.
-//
-// There is no "characters in my zone" helper anywhere else in the game —
-// everything else is Location-grain (db/lib/presence.js). It needs none of
-// that complexity here: Character.zoneId is already denormalized onto the
-// row (every writer of locationId writes zoneId), so this is one flat,
-// indexed query, not a join through Location.
+// Who a Taxman can see and tax (docs/tags.yaml's `taxman`, TaxDialog.js). Takes `prisma` as the first parameter, the db/lib/dm.js convention; deliberately not on the @lifeweb/db barrel, require it by path.
+// No "characters in my zone" helper exists elsewhere — everything else is Location-grain (db/lib/presence.js). Character.zoneId is already denormalized onto the row, so this is one flat, indexed query, not a join through Location.
 const { isUnaffiliated } = require("./factionConstants");
 const { CATATONIC_SLUG } = require("./constants");
 const { OBOL_SLUG } = require("./depotState");
 
-// One turn of quiet after a refusal (desireGates.js's `lockTurns` shape,
-// lockTurns = 1): locked while the open turn is the one the refusal happened
-// in, or the very next one. So a refusal in turn 5 blocks retargeting through
-// the close of turn 6.
+// One turn of quiet after a refusal (desireGates.js's `lockTurns` shape, lockTurns = 1): a refusal in turn 5 blocks retargeting through the close of turn 6.
 function isLockedOut(refusedTurnNumber, openTurnNumber) {
   return openTurnNumber != null && openTurnNumber <= refusedTurnNumber + 1;
 }
 
-// `taxer` needs { id, factionId, zoneId }. Returns every ALIVE member of the
-// taxer's own real faction (read-only ⬢ visibility is faction-wide, per the
-// tag's description) — `sameZone` and `lockedOut` say which of them can
-// actually be picked.
+// `taxer` needs { id, factionId, zoneId }. Every ALIVE member of the taxer's own real faction; `sameZone` and `lockedOut` say which can actually be picked.
 async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
   if (!taxer?.factionId) return [];
 
@@ -62,9 +47,7 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
           })
           .then((rows) => new Set(rows.map((r) => r.characterId)))
       : Promise.resolve(new Set()),
-    // Obols are a physical Tag stack, not a balance column (DEPOT.md), so a
-    // member's holding is a CharacterTag row rather than a field on the
-    // character itself — read the same way the catatonic marker is.
+    // Obols are a physical Tag stack, not a balance column (DEPOT.md) — read the same way the catatonic marker is.
     obolTag && memberIds.length
       ? prisma.characterTag
           .findMany({
@@ -82,9 +65,7 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
       : Promise.resolve([]),
   ]);
 
-  // AuditLog.turnId is a bare column, not a relation (log-table convention —
-  // see PendingTax's own comment on why a FK isn't always the shape), so the
-  // turn numbers are resolved in one extra batch rather than a nested select.
+  // AuditLog.turnId is a bare column, not a relation (log-table convention), so turn numbers are resolved in one extra batch rather than a nested select.
   const refusalTurnIds = [...new Set(refusals.map((r) => r.turnId).filter(Boolean))];
   const turnNumberById = refusalTurnIds.length
     ? new Map(
@@ -118,8 +99,7 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
   }));
 }
 
-// What the taxer's own filings this turn came to, for the Tax dialog's
-// "This turn" panel. `status` is "pending" | "refused" | "partial".
+// For the Tax dialog's "This turn" panel. `status` is "pending" | "refused" | "partial".
 async function taxesFiledThisTurn(prisma, taxerId, turnId) {
   if (!taxerId || !turnId) return [];
   const rows = await prisma.pendingTax.findMany({

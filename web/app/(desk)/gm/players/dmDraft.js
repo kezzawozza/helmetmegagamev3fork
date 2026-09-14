@@ -3,44 +3,24 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 // The conversation composer's draft. MEMORY is the source of truth and
-// localStorage is a best-effort mirror — never the other way round.
-//
-// It used to be the other way round: the textarea's value was
-// `localStorage.getItem()`, read through useSyncExternalStore. That is fine
-// until a write fails. When the origin's quota is full `setItem` throws, and
-// because the re-render nudge sat INSIDE the try, no re-render happened and
-// the next one re-read the stale stored string — so a GM's typing froze
-// mid-sentence and then reverted, in every conversation at once, with no
-// error anywhere. A page cache filling the quota could stop a person typing.
-//
-// So the value lives in a module Map and is read through useSyncExternalStore
-// over our own listeners. That keeps the property the old design was reaching
-// for — no useState seeded from an effect, which is what
-// react-hooks/set-state-in-effect exists to catch — without making input
-// depend on storage succeeding. `useSessionState.js` already works this way;
-// this is the same shape.
-//
-// The store is shared here rather than kept private to the pane because the
-// inspector's Canon tab writes into it: "Insert into reply" used to be a ref
-// handed down from PersonShell, which only worked while the dossier and the
-// composer were siblings. The inspector is a column of the desk SHELL now, so
-// the two are no longer in the same tree — the store is the wire instead.
+// localStorage is a best-effort mirror — never the other way round, so a
+// throwing `setItem` (quota full) can't freeze a GM's typing. Value lives in
+// a module Map, read via useSyncExternalStore over our own listeners — same
+// shape as `useSessionState.js`, no useState seeded from an effect
+// (react-hooks/set-state-in-effect). Shared here, not private to the pane,
+// because the inspector's Canon tab ("Insert into reply") writes into it
+// across the desk shell tree.
 
 const EMPTY = "";
 
-// How long a draft counts as somebody mid-sentence. Past it the draft is
-// still shown, still restored and still guarded — it just stops standing the
-// desk's backstop poll down (useDirtyGuard.js#alsoDirtyHoldsPoll). Same
-// number and same reasoning as the adjudication desk's own drafts
-// (turns/deskDraft.js): a reply left open last week is recoverable text, not
-// an interrupted sentence, and it used to pause the poll indefinitely.
+// How long a draft counts as somebody mid-sentence; past it the draft is
+// still shown/restored/guarded but stops holding the desk's backstop poll
+// down (useDirtyGuard.js#alsoDirtyHoldsPoll). Same number and reasoning as
+// turns/deskDraft.js.
 const DRAFT_FRESH_MS = 10 * 60 * 1000;
 
-// discordUserId -> draft string. The source of truth.
-const drafts = new Map();
-// discordUserId -> when it was last typed into, this tab. A draft seeded back
-// out of localStorage has no stamp and counts as cold, which is what it is.
-const writtenAt = new Map();
+const drafts = new Map(); // discordUserId -> draft string, source of truth
+const writtenAt = new Map(); // discordUserId -> last typed-into time, this tab
 const listeners = new Set();
 
 function dmDraftKey(discordUserId) {
@@ -51,9 +31,7 @@ function emit() {
   for (const callback of listeners) callback();
 }
 
-// Seeded from storage ONCE per conversation, then never read from storage
-// again. A refusal memoises "" so a blocked accessor isn't retried on every
-// render.
+// Seeded from storage ONCE per conversation; a refusal memoises "" so it isn't retried every render.
 function readDmDraft(discordUserId) {
   if (!discordUserId) return EMPTY;
   const held = drafts.get(discordUserId);
@@ -68,13 +46,10 @@ function readDmDraft(discordUserId) {
   return stored;
 }
 
-// Notify FIRST, mirror second. A throwing setItem can no longer swallow the
-// re-render, which is the whole bug this file exists to have fixed.
-//
-// No `storage` event is dispatched any more. Cross-tab draft sync was never a
-// feature, nothing else reads `messages-draft-*`, and the old global dispatch
-// woke every other storage subscriber on the desk — usePins re-parsed its JSON
-// on each keystroke.
+// Notify FIRST, mirror second, so a throwing setItem can't swallow the
+// re-render. No `storage` event is dispatched — nothing else reads
+// `messages-draft-*`, and a global dispatch would wake every storage
+// subscriber on the desk (e.g. usePins) on every keystroke.
 export function writeDmDraft(discordUserId, value) {
   if (!discordUserId) return;
   const next = value ?? EMPTY;
@@ -86,13 +61,11 @@ export function writeDmDraft(discordUserId, value) {
     if (next) window.localStorage.setItem(dmDraftKey(discordUserId), next);
     else window.localStorage.removeItem(dmDraftKey(discordUserId));
   } catch {
-    // Full, private, or blocked. The draft is safe in memory for this tab's
-    // lifetime; only surviving a reload is lost.
+    // Full, private, or blocked; the draft still survives in memory for this tab.
   }
 }
 
-// Whether this conversation's draft was typed into recently enough to count
-// as somebody writing right now. Read by ConversationPane for its poll gate.
+// Whether this draft was typed into recently enough to count as live. Read by ConversationPane's poll gate.
 export function dmDraftFresh(discordUserId, nowMs = Date.now()) {
   if (!discordUserId) return false;
   const at = writtenAt.get(discordUserId);

@@ -1,20 +1,8 @@
-// The channel doctor's `location-occupancy` check — the per-member
-// overwrites on a Location channel must be exactly the living characters
-// standing there. Moved verbatim out of runChannelDoctor (W2d).
 const { putChannelOverwrite, deleteChannelOverwrite } = require("../../discordRest");
 const { LOCATION_MEMBER_ALLOW } = require("../../zoneChannelSpec");
 
-// Location occupancy: the per-member overwrites on a Location channel must
-// be exactly the living characters standing there. This is the successor to
-// the old "Location: X" role membership check, and it is the ONLY sweep
-// that catches a location grant the move pipeline failed to swap — or one
-// a dead character kept, since an overwrite has no equivalent of the role
-// strip that prune-orphan-roles used to perform.
-//
-// Costs no extra requests: the overwrites arrive on the channel object the
-// structure pass above already fetched. Member targets only (type 1) — the
-// role overwrites belong to locationChannelSpec and are reconciled by the
-// full pass, not here.
+// The channel doctor's `location-occupancy` check — the per-member overwrites on a Location channel must be exactly the living characters standing there. It is the ONLY sweep that catches a location grant the move pipeline failed to swap.
+// Costs no extra requests: the overwrites arrive on the channel object the structure pass above already fetched. Member targets only (type 1) — role overwrites belong to locationChannelSpec and are reconciled by the full pass, not here.
 async function runLocationOccupancySweep({ report, locations, liveLocationChannels, alive }) {
   for (const location of locations) {
     const live = liveLocationChannels.get(location.id);
@@ -26,10 +14,7 @@ async function runLocationOccupancySweep({ report, locations, liveLocationChanne
         .map((c) => c.discordUserId)
         .filter(Boolean),
     );
-    // The ALLOW BITS come along, not just the id: LOCATION_MEMBER_ALLOW
-    // changes over time (Send came off it when Location channels became
-    // scenery), and an occupant already holding an old overwrite would
-    // otherwise pass a presence-only check forever.
+    // The ALLOW BITS come along, not just the id — LOCATION_MEMBER_ALLOW changes over time, and an occupant holding an old overwrite would otherwise pass a presence-only check forever.
     const has = new Map(
       (live.permission_overwrites ?? [])
         .filter((o) => Number(o.type) === 1)

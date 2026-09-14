@@ -1,13 +1,8 @@
 import { SkeletonBar } from "@/app/components/PageShell";
 
-// Only the middle column. The shell — .desk-shell, the header, the rail and the
-// inspector — lives in this route's layout.js, which stays mounted across a
-// navigation, so drawing one here would paint a second desk inside the first.
-//
-// What it does have to match is RosterTable.js's own root: the segmented
-// Players/Factions pair, then FilterBar's search-and-buttons row, then the
-// table. Four generic bars foreshadowed none of that, so the column reflowed
-// twice — once for the toolbar appearing, once for the table under it.
+// Only the middle column — the shell lives in layout.js, which stays mounted
+// across navigation. Matches RosterTable.js's own root (segmented
+// Players/Factions, FilterBar row, table) so the column doesn't reflow twice.
 export default function Loading() {
   return (
     <main className="desk-main">

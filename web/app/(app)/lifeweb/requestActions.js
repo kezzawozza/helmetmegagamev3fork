@@ -20,23 +20,14 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { killCharacter } from "@/lib/discordGuild";
 
-// The Lifeweb's two player-facing Requests, following the same contract as
-// the ones on the character sheet (web/app/(app)/character/requestActions.js):
-// authenticate, re-validate everything the client sent, then apply the effect
-// and write the Request + AuditLog rows in ONE transaction.
-//
-// Both snapshot `bloodDelta` — what actually moved after the 0-100 clamp —
-// rather than the amount asked for, because that is the only number an Undo
-// can safely reverse. See docs/systemdocs/REQUESTS.md §2.
+// The Lifeweb's two player-facing Requests, same contract as the sheet's
+// (web/app/(app)/character/requestActions.js): authenticate, re-validate,
+// apply, write Request + AuditLog in ONE transaction. Both snapshot
+// `bloodDelta` — what actually moved after the 0-100 clamp — since that is
+// the only number an Undo can safely reverse (docs/systemdocs/REQUESTS.md §2).
 
-// The /lifeweb page gate is advisory: a server action is a public endpoint,
-// so Mortus is checked again here. A GM without a living Mortus character
-// can't submit these — the GM panel on the same page is their route.
-//
-// Standing in the Fortress is the second half of the gate. The tower is up the
-// Keep stairs (docs/zones.yaml, the Gatehouse topic), so tending the Web is
-// something you do with your boots on that ground — the same reach rule every
-// other person-touching Request already applies (MAP.md §3).
+// The /lifeweb gate is advisory — a server action is a public endpoint, so
+// Mortus is re-checked here, plus standing in the Fortress (MAP.md §3).
 async function requireMortusCharacter() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -55,15 +46,12 @@ async function requireMortusCharacter() {
   return { session, character };
 }
 
-// The target has to be at the tower too — folded into the WHERE clause rather
-// than checked after, the same shape the character-sheet Requests use.
+// The target has to be at the tower too — folded into the WHERE clause.
 async function requireLivingTarget(targetCharacterId) {
   const target = await prisma.character.findFirst({
     // `?? ""` is load-bearing: Prisma strips an undefined field from a where
-    // clause rather than matching nothing, so an omitted id turned "bleed this
-    // person" into "bleed any living character". These two buttons act on
-    // somebody else's sheet, which makes it the worst place in the app for
-    // that.
+    // clause instead of matching nothing, so an omitted id must never turn
+    // "bleed this person" into "bleed any living character".
     where: { id: targetCharacterId ?? "", status: "ALIVE", zone: { slug: FORTRESS_SLUG } },
     include: { tags: { include: { tag: true } } },
   });
@@ -102,10 +90,8 @@ async function donateBloodRequestImpl({ targetCharacterId }) {
     where: "donateBloodRequest",
   });
 
-  // `blood` must be produced INSIDE the transaction: the snapshot written to
-  // Request.effect below is what Undo reverses (REQUESTS.md §2), so it has to
-  // describe the move this statement actually made, not a pool value another
-  // donation already changed.
+  // `blood` must be produced INSIDE the transaction: it feeds the Undo
+  // snapshot (REQUESTS.md §2) and must describe this statement's own move.
   let blood;
   await prisma.$transaction(async (tx) => {
     blood = await bumpBlood(tx, amount);
@@ -132,29 +118,19 @@ async function donateBloodRequestImpl({ targetCharacterId }) {
     });
   });
 
-  // Self-donation is the ordinary case (see the comment above), and it needs
-  // no DM — a player already knows what they just clicked.
+  // Self-donation needs no DM — a player already knows what they clicked.
   if (target.id !== character.id) notifyCharacter(target, "You've been Drained.");
 
   revalidateAll();
   return { targetName: target.name, amount: blood.delta, tier };
 }
 
-// Feeding someone to the Lifeweb kills them, here, on the click. The gates
-// that protect a player are all checked server-side: the actor must be a
-// living Mortus standing in the Fortress, the target alive and in the
-// Fortress too, and a reason is required and logged. A GM reads it
-// afterwards rather than before.
-//
-// The kill is claimed INSIDE the transaction that moves the blood, with the
-// same conditional `status: ALIVE` where-clause every other death path uses
-// (db/lib/characterDeath.js), so two Mortii feeding the same person in the
-// same second can't both claim it. The Discord half runs after the commit —
-// killCharacter() is a string of REST calls and must never hold the
-// transaction open.
-//
-// Undo does not revive (REQUESTS.md §2): undoing the request draws the blood
-// back out and says so.
+// Feeding someone to the Lifeweb kills them, here, on the click. The kill is
+// claimed INSIDE the transaction moving the blood, with the same conditional
+// `status: ALIVE` where-clause every death path uses (db/lib/characterDeath.js),
+// so two Mortii feeding the same person can't both claim it. killCharacter()
+// runs after commit — it must never hold the transaction open. Undo does not
+// revive (REQUESTS.md §2): it only draws the blood back out.
 async function feedPersonRequestImpl({ targetCharacterId }) {
   const { session, character } = await requireMortusCharacter();
   const target = await requireLivingTarget(targetCharacterId);
@@ -166,9 +142,7 @@ async function feedPersonRequestImpl({ targetCharacterId }) {
   await prisma.$transaction(async (tx) => {
     blood = await bumpBlood(tx, FEED_PERSON_AMOUNT);
 
-    // The claim. `count` is 0 when someone else got there first, in which case
-    // the blood still lands — the Tower was fed either way — but this request
-    // doesn't claim a kill it didn't make, and the teardown below is skipped.
+    // `count` is 0 when someone else got there first; blood still lands but the teardown below is skipped.
     const claim = await tx.character.updateMany({
       where: { id: target.id, status: "ALIVE" },
       data: { status: "DEAD" },
@@ -193,12 +167,8 @@ async function feedPersonRequestImpl({ targetCharacterId }) {
     });
   });
 
-  // The rest of death — access revoke, role delete, nickname clear, the Cursed
-  // grant, the death DM — outside the transaction, with the row's status
-  // already written. killCharacter's own applyDeathToRow call runs with
-  // expectStatus DEAD, which is exactly the shape of the claim above. Not
-  // awaited-and-thrown: the feeding is committed, and a Discord hiccup must
-  // not report it as failed.
+  // Rest of death runs outside the transaction, row status already written.
+  // Not awaited-and-thrown: a Discord hiccup must not report the feed as failed.
   if (killed) {
     await killCharacter(target, "You were fed to the Lifeweb.").catch((err) =>
       console.error(`killCharacter failed after feeding ${target.id}:`, err),
@@ -209,9 +179,7 @@ async function feedPersonRequestImpl({ targetCharacterId }) {
   return { targetName: target.name, amount: blood.delta, killed };
 }
 
-// Validation comes back as { ok: false, error } rather than thrown — a
-// production Next.js build redacts anything thrown out of a Server Action.
-// See web/lib/actionResult.js.
+// Validation comes back as { ok: false, error }, never thrown — Next.js redacts anything thrown out of a Server Action. See web/lib/actionResult.js.
 
 export async function donateBloodRequest(input) {
   return guarded(() => donateBloodRequestImpl(input));

@@ -25,8 +25,7 @@ const ALLOWED_HOSTS = new Set([
 const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
 
 function resolveOrigin(request) {
-  // x-forwarded-host can be a comma-separated chain; the first entry is the
-  // originating host.
+  // x-forwarded-host can be a comma-separated chain; the first entry is the originating host.
   const forwarded =
     request.headers.get("x-forwarded-host") ?? request.headers.get("host");
   const host = forwarded?.split(",")[0].trim();
@@ -40,8 +39,7 @@ function resolveOrigin(request) {
   return `${request.headers.get("x-forwarded-proto") ?? "https"}://${host}`;
 }
 
-// Mirrors how next-auth itself rewrites a request origin, so method, headers
-// and body survive the swap.
+// Mirrors how next-auth itself rewrites a request origin, so method/headers/body survive the swap.
 function withPublicOrigin(request) {
   const origin = resolveOrigin(request);
   const { href, origin: current } = request.nextUrl;
@@ -55,27 +53,14 @@ const nextAuth = NextAuth({
     Discord({
       clientId: process.env.DISCORD_CLIENT_ID,
       clientSecret: process.env.DISCORD_CLIENT_SECRET,
-      // `identify` only. Auth.js defaults to `identify email`, and nothing
-      // here ever reads an email — so don't ask players for one.
+      // Don't ask players for email — Auth.js defaults to `identify email` and nothing here reads one.
       authorization: { params: { scope: "identify" } },
     }),
-    // Registered only under LOCAL_MODE (db/lib/localMode.js), so there is no
-    // "local" provider for signIn("local") to find at all outside dev — the
-    // real guard is that this array simply doesn't contain it, same as every
-    // other LOCAL_MODE branch answering instead of a real Discord call.
-    // Signs in as the first superadmin id (web/lib/superadmin.js) by default,
-    // which LOCAL_MODE's own member-lookup stub already treats as holding
-    // every local role — one click reaches everything a GM page needs.
-    //
-    // `playerId` is the other door in (web/app/actions.js#startAsLocalPlayer):
-    // a freshly rolled discordUserId for a throwaway character it has already
-    // created, so the session comes up already owning a sheet instead of the
-    // superadmin id's usual "every GM tool, no character of your own."
-    // LOCAL_MODE's role stub still hands every id the same GM-shaped roles —
-    // there is no way to be a "real" non-GM locally — but every page that
-    // decides player-vs-GM by "does this discordUserId own a living
-    // character" (loadFeedViewer chief among them) reads as a player once one
-    // exists.
+    // Registered only under LOCAL_MODE (db/lib/localMode.js). Signs in as the first superadmin id
+    // by default (LOCAL_MODE's member-lookup stub treats that as holding every local role).
+    // `playerId` is the other door in (web/app/actions.js#startAsLocalPlayer) — a freshly rolled
+    // discordUserId for a throwaway character, so a page that decides player-vs-GM by "does this
+    // discordUserId own a living character" reads as a player once one exists.
     ...(isLocalMode()
       ? [
           Credentials({
@@ -91,8 +76,7 @@ const nextAuth = NextAuth({
   ],
   callbacks: {
     async jwt({ token, profile, user }) {
-      // `profile` is Discord's OAuth profile; `user` is what the local
-      // Credentials provider's authorize() returned. Never both at once.
+      // `profile` is Discord's OAuth profile; `user` is the local Credentials authorize() result. Never both at once.
       const discordUserId = profile?.id ?? user?.id;
       if (discordUserId) {
         token.discordUserId = discordUserId;

@@ -3,17 +3,13 @@
 
 import { chunkMessage } from "@lifeweb/db/lib/chunkText";
 
-// How many Discord messages a staged body will arrive as. chunkText.js is the
-// dependency-free half of the REST layer, so importing it here keeps this
-// module client-safe — never import from discordRest.js, which reads
-// DISCORD_TOKEN and calls fetch.
+// How many Discord messages a staged body will arrive as. Uses chunkText.js,
+// not discordRest.js (reads DISCORD_TOKEN, calls fetch), to keep this module client-safe.
 export function chunkCount(content) {
   return chunkMessage((content ?? "").trim()).length;
 }
 
-// id -> the full catalog row, not just the name — effectSegments below needs
-// the whole tag for a hoverable TagChip, the same row TagCatalogBrowser and
-// EffectComposer.js's own tag chips already render from.
+// id -> full catalog row, not just the name — effectSegments needs the whole tag for a hoverable TagChip.
 export function tagLookup(tagCatalog) {
   return new Map(tagCatalog.map((t) => [t.id, t]));
 }
@@ -26,12 +22,9 @@ function partyLabel(party) {
 }
 
 // "+3 ⬢ · +Explosion Burns · −Fine Meal ×2", as segments rather than a
-// joined string — a `"tagchip"` segment carries the live tag row (when it's
-// still in the catalog) so a renderer can show a real hoverable TagChip
-// instead of a name with nothing behind it. `tagsById` is a Map(id -> full
-// tag row), from tagLookup() above.
-// What a staged row is aimed at, when it isn't a character. Both the desk and
-// the preview draw this, so the wording lives in one place.
+// joined string — a `"tagchip"` segment carries the live tag row so a
+// renderer can show a real hoverable TagChip. `tagsById` from tagLookup() above.
+// What a staged row is aimed at when it isn't a character; shared wording for the desk and the preview.
 export function effectTargetLabel(effect) {
   if (effect.room) {
     return effect.room.locationName ? `${effect.room.locationName} — ${effect.room.name}` : effect.room.name;
@@ -41,8 +34,7 @@ export function effectTargetLabel(effect) {
 
 export function effectSegments(effect, tagsById) {
   const segs = [];
-  // A death payload carries nothing else — db/lib/stagedPush.js
-  // short-circuits on it before any other key, so this is the whole row.
+  // A death payload carries nothing else — db/lib/stagedPush.js short-circuits on it before any other key.
   if (effect.death) {
     segs.push({
       k: "text",
@@ -63,10 +55,7 @@ export function effectSegments(effect, tagsById) {
     const qty = op.quantity != null && op.quantity > 1 ? op.quantity : null;
     segs.push({ k: "tagchip", op: op.op, tag, name: tag?.name ?? "a tag", quantity: qty });
   }
-  // A room row's ⬢ and tags. Separate keys from the character ones above, so
-  // the two can never render as one muddled line, and the ⬢ says where it
-  // landed — "+5 ⬢" on a row labelled with a room would otherwise read as a
-  // payout to somebody.
+  // A room row's ⬢ and tags — separate keys so it can never muddle with the character line above.
   if (effect.roomResources) {
     segs.push({ k: "text", v: `${effect.roomResources > 0 ? "+" : ""}${effect.roomResources} ⬢ in the stash` });
   }
@@ -79,8 +68,7 @@ export function effectSegments(effect, tagsById) {
   return segs;
 }
 
-// The plain-text form, for a confirm dialog's sentence — nowhere for a
-// HoverCard to portal to inside one of those, so this just names the tag.
+// The plain-text form, for a confirm dialog's sentence — no HoverCard portal inside one, so this just names the tag.
 export function effectSummary(effect, tagsById) {
   const parts = effectSegments(effect, tagsById).map((seg) => {
     if (seg.k === "text") return seg.v;
@@ -94,17 +82,13 @@ export function effectSummary(effect, tagsById) {
 export function effectState(effect) {
   if (effect.appliedError) return { label: "Errored", tone: "bad" };
   if (effect.applied) {
-    // The target died some other way before the push reached this row —
-    // applyDeathToRow's own claim (status must still be ALIVE) came back
-    // false. The GM's intent was already satisfied; this isn't a failure.
+    // The target died some other way before the push reached this row (applyDeathToRow's claim came back false) — not a failure.
     if (effect.death && effect.appliedDeath && effect.appliedDeath.claimed === false) {
       return { label: "No-op — already dead", tone: "warn" };
     }
     return { label: "Applied", tone: "good" };
   }
-  // Missed push is the warning; Staged is the normal resting state of every
-  // row on the desk and was wearing the warning colour, so the one row that
-  // actually needed chasing did not stand out from the twenty that did not.
+  // Missed push is the warning; Staged is the normal resting state.
   if (effect.missed) return { label: "Missed push", tone: "warn" };
   return { label: "Staged", tone: "neutral" };
 }
@@ -112,9 +96,7 @@ export function effectState(effect) {
 export function messageState(message) {
   const rows = Array.isArray(message.deliveries) ? message.deliveries : [];
   if (message.sent && rows.length) {
-    // Counted off the Delivery rows, so the pill says HOW MANY bounced rather
-    // than only that something did — and it says "Sending" while a retry is in
-    // flight, which "Sent, some failed" could not.
+    // Counted off Delivery rows, so the pill says HOW MANY bounced, and can say "Sending" while a retry is in flight.
     const failed = rows.filter((d) => d.state === "FAILED").length;
     if (rows.some((d) => d.state === "IN_FLIGHT")) return { label: "Sending…", tone: "warn" };
     if (failed) return { label: `Sent · ${failed} failed`, tone: "bad" };
@@ -122,15 +104,12 @@ export function messageState(message) {
   }
   if (message.sent && message.deliveryFailures) return { label: "Sent, some failed", tone: "bad" };
   if (message.sent) return { label: "Sent", tone: "good" };
-  // Same vocabulary as effectState above: the miss is the warning, staged is
-  // the resting state.
-  if (message.missed) return { label: "Missed push", tone: "warn" };
+  if (message.missed) return { label: "Missed push", tone: "warn" }; // same vocabulary as effectState above
   return { label: "Staged", tone: "neutral" };
 }
 
 // One short line per recipient who is not simply done — "Ada: DMs closed",
-// "Bram: sending…". Empty when everything landed, so a clean message says
-// nothing extra. The blob-era fallback keeps an old turn readable.
+// "Bram: sending…". Empty when everything landed. Blob-era fallback keeps an old turn readable.
 export function deliveryNotes(message) {
   const rows = Array.isArray(message.deliveries) ? message.deliveries : [];
   if (rows.length) {

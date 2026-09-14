@@ -1,9 +1,6 @@
-// The Oracle desk. See docs/systemdocs/ORACLE.md.
-//
-// The (desk) layout has already checked isGm (web/app/(desk)/layout.js), so
-// there is no gate here — same as turns, players and audit. The one server
-// action this desk has re-checks for itself regardless, because a layout gate
-// is presentation.
+// The Oracle desk. See ORACLE.md. The (desk) layout has already checked isGm
+// (web/app/(desk)/layout.js), so there's no gate here — the one server
+// action re-checks for itself regardless; a layout gate is presentation.
 
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
@@ -21,23 +18,16 @@ const THREATS_PAGE = "__threats__";
 export default async function OraclePage({ searchParams }) {
   const params = await searchParams;
 
-  // The playtest switch, ENFORCED here and not merely hidden from the rail.
-  // Dropping the nav item is presentation; this is the lock, the same posture
-  // /chat takes with playPanelEnabled. Superadmin rather than GM because the
-  // point of the switch is to review the Oracle before the other gamemasters
-  // meet it.
+  // The playtest switch, ENFORCED here, not merely hidden from the rail —
+  // same posture as /chat's playPanelEnabled. Superadmin, not GM: the point is reviewing the Oracle first.
   const config = await prisma.gameConfig.findFirst({ select: { oraclePlaytest: true } });
   if (config?.oraclePlaytest) {
     const session = await auth();
     if (!isSuperadmin(session?.discordUserId)) redirect("/gm/players");
   }
 
-  // Newest first, and the OPEN turn is offered like any other. It used to be
-  // excluded, on the argument that its moves were still being filed and there
-  // was nothing complete to have written about — true while the Oracle ran at
-  // turn close, and backwards now that it runs at the Move cutoff. The open
-  // turn's page is the whole point: it is what a gamemaster reads while they
-  // adjudicate, in the three hours before the push.
+  // Newest first, and the OPEN turn is offered like any other — its page is
+  // what a gamemaster reads while adjudicating, in the hours before the push.
   const turns = await prisma.turn.findMany({
     orderBy: { number: "desc" },
     take: 60,
@@ -62,10 +52,8 @@ export default async function OraclePage({ searchParams }) {
     );
   }
 
-  // Default to the newest turn that has actually been written, not simply the
-  // newest turn. Between midnight and the cutoff the open turn has no page, and
-  // landing a GM on an empty one would hide yesterday's chronicle behind a
-  // "nothing written" panel for twenty-one hours of every day.
+  // Default to the newest turn actually written, not simply the newest —
+  // otherwise the open turn's blank page hides yesterday's chronicle for hours.
   const wanted = Number.parseInt(params?.turn, 10);
   const turn =
     turns.find((t) => t.number === wanted) ?? turns.find((t) => t._count.oraclePages > 0) ?? turns[0];
@@ -88,10 +76,8 @@ export default async function OraclePage({ searchParams }) {
       orderBy: { name: "asc" },
       select: { id: true, slug: true, name: true },
     }),
-    // The inspector resolves a clicked {char:<id>} against this, and it is also
-    // what the rail counts. ALIVE only: a name in an old record whose character
-    // has since died renders as plain text rather than a control, which is the
-    // same fail-closed shape as an unresolvable name.
+    // The inspector resolves a clicked {char:<id>} against this, also what
+    // the rail counts. ALIVE only — a dead character's old mention renders as plain text, fail-closed.
     prisma.character.findMany({
       where: { status: "ALIVE" },
       orderBy: { name: "asc" },
@@ -102,11 +88,7 @@ export default async function OraclePage({ searchParams }) {
         zoneId: true,
         role: { select: { name: true } },
         faction: { select: { name: true } },
-        // seatZoneId too — the rail's per-zone headcount below has to land a
-        // character actually standing in a cave LEVEL (Caves, Depths) on the
-        // cave GROUP's row (Underground), the same presence/seat split
-        // db/lib/seatZone.js exists for. Character.zoneId alone reads
-        // "Caves" and the badge for Underground silently never counts them.
+        // seatZoneId too — lands a cave-LEVEL character on the cave GROUP's row (db/lib/seatZone.js), else the badge never counts them.
         zone: { select: { name: true, seatZoneId: true } },
       },
     }),
@@ -114,9 +96,7 @@ export default async function OraclePage({ searchParams }) {
     listSelectableZones(),
   ]);
 
-  // `!row.zone` alone used to mean "the front page" — it now also matches the
-  // Threats row, which has no real Zone either (ORACLE.md), so `kind` is what
-  // actually tells the two apart.
+  // `!row.zone` also matches the Threats row (no real Zone either, ORACLE.md), so `kind` tells the two apart.
   const front = rows.find((row) => row.kind === "FRONT") ?? null;
 
   // A zone-shaped title for a row with no Zone relation — the Threats row.
@@ -124,12 +104,8 @@ export default async function OraclePage({ searchParams }) {
     return row.zone?.name ?? (row.kind === "THREATS" ? "Threats" : `Turn ${turn.number}`);
   }
 
-  // Deterministic, front page first, Threats sorted in with the named zones —
-  // it reads like one of them (ORACLE.md). `pages[0]` below is only ever read
-  // when `front` is ALSO missing (a turn nobody wrote anything for), but when
-  // that happens it should still be reproducible rather than whatever order
-  // Postgres happened to hand back rows in — the query above carries no
-  // `orderBy` of its own.
+  // Deterministic, front page first, Threats sorted in with named zones
+  // (ORACLE.md) — `pages[0]` below must be reproducible even with no `orderBy` on the query above.
   const orderedRows = [...rows].sort((a, b) => {
     if (a.kind === "FRONT") return -1;
     if (b.kind === "FRONT") return 1;
@@ -145,9 +121,7 @@ export default async function OraclePage({ searchParams }) {
     editedAt: row.editedAt ? row.editedAt.toISOString() : null,
   }));
 
-  // Threads live on the front page only. A malformed or absent array reads as
-  // no threads rather than as a crash — the rail is the cheapest thing on this
-  // page to lose.
+  // Threads live on the front page only. A malformed/absent array reads as no threads, not a crash.
   const threads = Array.isArray(front?.threads)
     ? front.threads.filter((t) => t && typeof t.name === "string" && typeof t.state === "string").slice(0, 5)
     : [];
@@ -160,15 +134,10 @@ export default async function OraclePage({ searchParams }) {
   }
 
   const requested = typeof params?.page === "string" ? params.page : null;
-  // A REAL target — the front page, or a seat zone that just has nothing
-  // written for it this turn — is kept as-is, never swapped for someone
-  // else's page. Losing this used to send every click at a page-less zone to
-  // whichever row `pages[0]` happened to be (DB order, no `orderBy`), which
-  // read as "you can only click on the one zone that has a page, everything
-  // else jumps to some other zone's chronicle." A page-less target still
-  // resolves to `null` through OracleDesk.js's `pageFor()`, which is what
-  // draws its existing "Nothing written for this turn yet." empty state —
-  // this only decides which rail button that empty state highlights.
+  // A REAL target — the front page, or a seat zone with nothing written this
+  // turn — is kept as-is, never swapped for someone else's page. A
+  // page-less target still resolves to `null` through OracleDesk.js's
+  // `pageFor()`, which draws the empty state; this only decides which rail button it highlights.
   const isRealTarget =
     requested === FRONT_PAGE || requested === THREATS_PAGE || zones.some((z) => z.slug === requested);
   const selectedKey = isRealTarget

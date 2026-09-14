@@ -3,14 +3,10 @@ import Link from "next/link";
 import { SECTION_TIER, allows } from "@/lib/devAccess";
 import { DEV_ELSEWHERE } from "@/lib/devNav";
 
-// The Dev Panel's section rail — a plain server component, no "use client"
-// and no usePathname: the active section comes from ?s=, already known by
-// the page that renders this, not from the URL pathname (which never
-// changes — every section is the same route).
-//
-// Which items a viewer sees comes from SECTION_TIER in web/lib/devAccess.js,
-// the same table the page and every server action check against, so the rail
-// cannot show a door the gate will not open.
+// The Dev Panel's section rail — a plain server component, no usePathname:
+// the active section comes from ?s=. Which items a viewer sees comes from
+// SECTION_TIER (web/lib/devAccess.js), the same table the page and every
+// server action check, so the rail can't show a door the gate won't open.
 const SECTIONS = [
   {
     title: "Game",

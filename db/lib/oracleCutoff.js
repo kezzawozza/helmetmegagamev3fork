@@ -1,32 +1,15 @@
-// Fires the Oracle when a turn's Move cutoff passes. See docs/systemdocs/ORACLE.md.
-//
-// The Oracle used to run at turn close, from the side-effect thunk. That put it
-// on the wrong side of the only three hours it was built to help with: Moves
-// lock at 21:00 CT and gamemasters adjudicate what was filed between then and
-// the midnight push, so a chronicle written after the push arrived once the
-// ruling was over. It runs at the lock now, and a GM reads it while they work.
-//
-// There is no lock EVENT to hang this on. moveCutoffAt() is derived from
-// turn.startedAt and moveWindow() only answers when something asks, so this is
-// a per-minute check rather than a subscription. A fixed 21:00 cron would be
-// wrong for a turn a GM opened by hand at 02:00, and would fire during a frozen
-// clock when no turn is moving at all.
+// Fires the Oracle when a turn's Move cutoff passes, so a GM reads the chronicle while they adjudicate (docs/systemdocs/ORACLE.md). There is no lock EVENT to hang this on, so this is a per-minute check rather than a subscription — a fixed cron would be wrong for a turn opened by hand, or during a frozen clock.
 
 const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
 const { runOracle } = require("./oracle");
 
-// A failing zone costs a 180s timeout plus one retry before it gives up
-// (oracleClient.js), so a provider outage at the cutoff would otherwise spend
-// the whole three-hour window retrying. Three tries and the turn is left to
-// Run now. In-process on purpose: a restart is a new situation and deserves a
-// fresh count, and this is not worth a column.
+// A failing zone costs a 180s timeout plus a retry (oracleClient.js), so a provider outage would otherwise spend the whole window retrying. Three tries and the turn is left to Run now; in-process on purpose, not worth a column.
 const MAX_ATTEMPTS = 3;
 
 const attempts = new Map();
 
 function spendAttempt(turnId) {
-  // Only ever one turn in flight, so anything else in here is last turn's.
   for (const key of attempts.keys()) {
     if (key !== turnId) attempts.delete(key);
   }
@@ -35,44 +18,21 @@ function spendAttempt(turnId) {
   return spent;
 }
 
-// Should this turn be drafted right now? Pure, so every branch is testable
-// without a database, a clock or a provider — which matters, because all but
-// one of them is a REFUSAL and a refusal that fires by mistake is silent.
-// Returns a reason rather than a bare false so a log line can say which.
+// Pure, so every branch is testable without a database, a clock or a provider — all but one is a REFUSAL, and a refusal that fires by mistake is silent. Returns a reason rather than a bare false so a log line can say which.
 function cutoffDecision(turn, { now = new Date(), clockFrozen = false } = {}) {
   if (!turn) return { draft: false, reason: "no open turn" };
 
   const { locked, hasLock, cutoffAt } = moveWindow(turn, { now, clockFrozen });
 
-  // No cutoff, no page. A frozen clock or a turn shorter than the lock has no
-  // moment to fire on, and inventing one would mean writing a chronicle of a
-  // turn nobody has finished filing. The next turn with a real cutoff windows
-  // back over the gap, so the material still reaches a page.
   if (!hasLock) return { draft: false, reason: "this turn never locks" };
 
-  // `locked` is false on BOTH sides: before the cutoff, and again once the turn
-  // has outlived its derived end because an advance was missed. The second is
-  // deliberate (turnClock.js) and means a turn can go unchronicled — Run now is
-  // the recovery, and it is a better answer than drafting into a turn that is
-  // hours past its own ending.
+  // `locked` is false on BOTH sides: before the cutoff, and again once the turn has outlived its derived end because an advance was missed (turnClock.js) — Run now is the recovery.
   if (!locked) return { draft: false, reason: now < cutoffAt ? "before the cutoff" : "past the turn's end" };
-
-  // On the lock itself, not two minutes after it. It used to wait, to keep out
-  // of the minute the Makeshift Stage sweep holds ("0 3,9,15,21", the same
-  // timezone — bot/src/events/ready.js). The wait is worth less than the
-  // minutes are: the zone calls run at once now, so the whole chronicle lands a
-  // few minutes after the Moves lock rather than a quarter of an hour into
-  // the window it is written to be read in. The sweep is a handful of
-  // queries and this is six outbound HTTP calls, so what they contend for is
-  // barely the same resource.
 
   return { draft: true, reason: "at the cutoff" };
 }
 
 async function runOracleAtCutoff(db, { now = new Date() } = {}) {
-  // advanceTurn leaves nothing OPEN between flipping the old turn RESOLVED and
-  // creating the next one, so no open turn is an ordinary answer here, not a
-  // fault — the same window riteSweep.js works around.
   const turn = await db.turn.findFirst({
     where: { status: "OPEN" },
     select: { id: true, number: true, startedAt: true },
@@ -84,11 +44,7 @@ async function runOracleAtCutoff(db, { now = new Date() } = {}) {
 
   if ((attempts.get(turn.id) ?? 0) >= MAX_ATTEMPTS) return { ran: false };
 
-  // One key per zone, and a failure is logged rather than thrown: this is a
-  // cron with nobody waiting on it, and one dead zone must not cost the five
-  // that would have written fine. A run that ends short leaves the set
-  // incomplete, so the next tick redraws the turn whole (db/lib/oracle.js) —
-  // which is why a partial failure here is safe to walk away from.
+  // One key per zone, failure logged rather than thrown: one dead zone must not cost the five that would have written fine. A short run leaves the set incomplete, and the next tick redraws it whole (db/lib/oracle.js).
   const step = async (key, fn) => {
     try {
       await fn();
@@ -100,8 +56,7 @@ async function runOracleAtCutoff(db, { now = new Date() } = {}) {
   const before = spendAttempt(turn.id);
   const result = await runOracle(db, { turnId: turn.id, step, skipIfComplete: true });
 
-  // Nothing to do is not an attempt. Un-spend it, or a quiet game would burn
-  // its three tries on the ticks that found the set already complete.
+  // Nothing to do is not an attempt — un-spend it, or a quiet game would burn its three tries finding the set already complete.
   if (!result.ran) attempts.set(turn.id, before);
 
   return { ...result, turnNumber: turn.number };

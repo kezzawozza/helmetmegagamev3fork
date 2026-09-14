@@ -1,19 +1,6 @@
-// The mood dial's nightly settle (docs/systemdocs/MOOD.md). Run from
-// db/index.js#resolveNeeds() in the slot the phobia pass used to hold: after
-// hunger (it reads the final hungerStreak), after carry (the final sheet), and
-// BEFORE travelArrival — a traveller still stands where they set out from, and
-// pays the night for that place, the same rule auto-labor and the turrets use.
-//
-// Per ALIVE character it sums the turn-end terms — the place they stand in, the
-// overnight drift back toward Fine, hunger, still being bound, an unburied body
-// in the room, a noble who skipped dinner — and applies them in ONE write
-// through db/lib/mood.js, its own transaction per character so a bad row cannot
-// roll back a hundred good ones. The `dined` marker a meal granted is consumed
-// here too, the way hungerPass eats `ate-meal`: the pass that reads it owns it.
-//
-// Returns an object, never null (null means "did not run, retry"). DMs are not
-// sent here — they ride back on `dms` for the thunk. Takes `prisma` as a
-// parameter — see db/lib/dm.js.
+// The mood dial's nightly settle (docs/systemdocs/MOOD.md). Run from db/index.js#resolveNeeds(): after hunger (reads final hungerStreak), after carry, and BEFORE travelArrival — a traveller still stands where they set out from and pays the night for that place.
+// Per ALIVE character it sums the turn-end terms and applies them in ONE write through db/lib/mood.js, its own transaction per character so a bad row cannot roll back a hundred good ones. The `dined` marker is consumed here too, the way hungerPass eats `ate-meal`.
+// Returns an object, never null (null means "did not run, retry"). DMs are not sent here — they ride back on `dms` for the thunk. Takes `prisma` as a parameter — see db/lib/dm.js.
 const {
   MULTIPLIER_SLUGS,
   EVENTS,
@@ -29,10 +16,7 @@ const { DINED_SLUG, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG } = require("./co
 // db/lib/bind.js reads the slug directly too; a hostage's night is not restful.
 const BOUND_SLUG = "bound";
 
-// Every Location with a body lying in it that nobody has buried — stashed in a
-// Room, or carried by somebody standing there. Same two-legged read as
-// bot/src/lib/deathSmell.js, minus its ROTTEN filter: a fresh corpse is the
-// more upsetting one.
+// Every Location with an unburied body — stashed in a Room, or carried. Same two-legged read as bot/src/lib/deathSmell.js, minus its ROTTEN filter.
 async function unburiedCorpseLocationIds(prisma) {
   const unburied = { corpseOfCharacterId: { not: null }, corpseOf: { buriedAt: null } };
   const [stashed, carried] = await Promise.all([
@@ -62,9 +46,7 @@ async function runMoodPass(prisma, turn) {
   }
 
   const corpseLocationIds = await unburiedCorpseLocationIds(prisma);
-  // One read per character, and applyMoodTerms is handed the row rather than
-  // re-reading it: the tag rows here cover everything it needs — the multiplier
-  // slugs and this pass's own gates.
+  // One read per character; applyMoodTerms is handed the row rather than re-reading it.
   const watched = [...MULTIPLIER_SLUGS, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG, DINED_SLUG, BOUND_SLUG];
   const characters = await alivePassCharacters(prisma, {
     select: {
@@ -99,12 +81,7 @@ async function runMoodPass(prisma, turn) {
     const noble = held.has(NOBILITY_SLUG) && !held.has(HUNGERLESS_SLUG) && !held.has(DYING_SLUG);
     if (noble && !held.has(DINED_SLUG)) terms.push({ kind: "NOBLE_MEAL", base: EVENTS.NOBLE_MEAL });
 
-    // Somebody already Fine, in a place that neither lifts nor lowers, has
-    // nothing to settle: no write. A capAtFine term counts for nothing here —
-    // shelter can only fill a deficit, and at 0 there is none — so without this
-    // exemption every character sitting at Fine under a roof would open a
-    // transaction to compute a delta of zero, which on a full roster is most of
-    // them.
+    // Somebody already Fine, in a place that neither lifts nor lowers, has nothing to settle — a capAtFine term counts for nothing here, since shelter can only fill a deficit and at 0 there is none.
     if (character.mood === 0 && !terms.some((t) => t.base && !t.capAtFine)) {
       skipped += 1;
       continue;
@@ -124,11 +101,7 @@ async function runMoodPass(prisma, turn) {
     if (result.dm) dms.push(result.dm);
   }
 
-  // Every `dined` marker is eaten here, once, AFTER the loop — not inside each
-  // character's transaction. A pass that dies half-way is re-run from the top
-  // on the next advance, and a per-character delete would have already taken
-  // the marker off the nobles it had reached, charging them for a dinner they
-  // ate. Done this way a replay is at worst a repeat, never a wrong direction.
+  // Every `dined` marker is eaten here, once, AFTER the loop — not inside each character's transaction, so a replay after a half-way death is at worst a repeat, never a wrong direction.
   if (dinedTag) await prisma.characterTag.deleteMany({ where: { tagId: dinedTag.id } });
 
   return {

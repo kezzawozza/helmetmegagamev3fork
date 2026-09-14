@@ -7,26 +7,15 @@ import { noteDeskVersion } from "@/app/components/useDeskVersion";
 import { useRefresh } from "@/app/components/useRefresh";
 import { noteDeskStreamUp, noteDeskStreamDown, noteDeskStreamFatal } from "./deskStreamStore";
 
-// The other GMs' half of the adjudication desk.
-//
-// A GM's own work has not needed a refresh since the desk grew its own store:
-// every action hands back the rows it changed and they are folded in on the
-// spot (deskStore.js). This is the other direction — the Move somebody else
-// just claimed, the effect somebody else staged, the row somebody else
-// rejected — which until now arrived only when something happened to refetch
-// the whole page. Five GMs share one queue; a desk that cannot see four of
-// them is a spreadsheet with extra steps.
-//
-// The payload is the very same patch shape a mutation returns
-// (web/lib/deskRows.js#deskPatchFor) folded by the very same applyDeskPatch(),
-// so a frame from the stream and a frame from a button are indistinguishable
-// once they land, and the store's newer-wins rule arbitrates between them
-// without either knowing about the other.
-//
-// THE BACKSTOP POLL STAYS, at 120s (Workspace.js). A dead stream that still
-// looks alive is this desk's worst failure mode and the honest answer is not
-// to trust the stream alone — the same argument, and the same answer, as
-// InboxStream.js. There is no chime here: a staged effect is not mail.
+// The other GMs' half of the adjudication desk — the Move somebody else just
+// claimed, the effect somebody staged, the row somebody rejected. The
+// payload is the same patch shape a mutation returns
+// (web/lib/deskRows.js#deskPatchFor), folded by the same applyDeskPatch(), so
+// a stream frame and a button frame are indistinguishable and the store's
+// newer-wins rule arbitrates without either side knowing about the other.
+// THE BACKSTOP POLL STAYS, at 120s (Workspace.js) — same argument as
+// InboxStream.js: a dead stream that still looks alive is the worst failure
+// mode. No chime here: a staged effect is not mail.
 const RECONNECT_MIN_MS = 1_000;
 const RECONNECT_MAX_MS = 30_000;
 // A stream that never once opened is not a blip. After this many failures with
@@ -35,13 +24,9 @@ const FATAL_AFTER = 4;
 
 const DRAFT_KEY = { moves: (row) => `move:${row.id}`, cavingRolls: (row) => `caving:${row.id}` };
 
-// A row whose work is FINISHED is never buffered, for the same reason a
-// removal isn't: there is nothing left for the GM to write, and holding the
-// frame back would leave them narrating into a card that has already been
-// solved somewhere else. MoveDesk drops its draft when the Solved row lands,
-// which is the other half of this. A Caving roll is not in here on purpose —
-// a resolved roll's Result box stays editable (CavingDesk.js), so a resolve is
-// not the end of anybody's sentence.
+// A row whose work is FINISHED is never buffered — nothing left for the GM
+// to write. MoveDesk drops its draft when the Solved row lands. A Caving
+// roll isn't in here on purpose: its Result box stays editable after resolve (CavingDesk.js).
 const TERMINAL = { moves: (row) => row.reviewStatus === "SOLVED", cavingRolls: () => false };
 
 function buffers(field, row) {
@@ -50,18 +35,12 @@ function buffers(field, row) {
 }
 
 // Split a frame into what can land now and what has to wait.
-//
-// THE DIRTY GUARD. A GM typing into a Move's Result box while another GM edits
-// the same Move must not have the row change under them. Their TEXT is already
-// safe — the draft wins over the row wherever one exists (deskDraft.js) — but
-// the rest of the card would still swap, and a Kind switch or a Solved badge
-// flipping mid-sentence is the desk moving while somebody is writing on it.
-// So a frame carrying a row with a held draft is buffered and folded when that
-// draft is cleared, which is exactly what a save, a solve or a reject does.
-//
-// REMOVALS ARE NEVER BUFFERED. If another GM rejected the Move being typed
-// into, the honest thing is to say so at once — holding it back would leave a
-// GM writing a result for a row that no longer exists.
+// THE DIRTY GUARD: a GM typing into a Move's Result box must not have the
+// rest of the card swap under them (their TEXT is already safe — the draft
+// wins over the row, deskDraft.js). A frame carrying a row with a held draft
+// is buffered, folded in when the draft clears (save/solve/reject).
+// REMOVALS ARE NEVER BUFFERED — if another GM rejected the Move, say so at
+// once rather than let a GM write a result for a row that no longer exists.
 function split(patch) {
   let held = null;
   let fold = patch;
@@ -71,8 +50,7 @@ function split(patch) {
     const keep = rows.filter((row) => !buffers(field, row));
     if (keep.length === rows.length) continue;
     if (fold === patch) fold = { ...patch };
-    // The turn stamp rides along, so a buffered frame is still judged against
-    // the turn it was built for when it finally lands (deskStore.js).
+    // Turn stamp rides along so a buffered frame is still judged against its own turn when it lands (deskStore.js).
     held = held ?? { asOfMs: patch.asOfMs, turnId: patch.turnId };
     held[field] = rows.filter((row) => buffers(field, row));
     fold[field] = keep;
@@ -89,9 +67,7 @@ export default function DeskStream({ deployVersion }) {
     let failures = 0;
     let everOpened = false;
     let reconnectTimer = null;
-    // Frames waiting on a dirty row. An array rather than one merged patch:
-    // each carries its own asOfMs, and merging them would have to pick one,
-    // which is the store's job and not this file's.
+    // Array, not one merged patch: each carries its own asOfMs — merging is the store's job, not this file's.
     let buffered = [];
 
     function drain() {
@@ -141,19 +117,14 @@ export default function DeskStream({ deployVersion }) {
           data = null;
         }
         if (data?.version) noteDeskVersion(data.version, deployVersion);
-        // The hub's Postgres connection dropped and came back, so rows written
-        // in the gap reached nobody. Unlike the inbox there is no cursor to
-        // re-ask from — a patch is a list of ids — so the page is fetched
-        // again, once. This component is mounted INSIDE
-        // DeskStaleRefreshGate, so the refresh it holds is already the guarded
-        // one — a resync landing in a deploy window skips rather than turning
-        // into Next's build-mismatch hard navigation.
+        // The hub's Postgres connection dropped and came back; unlike the
+        // inbox there's no cursor to re-ask from, so the page is refetched
+        // once. Mounted inside DeskStaleRefreshGate, so `refresh()` is already guarded against a deploy-window hard navigation.
         refresh();
       });
 
       es.addEventListener("error", () => {
-        // A 204 closes the connection without ever firing `open`, which is
-        // what being signed out or no longer a GM looks like from here.
+        // A 204 closes without firing `open` — signed out or no longer a GM.
         es.close();
         if (source === es) source = null;
         if (stopped) return;
@@ -170,8 +141,7 @@ export default function DeskStream({ deployVersion }) {
     function scheduleReconnect() {
       if (stopped || reconnectTimer) return;
       const base = Math.min(RECONNECT_MIN_MS * 2 ** (failures - 1), RECONNECT_MAX_MS);
-      // Jitter, so five GMs whose streams dropped together don't all come back
-      // in the same millisecond.
+      // Jitter, so GMs whose streams dropped together don't all reconnect at once.
       const wait = base / 2 + Math.random() * (base / 2);
       reconnectTimer = setTimeout(() => {
         reconnectTimer = null;
@@ -181,8 +151,7 @@ export default function DeskStream({ deployVersion }) {
 
     function onWake() {
       if (document.visibilityState !== "visible") return;
-      // Coming back to the tab: if the stream died while we were away, the
-      // error handler's backoff may be minutes out. Retry now.
+      // Coming back to the tab: the error handler's backoff may be minutes out. Retry now.
       if (!source && !stopped) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
@@ -190,9 +159,7 @@ export default function DeskStream({ deployVersion }) {
       }
     }
 
-    // Every draft write and every clear lands here. A clear is what a save, a
-    // solve, a resolve and a reject all do, so this is markClean() by another
-    // name — and one that says WHICH row went clean.
+    // Every draft write/clear lands here — a clear is markClean() by another name, saying WHICH row went clean.
     const unsubscribeDrafts = subscribeToDeskDrafts(drain);
 
     openStream();

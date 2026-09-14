@@ -1,15 +1,9 @@
 "use server";
 
-// The Oracle's settings, and the two buttons beside them.
-// See docs/systemdocs/ORACLE.md.
-//
-// Separate from actions.js, which is already long and is mostly the generic
-// GameConfig form. These need their own file because of the API key: exactly
-// one function in the codebase writes it and none reads it back to a client,
-// and that is far easier to keep true when it lives in a file of its own.
-//
-// Every action re-checks with requireDev("super"). A hidden nav item is a hint,
-// not a lock, and a server action is a public endpoint.
+// The Oracle's settings, and the two buttons beside them. See
+// docs/systemdocs/ORACLE.md. Separate from actions.js so the API key stays
+// written by exactly one function and read back to no client.
+// Every action re-checks with requireDev("super") — a server action is a public endpoint.
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
@@ -23,27 +17,15 @@ const MAX_PROMPT = 8000;
 const MAX_URL = 300;
 const MAX_MODEL = 200;
 
-// A <textarea> submits its value with CRLF line endings — the HTML spec says so
-// — and every default in oraclePrompts.js is written with LF. So the "store NULL
-// if it matches the default" comparison below could never match, and pressing
-// Save on a form nobody had edited pinned a CRLF copy of the default into
-// GameConfig forever.
-//
-// That is exactly the failure the comment on that comparison says it exists to
-// prevent: production stopped reading the shipped prompts, and editing them in a
-// later deploy silently did nothing. Both columns were sitting in that state
-// when this was found. Normalising here fixes it for every field at once.
+// Normalises CRLF <textarea> submissions to LF, matching oraclePrompts.js defaults for the NULL-default comparison below.
 function clean(raw, max) {
   const text = raw == null ? "" : String(raw).replace(/\r\n/g, "\n").trim();
   return text.slice(0, max);
 }
 
-// What the panel is allowed to know about the key: that there is one, when it
-// was set and by whom. Never the key.
-//
-// This is the whole reason a masked field is safe — a "write-only" input that
-// still ships its value to the browser in the server-rendered HTML would be
-// masked to the eye and readable in View Source.
+// What the panel may know about the key: that there is one, when, and by
+// whom. Never the key — a "write-only" input that still ships its value in
+// server-rendered HTML would be readable in View Source.
 export async function loadOracleSettings() {
   await requireDev("super");
   const config = await prisma.gameConfig.findFirst({
@@ -59,8 +41,7 @@ export async function loadOracleSettings() {
       oracleIncludeChat: true,
       oracleCorrespondentPrompt: true,
       oracleEditorPrompt: true,
-      // Selected only to derive the boolean below. It never leaves this
-      // function.
+      // Selected only to derive the boolean below; never leaves this function.
       oracleApiKey: true,
     },
   });
@@ -70,8 +51,7 @@ export async function loadOracleSettings() {
   return {
     ...rest,
     hasApiKey: Boolean(oracleApiKey),
-    // The effective prompts, so the textareas show what is actually running
-    // rather than an empty box that means "the default, which is elsewhere".
+    // Effective prompts, so the textareas show what is actually running.
     correspondentPrompt: correspondentPrompt(config),
     editorPrompt: editorPrompt(config),
   };
@@ -84,8 +64,7 @@ export async function saveOracleSettings(formData) {
 
   const data = {
     oracleEnabled: formData.get("oracleEnabled") === "on",
-    // Whether a chronicle is WRITTEN and who may READ one are different
-    // questions, so they are different columns. See ORACLE.md §12.
+    // WRITTEN vs. who may READ are different columns. See ORACLE.md §12.
     oraclePlaytest: formData.get("oraclePlaytest") === "on",
     oracleIncludeChat: formData.get("oracleIncludeChat") === "on",
     oracleProvider: clean(formData.get("oracleProvider"), 60) || "openrouter",
@@ -94,17 +73,15 @@ export async function saveOracleSettings(formData) {
     oracleMemoryTurns: Math.min(10, Math.max(0, Number.parseInt(formData.get("oracleMemoryTurns"), 10) || 0)),
   };
 
-  // A prompt matching the shipped default is stored as NULL, not as a copy.
-  // Otherwise editing the default in a later deploy would silently do nothing
-  // for anyone who had ever opened this form and pressed Save.
+  // Stored as NULL when it matches the shipped default, so a later deploy's
+  // default edit isn't silently overridden by a saved copy.
   const correspondent = clean(formData.get("correspondentPrompt"), MAX_PROMPT);
   const editor = clean(formData.get("editorPrompt"), MAX_PROMPT);
   data.oracleCorrespondentPrompt = !correspondent || correspondent === correspondentPrompt({}) ? null : correspondent;
   data.oracleEditorPrompt = !editor || editor === editorPrompt({}) ? null : editor;
 
-  // The key is REPLACED, never edited. An empty box means "leave it alone", so
-  // saving the form after a normal edit cannot wipe the credential — which is
-  // the failure a masked field invites if the blank submits as a blank.
+  // The key is REPLACED, never edited: an empty box means "leave it alone",
+  // so a normal save never wipes the credential.
   const key = clean(formData.get("oracleApiKey"), 400);
   if (key) {
     data.oracleApiKey = key;
@@ -129,8 +106,7 @@ export async function clearOracleApiKey() {
   return { ok: true };
 }
 
-// A handful of tokens, to prove the key, the base URL and the model name all at
-// once. This is the one place the key is read outside a run.
+// A handful of tokens, to prove key/URL/model together. Only place the key is read outside a run.
 export async function testOracleConnection() {
   await requireDev("super");
   const config = await prisma.gameConfig.findFirst();
@@ -138,18 +114,10 @@ export async function testOracleConnection() {
   return testConnection(config);
 }
 
-// Draft the chronicle for a turn on demand.
-//
-// Defaults to the OPEN turn. It used to default to the turn before it, because
-// the open turn's moves were still being filed and a synopsis of it would have
-// been a synopsis of a half-written turn — which was right while the Oracle ran
-// at turn close, and is wrong now that it runs at the Move cutoff. The open
-// turn is the one a GM is adjudicating, so it is the one this button is for.
-// Any turn can still be asked for by number.
-//
-// This is also the recovery path when the automatic run never happened: a bot
-// down across the whole three-hour window, or a provider outage that ate its
-// attempts. Nothing revisits a turn once it has closed.
+// Draft the chronicle for a turn on demand. Defaults to the OPEN turn — the
+// one a GM is adjudicating — but any turn can be asked for by number. Also
+// the recovery path when the automatic run never happened (bot down, provider
+// outage): nothing revisits a turn once it has closed.
 export async function runOracleNow(turnNumber = null) {
   await requireDev("super");
 
@@ -163,12 +131,8 @@ export async function runOracleNow(turnNumber = null) {
   }
   if (!turn) return { ok: false, error: "No turn to write about yet." };
 
-  // No ledger here — Run now is a person waiting on a button, so a failure is
-  // TOLD to them rather than swallowed and left for a resume. That is the whole
-  // difference from the turn path: the pass-through step below deliberately
-  // does not catch, so a provider error surfaces instead of leaving five good
-  // pages and one silent hole. It no longer STOPS anything — the six zones run
-  // at once, so the others are already written by the time one of them fails.
+  // No ledger here — a failure is TOLD to the waiting GM, not swallowed. The
+  // step below deliberately does not catch, so a provider error surfaces.
   let result;
   try {
     result = await runOracle(prisma, { turnId: turn.id, step: (_key, fn) => fn() });

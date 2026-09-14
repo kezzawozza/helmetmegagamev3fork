@@ -25,16 +25,13 @@ import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { selectConversation } from "../selection";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 
-// The centre column: a real chat pane rather than a thread block sitting in
-// document flow. The transcript takes the height that's left and scrolls
-// inside itself; the composer is pinned to the bottom where a composer
-// belongs.
+// The centre column: a real chat pane, not a thread block in document flow.
+// The transcript scrolls inside itself; the composer pins to the bottom.
 let optimisticSeq = 0;
 
-// One id per send, minted before the send and kept across a Retry. It is what
-// pairs the optimistic line with the row that comes back, and it is what makes
-// Retry safe: the server finds the nonce already on the table and returns that
-// row instead of delivering a second copy.
+// One id per send, minted before the send and kept across a Retry — pairs
+// the optimistic line with the row that comes back, and makes Retry safe:
+// the server finds the nonce already on the table and returns that row instead of a second copy.
 function mintNonce() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
   return `n-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
@@ -55,53 +52,41 @@ export default function ConversationPane({
   claimedByDiscordUserId,
   lastReadAtMs = 0,
 }) {
-  // The parent page keys this component on `discordUserId`, so a conversation
-  // switch remounts it — that's what resets this state, rather than an effect
-  // syncing it to a prop.
+  // The parent page keys this component on `discordUserId`, so a
+  // conversation switch remounts it and resets this state.
   const [pages, setPages] = useState({ messages: initialMessages, hasMore: initialHasMore });
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
   const [claimedBy, setClaimedBy] = useState(claimedByDiscordUserId);
   const lastMarkedIdRef = useRef(null);
-  // The Dev Panel open as a modal over this conversation, or null. Mirrors
-  // RosterTable.js and the adjudication desk's Workspace.js — opening it
-  // never navigates away from the conversation.
+  // The Dev Panel open as a modal, or null — mirrors RosterTable.js and
+  // Workspace.js: opening it never navigates away.
   const [devPanelOpen, setDevPanelOpen] = useState(false);
 
-  // Held in memory, mirrored to localStorage where there is room (../dmDraft).
-  // Typing never depends on the mirror succeeding.
+  // Held in memory, mirrored to localStorage where there's room (../dmDraft). Typing never depends on the mirror succeeding.
   const content = useDmDraft(discordUserId);
   // An unsent reply counts as unsaved work, so the desk's gated poll stands
-  // down while there is one (isAnyDirty) rather than refetching the page
-  // under a half-written sentence. `enabled: false` deliberately leaves the
-  // beforeunload prompt off: the reply is mirrored to storage (dmDraft.js)
-  // and comes back after a reload, so asking "are you sure" — on every ⌘R,
-  // and on the stale chip's own reload — would warn about nothing.
-  //
-  // It only holds the poll down while somebody is ACTUALLY WRITING, the same
-  // 10-minute rule the adjudication desk's Result box follows
-  // (useDirtyGuard.js#alsoDirtyHoldsPoll, deskDraft.js). A half-typed reply
-  // left in a conversation last week is still shown and still restored — it
-  // just stops freezing the whole desk's backstop poll for ever.
+  // down (isAnyDirty). `enabled: false` leaves the beforeunload prompt off —
+  // the draft is mirrored to storage and comes back after a reload, so "are
+  // you sure" would warn about nothing. Only holds the poll down while
+  // somebody is ACTUALLY WRITING, same 10-minute rule as the adjudication
+  // desk's Result box (useDirtyGuard.js#alsoDirtyHoldsPoll, deskDraft.js).
   useDirtyGuard({
     enabled: false,
     alsoDirty: content.trim().length > 0,
     alsoDirtyHoldsPoll: dmDraftFresh(discordUserId),
   });
 
-  // What the live poll has brought in for this conversation since the page
-  // was seeded (liveInbox.js), unioned with the server page during render —
-  // never copied into state. A pending optimistic row retires the moment the
-  // real row with the same content shows up, whichever path delivers it
-  // first: the poll can beat the send action's own answer.
+  // What the live poll has brought in since the page was seeded
+  // (liveInbox.js), unioned with the server page during render, never
+  // copied into state. A pending optimistic row retires the moment the real
+  // row shows up, whichever path delivers it first.
   const feed = useThreadFeed(discordUserId);
   const displayed = useMemo(() => {
     const byId = new Map();
     for (const m of pages.messages) byId.set(m.id, m);
     for (const m of feed) if (!byId.has(m.id)) byId.set(m.id, m);
-    // Retired by NONCE, not by text. Matching on content meant sending "ok"
-    // twice retired both placeholders against the first row that landed, and
-    // left the second send looking like it had never happened.
+    // Retired by NONCE, not text — matching on content retired both placeholders on a double "ok" send.
     const settled = new Set(
       [...byId.values()].filter((m) => !m.pending && m.clientNonce).map((m) => m.clientNonce),
     );
@@ -115,9 +100,7 @@ export default function ConversationPane({
 
   const writeDraft = useCallback((value) => writeDmDraft(discordUserId, value), [discordUserId]);
 
-  // The composer grows with what's in it, one line to ten, then scrolls —
-  // measured in the change handler (and once on mount for a restored draft),
-  // not in an effect.
+  // The composer grows one line to ten, then scrolls — measured in the change handler, not an effect.
   const composerRef = useRef(null);
   const fitComposer = useCallback((el) => {
     if (!el) return;
@@ -127,41 +110,29 @@ export default function ConversationPane({
     el.style.height = `${Math.min(el.scrollHeight, max)}px`;
   }, []);
 
-  // Mark-read: fires from a client effect after mount, and again whenever a
-  // new INBOUND message id appears — NEVER during RSC render, which would
-  // mark-on-hover under Next's link prefetch. Only while the tab is actually
-  // visible, and de-duplicated per newest-message id via the ref.
+  // Mark-read: fires from a client effect after mount and on a new INBOUND
+  // id — NEVER during RSC render, which would mark-on-hover under Next's
+  // link prefetch. Only while visible, de-duplicated via the ref.
   useEffect(() => {
     const newest = displayed[displayed.length - 1];
     if (!newest) return;
-    // Neither an optimistic row nor a failed one is a real message yet —
-    // marking read against a temp id would burn the de-dupe slot the real one
-    // needs, and a failed row never gets a real id at all.
+    // Neither an optimistic nor a failed row is a real message yet.
     if (newest.pending || newest.failed) return;
     if (lastMarkedIdRef.current === newest.id) return;
     if (document.visibilityState !== "visible") return;
     lastMarkedIdRef.current = newest.id;
-    // Said locally FIRST, so the rail badge and the nav badge clear on the
-    // open rather than on whichever frame the server's cursor reaches next
-    // (liveInbox.js#noteConversationRead). Then said again with the cursor
-    // the server actually wrote, which is what the override is reconciled
-    // against.
+    // Said locally FIRST, so badges clear on open (liveInbox.js#noteConversationRead), then again with the server's real cursor.
     noteConversationRead(discordUserId, Date.now());
     markConversationRead({ playerDiscordUserId: discordUserId }).then((result) => {
       if (result?.ok && Number.isFinite(result.lastReadAtMs)) {
-        // `fromServer` — this REPLACES the Date.now() guess above rather than
-        // having to be newer than it. A browser clock running fast would
-        // otherwise leave its own over-claim standing and hide the badge for
-        // every message that arrives before the real clock catches up.
+        // `fromServer` REPLACES the Date.now() guess — a fast browser clock would otherwise strand its own over-claim.
         noteConversationRead(discordUserId, result.lastReadAtMs, { fromServer: true });
       }
     });
   }, [displayed, discordUserId]);
 
-  // The GET route, not the server action it used to call. Paging back through
-  // a long conversation is the other thing a GM does while meaning to click
-  // somewhere else, and an action would put the click behind it — the same
-  // reason the rail's search moved (api/gm/conversation-search).
+  // The GET route, not a server action — a click shouldn't queue behind
+  // paging, same reason the rail's search moved (api/gm/conversation-search).
   async function loadOlder() {
     const oldest = pages.messages[0];
     if (!oldest) return;
@@ -172,51 +143,34 @@ export default function ConversationPane({
     });
     try {
       const res = await fetch(`/api/gm/thread?${params}`, { cache: "no-store" });
-      // res.ok is true for a 204 ("not a GM any more"), so test it by hand or
-      // the next line parses an empty body.
-      if (res.status === 204 || !res.ok) return;
+      if (res.status === 204 || !res.ok) return; // res.ok is true for a 204, so test it by hand
       const result = await res.json();
       setPages((prev) => ({
         messages: [...result.messages, ...prev.messages],
         hasMore: result.hasMore,
       }));
     } catch {
-      // Offline or a switchover. The sentinel stays, so scrolling up again
-      // retries; nothing already on screen is lost.
+      // Offline or a switchover — the sentinel stays, so scrolling up again retries.
     }
   }
 
-  // Send is optimistic: the row appears and the draft clears the instant you
-  // hit Enter, because waiting on a Discord round trip for the text you just
-  // typed to appear is what made the composer feel slow. The temp row is
-  // styled pending until the server answers.
+  // Send is optimistic: the row appears and the draft clears instantly.
+  // A failure no longer takes the row away and refills the box — the draft
+  // is shared with whatever's typed next, so that overwrote a sentence in
+  // progress. The failed line stays with Retry and Discard; Retry reuses
+  // the nonce, so a send whose ANSWER got lost cannot land twice — the row
+  // is already on the table and sendGmDm hands it back instead of posting again.
   //
-  // A failure no longer takes the row away and puts the words back in the
-  // box. That was safe when a GM sat still waiting for the answer, and wrong
-  // the rest of the time: the draft is per conversation and shared with
-  // whatever they started typing next, so a slow failure overwrote a sentence
-  // in progress. The failed line stays where it is instead, with Retry and
-  // Discard on it — and Retry reuses the nonce, so a send whose ANSWER got
-  // lost cannot land twice: the row is already on the table under that nonce
-  // and sendGmDm hands it back instead of posting again.
-  //
-  // One window that does not cover, honestly: the nonce is written when the DM
-  // is LOGGED, which is after the Discord POST (web/lib/discordGuild.js#sendDm).
-  // A send that reached Discord and then lost its log write — the container
-  // swapped between the two, or the log insert itself failed for something
-  // other than the nonce already being there — leaves no row for Retry to find,
-  // and Retry posts a second copy. Closing it means reserving the nonce before
-  // the POST and filling the row in afterwards, which is a change to all three
-  // sendDm transports and is not made here.
+  // One window this doesn't cover: the nonce is written when the DM is
+  // LOGGED, after the Discord POST (web/lib/discordGuild.js#sendDm). A send
+  // that reached Discord and then lost its log write leaves no row for
+  // Retry to find, so Retry posts a second copy. Closing it means reserving
+  // the nonce before the POST, a change to all three sendDm transports, not made here.
   const deliver = useCallback(
     (message, tempId, nonce) => {
       startTransition(async () => {
-        // try/catch, not just the `ok` flag: an action REJECTS when the
-        // request never completes at all (the tab offline, a container
-        // swapped mid-deploy), and that is the commonest way a send fails.
-        // Left unhandled it surfaced as an uncaught "Failed to fetch" and the
-        // row sat pending for ever, which is the exact state this is here to
-        // stop.
+        // try/catch, not just `ok`: an action REJECTS when the request never
+        // completes at all — left unhandled the row sat pending forever.
         let result;
         try {
           result = await sendGmDm({ discordUserId, content: message, clientNonce: nonce });
@@ -234,12 +188,9 @@ export default function ConversationPane({
           return;
         }
         // The action returns the fresh tail page too — the only path that
-        // brings in what the PLAYER said since this pane mounted (state is
-        // seeded once; a poll's router.refresh can't reseed it). MERGE it: the
-        // GM may have paged back hundreds of messages with loadOlder, and
-        // replacing the array would snap them to the last 100. Rows already
-        // held keep their place; new ids are appended in server order; the
-        // optimistic row goes.
+        // brings in what the PLAYER said since this pane mounted. MERGE it:
+        // the GM may have paged back hundreds of messages with loadOlder,
+        // and replacing the array would snap them to the last 100.
         setPages((prev) => {
           const kept = prev.messages.filter((m) => m.id !== tempId);
           if (!Array.isArray(result.messages)) {
@@ -270,11 +221,9 @@ export default function ConversationPane({
       clientNonce: nonce,
       discordUserId,
       direction: "OUTBOUND",
-      // Matches what sendDm actually writes, so the row does not visibly
-      // reflow when the real one replaces it. `sentText` is the bare thing
-      // that was handed to the server, kept so Retry can resend exactly it —
-      // deriving it back out of `content` meant stripping a leading "» ", and
-      // a GM who deliberately opened their message with one lost it.
+      // Matches what sendDm writes, so the row doesn't reflow when replaced.
+      // `sentText` is kept so Retry resends exactly it — deriving it back
+      // from `content` meant stripping a leading "» ", losing a deliberate one.
       sentText: message,
       content: `» ${message}`,
       authorDiscordUserId: myDiscordUserId,
@@ -292,9 +241,7 @@ export default function ConversationPane({
     deliver(message, tempId, nonce);
   }
 
-  // Retry sends the same words under the same nonce, taken from `sentText` —
-  // the bare text this row was sent with — rather than unpicked from the `»`
-  // the row wears. The fallback is for a row from before that field existed.
+  // Retry sends the same words under the same nonce, from `sentText`. Fallback is for a row from before that field existed.
   const retrySend = useCallback(
     (row) => {
       setError(null);
@@ -325,26 +272,18 @@ export default function ConversationPane({
     });
   }
 
-  // Escape leaves the conversation for the roster, layered topmost-first the
-  // same way the adjudication desk does it (Workspace.js):
-  //   1. An open Modal (Dev Panel, confirm) owns Escape — Modal.js handles its
-  //      own, so yield while one is on screen.
-  //   2. A focused input/textarea/select — blur it. The reply composer is a
-  //      textarea, and Escape mid-sentence must not throw the GM out of the
-  //      conversation; a second Escape then leaves.
-  //   3. Otherwise, close the conversation — a state change now (selection.js),
-  //      not a navigation, so the roster comes back without a server round
-  //      trip. DeskMiddle swaps the two, so the roster does re-mount and its
-  //      own search box starts empty; what it no longer does is re-fetch.
-  // Unlike /gm/turns, leaving here is a step back to the list rather than off
-  // the whole desk — the rail never leaves the screen — which is why this one
-  // navigates where that one deliberately doesn't. Non-destructive either way:
-  // the composer draft is held per conversation in memory, and mirrored to
-  // storage where there is room (dmDraft.js).
+  // Escape leaves the conversation for the roster, layered topmost-first
+  // (Workspace.js): 1) an open Modal owns Escape — yield. 2) a focused
+  // input/textarea/select — blur it, so mid-sentence Escape doesn't throw
+  // the GM out; a second Escape then leaves. 3) otherwise close the
+  // conversation, a state change (selection.js), not a navigation. Unlike
+  // /gm/turns, leaving here is a step back to the list, not off the whole
+  // desk — the rail never leaves the screen. Non-destructive either way:
+  // the draft is mirrored to storage (dmDraft.js).
   const coarse = useIsCoarsePointer();
   useEffect(() => {
-    // No Escape key on a touch-primary device, and no stray navigation there.
-    if (coarse) return undefined;
+    if (coarse) return undefined; // no Escape key on a touch-primary device
+
     function onKey(e) {
       if (e.key !== "Escape") return;
       if (dialogHoldsKeyboard()) return;
@@ -361,19 +300,16 @@ export default function ConversationPane({
 
   const onKeyDown = useSubmitOnEnter();
 
-  // Focus the composer the moment a conversation opens, so clicking a rail
-  // row means you can just type. Mount-only is right: the parent keys this
-  // component on discordUserId, and the InboxPoller's refresh doesn't
-  // remount it, so a poll tick can't steal focus mid-sentence. Skipped on
-  // touch — popping the keyboard over the thread would be worse than a tap.
+  // Focus the composer the moment a conversation opens. Mount-only is
+  // right: a poll tick can't steal focus mid-sentence since it doesn't
+  // remount. Skipped on touch — popping the keyboard would be worse than a tap.
   useEffect(() => {
     const el = composerRef.current;
     if (!el) return;
     fitComposer(el);
     if (coarse) return;
     el.focus({ preventScroll: true });
-    // After a restored draft, the caret belongs at the end, not position 0.
-    el.setSelectionRange(el.value.length, el.value.length);
+    el.setSelectionRange(el.value.length, el.value.length); // caret at end after a restored draft
   }, [coarse, fitComposer]);
 
   const over = content.length > GM_MESSAGE_MAX_LENGTH;
@@ -385,9 +321,7 @@ export default function ConversationPane({
     <div className="desk-convo">
       <div className="desk-convo-head">
         <div className="flex items-center gap-2 min-w-0">
-          {/* Narrow tiers only (globals.css): down there the roster and the
-              rail are not on screen beside this, so the way back has to be
-              in the conversation itself. Same destination as Esc. */}
+          {/* Narrow tiers only: the roster isn't on screen beside this. Same destination as Esc. */}
           <button
             type="button"
             className="btn-quiet desk-back"
@@ -412,9 +346,7 @@ export default function ConversationPane({
             name={label}
             onOpen={() => setDevPanelOpen(true)}
           />
-          {/* A fixed width, because the three labels this button wears are
-              very different lengths and everything to its left jumped sideways
-              every time a claim changed hands. */}
+          {/* Fixed width: the three labels differ in length, jumping everything left of it on each claim change. */}
           <button
             type="button"
             className="btn-quiet text-center"
@@ -428,11 +360,7 @@ export default function ConversationPane({
                 : "Release claim"
               : "Claim conversation"}
           </button>
-          {/* Twin of the Escape key handler above. It used to be LABELLED
-              "Esc", which reads as a keycap sitting in a row of verbs rather
-              than as a thing to press; a close mark is what a pane's own
-              corner control looks like everywhere else, and the key still
-              gets said, in the tooltip. */}
+          {/* Twin of the Escape key handler above — a close mark, not a keycap label; the key is still said in the tooltip. */}
           <button
             type="button"
             className="btn-quiet"

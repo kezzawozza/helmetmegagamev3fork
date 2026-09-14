@@ -1,29 +1,18 @@
-// docs/documents.yaml -> DB. Called by `npm run db:sync-documents` and the
-// "Restart Game" wipe, alongside the location/tag/role syncs.
-//
-// `key` is the stable match key (docs/roles.yaml's `doc_elements` points at
-// it). This sync is DESTRUCTIVE: a document whose key is no longer in the
-// YAML is deleted, since a Document carries no player state to preserve.
-//
-// Assignment fields are validated against the DB, not the YAML — an unknown
-// reference throws rather than half-applying.
+// docs/documents.yaml -> DB. Called by `npm run db:sync-documents` and the "Restart Game" wipe. `key` is the stable match key (docs/roles.yaml's `doc_elements` points at it). This sync is DESTRUCTIVE: a document whose key is no longer in the YAML is deleted, since a Document carries no player state to preserve.
+// Assignment fields are validated against the DB, not the YAML — an unknown reference throws rather than half-applying.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 const { entriesOf } = require("./yamlEntries");
 
-// /documents synthesizes two cards that aren't real rows — the role charter
-// ("role") and the pinned Player Handbook ("handbook") — so the sync refuses
-// both keys rather than let a real document collide with them.
+// /documents synthesizes two cards that aren't real rows — "role" and "handbook" — so the sync refuses both keys.
 const RESERVED_KEYS = new Set(["role", "handbook"]);
 
 // "gamemaster" has no Character property; it resolves against the Discord GM
 // role at request time instead (web/lib/discordGuild.js#isGm).
 const FLAGS = ["leader", "treasurer", "gamemaster"];
 
-// docsPath() is null only when docs/ cannot be found at all, which for a YAML
-// master is fatal — a sync with no master would read as "everything was
-// deleted from the file" and prune the lot. See db/lib/repoPaths.js.
+// docsPath() is null only when docs/ cannot be found at all — fatal, or a sync with no master would prune everything. See db/lib/repoPaths.js.
 function requireDocsPath(...segments) {
   const p = docsPath(...segments);
   if (!p) throw new Error(`Cannot find docs/${segments.join("/")} — see db/lib/repoPaths.js`);
@@ -35,10 +24,7 @@ function loadDoc() {
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
 }
 
-// documents.yaml's `tags:` list conflates real Tag names, the Leader/
-// Treasurer booleans (not tags — TAGS.md §6), and free-text placeholder
-// notes. Each entry routes to whichever bucket it belongs in; anything
-// unmatched is reported to the caller instead of thrown.
+// documents.yaml's `tags:` list conflates real Tag names, the Leader/Treasurer booleans (not tags — TAGS.md §6), and free-text placeholder notes; anything unmatched is reported to the caller instead of thrown.
 function resolveAssignment(entry, catalogs) {
   const { tagNames, tagSlugByName, roleSlugs, factionSlugs } = catalogs;
   const out = { tagSlugs: [], roleSlugs: [], factionSlugs: [], flags: [] };
@@ -52,8 +38,7 @@ function resolveAssignment(entry, catalogs) {
     else if (tagNames.has(name)) out.tagSlugs.push(tagSlugByName.get(name));
     else unresolved.push(name);
   }
-  // Explicit keys, added so assignment doesn't have to be smuggled through
-  // `tags:`. These are strict: a typo'd slug here is a mistake, not a note.
+  // Explicit keys, so assignment doesn't have to be smuggled through `tags:`. Strict: a typo'd slug here is a mistake, not a note.
   for (const slug of entry.roles ?? []) {
     if (!roleSlugs.has(slug)) throw new Error(`documents.yaml: "${entry.key}" references unknown role "${slug}"`);
     out.roleSlugs.push(slug);

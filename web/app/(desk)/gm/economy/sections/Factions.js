@@ -5,21 +5,12 @@ import EmptyState from "@/app/components/EmptyState";
 import { SectionHead } from "./shared";
 
 // --- Factions ------------------------------------------------------------
-//
-// Treasuries, from factionTreasuries() (FACTIONS.md/CARRY.md: there is no
+// Treasuries, from factionTreasuries() (FACTIONS.md/CARRY.md: no
 // faction-level balance, only the Room a faction banks in). A faction with
 // NO silo gets `siloRoomId: null` / `balance: null` and says so in words —
-// that is not the same thing as a silo holding 0 ⬢, and must not render as
-// one.
-//
-// turnIn/turnOut are amounts only, never a counterparty name — there is
-// nothing here for redactEntry to withhold from a plain GM, since a cult
-// silo's this-turn totals don't name who moved the ⬢.
-//
-// A per-faction Sparkline of the silo balance over turns would need one
-// query per faction (there is no per-turn balance snapshot to group off of
-// the way the Ledger's flowsByTurn does) — skipped rather than paying that
-// cost per page load.
+// must not render as a silo holding 0 ⬢. turnIn/turnOut are amounts only,
+// never a counterparty name. A per-faction Sparkline is skipped — it would
+// need one query per faction with no per-turn snapshot to group off of.
 export function Factions({ factions, openTurnNumber }) {
   return (
     <section className="ops-section ops-section--wide">

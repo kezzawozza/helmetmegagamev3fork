@@ -4,38 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { setVisibleZonesAction } from "@/app/(desk)/gm/zoneViewActions";
 import { useSetVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 
-// How long a burst of clicks is allowed to settle before one write goes out.
-// Picking four zones is four clicks and should be one action, not four.
+// Burst of clicks settles into one write, not four.
 const SETTLE_MS = 350;
 
-// The zone multiselect that sits at the bottom of the inspector on both GM
-// desks. What it sets is not a filter default: it decides which rows the desk
-// shows AND which "GM: <Zone>" Discord roles the GM holds, so unticking a zone
-// takes its Location channels out of their sidebar too.
-//
-// Nothing selected means every zone — see web/lib/gmZoneView.js. So "All" is
-// not a separate mode to store, it is the empty set, which is why the All
-// button simply clears the selection.
-//
-// Nothing here ever waits on the server. Local state paints on the click, the
-// desk re-filters through GmZoneViewProvider, and the Discord role grants land
-// a moment later in the action's after() — they used to be awaited inside the
-// click, which is what made it take twenty seconds.
-// RE-SEEDING, AND WHY IT IS A KEY. Everything below reads the server's answer
-// once, into useState and a ref — which is right for a control that paints on
-// the click and lets the write catch up, and wrong the moment the server hands
-// down a different answer without remounting. Three of the pages carrying this
-// rail are snapshotted (/chat, /gm/audit, /gm/turns): they paint a stored copy
-// first and swap the fresh payload in underneath (web/lib/snapshot). So the
-// chips froze at whatever the snapshot was saved with — tick a zone, reload,
-// and the places list beside the rail showed the new zones while the chip for
-// one of them sat unticked.
-//
-// Keying on the selection remounts the inner rail when, and only when, the
-// server's answer actually changes. Same move as HereList's key in
-// ./ChatAside.js, and made here rather than at five call sites so no future
-// one can forget it. It cannot be done from inside — a component cannot key
-// itself — which is the whole reason for the split.
+// The zone multiselect at the bottom of the inspector on both GM desks. Sets
+// which rows the desk shows AND which "GM: <Zone>" Discord roles the GM
+// holds. Nothing selected means every zone (web/lib/gmZoneView.js) — "All" is
+// the empty set. Nothing here waits on the server: local state paints on the
+// click, Discord role grants land later in the action's after().
+// Keyed on the selection so the inner rail remounts only when the server's
+// answer actually changes — needed because three pages carrying this rail
+// are snapshotted (web/lib/snapshot) and would otherwise show a stale chip.
+// Can't be done from inside — a component can't key itself.
 export default function GmZoneRail({ zones, selectedIds }) {
   return <ZoneChips key={(selectedIds ?? []).join(",")} zones={zones} selectedIds={selectedIds} />;
 }
@@ -45,9 +25,7 @@ function ZoneChips({ zones, selectedIds }) {
   const [error, setError] = useState(null);
   const publish = useSetVisibleZoneNames();
 
-  // The last selection the server confirmed. A failed write rolls back to
-  // THIS, not to whatever was on screen an instant ago: mid-burst those are
-  // different, and only one of them is known to be real.
+  // Last selection the server confirmed; a failed write rolls back to THIS, not whatever's on screen.
   const confirmed = useRef(new Set(selectedIds ?? []));
   const latest = useRef(selected);
   const timer = useRef(null);
@@ -57,8 +35,7 @@ function ZoneChips({ zones, selectedIds }) {
     const result = await setVisibleZonesAction([...next]);
     if (result?.ok) {
       confirmed.current = next;
-      // Only publish if nothing newer has been clicked since — otherwise this
-      // stale answer would fight the click the GM just made.
+      // Only publish if nothing newer was clicked since, or this stale answer fights the latest click.
       if (latest.current === next) publish?.(result.zoneNames ?? null);
       setError(null);
       return;
@@ -72,8 +49,7 @@ function ZoneChips({ zones, selectedIds }) {
     setSelected(next);
     setError(null);
     latest.current = next;
-    // Paint the desk immediately off the names we already hold; the server
-    // only confirms.
+    // Paint immediately off the names we already hold; the server only confirms.
     publish?.(
       next.size > 0 ? zones.filter((z) => next.has(z.id)).map((z) => z.name) : null,
     );

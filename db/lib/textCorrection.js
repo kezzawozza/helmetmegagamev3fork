@@ -1,13 +1,7 @@
-// Sentence-start capitalization and closed-list contraction apostrophes,
-// applied to Tupper-proxied messages when GameConfig.tupperAutocorrectEnabled
-// is on (db/lib/say.js, the one write path). Skips code blocks/inline code
-// and URLs so it
-// never mangles either.
+// Sentence-start capitalization and closed-list contraction apostrophes, applied to Tupper-proxied messages when GameConfig.tupperAutocorrectEnabled is on (db/lib/say.js, the one write path). Skips code blocks/inline code and URLs so it never mangles either.
 
 const SKIP_SEGMENT = /```[\s\S]*?```|`[^`]*`|https?:\/\/\S+/g;
 
-// Runs `fn` over every part of `content` that falls outside a skipped
-// segment (code fences, inline code, URLs), leaving skipped segments as-is.
 function applyOutsideSkipped(content, fn) {
   if (!content) return content;
 
@@ -24,15 +18,7 @@ function applyOutsideSkipped(content, fn) {
 }
 
 function capitalizeSegment(segment) {
-  // Capitalize the first letter, and the first letter after ./!/? followed
-  // by whitespace — deliberately conservative: no attempt at abbreviations
-  // like "e.g." or decimal numbers, since a false positive there is worse
-  // than leaving a lowercase letter alone.
-  //
-  // An ellipsis is left alone for the same reason: "That's... odd." trails on
-  // rather than starting a new sentence, so capitalizing there changes what
-  // the player wrote. The lookbehind skips any terminator preceded by a dot,
-  // which puts "..." where the unicode "…" already was.
+  // Capitalizes the first letter, and after ./!/? plus whitespace — deliberately conservative, no attempt at "e.g." or decimals. An ellipsis is left alone too: "That's... odd." trails on rather than starting a new sentence, so the lookbehind skips a terminator preceded by a dot.
   return segment.replace(/(^\s*|(?<!\.)[.!?]\s+)([a-z])/g, (match, lead, letter) => lead + letter.toUpperCase());
 }
 
@@ -40,13 +26,7 @@ function capitalizeSentences(content) {
   return applyOutsideSkipped(content, capitalizeSegment);
 }
 
-// Closed list of missing-apostrophe contractions. Deliberately excludes any
-// form that is itself a real English word — "were", "well", "ill", "hell",
-// "shell", "wed", "id", "im", "hes", "shes", "its", "lets", "wont" — since a
-// false positive there would silently change what a player wrote. "cant" is
-// included (a real word, but vanishingly unlikely in this game's prose next
-// to its typo reading); "wont" is excluded ("as is his wont" fits Bascinet's
-// register).
+// Closed list of missing-apostrophe contractions. Deliberately excludes any form that is itself a real English word (e.g. "were", "well", "its", "wont") since a false positive would silently change what a player wrote.
 const CONTRACTIONS = [
   "dont", "doesnt", "didnt", "isnt", "arent", "wasnt", "werent", "hasnt", "havent", "hadnt",
   "wouldnt", "couldnt", "shouldnt", "mustnt", "aint", "cant",
@@ -60,15 +40,10 @@ const CONTRACTIONS = [
 
 const CONTRACTION_RE = new RegExp(`\\b(${CONTRACTIONS.join("|")})\\b`, "gi");
 
-// Re-inserts the apostrophe at the position it belongs (the word list above
-// is only ever missing one apostrophe each: n't, 're, 've, 's, 'll, 'd), and
-// preserves the writer's casing style — all-lowercase, leading-capital, or
-// ALL-CAPS. Anything mixed beyond that is left as typed.
+// Re-inserts the apostrophe (n't, 're, 've, 's, 'll, 'd), and preserves the writer's casing — all-lowercase, leading-capital, or ALL-CAPS. Anything mixed beyond that is left as typed.
 function restoreApostrophe(word) {
   const lower = word.toLowerCase();
   let splitAt;
-  // "n't" only ever loses the apostrophe itself (dont -> don't), so the
-  // split sits right before the final "t", not before the "nt" pair.
   if (lower.endsWith("nt")) splitAt = lower.length - 1;
   else if (lower.endsWith("re") || lower.endsWith("ve") || lower.endsWith("ll")) splitAt = lower.length - 2;
   else if (lower.endsWith("s") || lower.endsWith("d")) splitAt = lower.length - 1;

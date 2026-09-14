@@ -53,29 +53,13 @@ export const ICONS = {
   store: StoreIcon,
 };
 
-// How many items stay in the mobile bottom bar. The rest go behind "More".
-//
-// A GM carries up to eleven nav items (Players, Adjudicate, Audit, Oracle,
-// Dev, then Character, Map, Notes, Documents, Handbook, plus Lifeweb/Archive)
-// and Sign out. That many targets across a 390px viewport is well under the 44px
-// touch minimum, and visually crammed. Five plus More is ~65px. Players now
-// carry six (Character, Map, Faction, Notes, Documents, Handbook) — one over
-// the cap, so Handbook is the first thing to fall into the mobile sheet.
-// That's the deliberate casualty: it's a read-once reference, unlike the
-// other five, which stay in the bar untouched. Sign out lives in the sheet
-// too on mobile, for anyone under the cap.
-//
-// GM_NAV leads with its "gm" section, and Dev is inserted at the end of that
-// section rather than appended to the list (navItems.js), so the five a GM
-// keeps in the bar are Players, Adjudicate, Audit, Oracle and — for a
-// superadmin — Dev. That is the whole job, and every player screen falls into
-// the sheet behind More. This comment used to say Character and Map were in
-// the bar; Oracle had been added above them and nobody corrected it.
+// How many items stay in the mobile bottom bar; the rest go behind "More".
+// A GM keeps Players, Adjudicate, Audit, Oracle, and (superadmin) Dev
+// (navItems.js). Players keep Character, Map, Faction, Notes, Documents —
+// Handbook falls into the sheet as the deliberate casualty (a read-once reference).
 const MOBILE_PRIMARY = 5;
 
-// What a section break is called in the mobile sheet. The desktop rail draws
-// it as a plain rule instead: at 56px there is no room for a word, and the
-// grouping reads off the gap on its own.
+// A section break in the mobile sheet; the desktop rail draws a plain rule at 56px instead.
 const SECTION_LABELS = { gm: "Gamemaster", player: "You" };
 
 export default function NavRail({ items }) {
@@ -84,13 +68,9 @@ export default function NavRail({ items }) {
 
   const isActive = (href) => pathname === href || pathname.startsWith(`${href}/`);
   const overflow = items.slice(MOBILE_PRIMARY);
-  // PLAYER_NAV carries no section at all — see SECTION_LABELS above — so this
-  // is also "is this a GM's rail", which is the only rail the chime ever fires
-  // on (a player's unread count is hardcoded 0 in loadNavItems).
+  // Also "is this a GM's rail" — the only rail the chime ever fires on.
   const isGmRail = items.some((item) => item.section === "gm");
-  // Null everywhere but the player desk, where the desk publishes the number
-  // it is actually showing (navBadge.js). The server's badge is the fallback,
-  // and the only value a first paint ever has.
+  // Null everywhere but the player desk, where it publishes the shown number (navBadge.js).
   const liveUnread = useNavUnread();
   const badgeFor = (item) =>
     item.href === "/gm/players" && liveUnread != null ? liveUnread : item.badge;
@@ -106,9 +86,6 @@ export default function NavRail({ items }) {
       <nav className="app-rail" aria-label="Main">
         {items.map((item, i) => {
           const Icon = ICONS[item.icon];
-          // A rule wherever the section changes, never before the first item.
-          // PLAYER_NAV sets no section at all, so a player sees none of these —
-          // the whole feature costs them nothing.
           const divide = i > 0 && item.section !== items[i - 1].section;
           const badge = badgeFor(item);
           return (
@@ -121,13 +98,8 @@ export default function NavRail({ items }) {
             )}
             <Link
               href={item.href}
-              // Beyond the cap, an item is hidden in the bottom bar only —
-              // the desktop rail still shows everything.
               className={i >= MOBILE_PRIMARY ? "rail-item rail-item--overflow" : "rail-item"}
               data-active={isActive(item.href) ? "true" : "false"}
-              // The desktop rail is icon-only, so the label is visually hidden
-              // rather than removed: it stays the accessible name, and title
-              // gives it back to a sighted mouse user on hover.
               title={item.label}
             >
               <Icon aria-hidden="true" />
@@ -139,8 +111,7 @@ export default function NavRail({ items }) {
           );
         })}
 
-        {/* Mobile only; the desktop rail has room for everything plus a
-            dedicated Sign out at the bottom. */}
+        {/* Mobile only. */}
         <button
           type="button"
           className="rail-item rail-more"
@@ -176,8 +147,6 @@ export default function NavRail({ items }) {
           <div className="nav-sheet" onClick={(e) => e.stopPropagation()}>
             {overflow.map((item, i) => {
               const Icon = ICONS[item.icon];
-              // The sheet has width for a word, so the same break shows as a
-              // heading here rather than the rail's bare rule.
               const heading =
                 (i === 0 || item.section !== overflow[i - 1].section) &&
                 SECTION_LABELS[item.section];
@@ -188,9 +157,7 @@ export default function NavRail({ items }) {
                   href={item.href}
                   className="menu-item nav-sheet-item"
                   data-active={isActive(item.href) ? "true" : "false"}
-                  // Close on the way out, or the sheet stays over the page you
-                  // just asked for. Done here rather than in an effect on
-                  // pathname, which would be a cascading render.
+                  // Closes here, not in an effect on pathname, which would be a cascading render.
                   onClick={() => setSheetOpen(false)}
                 >
                   <Icon aria-hidden="true" />

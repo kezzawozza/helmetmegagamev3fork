@@ -2,18 +2,12 @@ import Link from "next/link";
 import PageShell from "@/app/components/PageShell";
 
 // Shown in place of the creation wizard when a player can't roll a character
-// yet — either the game isn't running (GameState.phase) or they aren't on the
-// roster (PLAYER_ROLE_ID in db/lib/roleIds.js).
-//
-// A third case borrows the first one's face: with GameConfig.playtestModeEnabled
-// on, anyone outside the build crew is turned away as "not open yet" rather
-// than "not on the roster" (page.js's `gate.masked`). There is nothing for them
-// to apply for, and a closed rehearsal should not advertise itself.
-//
-// createCharacter enforces both independently; this exists so the reason is
-// legible up front rather than arriving as an error after four steps of work.
-// Both branches point at /documents, which is readable either way and is the
-// whole reason a locked-out player has something to do here.
+// yet — game not running (GameState.phase) or not on the roster
+// (PLAYER_ROLE_ID). With GameConfig.playtestModeEnabled on, anyone outside
+// the build crew is turned away as "not open yet" rather than "not on the
+// roster" (page.js's `gate.masked`) — a closed rehearsal shouldn't advertise
+// itself. createCharacter enforces both independently; this just surfaces
+// the reason up front instead of after four steps of work.
 export default function CreationClosed({ open }) {
   return (
     <PageShell>

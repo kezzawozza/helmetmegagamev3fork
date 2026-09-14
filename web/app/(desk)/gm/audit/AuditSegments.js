@@ -5,16 +5,12 @@ import ResourceChip from "@/app/components/ResourceChip";
 import ZoneChip from "@/app/components/ZoneChip";
 import TagChip from "@/app/components/TagChip";
 
-// One audit sentence, rendered. describeAudit() in web/lib/auditNarrative.js
-// decides WHAT the segments are; this decides how each draws — which is why a
-// tag comes out as a .chip, a Resources amount as the ⬢ pill, and a character
-// as a real link into the dev panel rather than as text that looks like one.
-//
-// `tagsByName` is optional (id -> row is no use here — a `details` blob never
-// carries a tag's id, only its name, written long before hover was a thing —
-// so a "chip" segment is resolved by NAME against the current catalog). A
-// caller with no catalog in reach, or a name that no longer matches — renamed,
-// deleted since — gets the flat span it always had; this only ever upgrades.
+// One audit sentence, rendered. describeAudit() (web/lib/auditNarrative.js)
+// decides WHAT the segments are; this decides how each draws — a tag as a
+// .chip, a Resources amount as the ⬢ pill, a character as a real link.
+// `tagsByName` is optional: a "chip" segment is resolved by NAME (a
+// `details` blob only ever carries a tag's name, not its id) against the
+// current catalog. No catalog, or no match, just falls back to a flat span.
 export default function AuditSegments({ entry, segments, tagsByName = null }) {
   return (
     <span className="audit-line">
@@ -44,9 +40,7 @@ function Segment({ entry, seg, tagsByName }) {
     case "zone":
       return <ZoneChip zoneName={seg.v} />;
     case "actor":
-      // The actor is a Discord identity first — a GM often has no character at
-      // all — so it renders as their name, linked to their character only when
-      // there is one to link to.
+      // The actor is a Discord identity first — a GM often has no character — linked only when there is one.
       return entry.actor.characterId ? (
         <CharacterLink characterId={entry.actor.characterId} name={entry.actor.name} isGm />
       ) : (

@@ -2,28 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 
-// A page's last-known data, kept in the browser so the page can paint it at
-// once on the next visit and refresh underneath. One module store, keyed by
-// page scope and account, mirrored to localStorage (docs/systemdocs/CHAT.md
-// §5c).
-//
-// What this is NOT: a cache the server honours, a source of truth, or a
-// place a decision is made from. Every server action re-validates from the
-// database (CLAUDE.md, "A server action is a public endpoint"), so acting on
-// a stale sheet is safe — the fresh data simply replaces it.
-//
-// Bump VERSION whenever a page's snapshot shape changes. An old snapshot is
-// then ignored rather than handed to a renderer that expects the new shape.
-//
-// Bumped 2026-09-12: the Chat rail's tag chips (7dd5f2c2, "The chat rail's
-// chips are real tag chips now") reshaped the `things`/tag-chip payload
-// FreshChat stores for /chat without bumping this, so a browser holding an
-// older Chat snapshot painted it straight into the new ChatView and threw —
-// on every load, forever, since the stale copy lives in that browser's own
-// localStorage and no redeploy touches it. Bumping VERSION changes the
-// storage key prefix, so every stored snapshot everywhere is orphaned at
-// once: the next load finds nothing under the new prefix, falls through to
-// the fresh server fetch, and simply looks like a first visit.
+// A page's last-known data, kept in the browser to paint at once on the next visit and refresh
+// underneath. Not a cache the server honours or a source of truth — every server action
+// re-validates from the database (CLAUDE.md, "A server action is a public endpoint"), so acting
+// on a stale sheet is safe. Mirrored to localStorage (docs/systemdocs/CHAT.md §5c).
+// Bump VERSION whenever a page's snapshot shape changes, so an old snapshot is ignored rather
+// than handed to a renderer that expects the new shape — this changes the storage key prefix,
+// orphaning every stored snapshot everywhere at once.
 const VERSION = 2;
 const PREFIX = `bascinet:snap:${VERSION}:`;
 
@@ -45,15 +30,11 @@ function storage() {
   try {
     return typeof window !== "undefined" ? window.localStorage : null;
   } catch {
-    // Thumbnail capture and some privacy settings throw on the accessor.
     return null;
   }
 }
 
-// Dates and BigInts do not survive JSON. The snapshot always holds the JSON
-// shape, and SnapshotFresh hands the view the same round-tripped shape, so
-// the view sees ONE shape whether it painted from the snapshot or from the
-// server.
+// SnapshotFresh hands the view the same round-tripped shape, so the view sees ONE shape either way.
 function replacer(_key, value) {
   if (typeof value === "bigint") return value.toString();
   return value;
@@ -95,14 +76,11 @@ export function writeSnapshot(scope, userId, data) {
     }
     store.setItem(key, raw);
   } catch {
-    // Quota, private mode, a blocked accessor — the page still works, it
-    // just paints from the server next time.
+    // page still works, just paints from the server next time
   }
 }
 
-// Every snapshot, every account, every version. Called when there is no
-// signed-in account on the page (sign-out lands on the public layout), so a
-// shared browser never shows the next person the last person's sheet.
+// Called on sign-out so a shared browser never shows the next person the last person's sheet.
 export function clearSnapshots() {
   const store = storage();
   if (!store) return;
@@ -114,7 +92,6 @@ export function clearSnapshots() {
     }
     for (const key of doomed) store.removeItem(key);
   } catch {
-    // Same.
   }
   memory.clear();
   emit();
@@ -125,9 +102,7 @@ function subscribe(cb) {
   return () => listeners.delete(cb);
 }
 
-// The server has no snapshot, so SSR and the hydration pass draw the
-// fallback; React re-renders with the stored one right after, before paint
-// settles. Never an effect writing state (react-hooks/set-state-in-effect).
+// Never an effect writing state (react-hooks/set-state-in-effect).
 export function useSnapshot(scope, userId) {
   return useSyncExternalStore(
     subscribe,

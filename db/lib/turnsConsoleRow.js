@@ -1,17 +1,5 @@
-// The #turns console buttons, as raw component JSON.
-//
-// Plain JSON rather than discord.js builders because both faces need it and
-// only one of them has discord.js: db/lib/turnAnnouncement.js posts the
-// console over REST (it is called by the web Dev Panel's End Turn as well as
-// the bot's cron), while bot/src/lib/turnsConsole.js posts it over the
-// gateway. discord.js accepts raw component JSON in channel.send({components})
-// exactly as the API does, so one definition serves both — the alternative
-// was two button lists that must be kept identical by hand, which is the
-// twin-drift ARCHITECTURE.md §3 warns about.
-//
-// The customIds are routed by exact equality in
-// bot/src/events/interactionCreate.js — change one here and you must change it
-// there.
+// The #turns console buttons, as raw component JSON — plain JSON rather than discord.js builders because both faces need it and only one has discord.js. discord.js accepts raw component JSON exactly as the API does, so one definition serves both, avoiding the twin-drift ARCHITECTURE.md §3 warns about.
+// The customIds are routed by exact equality in bot/src/events/interactionCreate.js — change one here and you must change it there.
 
 const BUTTON = 2;
 const ACTION_ROW = 1;
@@ -27,8 +15,6 @@ const TURNS_CONSOLE_ROW = {
   ],
 };
 
-// Sits under the turn announcement, so it reads as "given the above, what
-// now?" rather than as a heading of its own.
 const CONSOLE_TEXT =
   "-# Moves take effect next turn • Crossing a zone is free once a turn, then it spends your Move • Use /message in a room to speak without showing you typing.";
 

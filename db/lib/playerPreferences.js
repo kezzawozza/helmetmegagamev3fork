@@ -1,18 +1,9 @@
-// The rules behind PlayerPreference.rolePriorities (docs/systemdocs/LOBBY.md
-// §2). Pure functions, no DB, so the lobby's client component and the server
-// action apply the same rule and the two can never disagree about what
-// "one High" means.
-//
-// The shape is { [roleSlug]: "LOW" | "MEDIUM" | "HIGH" }; a slug that is
-// absent is Off. Ported from tgstation's set_job_preference_level: setting a
-// role to HIGH demotes whichever role held HIGH before to MEDIUM, so there is
-// only ever one, and the old favourite stays in the running rather than
-// vanishing.
+// The rules behind PlayerPreference.rolePriorities (docs/systemdocs/LOBBY.md §2). Pure functions, no DB, so the lobby's client component and the server action can never disagree about what "one High" means.
+// Shape is { [roleSlug]: "LOW" | "MEDIUM" | "HIGH" }; absent is Off. Setting a role to HIGH demotes whichever role held HIGH before to MEDIUM, so there is only ever one.
 
 const LEVELS = ["LOW", "MEDIUM", "HIGH"];
 const JOBLESS_ROLES = ["COMMONER", "MIGRANT", "RETURN_TO_LOBBY"];
 
-// Returns a NEW object; never mutates.
 function setPriority(priorities, slug, level) {
   const next = { ...(priorities ?? {}) };
   if (level === "HIGH") {
@@ -25,10 +16,7 @@ function setPriority(priorities, slug, level) {
   return next;
 }
 
-// Whatever was posted, reduced to known slugs at valid levels with at most
-// one HIGH (the first wins). `allowed` is the set of slugs this player may
-// name at all — a whitelisted seat for a player without the role is dropped
-// here, the way normalizeAntagonistSlugs drops a whitelisted box.
+// Whatever was posted, reduced to known slugs at valid levels with at most one HIGH (first wins). `allowed` drops a whitelisted seat this player lacks the role for.
 function normalizePriorities(raw, allowed) {
   const out = {};
   let sawHigh = false;

@@ -1,35 +1,12 @@
-// Per-turn tag progression, run from db/index.js#resolveNeeds() so the bot's
-// cron advance and the Dev Panel's "End turn" button behave identically.
-//
-// This is the untreated-wound chain: a tag carrying `Tag.expiresInto` turns
-// INTO something else instead of just being swept (Infected → Festering →
-// Feverish/Necrotic, etc). MUST run immediately BEFORE the non-stackable
-// expiry sweep — that sweep is a blind deleteMany, so it deletes the rows
-// this pass just read. Only ever grants; db/lib/dyingDeathPass.js kills — and
-// that stays true of the reserved `dead` token too. A chain landing on `dead`
-// is granted Dying stamped for THIS turn rather than the next one, and the
-// dying pass (which runs after this one) ends it in the same close. So the
-// corpse, the role deletion and the side-effect thunk all come from the one
-// place they always did.
-// Takes `prisma` as a parameter — see db/lib/dm.js for why.
+// Per-turn tag progression (untreated-wound chain: Tag.expiresInto turns a tag into another, e.g. Infected → Festering). MUST run immediately BEFORE the non-stackable expiry sweep — that sweep is a blind deleteMany, so it deletes the rows this pass just read. Only ever grants; db/lib/dyingDeathPass.js kills, and a chain landing on `dead` grants Dying stamped for this turn so the dying pass ends it in the same close.
 
 const { expiryFrom } = require("./turnFormat");
 const { applyWoundMood } = require("./mood");
 const { DYING_SLUG } = require("./constants");
 const { DEAD_TOKEN } = require("./tagShapes");
 
-// Stackable tags are deliberately out of scope. A stack doesn't expire, it
-// SHEDS (sweepExpiredStacks in db/index.js), so "what does it turn into" has
-// no single answer — and nothing stackable is an affliction anyway.
-// increased-recovery (M3, TAGS.md §5c): held, it pushes a row's clock one
-// turn rather than letting it progress — one more day to find a doctor.
-// Infection/Wounds only (its group scoping), and never the step that would
-// actually GRANT Dying: Mercy can slow the march there, not cancel the
-// arrival. `expiresInto` entries are already normalised to `{ oneOf: [...] }`
-// by the time they're stored (db/lib/tagShapes.js), so a flat scan for the
-// slug covers a bare successor and a coin flip alike.
-// `dead` counts here as much as `dying` does: it is the same arrival, one turn
-// sooner, and Mercy must not be able to stall a wound that kills at its close.
+// Stackable tags are out of scope — a stack SHEDS (sweepExpiredStacks in db/index.js), it doesn't expire. increased-recovery (M3, TAGS.md §5c) on Infection/Wounds pushes a row's clock one turn, but never the step that would actually GRANT Dying.
+// `dead` counts here as much as `dying` does — Mercy must not be able to stall a wound that kills at its close.
 function chainReachesDying(expiresInto) {
   return (expiresInto ?? []).some((entry) =>
     (entry?.oneOf ?? []).some((slug) => slug === DYING_SLUG || slug === DEAD_TOKEN),
@@ -52,13 +29,8 @@ async function runTagExpiryPass(prisma, turn) {
       },
     },
   });
-  // An object, not null: db/index.js reads null as "this pass failed, retry
-  // it next advance" and gates markDone on truthiness. hungerPass.js keeps
-  // its null, because there the pass genuinely did not run and needs retrying.
   if (expiring.length === 0) return { turnNumber: turn.number, progressed: 0, fatal: 0, dms: [] };
 
-  // Who holds increased-recovery, among the characters this pass is even
-  // considering — one query rather than one per row.
   const candidateCharacterIds = [...new Set(expiring.map((ct) => ct.characterId))];
   const recoveryHolders = await prisma.characterTag.findMany({
     where: { characterId: { in: candidateCharacterIds }, tag: { slug: "increased-recovery" } },
@@ -66,13 +38,10 @@ async function runTagExpiryPass(prisma, turn) {
   });
   const recoverySet = new Set(recoveryHolders.map((r) => r.characterId));
 
-  // Only the successors actually named, rather than the whole catalog.
   const successorSlugs = new Set();
   for (const ct of expiring) {
     for (const entry of ct.tag.expiresInto ?? []) {
       for (const slug of entry?.oneOf ?? []) {
-        // `dead` is not a catalog row. What it needs loaded is Dying, whose
-        // clock this pass stamps for the current close.
         successorSlugs.add(slug === DEAD_TOKEN ? DYING_SLUG : slug);
       }
     }
@@ -84,27 +53,16 @@ async function runTagExpiryPass(prisma, turn) {
   const successorBySlug = new Map(successors.map((t) => [t.slug, t]));
 
   const rows = [];
-  // characterId -> { discordUserId, lines: ["Infected → Festering", ...] }
   const progressions = new Map();
   const missing = new Set();
-  // CharacterTag ids whose progression this pass is postponing rather than
-  // granting — pushed a turn below, BEFORE the blind sweep would otherwise
-  // delete them for having already reached their old expiresTurn.
   const stalledIds = [];
-  // { characterId, tagId } for the Dying rows a `dead` chain owes, written
-  // separately below because they must overwrite an existing clock rather
-  // than defer to it.
+  // { characterId, tagId } for the Dying rows a `dead` chain owes — they must overwrite an existing clock rather than defer to it.
   const fatalRows = [];
 
   for (const ct of expiring) {
-    // A dead character's sheet stops moving. Their rows still get swept by
-    // the deleteMany that follows; they just don't progress into anything.
     if (ct.character?.status !== "ALIVE") continue;
 
-    // increased-recovery: postpone this row's clock instead of letting it
-    // progress — checked BEFORE the grant, per the plan. Exempted whenever
-    // the chain could hand over Dying itself, so Mercy slows the march but
-    // never cancels the arrival.
+    // increased-recovery postpones this row's clock instead of progressing it, checked BEFORE the grant. Exempted when the chain could hand over Dying, so Mercy slows the march but never cancels the arrival.
     if (
       recoverySet.has(ct.characterId) &&
       STALLABLE_GROUP_SLUGS.has(ct.tag.group?.slug) &&
@@ -118,13 +76,7 @@ async function runTagExpiryPass(prisma, turn) {
     for (const entry of ct.tag.expiresInto ?? []) {
       const choices = entry?.oneOf ?? [];
       if (choices.length === 0) continue;
-      // An even pick. A bare slug in the YAML normalises to a one-element
-      // oneOf (db/lib/syncTags.js), so this is the only branch there is.
       const slug = choices[Math.floor(Math.random() * choices.length)];
-      // The reserved token. Nothing is "gained" and no progression line is
-      // written: the holder is about to be killed by dyingDeathPass in this
-      // same close, and a "something has taken a turn for the worse" DM
-      // arriving beside their own death notice would be absurd.
       if (slug === DEAD_TOKEN) {
         const dying = successorBySlug.get(DYING_SLUG);
         if (!dying) {
@@ -136,8 +88,6 @@ async function runTagExpiryPass(prisma, turn) {
       }
       const successor = successorBySlug.get(slug);
       if (!successor) {
-        // Catalog out of step with the YAML. Say so once per slug rather than
-        // once per character, and carry on with the rest of the progression.
         missing.add(slug);
         continue;
       }
@@ -145,12 +95,6 @@ async function runTagExpiryPass(prisma, turn) {
         characterId: ct.characterId,
         tagId: successor.id,
         source: "EVENT",
-        // Same absolute-turn expression as the Hunger pass and
-        // sweepExpiredStacks, so all three writers derive expiry identically.
-        // A successor with no catalog duration is granted permanent (Missing
-        // Leg, Scarred). Nothing granted here can fire again this pass: every
-        // duration is at least 1, and both the sweep and dyingDeathPass match
-        // expiresTurn <= turn.number.
         expiresTurn: expiryFrom(turn.number + 1, successor.defaultDurationTurns),
       });
       gained.push(successor.name);
@@ -167,9 +111,6 @@ async function runTagExpiryPass(prisma, turn) {
     console.error(`Tag expiry pass: no "${slug}" tag — run npm run db:sync-tags.`);
   }
 
-  // The postponed rows: written BEFORE the caller's blind sweep runs
-  // (this whole function returns first), or it would delete them right back
-  // out for still reading an overdue expiresTurn.
   if (stalledIds.length) {
     await prisma.characterTag.updateMany({
       where: { id: { in: stalledIds } },
@@ -177,11 +118,6 @@ async function runTagExpiryPass(prisma, turn) {
     });
   }
 
-  // The fatal rows, written one at a time and deliberately NOT through the
-  // createMany below. skipDuplicates is the wrong rule here: a character
-  // already carrying Dying on a later clock would have this row dropped and
-  // would survive the close, which is the opposite of what `dead` means. So
-  // the clock is forced onto this turn whether the row is new or not.
   for (const { characterId, tagId } of fatalRows) {
     const { count } = await prisma.characterTag.updateMany({
       where: { characterId, tagId },
@@ -194,13 +130,7 @@ async function runTagExpiryPass(prisma, turn) {
     }
   }
 
-  // skipDuplicates is the "already holds it" rule, not just a safety net:
-  // a character already carrying the successor keeps THEIR row, with its own
-  // clock, exactly as consumesInto leaves an already-held grant alone
-  // (docs/systemdocs/TAGS.md §5b). Re-granting would silently reset the timer
-  // on a condition they were already most of the way through.
-  // Which of these rows will actually LAND — skipDuplicates keeps a held
-  // successor's own clock, and only a row that lands is a new wound at all.
+  // skipDuplicates keeps a held successor's own clock rather than resetting it, exactly as consumesInto leaves an already-held grant alone (docs/systemdocs/TAGS.md §5b).
   const alreadyHeld = rows.length
     ? await prisma.characterTag.findMany({
         where: { OR: rows.map((r) => ({ characterId: r.characterId, tagId: r.tagId })) },
@@ -210,10 +140,6 @@ async function runTagExpiryPass(prisma, turn) {
   const heldKeys = new Set(alreadyHeld.map((r) => `${r.characterId}:${r.tagId}`));
   await prisma.characterTag.createMany({ data: rows, skipDuplicates: true });
 
-  // A wound getting worse overnight is the most frightening thing in this
-  // file (docs/systemdocs/MOOD.md). The grant above is a batch, so the dial
-  // moves here, after it lands; the band DMs ride back with the progression
-  // DMs rather than being sent.
   const moodDms = [];
   const landedByCharacter = new Map();
   for (const r of rows) {
@@ -229,14 +155,11 @@ async function runTagExpiryPass(prisma, turn) {
     if (moved?.dm) moodDms.push(moved.dm);
   }
 
-  // Not sent here — DMs are the one network-bound part of this, and awaiting
-  // them inside the turn advance would freeze the Dev Panel's "End turn".
   const dms = [...progressions.values()]
     .filter((p) => p.discordUserId)
     .map((p) => ({
       discordUserId: p.discordUserId,
-      // Bot-composed, so the » goes in at the call site rather than coming
-      // from sendDm — see CLAUDE.md's aura note.
+      // Bot-composed, so the » goes in at the call site rather than from sendDm — see CLAUDE.md's aura note.
       content: ["Something has taken a turn for the worse.", ...p.lines.map((l) => `» ${l}`)].join("\n"),
     }));
 

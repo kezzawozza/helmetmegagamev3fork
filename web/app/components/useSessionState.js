@@ -2,17 +2,10 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-// A small sessionStorage-backed value, one key at a time, modeled on
-// usePins.js's localStorage pattern: read through useSyncExternalStore
-// (the mandated way to read browser storage — react-hooks/set-state-in-effect
-// is an error in this repo), JSON-encoded, try/catch around every access.
-//
-// sessionStorage rather than localStorage: this is per-tab VIEW state (a
-// filter, a lens, a toggle) that should die with the tab, but still survive
-// a same-tab reload — which every deploy triggers on the adjudication desk.
-//
-// Any number of independent values can live under their own key; two
-// components asking for the SAME key share the same live value.
+// A small sessionStorage-backed value, one key at a time (usePins.js's
+// localStorage pattern): read through useSyncExternalStore
+// (react-hooks/set-state-in-effect is an error in this repo), JSON-encoded.
+// Per-tab view state that dies with the tab but survives a same-tab reload.
 
 const listeners = new Map(); // key -> Set<callback>
 const cache = new Map(); // key -> { raw, value }
@@ -34,9 +27,7 @@ function parse(raw, fallback) {
   }
 }
 
-// getSnapshot must return the SAME reference until the value actually
-// changes — a fresh parse every call is an infinite render loop (same
-// discipline usePins.js's own cache follows).
+// getSnapshot must return the SAME reference until the value changes, or a fresh parse is an infinite render loop.
 function read(key, fallback) {
   try {
     const raw = window.sessionStorage.getItem(key);
@@ -55,22 +46,14 @@ function write(key, value) {
   try {
     window.sessionStorage.setItem(key, raw);
   } catch {
-    /* private window / blocked site data — the in-memory cache still updates
-       below, so the tab keeps working for its own lifetime even though
-       nothing persists. */
+    /* private window / blocked site data — in-memory cache still updates below. */
   }
   cache.set(key, { raw, value });
   for (const callback of subscribers(key)) callback();
 }
 
-// The plain, unsubscribed door to the same store, for state that changes too
-// often to be React state — a search box mirrored per keystroke, a scroll
-// position written per frame (QueueRail.js's view persistence). readSession
-// during render is only hydration-safe if the value doesn't shape the
-// hydrated output; to RESTORE something visible, read after hydration (see
-// QueueRail.js's one-shot) or use the hook. writeSession still notifies any
-// hook subscribed to the key, so keep high-frequency writers on keys nothing
-// subscribes to.
+// Plain, unsubscribed door to the store, for state too high-frequency for
+// React state. readSession during render is only hydration-safe if the value doesn't shape hydrated output.
 export function readSession(key, fallback) {
   return read(key, fallback);
 }
@@ -79,10 +62,7 @@ export function writeSession(key, value) {
   write(key, value);
 }
 
-// `fallback` doubles as the server snapshot AND the value before anything has
-// ever been written — pass a stable reference (a module-level constant, the
-// same discipline useTableState's own `initialFilters` follows) so
-// useSyncExternalStore never sees it change identity between renders.
+// `fallback` doubles as server snapshot AND pre-write value — pass a stable reference.
 export default function useSessionState(key, fallback) {
   const subscribe = useCallback(
     (callback) => {

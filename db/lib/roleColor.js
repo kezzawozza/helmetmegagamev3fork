@@ -1,12 +1,4 @@
-// Continuous HSL gradient for personal character roles, swept across three
-// muted families — cool cyan-grey, terracotta/brown, and forest green — so
-// the guild member list reads as a forest, not a rainbow. Colors are picked
-// from a smooth interpolation across the full 32-bit hash space rather than
-// a small discrete bucket list: the old version hashed each name into one of
-// ~48 fixed swatches (`hash % 48`), so two names could easily land on the
-// same bucket by coincidence, which is why some renames didn't visibly
-// change anything. Interpolating continuously makes every distinct name
-// resolve to a distinct color in practice.
+// Continuous HSL gradient for personal character roles, swept across three muted families (cool cyan-grey, terracotta/brown, forest green) so the guild member list reads as a forest, not a rainbow. Colors interpolate smoothly across the full 32-bit hash space rather than a small discrete bucket list, so every distinct name resolves to a distinct color in practice.
 const GRADIENT_STOPS = [
   { h: 195, s: 13, l: 36 }, // cool cyan-grey
   { h: 25, s: 20, l: 34 }, // muted terracotta
@@ -52,10 +44,7 @@ function hslToRgbInt(h, s, l) {
   return (toByte(r) << 16) | (toByte(g) << 8) | toByte(b);
 }
 
-// Same name always yields the same color; virtually any name change lands
-// on a different point along the gradient. Used both to create a
-// character's personal Discord role and to re-color it on every rename (see
-// web/lib/discordGuild.js#ensureCharacterRole).
+// Same name always yields the same color. Used both to create a character's personal Discord role and to re-color it on every rename (web/lib/discordGuild.js#ensureCharacterRole).
 function hashNameToColor(name) {
   const hash = hashString(name);
   const t = hash / 0xffffffff; // continuous position in [0, 1)
@@ -72,8 +61,7 @@ function hashNameToColor(name) {
   const s = lerp(stopA.s, stopB.s, localT);
   const l = lerp(stopA.l, stopB.l, localT);
 
-  // Small independent jitter (from a second hash of the same name) so names
-  // that land close together on the gradient still separate a bit further.
+  // Small independent jitter so names landing close on the gradient still separate a bit further.
   const jitterHash = hashString(`${name}|jitter`);
   const lJitter = ((jitterHash % 700) - 350) / 100; // +/-3.5 lightness
   const sJitter = (((jitterHash >>> 8) % 400) - 200) / 100; // +/-2 saturation
