@@ -66,6 +66,7 @@ import {
 } from "@/lib/tagRequests";
 import {
   addToStack,
+  addToRoomStack,
   creditResources,
   dropCharacterTag,
   grantTagSlugs,
@@ -162,7 +163,7 @@ import {
   mergeDishCures,
   tasteLine,
 } from "@/lib/cooking";
-import { formatStack } from "@lifeweb/db/lib/roomStash";
+import { formatStack, pickRandomPublicRoom } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import {
   RESEARCH_TAG_SLUG,
@@ -399,9 +400,12 @@ async function openCrateRequestImpl({ session, character, held }) {
   const resourcesGranted = crate.consumesIntoResources ?? 0;
 
   const granted = [];
-  // Contents that could not land — a non-stackable ware already held. Recorded
-  // on the effect so the Ledger and a GM can see what the crate really gave.
-  const skipped = [];
+  // A non-stackable ware already held can't go on the sheet (one per
+  // character), so it's set down in a public room here instead. It used to be
+  // skipped, which deleted it with the crate — a Merchant buying a second
+  // suit of armour to hand on lost it.
+  const dropped = [];
+  let spareRoom = null;
   await prisma.$transaction(async (tx) => {
     await lockCharacter(tx, character.id);
     // Double-fire guard (gate review): a crate is always quantity 1, and two
@@ -415,36 +419,68 @@ async function openCrateRequestImpl({ session, character, held }) {
     if (!freshCrate || freshCrate.quantity < 1) {
       throw new UserError("You don't have that any more.");
     }
+    const heldIds = new Set(
+      (
+        await tx.characterTag.findMany({
+          where: { characterId: character.id, tagId: { in: [...byId.keys()] } },
+          select: { tagId: true },
+        })
+      ).map((ct) => ct.tagId),
+    );
+    // Units of a non-stackable line that can't go on the sheet: all of them if
+    // one is already held, else all but the first. Crates aggregate by tag, so
+    // two separate orders of one pistol can share a line.
+    const sparesOf = (line, tag) =>
+      tag.stackable ? 0 : Math.max(0, (line.quantity ?? 1) - (heldIds.has(tag.id) ? 0 : 1));
+    const spare = contents.find((line) => {
+      const tag = byId.get(line.tagId);
+      return tag && sparesOf(line, tag) > 0;
+    });
+    if (spare) {
+      spareRoom = await pickRandomPublicRoom(tx, character.locationId);
+      // Refuse rather than lose it: the crate stays shut until they're
+      // somewhere with a floor.
+      if (!spareRoom) {
+        throw new UserError(
+          `You already carry ${byId.get(spare.tagId).name}, and there's nowhere here to set the spare down.`,
+        );
+      }
+    }
     for (const line of contents) {
       const tag = byId.get(line.tagId);
       // A ware pruned out of the catalog between landing and opening is gone.
       // Skipping it beats throwing: the rest of the crate should still open.
       if (!tag) continue;
-      // addToStack returns the existing row untouched for a non-stackable tag
-      // already held, so what the Ledger records has to be what actually
-      // landed — not what the crate said it held. Otherwise a Merchant who
-      // already owns an ML-23 opens a crate, receives nothing, and is told he
-      // received a pistol.
-      const before = await tx.characterTag.findUnique({
-        where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
+      const expiresTurn = await expiryForGrant(tx, tag, openTurn, {
+        characterId: character.id,
+        where: "openCrate",
       });
-      await addToStack(tx, character.id, tag.id, line.quantity, {
-        source: "EVENT",
-        stackable: tag.stackable,
-        expiresTurn: await expiryForGrant(tx, tag, openTurn, {
-          characterId: character.id,
-          where: "openCrate",
-        }),
-        // The laundering fix itself: what packageItemsRequestImpl's own
-        // manifest stored for this line, carried straight onto the landing
-        // row. Absent (undefined) on a clean line, same as addToStack's own
-        // no-poison default.
-        poisonedCount: line.poisonedCount ?? 0,
-        poisonPayload: line.poisonPayload ?? null,
-      });
-      const landed = tag.stackable ? line.quantity : before ? 0 : 1;
-      if (landed > 0) granted.push({ tagId: tag.id, name: tag.name, quantity: landed });
-      else skipped.push({ tagId: tag.id, name: tag.name, reason: "already held, and only one can be carried" });
+      // The laundering fix: what packageItemsRequestImpl's own manifest
+      // stored for this line rides onto the landing row, sheet or floor.
+      const poisonedCount = line.poisonedCount ?? 0;
+      const poisonPayload = line.poisonPayload ?? null;
+      const spares = sparesOf(line, tag);
+      const landed = tag.stackable ? line.quantity : (line.quantity ?? 1) - spares;
+      if (landed > 0) {
+        await addToStack(tx, character.id, tag.id, landed, {
+          source: "EVENT",
+          stackable: tag.stackable,
+          expiresTurn,
+          // Poison rides the sheet copy first; a non-stackable unit is one thing.
+          poisonedCount: Math.min(poisonedCount, landed),
+          poisonPayload,
+        });
+        granted.push({ tagId: tag.id, name: tag.name, quantity: landed });
+      }
+      if (spares > 0) {
+        const sparePoisoned = Math.max(0, poisonedCount - Math.max(0, landed));
+        await addToRoomStack(tx, spareRoom.id, tag.id, spares, {
+          expiresTurn,
+          poisonedCount: sparePoisoned,
+          poisonPayload: sparePoisoned > 0 ? poisonPayload : null,
+        });
+        dropped.push({ tagId: tag.id, name: tag.name, quantity: spares, roomId: spareRoom.id, roomName: spareRoom.name });
+      }
     }
 
     if (resourcesGranted > 0) {
@@ -462,7 +498,7 @@ async function openCrateRequestImpl({ session, character, held }) {
       crateName: crate.name,
       sealed: crate.sealedShipping,
       granted,
-      skipped,
+      dropped,
       resourcesGranted,
     };
     await logAudit(tx, {
@@ -483,7 +519,10 @@ async function openCrateRequestImpl({ session, character, held }) {
 
   await afterInventoryChange([character.id]);
   revalidateAll();
-  return { granted, skipped, resourcesGranted };
+  const spareLine = dropped.length
+    ? `You already carry ${dropped.map((d) => d.name).join(", ")}, so the spare is set down in ${spareRoom.name}.`
+    : undefined;
+  return { granted, dropped, resourcesGranted, line: spareLine };
 }
 
 const RAVENHEART_MAP_SLUG = "ravenheart-map";
