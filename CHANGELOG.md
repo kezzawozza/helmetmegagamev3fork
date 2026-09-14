@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · The online ring is thinner, quieter, and matches the theme
+
+✎ The green glow around an online player's face is now a thin, plain ring in the theme's accent colour
+
 ## 2026-09-14 · Travel offers no longer read as lesson offers
 
 ✎ An offer to take someone along showed up on the web as a lesson offer, for both people  
