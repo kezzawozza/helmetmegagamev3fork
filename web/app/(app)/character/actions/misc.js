@@ -1569,6 +1569,10 @@ export async function freeCharacterRequestImpl({
 // uses and for the same reason: it resolves the instant it's pressed, so a
 // GAMBIT row would have the turn-end push announce the same die a second
 // time. It spends the Move either way, success or not.
+//
+// A success doesn't free them yet: `bound` stays until the turn closes, so
+// they can still be looted, moved or hurt this turn. Free (a rescuer) is
+// still instant.
 export async function breakRestraintsRequestImpl() {
   const { session, character } = await requireCharacter();
 
@@ -1598,7 +1602,12 @@ export async function breakRestraintsRequestImpl() {
   await prisma.$transaction(async (tx) => {
     await consumeInspiredIfUsed(tx, character.id, roll.source);
     if (result.success) {
-      await dropCharacterTag(tx, character.id, bound.id);
+      // Not dropped now: stamped to expire with this turn, so the expirySweep
+      // pass (db/index.js) takes `bound` off at the close. Bascinet's ruling.
+      await tx.characterTag.updateMany({
+        where: { characterId: character.id, tagId: bound.id },
+        data: { expiresTurn: openTurn.number },
+      });
       await tx.character.update({
         where: { id: character.id },
         data: { boundSinceTurnNumber: null },
@@ -1631,8 +1640,8 @@ export async function breakRestraintsRequestImpl() {
     success: result.success,
     line: result.success
       ? result.automatic
-        ? "The knots finally give. You're free."
-        : `${rollLine}. The ropes give way — you're free.`
+        ? "You broke your restraints. This will take effect at the end of the turn."
+        : `${rollLine}. You broke your restraints. This will take effect at the end of the turn.`
       : `${rollLine}. The knots hold.`,
   };
 }

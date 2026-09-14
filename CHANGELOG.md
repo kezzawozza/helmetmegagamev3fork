@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Breaking free now takes effect at the end of the turn
+
+✎ A successful Break Restraints tells you so now, but you stay Bound until the turn closes  
+✎ Someone cutting you loose with Free still frees you at once
+
 ## 2026-09-14 · The musketoon always shows on a look
 
 ✎ It is too big to hide in a bag

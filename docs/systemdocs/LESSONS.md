@@ -199,8 +199,12 @@ to lower turn 1, and with Escape Artist made breaking free instant. Lucky or
 Inspired still rolls two dice and keeps the better. No Hunger/mood Gambit
 modifiers apply; this is a flat die-vs-threshold check.
 
-On success, `dropCharacterTag` removes `bound` and `boundSinceTurnNumber` is
-cleared. **A GM manually stripping `bound` from `/gm/dev` leaves the column
+On success, `bound` is **not** removed on the spot: its row is stamped
+`expiresTurn = openTurn.number`, so the `expirySweep` turn pass takes it off
+when the turn closes, and the player is told "You broke your restraints. This
+will take effect at the end of the turn." Until then they are still Bound —
+lootable, movable, and a re-bind is refused as "already bound". Free (§3b's
+rescuer) stays instant. `boundSinceTurnNumber` is cleared at once. **A GM manually stripping `bound` from `/gm/dev` leaves the column
 stale** until the character is bound again — accepted, not fixed:
 `applyBind`'s fresh-grant check overwrites it correctly on the next real
 bind, and the button is hidden the whole time `bound` is absent anyway.
