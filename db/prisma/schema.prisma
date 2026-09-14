@@ -174,20 +174,12 @@ enum CatalogVisibility {
 
 enum TagSource {
   POINT_BUY
-  DESIRE_REWARD
   GM_GRANT
-  LEADER_GRANT
   EVENT
   // A skill learnt through a lesson (db/lib/lessonPass.js).
   LESSON
   // Made through the Craft flow (docs/systemdocs/CRAFTING.md).
   CRAFT
-  // ORPHAN. A status the game derived from hidden state rather than a person
-  // granting it. Its only user was the fear band (Uncomfortable … Panic),
-  // written by the settle in the old db/lib/fear.js; the mood rework made the
-  // band a derived word on the sheet instead of a tag, and nothing writes
-  // CONDITION now. Kept because this schema drops nothing.
-  CONDITION
 }
 
 // ACTIVE is legacy — the 2026-09-02 retroactive rework removed set/cancel, so
@@ -847,14 +839,6 @@ model Depot {
 
   creditCapObols Int @default(75)
 
-  // ORPHAN. The turret's severity distribution, once GM-editable as JSON on
-  // the Dev Panel. Nothing reads or writes it: db/lib/depotTurret.js returns
-  // one shipped table to every caller, because the odds of dying at the gate
-  // are a rule of the game and two turrets disagreeing about them was not
-  // something a player could ever see or reason about. Kept, like
-  // mindlinkChannelId, because this schema drops no columns.
-  turretTable Json @default("{}")
-
   updatedAt DateTime @updatedAt
 }
 
@@ -1318,8 +1302,6 @@ model Location {
   rooms            Room[]
   quests           Quest[]
   characters       Character[]
-  // Characters walking here right now — Character.travelToLocationId.
-  travellers       Character[]     @relation("CharacterTravelDestination")
   playerThreads    PlayerThread[]
   startingForRoles Role[]          @relation("RoleStartingLocation")
   yields           LocationYield[]
@@ -1881,20 +1863,6 @@ model Character {
   // leaves it alone so the character can step at once.
   lastLocationMoveAt DateTime?
 
-  // RETIRED (2026-09-14). These held a journey in progress: a zone crossing
-  // that cost the Move spent it at once and parked its destination here, and
-  // db/lib/travelArrivalPass.js walked the character over at the next turn
-  // advance, so nobody saw the destination's channels a turn early. Every
-  // crossing lands the moment it is made now (docs/systemdocs/MAP.md §3) and
-  // nothing writes these any more.
-  //
-  // Kept because this schema drops no columns, like missedMealStreak and
-  // mindlinkChannelId. The arrival pass still reads them, as a drain for
-  // anybody who was mid-journey when the change deployed.
-  travelToLocationId String?
-  travelTo           Location? @relation("CharacterTravelDestination", fields: [travelToLocationId], references: [id])
-  travelTurnId       String?
-
   // ESCORTING (docs/systemdocs/MAP.md §3a). Who this character is currently
   // following: their party leader walks, and they walk too. One leader, so a
   // column rather than a join table — the column IS the "you can only follow
@@ -2072,13 +2040,6 @@ model Character {
   // Editable on the Dev Panel. Was `fear`, 0–100 with the sign the other way
   // up, until the mood rework.
   mood Float @default(0)
-
-  // ORPHAN. The retired Disappointed track (Nobility upkeep) counted missed
-  // meals here until 2026-09-06; nothing reads or writes it now — a noble who
-  // skips dinner takes a mood hit instead (db/lib/moodPass.js). Kept, like
-  // mindlinkChannelId, because this schema drops no columns; the values are
-  // stale history.
-  missedMealStreak Int @default(0)
 
   // Turn number this character last acted or spoke in character — a
   // player-filed Action (never an auto one; defaultMovePass.js does not
