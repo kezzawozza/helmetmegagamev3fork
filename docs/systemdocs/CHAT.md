@@ -1429,21 +1429,41 @@ Each entry is:
 
 ```
 { placeKey, kind: "loc" | "room" | "conv" | "zone" | "net", name, description,
-  roomKind, canSpeak, slowmodeSeconds, newestSeq }
+  roomKind, canSpeak, vantage, slowmodeSeconds, newestSeq }
 ```
 
 in the order the column draws them: the Location, its public Rooms, the private
 Rooms `accessibleRooms` opens (keys **and** guest rows, the same door every
 other reader of that function sees), the conversations `conversationsFor` says
-you are in **at this Location**, then the zone Summary, then the **radio nets**
-(§5d), which the column lifts up under Summary. `newestSeq` is added by
-`web/lib/feedAccess.js`, not by the rules — the dot is a page concern.
+you are in **at this Location**, then everywhere the **fog of war** still shows
+(below), then the zone Summary, then the **radio nets** (§5d), which the column
+lifts up under Summary. `newestSeq` is added by `web/lib/feedAccess.js`, not by
+the rules — the dot is a page concern.
 
-Three things are read-only:
+Four things are read-only:
 
 - **A Location is scenery, not speech** (§5b). `canSpeak: false`. The box is
   still drawn there, but only as a command line — nothing typed into it is
   ever said aloud (see the slash-commands bullet under "The parts").
+- **Everywhere you have been this turn but are not now.** Walking into a
+  Location lights it and it stays lit, until you leave the zone or the day
+  turns (`db/lib/vantages.js`, `CHANNELS.md` §3aa). `placesFor` appends each
+  lit Location, the rooms a door opens for you there, and the conversations you
+  are in there — every one of them `canSpeak: false` and `vantage: true`, with
+  no per-place exception to get wrong. That single rule is the exact mirror of
+  holding View and no send bit on the Discord channel, which is what stops the
+  two faces answering differently about a street you are not standing in.
+
+  The column draws them together under **Elsewhere**, in italics, after
+  Conversations; the composer there reads *“You aren’t in this location.”* The
+  noticeboard is not offered from one, and neither are a place's affordances —
+  the board is a thing you walk up to.
+
+  A guest row is spent by walking out (`db/lib/roomAccess.js`), so a room
+  somebody let you into does not follow you into the fog; only a key or a quest
+  does. The Scrying Eye stays where it was too: it is for the room you are
+  standing in.
+
 - **A GM speaks nowhere.** A GM with no living character gets a read-only Chat
   over every place inside `visibleZoneIds(prisma, discordUserId)`
   (`db/lib/gmZoneView.js`; no rows means every zone). Watching is not standing

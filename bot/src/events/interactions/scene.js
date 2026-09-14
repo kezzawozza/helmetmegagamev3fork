@@ -38,6 +38,18 @@ const { ack, respond, scheduleDismiss } = require("../../lib/respond");
 
 const CONVERSE_ROOM_PREFIX = "conv:room:";
 
+// The Location anchor's buttons are pressed in the CHANNEL, and a channel is
+// open to more people than stand in it now: a character who walked out of this
+// street earlier in the turn keeps watching it, read-only, until they leave the
+// zone or the day turns (db/lib/vantages.js). Watching is not standing, so
+// every button that reads the live state of a place asks first. One sentence
+// for the whole rule — the web composer says the same thing.
+const NOT_HERE = "You aren't in this location.";
+
+function standingIn(character, locationId) {
+  return Boolean(character && character.locationId === locationId);
+}
+
 // The green "Who's here?" button. Named characters first, with their Role
 // for a fellow faction member (same rule as the 🔍 inspect gate, FACTIONS.md
 // §4a). Concealed characters listed separately. A forced name outranks both:
@@ -46,8 +58,15 @@ async function handleWhosHere(interaction, locationId) {
   await ack(interaction);
 
   const viewer = await actingCharacter(interaction, {
-    select: { id: true, factionId: true },
+    select: { id: true, factionId: true, locationId: true },
   });
+  // A GM reads the room from anywhere; a player has to be in it. Without this
+  // a doorway walked through once would be a live roster of everyone coming
+  // and going for the rest of the turn.
+  if (!isGmMember(interaction) && !standingIn(viewer, locationId)) {
+    await respond(interaction, NOT_HERE);
+    return;
+  }
   const rows = await whosHere(prisma, viewer, { locationId, withAcross: true });
   const lines = whosHereLines(rows);
   if (lines.length === 0) {
@@ -66,6 +85,14 @@ async function handleWhosHere(interaction, locationId) {
 // is the point.
 async function handleExamine(interaction, locationId) {
   await ack(interaction);
+
+  if (!isGmMember(interaction)) {
+    const viewer = await findAliveCharacter(interaction.user.id);
+    if (!standingIn(viewer, locationId)) {
+      await respond(interaction, NOT_HERE);
+      return;
+    }
+  }
 
   const result = await examineLines(prisma, locationId); // shared with Chat's Examine dialog
   if (!result.ok) {
@@ -86,6 +113,10 @@ async function handleSecretRooms(interaction, locationId) {
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {
     await respond(interaction, "You don't have a living character.");
+    return;
+  }
+  if (!standingIn(character, locationId)) {
+    await respond(interaction, NOT_HERE);
     return;
   }
 
@@ -140,8 +171,8 @@ async function handleConverseOpen(interaction, locationId) {
     await respond(interaction, "You don't have a living character.");
     return;
   }
-  if (character.locationId !== locationId) {
-    await respond(interaction, "You're not there any more.");
+  if (!standingIn(character, locationId)) {
+    await respond(interaction, NOT_HERE);
     return;
   }
 

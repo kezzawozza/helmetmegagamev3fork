@@ -650,6 +650,7 @@ export async function travelTo({ locationId, exert = false } = {}) {
       toLocationId: entry.toLocationId,
       // Only ever the mover's own mount.
       dismounted: entry.character.id === me.character.id ? result.dismounted : undefined,
+      walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js) — a dragged passenger walked too
     }).catch(() => {});
   }
   // The Caving Die's "on arrival" trigger (CAVING.md).

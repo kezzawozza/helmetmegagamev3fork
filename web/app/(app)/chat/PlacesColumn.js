@@ -10,7 +10,8 @@ import { useFolded } from "./sectionFold";
 // The left column of Chat: everywhere this character may read.
 //   MESSAGES the DM pseudo-place · SUMMARY the zone's channel · RADIO the
 //   frequencies carried · HERE the Location stood in · ROOMS public then
-//   private · CONVERSATIONS private threads.
+//   private · CONVERSATIONS private threads · ELSEWHERE the streets walked out
+//   of earlier this turn, still watched and all read-only (db/lib/vantages.js).
 // On a phone (under 720px) the SAME column is the ≡ drawer over the scene
 // (Chat.js), with a foot for the app's own links since the bottom bar is
 // gone there.
@@ -36,6 +37,7 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
       className="chat-place"
       data-active={active ? "true" : "false"}
       data-unread={unread ? "true" : undefined}
+      data-vantage={place.vantage ? "true" : undefined}
       onClick={() => onSelect(place.placeKey)}
     >
       <span className="chat-glyph" aria-hidden="true">
@@ -114,9 +116,14 @@ export default function PlacesColumn({
   // Phone drawer's nav links or GM mode's zone picker; null on desktop.
   foot = null,
 }) {
-  const here = places.filter((p) => p.kind === "loc");
-  const rooms = places.filter((p) => p.kind === "room");
-  const conversations = places.filter((p) => p.kind === "conv");
+  // Elsewhere is cut FIRST and the other three exclude it, so a fogged street
+  // and its rooms are drawn once, together, under their own heading — not
+  // scattered through Here and Rooms where they would read as places you are
+  // standing in.
+  const elsewhere = places.filter((p) => p.vantage);
+  const here = places.filter((p) => p.kind === "loc" && !p.vantage);
+  const rooms = places.filter((p) => p.kind === "room" && !p.vantage);
+  const conversations = places.filter((p) => p.kind === "conv" && !p.vantage);
   const summary = places.filter((p) => p.kind === "zone");
   const nets = places.filter((p) => p.kind === "net");
   const faction = places.filter((p) => p.kind === "faction");
@@ -138,6 +145,9 @@ export default function PlacesColumn({
         newest={newest}
         onSelect={onSelect}
       />
+      {/* Everywhere you have been this turn and can still watch. It empties
+          itself when you leave the zone or the day turns. */}
+      <Section title="Elsewhere" places={elsewhere} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Faction" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       {/* Foot: chime pref (useChatChimeMuted.js) and the webOnly reminder
           (CHAT.md §6). Tail: pinned to the bottom, never below the fold of a

@@ -29,7 +29,8 @@ const { recordArrival } = require("./locationVisits");
 const { cancelWatchOnMove, releaseHeldBy, INTERCEPT_CANCELLED_DM } = require("./intercept");
 const { closeFightsFor } = require("./attack");
 const { reconcileCorpses } = require("./corpseFollow");
-const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
+const { LOCATION_MEMBER_ALLOW, LOCATION_VANTAGE_ALLOW } = require("./zoneChannelSpec");
+const { lightVantage, clearVantage, vantagesFor, dropVantages } = require("./vantages");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
 const { keyedPromptRow } = require("./locationAnchorRow");
 const { aliasSubject } = require("./concealedIdentity");
@@ -92,21 +93,23 @@ async function swapRole(discordUserId, fromRoleId, toRoleId, label) {
   }
 }
 
-// The Location half of a move, and the reason a Location wears no Discord role: one per-member overwrite on the destination channel, one taken off the origin. Same grant-before-revoke ordering and the same two REST calls the role swap costs, but spends none of the guild's 250 roles — see db/lib/zoneChannelSpec.js.
-async function swapLocationOverwrite(discordUserId, fromChannelId, toChannelId) {
-  if (toChannelId) {
-    await putChannelOverwrite(toChannelId, discordUserId, {
-      allow: String(LOCATION_MEMBER_ALLOW),
-      type: 1,
-    }).catch((err) =>
-      console.error(`Move: failed to open ${toChannelId} to ${discordUserId}:`, err.message ?? err),
-    );
-  }
-  if (fromChannelId && fromChannelId !== toChannelId) {
-    await deleteChannelOverwrite(fromChannelId, discordUserId).catch((err) =>
-      console.error(`Move: failed to close ${fromChannelId} to ${discordUserId}:`, err.message ?? err),
-    );
-  }
+// The Location half of a move, and the reason a Location wears no Discord role: one per-member overwrite on the channel, never a role. Spends none of the guild's 250 roles — see db/lib/zoneChannelSpec.js.
+// Two allow masks now, not one: LOCATION_MEMBER_ALLOW for the street you stand in, LOCATION_VANTAGE_ALLOW for one you walked out of and are still watching (db/lib/vantages.js). The mask is the whole difference between the two — the overwrite itself is the same call.
+async function openLocationTo(discordUserId, channelId, allow) {
+  if (!channelId) return;
+  await putChannelOverwrite(channelId, discordUserId, {
+    allow: String(allow),
+    type: 1,
+  }).catch((err) =>
+    console.error(`Move: failed to open ${channelId} to ${discordUserId}:`, err.message ?? err),
+  );
+}
+
+async function closeLocationTo(discordUserId, channelId) {
+  if (!channelId) return;
+  await deleteChannelOverwrite(channelId, discordUserId).catch((err) =>
+    console.error(`Move: failed to close ${channelId} to ${discordUserId}:`, err.message ?? err),
+  );
 }
 
 // Everything Discord needs to know to put a character back where they already stand: the Location overwrite, zone role, narrowcast, private-room threads, conversations, and standing invites. This is the "web only" switch coming OFF (db/lib/webOnly.js, CHAT.md §6), built on the SAME four helpers a move uses — swapLocationOverwrite, swapRole, reconcileNarrowcastAccess, syncCharacterRoomAccess — rather than a second copy; there's no origin, so every call is a pure grant. Best-effort throughout, like every other call in this file — anything that fails is the channel doctor's next pass to repair, which it can now do because it knows the flag.
@@ -115,21 +118,23 @@ async function materializeDiscordPresence(prisma, character) {
   if (!character?.discordUserId || !character.locationId) return;
   const discordUserId = character.discordUserId;
 
-  // The watch this move just ended, told plainly — the delete happened above the guard, only the letter waits for a token. FIRST of the DMs, ahead of the channel work below, because swapLocationOverwrite/swapRole are unguarded and every caller swallows this function's throw — a Discord 5xx down there and the owner would never hear their watch was gone.
-  if (droppedWatch?.cancelled) {
-    await sendDm(prisma, discordUserId, INTERCEPT_CANCELLED_DM).catch((err) =>
-      console.error(`Move: intercept-cancelled DM to ${discordUserId} failed:`, err.message ?? err),
-    );
-  }
-
   const location = await prisma.location.findUnique({
     where: { id: character.locationId },
     include: { zone: true },
   });
   if (!location) return;
 
-  await swapLocationOverwrite(discordUserId, null, location.discordChannelId ?? null);
+  await openLocationTo(discordUserId, location.discordChannelId ?? null, LOCATION_MEMBER_ALLOW);
   await swapRole(discordUserId, null, location.zone?.discordRoleId ?? null, "zone");
+
+  // The fog of war comes back on too. Vantage rows are a database fact and survived the switch being on (db/lib/vantages.js); this is the Discord half catching up, so the places they walked through earlier this turn are where they left them rather than dark until the next move.
+  const vantages = await vantagesFor(prisma, { id: character.id, zoneId: location.zoneId }).catch((err) => {
+    console.error(`Web-only off: vantage lookup failed for ${character.id}:`, err.message ?? err);
+    return [];
+  });
+  for (const vantage of vantages) {
+    await openLocationTo(discordUserId, vantage.location?.discordChannelId ?? null, LOCATION_VANTAGE_ALLOW);
+  }
   await reconcileNarrowcastAccess(prisma, character.id, discordUserId).catch((err) =>
     console.error(`Web-only off: narrowcast reconcile failed for ${character.id}:`, err.message ?? err),
   );
@@ -210,7 +215,8 @@ async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
 
 // Everything a location change must do in Discord once the DB write has landed: swap the location overwrite, announce a gate crossing, offer to hold a keyed way open, swap the zone role and reconcile narrowcast if the zone changed, then private-room membership and standing conversation invites wherever they now stand. `entry` is { characterId, fromLocationId, toLocationId, dismounted } — zones are read from the locations, and the character row is re-read so a stale caller can't swap the wrong account.
 // `dismounted` is optional: names db/lib/locationTravel.js#performLocationMove already unequipped for a way too narrow to ride or push through, if this move came from there — see the comment below on why that has to happen inside performLocationMove's own transaction rather than here.
-async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationId, toLocationId, dismounted }) {
+// `walked` says the character got here ON FOOT, and only a walk leaves the place behind them lit (db/lib/vantages.js). It defaults to FALSE and the two travel callers opt in, so a GM teleport, a rite, a threat spawn, a staged "Relocate to", Xom and a first placement all leave nothing behind — you cannot keep watching a street you never walked out of.
+async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationId, toLocationId, dismounted, walked = false }) {
   if (!characterId || !toLocationId) return;
   if (fromLocationId === toLocationId) return;
 
@@ -313,8 +319,6 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     );
   }
 
-  if (!process.env.DISCORD_TOKEN) return;
-
   const [fromLocation, toLocation, character] = await Promise.all([
     fromLocationId ? prisma.location.findUnique({ where: { id: fromLocationId }, include: { zone: true } }) : null,
     prisma.location.findUnique({ where: { id: toLocationId }, include: { zone: true } }),
@@ -334,7 +338,42 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
       },
     }),
   ]);
-  if (!character?.discordUserId || !toLocation) return;
+  if (!toLocation) return;
+
+  // THE FOG OF WAR (db/lib/vantages.js). Above the Discord guard below, same reasoning as recordArrival: what a character can still see is a database fact, and the web reads it whether or not there is a token to talk to Discord with.
+  // Leaving the zone puts every light out — all of them, not just the one behind you — and that holds however the character left, walked or carried. Staying inside it leaves the street they walked out of lit, read-only, until the turn shifts.
+  const leftZone = Boolean(fromLocation) && fromLocation.zoneId !== toLocation.zoneId;
+  const droppedVantages = leftZone
+    ? await dropVantages(prisma, characterId).catch((err) => {
+        console.error(`Move: dropping vantages failed for ${characterId}:`, err.message ?? err);
+        return [];
+      })
+    : [];
+  if (!leftZone) {
+    // Arriving anywhere puts that street's own light out, walked or not: it is Here now, and Here is never a row.
+    await clearVantage(prisma, characterId, toLocationId).catch((err) =>
+      console.error(`Move: clearing the vantage failed for ${characterId}:`, err.message ?? err),
+    );
+  }
+  if (walked && !leftZone && fromLocationId) {
+    await lightVantage(prisma, {
+      characterId,
+      fromLocationId,
+      toLocationId,
+      zoneId: toLocation.zoneId,
+      turnId: openTurn?.id ?? null,
+    }).catch((err) => console.error(`Move: lighting the vantage failed for ${characterId}:`, err.message ?? err));
+  }
+
+  // No token is still a move: the database says where they stand and what they can still watch, so the web's place list has to be told either way (CHAT.md §3).
+  if (!process.env.DISCORD_TOKEN) {
+    await notifyPresence(prisma, characterId);
+    return;
+  }
+  if (!character?.discordUserId) {
+    await notifyPresence(prisma, characterId);
+    return;
+  }
   const discordUserId = character.discordUserId;
 
   // The watch this move just ended, told plainly — the delete happened above the guard, only the letter waits for a token. FIRST of the DMs, ahead of the channel work below, because swapLocationOverwrite/swapRole are unguarded and every caller swallows this function's throw — a Discord 5xx down there and the owner would never hear their watch was gone.
@@ -345,12 +384,26 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   }
 
   // The "web only" switch holds this account out of every channel, so the Discord half of standing somewhere is simply not done for them (CHAT.md §6). Everything else below still runs: the gate crossing is scenery the rest of the zone reads, the keyed-door offer and parked-mount note are DMs, and the carry, corpse and presence work is the database.
+  // Grant BEFORE revoke, deliberately: an interrupted swap leaves the player seeing two streets for a moment (harmless, self-healing) rather than none (a lockout a player can't diagnose).
   if (!character.webOnly) {
-    await swapLocationOverwrite(
-      discordUserId,
-      fromLocation?.discordChannelId ?? null,
-      toLocation.discordChannelId ?? null,
-    );
+    await openLocationTo(discordUserId, toLocation.discordChannelId ?? null, LOCATION_MEMBER_ALLOW);
+
+    if (fromLocation && fromLocation.discordChannelId !== toLocation.discordChannelId) {
+      if (leftZone) {
+        // Out of the zone: the street behind them closes like it always did.
+        await closeLocationTo(discordUserId, fromLocation.discordChannelId ?? null);
+      } else if (walked) {
+        // Still in the zone, and they walked: the street behind them stays open, mute. A DOWNGRADE, not a delete — the same one REST call the old revoke cost.
+        await openLocationTo(discordUserId, fromLocation.discordChannelId ?? null, LOCATION_VANTAGE_ALLOW);
+      } else {
+        await closeLocationTo(discordUserId, fromLocation.discordChannelId ?? null);
+      }
+    }
+
+    // Everything the zone crossing put out, told to Discord. One call per light; a character carries a handful at most, since a turn buys a handful of Moves.
+    for (const vantage of droppedVantages) {
+      await closeLocationTo(discordUserId, vantage.location?.discordChannelId ?? null);
+    }
   }
 
   await announceGateCrossing(prisma, character, fromLocationId, toLocation).catch((err) =>

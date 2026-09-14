@@ -940,9 +940,11 @@ export default function Chat({
           fallbackRows={initialRows}
           // Only in the STREET, and only where there is a board to read. A
           // room, a conversation and the zone summary have no noticeboard —
-          // the board belongs to the Location (db/lib/noticeboard.js).
+          // the board belongs to the Location (db/lib/noticeboard.js). Never
+          // from a street you are only watching: the board is a thing you walk
+          // up to and put your hands on (db/lib/vantages.js).
           notices={
-            aside?.hasBoard && selected?.kind === "loc" ? (
+            aside?.hasBoard && selected?.kind === "loc" && !selected?.vantage ? (
               <NoticeCards version={boardVersion} onChanged={bumpBoard} />
             ) : null
           }

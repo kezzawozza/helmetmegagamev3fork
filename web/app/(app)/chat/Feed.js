@@ -2091,6 +2091,11 @@ export default function Feed({
                 </span>
               )}
             </>
+          ) : place.vantage ? (
+            // A street you walked out of earlier this turn and are still
+            // watching (db/lib/vantages.js). Plain and factual — the reason
+            // you cannot speak is simply that you are not there.
+            <p className="chat-quiet italic">You aren’t in this location.</p>
           ) : place.kind === "net" ? (
             // A radio you can only listen on — the Cerberon bracelet. Not
             // "you're a ghost": the set works, it just has no transmitter.

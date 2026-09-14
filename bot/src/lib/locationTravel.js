@@ -208,6 +208,7 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
       fromLocationId: entry.fromLocationId,
       toLocationId: entry.toLocationId,
       dismounted: entry.character.id === character.id ? result.dismounted : undefined, // mover only, never a dragged passenger's
+      walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js) — a dragged passenger walked too
     }).catch((err) =>
       console.error(`Move side effects failed for ${entry.character.name}:`, err.message ?? err),
     );

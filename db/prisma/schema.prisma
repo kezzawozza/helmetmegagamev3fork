@@ -1315,6 +1315,7 @@ model Location {
   threatSpawns     ThreatSpawn[]
   cavingRolls      CavingRoll[]
   visits           LocationVisit[]
+  vantages         Vantage[]
   auditLogs        AuditLog[]
   // Everybody lying in wait here. A watch is anchored to one place and dies
   // when its owner leaves it (docs/systemdocs/INTERCEPT.md §1), so a Location
@@ -1361,6 +1362,44 @@ model LocationVisit {
 
   @@unique([characterId, locationId])
   @@index([characterId])
+}
+
+/// A Location this character walked into THIS TURN and is no longer standing
+/// in — the per-turn fog of war on the channels, not the permanent fog on the
+/// map. Walking in lights a place; it stays lit until the character leaves the
+/// zone or the turn shifts, and either of those puts every light out at once.
+///
+/// Deliberately NOT called fog in code: LocationVisit above already owns that
+/// word, it is never unlearned, and two tables called fog with opposite
+/// lifetimes would be a trap. A vantage is a place you still have eyes on.
+///
+/// WHERE YOU STAND IS NEVER A ROW. That is Character.locationId, as it always
+/// was, so the turn wipe is a bare deleteMany with nothing to put back and
+/// there is only ever one writer of "here".
+///
+/// zoneId and turnId are SNAPSHOT columns with no foreign key, the same
+/// reasoning the log tables use (ARCHITECTURE.md): zoneId makes the
+/// leave-the-zone wipe one statement, and turnId makes a wipe that failed to
+/// run read as dark rather than as a leak — every reader filters on both, so
+/// a stale row is already invisible before the channel doctor takes its
+/// overwrite off. db/lib/vantages.js is the only module that touches this.
+model Vantage {
+  id String @id @default(cuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  zoneId String
+  turnId String
+
+  litAt DateTime @default(now())
+
+  @@unique([characterId, locationId])
+  @@index([characterId, turnId])
+  @@index([locationId])
 }
 
 /// One edge of the travel graph, mastered by docs/zones.yaml's `connections:`.
@@ -2207,6 +2246,8 @@ model Character {
   noticePosts             NoticePost[]             @relation("NoticePostAuthor")
   // Every Location this character has stood in or seen from next door.
   locationVisits          LocationVisit[]
+  // Every Location still lit for this character this turn (db/lib/vantages.js).
+  vantages                Vantage[]
 
   // BEING HELD (docs/systemdocs/INTERCEPT.md). Somebody laid in wait where
   // this character walked in and stopped them: they cannot MOVE until

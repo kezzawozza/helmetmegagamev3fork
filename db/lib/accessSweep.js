@@ -59,6 +59,14 @@ async function revokeAllCharacterAccess(prisma, character, { keepGuests = false 
       .catch((err) => console.error(`Room guest revoke for ${character.id} failed:`, err.message ?? err));
   }
 
+  // The fog of war goes with them (db/lib/vantages.js). Not behind keepGuests:
+  // a vantage is pure Discord bookkeeping, and the web-only switch that wants
+  // its guest rows kept is exactly the case where holding a lit street would
+  // be wrong.
+  await prisma.vantage
+    .deleteMany({ where: { characterId: character.id } })
+    .catch((err) => console.error(`Vantage revoke for ${character.id} failed:`, err.message ?? err));
+
   const strip = async (label, fn) => {
     attempted += 1;
     try {
@@ -149,6 +157,9 @@ async function revokeAccessForCharacters(prisma, characters) {
     await prisma.roomGuest
       .deleteMany({ where: { characterId: { in: characterIds } } })
       .catch((err) => console.error("Access revoke: room guest sweep failed:", err.message ?? err));
+    await prisma.vantage
+      .deleteMany({ where: { characterId: { in: characterIds } } })
+      .catch((err) => console.error("Access revoke: vantage sweep failed:", err.message ?? err));
   }
 
   let rolesRemoved = 0;

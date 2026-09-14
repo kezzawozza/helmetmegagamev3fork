@@ -24,6 +24,7 @@ const { deliverStagedPrivate } = require("./turnSideEffects/steps/delivery");
 const { runBroadcasts } = require("./turnSideEffects/steps/broadcasts");
 const { deliverPublicPosts } = require("./turnSideEffects/steps/publicPosts");
 const { wrapUpTurn } = require("./turnSideEffects/steps/turnWrapup");
+const { expireTurnVantages } = require("./turnSideEffects/steps/vantages");
 
 // Everything advanceTurn() has to hand over to be replayable in a process that never saw the turn resolve. Plain JSON only — no Prisma rows, no
 // Dates, no functions. `messageWipeEnabled` is deliberately NOT captured: a resume should honour the switch as it stands now. `startedAtMs` is the
@@ -113,6 +114,11 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
   const sideEffectsStartedAt = p.startedAtMs ?? Date.now();
 
   const ctx = { prisma, p, list, step, eachDm };
+
+  // FIRST: the fog of war from yesterday goes out before anything below moves
+  // anybody, so a relocation's own vantage is not swept by the same pass that
+  // clears the old day's (db/lib/vantages.js).
+  await expireTurnVantages(ctx);
 
   await sendEarlyDmNotices(ctx);
 

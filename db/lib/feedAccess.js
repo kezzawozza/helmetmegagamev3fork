@@ -23,6 +23,7 @@ const { hasNoticeboard } = require("./noticeboard");
 const { conversationsFor } = require("./conversations");
 const { visibleZoneIds } = require("./gmZoneView");
 const { SCRYING_EYE_SLUG, ROBE_SLUGS } = require("./thanati");
+const { vantagesFor } = require("./vantages");
 
 // Equipped Scrying Eye + ROBES ON + web-only switch. Web-only because Discord's
 // channel permissions can't show rooms the eye opens; robes because a stolen
@@ -55,7 +56,7 @@ function slowmodeMsFor(placeKey) {
 // One line of a place list. `canSpeak` is the composer's gate and the send
 // route's; `slowmodeSeconds` is what the composer tells a player they are
 // waiting for. `roomKind` is null for anything that is not a Room.
-function place({ placeKey, kind, name, description = "", roomKind = null, canSpeak, hasBoard = false }) {
+function place({ placeKey, kind, name, description = "", roomKind = null, canSpeak, hasBoard = false, vantage = false }) {
   return {
     placeKey,
     kind,
@@ -63,6 +64,12 @@ function place({ placeKey, kind, name, description = "", roomKind = null, canSpe
     description: description ?? "",
     roomKind,
     canSpeak,
+    // A place you walked out of and are still watching (db/lib/vantages.js).
+    // Read-only by construction — every vantage place is built with canSpeak
+    // false — and drawn under its own heading in the left column. The mirror
+    // of holding LOCATION_VANTAGE_ALLOW on the Discord channel: the view, and
+    // no send bit.
+    vantage,
     // Only a Location carries one, only the GM list fills it: a player's board
     // comes through affordancesFor; a GM picks off the left column instead.
     hasBoard,
@@ -197,6 +204,11 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
     ),
   ];
 
+  // THE FOG OF WAR (db/lib/vantages.js): the streets walked out of earlier
+  // this turn, still watched, all of them read-only. After Here/Rooms so the
+  // place you actually stand in is never buried under the places you don't.
+  list.push(...(await vantagePlacesFor(prisma, { id: character.id, zoneId: location.zone?.id ?? null }, keys, location.id)));
+
   if (location.zone) {
     list.push(
       place({
@@ -212,6 +224,92 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
   list.push(...nets);
 
   return list;
+}
+
+// The lit-but-left half of the column. One section per Location this character
+// walked out of this turn and is still in the zone of: the street, the rooms a
+// door opens for them, and the conversations they are in there.
+//
+// EVERYTHING here is canSpeak false, with no exception and no per-place rule to
+// get wrong. That is the exact mirror of holding LOCATION_VANTAGE_ALLOW on the
+// Discord channel — the view bit and nothing else — so the two faces cannot
+// answer differently about a street you are not standing in.
+//
+// `character` is narrowed to { id, zoneId } by the caller rather than trusted
+// off the session row: the zone is read from the Location they are standing in
+// this instant, so a row lit in a zone they have since left is dark here even
+// if the wipe that should have removed it never ran.
+//
+// `keys` is the caller's roomAccessKeys, computed once for the whole list. A
+// guest row is spent by walking out (db/lib/roomAccess.js), so a room somebody
+// was let into does NOT follow them into the fog — only a key or a quest does.
+// No Scrying Eye here either: the eye is for the room you are standing in.
+async function vantagePlacesFor(prisma, character, keys, hereLocationId) {
+  const vantages = await vantagesFor(prisma, character).catch((err) => {
+    console.error(`Vantage places failed for ${character?.id}:`, err.message ?? err);
+    return [];
+  });
+  if (vantages.length === 0) return [];
+
+  const out = [];
+  for (const vantage of vantages) {
+    const locationId = vantage.locationId;
+    // Standing beats watching. A row for where they stand should never exist
+    // — every arrival clears one — but drawing the street twice, once as Here
+    // and once as Elsewhere, is a bad way to find out it does.
+    if (locationId === hereLocationId) continue;
+    const [row, rooms, conversations] = await Promise.all([
+      prisma.location.findUnique({
+        where: { id: locationId },
+        select: { id: true, name: true, description: true },
+      }),
+      prisma.room.findMany({
+        where: { locationId },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: { id: true, name: true, description: true, kind: true, accessTagSlugs: true },
+      }),
+      conversationsFor(prisma, character.id, { locationId }),
+    ]);
+    if (!row) continue;
+
+    const reachable = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
+    const ordered = [
+      ...reachable.filter((room) => room.kind !== "PRIVATE"),
+      ...reachable.filter((room) => room.kind === "PRIVATE"),
+    ];
+
+    out.push(
+      place({
+        placeKey: placeKeyForLocation(row.id),
+        kind: "loc",
+        name: row.name,
+        description: row.description,
+        canSpeak: false,
+        vantage: true,
+      }),
+      ...ordered.map((room) =>
+        place({
+          placeKey: placeKeyForRoom(room.id),
+          kind: "room",
+          name: `${row.name} · ${room.name}`,
+          description: room.description,
+          roomKind: room.kind,
+          canSpeak: false,
+          vantage: true,
+        }),
+      ),
+      ...conversations.map((conversation) =>
+        place({
+          placeKey: placeKeyForConversation(conversation.id),
+          kind: "conv",
+          name: `${row.name} · ${conversation.name}`,
+          canSpeak: false,
+          vantage: true,
+        }),
+      ),
+    );
+  }
+  return out;
 }
 
 // A GM reads every place in their chosen zones (db/lib/gmZoneView.js — no

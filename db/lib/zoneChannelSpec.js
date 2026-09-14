@@ -98,6 +98,13 @@ function zoneChannelSpec(zone, { spectators = true } = {}) {
 // the deny that carries the rule is on @everyone in locationChannelSpec below.
 const LOCATION_MEMBER_ALLOW = PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS;
 
+// What a WATCHING character is granted: the view and nothing else
+// (db/lib/vantages.js). A Location you walked into this turn but have since
+// left stays open to you read-only — no SEND_MESSAGES_IN_THREADS, so the
+// public rooms you can still read are mute, and no ADD_REACTIONS, so you
+// cannot even nod from the doorway. Presence is what gives you a voice.
+const LOCATION_VANTAGE_ALLOW = PERM_VIEW_CHANNEL;
+
 // The text channel for one Location: its STANDING shape, never occupancy —
 // managedOverwriteIds() must never learn to delete a member target.
 function locationChannelSpec(location, zoneGmRoleId = null, { spectators = true } = {}) {
@@ -138,4 +145,5 @@ module.exports = {
   zoneRoleName,
   zoneGmRoleName,
   LOCATION_MEMBER_ALLOW,
+  LOCATION_VANTAGE_ALLOW,
 };

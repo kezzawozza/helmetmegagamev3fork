@@ -6369,6 +6369,16 @@ label.chip {
   border-left: 2px solid transparent;
 }
 
+/* A street walked out of earlier this turn, still watched and read-only
+   (db/lib/vantages.js, the Elsewhere section in PlacesColumn.js). ITALIC, not
+   dimmer: this column's rows are already var(--muted), and fading them any
+   further drops them under 4.5:1 in all three themes — 0.72 opacity measures
+   3.5. Italic is the same move .chat-quiet makes for prose the game is saying
+   rather than a person, and it costs no contrast at all. */
+.chat-place[data-vantage="true"] .chat-place-name {
+  font-style: italic;
+}
+
 /* A room row wrapped in a HoverCard so its description shows on hover
    (PlacesColumn.js). The wrapper has to be a full-width block in the
    column's own face — .tag-hover is inline-flex in mono for chips. */

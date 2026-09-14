@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · You keep seeing where you have been this turn
+
+✎ You go on reading every place you walked into this turn, and its public rooms — but only to watch: you cannot speak or react there until you walk back in  
+✎ Leaving the zone closes all of it at once, and so does the turn shift
+
 ## 2026-09-14 · Claiming a Desire from Chat works again
 
 ✎ The claim box on Chat now asks how you pulled it off; before, every claim there was refused  

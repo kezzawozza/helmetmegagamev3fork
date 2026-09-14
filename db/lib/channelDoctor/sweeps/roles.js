@@ -39,7 +39,7 @@ async function runRoleMembershipSweep({
     });
   }
 
-  await runLocationOccupancySweep({ report, locations, liveLocationChannels, alive });
+  await runLocationOccupancySweep({ report, prisma, locations, liveLocationChannels, alive });
 
   // Turn-ping: living characters' preferences, nobody else — and not a
   // web-only one. The ping is a <@&role> inside the #turns console, and

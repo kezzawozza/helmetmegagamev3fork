@@ -655,6 +655,25 @@ creation, a GM's raw edit or teleport, GM Bulk Move, and the staged
 this function. Any new writer of `Character.locationId` must call both, or a
 player either sees the wrong place or none.
 
+### 4a. Two fogs, and they never mix
+
+There are two "fog" tables and they have opposite lifetimes. Do not reach for
+one when you mean the other.
+
+- **`LocationVisit`** (`db/lib/locationVisits.js`) is the **map** fog, behind
+  `/map` (§6). It is per character, it only ever grows, and **nothing ever
+  unlearns a row** — seen once, drawn forever.
+- **`Vantage`** (`db/lib/vantages.js`) is the **channel** fog, per turn. A row
+  says "this character walked out of here and is still watching it", and every
+  row goes the moment they leave the zone or the day turns
+  (`CHANNELS.md` §3aa).
+
+`applyLocationMoveSideEffects` writes both, a few lines apart, which is exactly
+why they need different names. It takes a `walked` flag, defaulting **false**,
+and only the Travel button and the web's own travel action pass it — a
+teleport, a rite, a spawn, Xom and a staged "Relocate to" record the visit on
+the map but light nothing, because nobody walked out of anywhere.
+
 ## 5. Tax runs and the Lifeweb
 
 Travel cost is also what a **tax run** costs. Handing ⬢ or an item to a

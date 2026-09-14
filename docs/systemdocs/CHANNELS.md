@@ -135,9 +135,63 @@ more, and nothing creates one.
 > check (§6) exists.
 
 Either way a Location's Rooms inherit channel visibility the way any thread
-does, and a character always has exactly one zone role and exactly one
-Location overwrite while alive. Travel swaps both as needed (§ below); nothing
-else grants access to either.
+does, and a character always has exactly one zone role while alive. Travel
+swaps it as needed (§ below); nothing else grants access.
+
+### 3aa. The fog of war: one overwrite per street you have been in
+
+A character does **not** hold exactly one Location overwrite. They hold one for
+the street they stand in, and one for **every street they walked out of this
+turn and have not left the zone of** — the fog of war
+(`db/lib/vantages.js`). Walking into a Location lights it, and it stays lit
+until one of exactly two things puts every light out at once:
+
+- **leaving the zone**, or
+- **the turn shifting**.
+
+The difference between the two states is the **allow mask**, and nothing else
+— the overwrite itself is the same call either way
+(`db/lib/zoneChannelSpec.js`):
+
+| | Allow | What it buys |
+|---|---|---|
+| **Standing** here | `LOCATION_MEMBER_ALLOW` — View + SendMessagesInThreads + AddReactions | read the street, talk in its Rooms |
+| **Watching** it | `LOCATION_VANTAGE_ALLOW` — View | read the street and its public Rooms, and nothing else |
+
+So a watched street is **read-only by construction**: no send bit means the
+public Room threads under it are mute, and no reaction bit means you cannot
+even nod from the doorway. Presence is what gives you a voice. A private Room
+whose thread the character is a member of reappears under a vantage for the
+same reason a public one does — the parent channel is viewable again — and is
+mute for the same reason.
+
+Only a **walk** lights anything. `applyLocationMoveSideEffects` takes a
+`walked` flag that defaults to false, and only the two travel callers pass it;
+a GM teleport, a rite, a threat spawn, a staged "Relocate to", Xom and a first
+placement all leave nothing behind, because the character never walked out of
+anywhere.
+
+Where a character **stands** is still `Character.locationId` and is never a
+`Vantage` row. That is what makes the turn wipe a bare `deleteMany` with
+nothing to put back.
+
+Each row carries two **snapshot columns** — the turn it was lit in and the zone
+it sits in — and every reader filters on both. A wipe that fails to run
+therefore leaves rows that already read as dark to `placesFor` and to the
+doctor, rather than a leak; the doctor takes their overwrites off on its next
+pass (§6). The wipes are the belt, the filter is the braces.
+
+The web says the same thing from the same rows: `placesFor` lists each watched
+Location and its rooms with `canSpeak: false` and draws them under
+**Elsewhere** in Chat's left column (`CHAT.md` §3). The composer there reads
+*"You aren't in this location."*
+
+One consequence worth knowing: a Location anchor's buttons are pressed **in the
+channel**, and the channel is now open to more people than stand in it. Who's
+here?, Examine, Secret rooms? and Converse each check that the presser actually
+stands there and refuse with that same sentence otherwise
+(`bot/src/events/interactions/scene.js`). The noticeboard and a Quest's
+Interact already did.
 
 > **`managedOverwriteIds()` must never learn to delete a member target.**
 > `db/lib/syncZones.js` reconciles each channel's overwrites against a spec,
@@ -664,12 +718,22 @@ Two scopes:
 
   **`location-occupancy` is the successor to the old Location-role membership
   check, and it matters more than that one did.** The member overwrites on a
-  Location channel must be exactly the living characters standing there;
-  extras are deleted and missing ones added. It is the only sweep that catches
-  a location grant the move pipeline failed to swap, or one a dead character
-  kept — an overwrite has no `db:prune-orphan-roles` to fall off through. It
-  costs no extra requests, because the overwrites arrive on the channel object
-  the structure pass already fetched.
+  Location channel must be exactly the living characters standing there **plus
+  the ones still watching it** (§3aa), each with the right allow mask; extras
+  are deleted, missing ones added, and a wrong mask is rewritten. It is the
+  only sweep that catches a location grant the move pipeline failed to swap, or
+  one a dead character kept — an overwrite has no `db:prune-orphan-roles` to
+  fall off through. It costs one extra query (every valid `Vantage` row, in one
+  read) and no extra requests, because the overwrites arrive on the channel
+  object the structure pass already fetched.
+
+  Standing beats watching: somebody who walked back into a street they were
+  watching gets the full mask, not the mute one.
+
+  This is also the **backstop for the turn shift.** A `Vantage` row is invalid
+  the moment its turn is no longer the open one, so the cheap pass that runs at
+  the end of every turn advance closes whatever the expiry step missed. The
+  expiry step is what makes it prompt, not what makes it correct.
 - **full** — all of the above plus the expensive halves: zone and **Location
   channel overwrites** vs the spec (the *role* half; occupancy is cheap-scope),
   leftover per-member overwrites on zone channels — **`member-overwrite`**, and
