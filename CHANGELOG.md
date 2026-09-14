@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Streets you are only watching are read-only on Discord too
+
+✎ A street you walked out of this turn no longer lets you post in its Room threads or react there  
+✎ The channel doctor repairs the watching permissions already handed out
+
 ## 2026-09-14 · Small items no longer show when someone looks you over
 
 ✎ Cameras, food, drink, books and pocket gear are hidden from a look  

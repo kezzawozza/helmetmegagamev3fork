@@ -29,7 +29,7 @@ const { recordArrival } = require("./locationVisits");
 const { cancelWatchOnMove, releaseHeldBy, INTERCEPT_CANCELLED_DM } = require("./intercept");
 const { closeFightsFor } = require("./attack");
 const { reconcileCorpses } = require("./corpseFollow");
-const { LOCATION_MEMBER_ALLOW, LOCATION_VANTAGE_ALLOW } = require("./zoneChannelSpec");
+const { LOCATION_MEMBER_ALLOW, LOCATION_VANTAGE_ALLOW, LOCATION_VANTAGE_DENY } = require("./zoneChannelSpec");
 const { lightVantage, clearVantage, vantagesFor, dropVantages } = require("./vantages");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
 const { keyedPromptRow } = require("./locationAnchorRow");
@@ -94,11 +94,12 @@ async function swapRole(discordUserId, fromRoleId, toRoleId, label) {
 }
 
 // The Location half of a move, and the reason a Location wears no Discord role: one per-member overwrite on the channel, never a role. Spends none of the guild's 250 roles — see db/lib/zoneChannelSpec.js.
-// Two allow masks now, not one: LOCATION_MEMBER_ALLOW for the street you stand in, LOCATION_VANTAGE_ALLOW for one you walked out of and are still watching (db/lib/vantages.js). The mask is the whole difference between the two — the overwrite itself is the same call.
-async function openLocationTo(discordUserId, channelId, allow) {
+// Two masks now, not one: LOCATION_MEMBER_ALLOW for the street you stand in, LOCATION_VANTAGE_ALLOW + LOCATION_VANTAGE_DENY for one you walked out of and are still watching (db/lib/vantages.js). The watcher needs the deny, not just a smaller allow — @everyone would otherwise hand back thread-send and reactions. Same call either way; a PUT replaces both halves, so walking back in clears the deny.
+async function openLocationTo(discordUserId, channelId, allow, deny = 0n) {
   if (!channelId) return;
   await putChannelOverwrite(channelId, discordUserId, {
     allow: String(allow),
+    deny: String(deny),
     type: 1,
   }).catch((err) =>
     console.error(`Move: failed to open ${channelId} to ${discordUserId}:`, err.message ?? err),
@@ -133,7 +134,7 @@ async function materializeDiscordPresence(prisma, character) {
     return [];
   });
   for (const vantage of vantages) {
-    await openLocationTo(discordUserId, vantage.location?.discordChannelId ?? null, LOCATION_VANTAGE_ALLOW);
+    await openLocationTo(discordUserId, vantage.location?.discordChannelId ?? null, LOCATION_VANTAGE_ALLOW, LOCATION_VANTAGE_DENY);
   }
   await reconcileNarrowcastAccess(prisma, character.id, discordUserId).catch((err) =>
     console.error(`Web-only off: narrowcast reconcile failed for ${character.id}:`, err.message ?? err),
@@ -394,7 +395,7 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
         await closeLocationTo(discordUserId, fromLocation.discordChannelId ?? null);
       } else if (walked) {
         // Still in the zone, and they walked: the street behind them stays open, mute. A DOWNGRADE, not a delete — the same one REST call the old revoke cost.
-        await openLocationTo(discordUserId, fromLocation.discordChannelId ?? null, LOCATION_VANTAGE_ALLOW);
+        await openLocationTo(discordUserId, fromLocation.discordChannelId ?? null, LOCATION_VANTAGE_ALLOW, LOCATION_VANTAGE_DENY);
       } else {
         await closeLocationTo(discordUserId, fromLocation.discordChannelId ?? null);
       }

@@ -149,18 +149,22 @@ until one of exactly two things puts every light out at once:
 - **leaving the zone**, or
 - **the turn shifting**.
 
-The difference between the two states is the **allow mask**, and nothing else
-— the overwrite itself is the same call either way
-(`db/lib/zoneChannelSpec.js`):
+The difference between the two states is the overwrite's **masks** — the
+overwrite itself is the same call either way (`db/lib/zoneChannelSpec.js`):
 
-| | Allow | What it buys |
-|---|---|---|
-| **Standing** here | `LOCATION_MEMBER_ALLOW` — View + SendMessagesInThreads + AddReactions | read the street, talk in its Rooms |
-| **Watching** it | `LOCATION_VANTAGE_ALLOW` — View | read the street and its public Rooms, and nothing else |
+| | Allow | Deny | What it buys |
+|---|---|---|---|
+| **Standing** here | `LOCATION_MEMBER_ALLOW` — View + SendMessagesInThreads + AddReactions | nothing | read the street, talk in its Rooms |
+| **Watching** it | `LOCATION_VANTAGE_ALLOW` — View | `LOCATION_VANTAGE_DENY` — SendMessages + SendMessagesInThreads + AddReactions | read the street and its public Rooms, and nothing else |
 
-So a watched street is **read-only by construction**: no send bit means the
-public Room threads under it are mute, and no reaction bit means you cannot
-even nod from the doorway. Presence is what gives you a voice. A private Room
+**The deny is load-bearing.** Leaving a bit out of an allow takes nothing
+away: the guild's `@everyone` role grants SendMessagesInThreads and
+AddReactions, and the Location channel's `@everyone` overwrite denies neither.
+The first fog-of-war build wrote the view with no deny, and watchers could
+still talk in Room threads and react. So the watcher's own overwrite denies
+those bits, and the channel doctor's `location-occupancy` sweep compares the
+deny as well as the allow — which is also how the overwrites written before
+the fix got repaired. Presence is what gives you a voice. A private Room
 whose thread the character is a member of reappears under a vantage for the
 same reason a public one does — the parent channel is viewable again — and is
 mute for the same reason.

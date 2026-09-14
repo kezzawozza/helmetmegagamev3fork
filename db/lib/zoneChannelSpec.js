@@ -95,15 +95,19 @@ function zoneChannelSpec(zone, { spectators = true } = {}) {
 
 // What a standing character is granted: READ the street, talk in Room threads,
 // nothing at top level (CHANNELS.md §2). Taking a bit OUT OF AN ALLOW DENIES NOTHING —
-// the deny that carries the rule is on @everyone in locationChannelSpec below.
+// the top-level send deny is on @everyone in locationChannelSpec below.
 const LOCATION_MEMBER_ALLOW = PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS;
 
 // What a WATCHING character is granted: the view and nothing else
 // (db/lib/vantages.js). A Location you walked into this turn but have since
-// left stays open to you read-only — no SEND_MESSAGES_IN_THREADS, so the
-// public rooms you can still read are mute, and no ADD_REACTIONS, so you
-// cannot even nod from the doorway. Presence is what gives you a voice.
+// left stays open to you read-only. Presence is what gives you a voice.
 const LOCATION_VANTAGE_ALLOW = PERM_VIEW_CHANNEL;
+
+// ...and what the same overwrite takes away. Leaving a bit out of the allow is
+// not enough here: the guild's @everyone role grants SEND_MESSAGES_IN_THREADS
+// and ADD_REACTIONS, and the channel's @everyone overwrite denies neither, so a
+// watcher handed only VIEW could still talk in the Room threads and react.
+const LOCATION_VANTAGE_DENY = PERM_SEND_MESSAGES | PERM_SEND_MESSAGES_IN_THREADS | PERM_ADD_REACTIONS;
 
 // The text channel for one Location: its STANDING shape, never occupancy —
 // managedOverwriteIds() must never learn to delete a member target.
@@ -146,4 +150,5 @@ module.exports = {
   zoneGmRoleName,
   LOCATION_MEMBER_ALLOW,
   LOCATION_VANTAGE_ALLOW,
+  LOCATION_VANTAGE_DENY,
 };
