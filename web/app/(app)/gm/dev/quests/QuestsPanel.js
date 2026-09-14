@@ -6,14 +6,23 @@
 // split rather than a table. Scanning — what is live, where, how long has it
 // got — is a glance down a list. Working on one is a form. A single wide table
 // does the first job badly and the second not at all.
-import { useMemo, useState, useTransition } from "react";
+//
+// Everything below is drawn in the desk vocabulary the rest of /gm/dev uses:
+// .desk-card for a surface, .section-title for a heading that sits beside
+// something, .ops-actions for a row of verbs, .select-card for a row you pick.
+// It used to be bare .panel with no padding class, which is why it read as a
+// stack of boxes with the text shoved against the border.
+import { useId, useMemo, useState, useTransition } from "react";
 
 import Modal from "@/app/components/Modal";
 import Select from "@/app/components/Select";
 import FormError from "@/app/components/FormError";
-import EmptyState from "@/app/components/EmptyState";
+import EmptyState, { EmptyRow } from "@/app/components/EmptyState";
 import StatusPill from "@/app/components/StatusPill";
+import Pager from "@/app/components/Pager";
+import { SortHeader, TableScroll, useTableState } from "@/app/components/DataTable";
 import { useConfirm } from "@/app/components/ConfirmProvider";
+import GatePicker from "./GatePicker";
 import {
   createQuestAction,
   updateQuestAction,
@@ -23,26 +32,42 @@ import {
 
 const STATUS_TONE = { OPEN: "good", CLOSED: "neutral", EXPIRED: "warn" };
 
+const RAIL_STATUS = [
+  { key: "", label: "All" },
+  { key: "OPEN", label: "Open" },
+  { key: "CLOSED", label: "Closed" },
+  { key: "EXPIRED", label: "Expired" },
+];
+
+// Module scope, not an inline literal: useTableState takes these as deps, and
+// a fresh array every render re-runs the whole filter chain.
+const INTERACTION_SEARCH = [(r) => r.characterName, (r) => r.intention];
+const NO_FILTERS = [];
+
 // What the rail shows instead of a date. A GM thinks in turns, and the number
 // they actually scan for is how long they have got.
 function clockLabel(quest) {
-  if (quest.status !== "OPEN") return "—";
+  if (quest.status !== "OPEN") return null;
   if (quest.turnsLeft == null) return "no expiry";
   if (quest.turnsLeft <= 0) return "due";
   return `${quest.turnsLeft} turn${quest.turnsLeft === 1 ? "" : "s"}`;
 }
 
-function QuestForm({ value, onChange, locations, tags, characters }) {
+function QuestForm({ value, onChange, locations, tags, characters, pickerHeight = "18rem" }) {
+  // The detail pane and the create modal can both hold a QuestForm at once, so
+  // the ids have to be per-instance. Hardcoded, they collided and half the
+  // labels pointed at the other form's control.
+  const id = useId();
   const set = (patch) => onChange({ ...value, ...patch });
 
   return (
-    <>
+    <div className="flex flex-col gap-3">
       <div className="field">
-        <label className="field-label" htmlFor="quest-title">
+        <label className="field-label" htmlFor={`${id}-title`}>
           Title
         </label>
         <input
-          id="quest-title"
+          id={`${id}-title`}
           type="text"
           value={value.title}
           maxLength={90}
@@ -51,11 +76,11 @@ function QuestForm({ value, onChange, locations, tags, characters }) {
       </div>
 
       <div className="field">
-        <label className="field-label" htmlFor="quest-description">
+        <label className="field-label" htmlFor={`${id}-description`}>
           What is here
         </label>
         <textarea
-          id="quest-description"
+          id={`${id}-description`}
           rows={5}
           value={value.description}
           maxLength={1800}
@@ -67,89 +92,151 @@ function QuestForm({ value, onChange, locations, tags, characters }) {
         </p>
       </div>
 
-      <div className="field">
-        <label className="field-label" htmlFor="quest-location">
-          Where
-        </label>
-        <Select
-          id="quest-location"
-          value={value.locationId}
-          onChange={(e) => set({ locationId: e.target.value })}
-          disabled={value.locked}
-        >
-          <option value="">Pick a place…</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.label}
-            </option>
-          ))}
-        </Select>
-        {value.locked ? (
+      <div className="ops-grid">
+        <div className="field">
+          <label className="field-label" htmlFor={`${id}-location`}>
+            Where
+          </label>
+          <Select
+            id={`${id}-location`}
+            value={value.locationId}
+            onChange={(e) => set({ locationId: e.target.value })}
+            disabled={value.locked}
+          >
+            <option value="">Pick a place…</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
+            ))}
+          </Select>
+          {value.locked ? (
+            <p className="text-sm text-muted">
+              A thread cannot change channels, so a staged quest stays where it was staged. Close it
+              and stage another to move it.
+            </p>
+          ) : null}
+        </div>
+
+        <div className="field">
+          <label className="field-label" htmlFor={`${id}-expiry`}>
+            Lasts
+          </label>
+          <input
+            id={`${id}-expiry`}
+            type="number"
+            min={0}
+            value={value.expiresTurns}
+            onChange={(e) => set({ expiresTurns: e.target.value })}
+          />
           <p className="text-sm text-muted">
-            A thread cannot change channels, so a staged quest stays where it was staged. Close it
-            and stage another to move it.
+            In turns, counted from today. Zero or blank means it stands until somebody closes it.
           </p>
-        ) : null}
+        </div>
       </div>
 
-      <div className="field">
-        <label className="field-label" htmlFor="quest-expiry">
-          Lasts
-        </label>
-        <input
-          id="quest-expiry"
-          type="number"
-          min={0}
-          value={value.expiresTurns}
-          onChange={(e) => set({ expiresTurns: e.target.value })}
-        />
-        <p className="text-sm text-muted">
-          In turns, counted from today. Zero or blank means it stands until somebody closes it.
-        </p>
-      </div>
-
-      <div className="field">
-        <label className="field-label" htmlFor="quest-tags">
-          Needs one of these
-        </label>
-        <select
-          id="quest-tags"
-          multiple
-          size={6}
+      <div className="grid gap-3 lg:grid-cols-2">
+        <GatePicker
+          label="Needs one of these"
+          items={tags}
           value={value.accessTagSlugs}
-          onChange={(e) => set({ accessTagSlugs: [...e.target.selectedOptions].map((o) => o.value) })}
-        >
-          {tags.map((t) => (
-            <option key={t.slug} value={t.slug}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+          onChange={(next) => set({ accessTagSlugs: next })}
+          emptyLabel="No tag matches."
+          filterPlaceholder="Tag name…"
+          searchThreshold={0}
+          maxHeight={pickerHeight}
+          minHeight={pickerHeight}
+        />
+        <GatePicker
+          label="…or is one of these people"
+          items={characters}
+          value={value.allowedCharacterIds}
+          onChange={(next) => set({ allowedCharacterIds: next })}
+          emptyLabel="Nobody matches."
+          filterPlaceholder="Name…"
+          searchThreshold={0}
+          maxHeight={pickerHeight}
+          minHeight={pickerHeight}
+        />
       </div>
 
-      <div className="field">
-        <label className="field-label" htmlFor="quest-people">
-          …or is one of these people
-        </label>
-        <select
-          id="quest-people"
-          multiple
-          size={6}
-          value={value.allowedCharacterIds}
-          onChange={(e) => set({ allowedCharacterIds: [...e.target.selectedOptions].map((o) => o.value) })}
-        >
-          {characters.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <p className="text-sm text-muted">
-          Leave both empty and anybody standing there can see it. Set either one and the room
-          becomes private.
-        </p>
+      <p className="text-sm text-muted">
+        Leave both empty and anybody standing there can see it. Set either one and the room becomes
+        private.
+      </p>
+    </div>
+  );
+}
+
+// Its own component, not inline JSX, because it holds a hook — inlining it
+// behind `if (!selected)` would make that hook conditional.
+function InteractionsTable({ rows }) {
+  const table = useTableState({
+    rows,
+    searchFields: INTERACTION_SEARCH,
+    filterDefs: NO_FILTERS,
+    initialSort: { key: "turnNumber", dir: "desc" },
+    pageSize: 25,
+  });
+
+  return (
+    <div className="desk-card flex flex-col gap-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="section-title">Who has touched it</h4>
+        {/* A count is neither a chip nor a pill — it is a muted line. */}
+        <span className="mono text-sm text-muted">
+          {rows.length} press{rows.length === 1 ? "" : "es"}
+        </span>
       </div>
-    </>
+
+      {rows.length > 10 ? (
+        <label className="field">
+          <span className="field-label">Search</span>
+          <input
+            type="text"
+            value={table.query}
+            placeholder="Name, or what they said…"
+            onChange={(e) => table.setQuery(e.target.value)}
+          />
+        </label>
+      ) : null}
+
+      {/* Three columns, so no minWidth — that is for the eight-column tables.
+          TableScroll already draws its own .panel, so it is never wrapped. */}
+      <TableScroll>
+        <thead>
+          <tr>
+            <SortHeader label="Who" sortKey="characterName" sort={table.sort} onSort={table.toggleSort} />
+            <SortHeader label="Turn" sortKey="turnNumber" sort={table.sort} onSort={table.toggleSort} />
+            <th scope="col" className="col-prose">
+              What they said they were doing
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {table.pageRows.map((i) => (
+            <tr key={i.id}>
+              <td>{i.characterName}</td>
+              <td className="mono">{i.turnNumber ?? "—"}</td>
+              <td>{i.intention}</td>
+            </tr>
+          ))}
+          {table.pageRows.length === 0 ? (
+            <EmptyRow cols={3}>{rows.length === 0 ? "Nobody yet." : "Nobody matches."}</EmptyRow>
+          ) : null}
+        </tbody>
+      </TableScroll>
+
+      {table.totalPages > 1 ? (
+        <Pager
+          page={table.page}
+          totalPages={table.totalPages}
+          total={table.total}
+          unit="presses"
+          onPage={table.setPage}
+        />
+      ) : null}
+    </div>
   );
 }
 
@@ -180,13 +267,33 @@ export default function QuestsPanel({
   const [draft, setDraft] = useState(null);
   const [creating, setCreating] = useState(null);
 
+  // The rail's own filters. Closed and expired quests never leave the list, so
+  // without these a month-old game buries the three that are live.
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+
   const selected = useMemo(() => quests.find((q) => q.id === selectedId) ?? null, [quests, selectedId]);
 
+  // Mapped once here rather than inside QuestForm, so both the detail pane and
+  // the create modal share one array apiece.
+  const tagItems = useMemo(() => tags.map((t) => ({ id: t.slug, label: t.name })), [tags]);
+  const characterItems = useMemo(() => characters.map((c) => ({ id: c.id, label: c.name })), [characters]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return quests.filter((x) => {
+      if (status && x.status !== status) return false;
+      if (!q) return true;
+      return `${x.title} ${x.locationName} ${x.zoneName}`.toLowerCase().includes(q);
+    });
+  }, [quests, query, status]);
+
   // The rail, grouped by zone with the caves first — that is where a quest
-  // usually goes, so it should not be a scroll away.
+  // usually goes, so it should not be a scroll away. Grouped rather than run
+  // through useTableState, whose pager would slice across a group boundary.
   const groups = useMemo(() => {
     const by = new Map();
-    for (const q of quests) {
+    for (const q of visible) {
       if (!by.has(q.zoneName)) by.set(q.zoneName, { zoneName: q.zoneName, cave: q.cave, rows: [] });
       by.get(q.zoneName).rows.push(q);
     }
@@ -194,7 +301,7 @@ export default function QuestsPanel({
       if (a.cave !== b.cave) return a.cave ? -1 : 1;
       return a.zoneName.localeCompare(b.zoneName);
     });
-  }, [quests]);
+  }, [visible]);
 
   function pick(quest) {
     setSelectedId(quest.id);
@@ -257,53 +364,95 @@ export default function QuestsPanel({
   }
 
   return (
-    <div className="quest-desk">
-      <div className="panel quest-rail">
-        <div className="panel-header">
-          <span>Staged</span>
-          <button type="button" className="btn" onClick={() => setCreating({ ...BLANK })}>
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+      <div className="desk-card flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h4 className="section-title">Staged</h4>
+          <button type="button" className="btn-secondary" onClick={() => setCreating({ ...BLANK })}>
             New quest
           </button>
         </div>
 
-        {quests.length === 0 ? (
-          <EmptyState>Nothing is staged. A new quest appears as a room wherever you put it.</EmptyState>
-        ) : (
-          groups.map((group) => (
-            <div key={group.zoneName} className="quest-rail-group">
-              <span className="quest-rail-zone">{group.zoneName}</span>
-              {group.rows.map((q) => (
-                <button
-                  key={q.id}
-                  type="button"
-                  className="quest-rail-item"
-                  data-active={q.id === selectedId ? "true" : undefined}
-                  onClick={() => pick(q)}
-                >
-                  <span className="quest-rail-title">{q.title}</span>
-                  <span className="quest-rail-meta">
-                    <span className="text-sm text-muted">{q.locationName}</span>
-                    <StatusPill tone={STATUS_TONE[q.status] ?? "neutral"}>{q.status}</StatusPill>
-                    <span className="mono text-sm">{clockLabel(q)}</span>
-                    <span className="mono text-sm">{q.interactionCount}×</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          ))
-        )}
+        <label className="field">
+          <span className="field-label">Search</span>
+          <input
+            type="text"
+            value={query}
+            placeholder="Title, place or zone…"
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+
+        {/* One value at a time, so aria-pressed rather than data-active:
+            .segmented is a control with a value and a screen reader has to
+            reach it. */}
+        <div className="segmented">
+          {RAIL_STATUS.map((s) => (
+            <button
+              key={s.key || "all"}
+              type="button"
+              aria-pressed={status === s.key}
+              onClick={() => setStatus(s.key)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        <span className="mono text-sm text-muted">
+          {visible.length} of {quests.length} shown
+        </span>
+
+        <div className="list-scroll flex flex-col gap-3">
+          {visible.length === 0 ? (
+            <EmptyState>
+              {quests.length === 0
+                ? "Nothing is staged. A new quest appears as a room wherever you put it."
+                : "Nothing matches."}
+            </EmptyState>
+          ) : (
+            groups.map((group) => (
+              <div key={group.zoneName} className="flex flex-col gap-1">
+                <span className="quest-rail-zone">{group.zoneName}</span>
+                {group.rows.map((q) => (
+                  <button
+                    key={q.id}
+                    type="button"
+                    aria-pressed={q.id === selectedId}
+                    className="select-card panel flex min-h-11 w-full flex-col gap-1 p-3 text-left"
+                    onClick={() => pick(q)}
+                  >
+                    <span className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-semibold">{q.title}</span>
+                      <StatusPill tone={STATUS_TONE[q.status] ?? "neutral"}>{q.status}</StatusPill>
+                    </span>
+                    {/* The stylesheet owns the separators, so a quest with no
+                        clock leaves no dangling middot. */}
+                    <span className="desk-staged-sub">
+                      <span>{q.locationName}</span>
+                      {clockLabel(q) ? <span className="mono">{clockLabel(q)}</span> : null}
+                      {q.interactionCount > 0 ? (
+                        <span className="mono">{q.interactionCount}&times;</span>
+                      ) : null}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
-      <div className="quest-detail">
+      <div className="flex min-w-0 flex-col gap-4">
         {!selected ? (
-          <div className="panel">
+          <div className="desk-card">
             <EmptyState>Pick a quest, or stage a new one.</EmptyState>
           </div>
         ) : (
           <>
-            <div className="panel">
-              <div className="panel-header">
-                <span>{selected.title}</span>
+            <div className="desk-card flex flex-col gap-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h4 className="section-title">{selected.title}</h4>
                 <StatusPill tone={STATUS_TONE[selected.status] ?? "neutral"}>{selected.status}</StatusPill>
               </div>
 
@@ -312,8 +461,8 @@ export default function QuestsPanel({
                   value={editing}
                   onChange={setDraft}
                   locations={locations}
-                  tags={tags}
-                  characters={characters}
+                  tags={tagItems}
+                  characters={characterItems}
                 />
               ) : (
                 <p className="text-sm text-muted">
@@ -321,10 +470,12 @@ export default function QuestsPanel({
                 </p>
               )}
 
-              {note ? <p className="text-sm text-muted">{note}</p> : null}
               <FormError>{error}</FormError>
 
-              <div className="modal-actions">
+              {/* .ops-actions, not .modal-actions — this is a form footer in a
+                  card, not a modal's. Delete is pushed away from the safe
+                  verbs rather than sitting flush against Close now. */}
+              <div className="ops-actions">
                 {selected.status === "OPEN" ? (
                   <>
                     <button
@@ -335,7 +486,7 @@ export default function QuestsPanel({
                         run(updateQuestAction, { questId: selected.id, ...editing }, "Saved.")
                       }
                     >
-                      Save
+                      {pending ? "Saving…" : "Save"}
                     </button>
                     <button
                       type="button"
@@ -350,49 +501,38 @@ export default function QuestsPanel({
                     </button>
                   </>
                 ) : null}
+                {note ? <span className="self-center text-sm text-muted">{note}</span> : null}
+                {/* ml-auto rides a wrapper, not the button: every .btn* here
+                    is `all: unset`, which clears margin-left — and being
+                    unlayered it beats Tailwind's utility rather than losing to
+                    it, so the class on the button silently does nothing. */}
                 {canDelete ? (
-                  <button type="button" className="btn-danger" disabled={pending} onClick={remove}>
-                    Delete
-                  </button>
+                  <span className="ml-auto">
+                    <button type="button" className="btn-danger" disabled={pending} onClick={remove}>
+                      Delete
+                    </button>
+                  </span>
                 ) : null}
               </div>
             </div>
 
-            <div className="panel">
-              <div className="panel-header">
-                <span>Who has touched it</span>
-                <span className="mono text-sm">{selected.interactions.length}</span>
-              </div>
-              {selected.interactions.length === 0 ? (
-                <EmptyState>Nobody yet.</EmptyState>
-              ) : (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Who</th>
-                      <th>Turn</th>
-                      <th>What they said they were doing</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selected.interactions.map((i) => (
-                      <tr key={i.id}>
-                        <td>{i.characterName}</td>
-                        <td className="mono">{i.turnNumber ?? "—"}</td>
-                        <td>{i.intention}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+            <InteractionsTable rows={selected.interactions} />
           </>
         )}
       </div>
 
       {creating ? (
         <Modal open title="Stage a quest" onClose={() => setCreating(null)}>
-          <QuestForm value={creating} onChange={setCreating} locations={locations} tags={tags} characters={characters} />
+          {/* A shorter picker in here: two 22rem boxes plus five other fields
+              overflow a modal panel on a laptop. */}
+          <QuestForm
+            value={creating}
+            onChange={setCreating}
+            locations={locations}
+            tags={tagItems}
+            characters={characterItems}
+            pickerHeight="11rem"
+          />
           <FormError>{error}</FormError>
           <div className="modal-actions">
             <button

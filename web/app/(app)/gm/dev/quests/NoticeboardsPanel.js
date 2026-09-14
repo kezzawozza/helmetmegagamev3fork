@@ -4,12 +4,12 @@
 //
 // There is nothing new here mechanically, and that is deliberate: pinning,
 // reading and tearing are gmPostNotice / gmReadNotice / gmTearNotice in
-// web/app/(app)/chat/actions.js, the same four verbs the board dialog in Chat
+// web/app/(app)/chat/actions.js, the same verbs the board dialog in Chat
 // and the panel in Discord already call. What was missing was ever seeing all
 // the boards at once — from Chat you can only read the board you are standing
 // at, which is right for a character and useless for advertising a quest in
 // four places before supper.
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import Modal from "@/app/components/Modal";
@@ -58,37 +58,41 @@ function Board({ board, onChanged }) {
   }
 
   return (
-    <div className="panel">
-      <div className="panel-header">
-        <span>{board.locationName}</span>
-        <span className="chip mono">{board.notices.length}</span>
+    <section className="desk-card flex h-full flex-col gap-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="section-title">{board.locationName}</h4>
+        {/* A count is a muted line, never a chip: a chip names a thing that
+            simply is, and this is a number (DESIGN-SYSTEM.md §5a). */}
+        <span className="mono shrink-0 text-sm text-muted">{board.notices.length} pinned</span>
       </div>
 
       {board.notices.length === 0 ? (
         <EmptyState>Nothing pinned here.</EmptyState>
       ) : (
-        <table className="data-table">
-          <tbody>
-            {board.notices.map((n) => (
-              <tr key={n.id}>
-                <td>{n.name}</td>
-                <td className="text-right">
-                  <button type="button" className="btn-quiet" disabled={pending} onClick={() => read(n.id)}>
-                    Read
-                  </button>
-                  <button type="button" className="btn-quiet" disabled={pending} onClick={() => tear(n)}>
-                    Tear down
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        // A list, not a table. Two cells with no header row and both verbs
+        // crammed into the right-hand one is not tabular data.
+        <ul className="flex flex-col gap-2">
+          {board.notices.map((n) => (
+            <li key={n.id} className="flex flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0">{n.name}</span>
+              <span className="flex shrink-0 gap-2">
+                <button type="button" className="btn-quiet" disabled={pending} onClick={() => read(n.id)}>
+                  Read
+                </button>
+                <button type="button" className="btn-quiet" disabled={pending} onClick={() => tear(n)}>
+                  Tear down
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
 
       <FormError>{error}</FormError>
 
-      <div className="modal-actions">
+      {/* mt-auto so the button lines up across a filling grid of cards of
+          different heights, the way the objectives cards do. */}
+      <div className="ops-actions mt-auto">
         <button type="button" className="btn-secondary" onClick={() => setPosting({ title: "", body: "" })}>
           Pin something
         </button>
@@ -104,27 +108,29 @@ function Board({ board, onChanged }) {
 
       {posting ? (
         <Modal open title={`Pin a notice in ${board.locationName}`} onClose={() => setPosting(null)}>
-          <div className="field">
-            <label className="field-label" htmlFor={`notice-title-${board.locationId}`}>
-              Title
-            </label>
-            <input
-              id={`notice-title-${board.locationId}`}
-              type="text"
-              value={posting.title}
-              onChange={(e) => setPosting({ ...posting, title: e.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor={`notice-body-${board.locationId}`}>
-              What it says
-            </label>
-            <textarea
-              id={`notice-body-${board.locationId}`}
-              rows={6}
-              value={posting.body}
-              onChange={(e) => setPosting({ ...posting, body: e.target.value })}
-            />
+          <div className="flex flex-col gap-3">
+            <div className="field">
+              <label className="field-label" htmlFor={`notice-title-${board.locationId}`}>
+                Title
+              </label>
+              <input
+                id={`notice-title-${board.locationId}`}
+                type="text"
+                value={posting.title}
+                onChange={(e) => setPosting({ ...posting, title: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor={`notice-body-${board.locationId}`}>
+                What it says
+              </label>
+              <textarea
+                id={`notice-body-${board.locationId}`}
+                rows={6}
+                value={posting.body}
+                onChange={(e) => setPosting({ ...posting, body: e.target.value })}
+              />
+            </div>
           </div>
           <FormError>{error}</FormError>
           <div className="modal-actions">
@@ -151,7 +157,7 @@ function Board({ board, onChanged }) {
           </div>
         </Modal>
       ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -164,15 +170,47 @@ export default function NoticeboardsPanel({ boards }) {
   // already the thing that knows what is pinned where.
   const refresh = useCallback(() => router.refresh(), [router]);
 
+  // The board grid is the tallest thing in this panel — every Location with a
+  // noticeboard, always. A filter is how you get to one of them.
+  const [query, setQuery] = useState("");
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return boards;
+    return boards.filter((b) => b.locationName.toLowerCase().includes(q));
+  }, [boards, query]);
+
   if (boards.length === 0) {
     return <EmptyState>No Location in the game has a noticeboard.</EmptyState>;
   }
 
   return (
-    <div className="quest-board-grid">
-      {boards.map((board) => (
-        <Board key={board.locationId} board={board} onChanged={refresh} />
-      ))}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="field min-w-56 flex-1">
+          <span className="field-label">Search</span>
+          <input
+            type="text"
+            value={query}
+            placeholder="Place or zone…"
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <span className="mono text-sm text-muted">
+          {visible.length} of {boards.length} boards
+        </span>
+      </div>
+
+      {/* Two up where there is room, three on a wide desk — a board is a short
+          list and a full-width row of them would be mostly whitespace. */}
+      {visible.length === 0 ? (
+        <EmptyState>No board matches.</EmptyState>
+      ) : (
+        <div className="grid items-start gap-3 lg:grid-cols-2 xl:grid-cols-3">
+          {visible.map((board) => (
+            <Board key={board.locationId} board={board} onChanged={refresh} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

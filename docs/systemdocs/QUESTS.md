@@ -137,7 +137,8 @@ parts: stage the thing, then tell people it is there.
 
 - **Quests** — a rail of what is staged, grouped by zone with cave zones first,
   each row showing its Location, status, turns remaining and how many people
-  have pressed Interact. Beside it, the selected quest: its prose in an
+  have pressed Interact, over a search box and an All/Open/Closed/Expired
+  filter. Beside it, the selected quest: its prose in an
   editable field, its gates, its expiry, and below that every press with what
   the presser said they were trying to do.
 - **Noticeboards** — every Location with `noticeboard: true` in its attributes,
@@ -153,6 +154,31 @@ parts: stage the thing, then tell people it is there.
 to Broadcast with the quest's zone ticked and a teaser already written. That
 handoff is why the tabs are client state rather than `?s=quests&t=…` links — a
 link would reload the panel and drop the prefill.
+
+It ticks the zone only when the picker actually offers it. **A cave has no
+`#summary` channel**, so the usual kind of quest advertises from nowhere: the
+prefill used to seed the cave's id anyway, which ticked nothing, read "0 of 5
+picked", and still lit up Say it — which then failed with "Nothing went out."
+Now it ticks nothing and says why, and the GM picks where the word travels
+from.
+
+### 6a. What the panel is built out of
+
+Nothing here is bespoke. The surfaces are `.desk-card`, a heading that sits
+beside something is `.section-title`, a row of verbs is `.ops-actions`, a rail
+row is `.select-card .panel p-3` with `aria-pressed` like every other picker in
+the app, and its second line is `.desk-staged-sub`. The two gates and
+Broadcast's zone list are one component, `GatePicker.js` — a filter over a
+`.check-picker` box of `CheckField` rows, which is what `BulkActions.js`
+replaced its own `<select multiple>` with. Only `.quest-rail-zone` is still
+quest-specific.
+
+Two cascade traps live here, and both bite silently. `.panel` carries **no
+padding** on purpose, so a call site that forgets `p-3`/`p-4` gets a card with
+its text against the border — which is what this panel looked like before.
+And every `.btn*` is `all: unset`, which clears `margin-left`; since the
+stylesheet is unlayered it **beats** Tailwind's `@layer utilities` rather than
+losing to it, so `ml-auto` on a button does nothing. Put it on a wrapper.
 
 Everything is scoped by `GmZoneView`: a GM cannot stage, edit or close a quest
 in a zone they are not watching, and `questActions.js` re-checks it because a
