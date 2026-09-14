@@ -224,8 +224,11 @@ one of them is worse news than the others.
 **A non-stackable ware can only be ordered one at a time.** `CharacterTag` is
 unique on character+tag, so a crate reading `ML-23 x 2` could only ever hand
 over one pistol; the order is refused rather than silently clamped. Opening a
-crate also records what actually landed, not what the crate claimed — a
-non-stackable ware you already hold is reported as skipped rather than granted.
+crate never loses a non-stackable ware you already hold (or a second copy of
+one in the same crate): the spare is set down in a public room of your
+Location, where Transfer can pick it up or hand it on, and the notice says so.
+With no public room there, the crate refuses to open. The audit row lists
+these under `dropped`. (They used to be `skipped` and deleted with the crate.)
 
 A ware ships sealed by setting `sealedShipping: true` in `docs/tags.yaml`. The
 sync refuses it on a tag with no `depotPrice`, since the station cannot ship

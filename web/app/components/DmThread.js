@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MarkdownContent from "./MarkdownContent";
 import GmAvatar from "./GmAvatar";
 import CharacterAvatar from "./CharacterAvatar";
+import AvatarZoom from "./AvatarZoom";
 import useNowTick from "./useNowTick";
 import {
   DM_KIND,
@@ -44,6 +45,14 @@ function messageMs(m) {
 
 function isEmbed(m) {
   return m.meta?.embed === true;
+}
+
+// meta.attachments is populated only for images (bot/src/events/messageCreate.js,
+// db/lib/dmAttachments.js) — anything else stays text-only, so this needs no
+// contentType re-check.
+function messageImages(m) {
+  const list = m.meta?.attachments;
+  return Array.isArray(list) ? list.filter((a) => a?.url) : [];
 }
 
 // A letter sent or answered from the Dev Panel (BIRD.md §9) — renders as an
@@ -256,6 +265,28 @@ function EmbedBody({ message }) {
   );
 }
 
+// A player's DM photo — the Discord CDN url is used verbatim (no
+// re-hosting), so it dies whenever Discord's signed url expires (~24h) and
+// nothing refreshes it; accepted trade-off, no click-to-reveal gate.
+function AttachedImages({ images }) {
+  return (
+    <div className="dm-images">
+      {images.map((img, i) => (
+        <AvatarZoom
+          key={`${img.url}-${i}`}
+          src={img.url}
+          name={img.name || "Photo"}
+          modalWidth="wide"
+          fullClassName="dm-image-full"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={img.url} alt={img.name || ""} className="dm-image-thumb" />
+        </AvatarZoom>
+      ))}
+    </div>
+  );
+}
+
 // A bot/effect notification — background texture, no avatar, no name, no row shape.
 function SystemLine({ message }) {
   return (
@@ -297,6 +328,7 @@ function Row({ item, gmProfileById, character, now, perspective, onRetry, onDisc
   const embed = isEmbed(message);
   const letter = isLetter(message);
   const mention = perspective === "player" && isMention(message);
+  const images = messageImages(message);
 
   return (
     <div
@@ -335,6 +367,7 @@ function Row({ item, gmProfileById, character, now, perspective, onRetry, onDisc
         ) : (
           <MarkdownContent content={message.content} />
         )}
+        {images.length > 0 && <AttachedImages images={images} />}
         {perspective === "player" && liveAction(message) && <DmActionRow action={liveAction(message)} />}
         {/* Retry reuses the send's nonce, so a message that already reached Discord cannot be delivered twice. */}
         {message.failed && (

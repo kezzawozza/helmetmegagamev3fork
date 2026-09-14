@@ -99,9 +99,8 @@ import {
 import { INTERCOM_ROOM_SLUG, broadcastIntercom } from "@lifeweb/db/lib/intercom";
 import { loadVoiceState } from "@lifeweb/db/lib/say";
 import { recordArchiveMessage } from "@lifeweb/db/lib/archive";
-import { acceptLesson, declineOffer } from "@lifeweb/db/lib/lessons";
-import { acceptBind } from "@lifeweb/db/lib/bind";
-import { acceptConfession } from "@lifeweb/db/lib/confession";
+import { declineOffer } from "@lifeweb/db/lib/lessons";
+import { acceptOffer } from "@lifeweb/db/lib/dmAnswer";
 import { settleCarry, deliverCarryDrop } from "@lifeweb/db/lib/carry";
 import { acceptThreatSpawn, declineThreatSpawn, applySpawnSideEffects } from "@lifeweb/db/lib/threatSpawn";
 import { declineAssignment } from "@lifeweb/db/lib/lobby";
@@ -1853,6 +1852,23 @@ export async function desireCatalogView() {
 
 // ------------------------------------------------------------ waiting on you
 
+// Same words the offer's own DM uses. Every kind is named: an unlisted one
+// used to fall through to "offers a lesson", which is how a ride read as one.
+function waitingOfferLabel(o, who) {
+  switch (o.kind) {
+    case "CONFESSION":
+      return `${who} asks you to hear their confession.`;
+    case "BIND":
+      return `${who} asks to bind you.`;
+    case "ESCORT":
+      return `${who} wants to take you along.`;
+    case "KISS":
+      return `${who} would like to kiss you.`;
+    default:
+      return `${who} offers ${o.tag?.name ?? "a lesson"}.`;
+  }
+}
+
 // Everything holding still until this player answers it: a lesson, binding,
 // confession, threat seat, letter, lobby assignment. Each row's Accept/Decline calls the SAME db/lib function the DM's buttons call.
 export async function waitingOnYou() {
@@ -1914,12 +1930,7 @@ export async function waitingOnYou() {
       kind: "offer",
       // A chaplain waiting on a confession is never told what it is about,
       // here or anywhere else.
-      label:
-        o.kind === "CONFESSION"
-          ? `${nameOf.get(o.initiatorId) ?? "Somebody"} asks you to hear their confession.`
-          : o.kind === "BIND"
-            ? `${nameOf.get(o.initiatorId) ?? "Somebody"} asks to bind you.`
-            : `${nameOf.get(o.initiatorId) ?? "Somebody"} offers ${o.tag?.name ?? "a lesson"}.`,
+      label: waitingOfferLabel(o, nameOf.get(o.initiatorId) ?? "Somebody"),
       decline: true,
     })),
     ...spawns.map((s) => ({
@@ -1973,11 +1984,7 @@ export async function answerWaiting({ kind, id, accept } = {}) {
     const responder = { id: me.character.id, name: me.character.name, discordUserId: me.discordUserId };
 
     const result = accept
-      ? offer.kind === "BIND"
-        ? await acceptBind(prisma, offer, responder)
-        : offer.kind === "CONFESSION"
-          ? await acceptConfession(prisma, offer, responder)
-          : await acceptLesson(prisma, offer, responder)
+      ? await acceptOffer(prisma, offer, responder)
       : await declineOffer(prisma, offer, responder);
     if (!result.ok) return { ok: false, error: result.reason };
 

@@ -1,4 +1,7 @@
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { prisma } from "@lifeweb/db";
+import { touchLastSeen } from "@lifeweb/db/lib/characterActivity";
 import { getGmSession } from "@/lib/discordGuild";
 import AppRail from "../components/AppRail";
 import { GM_NAV, PLAYER_NAV } from "@/lib/navItems";
@@ -17,6 +20,13 @@ export default async function AppLayout({ children }) {
   // /documents already awaited this exact call for its own GM-only entries.
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
+
+  // The "online" badge's clock (db/lib/whosHere.js) — any page view in this
+  // group counts as "used the website," Bascinet's call. After the response,
+  // not before it: a page render should never wait on this. touchLastSeen
+  // is itself debounced and swallows its own errors, so a hiccup here can
+  // never surface as a broken page.
+  after(() => touchLastSeen(prisma, session.discordUserId));
 
   // No turn chip here any more. It used to be a bubble pinned to the corner of
   // the viewport for every route in this group, hidden by CSS on Chat because

@@ -17,6 +17,7 @@ const PRESENT_SELECT = {
   age: true,
   gender: true,
   updatedAt: true,
+  lastSeenAt: true,
   faction: { select: { name: true, slug: true } },
   tags: {
     where: {
@@ -25,6 +26,16 @@ const PRESENT_SELECT = {
     select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
   },
 };
+
+// The "online" badge's window — used the website or sent a Discord message
+// in the last hour (Character.lastSeenAt, db/lib/characterActivity.js
+// #touchLastSeen). Named rows only: a concealed/hooded person already
+// deliberately withholds every identity-linked signal, and this one is no
+// exception.
+const ONLINE_WINDOW_MS = 60 * 60_000;
+function isOnline(lastSeenAt, now = Date.now()) {
+  return Boolean(lastSeenAt) && now - lastSeenAt.getTime() < ONLINE_WINDOW_MS;
+}
 
 // The one place "is this person hidden from this viewer" is decided; every
 // readout and resolveHoodToken read it rather than asking again. `sightings`
@@ -126,6 +137,7 @@ function namedRows(rows, viewer) {
         seen: c.seen,
         sightingSeq: c.sighting?.seq ?? null,
         self: c.self,
+        online: isOnline(c.lastSeenAt),
       };
     });
 }
@@ -162,6 +174,7 @@ async function whosHereGm(prisma, locationId) {
     factionName: isUnaffiliated(c.faction) ? null : (c.faction?.name ?? null),
     presentedAs: c.forced ?? (c.hidden ? aliasRow(c, null) : null), // forced name is not a hood (PROXYING.md §5).
     avatarVersion: c.updatedAt?.getTime?.() ?? null,
+    online: isOnline(c.lastSeenAt),
   }));
 }
 
@@ -196,4 +209,13 @@ function whosHereLines({ named, concealed, across = [] }) {
   return lines;
 }
 
-module.exports = { PRESENT_SELECT, whosHere, whosHereGm, whosHereLines, resolveHoodToken, hoodToken };
+module.exports = {
+  PRESENT_SELECT,
+  whosHere,
+  whosHereGm,
+  whosHereLines,
+  resolveHoodToken,
+  hoodToken,
+  ONLINE_WINDOW_MS,
+  isOnline,
+};

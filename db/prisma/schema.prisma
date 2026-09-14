@@ -2073,6 +2073,19 @@ model Character {
   // characterActivity.js carries the fix and the note.)
   lastActivityTurn Int?
 
+  // Real-clock "online" timestamp — a different grain from lastActivityTurn
+  // above on purpose. That one is turn-scoped (one real day) and drives the
+  // Catatonic clock; this one is minute-scoped and drives the "online" badge
+  // on HereList/GmHereList (db/lib/whosHere.js), which asks "in the last
+  // hour," a question a turn number cannot answer. Touched by
+  // db/lib/characterActivity.js#touchLastSeen — any authenticated page view
+  // (web/app/(app)/layout.js) or a proxied Discord message
+  // (bot/src/lib/proxy.js#sendAsCharacter) — debounced to one write per five
+  // minutes per character, the same conditional-updateMany idiom
+  // touchCharacterActivity uses. Null means "never seen since this column
+  // existed," read as offline, never as "just now."
+  lastSeenAt DateTime?
+
   // Turn number this character was flagged `catatonic-afk` — the death
   // countdown's clock, read only by db/lib/catatonicDeathPass.js. Written by
   // db/lib/catatonicPass.js when it grants the tag and by
@@ -3999,7 +4012,10 @@ model DirectMessage {
   // to split it, which is the same message for anything under 2000 chars.
   discordMessageId String?
 
-  // e.g. { attachments: [names] } or { embed: true }.
+  // e.g. { attachments: [{ name, url, contentType, width, height }] } — inbound
+  // player IMAGES only (db/lib/dmAttachments.js; DmThread.js#AttachedImages
+  // draws them, the raw Discord CDN url reused as-is) — or { embed: true }.
+  // Same Json column either way; a shape change here is not a migration.
   meta Json?
 
   // The id the CLIENT minted for this send, before it knew the row's own id.

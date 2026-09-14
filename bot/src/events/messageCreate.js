@@ -12,6 +12,7 @@ const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/cha
 const { sendDm } = require("../lib/dm");
 const { REPORT_CHANNEL_ID } = require("@lifeweb/db/lib/reportChannelAccess");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
+const { splitAttachments, buildInboundContent } = require("@lifeweb/db/lib/dmAttachments");
 const { addConversationMember } = require("@lifeweb/db/lib/conversations");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const {
@@ -52,12 +53,12 @@ module.exports = {
     if (message.author.bot || message.webhookId) return;
 
     if (!message.inGuild()) {
-      const attachmentNames = message.attachments.size > 0 ? [...message.attachments.values()].map((a) => a.name) : null;
-      const content = message.content || (attachmentNames ? `*(attachment: ${attachmentNames.join(", ")})*` : "");
+      const { images, otherNames } = splitAttachments(message.attachments.values());
+      const content = buildInboundContent(message.content, otherNames);
       // Every inbound DM is mail for the GMs. Mechanic edits go through a button and modal
       // (bot/src/lib/editModal.js), so nothing a player types for a mechanic travels as a DM.
       // Loud on purpose: a failed insert here is a player's message to Bascinet vanishing silently (CHAT.md §2b).
-      console.log(`[dm] inbound from ${message.author.id} (${content.length} chars)`);
+      console.log(`[dm] inbound from ${message.author.id} (${content.length} chars, ${images.length} image(s))`);
       await prisma.directMessage
         .create({
           data: {
@@ -67,7 +68,7 @@ module.exports = {
             source: "player",
             kind: DM_KIND.CONVERSATION, // no sendDm default reaches a raw create (db/lib/dmKinds.js)
             discordMessageId: message.id,
-            meta: attachmentNames ? { attachments: attachmentNames } : undefined,
+            meta: images.length ? { attachments: images } : undefined,
           },
         })
         .catch((err) => console.error(`[dm] inbound log failed for ${message.author.id}:`, err.message));

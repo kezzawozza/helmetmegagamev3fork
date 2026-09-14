@@ -12,6 +12,28 @@ import Tooltip from "./Tooltip";
 // an unknown intrinsic size, which next/image would refuse without explicit
 // dimensions.
 
+// A glowing ring around the whole face — the mobile signal (name text may
+// not show in a cramped column, but the portrait always does) and a second,
+// at-a-glance cue on desktop beside HereList's own "online" subtext.
+// Absolutely positioned to exactly overlay the face inside wrap()'s relative
+// span, so it works whether or not CatatonicDot is also present.
+function OnlineRing({ size }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: size,
+        height: size,
+        borderRadius: "var(--r-full)",
+        boxShadow: "0 0 0 2px var(--positive), 0 0 5px 1px var(--positive)",
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
 function CatatonicDot({ size }) {
   const dot = Math.max(7, Math.round(size * 0.4));
   return (
@@ -40,6 +62,11 @@ export default function CharacterAvatar({
   src,
   size = 20,
   catatonic = false,
+  // Used the website or sent a Discord message in the last hour
+  // (Character.lastSeenAt, db/lib/whosHere.js#isOnline). The one universal
+  // signal for both faces: a glow here, plus HereList's own text subtext
+  // where there's room to show it.
+  online = false,
   // A face you have not earned. Set for somebody standing here you have not
   // watched speak this turn, and for an archived line said before the game
   // recorded what was over the speaker's face.
@@ -54,18 +81,22 @@ export default function CharacterAvatar({
   zoomable = false,
 }) {
   const wrap = (face) =>
-    catatonic ? (
+    catatonic || online ? (
       <span style={{ position: "relative", display: "inline-flex", flexShrink: 0, verticalAlign: "middle" }}>
         {face}
-        <CatatonicDot size={size} />
+        {online && <OnlineRing size={size} />}
+        {catatonic && <CatatonicDot size={size} />}
       </span>
     ) : (
       face
     );
 
-  // The tooltip is the accessible name for the whole marker, so the AFK
-  // state rides it rather than a second stop for a screen reader.
-  const label = catatonic ? `${name} — Catatonic (AFK)` : name;
+  // The tooltip is the accessible name for the whole marker, so a status
+  // rides it rather than a second stop for a screen reader. Catatonic and
+  // online are never both true in practice (AFK is the opposite of active),
+  // but neither branch assumes the other is absent.
+  const statusLabel = [catatonic ? "Catatonic (AFK)" : null, online ? "Online" : null].filter(Boolean).join(", ");
+  const label = statusLabel ? `${name} — ${statusLabel}` : name;
 
   // The question-mark plate. It must never fall back to an initial the way the
   // bare branch below does: "a young man" would draw an A, and one letter is

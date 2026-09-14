@@ -15,6 +15,34 @@ import { useRefresh } from "./useRefresh";
 // Pending offers (a lesson, a binding) still read under it, in the words
 // the old sheet's "This turn" row always used — they are why a Move may not be
 // filed yet, and the card alone would not say so.
+// Every offer kind gets its own words. Anything unlisted used to read as a
+// lesson, so a ride offer told both people a lesson was pending.
+function offerLine(o) {
+  const lesson = `the lesson${o.tagName ? ` in ${o.tagName}` : ""}`;
+  if (o.mine) {
+    switch (o.kind) {
+      case "BIND":
+        return `Waiting for ${o.otherName} to agree to be bound.`;
+      case "LESSON":
+        return `Waiting for ${o.otherName} to accept ${lesson}.`;
+      default:
+        return `Waiting for ${o.otherName} to answer.`;
+    }
+  }
+  switch (o.kind) {
+    case "BIND":
+      return `${o.otherName} wants to bind you. Answer in your DMs.`;
+    case "CONFESSION":
+      return `${o.otherName} asks you to hear their confession. Answer in your DMs.`;
+    case "ESCORT":
+      return `${o.otherName} wants to take you along. Answer in your DMs.`;
+    case "KISS":
+      return `${o.otherName} would like to kiss you. Answer in your DMs.`;
+    default:
+      return `${o.otherName} offered a lesson${o.tagName ? ` in ${o.tagName}` : ""}. Answer in your DMs.`;
+  }
+}
+
 export default function SheetTurn({ moveState, pendingOffers = [] }) {
   const state = useMyMove(moveState ?? { turn: null, move: null, characterId: null });
   const [dialog, setDialog] = useState(null);
@@ -22,13 +50,7 @@ export default function SheetTurn({ moveState, pendingOffers = [] }) {
 
   const waiting = pendingOffers.map((o) => (
     <span key={o.id} className="chat-quiet-line">
-      {o.mine
-        ? o.kind === "BIND"
-          ? `Waiting for ${o.otherName} to agree to be bound.`
-          : `Waiting for ${o.otherName} to accept the lesson${o.tagName ? ` in ${o.tagName}` : ""}.`
-        : o.kind === "BIND"
-          ? `${o.otherName} wants to bind you. Answer in your DMs.`
-          : `${o.otherName} offered a lesson${o.tagName ? ` in ${o.tagName}` : ""}. Answer in your DMs.`}
+      {offerLine(o)}
     </span>
   ));
 
