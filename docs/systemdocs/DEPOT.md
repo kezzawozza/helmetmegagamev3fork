@@ -799,28 +799,36 @@ the market a brewer sells into.
 A buy price at or below a sell price would let anyone with a licence print ⬢ in
 a loop. `db/lib/syncTags.js` warns on every sync if that ever inverts.
 
-### The open hole in this, and it is a real one
+### The open hole in this — closed
 
-That warning guards the *Depot's own* two prices. It does not guard the other
-loop, which runs through crafting:
+This used to be real. Before the Request table was dropped (2026-09-11,
+`REQUESTS.md`), `ADD_TAG` trusted a client-supplied `resourcesSpent` with no
+server-side charge and no per-turn cap, so a Merchant who also took Brewing
+(Skilled) could file it for `ravenheart-red` declaring 0 ⬢ spent, sell the
+brew here for a code-enforced 14 ⬢, and repeat — unbounded within a single
+turn.
 
-> **Nothing in code charges a recipe.** `BREWING.md` says so outright — not the
-> ⬢, not the turns, not the skill, least of all the ingredient. `ADD_TAG` takes
-> `resourcesSpent` **from the client**, and there is no per-turn cap on filing
-> one.
+It closed as a side effect of that rework, not a dedicated fix aimed at this
+page. `craftRequestImpl` (`web/app/(app)/character/requestActions.js`)
+computes a recipe's cost from its own catalog `requirementResources` — never
+from anything the client posts — and `resolveCraftPayer` refuses outright,
+re-checked inside the transaction's lock rather than trusted from the
+fast-fail read, if `cost > payer.balance`. There is no path left where a
+craft is charged for less than the recipe says.
 
-So a Merchant who also takes Brewing (Skilled) can file `ADD_TAG` for
-`ravenheart-red` declaring 0 ⬢ spent, sell it here for a code-enforced 14 ⬢,
-and repeat — unbounded within a single turn. 71 craftable tags are sellable,
-topping out at 49 ⬢ for the Gunpowder rung.
-
-The only thing standing in front of it today is a GM reading the `ADD_TAG`
-queue — the same backstop crafting has always had, now guarding money rather
-than goods.
-
-Two ways to close it, neither taken yet: charge the recipe's ⬢ in code inside
-`addTagRequestImpl`, or cap `DEPOT_SELL` per turn. The first is the real fix
-and the larger change.
+The other half of the loop was never automated to begin with, which is worth
+knowing before "reopening" this page over a new payment method (a Smithing
+recipe's cost can now take held Obols mixed with the usual ⬢ payer, 2026-09-13
+— `resolveObolSpend` in `requestActions.js`, undocumented in `CRAFTING.md` or
+`SMITHING.md` as of this writing). There is no coded per-item sell anywhere
+in this app: `sellablePrice` is a reference figure on the price list
+(`DepotOrderTab.js`, no button behind it). Real money moves only through the
+Landing Pad and `depotSendShuttleImpl` (§0d), and that pays
+`Depot.accountObols` — the station's own float — not whoever put the goods
+there. Getting it into a physical purse needs the Merchant's Licence and the
+ATM (§0g), and paying a crafter for their work out of that is still his
+negotiation, same as §4 above says of every other sale — never a scripted
+payout a craft-and-repeat loop could reach.
 
 ## 5. The credit line
 
