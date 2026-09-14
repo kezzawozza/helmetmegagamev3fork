@@ -49,8 +49,14 @@ function GmHereList({ people, onOpen }) {
             onClick={() => onOpen(person.characterId)}
           >
             <span className="chat-person-name">
-              <CharacterAvatar characterId={person.characterId} name={person.name} version={person.avatarVersion} />
+              <CharacterAvatar
+                characterId={person.characterId}
+                name={person.name}
+                version={person.avatarVersion}
+                online={person.online}
+              />
               {person.name}
+              {person.online ? <span className="chat-quiet-line"> · online</span> : null}
             </span>
             {(person.roleTitle || person.factionName) && (
               <span className="chat-quiet-line">

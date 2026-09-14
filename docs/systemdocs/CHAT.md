@@ -1136,6 +1136,23 @@ a 48px head and a one-line composer:
      way skip the dialog for their one question (`actions/index.js#FAST_PATHS`).
      A hood gets the same row; its menu is Converse alone.
 
+     **The "online" badge.** A named row (never a hooded one — a hood already
+     withholds every identity-linked signal) also carries `person.online`:
+     used the website or sent a Discord message in the last hour
+     (`Character.lastSeenAt`, `db/lib/characterActivity.js#touchLastSeen`,
+     read back by `db/lib/whosHere.js#isOnline` against a one-hour
+     `ONLINE_WINDOW_MS`). Two cues, both universal across desktop and the
+     mobile drawer since it's one component either way: a grey `· online`
+     subtext beside the name, and a glowing ring on `CharacterAvatar` itself
+     (`online` prop) — the ring is the one that still reads on a narrow
+     column where the name has less room. `GmHereList` in `GmAside.js` draws
+     the same two cues off `whosHereGm`, since a GM benefits from the same
+     signal. `touchLastSeen` is called from `web/app/(app)/layout.js` (any
+     authenticated page view under this route group) and from
+     `bot/src/lib/proxy.js#sendAsCharacter` (a proxied Discord message),
+     debounced to one write per five minutes per character — comfortably
+     under the hour the badge reads against.
+
      **The face and the eye are earned** (`PROXYING.md` §5a). A row you have
      not heard speak this turn shows no eye at all, and a hooded one shows the
      question-mark plate rather than the mask — a column that drew every mask

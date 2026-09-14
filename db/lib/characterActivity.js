@@ -20,4 +20,33 @@ async function touchCharacterActivity(prisma, characterId) {
     .catch((err) => console.error(`touchCharacterActivity failed for ${characterId}:`, err));
 }
 
-module.exports = { touchCharacterActivity };
+// Five minutes: comfortably under the hour ONLINE_WINDOW_MS (db/lib/whosHere.js)
+// reads it against, so nobody's badge goes stale-looking between writes.
+const LAST_SEEN_DEBOUNCE_MS = 5 * 60_000;
+
+// Debounced writer for Character.lastSeenAt, the "online" badge's clock —
+// a different grain from touchCharacterActivity above (minutes, not turns).
+// Called from ANY authenticated web page view (web/app/(app)/layout.js) and
+// from a proxied Discord message (bot/src/lib/proxy.js#sendAsCharacter), so
+// "used the website or sent a message" is one write path either way. Keyed
+// on discordUserId rather than a characterId, so the web caller (which has
+// no character loaded, only the session) needs no extra lookup — one
+// conditional updateMany either way.
+async function touchLastSeen(prisma, discordUserId) {
+  if (!discordUserId) return;
+  const staleBefore = new Date(Date.now() - LAST_SEEN_DEBOUNCE_MS);
+  await prisma.character
+    .updateMany({
+      // The OR is load-bearing for the same reason touchCharacterActivity's
+      // is: `lt: staleBefore` alone never matches a NULL lastSeenAt.
+      where: {
+        discordUserId,
+        status: "ALIVE",
+        OR: [{ lastSeenAt: null }, { lastSeenAt: { lt: staleBefore } }],
+      },
+      data: { lastSeenAt: new Date() },
+    })
+    .catch((err) => console.error(`touchLastSeen failed for ${discordUserId}:`, err));
+}
+
+module.exports = { touchCharacterActivity, touchLastSeen };

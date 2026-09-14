@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 
 process.env.AUTH_SECRET ||= "test-secret-for-hood-tokens";
 
-const { whosHere, resolveHoodToken } = require("../lib/whosHere");
+const { whosHere, resolveHoodToken, ONLINE_WINDOW_MS, isOnline } = require("../lib/whosHere");
 const { hoodToken } = require("../lib/hoodToken");
 
 function fakePrisma(rows) {
@@ -141,4 +141,35 @@ test("a token names nobody once they have walked away", async () => {
 test("a forced name's token resolves to nobody — a Beast is not hiding", async () => {
   const prisma = fakePrisma([beast("b1", "Jorren Vask")]);
   assert.equal(await resolveHoodToken(prisma, viewer, hoodToken("b1"), { sightings: new Map() }), null);
+});
+
+// The "online" badge's window (isOnline/ONLINE_WINDOW_MS) — used the website
+// or sent a Discord message in the last hour (Character.lastSeenAt,
+// db/lib/characterActivity.js#touchLastSeen).
+test("no lastSeenAt at all reads offline", () => {
+  assert.equal(isOnline(null), false);
+  assert.equal(isOnline(undefined), false);
+});
+
+test("just inside the hour reads online", () => {
+  const now = Date.now();
+  const lastSeenAt = new Date(now - (ONLINE_WINDOW_MS - 1000));
+  assert.equal(isOnline(lastSeenAt, now), true);
+});
+
+test("just outside the hour reads offline", () => {
+  const now = Date.now();
+  const lastSeenAt = new Date(now - (ONLINE_WINDOW_MS + 1000));
+  assert.equal(isOnline(lastSeenAt, now), false);
+});
+
+test("exactly at the boundary reads offline — the window is a strict less-than", () => {
+  const now = Date.now();
+  const lastSeenAt = new Date(now - ONLINE_WINDOW_MS);
+  assert.equal(isOnline(lastSeenAt, now), false);
+});
+
+test("a moment ago reads online", () => {
+  const now = Date.now();
+  assert.equal(isOnline(new Date(now - 1000), now), true);
 });
