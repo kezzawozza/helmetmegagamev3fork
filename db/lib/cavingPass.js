@@ -172,17 +172,32 @@ async function rollCavingOnArrival(prisma, character, location) {
 }
 
 // ---- The hold a 1 puts on you --------------------------------------------
-// A TROUBLE row lands unresolved and waits for a GM. Unlike heldReasonFor
-// this is a QUERY, since the answer lives in CavingRoll, not Character —
-// scoped to the roll's own zone (LEAVING, not walking), so relocating someone
-// out of the caves doesn't strand them. Resolving the roll is what clears it.
+//
+// A TROUBLE row lands unresolved and waits for a GM. Until this existed the
+// caver did not wait with it — they walked out of the caves and a GM ended up
+// adjudicating a monster in the dark for somebody standing in Town.
+//
+// The hold lasts until the TURN ENDS, not until the roll is resolved. A GM's
+// Mark resolved says the encounter has been decided; what was decided — the
+// staged effect, message or death wired to the roll — only reaches the caver
+// at the push. Keying the hold on resolvedAt let the caver walk out of the
+// caves in the hours between the two, so the bite landed on somebody standing
+// in the Forest. The push is what closes the turn, so the hold can never
+// outlive it either — nothing has to sweep it.
+//
+// Unlike heldReasonFor (db/lib/intercept.js) this is a QUERY rather than a
+// pure comparison, because the answer lives in CavingRoll and nowhere on
+// Character. It is scoped to the roll's own zone snapshot for two reasons: it
+// is a hold on LEAVING one zone, not on walking, and a GM who relocates
+// somebody out of the caves has then not also stranded them wherever they
+// land.
 const CAVING_HOLD_REASON =
-  "You rolled a 1, so you can't leave the zone until your caving die are adjudicated.";
+  "You rolled a 1, so you can't leave the zone until the turn ends and you receive the results of your caving die.";
 
 async function cavingHoldFor(prisma, characterId, zoneId) {
   if (!characterId || !zoneId) return null;
   const open = await prisma.cavingRoll.findFirst({
-    where: { characterId, zoneId, kind: "TROUBLE", resolvedAt: null },
+    where: { characterId, zoneId, kind: "TROUBLE", turn: { status: "OPEN" } },
     select: { id: true },
   });
   return open ? CAVING_HOLD_REASON : null;
@@ -191,16 +206,25 @@ async function cavingHoldFor(prisma, characterId, zoneId) {
 async function cavingHeldIds(prisma, characterIds, zoneId) {
   if (!zoneId || !characterIds?.length) return new Set();
   const rows = await prisma.cavingRoll.findMany({
-    where: { characterId: { in: characterIds }, zoneId, kind: "TROUBLE", resolvedAt: null },
+    where: { characterId: { in: characterIds }, zoneId, kind: "TROUBLE", turn: { status: "OPEN" } },
     select: { characterId: true },
   });
   return new Set(rows.map((r) => r.characterId));
 }
 
-// The push's release valve (CAVING.md §5). Wrong once the turn is pushed,
-// since the Caving lens goes read-only. So the push resolves what's left;
-// resolvedByDiscordUserId stays NULL as the marker (the only other resolver
-// always writes an id). gmNotes untouched — nothing to say about a monster never adjudicated.
+// The push's release valve (docs/systemdocs/CAVING.md §2d).
+//
+// A TROUBLE roll nobody adjudicated is still open once the turn closes, and
+// the Caving lens goes read-only on a past turn by design — so it would sit on
+// the desk's "Needs attention" filter forever with nobody able to reach it.
+// The hold itself no longer depends on this (it ends with the turn, above);
+// this is the desk's bookkeeping.
+//
+// So the push resolves what is left. resolvedByDiscordUserId stays NULL, and
+// that null is the marker: a TROUBLE row is created unresolved and the only
+// hand that resolves one (web/app/(desk)/gm/turns/actions.js) always writes an
+// id, so resolved-with-no-resolver can only mean this. gmNotes is untouched —
+// the game has nothing to say about a monster it never adjudicated.
 async function releaseUnresolvedCavingRolls(prisma, turn) {
   const open = await prisma.cavingRoll.findMany({
     where: { turnId: turn.id, kind: "TROUBLE", resolvedAt: null },

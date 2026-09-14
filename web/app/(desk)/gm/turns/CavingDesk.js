@@ -313,7 +313,7 @@ export default function CavingDesk({
       {!roll.resolvedByUsername && roll.autoResolved && (
         <p className="text-xs text-muted">
           Resolved automatically at the push{roll.resolvedAtLabel ? ` · ${roll.resolvedAtLabel}` : ""} — nobody
-          adjudicated it, and the hold on leaving the zone lifted.
+          adjudicated it.
         </p>
       )}
       {roll.resolvedByUsername && (

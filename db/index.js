@@ -525,10 +525,11 @@ async function resolveNeeds(turn, config) {
   }
 
   // The caving release (db/lib/cavingPass.js). Directly after the staged push,
-  // because the push is the GM's last chance to have resolved one by hand: a
-  // TROUBLE roll still open once the turn closes holds its caver in the zone
-  // forever, and the Caving lens is read-only on a past turn. So anything left
-  // is resolved automatically here and the hold lifts.
+  // because the push is the GM's last chance to have resolved one by hand: the
+  // Caving lens is read-only on a past turn, so a TROUBLE roll still open once
+  // the turn closes would sit under "Needs attention" forever. Anything left is
+  // resolved automatically here. The hold a 1 puts on the caver ends with the
+  // turn on its own and does not wait for this.
   if (!done.has("cavingRelease")) {
     const released = await releaseUnresolvedCavingRolls(prisma, turn).catch(async (err) => {
       await passFailed("Caving release", err);
