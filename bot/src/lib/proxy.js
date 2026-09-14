@@ -2,7 +2,7 @@ const { WebhookClient, RESTJSONErrorCodes, GuildPremiumTier } = require("discord
 const { prisma } = require("@lifeweb/db");
 const { loadForcedName, presentedIdentity, wasHooded } = require("@lifeweb/db/lib/presentedIdentity");
 const { archiveRowForMessage, retractArchiveRow } = require("@lifeweb/db/lib/archive");
-const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
+const { touchCharacterActivity, touchLastSeen } = require("@lifeweb/db/lib/characterActivity");
 const { prepareSpeech, recordSpeech, loadVoiceState: loadVoiceStateFor } = require("@lifeweb/db/lib/say");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { resolveChannelContext } = require("./channels");
@@ -380,6 +380,7 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
     });
   }
   await touchCharacterActivity(prisma, character.id);
+  await touchLastSeen(prisma, character.discordUserId);
 
   await deleteOriginal(message);
 

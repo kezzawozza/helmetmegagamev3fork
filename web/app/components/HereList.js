@@ -211,11 +211,15 @@ export default function HereList({
                 version={person.avatarVersion}
                 src={person.avatarPath ?? undefined}
                 size={24}
+                online={person.online}
               />
               <span className="chat-person-name">
                 {person.name}
                 {person.roleTitle ? <span className="text-muted"> · {person.roleTitle}</span> : null}
                 {person.characterId === selfId ? <span className="text-muted"> · you</span> : null}
+                {/* The avatar's glow ring is the mobile signal (portrait always
+                    shows, name may not); this is desktop's second cue, beside it. */}
+                {person.online ? <span className="text-muted"> · online</span> : null}
               </span>
             </button>
             {/* No eye until you have heard them. Absent rather than greyed — one rule instead of two. */}
