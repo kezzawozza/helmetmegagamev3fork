@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-14 · Anyone can teach now
+
+✎ You no longer need the Teaching tag to teach — anybody can pass on a skill they hold, but it takes their whole turn and the student needs a 6  
+✎ The Teaching tag costs its holder no Move at all now, carries up to three students a turn, and their students learn on a 5 or 6 — so a teacher can labor or travel and still teach  
+✎ A Drill Instructor's students still succeed on a 4 on a fighting skill  
+− Teaching (Lecturing), folded into Teaching itself. Nobody was compensated, but existing holders get moved onto plain Teaching rather than losing the lot  
+
 ## 2026-09-14 · Travel offers no longer read as lesson offers
 
 ✎ An offer to take someone along showed up on the web as a lesson offer, for both people  
