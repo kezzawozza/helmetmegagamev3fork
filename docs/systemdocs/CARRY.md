@@ -549,10 +549,10 @@ existed. `moveParty` maps the three kinds through a table so `applyTransfer`'s
 `(kind, id)` lock ordering is untouched.
 
 After the commit: `afterInventoryChange` for every character end, the usual
-DM to a receiving character, and for a room end an **aliased line in the
-room's thread** (`db/lib/roomAnnounce.js`, the whisper poll's alias):
-"*An old woman leaves Graga Sac ×3 and 12 ⬢ here.*" / "*A young man takes a
-Lantern.*" The room learns an age and a presentation, never a name.
+DM to a receiving character, and for a room end a **line in the room's
+thread** (`db/lib/roomAnnounce.js`): "*Ada leaves Graga Sac ×3 and 12 ⬢
+here.*" The room is told the presented name, the same one a shout uses — your
+own, a forced name, or "*A young man takes a Lantern.*" if you are concealed.
 
 **You can hand something to a stranger in a hood** — the one action that
 reaches a concealed person. The row reads "a young man" and its value is
