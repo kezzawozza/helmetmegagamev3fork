@@ -22,7 +22,11 @@ import Modal from "./Modal";
 // That matters: a concealed character's face is a mask sprite or a letter
 // plaque that presentedIdentity chose for the person looking, and rebuilding
 // /api/avatar/<id> would serve their real one instead (PROXYING.md §5).
-export default function AvatarZoom({ src, name, children }) {
+//
+// `modalWidth`/`fullClassName` default to the avatar shape above (a fixed
+// 256, a narrow panel) — a caller zooming something that isn't a stored
+// avatar (a player's DM photo, DmThread.js#AttachedImages) passes its own.
+export default function AvatarZoom({ src, name, children, modalWidth = "narrow", fullClassName = "avatar-zoom-full" }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -37,12 +41,12 @@ export default function AvatarZoom({ src, name, children }) {
       </button>
 
       {open && (
-        <Modal title={name} width="narrow" onClose={() => setOpen(false)}>
+        <Modal title={name} width={modalWidth} onClose={() => setOpen(false)}>
           {/* Capped at its real 256 rather than filling the panel: a `narrow`
               panel is 24rem, and stretching 256 pixels across it would only
               show them bigger and blurrier. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt="" className="avatar-zoom-full" />
+          <img src={src} alt="" className={fullClassName} />
         </Modal>
       )}
     </>

@@ -295,6 +295,12 @@ client, not a support inbox.
   (`turn result`, `broadcast`) are the only other furniture. Times come from
   `web/lib/dmTime.js` and tick with `useNowTick`, so "Today" flips at
   midnight.
+- **An inbound image renders inline** (`DmThread.js#AttachedImages`,
+  `db/lib/dmAttachments.js`), reusing the raw Discord CDN url a player's
+  attachment carried — no re-hosting, no click-to-reveal gate. Discord's
+  attachment urls are signed and expire (roughly a day), and nothing
+  refreshes a stale one, so an old DM's photo can go on to 404; a non-image
+  attachment still shows as `*(attachment: name)*` text, same as always.
 - **The NEW line.** The route loads this GM's `ConversationRead` cursor and
   hands it to the thread, which draws a `NEW` rule above the first inbound
   message after it. Where it sits is decided once when the thread opens

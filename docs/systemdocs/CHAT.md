@@ -206,7 +206,10 @@ a reconnect and a DM landing in that window was lost to an open pane.
 
 **Writing back is one row and no Discord send.** `sendToGms` inserts an
 INBOUND row, `source: "player"`, `meta: { via: "play" }` — exactly what the
-bot logs for a DM typed into Discord (`messageCreate.js`). Nothing goes to
+bot logs for a DM typed into Discord (`messageCreate.js`), except a photo:
+Chat's composer has no file upload, so `meta.attachments` (images only —
+`db/lib/dmAttachments.js`, drawn by `DmThread.js#AttachedImages` on both
+faces) is a bot-only shape, never written from the web. Nothing goes to
 Discord because there is nothing to send: the bot cannot speak as the player
 in their own DM. The row reaches the desk the same way it reaches
 any other reader — the trigger above, fanned to whichever GM has the desk

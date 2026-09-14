@@ -2172,6 +2172,34 @@ input[type="radio"]:disabled {
   border-radius: var(--r-lg);
 }
 
+/* A player's DM photo (DmThread.js#AttachedImages) — no stored size like an
+   avatar's, so it's capped on the viewport instead of a fixed pixel width. */
+.dm-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+.dm-image-thumb {
+  display: block;
+  max-width: 220px;
+  max-height: 220px;
+  width: auto;
+  height: auto;
+  object-fit: cover;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+}
+
+.dm-image-full {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  margin-inline: auto;
+  border-radius: var(--r-lg);
+}
+
 /* Under 640px a dialog is a bottom sheet: full width, up from the bottom,
    with the Cancel/Confirm row pinned to the foot so it stays reachable under
    a long body — the panel is its own scroll container (overflow-y above), so

@@ -4012,7 +4012,10 @@ model DirectMessage {
   // to split it, which is the same message for anything under 2000 chars.
   discordMessageId String?
 
-  // e.g. { attachments: [names] } or { embed: true }.
+  // e.g. { attachments: [{ name, url, contentType, width, height }] } — inbound
+  // player IMAGES only (db/lib/dmAttachments.js; DmThread.js#AttachedImages
+  // draws them, the raw Discord CDN url reused as-is) — or { embed: true }.
+  // Same Json column either way; a shape change here is not a migration.
   meta Json?
 
   // The id the CLIENT minted for this send, before it knew the row's own id.
