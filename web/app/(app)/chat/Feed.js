@@ -2189,7 +2189,7 @@ export default function Feed({
             // A street you walked out of earlier this turn and are still
             // watching (db/lib/vantages.js). Plain and factual — the reason
             // you cannot speak is simply that you are not there.
-            <p className="chat-quiet italic">You aren’t in this location.</p>
+            <p className="chat-quiet italic">You aren&apos;t in this location.</p>
           ) : place.kind === "net" ? (
             // A radio you can only listen on — the Cerberon bracelet. Not
             // "you're a ghost": the set works, it just has no transmitter.
@@ -2204,12 +2204,12 @@ export default function Feed({
           ) : place.kind === "dead" && gm ? (
             // A living GM reading the dead. They are not a ghost, so don't
             // call them one; they answer the dead through /dm or the desk.
-            <p className="chat-quiet italic">GMs read Deadchat and don’t speak in it.</p>
+            <p className="chat-quiet italic">GMs read Deadchat and don&apos;t speak in it.</p>
           ) : (
             // Everywhere else a character may read but not speak. The street
             // is not here any more — it has its own line above — so what is
             // left is somebody with no voice at all.
-            <p className="chat-quiet">You’re a ghost. You can’t speak.</p>
+            <p className="chat-quiet">You&apos;re a ghost. You can&apos;t speak.</p>
           )}
           {/* Paperwork and the hood, beside the send. Neither is a place's
               affordance — they are things you do with your own hands wherever

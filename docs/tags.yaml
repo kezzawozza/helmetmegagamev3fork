@@ -1739,7 +1739,7 @@ tags:
     name: Hemophobia
     category: general
     group: general-personality
-    description: "Blood, especially your own blood, makes you dizzy..."
+    description: "Blood, especially your own blood, makes you dizzy…"
     fighting: { tree: both, tiers: -0.5, situational: true }
     pointCost: -4
     visible: false
@@ -3477,7 +3477,7 @@ tags:
     name: Hangover
     category: status
     group: status-debuffs
-    description: "Ugh..."
+    description: "Ugh…"
     fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
@@ -5101,7 +5101,7 @@ tags:
     name: Severe Pain
     category: health
     group: health-minor
-    description: "Your mind can't escape the pain—you are writhing, unfocused."
+    description: "Your mind can't escape the pain — you are writhing, unfocused."
     fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
@@ -10622,7 +10622,7 @@ tags:
     name: Heart
     category: items
     group: items-remains
-    description: "Someone’s once beating heart, now in the palm of your hand."
+    description: "Someone's once beating heart, now in the palm of your hand."
     pointCost: 0
     tradeable: true
     weight: 1

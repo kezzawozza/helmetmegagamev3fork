@@ -2490,7 +2490,7 @@ desires:
     requires:
       anyTags: [thanati]
   thanati-wrong-execution:
-    name: Witness the inquisition incorrectly execute someone who isn’t a Thanati
+    name: Witness the inquisition incorrectly execute someone who isn't a Thanati
     tier: 4
     families: [thanati]
     requires:

@@ -75,7 +75,7 @@ const XOM_SHOUTS = Object.freeze([
 // Bascinet's words, all three. No.
 const XOM_LONELY_LINE = "You are too alone!! You two!! Talk to each other!!";
 const XOM_FECES_LINE = "You couldn't control yourself…";
-const XOM_MADNESS_LINE = "Oh god, what is happening! You're going insane—kill everyone!";
+const XOM_MADNESS_LINE = "Oh god, what is happening! You're going insane — kill everyone!";
 
 // A cumulative walk, taking `rng` so a test can force any row. Pure on purpose.
 function pickXomOutcome(rng = Math.random) {

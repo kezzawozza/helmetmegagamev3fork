@@ -214,12 +214,12 @@ const EFFECTS = {
       db,
       target.discordUserId,
       [
-        "This reality is cursed! You are now loyal to the Thanati and must follow the cult’s orders. Read your Documents for more information.",
+        "This reality is cursed! You are now loyal to the Thanati and must follow the cult's orders. Read your Documents for more information.",
         conflicts && describeSeatConflicts(conflicts),
       ].filter(Boolean).join("\n"),
       { source: "rite" },
     ).catch(log(`conversion DM to ${target.name}`));
-    await roomLine(db, room, `${aliasSubject(target)}’s eyes widen as they begin to understand...`);
+    await roomLine(db, room, `${aliasSubject(target)}'s eyes widen as they begin to understand…`);
     return { result: { converted: target.name, characterId: target.id } };
   },
 

@@ -61,8 +61,8 @@ const OBJECTIVE_KINDS = [
   },
   {
     key: "sacrifice-corpse",
-    pick: "Perform a sacrifice rite with [Character’s] corpse",
-    label: "Perform a sacrifice rite with {target}’s corpse",
+    pick: "Perform a sacrifice rite with [Character's] corpse",
+    label: "Perform a sacrifice rite with {target}'s corpse",
     parties: ["thanati"],
     weight: "MINOR",
     target: "character",

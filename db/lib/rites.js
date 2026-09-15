@@ -45,7 +45,7 @@ const RITES = [
     minChanters: 2,
     ingredients: [{ kind: "bound-person" }],
     ingredientsText: "A {tag:bound} person.",
-    description: "Deliver unto Tzchernobog what he has demanded of you, and reap your rewards! The sacrificial victim must be bound and added to the room or conversation you’re in.",
+    description: "Deliver unto Tzchernobog what he has demanded of you, and reap your rewards! The sacrificial victim must be bound and added to the room or conversation you're in.",
   },
   {
     key: "scrying",
@@ -149,7 +149,7 @@ const RITES = [
     minChanters: 4,
     ingredients: [],
     ingredientsText: "",
-    description: "Time to break free from this torturous reality, and do so in spectacular fashion! For each of the Dark Lord’s objectives completed, you will be granted 100 ⬢. You may only perform this rite once, and your leader must be present!",
+    description: "Time to break free from this torturous reality, and do so in spectacular fashion! For each of the Dark Lord's objectives completed, you will be granted 100 ⬢. You may only perform this rite once, and your leader must be present!",
   },
   {
     key: "ascension",
@@ -161,7 +161,7 @@ const RITES = [
       { resources: 250 },
     ],
     ingredientsText: "{tag:barons-scepter}, {tag:bishops-mitre}, 250 ⬢",
-    description: "You have exceeded even Lord Tzchernobog’s wildest expectations. Ravenheart’s very existence rests now in the palm of your hand. You know what to do.",
+    description: "You have exceeded even Lord Tzchernobog's wildest expectations. Ravenheart's very existence rests now in the palm of your hand. You know what to do.",
   },
 ];
 

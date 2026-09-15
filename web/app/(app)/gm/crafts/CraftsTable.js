@@ -63,7 +63,7 @@ export default function CraftsTable({ projects }) {
                 {row.quantity > 1 ? `${row.quantity}× ` : ""}
                 {row.tagName}
                 {row.customName ? (
-                  <span className="text-muted"> — “{row.customName}”</span>
+                  <span className="text-muted"> — &quot;{row.customName}&quot;</span>
                 ) : null}
               </td>
               <td>{STATUS_LABELS[row.status] ?? row.status}</td>
