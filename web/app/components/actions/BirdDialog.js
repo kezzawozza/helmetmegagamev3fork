@@ -35,7 +35,7 @@ export default function BirdDialog({ onDone, onClose }) {
 
   return (
     <ActionDialog
-      title="Send Bird"
+      title="Send bird"
       submitLabel="Send it"
       busy={busy}
       error={error}

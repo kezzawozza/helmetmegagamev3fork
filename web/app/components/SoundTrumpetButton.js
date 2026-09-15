@@ -41,7 +41,7 @@ export default function SoundTrumpetButton() {
     <div className="mt-2">
       <p className="field-label mb-1">The trumpet</p>
       <button type="button" className="btn" onClick={onClick} disabled={pending}>
-        {pending ? "Sounding…" : "Sound Trumpet"}
+        {pending ? "Sounding…" : "Sound trumpet"}
       </button>
       {sounded && !error ? (
         <p className="text-muted mt-1 text-sm">You sound it.</p>

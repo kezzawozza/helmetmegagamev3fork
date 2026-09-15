@@ -192,14 +192,14 @@ export const ACTION_SECTIONS = [
       {
         mode: "learn",
         icon: DocumentsIcon,
-        label: "Learn Skill",
+        label: "Learn skill",
         gate: "canLearn",
         gateReason: "Nobody here can teach you.",
       },
       {
         mode: "teach",
         icon: SpeakerIcon,
-        label: "Teach Skill",
+        label: "Teach skill",
         gate: "canTeach",
         gateReason: "You have nothing to teach that anyone here could learn.",
         // Not gated on holding Teaching any more: anyone can teach, the tag
@@ -234,7 +234,7 @@ export const ACTION_SECTIONS = [
       {
         mode: "breakrestraints",
         icon: BreakRestraintsIcon,
-        label: "Break Restraints",
+        label: "Break restraints",
         show: "canBreakRestraints",
         instant: true,
       },
@@ -264,16 +264,16 @@ export const ACTION_SECTIONS = [
     key: "device",
     label: "The device",
     actions: [
-      { mode: "pointer", icon: EyeIcon, label: "Use Pointer", show: "hasDatacard", instant: true },
+      { mode: "pointer", icon: EyeIcon, label: "Use pointer", show: "hasDatacard", instant: true },
       // A different device entirely — the Pointer Device Kit's own pair
       // (db/lib/pointerMint.js), gated on holding a `custom-pointer-*` tag
       // rather than the secret datacard above. Deliberately its own mode,
       // its own gate, its own server action — never touches nuke.js.
-      { mode: "pointerdevice", icon: EyeIcon, label: "Use Pointer Device", show: "hasPointerDevice", instant: true },
+      { mode: "pointerdevice", icon: EyeIcon, label: "Use pointer device", show: "hasPointerDevice", instant: true },
       {
         mode: "arm",
         icon: WoundIcon,
-        label: "Arm Nuke",
+        label: "Arm nuke",
         show: "hasDatacard",
         gate: "hasDevice",
         gateReason: "You have the card, but not the device.",
@@ -282,7 +282,7 @@ export const ACTION_SECTIONS = [
       {
         mode: "disarm",
         icon: KeyIcon,
-        label: "Disarm Nuke",
+        label: "Disarm nuke",
         show: "hasDatacard",
         gate: "hasDevice",
         gateReason: "You have the card, but not the device.",
@@ -299,23 +299,23 @@ export const ACTION_SECTIONS = [
     key: "thanati",
     label: "THANATI",
     actions: [
-      { mode: "recall", icon: SpeakerIcon, label: "Recall Comrades", show: "isThanati", instant: true },
+      { mode: "recall", icon: SpeakerIcon, label: "Recall comrades", show: "isThanati", instant: true },
       // The label is derived from what is missing — see labelFor() below — and
       // the button greys once both are held, which is your own sheet's fact.
       {
         mode: "recover",
         icon: CharacterIcon,
-        label: "Recover Equipment",
+        label: "Recover equipment",
         show: "isThanati",
         gate: "canRecover",
         gateReason: "You have both.",
         instant: true,
       },
-      { mode: "hideout", icon: KeyIcon, label: "Set Hideout", show: "isThanatiLeader" },
+      { mode: "hideout", icon: KeyIcon, label: "Set hideout", show: "isThanatiLeader" },
       {
         mode: "purchase",
         icon: CrateIcon,
-        label: "Purchase Gear",
+        label: "Purchase gear",
         show: "isThanati",
         gate: "atHideout",
         gateReason: "You aren't standing at the hideout.",
@@ -330,8 +330,8 @@ export const ACTION_SECTIONS = [
     key: "cerberon",
     label: "CERBERON",
     actions: [
-      { mode: "warrant", icon: ShackleIcon, label: "Arrest Warrant", show: "canWarrant" },
-      { mode: "wantedlist", icon: DocumentsIcon, label: "Check Wanted", show: "isCerberon", instant: true },
+      { mode: "warrant", icon: ShackleIcon, label: "Arrest warrant", show: "canWarrant" },
+      { mode: "wantedlist", icon: DocumentsIcon, label: "Check wanted", show: "isCerberon", instant: true },
     ],
   },
   {
@@ -433,7 +433,7 @@ export const ACTION_SECTIONS = [
         gate: "canButcher",
         gateReason: "You aren't a Butcher.",
       },
-      { mode: "bury", icon: GraveIcon, label: "Bury Person" },
+      { mode: "bury", icon: GraveIcon, label: "Bury person" },
       // Engraving types a name rather than picking one — the reasoning that
       // used to sit on Bury, and it applies harder here: this searches every
       // zone, so a dropdown would list every unburied body in Ravenheart.
@@ -462,7 +462,7 @@ export const ACTION_SECTIONS = [
       {
         mode: "seal",
         icon: SealIcon,
-        label: "Seal Letter",
+        label: "Seal letter",
         show: "hasSeal",
         gate: "canSeal",
         gateReason: "You have no written letter to close.",
@@ -470,7 +470,7 @@ export const ACTION_SECTIONS = [
       {
         mode: "bird",
         icon: BirdIcon,
-        label: "Send Bird",
+        label: "Send bird",
         show: "hasBird",
         gate: "canSendBirdToday",
         gateReason: "Your bird has already flown today.",
@@ -520,7 +520,7 @@ export function actionFor(mode) {
 
 // Names for the two things Recover Equipment hands back, keyed by slug. The
 // slugs are db/lib/thanati.js#RECOVERABLE_SLUGS; the names are what the
-// button says, so it reads "Recover Mask" when the robes are already on.
+// button says, so it reads "Recover mask" when the robes are already on.
 const RECOVER_NAMES = { "black-robes": "Robes", "thanati-mask": "Mask" };
 
 // The button's label, given the pools — the same word for every action but

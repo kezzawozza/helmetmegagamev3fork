@@ -74,7 +74,7 @@ export default function MoveDialog({ turn = null, characterId = null, onClose, o
     // Resolved BEFORE run(): awaiting a confirm inside startTransition deadlocks (DESIGN-SYSTEM.md).
     const sure = await confirm({
       title: "File this Move?",
-      confirmLabel: "Lock In",
+      confirmLabel: "Lock in",
       cancelLabel: "Not yet",
     });
     if (!sure) return;

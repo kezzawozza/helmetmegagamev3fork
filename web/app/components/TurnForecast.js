@@ -115,7 +115,7 @@ export default function TurnForecast({
 
   return (
     <div className="ledger-turn">
-      <span className="field-label">Turn Effects</span>
+      <span className="field-label">Turn effects</span>
       <div className="sheet-forecast">
         {/* The separator LEADS its item and shares a box with it, so a wrap
             can never leave a · dangling at the end of a line. It is also

@@ -11,7 +11,7 @@ import PageShell from "@/app/components/PageShell";
 export default function CreationClosed({ open }) {
   return (
     <PageShell>
-      <h2 className="section-title">{open ? "You Are Not On The Roster" : "Ravenheart Is Not Open Yet"}</h2>
+      <h2 className="section-title">{open ? "You are not on the roster" : "Ravenheart is not open yet"}</h2>
       <div className="panel flex flex-col gap-3 p-4">
         <p className="text-sm">
           {open

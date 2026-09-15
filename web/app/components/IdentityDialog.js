@@ -54,7 +54,7 @@ export default function IdentityDialog({ identity, open, onClose }) {
   return (
     <RequestDialog
       open={open}
-      title="New Identity"
+      title="New identity"
       submitLabel="Drink it"
       busy={pending}
       error={error}

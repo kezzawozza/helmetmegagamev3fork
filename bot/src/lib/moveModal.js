@@ -29,7 +29,7 @@ const MOVE_HELP =
 function buildMoveModal() {
   return new ModalBuilder()
     .setCustomId(MOVE_MODAL_ID)
-    .setTitle("Lock In Your Move")
+    .setTitle("Lock in your Move")
     .addLabelComponents(
       new LabelBuilder()
         .setLabel("Your Move")

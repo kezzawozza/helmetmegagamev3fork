@@ -21,12 +21,12 @@ const DRAINED_SLUG = "drained";
 
 const MODES = {
   donate: {
-    title: "Donate Blood",
+    title: "Donate blood",
     submitLabel: "Draw blood",
     hint: "They take the Drained tag until it wears off. Whose blood it is decides what it's worth.",
   },
   feed: {
-    title: "Feed Person",
+    title: "Feed person",
     submitLabel: "Feed them",
     hint: "This kills them. A GM reads your reason afterwards, not before.",
   },

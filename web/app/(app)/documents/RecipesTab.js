@@ -222,7 +222,7 @@ function RecipeRow({ row, byId, bySlug, onView }) {
             of the rest of the recipe matters — same predicate the Craft dialog
             and the server share (SMITHING.md §2a). */}
         {needsWorkshop(row.tag) && (
-          <span className="block text-xs text-muted">Needs Workshop Equipment</span>
+          <span className="block text-xs text-muted">Needs workshop equipment</span>
         )}
       </td>
       <td className="text-sm">

@@ -15,7 +15,7 @@ import { buryCharacterRequest, butcherCorpseRequest } from "@/app/(app)/characte
 // isn't offered rather than being offered and refused (CORPSES.md).
 const VERBS = {
   bury: {
-    title: "Bury Person",
+    title: "Bury person",
     empty: "You aren’t holding a body, and there’s none lying anywhere you can reach.",
     fit: (c) => c.human,
     run: (c) => buryCharacterRequest({ tagId: c.tagId, sourceKey: c.sourceKey }),

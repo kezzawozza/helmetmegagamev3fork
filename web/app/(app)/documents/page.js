@@ -120,7 +120,7 @@ async function FreshDocuments() {
       pinned: true,
       key: HANDBOOK_KEY,
       name: "Player Handbook",
-      source: "Start Here",
+      source: "Start here",
       description: handbookBody,
       previewText: toDocumentPreviewText(handbookBody),
     }
@@ -217,7 +217,7 @@ async function FreshDocuments() {
         pinned: true,
         key: "role",
         name: character.role.name,
-        source: "Your Role",
+        source: "Your role",
         description: (roleIntro ? [`_${roleIntro}_\n`] : [])
           .concat(roleBullets.map((line) => `- ${line}`))
           .join("\n"),

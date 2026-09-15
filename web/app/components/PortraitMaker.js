@@ -257,7 +257,7 @@ export default function PortraitMaker({
 
   return (
     <Modal
-      title="Customize Appearance"
+      title="Customize appearance"
       width="widest"
       onClose={onClose}
     >

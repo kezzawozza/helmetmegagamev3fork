@@ -18,7 +18,7 @@ export default function HideoutDialog({ mode, onDone, onClose }) {
 
   return (
     <ActionDialog
-      title="Set Hideout"
+      title="Set hideout"
       busy={busy}
       error={error}
       empty={rooms.length === 0 ? "There’s no room here you could use." : null}

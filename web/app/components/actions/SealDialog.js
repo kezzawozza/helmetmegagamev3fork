@@ -29,7 +29,7 @@ export default function SealDialog({ onDone, onClose }) {
 
   return (
     <ActionDialog
-      title="Seal Letter"
+      title="Seal letter"
       submitLabel="Seal it"
       busy={busy}
       error={error}

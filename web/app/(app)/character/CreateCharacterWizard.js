@@ -396,7 +396,7 @@ export default function CreateCharacterWizard({
 
   return (
     <PageShell>
-      <h2 className="section-title">Create Your Character</h2>
+      <h2 className="section-title">Create your character</h2>
       <StepBar step={step} />
 
       {lockedRole && role && (

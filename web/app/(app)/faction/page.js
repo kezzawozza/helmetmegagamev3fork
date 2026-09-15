@@ -487,7 +487,7 @@ export default async function FactionPage({ searchParams }) {
                       <form action={setFactionLeader}>
                         <input type="hidden" name="characterId" value={c.id} />
                         <input type="hidden" name="factionId" value={faction.id} />
-                        <SubmitButton className="btn-quiet">Make Leader</SubmitButton>
+                        <SubmitButton className="btn-quiet">Make leader</SubmitButton>
                       </form>
                     )}
                   </td>
@@ -552,13 +552,13 @@ export default async function FactionPage({ searchParams }) {
 
       {subjectFactions.length > 0 && (
         <div>
-          <h2 className="panel-header">Subject Factions</h2>
+          <h2 className="panel-header">Subject factions</h2>
           <FactionTable factions={subjectFactions} isGm />
         </div>
       )}
 
       <section className="panel p-4">
-        <h2 className="panel-header">Add Member</h2>
+        <h2 className="panel-header">Add member</h2>
         <form action={addCharacterToFaction} className="flex gap-2">
           <input type="hidden" name="factionId" value={faction.id} />
           <Select name="characterId" required defaultValue="" className="min-w-0">

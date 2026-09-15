@@ -23,7 +23,7 @@ import DepotLedgerTab from "./DepotLedgerTab";
 
 const TABS = [
   { key: "order", label: "Order" },
-  { key: "prices", label: "Price List" },
+  { key: "prices", label: "Price list" },
   { key: "hold", label: "Hold" },
   { key: "bank", label: "Bank" },
   { key: "station", label: "Station" },

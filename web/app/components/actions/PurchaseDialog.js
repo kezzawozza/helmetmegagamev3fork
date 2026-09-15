@@ -30,7 +30,7 @@ export default function PurchaseDialog({ mode, onDone, onClose }) {
 
   return (
     <ActionDialog
-      title="Purchase Gear"
+      title="Purchase gear"
       submitLabel="Buy"
       width="wide"
       busy={busy}

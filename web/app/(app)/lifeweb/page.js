@@ -121,7 +121,7 @@ export default async function LifewebPage() {
           <h2 className="panel-header">GM Panel</h2>
 
           <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-bold">Donate Blood</h3>
+            <h3 className="text-sm font-bold">Donate blood</h3>
             {aliveCharacters.length === 0 ? (
               <p className="text-sm text-muted">No living characters.</p>
             ) : (
@@ -130,7 +130,7 @@ export default async function LifewebPage() {
           </div>
 
           <div className="mt-5 flex flex-col gap-2 border-t pt-4" style={{ borderColor: "var(--border)" }}>
-            <h3 className="text-sm font-bold">Feed Person</h3>
+            <h3 className="text-sm font-bold">Feed person</h3>
             <LifewebFeedPersonButton />
           </div>
         </section>

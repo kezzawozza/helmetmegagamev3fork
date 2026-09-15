@@ -170,7 +170,7 @@ export function FeedSkeleton() {
 // once and shows up in both places the same day.
 const ROW_VERBS = [
   { key: "edit", label: "Change", icon: EditIcon, show: (g) => g.mine, run: (h, r) => h.onEdit(r.seq, r.sentAt) },
-  { key: "delete", label: "Take back", icon: TrashIcon, show: (g) => g.mine, run: (h, r) => h.onDelete(r.seq, r.sentAt) },
+  { key: "delete", label: "Delete", icon: TrashIcon, show: (g) => g.mine, run: (h, r) => h.onDelete(r.seq, r.sentAt) },
   { key: "look", label: "Look at", icon: EyeIcon, show: (g) => g.canLook, run: (h, r) => h.onLookAt(r.seq) },
   { key: "photo", label: "Photograph", icon: CameraIcon, show: (g) => g.canPhoto, run: (h, r) => h.onPhotograph(r.seq) },
   { key: "star", label: "Save to Notes", icon: NotesIcon, show: (g) => g.canStar, run: (h, r) => h.onStar(r.seq) },
@@ -340,8 +340,7 @@ const FeedRow = memo(function FeedRow({
                 onOpenMenu({
                   seq: row.seq,
                   sentAt: row.sentAt,
-                  who: row.name,
-                  mine,
+                                    mine,
                   canLook,
                   canPhoto,
                   canStar,
@@ -1311,7 +1310,7 @@ export default function Feed({
         setError(TOO_LATE);
         return;
       }
-      if (!(await confirm({ title: "Take that back?", message: "It goes from here and from Discord.", confirmLabel: "Take it back" }))) {
+      if (!(await confirm({ title: "Delete this line?", message: "It goes from here and from Discord.", confirmLabel: "Delete" }))) {
         return;
       }
       try {
@@ -1385,7 +1384,7 @@ export default function Feed({
       .catch(() => setCmdError("Could not reach the server. Nothing was changed."));
   }, [setCmdError]);
 
-  // A GM taking a line down. Same route as Take back, with no character on
+  // A GM taking a line down. Same route as Delete, with no character on
   // the session — db/lib/say.js#deleteSpeech skips the owner and the window
   // for a GM, and the route is the one that decides they are one.
   const onRemove = useCallback(
@@ -1698,7 +1697,7 @@ export default function Feed({
         // back as if the GM had said it.
         // Your own lines, hooded ones included — feedStore.js#isOwnRow is the
         // one place that knows an aliased row carries a key instead of an id.
-        // Only ever a hint: Change and Take back both re-resolve the actor
+        // Only ever a hint: Change and Delete both re-resolve the actor
         // from the session.
         const mine = Boolean(row.seq) && isOwnRow(row, self.characterId, self.speakerKey);
         const theirs = Boolean(row.seq) && !system && Boolean(who(row)) && !mine;
@@ -1817,12 +1816,10 @@ export default function Feed({
       {/* The row-action sheet a tap opens instead of the hover bar. Same
           verbs, same guards, same handlers — each one closes the sheet
           first, then does what the hover bar's button would have done. */}
+      {/* No title: the verbs are the whole sheet, and a tap outside or Escape
+          closes it. */}
       {menuRow && (
-        <Modal
-          open
-          title={menuRow.mine ? "Your line" : menuRow.who || "This line"}
-          onClose={() => setMenuRow(null)}
-        >
+        <Modal open onClose={() => setMenuRow(null)}>
           <div className="chat-sheet-menu" role="menu">
             {ROW_VERBS.filter((v) => v.show(menuRow)).map((v) => (
               <button

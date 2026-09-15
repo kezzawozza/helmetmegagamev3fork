@@ -19,7 +19,7 @@ import { learnRequest, teachRequest, confessRequest } from "@/app/(app)/characte
 // it would give away the teacher's Teaching.
 const VERBS = {
   learn: {
-    title: "Learn Skill",
+    title: "Learn skill",
     submit: "Ask them",
     who: "Who are you learning from?",
     what: "Which skill?",
@@ -31,7 +31,7 @@ const VERBS = {
     run: (partnerId, tagId) => learnRequest({ teacherId: partnerId, tagId }),
   },
   teach: {
-    title: "Teach Skill",
+    title: "Teach skill",
     submit: "Offer",
     who: "Who are you teaching?",
     what: "Which skill?",

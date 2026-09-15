@@ -639,7 +639,7 @@ a 48px head and a one-line composer:
   the open place, the zone summary.
 - **A touch screen swaps the hover bar for one ⋯.** Every row carries a `⋯`
   at its right edge, opening the same verbs the desktop hover bar shows
-  (Change, Take back, Look at, Photograph, Save to Notes, Remove) as a
+  (Change, Delete, Look at, Photograph, Save to Notes, Remove) as a
   bottom sheet instead. The hover bar itself is hidden under a coarse
   pointer — it used to appear on tap too, and a bar of buttons sitting
   right on the words it was next to was the problem, not the fix.
@@ -818,7 +818,7 @@ a 48px head and a one-line composer:
 
   | Row | Buttons |
   |---|---|
-  | Yours | ✎ **Change** · ✕ **Take back**. The five-minute window is checked when the button is pressed, not while the page sits open, and again by `deleteSpeech`. Take back goes through the shared `useConfirm()`. |
+  | Yours | ✎ **Change** · ✕ **Delete**. The five-minute window is checked when the button is pressed, not while the page sits open, and again by `deleteSpeech`. Delete goes through the shared `useConfirm()`. |
   | Somebody else's | 🔍 **Look at**, on every line including a hooded one; and 📷 **Photograph**, only while the sheet holds an `instant-camera`. |
   | Any row, viewer is a GM with no character | ✕ **Remove**, confirmed, through the same `/api/feed/delete` route with `{ gm: true }`. |
   | Any row that has a `seq` | ★ **Save to Notes** — the web twin of Discord's ⭐ (`PROXYING.md` §7), writing the same `Note` row through `starRow`. Offered on your own lines too, exactly as the reaction is, which is why the bar is now drawn on every row rather than only on one somebody can act against. |
@@ -851,7 +851,7 @@ a 48px head and a one-line composer:
   `AuditLog` row — `photo_taken`, with the seq in `details`. No `turnId`: that
   column is for the per-turn rations, and this ration is per line.
 
-  **GM remove** is the same route the player's Take back uses. It pays for the
+  **GM remove** is the same route the player's Delete uses. It pays for the
   `isGm` REST check only when there is no living character to be, writes a
   `gm_feed_remove` audit row after the removal, and a GM who DOES have a living
   character takes the player path — the rule `loadFeedViewer` already applies.

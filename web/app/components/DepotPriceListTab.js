@@ -29,7 +29,7 @@ export default function DepotPriceListTab({ priceList }) {
 
   return (
     <section className="panel p-5">
-      <h2 className="panel-header">Price List</h2>
+      <h2 className="panel-header">Price list</h2>
 
       <div className="mt-4 flex flex-col gap-3">
         <FilterBar

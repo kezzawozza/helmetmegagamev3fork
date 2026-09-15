@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Chat's line sheet is just its verbs, and every label is sentence case
+
+✎ The ⋯ sheet on a line has no title now, just Change, Delete, Look at, Photograph, Save to Notes. Take back is called Delete  
+✎ Every button, tab and dialog title a player reads is sentence case now: Lock in, Learn skill, Add member, Price list and the rest. Names and the game's own terms keep their capitals: Notes, Bascinet, Move, Desire, Tag Points
+
 ## 2026-09-15 · Chat on a phone: one size of button
 
 ✎ Every button in Chat is one size on a phone now: 44px to tap, chips at 36. The head's three buttons, the composer's ⊕ / box / ➤, the tabs, the section headers and the drawer rows all match  

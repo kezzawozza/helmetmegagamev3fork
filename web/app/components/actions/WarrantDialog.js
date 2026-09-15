@@ -18,7 +18,7 @@ export default function WarrantDialog({ mode, onDone, onClose }) {
 
   return (
     <ActionDialog
-      title="Arrest Warrant"
+      title="Arrest warrant"
       busy={busy}
       error={error}
       canSubmit={Boolean(name.trim())}
