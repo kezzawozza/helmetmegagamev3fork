@@ -7135,6 +7135,16 @@ label.chip {
   padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
+/* A shout heard at distance 0 — your OWN place (db/lib/shout.js). Louder than
+   the intercom: this is a shout right where it's shouted, larger than
+   ordinary chat text (--fs-base), not just un-muted like the PA. */
+.chat-shout {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  margin-top: var(--sp-2);
+  padding-left: calc(var(--chat-face) + var(--sp-3));
+}
+
 /* The scroller and the jump-to-bottom pill. The wrapper exists only to give
    the pill something to be positioned against. */
 .chat-feed-wrap {
@@ -7911,7 +7921,8 @@ label.chip {
   }
 
   .chat-subtext,
-  .chat-intercom {
+  .chat-intercom,
+  .chat-shout {
     padding-left: 0;
   }
 

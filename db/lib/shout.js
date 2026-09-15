@@ -220,7 +220,12 @@ function shoutAudience(placeKey, heard = []) {
 async function deliverShout(prisma, { placeKey, here, heard = [] } = {}) {
   if (placeKey && here) {
     try {
-      await sceneLine(prisma, { placeKey, text: here.scene.text, lines: here.scene.lines });
+      await sceneLine(prisma, {
+        placeKey,
+        text: here.scene.text,
+        lines: here.scene.lines,
+        channelKind: "shout",
+      });
     } catch (err) {
       console.error(`Shout row for ${placeKey} failed:`, err?.message ?? err);
     }
