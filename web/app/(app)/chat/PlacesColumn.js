@@ -10,8 +10,9 @@ import { useFolded } from "./sectionFold";
 // The left column of Chat: everywhere this character may read.
 //
 // The top of the column belongs to no zone — MESSAGES the DM pseudo-place,
-// RADIO the frequencies carried, FACTION the roster pseudo-place. Everything
-// under that is grouped BY ZONE, the way Discord groups channels by category,
+// DEADCHAT the room the dead talk in, RADIO the frequencies carried, FACTION
+// the roster pseudo-place. Everything under that is grouped BY ZONE, the way
+// Discord groups channels by category,
 // each group headed by a divider carrying the zone's name. Inside a group the
 // sections read the same as they always have: SUMMARY the zone's channel ·
 // HERE the Location stood in · ROOMS public then private · CONVERSATIONS
@@ -135,6 +136,9 @@ export default function PlacesColumn({
   // faction roster. None of the three is a room on the map, so none of them
   // belongs under a zone's divider.
   const messages = places.filter((p) => p.kind === "dm");
+  // Its own section rather than folded under Radio: a net is something you carry and Deadchat is
+  // somewhere you ended up, and for a ghost it is the only row in the whole column they can answer.
+  const deadchat = places.filter((p) => p.kind === "dead");
   const nets = places.filter((p) => p.kind === "net");
   const faction = places.filter((p) => p.kind === "faction");
 
@@ -147,7 +151,7 @@ export default function PlacesColumn({
     const byZone = new Map();
     const loose = [];
     for (const place of places) {
-      if (place.kind === "dm" || place.kind === "net" || place.kind === "faction") continue;
+      if (place.kind === "dm" || place.kind === "net" || place.kind === "faction" || place.kind === "dead") continue;
       if (!place.zoneId) {
         loose.push(place);
         continue;
@@ -171,6 +175,7 @@ export default function PlacesColumn({
   return (
     <nav className="chat-places" aria-label="Places">
       <Section title="Messages" places={messages} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Deadchat" places={deadchat} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Radio" places={nets} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Faction" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       {groups.map((group) => {

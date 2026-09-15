@@ -19,7 +19,7 @@ const { addConversationMember } = require("@lifeweb/db/lib/conversations");
 const { loadForcedName, loadConcealment, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { pushToUser } = require("@lifeweb/db/lib/webPush");
 const { FEED_CHANNEL } = require("@lifeweb/db/lib/feedNotify");
-const { discordTargetForPlaceKey, archiveContextForPlaceKey } = require("@lifeweb/db/lib/placeKey");
+const { discordTargetForPlaceKey, archiveContextForPlaceKey, parsePlaceKey } = require("@lifeweb/db/lib/placeKey");
 const {
   tokensToRoles,
   earshotForPlaceKey,
@@ -141,6 +141,9 @@ const ROW_SELECT = {
   seq: true,
   placeKey: true,
   characterId: true,
+  // The frozen name. Only a Deadchat row needs it, but it is one column on a select that already
+  // runs for every row, and a conditional select would be two shapes to keep in step.
+  characterName: true,
   content: true,
   source: true,
   discordMessageId: true,
@@ -188,10 +191,15 @@ async function pushRow(row) {
   // Resolved here too, since the mention relay below reads `alias` (set for both a hood and a forced name).
   const identity = presentedIdentity(character, { forcedName, concealment });
 
+  // A Deadchat row carries a name composed and frozen at send time (db/lib/say.js): the character's
+  // name plus the player's account handle. Re-deriving it from the live character here would drop
+  // the account half and re-apply a hood the corpse is still wearing.
+  const deadchat = parsePlaceKey(row.placeKey)?.kind === "dead";
   const posted = await postAsCharacter(target.channelId, character, content, {
     forcedName,
     concealment,
     threadId: target.threadId,
+    displayName: deadchat ? row.characterName : null,
   });
   if (!posted?.id) return false;
 
@@ -207,13 +215,19 @@ async function pushRow(row) {
   if (claimed.count === 0) return false;
 
   // After the claim, so a row that lost the race never DMs twice. Best-effort: a failed relay never costs the post.
-  await relayWebMentions({
-    row,
-    characters,
-    concealed: Boolean(identity.alias),
-    channelId: target.threadId ?? target.channelId,
-    messageId: posted.id,
-  }).catch((err) => console.error("Feed outbox mention relay failed:", err));
+  //
+  // Never from Deadchat. A mention typed there would DM a living player about something said in a
+  // room they cannot reach — the dead reaching into the world, which this seat must not do. Refused
+  // by name rather than left to earshot returning nothing for an unknown kind.
+  if (!deadchat) {
+    await relayWebMentions({
+      row,
+      characters,
+      concealed: Boolean(identity.alias),
+      channelId: target.threadId ?? target.channelId,
+      messageId: posted.id,
+    }).catch((err) => console.error("Feed outbox mention relay failed:", err));
+  }
 
   return true;
 }

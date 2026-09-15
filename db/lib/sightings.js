@@ -28,12 +28,16 @@ function shapeSighting(row) {
 // An absent key means unseen — never an error. Place scope comes from
 // db/lib/feedAccess.js#placesFor rather than being rebuilt here, the one
 // answer to what a viewer may read.
-async function lastSightings(prisma, character, { gm = false, discordUserId = null } = {}) {
+// `ghost` is a dead player (db/lib/ghost.js). Their place list is every zone summary, Location and
+// public Room, so they have "seen speak" anyone who spoke anywhere in the open turn — which is what
+// watching the whole board means. Nothing special is computed for them here: the scope still comes
+// from placesFor, the one answer to what a viewer may read.
+async function lastSightings(prisma, character, { gm = false, ghost = false, discordUserId = null } = {}) {
   const empty = new Map();
   if (!character?.id && !gm) return empty;
 
   const [places, open] = await Promise.all([
-    placesFor(prisma, character, { gm, discordUserId }),
+    placesFor(prisma, character, { gm, ghost, discordUserId }),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
   ]);
   // Between turns nobody has been seen — every face withheld, the safe

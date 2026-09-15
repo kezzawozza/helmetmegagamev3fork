@@ -674,29 +674,73 @@ all retired — a Conversation has no long-lived form any more, and a
 GM-made off-catalog thread is simply adopted by the wipe the same way an
 ordinary unknown thread is (§8). The web `/map` panel is gone too (`MAP.md`).
 
-## 5. The ghost seat
+## 5. The ghost seat, and Deadchat
 
-The Ghost role — a dead player, not yet buried or engraved — gets
-`ViewChannel` plus `AddReactions` and a deny on everything else, including
-`ManageThreads`. Reactions are allowed where the spectator seat denies them,
-so a ghost can still ⭐ a message onto their own `/notes` page. That grant
-predates the removal of the 🌬️ whisper (`COMMANDS.md` §6) and outlived it.
+**There is no Ghost role.** It was deleted on 2026-09-15, not retired. Discord
+prints a member's roles on their profile card, so a role named "Ghost" told
+anyone who clicked a player's name that they were dead — an out-of-character
+leak that pinning the colour to `0` never touched, because the colour only ever
+governed the member list. Do not add it back.
 
-**Ghosts now see every zone**, cave levels included — the Depths blackout and
-its `DEPTHS_SLUGS` exclusion list are gone. They read `#cerberon` too
-(each special-channel entry declares `ghostsMaySee`). Private threads stay
-invisible to them the way they are to any non-member; no overwrite is needed to
-keep that so. **The web draws the same seat**: whoever `db/lib/curse.js` says
-is cursed — the same answer the doctor reconciles this role to — gets a
-read-only Chat over every zone, public Rooms and the `ghostsMaySee` nets
-(`db/lib/feedAccess.js#ghostPlacesFor`, `CHAT.md` §5a), decided from the
-database rather than from this role, and ending when this role does.
+Two things replaced it, and they answer different questions.
 
-**The role's colour is part of the seat.** It is pinned to `0` (Discord's "no
-colour"), never hoisted, by `ensureCursedRoleAppearance` — re-asserted on every
-zone sync and every doctor run. A coloured cursed role paints its holders'
-names in the member list, which outs who is dead at a glance: exactly what a
-concealed ghost seat must not do.
+**Who is a ghost** is `db/lib/ghost.js`: a body, and no living character. It
+reads no `buriedAt`, so burial and engraving do not end the seat — only living
+again does. That is the split from `db/lib/curse.js`, which still owns the
+re-roll penalty and still turns on `buriedAt`. CLAUDE.md's **Death, ghosts and
+Deadchat** section has the table; the short version is that one predicate doing
+both jobs meant burying a body evicted that player from the game.
+
+**What a ghost sees** is now web-only (`db/lib/feedAccess.js#ghostPlacesFor`,
+`CHAT.md` §5a): every zone summary, every Location and its public Rooms, plus
+the nets flagged `ghostsMaySee`. That flag is a web-only flag now — there is no
+role left to grant it with on Discord, and `syncSpecialChannels` no longer tries.
+
+**Private Rooms and conversations stay out, and the reason is no longer "that is
+what the role sees".** Adding a ghost to a private thread posts a visible system
+message *and* adds them to its member list. Either one announces the death to
+everybody in the room. The only way around that is granting `MANAGE_THREADS`,
+which is worse than the problem. So the limit outlived the role that used to
+explain it, and has its own reason now.
+
+### Deadchat
+
+One channel, `#deadchat`, under its own **Beyond** category — provisioned and
+reconciled by `npm run db:sync-deadchat` (`db/lib/deadchat.js`), which also runs
+inside `db:sync`. Its id is `GameConfig.deadchatChannelId`.
+
+It is opened by **per-member permission overwrites**, the way a Location channel
+is (§3) and never by a role. That is the whole point: an overwrite is visible
+only inside the channel it opens, and everyone who can open this one is already
+dead. `@everyone` is denied view and send; the GM roles get view and are
+**denied** send; there is deliberately **no spectator overwrite**, because a
+spectator seat reading this channel would be the full death list at a glance.
+
+A seat is written when a character dies (`deathTeardown.js`, the turn engine's
+death step, `killCharacter`) and taken back when the player lives again
+(re-roll, Metempsychosis, a spawn, a rite, a GM revive). Burial and engraving
+touch it not at all. The channel doctor reconciles the set from
+`ghostUserIds()`, and unlike the old ghost-role sweep it is **bidirectional**:
+the overwrite *is* the access now, so a seat nobody should hold is taken back
+rather than left as harmless drift. It reports at 800 seats, well under
+Discord's 1000-overwrite cap, because that failure is otherwise silent.
+
+A ghost speaks there as `Solomon Baker (Pub Fries)` — the character's name and
+the player's account handle, composed at send time and frozen into
+`ArchiveEntry.characterName` so an account rename never rewrites what the room
+read. The avatar is the character's own, resolved live off the dead row.
+Deadchat is out-of-character, so naming the account is the point rather than a
+leak, and no hood or forced name the corpse is still wearing is applied.
+
+It is **not** a `SPECIAL_CHANNELS` entry, and it looks like it should be. The
+module header lists the three reasons; the sharpest is that
+`locationMove.js#reconcileNarrowcastAccess` deletes the member overwrite for
+every registry entry whose `member(ctx)` returns null, so every living player's
+every move would fire a delete against it.
+
+Deadchat survives the nightly wipe on both faces: `runMessageWipe` never walks
+it, and `db/lib/feedWipe.js#isPersistentPlace` gives it the previous-game floor
+instead of the per-turn one, so the web agrees. A new game still starts it empty.
 
 ## 6. The channel doctor
 

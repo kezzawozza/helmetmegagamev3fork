@@ -28,6 +28,7 @@ const { sendDm } = require("../lib/dm");
 const { buildEditPrompt, stashEdit } = require("../lib/editModal");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const { tagDisplayName } = require("@lifeweb/db/lib/tagDisplayName");
+const { ghostCharacterFor } = require("@lifeweb/db/lib/ghost");
 
 const DELETE_EMOJI = "❌";
 const EDIT_EMOJIS = ["✏️", "📝"];
@@ -194,10 +195,24 @@ async function handleDossierReaction(reaction, proxy, user) {
 
 // Behind both 🔍 and 📸 (and the web's eyes too): db/lib/examineRow.js is the one implementation.
 // Pressed against the row's seq, not its character id, so only the server ever knows who's under the hood.
+// A GHOST looks too (db/lib/ghost.js), as their last body — but only with 🔍, never 📸: a camera is
+// a thing you hold, and theirs is on the floor with the rest of it. `bystander` is the photograph.
+//
+// Worth knowing where this can actually fire: a ghost holds no Discord channel except Deadchat now,
+// so on this face the arm only reaches lines said there. It exists so the two faces answer the same
+// way rather than because Discord is where a ghost will use it — the web is (examineActions.js).
 async function readoutForReaction(proxy, user, { bystander = false } = {}) {
-  const viewer = await findAliveCharacter(user.id, { select: VIEWER_SELECT });
+  let viewer = await findAliveCharacter(user.id, { select: VIEWER_SELECT });
+  let ghost = false;
+  if (!viewer && !bystander) {
+    const dead = await ghostCharacterFor(prisma, user.id);
+    if (dead) {
+      viewer = await prisma.character.findUnique({ where: { id: dead.id }, select: VIEWER_SELECT });
+      ghost = Boolean(viewer);
+    }
+  }
   if (!viewer) return null;
-  return examineRow(prisma, viewer, proxy.seq, { bystander });
+  return examineRow(prisma, viewer, proxy.seq, { bystander, ghost });
 }
 
 // Shared by 🔍 and 📸 — a photograph shows the same thing looking at somebody does.

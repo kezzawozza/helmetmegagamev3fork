@@ -10,8 +10,8 @@ const { settleLobbyEntry } = require("./lobby");
 const { readGameState, effectivePlayerCount } = require("./gameState");
 const { formatCharacterName, formatBareName } = require("./characterName");
 const { expiryForGrant } = require("./grantExpiry");
-const { createGuildRole, removeMemberRole } = require("./discordRest");
-const { GHOST_ROLE_ID } = require("./roleIds");
+const { createGuildRole } = require("./discordRest");
+const { closeDeadchatTo } = require("./deadchat");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { seedMemories } = require("./locationVisits");
@@ -270,8 +270,9 @@ async function applySpawnSideEffects(prisma, sideEffects) {
     }
   }
 
-  // A spawned threat is alive again, so the ghost seat comes off — the curse itself needs no write, db/lib/curse.js derives it.
-  await removeMemberRole(discordUserId, GHOST_ROLE_ID).catch(() => {});
+  // A spawned threat is alive again, so the Deadchat seat comes off — neither the curse nor the
+  // ghost seat needs a write, db/lib/curse.js and db/lib/ghost.js both derive from the ALIVE row.
+  await closeDeadchatTo(prisma, discordUserId).catch(() => {});
 
   // The Tribunal arrives by shuttle: every Location on the map, not a range from an origin — the sky is not a noise.
   if (SHUTTLE_ARRIVAL_SLUGS.has(threatSlug)) {

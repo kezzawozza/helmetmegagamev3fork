@@ -21,7 +21,6 @@ import {
 } from "@/lib/peopleHere";
 import { isBound as isBoundTarget } from "@lifeweb/db/lib/bind";
 import {
-  removeGhostRole,
   killCharacter,
 } from "@/lib/discordGuild";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -399,15 +398,13 @@ export async function buryCharacterRequestImpl({
     });
   });
 
-  await removeGhostRole(target.discordUserId).catch((err) =>
-    console.error(
-      `Bury: failed to lift the curse from ${target.discordUserId}:`,
-      err,
-    ),
-  );
+  // NOTHING to revoke here. Burial lifts the CURSE — the re-roll penalty, which db/lib/curse.js
+  // derives from `buriedAt` with no write of its own — and leaves the watching seat alone.
+  // db/lib/ghost.js ends that only when a living character is theirs again. The two used to be one
+  // predicate, so burying somebody also threw them out of the game they were still watching.
   await afterInventoryChange([character.id]);
 
-  notifyCharacter(target, "Your body was buried. The curse has lifted.");
+  notifyCharacter(target, "Your body was buried. The curse has lifted. You are still watching.");
   if (corpse.source.kind === "room") {
     after(() => announceInRoom(corpse.source, character, "takes a body away."));
   }
@@ -484,17 +481,12 @@ export async function engraveHeadstoneRequestImpl({
     return { headstone };
   });
 
-  await removeGhostRole(target.discordUserId).catch((err) =>
-    console.error(
-      `Engrave: failed to lift the curse from ${target.discordUserId}:`,
-      err,
-    ),
-  );
+  // Same as Bury above: the curse lifts, the seat does not. See db/lib/ghost.js.
   await afterInventoryChange([character.id]);
 
   notifyCharacter(
     target,
-    "Somebody carved your name in stone. The curse has lifted.",
+    "Somebody carved your name in stone. The curse has lifted. You are still watching.",
   );
   await speakHere(character, `A headstone was engraved for ${target.name}.`);
 

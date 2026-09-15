@@ -28,7 +28,6 @@ function SwitchInfo({ text }) {
 
 export default function AvatarField({
   defaultTurnPingOptIn,
-  defaultAutoMount,
   defaultWebOnly = false,
   // GameConfig.playPanelEnabled. Off, the "Play from the web" switch is drawn
   // only for a player who is already web-only — a character taken out of
@@ -191,18 +190,6 @@ export default function AvatarField({
             silently cannot be delivered. */}
         <Switch name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn}>
           Ping me when the turn advances
-        </Switch>
-        {/* The road kit back on at every arrival where it may be out — the
-            return leg of the parking at an indoors door (CARRY.md §3,
-            db/lib/indoors.js#takeUpMountsOutdoors). Always offered, even with
-            no horse on the sheet: a switch that only renders sometimes posts
-            nothing when hidden, and a missing checkbox reads as "off" — the
-            trap the conceal switch below has to work around. */}
-        <Switch name="autoMount" defaultChecked={defaultAutoMount}>
-          <span className="inline-flex items-center gap-1.5">
-            Automatically ride my mount
-            <SwitchInfo text="When you arrive somewhere your mount can go, you take it and your cart up again without a trip to the sheet." />
-          </span>
         </Switch>
         {/* The anonymity switch (docs/systemdocs/CHAT.md §6). On, this player's
             Discord account is taken out of every game channel, so a member

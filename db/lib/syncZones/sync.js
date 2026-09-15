@@ -28,7 +28,6 @@ const { WATCHTOWER_ROOM_SLUGS } = require("../roomStarterRow");
 const { loadLiveStates } = require("../roomLive");
 const { orderEndpoints } = require("../locationGraph");
 const { canBuildHere, PRESENT_STATUSES } = require("../structures");
-const { ensureGhostRoleAppearance } = require("../ghostAccess");
 const { parseZonesYaml, managedOverwriteIds, reconcileChannelOverwrites } = require("./parse");
 const { buildRoomBody } = require("./bodies");
 const { syncRoomThread, roomComponents, syncLocationAnchor } = require("./roomThreads");
@@ -586,10 +585,6 @@ async function syncZonesFromYaml(prisma) {
   for (const location of locationsBySlug.values()) {
     report.anchors[await syncLocationAnchor(prisma, location, roomsByLocationId.get(location.id) ?? [])] += 1;
   }
-
-  await ensureGhostRoleAppearance().catch((err) =>
-    console.warn(`cursed role appearance: ${err.message}`),
-  );
 
   // Pass 4: prune. Rooms first (threads under location channels), then
   // locations (channel and row — characters standing there are set null and

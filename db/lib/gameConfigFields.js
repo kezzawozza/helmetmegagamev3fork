@@ -160,6 +160,10 @@ const INTERNAL_KEYS = [
   "radioCategoryId",
   "cerberonChannelId",
   "freq27065ChannelId",
+  // Deadchat (db/lib/deadchat.js). Provisioned, not configured — like the radio
+  // ids above, it is here so the registry check does not read it as drift.
+  "deadchatCategoryId",
+  "deadchatChannelId",
   // Retired 2026-09-13: the per-slot rules in db/lib/equipSlots.js are the
   // whole equipment limit. The column stays, unread, so nothing drops a value.
   "equipSlots",

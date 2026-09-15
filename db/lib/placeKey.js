@@ -1,7 +1,9 @@
 // Place keys: the one string naming WHERE something was said, shared by both
-// faces — `loc:<id>`, `room:<id>`, `conv:<id>`, `zone:<id>` or `net:<slug>`, a
-// snapshot string with no FK behind it. `net:` names a SPECIAL CHANNEL
-// (db/lib/specialChannels.js) by its registry slug, since there is no row.
+// faces — `loc:<id>`, `room:<id>`, `conv:<id>`, `zone:<id>`, `net:<slug>` or
+// `dead:main`, a snapshot string with no FK behind it. `net:` names a SPECIAL
+// CHANNEL (db/lib/specialChannels.js) by its registry slug, since there is no
+// row. `dead:` is DEADCHAT (db/lib/deadchat.js) — one instance, so the id half
+// is the constant "main" rather than anything looked up.
 // Takes `prisma` as a parameter rather than requiring db/index.js: that would resolve to a partial exports object.
 
 const { SPECIAL_CHANNELS } = require("./specialChannels");
@@ -26,6 +28,10 @@ function placeKeyForNet(slug) {
   return slug ? `net:${slug}` : null;
 }
 
+// Deadchat: the room the dead talk in (db/lib/deadchat.js). There is exactly one, so this is a
+// constant rather than a function of anything — exported so nobody hand-writes the string.
+const DEADCHAT_PLACE_KEY = "dead:main";
+
 // Memoised for a minute (like archive.js#currentGameId): hot path, layout rarely changes.
 const CHANNEL_TTL_MS = 60 * 1000;
 const channelMemo = new Map(); // channelId -> { key, at }
@@ -46,11 +52,14 @@ async function placeKeyForChannel(prisma, { channelId, parentId = null } = {}) {
   return key;
 }
 
-// Which special channel this id is, if any.
-async function netKeyForChannel(prisma, channelId) {
+// Which standing channel this id is, if any — Deadchat or one of the radio nets. Both live in
+// GameConfig columns rather than rows, so they share the one read: a second findUnique here would
+// double the cost of every channel resolve for the rarest arm of it.
+async function specialKeyForChannel(prisma, channelId) {
   if (!channelId) return null;
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   if (!config) return null;
+  if (config.deadchatChannelId && config.deadchatChannelId === channelId) return DEADCHAT_PLACE_KEY;
   const entry = SPECIAL_CHANNELS.find((c) => config[c.configKey] && config[c.configKey] === channelId);
   return entry ? placeKeyForNet(entry.slug) : null;
 }
@@ -81,9 +90,9 @@ async function resolveChannelKey(prisma, channelId, parentId) {
   });
   if (zone) return placeKeyForZone(zone.id);
 
-  // A radio net (db/lib/specialChannels.js) has no row, so it's last and rarest.
-  const netKey = await netKeyForChannel(prisma, channelId);
-  if (netKey) return netKey;
+  // Deadchat and the radio nets have no row, so they are last and rarest.
+  const specialKey = await specialKeyForChannel(prisma, channelId);
+  if (specialKey) return specialKey;
 
   // A thread nobody has a row for still belongs to its parent's Location.
   if (parentId && parentId !== channelId) {
@@ -105,6 +114,12 @@ async function archiveContextForPlaceKey(prisma, placeKey) {
   const empty = { zoneId: null, zoneName: null, channelKind: null, threadName: null };
   const parsed = parsePlaceKey(placeKey);
   if (!parsed) return empty;
+
+  // Deadchat belongs to no zone and needs no lookup. Its own channelKind is what lets /archive
+  // keep it apart from the scenes — it is out-of-character talk, not part of the world's record.
+  if (parsed.kind === "dead") {
+    return { zoneId: null, zoneName: null, channelKind: "deadchat", threadName: null };
+  }
 
   if (parsed.kind === "loc") {
     const location = await prisma.location.findUnique({
@@ -163,7 +178,7 @@ function parsePlaceKey(placeKey) {
   const kind = placeKey.slice(0, at);
   const id = placeKey.slice(at + 1);
   if (!id) return null;
-  if (!["loc", "room", "conv", "zone", "net"].includes(kind)) return null;
+  if (!["loc", "room", "conv", "zone", "net", "dead"].includes(kind)) return null;
   return { kind, id };
 }
 
@@ -171,7 +186,9 @@ function parsePlaceKey(placeKey) {
 // AuditLog (schema.prisma): {locationId,roomId}, a character-ish object (no
 // room, since the server never learns which thread a character-sheet button
 // was pressed from), or a place key string. A room row ALWAYS carries its
-// location too, derived from Room.locationId. zone:/net: resolve to nulls.
+// location too, derived from Room.locationId. zone:/net:/dead: resolve to nulls
+// — none of them sits at a Location, so falling through to `empty` is the answer,
+// not an arm somebody still needs to write.
 async function placePairForAudit(prisma, place) {
   const empty = { locationId: null, roomId: null };
   if (!place) return empty;
@@ -207,6 +224,9 @@ async function placePairForAudit(prisma, place) {
 // A SCENE is a Room thread or a Conversation — not a Location (no voice; the
 // anchor's buttons handle it) and not a zone #summary (a broadcast). Gate for
 // shout/play/roll, shared so the two faces cannot drift on where each is legal.
+//
+// Deadchat is deliberately NOT a scene. It is out-of-character talk among people no longer in the
+// world, so a shout, a performance or a die roll there would be a mechanic the game does not have.
 function isScenePlaceKey(placeKey) {
   const kind = parsePlaceKey(placeKey)?.kind;
   return kind === "room" || kind === "conv";
@@ -253,6 +273,12 @@ async function discordTargetForPlaceKey(prisma, placeKey) {
     return zone?.discordSummaryChannelId ? { channelId: zone.discordSummaryChannelId, threadId: null } : null;
   }
 
+  // Deadchat is a plain channel too, and its id is a GameConfig column like a net's.
+  if (parsed.kind === "dead") {
+    const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+    return config?.deadchatChannelId ? { channelId: config.deadchatChannelId, threadId: null } : null;
+  }
+
   // A net is a plain channel, so it carries no thread.
   if (parsed.kind === "net") {
     const entry = SPECIAL_CHANNELS.find((c) => c.slug === parsed.id);
@@ -267,6 +293,7 @@ async function discordTargetForPlaceKey(prisma, placeKey) {
 
 module.exports = {
   placeKeyForNet,
+  DEADCHAT_PLACE_KEY,
   placeKeyForChannel,
   discordTargetForPlaceKey,
   archiveContextForPlaceKey,

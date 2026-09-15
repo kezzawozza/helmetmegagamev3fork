@@ -1713,9 +1713,14 @@ export default function Feed({
         // look at a hood without ever being told who is under it, and a
         // photograph of a hood is still a photograph of a hood
         // (db/lib/examineRow.js).
-        // `!gm && !ghost` is "has a living character": both watch with none,
-        // and lookAtRow / photographRow refuse a viewer without one.
-        const canLook = theirs && !gm && !ghost;
+        // A GHOST may look. They watch the whole board and could do nothing with any of it, which
+        // was a gap rather than a rule — lookAtRow resolves them to their last body and the place
+        // gate is the same one their feed already answers to (db/lib/examineRow.js).
+        //
+        // Not the camera, though: a photograph freezes a reading onto a real Tag row that somebody
+        // has to be holding a camera to take, and a ghost holds nothing. `!gm && !ghost` still means
+        // "has a living character" there, and photographRow refuses a viewer without one.
+        const canLook = theirs && !gm;
         const canPhoto = theirs && !gm && !ghost && hasCamera;
         const canRemove = gm && Boolean(row.seq) && !system;
         // Same rule as canLook: a note is filed under a living character, and

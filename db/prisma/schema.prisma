@@ -522,6 +522,18 @@ model GameConfig {
   // digit; the channel itself is named after the frequency.
   freq27065ChannelId String?
 
+  // DEADCHAT (db/lib/deadchat.js): the one room the dead talk in, and the only
+  // place a ghost has a voice. Its own category rather than the radio one — a
+  // net is something you carry, this is somewhere you end up.
+  //
+  // Opened by PER-MEMBER overwrites, never a role. The Ghost role that used to
+  // do this job was an out-of-character leak: Discord prints a member's roles on
+  // their profile card, so "Ghost" told anyone who clicked that a player was
+  // dead. An overwrite is visible only inside the channel it opens, and everyone
+  // who can open this one is already dead.
+  deadchatCategoryId String?
+  deadchatChannelId  String?
+
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
   // catatonicTurns turns straight is flagged; the flag lifts the moment they
@@ -2177,8 +2189,8 @@ model Character {
   appearance    String?
   turnPingOptIn Boolean @default(true)
 
-  // Take the road kit back up on arrival anywhere a mount may be out
-  // (db/lib/indoors.js#takeUpMountsOutdoors). Off by default: opt-in.
+  // Orphan: the "Automatically ride my mount" switch was removed. Nothing
+  // reads or writes this any more; kept rather than dropped (CARRY.md §3).
   autoMount     Boolean @default(false)
 
   // "Play from the web" (docs/systemdocs/HALL.md §6). While it is on, this

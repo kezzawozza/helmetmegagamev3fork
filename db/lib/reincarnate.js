@@ -13,8 +13,8 @@ const { expiryForGrant } = require("./grantExpiry");
 const { seedMemories } = require("./locationVisits");
 const { startingMemorySlugs } = require("./startingMemories");
 const { formatCharacterName, formatBareName, AGE_MIN } = require("./characterName");
-const { removeMemberRole, setGuildNickname } = require("./discordRest");
-const { GHOST_ROLE_ID } = require("./roleIds");
+const { setGuildNickname } = require("./discordRest");
+const { closeDeadchatTo } = require("./deadchat");
 const { randomCharacterName } = require("./nameCorpus");
 const { GENDERS } = require("./titles");
 const { isDynastyMember, DYNASTY_HEAD_SLUG } = require("./dynasty");
@@ -226,7 +226,7 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
   // db/lib/deathTeardown.js#stillAlive's brace, since the web's killCharacter
   // revokes access BEFORE writing the death row. The curse itself needs no
   // write — db/lib/curse.js derives it from this character being ALIVE.
-  await removeMemberRole(discordUserId, GHOST_ROLE_ID).catch(() => {});
+  await closeDeadchatTo(prisma, discordUserId).catch(() => {});
   await setGuildNickname(discordUserId, formatBareName(created)).catch(() => {});
 
   // Plain, not `-#`: sendDm's `»` prefix (CLAUDE.md) makes a `» -#` line render as neither.

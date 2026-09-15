@@ -19,6 +19,7 @@ import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { whosHere, whosHereGm, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
+import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 import { travelOptions, linksFor, endpoints, isHeldOpen } from "@lifeweb/db/lib/locationGraph";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { structuresAt } from "@lifeweb/db/lib/structures";
@@ -174,10 +175,27 @@ export async function loadAffordances() {
 // Looking at whoever said one line — the web twin of the 🔍 reaction. Only a
 // SEQ is sent; who spoke and whether hooded is resolved server-side (db/lib/examineRow.js).
 export async function lookAtRow(seq) {
-  const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
-  if (me.error) return { ok: false, error: me.error };
-  const viewer = await prisma.character.findUnique({ where: { id: me.character.id }, select: VIEWER_SELECT });
-  const result = await examineRow(prisma, viewer, seq);
+  const session = await auth();
+  if (!session?.discordUserId) return { ok: false, error: "You are not signed in." };
+
+  // The eye in /chat is where a GHOST actually looks: they have no sheet, so the Examine dialog on
+  // /character is not theirs, and this is the only eye their seat reaches. They look as their last
+  // body — keeping its learned sight, losing its blindfolds (db/lib/examineRow.js).
+  let viewer = await prisma.character.findFirst({
+    where: { discordUserId: session.discordUserId, status: "ALIVE" },
+    select: VIEWER_SELECT,
+  });
+  let ghost = false;
+  if (!viewer) {
+    const dead = await ghostCharacterFor(prisma, session.discordUserId);
+    if (dead) {
+      viewer = await prisma.character.findUnique({ where: { id: dead.id }, select: VIEWER_SELECT });
+      ghost = Boolean(viewer);
+    }
+  }
+  if (!viewer) return { ok: false, error: "You have no living character." };
+
+  const result = await examineRow(prisma, viewer, seq, { ghost });
   if (!result) return { ok: false, error: "You can't see them." };
   if (result.blocked) return { ok: false, error: result.blocked };
   return { ok: true, readout: result.readout };

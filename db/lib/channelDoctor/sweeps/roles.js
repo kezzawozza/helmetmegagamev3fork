@@ -1,11 +1,11 @@
 // The channel doctor's "cheap: role membership" sweep — zone role
 // membership, location occupancy (its own module, called here to keep the
-// original sequence), turn-ping, the ghost/cursed seat, character-role
+// original sequence), turn-ping, the Deadchat seat, character-role
 // orphans, seat stamping, and spectator visibility. Moved verbatim out of
 // runChannelDoctor (W2d).
 const { getGuildChannels, deleteGuildRole } = require("../../discordRest");
-const { ghostRoleId } = require("../../ghostAccess");
-const { cursedUserIds } = require("../../curse");
+const { ghostUserIds } = require("../../ghost");
+const { deadchatSeatHolders, openDeadchatTo, closeDeadchatTo } = require("../../deadchat");
 const { managedSpectatorChannels, spectatorDrift, applySpectatorOverwrite } = require("../../spectatorAccess");
 const { looksLikeCharacterRole, standingRoleIds, reconcileRoleMembership } = require("../shared");
 const { runLocationOccupancySweep } = require("./locationOccupancy");
@@ -57,22 +57,20 @@ async function runRoleMembershipSweep({
     report,
   });
 
-  // The ghost seat: whoever db/lib/curse.js says is cursed, and nobody else.
+  // The Deadchat seat: whoever db/lib/ghost.js says is a ghost, and nobody else. Per-member
+  // overwrites on one channel (db/lib/deadchat.js), not a role — the Ghost role this replaces
+  // printed "dead" on a profile card to anyone who clicked.
   //
-  // One-directional, database -> role, never the reverse. The role is a cache
-  // of a derived set now; it decides nothing, so a disagreement costs a dead
-  // player some channels until the next run rather than costing them points.
-  // This used to compute the set inline and WITHOUT the buriedAt clause, so it
-  // re-granted the role to anyone who had buried their body and not yet
-  // re-rolled.
-  const cursedShould = [...cursedUserIds(characters)];
-  await reconcileRoleMembership({
-    roleId: ghostRoleId(),
-    label: "cursed",
-    shouldHave: cursedShould,
-    members,
-    report,
-  });
+  // BIDIRECTIONAL, which inverts what the old ghost reconcile did on purpose. That one was
+  // database -> role only, on the argument that the role was a cache of a derived set and decided
+  // nothing, so drift cost a dead player some channels and nothing more. Here the overwrite IS the
+  // access, and drift the other way is a living player sitting in the dead's room reading it. So
+  // both directions are swept, and a seat nobody should hold is taken back.
+  //
+  // A departed member keeps neither: they are not in `members`, so the add arm skips them, and the
+  // remove arm below takes the seat off anyone the database does not name — which is the cleanup
+  // path for somebody who left the guild mid-death.
+  await reconcileDeadchatSeats({ prisma, characters, members, report });
 
   // Character roles: every ALIVE character's role exists; no orphan
   // character-signature roles. Creation isn't repaired here (it needs the
@@ -147,6 +145,47 @@ async function runRoleMembershipSweep({
   }
 
   return { zoneRoleIds, zoneGmRoleIds };
+}
+
+// Discord allows 1000 overwrites on a channel. Deadchat's population is the players who have died
+// and not re-rolled — tens, realistically — but the failure is silent, so it is reported well before
+// it is fatal rather than discovered as a refused write.
+const SEAT_WARN_AT = 800;
+
+async function reconcileDeadchatSeats({ prisma, characters, members, report }) {
+  let held;
+  try {
+    held = await deadchatSeatHolders(prisma);
+  } catch (err) {
+    await report("deadchat-seat", "channel", `couldn't read the Deadchat channel: ${err.message ?? err}`);
+    return;
+  }
+  // No channel provisioned yet is not drift — db:sync-deadchat has simply not run.
+  if (held.length === 0) {
+    const { deadchatChannelId } = require("../../deadchat");
+    if (!(await deadchatChannelId(prisma))) return;
+  }
+
+  if (held.length >= SEAT_WARN_AT) {
+    await report("deadchat-seat", "channel", `${held.length} seats, approaching Discord's 1000-overwrite cap`);
+  }
+
+  const want = ghostUserIds(characters);
+  const has = new Set(held);
+
+  for (const userId of want) {
+    if (has.has(userId)) continue;
+    if (!members.get(userId)) continue; // left the guild — the character checks report that
+    await report("deadchat-seat", userId, "a ghost with no Deadchat seat", () =>
+      openDeadchatTo(prisma, userId),
+    );
+  }
+  for (const userId of has) {
+    if (want.has(userId)) continue;
+    await report("deadchat-seat", userId, "holds a Deadchat seat and shouldn't", () =>
+      closeDeadchatTo(prisma, userId),
+    );
+  }
 }
 
 module.exports = { runRoleMembershipSweep };

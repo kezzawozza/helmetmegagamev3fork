@@ -1,7 +1,6 @@
 // The complete intended Discord layout for one Zone and Location, so provisioning and reconcile
 // can never disagree. A Location channel opens by a PER-MEMBER overwrite, not a role (LOCATION_MEMBER_ALLOW).
 const { spectatorOverwrite } = require("./spectatorAccess");
-const { ghostOverwrite } = require("./ghostAccess");
 
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -59,7 +58,6 @@ function baseOverwrites(guildId, zoneGmRoleId, { spectators = true } = {}) {
     { id: guildId, type: 0, deny: (PERM_VIEW_CHANNEL | PERM_ATTACH_FILES).toString() },
     ...roleAllow(zoneGmRoleId, PERM_VIEW_CHANNEL | PERM_ATTACH_FILES),
     ...spectatorOverwrite({ visible: spectators }),
-    ...ghostOverwrite(),
   ];
 }
 

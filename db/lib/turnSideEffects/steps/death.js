@@ -1,12 +1,11 @@
 const { sendDm } = require("../../dm");
-const { GHOST_ROLE_ID } = require("../../roleIds");
+const { openDeadchatTo, DEADCHAT_INVITE } = require("../../deadchat");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("../../constants");
 const { stillAlive } = require("../../deathTeardown");
 const { revokeAllCharacterAccess } = require("../../accessSweep");
 const {
   postMessage,
   deleteGuildRole,
-  addMemberRole,
   getGuildMember,
   setGuildNickname,
 } = require("../../discordRest");
@@ -98,9 +97,9 @@ async function handleDeaths({ prisma, p, list, step, eachDm }) {
       }
 
       if (member && !reborn) {
-        await addMemberRole(death.discordUserId, GHOST_ROLE_ID).catch((err) =>
+        await openDeadchatTo(prisma, death.discordUserId).catch((err) =>
           console.error(
-            `Failed to grant the ghost seat to ${death.discordUserId}:`,
+            `Failed to open Deadchat for ${death.discordUserId}:`,
             err.message,
           ),
         );
@@ -116,7 +115,7 @@ async function handleDeaths({ prisma, p, list, step, eachDm }) {
           await sendDm(
             prisma,
             death.discordUserId,
-            `You have died. ${death.reason}`,
+            `You have died. ${death.reason}\n${DEADCHAT_INVITE}`,
           ).catch((err) =>
             console.error(`Death DM to ${death.discordUserId} failed:`, err),
           );

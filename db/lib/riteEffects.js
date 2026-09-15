@@ -6,7 +6,7 @@
 // player hears is Bascinet's, verbatim and unsigned. A handler returns
 // { result }, or { awaiting: "zone" } when unfinished until the room answers
 // (Panic). Takes `db` as a parameter, the db/lib/dm.js convention.
-const { createGuildRole, removeMemberRole } = require("./discordRest");
+const { createGuildRole } = require("./discordRest");
 const { roomLine, locationLine } = require("./placeLine");
 const { sendDm } = require("./dm");
 const { aliasSubject } = require("./concealedIdentity");
@@ -25,7 +25,7 @@ const { resolveSeatConflicts, describeSeatConflicts } = require("./seatConflicts
 const { listObjectives, fulfillObjectives } = require("./objectives");
 const { setMood, MOOD_MIN } = require("./mood");
 const { normalizeChant, containsPhrase } = require("./rites");
-const { GHOST_ROLE_ID } = require("./roleIds");
+const { closeDeadchatTo, DEADCHAT_INVITE } = require("./deadchat");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
 const { broadcastToZones } = require("./worldBroadcast");
 const {
@@ -97,7 +97,7 @@ async function killByRite(db, character, { turn = null, reason = null, content =
   const { member } = await applyDeathTeardown(db, { ...character, discordRoleId: roleId });
   if (member) {
     // The reason matters here more than anywhere else: a rite kills off-screen.
-    await sendDm(db, character.discordUserId, `You have died.${reason ? `\n${reason}` : ""}`, {
+    await sendDm(db, character.discordUserId, `You have died.${reason ? `\n${reason}` : ""}\n${DEADCHAT_INVITE}`, {
       source: "rite",
     }).catch(log(`death DM for ${character.name}`));
   }
@@ -124,7 +124,7 @@ async function reviveByRite(db, dead, { location, turnNumber }) {
   } catch (err) {
     log(`role for ${dead.name}`)(err);
   }
-  await removeMemberRole(dead.discordUserId, GHOST_ROLE_ID).catch(() => {});
+  await closeDeadchatTo(db, dead.discordUserId).catch(() => {});
   // No nickname write here: the bot's nickname sync owns that.
   await applyLocationMoveSideEffects(db, { characterId: dead.id, fromLocationId: null, toLocationId: location.id }).catch(
     log(`placement for ${dead.name}`),

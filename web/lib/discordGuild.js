@@ -15,6 +15,7 @@ import {
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
 import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
+import { openDeadchatTo, DEADCHAT_INVITE } from "@lifeweb/db/lib/deadchat";
 import { applyDmPrefix, dmLogRow } from "@lifeweb/db/lib/dmPolicy";
 import { buildNickname } from "@lifeweb/db/lib/nicknameFormat";
 import {
@@ -27,7 +28,6 @@ import {
   discordRequest,
   postDmBatched,
 } from "@lifeweb/db/lib/discordRest";
-import { GHOST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 
 // Channels opt into summary/tupper behavior by id — see bot/src/lib/channels.js
 // for the bot-side twin (kept separate since the bot uses its gateway cache).
@@ -303,44 +303,6 @@ export async function setTurnPingRole(discordUserId, optIn) {
   }
 }
 
-// Read-only channel access for a dead player. Granted on death, taken off
-// on a re-roll, burial or revive. A PERMISSION HANDLE only — whether the
-// player is Cursed is db/lib/curse.js's answer, unrelated to this role.
-async function grantGhostRole(discordUserId) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  const token = process.env.DISCORD_TOKEN;
-  const roleId = GHOST_ROLE_ID;
-  if (!guildId || !token) return;
-
-  try {
-    await discordRequest(`/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
-      method: "PUT",
-      allow404: true,
-    });
-    memberCache.delete(discordUserId);
-    memberListCache.delete("all");
-  } catch (err) {
-    console.error(`Failed to grant the ghost role to ${discordUserId}:`, err);
-  }
-}
-
-export async function removeGhostRole(discordUserId) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  const token = process.env.DISCORD_TOKEN;
-  const roleId = GHOST_ROLE_ID;
-  if (!guildId || !token) return;
-
-  try {
-    await discordRequest(`/guilds/${guildId}/members/${discordUserId}/roles/${roleId}`, {
-      method: "DELETE",
-      allow404: true,
-    });
-    memberCache.delete(discordUserId);
-    memberListCache.delete("all");
-  } catch (err) {
-    console.error(`Failed to remove the ghost role from ${discordUserId}:`, err);
-  }
-}
 
 // Personal Discord role titled after this character, colored
 // deterministically, via db/lib/characterRoleAppearance.js so a Catatonic
@@ -475,9 +437,14 @@ export async function killCharacter(character, reason = null) {
     content: `${character.name} died.`,
   }).catch((err) => console.error(`Death row cleanup failed for ${character.id}:`, err));
 
-  await grantGhostRole(character.discordUserId);
+  // The Deadchat seat (db/lib/deadchat.js) — a per-member overwrite on one channel, replacing the
+  // Ghost role that used to go here. Note the order this inherits and must keep: revokeAllCharacterAccess
+  // above sweeps the channels the character held, Deadchat included, so the grant has to come after it.
+  await openDeadchatTo(prisma, character.discordUserId).catch((err) =>
+    console.error(`Deadchat seat failed for ${character.id}:`, err),
+  );
 
-  await sendDm(character.discordUserId, `You have died.${reason?.trim() ? `\n${reason.trim()}` : ""}`, {
+  await sendDm(character.discordUserId, `You have died.${reason?.trim() ? `\n${reason.trim()}` : ""}\n${DEADCHAT_INVITE}`, {
     source: "player_event",
   }).catch((err) => console.error(`Death DM failed for ${character.id}:`, err));
 }

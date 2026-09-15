@@ -60,14 +60,20 @@ async function feedWipeFloors(prisma) {
     return {
       turn: highest(on ? BigInt(config.feedWipeSeq ?? 0) : 0n, gameFloor),
       summary: highest(on ? BigInt(config.feedWipeSummarySeq ?? 0) : 0n, gameFloor),
+      // Deadchat only ever stops at the GAME boundary — neither wipe watermark applies to it. See
+      // isPersistentPlace below for why.
+      persist: gameFloor,
     };
   } catch (err) {
     console.error("Feed wipe floors failed:", err);
-    return { turn: 0n, summary: 0n };
+    return { turn: 0n, summary: 0n, persist: 0n };
   }
 }
 
+// Persistent first: a persistent place is never also a summary, but checking it first says which
+// rule wins without relying on that.
 function floorForPlace(floors, placeKey) {
+  if (isPersistentPlace(placeKey)) return floors.persist ?? 0n;
   return isSummaryPlace(placeKey) ? floors.summary : floors.turn;
 }
 
@@ -75,9 +81,24 @@ function isSummaryPlace(placeKey) {
   return typeof placeKey === "string" && placeKey.startsWith("zone:");
 }
 
+// DEADCHAT survives every turn, and this is what makes the two faces agree about that. The Discord
+// wipe already never touches it — runMessageWipe walks zone summaries, Location channels and the
+// special channels marked `wipe: "clear"`, and Deadchat is in none of those loops. Without this
+// arm the web would still apply the per-turn floor, so a ghost would find yesterday's conversation
+// on Discord and an empty room in /chat.
+//
+// It still stops at `persist` (the previous-game floor), so a new game starts with an empty
+// Deadchat rather than the last game's dead still talking.
+function isPersistentPlace(placeKey) {
+  return typeof placeKey === "string" && placeKey.startsWith("dead:");
+}
+
 // A reader picking ONE number for a mixed set of places must use this, or a zone row above the turn floor gets dropped as "already sent".
+// `persist` is in the min too, and is usually the whole answer: it is the lowest of the three, and
+// a catch-up scan that started above it would skip every Deadchat row older than this turn.
 function lowestFloor(floors) {
-  return floors.summary < floors.turn ? floors.summary : floors.turn;
+  const candidates = [floors.turn, floors.summary, floors.persist ?? 0n];
+  return candidates.reduce((lowest, next) => (next < lowest ? next : lowest));
 }
 
 function forgetGameFloor() {
@@ -89,25 +110,32 @@ function seqFilterAbove(floor, extra = {}) {
   return { ...extra, gt: extra.gt !== undefined && extra.gt > floor ? extra.gt : floor };
 }
 
-// A query spanning MIXED places splits zone: keys off and ORs the two; one kind present stays plain single-clause.
+// A query spanning MIXED places groups the keys by which floor each takes and ORs the groups. One
+// group present stays a plain single clause, which is the common case: a living player's list holds
+// no dead: key at all, and a ghost's holds exactly one.
 function placeSeqWhere(floors, placeKeys, extra = {}) {
-  const summaryKeys = placeKeys.filter(isSummaryPlace);
-  const turnKeys = placeKeys.filter((key) => !isSummaryPlace(key));
+  const groups = [
+    [placeKeys.filter(isPersistentPlace), floors.persist ?? 0n],
+    [placeKeys.filter(isSummaryPlace), floors.summary],
+    [placeKeys.filter((key) => !isSummaryPlace(key) && !isPersistentPlace(key)), floors.turn],
+  ].filter(([keys]) => keys.length > 0);
 
   const clause = (keys, floor) => ({
     placeKey: { in: keys },
     seq: seqFilterAbove(floor, extra),
   });
 
-  if (summaryKeys.length === 0) return clause(turnKeys, floors.turn);
-  if (turnKeys.length === 0) return clause(summaryKeys, floors.summary);
-  return { OR: [clause(turnKeys, floors.turn), clause(summaryKeys, floors.summary)] };
+  // No keys at all: keep the old shape rather than an empty OR, which matches everything.
+  if (groups.length === 0) return clause([], floors.turn);
+  if (groups.length === 1) return clause(groups[0][0], groups[0][1]);
+  return { OR: groups.map(([keys, floor]) => clause(keys, floor)) };
 }
 
 module.exports = {
   markFeedWiped,
   feedWipeFloors,
   floorForPlace,
+  isPersistentPlace,
   lowestFloor,
   isSummaryPlace,
   forgetGameFloor,

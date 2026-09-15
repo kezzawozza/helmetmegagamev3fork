@@ -77,38 +77,47 @@ async function deleteWebhookMessage({ id, token }, messageId, threadId = null) {
 // REST twin of bot/src/lib/proxy.js#postAsCharacterTo: forced > concealed > own. Chunked (returns the FIRST message, what the archive anchors to).
 // `forcedName`/`concealment` are resolved by the CALLER (this module has no prisma handle) — see db/lib/presentedIdentity.js. `character` must carry
 // `concealed`, `age`, `gender`, `name`, `updatedAt` (bot/src/lib/feedOutbox.js#pushRow). `threadId` posts into a Room/Conversation thread; webhook stays the parent channel's.
-async function postAsCharacter(channelId, character, content, { forcedName = null, concealment = null, threadId = null } = {}) {
+//
+// `displayName` overrides the NAME only, never the face. One caller: a Deadchat row, whose name was
+// composed and frozen at send time ("Solomon Baker (Pub Fries)") and must not be re-derived here —
+// re-deriving would drop the account half and re-apply a hood the corpse is still wearing. The
+// avatar still resolves off the character, which is how a ghost keeps the face they had in game.
+async function postAsCharacter(channelId, character, content, { forcedName = null, concealment = null, threadId = null, displayName = null } = {}) {
   const chunks = chunkMessage(String(content ?? ""));
-  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content, forcedName, concealment, threadId);
+  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content, forcedName, concealment, threadId, displayName);
 
   let first = null;
   for (const chunk of chunks) {
-    const sent = await postAsCharacterChunk(channelId, character, chunk, forcedName, concealment, threadId);
+    const sent = await postAsCharacterChunk(channelId, character, chunk, forcedName, concealment, threadId, displayName);
     if (!first) first = sent;
   }
   return first;
 }
 
-async function postAsCharacterChunk(channelId, character, content, forcedName, concealment, threadId = null) {
+async function postAsCharacterChunk(channelId, character, content, forcedName, concealment, threadId = null, displayName = null) {
   try {
-    return await postAsCharacterOnce(channelId, content, character, forcedName, concealment, threadId);
+    return await postAsCharacterOnce(channelId, content, character, forcedName, concealment, threadId, displayName);
   } catch (err) {
     // Keyed on the error CODE, never message text — a 429 shouldn't rebuild.
     if (err.discordCode === UNKNOWN_WEBHOOK || err.status === 404) {
       forgetChannelWebhook(channelId);
-      return postAsCharacterOnce(channelId, content, character, forcedName, concealment, threadId);
+      return postAsCharacterOnce(channelId, content, character, forcedName, concealment, threadId, displayName);
     }
     throw err;
   }
 }
 
-async function postAsCharacterOnce(channelId, content, character, forcedName, concealment = null, threadId = null) {
+// Discord caps a webhook username at 80 characters. Both halves of a composed Deadchat name are
+// user-controlled, so it is truncated here rather than trusted to be short.
+const USERNAME_LIMIT = 80;
+
+async function postAsCharacterOnce(channelId, content, character, forcedName, concealment = null, threadId = null, displayName = null) {
   const webhook = await ensureChannelWebhook(channelId);
   const base = process.env.WEB_BASE_URL;
   const identity = presentedIdentity(character, { forcedName, concealment });
   return executeWebhook(webhook, {
     content,
-    username: identity.name,
+    username: (displayName ?? identity.name).slice(0, USERNAME_LIMIT),
     avatarUrl: base ? `${base}${identity.avatarPath}` : undefined,
     threadId,
   });

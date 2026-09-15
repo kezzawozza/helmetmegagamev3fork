@@ -2,7 +2,7 @@ import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { feedWipeFloors, floorForPlace, lowestFloor, placeSeqWhere } from "@lifeweb/db/lib/feedWipe";
 import { makeSeenSeqs } from "@lifeweb/db/lib/seenSeqs";
-import { isPlayerCursed } from "@lifeweb/db/lib/curse";
+import { isPlayerGhost } from "@lifeweb/db/lib/ghost";
 import { loadFeedViewer, loadFeedCharacter, placesFor } from "@/lib/feedAccess";
 import { subscribeToPlace, subscribeToPresence, subscribeToTyping, subscribeToDm } from "@/lib/feedHub";
 
@@ -286,16 +286,20 @@ export async function GET(request) {
       //
       // A ghost's stream also asks, on the same beat, whether they are still
       // one. Their list was decided once at open, and nothing above fires for
-      // a viewer with no character — so a burial, an engraving, a rite, a
-      // spawn or a reincarnation would otherwise leave this connection
-      // reading every room in the game for as long as the tab stayed open.
-      // The same one rule as loadFeedViewer (db/lib/curse.js), one indexed
-      // lookup every PING_MS; the moment it says no, the stream ends and the
-      // reconnect opens as whoever they now are.
+      // a viewer with no character — so a rite, a spawn, a reincarnation or a
+      // re-roll would otherwise leave this connection reading every room in
+      // the game, and writing into Deadchat, for as long as the tab stayed
+      // open. The same one rule as loadFeedViewer (db/lib/ghost.js), one
+      // indexed lookup every PING_MS; the moment it says no, the stream ends
+      // and the reconnect opens as whoever they now are.
+      //
+      // Burial and engraving are NOT on that list any more — they lift the
+      // curse and leave the seat alone (db/lib/ghost.js), so this fires less
+      // often than it used to, not more.
       const ping = setInterval(() => {
         write(": ping\n\n");
         if (!viewer.options?.ghost) return;
-        isPlayerCursed(prisma, viewer.discordUserId)
+        isPlayerGhost(prisma, viewer.discordUserId)
           .then((still) => {
             if (!still) finish();
           })

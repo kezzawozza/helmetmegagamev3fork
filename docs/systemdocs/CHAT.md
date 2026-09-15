@@ -1514,22 +1514,31 @@ Four things are read-only:
   over every place inside `visibleZoneIds(prisma, discordUserId)`
   (`db/lib/gmZoneView.js`; no rows means every zone). Watching is not standing
   there — a GM who wants to say something says it as a GM.
-- **A ghost speaks nowhere either.** A dead player whose body still lies in
-  the world (`web/lib/feedAccess.js#loadFeedViewer`: `ghost`, which is
-  `db/lib/curse.js#isPlayerCursed` — the one rule the channel doctor
-  reconciles the Ghost role to, never the role itself) gets a read-only Chat
-  over every zone summary that has a `#summary` channel (a cave level has
-  none, so its web-only zone place stays out), every Location and its public
-  Rooms, plus the nets that declare `ghostsMaySee` — the seat the Ghost role
-  already holds on Discord (`CHANNELS.md` §5). Private Rooms and
-  conversations stay out, the way a private thread is invisible to a
-  non-member there. The stream re-asks the rule on every ping and ends the
-  moment it says no, so a burial or a revival does not leave an open tab
-  reading the map. It ends when the
-  two faces' seat ends: the body buried, the name engraved, or a living
-  character theirs again. `ghostPlacesFor` draws from the same list builder
-  the GM's seat does. Before this a dead player's Chat was the DM thread and
-  an empty column.
+- **A ghost speaks in exactly one place.** A dead player
+  (`web/lib/feedAccess.js#loadFeedViewer`: `ghost`, which is
+  `db/lib/ghost.js#isPlayerGhost` — a body and no living character) gets a
+  read-only Chat over every zone summary that has a `#summary` channel (a cave
+  level has none, so its web-only zone place stays out), every Location and its
+  public Rooms, plus the nets that declare `ghostsMaySee`. Private Rooms and
+  conversations stay out — not because a private thread hides them, but because
+  adding a ghost to one announces the death to the room (`CHANNELS.md` §5).
+  **Deadchat is the exception**, and it is drawn first: `dead:main`,
+  `canSpeak: true`, the one row in that whole column they can answer. The stream
+  re-asks the rule on every ping and ends the moment it says no. It ends ONE
+  way — a living character is theirs again. Burial and engraving lift the curse
+  and leave the seat alone, which is the 2026-09-15 split
+  (`db/lib/curse.js` vs `db/lib/ghost.js`). `ghostPlacesFor` draws from the same
+  list builder the GM's seat does, and puts Deadchat first where the GM's puts it
+  last — the left column's sections are fixed either way, so order only decides
+  which place Chat opens on. Before this a dead player's Chat was the DM thread
+  and an empty column.
+
+- **A ghost may look, but not photograph.** The eye in the feed
+  (`chat/actions.js#lookAtRow`) resolves them to their last body, so a doctor who
+  died still reads a wound the way they always did; the vision BLOCKS are skipped,
+  since a blindfold and the dark are things that happen to a body. The camera is
+  not theirs: a photograph freezes onto a real Tag row somebody has to be holding
+  a camera to take.
 
 Slowmode is 300 s per character in a zone summary and nothing anywhere else,
 enforced in `prepareSpeech` by the character's newest row there. Discord's

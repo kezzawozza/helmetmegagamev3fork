@@ -12,6 +12,7 @@ const {
   placeKeyForZone,
   placeKeyForNet,
   parsePlaceKey,
+  DEADCHAT_PLACE_KEY,
 } = require("./placeKey");
 const {
   SPECIAL_CHANNELS,
@@ -99,6 +100,22 @@ function place({
 // same thing by dropping Send from LOCATION_MEMBER_ALLOW — one rule, two faces.
 const LOCATION_CAN_SPEAK = false;
 
+// DEADCHAT (db/lib/deadchat.js): the room the dead talk in. It belongs to no zone, so it draws
+// above the zone dividers with the nets — and it goes FIRST in a ghost's column, because it is the
+// only place in that whole list they can actually answer.
+//
+// This is the one exception to "a watcher speaks nowhere". A ghost reads the world and cannot touch
+// it; among themselves they can talk. A GM gets the same row read-only.
+function deadchatPlace({ canSpeak }) {
+  return place({
+    placeKey: DEADCHAT_PLACE_KEY,
+    kind: "dead",
+    name: "Deadchat",
+    description: "The dead talk among themselves. Nobody living can hear this.",
+    canSpeak,
+  });
+}
+
 // The radio nets this character is on. A net travels with the radio, not a
 // Location or zone, and uses the SAME rule that writes the Discord overwrites
 // (db/lib/specialChannels.js) — a receive-only bracelet is canSpeak false here
@@ -130,10 +147,10 @@ async function netPlacesFor(prisma, characterId) {
 // `gm` and `ghost` are the two ways of reading with no living character at
 // all: a GM over the zones they watch, a dead player over every zone. Both
 // come from web/lib/feedAccess.js#loadFeedViewer and nothing here reads a
-// role to decide either.
+// role to decide either — the ghost seat has no role left to read.
 async function placesFor(prisma, character, { gm = false, ghost = false, discordUserId = null } = {}) {
   if (gm) return gmPlacesFor(prisma, discordUserId);
-  if (ghost) return ghostPlacesFor(prisma);
+  if (ghost) return ghostPlacesFor(prisma, discordUserId);
   if (!character?.id) return [];
   // A radio works even with no Location, so the column isn't empty.
   const nets = await netPlacesFor(prisma, character.id);
@@ -352,37 +369,46 @@ async function gmPlacesFor(prisma, discordUserId) {
   // Folds a seat down onto the zones it owns, so "Underground" arrives as
   // Underground + Caves + Depths with the cave Locations (db/lib/gmZoneView.js).
   const visible = await visibleZoneIds(prisma, discordUserId);
-  return watchedPlacesFor(prisma, {
+  const places = await watchedPlacesFor(prisma, {
     zoneIds: visible ? [...visible] : null,
     privateRooms: true,
     conversations: true,
     channellessSummaries: true,
     nets: SPECIAL_CHANNELS,
   });
+  // Read-only, like everything else a GM watches. A GM with something to say to the dead says it as
+  // a GM — through /dm or the desk — rather than as one of them.
+  //
+  // LAST, where a ghost gets it first. The left column draws it in the same fixed section either way
+  // (PlacesColumn.js), so order only decides `places[0]` — the place Chat opens on. A ghost opens on
+  // the one place they can answer; a GM opens on their zones, which is what they came for.
+  return [...places, deadchatPlace({ canSpeak: false })];
 }
 
-// The ghost seat, on the web. A dead player reads every zone's summary, its
-// Locations and their public Rooms, and the nets that declare `ghostsMaySee`
-// — exactly what the Ghost role's overwrite lets them see on Discord
-// (CHANNELS.md §5, db/lib/ghostAccess.js), and nothing more: a private Room
-// or a conversation is a private thread there, invisible to any non-member,
-// so it stays out of the column here too. Speaking in none of it; a ghost
-// has no voice (docs/documents.yaml, Respawning). Until this existed a dead
-// player's Chat was the DM thread and an empty column, while the same person
-// on Discord could read the whole map.
+// The ghost seat, on the web — and since the Ghost role went, the ONLY place it exists. A dead
+// player reads every zone's summary, its Locations and their public Rooms, and the nets that
+// declare `ghostsMaySee`. They speak in exactly one place: Deadchat, which goes first.
 //
-// A cave level's summary is left out for the same reason: the level has no
-// #summary channel (CAVING.md §1), so its zone place here is a web-only
-// surface the Discord seat never shows. A GM reads it because a GM reads
-// everything; a ghost reads what the role reads.
-async function ghostPlacesFor(prisma) {
-  return watchedPlacesFor(prisma, {
+// WHO IS A GHOST is db/lib/ghost.js — a body, and no living character. Not db/lib/curse.js, which
+// answers a different question (the re-roll penalty) with a different rule. The two used to be one
+// predicate, so burying a body — which is meant to LIFT a penalty — also shut this seat.
+//
+// PRIVATE ROOMS AND CONVERSATIONS STAY OUT, and that is no longer a leftover from mirroring
+// Discord. Putting a ghost in a private thread posts a visible system message AND adds them to its
+// member list: either one announces the death to everybody in the room. The only way around it is
+// granting MANAGE_THREADS, which is worse. The limit outlives the role that used to explain it.
+//
+// A cave level's summary is left out on the older ground: the level has no #summary channel
+// (CAVING.md §1), so a zone place for it would be a surface nothing else in the game shows.
+async function ghostPlacesFor(prisma, discordUserId) {
+  const places = await watchedPlacesFor(prisma, {
     zoneIds: null,
     privateRooms: false,
     conversations: false,
     channellessSummaries: false,
     nets: SPECIAL_CHANNELS.filter((entry) => entry.ghostsMaySee),
   });
+  return [deadchatPlace({ canSpeak: true }), ...places];
 }
 
 // The read-only list both watchers above draw from: every place inside
@@ -522,7 +548,11 @@ async function mayReadPlace(prisma, character, placeKey, options) {
 }
 
 // Reading and writing parted company in phase 2: a Location is read-only for
-// everybody, and every place is read-only for a GM and for a ghost.
+// everybody, and every place is read-only for a GM.
+//
+// A ghost has ONE exception, and only one: Deadchat. Everything else they watch is still canSpeak
+// false, so this stays DERIVED from the list rather than growing a seat-shaped branch — the
+// exception lives in ghostPlacesFor, where the row is built, and nothing here knows about it.
 async function mayWritePlace(prisma, character, placeKey, options) {
   const found = await findPlace(prisma, character, placeKey, options);
   return Boolean(found?.canSpeak);

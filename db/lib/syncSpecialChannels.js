@@ -9,7 +9,6 @@ const {
   deleteChannelOverwrite,
 } = require("./discordRest");
 const { applySpectatorOverwrite, spectatorsVisibleNow } = require("./spectatorAccess");
-const { applyGhostOverwrite } = require("./ghostAccess");
 const { SPECIAL_CHANNELS } = require("./specialChannels");
 const { gmRoleIds } = require("./roleIds");
 
@@ -122,7 +121,9 @@ async function syncSpecialChannels(prisma) {
       });
     }
     await applySpectatorOverwrite(channelId, { visible: spectatorsVisible });
-    if (entry.ghostsMaySee) await applyGhostOverwrite(channelId);
+    // `ghostsMaySee` is a WEB-only flag now (db/lib/feedAccess.js#ghostPlacesFor). There is no ghost
+    // role left to grant it with, and a per-member overwrite per net per ghost would be three
+    // channels' worth of bookkeeping for a seat nobody reads on Discord any more.
 
     const wantedZones = new Set(entry.roleViewZones ?? []);
     for (const slug of wantedZones) {

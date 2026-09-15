@@ -40,7 +40,6 @@ export async function updateCharacterProfile(_prevState, formData) {
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
-  const autoMount = formData.get("autoMount") === "on";
   // "Play from the web" (docs/systemdocs/CHAT.md §6). NOT written with the rest
   // of the form: flipping it is a burst of Discord work on its own cooldown, so
   // it goes through db/lib/webOnly.js#setWebOnly below and only when the value
@@ -71,7 +70,7 @@ export async function updateCharacterProfile(_prevState, formData) {
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
 
-  const data = { appearance, turnPingOptIn, autoMount };
+  const data = { appearance, turnPingOptIn };
   if (concealOffered) data.concealed = formData.get("concealed") === "on";
   if (age !== null && character.age === null) data.age = age;
 

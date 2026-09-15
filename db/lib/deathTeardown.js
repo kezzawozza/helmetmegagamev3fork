@@ -1,11 +1,13 @@
 // The DISCORD half of a character's death — the twin of db/lib/characterDeath.js, which owns the
 // database half. ORDER MATTERS: revoke the overwrites while the role still names them, then delete
-// the role, then clear the nickname, then hand over the ghost seat. REST only, never inside a
+// the role, then clear the nickname, then hand over the Deadchat seat (db/lib/deadchat.js — a
+// per-member overwrite on one channel, not a role; the Ghost role it replaces printed "dead" on a
+// profile card). REST only, never inside a
 // transaction (ARCHITECTURE.md §5); every step is wrapped — a death must not be undone by a 429.
 // Takes `prisma` first, off the @lifeweb/db barrel (db/lib/dm.js convention).
-const { deleteGuildRole, addMemberRole, setGuildNickname, getGuildMember } = require("./discordRest");
+const { deleteGuildRole, setGuildNickname, getGuildMember } = require("./discordRest");
 const { revokeAllCharacterAccess } = require("./accessSweep");
-const { GHOST_ROLE_ID } = require("./roleIds");
+const { openDeadchatTo } = require("./deadchat");
 
 // `character` needs only { id, name, discordUserId, discordRoleId } — the role id must be READ BEFORE
 // applyDeathToRow nulls the column. Whether this PERSON still has a living character: keys on
@@ -40,7 +42,7 @@ async function applyDeathTeardown(prisma, character) {
   if (reborn) return { member: true, reborn: true };
 
   await setGuildNickname(character.discordUserId, null).catch(log(`nickname for ${character.name}`));
-  await addMemberRole(character.discordUserId, GHOST_ROLE_ID).catch(log(`ghost seat for ${character.name}`));
+  await openDeadchatTo(prisma, character.discordUserId).catch(log(`deadchat seat for ${character.name}`));
   return { member: true };
 }
 

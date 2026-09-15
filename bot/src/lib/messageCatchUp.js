@@ -16,6 +16,8 @@ const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("./channels");
 const { attachmentPlaceholders } = require("./proxy");
 const { sendDm } = require("./dm");
+const { isDeadchatChannel } = require("@lifeweb/db/lib/deadchat");
+const { ghostCharacterFor } = require("@lifeweb/db/lib/ghost");
 
 // Two windows: inside REPOST the scene is still the scene, so the message
 // gets the full ordinary treatment. Between REPOST and SCAN an hours-old line
@@ -98,7 +100,7 @@ function recoveryKind(createdTimestamp, now = Date.now()) {
 // half. The row carries the message's REAL timestamp and no
 // discordMessageId. Inert to the outbox: feedOutbox.js#pushRow refuses
 // anything whose `source` isn't "WEB".
-async function fileWithoutReposting(channel, character, message) {
+async function fileWithoutReposting(channel, character, message, { ghost = false } = {}) {
   const placeKey = await placeKeyForChannel(prisma, {
     channelId: channel.id,
     parentId: channel.parent?.id,
@@ -108,6 +110,7 @@ async function fileWithoutReposting(channel, character, message) {
     placeKey,
     content: message.content,
     source: "DISCORD",
+    ghost,
   });
   // A refusal (Mute, Paralyzed, etc) drops the words rather than recording
   // what the gates would have refused; the delete still happens regardless.
@@ -124,7 +127,9 @@ async function fileWithoutReposting(channel, character, message) {
         .filter(Boolean)
         .join("\n"),
     });
-    await touchCharacterActivity(prisma, character.id).catch(() => {});
+    // A ghost is not "active" in the sense the inactivity report means — see the same skip in
+    // web/app/api/feed/say/route.js.
+    if (!ghost) await touchCharacterActivity(prisma, character.id).catch(() => {});
   }
   return prepared.ok;
 }
@@ -200,8 +205,21 @@ async function catchUpMissedMessages(client, guild, { reason = "startup" } = {})
       });
       const byUser = new Map(alive.map((c) => [c.discordUserId, c]));
 
+      // A GHOST typing in Deadchat while the bot was away. Resolved per author rather than per
+      // message, and only in that one channel — everywhere else "no living character" is still the
+      // whole answer, exactly as messageCreate gives it.
+      const deadchatHere = await isDeadchatChannel(prisma, channel.id).catch(() => false);
+      const ghostByUser = new Map();
+      if (deadchatHere) {
+        for (const authorId of authorIds) {
+          if (byUser.has(authorId)) continue;
+          const ghost = await ghostCharacterFor(prisma, authorId).catch(() => null);
+          if (ghost) ghostByUser.set(authorId, ghost);
+        }
+      }
+
       for (const message of missed) {
-        if (!byUser.has(message.author.id)) { // no living character: same answer messageCreate gives
+        if (!byUser.has(message.author.id) && !ghostByUser.has(message.author.id)) { // no living character and no body: same answer messageCreate gives
           tally.skipped += 1;
           continue;
         }
@@ -212,10 +230,13 @@ async function catchUpMissedMessages(client, guild, { reason = "startup" } = {})
             await handleMessage(message);
             tally.reposted += 1;
           } else {
-            const character = await prisma.character.findFirst({
-              where: { discordUserId: message.author.id, status: "ALIVE" },
-            });
-            if (character && (await fileWithoutReposting(channel, character, message))) {
+            const ghost = ghostByUser.get(message.author.id) ?? null;
+            const character =
+              ghost ??
+              (await prisma.character.findFirst({
+                where: { discordUserId: message.author.id, status: "ALIVE" },
+              }));
+            if (character && (await fileWithoutReposting(channel, character, message, { ghost: Boolean(ghost) }))) {
               tally.filed += 1;
               filedFor.set(message.author.id, (filedFor.get(message.author.id) ?? 0) + 1);
             } else {

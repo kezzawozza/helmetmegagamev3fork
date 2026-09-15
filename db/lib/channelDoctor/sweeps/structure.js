@@ -3,8 +3,6 @@
 // the bot's role position, and the ghost role's appearance. Moved verbatim
 // out of runChannelDoctor (W2d).
 const { getChannel } = require("../../discordRest");
-const { GHOST_ROLE_ID } = require("../../roleIds");
-const { ensureGhostRoleAppearance } = require("../../ghostAccess");
 
 async function runStructureSweep({ report, prisma, zones, locations, locationsById, rolesById, members, alive }) {
   for (const zone of zones) {
@@ -101,24 +99,6 @@ async function runStructureSweep({ report, prisma, zones, locations, locationsBy
         await report("zone-structure", zone.name, "zone role sits above the bot's highest role — swaps will 403");
       }
     }
-  }
-
-
-  // Ghost appearance: color 0, so ghosts aren't visually outed.
-  //
-  // The absent case is reported rather than skipped. The id is a constant now
-  // (db/lib/roleIds.js), so "not in the guild" means the role was deleted or
-  // the constant is stale — and a stale one is worse than a missing env var
-  // ever was: every grant below would 404 against a role that isn't there, on
-  // every bot start and every turn advance, and the REST breaker only counts
-  // 401/403/429 so nothing would damp it.
-  const ghost = rolesById.get(GHOST_ROLE_ID) ?? null;
-  if (!ghost) {
-    await report("ghost-role", GHOST_ROLE_ID, "no such role in the guild — GHOST_ROLE_ID is stale");
-  } else if (ghost.color !== 0 || ghost.hoist) {
-    await report("ghost-appearance", ghost.name, "ghost role is colored/hoisted", () =>
-      ensureGhostRoleAppearance(),
-    );
   }
 
   return { liveLocationChannels };

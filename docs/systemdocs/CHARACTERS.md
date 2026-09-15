@@ -130,10 +130,9 @@ ignores `honorific`, `firstName` and `lastName` outright — the three inputs on
 and the server action is the lock. The rest of the Bio form (appearance,
 avatar, opt-ins) is untouched.
 
-Three of those opt-ins are switches under the picture. **Ping me when the
+Two of those opt-ins are switches under the picture. **Ping me when the
 turn advances** adds or removes the turn-ping Discord role and nothing else.
-**Automatically ride my mount** is `CARRY.md` §3's return leg — the road kit
-back on at every arrival where it may be out. **Play
+**Play
 from the web** is the anonymity switch (`CHAT.md` §6): while it is on, this
 player's Discord account holds no game access at all — no Location overwrite,
 no zone role, no room or conversation thread — and they read and speak on
