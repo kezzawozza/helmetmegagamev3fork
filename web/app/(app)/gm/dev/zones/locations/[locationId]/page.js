@@ -59,15 +59,18 @@ export default async function DevLocationPage({ params }) {
             indoors: location.indoors,
             sortOrder: location.sortOrder,
             description: location.description,
+            attributes: location.attributes ?? {},
             updatedAt: location.updatedAt.toISOString(),
           }}
+          attributeSchema={Object.entries(ATTRIBUTES).map(([key, entry]) => ({
+            key,
+            type: entry.type ?? "boolean",
+            options: entry.options ?? null,
+          }))}
         />
         <YieldPanel locationId={location.id} rows={yields} />
         <RoomsList locationId={location.id} rows={rooms} canSuper={tier === "super"} />
         <LinksPanel locationId={location.id} links={links} />
-        <p className="text-muted text-sm">
-          Attributes ({Object.keys(ATTRIBUTES).join(", ")}) are still authored in docs/zones.yaml — not yet editable here.
-        </p>
       </PageShell>
     </>
   );

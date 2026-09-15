@@ -832,7 +832,13 @@ Rules the editor enforces, all server-side in `zones/actions.js`:
   (`enqueueMirror`, `db/lib/discordMirror/queue.js`) and writes one
   `AuditLog` row. Discord catches up on the next drain; the page doesn't
   wait for it.
+- **A Location's `attributes` map is one control per registry entry** —
+  `db/lib/locationAttributes.js#ATTRIBUTES`, read by both the form and
+  `updateLocation`. Each entry's `type` (default `"boolean"`) picks the
+  control: `"boolean"` a checkbox, `"number"` a number input, `"enum"` a
+  `<select>` over its `options`, anything else free text. A new attribute
+  only needs a `type` in the registry to get a control here — the form
+  never hardcodes a key.
 
-Not yet built: a Location's `attributes` map (still `docs/zones.yaml`-only —
-see `db/lib/locationAttributes.js`) and a visual map-polygon editor (the
-textarea takes raw `[[x,y],…]` JSON, 0-100).
+Not yet built: a visual map-polygon editor (the textarea takes raw
+`[[x,y],…]` JSON, 0-100).

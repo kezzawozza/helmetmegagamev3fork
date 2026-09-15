@@ -7,6 +7,7 @@ import { requireDev } from "@/lib/devAccess";
 import { validateNewSlug, validateUniqueName } from "@lifeweb/db/lib/placeValidation";
 import { retirePlace, unretirePlace, hardDeleteBlockers, hardDeletePlace } from "@lifeweb/db/lib/placeDeletable";
 import { enqueueMirror } from "@lifeweb/db/lib/discordMirror/queue";
+import { ATTRIBUTES, attributesFromInput } from "@lifeweb/db/lib/locationAttributes";
 
 // /gm/dev/zones — the GM place editor. Every writer here re-validates
 // everything server-side (a disabled button is a hint, not a lock), writes
@@ -215,11 +216,18 @@ export async function updateLocation(locationId, updatedAt, input) {
     if (!before) throw new UserError("That location no longer exists.");
     const renamed = before.name !== name;
 
+    // Validated by the same registry the form's controls came from
+    // (db/lib/locationAttributes.js) — a key it doesn't know can't reach
+    // here, and a bad enum/number value is refused rather than written.
+    const { attributes, problems } = attributesFromInput(input.attributes ?? {});
+    if (problems.length) throw new UserError(problems.join(" "));
+
     await claimRow(prisma.location, locationId, updatedAt, {
       name,
       indoors: Boolean(input.indoors),
       sortOrder: optionalInt(input.sortOrder, "Sort order"),
       description: trimmed(input.description),
+      attributes,
     });
     await audit(session, "gm_location_updated", { locationId, name, renamed, from: before.name });
     await enqueueMirror(prisma, "location", locationId, renamed ? "renamed from /gm/dev/zones" : "edited from /gm/dev/zones");

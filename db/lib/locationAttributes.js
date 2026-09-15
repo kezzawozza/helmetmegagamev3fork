@@ -8,47 +8,62 @@ const WILDERNESS_ATTRIBUTE = "wilderness";
 const HAVEN_ATTRIBUTE = "haven";
 const WHEELS_ATTRIBUTE = "wheels";
 
-// key -> { describe(value, ctx) -> string|null }; null means matched-on-only.
+// key -> { type, options?, describe(value, ctx) -> string|null }; null
+// describe means matched-on-only. `type` (default "boolean" when absent) is
+// what /gm/dev/zones's Location form reads to pick a control: "boolean" a
+// checkbox, "number" a number input, "enum" a <select> over `options`,
+// "string" free text. Every attribute here happens to be a boolean today,
+// but the type tag is what lets a future non-boolean one add a control
+// without the form needing to know its name.
 const ATTRIBUTES = {
   // The Merchant's berth. Exists to be matched on; lines come via ctx.depot.
   depot: {
+    type: "boolean",
     describe: () => null,
   },
   noBuild: {
+    type: "boolean",
     describe: () => null,
   },
 
   godflesh: {
+    type: "boolean",
     describe: () => "**Godflesh**: you can cut it out of the water here.",
   },
 
   // The Godard Factory floor: labor refines Godflesh into Squeeze instead of paying ⬢, no LocationYield row needed.
   refinery: {
+    type: "boolean",
     describe: () => "**Refinery**: laboring here turns Godflesh into Squeeze.",
   },
 
   // Ground the Caving Die skips (db/lib/cavingPass.js) — said out loud so a player can read the answer.
   safe: {
+    type: "boolean",
     describe: () => "**Safe**: Caving dice don't roll here.",
   },
 
   // Open country (docs/systemdocs/MOOD.md); costs mood to walk in, more to end turn here — Rough Camper / Outsider soften it.
   wilderness: {
+    type: "boolean",
     describe: () => "**Wilderness**: spending time here is wearying.",
   },
 
   // Settles a person more than any roof: the Inn, Keep, Sanctuary. Best turn-end mood relief there is.
   haven: {
+    type: "boolean",
     describe: () => "**Haven**: ending your turn here calms your nerves.",
   },
 
   // Splits the roof question (`indoors`) from the wheels one. Means nothing outdoors.
   wheels: {
+    type: "boolean",
     describe: () => "**Wheels**: you can bring a cart or a horse in here.",
   },
 
   // A public board to pin a paper to. What Noticeboard matches on. See docs/systemdocs/PAPERWORK.md.
   noticeboard: {
+    type: "boolean",
     describe: () => "**Noticeboard**: you can pin paper here.",
   },
 };
@@ -187,6 +202,55 @@ function hasAttribute(location, key) {
   return value != null && value !== false;
 }
 
+// One raw form value -> a validated attribute value, per the registry's
+// `type`. `undefined` means "leave this key unset" (a false checkbox, a
+// blank number/text box) — the same shape collectAttributes' YAML path
+// already treats as absent (§ hasAttribute).
+function coerceAttributeValue(key, raw) {
+  const entry = ATTRIBUTES[key];
+  if (!entry) return { error: `Unknown attribute "${key}".` };
+  const type = entry.type ?? "boolean";
+
+  if (type === "boolean") {
+    return { value: raw ? true : undefined };
+  }
+  if (type === "number") {
+    if (raw === "" || raw == null) return { value: undefined };
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return { error: `"${key}" must be a number.` };
+    return { value: n };
+  }
+  if (type === "enum") {
+    const s = (raw ?? "").toString().trim();
+    if (!s) return { value: undefined };
+    if (!entry.options?.includes(s)) {
+      return { error: `"${key}" must be one of: ${(entry.options ?? []).join(", ")}.` };
+    }
+    return { value: s };
+  }
+  // "string"
+  const s = (raw ?? "").toString().trim();
+  return { value: s || undefined };
+}
+
+// The GM form's whole attributes map -> a validated `attributes` JSON blob,
+// or the first problem found. `input` is { [key]: rawFormValue }, read only
+// for keys the registry knows — an unrecognised key is silently dropped
+// here (the caller only ever sends registry keys) rather than rejected the
+// way the YAML sync rejects one, since this is driven by the same
+// checkboxes/inputs the registry rendered.
+function attributesFromInput(input = {}) {
+  const attributes = {};
+  const problems = [];
+  for (const key of Object.keys(ATTRIBUTES)) {
+    if (!(key in input)) continue;
+    const { value, error } = coerceAttributeValue(key, input[key]);
+    if (error) problems.push(error);
+    else if (value !== undefined) attributes[key] = value;
+  }
+  return { attributes, problems };
+}
+
 module.exports = {
   GODFLESH_ATTRIBUTE,
   REFINERY_ATTRIBUTE,
@@ -204,4 +268,6 @@ module.exports = {
   describeLocation,
   collectAttributes,
   hasAttribute,
+  coerceAttributeValue,
+  attributesFromInput,
 };

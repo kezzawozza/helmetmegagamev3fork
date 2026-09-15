@@ -36,6 +36,7 @@ export default function LinksTable({ rows, locationOptions, canSuper }) {
             <th scope="col">Announce</th>
             <th scope="col">Hidden</th>
             <th scope="col">Modular</th>
+            <th scope="col">Born open</th>
             <th scope="col">Open (live)</th>
             <th scope="col">Keyed</th>
             <th scope="col">On foot</th>
@@ -177,6 +178,9 @@ function LinkRow({ link, canSuper, pending, onSave, onDelete }) {
       <td>
         <input type="checkbox" name="modular" defaultChecked={link.modular} form={`link-${link.id}`} />
       </td>
+      <td>
+        <input type="checkbox" name="authoredOpen" defaultChecked={link.authoredOpen} form={`link-${link.id}`} />
+      </td>
       <td className="mono">{link.isOpen ? "open" : "shut"}</td>
       <td>
         <input type="checkbox" name="keyed" defaultChecked={link.keyed} form={`link-${link.id}`} />
@@ -186,7 +190,6 @@ function LinkRow({ link, canSuper, pending, onSave, onDelete }) {
       </td>
       <td>
         <input name="requiredTagSlug" defaultValue={link.requiredTagSlug} className="control" form={`link-${link.id}`} />
-        <input type="checkbox" name="authoredOpen" defaultChecked={link.authoredOpen} hidden form={`link-${link.id}`} />
       </td>
       <td>
         <button type="submit" form={`link-${link.id}`} className="btn-quiet" disabled={pending}>
