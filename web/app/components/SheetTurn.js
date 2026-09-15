@@ -9,8 +9,8 @@ import { useRefresh } from "./useRefresh";
 // The turn card the Chat's YOU column carries, on the sheet's band: when it
 // is, whether Moves have locked, and the Move you filed — with the same File
 // that opens the same dialog. Same server action, same poll
-// (play/useMyMove.js), so the sheet and the chat cannot disagree. There is no
-// Edit: a filed Move is final.
+// (play/useMyMove.js), so the sheet and the chat cannot disagree. A Gambit that
+// hasn't locked yet also carries Change, which reopens the same dialog on it.
 //
 // Pending offers (a lesson, a binding) still read under it, in the words
 // the old sheet's "This turn" row always used — they are why a Move may not be
@@ -65,10 +65,21 @@ export default function SheetTurn({ moveState, pendingOffers = [] }) {
 
   return (
     <div className="sheet-turn">
-      <TurnCard turn={state.turn} move={state.move} onFile={() => setDialog("move")} />
+      <TurnCard
+        turn={state.turn}
+        move={state.move}
+        onFile={() => setDialog("move")}
+        onEdit={() => setDialog("move")}
+      />
       {waiting}
       {dialog === "move" && (
-        <MoveDialog turn={state.turn} characterId={state.characterId} onClose={() => setDialog(null)} onDone={done} />
+        <MoveDialog
+          turn={state.turn}
+          characterId={state.characterId}
+          existing={state.move?.editable ? state.move : null}
+          onClose={() => setDialog(null)}
+          onDone={done}
+        />
       )}
     </div>
   );

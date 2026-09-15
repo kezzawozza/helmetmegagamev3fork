@@ -91,6 +91,20 @@ function moveWindow(turn, { now = new Date(), clockFrozen = false } = {}) {
   return { endsAt, cutoffAt, locked, hasLock };
 }
 
+// "Are we standing in the lock window right now?", as a reason rather than a bare boolean.
+// There is no lock EVENT to subscribe to, so the two things that must happen at the cutoff — the Oracle drafting its chronicle (db/lib/oracleCutoff.js) and every pending Gambit throwing its die (db/lib/gambitCutoff.js) — are per-minute polls sharing this one predicate. Pure, so both are testable without a database or a clock.
+function cutoffReached(turn, { now = new Date(), clockFrozen = false } = {}) {
+  if (!turn) return { at: false, reason: "no open turn" };
+
+  const { locked, hasLock, cutoffAt } = moveWindow(turn, { now, clockFrozen });
+
+  if (!hasLock) return { at: false, reason: "this turn never locks" };
+  // `locked` is false on BOTH sides: before the cutoff, and again once the turn has outlived its derived end because an advance was missed.
+  if (!locked) return { at: false, reason: now < cutoffAt ? "before the cutoff" : "past the turn's end" };
+
+  return { at: true, reason: "at the cutoff" };
+}
+
 function epochSeconds(date) {
   return date ? Math.round(date.getTime() / 1000) : null;
 }
@@ -101,5 +115,6 @@ module.exports = {
   turnEndsAt,
   moveCutoffAt,
   moveWindow,
+  cutoffReached,
   epochSeconds,
 };

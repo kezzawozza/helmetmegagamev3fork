@@ -1,9 +1,13 @@
 // The staged-arbitration push, run inside resolveNeeds() against the CLOSING
 // turn: applies every StagedEffect a GM queued, pays out each confirmed
-// Move's own declared numbers (nothing pays at confirm time), and silently
+// Move's own declared numbers, and silently
 // closes any Move no GM touched (OPEN -> PASSED), with a canned DM for a
 // Routine that closes with nothing written to its player. Sends nothing
 // itself — deliveries are handed back for advanceTurn()'s side-effect thunk.
+// A LABOR Move is already paid by the time this runs — it settles at confirm
+// now (db/lib/moveConfirm.js) and arrives with `appliedEffects` stamped, which
+// the §2 query filters out. What still pays here is a GM-adjudicated Gambit
+// and any Routine the game filed on a player's behalf.
 // Every mutation is claimed first (appliedAt / appliedEffects written from
 // null) so the crash-resume path can never apply a row twice.
 // Position in TURN_PASSES is load-bearing, see resolveNeeds().
@@ -11,6 +15,7 @@
 const { Prisma } = require("@prisma/client");
 const { addResources, applyMoveEffects, describeMoveEffects } = require("./moveEffects");
 const { formatRangeExpression } = require("./resourceDelta");
+const { rollPendingGambits } = require("./gambitCutoff");
 const { TagOpError, validateTagOps, applyTagOpsInTx } = require("./tagOps");
 const { validateRoomTagOps, applyRoomTagOpsInTx } = require("./roomTagOps");
 const { addRoomResources } = require("./roomStash");
@@ -26,9 +31,10 @@ const NO_NOTES_TAIL =
   "receive adjudications, typically. If you need additional information or " +
   "believe this was in error, message the GMs.*";
 
-// The Routine (and Labor) close DM. Mirrors the auto-labor DM (db/lib/autoLaborPass.js)
-// and is the only place a hand-filed Routine's payout is reported, since
-// nothing pays at confirm. sendDm writes the » prefix, so don't write one here.
+// The Routine close DM. Mirrors the auto-labor DM (db/lib/autoLaborPass.js) and is the
+// only place the payout of a Routine the GAME filed is reported. A player's own Labor
+// never reaches this: it pays at confirm and says so there. sendDm writes the » prefix,
+// so don't write one here.
 function formatRoutineCloseDm(turn, action, applied, adjudicated) {
   const effects = describeMoveEffects(applied);
   const kind = action.moveKind === "LABOR" ? "Labor" : "Routine";
@@ -49,10 +55,10 @@ function formatRoutineCloseDm(turn, action, applied, adjudicated) {
   return lines.join("\n");
 }
 
-// The Gambit reveal. The die is rolled and stored at submit (bot/src/lib/
-// moveConfirm.js) but withheld from the player until Moves lock — this DM is
-// where they find out. Raw + modifier + total only, no per-contributor
-// breakdown (that needs tags this pass doesn't load).
+// The Gambit reveal. The die is thrown when Moves lock (db/lib/gambitCutoff.js) and
+// withheld from the player until the turn closes — this DM is where they find out. Raw +
+// modifier + total only, no per-contributor breakdown (that needs tags this pass doesn't
+// load).
 function formatGambitRollDm(turn, action) {
   const { diceRoll, diceModifier } = action;
   const mod = diceModifier ?? 0;
@@ -266,6 +272,17 @@ async function applyOneStagedEffect(prisma, row, turn) {
 
 async function runStagedPushPass(prisma, turn) {
   const failures = [];
+
+  // ── 0. any Gambit that never got its die ─────────────────────────────────
+  // The dice are thrown at the Move cutoff (db/lib/gambitCutoff.js), but that is a per-minute poll
+  // in the BOT process against a window a frozen clock or a short turn never opens. This is the
+  // backstop, and it is a no-op on an ordinary turn where the cutoff already fired.
+  try {
+    await rollPendingGambits(prisma, turn.id);
+  } catch (err) {
+    console.error("Backstop Gambit roll failed:", err);
+    failures.push({ kind: "gambitRoll", id: turn.id, error: String(err?.message ?? err) });
+  }
 
   // ── 1. GM-staged effects ─────────────────────────────────────────────────
   let effectsApplied = 0;

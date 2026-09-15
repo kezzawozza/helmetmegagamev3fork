@@ -6,7 +6,7 @@ import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/d
 import { questInteract } from "@lifeweb/db/lib/quests";
 import { parksMounts, hasAttribute, SAFE_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
-import { fileMove } from "@lifeweb/db/lib/moves";
+import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { resolveLaborRate, REFINERY_NOTE } from "@lifeweb/db/lib/laborAccess";
@@ -1621,18 +1621,22 @@ export async function submitMove({ moveKind, description } = {}) {
   // The bot answers in Discord markdown; this panel prints plain text, so the
   // same facts are said in words. The Gambit roll itself stays hidden until
   // the turn-end reveal, exactly as it does in Discord.
-  const parts = ["Filed and locked in."];
-  if (roll.gambit) parts.push("Results will be announced when the turn ends.");
+  const parts = [roll.gambit ? "Your move was declared." : "Done."];
   if (roll.resourceValue != null) {
-    parts.push(`Your day's work (${roll.expression}) came to ${roll.resourceValue > 0 ? "+" : ""}${roll.resourceValue} ⬢.`);
+    parts.push(`You labored, producing ${roll.resourceValue} ⬢.`);
     if (roll.bonusNote) parts.push(roll.bonusNote);
   }
+  // A labor drop, the Tired a long day leaves, a refining shift's Squeeze. Said here
+  // because a Labor pays at the press now and never reaches the turn-end DM.
+  if (roll.applied) parts.push(`Also: ${roll.applied}.`);
   return { ok: true, line: parts.join(" ") };
 }
 
 // The turn card's own state, re-read: open turn, Move window, filed Move.
 // Polled beside waitingOnYou, so a Discord-filed Move shows up without a reload.
-// A filed Move is final: no `editable`, no kind-change ration.
+// `move.editable` is the whole Change/Take it back affordance: a Gambit the player
+// wrote is theirs until the cutoff, everything else is a receipt (db/lib/moves.js).
+// Polled rather than computed once, so the buttons go away on their own at lock-in.
 export async function myMove() {
   const me = await actor({ id: true });
   if (me.error) return { ok: false, error: me.error };
@@ -1651,10 +1655,17 @@ export async function myMove() {
         id: true,
         moveKind: true,
         description: true,
+        playerFiled: true,
+        moveReviewStatus: true,
+        lockExpiresAt: true,
+        // moveIsEditable's first and hardest guard. Omit it and `undefined != null` is
+        // false, so a rolled Gambit would quietly read as still editable.
+        diceRoll: true,
       },
     }),
   ]);
   const { cutoffAt, locked, hasLock } = moveWindow(openTurn, { clockFrozen: frozen });
+  const { editable } = moveIsEditable(action, openTurn, { clockFrozen: frozen });
 
   return {
     ok: true,
@@ -1667,10 +1678,50 @@ export async function myMove() {
       locked,
       hasLock,
     },
-    move: action ? { id: action.id, kind: action.moveKind, description: action.description } : null,
+    move: action
+      ? { id: action.id, kind: action.moveKind, description: action.description, editable }
+      : null,
     // The dialog keys its unfiled draft on it, so two characters don't inherit each other's day.
     characterId: me.character.id,
   };
+}
+
+// Rewrite a Gambit that hasn't locked yet. Every gate is re-run in db/lib/moves.js —
+// the Change button is a hint, not the lock (CLAUDE.md, "a server action is a public endpoint").
+export async function editMyMove({ actionId, description } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+
+  const result = await editMove(prisma, {
+    character: me.character,
+    actorDiscordUserId: me.discordUserId,
+    actionId,
+    description,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  return { ok: true, line: result.unchanged ? "No change." : "Your move was edited." };
+}
+
+// Take a Gambit back and get the day returned. Deleting the row IS the refund.
+export async function withdrawMyMove({ actionId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+
+  const result = await withdrawMove(prisma, {
+    character: me.character,
+    actorDiscordUserId: me.discordUserId,
+    actionId,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+
+  // A lesson Offer that died with the Move leaves somebody waiting on an answer that
+  // is never coming — told now, not at the push, for the same reason a rejected Move is.
+  for (const dm of result.dms ?? []) {
+    await sendDm(dm.discordUserId, dm.content).catch(() => {});
+  }
+
+  return { ok: true, line: "Your move was canceled." };
 }
 
 // What the Move dialog shows before a Labor is committed — resolveLaborRate

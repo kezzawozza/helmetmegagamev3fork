@@ -833,24 +833,49 @@ chip now, and keeps its separate "Push in …" countdown, which counts to `endsA
 `locked` is derived in the browser against `cutoffAt`, never sent as a boolean —
 a GM desk sits open for hours and has to cross the cutoff while it sits there.
 
-### 6a-i. A filed Move is final
+### 6a-i. A Gambit is yours until the lock; everything else is a receipt
 
-There is no editing a Move once it is filed, and no cancelling one. The
-one-Move-a-turn row IS the turn — the `@@unique([characterId, turnId])`
-Action — so a player gets one Move and it stands. `db/lib/moves.js` exports
-`fileMove` and nothing else; the only way a filed Move changes now is a GM
-doing it from `/gm/dev`.
+The one-Move-a-turn row IS the turn — the `@@unique([characterId, turnId])`
+Action — so a player still gets one Move. What changed is how long it stays
+theirs.
 
-It used to be editable until the cutoff (`editMove`), which brought a fair
-amount of machinery with it: `filedByPlayer` to keep a lesson's or an
-auto-Labor's Action out of a player's hands, and a **once-a-turn cap on
-changing the kind**, because changing kinds re-confirms the row and
-re-confirming rolls — so an uncapped Edit was a re-roll button you could flip
-Gambit → Routine → Gambit on all afternoon. None of that exists any more.
+**A Gambit can be rewritten or withdrawn until the Move cutoff.**
+`db/lib/moves.js` exports `editMove` and `withdrawMove` beside `fileMove`, and
+`moveIsEditable` is the predicate all three sides read — the server actions,
+the Change button on the turn card, and the dialog. Withdrawing deletes the
+Action through the shared `deleteActionRestoringTurn`
+(`db/lib/moveEconomy.js`), which is the same path a GM's Reject takes: there
+is no `turnsRemaining` column, so giving the day back means deleting the row.
 
-Old **`move_edited` rows stay in the audit log** and still render, through the
-`move_` prefix fallback in `web/lib/auditNarrative.js` — which never had a
-sentence for them. Nothing writes another.
+**Nothing else is editable.** A **Labor** settles on the press — the ⬢ and any
+labor drop land in `confirmMove`, which stamps `appliedEffects` so the push
+skips it. A Move the *game* filed is a receipt for something that already
+happened: a craft, a burial, an engraving, a torture, a travel stub, a lesson,
+an auto-Labor. `Action.playerFiled` separates the two and **defaults false**,
+so a writer who forgets it fails closed. It is deliberately a column rather
+than a `gmNotes` substring — that matching is what this replaced.
+
+**This was only safe once the die moved.** Editing used to exist and was
+removed because changing kinds re-confirmed the row and re-confirming rolled,
+so an uncapped Edit was a re-roll button you could flip Gambit → Routine →
+Gambit on all afternoon. The fix this time is structural rather than a
+prohibition: the d6 is thrown once, at the cutoff, by `db/lib/gambitCutoff.js`
+— so there is nothing to fish for while the window is open, and once it shuts
+nobody can touch their Move at all. The modifiers get more honest in the
+bargain, since Hunger and mood are read at the lock rather than whenever the
+player happened to type.
+
+`gambitCutoff` is a per-minute poll in the **bot** process, sharing
+`turnClock.js`'s `cutoffReached` with the Oracle's cutoff run. Three
+consequences: a web-only deploy never ticks it, a frozen clock or a turn
+shorter than `MOVE_LOCK_HOURS` never locks at all, and the roll can land up to
+a minute late. So `rollPendingGambits` is **also called at the head of the
+staged push** as the backstop — a no-op on an ordinary turn where the cutoff
+already fired.
+
+**`move_edited` rows are written again**, alongside the new `move_withdrawn`.
+Both render through the `move_` prefix fallback in
+`web/lib/auditNarrative.js`.
 
 The `auto:` marker on `Action.gmNotes` outlives all of this: `db/lib/
 stagedPush.js` tests the same substring, and `web/lib/moves.js` reads the

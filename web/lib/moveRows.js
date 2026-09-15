@@ -131,6 +131,11 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     description: a.description,
     kindLabel: moveKindLabel(a.moveKind, a.gmNotes),
     moveKind: a.moveKind ?? "ROUTINE",
+    // Only a CONFIRMED Gambit is ever thrown a die (db/lib/gambitCutoff.js filters on it), so
+    // this is what lets the desk say "rolls at lock-in" without promising one to a row that
+    // can never get it — an abandoned PENDING_TYPE draft, or a quest Interact, which files
+    // through fileMove and is never confirmed.
+    confirmed: a.status === "CONFIRMED",
     isTravel: isTravelMove(a.gmNotes),
     gmNotes: a.gmNotes ?? "",
     rollLabel: rollLabel(a),

@@ -7,22 +7,32 @@ import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { untilLabel } from "@/lib/turnFormat";
 import { readDraft, writeDraft, clearDraft } from "./moveDraft";
-import { submitMove, moveContext } from "./actions";
+import { submitMove, editMyMove, withdrawMyMove, moveContext } from "./actions";
 
-// Filing the one Move a turn: the @@unique([characterId, turnId]) row IS the
-// turn, and a filed Move is final. Because it's final, the dialog's job is to
-// put everything a player needs BEFORE the press — every server refusal is
-// answered on the page while there's still something to do about it. Nothing here is a tooltip (SHEET.md).
+// Filing the one Move a turn: the @@unique([characterId, turnId]) row IS the turn.
+//
+// Two kinds, and they behave differently once filed. A LABOR settles on the press — the
+// ⬢ lands, the day is spent, and there is nothing left to take back. A GAMBIT is the one
+// thing in the game that stays pending: the die isn't thrown until Moves lock
+// (db/lib/gambitCutoff.js), so until then this same dialog reopens on it to rewrite or
+// withdraw it. `existing` is what puts it in that mode.
+//
+// The dialog still front-loads everything a player needs BEFORE the press — a Labor is
+// final, and a server refusal is answered here while there's something to do about it.
+// Nothing here is a tooltip (SHEET.md).
 
 // Word for word from the Discord modal's radio group (bot/src/lib/moveModal.js). If the wording changes, change it in both places.
 export const MOVE_KINDS = [
-  { value: "ROUTINE", label: "Routine", help: "Easy — it resolves itself." },
-  { value: "GAMBIT", label: "Gambit", help: "Could go either way — rolls a die." },
-  { value: "LABOR", label: "Labor", help: "Work the day using your best Labor skill." },
+  { value: "GAMBIT", label: "Gambit", help: "An action affected by chance." },
+  { value: "LABOR", label: "Labor", help: "Produce resources using your best laboring skill." },
 ];
 
+// ROUTINE is no longer a kind anybody picks, but plenty of rows still carry it — every
+// Move the game filed on a player's behalf — so it still needs a word here.
+const FILED_FOR_YOU = "Move";
+
 export function moveKindLabel(kind) {
-  return MOVE_KINDS.find((entry) => entry.value === kind)?.label ?? "Move";
+  return MOVE_KINDS.find((entry) => entry.value === kind)?.label ?? FILED_FOR_YOU;
 }
 
 // db/lib/moves.js#DESCRIPTION_MAX. Counter turns at nine tenths, the last
@@ -30,11 +40,16 @@ export function moveKindLabel(kind) {
 const BODY_MAX = 2000;
 const BODY_WARN = Math.floor(BODY_MAX * 0.9);
 
-export default function MoveDialog({ turn = null, characterId = null, onClose, onDone }) {
-  // No default: a Move must never be silently filed as Routine.
-  const [kind, setKind] = useState(null);
-  // Whatever was typed and never filed. Read once, since the dialog mounts on a click and unmounts on close.
-  const [body, setBody] = useState(() => readDraft(characterId, turn?.number));
+export default function MoveDialog({ turn = null, characterId = null, existing = null, onClose, onDone }) {
+  // Editing a filed Gambit rather than writing a new Move. The kind is settled in that
+  // case — swapping to Labor would pay out, and a dialog that both edits and pays is two
+  // dialogs. Take it back and file again instead.
+  const editing = Boolean(existing);
+  // No default when filing fresh: a Move must never be silently filed as the wrong kind.
+  const [kind, setKind] = useState(editing ? "GAMBIT" : null);
+  // The filed words when editing; otherwise whatever was typed and never filed. Read once,
+  // since the dialog mounts on a click and unmounts on close.
+  const [body, setBody] = useState(() => existing?.description ?? readDraft(characterId, turn?.number));
   const [context, setContext] = useState(null);
   const [now, setNow] = useState(() => Date.now());
   const { run, pending, error } = useActionRunner();
@@ -65,20 +80,54 @@ export default function MoveDialog({ turn = null, characterId = null, onClose, o
 
   const countdown = turn?.locked ? "locked" : untilLabel(turn?.closesAt, now);
   const shut = Boolean(turn?.locked) || countdown === "locked";
-  // Only applies to Labor — a Routine or Gambit files from anywhere.
+  // Only applies to Labor — a Gambit files from anywhere.
   const laborRefusal = kind === "LABOR" ? (context?.refusal ?? null) : null;
   const canFile = Boolean(kind) && Boolean(body.trim()) && !pending && !shut && !laborRefusal && body.length <= BODY_MAX;
 
   async function file() {
     if (!canFile) return;
+    if (editing) {
+      // No confirm: rewriting a Gambit that hasn't locked changes nothing that can't be
+      // changed straight back. The confirm below is for the press that spends the day.
+      run(editMyMove, { actionId: existing.id, description: body }, {
+        onOk: (res) => {
+          onDone(res);
+          onClose();
+        },
+      });
+      return;
+    }
     // Resolved BEFORE run(): awaiting a confirm inside startTransition deadlocks (DESIGN-SYSTEM.md).
-    const sure = await confirm({
-      title: "File this Move?",
-      confirmLabel: "Lock in",
-      cancelLabel: "Not yet",
-    });
+    const sure = await confirm(
+      kind === "LABOR"
+        ? {
+            title: "Labor?",
+            message: "You are paid immediately after declaring your labor.",
+            confirmLabel: "Yes",
+            cancelLabel: "No",
+          }
+        : { title: "Declare this Gambit?", confirmLabel: "Yes", cancelLabel: "No" },
+    );
     if (!sure) return;
     run(submitMove, { moveKind: kind, description: body }, {
+      onOk: (res) => {
+        clearDraft();
+        onDone(res);
+        onClose();
+      },
+    });
+  }
+
+  async function withdraw() {
+    // No message line: the title is the whole question, and "your day is yours again" was
+    // restating what cancelling obviously does.
+    const sure = await confirm({
+      title: "Cancel your Gambit?",
+      confirmLabel: "Undo",
+      cancelLabel: "Keep",
+    });
+    if (!sure) return;
+    run(withdrawMyMove, { actionId: existing.id }, {
       onOk: (res) => {
         clearDraft();
         onDone(res);
@@ -90,7 +139,7 @@ export default function MoveDialog({ turn = null, characterId = null, onClose, o
   return (
     <Modal
       open
-      title="Your Move"
+      title={editing ? "Your Gambit" : "Your Move"}
       onClose={onClose}
       actions={
         countdown ? (
@@ -104,24 +153,30 @@ export default function MoveDialog({ turn = null, characterId = null, onClose, o
         ) : null
       }
     >
-      <div className="chip-row" role="radiogroup" aria-label="What kind of Move">
-        {MOVE_KINDS.map((entry) => (
-          <button
-            key={entry.value}
-            type="button"
-            role="radio"
-            className="chip"
-            data-active={kind === entry.value ? "true" : undefined}
-            aria-checked={kind === entry.value}
-            // Must not take opening focus: Space on a fresh dialog would silently change the kind.
-            tabIndex={(kind ?? MOVE_KINDS[0].value) === entry.value ? 0 : -1}
-            onClick={() => setKind(entry.value)}
-          >
-            {entry.label}
-          </button>
-        ))}
-      </div>
-      <p className="move-help text-sm text-muted">{chosen?.help ?? " "}</p>
+      {/* Nothing to pick when editing: a filed Gambit is already a Gambit. */}
+      {!editing && (
+        <div className="chip-row" role="radiogroup" aria-label="What kind of Move">
+          {MOVE_KINDS.map((entry) => (
+            <button
+              key={entry.value}
+              type="button"
+              role="radio"
+              className="chip"
+              data-active={kind === entry.value ? "true" : undefined}
+              aria-checked={kind === entry.value}
+              // Must not take opening focus: Space on a fresh dialog would silently change the kind.
+              tabIndex={(kind ?? MOVE_KINDS[0].value) === entry.value ? 0 : -1}
+              onClick={() => setKind(entry.value)}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* Height reserved either way, so the textarea doesn't jump (DESIGN-SYSTEM §5). */}
+      <p className="move-help text-sm text-muted">
+        {editing ? "You can edit this until the turn locks." : (chosen?.help ?? " ")}
+      </p>
 
       {kind === "LABOR" && context && (
         <LaborReadout context={context} />
@@ -165,12 +220,21 @@ export default function MoveDialog({ turn = null, characterId = null, onClose, o
       )}
       <FormError>{error}</FormError>
 
+      {/* Take it back sits apart from Cancel on purpose: Cancel shuts the dialog and
+          changes nothing, this one deletes the Move and hands the day back. Same
+          .btn-quiet shape Break off and Stop watching already use. */}
+      {editing && (
+        <button type="button" className="btn-quiet" disabled={pending || shut} onClick={withdraw}>
+          Cancel Gambit
+        </button>
+      )}
+
       <div className="modal-actions">
         <button type="button" className="btn-quiet" onClick={onClose}>
           Cancel
         </button>
         <button type="button" className="btn" disabled={!canFile} onClick={file}>
-          Lock In
+          {editing ? "Save" : "Declare"}
         </button>
       </div>
     </Modal>

@@ -289,7 +289,14 @@ export default function MoveDesk({
           )}
           <div className="flex flex-col gap-1">
             <span className="field-label">Dice</span>
-            <span className="mono text-sm">{move.rollLabel || "—"}</span>
+            {/* A player's Gambit is not rolled until Moves lock (db/lib/gambitCutoff.js),
+                so an empty one before the cutoff is waiting, not missing. Working the desk
+                after the lock is the intended order (ADJUDICATION.md), but a GM who opens
+                it early should not read "—" as a broken row. */}
+            <span className="mono text-sm">
+              {move.rollLabel ||
+                (move.moveKind === "GAMBIT" && move.confirmed ? "rolls at lock-in" : "—")}
+            </span>
           </div>
           <div className="flex flex-col gap-1">
             <span className="field-label">Declared</span>

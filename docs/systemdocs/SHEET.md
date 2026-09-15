@@ -124,8 +124,10 @@ Who this is, where they stand, and:
 - **This turn** — Chat's `TurnCard` + `MoveDialog`, wrapped in
   `SheetTurn.js`, over the same `play/actions.js#myMove` and the same minute
   poll (`play/useMyMove.js`, which `YouPanel.js` shares). File the Move from
-  here — a filed one is final, there is no Edit (TURN-ENGINE.md §6a-i) — and a
-  pending lesson or binding reads under it. The turn chip and the **Move…**
+  here. A **Gambit** that has not locked yet carries a quiet **Change…** under
+  its words, which reopens the same dialog on it to rewrite or **Cancel Gambit**;
+  a Labor, or anything the game filed, has already happened and carries nothing
+  (TURN-ENGINE.md §6a-i). A pending lesson or binding reads under that. The turn chip and the **Move…**
   button sit on ONE line: `.sheet-turn .chat-move` is a wrapping flex row, and
   the button keeps its natural width instead of stretching into a bar that
   doubled the box's height. A Move already filed adds its **kind to the same

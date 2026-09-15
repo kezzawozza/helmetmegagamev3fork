@@ -129,6 +129,15 @@ ration could ever count stamps the turn), and one ambient line into the room
 saying somebody set to work. The room is never told what they said they were
 doing; that is between them and the GM until the push.
 
+Because it is an ordinary player-written Gambit, it is **withdrawable until the
+Move cutoff** like any other (TURN-ENGINE.md §6a-i). `QuestInteraction.actionId`
+is a bare unique String with no foreign key, so nothing cascades — the row is
+cleared explicitly by `deleteActionRestoringTurn` (`db/lib/moveEconomy.js`).
+Without that, its `@@unique([questId, characterId, turnId])` would go on holding
+the one-press-per-quest-per-turn slot for a Move that no longer exists, and the
+player would get their day back but never be able to spend it on that quest. A
+GM's **Reject** takes the same path and had the same hole before this.
+
 ## 5. The clock
 
 `Quest.expiresTurn` is an absolute turn number, resolved through

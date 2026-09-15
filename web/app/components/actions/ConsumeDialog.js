@@ -76,17 +76,14 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
         />
       )}
       {/* administerSkill's Move fee (M2, CRAFTING.md §2a / TAGS.md §5c) —
-          fitting is surgery, even on your own leg. Same committed-Routine
-          warning shape as the Heal dialog's below: a fixed 1/2 of the
-          medical family, checked against whatever Routine is already filed
+          fitting is surgery, even on your own leg. Same spent-Move warning
+          shape as the Heal dialog's below: a fixed 1/2 of the
+          medical family, checked against whatever Move is already filed
           — including an ordinary declared Move, a Gambit or a build turn,
           which files an Action but no craftBudget ledger at all. */}
       {chosen?.administerSkill && (
         <>
           <p className="text-xs text-muted">This costs half your Move.</p>
-          <p className="text-xs text-muted">
-            {`This costs your Move.`}
-          </p>
           {craftBudget ? (
             !fitsInRemaining(
               { num: 1, den: 2 },
