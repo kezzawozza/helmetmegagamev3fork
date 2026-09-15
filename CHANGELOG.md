@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · The bot recovers on its own from a broken Discord login
+
+✎ Metempsychosis's description now tells a respawned player what they keep and what they lose  
+✎ A flaky Discord connection at boot used to leave the bot silently unable to send anything — connected to the gateway but mute — until someone noticed and restarted it by hand. It now retries its own login with backoff, and restarts itself cleanly if it ever ends up in that broken state again
+
 ## 2026-09-15 · You can ask to search somebody
 
 ✚ A Search button, on the character sheet and on a person's row in chat. You ask to look through what they are carrying, and they say yes or no.  

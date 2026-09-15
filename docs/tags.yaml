@@ -2307,7 +2307,7 @@ tags:
     name: Metempsychosis
     category: general
     group: general-traits
-    description: "You know something very, very important. You can respawn freely and infinitely."
+    description: "You know something important. You can respawn freely and infinitely, and you remember certain things about your past lives. You don't remember who killed you or your cause of death."
     pointCost: 12
     visible: false
     purchasable: true
