@@ -125,7 +125,17 @@ export default function AuditDesk({
   // `d.tagName`) — this is the one place that resolves one back to a live
   // catalog row for AuditSegments' hover chip, same fallback as every other
   // tag chip in the app when the name no longer matches (renamed, deleted).
-  const tagsByName = useMemo(() => new Map((tags ?? []).map((t) => [t.name, t])), [tags]);
+  const tagsById = useMemo(() => new Map((tags ?? []).map((t) => [t.id, t])), [tags]);
+  // CATALOG ROWS ONLY. A runtime-minted row must never be reachable by name:
+  // paperName() calls every untitled note "A Note", so keying those by name
+  // collapses them and hands back an arbitrary one — one player's letter shown
+  // under another's audit line. Excluding them here is what makes that
+  // unrepresentable rather than merely unlikely; the id map above is the only
+  // way to a paper, and it is exact. See AuditSegments.js.
+  const tagsByName = useMemo(
+    () => new Map((tags ?? []).filter((t) => !t.ephemeral).map((t) => [t.name, t])),
+    [tags],
+  );
 
   const download = async () => {
     setExporting(true);
@@ -221,6 +231,7 @@ export default function AuditDesk({
             entries={entries}
             names={names}
             tagsByName={tagsByName}
+            tagsById={tagsById}
             selectedId={selected}
             onSelect={select}
             absoluteTime={absoluteTime}
@@ -233,6 +244,7 @@ export default function AuditDesk({
           entry={current}
           names={names}
           tagsByName={tagsByName}
+          tagsById={tagsById}
           onFilter={set}
           selectableZones={selectableZones}
           visibleZoneIds={visibleZoneIds}

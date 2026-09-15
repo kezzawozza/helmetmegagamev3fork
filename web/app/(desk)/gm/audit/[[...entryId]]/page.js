@@ -6,6 +6,7 @@ import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import AuditView from "./AuditView";
 import Loading from "../Skeleton";
 import { prisma } from "@lifeweb/db";
+import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
@@ -131,29 +132,39 @@ async function FreshAudit({ params, searchParams, userId }) {
   // say "Black Hills" where the payload says a cuid. Tags are the only list here
   // with real size, and it is a few hundred rows of two columns.
   //
-  // Wider than that alone for AuditSegments' hover: a `details` blob never
-  // carries a tag's id (only `tagName`, written long before this), so a
-  // chip is resolved by NAME against this same catalog rather than by id —
-  // matching the "fallen out of the catalog" fallback every other tag chip
-  // in the app already has, for the same reason (a rename since the row was
-  // written just misses the hover rather than showing the wrong tag).
-  const tags = await prisma.tag.findMany({
-    select: {
-      id: true,
-      name: true,
-      description: true,
-      mastery: true,
-      group: { select: { color: true } },
-      weightLbs: true,
-      meleeArmor: true,
-      ballisticArmor: true,
-      requirementTurns: true,
-      requirementPerTurn: true,
-      requirementResources: true,
-      requirementGambit: true,
-      requirementSkills: { select: { name: true } },
-    },
-  });
+  // Wider than that alone for AuditSegments' hover. Two things this query has
+  // to get right, both learned the hard way:
+  //
+  // chipSelect() + composeChipTag, not a hand-picked column list. The old one
+  // took `description` and no paper columns, so every player-written note
+  // hovered BLANK — a paper keeps its words in `paperText` and its description
+  // column is null (web/lib/tagChipRows.js).
+  //
+  // And it is no longer the whole table. Runtime-minted rows are unbounded game
+  // state, so composing all of them with a GM context would put the full text
+  // of every letter in the game into this page's payload on every load. Same
+  // shape getVisibleTags uses for the same problem: the bounded catalog, plus
+  // only the runtime rows the entries on THIS page actually name. Paging is a
+  // full server re-render, so the set is recomputed per page.
+  const referencedTagIds = new Set();
+  // `pinned` is fetched apart from the page (it is whatever entry the GM has
+  // open, which need not be on this page), so it has to be scanned too or its
+  // own chip is the one thing on screen that will not resolve.
+  for (const row of [...rows, ...(pinned ? [pinned] : [])]) {
+    const d = row.details && typeof row.details === "object" ? row.details : null;
+    if (!d) continue;
+    if (d.tagId) referencedTagIds.add(String(d.tagId));
+    // applyTagOpsInTx's `applied` array — a GM's staged ops carry their own.
+    for (const op of Array.isArray(d.tags) ? d.tags : []) {
+      if (op?.tagId) referencedTagIds.add(String(op.tagId));
+    }
+  }
+  const tags = (
+    await prisma.tag.findMany({
+      where: { OR: [{ ephemeral: false }, { id: { in: [...referencedTagIds] } }] },
+      select: chipSelect(),
+    })
+  ).map((t) => composeChipTag(t, GM_CHIP_CTX));
   const names = Object.fromEntries([
     ...tags.map((t) => [t.id, t.name]),
     ...factions.map((f) => [f.id, f.name]),
@@ -228,8 +239,9 @@ async function FreshAudit({ params, searchParams, userId }) {
         // One shared id -> name map rather than a copy per row: at 60 rows and a
         // few hundred tags, hanging it off each DTO would be most of the payload.
         names: names,
-        // The full catalog, for AuditSegments' hover chips — resolved by name,
-        // see the query comment above.
+        // The catalog plus the runtime rows these entries name, composed —
+        // AuditDesk.js keys them BOTH ways and only lets a paper be found by
+        // id. See the query comment above.
         tags: tags,
         pinned: pinned ? toDto(pinned) : null,
         selectedId: selectedId,

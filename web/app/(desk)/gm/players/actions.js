@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { TURNS_PATH } from "@/lib/routes";
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
+import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
 import { placesFor } from "@lifeweb/db/lib/feedAccess";
 import {
   placeKeyForLocation,
@@ -375,28 +376,19 @@ export async function getPlayerCanon({ characterId }) {
         pendingEffects.flatMap((e) => (e.payload?.tagOps ?? []).map((op) => op.tagId).filter(Boolean)),
       ),
     ];
-    // Full enough for a TagChip hover (CanonTab.js) — description, group
-    // colour, requirement/armour/fighting — not just the name a chip with no
-    // panel behind it used to settle for.
+    // Full enough for a TagChip hover (CanonTab.js). chipSelect() + compose,
+    // not a hand-picked column list: the list this replaced took `description`
+    // and no paper columns, so a staged op naming a player-written note hovered
+    // blank — and, because it did not even select `paperKind`, TagDetails.js's
+    // own uncomposed-paper warning could not fire to say so. Already filtered
+    // by id, so unlike the audit desk there is no lookup question here.
     const tags = tagIds.length
-      ? await prisma.tag.findMany({
-          where: { id: { in: tagIds } },
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            mastery: true,
-            group: { select: { color: true } },
-            weightLbs: true,
-            meleeArmor: true,
-            ballisticArmor: true,
-            requirementTurns: true,
-            requirementPerTurn: true,
-            requirementResources: true,
-            requirementGambit: true,
-            requirementSkills: { select: { name: true } },
-          },
-        })
+      ? (
+          await prisma.tag.findMany({
+            where: { id: { in: tagIds } },
+            select: chipSelect(),
+          })
+        ).map((t) => composeChipTag(t, GM_CHIP_CTX))
       : [];
 
     return {

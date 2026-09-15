@@ -4,7 +4,13 @@
 
 const t = (v) => ({ k: "t", v });
 const em = (v) => ({ k: "em", v });
-const chip = (v) => (v ? { k: "chip", v: String(v) } : null);
+// `id` is the tag's row id when the writer stored one beside the name snapshot.
+// A log row keeps a NAME (ARCHITECTURE.md: log tables snapshot rather than hold
+// FKs), and a name does not identify a runtime-minted row: paperName() calls
+// every untitled note "A Note", so a name lookup over those picks an arbitrary
+// one. Passing the id where we have it is what lets AuditSegments resolve the
+// RIGHT note — and the reason it may never resolve a paper by name at all.
+const chip = (v, id = null) => (v ? { k: "chip", v: String(v), ...(id ? { id: String(id) } : {}) } : null);
 const mono = (v) => (v ? { k: "mono", v: String(v) } : null);
 const zone = (v) => (v ? { k: "zone", v: String(v) } : null);
 const actor = () => ({ k: "actor" });
@@ -93,13 +99,13 @@ export const DATE_PRESETS = {
 
 const R = {
   // ---- Player actions (web/lib/requests.js#logAudit) ----
-  request_add_tag: (d) => [actor(), t("added"), chip(d.tagName), qty(d.quantity), t("for"), res(d.resourcesSpent)],
-  request_remove_tag: (d) => [actor(), t("dropped"), chip(d.tagName), qty(d.quantity), t("for"), res(d.resourcesSpent)],
+  request_add_tag: (d) => [actor(), t("added"), chip(d.tagName, d.tagId), qty(d.quantity), t("for"), res(d.resourcesSpent)],
+  request_remove_tag: (d) => [actor(), t("dropped"), chip(d.tagName, d.tagId), qty(d.quantity), t("for"), res(d.resourcesSpent)],
   // The craft-era names for the two rows above — same shapes.
-  request_craft_tag: (d) => [actor(), t("made"), chip(d.tagName), qty(d.quantity), t("for"), res(d.resourcesSpent)],
-  request_destroy_tag: (d) => [actor(), t("destroyed"), chip(d.tagName), qty(d.quantity)],
+  request_craft_tag: (d) => [actor(), t("made"), chip(d.tagName, d.tagId), qty(d.quantity), t("for"), res(d.resourcesSpent)],
+  request_destroy_tag: (d) => [actor(), t("destroyed"), chip(d.tagName, d.tagId), qty(d.quantity)],
   request_consume_tag: (d) => [
-    actor(), t("consumed"), chip(d.tagName),
+    actor(), t("consumed"), chip(d.tagName, d.tagId),
     ...(d.administered ? [t("on"), target()] : []),
     ...(d.cured?.length ? [t("curing"), ...joinChips(d.cured.map((c) => c.tagName))] : []),
     ...(d.granted?.length ? [t("for"), ...joinChips(d.granted)] : []),
@@ -144,8 +150,8 @@ const R = {
   request_loot_resources: (d) => [actor(), t("looted"), res(d.amount ?? d.resources), t("from"), target()],
   // Verb and preposition read by direction, so pickup/deposit/hand-off/Spillway each say the true shape.
   request_transfer_resources: (d) => transferSegments(d, res(d.amount ?? d.resources)),
-  request_loot_tag: (d) => [actor(), t("looted"), chip(d.tagName), qty(d.quantity), t("from"), em(d.fromName)],
-  request_transfer_tag: (d) => transferSegments(d, chip(d.tagName), qty(d.quantity)),
+  request_loot_tag: (d) => [actor(), t("looted"), chip(d.tagName, d.tagId), qty(d.quantity), t("from"), em(d.fromName)],
+  request_transfer_tag: (d) => transferSegments(d, chip(d.tagName, d.tagId), qty(d.quantity)),
   request_fulfill_desire: (d) => [actor(), t("claimed a Desire for"), points(d.pointsAwarded)],
   request_donate_blood: (d) => [actor(), t("donated blood to the Lifeweb"), ...bloodTail(d)],
   request_feed_person: (d) => [actor(), t("fed a person to the Lifeweb"), ...bloodTail(d)],
@@ -202,13 +208,13 @@ const R = {
   gm_message_sent: (d) => [actor(), t("messaged"), recipients(d.recipientCount ?? d.characterIds?.length), ...msgTail(d.message)],
   gm_message_delivered: () => [actor(), t("delivered a message to"), target()],
   gm_message_delivery_failed: () => [actor(), t("could NOT deliver a message to"), target()],
-  gm_bulk_tag_grant: (d) => [actor(), t("granted"), chip(d.tagName), t("to"), recipients(d.applied ?? d.characterIds?.length), ...failedTail(d)],
-  gm_bulk_tag_revoke: (d) => [actor(), t("revoked"), chip(d.tagName), t("from"), recipients(d.applied ?? d.characterIds?.length), ...failedTail(d)],
+  gm_bulk_tag_grant: (d) => [actor(), t("granted"), chip(d.tagName, d.tagId), t("to"), recipients(d.applied ?? d.characterIds?.length), ...failedTail(d)],
+  gm_bulk_tag_revoke: (d) => [actor(), t("revoked"), chip(d.tagName, d.tagId), t("from"), recipients(d.applied ?? d.characterIds?.length), ...failedTail(d)],
   gm_bulk_move: (d) => [actor(), t("moved"), recipients(d.characterIds?.length), t("to"), zone(d.locationName ?? d.zoneName)],
   gm_heal: (d) => [actor(), t("healed"), target(), ...(d.tagNames?.length ? [t("of"), ...joinChips(d.tagNames)] : [])],
-  gm_custom_tag_created: (d) => [actor(), t("created the custom tag"), chip(d.name)],
-  gm_custom_tag_updated: (d) => [actor(), t("edited the custom tag"), chip(d.name)],
-  gm_custom_tag_deleted: (d) => [actor(), t("deleted the custom tag"), chip(d.name)],
+  gm_custom_tag_created: (d) => [actor(), t("created the custom tag"), chip(d.name, d.tagId)],
+  gm_custom_tag_updated: (d) => [actor(), t("edited the custom tag"), chip(d.name, d.tagId)],
+  gm_custom_tag_deleted: (d) => [actor(), t("deleted the custom tag"), chip(d.name, d.tagId)],
   // gm_desire_set kept for old rows; a GM now AWARDS (gm_desire_fulfilled) or REVOKES (gm_desire_cancelled).
   gm_desire_set: (d) => [actor(), t("set a Desire for"), target(), t("worth"), points(d.points)],
   gm_desire_fulfilled: (d) => [actor(), t("awarded a Desire to"), target(), t("worth"), points(d.points)],

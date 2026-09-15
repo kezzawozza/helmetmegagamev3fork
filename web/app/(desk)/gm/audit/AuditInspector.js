@@ -39,7 +39,7 @@ function labelize(key) {
     .trim();
 }
 
-export default function AuditInspector({ entry, names, tagsByName, onFilter, selectableZones, visibleZoneIds }) {
+export default function AuditInspector({ entry, names, tagsByName, tagsById, onFilter, selectableZones, visibleZoneIds }) {
   const [rawOpen, setRawOpen] = useState(false);
   const [copied, setCopied] = useState("");
 
@@ -87,7 +87,7 @@ export default function AuditInspector({ entry, names, tagsByName, onFilter, sel
 
       <div className="desk-inspector-body">
         <div className="p-3 audit-sentence">
-          <AuditSegments entry={entry} segments={segments} tagsByName={tagsByName} />
+          <AuditSegments entry={entry} segments={segments} tagsByName={tagsByName} tagsById={tagsById} />
         </div>
 
         <dl className="desk-inspector-facts p-3">

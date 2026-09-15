@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Paper chips in the audit log name the right note
+
+✎ The audit log's tag chips show a written note's words on hover — they were blank, the one desk last week's fix missed.  
+✎ A note is matched by identity now, not by name. Every untitled note is called 'A Note', so the old lookup could have shown one player's letter under another's line.  
+✎ An older log entry with no note recorded on it shows a plain chip rather than guessing.
+
 ## 2026-09-15 · The Tribune seat no longer runs out
 
 

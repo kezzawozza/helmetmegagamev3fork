@@ -41,6 +41,7 @@ export default function AuditFeed({
   entries,
   names,
   tagsByName,
+  tagsById,
   selectedId,
   onSelect,
   absoluteTime,
@@ -133,7 +134,7 @@ export default function AuditFeed({
                 {absoluteTime ? stamp.toLocaleTimeString(undefined, { hour12: false }) : relative(entry.createdAt, now)}
               </span>
               <span className="audit-row-body">
-                <AuditSegments entry={entry} segments={segments} tagsByName={tagsByName} />
+                <AuditSegments entry={entry} segments={segments} tagsByName={tagsByName} tagsById={tagsById} />
                 {entry.reason && <span className="audit-reason">» {entry.reason}</span>}
               </span>
               <span className="audit-row-tail">
