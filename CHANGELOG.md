@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · You can ask to search somebody
+
+✚ A Search button, on the character sheet and on a person's row in chat. You ask to look through what they are carrying, and they say yes or no.  
+✚ Before they answer they get one chance to hide things. Whether that works is a roll nobody is ever shown — and hiding one thing works better than hiding five, which the game says out loud since no player could work it out.  
+✚ An "Automatically search?" box on Intercept, so a watch at a gate also asks to search whoever it stops. It buys the ask and never the answer: they can still say no, and they still get to hide things first.  
+✎ You can search somebody in a hood, and every line still calls them what you saw. A hood hides who you are, not what is in your pockets.  
+✎ Once per person per turn, and saying no uses it up — so asking is not free.  
+✎ Anything worn or carried openly is found whatever the roll says, and the readout says which half was never at risk.  
+✎ A pending kiss or a pending offer of a ride that nobody answered used to be reported at turn's end as an unanswered offer to teach a skill. Both say the right thing now.  
+
 ## 2026-09-15 · The dead get a room, and burying somebody no longer cuts them off
 
 ✚ Deadchat: one channel the dead talk in, on the website and on Discord. It is the only place a ghost has a voice, and nobody living can see it or hear it.  

@@ -639,6 +639,22 @@ async function declineOffer(prisma, offer, responder) {
     where: { id: offer.initiatorId },
     select: { discordUserId: true },
   });
+  // Search is the one kind whose responder may be wearing a hood, so it is the
+  // one whose refusal cannot use the bare row name — that would hand the
+  // searcher the identity the hood is bought to keep (INTERCEPT.md §2). Every
+  // other kind refuses a covered face at the gate, so `responder.name` is
+  // already the face that was seen.
+  let refusedBy = responder.name;
+  if (offer.kind === "SEARCH") {
+    const { seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
+    const { capitalizeFirst } = require("./concealedIdentity");
+    const row = await prisma.character.findUnique({
+      where: { id: offer.responderId },
+      select: IDENTITY_SELECT,
+    });
+    refusedBy = capitalizeFirst(seenAs(identityOf(row)));
+  }
+
   // Per kind, because "you passed on the lesson" is a strange thing to read
   // after refusing to be tied up or to be led away.
   const WORDING = {
@@ -649,6 +665,10 @@ async function declineOffer(prisma, offer, responder) {
     },
     KISS: {
       content: `${responder.name} turned you down.`,
+      line: "You said no.",
+    },
+    SEARCH: {
+      content: `${refusedBy} refused your search.`,
       line: "You said no.",
     },
   };

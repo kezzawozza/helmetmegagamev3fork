@@ -43,6 +43,11 @@ const DM_ACTION_LABELS = Object.freeze({
   [DM_ACTION.THREAT_SPAWN]: { accept: "Accept", decline: "Decline" },
   [DM_ACTION.LOBBY_SEAT]: { accept: null, decline: "Decline the seat" },
   [DM_ACTION.KEYED_WAY]: { accept: "Yes", decline: "No" },
+  // Search (docs/systemdocs/SEARCH.md). A variant, the way ESCORT is, because
+  // the KIND is still OFFER — every reader of the table keeps working. `hide`
+  // is a fourth slot and, like `partial`, it is NOT a DM_CHOICE: hiding is an
+  // edit to a pending row, not an answer to it, so the Yes/No pair survives it.
+  SEARCH: { accept: "Yes", decline: "No", hide: "Hide items" },
   // One button, and it is the accept — the LOBBY_SEAT shape, the other way up.
   [DM_ACTION.INTERCEPT_HOLD]: { accept: "Release", decline: null },
   [DM_ACTION.ATTACK_HOLD]: { accept: "Cancel attack", decline: null },

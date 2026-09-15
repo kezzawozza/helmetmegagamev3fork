@@ -5,6 +5,7 @@ import ActionDialog from "./ActionDialog";
 import useSubmit from "./useSubmit";
 import ChipPicker from "../ChipPicker";
 import NameChips from "../NameChips";
+import CheckField from "../CheckField";
 import { noticeLine } from "./noticeLines";
 import { FULL_NAME_LIMIT } from "@/lib/characterName";
 import {
@@ -45,6 +46,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
   const [anyConcealed, setAnyConcealed] = useState(false);
   const [anyPerson, setAnyPerson] = useState(false);
   const [outsideZoneOnly, setOutsideZoneOnly] = useState(false);
+  const [autoSearch, setAutoSearch] = useState(false);
   const [holding, setHolding] = useState([]);
   const [place, setPlace] = useState(null);
   const [limits, setLimits] = useState({ names: 12, message: 300 });
@@ -69,6 +71,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
           setAnyConcealed(res.watch.anyConcealed);
           setAnyPerson(res.watch.anyPerson);
           setOutsideZoneOnly(Boolean(res.watch.outsideZoneOnly));
+          setAutoSearch(Boolean(res.watch.autoSearch));
           setPlace(res.watch.place ?? null);
         }
       })
@@ -91,7 +94,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
       onClose={onClose}
       onSubmit={() =>
         submit(
-          () => setIntercept({ mode, message, names, anyConcealed, anyPerson, outsideZoneOnly }),
+          () => setIntercept({ mode, message, names, anyConcealed, anyPerson, outsideZoneOnly, autoSearch }),
           (res) => onDone(noticeLine(verb, res)),
         )
       }
@@ -169,6 +172,25 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
       <p className="text-xs text-muted">
         <strong>Ambush.</strong> {MODE_HELP.AMBUSH}
       </p>
+
+      {/* Under the mode picker, NOT up in the dragnet row with the other three
+          toggles. Those say WHO this watch catches, and "Only from outside the
+          zone" narrows whichever who you picked — this says what happens once
+          you already have them, which is a different question and does not
+          belong in a row of answers to the first one.
+
+          It never greys: it asks nothing of your sheet and says nothing about
+          the room. And nothing in this dialog is a tooltip (SHEET.md §3), so
+          the sentence under it prints. */}
+      <div className="field">
+        <CheckField checked={autoSearch} onChange={(e) => setAutoSearch(e.target.checked)}>
+          Automatically search?
+        </CheckField>
+        <p className="text-xs text-muted">
+          On, anyone you stop is also asked to be searched. They can still say no, and they
+          still get to hide things first.
+        </p>
+      </div>
 
       {holding.length > 0 ? (
         <div className="field">

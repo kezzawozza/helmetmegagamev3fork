@@ -93,6 +93,7 @@ async function loadInterceptImpl() {
           anyConcealed: live.anyConcealed,
           anyPerson: live.anyPerson,
           outsideZoneOnly: live.outsideZoneOnly,
+          autoSearch: live.autoSearch,
           place: live.location?.name ?? null,
         }
       : null,
@@ -100,7 +101,15 @@ async function loadInterceptImpl() {
   };
 }
 
-async function setInterceptImpl({ mode, message, names, anyConcealed, anyPerson, outsideZoneOnly }) {
+async function setInterceptImpl({
+  mode,
+  message,
+  names,
+  anyConcealed,
+  anyPerson,
+  outsideZoneOnly,
+  autoSearch,
+}) {
   const { session, character } = await me({ needs: ACT });
 
   const wantAmbush = mode === "AMBUSH";
@@ -132,6 +141,11 @@ async function setInterceptImpl({ mode, message, names, anyConcealed, anyPerson,
     // Narrows any watch, including one made of typed names, so it is NOT subsumed
     // by "Any person" the way anyConcealed is — the two answer different questions.
     outsideZoneOnly: Boolean(outsideZoneOnly),
+    // Not a "who" and not a narrowing of one: it is what happens once the watch
+    // has somebody (docs/systemdocs/SEARCH.md §6). So nothing clears it the way
+    // "Any person" clears anyConcealed, and a watch with only this set still
+    // catches nobody — fireWatches' own WHERE needs a who.
+    autoSearch: Boolean(autoSearch),
   };
 
   await prisma.$transaction(async (tx) => {

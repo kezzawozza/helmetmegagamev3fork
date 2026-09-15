@@ -38,6 +38,8 @@ function offerLine(o) {
       return `${o.otherName} wants to take you along. Answer in your DMs.`;
     case "KISS":
       return `${o.otherName} would like to kiss you. Answer in your DMs.`;
+    case "SEARCH":
+      return `${o.otherName} wants to search you. Answer in your DMs.`;
     default:
       return `${o.otherName} offered a lesson${o.tagName ? ` in ${o.tagName}` : ""}. Answer in your DMs.`;
   }

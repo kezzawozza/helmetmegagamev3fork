@@ -2297,6 +2297,11 @@ model Character {
   interceptHits    InterceptHit[]  @relation("InterceptCaught")
   interceptCatches InterceptHit[]  @relation("InterceptCatcher")
 
+  // Searches asked of them, and searches they asked for
+  // (docs/systemdocs/SEARCH.md §4). Same two-ended shape as the catches above.
+  searchesOfThem   SearchAttempt[] @relation("SearchTarget")
+  searchesTheyMade SearchAttempt[] @relation("SearchSearcher")
+
   // Fights this character started, and fights started on them
   // (docs/systemdocs/ATTACK.md). Two relations to the same table, so both
   // ends are named.
@@ -4196,6 +4201,7 @@ enum OfferKind {
   CONFESSION
   ESCORT
   KISS
+  SEARCH
 }
 
 enum OfferStatus {
@@ -4231,6 +4237,19 @@ model Offer {
   // up to three learners.
   learnerActionId String? @unique
   teacherActionId String?
+
+  // SEARCH only, the way teacherId/learnerId above are LESSON only. The tag
+  // ids the responder ticked on "Hide items", written BEFORE they answer and
+  // read once by acceptSearch. Saved WHOLE each time the picker is saved, so
+  // an array rather than row churn — the InterceptWatch.targetNames shape.
+  //
+  // Deliberately not folded into `outcome`: that column is what every other
+  // kind writes at RESOLVE time, and a pre-answer payload sharing it would
+  // make one column answer both "what was hidden" and "what was found".
+  // No FK, the convention this table's character ends already use — a tag
+  // deleted afterwards should leave a dud id the reveal never finds rather
+  // than cascading into a resolved offer.
+  hiddenTagIds String[] @default([])
 
   // { diceRoll, diceModifier, total, succeeded, gmDecided }
   outcome Json?
@@ -4360,6 +4379,13 @@ model InterceptWatch {
   // zone, so an escort party is judged one person at a time.
   outsideZoneOnly Boolean @default(false)
 
+  // Ask to search whoever this watch catches (docs/systemdocs/SEARCH.md §6).
+  // NOT a "who" and not a narrowing of one — it is what happens once you have
+  // them, which is why it sits under the mode picker in the dialog rather than
+  // in the dragnet row beside the two above. The search still asks consent
+  // like any other; catching somebody is not being handed their pockets.
+  autoSearch Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -4393,6 +4419,40 @@ model InterceptHit {
   createdAt DateTime @default(now())
 
   @@unique([interceptorId, targetCharacterId, turnId])
+  @@index([targetCharacterId])
+}
+
+/// One row per search ASKED, and the @@unique IS the once-a-turn rule
+/// (docs/systemdocs/SEARCH.md §3). The insert is the claim, the InterceptHit
+/// discipline: a count-then-create over AuditLog rows is not race-proof, and
+/// this ration has no cooldown behind it the way the kiss ration has. It is
+/// spent by the ASK and a No does not refund it, so it has to outlive a
+/// refusal — which a PENDING-duplicate query cannot do, since a refused offer
+/// is not pending any more.
+///
+/// Keyed to the SEARCHER, never to the offer: an offer is churn (asked,
+/// refused, asked again) and keying the ration to one would make refusing a
+/// way to be asked all afternoon.
+model SearchAttempt {
+  id String @id @default(cuid())
+
+  searcherId String
+  searcher   Character @relation("SearchSearcher", fields: [searcherId], references: [id], onDelete: Cascade)
+
+  targetCharacterId String
+  targetCharacter   Character @relation("SearchTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+
+  // Not a foreign key, the InterceptHit reasoning: it is a claim token, and
+  // deleting a turn must never cascade into somebody's spent ration.
+  turnId String
+
+  // The offer this claim bought, for reading the row back in an audit. Nullable
+  // and no FK — the offer may be gone long before this row is.
+  offerId String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([searcherId, targetCharacterId, turnId])
   @@index([targetCharacterId])
 }
 

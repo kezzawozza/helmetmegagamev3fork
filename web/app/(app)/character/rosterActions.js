@@ -69,6 +69,7 @@ export async function loadActionRoster({ need = [] } = {}) {
       harmTargets: people.harmTargets,
       harmTags: people.harmTags,
       kissTargets: people.kissTargets,
+      searchParties: people.searchParties,
     };
   }
   if (wants.has("rooms")) out.rooms = rooms ?? [];

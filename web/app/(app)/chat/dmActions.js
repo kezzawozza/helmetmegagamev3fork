@@ -14,6 +14,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { answerDmAction as routeDmAction } from "@lifeweb/db/lib/dmAnswer";
 import { DM_ACTION, DM_CHOICE } from "@lifeweb/db/lib/dmActions";
+import { hideableFor, setHiddenItems } from "@lifeweb/db/lib/search";
 import { applySpawnSideEffects } from "@lifeweb/db/lib/threatSpawn";
 import { deliverCarryDrop } from "@lifeweb/db/lib/carry";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
@@ -100,4 +101,34 @@ export async function answerDmAction(kind, id, choice, amount = null) {
   after(() => applySideEffects(result).catch((err) => console.error("DM action side effects failed:", err)));
 
   return { ok: result.ok, line: result.line };
+}
+
+// --- Hide items (docs/systemdocs/SEARCH.md §2) ----------------------------
+//
+// Search's third control, and the reason it is NOT a DM_CHOICE: hiding edits a
+// pending row rather than answering it, so the Yes/No pair has to survive it and
+// the picker has to be re-openable. The Discord twin is bot/src/lib/offers.js;
+// everything both faces must agree about is db/lib/search.js#setHiddenItems.
+//
+// Both actions resolve the acting account from the SESSION. The client sends
+// only which offer it is editing, and search.js re-checks that the offer is
+// pending and that it is this account's to answer — a server action is a public
+// endpoint, and a disabled input is a hint, not a lock.
+
+export async function loadSearchHideables(offerId) {
+  const session = await auth();
+  if (!session?.discordUserId) return { ok: false, reason: "You are not signed in." };
+  return hideableFor(prisma, { offerId: String(offerId), discordUserId: session.discordUserId });
+}
+
+export async function setSearchHidden(offerId, tagIds) {
+  const session = await auth();
+  if (!session?.discordUserId) return { ok: false, reason: "You are not signed in." };
+  return setHiddenItems(prisma, {
+    offerId: String(offerId),
+    discordUserId: session.discordUserId,
+    // Capped generously rather than trusted: the real filter is the
+    // intersection against what they actually hold, done server-side.
+    tagIds: Array.isArray(tagIds) ? tagIds.slice(0, 200).map(String) : [],
+  });
 }

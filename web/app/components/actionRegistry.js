@@ -57,6 +57,7 @@ import {
   InterceptIcon,
   AttackIcon,
   KissIcon,
+  SearchPersonIcon,
   ResourcesIcon,
   BrandIcon,
   BreakRestraintsIcon,
@@ -90,6 +91,7 @@ export const ACTION_HELP = {
   move: "Forcibly move an incapacitated or Bound person. If you're a Leader, you can also move people within your own faction.",
   bind: "Tie someone up. Bound people can be looted or forcefully moved.",
   kiss: "Ask somebody for a kiss.",
+  search: "Request to search a person's inventory.",
   crucify:
     "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
   shackle: "Shackle a bound person, binding them with no chance of escape.",
@@ -372,6 +374,15 @@ export const ACTION_SECTIONS = [
         gate: "canKiss",
         gateReason: "You can't kiss right now.",
       },
+      // NO gate and NO show, the Intercept/Attack reasoning. Whether anybody
+      // standing near you would consent is a fact about the ROOM, and greying
+      // on it would be free scouting every time the page loaded — the
+      // metagaming rule at the top of this file. You find out by asking.
+      //
+      // Nothing about your own sheet refuses it either: unlike Kiss there is
+      // no capability of its own and no covered-face rule, because a hood
+      // hides who you are and not what is in your pockets (SEARCH.md §2).
+      { mode: "search", icon: SearchPersonIcon, label: "Search" },
       { mode: "free", icon: KeyIcon, label: "Free" },
       // NO gate and NO show. Laying in wait needs nothing and says nothing
       // about who is near you — the metagaming rule at the top of this file

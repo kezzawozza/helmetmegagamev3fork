@@ -20,7 +20,8 @@ history to keep, so the `AuditLog` row written on each save is the only record
 of what a watch said at the time.
 
 It carries a Location, a mode, a message, a list of typed names, two
-dragnet flags, and one filter on where an arrival came from (§2a).
+dragnet flags, one filter on where an arrival came from (§2a), and one box that
+is not about who it catches at all (§5b).
 
 **Setting or editing one is free**, whether or not your Move for the turn is
 already spent — laying in wait carries no gate of its own (Attack keeps its
@@ -287,6 +288,33 @@ meant to build.
   reset by any of that, and a Safe watch could catch the same person all
   afternoon. Keyed to the person, re-setting a watch buys nothing.
 
+### 5b. Automatically search?
+
+`autoSearch`, off by default: a watch that catches somebody also raises a
+**Search** offer against them ([`SEARCH.md`](SEARCH.md) §6). It buys the ask and
+never the answer — the consent DM is the ordinary one, No is a real answer, and
+they still get the Hide items picker first.
+
+It runs **last**, after the `InterceptHit` ration above has claimed the catch
+and after an Ambush has filed, and it skips an ambush that filed nothing
+(`hit.held`) — searching somebody you did not actually stop would be a lie, the
+same flag the victim's DM already gates on.
+
+It is **not a who**, which is why it is not a fourth chip in the dragnet row and
+why nothing subsumes or clears it: the three flags above say who this watch
+catches, and this says what happens once it has them. A watch with only this
+ticked still catches nobody, because the query at the top of `fireWatches` needs
+a who.
+
+A ration already spent by hand this turn means no offer and **no DM to the
+target** — they must not hear about a search that never happened — and a `-#`
+line under the interceptor's own catch confirmation, because silence there would
+read as a bug.
+
+`fireWatches` requires `db/lib/search.js` lazily, at call time, for the same
+reason §5a requires `attack.js` that way: that module requires this one back for
+`seenAs` / `identityOf` / `IDENTITY_SELECT`.
+
 ### 5a. An Ambush is an Attack
 
 When an Ambush fires it files an `Attack` row (`fromAmbush: true`) and that row
@@ -440,6 +468,7 @@ Nothing here is destructive, so no `restore` snapshot is owed (`REQUESTS.md` §2
 | `db/lib/escort.js` | Refuses to attach somebody being held |
 | `db/lib/attack.js` | What an Ambush actually files (`ATTACK.md`) |
 | `db/lib/dmAnswer.js` | `answerInterceptHold` — Release, shared by both faces |
+| `db/lib/search.js` | What `autoSearch` raises when a watch fires ([`SEARCH.md`](SEARCH.md)) |
 | `web/app/(app)/character/interceptActions.js` | Load, save, stop, release |
 | `web/app/components/actions/InterceptDialog.js` | The dialog |
 | `web/app/components/NameChips.js` | The typed-name token input |

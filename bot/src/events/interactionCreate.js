@@ -79,8 +79,18 @@ const {
   handleNoticePost,
   handleNoticePostSubmit,
 } = require("../lib/noticeboardPanel");
-const { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX } = require("@lifeweb/db/lib/offerRow");
-const { handleOfferAccept, handleOfferDecline } = require("../lib/offers");
+const {
+  OFFER_ACCEPT_PREFIX,
+  OFFER_DECLINE_PREFIX,
+  SEARCH_HIDE_PREFIX,
+  SEARCH_HIDE_PICK_PREFIX,
+} = require("@lifeweb/db/lib/offerRow");
+const {
+  handleOfferAccept,
+  handleOfferDecline,
+  handleSearchHideOpen,
+  handleSearchHidePick,
+} = require("../lib/offers");
 const { PENDING_TAX_DECLINE_PREFIX, PENDING_TAX_PARTIAL_PREFIX } = require("@lifeweb/db/lib/tax");
 const {
   TAX_PARTIAL_MODAL_PREFIX,
@@ -256,6 +266,13 @@ module.exports = {
         if (interaction.customId.startsWith(OFFER_DECLINE_PREFIX)) {
           return void (await handleOfferDecline(interaction, interaction.customId.slice(OFFER_DECLINE_PREFIX.length)));
         }
+        // Search's third button (docs/systemdocs/SEARCH.md §2). Arrives in the
+        // same DM as the two above, and unlike them it is NOT an answer — it
+        // opens an ephemeral picker and deliberately leaves Yes/No on the
+        // message, so this one IS acked (it does not call interaction.update).
+        if (interaction.customId.startsWith(SEARCH_HIDE_PREFIX)) {
+          return void (await handleSearchHideOpen(interaction, interaction.customId.slice(SEARCH_HIDE_PREFIX.length)));
+        }
         // Arrives in a DM on a threat spawn offer (docs/systemdocs/THREATS.md),
         // so guild/member are null — and the clicker has no character yet,
         // which is the whole point. Not acked: interaction.update() is the ack.
@@ -325,6 +342,14 @@ module.exports = {
         }
         if (interaction.customId.startsWith("heal:pick:")) {
           return void (await handleHealPick(interaction, interaction.customId.slice("heal:pick:".length)));
+        }
+        // The select inside the Hide-items ephemeral above. It updates that
+        // ephemeral, never the consent DM.
+        if (interaction.customId.startsWith(SEARCH_HIDE_PICK_PREFIX)) {
+          return void (await handleSearchHidePick(
+            interaction,
+            interaction.customId.slice(SEARCH_HIDE_PICK_PREFIX.length),
+          ));
         }
         // Answering a bird: which letter in your hands goes back.
         if (interaction.customId.startsWith(BIRD_REPLY_PICK_PREFIX)) {

@@ -27,6 +27,7 @@ import PurchaseDialog from "./PurchaseDialog";
 import HealDialog from "./HealDialog";
 import LessonDialog from "./LessonDialog";
 import KissDialog from "./KissDialog";
+import SearchDialog from "./SearchDialog";
 import TaxDialog from "./TaxDialog";
 import WriteDialog from "./WriteDialog";
 import SealDialog from "./SealDialog";
@@ -119,6 +120,7 @@ export const DIALOGS = {
   teach: LessonDialog,
   confess: LessonDialog,
   kiss: KissDialog,
+  search: SearchDialog,
   tax: TaxDialog,
   write: WriteDialog,
   seal: SealDialog,

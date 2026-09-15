@@ -172,6 +172,19 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     ...roomNow.concealed.filter((c) => c.token).map((c) => ({ id: c.token, name: c.alias, kind: "hood" })),
   ];
 
+  // SEARCH'S list (docs/systemdocs/SEARCH.md). Shaped like transferParties and
+  // for the same reason: Search is the second verb in the game that reaches a
+  // person in a hood, so it cannot use `here` — hereWhere drops concealed rows
+  // and a hood is exactly who you want to search. No self entry: you do not
+  // search yourself.
+  //
+  // Menu hygiene only. searchRequestImpl re-runs searchAuthority on whatever is
+  // posted, and acceptSearch runs it a third time on the answer.
+  const searchParties = [
+    ...roomNow.named.map((c) => ({ id: c.characterId, name: c.name })),
+    ...roomNow.concealed.filter((c) => c.token).map((c) => ({ id: c.token, name: c.alias, kind: "hood" })),
+  ];
+
   // Whether their eyes are good enough to look anybody over — Nearsighted
   // without spectacles on, Sun Sensitivity in daylight. Resolved server-side
   // so the sentence a button shows and the one examineActions.js refuses with
@@ -428,6 +441,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     zoneRoster,
     peopleParties,
     transferParties,
+    searchParties,
     examineBlocked,
     satisfied,
     canHeal,
