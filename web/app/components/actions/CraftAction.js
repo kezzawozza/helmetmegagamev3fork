@@ -13,7 +13,6 @@ import { craftFamily, moveFamilyOf } from "@/lib/tagRequests";
 // come from one place (docs/systemdocs/CRAFTING.md §2a).
 import {
   WHOLE_MOVE,
-  craftFamilyLabel,
   craftMoveCost,
   fitsInRemaining,
   formatMoveFraction,
@@ -192,10 +191,9 @@ export default function CraftAction({ presets, onDone, onClose }) {
     (cost) => {
       if (!cost || cost.kind === "free") return true;
       if (cost.kind === "capped") return false;
-      if (craftBudget && craftBudget.family !== cost.family) return false;
       return fitsInRemaining(cost, craftRemaining);
     },
-    [craftBudget, craftRemaining],
+    [craftRemaining],
   );
   const craftCost = useMemo(
     () => (mode === "craft" && chosen ? priceRecipe(chosen, craftQty) : null),
@@ -259,9 +257,6 @@ export default function CraftAction({ presets, onDone, onClose }) {
       // one-a-turn would otherwise be blamed on a Routine it never touches.
       if (cost.kind === "capped") {
         return "You've made all of those a turn allows.";
-      }
-      if (craftBudget && craftBudget.family !== cost.family) {
-        return `Your Routine is ${craftFamilyLabel(craftBudget.family)} work this turn.`;
       }
       if (!craftBudget) return "You've already used your Move this turn.";
       return "There isn't enough of your Move left for that.";
@@ -345,11 +340,10 @@ export default function CraftAction({ presets, onDone, onClose }) {
       const resourcesCost = craftRemainingResourceCost;
       const what = qty > 1 ? `${qty}× ${chosen.name}` : chosen.name;
       // What this costs of the Move, in the player's words. Three shapes: it
-      // locks the Routine to a family of work, it spends from a lock already
-      // taken, or — the new one — it spills past a free allowance into the
-      // Move. Declining crafts nothing.
+      // opens the turn's Routine, it spends from a Routine already started,
+      // or — the new one — it spills past a free allowance into the Move.
+      // Declining crafts nothing.
       const move = craftCost;
-      const family = craftFamilyLabel(move?.family);
       const share =
         move && move.num < move.den
           ? `${formatMoveFraction(move.num, move.den)} of your Move`
@@ -371,8 +365,8 @@ export default function CraftAction({ presets, onDone, onClose }) {
               ? " That counts as your day's work — no labor pay today."
               : "";
           moveLine = craftBudget
-            ? `${takes}, on top of the ${family} work you've already put this turn into.`
-            : `${takes}. It locks the rest of your Routine to ${family} work — you can keep at that until the turn is spent.${labor}`;
+            ? `${takes}, on top of what you've already put into this turn's Routine.`
+            : `${takes}. It spends your Routine for the turn — you can keep working until the Move is spent.${labor}`;
         }
       }
       if (moveLine || cost > 0) {

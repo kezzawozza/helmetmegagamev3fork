@@ -98,7 +98,8 @@ stamped by `expiryForGrant`, the tiers below it replaced.
 ## 2a. The Move budget
 
 A Routine is one Move, and crafting can now spend it in **fractions**. The
-rule is one family of work per turn, and one Move's worth of it.
+rule is one Move's worth of work per turn — and, as of 2026-09-15, that Move
+can be split across any mix of families in the same turn, not just one.
 
 **What a craft costs.**
 
@@ -134,10 +135,13 @@ generic `craft` — so EVERY recipe Move-prices by the same arithmetic (Chris
 2026-09-06). Bone-mask's ration spilling into a butcher's Move, instead of
 walling, is the one behavior this changed.
 
-A turn's Routine commits to one family. Half a Routine at the still and half
-at the anvil is not a thing, and that includes the Dead Simple pool: spill a
-work knife (`smithing`) into the Move and a sling (`crafting`) is refused for
-the rest of the turn.
+A turn's Routine can hold any mix of families now. Half a Routine at the
+still and half at the anvil is a thing — the only wall is the Move itself:
+spill a work knife (`smithing`) into the Move and a sling (`crafting`) still
+spends from the same fraction that's left, it just isn't refused for being a
+different family. (This changed 2026-09-15; before that, the first family
+billed to a turn's Routine locked out every other family for the rest of the
+turn.)
 
 **`medical` is a family too, but it is never derived — it is always passed
 explicitly.** A routine Heal or an `administerSkill`-gated Consume
@@ -145,44 +149,46 @@ explicitly.** A routine Heal or an `administerSkill`-gated Consume
 priced is an AFFLICTION or a fitted ITEM, not a recipe with
 `requirementSkills` for `craftFamily()` to read a trade prefix off — a
 skill-less cure like Choking would otherwise fall through to the generic
-`craft` family and share a Routine with actual crafting. Every medical
-caller says `family: "medical"` up front instead of asking `craftFamily` to
-guess, which is also why a Routine already committed to treating somebody
-refuses a Broadsword for the rest of the turn, same as any two families
-would.
+`craft` family and get labelled as ordinary crafting on the desk. Every
+medical caller says `family: "medical"` up front instead of asking
+`craftFamily` to guess. `family` is still tagged onto every ledger entry —
+it just no longer gates which entries a Routine may hold.
 
 **The eight medicines (`antidote`, `fever-draught`, `burn-dressing`,
 `autoinjector`, `portable-surgical-pack`, `last-breath`, `cybernetic-arm`,
 `cybernetic-leg`) are ordinary recipes now, not afflictions or fitted
 items** — they carry `requirementSkills: [brewing-skilled]` or
 `[brewing-expert]`, so `craftFamily()` derives them as `brewing` by the
-ordinary rule above, the same as any other brew. They no longer share a
-family with Heal at all: `medical` bills healing and `administerSkill`
-fittings only now, and brewing a batch of Antidote is a `brewing`-family
-craft that a Routine already spent on Healing someone would refuse, same as
-any Broadsword. One Action per character per turn still carries only one
-family, so a medic can no longer heal a patient and brew their own
-medicine in the same turn.
+ordinary rule above, the same as any other brew. `medical` still bills only
+healing and `administerSkill` fittings — brewing a batch of Antidote is a
+`brewing`-family craft — but a Routine spent Healing someone can now go on
+to brew Antidote too, the same turn, as long as the Move has room left. One
+Action per character per turn still holds only one Move, so a medic can heal
+a patient **and** brew their own medicine in the same turn now, as long as
+the two fractions together still fit in it.
 
 **The ledger.** `Action.craftBudget` on the `auto:craft` Action:
 
 ```json
-{ "family": "brewing", "usedNum": 2, "usedDen": 3,
-  "entries": [{ "tagId": "…", "name": "Alcohol", "qty": 2,
-                "num": 2, "den": 3 }] }
+{ "usedNum": 5, "usedDen": 6,
+  "entries": [{ "tagId": "…", "name": "Choking", "family": "medical",
+                "qty": 1, "num": 1, "den": 2 },
+              { "tagId": "…", "name": "Alcohol", "family": "brewing",
+                "qty": 2, "num": 2, "den": 3 }] }
 ```
 
 `usedNum/usedDen` is the running total in lowest terms; each entry carries its
-own fraction (a straddling order's free half is `qty` minus the billed
-`num`). All of it is integer arithmetic
+own family and fraction (a straddling order's free half is `qty` minus the
+billed `num`). All of it is integer arithmetic
 (`web/lib/craftBudget.js`) — three thirds have to be exactly one Move.
 
 Nothing is derived and nothing is cached: **the row is the record.** Every
 budget-consuming craft takes the Character `FOR UPDATE` row lock, re-reads the
-Action inside the transaction, re-runs the family and remainder checks there,
-and `fileAutoRoutine`'s `P2002` catch stays the backstop under even that. The
-Action's `description` is rebuilt from the entries each time one lands —
-"Crafting this turn: 2× Alcohol, 1× Cat." — so the desk reads the whole
+Action inside the transaction, re-runs the remainder check there, and
+`fileAutoRoutine`'s `P2002` catch stays the backstop under even that. The
+Action's `description` is rebuilt from the entries each time one lands,
+grouped by family so each verb stays in its own voice — "Treating this turn:
+Choking. Crafting this turn: 2× Alcohol." — so the desk reads the whole
 turn's work in one line. A project turn keeps its own "(2/3)" line, because a
 project never shares a turn.
 
@@ -192,13 +198,13 @@ player may craft again that turn from scratch. There is no Undo of a
 finished craft — a GM reversing one works by hand from the audit row (§4).
 Nothing in the turn-end push reads `craftBudget`.
 
-**The dialog** quotes all of this before the player commits: the family and
-the fraction left as a header line, cross-family and unaffordable recipes
-greyed with the reason on the row, a quantity field clamped to whichever runs
-out first (ingredients, budget, the server's 99), and a confirm that says
-which units are free and what the rest lock. Every number of it is computed
-server-side in `character/page.js` and re-checked by `craftRequest` under the
-lock — the dialog is a hint, never the gate.
+**The dialog** quotes all of this before the player commits: the fraction
+left as a header line, unaffordable recipes greyed with the reason on the
+row, a quantity field clamped to whichever runs out first (ingredients,
+budget, the server's 99), and a confirm that says which units are free and
+what the rest spend. Every number of it is computed server-side in
+`character/page.js` and re-checked by `craftRequest` under the lock — the
+dialog is a hint, never the gate.
 
 ## 2b. Recipe visibility: known vs secret
 

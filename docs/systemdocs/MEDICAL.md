@@ -112,9 +112,11 @@ guesses a family from a recipe's `requirementSkills` prefix, which works for
 an ordinary craft but would drop a skill-less cure like Choking into the
 generic `craft` family — so both `craftMoveCost` and `spendCraftMove`/the
 ledger copy take an explicit `family: "medical"` override from every caller
-that bills a heal or an administer fee. This is also why a Routine already
-committed to `medical` work refuses a Choking cure and a Broadsword in the
-same turn, same as any two families would.
+that bills a heal or an administer fee. As of 2026-09-15 a Routine's Move can
+hold any mix of families in one turn, so a Choking cure and a Broadsword can
+land in the same turn's Routine now, as long as the two fractions together
+still fit in one Move — `family` labels what an entry was, it no longer
+gates what else the turn may hold.
 
 **The free pool.** Every cure priced at `turnsCost: 0` on the cure ladder —
 first aid, bandaging, setting a simple break — is a free action, shared

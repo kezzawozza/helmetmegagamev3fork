@@ -9,7 +9,6 @@ import { blockerFor, SPEAK } from "@lifeweb/db/lib/incapacitation";
 import {
   WHOLE_MOVE,
   addFractions,
-  craftFamilyLabel,
   fitsInRemaining,
   formatMoveFraction,
   ledgerRemaining,
@@ -79,26 +78,29 @@ export function lockCharacter(tx, characterId) {
 }
 
 // --- The craft Move budget (docs/systemdocs/CRAFTING.md §2a) -----------
-// A craft under a whole Move files the same auto:craft Action every craft with turns files, writing a LEDGER (`Action.craftBudget`): family, Move spent, what was made. The row IS the record — no derive/cache, no per-craft Undo; a GM Reject hands the whole turn back with one delete.
+// A craft under a whole Move files the same auto:craft Action every craft with turns files, writing a LEDGER (`Action.craftBudget`): Move spent and what was made, one entry per family. The row IS the record — no derive/cache, no per-craft Undo; a GM Reject hands the whole turn back with one delete.
 
 export const MOVE_SPENT = "You've already used your Move this turn.";
 
-// Rebuilt from the ledger every time an entry lands, so a GM reading the desk sees the whole turn's work, not just the first thing made.
-export function craftLedgerDescription(entries) {
-  const made = entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name));
-  return `Crafting this turn: ${made.join(", ")}.`;
+function ledgerEntryList(entries) {
+  return entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name)).join(", ");
 }
 
-// Heal's ledger line (M2, TAGS.md §5c) — same shape, "Treating" is the medic's verb; spendCraftMove picks by family.
-export function healLedgerDescription(entries) {
-  const made = entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name));
-  return `Treating this turn: ${made.join(", ")}.`;
+// Rebuilt from the ledger every time an entry lands, so a GM reading the desk sees the whole turn's work, not just the first thing made. A turn's Routine can now mix families, so this groups by family and names each group with its own verb — "Treating" for medical, "Crafting" for everything else.
+export function craftLedgerDescription(entries) {
+  const healing = entries.filter((e) => e.family === "medical");
+  const crafted = entries.filter((e) => e.family !== "medical");
+  const lines = [];
+  if (crafted.length) lines.push(`Crafting this turn: ${ledgerEntryList(crafted)}.`);
+  if (healing.length) lines.push(`Treating this turn: ${ledgerEntryList(healing)}.`);
+  return lines.join(" ");
 }
 
 export function craftLedgerEntry(tag, cost) {
   return {
     tagId: tag.id,
     name: tag.name,
+    family: cost.family,
     qty: cost.freeQty + cost.billedQty, // free half of a straddling order is derivable: qty - num billed
     num: cost.num,
     den: cost.den,
@@ -120,11 +122,6 @@ export function checkCraftMove(action, need) {
   if (!(action.gmNotes ?? "").includes("auto:craft") || !action.craftBudget)
     throw new UserError(MOVE_SPENT);
   const ledger = action.craftBudget;
-  if (ledger.family !== need.family) {
-    throw new UserError(
-      `Your Routine this turn is ${craftFamilyLabel(ledger.family)} work, and that isn't.`,
-    );
-  }
   const left = ledgerRemaining(ledger);
   if (!fitsInRemaining(need, left)) {
     const asks =
@@ -181,15 +178,12 @@ export async function spendCraftMove(
   const entries = [...(ledger?.entries ?? []), entry];
   const used = addFractions(ledgerUsed(ledger), need);
   const budget = {
-    family: need.family,
     usedNum: used.num,
     usedDen: used.den,
     entries,
   };
-  // Medical shares this exact ledger (M2) but reads "Treating", not "Crafting".
-  const line =
-    description ??
-    (need.family === "medical" ? healLedgerDescription(entries) : craftLedgerDescription(entries));
+  // A turn's Routine can now mix families under one Move; craftLedgerDescription groups by family and reads "Treating" for medical, "Crafting" for the rest.
+  const line = description ?? craftLedgerDescription(entries);
   if (!existing) {
     return {
       action: await fileAutoRoutine(

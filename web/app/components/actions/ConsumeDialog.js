@@ -9,7 +9,7 @@ import { noticeLine } from "./noticeLines";
 import { useActionPools } from "./poolsContext";
 import { consumableTags } from "@/lib/tagRequests";
 import { consumeTagRequest } from "@/app/(app)/character/requestActions";
-import { craftFamilyLabel, fitsInRemaining } from "@/lib/craftBudget";
+import { fitsInRemaining } from "@/lib/craftBudget";
 
 // Consume: one of the things in your pockets that can be used up, as chips.
 // Nothing about what it leaves behind — that is the tag's own business, and
@@ -88,14 +88,10 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
             {`This costs your Move.`}
           </p>
           {craftBudget ? (
-            craftBudget.family !== "medical" ? (
-              <p className="text-xs text-accent">
-                {`Your Routine was set to ${craftFamilyLabel(craftBudget.family)}.`}
-              </p>
-            ) : !fitsInRemaining(
-                { num: 1, den: 2 },
-                { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
-              ) ? (
+            !fitsInRemaining(
+              { num: 1, den: 2 },
+              { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
+            ) ? (
               <p className="text-xs text-accent">Your Move is spent for this turn.</p>
             ) : null
           ) : hasMoved ? (

@@ -135,8 +135,9 @@ Surgical Pack plainly visible. Brewing them is a `brewing`
 craft now, billed off `craftFamily()` like any other brew (`CRAFTING.md`
 §2a); Healing a patient with a Heal request, and fitting the two prosthetics
 below with `administerSkill`, are still Medical (Expert)'s job
-(`MEDICAL.md` §2, `TAGS.md` §5c) — one Action carries one family, so a medic
-can't brew a batch and heal a patient in the same turn.
+(`MEDICAL.md` §2, `TAGS.md` §5c) — one Action carries one Move, shared
+across families since 2026-09-15, so a medic can brew a batch and heal a
+patient in the same turn, as long as both fit in the one Move.
 
 These don't fit the **Consumes into** shape above — they're `Tag.cures`
 items (`MEDICAL.md` §1), not status brews — so the last column is **Cures**

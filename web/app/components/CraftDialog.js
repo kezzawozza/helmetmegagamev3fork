@@ -3,7 +3,7 @@
 import PartySelect from "./PartySelect";
 import Select from "./Select";
 import { needsWorkshop, craftFamily } from "@/lib/tagRequests";
-import { craftFamilyLabel, formatMoveFraction } from "@/lib/craftBudget";
+import { formatMoveFraction } from "@/lib/craftBudget";
 import {
   CUSTOM_NAME_MAX,
   CUSTOM_DESCRIPTION_MAX,
@@ -256,13 +256,13 @@ export default function CraftDialog({
       ) : (
         <>
           {/* What this turn's Routine is already doing, if anything. A craft
-              Routine takes one family of work and a fraction of the Move at a
-              time, so the menu below is narrower than it looks. */}
+              spends a fraction of the Move at a time, so the menu below is
+              narrower than it looks. */}
           {budget && (
             <p className="text-xs text-accent">
               {budget.remainingNum > 0
-                ? `Your Routine this turn is ${craftFamilyLabel(budget.family)} work — ${formatMoveFraction(budget.remainingNum, budget.remainingDen)} of your Move is left.`
-                : `Your Routine this turn is spent on ${craftFamilyLabel(budget.family)} work.`}
+                ? `${formatMoveFraction(budget.remainingNum, budget.remainingDen)} of your Move is left this turn.`
+                : "Your Move is spent for this turn."}
             </p>
           )}
           {picker}
@@ -444,9 +444,7 @@ export default function CraftDialog({
                   : ""}
                 {!moveOk && moveCost?.kind !== "capped"
                   ? budget
-                    ? budget.family !== moveCost?.family
-                      ? ` Your Routine this turn is ${craftFamilyLabel(budget.family)} work, and this isn't.`
-                      : " There isn't enough of your Move left this turn."
+                    ? " There isn't enough of your Move left this turn."
                     : hasMoved
                       ? " You've already used your Move this turn."
                       : " That's more than a turn's work — make fewer at once."
