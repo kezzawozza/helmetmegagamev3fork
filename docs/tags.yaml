@@ -11762,7 +11762,7 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 3
+    equipLayer: 2
     visible: worn
     tradeable: true
     weight: 5
@@ -13313,7 +13313,7 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.93
     ballistic: 0.93
     tradeable: true
@@ -13331,7 +13331,7 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.9
     ballistic: 0.9
     tradeable: true
@@ -13359,7 +13359,7 @@ tags:
     weight: 12
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
+    equipLayer: 1
     melee: 0.75
     ballistic: 0.75
     visible: true
@@ -15007,9 +15007,11 @@ tags:
   # `forcesConceal` is the difference between a hood and a sack: with it, the
   # wearer has no say and /conceal refuses in both directions.
   #
-  # equipLayer runs 1 (against the skin) to 4 (outermost), and the OUTERMOST
-  # equipped piece is the one whose sprite shows. Two things cannot share a
-  # layer, which is what stops a character wearing three helmets at once.
+  # Headgear takes NO equipLayer: HEAD is a single slot, so one thing goes on
+  # a head and a second refuses. A mask under a helm under a hood used to be
+  # legal and is not any more. That also settles which sprite the room sees —
+  # there is only ever one concealing piece up here to ask about (see
+  # db/lib/presentedIdentity.js for the order across slots).
 
   soulbreaker-helm:
     catalog: gm
@@ -15020,7 +15022,6 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     melee: 0.6
     ballistic: 0.5
     concealsIdentity: true
@@ -15040,7 +15041,6 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     melee: 0.5
     ballistic: 0.35
     concealsIdentity: true
@@ -15061,7 +15061,6 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     melee: 0.5
     ballistic: 0.35
     concealsIdentity: true
@@ -15092,7 +15091,6 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     melee: 0.4
     ballistic: 0.28
     concealsIdentity: true
@@ -15123,7 +15121,6 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     melee: 0.45
     ballistic: 0.4
     concealsIdentity: true
@@ -15144,7 +15141,6 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     melee: 0.45
     ballistic: 0.4
     concealsIdentity: true
@@ -15165,7 +15161,6 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     melee: 0.3
     ballistic: 0.2
     concealsIdentity: true
@@ -15186,7 +15181,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     concealsIdentity: true
     concealSprite: pumpkin
     visible: worn
@@ -15261,7 +15255,6 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: HEAD
-    equipLayer: 1
     melee: 0.15
     ballistic: 0.1
     concealsIdentity: true
@@ -15282,7 +15275,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 1
     concealsIdentity: true
     forcesConceal: true
     concealSprite: plaguedoctor
@@ -15301,7 +15293,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 1
     concealsIdentity: true
     forcesConceal: true
     concealSprite: rat
@@ -15327,7 +15318,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 1
     concealsIdentity: true
     forcesConceal: true
     concealSprite: bone
@@ -15368,7 +15358,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 1
     visible: worn
     tradeable: true
     weight: 1
@@ -15394,7 +15383,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 1
     concealsIdentity: true
     forcesConceal: true
     concealSprite: balaclava
@@ -15416,7 +15404,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
     visible: worn
     tradeable: true
     weight: 1
@@ -15442,7 +15429,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
     concealsIdentity: true
     forcesConceal: true
     concealSprite: hood
@@ -15466,7 +15452,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
     concealsIdentity: true
     forcesConceal: true
     concealSprite: bag
@@ -15491,7 +15476,6 @@ tags:
     requiredTag: laboring-basic
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
     concealsIdentity: true
     concealSprite: plebhood
     visible: worn
@@ -15510,7 +15494,6 @@ tags:
     requiredTag: leper
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
     concealsIdentity: true
     concealSprite: leper
     visible: worn
@@ -15528,7 +15511,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 1
     melee: 0.25
     ballistic: 0.05
     visible: worn
@@ -15556,7 +15538,6 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: HEAD
-    equipLayer: 1
     melee: 0.25
     ballistic: 0.05
     concealsIdentity: true
@@ -15586,7 +15567,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: HEAD
-    equipLayer: 1
     concealsIdentity: true
     forcesConceal: true
     concealSprite: gas_mask
@@ -15606,7 +15586,6 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     melee: 0.35
     ballistic: 0.1
     concealsIdentity: true
@@ -15639,7 +15618,6 @@ tags:
     depotPrice: 13
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     melee: 0.35
     ballistic: 0.1
     visible: worn
@@ -15660,7 +15638,6 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     melee: 0.5
     ballistic: 0.15
     concealsIdentity: true
@@ -15691,7 +15668,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     visible: worn
     tradeable: true
     weight: 1
@@ -15707,7 +15683,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
     visible: worn
     tradeable: true
     weight: 0.5
@@ -15840,7 +15815,7 @@ tags:
     pointCost: 3
     equippable: true
     equipSlot: BODY
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.2
     ballistic: 0.1
     visible: worn
@@ -15868,7 +15843,7 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
+    equipLayer: 1
     melee: 0.45
     ballistic: 0.1
     visible: true
@@ -15897,7 +15872,7 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
+    equipLayer: 1
     melee: 0.6
     ballistic: 0.2
     visible: worn
@@ -15929,7 +15904,7 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: BODY
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.6
     ballistic: 0.2
     visible: true
@@ -15958,7 +15933,7 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: BODY
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.4
     ballistic: 0.3
     visible: true
@@ -15976,7 +15951,7 @@ tags:
     pointCost: 14
     equippable: true
     equipSlot: BODY
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.7
     ballistic: 0.25
     visible: true
@@ -16010,7 +15985,7 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: BODY
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.35
     ballistic: 0.1
     visible: true

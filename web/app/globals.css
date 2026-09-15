@@ -142,6 +142,30 @@
   --zone-caves: #939d9e;
   --zone-depths: #8f7f9c;
 
+  /* The tag code -- one token per Tag.category, the 3px rule on a .chip.
+     Colour answers a single question here ("what KIND of thing is this"),
+     and the group icon answers the finer one; before this, colour came from
+     TagGroup.color, a freeform hex per group, so a sheet was 34 stripes with
+     no key and the same hue could mean two different things.
+
+     Hues are inherited from the old per-group palette (General blue, Skills
+     green, Status amber, Health red, Items teal, Assets stone, Demoness
+     magenta), but SATURATION is cut hard -- roughly 50% down to 20-35% -- so
+     a full sheet reads as one object rather than as confetti. Mute by
+     desaturating, never by darkening: the 3.0 floor below is a LUMINANCE
+     rule, so chroma is the part that is free to spend.
+
+     FILLS ONLY, like the zone code above, and gated the same way by
+     audit-contrast.js at 3.0 against --surface rather than AA 4.5. Do not
+     set one on a label. */
+  --tag-general: #96a3bd;
+  --tag-skills: #9ab494;
+  --tag-status: #bfac84;
+  --tag-health: #c79595;
+  --tag-items: #85aeab;
+  --tag-assets: #aeaaa2;
+  --tag-demoness: #b892ae;
+
   /* The river on the /map plate. The drawn plate is flat Playscii art with
      exactly one accent in it -- #57a9bc, the water -- picked in the drawing
      program, so it followed no theme and sat wrong against the palette in all
@@ -218,6 +242,18 @@
   --zone-caves: #939d9e;
   --zone-depths: #8f7f9c;
 
+  /* Tag code -- see the dusk block. Both dark themes share one set: the two
+     surfaces are close enough in luminance that every token clears 3.0 on
+     each (worst case 5.13), and a second set would be two things to keep in
+     step for no visible gain. */
+  --tag-general: #96a3bd;
+  --tag-skills: #9ab494;
+  --tag-status: #bfac84;
+  --tag-health: #c79595;
+  --tag-items: #85aeab;
+  --tag-assets: #aeaaa2;
+  --tag-demoness: #b892ae;
+
   /* The /map river -- see the dusk block. Sunrise on the water, warm, since
      dawn is the one theme whose whole ember runs orange. */
   --map-river: #c07a3c;
@@ -289,6 +325,18 @@
   --zone-marshes: #7f8677;
   --zone-caves: #838e90;
   --zone-depths: #82728f;
+
+  /* Tag code -- see the dusk block. The dark set inverts here the way the
+     zone code does: on a near-white surface a pale muted hue has no contrast
+     left, so each token is taken down in L with its hue and its low chroma
+     held. Muted still means desaturated, not merely dark. */
+  --tag-general: #5c6880;
+  --tag-skills: #5c7358;
+  --tag-status: #786541;
+  --tag-health: #8d5757;
+  --tag-items: #48706d;
+  --tag-assets: #6e6a62;
+  --tag-demoness: #7d5672;
 
   /* The /map river -- see the dusk block. Limestone was not named when this
      was chosen; it takes dusk's teal a shade deeper, and is the one of the
@@ -1885,10 +1933,10 @@ input[type="radio"]:disabled {
    rather than degrading to plain text, so the reference still reads as one:
    you can see a paper exists and that it is not yours. */
 /* The zone chip. Colour rides on a data attribute reading a token, not an
-   inline style: ChipLabel.js sets borderLeftColor inline only because a
-   TagGroup colour is a freeform hex out of the DB with no token to name. The
-   zone set is closed and known at build time, so it belongs in the stylesheet
-   -- which is also the only way audit-contrast.js can see it. */
+   inline style. The zone set is closed and known at build time, so it belongs
+   in the stylesheet -- which is also the only way audit-contrast.js can see
+   it. The tag chip below follows the same rule now; it used to be the one
+   exception, painting a freeform TagGroup hex inline. */
 .zone-chip {
   border-left-width: 3px;
   border-left-color: var(--border);
@@ -1907,6 +1955,67 @@ input[type="radio"]:disabled {
 .zone-chip[data-zone="none"] {
   color: var(--muted);
   border-left-style: dashed;
+}
+
+/* The tag category rule -- the same mechanism as .zone-chip above, over a
+   closed set of seven Tag categories. `data-tag-category` is written by
+   ChipLabel.js, by the sheet's own rows and by the item card, all of which
+   want the same rule on a differently-shaped box, so the colour is keyed off
+   the attribute alone and each box asks for its own border width. It is
+   lower-cased at the call site, since the selector is case-sensitive and the
+   catalog stores "Items", not "items". A category with no token, or a tag
+   with no category at all, keeps the default border and loses nothing. */
+[data-tag-category="general"] { border-left-color: var(--tag-general); }
+[data-tag-category="skills"] { border-left-color: var(--tag-skills); }
+[data-tag-category="status"] { border-left-color: var(--tag-status); }
+[data-tag-category="health"] { border-left-color: var(--tag-health); }
+[data-tag-category="items"] { border-left-color: var(--tag-items); }
+[data-tag-category="assets"] { border-left-color: var(--tag-assets); }
+[data-tag-category="demoness"] { border-left-color: var(--tag-demoness); }
+
+.chip[data-tag-category] {
+  border-left-width: 3px;
+}
+
+/* The group icon, drawn inside the chip face, on a sheet row and on an item
+   card. Quiet on purpose: it is there to be told apart from its neighbours at
+   a glance, not to be looked at, so it sits at --muted and lets the name
+   carry the weight. `flex: none` because a flex item holding an SVG will
+   otherwise squash before the text does. */
+.chip-icon {
+  flex: none;
+  color: var(--muted);
+}
+
+/* ── The tag state grammar (web/app/components/TagMarks.js) ────────────────
+   One vocabulary for the mechanical states a tag can be in, drawn the same
+   way wherever a tag is drawn: worn, smells wrong, locked. It is deliberately
+   NOT a set of chip tones -- a chip is a label and .status-pill is the thing
+   that carries state -- so these ride as marks on the face rather than
+   recolouring the box. --danger stays the one tone a chip may wear.
+
+   Before this each surface improvised: the drawer wrote a bare " ·" for
+   equipped, the sheet row wrote " · worn", and nothing said "locked" at all. */
+.tag-mark {
+  flex: none;
+  color: var(--muted);
+}
+
+/* Worn is the one state worth more than muted grey: it answers "is this
+   actually on me, or just in the pack", which changes what a fight does. */
+.tag-mark[data-mark="worn"] {
+  color: var(--accent-text);
+}
+
+.tag-mark[data-mark="poison"] {
+  color: var(--danger);
+}
+
+/* A tag the reader may not have yet -- the gate, not the thing. Matches
+   .doc-chip[data-locked] above, which says the same about a paper. */
+[data-tag-locked] {
+  color: var(--muted);
+  opacity: 0.75;
 }
 
 .doc-chip {
@@ -3599,13 +3708,6 @@ input[type="radio"]:disabled {
   padding: 0.25rem 0.5rem;
 }
 
-.dev-tag-swatch {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: var(--r-sm);
-  flex: none;
-}
 
 /* ── Adjudication workspace (docs/systemdocs/ADJUDICATION.md) ───────────── */
 
@@ -9034,9 +9136,27 @@ label.chip {
   line-height: 1.25;
 }
 
+/* Flex so the group icon sits on the text's centre line rather than its
+   baseline. Same trade .chip makes: flex discards the literal spaces in the
+   markup, so the gap is what separates the name from its ×N and its marks. */
+.sheet-row-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
 .sheet-row-face:hover .sheet-row-name,
 .sheet-row[data-open="true"] .sheet-row-name {
   color: var(--accent-text);
+}
+
+/* The icon and the marks keep their own colour when the row is hovered or
+   open -- the name is what lights up, and a mark that turned accent with it
+   would stop meaning what it means. */
+.sheet-row-face:hover .chip-icon,
+.sheet-row[data-open="true"] .chip-icon {
+  color: var(--muted);
 }
 
 .sheet-row-face:focus-visible {
@@ -9054,6 +9174,82 @@ label.chip {
   font-size: var(--fs-xs);
   color: var(--muted);
   padding-right: var(--sp-1);
+}
+
+/* ── The item card (ItemCard.js) — Items and Assets only ──────────────────
+   A row that is allowed to say everything rather than one chosen value. It
+   keeps .sheet-row's separator and .sheet-row-face's category rule so the
+   inventory cards still read as part of the same rail; what it adds is a
+   second line of facts under the name. */
+.item-card {
+  border-top: 1px solid var(--border);
+}
+
+.item-card:first-child {
+  border-top: none;
+}
+
+.item-card-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 40px;
+}
+
+.item-card-face {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px var(--sp-2);
+  border-left: 3px solid var(--border);
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+}
+
+.item-card-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.item-card-face:hover .item-card-name,
+.item-card[data-open="true"] .item-card-name {
+  color: var(--accent-text);
+}
+
+.item-card-face:hover .chip-icon,
+.item-card[data-open="true"] .chip-icon {
+  color: var(--muted);
+}
+
+.item-card-face:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+/* Wraps rather than truncates: on a phone a fully-described item runs to two
+   lines, and a clipped "12 lb each · 60 l…" is worse than a taller card. */
+.item-card-facts {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.item-card-facts [data-tone="danger"] {
+  color: var(--danger);
+}
+
+/* The separator belongs to neither neighbour, so it never takes a fact's
+   tone -- a middle dot that turned red beside an expiring clock read as part
+   of the warning. */
+.item-card-sep {
+  color: var(--muted);
 }
 
 .sheet-row-value[data-tone="danger"] {

@@ -19,6 +19,10 @@ const BORDER_MIN = 1.9; // hairline vs the surface it sits on
 const NEAR_WHITE = 0.85; // relative luminance above which raised is shadow-carried
 const ZONE_MARK_MIN = 3.0; // large-graphic floor, not AA — none of the map-picked hues would clear 4.5
 const ZONE_KEYS = ["fortress", "town", "forest", "hills", "marshes", "caves", "depths"];
+// The tag code (--tag-*), one per Tag.category. Fills only, same 3.0 floor as
+// the zone code: these are deliberately desaturated, and muting spends chroma
+// rather than luminance precisely so this gate keeps holding.
+const TAG_KEYS = ["general", "skills", "status", "health", "items", "assets", "demoness"];
 
 function parseColor(value) {
   if (value.startsWith("#")) {
@@ -168,6 +172,14 @@ function main() {
       gate(
         `--zone-${key} on surface`,
         contrast(parseColor(t[`--zone-${key}`]).rgb, surface),
+        ZONE_MARK_MIN,
+      );
+    }
+
+    for (const key of TAG_KEYS) {
+      gate(
+        `--tag-${key} on surface`,
+        contrast(parseColor(t[`--tag-${key}`]).rgb, surface),
         ZONE_MARK_MIN,
       );
     }

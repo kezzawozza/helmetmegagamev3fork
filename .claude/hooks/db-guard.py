@@ -63,6 +63,9 @@ DESTRUCTIVE_SCRIPTS = {
 APPLY_ONLY_SCRIPTS = {
     "db:mirror": "db/scripts/ops/mirror.js",
     "db:import-zones": "db/scripts/ops/import-zones.js",
+    # Unequips gear on live characters after the HEAD/BODY slot collapse.
+    # Bare, it only reports who is over the new limit.
+    "db:collapse-equip-slots": "db/scripts/ops/collapse-equip-slots.js",
 }
 
 CONFIRM_TOKEN = "CONFIRMED=1"

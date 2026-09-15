@@ -133,7 +133,7 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
                   <div className="mono text-xs text-muted">{t.slug}</div>
                 </td>
                 <td className="mono text-sm">{t.category}</td>
-                <td className="text-sm" style={t.groupColor ? { color: t.groupColor } : undefined}>{t.groupName ?? "—"}</td>
+                <td className="text-sm">{t.groupName ?? "—"}</td>
                 <td className="mono text-sm" style={{ color: costColor(t.pointCost) }}>
                   {formatCost(t.pointCost)}
                 </td>

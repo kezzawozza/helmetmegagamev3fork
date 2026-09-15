@@ -10,7 +10,7 @@ import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { formatTagArmor } from "@/lib/formatTagArmor";
 import { formatTagWeight } from "@/lib/formatTagWeight";
 import { chainTokens } from "@/lib/tagChains";
-import { SLOT_TITLES } from "@lifeweb/db/lib/equipSlots";
+import { SLOT_TITLES, LAYER_NAMES } from "@lifeweb/db/lib/equipSlots";
 import PaperSheet from "./PaperSheet";
 
 // The read-only detail sheet behind a row click on the Tag Catalog: the full
@@ -48,18 +48,34 @@ function Row({ label, children }) {
   );
 }
 
-// `tags` (see page.js) ships a flattened `groupColor`, not the `group.color`
-// TagChip/ChipLabel expect — the detail sheet's rows are hand-picked columns,
-// not a full Tag row. This adapts it rather than widening that query, since
-// nothing else here needs the rest of the group relation.
-function withGroupColor(tag) {
-  return { name: tag.name, group: tag.groupColor ? { color: tag.groupColor } : null };
+// ChipLabel reads `category` for its rule and `group.slug` for its icon; the
+// detail sheet's rows are hand-picked columns rather than full Tag rows, so
+// this hands over just those two rather than widening that query.
+function chipShape(tag) {
+  return { name: tag.name, category: tag.category ?? null, group: tag.group ?? null };
+}
+
+// "Worn: body · over · two hands" — where a piece of kit sits, for the chip
+// row. Null for anything that is not worn.
+//
+// The row title rather than the raw enum, since the off hand folded into the
+// hands and `equipSlot.toLowerCase()` would read "weapon" under a shield; and
+// the layer's NAME rather than its number, since "layer 2" meant nothing
+// without this table open beside you — and the numbers moved anyway when HEAD
+// stopped being layered.
+function wornLabel(tag) {
+  if (!tag.equipSlot) return null;
+  const where = (SLOT_TITLES[tag.equipSlot] ?? tag.equipSlot).toLowerCase();
+  const layer = LAYER_NAMES[tag.equipSlot]?.[(tag.equipLayer ?? 0) - 1];
+  return [`Worn: ${where}`, layer?.toLowerCase(), tag.twoHanded ? "two hands" : null]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function TagButton({ tag, onOpen }) {
   return (
     <button type="button" className="btn-quiet" onClick={() => onOpen(tag)}>
-      <ChipLabel tag={withGroupColor(tag)} />
+      <ChipLabel tag={chipShape(tag)} />
     </button>
   );
 }
@@ -144,12 +160,7 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
     // Both are worth a chip rather than a fold — "which helmet slot is this?"
     // is the question a GM building kit actually asks.
     tag.concealSprite ? `Conceal sprite: ${tag.concealSprite}` : null,
-    tag.equipSlot
-      // The row title the sheet itself uses, not the raw enum: since the off
-      // hand folded into the hands, `equipSlot.toLowerCase()` would have read
-      // "weapon" under a shield.
-      ? `Worn: ${(SLOT_TITLES[tag.equipSlot] ?? tag.equipSlot).toLowerCase()}${tag.equipLayer ? ` · layer ${tag.equipLayer}` : ""}${tag.twoHanded ? " · two hands" : ""}`
-      : null,
+    wornLabel(tag),
     // This sheet is the GM's door onto a tag, so it carries the raw numbers
     // the word scale hides everywhere else — tuning a piece of gear against
     // "Sufficient" would be guesswork.
@@ -168,7 +179,7 @@ export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {
         <div className="doc-sheet-head mb-0 flex items-start justify-between gap-3">
           <div>
             <h2 className="section-title flex items-center gap-2">
-              <ChipLabel tag={withGroupColor(tag)} />
+              <ChipLabel tag={chipShape(tag)} />
               <span className="text-base" style={{ color: costColor(tag.pointCost) }}>
                 {formatCost(tag.pointCost)}
               </span>

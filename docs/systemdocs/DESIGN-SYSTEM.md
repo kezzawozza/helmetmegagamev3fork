@@ -73,6 +73,23 @@ Three things about the token set are load-bearing and easy to undo by accident:
   them there would only force them off the map's palette. Three of the twelve
   values deviate from the map for contrast and say so in a comment; do not
   restore them. See [`GAMEMASTERS.md`](GAMEMASTERS.md) §3.
+- **The tag code is fills only, and says CATEGORY.** `--tag-general` /
+  `--tag-skills` / `--tag-status` / `--tag-health` / `--tag-items` /
+  `--tag-assets` / `--tag-demoness`, one per `Tag.category`, declared per
+  theme and gated at **3.0** exactly like the zone code above. They are the
+  rule down the left of a `.chip`, a sheet row or an item card, keyed off a
+  `data-tag-category` attribute, and never a text colour.
+  **They are deliberately desaturated** — around 20–35% where the values they
+  replaced ran 45–57%. Mute by spending CHROMA, never luminance: the 3.0 floor
+  is a luminance rule, so desaturating leaves it intact while taking the glare
+  off. A sheet is forty tags at once, and forty bright stripes read as
+  confetti.
+  The finer distinction — which `TagGroup` — is carried by an **icon**
+  (`web/lib/tagIcons.js`, rendered through `TagIcon.js`), not by a second
+  colour. That split replaced a freeform per-group hex out of the database on
+  2026-09-15; `ChipLabel.js` painting that hex inline used to be the one
+  documented exception to "colour rides on a token", and there is no exception
+  now. Do not give a group a colour.
 - **Each theme names its own `color-scheme`.** A handful of controls are drawn
   by the browser, not by `globals.css` — the unchecked checkbox, the date
   picker's calendar glyph and popup, the search field's clear button, the
@@ -235,6 +252,13 @@ Five things about these are load-bearing:
   not. And **a count is neither.** `N unread`, `N awaiting`, `5/17 solved` are
   numbers, not states: they run together as one muted text line beside the
   chips, so a header has a first thing to read instead of six equal bubbles.
+  A third corollary, from the tag work: **a state a tag is in rides as a MARK
+  on the face, not as a tone.** Worn, smells wrong and locked are one
+  vocabulary in `TagMarks.js`, drawn identically on a chip, a sheet row and an
+  item card — glyphs where it is tight, words where there is room — and
+  `danger` stays the only tone `.chip` has. Each surface used to improvise its
+  own: the chat drawer appended a bare `·` for equipped, the sheet row wrote
+  `· worn`, and a player learning one learned nothing about the next.
 - **`StatusPill` takes a tone, not a colour.** Callers say what a state *means*
   and the stylesheet decides how that looks, so a status cannot reach for a
   colour the themes have not solved. Per-domain label maps stay local — a

@@ -5,6 +5,9 @@ import {
 } from "@/lib/tagRequests";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { canonicalCategory } from "@/lib/sheetCards";
+// The one weight rule, shared with the server (db/lib/tagWeight.js). Display
+// only here; the cap is still settled server-side.
+import { tagWeightLbs } from "@/lib/formatTagWeight";
 
 // THE THINGS DRAWER's rows. Verbs are the SHEET's own predicates off the
 // catalog (TAGS.md §5) via web/lib/tagRequests.js; each re-checks server-side when pressed.
@@ -16,17 +19,6 @@ import { canonicalCategory } from "@/lib/sheetCards";
 // Destroy, and its weight absent from the total. The rows are backfilled now;
 // folding here is what stops the next slip being invisible again.
 const GROUPS = ["Items", "Assets"];
-
-// Spells db/lib/carry.js#rowWeight a second time (this module is in the
-// CLIENT bundle) — keep the two in step with CARRY.md §1; display only, cap settled server-side.
-const WEIGHTLESS_CATEGORY = "Assets";
-
-function rowWeightLbs(ct) {
-  const tag = ct?.tag;
-  if (!tag?.tradeable) return 0;
-  if (canonicalCategory(tag.category) === WEIGHTLESS_CATEGORY) return 0;
-  return Math.round((tag.weightLbs ?? 0) * (ct.quantity ?? 1) * 100) / 100;
-}
 
 // The four verbs for every pocket at once. RowVerbs.js and the drawer below both read this.
 export function thingVerbSets(characterTags = []) {
@@ -66,7 +58,7 @@ export function thingGroups(characterTags = [], composeTag = (tag) => tag) {
       // A partly-equipped stack can offer both Equip (reserve left) and Unequip (some already out).
       equippableRemaining: (ct.quantity ?? 1) - (ct.equippedQuantity ?? 0),
       equippedQuantity: ct.equippedQuantity ?? 0,
-      weightLbs: rowWeightLbs(ct),
+      weightLbs: tagWeightLbs(ct.tag, ct.quantity ?? 1),
       ...thingVerbs(ct, sets),
       poisonMarker: canSmellPoison && (ct.poisonedCount ?? 0) > 0,
     }))

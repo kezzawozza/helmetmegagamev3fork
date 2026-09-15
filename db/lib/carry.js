@@ -1,8 +1,7 @@
 // Carry caps, the Overburdened status and the overflow drop (CARRY.md).
 // A character carries two loads against two caps: POUNDS of gear against
 // GameConfig.carryWeightLbs, and ⬢ against carryResourceCap. Both are moved by the SUM of every carryBonus they hold. Over a cap is allowed and grants `overburdened`; over 1.5× it is not allowed at all, and whatever pushed them there is set down where they stand.
-// The pure half at the top has no prisma and no I/O, so a client component can import
-// it for a "7 / 10 items" readout without dragging the barrel into the browser bundle (ARCHITECTURE.md §2). settleCarry below is the stateful half: pull-based and post-commit, same posture as roomAccess.js#syncCharacterRoomAccess, since the writers that change what a character holds are many and scattered (ten bypass tagWrites.js with raw deleteMany) and a push from any one would miss the rest.
+// NOT client-importable, despite the pure-looking maths at the top: the requires below reach Prisma (./tagWrites) and Discord (./dm, ./roomAnnounce), so any path into this file drags the barrel into the browser bundle (ARCHITECTURE.md §2). A client component wanting a weight reads db/lib/tagWeight.js, which is zero-require for exactly this reason. settleCarry below is the stateful half: pull-based and post-commit, same posture as roomAccess.js#syncCharacterRoomAccess, since the writers that change what a character holds are many and scattered (ten bypass tagWrites.js with raw deleteMany) and a push from any one would miss the rest.
 // Takes `prisma` as a parameter and stays OFF the @lifeweb/db barrel — db/index.js's turn engine imports this, so requiring the barrel back would resolve to a partial exports object. Require it by path.
 const { OVERBURDENED_SLUG } = require("./constants");
 const { addToStack, dropCharacterTag, addToRoomStack } = require("./tagWrites");
@@ -10,6 +9,7 @@ const { moveParty } = require("./resourceTransfer");
 const { pickRandomPublicRoom, formatManifest } = require("./roomStash");
 const { announceInRoom } = require("./roomAnnounce");
 const { sendDm } = require("./dm");
+const { rowWeight, round2 } = require("./tagWeight");
 
 // The combined bonus is carried ×1000 as an integer so the sum of several
 // two-decimal bonuses stays exact, never a float epsilon.
@@ -20,9 +20,6 @@ const MIN_MILLI = 250;
 
 // How far past a cap a character may go before the goods simply cannot be theirs. Between 1× and this they're Overburdened; past it, an acquisition is refused and an involuntary gain is set down on the spot.
 const HARD_CAP_RATIO = 1.5;
-
-// The category (Tag.category holds the DISPLAY name, not the YAML slug — syncTags.js) whose tags never weigh on your back. A horse carries itself, a cart rolls, a house doesn't move at all.
-const WEIGHTLESS_CATEGORY = "Assets";
 
 // Does this row's carryBonus count right now? A vehicle has to be in your hands — an
 // unequipped Cart is parked and hauls nothing. A body doesn't — Pack Mule, Frail and a broken rib aren't `equippable` at all. Testing `equippable` rather than listing slugs keeps the rule in the catalog where the rest of a tag's behaviour lives.
@@ -49,21 +46,13 @@ function carryBreakdown(characterTags = []) {
   }));
 }
 
-// What one row weighs. Assets are exempt entirely; anything untradeable is part of you rather than cargo (a graft in your neck), and so are skills, injuries and statuses, which carry no weight in the catalog anyway.
-function rowWeight(ct) {
-  const tag = ct?.tag;
-  if (!tag?.tradeable) return 0;
-  if (tag.category === WEIGHTLESS_CATEGORY) return 0;
-  return (tag.weightLbs ?? 0) * (ct.quantity ?? 1);
-}
-
-// What counts against the weight cap, in pounds.
+// What counts against the weight cap, in pounds. rowWeight is db/lib/tagWeight.js's, shared with the browser so a readout and the cap can never disagree.
 function carryWeight(characterTags = []) {
   let lbs = 0;
   for (const ct of characterTags ?? []) lbs += rowWeight(ct);
   // Weights are authored to one decimal, so round the sum rather than let
   // float noise show a player "83.99999 lb".
-  return Math.round(lbs * 100) / 100;
+  return round2(lbs);
 }
 
 function carryCaps(config, milli = MULT_SCALE) {

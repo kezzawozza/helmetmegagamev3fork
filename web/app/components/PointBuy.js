@@ -23,6 +23,7 @@ import {
 } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { formatTagArmor } from "@/lib/formatTagArmor";
+import { TAG_GROUP_ICONS } from "@/lib/tagIcons";
 import ChipText from "./ChipText";
 import ChipLabel from "./ChipLabel";
 import CheckField from "./CheckField";
@@ -408,7 +409,7 @@ export default function PointBuy({
   // (Name, Cost) skip the headers entirely — a header over a cost-sorted
   // list would repeat itself every other row.
   const sections = useMemo(() => {
-    if (sortMode !== "group") return [{ key: "flat", name: null, color: null, tags: visible }];
+    if (sortMode !== "group") return [{ key: "flat", name: null, tags: visible }];
     const map = new Map();
     for (const tag of visible) {
       const key = tag.group?.slug ?? "__other";
@@ -416,7 +417,6 @@ export default function PointBuy({
         map.set(key, {
           key,
           name: tag.group?.name ?? "Other",
-          color: tag.group?.color ?? null,
           tags: [],
         });
       }
@@ -553,22 +553,21 @@ export default function PointBuy({
           {/* The catalog scrolls itself rather than growing the page — the
               build pane must stay reachable however long Items gets. */}
           <div className="flex flex-col gap-3 overflow-y-auto pr-1" style={{ maxHeight: "62vh" }}>
-            {sections.map((section) => (
+            {sections.map((section) => {
+              const GroupIcon = TAG_GROUP_ICONS[section.key] ?? null;
+              return (
               <div key={section.key} className="flex flex-col gap-2">
                 {section.name && (
                   <div
                     className="sticky top-0 z-[1] flex items-center gap-2 py-1 text-xs font-bold uppercase tracking-wide text-muted"
                     style={{ background: "var(--bg)" }}
                   >
-                    {/* TagGroup.color is a freeform hex out of the DB, used
-                        raw — same as TagChip.js. */}
-                    {section.color && (
-                      <span
-                        aria-hidden="true"
-                        className="inline-block h-3 w-1 rounded-sm"
-                        style={{ background: section.color }}
-                      />
-                    )}
+                    {/* The group's own icon (web/lib/tagIcons.js), where a
+                        freeform colour swatch used to be. The swatch went
+                        with TagGroup.color: colour means CATEGORY now, and
+                        every tag under this header shares one, so a swatch
+                        here would repeat the card's rule and say nothing. */}
+                    {GroupIcon && <GroupIcon size={12} aria-hidden="true" />}
                     {section.name}
                     <span className="font-normal normal-case">({section.tags.length})</span>
                   </div>
@@ -579,7 +578,8 @@ export default function PointBuy({
                     built in play, through the Add Tag request. */}
                 <ul className="flex flex-col gap-2">{section.tags.map(rowFor)}</ul>
               </div>
-            ))}
+              );
+            })}
 
             {visible.length === 0 && (
               <p className="text-sm text-muted">

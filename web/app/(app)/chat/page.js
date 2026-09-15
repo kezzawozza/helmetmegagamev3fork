@@ -240,7 +240,6 @@ async function FreshChat({ userId }) {
                         select: {
                           slug: true,
                           name: true,
-                          color: true,
                           requiredTagId: true,
                           requiredTag: { select: { name: true } },
                         },

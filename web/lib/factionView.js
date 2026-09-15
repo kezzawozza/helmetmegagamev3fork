@@ -39,7 +39,7 @@ export async function loadFaction(factionId) {
                   name: true,
                   description: true,
                   mastery: true,
-                  group: { select: { color: true } },
+                  group: { select: { slug: true } },
                   weightLbs: true,
                   meleeArmor: true,
                   ballisticArmor: true,

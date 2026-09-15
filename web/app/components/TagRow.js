@@ -1,10 +1,13 @@
 "use client";
 
 import TagDetails from "./TagDetails";
+import TagMarks from "./TagMarks";
+import TagIcon from "./TagIcon";
 
-// One tag as a line in the rail: the group's colour rule on the left, the
-// name, a stack count, and a right-aligned value the card chose — turns left,
-// pounds, the armour word, a carry bonus (web/lib/sheetCards.js#rowValue).
+// One tag as a line in the rail: the category's colour rule on the left, the
+// group's icon, the name, a stack count, and a right-aligned value the card
+// chose — turns left, pounds, the armour word, a carry bonus
+// (web/lib/sheetCards.js#rowValue).
 // A note under the name is the card's second line (Health's "→ Festering ·
 // cure …"). Clicking the row opens the tag's full details inline beneath it,
 // the same block TagChip shows on hover elsewhere. No hover, no tooltip.
@@ -23,7 +26,7 @@ export default function TagRow({
 }) {
   const tag = ct.tag;
   const stack = (ct.quantity ?? 1) > 1 ? ct.quantity : null;
-  const groupColor = tag.group?.color ?? null;
+  const category = tag.category ? String(tag.category).toLowerCase() : null;
 
   return (
     <li className="sheet-row" data-open={open ? "true" : undefined}>
@@ -33,17 +36,15 @@ export default function TagRow({
           className="sheet-row-face"
           aria-expanded={open}
           onClick={onToggle}
-          style={groupColor ? { borderLeftColor: groupColor } : undefined}
+          data-tag-category={category ?? undefined}
         >
           <span className="sheet-row-name">
+            <TagIcon tag={tag} size={12} />
             {tag.name}
             {stack && <span className="text-muted"> ×{stack}</span>}
-            {worn && <span className="text-muted"> · worn</span>}
-            {/* "· smells wrong" (M4) — already a stripped, gated boolean by
-                the time it reaches here (character/page.js): present ONLY
-                when this row is actually poisoned AND this viewer holds
-                poison-sense or a poison-snooper. */}
-            {Boolean(ct.poisonMarker) && <span className="text-muted"> · smells wrong</span>}
+            {/* The shared state vocabulary (TagMarks.js) — spelled out here
+                rather than glyphed, because a row has the width for it. */}
+            <TagMarks worn={worn} poison={Boolean(ct.poisonMarker)} />
           </span>
           {note && <span className="sheet-row-note">{note}</span>}
         </button>
