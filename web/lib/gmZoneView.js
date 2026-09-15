@@ -18,7 +18,7 @@ export const getVisibleZones = cache(async () => {
 
 export const listSelectableZones = cache(async () => {
   const zones = await prisma.zone.findMany({
-    where: { gmRoleId: { not: null } },
+    where: { gmRoleId: { not: null }, retiredAt: null },
     select: { id: true, name: true },
   });
   return sortZones(zones);

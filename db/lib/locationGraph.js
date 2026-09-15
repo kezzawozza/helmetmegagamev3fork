@@ -173,7 +173,7 @@ async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS, { thro
   // One query for the whole graph — ~56 Locations and a few dozen edges, so paying per-hop for linksFor() would be more round trips than rows.
   const [links, locations] = await Promise.all([
     prisma.locationLink.findMany({ select: { aId: true, bId: true, hidden: true } }),
-    prisma.location.findMany({ select: { id: true, slug: true, name: true, discordChannelId: true } }),
+    prisma.location.findMany({ where: { retiredAt: null }, select: { id: true, slug: true, name: true, discordChannelId: true } }),
   ]);
 
   const byId = new Map(locations.map((loc) => [loc.id, loc]));

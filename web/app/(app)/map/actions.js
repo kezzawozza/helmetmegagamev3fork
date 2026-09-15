@@ -68,6 +68,7 @@ async function buildMap({ character, unfogged }) {
 
   const [locations, links, config, openTurn, currentZone] = await Promise.all([
     prisma.location.findMany({
+      where: { retiredAt: null },
       select: {
         id: true,
         slug: true,
@@ -227,7 +228,7 @@ async function roomsInside(prisma, character, unfogged, stoodIds) {
 
   const [rooms, keys, conversations] = await Promise.all([
     prisma.room.findMany({
-      where: ids ? { locationId: { in: ids } } : {},
+      where: { retiredAt: null, ...(ids ? { locationId: { in: ids } } : {}) },
       select: { id: true, name: true, kind: true, locationId: true, accessTagSlugs: true, sortOrder: true },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     }),

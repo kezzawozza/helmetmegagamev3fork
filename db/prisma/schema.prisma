@@ -1037,6 +1037,12 @@ model Zone {
   mapLabelX  Float?
   mapLabelY  Float?
 
+  // Soft-retire, set from /gm/dev/zones. A retired zone drops out of every
+  // picker, travel graph, the map and the mirror's desired state — the
+  // mirror never deletes, so its Discord footprint (if any was ever built)
+  // is left for a human to clean up. Null means live. See db/lib/placeDeletable.js.
+  retiredAt DateTime?
+
   locations        Location[]
   factions         Faction[]         @relation("FactionHomeZone")
   characters       Character[]
@@ -1295,6 +1301,9 @@ model Location {
   zoneId String
   zone   Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
+  // See Zone.retiredAt — same soft-retire, same reason.
+  retiredAt DateTime?
+
   // Both halves of the undirected travel graph. Never read directly: go
   // through db/lib/locationGraph.js, which normalises the two sides into one
   // neighbour list and applies each link's gating.
@@ -1522,6 +1531,9 @@ model Room {
 
   locationId String
   location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  // See Zone.retiredAt — same soft-retire, same reason.
+  retiredAt DateTime?
 
   // Tag slugs, any of which admits a character to a PRIVATE room. Slugs, not
   // FKs, because the room is authored against docs/tags.yaml's fixed

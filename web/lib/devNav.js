@@ -6,6 +6,7 @@ export const DEV_PAGES = [
   { key: "characters", href: "/gm/dev/characters", label: "Characters" },
   { key: "factions", href: "/gm/dev/factions", label: "Factions" },
   { key: "tags", href: "/gm/dev/tags", label: "Tags" },
+  { key: "zones", href: "/gm/dev/zones", label: "Zones" },
 ];
 
 // What OpsNav's fourth group offers: everywhere but the panel you are on.

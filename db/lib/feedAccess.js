@@ -170,7 +170,7 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
 
   const [rooms, keys, conversations, scrying] = await Promise.all([
     prisma.room.findMany({
-      where: { locationId: location.id },
+      where: { locationId: location.id, retiredAt: null },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
       select: { id: true, name: true, description: true, kind: true, accessTagSlugs: true },
     }),
@@ -310,7 +310,7 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId, zoneSta
         select: { id: true, name: true, description: true },
       }),
       prisma.room.findMany({
-        where: { locationId },
+        where: { locationId, retiredAt: null },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
         select: { id: true, name: true, description: true, kind: true, accessTagSlugs: true },
       }),
@@ -422,6 +422,7 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
   // would draw a row that opens nothing. Its two levels carry the places.
   const zoneWhere = {
     kind: { not: "CAVE_GROUP" },
+    retiredAt: null,
     ...(zoneIds ? { id: { in: zoneIds } } : {}),
   };
 
@@ -441,6 +442,7 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
       description: true,
       discordSummaryChannelId: true,
       locations: {
+        where: { retiredAt: null },
         orderBy: { name: "asc" },
         select: {
           id: true,
@@ -448,7 +450,7 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
           description: true,
           attributes: true, // for hasNoticeboard below — a JSON blob, not a join
           rooms: {
-            ...(privateRooms ? {} : { where: { kind: "PUBLIC" } }),
+            where: { retiredAt: null, ...(privateRooms ? {} : { kind: "PUBLIC" }) },
             orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
             select: { id: true, name: true, description: true, kind: true },
           },
