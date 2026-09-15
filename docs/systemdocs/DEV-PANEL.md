@@ -790,3 +790,49 @@ behind subtly wrong odds for a month. `updateDepot` returns the error and the
 form says which column is wrong.
 
 See `docs/systemdocs/DEPOT.md` §0f for the shipped table.
+
+## Zones
+
+`/gm/dev/zones` — the place editor. Any GM can edit a Zone, Location or Room;
+retiring, hard-deleting and seeding a stash are superadmin-only, checked with
+`requireDev("super")`. See `docs/systemdocs/SYNC.md`'s new top note for why
+this exists instead of another pass of `docs/zones.yaml`.
+
+Pages:
+
+| Page | What's on it |
+|---|---|
+| `zones/page.js` | Every Zone, its mirror status ("mirrored" once `discordCategoryId` is set, else "pending"), reorder arrows, and a Create form |
+| `zones/[zoneId]/page.js` | The Zone's own fields (name, kind, sort order, description, map polygon) and its Locations |
+| `zones/locations/[locationId]/page.js` | The Location's fields, its `LocationYield` bases (the live `current` coefficient is read-only — it drifts on its own every turn close), its Rooms, and its travel links |
+| `zones/links/page.js` | Every `LocationLink` in the game. `isOpen` is shown read-only — it's play state, only `authoredOpen` is edited here |
+| `zones/rooms/[roomId]/page.js` | The Room's fields and its stash: existing `RoomTag` rows (read-only quantities — those move by play, not by this form) plus a **Seed these items now** box that writes new rows and appends to `seededStashSlugs` |
+
+Rules the editor enforces, all server-side in `zones/actions.js`:
+
+- **Slug is set at creation and never editable again.** It's `placeKey`,
+  archive keys, and every YAML reference. Slugs are one namespace across
+  Zone, Location and Room (`db/lib/placeValidation.js`).
+- **Rename goes through a confirm dialog** — it also renames the live
+  Discord object on the next mirror pass, which is a bigger deal than most
+  edits here.
+- **Every save posts back the row's `updatedAt`.** A stale write (someone
+  else changed it since the page loaded) is refused with "Someone else
+  changed this; reload and try again" rather than silently overwritten.
+- **Delete is soft by default.** Retire stamps `retiredAt`, which drops the
+  place out of every picker, the travel graph, the map and the mirror's
+  desired state — the mirror never deletes anything on its own, so a
+  retired place's Discord footprint (if it had one) just sits there for a
+  human to clean up. It's refused outright if a living character is
+  standing there.
+- **Hard delete is the other button**, superadmin-only, and refused with the
+  exact list of what's still pointing at the place (`db/lib/placeDeletable.js`'s
+  `hardDeleteBlockers`) — never a cascade.
+- **Every write enqueues the touched place for the mirror**
+  (`enqueueMirror`, `db/lib/discordMirror/queue.js`) and writes one
+  `AuditLog` row. Discord catches up on the next drain; the page doesn't
+  wait for it.
+
+Not yet built: a Location's `attributes` map (still `docs/zones.yaml`-only —
+see `db/lib/locationAttributes.js`) and a visual map-polygon editor (the
+textarea takes raw `[[x,y],…]` JSON, 0-100).

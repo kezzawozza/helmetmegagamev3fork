@@ -58,7 +58,7 @@ async function handleTravelOpen(interaction) {
   let shut = [];
   if (!character.locationId) {
     destinations = await prisma.location.findMany({
-      where: { zone: { kind: { not: "CAVE_GROUP" } } },
+      where: { retiredAt: null, zone: { kind: { not: "CAVE_GROUP" } } },
       include: { zone: true },
     });
     destinations.sort(

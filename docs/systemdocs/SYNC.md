@@ -1,12 +1,23 @@
 # YAML masters and the sync scripts
 
-Six hand-edited YAML files under `docs/` are the sole source of truth for
-their tables. Each has a sync that reconciles the database to it. The six look
-alike and **differ on every axis that matters**, which is the reason for this
-page.
+**Places moved off this page.** Zone, Location and Room are now authored on
+`/gm/dev/zones` (`docs/systemdocs/DEV-PANEL.md` §Zones), not in
+`docs/zones.yaml`. `db:sync-zones` used to be destructive — a dropped row
+lost its Discord footprint and everything in it — and that's exactly the
+kind of accident an admin UI with a soft retire is meant to stop happening
+again. `docs/zones.yaml` still exists on disk, and a later change turns
+`db:sync-zones` into a one-shot, additive `db:import-zones` (create missing
+rows, skip existing, never delete) for standing a game up the first time.
+Until that lands, treat the `docs/zones.yaml` row below as history, not
+instruction — don't hand-edit it expecting a sync to pick it up.
 
-There is deliberately **no admin UI** for any of this. Editing the YAML and
-running the sync is the only way these rows change.
+The remaining five hand-edited YAML files under `docs/` are the sole source
+of truth for their tables. Each has a sync that reconciles the database to
+it. They look alike and **differ on every axis that matters**, which is the
+reason for this page.
+
+There is deliberately **no admin UI** for any of these five. Editing the
+YAML and running the sync is the only way their rows change.
 
 ## 1. The six at a glance
 

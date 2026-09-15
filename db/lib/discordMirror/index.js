@@ -34,9 +34,9 @@ const { runSweeps } = require("./sweeps");
 // Everything desired.js needs, in as few queries as it takes.
 async function loadRows(prisma) {
   const [zones, locations, rooms, config] = await Promise.all([
-    prisma.zone.findMany({ orderBy: { sortOrder: "asc" } }),
-    prisma.location.findMany({ orderBy: { sortOrder: "asc" } }),
-    prisma.room.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.zone.findMany({ where: { retiredAt: null }, orderBy: { sortOrder: "asc" } }),
+    prisma.location.findMany({ where: { retiredAt: null }, orderBy: { sortOrder: "asc" } }),
+    prisma.room.findMany({ where: { retiredAt: null }, orderBy: { sortOrder: "asc" } }),
     // Upsert, not findUnique — an empty database (LOCAL_MODE's first run, or a
     // fresh Postgres nobody has synced yet) has no GameConfig row at all, and
     // an adopt op that tries to write one of its columns back would throw
