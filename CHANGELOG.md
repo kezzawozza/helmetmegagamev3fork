@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · The intercom draws full size and bold on web now, not as scenery
+
+✎ The intercom announcement used to render in Chat as tiny grey scenery text, the same as a gate crossing or a smell. It now shows bold and at regular size, matching how loud it already was on Discord
+
 ## 2026-09-15 · A soul reborn mid-close no longer pays upkeep for a turn it never lived
 
 
