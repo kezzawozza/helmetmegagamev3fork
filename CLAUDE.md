@@ -351,6 +351,13 @@ npm run db:doctor                    # the channel doctor: diffs Discord roles/
                                      #   `-- --full` for overwrites + threads.
                                      #   Also runs cheap+apply on every bot
                                      #   start. See CHANNELS.md.
+npm run db:mirror                    # the Discord mirror: treats the DB as the
+                                     #   master and lists everything the guild
+                                     #   does not match. READ-ONLY for now —
+                                     #   `-- --apply` is accepted and inert.
+                                     #   `-- --full` adds the per-member
+                                     #   sweeps, `-- --json` for a script.
+                                     #   See CHANNELS.md 6a.
 npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
                                      #   DRY RUN unless given `-- --apply`.
 npm run db:convert-lecturers         # one-off: moves everyone off the retired

@@ -812,6 +812,31 @@ Every check is independently caught and the whole run is persisted as a
 answer to the old wipe-time complaint: instead of hoping every removal in a
 hundred-call loop lands, a miss becomes visible and repairable.
 
+## 6a. The Discord mirror (Phase 0)
+
+`db/lib/discordMirror/` is the start of a reconciler that treats the database
+as the master and Discord as a picture of it. It reads the rows, takes one
+snapshot of the guild, and hands back an ordered list of everything that does
+not match — roles first, then categories, then channels, then Room threads and
+anchors. Where the channel doctor reports missing structure and tells you to go
+run `db:sync-zones`, the mirror is the thing that will one day build it.
+
+Today it only looks. `npm run db:mirror` is a dry run, `-- --apply` is accepted
+and does nothing, and the "Preview mirror" button on `/gm/dev?s=reports`
+(superadmin) shows the same list in the browser. Every run lands as a
+`SystemReport` with `kind: MIRROR`. Against a world `db:sync-zones` has just
+finished with, it should report nothing at all — that agreement is what Phase 0
+exists to prove before the mirror is allowed to write.
+
+The one rule worth knowing before touching it: **it adopts by name before it
+creates anything.** A channel the database has forgotten the id of, but which
+is still sitting in the guild under the right name in the right category, is
+adopted rather than cut a second time — which is what makes a run safe to kill
+halfway through. Two channels of the same name is nobody's guess to make, so
+that becomes a `mirror-ambiguous` finding and no create. Adoption compares
+Discord's version of a name, not ours (`live.js#normalizeChannelName`): ask for
+"The Old Mill" and Discord stores "the-old-mill".
+
 ## 7. Special channels (`#cerberon`, `#27.065`)
 
 Standing channels outside the zone system, under one `radio` category (id on

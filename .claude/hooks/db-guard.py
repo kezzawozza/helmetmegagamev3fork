@@ -55,6 +55,12 @@ DESTRUCTIVE_SCRIPTS = {
     "db:prune-stale-channels": "db/scripts/ops/prune-stale-channels.js",
 }
 
+# NOT listed above, deliberately: `db:mirror` (db/scripts/ops/mirror.js) only
+# reads in Phase 0 — `--apply` is accepted and inert — so guarding it would
+# force CONFIRMED=1 onto a read-only preview, which is the habit this file's
+# header warns against. Add it the moment Phase 1 makes --apply real, since it
+# will then create, rename and reparent live Discord objects.
+
 CONFIRM_TOKEN = "CONFIRMED=1"
 
 

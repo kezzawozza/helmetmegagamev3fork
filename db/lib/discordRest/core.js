@@ -121,6 +121,14 @@ function recordInvalidResponse(status, path) {
   }
 }
 
+// A read-only peek at the breaker, for a caller that walks a long sequential
+// list and wants to stop rather than keep hammering a guild that is already
+// refusing us. getInvalidResponseStats() answers the same question with a whole
+// report attached; this is the one bit of it.
+function breakerIsOpen() {
+  return Date.now() < breakerOpenUntil;
+}
+
 function getInvalidResponseStats() {
   const now = Date.now();
   pruneInvalid(now);
@@ -285,6 +293,7 @@ async function discordRequest(
 
 module.exports = {
   discordRequest,
+  breakerIsOpen,
   discordError,
   getInvalidResponseStats,
   attachBreakerStore,

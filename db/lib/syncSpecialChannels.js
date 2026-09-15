@@ -147,4 +147,6 @@ async function syncSpecialChannels(prisma) {
   return stats;
 }
 
-module.exports = { syncSpecialChannels };
+// CATEGORY_NAME is exported for db/lib/discordMirror/desired.js — the mirror
+// must name the Radio category the same way this does or it would cut a second.
+module.exports = { syncSpecialChannels, CATEGORY_NAME };

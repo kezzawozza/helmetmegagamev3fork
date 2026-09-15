@@ -35,6 +35,7 @@
     "db:sync-deploy": "node db/scripts/sync/sync-tags.js && node db/scripts/sync/sync-desires.js && node db/scripts/sync/sync-documents.js && node db/scripts/sync/sync-labor-drops.js",
     "db:rebuild-info-channel": "node db/scripts/sync/rebuild-info-channel.js",
     "db:doctor": "node db/scripts/ops/doctor.js",
+    "db:mirror": "node db/scripts/ops/mirror.js",
     "db:backfill-economy": "node db/scripts/ops/backfill-economy.js",
     "db:prune-tags": "node db/scripts/ops/prune-tags.js",
     "db:convert-lecturers": "node db/scripts/ops/convert-lecturers.js",

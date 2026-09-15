@@ -243,4 +243,10 @@ module.exports = {
   DEADCHAT_ALLOW,
   DEADCHAT_DENY,
   CHANNEL_NAME: CHANNEL_NAME,
+  // Read by db/lib/discordMirror/desired.js, so the mirror describes this room
+  // from the same three strings that provision it.
+  CATEGORY_NAME,
+  CHANNEL_TOPIC,
+  GM_ALLOW,
+  GM_DENY,
 };

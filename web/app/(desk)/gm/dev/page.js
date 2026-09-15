@@ -49,6 +49,7 @@ import RitesPanel from "@/app/(app)/gm/dev/threats/RitesPanel";
 import BulkActions from "./BulkActions";
 import AmbientForm from "./AmbientForm";
 import InactivePanel from "./InactivePanel";
+import MirrorPreview from "./MirrorPreview";
 import { RITES, riteByKey } from "@lifeweb/db/lib/rites";
 import { ensureRiteWords } from "@lifeweb/db/lib/riteWords";
 import { listObjectives, locationEligible, membersByParty } from "@lifeweb/db/lib/objectives";
@@ -1208,6 +1209,18 @@ export default async function DevPanelPage({ searchParams }) {
                   </form>
                 ) : null}
               </div>
+              {/* The Discord mirror, still read-only. Host access, like Repair
+                  above it: the panel it previews is the one that will rewrite
+                  the guild in Phase 1, and the action re-checks the tier. */}
+              {isMaster ? (
+                <>
+                  <div className="ops-section-head">
+                    <h2 className="section-title">Discord mirror</h2>
+                  </div>
+                  <MirrorPreview />
+                </>
+              ) : null}
+
               <div>
                 {[...latestByKind.values()].map((report) => (
                   <div key={report.id} className="ops-report">

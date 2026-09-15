@@ -28,6 +28,7 @@ import {
   syncLaborDropsFromYaml,
 } from "@lifeweb/db";
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
+import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
 import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
 import { pickTurnBanner, nextTurnBanner } from "@lifeweb/db/lib/turnBanner";
 import { requireDev } from "@/lib/devAccess";
@@ -887,6 +888,42 @@ export async function runDoctorAction(formData) {
 
   revalidatePath("/gm/dev");
   return { ok: true };
+}
+
+// The Discord mirror, in preview. It only ever looks: db/lib/discordMirror
+// compares what the database says the world is against what the guild actually
+// holds, and hands back the list of things that do not match. Phase 0 runs no
+// Discord writes at all, so this is safe to press.
+//
+// Synchronous rather than in after(), unlike the doctor: a preview nobody can
+// read is not a preview. It still writes its SystemReport, so the row is there
+// afterwards either way.
+export async function previewMirrorAction(input) {
+  const session = await requireDev("super");
+  const scope = String(input?.scope ?? "") === "full" ? "full" : "structure";
+
+  try {
+    const result = await runDiscordMirror(prisma, {
+      apply: false,
+      scope,
+      actorDiscordUserId: session.discordUserId,
+    });
+    return {
+      ok: true,
+      scope,
+      ops: result.ops.map((op) => ({
+        order: op.order,
+        kind: op.kind,
+        targetType: op.targetType,
+        targetId: op.targetId,
+        reason: op.reason,
+      })),
+      findings: result.findings.map((f) => ({ check: f.check, target: f.target, problem: f.problem })),
+    };
+  } catch (err) {
+    console.error("Discord mirror preview failed:", err);
+    return { ok: false, error: err?.message ?? "The mirror could not read the guild." };
+  }
 }
 
 // --- Bulk actions -----------------------------------------------------

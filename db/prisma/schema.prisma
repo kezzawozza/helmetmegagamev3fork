@@ -111,6 +111,7 @@ enum SystemReportKind {
   DOCTOR
   DAWN_WIPE
   BULK_MOVE
+  MIRROR
 }
 
 enum TurnStatus {

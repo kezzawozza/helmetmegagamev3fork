@@ -18,6 +18,7 @@ const webhooks = require("./discordRest/webhooks");
 module.exports = {
   discordRequest: core.discordRequest,
   getInvalidResponseStats: core.getInvalidResponseStats,
+  breakerIsOpen: core.breakerIsOpen,
   attachBreakerStore: core.attachBreakerStore,
   loadBreakerState: core.loadBreakerState,
   recordInvalidResponse: core.recordInvalidResponse,
