@@ -321,6 +321,16 @@ const TURN_PASSES = [
 const RESUME_LEASE_MS = 30 * 60 * 1000;
 
 async function resolveNeeds(turn, config) {
+  // First statement, before any pass runs — same idiom as the message-wipe
+  // cutoff. A soul can arrive mid-close (Metempsychosis, fired from
+  // stagedPush/dyingDeath/ascension/nukeExplosion/catatonicDeath/xom — see
+  // db/lib/characterDeath.js) and be ALIVE in time for a later pass in this
+  // same run to find them. hunger/horseUpkeep pass this to exclude anyone
+  // born after it: neither writes a per-character ledger row, so a charge
+  // billed to a body that wasn't alive for the turn would leave no trace to
+  // find it by.
+  const passRunStartedAt = new Date();
+
   // Passes already applied — non-empty only when a previous advance died
   // part-way through. See Turn.resolvedPasses in the schema.
   const done = new Set(
@@ -952,7 +962,7 @@ async function resolveNeeds(turn, config) {
   // a character who cannot afford the 1 ⬢ pays nothing and keeps the animal.
   let horseUpkeep = null;
   if (!done.has("horseUpkeep")) {
-    horseUpkeep = await runHorseUpkeepPass(prisma, turn).catch(async (err) => {
+    horseUpkeep = await runHorseUpkeepPass(prisma, turn, { bornBefore: passRunStartedAt }).catch(async (err) => {
       await passFailed("Horse upkeep", err);
       return null;
     });
@@ -976,7 +986,7 @@ async function resolveNeeds(turn, config) {
   // db/lib/hungerPass.js.
   let hunger = null;
   if (!done.has("hunger")) {
-    hunger = await runHungerPass(prisma, turn).catch(async (err) => {
+    hunger = await runHungerPass(prisma, turn, { bornBefore: passRunStartedAt }).catch(async (err) => {
       await passFailed("Hunger", err);
       return null;
     });

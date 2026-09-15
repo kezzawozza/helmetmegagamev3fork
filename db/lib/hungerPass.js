@@ -31,7 +31,7 @@ function hungerDm(notice) {
 const DYING_DM =
   "You haven't eaten in 6 turns straight. Your body is giving out — you're **Dying**. A GM will decide what happens next.";
 
-async function runHungerPass(prisma, turn) {
+async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   const tags = await prisma.tag.findMany({
     where: {
       slug: {
@@ -70,7 +70,11 @@ async function runHungerPass(prisma, turn) {
   // A noble's dinner is no longer this pass's business: skipping it costs
   // a mood hit at the mood pass instead (db/lib/moodPass.js, the `dined` marker).
   const gateIds = [hungerlessId, fastMetabolismId, ateMealId].filter(Boolean);
+  // A character born mid-close (see db/index.js#resolveNeeds) wasn't alive
+  // for the turn that's closing — exclude them from this run's bill rather
+  // than charge a body for a day it never had.
   const characters = await alivePassCharacters(prisma, {
+    where: bornBefore ? { createdAt: { lt: bornBefore } } : undefined,
     select: {
       id: true,
       discordUserId: true,
