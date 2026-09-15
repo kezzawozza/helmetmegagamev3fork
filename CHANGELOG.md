@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Muffled shouts garble the same everywhere
+
+✎ A shout heard from two places away now blanks the same letters on Discord and the web, so comparing the two no longer fills in the gaps
+
 ## 2026-09-15 · Dungeons and the Shackle button
 
 ✎ Dungeons stand in the Cathedral, the Garrison and the Lifeweb; nobody can build them  

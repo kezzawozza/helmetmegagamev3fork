@@ -24,13 +24,17 @@ const MUFFLE_BY_DISTANCE = [0, 0, 0.4];
 // The line one Location gets. `viaName` is the hearer's own neighbour toward the noise, null only at distance 0. `shouterName`/`muffled` are distance-0 facts, ignored elsewhere, riding in an options bag so the three-argument calls elsewhere stay honest.
 // Distance 0 is FULL SIZE, everything beyond is `-#` subtext — the same split /play already makes: a shout in your own street is not scenery.
 function shoutLine(text, distance, viaName, options = {}) {
-  const parts = shoutParts(text, distance, viaName, options);
+  return renderShout(shoutParts(text, distance, viaName, options), distance);
+}
+
+// Discord's rendering of parts already built. shout() rolls the static ONCE per Location and renders the Discord line from those same parts, so Discord and Chat blank the same letters — two different rolls let a reader who sees both faces fill in each other's gaps.
+function renderShout(parts, distance) {
   if (distance === 0) return parts.text;
   return ambientLine(parts.text, parts.lines);
 }
 
 // The same line as STRUCTURE rather than Discord formatting: `{ text, lines }`, exactly what ambientLine takes. db/lib/scene.js needs the pieces, not the rendered string, since a scene row deliberately stores no `-#` (the web draws a SYSTEM row as subtext itself).
-// The muffling is re-rolled per call, so the archived copy is not character-for-character the Discord copy — deliberate: neither is canonical to diff against.
+// The muffling is random per call — call it once per audience and render both faces from the result (renderShout).
 function shoutParts(text, distance, viaName, { shouterName = null, muffled = false } = {}) {
   if (distance === 0) {
     // No name is the FALLBACK, not a special case: a failed identity load leaves the anonymous line standing, erring toward hiding somebody visible rather than the reverse.
@@ -160,24 +164,25 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   const shouterName = await loadShouterName(prisma, character.id);
 
   // The room you are standing in, rendered once, named and told about the walls if any.
-  const here = {
-    line: shoutLine(body, 0, null, { shouterName, muffled }),
-    scene: shoutParts(body, 0, null, { shouterName, muffled }),
-  };
+  const hereScene = shoutParts(body, 0, null, { shouterName, muffled });
+  const here = { line: renderShout(hereScene, 0), scene: hereScene };
 
   // WHO hears it, before the cooldown is claimed: a turned-away shout must not cost five minutes of throat. Skipped when soundproof (nowhere for the BFS to go); a gag asks the same BFS for just its origin (maxHops 0).
   const range = sealed ? [] : await soundRange(prisma, character.locationId, gagged ? 0 : undefined);
-  const heard = range.map((place) => ({
-    locationId: place.locationId,
-    placeKey: placeKeyForLocation(place.locationId),
-    name: place.name,
-    discordChannelId: place.discordChannelId,
-    distance: place.distance,
-    viaName: place.viaName,
-    line: shoutLine(body, place.distance, place.viaName, { shouterName, muffled }),
-    // For db/lib/scene.js, which stores the pieces, not the rendering.
-    scene: shoutParts(body, place.distance, place.viaName, { shouterName, muffled }),
-  }));
+  const heard = range.map((place) => {
+    // Rolled once: `scene` (db/lib/scene.js, Chat) and `line` (Discord) carry the same static.
+    const scene = shoutParts(body, place.distance, place.viaName, { shouterName, muffled });
+    return {
+      locationId: place.locationId,
+      placeKey: placeKeyForLocation(place.locationId),
+      name: place.name,
+      discordChannelId: place.discordChannelId,
+      distance: place.distance,
+      viaName: place.viaName,
+      line: renderShout(scene, place.distance),
+      scene,
+    };
+  });
 
   // Nobody at all is worth saying rather than "you shout" into a void, still ahead of the cooldown claim. The `!muffled` guard is load-bearing: a soundproof room empties `heard` by design and would otherwise refuse every muffled shout.
   if (!muffled && heard.length === 0) return { ok: false, error: "There's nobody here to hear it." };
@@ -248,6 +253,7 @@ async function deliverShout(prisma, { placeKey, here, heard = [] } = {}) {
 module.exports = {
   shoutLine,
   shoutParts,
+  renderShout,
   shouterNameFor,
   shoutAudience,
   shout,

@@ -656,9 +656,10 @@ than as audible: a privacy feature fails **shut**, and a missing name line is
 the cheaper mistake. The post also passes `allowedMentions: { parse: [] }`,
 because the line now carries player text and "@everyone" is a plain word no
 mention-stripper catches. The leak is rolled once per tick and handed to both the Discord post and
-Chat's scene row, unlike the shout, which re-rolls its static per call:
-re-rolling here would pick different fragments for each face, which is two
-leaks rather than one thing heard twice.
+Chat's scene row, and so is a faraway shout's static (`db/lib/shout.js#
+renderShout`): re-rolling per face would blank or pick different letters on
+each, which is two leaks rather than one thing heard twice — a reader who
+sees both could fill in the gaps.
 
 **Who's here?** names the characters standing in the Location: the concealed
 ones only as what a stranger could tell at a glance, and anyone wearing a
