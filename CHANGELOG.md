@@ -6,10 +6,6 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
-## 2026-09-15 · Farweb's recipes are written down in the docs, for reference
-
-✎ Every furnace dish, brew, mushroom powder, craft and forge recipe from the open-sourced Farweb, in docs/farweb-recipes.md. Reference only; nothing in the game changes
-
 ## 2026-09-15 · The bot recovers on its own from a broken Discord login
 
 ✎ Metempsychosis's description now tells a respawned player what they keep and what they lose  
