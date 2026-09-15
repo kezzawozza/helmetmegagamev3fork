@@ -18,6 +18,10 @@ const FEED_ROW_SELECT = {
   content: true,
   sentAt: true,
   source: true,
+  // Carries no identity, just "scene"/"intercom"/etc — safe on every row,
+  // hooded or not. What SystemRow (web/app/(app)/chat/Feed.js) reads to draw
+  // the intercom bold and full size instead of as ordinary muted scenery.
+  channelKind: true,
   editedAt: true,
   deletedAt: true,
 };
@@ -45,6 +49,7 @@ function feedRowShape(row, extra = {}) {
     content: row.content ?? "",
     sentAt: row.sentAt ? new Date(row.sentAt).toISOString() : null,
     source: row.source ?? "DISCORD",
+    channelKind: row.channelKind ?? null,
     editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
     deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
     ...rest,

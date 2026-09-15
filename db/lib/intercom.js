@@ -58,11 +58,13 @@ async function broadcastIntercom(prisma, text) {
       console.error(`Intercom broadcast to ${zone.name} failed:`, err.message ?? err);
     }
     // ONE ROW PER ZONE, not one for the broadcast — a zone feed can only show a row filed against its
-    // own place key. The @here is Discord's alone, not part of what was said.
+    // own place key. The @here is Discord's alone, not part of what was said. channelKind: "intercom"
+    // is what tells Feed.js this is a loudspeaker, not scenery — see db/lib/scene.js.
     await sceneLineAt(prisma, {
       zoneId: zone.id,
       text: content.replace(/^@here\s+/, ""),
       signed: false,
+      channelKind: "intercom",
     });
   }
   return { sent, failed };

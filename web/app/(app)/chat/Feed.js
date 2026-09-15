@@ -101,9 +101,15 @@ function timeLabel(iso) {
 // What the world says, rather than what a person says: an arrival, a smell, a
 // turret, the turn line. Drawn as subtext with no face, the same way Discord
 // renders the `-#` these lines go out as (db/lib/ambientLine.js).
+//
+// The intercom is the one SYSTEM row that isn't scenery — it's a loudspeaker
+// (db/lib/intercom.js, CLAUDE.md "Bot message style"), tagged with
+// `channelKind: "intercom"` in db/lib/scene.js precisely so this can tell it
+// apart and draw it full size and bold instead of small and muted.
 const SystemRow = memo(function SystemRow({ row }) {
+  const intercom = row.channelKind === "intercom";
   return (
-    <li className="chat-subtext" data-seq={row.seq ?? undefined}>
+    <li className={intercom ? "chat-intercom" : "chat-subtext"} data-seq={row.seq ?? undefined}>
       <ChatMarkdown content={row.content} />
     </li>
   );

@@ -23,7 +23,16 @@ const {
 
 // `text` is the line; `lines` are quoted extras under it, taking the same `»`
 // ambientLine gives them. `signed` is accepted for callers but does nothing.
-async function sceneLine(prisma, { placeKey, text, lines = [], signed = true } = {}) {
+//
+// `channelKind` defaults to "scene" — ordinary scenery, drawn as `.chat-subtext`
+// (CHAT.md §5). The intercom is the one caller that passes "intercom" instead:
+// db/lib/intercom.js is deliberately NOT ambientLine (CLAUDE.md "Bot message
+// style" — a PA is a loudspeaker, not scenery, full size on Discord), and
+// without a distinct channelKind here the web side had no way to tell its row
+// apart from a gate crossing or a smell, so Feed.js drew both the same way —
+// small and muted. Feed.js checks this value to draw an intercom row bold and
+// at regular size instead.
+async function sceneLine(prisma, { placeKey, text, lines = [], signed = true, channelKind = "scene" } = {}) {
   if (!placeKey) return null;
 
   const body = [
@@ -45,7 +54,7 @@ async function sceneLine(prisma, { placeKey, text, lines = [], signed = true } =
       zoneName: context.zoneName,
       threadName: context.threadName,
       // Not "location"/"summary": nobody typed this into a channel.
-      channelKind: "scene",
+      channelKind,
     });
   } catch (err) {
     console.error("Scene line failed:", err.message ?? err);

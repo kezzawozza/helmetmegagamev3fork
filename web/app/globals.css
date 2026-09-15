@@ -7021,6 +7021,18 @@ label.chip {
   padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
+/* The intercom (db/lib/intercom.js) — a loudspeaker, not scenery, so it does
+   NOT get the muted subtext treatment above. Full size and bold, same
+   weight-first idea as Discord's own @here: the loudest notice Discord has
+   should not render as the quietest text on the page. Still wears no face —
+   it's the PA, not a person — so it keeps chat-subtext's face-gutter indent. */
+.chat-intercom {
+  font-size: var(--fs-base);
+  font-weight: 700;
+  margin-top: var(--sp-2);
+  padding-left: calc(var(--chat-face) + var(--sp-3));
+}
+
 /* The scroller and the jump-to-bottom pill. The wrapper exists only to give
    the pill something to be positioned against. */
 .chat-feed-wrap {
@@ -7796,7 +7808,8 @@ label.chip {
     padding-right: var(--sp-3);
   }
 
-  .chat-subtext {
+  .chat-subtext,
+  .chat-intercom {
     padding-left: 0;
   }
 
