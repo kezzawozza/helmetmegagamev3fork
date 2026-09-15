@@ -4,6 +4,8 @@
 const SPECIAL_CHANNELS = [
   {
     slug: "cerberon",
+    // What the web calls it. The slug stays lowercase because it is the Discord channel name.
+    name: "Cerberon",
     configKey: "cerberonChannelId",
     categoryConfigKey: "radioCategoryId",
     topic: "The Cerberon's radio net. Bracelets receive; the Censor's system speaks.",
@@ -20,6 +22,7 @@ const SPECIAL_CHANNELS = [
   },
   {
     slug: "27.065",
+    name: "27.065",
     configKey: "freq27065ChannelId",
     categoryConfigKey: "radioCategoryId",
     topic:

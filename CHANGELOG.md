@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · The Cerberon radio is capitalized in the web's place list
+
+✎ The radio nets show a display name on the web; their Discord channel names stay lowercase as Discord requires
+
 ## 2026-09-15 · Deadchat catches up on Discord, and a dead GM can speak there
 
 ✎ Web messages typed before Deadchat had a Discord channel are posted on the bot's next start; the outbox drains again after the mirror has built anything  

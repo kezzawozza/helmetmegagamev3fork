@@ -132,7 +132,7 @@ async function netPlacesFor(prisma, characterId) {
       place({
         placeKey: placeKeyForNet(entry.slug),
         kind: "net",
-        name: entry.slug,
+        name: entry.name ?? entry.slug,
         description: entry.topic ?? "",
         canSpeak: Boolean(grant.send),
       }),
@@ -531,7 +531,7 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
       place({
         placeKey: placeKeyForNet(entry.slug),
         kind: "net",
-        name: entry.slug,
+        name: entry.name ?? entry.slug,
         description: entry.topic ?? "",
         canSpeak: false,
       }),
