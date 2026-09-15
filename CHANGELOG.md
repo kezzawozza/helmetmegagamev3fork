@@ -6,6 +6,9 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · The Tribune seat no longer runs out
+
+
 ## 2026-09-15 · The website is the master copy of the world now, and Discord mirrors it
 
 ✎ Zones, locations, rooms, links and stashes are edited live on /gm/dev/zones. The old zones sync is gone; zones.yaml is only an importer that adds what is missing and never deletes  
