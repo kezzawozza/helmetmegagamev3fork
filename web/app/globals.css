@@ -5792,10 +5792,10 @@ label.chip {
 /* A scrolling box of check rows rather than a native <select multiple>, which
    offered no search, no second line per row and no way to see what you had
    picked without scrolling it. Capped rather than page-length — whatever sits
-   beside it has to stay on screen while you scroll the list. Bulk actions'
-   roster and the quest gates (GatePicker.js) both wear it; a call site that
-   needs a shorter box passes an inline max-height, which beats this rule
-   because unlayered CSS outranks Tailwind's @layer utilities. */
+   beside it has to stay on screen while you scroll the list. Everything that
+   ticks a set wears it now, through one component (CheckPicker.js); a call
+   site that needs a shorter box passes an inline max-height, which beats this
+   rule because unlayered CSS outranks Tailwind's @layer utilities. */
 .check-picker {
   max-height: 22rem;
   overflow-y: auto;

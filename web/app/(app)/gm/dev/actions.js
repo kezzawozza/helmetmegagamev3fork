@@ -64,7 +64,7 @@ const GM_LETTER_MAX = 2000;
 // The three faction-editing actions below (create/edit, delete, assign
 // member) all touch the same three surfaces on the way out.
 function revalidateFactionSurfaces() {
-  revalidatePath("/gm/dev/factions");
+  revalidatePath("/gm/dev");
   revalidatePath("/faction");
   revalidatePath("/gm/players", "layout");
 }
@@ -1421,20 +1421,35 @@ export async function sendAmbientLine(input) {
 // reply window, the one-reply claim and the reply picker for free — see
 // docs/systemdocs/BIRD.md §9 for the three places it branches from a player's
 // Bird, and why.
-// `prevState` first: the form reads the result through useActionState, since
-// a fire-and-forget <form action={...}> has nowhere to report a refusal to.
-export async function sendGmLetter(_prevState, formData) {
+//
+// Plural because the Dev Panel's Letter verb sits on the same picker every
+// other bulk verb uses: one sender, one seal, one body, N sheets — a
+// proclamation nailed to N windows. Nothing in §9 is per-sender or global (the
+// paper is MINTED per recipient, the reply window is arrivalTurn + 1 for
+// everyone, the one-reply claim is per BirdMessage), so the batch is the single
+// send in a loop with nothing shared between iterations but the text.
+const GM_LETTER_MAX_RECIPIENTS = 200;
+
+export async function sendGmLetters(input) {
   const session = await requireDev("gm");
 
-  const senderName = str(formData, "senderName").trim().slice(0, 80);
-  const recipientId = str(formData, "recipientId");
-  const body = str(formData, "body").trim().slice(0, GM_LETTER_MAX);
-  const sealed = str(formData, "sealed") === "on";
-  const sealLabelText = str(formData, "sealLabel").trim().slice(0, 40);
-  const sealMarkText = str(formData, "sealMark").trim().slice(0, 200);
+  const recipientIds = (Array.isArray(input?.recipientIds) ? input.recipientIds : [])
+    .map(String)
+    .filter(Boolean);
+  const senderName = String(input?.senderName ?? "").trim().slice(0, 80);
+  const body = String(input?.body ?? "").trim().slice(0, GM_LETTER_MAX);
+  const sealed = Boolean(input?.sealed);
+  const sealLabelText = String(input?.sealLabel ?? "").trim().slice(0, 40);
+  const sealMarkText = String(input?.sealMark ?? "").trim().slice(0, 200);
 
+  // Everything that can refuse the whole batch refuses it HERE, before a single
+  // letter is minted. A run that gets half way and then discovers the seal has
+  // no name has already written to somebody's sheet.
   if (!senderName) return { ok: false, error: "Say who it's from." };
-  if (!recipientId) return { ok: false, error: "Pick who it's for." };
+  if (recipientIds.length === 0) return { ok: false, error: "Pick who it's for." };
+  if (recipientIds.length > GM_LETTER_MAX_RECIPIENTS) {
+    return { ok: false, error: `That's more than ${GM_LETTER_MAX_RECIPIENTS} letters in one go.` };
+  }
   if (!body) return { ok: false, error: "Write something first." };
   if (sealed && !sealLabelText) return { ok: false, error: "Name the seal. It goes in the letter's title." };
   if (sealed && !sealMarkText) return { ok: false, error: "Say what the wax carries." };
@@ -1444,90 +1459,133 @@ export async function sendGmLetter(_prevState, formData) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (!openTurn) return { ok: false, error: "No turn is open. The bird waits for one." };
 
-  const recipient = await prisma.character.findUnique({
-    where: { id: recipientId },
+  const recipients = await prisma.character.findMany({
+    where: { id: { in: recipientIds } },
     include: { tags: { include: { tag: true } } },
   });
-  if (!recipient) return { ok: false, error: "No such character." };
-  // Unlike the picker, which lists the dead too (BIRD.md §2 — a list of the
-  // living is a casualty report), the SEND refuses. A letter to a corpse would
-  // mint paper onto a sheet nobody reads.
-  if (recipient.status !== "ALIVE") return { ok: false, error: "They're past reading it." };
+  if (recipients.length === 0) return { ok: false, error: "No such character." };
 
-  const canReply = canReadLetters(recipient.tags);
+  const sent = [];
+  const skipped = [];
+  const failed = [];
+  let mute = 0;
 
-  let letter = null;
-  let birdMessageId = null;
-  await prisma.$transaction(async (tx) => {
-    letter = await mintLetterFor(tx, recipient.id, senderName, body);
-    if (sealed) letter = await sealWithMark(tx, letter, { label: sealLabelText, mark: sealMarkText });
+  // Sequential, and one transaction PER recipient — never one across the batch.
+  // A hundred-character transaction holds a row lock against each of those
+  // players' own equip taps for as long as it runs (DEV-PANEL.md §9). One
+  // recipient's failure is theirs alone for the same reason.
+  for (const recipient of recipients) {
+    // Unlike the picker, which lists the dead too (BIRD.md §2 — a list of the
+    // living is a casualty report), the SEND skips them. A letter to a corpse
+    // would mint paper onto a sheet nobody reads. Named rather than silent, and
+    // it does not take the rest of the batch down with it.
+    if (recipient.status !== "ALIVE") {
+      skipped.push(recipient.name);
+      continue;
+    }
 
-    const row = await tx.birdMessage.create({
-      data: {
-        // No sender Character — that is the whole loosening the gm_letters
-        // migration bought.
-        senderId: null,
+    const canReply = canReadLetters(recipient.tags);
+    let letter = null;
+    let birdMessageId = null;
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        letter = await mintLetterFor(tx, recipient.id, senderName, body);
+        if (sealed) letter = await sealWithMark(tx, letter, { label: sealLabelText, mark: sealMarkText });
+
+        const row = await tx.birdMessage.create({
+          data: {
+            // No sender Character — that is the whole loosening the gm_letters
+            // migration bought.
+            senderId: null,
+            senderName,
+            gmSenderDiscordUserId: session.discordUserId,
+            recipientId: recipient.id,
+            recipientName: recipient.name,
+            recipientDiscordUserId: recipient.discordUserId ?? null,
+            // No zone guess. A GM already knows where everyone is standing, and
+            // a GM letter reaches the Depths, which no bird will fly to.
+            guessedZoneId: null,
+            guessedZoneName: null,
+            tagId: letter.id,
+            tagName: letter.name,
+            body: sealed ? null : body,
+            delivered: true,
+            arrivalTurnId: openTurn.id,
+            replyDeadlineTurn: openTurn.number + 1,
+          },
+        });
+        birdMessageId = row.id;
+
+        await tx.auditLog.create({
+          data: {
+            actorDiscordUserId: session.discordUserId,
+            actionType: "gm_send_letter",
+            targetCharacterId: recipient.id,
+            // The letter IS the record, the same call the player Bird makes.
+            reason: sealed ? `Sealed: ${letter.name}` : body.slice(0, MAX_REASON_LENGTH),
+            details: { birdMessageId: row.id, senderName, sealed, tagId: letter.id, tagName: letter.name },
+          },
+        });
+      });
+    } catch {
+      failed.push(recipient.name);
+      continue;
+    }
+
+    // Post-commit: a DM must never hold up or undo the write (ARCHITECTURE.md
+    // §5). One row on the recipient's thread — the desk keys a conversation on
+    // the PLAYER's id, so that is where a GM reads the exchange back. `content`
+    // stays what the player actually received; the letter itself rides in meta,
+    // and DmThread.js renders the card from that.
+    notifyCharacter(recipient, deliveryDm({ senderName, letterName: letter.name }), {
+      authorDiscordUserId: session.discordUserId,
+      components: canReply ? replyButtonRow(birdMessageId) : undefined,
+      source: GM_LETTER_SOURCE,
+      meta: {
+        birdMessageId,
         senderName,
-        gmSenderDiscordUserId: session.discordUserId,
-        recipientId: recipient.id,
-        recipientName: recipient.name,
-        recipientDiscordUserId: recipient.discordUserId ?? null,
-        // No zone guess. A GM already knows where everyone is standing, and a
-        // GM letter reaches the Depths, which no bird will fly to.
-        guessedZoneId: null,
-        guessedZoneName: null,
-        tagId: letter.id,
-        tagName: letter.name,
-        body: sealed ? null : body,
-        delivered: true,
-        arrivalTurnId: openTurn.id,
-        replyDeadlineTurn: openTurn.number + 1,
+        letterName: letter.name,
+        letterBody: body,
+        sealed,
+        sealMark: sealed ? sealMarkText : null,
+        // What makes the letter answerable on the web, the same descriptor the
+        // player Bird writes (db/lib/dmActions.js). Only where Discord gets a
+        // Reply button, so the two faces offer the same thing.
+        ...(canReply ? dmAction(DM_ACTION.BIRD_REPLY, birdMessageId) : {}),
       },
     });
-    birdMessageId = row.id;
 
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: session.discordUserId,
-        actionType: "gm_send_letter",
-        targetCharacterId: recipient.id,
-        // The letter IS the record, the same call the player Bird makes.
-        reason: sealed ? `Sealed: ${letter.name}` : body.slice(0, MAX_REASON_LENGTH),
-        details: { birdMessageId: row.id, senderName, sealed, tagId: letter.id, tagName: letter.name },
-      },
-    });
-  });
+    sent.push({ id: recipient.id, name: recipient.name, letterName: letter.name, canReply });
+    if (!canReply) mute += 1;
+  }
 
-  // Post-commit: a DM must never hold up or undo the write (ARCHITECTURE.md
-  // §5). One row on the recipient's thread — the desk keys a conversation on
-  // the PLAYER's id, so that is where a GM reads the exchange back. `content`
-  // stays what the player actually received; the letter itself rides in meta,
-  // and DmThread.js renders the card from that.
-  notifyCharacter(recipient, deliveryDm({ senderName, letterName: letter.name }), {
-    authorDiscordUserId: session.discordUserId,
-    components: canReply ? replyButtonRow(birdMessageId) : undefined,
-    source: GM_LETTER_SOURCE,
-    meta: {
-      birdMessageId,
-      senderName,
-      letterName: letter.name,
-      letterBody: body,
-      sealed,
-      sealMark: sealed ? sealMarkText : null,
-      // What makes the letter answerable on the web, the same descriptor the
-      // player Bird writes (db/lib/dmActions.js). Only where Discord gets a
-      // Reply button, so the two faces offer the same thing.
-      ...(canReply ? dmAction(DM_ACTION.BIRD_REPLY, birdMessageId) : {}),
-    },
-  });
-
-  await afterInventoryChange([recipient.id]);
+  if (sent.length > 0) await afterInventoryChange(sent.map((r) => r.id));
   revalidatePath("/gm/dev");
   revalidatePath("/gm/players");
-  return {
-    ok: true,
-    message: canReply
-      ? `${letter.name} is on ${recipient.name}'s sheet. They can answer it until turn ${openTurn.number + 1}.`
-      : `${letter.name} is on ${recipient.name}'s sheet. They can't read, so there's no Reply button.`,
-  };
+
+  if (sent.length === 0) {
+    return { ok: false, error: skipped.length > 0 ? "They're past reading it." : "Nothing went out." };
+  }
+
+  // One sentence a GM can read at a glance: who got it, who did not, and
+  // whether anybody got a letter they cannot read.
+  const parts = [
+    sent.length === 1
+      ? `${sent[0].letterName} is on ${sent[0].name}'s sheet.`
+      : `Sent ${sent.length} letters.`,
+  ];
+  if (mute > 0) {
+    parts.push(
+      mute === sent.length && sent.length === 1
+        ? "They can't read, so there's no Reply button."
+        : `${mute} can't read, so they get no Reply button.`,
+    );
+  } else {
+    parts.push(`They can answer until turn ${openTurn.number + 1}.`);
+  }
+  if (skipped.length > 0) parts.push(`Skipped ${skipped.join(", ")} — past reading it.`);
+  if (failed.length > 0) parts.push(`Failed for ${failed.join(", ")}.`);
+
+  return { ok: true, sent: sent.length, skipped, failed, message: parts.join(" ") };
 }

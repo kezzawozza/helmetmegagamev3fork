@@ -2,7 +2,6 @@ import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import AppHeader from "@/app/components/AppHeader";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
-import DevSubNav from "@/app/(app)/gm/dev/DevSubNav";
 
 // The Dev Panel's header. Drawn here rather than in DevPanel because that is a
 // client component, and because the panel has two frames — a page and a
@@ -35,10 +34,11 @@ export default async function DevCharacterLayout({ children, params }) {
         }
         actions={
           <>
-            {/* The same sub-nav /gm/dev/tags and its siblings wear. This page
-                is reached from a CharacterLink anywhere in the app, so it was
-                the one Dev page with no way on to the rest of the Dev pages. */}
-            <DevSubNav current="characters" />
+            {/* Reached from a CharacterLink anywhere in the app, so it needs
+                its two ways back named rather than assumed. */}
+            <Link href="/gm/dev?s=characters" className="btn-quiet">
+              &larr; Characters
+            </Link>
             <Link href="/gm/players" className="btn-quiet">
               &larr; Players
             </Link>

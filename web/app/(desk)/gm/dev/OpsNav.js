@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { SECTION_TIER, allows } from "@/lib/devAccess";
-import { DEV_ELSEWHERE } from "@/lib/devNav";
 
 // The Dev Panel's section rail — a plain server component, no usePathname:
 // the active section comes from ?s=. Which items a viewer sees comes from
@@ -12,26 +11,35 @@ const SECTIONS = [
     title: "Game",
     items: [
       { key: "game", label: "Game" },
-      { key: "games", label: "Games" },
+      // The key stays `games` — renaming it would break every bookmark for
+      // nothing. "History" is what the section IS: every game there has been.
+      { key: "games", label: "History" },
       { key: "turn", label: "Turn" },
       { key: "config", label: "Configuration" },
-      { key: "depot", label: "The Depot" },
-      { key: "oracle", label: "The Oracle" },
+      { key: "depot", label: "Depot" },
+      { key: "oracle", label: "Oracle" },
     ],
   },
   {
     title: "Operations",
     items: [
       { key: "bulk", label: "Bulk actions" },
-      { key: "letters", label: "Send a letter" },
-      { key: "ambient", label: "Say something" },
       { key: "reports", label: "System reports" },
       { key: "gamemasters", label: "Gamemasters" },
     ],
   },
   {
+    // The things the game is made of. Characters, Factions, Tags and Zones
+    // used to be four pages of their own, linked from an "Elsewhere" group
+    // that threw you out of the desk to reach them.
     title: "Content",
-    items: [{ key: "quests", label: "Quests" }],
+    items: [
+      { key: "quests", label: "Quests" },
+      { key: "characters", label: "Characters" },
+      { key: "factions", label: "Factions" },
+      { key: "tags", label: "Tags" },
+      { key: "zones", label: "Zones" },
+    ],
   },
   {
     title: "Threats",
@@ -65,15 +73,6 @@ export default function OpsNav({ section, tier }) {
           ))}
         </div>
       ))}
-
-      <div className="ops-nav-group">
-        <span className="ops-nav-title">Elsewhere</span>
-        {DEV_ELSEWHERE.map((item) => (
-          <Link key={item.href} href={item.href} className="ops-nav-item ops-nav-item--away">
-            {item.label} ↗
-          </Link>
-        ))}
-      </div>
 
       {allows(tier, SECTION_TIER.danger) ? (
         <div className="ops-nav-group">

@@ -14,8 +14,6 @@ export const SECTION_TIER = {
   oracle: "super",
 
   bulk: "gm",
-  letters: "gm",
-  ambient: "gm",
   reports: "gm",
   gamemasters: "gm",
 
@@ -24,11 +22,23 @@ export const SECTION_TIER = {
 
   // Deleting a quest takes the record of who touched it, so THAT verb asks for super (questActions.js).
   quests: "gm",
+  // The four lists that used to be pages of their own. Every GM reads them;
+  // the narrower verbs inside each (delete a faction, delete a custom tag,
+  // hard-delete a place) ask for super at the call site instead.
+  characters: "gm",
+  factions: "gm",
+  tags: "gm",
+  zones: "gm",
 
   danger: "super",
 };
 
 const HOME = { super: "game", gm: "bulk" };
+
+// Sections that folded into another one. A bookmark to the old key lands on
+// what replaced it rather than bouncing its owner to their home section.
+// Send a letter and Say something are both bulk verbs now.
+const MERGED_INTO = { letters: "bulk", ambient: "bulk" };
 
 export function allows(tier, need) {
   if (tier === "super") return true;
@@ -42,8 +52,9 @@ function homeSection(tier) {
 
 // Falls back to their home section rather than bouncing them off the panel.
 export function resolveSection(tier, requested) {
-  if (requested && SECTION_TIER[requested] && allows(tier, SECTION_TIER[requested])) {
-    return requested;
+  const key = MERGED_INTO[requested] ?? requested;
+  if (key && SECTION_TIER[key] && allows(tier, SECTION_TIER[key])) {
+    return key;
   }
   return homeSection(tier);
 }

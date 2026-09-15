@@ -4,7 +4,6 @@ import { prisma } from "@lifeweb/db";
 import { getDevTier } from "@/lib/devAccess";
 import PageShell from "@/app/components/PageShell";
 import AppHeader from "@/app/components/AppHeader";
-import DevSubNav from "../../DevSubNav";
 import ZoneForm from "./ZoneForm";
 import LocationsList from "./LocationsList";
 
@@ -36,10 +35,14 @@ export default async function DevZonePage({ params }) {
 
   return (
     <>
-      <AppHeader title={zone.name} actions={<DevSubNav current="zones" />} />
+      <AppHeader title={zone.name} actions={
+        <Link href="/gm/dev?s=zones" className="btn-quiet">
+          &larr; Zones
+        </Link>
+      } />
       <PageShell width="wide">
         <p>
-          <Link href="/gm/dev/zones" className="menu-item">
+          <Link href="/gm/dev?s=zones" className="menu-item">
             ← All zones
           </Link>
         </p>

@@ -5,27 +5,48 @@ import { noteActionVersion } from "@/app/components/useDeskVersion";
 import { useMemo, useState, useTransition } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
 import Modal from "@/app/components/Modal";
+import CheckPicker from "@/app/components/CheckPicker";
+import usePickList from "@/app/components/usePickList";
 import FormError from "@/app/components/FormError";
 import Select from "@/app/components/Select";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { sendGmBroadcast } from "./actions";
 
-// Bulk message composer — checkbox chips over every ALIVE character,
-// filterable by name/role/faction/zone (same scoreMatch the inbox list
-// uses), plus two segment selects that bulk-check a whole Zone or Faction at
-// once. Selection stays editable after a segment pick — the select is a
-// one-shot "check these" action, not a live filter.
-// `initialSelectedIds` is how the inspector's "Message pinned" shortcut opens
-// this already pointed at the pinned characters; the picker stays fully
-// editable afterwards.
+// Bulk message composer — the one bulk-message UI, reached through three doors
+// (the roster's Message selected, the header's Bulk message, the inspector's
+// Message pinned). `initialSelectedIds` is how the pinned shortcut opens it
+// already pointed at somebody; the picker stays fully editable afterwards.
+//
+// The roster itself is the shared CheckPicker the Dev Panel's bulk section
+// uses, so "tick some characters" looks and behaves the same on both desks.
+// What stays here is what is actually about messaging: the character cap, the
+// two one-shot segment selects, and the send.
+const searchRoster = (item, query) =>
+  scoreMatch(query, { name: item.label, role: item.roleTitle, faction: item.factionName, zone: item.zoneName });
+
 export default function BulkComposer({ characters, initialSelectedIds, onClose }) {
   const [refresh] = useRefresh();
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState(() => new Set(initialSelectedIds ?? []));
   const [message, setMessage] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+
+  // The picker's row shape: the name, the place under it, and the fields
+  // searchRoster reads.
+  const items = useMemo(
+    () =>
+      characters.map((c) => ({
+        id: c.id,
+        label: c.name,
+        note: [c.roleTitle, c.zoneName].filter(Boolean).join(" · "),
+        roleTitle: c.roleTitle,
+        factionName: c.factionName,
+        zoneName: c.zoneName,
+      })),
+    [characters],
+  );
+
+  const pick = usePickList(items, initialSelectedIds ?? []);
 
   const zoneOptions = useMemo(
     () => [...new Set(characters.map((c) => c.zoneName).filter(Boolean))].sort(),
@@ -36,49 +57,16 @@ export default function BulkComposer({ characters, initialSelectedIds, onClose }
     [characters],
   );
 
-  const rows = useMemo(() => {
-    const q = query.trim();
-    if (!q) return characters;
-    return characters.filter((c) =>
-      scoreMatch(q, { name: c.name, role: c.roleTitle, faction: c.factionName, zone: c.zoneName }),
-    );
-  }, [characters, query]);
-
-  function toggle(id) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function checkZone(zoneName) {
-    if (!zoneName) return;
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const c of characters) if (c.zoneName === zoneName) next.add(c.id);
-      return next;
-    });
-  }
-
-  function checkFaction(factionName) {
-    if (!factionName) return;
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const c of characters) if (c.factionName === factionName) next.add(c.id);
-      return next;
-    });
-  }
-
   const over = message.length > GM_MESSAGE_MAX_LENGTH;
-  const canSend = selected.size > 0 && message.trim().length > 0 && !over;
+  const canSend = pick.count > 0 && message.trim().length > 0 && !over;
 
   function submit() {
     if (!canSend) return;
     setError(null);
     startTransition(async () => {
-      const res = noteActionVersion(await sendGmBroadcast({ characterIds: [...selected], message: message.trim() }));
+      const res = noteActionVersion(
+        await sendGmBroadcast({ characterIds: [...pick.picked], message: message.trim() }),
+      );
       if (!res.ok) {
         setError(res.error);
         return;
@@ -91,57 +79,49 @@ export default function BulkComposer({ characters, initialSelectedIds, onClose }
   return (
     <Modal title="Message multiple players" onClose={() => !pending && onClose()} width="wide">
       <div className="flex flex-col gap-3 p-4">
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="field min-w-0 flex-1">
-            <span className="field-label">Filter</span>
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name, role, faction, zone…" />
-          </label>
-          {zoneOptions.length > 0 && (
-            <label className="field">
-              <span className="field-label">Check zone</span>
-              <Select value="" onChange={(e) => checkZone(e.target.value)}>
-                <option value="">Pick a zone…</option>
-                {zoneOptions.map((z) => (
-                  <option key={z} value={z}>
-                    {z}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          )}
-          {factionOptions.length > 0 && (
-            <label className="field">
-              <span className="field-label">Check faction</span>
-              <Select value="" onChange={(e) => checkFaction(e.target.value)}>
-                <option value="">Pick a faction…</option>
-                {factionOptions.map((f) => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </Select>
-            </label>
-          )}
-        </div>
-
-        <div className="flex max-h-64 flex-wrap gap-1.5 overflow-y-auto p-1">
-          {rows.map((c) => (
-            <label key={c.id} className="chip" data-active={selected.has(c.id) || undefined}>
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={selected.has(c.id)}
-                onChange={() => toggle(c.id)}
-              />
-              {c.name}
-            </label>
-          ))}
-          {rows.length === 0 && <p className="text-sm text-muted">No characters match.</p>}
-        </div>
+        <CheckPicker
+          items={items}
+          value={pick.picked}
+          onChange={pick.set}
+          search={searchRoster}
+          filterPlaceholder="Name, role, faction, zone…"
+          emptyLabel="No characters match."
+          maxHeight="16rem"
+          toolbar={
+            <>
+              {zoneOptions.length > 0 && (
+                <label className="field">
+                  <span className="field-label">Check zone</span>
+                  <Select value="" onChange={(e) => pick.checkWhere((c) => c.zoneName === e.target.value)}>
+                    <option value="">Pick a zone…</option>
+                    {zoneOptions.map((z) => (
+                      <option key={z} value={z}>
+                        {z}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              )}
+              {factionOptions.length > 0 && (
+                <label className="field">
+                  <span className="field-label">Check faction</span>
+                  <Select value="" onChange={(e) => pick.checkWhere((c) => c.factionName === e.target.value)}>
+                    <option value="">Pick a faction…</option>
+                    {factionOptions.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+              )}
+            </>
+          }
+        />
 
         <label className="field">
           <span className="field-label">
-            Message ({selected.size} recipient{selected.size === 1 ? "" : "s"}, sent from Bascinet)
+            Message ({pick.count} recipient{pick.count === 1 ? "" : "s"}, sent from Bascinet)
           </span>
           <textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
         </label>

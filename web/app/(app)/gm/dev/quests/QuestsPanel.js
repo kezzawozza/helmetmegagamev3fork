@@ -13,6 +13,7 @@
 // It used to be bare .panel with no padding class, which is why it read as a
 // stack of boxes with the text shoved against the border.
 import { useId, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 
 import Modal from "@/app/components/Modal";
 import Select from "@/app/components/Select";
@@ -22,7 +23,7 @@ import StatusPill from "@/app/components/StatusPill";
 import Pager from "@/app/components/Pager";
 import { SortHeader, TableScroll, useTableState } from "@/app/components/DataTable";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import GatePicker from "./GatePicker";
+import CheckPicker from "@/app/components/CheckPicker";
 import {
   createQuestAction,
   updateQuestAction,
@@ -136,7 +137,7 @@ function QuestForm({ value, onChange, locations, tags, characters, pickerHeight 
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <GatePicker
+        <CheckPicker
           label="Needs one of these"
           items={tags}
           value={value.accessTagSlugs}
@@ -147,7 +148,7 @@ function QuestForm({ value, onChange, locations, tags, characters, pickerHeight 
           maxHeight={pickerHeight}
           minHeight={pickerHeight}
         />
-        <GatePicker
+        <CheckPicker
           label="…or is one of these people"
           items={characters}
           value={value.allowedCharacterIds}
@@ -256,7 +257,6 @@ export default function QuestsPanel({
   tags,
   characters,
   canDelete,
-  onAdvertise,
 }) {
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
@@ -488,14 +488,21 @@ export default function QuestsPanel({
                     >
                       {pending ? "Saving…" : "Save"}
                     </button>
-                    <button
-                      type="button"
+                    {/* A plain Link, not a router.push: middle-click works,
+                        and the prefill rides in the URL instead of in client
+                        state a reload would drop. The panel it lands on
+                        decides whether the zone is reachable — a cave has no
+                        #summary, and it says so rather than ticking a lie. */}
+                    <Link
                       className="btn-secondary"
-                      disabled={pending}
-                      onClick={() => onAdvertise?.(selected)}
+                      href={`/gm/dev?s=bulk&verb=say&kind=zone&place=${encodeURIComponent(
+                        selected.zoneId ?? "",
+                      )}&text=${encodeURIComponent(
+                        `Word is going round about something at the ${selected.locationName}.`,
+                      )}`}
                     >
                       Advertise
-                    </button>
+                    </Link>
                     <button type="button" className="btn-secondary" disabled={pending} onClick={close}>
                       Close now
                     </button>

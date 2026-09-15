@@ -9,12 +9,6 @@ import NotesBoard from "./NotesBoard";
 export default function NotesView(props) {
   return (
     <PageShell width="narrow">
-      {/* How a message GETS here, which is a mechanic rather than an
-          explainer — it used to be the header's subtitle, and the header is
-          the shared bar now. */}
-      <p className="text-sm text-muted">
-        React with a ⭐ in a location channel to bring the message here.
-      </p>
       <NotesBoard {...props} />
     </PageShell>
   );

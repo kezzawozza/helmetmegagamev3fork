@@ -429,7 +429,7 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
 
   const result = { tagId: tag.id, name: tag.name, slug, applied: applied.length, failed, staged };
 
-  revalidatePath("/gm/dev/tags");
+  revalidatePath("/gm/dev");
   revalidatePath("/character");
   revalidatePath(TURNS_PATH, "page");
   revalidatePath("/gm/players", "layout");
@@ -497,7 +497,7 @@ async function updateCustomTagImpl({ tagId, ...input }) {
     },
   });
 
-  revalidatePath("/gm/dev/tags");
+  revalidatePath("/gm/dev");
   revalidatePath("/character");
   return { tagId, name: tag.name };
 }
@@ -558,7 +558,7 @@ async function deleteCustomTagImpl({ tagId }) {
     },
   });
 
-  revalidatePath("/gm/dev/tags");
+  revalidatePath("/gm/dev");
   return { name: tag.name };
 }
 

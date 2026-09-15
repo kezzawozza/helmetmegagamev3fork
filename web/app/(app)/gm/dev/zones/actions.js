@@ -28,7 +28,7 @@ async function audit(session, actionType, details) {
 }
 
 function revalidateZonesTree() {
-  revalidatePath("/gm/dev/zones");
+  revalidatePath("/gm/dev");
 }
 
 function trimmed(v) {

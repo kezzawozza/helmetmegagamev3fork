@@ -1,9 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { getDevTier } from "@/lib/devAccess";
 import PageShell from "@/app/components/PageShell";
 import AppHeader from "@/app/components/AppHeader";
-import DevSubNav from "../../DevSubNav";
 import LinksTable from "./LinksTable";
 
 export default async function DevLinksPage() {
@@ -47,7 +47,11 @@ export default async function DevLinksPage() {
 
   return (
     <>
-      <AppHeader title={`Travel links (${links.length})`} actions={<DevSubNav current="zones" />} />
+      <AppHeader title={`Travel links (${links.length})`} actions={
+        <Link href="/gm/dev?s=zones" className="btn-quiet">
+          &larr; Zones
+        </Link>
+      } />
       <PageShell width="wide">
         <LinksTable rows={rows} locationOptions={locationOptions} canSuper={tier === "super"} />
       </PageShell>

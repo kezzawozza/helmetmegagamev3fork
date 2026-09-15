@@ -2,36 +2,50 @@
 
 // A set of things you tick, drawn as check rows with a filter over them.
 //
-// This replaces two <select multiple size={6}> — one over the whole tag
-// catalog, one over every living character — which is the control
-// (desk)/gm/dev/BulkActions.js was written to get rid of: no search, no way to
-// see what you had picked without scrolling the box, and no keyboard story
-// worth the name.
+// This replaces every <select multiple size={6}> the GM surfaces used to
+// carry — one over the whole tag catalog, one over every living character, one
+// over the zones — a control with no search, no way to see what you had picked
+// without scrolling the box, and no keyboard story worth the name.
 //
-// Local to quests/ rather than components/, on purpose. BulkActions' picker
-// looks the same and isn't: it carries a zone dropdown, its rows draw a second
-// place line, and its Select all UNIONS with what is already picked because it
-// is filtered by zone as well as by text. Sharing one component with both
-// would mean a `filterDef` prop, a `renderRow` prop and a `selectAllMode`
-// prop, which is a worse component than two honest ones. The rule, so this
-// doesn't drift: the moment a FOURTH call site outside this folder wants it,
-// move it to web/app/components/ and convert BulkActions in the same pass.
+// It started life as quests/GatePicker.js, whose header said to promote it here
+// the moment a fourth call site outside that folder wanted it. Four call sites
+// now: the two quest gates, the Dev Panel's people picker, its place picker,
+// and /gm/players' bulk composer. What made the promotion possible without the
+// `filterDef`/`renderRow`/`selectAllMode` prop soup that comment feared:
+//
+//   - matching is a `search` FUNCTION the caller passes, not a shape to declare.
+//     The default is substring over label + note; a roster passes fuzzy scoring.
+//   - a row's second line is the `note` field, which every call site's extra
+//     information already fits (a place, a role, a count). No renderRow.
+//   - Select all always UNIONS, which is the only honest reading once there is
+//     a filter box above it. No mode to pick.
+//   - anything else a caller wants beside the filter box goes in `toolbar` —
+//     one slot, rather than a prop per control.
 //
 // `items` is [{ id, label, note? }] and `value` is an array of ids. Controlled
 // throughout — every path hands back a NEW array, never a mutated one
 // (react-hooks/immutability is an error here), and holding the selection
-// internally would break the edit pane, where ticking a tag has to dirty the
-// draft for Save to light up.
+// internally would break the quest edit pane, where ticking a tag has to dirty
+// the draft for Save to light up. web/app/components/usePickList.js is the
+// selection state for callers that have none of their own.
 import { useId, useMemo, useState } from "react";
 
 import CheckField from "@/app/components/CheckField";
 import EmptyState from "@/app/components/EmptyState";
 
-export default function GatePicker({
+function defaultSearch(item, query) {
+  return `${item.label ?? ""} ${item.note ?? ""}`.toLowerCase().includes(query);
+}
+
+export default function CheckPicker({
   label,
   items,
   value,
   onChange,
+  search = defaultSearch,
+  // Anything that belongs beside the filter box — a zone dropdown that narrows
+  // `items`, a "check this whole faction" one-shot.
+  toolbar,
   emptyLabel = "Nothing matches.",
   allLabel = "Select all",
   filterPlaceholder = "Filter…",
@@ -50,27 +64,37 @@ export default function GatePicker({
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
-    return items.filter((i) => `${i.label} ${i.note ?? ""}`.toLowerCase().includes(q));
-  }, [items, query]);
+    return items.filter((i) => search(i, q));
+  }, [items, query, search]);
 
   function toggle(itemId) {
     onChange(picked.has(itemId) ? value.filter((v) => v !== itemId) : [...value, itemId]);
   }
 
+  const showFilter = items.length > searchThreshold;
+
   return (
     <div className="field">
-      <span className="field-label" id={`${id}-label`}>
-        {label}
-      </span>
+      {label ? (
+        <span className="field-label" id={`${id}-label`}>
+          {label}
+        </span>
+      ) : null}
 
-      {items.length > searchThreshold ? (
-        <input
-          type="text"
-          value={query}
-          placeholder={filterPlaceholder}
-          aria-label={`Filter ${typeof label === "string" ? label.toLowerCase() : "list"}`}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+      {showFilter || toolbar ? (
+        <div className="flex flex-wrap items-end gap-3">
+          {showFilter ? (
+            <input
+              type="text"
+              className="min-w-48 flex-1"
+              value={query}
+              placeholder={filterPlaceholder}
+              aria-label={`Filter ${typeof label === "string" ? label.toLowerCase() : "list"}`}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          ) : null}
+          {toolbar}
+        </div>
       ) : null}
 
       {/* An inline style rather than a Tailwind max-h-*: .check-picker is
@@ -80,7 +104,7 @@ export default function GatePicker({
       <div
         className="check-picker"
         role="group"
-        aria-labelledby={`${id}-label`}
+        aria-labelledby={label ? `${id}-label` : undefined}
         style={maxHeight || minHeight ? { maxHeight, minHeight } : undefined}
       >
         {visible.map((i) => (

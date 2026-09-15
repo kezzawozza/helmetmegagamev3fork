@@ -4,7 +4,6 @@ import { prisma } from "@lifeweb/db";
 import { getDevTier } from "@/lib/devAccess";
 import PageShell from "@/app/components/PageShell";
 import AppHeader from "@/app/components/AppHeader";
-import DevSubNav from "../../../DevSubNav";
 import LocationForm from "./LocationForm";
 import YieldPanel from "./YieldPanel";
 import RoomsList from "./RoomsList";
@@ -44,7 +43,11 @@ export default async function DevLocationPage({ params }) {
 
   return (
     <>
-      <AppHeader title={location.name} actions={<DevSubNav current="zones" />} />
+      <AppHeader title={location.name} actions={
+        <Link href="/gm/dev?s=zones" className="btn-quiet">
+          &larr; Zones
+        </Link>
+      } />
       <PageShell width="wide">
         <p>
           <Link href={`/gm/dev/zones/${location.zone.id}`} className="menu-item">

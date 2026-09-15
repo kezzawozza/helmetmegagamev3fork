@@ -670,7 +670,7 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
   await deleteCharacterRow(prisma, characterId);
 
   revalidatePath("/gm/players", "layout");
-  revalidatePath("/gm/dev/characters");
+  revalidatePath("/gm/dev");
   revalidatePath("/character");
   return { name: character.name };
 }

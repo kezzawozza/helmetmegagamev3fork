@@ -41,6 +41,11 @@ import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ArchiveGameButton from "@/app/(app)/gm/dev/ArchiveGameButton";
 import QuestsSection from "@/app/(app)/gm/dev/quests/QuestsSection";
+import CharactersTable from "@/app/(app)/gm/dev/characters/CharactersTable";
+import FactionsTable from "@/app/(app)/gm/dev/factions/FactionsTable";
+import ZonesTable from "@/app/(app)/gm/dev/zones/ZonesTable";
+import DevTagsSection from "./DevTagsSection";
+import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
 import { turnsRemaining } from "@lifeweb/db/lib/quests";
 import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
@@ -48,7 +53,8 @@ import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import ObjectivesPanel from "@/app/(app)/gm/dev/threats/ObjectivesPanel";
 import RitesPanel from "@/app/(app)/gm/dev/threats/RitesPanel";
 import BulkActions from "./BulkActions";
-import AmbientForm from "./AmbientForm";
+import { VERB_KEYS, PLACE_KINDS } from "./bulkVerbs";
+import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import InactivePanel from "./InactivePanel";
 import MirrorPanel from "./MirrorPanel";
 import { RITES, riteByKey } from "@lifeweb/db/lib/rites";
@@ -67,7 +73,6 @@ import { isSpawnOnly } from "@/lib/characterCreation";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
 import OpsNav from "./OpsNav";
-import SendLetterForm from "./SendLetterForm";
 import Switch from "@/app/components/Switch";
 import Select from "@/app/components/Select";
 import StatusPill from "@/app/components/StatusPill";
@@ -170,7 +175,7 @@ export default async function DevPanelPage({ searchParams }) {
   if (tier === "none") redirect("/character");
   const { session } = await getGmSession();
 
-  const { s } = await searchParams;
+  const { s, verb, kind, place, text } = await searchParams;
   // Not a redirect on a section this tier cannot open: a GM following an old
   // ?s=danger link should land on their own home section, not be bounced off
   // the panel entirely.
@@ -217,7 +222,6 @@ export default async function DevPanelPage({ searchParams }) {
   const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
 
   let locations = [];
-  let livingCharacters = [];
   let bulkCharacters = [];
   let bulkTags = [];
   let questRows = [];
@@ -225,10 +229,19 @@ export default async function DevPanelPage({ searchParams }) {
   let questTags = [];
   let questCharacters = [];
   let questBoards = [];
-  let questZones = [];
-  let ambientZones = [];
-  let ambientLocations = [];
-  let ambientRooms = [];
+  // The bulk section's place picker: one list per kind, all three scoped to
+  // the zones this GM watches.
+  let bulkPlaces = { zone: [], location: [], room: [] };
+  // What an Advertise link on a quest carried over: the verb, the kind, the
+  // place and the teaser. Resolved HERE rather than in the client, so a zone
+  // with no #summary ticks nothing and gets told why (QUESTS.md §6).
+  let bulkPrefill = null;
+  // The four lists that used to be pages of their own under /gm/dev/*. Each
+  // was already a client table fed a flat DTO, so moving it here is the fetch
+  // and the table — no shell, no sub-nav, no second header.
+  let devCharacters = [];
+  let devFactions = null;
+  let devZones = [];
   let inactiveList = [];
   let inactiveTurn = null;
   let latestByKind = new Map();
@@ -339,7 +352,17 @@ export default async function DevPanelPage({ searchParams }) {
       break;
     }
     case "bulk": {
-      const [allLocations, living, allTags] = await Promise.all([
+      // One section, two audiences. The people half feeds Move/Resources/Tag/
+      // Message/Letter; the place half feeds Say, which used to be its own
+      // section and a tab on the Quests panel besides.
+      //
+      // The place lists are scoped to the zones this GM watches
+      // (db/lib/gmZoneView.js — no rows means every zone); the people list is
+      // deliberately NOT, which is how it has always been here.
+      const allowed = await visibleZoneIds(prisma, session.discordUserId);
+      const inView = (zoneId) => !allowed || (zoneId && allowed.has(zoneId));
+
+      const [allLocations, living, allTags, zoneRows, mirroredLocations, roomRows] = await Promise.all([
         prisma.location.findMany({
           orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
           select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
@@ -355,19 +378,70 @@ export default async function DevPanelPage({ searchParams }) {
           },
         }),
         prisma.tag.findMany({ orderBy: { name: "asc" }, select: { slug: true, name: true } }),
+        prisma.zone.findMany({
+          where: { discordSummaryChannelId: { not: null } },
+          orderBy: { sortOrder: "asc" },
+          select: { id: true, name: true },
+        }),
+        prisma.location.findMany({
+          where: { discordChannelId: { not: null } },
+          orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+          select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
+        }),
+        prisma.room.findMany({
+          where: { discordThreadId: { not: null } },
+          orderBy: { name: "asc" },
+          select: {
+            id: true,
+            name: true,
+            location: { select: { name: true, zoneId: true, zone: { select: { name: true } } } },
+          },
+        }),
       ]);
       locations = allLocations;
       // Flattened here rather than in the client: the picker searches and
       // filters on the place, so it wants one string, not a nested row.
+      // `note` is what CheckPicker draws as the muted second line.
       bulkCharacters = living.map((c) => ({
         id: c.id,
-        name: c.name,
+        label: c.name,
         zoneName: c.zone?.name ?? "",
-        placeLabel: c.location
+        note: c.location
           ? `${c.zone?.name ?? ""} — ${c.location.name}`.replace(/^ — /, "")
           : "nowhere",
       }));
       bulkTags = allTags;
+      bulkPlaces = {
+        zone: zoneRows.filter((z) => inView(z.id)).map((z) => ({ id: z.id, label: z.name })),
+        location: mirroredLocations
+          .filter((l) => inView(l.zoneId))
+          .map((l) => ({ id: l.id, label: `${l.zone?.name ?? "Unzoned"} — ${l.name}` })),
+        room: roomRows
+          .filter((r) => inView(r.location?.zoneId))
+          .map((r) => ({ id: r.id, label: `${r.location?.name ?? "?"} — ${r.name}` })),
+      };
+
+      // The Advertise seam. `text` is a public endpoint like any other search
+      // param, so it is capped here and only ever used as a textarea default;
+      // `place` has to be one the picker actually offers, which is what makes
+      // a cave — no #summary — tick nothing rather than tick a lie.
+      if (verb || place || text) {
+        const wantKind = PLACE_KINDS.some((k) => k.key === kind) ? kind : "location";
+        const offered = bulkPlaces[wantKind].some((p) => p.id === place);
+        // Named only to say why it is not on the list — a cave has no
+        // #summary, so Advertise from one must tick nothing and explain.
+        const unreachable =
+          place && !offered && wantKind === "zone"
+            ? await prisma.zone.findUnique({ where: { id: String(place) }, select: { name: true } })
+            : null;
+        bulkPrefill = {
+          verb: VERB_KEYS.has(verb) ? verb : null,
+          kind: wantKind,
+          placeId: offered ? String(place) : null,
+          text: typeof text === "string" ? text.slice(0, 500) : "",
+          unreachableZoneName: unreachable?.name ?? null,
+        };
+      }
       break;
     }
     case "quests": {
@@ -377,7 +451,7 @@ export default async function DevPanelPage({ searchParams }) {
       const allowed = await visibleZoneIds(prisma, session.discordUserId);
       const inView = (zoneId) => !allowed || (zoneId && allowed.has(zoneId));
 
-      const [questList, locationRows, tagRows, characterRows, zoneRows] = await Promise.all([
+      const [questList, locationRows, tagRows, characterRows] = await Promise.all([
         prisma.quest.findMany({
           orderBy: [{ status: "asc" }, { createdAt: "desc" }],
           include: {
@@ -403,11 +477,6 @@ export default async function DevPanelPage({ searchParams }) {
         prisma.character.findMany({
           where: { status: "ALIVE" },
           orderBy: { name: "asc" },
-          select: { id: true, name: true },
-        }),
-        prisma.zone.findMany({
-          where: { discordSummaryChannelId: { not: null } },
-          orderBy: { sortOrder: "asc" },
           select: { id: true, name: true },
         }),
       ]);
@@ -449,7 +518,6 @@ export default async function DevPanelPage({ searchParams }) {
         .map((l) => ({ id: l.id, label: `${l.zone?.name ?? "Unzoned"} — ${l.name}` }));
       questTags = tagRows;
       questCharacters = characterRows;
-      questZones = zoneRows.filter((z) => inView(z.id)).map((z) => ({ id: z.id, label: z.name }));
 
       // The boards, from the same locationAttributes registry the Discord
       // panel reads — never a second list of which places have one.
@@ -468,51 +536,118 @@ export default async function DevPanelPage({ searchParams }) {
       }));
       break;
     }
-    case "ambient": {
-      // Scoped to the zones this GM watches (db/lib/gmZoneView.js — no rows
-      // means every zone), the same filter the desks apply. The action
-      // re-checks it: a <select> is a hint, not a lock.
-      const allowed = await visibleZoneIds(prisma, session.discordUserId);
-      const [zoneRows, locationRows, roomRows] = await Promise.all([
-        prisma.zone.findMany({
-          where: { discordSummaryChannelId: { not: null } },
-          orderBy: { sortOrder: "asc" },
-          select: { id: true, name: true },
-        }),
-        prisma.location.findMany({
-          where: { discordChannelId: { not: null } },
-          orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
-          select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
+    case "characters":
+      devCharacters = (
+        await prisma.character.findMany({
+          orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+          include: { faction: true, zone: true },
+          // Safety net against unbounded growth, not a real limit — far above
+          // any realistic roster size for this game (100+ players).
+          take: 1000,
+        })
+      ).map((c) => ({
+        id: c.id,
+        name: c.name,
+        // No Date objects across the boundary, so updatedAt travels as the
+        // epoch CharacterAvatar's `version` prop wants.
+        avatarVersion: c.updatedAt.getTime(),
+        factionId: c.factionId,
+        factionName: c.faction?.name ?? "-",
+        zoneName: c.zone?.name ?? "-",
+        status: c.status,
+        resources: c.resources,
+      }));
+      break;
+    case "factions": {
+      const [factions, allRooms, characters, pendingApplications] = await Promise.all([
+        prisma.faction.findMany({
+          orderBy: { name: "asc" },
+          include: {
+            zone: { select: { name: true } },
+            _count: { select: { characters: true } },
+          },
         }),
         prisma.room.findMany({
-          where: { discordThreadId: { not: null } },
-          orderBy: { name: "asc" },
+          orderBy: [{ name: "asc" }],
           select: {
             id: true,
             name: true,
-            location: { select: { name: true, zoneId: true, zone: { select: { name: true } } } },
+            accessTagSlugs: true,
+            location: { select: { name: true, zone: { select: { name: true } } } },
+          },
+        }),
+        prisma.character.findMany({
+          where: { status: "ALIVE" },
+          orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+          select: { id: true, name: true, factionId: true, isLeader: true, isTreasurer: true },
+          take: 1000,
+        }),
+        prisma.factionApplication.findMany({
+          where: { status: "PENDING" },
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            kind: true,
+            note: true,
+            factionId: true,
+            faction: { select: { name: true } },
+            character: { select: { id: true, name: true } },
           },
         }),
       ]);
-      const inView = (zoneId) => !allowed || (zoneId && allowed.has(zoneId));
-      ambientZones = zoneRows.filter((z) => inView(z.id)).map((z) => ({ id: z.id, label: z.name }));
-      ambientLocations = locationRows
-        .filter((l) => inView(l.zoneId))
-        .map((l) => ({ id: l.id, label: `${l.zone?.name ?? "Unzoned"} — ${l.name}` }));
-      ambientRooms = roomRows
-        .filter((r) => inView(r.location?.zoneId))
-        .map((r) => ({ id: r.id, label: `${r.location?.name ?? "?"} — ${r.name}` }));
+
+      // Flat DTOs for the client table — flat strings/numbers only.
+      devFactions = {
+        rows: factions.map((f) => ({
+          id: f.id,
+          name: f.name,
+          zoneName: f.zone?.name ?? "",
+          parentFactionId: f.parentFactionId,
+          siloRoomId: f.siloRoomId,
+          memberCount: f._count.characters,
+          foundedInPlay: Boolean(f.foundedById),
+          deletable: !isUnaffiliated(f),
+        })),
+        rooms: allRooms.map((r) => ({
+          id: r.id,
+          name: r.name,
+          locationName: r.location.name,
+          zoneName: r.location.zone?.name ?? "",
+          locked: r.accessTagSlugs.length > 0,
+        })),
+        members: characters.map((c) => ({
+          id: c.id,
+          name: c.name,
+          isLeader: c.isLeader,
+          isTreasurer: c.isTreasurer,
+        })),
+        applications: pendingApplications.map((a) => ({
+          id: a.id,
+          kind: a.kind,
+          note: a.note,
+          factionName: a.faction.name,
+          characterId: a.character.id,
+          characterName: a.character.name,
+        })),
+      };
       break;
     }
-    case "letters":
-      // Living only: the letter mints paper onto a sheet, and a corpse's is
-      // not read. (The player Bird lists the dead too, because there the list
-      // itself would be a casualty report — here the GM already knows.)
-      livingCharacters = await prisma.character.findMany({
-        where: { status: "ALIVE" },
-        orderBy: { name: "asc" },
-        select: { id: true, name: true, location: { select: { name: true } } },
-      });
+    case "zones":
+      devZones = (
+        await prisma.zone.findMany({
+          orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+          include: { _count: { select: { locations: true } } },
+        })
+      ).map((z) => ({
+        id: z.id,
+        slug: z.slug,
+        name: z.name,
+        kind: z.kind,
+        sortOrder: z.sortOrder,
+        retiredAt: z.retiredAt ? z.retiredAt.toISOString() : null,
+        locationCount: z._count.locations,
+        mirrored: Boolean(z.discordCategoryId),
+      }));
       break;
     case "reports": {
       // Latest report per kind — the section renders what actually happened,
@@ -915,7 +1050,7 @@ export default async function DevPanelPage({ searchParams }) {
             <div className="flex flex-col gap-8">
               <section className="ops-section ops-section--wide">
                 <div className="ops-section-head">
-                  <h2 className="section-title">Games</h2>
+                  <h2 className="section-title">History</h2>
                 </div>
                 <PastGames games={pastGames} currentGameId={state.gameId} archiveCounts={archiveCounts} />
               </section>
@@ -996,7 +1131,7 @@ export default async function DevPanelPage({ searchParams }) {
           {section === "depot" ? (
             <section className="ops-section">
               <div className="ops-section-head">
-                <h2 className="section-title">The Depot</h2>
+                <h2 className="section-title">Depot</h2>
               </div>
               <form action={updateDepot} className="flex flex-col gap-4">
                 <div className="ops-grid">
@@ -1072,8 +1207,7 @@ export default async function DevPanelPage({ searchParams }) {
               <div className="ops-section-head">
                 <h2 className="section-title">Bulk actions</h2>
                 <p className="ops-lede">
-                  Raw edits to many sheets at once. Nothing here costs a Move, an Action or a
-                  point, and nothing here can be undone — the audit log is the only record.
+                  Nothing here can be undone — the audit log is the only record.
                 </p>
               </div>
               <BulkActions
@@ -1083,6 +1217,9 @@ export default async function DevPanelPage({ searchParams }) {
                   locations: g.locations.map((l) => ({ id: l.id, name: l.name })),
                 }))}
                 tags={bulkTags}
+                places={bulkPlaces}
+                prefill={bulkPrefill}
+                messageMaxLength={GM_MESSAGE_MAX_LENGTH}
               />
             </section>
           ) : null}
@@ -1091,12 +1228,6 @@ export default async function DevPanelPage({ searchParams }) {
             <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
                 <h2 className="section-title">Quests</h2>
-                <p className="ops-lede">
-                  Somewhere to go and something to try. A quest is a room you put anywhere —
-                  usually in the caves — with one button on it: pressing Interact spends the
-                  presser&apos;s Move for the turn as a Gambit. Below it are every noticeboard in
-                  the game and a line into any zone, because staging a thing is only half of it.
-                </p>
               </div>
               <QuestsSection
                 quests={questRows}
@@ -1104,31 +1235,52 @@ export default async function DevPanelPage({ searchParams }) {
                 tags={questTags}
                 characters={questCharacters}
                 boards={questBoards}
-                zones={questZones}
                 canDelete={isMaster}
               />
             </section>
           ) : null}
 
-          {section === "ambient" ? (
+          {section === "characters" ? (
             <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
-                <h2 className="section-title">Say something</h2>
-                <p className="ops-lede">
-                  A line the world says — a gate closing, a smell, a noise far back in the dark.
-                  It arrives as subtext, so it sits under the scene rather than interrupting it.
-                </p>
+                <h2 className="section-title">Characters ({devCharacters.length})</h2>
               </div>
-              <AmbientForm zones={ambientZones} locations={ambientLocations} rooms={ambientRooms} />
+              <CharactersTable rows={devCharacters} />
             </section>
           ) : null}
 
-          {section === "letters" ? (
-            <section className="ops-section">
+          {section === "factions" ? (
+            <section className="ops-section ops-section--wide">
               <div className="ops-section-head">
-                <h2 className="section-title">Send a Letter</h2>
+                <h2 className="section-title">Factions ({devFactions?.rows.length ?? 0})</h2>
               </div>
-              <SendLetterForm characters={livingCharacters} />
+              <FactionsTable
+                rows={devFactions?.rows ?? []}
+                rooms={devFactions?.rooms ?? []}
+                members={devFactions?.members ?? []}
+                applications={devFactions?.applications ?? []}
+                canDelete={isMaster}
+              />
+            </section>
+          ) : null}
+
+          {section === "tags" ? (
+            <section className="ops-section ops-section--wide">
+              <div className="ops-section-head">
+                <h2 className="section-title">Tags</h2>
+              </div>
+              {/* Deliberately NOT awaited — it streams its own fresh half in
+                  behind a Suspense boundary of its own. */}
+              <DevTagsSection userId={session.discordUserId} canDelete={isMaster} />
+            </section>
+          ) : null}
+
+          {section === "zones" ? (
+            <section className="ops-section ops-section--wide">
+              <div className="ops-section-head">
+                <h2 className="section-title">Zones ({devZones.length})</h2>
+              </div>
+              <ZonesTable rows={devZones} canSuper={isMaster} />
             </section>
           ) : null}
 
@@ -1189,7 +1341,7 @@ export default async function DevPanelPage({ searchParams }) {
                 <h2 className="section-title">Who has gone quiet</h2>
                 <p className="ops-lede">
                   Living characters who left the guild, never registered any activity, or have not
-                  been seen since day one. Read-only until you send something.
+                  been seen since day one.
                 </p>
               </div>
               <InactivePanel rows={inactiveList} turn={inactiveTurn} />
