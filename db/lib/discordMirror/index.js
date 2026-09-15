@@ -110,12 +110,33 @@ async function runDiscordMirror(
   // live.js#snapshotFromDesired for why an empty snapshot would be actively
   // wrong there rather than merely blank.
   const haveGuild = Boolean(process.env.DISCORD_GUILD_ID && process.env.DISCORD_TOKEN) && !isLocalMode();
-  const live = haveGuild ? await loadLiveSnapshot() : snapshotFromDesired(allDesired);
+  let live = haveGuild ? await loadLiveSnapshot() : snapshotFromDesired(allDesired);
 
   const { ops, findings: diffFindings } = buildOps({ desired, live, prisma, scope });
   findings.push(...diffFindings);
 
   const { ran, deferred, failures: opFailures } = await applyOps(ops, { apply });
+
+  // Sweeps read `live` next, and it is the snapshot taken BEFORE the ops above
+  // ran. A create or adopt that just succeeded put a Location channel (or a
+  // Room thread) in front of Discord — or, in LOCAL_MODE, on the row — that
+  // this picture never saw, and the occupancy sweep below would find nothing
+  // there to open. So when apply actually made one, take the picture again
+  // before the sweeps read it. This only fires on the rare run that just built
+  // something; the ordinary "nothing changed" pass never re-snapshots.
+  const madeSomething = ran.some(
+    (op) =>
+      op.status === "ran" &&
+      (op.targetType === "channel" || op.targetType === "thread") &&
+      (op.kind === "create" || op.kind === "adopt"),
+  );
+  if (apply && madeSomething) {
+    live = haveGuild
+      ? await loadLiveSnapshot()
+      : snapshotFromDesired(
+          buildDesired({ ...(await loadRows(prisma)), spectators, guildId: process.env.DISCORD_GUILD_ID }),
+        );
+  }
 
   // The member half. It reports and repairs through the same reporter, so a
   // doctor caller reading `findings` sees exactly what it always did.
@@ -147,7 +168,10 @@ async function runDiscordMirror(
     deferred,
     findings,
     failures,
-    repaired: findings.filter((f) => f.repaired).length,
+    // Both halves of a run count: an op that actually ran (rebuilt a category,
+    // created a missing channel) is a repair just as much as a sweep finding
+    // that fixed itself, and the bot's ready-log line reads this number.
+    repaired: ran.filter((op) => op.status === "ran").length + findings.filter((f) => f.repaired).length,
   };
 
   await prisma.systemReport

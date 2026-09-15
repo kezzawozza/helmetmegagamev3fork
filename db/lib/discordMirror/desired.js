@@ -131,6 +131,13 @@ function buildDesired({
   // db:sync-zones would compute for the identical rows.
   const zonesWithLocations = zones.map((z) => ({ ...z, locations: locationsByZoneId.get(z.id) ?? [] }));
   const positionByChannelId = new Map(intendedPositions(zonesWithLocations).map((p) => [p.id, p.position]));
+  // Read off the ROWS, not off anything this run might create. A zone role
+  // born in this same pass writes its id to `zone.discordRoleId` only when its
+  // own op runs (diff.js), after this map is already built — so the narrowcast
+  // view grant below misses a role created in the same run it was created in.
+  // Accepted rather than chased: the role exists by the run right after, and
+  // splitting this into a role-ops-then-reload-zones pass buys one run's head
+  // start at the cost of a second full desired build every time.
   const roleIdByZoneSlug = new Map(zones.filter((z) => z.discordRoleId).map((z) => [z.slug, z.discordRoleId]));
   // The overwrites the reconcile is allowed to DELETE when the spec stops
   // naming them: the GM roles, the spectator seat, and both zone role families.

@@ -957,17 +957,6 @@ export async function reconcileMirrorAction() {
   return { ok: true };
 }
 
-// The drain on its own: every place a save has queued for Discord, reconciled
-// in the background. This is the PRIMARY trigger for the queue — the web app is
-// the half that is always up — with the bot's ready pass and the turn wrapup
-// behind it as the backstop.
-export async function drainMirrorAction() {
-  await requireDev("super");
-  after(() => drainMirrorQueue(prisma).catch((err) => console.error("Mirror drain failed:", err)));
-  revalidatePath("/gm/dev");
-  return { ok: true };
-}
-
 // --- Bulk actions -----------------------------------------------------
 //
 // One character picker, three verbs. Every one of them is a RAW edit, not the

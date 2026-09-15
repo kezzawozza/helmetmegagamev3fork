@@ -1,18 +1,6 @@
-// The per-member half of a mirror run: the channel doctor's sweeps, moved here
-// whole.
-//
-// The split is worth stating, because it decides where a new check goes. The op
-// list in diff.js is about OBJECTS — does the role exist, is the channel under
-// the right category, does the starter post still match the row. These sweeps
-// are about PEOPLE — who holds the zone role, who can open the Location
-// channel, who has a seat in Deadchat, who can hear a radio net. Objects are a
-// function of the rows and can be diffed; people change every turn and are
-// reconciled by walking the guild.
-//
-// Nothing here was rewritten. runChannelDoctor used to hold this sequence and
-// now calls it through db/lib/discordMirror (see channelDoctor.js), so the
-// order the sweeps run in — structure, then roles and occupancy, then the
-// expensive halves — is the order it always was.
+// The per-member half of a mirror run — see index.js's header for the
+// OBJECTS/PEOPLE split. The sweep order (structure, roles and occupancy, then
+// the expensive halves) is the order channelDoctor.js always ran them in.
 const { getGuildRoles, listGuildMembers } = require("../discordRest");
 const { CURSE_SELECT } = require("../curse");
 const { spectatorsVisible } = require("../spectatorAccess");

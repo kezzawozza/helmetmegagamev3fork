@@ -18,11 +18,7 @@ import { useState, useTransition } from "react";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import {
-  previewMirrorAction,
-  reconcileMirrorAction,
-  drainMirrorAction,
-} from "@/app/(app)/gm/dev/actions";
+import { previewMirrorAction, reconcileMirrorAction } from "@/app/(app)/gm/dev/actions";
 
 const SHOWN = 60;
 
@@ -63,14 +59,6 @@ export default function MirrorPanel({ queue = null }) {
     });
   }
 
-  function drain() {
-    setError(null);
-    startTransition(async () => {
-      await drainMirrorAction();
-      setNote("Draining the queue.");
-    });
-  }
-
   const clean = result && result.ops.length === 0 && result.findings.length === 0;
 
   return (
@@ -102,38 +90,50 @@ export default function MirrorPanel({ queue = null }) {
       </div>
 
       {queue ? (
-        <p className="ops-report-detail">
-          {queue.pending > 0 ? (
-            <>
-              <strong>{queue.pending}</strong> place{queue.pending === 1 ? "" : "s"} waiting for
-              Discord
-              {queue.retried > 0 ? (
-                <>
-                  {" · "}
-                  <strong>{queue.retried}</strong> retrying
-                </>
-              ) : null}
-              {queue.givenUp > 0 ? (
-                <>
-                  {" · "}
-                  <strong>{queue.givenUp}</strong> given up on
-                </>
-              ) : null}{" "}
-              <button type="button" className="btn btn-quiet" onClick={drain} disabled={pending}>
-                Drain now
-              </button>
-            </>
-          ) : (
-            "Nothing is waiting for Discord."
-          )}
-          {queue.breakerOpen ? (
-            <>
-              {" — "}
-              <strong>Discord calls are suspended</strong>: too many refusals, so the circuit breaker
-              is open and the queue is not draining.
-            </>
+        <>
+          <p className="ops-report-detail">
+            {queue.pending > 0 ? (
+              <>
+                <strong>{queue.pending}</strong> place{queue.pending === 1 ? "" : "s"} waiting for
+                Discord
+                {queue.retried > 0 ? (
+                  <>
+                    {" · "}
+                    <strong>{queue.retried}</strong> retrying
+                  </>
+                ) : null}
+                {queue.givenUp > 0 ? (
+                  <>
+                    {" · "}
+                    <strong>{queue.givenUp}</strong> given up on
+                  </>
+                ) : null}
+              </>
+            ) : (
+              "Nothing is waiting for Discord."
+            )}
+            {queue.breakerOpen ? (
+              <>
+                {" — "}
+                <strong>Discord calls are suspended</strong>: too many refusals, so the circuit breaker
+                is open and the queue is not draining.
+              </>
+            ) : null}
+          </p>
+          {queue.jobs?.length > 0 ? (
+            <ul className="text-xs list-disc pl-5">
+              {queue.jobs.map((job) => (
+                <li key={`${job.targetType}-${job.targetId}`}>
+                  <span className="mono">
+                    {job.targetType}:{job.targetId}
+                  </span>{" "}
+                  · {job.attempts} attempt{job.attempts === 1 ? "" : "s"}
+                  {job.error ? <> · {job.error}</> : null}
+                </li>
+              ))}
+            </ul>
           ) : null}
-        </p>
+        </>
       ) : null}
 
       {note ? <p className="ops-report-detail">{note}</p> : null}

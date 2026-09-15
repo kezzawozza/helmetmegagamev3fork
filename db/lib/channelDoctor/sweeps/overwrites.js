@@ -1,10 +1,7 @@
 // The full-scope stray-member-overwrite sweep. A per-member overwrite on a
 // zone's CATEGORY or #summary belongs to nobody — access there rides the zone
-// role — so one that has appeared is swept off.
-//
-// The role side of this channel's permissions is the mirror's op list now
-// (db/lib/discordMirror/diff.js#overwrites), which is why the spec-drift half
-// of this sweep is gone rather than running a second reconcile behind it.
+// role — so one that has appeared is swept off. Role-side drift is the
+// mirror's op list now (db/lib/discordMirror/diff.js#overwrites).
 const { getChannel, deleteChannelOverwrite } = require("../../discordRest");
 const { zoneChannelSpec } = require("../../zoneChannelSpec");
 

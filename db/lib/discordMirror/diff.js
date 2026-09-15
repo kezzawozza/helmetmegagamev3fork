@@ -265,6 +265,10 @@ function diffChannel(target, { live, ops, findings, resolvedIdByKey, writeId }) 
       // Fall through: an adopted channel still gets its properties checked
       // against the live object below.
     } else {
+      // A recreated #summary comes back empty — nothing here tracks the
+      // standing banner to repost, because there isn't one: broadcasts.js
+      // posts a fresh message every turn advance rather than editing a
+      // pinned anchor, so the channel fills back in on its own next turn.
       ops.push({
         order: target.order,
         kind: "create",

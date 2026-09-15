@@ -1,14 +1,8 @@
-// The mirror's structure sweep — the checks that are about ROWS rather than
-// Discord objects: a zone nobody can stand in, a connection naming a tag that
-// does not exist, a character whose denormalized zoneId disagrees with their
-// location, and the bot's own role position.
-//
-// What it no longer does is look for missing Discord structure. A zone with no
-// role, a category that has been deleted, a Location with no channel: those
-// used to be reported here with "run db:sync-zones" attached, and they are now
-// the mirror's own op list (db/lib/discordMirror/diff.js), which creates or
-// adopts the object instead of describing the problem. Two detectors for one
-// fault is one too many, and only one of them could ever fix it.
+// The mirror's structure sweep — checks about ROWS, not Discord objects: a
+// zone nobody can stand in, a connection naming a tag that does not exist, a
+// character whose denormalized zoneId disagrees with their location, and the
+// bot's own role position. Missing Discord structure is the op list's job now
+// (db/lib/discordMirror/diff.js), not this sweep's.
 async function runStructureSweep({ report, prisma, zones, rolesById, members, alive, locationsById }) {
   for (const zone of zones) {
     if (zone.kind !== "CAVE_GROUP" && zone.locations.length === 0) {

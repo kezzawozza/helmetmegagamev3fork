@@ -53,11 +53,10 @@ function logStub(method, discordPath, body) {
   }
 }
 
-// Unique across PROCESSES, not just within one. The counter used to restart at
-// 1 every run, so a second script minted "local-1" again and handed it to a
-// different column — two rows pointing at one stand-in channel, which reads
-// downstream as drift that never settles. A real Discord id is never reused, so
-// neither is this one.
+// Unique across PROCESSES, not just within one — the counter used to restart
+// at 1 every run, so two separate local runs could each mint "local-1" and
+// hand it to a different row. A real Discord id is never reused, so neither is
+// this one.
 const fakeIdPrefix = `local-${process.pid.toString(36)}`;
 let fakeIdSeq = 0;
 

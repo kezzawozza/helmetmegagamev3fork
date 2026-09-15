@@ -15,7 +15,9 @@
 // leaves the row where /gm/dev can show it. A job that retries forever behind an
 // open circuit breaker is a silently stale world, which is the thing this whole
 // phase is meant to stop.
-const { runDiscordMirror } = require("./index");
+// Lazy/whole-module require, not a destructure, so a test can stand in for
+// runDiscordMirror the same way apply.js's thunks stand in for discordRest.
+const discordMirrorIndex = require("./index");
 const { breakerIsOpen } = require("../discordRest");
 
 const MAX_ATTEMPTS = 5;
@@ -50,26 +52,46 @@ async function pendingMirrorJobs(prisma, { max = 50 } = {}) {
 
 // Runs one mirror pass over everything pending and settles the rows behind it.
 // Returns what happened, so a caller can log it; it never throws.
+//
+// CLAIM before running. `pendingMirrorJobs` only lists candidates — two drains
+// racing (the bot's ready pass and a web request landing at the same moment)
+// would otherwise both read the same rows and run the same mirror pass twice.
+// The claim is the `updateMany` below: it flips `startedAt` from null to now
+// for exactly the rows nobody else has already claimed, and only those rows
+// are re-read and acted on. A job left claimed forever would never drain
+// again, so every exit past this point — success, failure, or the circuit
+// breaker — clears `startedAt` back to null.
 async function drainMirrorQueue(prisma, { max = 50 } = {}) {
   if (breakerIsOpen()) return { drained: 0, jobs: 0, skipped: "the Discord circuit breaker is open" };
 
-  let jobs;
+  let candidates;
   try {
-    jobs = await pendingMirrorJobs(prisma, { max });
+    candidates = await pendingMirrorJobs(prisma, { max });
   } catch (err) {
     console.error("drainMirrorQueue: could not read the queue:", err?.message ?? err);
     return { drained: 0, jobs: 0, error: err?.message ?? String(err) };
   }
-  if (jobs.length === 0) return { drained: 0, jobs: 0 };
+  if (candidates.length === 0) return { drained: 0, jobs: 0 };
 
   const startedAt = new Date();
-  await prisma.mirrorJob
-    .updateMany({ where: { id: { in: jobs.map((j) => j.id) } }, data: { startedAt } })
-    .catch(() => {});
+  const ids = candidates.map((j) => j.id);
+  let jobs;
+  try {
+    const { count } = await prisma.mirrorJob.updateMany({
+      where: { id: { in: ids }, startedAt: null },
+      data: { startedAt },
+    });
+    if (count === 0) return { drained: 0, jobs: 0 };
+    jobs = await prisma.mirrorJob.findMany({ where: { id: { in: ids }, startedAt } });
+  } catch (err) {
+    console.error("drainMirrorQueue: could not claim the queue:", err?.message ?? err);
+    return { drained: 0, jobs: 0, error: err?.message ?? String(err) };
+  }
+  if (jobs.length === 0) return { drained: 0, jobs: 0 };
 
   let result;
   try {
-    result = await runDiscordMirror(prisma, {
+    result = await discordMirrorIndex.runDiscordMirror(prisma, {
       apply: true,
       scope: "structure",
       targets: jobs.map((j) => ({ targetType: j.targetType, targetId: j.targetId })),
@@ -83,49 +105,65 @@ async function drainMirrorQueue(prisma, { max = 50 } = {}) {
   // list does not say which job an op belongs to, and re-running a clean job is
   // free — the mirror is idempotent, which is the property the whole design
   // rests on. Guessing wrong in the other direction drops work on the floor.
-  const trouble = [...result.failures, ...result.deferred].length > 0;
+  //
+  // A pass whose only trouble is DEFERRED ops (the breaker was open mid-run) is
+  // not the job's fault, so it does not spend an attempt — only a real failure
+  // does. Either way `startedAt` is cleared so the next drain can claim it.
+  const deferredOnly = result.failures.length === 0 && result.deferred.length > 0;
+  const trouble = result.failures.length > 0 || result.deferred.length > 0;
   if (trouble) {
-    const why =
-      result.deferred.length > 0
-        ? "the Discord circuit breaker is open"
-        : result.failures[0]?.message ?? "an op failed";
-    await bumpAll(prisma, jobs, why);
+    const why = deferredOnly ? "the Discord circuit breaker is open" : result.failures[0]?.message ?? "an op failed";
+    await bumpAll(prisma, jobs, why, { countAttempt: !deferredOnly });
     return { drained: 0, jobs: jobs.length, retrying: jobs.length, error: why };
   }
 
+  // Only the jobs that have not been re-enqueued since they were claimed: a
+  // save that landed mid-run bumped `enqueuedAt` past `startedAt` and must
+  // survive, pending again for the next drain.
   await prisma.mirrorJob
-    .deleteMany({ where: { id: { in: jobs.map((j) => j.id) } } })
+    .deleteMany({ where: { id: { in: ids }, enqueuedAt: { lte: startedAt } } })
     .catch((err) => console.error("drainMirrorQueue: could not clear finished jobs:", err?.message ?? err));
 
   return { drained: jobs.length, jobs: jobs.length, ops: result.ops.length };
 }
 
-async function bumpAll(prisma, jobs, error) {
+async function bumpAll(prisma, jobs, error, { countAttempt = true } = {}) {
   const finished = new Date();
   for (const job of jobs) {
-    const attempts = job.attempts + 1;
+    const attempts = countAttempt ? job.attempts + 1 : job.attempts;
     await prisma.mirrorJob
       .update({
         where: { id: job.id },
         data: {
           attempts,
           error: String(error ?? "").slice(0, 500),
+          // Cleared so a later drain can claim the row again — only the
+          // MAX_ATTEMPTS cap below stops it being retried, never a stuck flag.
+          startedAt: null,
           // At the cap the job stops being pending and starts being a report.
-          finishedAt: attempts >= MAX_ATTEMPTS ? finished : null,
+          finishedAt: countAttempt && attempts >= MAX_ATTEMPTS ? finished : null,
         },
       })
       .catch(() => {});
   }
 }
 
-// What /gm/dev shows: how much is waiting, and how much of it is stuck.
+// What /gm/dev shows: how much is waiting, how much of it is stuck, and which
+// rows those are — a GM staring at "3 retrying" cannot tell what to go look at
+// without them.
 async function mirrorQueueStatus(prisma) {
-  const [pending, retried, givenUp] = await Promise.all([
+  const [pending, retried, givenUp, jobs] = await Promise.all([
     prisma.mirrorJob.count({ where: { finishedAt: null } }),
     prisma.mirrorJob.count({ where: { finishedAt: null, attempts: { gt: 1 } } }),
     prisma.mirrorJob.count({ where: { attempts: { gte: MAX_ATTEMPTS } } }),
+    prisma.mirrorJob.findMany({
+      where: { OR: [{ attempts: { gt: 1 } }, { NOT: { error: null } }] },
+      orderBy: { enqueuedAt: "asc" },
+      take: 20,
+      select: { targetType: true, targetId: true, attempts: true, error: true },
+    }),
   ]);
-  return { pending, retried, givenUp, breakerOpen: breakerIsOpen() };
+  return { pending, retried, givenUp, breakerOpen: breakerIsOpen(), jobs };
 }
 
 module.exports = { enqueueMirror, drainMirrorQueue, mirrorQueueStatus, pendingMirrorJobs, MAX_ATTEMPTS };
