@@ -573,7 +573,7 @@ desires:
   drink-sake:
     name: Drink sake
     verify: "Sake"
-    tier: 2
+    tier: 3
     families: [alcohol]
     cooldownTurns: 3
 
@@ -2338,6 +2338,13 @@ desires:
     # Not the bare tier: the cooldown ladder for a Desire whose cost is real
     # but small, and this one costs your eyes a notch at a time.
     cooldownTurns: 3
+  sample-every-alcohol:
+    name: Sample one of every alcohol in Ravenheart (Alcohol, Sake, Moonshine, Ravenheart Red)
+    tier: 5
+    families: [alcohol]
+    oncePerLife: true
+    requires:
+      anyTags: [alcoholic]
   get-a-manor-near-the-keep:
     name: Get a manor near the keep
     tier: 4

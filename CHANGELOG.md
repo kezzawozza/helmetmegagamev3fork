@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Sake pays more, and alcoholics get a tasting Desire
+
+✎ Drink sake is now worth 3 points  
+✚ A one-time 5-point Desire for alcoholics: sample Alcohol, Sake, Moonshine and Ravenheart Red
+
 ## 2026-09-15 · Muffled shouts garble the same everywhere
 
 ✎ A shout heard from two places away now blanks the same letters on Discord and the web, so comparing the two no longer fills in the gaps
