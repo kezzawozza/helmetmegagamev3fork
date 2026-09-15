@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · The website is the master copy of the world now, and Discord mirrors it
+
+✎ Zones, locations, rooms, links and stashes are edited live on /gm/dev/zones. The old zones sync is gone; zones.yaml is only an importer that adds what is missing and never deletes  
+✚ A Discord mirror that rebuilds any missing category, channel, role or thread from the database, adopting a same-named one before it ever creates one. Preview it and press Reconcile now on /gm/dev  
+✚ db:mirror and db:import-zones; the channel doctor now runs through the mirror  
+✎ Playing on Discord is opt-in per character. Existing characters keep whatever they had; new ones start web-only and flip the Play on Discord too switch on /character. GMs can flip it from the dev panel  
+✎ Restart Game keeps every Discord channel, role and thread and only clears messages  
+✎ Deleting a place is a soft retire by default; a hard delete is superadmin-only and lists everything still pointing at it
+
 ## 2026-09-15 · The intercom draws full size and bold on web now, not as scenery
 
 ✎ The intercom announcement used to render in Chat as tiny grey scenery text, the same as a gate crossing or a smell. It now shows bold and at regular size, matching how loud it already was on Discord
