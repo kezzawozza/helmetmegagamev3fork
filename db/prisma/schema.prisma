@@ -3731,6 +3731,19 @@ model Action {
   moveKind         MoveKind?
   moveReviewStatus MoveReviewStatus @default(OPEN)
 
+  // Did a player write this Move themselves, in the modal or the Move dialog?
+  // Only db/lib/moves.js#fileMove sets it. That is what makes a Gambit
+  // editable and withdrawable until lock-in (db/lib/moves.js#moveIsEditable) —
+  // a Move the GAME filed is a receipt for something that already happened,
+  // and has nothing left to withdraw.
+  //
+  // Defaults FALSE so it fails closed. Three places file a GAMBIT row whose
+  // cost is already paid — Research, the forge's Trinket and an above-skill
+  // heal — and a withdrawal there would refund nothing while handing the turn
+  // back. Deliberately a column rather than a `gmNotes` string match: that
+  // matching is what this change exists to retire.
+  playerFiled Boolean @default(false)
+
   // Which tier actually won for a LABOR Move — "basic" | "skilled" |
   // "hunting" | "farming" | "fishing" | "refining", db/lib/laborAccess.js's
   // own tier strings, not a Prisma enum (nothing else needs to query on it).

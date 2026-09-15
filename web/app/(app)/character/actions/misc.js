@@ -1974,7 +1974,9 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
   const outcome = result.success ? "they broke" : "they held out";
   await prisma.$transaction(async (tx) => {
     await consumeInspiredIfUsed(tx, character.id, tortureRoll.source);
-    // +40, or nothing under Pain Immunity / an Opium High (MOOD.md §6).
+    // −40, or nothing under Pain Immunity / an Opium High, which are ×0 multipliers
+    // (MOOD.md §6, TORTURE.md §4). Lands on a failed torture too — being worked over
+    // and holding out still costs you.
     await applyMood(tx, target.id, { kind: "TORTURED" });
     if (result.success && depressed) {
       // An EVENT grant, so Depressed's conflictsWith (a purchase-time check)

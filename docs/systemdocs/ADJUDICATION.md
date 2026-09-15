@@ -181,9 +181,26 @@ tray as "unattached" for the GM to keep or drop.
 
 ## 2. What a Move is now
 
-- **Submit = locked.** The Move modal is one shot ("Lock In Your Move");
-  there is no draft window and no player edit. The GM-side escape hatch is
-  **Reject**: deletes the Action, frees the turn, DMs the player "Your Move
+- **A Gambit is the player's until the lock.** They may rewrite it or
+  withdraw it any time before the Move cutoff — `editMove` and `withdrawMove`
+  in `db/lib/moves.js`, reached from the same dialog that filed it. A
+  withdrawal deletes the Action and hands the day back, exactly as Reject
+  does. Nothing else is editable: a **Labor** pays out on the press, and a
+  Move the *game* filed (a craft, a burial, a torture, a travel stub, a
+  lesson) is a receipt for something that already happened. `Action.playerFiled`
+  is what tells those apart, and it defaults false so it fails closed.
+- **The Gambit's die is thrown at the cutoff, not at submit.** `db/lib/
+  gambitCutoff.js`, a per-minute poll in the bot sharing `turnClock.js`'s
+  `cutoffReached` with the Oracle's own cutoff run, with a backstop at the
+  head of the staged push for a frozen clock or a bot that was down. This is
+  what makes the edit window safe rather than exploitable: while the die was
+  rolled at submit, an uncapped edit was a re-roll button. There is nothing to
+  fish for until the window shuts, and once it has shut nobody can touch their
+  Move. **A GM opening the desk before the lock sees "rolls at lock-in"
+  rather than a die** — working the desk after the lock is the intended order.
+- **Reject is still the GM-side escape hatch**, and still the only way to
+  return a Move that is not a pending Gambit: deletes the Action, frees the
+  turn, DMs the player "Your Move
   was returned to you — you can act again this turn." plus the reason,
   immediately — the one thing the desk sends in real time, because a freed
   turn the player doesn't know about is a wasted day. (The stored
@@ -194,8 +211,10 @@ tray as "unattached" for the GM to keep or drop.
   `resourceDelta` (now only ever machine-written — the Labor roll; players
   can no longer type a delta at all) applies at the push, solved or not. A GM
   who disagrees stages a counter-effect; the composer's "offset declared"
-  prefill is that in one click. Nothing pays at confirm any more — Routines
-  and Labor included.
+  prefill is that in one click. **Labor is the exception and pays at confirm**
+  — the ⬢ and any labor drop land on the press, `appliedEffects` is stamped
+  there, and the push skips the row. A Routine the game filed still pays at
+  the push.
 - **Solve is bookkeeping.** It stores the Result and Kind edit, stamps
   `reviewedBy`, and marks the staging complete. It applies nothing;
   Unsolve reverts nothing, because there is nothing yet to revert.

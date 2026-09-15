@@ -173,6 +173,15 @@ const R = {
     ...(d.diceRoll != null ? [t("— rolled"), em(String(d.diceRoll)), ...(d.diceModifier ? [em(signed(d.diceModifier))] : [])] : []),
   ],
   move_rejected: (d) => [actor(), t("rejected a Move"), ...(d.description ? [t("—"), em(quote(d.description))] : [])],
+  // A player rewriting or taking back their own Gambit before the lock (db/lib/moves.js).
+  // The old rows from the first, removed Edit render through these too — they carried no
+  // `from`/`to`, so the tail simply falls away.
+  move_edited: (d) => [actor(), t("rewrote their Move"), ...(d.to ? [t("—"), em(quote(d.to))] : [])],
+  move_withdrawn: (d) => [
+    actor(),
+    t("took their Move back"),
+    ...(d.description ? [t("—"), em(quote(d.description))] : []),
+  ],
   // move_${mode} modes from the adjudication desk; a mode with no line here renders via the `move_` fallback.
   move_solve: () => [actor(), t("solved a Move for"), target()],
   move_unsolve: () => [actor(), t("reopened a Move for"), target()],

@@ -1,21 +1,17 @@
-const { gambitModifiers, gambitModifierTotal } = require("./gambitModifier");
-const { rollWithAdvantage } = require("./advantage");
-const { consumeInspiredIfUsed } = require("./tagWrites");
 const { formatLaborBonusNote, lazyYield, lazyExpression } = require("./laborAccess");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
+const { applyMoveEffects, describeMoveEffects } = require("./moveEffects");
+
+// The word the player sees. ROUTINE is still reachable here for a GM-filed row, and reads as a plain Move.
+const MOVE_KIND_WORD = { GAMBIT: "Gambit", LABOR: "Labor", ROUTINE: "Move" };
 
 // Locks in a Move — the bot's modal and Chat's Move dialog both file the same way, so this lives in db/lib. A Move filed but never confirmed stays PENDING_TYPE, which the staged push and GM desk skip, costing the player the turn silently.
-// `action` must come in with its character, tags, AND hungerStreak loaded (db/lib/gambitModifier.js needs both). Resources land at the turn-end staged push; the Gambit die is rolled now for the GM desk but withheld until the reveal DM (stagedPush.js's gambitRollNotices).
+// `action` must come in with its character and tags loaded.
+//
+// TWO THINGS RESOLVE HERE AND ONE DOES NOT.
+// Labor pays on the spot: the ⬢ and any labor drop land now, and `appliedEffects` is stamped so the turn-end push skips the row (stagedPush.js filters on appliedEffects being null). A Labor Move is a receipt — the work is done and the day is spent.
+// A Gambit's d6 is NOT rolled here any more. It is rolled once, at the Move cutoff, by db/lib/gambitCutoff.js. That is what lets a player rewrite or withdraw a Gambit until lock-in without it becoming a re-roll button: there is nothing to re-roll until the window shuts.
 async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = null } = {}) {
-  // Lucky rolls this twice and keeps the better die (db/lib/advantage.js); the discarded die rides along in `advantage` for the roll line alone. Inspired is spent the instant it wins a Gambit — Lucky never is.
-  const advantage =
-    action.moveKind === "GAMBIT" ? rollWithAdvantage(action.character.tags, 6, { gambitOnly: true }) : null;
-  const diceRoll = advantage ? advantage.die : null;
-  if (advantage) await consumeInspiredIfUsed(prisma, action.character.id, advantage.source);
-  // Only a Gambit rolls; diceRoll stays the RAW roll, with the SUM of every contributor stored beside it as diceModifier (see schema.prisma).
-  const opts = { hungerStreak: action.character.hungerStreak, mood: action.character.mood };
-  const modifiers = diceRoll != null ? gambitModifiers(action.character.tags, opts) : [];
-  const diceModifier = diceRoll != null ? gambitModifierTotal(action.character.tags, opts) : null;
   const rollResult = action.resourceRollExpression ? rollResourceRange(action.resourceRollExpression) : null;
   // Lazy takes its quarter after the roll, not off the range — same rule as the auto-labor pass. Cut laborExpression the same way so the sheet/GM desk print the range the payout is actually inside.
   let laborExpression = action.resourceRollExpression;
@@ -29,21 +25,33 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
     ? (action.resourceDelta ?? 0) + rollResult.value
     : (action.resourceDelta ?? null);
 
-  // A Move no GM has to touch. Labor belongs here beside Routine: its payout is a die the turn close rolls, not a judgement anybody makes (db/lib/autoLaborPass.js files its own as PASSED too).
+  // A Move no GM has to touch. Labor belongs here beside Routine: its payout is a roll, not a judgement anybody makes (db/lib/autoLaborPass.js files its own as PASSED too).
   const needsNoGm = action.moveKind === "ROUTINE" || action.moveKind === "LABOR";
+  // Labor is settled the moment it's filed, so it is paid here rather than at the close.
+  const payNow = action.moveKind === "LABOR";
 
-  const updated = await prisma.action.update({
-    where: { id: action.id },
-    data: {
-      status: "CONFIRMED",
-      confirmedAt: new Date(),
-      ...(diceRoll != null ? { diceRoll, diceModifier } : {}),
-      ...(rollResult
-        ? { resourceRollValue: rollResult.value, resourceDelta, resourceRollExpression: laborExpression }
-        : {}),
-      // PASSED means "no GM needs to touch this", not "paid" — appliedEffects stays null until the staged push claims it.
-      ...(needsNoGm ? { moveReviewStatus: "PASSED" } : {}),
-    },
+  // What paying it actually moved — the ⬢, a labor drop, the Tired that comes of a long
+  // day, a refining shift's Squeeze. Reported HERE for a Labor, because it no longer
+  // reaches the turn-end DM that used to be the only place it was said.
+  let applied = null;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.action.update({
+      where: { id: action.id },
+      data: {
+        status: "CONFIRMED",
+        confirmedAt: new Date(),
+        ...(rollResult
+          ? { resourceRollValue: rollResult.value, resourceDelta, resourceRollExpression: laborExpression }
+          : {}),
+        ...(needsNoGm ? { moveReviewStatus: "PASSED" } : {}),
+      },
+    });
+    if (!payNow) return row;
+
+    // The same claim-then-apply the staged push uses (stagedPush.js §2), so the two can never both pay: whichever stamps `appliedEffects` first owns the payout, and this one is inside the confirming transaction.
+    applied = await applyMoveEffects(tx, row);
+    return await tx.action.update({ where: { id: row.id }, data: { appliedEffects: applied } });
   });
 
   await prisma.auditLog.create({
@@ -53,10 +61,8 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
       targetCharacterId: action.characterId,
       details: {
         actionId: action.id,
-        diceRoll,
-        diceModifier,
-        diceModifiers: modifiers,
         resourceRollValue: rollResult?.value ?? null,
+        paidNow: payNow,
       },
     },
   });
@@ -65,10 +71,10 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
 
   const lines = [
     `» ${action.description}`,
-    `Kind: **${action.moveKind === "GAMBIT" ? "Gambit" : "Routine"}**`,
+    `Kind: **${MOVE_KIND_WORD[action.moveKind] ?? "Move"}**`,
   ];
-  if (diceRoll != null) {
-    lines.push("🎲 *The die is cast. You'll see how it fell when the turn ends.*");
+  if (action.moveKind === "GAMBIT") {
+    lines.push("🎲 *The die is thrown when Moves lock, not now. Until then you can change this or take it back.*");
   }
   if (rollResult) {
     lines.push(
@@ -77,17 +83,27 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
     // The range above already has the tools baked in, so say so — otherwise a hunter with a Longbow can't tell 3-12 from the plain 0-9.
     if (bonusNote) lines.push(bonusNote);
   }
-  lines.push("» *Locked in. Results land when the turn ends.*");
+  // Everything else the day turned up. `resources` is dropped: the roll line above already said it, in the range's own words.
+  const appliedLine = describeMoveEffects(
+    Object.fromEntries(Object.entries(applied ?? {}).filter(([key]) => key !== "resources")),
+  );
+  if (appliedLine) lines.push(`**Applied:** ${appliedLine}`);
+  lines.push(
+    action.moveKind === "GAMBIT"
+      ? "» *Filed. You can change it or take it back until Moves lock.*"
+      : "» *Done. That's your day spent.*",
+  );
 
   return {
     updated,
     lines,
     roll: {
-      gambit: diceRoll != null,
+      gambit: action.moveKind === "GAMBIT",
       resourceValue: rollResult ? rollResult.value : null,
       expression: rollResult ? formatRangeExpression(laborExpression) : null,
       // `-#` is Discord subtext; a plain-text surface strips the prefix.
       bonusNote: bonusNote ? bonusNote.replace(/^-#\s*/, "") : null,
+      applied: appliedLine || null,
     },
   };
 }

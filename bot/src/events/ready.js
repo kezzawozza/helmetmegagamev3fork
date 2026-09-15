@@ -16,6 +16,7 @@ const { runWhisperPoll } = require("../lib/whisperPoll");
 const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
 const { runRiteSweep } = require("@lifeweb/db/lib/riteSweep");
 const { runOracleAtCutoff } = require("@lifeweb/db/lib/oracleCutoff");
+const { runGambitCutoff } = require("@lifeweb/db/lib/gambitCutoff");
 const { runStagePlay } = require("../lib/stagePlay");
 const { getGameState } = require("@lifeweb/db/lib/gameState");
 const { startDeathSmell } = require("../lib/deathSmell");
@@ -259,6 +260,25 @@ module.exports = {
         .catch((err) => console.error("Oracle cutoff check failed:", err))
         .finally(() => {
           oracleRunning = false;
+        });
+    });
+
+    // Every pending Gambit throws its d6 the moment Moves lock (db/lib/gambitCutoff.js). Every
+    // minute for the same reason as the Oracle above: the cutoff derives from the turn's own
+    // startedAt, and ticking makes it self-healing if the bot was down when the window shut. The
+    // roll is what makes a Gambit final, so until this fires a player may still rewrite or withdraw
+    // one. Cheap on every tick but one a day, and the staged push rolls anything this missed.
+    let gambitCutoffRunning = false;
+    cron.schedule("* * * * *", () => {
+      if (gambitCutoffRunning) return;
+      gambitCutoffRunning = true;
+      runGambitCutoff(prisma)
+        .then(({ ran, rolled, turnNumber }) => {
+          if (ran && rolled) console.log(`Gambit cutoff: threw ${rolled} dice for turn #${turnNumber}.`);
+        })
+        .catch((err) => console.error("Gambit cutoff check failed:", err))
+        .finally(() => {
+          gambitCutoffRunning = false;
         });
     });
 

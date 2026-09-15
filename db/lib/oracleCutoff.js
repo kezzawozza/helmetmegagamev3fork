@@ -1,6 +1,6 @@
 // Fires the Oracle when a turn's Move cutoff passes, so a GM reads the chronicle while they adjudicate (docs/systemdocs/ORACLE.md). There is no lock EVENT to hang this on, so this is a per-minute check rather than a subscription — a fixed cron would be wrong for a turn opened by hand, or during a frozen clock.
 
-const { moveWindow } = require("./turnClock");
+const { cutoffReached } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
 const { runOracle } = require("./oracle");
 
@@ -18,18 +18,10 @@ function spendAttempt(turnId) {
   return spent;
 }
 
-// Pure, so every branch is testable without a database, a clock or a provider — all but one is a REFUSAL, and a refusal that fires by mistake is silent. Returns a reason rather than a bare false so a log line can say which.
+// The cutoff test itself now lives in turnClock.js#cutoffReached, shared with db/lib/gambitCutoff.js — the Oracle and the Gambit dice both fire on the same moment and must never disagree about when it is. Kept as a named wrapper so callers and log lines still read in the Oracle's own words.
 function cutoffDecision(turn, { now = new Date(), clockFrozen = false } = {}) {
-  if (!turn) return { draft: false, reason: "no open turn" };
-
-  const { locked, hasLock, cutoffAt } = moveWindow(turn, { now, clockFrozen });
-
-  if (!hasLock) return { draft: false, reason: "this turn never locks" };
-
-  // `locked` is false on BOTH sides: before the cutoff, and again once the turn has outlived its derived end because an advance was missed (turnClock.js) — Run now is the recovery.
-  if (!locked) return { draft: false, reason: now < cutoffAt ? "before the cutoff" : "past the turn's end" };
-
-  return { draft: true, reason: "at the cutoff" };
+  const { at, reason } = cutoffReached(turn, { now, clockFrozen });
+  return { draft: at, reason };
 }
 
 async function runOracleAtCutoff(db, { now = new Date() } = {}) {

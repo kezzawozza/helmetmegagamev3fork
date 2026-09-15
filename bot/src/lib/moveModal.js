@@ -17,14 +17,17 @@ const {
 const MOVE_MODAL_ID = "move:new";
 
 // Label.description caps at 100 characters, so the full guidance line lives
-// in the TextDisplay below. Labor shares the radio group with Routine and
-// Gambit since it's the same slot; filing nothing picks Labor for you
-// (db/lib/autoLaborPass.js).
+// in the TextDisplay below. Two kinds now, not three: Routine stopped being
+// something a player picks and became what the game calls a Move you didn't
+// write (db/lib/moves.js#PLAYER_MOVE_KINDS). Filing nothing picks Labor for
+// you (db/lib/autoLaborPass.js).
+// Kept word-for-word in step with web/app/(app)/chat/MoveDialog.js's
+// MOVE_KINDS. If the wording changes, change it in both places.
 const MOVE_HELP =
   "-# Describe what you're hoping to accomplish — in the broadest sense, the ideal outcome, your intent. " +
   "Mention relevant tags or circumstances that the GMs should consider. " +
-  "Labor needs no arbitration: it pays your best Laboring skill for where you're standing. " +
-  "Careful! This can't be changed or canceled.";
+  "Labor needs no arbitration: it pays your best Laboring skill for where you're standing, right away. " +
+  "A Gambit you can rewrite or take back until Moves lock.";
 
 function buildMoveModal() {
   return new ModalBuilder()
@@ -47,7 +50,6 @@ function buildMoveModal() {
             .setCustomId("move:kind")
             .setRequired(true)
             .addOptions(
-              { label: "Routine", value: "ROUTINE", description: "Easy — it resolves itself." },
               { label: "Gambit", value: "GAMBIT", description: "Could go either way — rolls a die." },
               { label: "Labor", value: "LABOR", description: "Work the day using your best Labor skill." },
             ),

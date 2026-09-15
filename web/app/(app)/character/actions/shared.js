@@ -130,8 +130,8 @@ export function checkCraftMove(action, need) {
         : `${formatMoveFraction(need.num, need.den)} of a Move`;
     throw new UserError(
       left.num > 0
-        ? `That takes ${asks}, and you have ${formatMoveFraction(left.num, left.den)} of this turn's Routine left.`
-        : `That takes ${asks}, and this turn's Routine is spent.`,
+        ? `That takes ${asks}, and you have ${formatMoveFraction(left.num, left.den)} of this turn's Move left.`
+        : `That takes ${asks}, and this turn's Move is spent.`,
     );
   }
   return ledger;

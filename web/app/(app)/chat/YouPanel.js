@@ -132,7 +132,12 @@ export default function YouPanel({
     <div className="chat-you">
       <p className="chat-section-title">You</p>
 
-      <TurnCard turn={moveState.turn} move={moveState.move} onFile={() => setDialog("move")} />
+      <TurnCard
+        turn={moveState.turn}
+        move={moveState.move}
+        onFile={() => setDialog("move")}
+        onEdit={() => setDialog("move")}
+      />
       {/* `meter` for the load bar: this column has no Carrying tile of its
           own, so unlike the sheet there is nothing here already drawing it. */}
       <StatusStrip
@@ -159,7 +164,13 @@ export default function YouPanel({
       <WaitingList rows={waiting} onAnswered={say} />
 
       {dialog === "move" && (
-        <MoveDialog turn={moveState.turn} characterId={moveState.characterId} onClose={() => setDialog(null)} onDone={say} />
+        <MoveDialog
+          turn={moveState.turn}
+          characterId={moveState.characterId}
+          existing={moveState.move?.editable ? moveState.move : null}
+          onClose={() => setDialog(null)}
+          onDone={say}
+        />
       )}
     </div>
   );
