@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · The Dev Panel's four broadcast sections are one
+
+✎ Bulk actions now covers everything you do to a lot of people or a lot of places at once: move them, hand out Resources or a tag, send a DM, send a letter, or say a line the world says  
+✚ A line can now go into several zones, streets or rooms at once, and a letter to as many people as you tick — one sender, one seal, one body, a sheet each  
+− Send a letter and Say something as sections of their own, and the Quests panel's Broadcast tab. All three are verbs in Bulk actions now, and the old links still land in the right place  
+✎ Characters, Factions, Tags and Zones are sections of the panel instead of pages you had to leave it for  
+✎ Advertise on a quest now opens the line-writing box with its zone already ticked and a teaser written, and says so plainly when a cave has no summary channel to advertise into  
+✎ The Depot and The Oracle are just Depot and Oracle, and Games is History, so it stops reading as a typo of Game
+
 ## 2026-09-15 · The death DM no longer plugs Deadchat
 
 ✎ That line existed to tell a new ghost the room was there, but it read as an ad for a room they're about to be dropped into anyway  

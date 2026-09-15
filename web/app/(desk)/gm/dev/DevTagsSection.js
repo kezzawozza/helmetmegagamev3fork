@@ -35,7 +35,7 @@ async function FreshDevTags({ userId, canDelete }) {
     prisma.tag.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],
       include: {
-        group: { select: { id: true, name: true, color: true } },
+        group: { select: { id: true, slug: true, name: true } },
         // id as well as name: the detail sheet only needs the name, but the
         // edit dialog's cure-ladder picker has to resolve the relation back
         // to the ids it posts.
@@ -103,9 +103,9 @@ async function FreshDevTags({ userId, canDelete }) {
           // Everything below feeds the read-only detail sheet: the tier chain
           // and prerequisite links (walked client-side over this same list),
           // the consume/expiry targets, and the requirement block.
-          groupColor: t.group?.color ?? null,
-          // The nested shape ChipLabel/TagChip read (`tag.group.color`);
-          // `groupColor` above stays for the detail sheet's own flat lookups.
+          // The nested shape ChipLabel/TagChip read — `group.slug` picks the
+          // icon (web/lib/tagIcons.js), and the chip's colour comes off
+          // `category` rather than off the group at all.
           group: t.group ?? null,
           parentTagId: t.parentTagId,
           requiredTagId: t.requiredTagId,
