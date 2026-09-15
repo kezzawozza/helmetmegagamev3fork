@@ -215,6 +215,14 @@ Three notes on deliberate choices:
   (`web/lib/discordGuild.js`) carries the one death DM for every path that
   kills a character, so a GM's Kill button and an adjudicated lethal outcome
   never send two.
+- **A dead target's notice is swallowed once its player has moved on.**
+  `LOOT_CHARACTER`, a corpse Mutilate, Butcher, Bury and Engrave can all act on
+  a character who is no longer ALIVE. If that Discord user already controls a
+  different living character — a Metempsychosis reroll, or an ordinary Cursed
+  one — `notifyCharacter` no-ops instead of DMing them about their old body,
+  using the same `stillAlive` check `db/lib/reincarnate.js` and the death
+  teardown already rely on. A corpse whose player hasn't come back yet still
+  gets the DM as before.
 - **Consume has no resource field and no quantity field.** A meal already
   cost ⬢ to make and the Hunger pass charges its own upkeep, so a third
   charge here would be the same meal paid for three times; and taking one
