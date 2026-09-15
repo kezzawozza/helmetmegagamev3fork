@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Remove Corrupt from the two Brigands who bought it before the role gate
+
+✎ A one-off script, db/scripts/ops/revoke-brigand-corrupt.js — Dunkin D and John Johnson had it from before Corrupt's Desires were role-gated. Removed, no point refund, each player DMed
+
 ## 2026-09-15 · Corrupt keeps Sheriff and Censor, both — not a swap
 
 ✎ Corrupt's five Desires ask for Cerberus, Sheriff, Censor or Incarn. It never made sense to drop Sheriff; only Censor was missing
