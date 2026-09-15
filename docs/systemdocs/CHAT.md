@@ -634,7 +634,15 @@ a 48px head and a one-line composer:
   people standing here on the button — the same `ChatAside`, the same four
   tabs, full height now rather than an 80dvh bottom sheet so Travel and You
   have room. The avatar strip that sat under the head is gone: the people
-  are one tap away and the count is on the button.
+  are one tap away and the count is on the button. The drawer's own title is
+  the open place and its zone, not "Here" — the zone is dropped when it IS
+  the open place, the zone summary.
+- **A touch screen swaps the hover bar for one ⋯.** Every row carries a `⋯`
+  at its right edge, opening the same verbs the desktop hover bar shows
+  (Change, Take back, Look at, Photograph, Save to Notes, Remove) as a
+  bottom sheet instead. The hover bar itself is hidden under a coarse
+  pointer — it used to appear on tap too, and a bar of buttons sitting
+  right on the words it was next to was the problem, not the fix.
 - **Swipe** the scene right for the places and left for the people
   (`useSwipeOpen.js`: a mostly-horizontal touch move of 70px or more; the
   opposite swipe inside a drawer closes it). Touch events only, passive, no
@@ -648,7 +656,7 @@ a 48px head and a one-line composer:
   (`Feed.js` sets the height off `scrollHeight` — on a desktop too, where two
   rows is the floor). Send is the ➤ glyph, and the ✉ and the hood fold behind
   one ⊕ at the left edge (Discord's +). The textarea is 16px there, or iOS
-  zooms the page on focus.
+  zooms the page on focus. ⊕, the box and ➤ are all 44.
 - **Nothing else takes height.** The typing line sits OVER the last line of
   the scene rather than in a row of its own; the noticeboard scrolls away
   with the feed rather than pinning; the members row of a conversation folds
@@ -688,8 +696,9 @@ a 48px head and a one-line composer:
   zone**, the way Discord groups channels into categories, each group headed by
   a horizontal divider carrying the zone's name — `—— TOWN ——`,
   `—— FORTRESS ——`. Inside a group the sections are unchanged: **Summary** (the
-  zone's channel), **Here** (the Location), **Rooms** (public, then the private
-  ones a key or a guest row opens, marked `▪`), **Conversations**, and
+  zone's channel), **Location** (the street you stand in; it was headed "Here"
+  until 2026-09-15), **Rooms** (public, then the private ones a key or a guest
+  row opens), **Conversations**, and
   **Elsewhere** (the streets walked out of this turn, still watched, all
   read-only).
 
@@ -701,6 +710,12 @@ a 48px head and a one-line composer:
   prefix. That prefix is gone from Location rows now; the divider above says
   it. Room and conversation rows keep their `Marketplace · Back Room` prefix,
   since one zone holds many Locations.
+
+  **Rows are names, not pictures.** The one mark in the column is the ✉
+  (`MailIcon`) on the Bascinet row, because that row is mail rather than a
+  place. Every other row used to carry a glyph for its kind — `▸` `▤` `▪` `»`
+  and the rest — and the section heading already said the same thing, so the
+  glyphs went.
 
   Each place carries its own `zoneId`/`zoneName`, stamped by
   `db/lib/feedAccess.js#place()` — the column never re-derives a zone from a
@@ -1282,6 +1297,10 @@ a 48px head and a one-line composer:
   7. ~~**`Yesterday.js`**~~ — gone. What the last close said is in the
      Bascinet conversation at the top of the places column (§2b), with every
      other day.
+
+  On a phone, the turn (1) reads as a plain text line rather than a pill,
+  and Desires (4) folds the same way Things does, each slot labelled
+  `Slot N · open` or its lock or cooldown, above the Claim.
 
   The card and the waiting list share **one** 60-second interval (`myMove()`
   and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`

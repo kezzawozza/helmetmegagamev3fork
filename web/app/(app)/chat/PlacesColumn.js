@@ -3,7 +3,7 @@
 import { memo, useMemo } from "react";
 import IconButton from "@/app/components/IconButton";
 import HoverCard from "@/app/components/HoverCard";
-import { BellIcon, BellOffIcon, BellRingIcon, CheckIcon, SendIcon } from "@/app/components/icons";
+import { BellIcon, BellOffIcon, BellRingIcon, CheckIcon, MailIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
 import { useFolded } from "./sectionFold";
 
@@ -21,21 +21,18 @@ import { useFolded } from "./sectionFold";
 // The divider only draws when there are TWO OR MORE zones in the column. A
 // living player stands in one zone and sees exactly what they always did; it
 // is the GM and ghost seats, which watch every zone at once, that had a flat
-// run of every Location in the game under one "Here" heading.
+// run of every Location in the game under one "Location" heading.
 //
 // On a phone (under 720px) the SAME column is the ≡ drawer over the scene
 // (Chat.js), with a foot for the app's own links since the bottom bar is
 // gone there.
 
-// One character each — the column is 15rem wide and a label is what people read.
+// The one row with a mark: the Bascinet conversation, which is mail rather
+// than a place. Every place row is its name alone — a glyph per kind was a
+// column of small pictures nobody read, and the section headings already say
+// what a row is.
 function glyph(place) {
-  if (place.kind === "loc") return "▸";
-  if (place.kind === "conv") return "»";
-  if (place.kind === "zone") return "▤";
-  if (place.kind === "net") return "∿"; // carried in your pack (db/lib/specialChannels.js)
-  if (place.kind === "faction") return "⚑"; // pseudo-place, opens a roster (./FactionPanel.js)
-  if (place.kind === "dm") return "✉"; // pseudo-place, drawn by ./DmPane.js
-  return place.roomKind === "PRIVATE" ? "▪" : "";
+  return place.kind === "dm" ? <MailIcon width="14" height="14" /> : null;
 }
 
 // A row with a description shows it via HoverCard (the column scrolls, so an
@@ -51,9 +48,11 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
       data-vantage={place.vantage ? "true" : undefined}
       onClick={() => onSelect(place.placeKey)}
     >
-      <span className="chat-glyph" aria-hidden="true">
-        {glyph(place)}
-      </span>
+      {glyph(place) && (
+        <span className="chat-glyph" aria-hidden="true">
+          {glyph(place)}
+        </span>
+      )}
       <span className="chat-place-name">{place.name}</span>
       {unread && <span className="chat-dot" aria-label="Unread" />}
     </button>
@@ -203,7 +202,7 @@ export default function PlacesColumn({
               onSelect={onSelect}
             />
             <Section
-              title="Here"
+              title="Location"
               foldKey={foldKey("Here")}
               places={here}
               selected={selected}

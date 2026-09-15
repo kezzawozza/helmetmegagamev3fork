@@ -39,7 +39,7 @@ export default function ChatHead({
     <div className="chat-head">
       {onOpenPlaces && (
         <span className="chat-head-phone">
-          <IconButton icon={MenuIcon} label="Places" onClick={onOpenPlaces} />
+          <IconButton icon={MenuIcon} label="Places" size="lg" onClick={onOpenPlaces} />
           {unreadElsewhere && <span className="chat-dot chat-head-dot" aria-label="Unread elsewhere" />}
         </span>
       )}
@@ -86,7 +86,7 @@ export default function ChatHead({
       {trailing}
       {onOpenAside && (
         <span className="chat-head-phone">
-          <IconButton icon={PlayersIcon} label="Who is here" onClick={onOpenAside} />
+          <IconButton icon={PlayersIcon} label="Who is here" size="lg" onClick={onOpenAside} />
           {hereCount != null && hereCount > 0 && <span className="chat-head-count mono">{hereCount}</span>}
         </span>
       )}

@@ -8,7 +8,7 @@ import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
-import { CameraIcon, EditIcon, EyeIcon, HoodIcon, NotesIcon, PlusIcon, QuillIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
+import { CameraIcon, EditIcon, EyeIcon, HoodIcon, MoreIcon, NotesIcon, PlusIcon, QuillIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
@@ -162,6 +162,21 @@ export function FeedSkeleton() {
   );
 }
 
+// The six verbs a row can offer, in the one order both the hover bar and the
+// touch sheet draw them in. `show` reads the same guards FeedRow already
+// computes (`mine`/`canLook`/`canPhoto`/`canStar`/`canRemove`); `run` calls
+// the matching handler off the bag Feed hands down, against `{seq, sentAt}`.
+// One table instead of two hand-written lists, so a seventh verb is added
+// once and shows up in both places the same day.
+const ROW_VERBS = [
+  { key: "edit", label: "Change", icon: EditIcon, show: (g) => g.mine, run: (h, r) => h.onEdit(r.seq, r.sentAt) },
+  { key: "delete", label: "Take back", icon: TrashIcon, show: (g) => g.mine, run: (h, r) => h.onDelete(r.seq, r.sentAt) },
+  { key: "look", label: "Look at", icon: EyeIcon, show: (g) => g.canLook, run: (h, r) => h.onLookAt(r.seq) },
+  { key: "photo", label: "Photograph", icon: CameraIcon, show: (g) => g.canPhoto, run: (h, r) => h.onPhotograph(r.seq) },
+  { key: "star", label: "Save to Notes", icon: NotesIcon, show: (g) => g.canStar, run: (h, r) => h.onStar(r.seq) },
+  { key: "remove", label: "Remove", icon: TrashIcon, show: (g) => g.canRemove, run: (h, r) => h.onRemove(r.seq) },
+];
+
 // memo'd, and the whole point of keying the store by seq: a new message
 // re-renders one of these, not the run of a hundred above it.
 const FeedRow = memo(function FeedRow({
@@ -179,7 +194,6 @@ const FeedRow = memo(function FeedRow({
   // ⭐ needs a living character to file the note under (chat/actions.js#starRow).
   canStar,
   editing,
-  coarse,
   // True only for a row that arrived after this place was painted, so the
   // backlog does not animate. See `liveAfter`.
   live,
@@ -192,6 +206,7 @@ const FeedRow = memo(function FeedRow({
   onPhotograph,
   onStar,
   onRemove,
+  onOpenMenu,
 }) {
   const [draft, setDraft] = useState(row.content ?? "");
 
@@ -206,6 +221,9 @@ const FeedRow = memo(function FeedRow({
   // all, because a keyboard produces no mouseenter. Rendering it always and
   // letting :focus-within do the work is what makes it reachable by tab.
   const showActions = anyAction && !editing && !row.pending;
+  const guards = { mine, canLook, canPhoto, canStar, canRemove };
+  const handlers = { onEdit, onDelete, onLookAt, onPhotograph, onStar, onRemove };
+  const verbs = ROW_VERBS.filter((v) => v.show(guards));
 
   return (
     <li
@@ -274,7 +292,7 @@ const FeedRow = memo(function FeedRow({
                 onSaveEdit(row.seq, draft);
               }}
             />
-            <div className="flex gap-2">
+            <div className="chat-buttons">
               <button type="button" className="btn-quiet" onClick={() => onSaveEdit(row.seq, draft)}>
                 Save
               </button>
@@ -294,25 +312,44 @@ const FeedRow = memo(function FeedRow({
             that person is still standing beside you. */}
         {showActions && (
           <div className="chat-row-actions">
-            {mine && (
-              <>
-                <IconButton icon={EditIcon} label="Change" onClick={() => onEdit(row.seq, row.sentAt)} />
-                <IconButton icon={TrashIcon} label="Take back" onClick={() => onDelete(row.seq, row.sentAt)} />
-              </>
-            )}
-            {canLook && (
-              <IconButton icon={EyeIcon} label="Look at" onClick={() => onLookAt(row.seq)} />
-            )}
-            {canPhoto && (
-              <IconButton icon={CameraIcon} label="Photograph" onClick={() => onPhotograph(row.seq)} />
-            )}
-            {canStar && (
-              <IconButton icon={NotesIcon} label="Save to Notes" onClick={() => onStar(row.seq)} />
-            )}
-            {canRemove && (
-              <IconButton icon={TrashIcon} label="Remove" onClick={() => onRemove(row.seq)} />
-            )}
+            {verbs.map((v) => (
+              <IconButton
+                key={v.key}
+                icon={v.icon}
+                label={v.label}
+                onClick={() => v.run(handlers, { seq: row.seq, sentAt: row.sentAt })}
+              />
+            ))}
           </div>
+        )}
+
+        {/* Same verbs as the hover bar above, as a ⋯ that opens a bottom
+            sheet — a touch screen has no hover, so this is the one action a
+            tap can reach. CSS decides which of the two shows (globals.css). */}
+        {showActions && (
+          /* The wrapper carries the position, not the button: IconButton
+             wraps its button in the tooltip's own span, and an absolutely
+             positioned button inside that span pins to the span, not the
+             row — which put the ⋯ over the avatar. */
+          <span className="chat-row-more">
+            <IconButton
+              icon={MoreIcon}
+              label="Actions"
+              size="lg"
+              onClick={() =>
+                onOpenMenu({
+                  seq: row.seq,
+                  sentAt: row.sentAt,
+                  who: row.name,
+                  mine,
+                  canLook,
+                  canPhoto,
+                  canStar,
+                  canRemove,
+                })
+              }
+            />
+          </span>
         )}
 
         {row.failed && (
@@ -630,6 +667,10 @@ export default function Feed({
   const [dismissedJump, setDismissedJump] = useState(null);
   const typing = typingLine(useTyping(placeKey));
   const coarse = useIsCoarsePointer();
+  // The row whose ⋯ was tapped — its sheet of verbs, one open at a time.
+  // Carries the same booleans the hover bar branches on (FeedRow), so the
+  // sheet re-decides nothing the row hadn't already worked out.
+  const [menuRow, setMenuRow] = useState(null);
   // The phone (useNarrow.js): a one-line box, the send as a glyph, and the
   // ✉ and the hood folded behind a + the way Discord's composer does it.
   const narrow = useNarrow();
@@ -1744,6 +1785,7 @@ export default function Feed({
             <IconButton
               icon={SearchIcon}
               label="Search what was said"
+              size={narrow ? "lg" : "sm"}
               aria-expanded={showSearch}
               onClick={() => (showSearch ? closeSearch() : setSearchOpen(true))}
             />
@@ -1770,6 +1812,34 @@ export default function Feed({
             onJump(hitPlace, seq);
           }}
         />
+      )}
+
+      {/* The row-action sheet a tap opens instead of the hover bar. Same
+          verbs, same guards, same handlers — each one closes the sheet
+          first, then does what the hover bar's button would have done. */}
+      {menuRow && (
+        <Modal
+          open
+          title={menuRow.mine ? "Your line" : menuRow.who || "This line"}
+          onClose={() => setMenuRow(null)}
+        >
+          <div className="chat-sheet-menu" role="menu">
+            {ROW_VERBS.filter((v) => v.show(menuRow)).map((v) => (
+              <button
+                key={v.key}
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                onClick={() => {
+                  setMenuRow(null);
+                  v.run({ onEdit, onDelete, onLookAt, onPhotograph, onStar, onRemove }, menuRow);
+                }}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </Modal>
       )}
 
       {/* The scroller and the pill that floats over it share a wrapper, so
@@ -1825,7 +1895,6 @@ export default function Feed({
                     canRemove={canRemove}
                     canStar={canStar}
                     editing={editing}
-                    coarse={coarse}
                     // A pending row is your own send, which has always just
                     // happened; anything past the floor arrived while you
                     // were watching. Everything else is backlog.
@@ -1839,6 +1908,7 @@ export default function Feed({
                     onPhotograph={onPhotograph}
                     onStar={onStar}
                     onRemove={onRemove}
+                    onOpenMenu={setMenuRow}
                   />
                 </Fragment>
               );
@@ -2047,6 +2117,7 @@ export default function Feed({
                   icon={SendIcon}
                   label={command ? "Run" : "Send"}
                   className="icon-btn chat-send"
+                  size="lg"
                   onClick={command ? runCurrent : submit}
                   disabled={
                     command
@@ -2125,6 +2196,7 @@ export default function Feed({
                   <IconButton
                     icon={PlusIcon}
                     label="More"
+                    size="lg"
                     aria-haspopup="menu"
                     aria-expanded={toolsOpen}
                     onClick={() => setToolsOpen((was) => !was)}

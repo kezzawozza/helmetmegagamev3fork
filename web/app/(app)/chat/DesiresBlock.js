@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
-import EmptyState from "@/app/components/EmptyState";
+import { ChevronDownIcon } from "@/app/components/icons";
 import FormError from "@/app/components/FormError";
 import RichText from "@/app/components/RichText";
 import RequestDialog from "@/app/components/RequestDialog";
@@ -22,6 +22,9 @@ import { lockedSlotLabel } from "@/lib/desireLabels";
 // first time it is opened (./actions.js#desireCatalogView).
 export default function DesiresBlock({ view }) {
   const [refresh] = useRefresh();
+  // Open by default, unlike Things: a Claim nobody can see is a Claim nobody
+  // makes, and there are only two slots here.
+  const [open, setOpen] = useState(true);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const [loading, setLoading] = useState(false);
@@ -79,38 +82,51 @@ export default function DesiresBlock({ view }) {
   }
 
   return (
-    <div className="chat-desires">
-      <p className="chat-section-title">Desires</p>
-      {Array.from({ length: desireSlots }, (_, slotIndex) => {
-        const slot = bySlot.get(slotIndex) ?? { slotIndex, lockedUntilTurn: null, lastEnded: null };
-        const bound = slotIndex === bottomIndex && addiction;
-        return (
-          <div key={slotIndex} className="chat-desire-slot">
-            {slot.lastEnded && (
-              <p className="chat-quiet-line">
-                <strong>Last:</strong> <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
-                {slot.lastEnded.points === 1 ? "" : "s"}
-                {cooldownLabel(slot.lastEnded.template) ? ` · ${cooldownLabel(slot.lastEnded.template)}` : ""}
-              </p>
-            )}
-            {slot.lockedUntilTurn != null ? (
-              <EmptyState>{lockedSlotLabel(slot)}</EmptyState>
-            ) : (
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={loading || pending}
-                onClick={() => openPicker(slotIndex)}
-              >
-                Claim
-              </button>
-            )}
-            {bound && <p className="chat-quiet-line">Addiction: {addiction.name}</p>}
-          </div>
-        );
-      })}
+    <div className="chat-details chat-desires">
+      <button
+        type="button"
+        className="chat-section-title chat-section-fold"
+        aria-expanded={open}
+        onClick={() => setOpen((was) => !was)}
+      >
+        <ChevronDownIcon data-open={open ? "true" : undefined} />
+        Desires
+      </button>
+      {open && (
+        <div className="chat-details-body">
+          {Array.from({ length: desireSlots }, (_, slotIndex) => {
+            const slot = bySlot.get(slotIndex) ?? { slotIndex, lockedUntilTurn: null, lastEnded: null };
+            const bound = slotIndex === bottomIndex && addiction;
+            return (
+              <div key={slotIndex} className="chat-desire-slot">
+                {slot.lastEnded && (
+                  <p className="chat-quiet-line">
+                    <strong>Last:</strong> <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
+                    {slot.lastEnded.points === 1 ? "" : "s"}
+                    {cooldownLabel(slot.lastEnded.template) ? ` · ${cooldownLabel(slot.lastEnded.template)}` : ""}
+                  </p>
+                )}
+                <p className="chat-quiet-line">
+                  Slot {slotIndex + 1} · {slot.lockedUntilTurn != null ? lockedSlotLabel(slot) : "open"}
+                </p>
+                {slot.lockedUntilTurn == null && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={loading || pending}
+                    onClick={() => openPicker(slotIndex)}
+                  >
+                    Claim
+                  </button>
+                )}
+                {bound && <p className="chat-quiet-line">Addiction: {addiction.name}</p>}
+              </div>
+            );
+          })}
 
-      <FormError>{error}</FormError>
+          <FormError>{error}</FormError>
+        </div>
+      )}
 
       {/* Keyed per opening so search, tab and target slot start fresh each
           time — DesireCatalog asks for exactly that. */}

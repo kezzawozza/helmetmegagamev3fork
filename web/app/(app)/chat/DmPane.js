@@ -216,6 +216,7 @@ export default function DmPane({ self, drawers = null }) {
           label="Send"
           type="submit"
           className={narrow ? "icon-btn chat-send" : "icon-btn"}
+          size={narrow ? "lg" : "sm"}
           disabled={sending || !draft.trim() || over}
         />
       </form>

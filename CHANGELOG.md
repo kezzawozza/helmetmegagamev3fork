@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Chat on a phone: one size of button
+
+✎ Every button in Chat is one size on a phone now: 44px to tap, chips at 36. The head's three buttons, the composer's ⊕ / box / ➤, the tabs, the section headers and the drawer rows all match  
+✚ Tap ⋯ on a line to change it, take it back, look at it, photograph it or save it to Notes. On a desktop the hover bar is unchanged  
+✎ The right drawer is titled with the place you are reading, not 'Here'  
+✎ Cancel stands as tall as the button beside it, in Chat and in every dialog  
+✎ The YOU tab reads as one card: the turn is a line of text, Move… takes the full width, Things and Desires fold the same way, and each Desire slot is labelled  
+✎ The places list is names only, with one mail mark on Bascinet. The Here section is called Location  
+✚ The stat tiles on the Character page fit a phone screen instead of running off the edge
+
 ## 2026-09-15 · Chat's place list is split by zone now, the way Discord splits by category
 
 ✎ The Chat column groups everywhere you can read by zone, under a divider carrying the zone's name — TOWN, FORTRESS, and so on  

@@ -11,6 +11,12 @@ import { moveKindLabel } from "./MoveDialog";
 // The countdown and the cutoff it counts to are shared with the Move dialog,
 // which asks the same question in its own header — so untilLabel lives in
 // web/lib/turnFormat.js and both read the one copy.
+//
+// The turn used to be two chips (a label pill and a countdown pill) sitting
+// alone above the Move button, which read as two more buttons rather than
+// the plain fact they are. It is one text line now — a chip is for a value
+// that just IS (DESIGN-SYSTEM §5a), and a locked turn is a state, not a
+// value, so only that case still gets a small tone chip.
 export default function TurnCard({ turn, move, onFile }) {
   const [now, setNow] = useState(() => Date.now());
   const [open, setOpen] = useState(false);
@@ -27,19 +33,21 @@ export default function TurnCard({ turn, move, onFile }) {
 
   return (
     <div className="chat-move">
-      <div className="chat-chips">
-        <span className="chip chip-mono">{label}</span>
-        {countdown && (
-          // The server's minute and the browser's are not the same minute.
-          <span
-            className="chip chip-mono"
-            data-tone={turn.locked ? "danger" : undefined}
-            suppressHydrationWarning
-          >
-            {countdown}
-          </span>
-        )}
-      </div>
+      {/* The server's minute and the browser's are not the same minute. */}
+      <p className="chat-quiet-line" suppressHydrationWarning>
+        {label}
+        {countdown &&
+          (turn.locked ? (
+            <>
+              {" · "}
+              <span className="chip chip-mono" data-tone="danger">
+                {countdown}
+              </span>
+            </>
+          ) : (
+            ` · ${countdown}`
+          ))}
+      </p>
 
       {move ? (
         /* A filed Move is final, so there is nothing to press but the words

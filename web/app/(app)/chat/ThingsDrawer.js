@@ -240,7 +240,7 @@ export default function Things({ groups: initialGroups = [] }) {
 
   return (
     <div className="chat-details chat-things">
-      <button type="button" className="chat-details-summary" aria-expanded={open} onClick={toggle}>
+      <button type="button" className="chat-section-title chat-section-fold" aria-expanded={open} onClick={toggle}>
         <ChevronDownIcon data-open={open ? "true" : undefined} />
         Things
       </button>

@@ -175,14 +175,16 @@ export default function PartyRack() {
 
       {!riding && pickable.length > 0 && (
         <>
-          <button
-            type="button"
-            className="btn-quiet"
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-          >
-            {open ? "Done" : "Bring somebody"}
-          </button>
+          <div className="chat-buttons">
+            <button
+              type="button"
+              className="btn-quiet"
+              aria-expanded={open}
+              onClick={() => setOpen((v) => !v)}
+            >
+              {open ? "Done" : "Bring somebody"}
+            </button>
+          </div>
           {open && (
             <div className="chip-row" role="group" aria-label="Bring somebody">
               {pickable.map((person) => (

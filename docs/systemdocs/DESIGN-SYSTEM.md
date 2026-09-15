@@ -127,7 +127,9 @@ Use these instead of rolling one-off markup.
 | `.data-table` | Tabular data. |
 | `.menu-item` | Link-like row actions. |
 | `.control` | The `.field` control surface, without the label column — a `<select>` in a table cell, an input inline in a toolbar. |
-| `.icon-btn` | The one framed icon button — via `IconButton`. |
+| `.icon-btn` | The one framed icon button — via `IconButton`, whose `size` is `sm` (26, default) or `lg` (44), the desktop size; a coarse pointer inside `/chat` floors every one of these at 44 regardless. |
+| `.chat-buttons` | Chat's only action row. A `.btn-quiet` inside one gets the padded, aligned treatment `.modal-actions` gives one, so a Cancel lines up with the button beside it. |
+| `.chat-section-fold` | The one folding section header in Chat — Places' own sections, Things, Desires — a `<button>`. A header that doesn't fold is a `<p className="chat-section-title">` instead. |
 | `.tab-item` / `.tab-bar` | A tab strip navigating between panels. Keyed on `data-active`. |
 | `.segmented` | A group of mutually exclusive options as one joined pill. Keyed on `aria-pressed`. |
 | `.chip-row` | A wrapping row of chips. The house form for a **multi**-select: each chip is a `<button className="chip">` keyed on `data-active` (plus `aria-pressed`), and `.chip[data-active]` gives it the accent border and label. |
@@ -541,6 +543,15 @@ block in `globals.css`. They are not 44px on desktop on purpose: at `--fs-xs`
 they are ~31px there, and raising that everywhere is a redesign, not a fix. A
 small control inside a table row — the row checkbox on `/gm/players`, say —
 gets its hit area from the cell's padding rather than from a bigger box.
+
+**Chat holds itself to that floor a second way.** Inside `.chat-shell`,
+`(pointer: coarse)` sets every control to `--tap` (44) or `--tap-sm` (36) in
+one block at the end of the `.chat-*` family in `globals.css`, keyed on the
+pointer rather than on 720px for the tablet case below. The two tokens are
+Chat's; the rest of the file still writes 44 and 36 out, on purpose, until a
+page is touched. A dialog's Cancel joined the app-wide list above so it stands
+as tall as its Submit everywhere. `.map-controls`, below, is the earlier scoped
+carve-out this one follows.
 
 The desk tiers above put their own two controls — the header's `Inspector`
 toggle and the middle column's Back button — on `(pointer: coarse)` rather

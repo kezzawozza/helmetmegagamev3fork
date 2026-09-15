@@ -878,6 +878,17 @@ export default function Chat({
   const drawerTitle = [aside?.zone?.name ?? (gm ? "Gamemaster" : null), describeTurn(aside?.turn ?? null).label]
     .filter(Boolean)
     .join(" · ");
+  // The right drawer's own title: the open place, then its zone, the way the
+  // left drawer names the zone and the turn. It used to say "Here", which
+  // named nothing. The zone is dropped when it IS the open place (the zone
+  // summary) and for anything that is not a place in the world — the
+  // Bascinet mail, a conversation — since `aside.zone` is where you STAND,
+  // not where the open pane is. GM mode, with no `aside`, gets the name alone.
+  const worldPlace = selected && ["loc", "room", "zone"].includes(selected.kind);
+  const asideTitle =
+    [selected?.name, worldPlace && aside?.zone?.name !== selected?.name ? aside?.zone?.name : null]
+      .filter(Boolean)
+      .join(" · ") || "Here";
 
   return (
     <div className="chat-body">
@@ -995,14 +1006,14 @@ export default function Chat({
         />
       )}
       {!aside && gmZones && asideFolded && asideOpen && (
-        <Modal open title="Here" onClose={closeAside} panelClassName="modal-panel chat-drawer chat-drawer--right">
+        <Modal open title={asideTitle} onClose={closeAside} panelClassName="modal-panel chat-drawer chat-drawer--right">
           <DrawerBody onSwipeClose={closeAside} side="right">
             <GmAside selected={selected} gmZones={gmZones} onPlaceChanged={bumpBoard} />
           </DrawerBody>
         </Modal>
       )}
       {aside && asideFolded && asideOpen && (
-        <Modal open title="Here" onClose={closeAside} panelClassName="modal-panel chat-drawer chat-drawer--right">
+        <Modal open title={asideTitle} onClose={closeAside} panelClassName="modal-panel chat-drawer chat-drawer--right">
           <DrawerBody onSwipeClose={closeAside} side="right">
             <ChatAside
               {...aside}
