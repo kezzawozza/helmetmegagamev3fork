@@ -60,7 +60,7 @@ const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
 const { loadForcedName } = require("./lib/presentedIdentity");
 const { postAsCharacter, attachBreakerStore } = require("./lib/discordRest");
 const { bumpBlood, LIFEWEB_SPUTTER_THRESHOLD } = require("./lib/lifeweb");
-const { runFullChannelWipe } = require("./lib/fullWipe");
+const { wipeGameMessages } = require("./lib/fullWipe");
 const { syncZonesFromYaml } = require("./lib/syncZones");
 const { syncTagsFromYaml } = require("./lib/syncTags");
 const { deleteCharacterRow } = require("./lib/deleteCharacter");
@@ -1802,7 +1802,7 @@ module.exports = {
   resolveNeeds,
   advanceTurn,
   resumeTurnSideEffects,
-  runFullChannelWipe,
+  wipeGameMessages,
   syncZonesFromYaml,
   syncTagsFromYaml,
   deleteCharacterRow,

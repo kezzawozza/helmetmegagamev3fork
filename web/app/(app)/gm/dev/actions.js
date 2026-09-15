@@ -18,9 +18,7 @@ import { bucketConfigured, putObject, finalKey } from "@lifeweb/db/lib/archiveBu
 import {
   prisma,
   advanceTurn as advanceTurnInDb,
-  runFullChannelWipe,
-  syncZonesFromYaml,
-  syncSpecialChannels,
+  wipeGameMessages,
   syncTagsFromYaml,
   syncRolesFromYaml,
   syncDesiresFromYaml,
@@ -620,19 +618,23 @@ async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds,
   for (const id of deadchatMemberIds) {
     await step(`deadchat ${id}`, () => closeDeadchatTo(prisma, id));
   }
-  // The belt to that braces: a fresh provision strips every member overwrite outright, so a seat the
-  // loop above missed (a departed member, a failed call) cannot survive into the new game.
+  // The belt to that braces: a fresh provision strips every member overwrite
+  // outright, so a seat the loop above missed (a departed member, a failed
+  // call) cannot survive into the new game. The mirror has no equivalent —
+  // it reconciles structure and role membership, never a channel's raw
+  // per-member overwrites — so this stays a call of its own, ahead of the
+  // mirror step below.
   await step("deadchat channel", () => ensureDeadchatChannel(prisma, { fresh: true }));
 
-  await step("full channel wipe", () => runFullChannelWipe(prisma));
+  // Structure (categories, channels, roles) is no longer destroyed here —
+  // the mirror step below is what repairs it. Only messages go.
+  await step("message wipe", () => wipeGameMessages(prisma));
 
   // After the wipe, never before: it bulk-deletes every #turns message.
   await step("turns console repost", () => postTurnsAnnouncement(prisma, firstTurn, null));
 
   // Dependency order: roles resolve a starting zone and validate
-  // starting_tags; special channels' view grants name the zone roles.
-  await step("zone sync", () => syncZonesFromYaml(prisma));
-  await step("special channels sync", () => syncSpecialChannels(prisma));
+  // starting_tags.
   await step("tag sync", () => syncTagsFromYaml(prisma));
   await step("role sync", () => syncRolesFromYaml(prisma));
   await step("desire sync", () => syncDesiresFromYaml(prisma));
@@ -641,9 +643,13 @@ async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds,
   // zone and location catalogs the steps above just rebuilt.
   await step("labor drop sync", () => syncLaborDropsFromYaml(prisma));
 
-  // Backstop: whatever a retry above missed, the doctor finds and repairs.
-  await step("channel doctor", () =>
-    runChannelDoctor(prisma, { apply: true, scope: "cheap", actorDiscordUserId }),
+  // Backstop: repairs every category, channel, role, anchor and Room thread
+  // the wipe just cleared or emptied, including reposting the starters and
+  // anchors wipeGameMessages nulled above. Replaces the old special-channels
+  // sync, deadchat provisioning and channel doctor steps — the mirror is the
+  // one repair path for all of it now (LAUNCH.md §2).
+  await step("discord mirror", () =>
+    runDiscordMirror(prisma, { apply: true, scope: "full", actorDiscordUserId }),
   );
 
   const okSteps = steps.filter((s) => s.ok).length;

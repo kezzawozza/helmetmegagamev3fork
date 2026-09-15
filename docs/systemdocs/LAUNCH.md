@@ -59,19 +59,23 @@ is collected, and the run lands on that report row. The panel no longer claims
 a success it can't know about — and if the container dies partway, the report
 is left unfinished (`finishedAt` null), which is itself the signal.
 
+**Discord structure is no longer destroyed here.** Categories, channels and
+roles stay; only messages go, and the Discord mirror is what repairs
+anything the wipe emptied or the retries above still missed — see "DB is
+master, Discord is a mirror" for why `db:sync-zones` is gone from this list
+entirely.
+
 The order, and why:
 
 | # | Step | Why here |
 |---|---|---|
 | 1 | **Access sweep** (`revokeAccessForCharacters`) | First, while nothing has re-provisioned: strips every character's zone role and every stray member overwrite, channel-major |
 | 2 | **Per character**: delete the personal role, clear the nickname, drop turn-ping | Discord role state the DB transaction never touched. Sequential — 240+ simultaneous requests against two per-guild buckets is its own incident. Each character is its own step, so a failure names them |
-| 3 | **Ghost roles** removed from everyone who held one | A restart should not leave an ex-player read-only vision of every zone in the new game |
-| 4 | **Full channel wipe** (`runFullChannelWipe`) | Spares nothing — `#turns`, `#archive`-named channels, every zone's `#summary`, every Location channel and every thread under it, Rooms and anchors included. It then **nulls the recorded thread/anchor ids and hashes** so the re-sync rebuilds them instead of hash-matching something that no longer exists |
+| 3 | **Deadchat**: close every open seat, then a fresh provision (`ensureDeadchatChannel({ fresh: true })`) | Closing each seat by id is the belt; the fresh provision strips every member overwrite on the channel outright, which is the brace for a departed member or a failed call the loop missed. The mirror has no equivalent — it never touches a channel's raw per-member overwrites — so this stays its own step |
+| 4 | **Message wipe** (`wipeGameMessages`) | Clears `#turns`, every `#archive`-named channel, every zone's `#summary` and every Location channel. A zone Room's thread is **kept** — its messages clear, and its starter id/hash are nulled so the mirror reposts into it. A quest Room's thread, and any thread that matches no Room at all (a Conversation), is deleted outright — neither needs to survive, and the mirror already knows how to rebuild a quest Room's thread from scratch. Anchors are nulled unconditionally, since every channel they sit in just emptied |
 | 5 | **`#turns` console repost** | After the wipe, never before: step 4 bulk-deletes every message in `#turns`, including this one if it were posted first. Turn 1 is opened by a plain `turn.create`, so `runSideEffects()` never fires and the announcement that normally rides it never went out |
-| 6 | **Zone sync** (`syncZonesFromYaml`) | Regenerates every category, `#summary`, Location channel, zone and location role, Room thread and anchor from `docs/zones.yaml` |
-| 7 | **Special channels sync** | Right after zones, because a registry entry's `roleViewZones` grants name zone roles step 6 may have just recreated |
-| 8 | **Tag sync** → 9. **Role sync** → 10. **Desire sync** → 11. **Document sync** | Dependency order: roles resolve a `starting_zone` and validate `starting_tags`; desires validate `requires.anyRoles`/`notRoles` against roles and `requires.anyTags`/`notTags` against tags (`SYNC.md` §1, `DESIRES.md` §10); documents validate against tags, roles and factions |
-| 12 | **Channel doctor** (cheap, apply) | The structural backstop: whatever a retry above still missed, the doctor finds by diffing Discord against the now-empty roster and repairs. Not a bigger retry count — a different mechanism |
+| 6 | **Tag sync** → 7. **Role sync** → 8. **Desire sync** → 9. **Document sync** → 10. **Labor drop sync** | Dependency order: roles resolve a `starting_zone` and validate `starting_tags`; desires validate `requires.anyRoles`/`notRoles` against roles and `requires.anyTags`/`notTags` against tags (`SYNC.md` §1, `DESIRES.md` §10); documents validate against tags, roles and factions; labor drops run last, against the tag and location catalogs the steps above just rebuilt |
+| 11 | **Discord mirror** (`runDiscordMirror`, full scope, apply) | The structural backstop: reconciles every category, channel, role, radio net, Deadchat channel, Location anchor and Room thread against the database, and reposts anything step 4 just cleared. Replaces the old zone sync, special-channels sync and channel doctor steps — one repair path instead of three |
 
 ## 3. The runbook
 
@@ -98,11 +102,11 @@ The order, and why:
 **After the wipe**
 
 6. `npm run db:sync-narrowcast-channels`, then delete the old `#radio` channel
-   by hand if it is still there. The wipe *does* run the special-channels sync
-   (step 7 above), so this is only needed when the ids are NULL — a fresh
-   database, or right after the `watch_radio_channels` migration. It is safe to
-   re-run either way: channel identity is one-time and everything else
-   reconciles.
+   by hand if it is still there. The wipe *does* run the discord mirror (step
+   11 above), which provisions both radio nets, so this is only needed when
+   the ids are NULL — a fresh database, or right after the
+   `watch_radio_channels` migration. It is safe to re-run either way: channel
+   identity is one-time and everything else reconciles.
 7. `npm run db:rebuild-info-channel`. `#info` is never rebuilt automatically
    and still carries the previous game's roles intro.
 8. `npm run db:prune-orphan-roles` — dry run. Add `-- --apply` only if it
@@ -129,7 +133,9 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 
 | Survives | Consequence |
 |---|---|
-| `#cerberon`, `#27.065`, `#info` messages | `runFullChannelWipe` touches `#turns`, `#archive`-named channels and zone channels only. Last game's radio traffic on BOTH nets stays readable — clear it by hand if that matters. |
+| `#cerberon`, `#27.065`, `#info` messages | `wipeGameMessages` touches `#turns`, `#archive`-named channels and zone channels only. Last game's radio traffic on BOTH nets stays readable — clear it by hand if that matters. |
+| Every category, channel and role | `wipeGameMessages` deletes none of them, and the mirror step only creates or repairs — it never tears one down. A restart no longer means a fresh set of Discord ids for anything |
+| A zone Room's Discord thread | Kept on purpose (§2 step 4). Its messages clear like any other channel, and its starter reposts once the mirror runs |
 | The `radio` category and its channel ids | Deliberate: provisioning is one-time, so the pointers persist. |
 | The `#turns` console pointer | Deliberate, and the safety net for step 5 above: a stale id makes the bot repost on its next `ready`. |
 | `GameConfig` | Every knob on the Configuration section. Per-game state is on `GameState`, which is recreated. |
@@ -137,11 +143,10 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | `Game` and `ArchiveEntry` rows | The transcript of every past game, readable on `/archive` under its id, with the reveal on top. |
 | `GmZoneView` rows | GMs keep the zones they chose across a restart. Clearing the table is safe: no rows means every zone. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
-| `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. |
+| `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Kept as rows throughout — nothing here re-syncs them from YAML any more. |
 
-Everything zone-side in Discord — categories, channels, zone and location
-roles, anchors, Room threads — is **destroyed and regenerated**. Zone,
-Location and Room rows keep their ids; their Discord objects do not.
+A quest Room's thread and any Conversation thread do not survive — see §2
+step 4 for why neither needs to.
 
 ## 5. If you are not wiping
 

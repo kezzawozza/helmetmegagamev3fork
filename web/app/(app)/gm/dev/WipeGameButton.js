@@ -83,7 +83,7 @@ export default function WipeGameButton({ hasPacket = false }) {
       <FormError>{error}</FormError>
       {done ? (
         <p className="text-sm">
-          » <em>Game wiped.</em> Channel clearing and the YAML re-syncs are still running in the background — they&apos;ll take a few minutes.
+          » <em>Game wiped.</em> Messages are still clearing and the Discord mirror is still repairing structure in the background — they&apos;ll take a few minutes.
         </p>
       ) : null}
     </form>
