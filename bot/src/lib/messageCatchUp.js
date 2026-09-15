@@ -201,12 +201,12 @@ async function catchUpMissedMessages(client, guild, { reason = "startup" } = {})
       const authorIds = [...new Set(missed.map((m) => m.author.id))];
       const alive = await prisma.character.findMany({
         where: { discordUserId: { in: authorIds }, status: "ALIVE" },
-        select: { id: true, discordUserId: true, discordMirrored: true },
+        select: { id: true, discordUserId: true },
       });
-      // Not mirrored to Discord holds no Discord access at all (CHAT.md §6),
-      // so a message from that account came from nowhere the character
-      // stands — same answer messageCreate would give live.
-      const byUser = new Map(alive.filter((c) => c.discordMirrored).map((c) => [c.discordUserId, c]));
+      // Mirroring is not checked here: messageCreate proxies and deletes a
+      // living character's message regardless, and a raw message left under
+      // the player's real name is the one outcome catch-up exists to prevent.
+      const byUser = new Map(alive.map((c) => [c.discordUserId, c]));
 
       // A GHOST typing in Deadchat while the bot was away. Resolved per author rather than per
       // message, and only in that one channel — everywhere else "no living character" is still the

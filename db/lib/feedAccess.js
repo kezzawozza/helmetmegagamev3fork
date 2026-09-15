@@ -41,7 +41,7 @@ async function hasScryingEye(prisma, characterId) {
       },
     },
   });
-  if (row?.discordMirrored) return false;
+  if (!row || row.discordMirrored) return false;
   const slugs = new Set(row.tags.map((ct) => ct.tag.slug));
   return slugs.has(SCRYING_EYE_SLUG) && ROBE_SLUGS.some((slug) => slugs.has(slug));
 }
