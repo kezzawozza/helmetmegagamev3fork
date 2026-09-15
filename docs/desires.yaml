@@ -58,7 +58,7 @@
 #      second repetition. What actually throttles a Desire is a per-attempt
 #      COST — ⬢ spent, an item consumed, a risk run.
 #
-# So: a Desire you pay for every time (buy jewelry, win 10 ⬢/¢ gambling, feed
+# So: a Desire you pay for every time (buy jewelry, win 10 ¢ gambling, feed
 # the poor, host an event) keeps the tier as its cooldown — the spend is the
 # throttle and it needs no help. A Desire that costs nothing but another
 # player's cooperation (a compliment, an argument, a kiss) is a free income
@@ -419,22 +419,22 @@ desires:
     families: [gambling]
 
   win-5-gambling:
-    name: Win 5 ⬢/¢ gambling
+    name: Win 5 ¢ gambling
     tier: 2
     families: [gambling]
 
   win-10-gambling:
-    name: Win 10 ⬢/¢ gambling
+    name: Win 10 ¢ gambling
     tier: 3
     families: [gambling]
 
   win-25-gambling-one-game:
-    name: Win 25 ⬢/¢ gambling in one game
+    name: Win 25 ¢ gambling in one game
     tier: 4
     families: [gambling]
 
   win-50-gambling-one-game:
-    name: Win 50 ⬢/¢ gambling in one game
+    name: Win 50 ¢ gambling in one game
     tier: 5
     families: [gambling]
 
@@ -809,7 +809,7 @@ desires:
     families: [status, mortality]
 
   eat-dangerous:
-    name: Eat something dangerous.
+    name: Eat something poisonous
     tier: 4
     families: [food, bravery]
     requires:
@@ -1128,7 +1128,7 @@ desires:
       anyRoles: [hand]
 
   amass-200:
-    name: Amass a stockpile of 200 ⬢/¢
+    name: Amass a stockpile of 200 ¢
     tier: 5
     families: [wealth]
     requires:
@@ -1687,7 +1687,7 @@ desires:
       anyRoles: [cerberus, sheriff, censor, incarn]
 
   pocket-60:
-    name: Hold 60 ⬢/¢ that was never yours
+    name: Hold 60 ¢ that was never yours
     tier: 4
     oncePerLife: true
     families: [theft]
