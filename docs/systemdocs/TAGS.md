@@ -2023,8 +2023,8 @@ because a slot holds one physical thing however large the stack behind it is.
 
 | `equipSlot` | limit | holds |
 |---|---|---|
-| `HEAD` | layers 1–3, one thing per layer | 1 liner (coif, cap, mask), 2 helm, 3 outer (hat, hood, bag) |
-| `BODY` | layers 1–3, one thing per layer | 1 clothes (padded armor, robes, garb), 2 mail (mail shirt, brigandine), 3 outer (breastplate, plate, cloak, longcoat) |
+| `HEAD` | **one thing**, no layers | a mask, a helm, a coif, a hat, a hood, a bag — any one of them, never two |
+| `BODY` | layers 1–2, one thing per layer | 1 mail (clothes, robes, garb, mail shirt, brigandine), 2 over (breastplate, plate, cloak, longcoat) |
 | `WEAPON` | **four hands**, fewer if maimed (below); a `twoHanded: true` weapon takes two | everything you hold — every weapon, the shields, the banners, the flamethrower, the chainsaw |
 | `ACCESSORY` | **four** | badges, pins, jewelry, spectacles, lenses, gloves, hand tools |
 | `MOUNT` | layers 1–2 | 1 ridden (horse, motorcycle, boat), 2 towed (cart) |
@@ -2061,16 +2061,37 @@ equip-op block (a maiming carries no equip op, so anything inside it would
 never run). Reaching for a fifth weapon yourself is still a refusal that names
 what to put down, in `character/equipActions.js`.
 
-`equipLayer:` 1 is against the skin and 3 outermost, and **two equipped tags
-may not share a layer**. So a mail coif (`HEAD` 1) goes under a knight's helm
-(`HEAD` 2), but two helms do not go together; a cart (`MOUNT` 2) is towed
-behind a horse (`MOUNT` 1), but a horse and a boat are one ride too many.
-`WEAPON` and `ACCESSORY` carry no layer, and sync throws if one is set on
-them. Sync also throws on a layer outside **that slot's own range** —
-1–3 on `HEAD` and `BODY`, 1–2 on `MOUNT`, since the rig has no third mount
+`equipLayer:` 1 is against the skin and the last name outermost, and **two
+equipped tags may not share a layer**. So a robe (`BODY` 1, Mail) goes under a
+breastplate (`BODY` 2, Over), but two breastplates do not go together; a cart
+(`MOUNT` 2) is towed behind a horse (`MOUNT` 1), but a horse and a boat are one
+ride too many. `HEAD`, `WEAPON` and `ACCESSORY` carry no layer, and sync throws
+if one is set on them — an unlayered slot keys on the bare slot, so two things
+in it clash whatever they are. Sync also throws on a layer outside **that
+slot's own range** — 1–2 on `BODY` and on `MOUNT`, since the rig has no third
 cell to draw one in — a layer with no slot, a layered slot with no layer, a
 slot on a tag that is not `equippable`, and `twoHanded` on anything but a
 `WEAPON`.
+
+**`HEAD` and `BODY` were three layers each until 2026-09-15.** Head stacking —
+a mask under a helm under a hood — was the elaborate half and bought nothing a
+single slot does not: the fiction of a coif beneath a helmet is not worth a
+player reasoning about three head slots, and concealment now has exactly one
+source rather than an ordering puzzle (`db/lib/presentedIdentity.js`). Body
+kept two because *armour over clothes* is a real choice a player makes and a
+real thing the armour maths adds up. The old Clothes and Mail layers folded
+together into **Mail**, and the old Outer became **Over**.
+
+That collapse leaves characters wearing more than the new rule allows, and
+that is not cosmetic: a clash is validated over the whole equipped set after
+the write, so **a pre-existing clash refuses every later equip**, naming two
+items the player did not touch — and `db/lib/tagOps.js` does the same to a
+GM's staged batch, including one trying to unequip a piece of it.
+`npm run db:collapse-equip-slots` is what clears it (dry run by default,
+`-- --apply` to write). It keeps the best piece in each slot — most armour
+first, then a concealing one so a hidden face stays hidden — takes the rest
+off silently, and re-settles carry, since dropping a `carryBonus` item shrinks
+the cap.
 
 **Hands** are the one limit that is a number: `WEAPON_HANDS = 4` in
 `db/lib/equipSlots.js`, a constant rather than a knob. A bastard sword on the

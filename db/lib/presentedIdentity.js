@@ -14,8 +14,28 @@ const CONCEALMENT_TAG_FIELDS = {
   concealsIdentity: true,
   concealSprite: true,
   forcesConceal: true,
+  // Both halves of the ordering below. equipSlot alone is not enough (a robe
+  // and a breastplate share it) and equipLayer alone is not either, now that
+  // HEAD carries none.
+  equipSlot: true,
   equipLayer: true,
 };
+
+// How outermost a concealing piece is, for picking the face the room sees.
+//
+// This used to be Tag.equipLayer alone, highest wins. That stopped working
+// when HEAD became a single unlayered slot: every head piece now has a null
+// layer, so all of them tied at 0 and the winner was whichever row the query
+// happened to return first — a sprite that could change between two reloads.
+//
+// It asks the question it always meant: what is on the outside. A head piece
+// beats a body one, because a hood covers a face and a breastplate does not,
+// and within BODY the Over layer beats Mail.
+function concealRank(tag) {
+  if (tag?.equipSlot === "HEAD") return 100;
+  const layer = Number.isInteger(tag?.equipLayer) ? tag.equipLayer : 0;
+  return layer;
+}
 
 // Forced name off a character's tags; first one wins.
 function forcedNameFrom(tags) {
@@ -41,8 +61,10 @@ async function loadForcedName(prisma, characterId) {
   return forcedNameFrom(held ? [held] : []);
 }
 
-// Returns the OUTERMOST equipped concealing piece (highest Tag.equipLayer);
+// Returns the OUTERMOST equipped concealing piece (highest concealRank);
 // `forced` true if ANY equipped piece forces it. Null when nothing conceals.
+// Ties break on name so the answer is stable across reloads rather than left
+// to whatever order the rows arrived in.
 function concealmentFrom(tags) {
   if (!Array.isArray(tags)) return null;
   let best = null;
@@ -52,8 +74,12 @@ function concealmentFrom(tags) {
     const tag = entry?.tag ?? entry;
     if (!tag?.concealsIdentity || !tag?.concealSprite) continue;
     if (tag.forcesConceal) forced = true;
-    const layer = Number.isInteger(tag.equipLayer) ? tag.equipLayer : 0;
-    if (!best || layer > best.layer) best = { sprite: tag.concealSprite, layer, name: tag.name ?? null };
+    const rank = concealRank(tag);
+    const name = tag.name ?? null;
+    const wins = !best
+      || rank > best.rank
+      || (rank === best.rank && String(name ?? "").localeCompare(String(best.name ?? "")) < 0);
+    if (wins) best = { sprite: tag.concealSprite, rank, name };
   }
   return best ? { sprite: best.sprite, name: best.name ?? null, forced } : null;
 }

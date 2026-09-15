@@ -1,5 +1,5 @@
-// The bare `.chip` face — name, optional ×N, group colour — with no tooltip
-// and nothing interactive of its own.
+// The bare `.chip` face — group icon, name, optional ×N — with no tooltip and
+// nothing interactive of its own.
 //
 // Split out of TagChip so it can be rendered where an interactive chip can't
 // go: inside another chip's hover tooltip (un-hoverable), or inside the
@@ -11,12 +11,19 @@
 // opens its verb menu — so they cannot wrap this span without nesting one
 // `.chip` box inside another. They render `as="button"` instead and pass their
 // own handlers straight through, which is what lets the rail wear the real
-// chip face (group colour, mastery star, duration) without giving up its click.
+// chip face (icon, category rule, mastery star, duration) without giving up its click.
+//
+// `icon` is the one opt-out: a surface already grouping BY that same group
+// (the point-buy's group sections) would draw the same glyph down a whole
+// column, saying nothing.
+import TagIcon from "./TagIcon";
+
 export default function ChipLabel({
   tag,
   quantity = 1,
   duration = null,
   as: As = "span",
+  icon = true,
   children = null,
   className = "",
   style,
@@ -25,7 +32,12 @@ export default function ChipLabel({
   // Only a stack says how many; an ordinary tag reads as a bare name, which
   // is every tag outside Items today.
   const stack = quantity > 1 ? quantity : null;
-  const groupColor = tag.group?.color ?? null;
+  // Two levels, two signals: the CATEGORY paints the left rule (one --tag-*
+  // token each, globals.css) and the GROUP draws the glyph. Splitting them is
+  // the point — colour used to be a freeform per-group hex, so a sheet was
+  // forty stripes with no key. Lower-cased because the attribute selector is
+  // case-sensitive and the catalog stores "Items", not "items".
+  const category = tag.category ? String(tag.category).toLowerCase() : null;
   // A mastery tag wears a star wherever its name is drawn — the sheet and the
   // store both, so the mark says "this one is a capstone" on a tag somebody
   // already holds and not only on the offer. Kept out of Tag.name on purpose:
@@ -40,11 +52,11 @@ export default function ChipLabel({
       // it — a chip that dropped its own class to take a modifier would stop
       // being a chip.
       className={className ? `chip ${className}` : "chip"}
-      // Merged, not overwritten, and the group colour wins: it is the one
-      // thing about a chip that is a fact rather than a decision.
-      style={groupColor ? { ...style, borderLeftColor: groupColor, borderLeftWidth: 3 } : style}
+      data-tag-category={category ?? undefined}
+      style={style}
       {...rest}
     >
+      {icon && <TagIcon tag={tag} size={12} />}
       {star}
       {tag.name}
       {stack && <span className="text-muted"> &times;{stack}</span>}

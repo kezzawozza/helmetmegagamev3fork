@@ -68,7 +68,10 @@ import {
 const STROKE = 1.6;
 
 // Wraps a Lucide component so the house stroke is the default and any prop a call site passes still wins.
-function lucide(Glyph, name) {
+// Exported for web/lib/tagIcons.js, which needs the house stroke over its own ~40 tag-group glyphs. Those
+// stay out of this file deliberately: they are a lookup table keyed by group slug, read by one module and
+// imported by name nowhere, so re-exporting each would add forty dead names to the app's icon vocabulary.
+export function lucide(Glyph, name) {
   function Icon(props) {
     return <Glyph strokeWidth={STROKE} {...props} />;
   }

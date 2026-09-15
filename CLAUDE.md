@@ -372,6 +372,14 @@ npm run db:mirror                    # the Discord mirror: treats the DB as the
                                      #   over it. See CHANNELS.md 6a.
 npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
                                      #   DRY RUN unless given `-- --apply`.
+npm run db:collapse-equip-slots      # one-off: takes off whatever no longer
+                                     #   fits after HEAD became a single slot
+                                     #   and BODY collapsed to Mail/Over. DRY
+                                     #   RUN unless given `-- --apply`. Not
+                                     #   optional tidying — a pre-existing
+                                     #   clash refuses every LATER equip, so
+                                     #   this is what unbricks equipping. Run
+                                     #   it after db:sync-tags. See TAGS.md.
 npm run db:convert-lecturers         # one-off: moves everyone off the retired
                                      #   Teaching (Lecturing) tag onto plain
                                      #   Teaching. DRY RUN unless given
@@ -1293,6 +1301,11 @@ global CLIs. To make one able to build, run, and deploy:
   (`MAP.md` §3) — `db/lib/travelArrivalPass.js` still reads them, purely as a
   drain for anybody left mid-journey by that change, and should be deleted once
   they have landed.
+  `TagGroup.color` joined them on 2026-09-15: a chip's colour comes from its
+  `Tag.category` now (the `--tag-*` tokens) and a group is marked by an icon
+  instead, so the column is unread, unwritten, and gone from
+  `docs/taggroups.yaml`. Do not give a group a colour again — see
+  `DESIGN-SYSTEM.md`.
   `GameConfig.mindlinkChannelId` is the same kind of orphan: the column
   stays in the schema, but nothing reads or writes it since the Cult of
   Bacchus was archived (`docs/archive/bacchus.yaml`), and `Character.missedMealStreak`

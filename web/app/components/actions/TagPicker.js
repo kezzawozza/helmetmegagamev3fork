@@ -121,10 +121,10 @@ export default function TagPicker({
               disabled={Boolean(blocked)}
               onClick={() => onSelect(isSelected ? null : tag.id)}
               className="select-card panel flex w-full items-start gap-3 p-3 text-left"
-              style={{
-                borderLeftColor: tag.group?.color ?? undefined,
-                borderLeftWidth: tag.group?.color ? 3 : undefined,
-              }}
+              // The category rule, off a --tag-* token (globals.css), same as
+              // every other tag face. It used to paint TagGroup.color inline.
+              data-tag-category={tag.category ? String(tag.category).toLowerCase() : undefined}
+              style={tag.category ? { borderLeftWidth: 3 } : undefined}
             >
               <span aria-hidden="true">{isSelected ? "◆" : "◇"}</span>
               <span className="min-w-0">

@@ -69,7 +69,6 @@ async function FreshDocuments() {
           select: {
             id: true,
             name: true,
-            color: true,
             slug: true,
             requiredTagId: true,
             // Drives TagChip's "Requires" line, same as TAG_CHIP_FIELDS.
@@ -247,15 +246,14 @@ async function FreshDocuments() {
     pointCost: t.pointCost,
     groupId: t.groupId,
     groupName: t.group?.name ?? null,
-    groupColor: t.group?.color ?? null,
-    // Full group shape (not just the gate fields): TagChip reads
-    // group.name/color for its chip and group.requiredTag.name for the
-    // "Requires" line, alongside catalogTags' gate on requiredTagId.
+    // Full group shape (not just the gate fields): TagChip reads group.slug
+    // for its icon (web/lib/tagIcons.js), group.name for the peers row, and
+    // group.requiredTag.name for the "Requires" line, alongside catalogTags'
+    // gate on requiredTagId.
     group: t.group
       ? {
         slug: t.group.slug,
         name: t.group.name,
-        color: t.group.color,
         requiredTagId: t.group.requiredTagId,
         requiredTag: t.group.requiredTag,
       }

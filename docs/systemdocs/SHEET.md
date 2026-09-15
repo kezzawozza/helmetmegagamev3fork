@@ -155,18 +155,42 @@ Who this is, where they stand, and:
 
 One card per kind, one row per tag. `web/lib/sheetCards.js` is the pure half:
 which card (the tag's category, Status excluded), the order inside it, the
-sub-groups (the `TagGroup` a tag belongs to, with its colour from
-`docs/taggroups.yaml`), and `rowValue()` — the one thing on the row's right,
-picked in the order a player cares: turns left (in `--danger` on the last
-turn), then pounds, then the armour word, then a carry or labor bonus, then a
-stack count.
+sub-groups (the `TagGroup` a tag belongs to), and `rowValue()` — the one thing
+on the row's right, picked in the order a player cares: turns left (in
+`--danger` on the last turn), then pounds, then the armour word, then a carry
+or labor bonus, then a stack count.
 
 | Card | Order | Second line |
 |---|---|---|
 | Health | soonest to run out first | `→ Festering · cure 2 ⬢ · Medical (Basic)` from `expiresInto` and the requirement block |
 | Skills | by family (TagGroup) | the next rung: the catalog tag whose `parentTagId` is this one, with its cost |
-| Items | by kind, heaviest first; the header carries the total lb | — |
-| Assets, General, Meta, Demoness | alphabetical | — |
+| Items, Assets | by kind, heaviest first; the header carries the total lb | an **item card** — see below |
+| General, Meta, Demoness | alphabetical | — |
+
+**A tag's two marks.** The 3px rule down the left is its **category**, from
+one of seven `--tag-*` tokens in `globals.css` (`DESIGN-SYSTEM.md`); the glyph
+before its name is its **group**, from `web/lib/tagIcons.js`. One signal each.
+Until 2026-09-15 both jobs were done by one freeform hex per group in
+`docs/taggroups.yaml`, and the result was forty-odd bright stripes with no key
+— technically meaningful, practically confetti. Do not give a group a colour
+again; give it an icon.
+
+**Items and Assets are item cards** (`ItemCard.js`), not rows. `rowValue()` is
+first-match-wins, which is right for one line and lossy by construction: a
+stack of five 2 lb rations reads `10 lb` and never that there are five, and an
+armoured coat never mentions its armour because it weighs something. An
+inventory is the one place that trade is wrong, so those two cards use
+`itemFacts()` instead and print all of it — weight each and total, `2 of 5
+worn`, the armour word, the carry bonus, where it sits. Assets gets the same
+treatment as Items now (sub-groups and a header total) rather than falling
+through to the plain alphabetical branch, which it did while still being
+granted Items' full verbs.
+
+**The state marks are one vocabulary** (`TagMarks.js`): worn, smells wrong,
+locked, drawn the same way on a chip, a row and a card — glyphs where it is
+tight, words where there is room. They are marks on the face, never tones:
+`DESIGN-SYSTEM.md`'s rule holds that a chip is a label and a `StatusPill` is a
+state, so `danger` stays the only tone a chip may wear.
 
 `TagRow.js` is the row: click it and `TagDetails.js` opens inline beneath —
 the same block `TagChip.js` shows on hover everywhere else, lifted out of it
@@ -191,7 +215,8 @@ set.
 ## 4. The rig (`EquipBoard.js`)
 
 The equipment rules are `TAGS.md`'s ("equipSlot / equipLayer /
-twoHanded"): one thing per layer of Head, Body and Ride, one shield, four
+twoHanded"): **one thing on a head**, one per layer of Body (Mail, then Over)
+and Ride, four
 hands — fewer if maimed, and the board draws only the cells you actually have
 (`TAGS.md`, "A maiming takes hands away") — accessories uncapped. The board draws
 exactly that — a row per slot, a
@@ -219,6 +244,16 @@ The rows are only as good as the catalog: slots and layers reach the database
 through `npm run db:sync-tags`, which no deploy step runs, so a push without
 it leaves every weapon, accessory and mount slotless and the board empty
 (`TAGS.md`, "equipSlot / equipLayer / twoHanded").
+
+**A slot always draws everything actually in it**, even past its own limit.
+A layered row appends a cell for any stray layer the catalog no longer has,
+and an unlayered one (Head) draws every piece worn there rather than the first
+— because a character can be over the limit through no act of their own, from
+the 2026-09-15 collapse or from a deploy running ahead of its
+`db:sync-tags`. Drawing one would leave the rest on their head with no ✕ to
+take them off, and a pre-existing clash refuses every later equip
+(`TAGS.md`). The board may be the bearer of bad news; it may not lie about
+what you are wearing.
 
 Every click is `toggleEquip`, so a refusal — a second helm, a fourth hand — is
 the server's sentence in `FormError` under the board. The `Ride` row goes

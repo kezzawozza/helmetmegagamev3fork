@@ -1,5 +1,5 @@
-# Sole master for the TagGroup catalog — split out of docs/tags.yaml so
-# group colors can be freeform hex rather than a fixed set of tokens. Same
+# Sole master for the TagGroup catalog — split out of docs/tags.yaml, which
+# is long enough without it. Same
 # posture as docs/tags.yaml: hand-edited, `slug` is the stable match key,
 # synced upsert-only by db/lib/syncTags.js#syncTagsFromYaml, which reads
 # this file and docs/tags.yaml together and never deletes on its own — a
@@ -14,11 +14,6 @@
 # Per-group fields:
 #   category    - must match one of the category slugs declared in
 #                 docs/tags.yaml's `categories:` list.
-#   color       - freeform hex color (e.g. "#81a4d7") used to tint every tag
-#                 chip in this group — the 3px left rule ChipLabel.js draws.
-#                 Omit for an uncolored group. Not theme-aware (the chip sits
-#                 on --field-bg, see web/app/globals.css), so it answers to
-#                 THE PALETTE below rather than to taste.
 #   requiredTag - optional slug of a Tag that gates every tag in this group
 #                 (see docs/tags.yaml's requiredTag docs for the same idea
 #                 at the single-tag level). This is the "hidden category"
@@ -29,26 +24,30 @@
 #                 (requirementSatisfied), and re-checked server-side by
 #                 createCharacter and addTagRequest.
 #
-# THE PALETTE — keep it, or the character sheet goes motley again:
-#   * One hue family per CATEGORY, so a sheet reads by category at a glance:
-#     General blue/indigo, Skills green, Status amber, Health red, Items teal,
-#     Demoness magenta — and Assets the one grey (stone) family.
-#   * Groups inside a category step by LIGHTNESS and SATURATION, never out of
-#     the hue. Health is the tightest on purpose: all seven read as one red.
-#   * No two categories share a hue. Status and Health both carry bad news, so
-#     amber-vs-red is the split keeping them apart; do not warm Status further.
-#   * Every value clears 3:1 (WCAG 1.4.11, non-text UI) on BOTH the dusk and
-#     dawn chip backgrounds — worst case --field-bg over --surface-raised,
-#     where the tightest here measures 3.44. Check the numbers before adding.
+# A GROUP HAS NO COLOUR. It used to: every group carried a freeform hex, and
+# every chip in it wore that hex as its 3px left rule. The palette behind
+# those hexes was careful — one hue family per category, groups stepping by
+# lightness inside it — and it still did not work on a real sheet. The steps
+# within a hue were too fine to tell apart, Items-teal sat next to
+# Skills-green, and forty-odd bright stripes with no key read as confetti.
+#
+# It is two signals now, one per level, and neither is authored here:
+#   * COLOUR says which CATEGORY, from the seven --tag-* tokens in
+#     web/app/globals.css — themed, muted, and gated at 3:1 against the
+#     surface by `npm run audit:contrast --workspace=web`.
+#   * The ICON says which GROUP, from web/lib/tagIcons.js, keyed by the slugs
+#     below.
+#
+# So: to change what a group looks like, add or change its line in
+# web/lib/tagIcons.js. Do not give this file a `color` field back — that is
+# the thing that made the sheet motley.
 groups:
   general-traits:
     name: Traits
     category: general
-    color: "#81a4d7"
   general-social:
     name: Social
     category: general
-    color: "#8479d7"
   # What a character actually believes. Ungated on purpose — a belief is not a
   # secret the way the Demoness group below is, and #info already
   # tells every player that "most people are Post-Christian, but some people
@@ -60,7 +59,6 @@ groups:
   general-beliefs:
     name: Beliefs
     category: general
-    color: "#878fb7"
   # Desires rework (2026-08-31): the Addiction/Restriction/Interest ladder got
   # its own three groups instead of living scattered through Traits and The
   # Court. All ungated, same reasoning as Traits/Social/Beliefs — nothing here
@@ -77,7 +75,6 @@ groups:
   general-addictions:
     name: Addictions
     category: general
-    color: "#6f93c9"
   # One value covering the ground the two old groups held, sitting between
   # their #7f88bd and #9db4e0 and staying inside the General blue/indigo family
   # THE PALETTE requires. 4.28:1 on dusk, 4.43:1 on dawn — comfortably clear of
@@ -86,7 +83,6 @@ groups:
   general-personality:
     name: Personality
     category: general
-    color: "#8a90c6"
   # Orphaned by the Personality rework above: general-personality took every
   # tag both of these held. Sync never deletes, and `db:prune-tags` only
   # prunes an empty group once it's absent from this file — so these rows
@@ -95,11 +91,9 @@ groups:
   general-restrictions:
     name: Restrictions
     category: general
-    color: "#7f88bd"
   general-interests:
     name: Interests
     category: general
-    color: "#9db4e0"
   # Two body-membership groups, gated the same way Demoness is
   # (see the bottom of this file). Gating here rather than repeating
   # `requiredTag` on every member is the established idiom, and it means a
@@ -109,19 +103,16 @@ groups:
   general-cerberon:
     name: Cerberon
     category: general
-    color: "#5e84c1"
     requiredTag: cerberon
   general-brigand:
     name: Brigands
     category: general
-    color: "#8f7aad"
     requiredTag: brigand
   # Third body-membership group: the Baron's court, gated behind the free
   # `courtier` tag every court role starts with.
   general-court:
     name: The Court
     category: general
-    color: "#aaace4"
     requiredTag: courtier
   # Places you know about that are not on any map a stranger could read. A
   # tag here is knowledge, not a possession: it opens a hidden room's door
@@ -133,7 +124,6 @@ groups:
   general-location:
     name: Location
     category: general
-    color: "#5a83b5"
   # Orphaned: the Health category below took every tag that used to live
   # here. Sync never deletes, and `db:prune-tags` only prunes an empty group
   # once it's absent from this file — so this row survives empty as long as
@@ -142,23 +132,18 @@ groups:
   status-health:
     name: Health
     category: status
-    color: "#c6af8b"
   status-food:
     name: Food
     category: status
-    color: "#d4ba67"
   status-buffs:
     name: Buffs
     category: status
-    color: "#e4d6aa"
   status-debuffs:
     name: Debuffs
     category: status
-    color: "#bf9453"
   items-food:
     name: Food
     category: items
-    color: "#8bcace"
   # Tonic is its own group rather than a corner of Food: the catalog is a
   # supply chain (fungus -> Bliss, grain -> Alcohol -> the Red) and the
   # tonics above it are nothing like a meal. See the Alcohol & Drugs
@@ -166,15 +151,12 @@ groups:
   items-drink:
     name: Tonic
     category: items
-    color: "#5ab3ce"
   items-gear:
     name: Gear
     category: items
-    color: "#71a4a4"
   items-armor:
     name: Armor
     category: items
-    color: "#8faab7"
   # Split out of Armor once headgear started deciding what a character's FACE
   # is (Tag.concealSprite, docs/systemdocs/PROXYING.md §5). A helm is no longer
   # just plate that happens to sit high up: a mask with no armour value at all
@@ -183,14 +165,12 @@ groups:
   items-headgear:
     name: Headgear
     category: items
-    color: "#9db8c4"
   # The exotic tier: relics, grafts and machinery that don't belong to the
   # low-fantasy surface of the game. Kept apart from Gear so a player reading
   # their sheet can tell at a glance which of their possessions are ordinary.
   items-special:
     name: Special
     category: items
-    color: "#a9d0e5"
   # Keys. Split out of Gear because a key is not equipment — it weighs
   # nothing, does nothing in a fight, and its whole value is the one door it
   # opens (a Room's `access:` list in docs/zones.yaml). Grouping them means a
@@ -202,11 +182,9 @@ groups:
   items-keys:
     name: Keys
     category: items
-    color: "#4a8fa0"
   items-weapons:
     name: Weapons
     category: items
-    color: "#56bdaf"
   # Bodies. Three monster corpses live here from docs/tags.yaml, and so does
   # every "{name}'s Corpse" a death writes (db/lib/corpseMint.js) — which is
   # why the group, not a catalog flag, is what the client-side code checks:
@@ -218,7 +196,6 @@ groups:
   items-corpse:
     name: Corpses
     category: items
-    color: "#4a8f88"
   # Parts cut off a person, one at a time (docs/systemdocs/TORTURE.md §6).
   # Deliberately NOT items-corpse: that group slug is CORPSE_GROUP_SLUG, the
   # thing db/lib/corpses.js#isCorpseTag matches on, so an eye filed there would
@@ -232,7 +209,6 @@ groups:
   items-remains:
     name: Remains
     category: items
-    color: "#bc7c7c"
   # Paper, wax stamps, and every sheet anybody writes on
   # (docs/systemdocs/PAPERWORK.md). Like items-corpse, this group holds both
   # catalog rows and rows the game mints at runtime, and for the same reason:
@@ -253,7 +229,6 @@ groups:
   items-paper:
     name: Paper
     category: items
-    color: "#c47c44"
   # --- Health ------------------------------------------------------------
   # Every affliction a doctor might treat, split by what KIND of medicine it
   # wants rather than by severity — severity is carried by the tag's own
@@ -264,39 +239,30 @@ groups:
   health-wounds:
     name: Wounds
     category: health
-    color: "#d35e64"
   health-infection:
     name: Infection
     category: health
-    color: "#b9725f"
   health-illness:
     name: Illness
     category: health
-    color: "#d3838c"
   health-maiming:
     name: Maiming
     category: health
-    color: "#bea6a8"
   health-mind:
     name: Mind
     category: health
-    color: "#aa7486"
   health-minor:
     name: Ailments
     category: health
-    color: "#e5a9b3"
   health-recovery:
     name: Recovery
     category: health
-    color: "#d89f90"
   assets-property:
     name: Property
     category: assets
-    color: "#c9c5be"
   assets-companions:
     name: Companions
     category: assets
-    color: "#a48d7c"
   # Structures: what a Craft with a `placement:` block raises at a Location
   # (db/lib/structures.js), rather than landing in a pocket. Stone family
   # like the rest of Assets, stepped between Property's pale grey and
@@ -304,7 +270,6 @@ groups:
   assets-structures:
     name: Structures
     category: assets
-    color: "#b5aa98"
   # Skill families, clustered the same way General and Status already are.
   # A handful of standalone Skills tags (forester, musician, lockpicking,
   # butcher, climbing, stealth, and the Teaching tree) stay groupless on purpose — they don't
@@ -314,27 +279,21 @@ groups:
   skills-labor:
     name: Labor
     category: skills
-    color: "#bed78f"
   skills-fighting:
     name: Combat
     category: skills
-    color: "#8fd4a8"
   skills-crafting:
     name: Crafting
     category: skills
-    color: "#93b261"
   skills-brewing:
     name: Brewing
     category: skills
-    color: "#6eaa78"
   skills-cooking:
     name: Cooking
     category: skills
-    color: "#79d070"
   skills-medical:
     name: Medical
     category: skills
-    color: "#b8d5c3"
   # --- Gated groups ------------------------------------------------------
   # These carry `requiredTag`, which is what makes the Demoness category
   # hidden. Every tag in it is gated by the group, so the tags themselves
@@ -342,5 +301,4 @@ groups:
   demoness:
     name: Demoness
     category: demoness
-    color: "#d26dad"
     requiredTag: demoness

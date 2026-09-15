@@ -786,21 +786,25 @@ async function syncTagsFromYaml(prisma) {
 
   // Pass 1: TagGroup scalars.
   const groupIdBySlug = new Map();
+  // TagGroup.color is deliberately absent: a group's mark is its ICON
+  // (web/lib/tagIcons.js) and a chip's colour comes from Tag.category, so the
+  // freeform hex this used to carry has no reader left. The column stays in
+  // the schema unwritten, like GameConfig.mindlinkChannelId — dropping it
+  // would be a destructive migration for nothing.
   for (const entry of groupEntries) {
-    const color = entry.color ?? null;
     const categoryName = categoryNameBySlug.get(entry.category);
     let group = await prisma.tagGroup.findUnique({ where: { slug: entry.slug } });
     if (!group) {
       group = await prisma.tagGroup.create({
-        data: { slug: entry.slug, name: entry.name, category: categoryName, color },
+        data: { slug: entry.slug, name: entry.name, category: categoryName },
       });
       groupsCreated += 1;
     } else {
-      const needsUpdate = group.name !== entry.name || group.category !== categoryName || group.color !== color;
+      const needsUpdate = group.name !== entry.name || group.category !== categoryName;
       if (needsUpdate) {
         group = await prisma.tagGroup.update({
           where: { id: group.id },
-          data: { name: entry.name, category: categoryName, color },
+          data: { name: entry.name, category: categoryName },
         });
         groupsUpdated += 1;
       }

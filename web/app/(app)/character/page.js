@@ -379,8 +379,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         requiredTag: { select: { name: true } },
         group: {
           select: {
+            slug: true, // the group icon (web/lib/tagIcons.js) — without it every chip falls back to its category glyph
             name: true,
-            color: true,
             requiredTagId: true,
             requiredTag: { select: { name: true } },
           },

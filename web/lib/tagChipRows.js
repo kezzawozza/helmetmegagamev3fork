@@ -93,9 +93,8 @@ export const TAG_CHIP_FIELDS = {
   requiredTag: { select: { name: true } },
   group: {
     select: {
-      slug: true,
+      slug: true, // the group icon (web/lib/tagIcons.js); the chip's colour comes from `category` above
       name: true,
-      color: true,
       requiredTagId: true,
       requiredTag: { select: { name: true } },
     },

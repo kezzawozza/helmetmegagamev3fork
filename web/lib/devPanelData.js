@@ -118,7 +118,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         sealMark: true,
         // Catalog or runtime-minted, for the browser's Minted tab.
         ephemeral: true,
-        group: { select: { name: true, color: true } },
+        group: { select: { slug: true, name: true } },
       },
     }),
     prisma.characterTag.findMany({ where: { characterId }, include: { tag: true } }),

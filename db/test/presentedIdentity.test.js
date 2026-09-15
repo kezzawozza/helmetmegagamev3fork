@@ -9,9 +9,14 @@ const { concealmentFrom, presentedIdentity } = require("../lib/presentedIdentity
 const speaker = { id: "c1", name: "Semyun Varyutskaya", age: 30, gender: "WOMAN", concealed: true };
 const bareFaced = { ...speaker, concealed: false };
 
-const hood = { equipped: true, tag: { name: "Hood", concealsIdentity: true, concealSprite: "hood", forcesConceal: false, equipLayer: 1 } };
-const helm = { equipped: true, tag: { name: "Great Helm", concealsIdentity: true, concealSprite: "greathelm", forcesConceal: false, equipLayer: 2 } };
-const sack = { equipped: true, tag: { name: "Sack", concealsIdentity: true, concealSprite: "sack", forcesConceal: true, equipLayer: 3 } };
+// Headgear carries NO equipLayer — HEAD is a single slot (db/lib/equipSlots.js),
+// so two of these can only be worn at once by a character the collapse pass
+// has not reached yet. Body pieces are the layered ones now.
+const hood = { equipped: true, tag: { name: "Hood", equipSlot: "HEAD", concealsIdentity: true, concealSprite: "hood", forcesConceal: false, equipLayer: null } };
+const helm = { equipped: true, tag: { name: "Great Helm", equipSlot: "HEAD", concealsIdentity: true, concealSprite: "greathelm", forcesConceal: false, equipLayer: null } };
+const sack = { equipped: true, tag: { name: "Sack", equipSlot: "HEAD", concealsIdentity: true, concealSprite: "sack", forcesConceal: true, equipLayer: null } };
+const cloak = { equipped: true, tag: { name: "Cloak", equipSlot: "BODY", concealsIdentity: true, concealSprite: "cloak", forcesConceal: false, equipLayer: 2 } };
+const robe = { equipped: true, tag: { name: "Robe", equipSlot: "BODY", concealsIdentity: true, concealSprite: "robe", forcesConceal: false, equipLayer: 1 } };
 const carried = { ...hood, equipped: false };
 
 test("a hood the player chose conceals, and says so with the item's own face", () => {
@@ -44,8 +49,22 @@ test("a sack tied on overrides the column — there is no choice to make", () =>
 });
 
 test("the outermost piece is the one an onlooker sees", () => {
-  assert.equal(concealmentFrom([hood, helm]).sprite, "greathelm");
-  assert.equal(concealmentFrom([helm, hood]).sprite, "greathelm");
+  // A head piece beats a body one: a hood covers a face, a cloak does not.
+  assert.equal(concealmentFrom([cloak, hood]).sprite, "hood");
+  assert.equal(concealmentFrom([hood, cloak]).sprite, "hood");
+  // and within the body, Over beats Mail.
+  assert.equal(concealmentFrom([robe, cloak]).sprite, "cloak");
+  assert.equal(concealmentFrom([cloak, robe]).sprite, "cloak");
+});
+
+// The bug this guards: ordering used to be Tag.equipLayer alone, highest
+// wins. Once HEAD stopped being layered every head piece tied at 0, so the
+// winner was whichever row the query happened to return first and a
+// character's face could change between two reloads. Both orders must agree.
+test("two head pieces at once resolve to the same face whichever order they arrive in", () => {
+  const a = concealmentFrom([hood, helm]).sprite;
+  const b = concealmentFrom([helm, hood]).sprite;
+  assert.equal(a, b);
 });
 
 test("a forced name beats a hood, and a forced name is not hiding", () => {

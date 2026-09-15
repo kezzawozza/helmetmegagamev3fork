@@ -1,4 +1,5 @@
-// Which equipped things cannot be worn together, and how many hands there are. Every equippable tag names a Tag.equipSlot (db/lib/syncTags.js throws on one that doesn't), and the slot is the whole limit. HEAD/BODY layered 1-3, MOUNT 1-2 (two equipped tags may not share a layer, so a coif (1) goes under a helm (2) and a cart (2) is towed behind a horse (1), but two helms don't go together); WEAPON is four hands, everything held goes here, a Tag.twoHanded tag takes two (SHIELD is folded in here and its enum value retired — four is what the two slots already allowed together: a shield plus three hands of weapons); ACCESSORY is four (a badge, spectacles, a fishing rod).
+// Which equipped things cannot be worn together, and how many hands there are. Every equippable tag names a Tag.equipSlot (db/lib/syncTags.js throws on one that doesn't), and the slot is the whole limit. HEAD is ONE thing, unlayered — a mask, a helm or a hood, never two of them; BODY is layered 1-2 (Mail next to the skin, Over on top, so a breastplate goes over a robe but two robes don't go together) and MOUNT 1-2 (a cart (2) is towed behind a horse (1)); WEAPON is four hands, everything held goes here, a Tag.twoHanded tag takes two (SHIELD is folded in here and its enum value retired — four is what the two slots already allowed together: a shield plus three hands of weapons); ACCESSORY is four (a badge, spectacles, a fishing rod).
+// HEAD and BODY were each three layers until this. Head stacking (a mask under a helm under a hood) was the elaborate half and bought nothing a single slot does not: the fiction of a coif under a helmet is not worth a player having to reason about three head slots, and concealment now has exactly one source rather than an ordering puzzle. Body kept two because "armour over clothes" is a real choice a player makes and a real thing the armour maths adds up.
 // A STACKABLE tag takes one slot/hand PER EQUIPPED UNIT, not one for the whole stack — CharacterTag.equippedQuantity says how many of a held stack are actually out, and every function below expands a row into that many physical instances before asking about slots, layers or hands (five swords readied is three hands spent, two still in the pack; two units of the same stackable layered tag fight over their one layer like two different hats would). Two independent code paths flip CharacterTag.equipped — the player's own toggle (web/app/(app)/character/equipActions.js) and the GM/staged batch (db/lib/tagOps.js) — so the rule lives here, written as "look at the whole equipped set and find a problem" rather than "may I add this one?", because the batch path applies its writes first and a two-argument form couldn't express "unequip A, equip B" without rejecting B for a conflict with an A already gone. See docs/systemdocs/TAGS.md.
 
 const WEAPON_HANDS = 4;
@@ -22,7 +23,9 @@ function handsFor(characterTags = []) {
 const HANDS_TAG_FIELDS = { handsLost: true };
 // A hard cap, not a GameConfig knob like the retired flat count: the number is a rule about what a person can have about them, and the last thing this file needs is a second limit a GM can set to disagree with the slots.
 const MAX_ACCESSORIES = 4;
-const LAYERED_SLOTS = new Set(["HEAD", "BODY", "MOUNT"]);
+// HEAD is deliberately NOT here: one head, one thing on it. An unlayered slot
+// keys on the bare slot in findSlotClash below, which is the whole rule.
+const LAYERED_SLOTS = new Set(["BODY", "MOUNT"]);
 // SHIELD is deliberately absent: syncTags.js validates against this list, so a YAML entry still naming it throws instead of sliding through.
 const EQUIP_SLOTS = ["HEAD", "BODY", "WEAPON", "ACCESSORY", "MOUNT"];
 
@@ -41,9 +44,12 @@ const SLOT_TITLES = {
   ACCESSORY: "Accessories",
   MOUNT: "Ride",
 };
+// The layer names, in order, for each layered slot. The ARRAY LENGTH is the
+// layer cap — db/lib/syncTags.js validates docs/tags.yaml against it, so
+// shortening one here makes a stale YAML entry fail the sync loudly rather
+// than slide through as a layer nothing can wear.
 const LAYER_NAMES = {
-  HEAD: ["Liner", "Helm", "Outer"],
-  BODY: ["Clothes", "Mail", "Outer"],
+  BODY: ["Mail", "Over"],
   MOUNT: ["Ridden", "Towed"],
 };
 
@@ -81,6 +87,8 @@ function findSlotClash(tags) {
     if (!tag?.equipSlot) continue;
     // WEAPON is counted in hands and ACCESSORY is never counted at all. A layered slot keys on slot+layer; nothing unlayered reaches here any more — SHIELD was the last one.
     if (tag.equipSlot === "WEAPON" || tag.equipSlot === "ACCESSORY") continue;
+    // An unlayered slot (HEAD) keys on the slot alone, so two of anything in
+    // it clash. A layered one keys on slot+layer.
     const key = tag.equipLayer == null ? tag.equipSlot : `${tag.equipSlot}:${tag.equipLayer}`;
     const other = seen.get(key);
     if (other) return { a: tag, b: other };
@@ -121,7 +129,7 @@ function describeHandsOverflow(tags, hands = WEAPON_HANDS) {
   return `Your hands are full: put away ${named} before you equip something else.`;
 }
 
-// Where a tag goes and what it costs to put there, as a short label for a buying menu or a chip. Null for anything that isn't equippable. Terse on purpose — it sits in a `<dl>` of one-line answers beside Weight and Armour; describeSlotClash's job is the full sentence. Says the thing a shopper can't otherwise work out: that a coif and a helm stack because they sit at different layers, that a poleaxe eats two of four hands, that trinkets run out at four.
+// Where a tag goes and what it costs to put there, as a short label for a buying menu or a chip. Null for anything that isn't equippable. Terse on purpose — it sits in a `<dl>` of one-line answers beside Weight and Armour; describeSlotClash's job is the full sentence. Says the thing a shopper can't otherwise work out: that a breastplate and a robe stack because one is Over and the other Mail, that a poleaxe eats two of four hands, that trinkets run out at four.
 function describeEquipFit(tag) {
   const slot = tag?.equipSlot;
   if (!slot) return null;
@@ -179,5 +187,6 @@ module.exports = {
   handsOf,
   handsUsed,
   describeEquipFit,
+  findSlotClash,
   findEquipProblem,
 };

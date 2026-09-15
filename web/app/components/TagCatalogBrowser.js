@@ -4,6 +4,14 @@ import { useMemo, useState } from "react";
 import { sortForMode, menuCategories, filterTagsByQuery, formatCost, costColor } from "@/lib/characterCreation";
 import TagChip from "@/app/components/TagChip";
 import InfoIcon from "@/app/components/InfoIcon";
+import { TAG_GROUP_ICONS } from "@/lib/tagIcons";
+
+// A group heading's mark. Null for a group with no glyph of its own, which is
+// not a failure — the name is still the heading.
+function GroupHeadIcon({ slug }) {
+  const Icon = slug ? TAG_GROUP_ICONS[slug] : null;
+  return Icon ? <Icon className="chip-icon" size={13} aria-hidden="true" /> : null;
+}
 
 const CUSTOM_TAG_TOOLTIP =
   "Use this for things that would affect adjudications—not just little bracelets or something.";
@@ -179,11 +187,10 @@ export default function TagCatalogBrowser({
           <div key={group?.name ?? "__ungrouped"} className="panel flex flex-col p-3">
             {group && (
               <div className="dev-tag-group-head">
-                <span
-                  className="dev-tag-swatch"
-                  style={{ background: group.color ?? "var(--border)" }}
-                  aria-hidden
-                />
+                {/* The group's icon, where a TagGroup.color swatch used to
+                    be. Colour belongs to the category now, and every tag
+                    under this header shares one (web/lib/tagIcons.js). */}
+                <GroupHeadIcon slug={group.slug} />
                 {group.name}
               </div>
             )}

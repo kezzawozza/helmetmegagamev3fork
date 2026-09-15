@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { chainTokens } from "@/lib/tagChains";
-import { buildCards, matchesQuery, nextRung, rowValue } from "@/lib/sheetCards";
+import { buildCards, itemFacts, matchesQuery, nextRung, rowValue, INVENTORY_CARDS } from "@/lib/sheetCards";
 import { thingVerbSets, thingVerbs } from "@/app/(app)/chat/thingRows";
 import { consumeTagRequest } from "@/app/(app)/character/requestActions";
 import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
@@ -18,6 +18,7 @@ import RowVerbs from "./RowVerbs";
 import StorePanel from "./StorePanel";
 import TagPointsValue from "./TagPointsValue";
 import TagRow from "./TagRow";
+import ItemCard from "./ItemCard";
 import { useRequestActions } from "./RequestActionsProvider";
 import { useNotice } from "./NoticeProvider";
 
@@ -238,32 +239,34 @@ export default function TagRail({
             </div>
             {groups.map((g) => (
               <div key={g.key} className="sheet-group">
-                {g.name && card.groups.length > 1 && (
-                  <p className="sheet-group-name" style={g.color ? { color: g.color } : undefined}>
-                    {g.name}
-                  </p>
-                )}
+                {/* No colour on the heading: the group's mark is the icon on
+                    each of its rows now, and colour says which category the
+                    whole card is (web/lib/tagIcons.js). */}
+                {g.name && card.groups.length > 1 && <p className="sheet-group-name">{g.name}</p>}
                 <ul className="sheet-rows">
                   {g.rows.map((ct) => {
                     const id = ct.tag.id;
                     const rung = card.key === "Skills" ? nextRung(ct, tagCatalog, heldTagIds) : null;
-                    return (
-                      <TagRow
-                        key={id}
-                        ct={ct}
-                        value={rowValue(ct, currentTurn)}
-                        note={noteFor(ct, card, rung)}
-                        verbs={
-                          card.key === "Items" || card.key === "Assets" || card.key === "Health" || ct.tag.slug === RESEARCH_TAG_SLUG
-                            ? verbsFor(ct)
-                            : null
-                        }
-                        open={openId === id}
-                        onToggle={() => setOpenId((was) => (was === id ? null : id))}
-                        currentTurn={currentTurn}
-                        armedTurn={ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null}
-                        worn={Boolean(ct.equipped)}
-                      />
+                    const shared = {
+                      ct,
+                      note: noteFor(ct, card, rung),
+                      verbs:
+                        INVENTORY_CARDS.has(card.key) || card.key === "Health" || ct.tag.slug === RESEARCH_TAG_SLUG
+                          ? verbsFor(ct)
+                          : null,
+                      open: openId === id,
+                      onToggle: () => setOpenId((was) => (was === id ? null : id)),
+                      currentTurn,
+                      armedTurn: ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null,
+                      worn: Boolean(ct.equipped),
+                    };
+                    // Items and Assets are an inventory, so they get the card
+                    // that says everything; every other rail keeps the
+                    // one-value row.
+                    return INVENTORY_CARDS.has(card.key) ? (
+                      <ItemCard key={id} {...shared} facts={itemFacts(ct, currentTurn)} />
+                    ) : (
+                      <TagRow key={id} {...shared} value={rowValue(ct, currentTurn)} />
                     );
                   })}
                 </ul>

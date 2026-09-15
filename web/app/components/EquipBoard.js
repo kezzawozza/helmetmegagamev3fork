@@ -410,30 +410,42 @@ export default function EquipBoard({
             );
           }
         } else {
-          const unit = inSlot[0];
           const menu =
             slot === "MOUNT"
               ? mountMenu(fits, wornRows, { indoors, motionSick })
               : { options: fits, note: null };
-          drawn = unit ? (
-            <WornCell
-              key={unit.key}
-              unit={unit}
-              onUnequip={() => unequip(unit.ct)}
-              pending={pending}
-              canAct={isSelf}
-            />
-          ) : (
-            <EmptyCell
-              key={slot}
-              label={SLOT_TITLES[slot]}
-              options={menu.options}
-              note={menu.note}
-              onPick={equip}
-              pending={pending}
-              searched={searched}
-            />
-          );
+          // One cell, and one thing in it — but draw EVERY unit actually worn
+          // here, not just the first. An unlayered slot holds one piece by
+          // rule, and a character can still be wearing two against that rule:
+          // HEAD stopped being layered, so anyone in a mask under a hood is
+          // over its limit until the cleanup pass reaches them
+          // (db/scripts/ops/collapse-equip-slots.js). Drawing inSlot[0] alone
+          // would leave the second piece on their head with no ✕ to take it
+          // off — the same trap the layered branch's stray-layer loop above
+          // exists to avoid, and the worse one here, because a pre-existing
+          // clash refuses every unrelated equip they try afterwards
+          // (db/lib/equipSlots.js#findSlotClash).
+          drawn = inSlot.length
+            ? inSlot.map((unit) => (
+              <WornCell
+                key={unit.key}
+                unit={unit}
+                onUnequip={() => unequip(unit.ct)}
+                pending={pending}
+                canAct={isSelf}
+              />
+            ))
+            : [
+              <EmptyCell
+                key={slot}
+                label={SLOT_TITLES[slot]}
+                options={menu.options}
+                note={menu.note}
+                onPick={equip}
+                pending={pending}
+                searched={searched}
+              />,
+            ];
         }
         // A ride nobody owns is not worth a row of dashes.
         if (slot === "MOUNT" && inSlot.length === 0 && fits.length === 0) return null;
@@ -448,13 +460,15 @@ export default function EquipBoard({
                 </span>
               ) : null}
             </span>
-            {/* The named layers, plus any stray one the loop above had to add
-                on the end — a hand's cell spans two, so only a layered row can
-                ever draw more cells than its own count. */}
+            {/* The slot's own cells, widened to whatever actually had to be
+                drawn — a stray layer on a layered row, or a second piece in an
+                unlayered slot somebody is over the limit of. WEAPON is the
+                exception and keeps its own count, because a two-hander's cell
+                SPANS two of them rather than adding one. */}
             <div
               className="equip-cells"
               style={{
-                gridTemplateColumns: `repeat(${layered ? Math.max(cells, drawn.length) : cells}, minmax(0, 1fr))`,
+                gridTemplateColumns: `repeat(${slot === "WEAPON" ? cells : Math.max(cells, drawn.length)}, minmax(0, 1fr))`,
               }}
             >
               {drawn}

@@ -4,7 +4,13 @@
 
 import { turnsLeft, tagDuration } from "@lifeweb/db/lib/turnFormat";
 import { armorWord } from "@lifeweb/db/lib/armorValue";
-import { tagWeightLbs } from "./formatTagWeight";
+import { describeEquipFit } from "@lifeweb/db/lib/equipSlots";
+import { tagWeightLbs, formatTagWeight } from "./formatTagWeight";
+
+// The cards drawn as ITEM CARDS rather than compact rows — the two that are
+// an inventory. Everything else (Health, Skills, General, Meta) keeps the
+// one-line row, where a single right-hand value is the right amount to say.
+export const INVENTORY_CARDS = new Set(["Items", "Assets"]);
 
 const CARD_ORDER = ["Health", "Skills", "Items", "Assets", "General", "Meta", "Demoness"];
 
@@ -59,18 +65,64 @@ export function rowValue(ct, currentTurn = null) {
   return null;
 }
 
+// EVERY fact about a held row, in reading order — what an item card shows.
+//
+// rowValue() above answers "the one thing worth saying in a right-hand
+// column", and that is right for a one-line row but lossy by construction: a
+// stack of five 2 lb rations reads "10 lb" and never says there are five of
+// them, and an armoured coat never mentions its armour because it happens to
+// weigh something. A card has room for all of it, so it gets all of it.
+//
+// Returns [{ key, text, tone }]. Empty is a normal answer.
+export function itemFacts(ct, currentTurn = null) {
+  const tag = ct.tag;
+  const quantity = ct.quantity ?? 1;
+  const facts = [];
+
+  const left = turnsLeft(ct.expiresTurn, currentTurn);
+  const duration = tagDuration(left, null);
+  if (duration) facts.push({ key: "duration", text: duration.badge, tone: left === 1 ? "danger" : null });
+
+  const weight = formatTagWeight(tag, quantity);
+  if (weight) facts.push({ key: "weight", text: weight, tone: null });
+
+  // "2 of 5 worn" is the fact the compact row could never carry: `equipped`
+  // is a boolean there, so a partly-equipped stack looked the same as a fully
+  // equipped one. equippedQuantity has always been on the row (it is what
+  // db/lib/equipSlots.js counts hands and layers by) — nothing read it.
+  if (tag.equippable) {
+    const out = ct.equippedQuantity ?? (ct.equipped ? 1 : 0);
+    if (quantity > 1 && out > 0) facts.push({ key: "equipped", text: `${out} of ${quantity} worn`, tone: null });
+    const fit = describeEquipFit(tag);
+    if (fit) facts.push({ key: "fit", text: fit, tone: null });
+  }
+
+  const armor = Math.max(tag.meleeArmor ?? 0, tag.ballisticArmor ?? 0);
+  if (armor) facts.push({ key: "armor", text: armorWord(armor), tone: null });
+
+  const carry = carryBonusLabel(tag.carryBonus);
+  if (carry) facts.push({ key: "carry", text: carry, tone: null });
+
+  const labor = laborBonusLabel(tag.laborBonus);
+  if (labor) facts.push({ key: "labor", text: labor, tone: null });
+
+  return facts;
+}
+
 function healthOrder(a, b, currentTurn) {
   const la = turnsLeft(a.expiresTurn, currentTurn) ?? Infinity;
   const lb = turnsLeft(b.expiresTurn, currentTurn) ?? Infinity;
   return la - lb || a.tag.name.localeCompare(b.tag.name);
 }
 
-// Sub-groups by TagGroup, groupless last. Each { key, name, color, rows }.
+// Sub-groups by TagGroup, groupless last. Each { key, name, rows }.
+// No colour: a group's mark is its ICON now (web/lib/tagIcons.js), and colour
+// says which CATEGORY a tag is in — one signal each.
 function byGroup(rows) {
   const groups = new Map();
   for (const ct of rows) {
     const key = ct.tag.group?.slug ?? "__other";
-    if (!groups.has(key)) groups.set(key, { key, name: ct.tag.group?.name ?? null, color: ct.tag.group?.color ?? null, rows: [] });
+    if (!groups.has(key)) groups.set(key, { key, name: ct.tag.group?.name ?? null, rows: [] });
     groups.get(key).rows.push(ct);
   }
   const list = [...groups.values()];
@@ -92,15 +144,21 @@ export function buildCards(characterTags = [], { currentTurn = null } = {}) {
     .map(([category, rows]) => {
       if (category === "Health") {
         const sorted = [...rows].sort((a, b) => healthOrder(a, b, currentTurn));
-        return { key: category, title: category, count: rows.length, groups: [{ key: "all", name: null, color: null, rows: sorted }] };
+        return { key: category, title: category, count: rows.length, groups: [{ key: "all", name: null, rows: sorted }] };
       }
-      if (category === "Items") {
+      // Both inventory cards, treated alike. Assets used to fall through to
+      // the plain branch below — no sub-groups and no weight total — even
+      // though the rail grants it the same verbs as Items, so a character's
+      // property was the one holding that could not be skimmed by kind.
+      // Assets weigh nothing by rule (db/lib/tagWeight.js), so their total is
+      // 0 and the header simply omits it.
+      if (INVENTORY_CARDS.has(category)) {
         const groups = byGroup(rows).map((g) => ({
           ...g,
           rows: [...g.rows].sort((a, b) => rowWeight(b) - rowWeight(a) || a.tag.name.localeCompare(b.tag.name)),
         }));
         const weight = Math.round(rows.reduce((n, ct) => n + rowWeight(ct), 0) * 100) / 100;
-        return { key: category, title: category, count: rows.length, groups, weight };
+        return { key: category, title: category, count: rows.length, groups, weight: weight > 0 ? weight : null };
       }
       if (category === "Skills") {
         const groups = byGroup(rows).map((g) => ({
@@ -110,7 +168,7 @@ export function buildCards(characterTags = [], { currentTurn = null } = {}) {
         return { key: category, title: category, count: rows.length, groups };
       }
       const sorted = [...rows].sort((a, b) => a.tag.name.localeCompare(b.tag.name));
-      return { key: category, title: category, count: rows.length, groups: [{ key: "all", name: null, color: null, rows: sorted }] };
+      return { key: category, title: category, count: rows.length, groups: [{ key: "all", name: null, rows: sorted }] };
     });
   return cards;
 }
