@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Corrupt keeps Sheriff and Censor, both — not a swap
+
+✎ Corrupt's five Desires ask for Cerberus, Sheriff, Censor or Incarn. It never made sense to drop Sheriff; only Censor was missing
+
 ## 2026-09-15 · Written notes are legible again, and stop hiding from their owners
 
 ✎ A note, letter or book a player wrote now shows its words when a GM hovers it — on the turns desk, the inspector and the dev panel alike. They had all been blank.  

@@ -594,13 +594,13 @@ drawback anyway, on the grounds that being on the take is a real liability to
 play.
 
 A `combine: or` on its five Desires was tried as a mitigation the same day and
-**reverted**, because it was worse than what it fixed: OR lets a Cerberus or a
-Sheriff qualify for all five *without* holding Corrupt, which empties the tag
-for the only two seats it is written for and makes its own description false
-to them. The AND stands. What the −2 does leave open is a character outside
-those seats buying Corrupt once for two points and no unlocks; that is bounded
-(once per character, and being a non-item means it can never be sold back)
-and is accepted.
+**reverted**, because it was worse than what it fixed: OR lets a Cerberus, a
+Sheriff, a Censor or an Incarn qualify for all five *without* holding Corrupt,
+which empties the tag for the only four seats it is written for and makes its
+own description false to them. The AND stands. What the −2 does leave open is
+a character outside those seats buying Corrupt once for two points and no
+unlocks; that is bounded (once per character, and being a non-item means it
+can never be sold back) and is accepted.
 
 **At character creation a build faces TWO ceilings on drawbacks, and it stops
 at whichever it reaches first:**
