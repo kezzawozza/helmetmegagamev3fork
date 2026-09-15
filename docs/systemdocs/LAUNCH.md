@@ -137,11 +137,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | `Game` and `ArchiveEntry` rows | The transcript of every past game, readable on `/archive` under its id, with the reveal on top. |
 | `GmZoneView` rows | GMs keep the zones they chose across a restart. Clearing the table is safe: no rows means every zone. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
-| `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. |
-
-Everything zone-side in Discord — categories, channels, zone and location
-roles, anchors, Room threads — is **destroyed and regenerated**. Zone,
-Location and Room rows keep their ids; their Discord objects do not.
+| `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Never deleted. `Faction`, `Tag`, `Role` and `Document` are re-synced from YAML; `Zone`/`Location`/`Room` rows and their Discord categories, channels, roles and threads are left standing — only messages and threads inside them are wiped. |
 
 ## 5. If you are not wiping
 
@@ -149,14 +145,14 @@ Run the masters yourself, in dependency order — roles resolve a
 `starting_zone` and validate `starting_tags`, so the order is load-bearing:
 
 ```
-npm run db:sync-zones                # destructive both ways
-npm run db:sync-narrowcast-channels  # after zones: its grants name the zone roles
+npm run db:import-zones -- --apply   # one-shot, additive — only if zones.yaml
+                                     #   names a place the database lacks
 npm run db:sync-tags                 # upsert-only, never deletes
-npm run db:sync-zones                # AGAIN: the first run could not seed a
-                                     #   Location's `structures:` (the tags
-                                     #   did not exist yet); this one does
 npm run db:sync-roles                # prunes unreferenced
 npm run db:sync-documents            # destructive; last
+npm run db:mirror -- --apply         # provisions Discord for anything the
+                                     #   above just created (zones, narrowcast,
+                                     #   Location structures included)
 npm run db:doctor                    # dry run; -- --full --apply to repair
 ```
 

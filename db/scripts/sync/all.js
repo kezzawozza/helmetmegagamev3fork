@@ -1,23 +1,25 @@
-// Every YAML master into the database, in the one order that works: zones
-// first, narrowcast channels, deadchat, tags before roles, desires, documents,
-// labor drops last. Same sequence as wipeGameData's re-sync.
+// Every YAML master into the database, in the one order that works: tags
+// before roles, desires, documents, labor drops last, then a structure mirror
+// pass to pick up whatever any of that touched (narrowcast channels and
+// Deadchat included — the mirror provisions both now). Same sequence as
+// wipeGameData's re-sync.
 //
-//   npm run db:sync                    # all eight
+//   npm run db:sync
 //
-// sync-zones, sync-documents and sync-labor-drops delete rows dropped from
-// their YAML; see SYNC.md §1 before running against a live game.
+// Zones are no longer part of this run: docs/zones.yaml is a one-shot
+// additive importer now (`npm run db:import-zones`), not a routine sync.
+// sync-documents and sync-labor-drops delete rows dropped from their YAML;
+// see SYNC.md §1 before running against a live game.
 require("dotenv").config();
 const {
   prisma,
-  syncZonesFromYaml,
-  syncSpecialChannels,
   syncTagsFromYaml,
   syncRolesFromYaml,
   syncDesiresFromYaml,
   syncDocumentsFromYaml,
   syncLaborDropsFromYaml,
 } = require("../../index");
-const { ensureDeadchatChannel } = require("../../lib/deadchat");
+const { runDiscordMirror } = require("../../lib/discordMirror");
 
 async function main() {
   if (!process.env.DISCORD_TOKEN || !process.env.DISCORD_GUILD_ID) {
@@ -25,18 +27,6 @@ async function main() {
     process.exit(1);
   }
   const steps = [
-    ["zones", async () => {
-      const s = await syncZonesFromYaml(prisma);
-      return `created ${s.zonesCreated}, updated ${s.zonesUpdated}, provisioned ${s.provisioned.length}, reconciled ${s.reconciled}`;
-    }],
-    ["narrowcast channels", async () => {
-      const s = await syncSpecialChannels(prisma);
-      return `provisioned ${s.provisioned.length}, view grants ${s.roleGrants}`;
-    }],
-    ["deadchat", async () => {
-      const s = await ensureDeadchatChannel(prisma);
-      return s.provisioned ? "provisioned" : "reconciled";
-    }],
     ["tags", async () => {
       const s = await syncTagsFromYaml(prisma);
       return `groups +${s.groupsCreated}/~${s.groupsUpdated}, tags +${s.tagsCreated}/~${s.tagsUpdated}, links ${s.linksUpdated}`;
@@ -58,6 +48,10 @@ async function main() {
     ["labor drops", async () => {
       const s = await syncLaborDropsFromYaml(prisma);
       return `${s.total} options`;
+    }],
+    ["discord mirror", async () => {
+      const s = await runDiscordMirror(prisma, { apply: true, scope: "structure" });
+      return `${s.ops.length} op(s), ${s.repaired} repaired`;
     }],
   ];
 

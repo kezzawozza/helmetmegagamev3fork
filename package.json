@@ -23,7 +23,7 @@
     "db:migrate": "npm run migrate --workspace=db",
     "db:migrate:deploy": "npm run migrate:deploy --workspace=db",
     "db:sync": "node db/scripts/sync/all.js",
-    "db:sync-zones": "node db/scripts/sync/sync-zones.js",
+    "db:import-zones": "node db/scripts/ops/import-zones.js",
     "db:sync-tags": "node db/scripts/sync/sync-tags.js",
     "db:sync-roles": "node db/scripts/sync/sync-roles.js",
     "db:sync-desires": "node db/scripts/sync/sync-desires.js",
