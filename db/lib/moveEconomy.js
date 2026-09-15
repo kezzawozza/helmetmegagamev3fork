@@ -30,6 +30,14 @@ async function undoQuestInteraction(tx, action) {
   await tx.questInteraction.deleteMany({ where: { actionId: action.id } });
 }
 
+// A quest's Interact copies what the player said into QuestInteraction.intention as well as
+// the Move's description (db/lib/quests.js). Rewriting the Gambit has to carry the mirror
+// with it, or the quest panel and the Moves desk show the same press saying two different
+// things — and the GM has no way to tell which one the player meant.
+async function syncQuestIntention(tx, actionId, description) {
+  await tx.questInteraction.updateMany({ where: { actionId }, data: { intention: description } });
+}
+
 // Takes a transaction client: every caller pairs this with an audit write that must not commit separately.
 // Returns the DMs owed to anyone whose lesson Offer died with the Move.
 async function deleteActionRestoringTurn(tx, action) {
@@ -41,4 +49,4 @@ async function deleteActionRestoringTurn(tx, action) {
   return dms;
 }
 
-module.exports = { MOVE_LOCK_TTL_MS, lockIsLive, deleteActionRestoringTurn };
+module.exports = { MOVE_LOCK_TTL_MS, lockIsLive, deleteActionRestoringTurn, syncQuestIntention };

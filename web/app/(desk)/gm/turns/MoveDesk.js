@@ -294,7 +294,8 @@ export default function MoveDesk({
                 after the lock is the intended order (ADJUDICATION.md), but a GM who opens
                 it early should not read "—" as a broken row. */}
             <span className="mono text-sm">
-              {move.rollLabel || (move.moveKind === "GAMBIT" ? "rolls at lock-in" : "—")}
+              {move.rollLabel ||
+                (move.moveKind === "GAMBIT" && move.confirmed ? "rolls at lock-in" : "—")}
             </span>
           </div>
           <div className="flex flex-col gap-1">

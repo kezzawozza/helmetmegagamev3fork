@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { after } from "next/server";
-import { prisma, Prisma } from "@lifeweb/db";
+import { prisma, Prisma, revertMoveEffects } from "@lifeweb/db";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { consumeInspiredIfUsed } from "@lifeweb/db/lib/tagWrites";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
@@ -958,8 +958,20 @@ function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
   let advantageSource = null;
 
   const kind = ["GAMBIT", "ROUTINE", "LABOR"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
+  // A player's LABOR is paid at confirm now and arrives here with appliedEffects stamped
+  // (db/lib/moveConfirm.js). Flipping it to something else has to hand the payout back, or
+  // the ⬢, the drop and the Tired all stay banked while the staged push goes on skipping
+  // the row for being already-applied — and the GM adjudicates a Gambit on top of a day's
+  // wages. Reject already reverts through deleteActionRestoringTurn; the kind flip did not.
+  let revertPayout = false;
   if (kind !== action.moveKind) {
     data.moveKind = kind;
+    if (action.moveKind === "LABOR" && action.appliedEffects) {
+      revertPayout = true;
+      data.appliedEffects = null;
+      data.resourceRollValue = null;
+      data.resourceDelta = null;
+    }
     if (kind === "ROUTINE") {
       data.diceRoll = null;
       data.diceModifier = null;
@@ -976,7 +988,7 @@ function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
   }
 
   data.resultMessage = edits.resultMessage?.toString().trim() || null;
-  return { data, advantageSource };
+  return { data, advantageSource, revertPayout };
 }
 
 // mode: "save" keeps edits and leaves it open; "solve" marks SOLVED (nothing
@@ -1015,13 +1027,16 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
       return { status: "OPEN", note: "Reopened." };
     }
 
-    const { data, advantageSource } = normalizeEdits(
+    const { data, advantageSource, revertPayout } = normalizeEdits(
       action,
       edits,
       action.character.tags,
       action.character.hungerStreak,
       action.character.mood,
     );
+    // Before the update below clears appliedEffects: revertMoveEffects reads it off the row
+    // it is handed, so it has to see the payout it is undoing.
+    if (revertPayout) await revertMoveEffects(tx, action);
     await consumeInspiredIfUsed(tx, action.character.id, advantageSource);
 
     if (mode === "save") {

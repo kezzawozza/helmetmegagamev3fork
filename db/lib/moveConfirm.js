@@ -2,6 +2,9 @@ const { formatLaborBonusNote, lazyYield, lazyExpression } = require("./laborAcce
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 const { applyMoveEffects, describeMoveEffects } = require("./moveEffects");
 
+// Read at call time, not at import: the bot sets it, the web does not always need it.
+const WEB_BASE_URL = process.env.WEB_BASE_URL?.replace(/\/+$/, "") ?? "";
+
 // The word the player sees. ROUTINE is still reachable here for a GM-filed row, and reads as a plain Move.
 const MOVE_KIND_WORD = { GAMBIT: "Gambit", LABOR: "Labor", ROUTINE: "Move" };
 
@@ -74,7 +77,12 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
     `Kind: **${MOVE_KIND_WORD[action.moveKind] ?? "Move"}**`,
   ];
   if (action.moveKind === "GAMBIT") {
-    lines.push("🎲 *The die is thrown when Moves lock, not now. Until then you can change this or take it back.*");
+    // Says WHERE on purpose. Change and Take it back live on the web only — the Discord
+    // modal can file and nothing else — so a bare "you can change this" would send a
+    // Discord-first player hunting for a button that isn't there.
+    lines.push(
+      `🎲 *The die is thrown when Moves lock, not now. Until then you can change this or take it back${WEB_BASE_URL ? ` on ${WEB_BASE_URL}/character` : " from your sheet on the web"}.*`,
+    );
   }
   if (rollResult) {
     lines.push(
@@ -90,7 +98,7 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
   if (appliedLine) lines.push(`**Applied:** ${appliedLine}`);
   lines.push(
     action.moveKind === "GAMBIT"
-      ? "» *Filed. You can change it or take it back until Moves lock.*"
+      ? "» *Filed. Yours until Moves lock.*"
       : "» *Done. That's your day spent.*",
   );
 

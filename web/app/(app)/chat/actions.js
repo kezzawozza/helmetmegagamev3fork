@@ -1659,6 +1659,9 @@ export async function myMove() {
         playerFiled: true,
         moveReviewStatus: true,
         lockExpiresAt: true,
+        // moveIsEditable's first and hardest guard. Omit it and `undefined != null` is
+        // false, so a rolled Gambit would quietly read as still editable.
+        diceRoll: true,
       },
     }),
   ]);

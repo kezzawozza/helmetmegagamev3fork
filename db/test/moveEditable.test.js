@@ -25,6 +25,7 @@ function gambit(over = {}) {
     moveKind: "GAMBIT",
     moveReviewStatus: "OPEN",
     lockExpiresAt: null,
+    diceRoll: null,
     ...over,
   };
 }
@@ -114,18 +115,68 @@ test("no turn is a refusal, not a throw", () => {
   assert.deepEqual(cutoffReached(null), { at: false, reason: "no open turn" });
 });
 
-test("a Move stays editable for exactly as long as the die is unthrown", () => {
-  // The invariant tying the two predicates together: walk a turn minute by minute
-  // and assert the two are never both true and never both false-for-the-wrong-reason.
+test("a rolled Gambit can never be touched, whatever the clock says", () => {
+  // The guard that actually matters. Withdrawing a rolled Gambit and filing another
+  // would hand back a fresh die, which is the whole prize this design removes.
+  const { editable, reason } = moveIsEditable(
+    gambit({ diceRoll: 4 }),
+    turnStartedHoursAgo(1),
+  );
+  assert.equal(editable, false);
+  assert.match(reason, /die is already thrown/);
+});
+
+test("an OVERDUE turn does not reopen editing — the regression that made a re-roll slot machine", () => {
+  // moveWindow().locked is false on BOTH sides of the window: before the cutoff, and
+  // again once a turn outlives its derived end because an advance was missed. Reading
+  // `locked` here meant that past endsAt a player could take back a Gambit whose die was
+  // thrown hours earlier, re-file, and have the staged push throw a fresh one — over and
+  // over until the advance landed.
   const turn = turnStartedHoursAgo(0);
   const start = new Date(turn.startedAt).getTime();
+  const { cutoffAt, endsAt, hasLock } = require("../lib/turnClock").moveWindow(turn, {
+    now: new Date(start),
+    clockFrozen: false,
+  });
+  assert.ok(hasLock, "fixture turn must have a lock for this test to mean anything");
 
-  for (let minutes = 0; minutes < 60 * 26; minutes += 17) {
+  // One minute past the turn's derived end: locked has flipped back to false.
+  const overdue = new Date(endsAt.getTime() + 60_000);
+  const { locked } = require("../lib/turnClock").moveWindow(turn, { now: overdue, clockFrozen: false });
+  assert.equal(locked, false, "precondition: locked reopens past endsAt");
+
+  // ...and the Move must still refuse.
+  const { editable, reason } = moveIsEditable(gambit(), turn, { now: overdue, clockFrozen: false });
+  assert.equal(editable, false, "an overdue turn must not reopen editing");
+  assert.match(reason, /locked/);
+
+  // Belt and braces: a row that actually carries a die refuses for its own reason too.
+  assert.equal(
+    moveIsEditable(gambit({ diceRoll: 6 }), turn, { now: overdue, clockFrozen: false }).editable,
+    false,
+  );
+  assert.ok(cutoffAt < overdue);
+});
+
+test("a Move stays editable for exactly as long as the die is unthrown", () => {
+  // The invariant tying the two predicates together: walk a turn minute by minute, well
+  // past its end, and assert editing is never open once the cutoff has passed.
+  const turn = turnStartedHoursAgo(0);
+  const start = new Date(turn.startedAt).getTime();
+  const { cutoffAt } = require("../lib/turnClock").moveWindow(turn, {
+    now: new Date(start),
+    clockFrozen: false,
+  });
+
+  for (let minutes = 0; minutes < 60 * 40; minutes += 17) {
     const now = new Date(start + minutes * 60_000);
     const { at } = cutoffReached(turn, { now, clockFrozen: false });
     const { editable } = moveIsEditable(gambit(), turn, { now, clockFrozen: false });
-    // The die is thrown only at the cutoff, and the Move is editable only before it.
+    // The die is thrown at or after the cutoff; editing is open only strictly before it.
     assert.equal(at && editable, false, `both true at +${minutes}m`);
+    if (now >= cutoffAt) {
+      assert.equal(editable, false, `editable past the cutoff at +${minutes}m`);
+    }
   }
 });
 

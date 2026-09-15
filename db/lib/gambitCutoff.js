@@ -62,15 +62,22 @@ async function rollPendingGambits(db, turnId) {
         mood: character.mood,
       });
 
-      // The claim IS the `diceRoll: null` in the WHERE. A second tick finds count 0 and drops its
-      // roll on the floor, un-spent.
-      const claim = await db.action.updateMany({
-        where: { id: action.id, diceRoll: null },
-        data: { diceRoll: advantage.die, diceModifier },
+      // The claim IS the `diceRoll: null` in the WHERE. A second tick finds count 0 and drops
+      // its roll on the floor, un-spent. Paired with the Inspired spend in ONE transaction:
+      // Inspired is consumed only when it WON the roll, so a crash between the two would
+      // leave a boosted die on the row with the tag still in the player's pocket, ready to
+      // boost tomorrow's as well.
+      const claimed = await db.$transaction(async (tx) => {
+        const claim = await tx.action.updateMany({
+          where: { id: action.id, diceRoll: null },
+          data: { diceRoll: advantage.die, diceModifier },
+        });
+        if (claim.count === 0) return false;
+        await consumeInspiredIfUsed(tx, character.id, advantage.source);
+        return true;
       });
-      if (claim.count === 0) continue;
+      if (!claimed) continue;
 
-      await consumeInspiredIfUsed(db, character.id, advantage.source);
       rolled += 1;
     } catch (err) {
       // One bad row must not cost the rest of the table their dice.

@@ -7,7 +7,8 @@ const { clockFrozen } = require("./gameState");
 const { blockerFor, gambitBlockerFor, ACT } = require("./incapacitation");
 const { resolveLaborRate } = require("./laborAccess");
 const { touchCharacterActivity } = require("./characterActivity");
-const { deleteActionRestoringTurn, lockIsLive } = require("./moveEconomy");
+const { deleteActionRestoringTurn, lockIsLive, syncQuestIntention } = require("./moveEconomy");
+const { attacksBy } = require("./attack");
 
 // Every kind the column may hold. ROUTINE is still written constantly — by the auto-labor pass, by every button that spends a Move, by a GM reclassifying from the desk — it just stopped being a kind a PLAYER picks.
 const MOVE_KINDS = new Set(["ROUTINE", "GAMBIT", "LABOR"]);
@@ -103,9 +104,14 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
 }
 
 // Pure, so every branch is testable without a database or a clock — the same shape db/lib/oracleCutoff.js uses, and for the same reason: all but one branch is a refusal, and a refusal the player can't read is a bug report.
-// `action` needs { playerFiled, moveKind, moveReviewStatus, lockExpiresAt }. A null action means nothing is filed, which is not an error anywhere — the caller decides whether that's "file one" or "nothing to withdraw".
+// `action` needs { playerFiled, moveKind, moveReviewStatus, lockExpiresAt, diceRoll }. A null action means nothing is filed, which is not an error anywhere — the caller decides whether that's "file one" or "nothing to withdraw".
 function moveIsEditable(action, openTurn, { now = new Date(), clockFrozen = false } = {}) {
   if (!action) return { editable: false, reason: "no Move is filed" };
+  // THE die guard, and it is the one that actually has to hold. Everything below is about
+  // when the window shuts; this is about the thing the window protects. A thrown die must
+  // never be thrown twice — withdrawing a rolled Gambit and filing another would hand back
+  // a fresh one, which is the exact prize this whole design removes.
+  if (action.diceRoll != null) return { editable: false, reason: "the die is already thrown" };
   // A receipt. Bury, craft, torture, travel, a lesson, the labor you already got paid for — the thing happened, so there is nothing left to take back.
   if (!action.playerFiled) return { editable: false, reason: "the game filed this one for you" };
   // Labor pays the moment it's filed, so by the time it exists it is a receipt too. Withdraw is a Gambit's alone.
@@ -114,7 +120,15 @@ function moveIsEditable(action, openTurn, { now = new Date(), clockFrozen = fals
   // A GM holding the row on the desk. Rare — they work the desk after the lock — but a player editing out from under an open adjudication is exactly the race the lock exists to stop.
   if (lockIsLive(action, now)) return { editable: false, reason: "a GM is looking at this Move right now" };
   if (!openTurn) return { editable: false, reason: "no turn is open" };
-  if (moveWindow(openTurn, { now, clockFrozen }).locked) return { editable: false, reason: "Moves for this turn are locked" };
+  // Deliberately NOT `locked`. That flag is false on BOTH sides of the window — before the
+  // cutoff, and again once a turn outlives its derived end because an advance was missed
+  // (turnClock.js says so outright, and the Oracle wants that reopening). Reading it here
+  // would reopen editing on an overdue turn whose dice were thrown hours ago. What matters
+  // is only whether the cutoff has passed.
+  const { cutoffAt, hasLock } = moveWindow(openTurn, { now, clockFrozen });
+  if (hasLock && now.getTime() >= cutoffAt.getTime()) {
+    return { editable: false, reason: "Moves for this turn are locked" };
+  }
   return { editable: true, reason: "yours until the lock" };
 }
 
@@ -123,6 +137,12 @@ async function loadEditableMove(prisma, { character, actionId }) {
   if (!character) return { ok: false, error: "You don't have a living character." };
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  // NO `include: { character: true }`, deliberately. deleteActionRestoringTurn runs
+  // travelClaimsToUndo (db/lib/locationTravel.js), which reads the character's
+  // zoneMoves* columns and refunds a claimed crossing — and with the character absent it
+  // correctly returns null. That is right here, because a player's Gambit never claims a
+  // crossing. Add the include and withdrawing becomes a free-travel refund: cross a zone
+  // (no Action filed), file a Gambit, take it back, and the crossings come back.
   const action = await prisma.action.findFirst({
     where: { characterId: character.id, ...(actionId ? { id: actionId } : {}), ...(openTurn ? { turnId: openTurn.id } : {}) },
   });
@@ -147,7 +167,11 @@ async function editMove(prisma, { character, actorDiscordUserId, actionId, descr
 
   if (raw === action.description) return { ok: true, action, unchanged: true };
 
-  const updated = await prisma.action.update({ where: { id: action.id }, data: { description: raw } });
+  const updated = await prisma.$transaction(async (tx) => {
+    const row = await tx.action.update({ where: { id: action.id }, data: { description: raw } });
+    await syncQuestIntention(tx, action.id, raw);
+    return row;
+  });
 
   await touchCharacterActivity(prisma, character.id);
   await prisma.auditLog.create({
@@ -169,6 +193,22 @@ async function withdrawMove(prisma, { character, actorDiscordUserId, actionId })
   const loaded = await loadEditableMove(prisma, { character, actionId });
   if (!loaded.ok) return loaded;
   const { action, openTurn } = loaded;
+
+  // Attack is free and pins BOTH sides for the day, and its gate (db/lib/combatGate.js) lets
+  // you press it only because a Gambit is still an unspent turn — "you should only Attack if
+  // you plan to use your Gambit to actually declare your combat". That gate is checked once,
+  // when the fight is declared. Withdrawing the Gambit afterwards would walk straight out
+  // from under it: file a Gambit, pin somebody all day, take it back, file a Labor, and
+  // collect a paid day's work on top of a held opponent.
+  // Break off is never gated (ATTACK.md §5a), so this refusal always has a way out.
+  const fights = await attacksBy(prisma, character.id, openTurn.id);
+  if (fights.length > 0) {
+    const names = fights.map((f) => f.name).join(", ");
+    return {
+      ok: false,
+      error: `You're still fighting ${names}. Break off first, then you can take this back.`,
+    };
+  }
 
   let dms = [];
   await prisma.$transaction(async (tx) => {
