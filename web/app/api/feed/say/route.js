@@ -6,6 +6,7 @@ import { pullMentionedIntoConversation } from "@lifeweb/db/lib/conversations";
 import { addThreadMember } from "@lifeweb/db/lib/discordRest";
 import { auth } from "@/lib/auth";
 import { loadFeedCharacter } from "@/lib/feedAccess";
+import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 import { sendDm } from "@/lib/discordGuild";
 import { MENTION_SOURCE } from "@lifeweb/db/lib/dmKinds";
 
@@ -24,7 +25,15 @@ export async function POST(request) {
   const session = await auth();
   if (!session?.discordUserId) return jsonResponse({ error: "Sign in first." }, 401);
 
-  const character = await loadFeedCharacter(session.discordUserId);
+  // A ghost falls through to their last body (db/lib/ghost.js). It resolves to null the moment they
+  // have a living character again, so this can never hand somebody two voices — and the place gate
+  // below still decides where the voice reaches, which for a ghost is Deadchat and nowhere else.
+  let character = await loadFeedCharacter(session.discordUserId);
+  let ghost = false;
+  if (!character) {
+    character = await ghostCharacterFor(prisma, session.discordUserId);
+    ghost = Boolean(character);
+  }
   if (!character) return jsonResponse({ error: "You have no living character." }, 403);
 
   let body;
@@ -53,6 +62,7 @@ export async function POST(request) {
     placeKey: place,
     content,
     source: "WEB",
+    ghost,
     zoneId: context.zoneId,
     zoneName: context.zoneName,
     channelKind: context.channelKind,
@@ -69,7 +79,10 @@ export async function POST(request) {
     return jsonResponse({ error: said.refusal, retryAfter: said.retryAfter ?? null }, status);
   }
 
-  await touchCharacterActivity(prisma, character.id).catch(() => {});
+  // Not for a ghost: this feeds the inactivity report (db:report-inactive-characters), which is
+  // about players who have stopped playing a LIVING character. A corpse that chats every day is not
+  // the thing that report is looking for.
+  if (!ghost) await touchCharacterActivity(prisma, character.id).catch(() => {});
 
   // Pinging somebody in a conversation puts them in it, the way Discord does
   // when you @ a stranger in a thread. Only here, on the web path: a mention
@@ -77,9 +90,15 @@ export async function POST(request) {
   //
   // AFTER the row is written, never before, and never able to fail the send —
   // the words are the point, and a Discord hiccup must not cost them.
-  await pullIntoConversation(character, place, said.rows.map((r) => r.content).join("\n") || content).catch((err) =>
-    console.error("Mention thread-add failed:", err?.message ?? err),
-  );
+  //
+  // Never from Deadchat. `pullIntoConversation` no-ops on a non-conv: key anyway, but a ghost
+  // @-ing a living player into a thread would be the dead reaching into the world, which is the one
+  // thing this seat must not do — so it is refused by name rather than by accident.
+  if (!ghost) {
+    await pullIntoConversation(character, place, said.rows.map((r) => r.content).join("\n") || content).catch((err) =>
+      console.error("Mention thread-add failed:", err?.message ?? err),
+    );
+  }
 
   // The FIRST row is the one the sending tab already drew, so it is the one
   // that comes back — it carries the clientId and replaces the pending twin.

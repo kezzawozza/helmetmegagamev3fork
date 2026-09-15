@@ -36,7 +36,12 @@ const VIEWER_SELECT = {
 
 // `bystander: true` strips the viewer's own sight — no doctor's eye, no
 // Seductive — what a CAMERA sees, closing the one way the doctor's-eye gate could be laundered.
-async function examineRow(prisma, viewer, seq, { bystander = false, gm = false } = {}) {
+//
+// `ghost` is a dead player (db/lib/ghost.js), looking at a line from a place their seat lets them
+// read. They keep their old character's learned sight — a doctor who died still knows what a wound
+// looks like — but the vision BLOCKS are skipped below: a blindfold, spectacles left behind and the
+// dark are all things that happen to a body, and theirs is on the floor.
+async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, ghost = false } = {}) {
   if (!viewer?.id || seq === null || seq === undefined) return null;
 
   let key;
@@ -74,11 +79,11 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false }
     phase: openTurn?.phase ?? null,
     indoors: viewer.location?.indoors ?? true,
   });
-  if (blocked) return { blocked };
+  if (blocked && !ghost) return { blocked };
 
   // Earshot is the gate, not co-presence: a seq is guessable, so this stops a
   // line being looked at from outside the room — the same check starRow/photographRow make.
-  const allowed = await mayReadPlace(prisma, viewer, row.placeKey, { gm, discordUserId: viewer.discordUserId });
+  const allowed = await mayReadPlace(prisma, viewer, row.placeKey, { gm, ghost, discordUserId: viewer.discordUserId });
   if (!allowed) return null;
 
   // Same FLOOR the feed renders above (feedWipe.js), so a look reaches exactly

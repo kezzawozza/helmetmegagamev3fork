@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { isUnaffiliated, UNAFFILIATED_SLUG } from "@lifeweb/db/lib/factionConstants";
-import { GHOST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
+import { closeDeadchatTo, deadchatSeatHolders, ensureDeadchatChannel } from "@lifeweb/db/lib/deadchat";
 import { after } from "next/server";
 import { parseConfigForm } from "@lifeweb/db/lib/gameConfigFields";
 import { getGameConfig, getGameState, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
@@ -35,8 +35,6 @@ import {
   deleteCharacterRole,
   revokeAccessForCharacters,
   updateGuildNickname,
-  listGuildMembers,
-  removeGhostRole,
   setTurnPingRole,
   sendDm,
 } from "@/lib/discordGuild";
@@ -341,11 +339,12 @@ export async function wipeGameData(formData) {
   try {
     // Snapshotted before the deletes — the only handle left on what to
     // clean up once the DB rows are gone.
-    const [characters, members, state] = await Promise.all([
+    // No guild member scan here any more: the only thing that needed one was finding who wore the
+    // Ghost role, and the Deadchat seat is read off its own channel instead (below).
+    const [characters, state] = await Promise.all([
       prisma.character.findMany({
         select: { discordUserId: true, discordRoleId: true, turnPingOptIn: true },
       }),
-      listGuildMembers(),
       prisma.gameState.findUnique({ where: { id: 1 }, include: { game: true } }),
     ]);
 
@@ -375,11 +374,11 @@ export async function wipeGameData(formData) {
       });
     }
     const nextGame = await prisma.game.create({ data: {} });
-    // Whoever is still wearing the ghost seat, so the wipe can take it off
-    // them. Read off the guild rather than the database on purpose: the rows
-    // that would answer it are about to be deleted, and a leftover ghost role
-    // would hand an ex-player read-only vision of every zone in the NEW game.
-    const ghostMemberIds = members.filter((m) => m.roles.includes(GHOST_ROLE_ID)).map((m) => m.id);
+    // Whoever still holds a Deadchat seat, so the wipe can take it off them. Read off DISCORD rather
+    // than the database, for the same reason the ghost-role version of this line was: the rows that
+    // would answer it are about to be deleted, and a leftover seat would let an ex-player read and
+    // talk in the NEW game's Deadchat. It is one channel fetch now instead of a guild member scan.
+    const deadchatMemberIds = await deadchatSeatHolders(prisma).catch(() => []);
 
     // Ordered so dependents (Request, Desire, StagedMessage/Effect — required
     // FKs to Character/Turn) go before character/turn.deleteMany, or a
@@ -541,7 +540,7 @@ export async function wipeGameData(formData) {
         actionType: "superadmin_game_wipe",
         details: {
           characters: characters.length,
-          ghostMembers: ghostMemberIds.length,
+          deadchatSeats: deadchatMemberIds.length,
           archived: keepArchive,
           transcriptRows: archivedRows,
           exportKey: keepArchive ? oldGame?.exportKey ?? null : null,
@@ -559,7 +558,7 @@ export async function wipeGameData(formData) {
     revalidatePath("/", "layout");
 
     after(() =>
-      finishGameWipe(session.discordUserId, characters, ghostMemberIds, firstTurn, reportRow.id).catch(
+      finishGameWipe(session.discordUserId, characters, deadchatMemberIds, firstTurn, reportRow.id).catch(
         (err) => console.error("Game wipe side effects failed:", err),
       ),
     );
@@ -577,7 +576,7 @@ export async function wipeGameData(formData) {
 // than awaited. A step runner: every step is retried once, every failure is
 // collected, and the run lands on the SystemReport row wipeGameData
 // created, so the Dev Panel never claims success it can't know about.
-async function finishGameWipe(actorDiscordUserId, characters, ghostMemberIds, firstTurn, reportId) {
+async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds, firstTurn, reportId) {
   const steps = [];
   const failures = [];
   async function step(name, fn, { retries = 1 } = {}) {
@@ -616,9 +615,12 @@ async function finishGameWipe(actorDiscordUserId, characters, ghostMemberIds, fi
     }
   }
 
-  for (const id of ghostMemberIds) {
-    await step(`ghost ${id}`, () => removeGhostRole(id));
+  for (const id of deadchatMemberIds) {
+    await step(`deadchat ${id}`, () => closeDeadchatTo(prisma, id));
   }
+  // The belt to that braces: a fresh provision strips every member overwrite outright, so a seat the
+  // loop above missed (a departed member, a failed call) cannot survive into the new game.
+  await step("deadchat channel", () => ensureDeadchatChannel(prisma, { fresh: true }));
 
   await step("full channel wipe", () => runFullChannelWipe(prisma));
 

@@ -40,6 +40,13 @@ async function allAccessChannelIds(prisma) {
   ]);
   const channelIds = zones.flatMap(zoneChannelIds);
   for (const entry of SPECIAL_CHANNELS) channelIds.push(config?.[entry.configKey]);
+  // Deadchat too (db/lib/deadchat.js). It is not in SPECIAL_CHANNELS, so it has to be named here or
+  // a player who leaves the guild keeps a seat in the dead's room forever. Costs nothing for the
+  // living: the sweep only deletes an overwrite it can see is actually there.
+  //
+  // Both death paths revoke BEFORE they grant the seat, so this never takes back the one it is
+  // about to hand out. Keep that order.
+  channelIds.push(config?.deadchatChannelId);
   return channelIds.filter(Boolean);
 }
 

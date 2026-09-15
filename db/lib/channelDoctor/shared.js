@@ -1,5 +1,5 @@
 const { addMemberRole, removeMemberRole } = require("../discordRest");
-const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID, GHOST_ROLE_ID, gmRoleIds } = require("../roleIds");
+const { PLAYER_ROLE_ID, SPECTATOR_ROLE_ID, LEADER_WHITELIST_ROLE_ID, gmRoleIds } = require("../roleIds");
 const { hashNameToColor } = require("../roleColor");
 
 // mentionable and coloured by a hash of its own name is something nothing else in the guild reproduces by accident. A Catatonic character's role fails this on purpose but is protected anyway — a claimed role is skipped before the signature is ever tested.
@@ -14,7 +14,6 @@ function standingRoleIds() {
       SPECTATOR_ROLE_ID,
       LEADER_WHITELIST_ROLE_ID,
       ...gmRoleIds(),
-      GHOST_ROLE_ID,
       process.env.DISCORD_TURN_PING_ROLE_ID,
     ].filter(Boolean),
   );

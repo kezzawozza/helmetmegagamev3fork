@@ -1,8 +1,8 @@
 // Every YAML master into the database, in the one order that works: zones
-// first, narrowcast channels, tags before roles, desires, documents, labor
-// drops last. Same sequence as wipeGameData's re-sync.
+// first, narrowcast channels, deadchat, tags before roles, desires, documents,
+// labor drops last. Same sequence as wipeGameData's re-sync.
 //
-//   npm run db:sync                    # all seven
+//   npm run db:sync                    # all eight
 //
 // sync-zones, sync-documents and sync-labor-drops delete rows dropped from
 // their YAML; see SYNC.md §1 before running against a live game.
@@ -17,6 +17,7 @@ const {
   syncDocumentsFromYaml,
   syncLaborDropsFromYaml,
 } = require("../../index");
+const { ensureDeadchatChannel } = require("../../lib/deadchat");
 
 async function main() {
   if (!process.env.DISCORD_TOKEN || !process.env.DISCORD_GUILD_ID) {
@@ -31,6 +32,10 @@ async function main() {
     ["narrowcast channels", async () => {
       const s = await syncSpecialChannels(prisma);
       return `provisioned ${s.provisioned.length}, view grants ${s.roleGrants}`;
+    }],
+    ["deadchat", async () => {
+      const s = await ensureDeadchatChannel(prisma);
+      return s.provisioned ? "provisioned" : "reconciled";
     }],
     ["tags", async () => {
       const s = await syncTagsFromYaml(prisma);

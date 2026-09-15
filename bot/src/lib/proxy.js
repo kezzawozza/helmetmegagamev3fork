@@ -248,7 +248,7 @@ async function handBack(message, reason, text) {
 // with the id it got back. The web takes the same two halves the other way
 // round (row first, outbox posts after), which is what makes them one path
 // rather than two that agree for now.
-async function sendAsCharacter(channel, character, message, { identity: _identity = null, content: override = null } = {}) {
+async function sendAsCharacter(channel, character, message, { identity: _identity = null, content: override = null, ghost = false } = {}) {
   const text = override ?? message.content;
 
   // Both of these used to sit outside any handler, and the only catch above
@@ -272,6 +272,7 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
       placeKey,
       content: text,
       source: "DISCORD",
+      ghost,
     });
   } catch (err) {
     console.error("Failed to prepare a message for proxying, returning it to its author:", err);

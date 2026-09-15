@@ -18,6 +18,7 @@ const { noteChant } = require("./riteChant");
 const { chunkMessage } = require("./chunkText");
 const { MESSAGE_LIMIT, MAX_SAY_PIECES, tooManyPieces } = require("./sayLimits");
 const { echoSpeech } = require("./gateEcho");
+const { deadchatSpeakerName } = require("./deadchat");
 
 
 // Same number on both faces: past it, ✏️/❌ refuse, and so do ✎/✕ on the web.
@@ -75,7 +76,14 @@ async function slowmodeWaitSeconds(prisma, { characterId, placeKey }) {
 // Returns `{ ok: true, content, identity, placeKey, source, voice }` or
 // `{ ok: false, refusal, retryAfter? }`. The refusal is a finished sentence.
 // Gate order matters: the place check comes before the transforms so nothing is spent on text going nowhere.
-async function prepareSpeech(prisma, { character, placeKey, content, source = "WEB", skipSlowmode = false } = {}) {
+// `ghost` is the DEADCHAT seat (db/lib/deadchat.js): a dead player, speaking as their last body in
+// the one room the living cannot hear. It is passed in rather than worked out here, because who is a
+// ghost is decided once per request by the caller (db/lib/ghost.js) and this module answers to the
+// list, not to the rule.
+async function prepareSpeech(
+  prisma,
+  { character, placeKey, content, source = "WEB", skipSlowmode = false, ghost = false } = {},
+) {
   if (!character?.id) return { ok: false, refusal: "You don't have a living character." };
 
   const web = source !== "DISCORD";
@@ -83,11 +91,21 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   // Discord's own channel permissions gate a Discord-origin send; a web send
   // has no such gate, so this is the one it gets. placesFor() decides, so the
   // gate behind it can never disagree with the composer a player is looking at (CHANNELS.md §2).
-  if (web && !(await mayWritePlace(prisma, character, placeKey))) {
+  //
+  // The seat goes THROUGH, or a ghost is refused everywhere: their whole list is built by
+  // ghostPlacesFor, and without these options placesFor builds a living character's one instead —
+  // in which Deadchat does not appear. This one argument is the entire authorization for a ghost's
+  // voice, and it stays derived from the same list the composer drew.
+  if (web && !(await mayWritePlace(prisma, character, placeKey, { ghost, discordUserId: character.discordUserId }))) {
     return { ok: false, refusal: "You can't speak there." };
   }
 
-  const voice = await loadVoiceState(prisma, character.id);
+  // A ghost speaks with no body, so nothing a body could do to a voice applies: no babble from
+  // {tag:stupid}, no growl from a Ghoul. The corpse is still wearing its tags and would otherwise
+  // carry them into a room where none of it is happening.
+  const voice = ghost
+    ? { babbling: false, growling: false }
+    : await loadVoiceState(prisma, character.id);
 
   const raw = content ?? "";
   if (!raw.trim()) return { ok: false, refusal: "There wasn't anything in your message." };
@@ -124,8 +142,28 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   // forced > concealed > own (db/lib/presentedIdentity.js), read off the
   // character, never off the caller. One query answers name, face, AND what
   // the room could SEE (db/lib/examineSnapshot.js), so they cannot disagree.
-  const { state: presentedState, forcedName, concealment } = await loadPresentedState(prisma, character.id);
-  const identity = presentedIdentity(character, { forcedName, concealment });
+  //
+  // None of that applies to a ghost. Deadchat is out-of-character, so a hood or a forced name the
+  // corpse is still wearing would be answering a question nobody asked — the room wants to know who
+  // you actually were. The name is "Solomon Baker (Pub Fries)"; `alias: null` is load-bearing, since
+  // recordSpeech gates presentedAvatarPath on it and feedRowShape hoods a row that carries one, and
+  // a hooded row is the opposite of what this room is for. A null avatarPath then resolves live off
+  // the DEAD character's own row, which is how they keep the face they had in game.
+  let presentedState = null;
+  let identity;
+  if (ghost) {
+    identity = {
+      name: await deadchatSpeakerName(character),
+      avatarPath: null,
+      alias: null,
+      concealed: false,
+      forced: false,
+    };
+  } else {
+    const loaded = await loadPresentedState(prisma, character.id);
+    presentedState = loaded.state;
+    identity = presentedIdentity(character, { forcedName: loaded.forcedName, concealment: loaded.concealment });
+  }
 
   return {
     ok: true,
@@ -137,6 +175,7 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
     placeKey: placeKey ?? null,
     source,
     voice,
+    ghost,
   };
 }
 
@@ -166,7 +205,11 @@ async function recordSpeech(
     clientId,
     sentAt, // when actually SAID, for messageCatchUp.js recovering a message typed while the bot was down.
     content: content ?? prepared.rowContent ?? prepared.content, // the proxy's attachment placeholders, if any; else the ROW's spelling.
-    character: prepared.character,
+    // A ghost's row is stamped with the COMPOSED name — "Solomon Baker (Pub Fries)" — frozen the way
+    // every other identity column here is frozen, so an account rename never rewrites what the room
+    // read. characterId stays the dead character's, which is what keeps the avatar, the grouping and
+    // the five-minute edit window all working with no new rule.
+    character: prepared.ghost ? { ...prepared.character, name: prepared.identity.name } : prepared.character,
     concealedAlias: prepared.identity?.alias ?? null,
     // Frozen so a live lookup never unmasks an old line. Gated on `alias`, not
     // unconditional, since the own-face path carries a cache-buster.
@@ -183,17 +226,21 @@ async function recordSpeech(
     threadName,
   }, { rethrow });
   // The Thanati listen to every room (db/lib/riteChant.js). Not awaited: a chant must not slow or fail the message it rode in on.
-  if (row) void noteChant(prisma, { row, character: prepared.character });
+  // Never for a ghost: the cult listens to ROOMS, and Deadchat is not one — a word said there is
+  // said nowhere in the world, so it can neither carry a rite nor be overheard by one.
+  if (row && !prepared.ghost) void noteChant(prisma, { row, character: prepared.character });
   // Heard through the bars of a modular gate (db/lib/gateEcho.js), but not for a message recovered late (sentAt set).
-  if (row && !sentAt) {
+  // A ghost is behind no gate either, and their corpse's stale locationId would aim the echo at a
+  // Location they are not standing in.
+  if (row && !sentAt && !prepared.ghost) {
     void echoSpeech(prisma, prepared, row).catch((err) => console.error("Gate echo failed:", err.message ?? err));
   }
   return row;
 }
 
 // The web's order: decide, then write, and let the outbox put it on Discord.
-async function sayInPlace(prisma, { character, placeKey, content, source = "WEB", ...context } = {}) {
-  const prepared = await prepareSpeech(prisma, { character, placeKey, content, source });
+async function sayInPlace(prisma, { character, placeKey, content, source = "WEB", ghost = false, ...context } = {}) {
+  const prepared = await prepareSpeech(prisma, { character, placeKey, content, source, ghost });
   if (!prepared.ok) return prepared;
   const row = await recordSpeech(prisma, prepared, context);
   if (!row) return { ok: false, refusal: "That didn't get written down. Try again." };
@@ -207,7 +254,7 @@ async function sayInPlace(prisma, { character, placeKey, content, source = "WEB"
 // Returns { ok: true, rows, pieces } or { ok: false, refusal, retryAfter? }.
 async function sayInPieces(
   prisma,
-  { character, placeKey, content, source = "WEB", maxPieces = MAX_SAY_PIECES, clientId = null, ...context } = {},
+  { character, placeKey, content, source = "WEB", ghost = false, maxPieces = MAX_SAY_PIECES, clientId = null, ...context } = {},
 ) {
   const raw = content ?? "";
   if (!raw.trim()) return { ok: false, refusal: "There wasn't anything in your message." };
@@ -223,6 +270,7 @@ async function sayInPieces(
       placeKey,
       content: piece,
       source,
+      ghost,
       skipSlowmode: index > 0, // checked once, on the first piece. See prepareSpeech.
     });
     if (!prepared.ok) {

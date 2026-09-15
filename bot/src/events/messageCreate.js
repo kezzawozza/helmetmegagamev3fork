@@ -15,6 +15,8 @@ const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const { splitAttachments, buildInboundContent } = require("@lifeweb/db/lib/dmAttachments");
 const { addConversationMember } = require("@lifeweb/db/lib/conversations");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
+const { isDeadchatChannel } = require("@lifeweb/db/lib/deadchat");
+const { ghostCharacterFor } = require("@lifeweb/db/lib/ghost");
 const {
   canHearPing,
   messageLink,
@@ -96,7 +98,7 @@ module.exports = {
     }
 
     // Identity tags ride along on the busiest query the bot runs, rather than a second round trip.
-    const character = await findAliveCharacter(message.author.id, {
+    let character = await findAliveCharacter(message.author.id, {
       include: {
         tags: {
           where: {
@@ -106,13 +108,27 @@ module.exports = {
         },
       },
     });
+
+    // A GHOST typing in Deadchat (db/lib/deadchat.js). Without this arm their raw message would sit
+    // in the channel under their real Discord name, un-proxied and un-archived — the one failure the
+    // proxy's header promises cannot happen. Scoped to that channel: a dead player has no business
+    // speaking anywhere else, and prepareSpeech would refuse them there anyway.
+    let ghost = false;
+    if (!character && (await isDeadchatChannel(prisma, message.channel?.id))) {
+      character = await ghostCharacterFor(prisma, message.author.id);
+      ghost = Boolean(character);
+    }
     if (!character) return;
 
-    // Precedence forced > concealed > own (db/lib/presentedIdentity.js).
-    const identity = presentedIdentity(character, {
-      forcedName: forcedNameFrom(character.tags),
-      concealment: concealmentFrom(character.tags),
-    });
+    // Precedence forced > concealed > own (db/lib/presentedIdentity.js). A ghost skips all of it —
+    // prepareSpeech composes "Solomon Baker (Pub Fries)" for them instead, and a hood their corpse is
+    // still wearing has no business in an out-of-character room.
+    const identity = ghost
+      ? null
+      : presentedIdentity(character, {
+          forcedName: forcedNameFrom(character.tags),
+          concealment: concealmentFrom(character.tags),
+        });
 
     const mentionedRoleIds = [...message.mentions.roles.keys()]; // captured before proxying deletes the original
     const channel = message.channel;
@@ -121,7 +137,7 @@ module.exports = {
     // player their text back. Null means it refused.
     let proxied;
     try {
-      proxied = await sendAsCharacter(channel, character, message, { identity });
+      proxied = await sendAsCharacter(channel, character, message, { identity, ghost });
     } catch (err) {
       console.error("Failed to proxy message:", err);
       return;
@@ -129,8 +145,9 @@ module.exports = {
     if (!proxied) return;
 
     // A concealed (or forced) message relays nothing — a DM naming the location would hand the
-    // target a thread to pull on.
-    if (identity.concealed || mentionedRoleIds.length === 0) return;
+    // target a thread to pull on. A ghost relays nothing either: a mention typed in Deadchat that
+    // DM'd a living player would be the dead reaching into the world.
+    if (ghost || identity.concealed || mentionedRoleIds.length === 0) return;
 
     await handleMentions({ message, channel, proxied, mentionedRoleIds }).catch((err) =>
       console.error("Failed to handle mentions:", err),

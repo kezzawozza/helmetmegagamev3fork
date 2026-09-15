@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · The dead get a room, and burying somebody no longer cuts them off
+
+✚ Deadchat: one channel the dead talk in, on the website and on Discord. It is the only place a ghost has a voice, and nobody living can see it or hear it.  
+✎ Burying a body or carving a headstone still lifts the curse, but it no longer takes away that player's view of the game. Only rolling a new character ends it now.  
+− The Ghost role. Discord prints a player's roles on their profile card, so clicking a name told you they were dead.  
+✎ Dead players watch from the website now. On Discord they see Deadchat and nothing else.  
+✚ Ghosts can Examine people again. They look as the body they died in, and the dark does not stop them — though they cannot take photographs.
+
 ## 2026-09-15 · The Automatically ride my mount switch is gone
 
 − The switch on the character sheet that put your horse and cart back on when you arrived somewhere. Mounts left outside now stay stowed until you equip them yourself

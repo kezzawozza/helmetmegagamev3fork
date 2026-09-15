@@ -38,7 +38,6 @@ import {
   isLeaderWhitelisted,
   isGm,
   onRoster,
-  removeGhostRole,
 } from "@/lib/discordGuild";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import {
@@ -64,6 +63,7 @@ import {
 } from "@/lib/characterCreation";
 
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
+import { closeDeadchatTo } from "@lifeweb/db/lib/deadchat";
 import { heldSeats } from "@lifeweb/db/lib/seatCount";
 import { settleLobbyEntry } from "@lifeweb/db/lib/lobby";
 import { recordArchiveEvent } from "@/lib/archive";
@@ -468,7 +468,11 @@ export async function createCharacter(formData) {
       .catch((err) => console.error("postDebtorNotices failed:", err));
   }
   if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
-  if (cursed) await removeGhostRole(discordUserId).catch(() => {}); // curse itself needs no write: the new ALIVE row is already the answer
+  // UNCONDITIONAL, and it must stay that way. The old line was `if (cursed)`, back when one
+  // predicate answered both questions. A player who buried their body is no longer cursed but IS
+  // still a ghost, so a `cursed` guard here would leave them holding a Deadchat seat while alive.
+  // Neither curse nor ghost needs a write — the new ALIVE row is already the answer to both.
+  await closeDeadchatTo(prisma, discordUserId).catch(() => {});
 
   // The Depot's turret spares exactly one face — he knows his own name here.
   // Set once and never resynced: concealing himself later still gets him

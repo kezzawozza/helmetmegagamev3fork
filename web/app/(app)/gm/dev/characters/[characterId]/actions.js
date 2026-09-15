@@ -15,7 +15,6 @@ import {
   revokeAllCharacterAccess,
   deleteCharacterRole,
   updateGuildNickname,
-  removeGhostRole,
   killCharacter,
   sendDm,
 } from "@/lib/discordGuild";
@@ -41,6 +40,7 @@ import { DesireRevokeRefused, revokeDesireCore } from "@lifeweb/db/lib/desireRev
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 import { gmTransferResources } from "@/lib/gmTransfer";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
+import { closeDeadchatTo } from "@lifeweb/db/lib/deadchat";
 
 // Dev Panel microactions, gated on GM membership; delete requires superadmin
 // (see requireSuperadminSession).
@@ -315,7 +315,7 @@ async function reviveCharacterImpl({ characterId }) {
 
   after(async () => {
     try {
-      await removeGhostRole(updated.discordUserId);
+      await closeDeadchatTo(prisma, updated.discordUserId);
       await ensureCharacterRole(updated);
       await syncCharacterNickname(updated.discordUserId, formatBareName(updated));
       // fromLocationId null: kill already stripped every grant, so this is a

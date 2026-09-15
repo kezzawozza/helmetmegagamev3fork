@@ -2,7 +2,6 @@
 // room entries plus the location graph, and the overwrite-reconcile helpers
 // used later by the sync. Split out of db/lib/syncZones.js — see that file.
 const { SPECTATOR_ROLE_ID, gmRoleIds } = require("../roleIds");
-const { ghostRoleId } = require("../ghostAccess");
 const { collectAttributes } = require("../locationAttributes");
 const { collectLive } = require("../roomLive");
 const { entriesOf } = require("../yamlEntries");
@@ -408,7 +407,7 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
 // next sync. Only role ids belong in this set.
 function managedOverwriteIds(roleIds) {
   return new Set(
-    [...gmRoleIds(), SPECTATOR_ROLE_ID, ghostRoleId(), ...roleIds].filter(Boolean),
+    [...gmRoleIds(), SPECTATOR_ROLE_ID, ...roleIds].filter(Boolean),
   );
 }
 

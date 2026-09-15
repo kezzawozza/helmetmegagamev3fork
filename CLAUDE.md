@@ -311,10 +311,11 @@ npm run db:backups                   # what is in the bucket. EXITS 1 if the
                                      #   how a dead backup system announces
                                      #   itself. See BACKUPS.md.
 
-# YAML masters -> DB. `db:sync` runs all seven in the working order; the
+# YAML masters -> DB. `db:sync` runs all eight in the working order; the
 # individual scripts exist for one master at a time. See SYNC.md.
-npm run db:sync                      # zones, narrowcast channels, tags,
-                                     #   roles, desires, documents, labor drops.
+npm run db:sync                      # zones, narrowcast channels, deadchat,
+                                     #   tags, roles, desires, documents,
+                                     #   labor drops.
 npm run db:sync-zones                # docs/zones.yaml      (destructive; zones,
                                      #   Locations, Rooms, their channels/
                                      #   threads + roles)
@@ -328,6 +329,10 @@ npm run db:sync-labor-drops          # docs/labordrops.yaml (destructive; last)
                                      #   — see LABORDROPS.md
 npm run db:sync-narrowcast-channels  # #watch provisioning + reconcile.
                                      #   Run AFTER db:sync-zones.
+npm run db:sync-deadchat             # #deadchat provisioning + reconcile
+                                     #   (db/lib/deadchat.js). Safe to re-run;
+                                     #   touches no per-member seat. Also runs
+                                     #   inside db:sync.
 npm run db:sync-info-channel         # #info, edited in place. The default:
                                      #   an edit notifies nobody, a repost
                                      #   pings every thread follower.
@@ -526,7 +531,7 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **Playtest role** | `PLAYTEST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Counts as on the roster without the Player role, and is on the playtest-mode allowlist. It does **not** skip the lobby or the phase gate — only a GM gets the Skip button (`LOBBY.md` §2). Testing access, nothing else. |
 | **Contributor role** | `CONTRIBUTOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A separate seat from Playtest: the people who work on Bascinet. Read by exactly one gate — `GameConfig.playtestModeEnabled`, which narrows the roster to GMs, playtesters and Contributors (`LOBBY.md` §2). Grants nothing else. |
 | **Leader Whitelist role** | `LEADER_WHITELIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may pick or prioritise a role flagged `whitelist: true`, and tick a whitelisted antagonist box. Always required — that used to be a `/gm/dev` switch (`CHARACTERS.md` §2, `THREATS.md` §1). |
-| **Ghost role** | `GHOST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | The ghost seat and nothing else: read-only view of every zone (cave levels included; private threads stay invisible), and no voice at all — the 🌬️ whisper is gone, an unburied body reports itself instead. Its color is pinned to 0 so ghosts aren't outed in the member list (`CHANNELS.md` §3, `COMMANDS.md` §6). **It decides nothing.** What a player may re-roll as after a death is `db/lib/curse.js`, read from the database (`CHARACTERS.md` §4); this role used to answer that too, and a deploy where it was set on one service and not the other is what ended the arrangement. |
+| **~~Ghost role~~** | **Deleted 2026-09-15.** | It was an out-of-character leak: Discord prints a member's roles on their profile card, so "Ghost" told anyone who clicked that a player was dead, and pinning the colour to 0 only ever hid it from the member list. Do not add it back. A dead player is now answered by `db/lib/ghost.js` (who they are) and a per-member overwrite on the Deadchat channel (`db/lib/deadchat.js`) — an overwrite is visible only inside the channel it opens, and everyone who can open that one is already dead. The watching seat is **web-only** now; see **Death, ghosts and Deadchat** below. |
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
 There is one more role family, and it is per-zone rather than global. A
@@ -568,6 +573,57 @@ it: half-configured, it would be a GM who can open the web panel but cannot
 see the channels, or the reverse. `web/lib/superadmin.js` uses the same
 reasoning. `DISCORD_TOKEN` is a real
 credential, so it stays in `.env`.
+
+## Death, ghosts and Deadchat
+
+**Two predicates, and they are not the same predicate.** They were one until
+2026-09-15, which meant burying a body — the act that is supposed to *lift* a
+penalty — also threw that player out of the game they were still watching.
+
+| | `db/lib/curse.js` | `db/lib/ghost.js` |
+|---|---|---|
+| Asks | who pays the re-roll penalty | who gets the watching seat |
+| Rule | most recent body still unburied, **and** no living character | a body, **and** no living character |
+| Reads `buriedAt` | yes | **no** |
+| Ends when | the body is buried or the name engraved, or they live again | they live again, and nothing else |
+| Decides | Migrant/Bum only, six fewer points | `/chat` over every zone, and a voice in Deadchat |
+
+Keep them apart. A `cursed` check standing in for a ghost check hands a buried
+player's seat away; a `ghost` check standing in for a curse check hands out free
+full-points re-rolls.
+
+**The trap in `ghost.js` fails open, so it is worth knowing.** The rule has to
+see the rows that are *not* dead. A caller who narrows the query —
+`where: { discordUserId, status: "DEAD" }` — never loads the ALIVE row and gets
+back "ghost" for somebody still playing, which seats a living player in the dead
+room. Never filter by status; load the player's rows and let `isGhostIn` decide.
+
+**A ghost watches on the web only.** There is no Ghost role any more (see the
+table above). They read every zone summary, Location and public Room, plus the
+nets flagged `ghostsMaySee` — that flag is web-only now, since there is no role
+left to grant it with.
+
+**Private Rooms and conversations stay out, and not because Discord said so.**
+Adding a ghost to a private thread posts a visible system message *and* puts
+them in its member list; either announces the death to the room. The only way
+around it is `MANAGE_THREADS`, which is worse. The limit outlived the role that
+used to explain it.
+
+**Deadchat** (`db/lib/deadchat.js`) is the one room the dead talk in, and the
+one exception to "a watcher speaks nowhere". Place key `dead:main`, provisioned
+by `npm run db:sync-deadchat`, opened by **per-member overwrites** rather than a
+role. A ghost speaks as `Solomon Baker (Pub Fries)` — their character's name and
+their account handle, composed at send time and frozen into
+`ArchiveEntry.characterName`, keeping the avatar the character had in game. It
+is **not** a `SPECIAL_CHANNELS` entry, and `db/lib/deadchat.js`'s header says
+why — three things in that registry are actively wrong for it, one of them a
+spectator overwrite that would publish the death list.
+
+It persists across turns on both faces: `runMessageWipe` never walks it, and
+`db/lib/feedWipe.js#isPersistentPlace` is what stops the web disagreeing.
+
+A GM reads Deadchat and does not speak in it, matching every other place on the
+desk. Send is denied to the GM roles on the channel, not merely ungranted.
 
 ## Slash commands
 

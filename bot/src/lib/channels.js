@@ -60,6 +60,13 @@ async function refreshLocationChannels() {
     if (entry.tupper) tupperOnly.add(channelId);
     note(channelId, { ...nowhere, channelKind: entry.slug });
   }
+  // Deadchat (db/lib/deadchat.js), which is not in that registry — see the module header for why.
+  // It has to be a tupper channel or a ghost's message is never proxied and sits in the room under
+  // their real Discord name.
+  if (config?.deadchatChannelId) {
+    tupperOnly.add(config.deadchatChannelId);
+    note(config.deadchatChannelId, { ...nowhere, channelKind: "deadchat" });
+  }
 
   channelIds = { tupperSummary, tupperOnly };
   locationChannelIds = locationOnly;

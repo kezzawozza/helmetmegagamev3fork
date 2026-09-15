@@ -1,6 +1,8 @@
 // Who is Cursed — the re-roll penalty (next character may only be Migrant/Bum, six fewer points —
-// web/lib/characterCreation.js's CURSED_ROLE_SLUGS/CURSED_POINT_PENALTY). NOT the ghost seat
-// (db/lib/ghostAccess.js, a Discord role). `cursed(player) := most recent body still lying in the
+// web/lib/characterCreation.js's CURSED_ROLE_SLUGS/CURSED_POINT_PENALTY). NOT the watching seat,
+// which is db/lib/ghost.js and reads no `buriedAt` at all: burial LIFTS this penalty and leaves that
+// seat alone. The two were one predicate until the split, so burying a body also evicted the player
+// from the game they were still watching. Keep them apart. `cursed(player) := most recent body still lying in the
 // world, and no living character` — MOST RECENT only, not any (CORPSES.md §6/§7, CHARACTERS.md §4).
 // Both halves are already columns: `Character.buriedAt` (BURY_CHARACTER/ENGRAVE_HEADSTONE, cleared on
 // revive) and having an ALIVE character. `Character.cursedOverride` is a GM's thumb on the scale from

@@ -29,11 +29,12 @@ const PLAYTEST_ROLE_ID = "1546259369539280936";
 // Reads as "Contributor" in the guild.
 const CONTRIBUTOR_ROLE_ID = "1544753625526440027";
 
-// The ghost seat: read-only visibility for a dead player, nothing else.
-// Reads as "Ghost" in the guild. A permission handle only — whether a player
-// is Cursed is answered by db/lib/curse.js from Character.status/buriedAt,
-// not this role. The death path writes it; the channel doctor reconciles it.
-const GHOST_ROLE_ID = "1540018826580852736";
+// There is no Ghost role. It was deleted, not retired: Discord prints a member's roles on their
+// profile card, so holding one named "Ghost" told anyone who clicked that a player was dead — an
+// out-of-character leak that pinning the colour to 0 never touched. A dead player's seat is now
+// db/lib/ghost.js (who they are) plus a per-member overwrite on the Deadchat channel
+// (db/lib/deadchat.js), which is visible only inside a channel everyone in is already dead.
+// Do not add it back.
 
 // The trial GM seat. Access-identical to the Gamemaster role everywhere — the
 // web panel, the GM channel overwrites, the bot's /gm and /dm — and the only
@@ -69,7 +70,6 @@ function hasContributorRole(roleIds) {
 module.exports = {
   PLAYER_ROLE_ID,
   SPECTATOR_ROLE_ID,
-  GHOST_ROLE_ID,
   LEADER_WHITELIST_ROLE_ID,
   TRIAL_GM_ROLE_ID,
   PLAYTEST_ROLE_ID,
