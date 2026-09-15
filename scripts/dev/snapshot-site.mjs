@@ -64,16 +64,18 @@ const ROUTES = [
   ["/gm/crafts", "gm"],
   ["/gm/dev", "gm"],
   ["/gm/dev?s=gamemasters", "gm"],
-  ["/gm/dev/characters", "gm"],
-  ["/gm/dev/factions", "gm"],
-  ["/gm/dev/tags", "gm"],
+  ["/gm/dev?s=bulk", "gm"],
+  ["/gm/dev?s=characters", "gm"],
+  ["/gm/dev?s=factions", "gm"],
+  ["/gm/dev?s=tags", "gm"],
+  ["/gm/dev?s=zones", "gm"],
 ];
 
 // A detail page's URL carries an id only the data knows; pull one out of the
 // already-loaded index page.
 const DERIVED = [
   { from: "/gm/players", pattern: /\/gm\/players\/(\d{17,20})/, as: "gm" },
-  { from: "/gm/dev/characters", pattern: /\/gm\/dev\/characters\/([a-z0-9]{20,32})/, as: "gm" },
+  { from: "/gm/dev?s=characters", pattern: /\/gm\/dev\/characters\/([a-z0-9]{20,32})/, as: "gm" },
 ];
 
 function slugFor(route) {
