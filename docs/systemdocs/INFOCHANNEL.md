@@ -90,8 +90,9 @@ index**, not a snowflake, and must match the `files[n]` suffix or Discord
 accepts the request and silently drops the file. The `Content-Type` header
 is deliberately omitted so `fetch` can set its own multipart boundary.
 
-Unlike `sync-zones.js` (matched by slug, never re-creates already-
-provisioned channels), this script has no notion of "already exists" — every
+Unlike the Discord mirror (matched by DB row and adopted by name, never
+re-creates already-provisioned channels), this script has no notion of
+"already exists" — every
 run throws away whatever is currently live in `#info` and reposts from
 scratch. That's a deliberate simplification: `#info` is GM-authored front
 matter, not player state, so there's nothing worth diffing or preserving

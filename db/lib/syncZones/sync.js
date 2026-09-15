@@ -1,14 +1,13 @@
 // syncZones — what is left of the old destructive zones sync.
 //
-// `syncZonesFromYaml` used to be five passes: parse+upsert, Discord
-// provisioning, every-run reconcile, prune, and channel ordering. All five are
-// gone. Standing a place up from docs/zones.yaml is now `db/lib/importZones.js`
+// The old sync used to be five passes: parse+upsert, Discord provisioning,
+// every-run reconcile, prune, and channel ordering. All five are gone.
+// Standing a place up from docs/zones.yaml is now `db/lib/importZones.js`
 // (additive, never deletes — `npm run db:import-zones`), and keeping Discord
 // true to the database is `db/lib/discordMirror/` (`npm run db:mirror`, and the
-// bot/turn/queue triggers that call it for you). `syncZonesFromYaml` survives
-// only as a thin, deprecated shim over both, for `finishGameWipe`
-// (web/app/(app)/gm/dev/actions.js) — the Restart Game flow still calls it,
-// until the phase that rewrites Restart Game to keep Discord structure lands.
+// bot/turn/queue triggers that call it for you). `finishGameWipe`
+// (web/app/(app)/gm/dev/actions.js) calls `runDiscordMirror` directly now, so
+// nothing here provisions or deletes structure any more.
 //
 // What's left below are the three refresh helpers other live callers still
 // use — a gate flipping, a shuttle taking off, the Depot's live line changing
@@ -20,16 +19,6 @@ const { hashBody } = require("./shared");
 const { loadLiveStates } = require("../roomLive");
 const { WATCHTOWER_ROOM_SLUGS } = require("../roomStarterRow");
 const { editMessage, chunkMessage } = require("../discordRest");
-
-// Deprecated: import (additive, apply) then a structure mirror pass. Kept
-// working for finishGameWipe only — nothing else should call this.
-async function syncZonesFromYaml(prisma) {
-  const { importZonesFromYaml } = require("../importZones");
-  const { runDiscordMirror } = require("../discordMirror");
-  const importReport = await importZonesFromYaml(prisma, { apply: true });
-  const mirrorResult = await runDiscordMirror(prisma, { apply: true, scope: "structure" });
-  return { importReport, mirrorResult };
-}
 
 // Reposts one location's anchor from current state. The gate button handler
 // calls this after flipping a link, on BOTH endpoints — the gate has a button
@@ -104,7 +93,6 @@ async function refreshGateRooms(prisma, locationId) {
 }
 
 module.exports = {
-  syncZonesFromYaml,
   refreshLiveRooms,
   refreshLocationAnchor,
   refreshGateRooms,

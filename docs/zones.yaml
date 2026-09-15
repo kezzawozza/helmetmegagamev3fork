@@ -1,13 +1,15 @@
-# Source of truth for the game's Zones, their Locations and each Location's
-# Rooms, hand-edited then pushed with `npm run db:sync-zones`
-# (db/lib/syncZones.js). This sync is fully destructive in both directions:
-# entries here are upserted into the DB and Discord by `id` slug, and any
-# Zone/Location/Room NOT listed here gets its Discord objects deleted and its
-# DB row removed — for a Zone that means a whole category, its #summary and
-# its "Zone: {Name}" role; for a Location its channel; for a Room one thread.
-# Removing an entry is a real delete — there's no undo short of re-adding it
-# (which provisions brand-new Discord objects, since a removed/re-added entry
-# loses its old Discord IDs).
+# The one-shot starting layout for the game's Zones, their Locations and each
+# Location's Rooms, pushed with `npm run db:import-zones -- --apply`
+# (db/lib/importZones.js). The database is the source of truth now — this
+# file is only how a fresh game is stood up. The import is additive-only: an
+# entry here creates its Zone/Location/Room by `id` slug if it doesn't exist
+# yet and is skipped (reported, not upserted) if it does; it never updates an
+# existing row and never deletes one. Editing a Zone, Location or Room after
+# it exists is done live at `/gm/dev/zones`, which is also where a place gets
+# retired or, for a superadmin, hard-deleted. Keeping Discord true to the
+# database afterwards is `db/lib/discordMirror/` (`npm run db:mirror`, or
+# "Reconcile now" on the dev panel) — it creates and renames Discord objects
+# to match DB rows, but it never deletes one either.
 #
 # Zones, levels, locations and rooms are maps keyed by `id` (`town:`, not
 # `- id: town`). See docs/tags.yaml's header for why, and db/lib/yamlEntries.js.
@@ -58,8 +60,8 @@
 #   Location same as the open ground outside it, and `indoors` only keeps
 #   answering the roof questions there — the mood dial, Sun Sensitivity,
 #   whether a palisade can be raised. Where it does park a mount, the anchor
-#   message says so in a -# line of its own, written by syncZones, so nobody
-#   has to be told twice. Default false; a Room never carries it, since a Room
+#   message says so in a -# line of its own, written by the anchor builder, so
+#   nobody has to be told twice. Default false; a Room never carries it, since a Room
 #   is inside its Location by definition.
 # - attributes (locations only): a map of extra facts about the place, keyed
 #   by the registry in db/lib/locationAttributes.js. Each one the Examine
@@ -79,23 +81,27 @@
 #           obol: 3
 #           cleaning-powder: 1
 #
-#   A SEED, never a reset and never a top-up. An item the room already carries
-#   is left exactly as the players left it, and `resources` is written only
-#   while the room still holds none — so re-syncing can neither undo a player
-#   carrying the anvil off nor quietly duplicate it. Tags sync AFTER zones, so
-#   an unknown slug is skipped with a warning rather than throwing.
+#   The importer does NOT seed a stash from this any more — it only warns that
+#   the room has one and points at the editor. Seeding stash is a live action
+#   now: the "Seed these items now" button at `/gm/dev/zones` writes the
+#   RoomTag rows and remembers what it seeded (`Room.seededStashSlugs`), so
+#   re-running it can neither undo a player carrying the anvil off nor
+#   quietly duplicate it. A stash block here just documents the room's
+#   intended starting contents for whoever seeds it.
 # - structures (locations only): what was simply always STANDING there, like
 #   the Square's cross. A flat list of tag slugs that carry a `placement:`
 #   block in docs/tags.yaml:
 #
 #       structures: [crucifix]
 #
-#   Seeded as one COMPLETE Structure each, with no builder and no payer. The
-#   same FLOOR rule as a stash: nothing is created while one of that type is
-#   already standing or going up, and a razed or abandoned one is re-raised
-#   on the next sync. Tags sync AFTER zones, so on a database that has never
-#   had db:sync-tags the first zone sync warns and skips — run db:sync-zones
-#   again after the tags land (LAUNCH.md §5 does).
+#   Seeded as one COMPLETE Structure each, with no builder and no payer, and —
+#   unlike stash — the importer still does this. Same FLOOR rule as a stash
+#   used to be: nothing is created while one of that type is already standing
+#   or going up. The importer is additive-only, though, so a razed or
+#   abandoned one is NOT re-raised by running it again; that's a job for the
+#   editor. Tag slugs are validated against docs/tags.yaml, so on a database
+#   that has never had `db:sync-tags` the import warns and skips the
+#   structure — run `db:sync-tags` and re-run the import (LAUNCH.md §5 does).
 # - access (rooms only): a list of Tag slugs from docs/tags.yaml. Non-empty
 #   makes the room PRIVATE, admitting anyone holding ANY of the listed tags.
 #   Slugs aren't checked against the tag catalog here (tags sync after
@@ -1984,7 +1990,7 @@ zones:
                 name: Abandoned Hut
                 description: >-
                   A small structure, once built by someone exiled from Ravenheart. It now serves as a rest stop for migrants on their way through the caves.
-                # One of five wheels of Hard Cheese put away across the game's cellars and stores (docs/systemdocs/COOKING.md). A seed, not a supply: db/lib/syncZones.js#seedRoomStash never tops a room up, so once these five are eaten there are no more.
+                # One of five wheels of Hard Cheese put away across the game's cellars and stores (docs/systemdocs/COOKING.md). A seed, not a supply: the editor's seedRoomStash (web/app/(app)/gm/dev/zones/actions.js) never tops a room up, so once these five are eaten there are no more.
                 stash:
                   items:
                     hard-cheese: 1

@@ -1,6 +1,6 @@
 // Manual sync from docs/labordrops.yaml -> DB (`npm run db:sync-labor-drops`).
-// Run AFTER db:sync-zones and db:sync-tags — every slug named in the YAML is
-// validated against the Tag/Zone/Location rows those two create.
+// Run AFTER db:import-zones and db:sync-tags — every slug named in the YAML is
+// validated against the Tag/Zone/Location rows those create.
 require("dotenv").config();
 const { prisma, syncLaborDropsFromYaml } = require("../../index");
 

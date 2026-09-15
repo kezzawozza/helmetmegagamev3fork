@@ -19,7 +19,8 @@
 // This is the repair path now: runChannelDoctor is a thin alias over it
 // (db/lib/channelDoctor.js), so the bot's ready pass and the turn wrapup come
 // through here too, and a Location whose channel was deleted is rebuilt rather
-// than reported with "run db:sync-zones" attached.
+// than reported with a pointer to a sync command that no longer exists — the
+// mirror is the repair path now.
 const { isLocalMode } = require("../localMode");
 const { spectatorsVisibleNow } = require("../spectatorAccess");
 const { loadLiveStates } = require("../roomLive");

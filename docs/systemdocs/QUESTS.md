@@ -35,26 +35,41 @@ fails the build if a require ever appears in it.
 
 **A quest room is the only Room in the game `docs/zones.yaml` does not master.**
 
-Every other Room is authored in the YAML, and `db/lib/syncZones.js`'s pass-4
-prune deletes every Room whose slug the YAML does not name — thread and row
-together. A quest's slug is in no YAML file, so without a guard the next
-`db:sync-zones`, or the next Restart Game (which calls the same function),
-would silently delete every live quest.
+Every other Room can be seeded from the YAML by the one-shot
+`db:import-zones` importer. Neither that importer nor the Discord mirror
+(`db/lib/discordMirror/`) ever deletes a Room, so a quest's row is safe from
+both of them by construction now — there is no prune left to guard against on
+that path. The place a quest room's row can still be lost is a superadmin's
+hard delete from `/gm/dev/zones`; `db/lib/placeDeletable.js`'s
+`hardDeleteBlockers` refuses that outright while `Room.questId` is set,
+telling the GM to close the quest first.
 
-The guard is `questId: null` on that prune's where-clause. `Room.questId`
-exists for exactly this. `db/test/quests.test.js` asserts the clause still
-carries it, because the failure mode is silent and the first anyone would hear
-of it is a player asking where the cave they were standing in went.
+Restart Game **does** still delete a quest room's live Discord *thread*
+(`db/lib/fullWipe.js#wipeGameMessages` — a quest thread has nowhere to keep
+its old messages, unlike an ordinary Room's thread, which is cleared and
+reused). That's fine: `finishGameWipe`'s closing Discord-mirror pass rebuilds
+it from the DB row, quest rooms included, so the quest survives with a fresh
+thread rather than surviving with none.
 
-Two things follow from a quest room being outside the sync:
+`Room.questId` still exists for exactly this — telling every other pass a
+quest built this room, not the importer. `db/test/quests.test.js` asserts the
+guard on `placeDeletable.js` still checks it, because the failure mode is
+silent and the first anyone would hear of it is a player asking where the
+cave they were standing in went.
 
-- **It is not listed on its Location's anchor post.** The anchor's room list is
-  built from the YAML parse. Adding quests to it would churn the anchor's hash
-  every time one is staged or closed; the quest announces itself instead.
+Two things follow from a quest room's slug living in no YAML file:
+
+- **It DOES now appear on its Location's anchor post**, unlike under the old
+  YAML-driven sync. The mirror builds the anchor's Public Rooms list straight
+  from every `Room` row for the Location — quest rooms included, since it
+  carries no `questId: null` filter the way the old sync's prune did
+  (`db/lib/discordMirror/desired.js`). A quest still announces itself when
+  staged; the anchor now also just lists it like any other public room.
 - **Deleting its Location still takes it.** `Location.zoneId` and
-  `Room.locationId` are both `onDelete: Cascade`, so pruning a zone or a
-  location out of the YAML takes any quest staged there with it. That is
-  correct: the place stopped existing.
+  `Room.locationId` are both `onDelete: Cascade`, so hard-deleting a zone or
+  a Location from `/gm/dev/zones` takes any quest staged there with it —
+  `placeDeletable.js` blocks that delete while a live quest room hangs off it,
+  same as it blocks deleting the quest room directly.
 
 ## 3. The gates
 

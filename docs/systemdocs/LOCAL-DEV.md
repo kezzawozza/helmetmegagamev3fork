@@ -131,7 +131,7 @@ bot in a real (ideally throwaway) guild.
 
 **`CLAUDE.md`'s "Game state" section is the actual policy — read it.** The
 short version: there is a live production site now, with real playtest
-users. A migration that drops a column, `db:sync-zones`,
+users. A migration that drops a column, `db:import-zones -- --apply`,
 `db:sync-documents`, `db:prune-tags -- --apply`, a Restart Game wipe — none
 of these are "just run it" any more. Say what you're about to do and why,
 and wait for a real yes in chat.
@@ -146,11 +146,13 @@ different things depending on how bad the command is:
   can lose everything in a single command, the way it did on day 10 of the
   first game, and that habit doesn't get to come back now that there are
   real players again.
-- **A targeted destructive script** — `db:sync-zones`, `db:sync-documents`,
-  `db:sync-narrowcast-channels`, `db:rebuild-info-channel`,
-  `db:prune-tags`, `db:prune-orphan-roles`, `db:prune-stale-channels`, or
-  `db:sync` (which runs several of those) — is refused the same way unless
-  the command is prefixed with `CONFIRMED=1`.
+- **A targeted destructive script** — `db:import-zones -- --apply` (additive,
+  but writes), `db:mirror -- --apply` (creates/renames live Discord
+  objects), `db:sync-documents`, `db:sync-narrowcast-channels`,
+  `db:rebuild-info-channel`, `db:prune-tags`, `db:prune-orphan-roles`,
+  `db:prune-stale-channels`, or `db:sync` (which runs several of those) —
+  is refused the same way unless the command is prefixed with
+  `CONFIRMED=1`.
 
 **`CONFIRMED=1` exists to be typed by hand after the user has actually said
 yes in the conversation — not reached for the moment the hook blocks

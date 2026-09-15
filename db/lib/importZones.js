@@ -1,6 +1,6 @@
 // docs/zones.yaml -> DB, one-shot and additive. `npm run db:import-zones`.
 //
-// This is the whole replacement for the old destructive `db:sync-zones`: it
+// This is the whole replacement for the old destructive zones sync: it
 // creates a Zone/Location/Room/LocationLink/LocationYield/Structure that the
 // YAML names and the database doesn't have yet, by slug (a link by its
 // endpoint pair, a yield by location+kind, a structure by location+type).

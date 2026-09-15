@@ -1,4 +1,4 @@
-// Removes the room-stash items `db:sync-zones` re-created after players had
+// Removes the room-stash items the old destructive zones sync re-created after players had
 // already carried them off, and the copies of those since picked up. Dry run
 // by default; `-- --apply` writes.
 //
@@ -336,7 +336,7 @@ async function main() {
             details: {
               where: "room", roomId: d.room.id, roomName: d.room.name,
               tagId: d.tag.id, tagName: d.tag.name, quantity: d.onGround,
-              seededAt: d.createdAt, reason: "re-seeded by db:sync-zones over a stack players had emptied",
+              seededAt: d.createdAt, reason: "re-seeded by the old zones sync over a stack players had emptied",
             },
           },
         });
@@ -379,7 +379,7 @@ async function main() {
               roomId: d.room.id, roomName: d.room.name,
               tagId: d.tag.id, tagName: d.tag.name, quantity: t.quantity,
               takenAt: t.when, seededAt: d.createdAt,
-              reason: "picked up a unit db:sync-zones had re-seeded over an emptied stack",
+              reason: "picked up a unit the old zones sync had re-seeded over an emptied stack",
             },
           },
         });

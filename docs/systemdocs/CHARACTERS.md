@@ -132,13 +132,14 @@ avatar, opt-ins) is untouched.
 
 Two of those opt-ins are switches under the picture. **Ping me when the
 turn advances** adds or removes the turn-ping Discord role and nothing else.
-**Play
-from the web** is the anonymity switch (`CHAT.md` §6): while it is on, this
-player's Discord account holds no game access at all — no Location overwrite,
-no zone role, no room or conversation thread — and they read and speak on
-`/chat` instead. It is the one switch on this form with a cooldown of its own
-(two hours, `WEB_ONLY_COOLDOWN_SECONDS` in `db/lib/webOnly.js`), because each flip is a burst
-of Discord writes; `db/lib/webOnly.js#setWebOnly` enforces it with the same
+**Play on Discord too** is the mirroring switch (`CHAT.md` §6, `discordMirrored`,
+default **off**): while it is off, this player's Discord account holds no game
+access at all — no Location overwrite, no zone role, no room or conversation
+thread — and they read and speak on `/chat` instead. It is the one switch on
+this form with a cooldown of its own (two hours,
+`DISCORD_MIRROR_COOLDOWN_SECONDS` in `db/lib/discordMirroring.js`), because
+each flip is a burst of Discord writes;
+`db/lib/discordMirroring.js#setDiscordMirrored` enforces it with the same
 atomic `updateMany` guard the Location-move cooldown uses, and a refusal leaves
 the rest of the save standing.
 
@@ -908,8 +909,9 @@ Four things worth knowing before changing it:
   with `expiresTurn` **stamped** (nothing backfills it, so a timed kit tag
   written without one is permanent), `Role.extraStartingPoints` counts toward
   the budget, `seedMemories` runs so the new body is not standing in a town it
-  cannot see, and `webOnly` is carried across — read off the database, not off
-  the passed row, since the nine callers select whatever they happen to need.
+  cannot see, and `discordMirrored` is carried across — read off the database,
+  not off the passed row, since the nine callers select whatever they happen
+  to need.
 - **The player is not ghosted by their own corpse.** Both death teardowns key on
   `discordUserId`, so they reach the *person*; both now skip somebody who is
   alive again (`db/lib/deathTeardown.js#stillAlive`), and reincarnation lifts

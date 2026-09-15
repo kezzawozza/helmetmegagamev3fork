@@ -484,8 +484,9 @@ admitted.
 
 The stash survives the message wipe (it lives in the database, not the thread),
 is cleared by a Restart Game wipe (`wipeGameData` deletes `RoomTag` and zeroes
-`Room.resources`), and cascades away with its Room when `db:sync-zones` prunes
-one. Deleting a Tag from the catalog cascades its **room** stacks
+`Room.resources`), and cascades away with its Room if a superadmin hard-deletes
+it from `/gm/dev/zones` (retiring one leaves the stash in place). Deleting a
+Tag from the catalog cascades its **room** stacks
 (`RoomTag.tagId` cascades) but not the copies people carry
 (`CharacterTag.tagId` is RESTRICT) — see the trap above.
 
@@ -568,7 +569,7 @@ still exist for their `LOOT` direction and for anything else that calls them.
 Every Room's starter post carries one button, **Storage**
 (`db/lib/roomStarterRow.js`, `room:storage:{roomId}`, hashed into
 `Room.postHash` with the body so existing threads get it on the next
-`db:sync-zones` and never again). `bot/src/lib/roomStorage.js` answers it,
+Discord mirror run and never again). `bot/src/lib/roomStorage.js` answers it,
 ephemeral, to anyone standing in the room's Location, in Bascinet's format:
 
 ```

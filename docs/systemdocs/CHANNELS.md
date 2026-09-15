@@ -42,12 +42,14 @@ channel's context and keeps its own name as the scene.
 
 ## 2. Zone and Location channel layout
 
-Everything is provisioned by `db/lib/syncZones.js` from `docs/zones.yaml`
-(`npm run db:sync-zones`, `SYNC.md`). The layout itself is described **once**,
-by `db/lib/zoneChannelSpec.js#zoneChannelSpec` (the zone's category and
-`#summary`) and `#locationChannelSpec` (one Location's text channel) — both as
-create payloads — and both first-time provisioning and the every-run reconcile
-build from them, so the two can never disagree.
+Everything is provisioned by `db/lib/discordMirror/` from the DB rows —
+zones/locations/rooms are edited live at `/gm/dev/zones` now, and
+`docs/zones.yaml` only ever seeds a fresh game once, additively, via
+`npm run db:import-zones -- --apply` (`SYNC.md`). The layout itself is
+described **once**, by `db/lib/zoneChannelSpec.js#zoneChannelSpec` (the zone's
+category and `#summary`) and `#locationChannelSpec` (one Location's text
+channel) — both as create payloads — and both the mirror's create ops and its
+every-run reconcile build from them, so the two can never disagree.
 
 **A zone** (Town, Fortress, Forest, Black Hills, Marshes, Underground) is a category and, for a
 `SURFACE` zone only, a `#summary` channel:
@@ -86,20 +88,25 @@ role (§3).
 > Location (`CHAT.md` §5b).
 
 **Room threads carry no slowmode.** The 5-minute one is `#summary`'s alone; a
-Room is moment-to-moment talk. `db:sync-zones` still asserts `rate_limit_per_user:
+Room is moment-to-moment talk. The mirror still asserts `rate_limit_per_user:
 0` on every pass, the same way it re-asserts `archived: false`, because Discord
 keeps a thread's rate limit per thread and nothing else would ever clear one a
 thread once had. `db/lib/say.js` enforces the same: no wait in a Room or a
 Conversation, 300 s in a zone summary.
 
-**Creation is one-time; a lot is reconciled every run.** The sync only creates
-a channel/category/role whose id column is null, and channel *names* are
-never touched again — renaming a zone or Location in the YAML does not rename
-a live channel. But for everything already provisioned it re-applies channel
-**topics** and slowmode, the full set of **permission overwrites**, category
-and channel **ordering**, each Location's **Room threads** and **pinned
-anchor** (§4), and the cursed role's colour. So `npm run db:sync-zones` is the
-repair path for a zone or Location whose channels drifted.
+**Creation adopts by name first; a lot is reconciled every run.** The mirror
+only creates a channel/category/role whose id column is null, and only after
+checking for a same-named live object to adopt instead (so a crash mid-run
+never doubles up). **Renaming a zone or Location in the editor DOES rename the
+live channel** now — unlike the old YAML sync, which never touched a name
+after creation — behind a confirm dialog, since a typo renames history
+pointers too. For everything already provisioned the mirror re-applies
+channel **topics** and slowmode, the full set of **permission overwrites**,
+category and channel **ordering**, each Location's **Room threads** and
+**pinned anchor** (§4), and the cursed role's colour. So `npm run db:mirror --
+--apply` (or "Reconcile now" on `/gm/dev`) is the repair path for a zone or
+Location whose channels drifted. The mirror never deletes anything — retiring
+or hard-deleting a place is done from the editor.
 
 > **Ordering: `parent_id` must not ride along in a bulk position call.**
 > Positions are bulk; reparenting is not — Discord rejects the whole request
@@ -318,8 +325,8 @@ whose bot isn't an administrator can't lock itself out of the channel it posts
 to.
 
 Re-applied on every bot ready (`bot/src/lib/turnsConsole.js`), at the end of
-every `db:sync-zones` (a repaired zone role has a **new** id, and the old grant
-would point at a dead one), and by the channel doctor's full scope.
+every full-scope mirror run (a repaired zone role has a **new** id, and the old
+grant would point at a dead one), and by the channel doctor's full scope.
 
 ### 3b. The OOC report channel
 
@@ -414,20 +421,29 @@ hundreds of calls instead of tens of thousands. Both return counts and failure
 lists rather than nothing, because a revoke that silently fails leaves a
 departed player still reading rooms.
 
-### A web-only character holds no Discord access at all
+### A non-mirrored character holds no Discord access at all
 
-`Character.webOnly` — the **Play from the web** switch on the Bio card
-(`CHAT.md` §6) — is the one state in which a living character standing in a
-Location has none of the grants this section describes. No member overwrite on
-the Location channel, no zone role (so no `#summary` and no `#turns`, whose
-view grants ride the zone roles), no narrowcast overwrite, and no membership in
-any Room or Conversation thread — **and no turn-ping role**, because the turn
-ping is a `<@&…>` inside the `#turns` console and `#turns` is one of the
-channels the line above has just closed to them. Keeping it meant a ping twice a
-day about a message they could not open, and the console is replaced every turn,
-so it was gone by the time they looked. Their DMs and the OOC report channel are
+`Character.discordMirrored` — the **Play on Discord too** switch on the Bio
+card (`CHAT.md` §6), default **off** — is the one state in which a living
+character standing in a Location has none of the grants this section
+describes. This used to be `Character.webOnly`, an opt-**out** default false;
+it's `discordMirrored`, an opt-**in** default false, now — same polarity of
+consequence, opposite polarity of the flag, so a character that never touches
+the switch is web-only by default. No member overwrite on the Location
+channel, no zone role (so no `#summary` and no `#turns`, whose view grants
+ride the zone roles), no narrowcast overwrite, and no membership in any Room
+or Conversation thread — **and no turn-ping role**, because the turn ping is a
+`<@&…>` inside the `#turns` console and `#turns` is one of the channels the
+line above has just closed to them. Keeping it meant a ping twice a day about
+a message they could not open, and the console is replaced every turn, so it
+was gone by the time they looked. Their DMs and the OOC report channel are
 untouched — the report channel is opened by the Player role rather than per
 character, so there was never anything to take away.
+
+Since most characters now default to this state, Discord itself reads emptier
+than the game actually is — a GM reading only `#turns` and the zone summaries
+sees far fewer players than are really acting. `GAMEMASTERS.md` covers where a
+GM should actually be looking (`/chat`, `/gm/turns`) instead.
 
 The fiction does not change: they still stand where they stand, they still show
 in Who's here?, they still hold their keys and their guest rows, and they are
@@ -438,26 +454,26 @@ row is the truth and Discord's thread list is only its projection (`§4`,
 **Every re-materialiser checks the flag, or the next pass puts them back.**
 That is the whole maintenance burden of the feature, and it is not optional:
 the mover (`db/lib/locationMove.js#applyLocationMoveSideEffects` skips its
-Discord half), the channel doctor (`location-occupancy`, the zone
+Discord half), the mirror and channel doctor (`location-occupancy`, the zone
 `role-membership`, `room-membership` and `narrowcast` should-have sets all
 exclude them), `db/lib/roomAccess.js#syncCharacterRoomAccess` (entitlement is
 empty, so the diff evicts rather than adds), the invite replay
 (`db/lib/threadInvites.js` writes the membership row and skips the Discord add,
-keeping the invite for the day the switch comes off), the three Conversation
+keeping the invite for the day the switch comes on), the three Conversation
 thread-adds (`/add`, a mention, Converse — the row yes, the account no), the
 guest add in a private Room, the rejoin restore in
 `bot/src/lib/locationTravel.js#restoreStandingRoles`, and nickname sync on both
-faces. Miss one and the doctor's overnight pass quietly un-hides somebody who
-believes they are hidden.
+faces. Miss one and an overnight mirror or doctor pass quietly un-hides
+somebody who believes they are hidden.
 
 ## 4. Anchors, rooms and conversations
 
 ### The pinned anchor
 
 Every Location channel carries one pinned anchor message, hash-reconciled on
-`Location.anchorHash` (body + its button row) so a re-sync with no YAML edits
-makes no Discord writes at all (`db/lib/syncZones.js#syncLocationAnchor`, the
-successor to the old `zoneAnchorRow.js`). A body change is edited in place; a
+`Location.anchorHash` (body + its button row) so a mirror run with nothing
+changed makes no Discord writes at all (`db/lib/syncZones.js#syncLocationAnchor`,
+the successor to the old `zoneAnchorRow.js`). A body change is edited in place; a
 message a GM deleted by hand 404s and gets reposted. Its shape
 (`buildAnchorBody`, `db/lib/locationAnchorRow.js`):
 
@@ -496,9 +512,11 @@ A Room is a thread under its Location's channel, authored in `docs/zones.yaml`
 
 **One exception, and only one: a quest room.** A GM stages a Quest at runtime
 from `/gm/dev?s=quests` and it mints a Room whose slug is in no YAML file
-(`QUESTS.md`). The sync's stale-room prune would delete it — thread and row —
-so that query carries `questId: null`. Anything that prunes Rooms must carry
-the same guard. Players still cannot create one; a GM can.
+(`QUESTS.md`). Nothing that prunes Rooms today is allowed to delete it —
+`db:prune-stale-channels` is the one script that still deletes Discord
+structure at all, and its DB-row query carries `questId: null` for exactly
+this reason. Anything that prunes Rooms must carry the same guard. Players
+still cannot create one; a GM can.
 
 **A room's id is always `<location-stem>-<room>`** — `keep-throne-room`,
 `inn-cellar`, `customs-watchtower`. Zones, locations and rooms share one slug
@@ -510,15 +528,18 @@ YAML — `INTERCOM_ROOM_SLUG` (`db/lib/intercom.js`), `BELL_ROOM_SLUG`
 (`db/lib/roomStarterRow.js`) — as must every `silo:` in `docs/roles.yaml`,
 which `db/lib/syncRoles.js` resolves by slug and *throws* on a miss.
 
-Note what a rename costs: a changed id is a **new room**, so the sync prunes
-the old one, deletes its Discord thread, and cascades away its `RoomTag`
-stash and `RoomGuest` rows. Safe before launch and destructive after it.
-Public rooms are ordinary public threads; private rooms are non-invitable
-private threads (`Room.accessTagSlugs` non-empty makes a room PRIVATE), never
-locked, so nothing here stops the roleplay inside once you're in. Both
-auto-archive after 10080 minutes (a week) idle, and the sync re-asserts
-`archived: false` on every run — so a Room that idled into the archive comes
-back at the next `db:sync-zones`, not seven days of dead air.
+**The id (slug) is immutable once set** — it's `placeKey`, archive keys,
+`roles.yaml`/`labordrops.yaml`/threat references — so the old "a changed id is
+a new room" trap is gone with the sync that made it: the `/gm/dev/zones`
+editor doesn't let a slug be edited at all, only the display `name`. A rename
+there edits `name` and *does* rename the live Discord thread, behind a confirm
+dialog. Public rooms are ordinary public threads; private rooms are
+non-invitable private threads (`Room.accessTagSlugs` non-empty makes a room
+PRIVATE), never locked, so nothing here stops the roleplay inside once you're
+in. Both auto-archive after 10080 minutes (a week) idle, and the mirror
+re-asserts `archived: false` on every run — so a Room that idled into the
+archive comes back at the next `npm run db:mirror -- --apply` (or the next
+"Reconcile now"), not seven days of dead air.
 
 Each Room's first message is its body (name + description) plus a button,
 **Storage** (`db/lib/roomStarterRow.js`, `room:storage:{id}`), which prints
@@ -752,7 +773,7 @@ every mismatch, and — with `apply` — repairs it. **Dry run by default.**
 Two scopes:
 
 - **cheap** — role membership (zone roles vs `Character.zoneId`, turn-ping vs
-  `turnPingOptIn` **and not `webOnly`**, cursed vs the dead-and-not-yet-rerolled
+  `turnPingOptIn` **and `discordMirrored`**, cursed vs the dead-and-not-yet-rerolled
   set), character
   roles existing/orphaned, **`location-occupancy`** (below), a
   **`connection-slug`** check that every tag and Role a `LocationLink` names
@@ -826,8 +847,8 @@ starter post that no longer matches its row.
 `runChannelDoctor` maps its two scopes onto `runDiscordMirror` and hands back
 the same result, so the bot's restart pass, the end-of-turn reconcile and the
 Dev Panel's Repair button all come through here. What changed for them is that
-a missing channel is rebuilt instead of reported with "run db:sync-zones"
-attached. There are three scopes:
+a missing channel is rebuilt instead of reported with a sync command that no
+longer exists attached. There are three scopes:
 
 | Scope | What runs |
 |---|---|
@@ -990,8 +1011,8 @@ slowmode, `@everyone` deny, GM allow, spectator, ghost, and the
 `roleViewZones` grants) — a channel that misses its role grants is a channel
 nobody can hear. Channel identity (name, id) stays one-time, and a same-name
 channel that already exists is adopted rather than duplicated. Run it with
-`npm run db:sync-narrowcast-channels` — **after** `db:sync-zones`, since the
-grants name zone roles the zone sync may have just recreated.
+`npm run db:sync-narrowcast-channels` — **after** `db:import-zones` and
+`db:mirror`, since the grants name zone roles those may have just created.
 
 Per-character access is applied by the two `syncCharacterNarrowcastAccess`
 twins: `db/lib/locationMove.js#reconcileNarrowcastAccess` (REST, shared by bot

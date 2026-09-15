@@ -61,7 +61,6 @@ const { loadForcedName } = require("./lib/presentedIdentity");
 const { postAsCharacter, attachBreakerStore } = require("./lib/discordRest");
 const { bumpBlood, LIFEWEB_SPUTTER_THRESHOLD } = require("./lib/lifeweb");
 const { wipeGameMessages } = require("./lib/fullWipe");
-const { syncZonesFromYaml } = require("./lib/syncZones");
 const { syncTagsFromYaml } = require("./lib/syncTags");
 const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
@@ -1803,7 +1802,6 @@ module.exports = {
   advanceTurn,
   resumeTurnSideEffects,
   wipeGameMessages,
-  syncZonesFromYaml,
   syncTagsFromYaml,
   deleteCharacterRow,
   syncRolesFromYaml,

@@ -128,7 +128,7 @@ function buildDesired({
   }
   // Feed sync.js's own ordering math the same zones-with-locations shape it
   // builds itself, so a location's intended slot can never drift from what
-  // db:sync-zones would compute for the identical rows.
+  // the old destructive zones sync would have computed for the identical rows.
   const zonesWithLocations = zones.map((z) => ({ ...z, locations: locationsByZoneId.get(z.id) ?? [] }));
   const positionByChannelId = new Map(intendedPositions(zonesWithLocations).map((p) => [p.id, p.position]));
   // Read off the ROWS, not off anything this run might create. A zone role
@@ -396,8 +396,8 @@ function buildDesired({
   //
   // `roomsByLocationId` here is EVERY room row for the location — quest rooms
   // included, since they carry no `questId: null` filter the way the YAML
-  // pruning pass does. That is deliberate: the full db:sync-zones pass only
-  // ever sees rooms that came from the YAML (a quest room has no slug there,
+  // pruning pass does. That is deliberate: the old destructive zones sync only
+  // ever saw rooms that came from the YAML (a quest room has no slug there,
   // so it never enters that pass's room list), but `refreshLocationAnchor`
   // (syncZones/sync.js) reads every row for the location with no such filter,
   // and it is that pass — not the full sync — that a quest's gate flip and

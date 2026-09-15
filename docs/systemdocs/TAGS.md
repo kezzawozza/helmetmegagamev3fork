@@ -50,9 +50,10 @@ by itself, it just stops receiving updates. The separate, opt-in
 absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group
 absent from `docs/taggroups.yaml`. `db/lib/syncTags.js#syncTagsFromYaml(prisma)`
 reads both files and does the sync, run by hand via `npm run db:sync-tags`
-(`db/scripts/sync/sync-tags.js`) or automatically at the end of `wipeGameData`'s
-"Restart Game" flow (`web/app/(app)/gm/dev/actions.js`), right after
-`syncZonesFromYaml` and the special-channels sync.
+(`db/scripts/sync/sync-tags.js`) or automatically as one step of Restart
+Game's `finishGameWipe` (`web/app/(app)/gm/dev/actions.js`), ahead of the role,
+desire, document and labor-drop syncs and the Discord mirror pass that closes
+the wipe out.
 
 The sync is five passes, since tags/groups can reference each other by slug
 before every row necessarily exists yet: TagGroup scalars, then Tag scalars

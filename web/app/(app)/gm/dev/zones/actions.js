@@ -460,7 +460,7 @@ export async function createLink(input) {
       prisma.location.findUnique({ where: { id: bId } }),
     ]);
     if (!a || !b) throw new UserError("One of those locations no longer exists.");
-    // Held in slug order, same convention db:sync-zones used, so an edge can
+    // Held in slug order, same convention the old zones sync used, so an edge can
     // never disagree between the two directions.
     const [loId, hiId] = a.slug < b.slug ? [aId, bId] : [bId, aId];
 

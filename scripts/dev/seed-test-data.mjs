@@ -44,7 +44,7 @@ async function cleanup(prisma) {
 async function seed(prisma) {
   const zone = await prisma.zone.findFirst({ where: { kind: { not: "CAVE_GROUP" } } });
   if (!zone) {
-    throw new Error("No Zone rows found — run `npm run db:sync-zones` first (npm run dev:setup does this for you).");
+    throw new Error("No Zone rows found — run `npm run db:import-zones -- --apply` first (npm run dev:setup does this for you).");
   }
   const location = await prisma.location.findFirst({ where: { zoneId: zone.id } });
   if (!location) {

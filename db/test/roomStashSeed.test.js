@@ -1,8 +1,9 @@
 // The stash seed is recorded on the ROOM, not inferred from what is lying in
 // it (SYNC.md §2): taking the last unit deletes the RoomTag row, so "stripped
 // bare" and "never seeded" would otherwise be the same state and every
-// re-sync would restock it. seedRoomStash is a closure inside
-// syncZonesFromYaml; this exercises the decision it makes at one remove.
+// re-import would restock it. seedRoomStash is the "Seed these items now"
+// action in the /gm/dev/zones editor (web/app/(app)/gm/dev/zones/actions.js);
+// this exercises the decision it makes at one remove.
 const test = require("node:test");
 const assert = require("node:assert");
 

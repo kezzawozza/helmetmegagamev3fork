@@ -11,9 +11,11 @@ looking.
 It runs **last** of the four YAML syncs, because it validates against tags,
 roles and factions — see `SYNC.md`.
 
-The sync is **destructive**, in the `syncZones` sense: a key dropped from
-the YAML loses its row. A Document is pure reference content with no player
-state to preserve.
+The sync is **destructive**: a key dropped from the YAML loses its row. That
+puts it in a different category from the zones master now — `docs/zones.yaml`
+is an additive, one-shot importer that never deletes (`SYNC.md`) — but a
+Document is pure reference content with no player state to preserve, so a
+prune here is safe in a way a zone prune no longer is.
 
 ## 2. The page
 

@@ -17,7 +17,7 @@
 #     without matching any of them. The verb is the thing worth catching, not
 #     the filename. db/lib/localDatabase.js is the same refusal one layer in,
 #     at the Prisma client, where it cannot be routed around at all.
-#   - TARGETED DESTRUCTIVE (db:sync-zones, db:prune-tags -- --apply, ...):
+#   - TARGETED DESTRUCTIVE (db:import-zones -- --apply, db:prune-tags -- --apply, ...):
 #     real rows get deleted, but it isn't a whole-database reset. Refused
 #     against Railway UNLESS the command is prefixed with CONFIRMED=1 — that
 #     prefix exists to be typed by hand after asking the user in chat, not
@@ -44,7 +44,6 @@ RESET_NPM = re.compile(r"npm\s+run\s+db:migrate(\s|$)")
 # (also allowed by .claude/settings.json, so it needs the same guard).
 DESTRUCTIVE_SCRIPTS = {
     "db:sync": "db/scripts/sync/all.js",
-    "db:sync-zones": "db/scripts/sync/sync-zones.js",
     "db:sync-documents": "db/scripts/sync/sync-documents.js",
     "db:sync-narrowcast-channels": "db/scripts/sync/sync-narrowcast-channels.js",
     "db:rebuild-info-channel": "db/scripts/sync/rebuild-info-channel.js",
@@ -55,12 +54,15 @@ DESTRUCTIVE_SCRIPTS = {
     "db:prune-stale-channels": "db/scripts/ops/prune-stale-channels.js",
 }
 
-# `db:mirror` is guarded only WITH `--apply` (see APPLY_ONLY_SCRIPTS below). A
-# bare `npm run db:mirror` is a read-only preview, and forcing CONFIRMED=1 onto
-# a preview is the habit this file's header warns against. With --apply it
-# creates, renames and reparents live Discord objects, so it joins the list.
+# `db:mirror` and `db:import-zones` are guarded only WITH `--apply` (see
+# APPLY_ONLY_SCRIPTS below). A bare run of either is a read-only preview, and
+# forcing CONFIRMED=1 onto a preview is the habit this file's header warns
+# against. With --apply, db:mirror creates, renames and reparents live
+# Discord objects, and db:import-zones writes real Zone/Location/Room rows
+# (additive-only — it never deletes — but it writes), so both join the list.
 APPLY_ONLY_SCRIPTS = {
     "db:mirror": "db/scripts/ops/mirror.js",
+    "db:import-zones": "db/scripts/ops/import-zones.js",
 }
 
 CONFIRM_TOKEN = "CONFIRMED=1"

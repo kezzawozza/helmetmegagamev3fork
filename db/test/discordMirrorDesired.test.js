@@ -1,7 +1,7 @@
 // desired.js — the database rows turned into "what Discord should look like".
 // Pure, so these are fixture rows and nothing else: no guild, no database.
 //
-// What matters here is that it skips exactly the rows the old db:sync-zones
+// What matters here is that it skips exactly the rows the old destructive zones sync
 // skips. A CAVE_GROUP has no #summary and no access role; a CAVE_LEVEL has no
 // category, no #summary and no GM seat of its own. Get that wrong and the
 // mirror's first apply cuts channels nobody asked for.

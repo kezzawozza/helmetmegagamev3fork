@@ -33,12 +33,13 @@ character per turn before anyone speaks.
 Five things about it are load-bearing:
 
 - **The id columns are not foreign keys.** Same posture as
-  `AuditLog`'s snapshots. `syncZonesFromYaml` destructively deletes any
-  Zone dropped from the YAML and `wipeGameData` clears Characters — a real
-  relation would either take the transcript with it or fail on FK ordering
-  (which Restart Game has been bitten by once already). Plain indexed ids plus
-  `zoneName`/`characterName` snapshots survive both, and the snapshot is
-  the more correct record anyway: who someone was known as *then*.
+  `AuditLog`'s snapshots. A Zone can still be deleted (a superadmin hard-delete
+  from `/gm/dev/zones`, refused only while something still references it) and
+  `wipeGameData` clears Characters — a real relation would either take the
+  transcript with it or fail on FK ordering (which Restart Game has been
+  bitten by once already). Plain indexed ids plus `zoneName`/`characterName`
+  snapshots survive both, and the snapshot is the more correct record anyway:
+  who someone was known as *then*.
 
   **`gameId`** is the same shape: which `Game` the row belongs to, stamped by
   `db/lib/archive.js#currentGameId` from a thirty-second memo of

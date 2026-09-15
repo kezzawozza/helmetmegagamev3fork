@@ -62,7 +62,7 @@ is left unfinished (`finishedAt` null), which is itself the signal.
 **Discord structure is no longer destroyed here.** Categories, channels and
 roles stay; only messages go, and the Discord mirror is what repairs
 anything the wipe emptied or the retries above still missed — see "DB is
-master, Discord is a mirror" for why `db:sync-zones` is gone from this list
+master, Discord is a mirror" for why the old destructive zones sync is gone from this list
 entirely.
 
 The order, and why:
@@ -154,16 +154,21 @@ Run the masters yourself, in dependency order — roles resolve a
 `starting_zone` and validate `starting_tags`, so the order is load-bearing:
 
 ```
-npm run db:sync-zones                # destructive both ways
+npm run db:sync-tags                 # upsert-only, never deletes; before zones,
+                                     #   so a Location's `structures:` resolves
+npm run db:import-zones -- --apply   # additive-only: creates what's missing,
+                                     #   skips the rest, never deletes
 npm run db:sync-narrowcast-channels  # after zones: its grants name the zone roles
-npm run db:sync-tags                 # upsert-only, never deletes
-npm run db:sync-zones                # AGAIN: the first run could not seed a
-                                     #   Location's `structures:` (the tags
-                                     #   did not exist yet); this one does
 npm run db:sync-roles                # prunes unreferenced
 npm run db:sync-documents            # destructive; last
+npm run db:mirror -- --apply         # creates/renames Discord structure to match
 npm run db:doctor                    # dry run; -- --full --apply to repair
 ```
+
+The old two-pass zones workaround ("the first run couldn't seed a Location's
+`structures:` because the tags didn't exist yet, so run it again") is gone —
+tags now run before the import, once, and the import never runs a second time
+by design.
 
 Then steps 7–8 above, which the wipe would not have covered either.
 

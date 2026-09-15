@@ -233,7 +233,7 @@ export async function offerThreatSpawn({ discordUserId, threatSlug, roleId, loca
     });
     if (!seatLocation) {
       console.error(
-        `Threat ${threat.slug}: spawn.locationSlug "${threat.spawn.locationSlug}" matches no Location — run db:sync-zones.`,
+        `Threat ${threat.slug}: spawn.locationSlug "${threat.spawn.locationSlug}" matches no Location — check docs/zones.yaml against db:import-zones, or Reconcile now on /gm/dev/zones.`,
       );
     }
     seatLocationId = seatLocation?.id ?? null;

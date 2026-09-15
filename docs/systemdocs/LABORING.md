@@ -126,16 +126,19 @@ ever reads.
       yield: { hunting: 0.8, farming: 0.3 }
 ```
 
-`db:sync-zones` writes these. It always writes `base`. It does **not** write
-`current` — that is live state, and a routine re-sync must not shove the whole
-map back to its authored value mid-game. The exception is a `base` that
-actually changed, which is Bascinet retuning the map: the row is reset and any
-running event cleared, so the edit lands on the next turn rather than creeping
-in over a week. A kind dropped from the YAML has its row deleted.
+`db:import-zones` writes these once, for a brand-new Location — it creates
+`base` and never touches an existing `LocationYield` row at all (the importer
+is additive-only: create if missing, skip and report otherwise). Retuning a
+`base` mid-game is a live edit at `/gm/dev/zones` now, not a re-sync; `current`
+stays untouched there too, since it's live state a save must not shove back to
+the authored value. A kind dropped from the YAML no longer deletes anything —
+nothing about the zones master deletes rows any more, so a retired yield is a
+row somebody removes from the editor's data by hand if it ever comes up.
 
-`collectYields` in `db/lib/syncZones.js` refuses a typo'd kind, a value outside
-0–2, and an explicit `0` (omit the key instead) — a silent `hunitng: 0.5`
-would disable hunting somewhere and the symptom is nearly invisible in play.
+`collectYields` in `db/lib/syncZones/parse.js` (shared with `importZones.js`)
+refuses a typo'd kind, a value outside 0–2, and an explicit `0` (omit the key
+instead) — a silent `hunitng: 0.5` would disable hunting somewhere and the
+symptom is nearly invisible in play.
 
 ### 3a. The authored table
 
@@ -514,7 +517,7 @@ At base, only `depths-obelisk` wears Bountiful. This button is the
 | `db/lib/laborAccess.js` | The gate, the candidates, the tools, the winner |
 | `db/lib/laborYield.js` | Drift math, the turn pass, the quality words |
 | `db/lib/autoLaborPass.js` | Filing a day for everyone who filed nothing |
-| `db/lib/syncZones.js` | `collectYields`, `syncLocationYields` |
+| `db/lib/syncZones/parse.js` | `collectYields` |
 | `db/lib/tagShapes.js` | `normalizeLaborBonus` / `validateLaborBonus` |
 | `db/lib/locationAnchorRow.js` | The Examine button |
 | `db/lib/locationAttributes.js` | The attribute registry and the prose it prints |

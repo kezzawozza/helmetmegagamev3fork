@@ -181,7 +181,7 @@ function main() {
   if (touchedYaml.length) {
     console.log("  YAML masters changed — sync them, in this order:\n");
     const order = [
-      ["docs/zones.yaml", "npm run db:sync-zones"],
+      ["docs/zones.yaml", "npm run db:import-zones -- --apply"],
       ["docs/tags.yaml", "npm run db:sync-tags"],
       ["docs/taggroups.yaml", "npm run db:sync-tags"],
       ["docs/roles.yaml", "npm run db:sync-roles"],

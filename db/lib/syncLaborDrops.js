@@ -1,6 +1,6 @@
 // docs/labordrops.yaml -> LaborDropOption. Called by `npm run db:sync-labor-drops`. See docs/systemdocs/LABORDROPS.md for the shape. DESTRUCTIVE,
 // unconditionally: every row is deleted and rebuilt each run, same posture as db:sync-documents (SYNC.md §1) — nothing points AT this row. Run
-// AFTER db:sync-zones and db:sync-tags: every tag/zone/location slug named below is validated against those catalogs.
+// AFTER db:import-zones and db:sync-tags: every tag/zone/location slug named below is validated against those catalogs.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");

@@ -1,8 +1,9 @@
 // Deletes Discord categories, channels and Zone/Location roles left behind by
 // a PREVIOUS game — objects no row in the database points at any more.
-// Nothing else can do this job: db:sync-zones only prunes what it can see in
-// the DB, and the channel doctor never deletes a channel at all, so a
-// retired layout lingers next to the live one under a same-named category.
+// Nothing else can do this job: db:import-zones never deletes, the Discord
+// mirror only reconciles what a DB row still points at, and the channel
+// doctor never deletes a channel at all, so a retired layout lingers next to
+// the live one under a same-named category.
 // Dry run by default with an --apply flag. Conservative by construction — no
 // hardcoded ids: a category is a candidate only when its name matches a live
 // Zone's AND no DB row references it, channels are only deleted as children

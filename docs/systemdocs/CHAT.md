@@ -1544,8 +1544,8 @@ Four things are read-only:
 Slowmode is 300 s per character in a zone summary and nothing anywhere else,
 enforced in `prepareSpeech` by the character's newest row there. Discord's
 channel slowmode is the same: five minutes on `#summary`, none on a Room
-thread, which `db:sync-zones` asserts as `rate_limit_per_user: 0` on every pass
-(§5b).
+thread, which the Discord mirror asserts as `rate_limit_per_user: 0` on every
+pass (§5b).
 
 ### 5d. The radio nets are places
 

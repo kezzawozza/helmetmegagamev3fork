@@ -8,7 +8,7 @@ async function runThreadsSweep({ report, errors, prisma, alive, characters, char
   // Room threads: unarchived, and the row still points at something real.
   //
   // Building a missing thread is the mirror's job now (diff.js), not a report
-  // with "run db:sync-zones" on the end. A room with no thread recorded is
+  // pointing at a sync command that no longer exists. A room with no thread recorded is
   // therefore silent here — the mirror already has an op for it. A thread that
   // is GONE is the one thing the mirror cannot see, since its guild snapshot
   // lists only active threads and an archived room looks identical: so this is

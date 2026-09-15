@@ -179,6 +179,7 @@ you pick the right doc — they are never enough to change code with.
 | [`BACKUPS.md`](docs/systemdocs/BACKUPS.md) | You're touching backups or restoring one — point-in-time recovery, the nightly dump service in `ops/backup/`, or **anything that has just gone badly wrong with the database** |
 | [`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md) | You're setting up a local Postgres, testing a GM-gated page with no real Discord credentials, or about to run anything against the live database |
 | [`SYNC.md`](docs/systemdocs/SYNC.md) | You're editing a YAML master or a sync script, or wondering what a sync deletes |
+| [`MIRROR.md`](docs/systemdocs/MIRROR.md) | You're touching `db/lib/discordMirror/`, the `MirrorJob` queue, "Reconcile now", or anything that creates or renames a Discord object from a DB row |
 | [`CHANNELS.md`](docs/systemdocs/CHANNELS.md) | You're changing Discord channel layout, visibility, or the Dawn wipe |
 | [`CHARACTERS.md`](docs/systemdocs/CHARACTERS.md) | You're touching creation, roles, names, the point economy, death, or launch gating |
 | [`TAGS.md`](docs/systemdocs/TAGS.md) | You're touching the tag catalog, **pricing or rebalancing a tag** (§4a is the canonical point scale), **pricing an injury or adding a health tag** (§5c is the canonical cure ladder), its gates, stacks, consuming, or equipment |
@@ -196,8 +197,8 @@ you pick the right doc — they are never enough to change code with.
 | [`PLAYER-DESK.md`](docs/systemdocs/PLAYER-DESK.md) | You're working on `/gm/players` — the merged roster + conversations desk, GM notes, or ⌘K |
 | [`LOBBY.md`](docs/systemdocs/LOBBY.md) | You're touching the game phases (`GameState.phase`), readying up, role priorities, the assignment roll, the creation window, Start Game / End Game, the epilogue, or what Restart Game keeps |
 | [`SHEET.md`](docs/systemdocs/SHEET.md) | You're touching `/character` — the sheet: the band, the verb strip, the tag rail and its rows, the equip board, or Escape back to `/play` |
-| [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
-| [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
+| [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, `/gm/dev/tags`, or the `/gm/dev/zones` place editor |
+| [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel — geography is authored live at `/gm/dev/zones` now, not by re-syncing YAML |
 | [`INTERCEPT.md`](docs/systemdocs/INTERCEPT.md) | You're touching the Intercept verb — laying in wait, Safe and Ambush, the hold on somebody's movement and its Release, or **anything that asks whether a character may move** (`heldReasonFor`) |
 | [`ATTACK.md`](docs/systemdocs/ATTACK.md) | You're touching the Attack verb — the band gate that refuses a hopeless fight, the hold it puts on **both** sides, Break off, or the **Other** lens on `/gm/turns` |
 | [`QUESTS.md`](docs/systemdocs/QUESTS.md) | You're touching Quests — the `/gm/dev?s=quests` panel, a GM-staged room and its **Interact** button, the quest gates, the noticeboard manager or the zone broadcaster — or **anything that touches a Room's `questId`**, which marks a room a GM minted at runtime rather than one `docs/zones.yaml` named |
@@ -397,8 +398,8 @@ npm run db:audit-labor-drops         # read-only: prices docs/labordrops.yaml
                                      #   pool's ⬢ expected value. LABORDROPS.md §6a.
 npm run db:inspect-character -- "Ada"  # read-only: one character's two hiding
                                      #   switches and what they RESOLVE to —
-                                     #   webOnly and its cooldown, the conceal
-                                     #   wish against what is actually
+                                     #   discordMirrored and its cooldown, the
+                                     #   conceal wish against what is actually
                                      #   equipped, any forced name, and the
                                      #   equip set. The first thing to run on
                                      #   "my hood doesn't work".
@@ -904,7 +905,13 @@ database.
   about to run and why, in chat, and wait for a real yes before running it.
   "The user asked me to fix X" is not the same as "the user approved
   wiping/pruning rows to do it" — a destructive step inside a bigger task
-  still needs its own confirmation.
+  still needs its own confirmation. `db:import-zones -- --apply` is **not**
+  on this list in the old sense — it's additive-only, creates whatever
+  `docs/zones.yaml` names that the database doesn't already have, and never
+  deletes or updates a row — but it still writes, so it goes through
+  `db-guard.py`'s `CONFIRMED=1` gate the same as any other apply-flagged
+  script. The actual destructive act for a place now is a superadmin's hard
+  delete from `/gm/dev/zones`, which still needs the same "ask first."
 - **`.claude/hooks/db-guard.py` backs this up technically, not just in
   prose.** It refuses the destructive `db:*` scripts above outright when
   `DATABASE_URL` resolves to the live Railway database, unless the command

@@ -149,7 +149,7 @@ async function syncRolesFromYaml(prisma) {
 
   for (const f of factions) {
     if (!zoneIdByName.has(f.zoneName)) {
-      throw new Error(`docs/roles.yaml: faction "${f.name}" is in unknown zone "${f.zoneName}" — run db:sync-zones first`);
+      throw new Error(`docs/roles.yaml: faction "${f.name}" is in unknown zone "${f.zoneName}" — run db:import-zones first`);
     }
   }
   for (const r of roles) {
@@ -159,7 +159,7 @@ async function syncRolesFromYaml(prisma) {
     if (r.startingLocationSlug) {
       const location = locationBySlug.get(r.startingLocationSlug);
       if (!location) {
-        throw new Error(`docs/roles.yaml: role "${r.name}" has unknown starting_location "${r.startingLocationSlug}" — run db:sync-zones first`);
+        throw new Error(`docs/roles.yaml: role "${r.name}" has unknown starting_location "${r.startingLocationSlug}" — run db:import-zones first`);
       }
       if (r.startingZoneSlug && location.zoneId !== presenceZoneIdBySlug.get(r.startingZoneSlug)) {
         throw new Error(`docs/roles.yaml: role "${r.name}": starting_location "${r.startingLocationSlug}" is not in starting_zone "${r.startingZoneSlug}"`);
@@ -232,7 +232,7 @@ async function syncRolesFromYaml(prisma) {
   // which this never touches — while a faction that predates the silo
   // column still gets the one roles.yaml names for it.
   //
-  // Rooms come from db:sync-zones, which runs first, so an unknown slug is a
+  // Rooms come from db:import-zones, which runs first, so an unknown slug is a
   // warning rather than a throw — the same posture seedRoomStash takes
   // toward a tag that hasn't synced yet.
   for (const entry of factions) {
@@ -244,7 +244,7 @@ async function syncRolesFromYaml(prisma) {
     });
     if (!room) {
       console.warn(
-        `roles.yaml: faction "${entry.name}" names unknown silo room "${entry.siloRoomSlug}" — run db:sync-zones first.`,
+        `roles.yaml: faction "${entry.name}" names unknown silo room "${entry.siloRoomSlug}" — run db:import-zones first.`,
       );
       continue;
     }

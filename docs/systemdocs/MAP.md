@@ -18,8 +18,13 @@ answer; `Character.zoneId` is a **denormalized mirror** of
 channel doctor's `character-place` check flags a mismatch (`CHANNELS.md`
 §6).
 
-`docs/zones.yaml` is the sole master (`SYNC.md` for the sync's destructive
-semantics, including the format).
+Geography is authored live at `/gm/dev/zones` now — a GM edits a Zone,
+Location or Room's fields directly, and the change lands in the database
+immediately, with Discord catching up behind it (`db/lib/discordMirror/`).
+`docs/zones.yaml` survives only as the one-shot **importer** for a fresh
+game's starting layout (`npm run db:import-zones -- --apply`): it's additive,
+never updates an existing row and never deletes one — see `SYNC.md` for the
+format and `DEV-PANEL.md` for the editor.
 
 **How a Location is slugged.** A built place takes a bare slug and a bare
 name — `keep`, `factory`, `cathedral`, `customs`. Open country takes its zone as
@@ -210,8 +215,8 @@ player can see. `toggleGate` still checks that the clicker is **standing at the
 gate**, because a thread member need not be, and that is the only check left.
 
 A tower whose thread is missing renders a flip nowhere at all, since there is
-no longer an anchor copy to fall back on; the sync and the channel doctor are
-the repair.
+no longer an anchor copy to fall back on; the Discord mirror and the channel
+doctor are the repair.
 
 Two things about the gating that are easy to get wrong:
 
@@ -252,8 +257,10 @@ so the window lapses on its own with no pass, no cron and no row to clean up.
 `resolveNeighbors` takes one clock reading for a whole list, so a way cannot
 lapse halfway down it and render as both open and shut at once.
 
-`db:sync-zones` never rewrites `openUntil`, for the same reason it never
-rewrites `isOpen`: both are play state, not authoring.
+Neither `db:import-zones` nor the editor ever rewrites `openUntil` or `isOpen`:
+both are play state, not authoring. Restart Game is the one thing that resets
+`isOpen` — back to `authoredOpen`, the gate's born value — as part of the
+wipe, not as part of importing or mirroring.
 
 ### 2c. On-foot ways
 

@@ -319,7 +319,8 @@ adjudicating should see everything.
 | Room stashes | 3 Deep Morels scattered across the Caves and Depths, 4 more in the Godshroom; 5 Hard Cheeses across the cellars |
 | The Depot | Saffron (15 ⬢, three cigarettes), Tinned Butter (10 ⬢) |
 
-Room stashes are a **seed, never a top-up** (`syncZones.js#seedRoomStash`):
+Room stashes are a **seed, never a top-up** — the "Seed these items now"
+action at `/gm/dev/zones` (`seedRoomStash`, `web/app/(app)/gm/dev/zones/actions.js`):
 once the five cheeses are eaten there are no more.
 
 **The fragmentation grenade lands at 0.067% — about 1 in 1,500 cave fishing

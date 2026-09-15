@@ -70,7 +70,7 @@ How it works now:
   every declaration ever pushed — which reads as *never attempted*, so one GM
   pressing Resend re-posts a declaration already sitting in the channel.
   `db/test/stagedDelivery.test.js` asserts the surface key byte-for-byte.
-  The Location and **not its channel id**, because `db:sync-zones` and the
+  The Location and **not its channel id**, because the Discord mirror and the
   channel doctor both rewrite `Location.discordChannelId` on re-provisioning: a
   channel-id tail would orphan a SENT row the moment that happened, and the next
   push would post the declaration into the same room twice. Same lesson as "the

@@ -8,7 +8,7 @@
 // rather than carrying its own provisioning loop. Safe to re-run — the mirror
 // adopts a same-named channel before it would ever create a second.
 //
-// Run it AFTER db:sync-zones so the zone roles it grants view to exist.
+// Run it AFTER db:import-zones and db:mirror so the zone roles it grants view to exist.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { runDiscordMirror } = require("../../lib/discordMirror");

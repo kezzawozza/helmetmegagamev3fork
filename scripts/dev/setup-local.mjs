@@ -126,8 +126,17 @@ async function main() {
 
   run("Generating the Prisma client", "npm run db:generate");
   run("Applying migrations (prisma migrate deploy — non-interactive, no reset prompt)", "npm run db:migrate:deploy");
-  run("Syncing zones, tags, roles, desires, documents from the YAML masters", "npm run db:sync");
-  run("Re-syncing zones now that tags exist, to backfill room stashes", "npm run db:sync-zones"); // SYNC.md
+  // Zones are no longer part of db:sync (docs/zones.yaml is a one-shot
+  // additive importer now) — import them first, so the tags/roles/desires
+  // sync below has zone and location slugs to validate against. Tags come
+  // first because a Location's `structures:` block resolves tag slugs at
+  // import time (SYNC.md).
+  run("Syncing tags from the YAML master", "npm run db:sync-tags");
+  run("Importing the starting zones, locations and rooms", "npm run db:import-zones -- --apply");
+  run(
+    "Syncing roles, desires, documents, labor drops, then mirroring to Discord",
+    "npm run db:sync",
+  );
 
   log("Done");
   console.log(

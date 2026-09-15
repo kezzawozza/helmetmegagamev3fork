@@ -137,6 +137,13 @@ things that *could* have been twins deliberately aren't, and live once in
   channel, describing provisioning, wipe, ghost visibility and the access rule
   together, so the logic can't be smeared across a script, two twins and the
   wipe.
+- **`db/lib/discordMirror/`** — the whole desired-state/diff/apply pipeline
+  that keeps Discord structure true to the database (categories, channels,
+  roles, threads, overwrites). It's REST-only by design, not by omission: it
+  runs from a web server action (the editor save, the "Reconcile now" button),
+  from ops scripts, and from the bot's own ready pass and turn wrapup — all
+  four go through the same REST calls in `db/lib/discordRest.js`, so there is
+  nothing gateway-specific for a twin to duplicate.
 
 ## 4. Side effects are returned, not performed
 
@@ -204,10 +211,11 @@ success for messages nobody received.
 `AuditLog` and `ArchiveEntry` both store plain indexed id
 columns plus **name snapshots**, with no relations. Two reasons:
 
-- `syncZonesFromYaml` destructively deletes Zones, and `wipeGameData` clears
-  Characters. A real relation would either take the log with it or fail on FK
-  ordering — which Restart Game has been bitten by. `SystemReport` is the
-  newest table on the same plan.
+- Zones and Characters can still be deleted — a superadmin hard-deleting a
+  place from `/gm/dev/zones`, or `wipeGameData` clearing Characters. A real
+  relation would either take the log with it or fail on FK ordering — which
+  Restart Game has been bitten by. `SystemReport` is the newest table on the
+  same plan.
 - The snapshot is the more correct record anyway: who someone was known as
   *at the time*.
 

@@ -89,7 +89,7 @@ Depths; the GM seats are Town, Fortress, Forest, Black Hills, Marshes and
 Underground is the only seat that is not itself a place — it is a `CAVE_GROUP`,
 a category and a seat and nothing else.
 
-That mapping is denormalized onto **`Zone.seatZoneId`** by `db:sync-zones`
+That mapping is denormalized onto **`Zone.seatZoneId`** by `db:import-zones`
 (`parentZoneId ?? id`), and `db/lib/seatZone.js#seatZoneIdFor` is the single
 reader every writer goes through. **Never stamp a seat-scoped row with
 `zone.id`.** Every `Action`, `Note` and `StagedMessage`
@@ -110,8 +110,9 @@ therefore matched nothing, and every character in the cave system, plus every
 caving roll, was missing from `/gm/players` and `/gm/turns` for any GM who had
 ticked a zone at all. `web/lib/zones.js#inVisibleZones` folds a row's zone onto
 its seat with `seatKey` before comparing, so ticking Underground shows the cave
-rows — the desk half of what `db:sync-zones`' `gmRoleIdFor` already does for the
-Discord channels. A row still *displays* the level it is in.
+rows — the desk half of what `zoneChannelSpec.js`'s `gmRoleIdFor` already does
+for the Discord channels (built by the mirror now, not a sync). A row still
+*displays* the level it is in.
 
 ### 2b. Seat by faction, not by feet
 
@@ -178,7 +179,7 @@ floor), not AA 4.5; none of them would ever clear 4.5, and gating them there
 would only force them off the palette. Spending one as `color:` ships a 2.x
 contrast.
 
-`Zone` **does** have a slug now (`db:sync-zones` matches on it), but the colour
+`Zone` **does** have a slug now (`db:import-zones` matches on it), but the colour
 code does not read it: `web/lib/zones.js#zoneKey()` still slugifies the *name*
 and checks it against the known four-key set, because the chip covers seats,
 not presence zones, and the set is closed and known at build time. A renamed or
@@ -302,7 +303,7 @@ player from the map.
 Three places had to learn about the new roles, and missing any one of them
 breaks quietly:
 
-- `syncZones.js#managedOverwriteIds` — or the reconciler deletes the overwrite
+- `syncZones/parse.js#managedOverwriteIds` — or the mirror deletes the overwrite
   it wrote one pass earlier, every run.
 - `channelDoctor.js` — as a protected role family, but **not** in the set that
   seeds `#turns`: every GM already holds a global GM role, which `#turns`
