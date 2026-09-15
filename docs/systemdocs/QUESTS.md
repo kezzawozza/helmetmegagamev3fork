@@ -147,8 +147,9 @@ superadmin verb in the panel — takes the record too.
 
 ## 6. The panel
 
-`/gm/dev?s=quests`, tier `gm`. Three tabs, because they are one job in three
-parts: stage the thing, then tell people it is there.
+`/gm/dev?s=quests`, tier `gm`. Two tabs — stage the thing, and see every board
+at once. Telling people it is there happens on `?s=bulk`, with every other
+"say one thing to many" verb (`DEV-PANEL.md` §11b).
 
 - **Quests** — a rail of what is staged, grouped by zone with cave zones first,
   each row showing its Location, status, turns remaining and how many people
@@ -161,32 +162,31 @@ parts: stage the thing, then tell people it is there.
   here**: these are `gmReadNotice` / `gmTearNotice` / `gmPostNotice`, the same
   verbs Chat's board dialog and the Discord panel already call. What was
   missing was ever seeing every board at once.
-- **Broadcast** — one line into as many zone `#summary` channels as you tick.
-  This is `sendAmbientLine` called once per zone, sequentially (never
-  `Promise.all` — that is how a bot earns a rate-limit ban).
+**Advertise**, on a quest's detail pane, is the seam to the bulk section: a
+plain `<Link>` to `?s=bulk&verb=say&kind=zone&place=…&text=…`, which arrives
+with the quest's zone ticked and a teaser already written. It used to be a
+third tab here, with the prefill held in client state — which is why the tabs
+were client state rather than `?s=quests&t=…` links, since a link would reload
+the panel and drop it. Putting the prefill **in** the URL turns that reason
+inside out: a reload now keeps it, and middle-click works. The tabs stay client
+state anyway; there is simply no longer a reason either way.
 
-**Advertise**, on a quest's detail pane, is the seam between them: it switches
-to Broadcast with the quest's zone ticked and a teaser already written. That
-handoff is why the tabs are client state rather than `?s=quests&t=…` links — a
-link would reload the panel and drop the prefill.
-
-It ticks the zone only when the picker actually offers it. **A cave has no
-`#summary` channel**, so the usual kind of quest advertises from nowhere: the
-prefill used to seed the cave's id anyway, which ticked nothing, read "0 of 5
-picked", and still lit up Say it — which then failed with "Nothing went out."
-Now it ticks nothing and says why, and the GM picks where the word travels
-from.
+The zone is ticked only when the picker actually offers it, and the **page**
+decides that, not the client. **A cave has no `#summary` channel**, so the
+usual kind of quest advertises from nowhere: the prefill used to seed the
+cave's id anyway, which ticked nothing, read "0 of 5 picked", and still lit up
+Say it — which then failed with "Nothing went out." Now it ticks nothing and
+names the zone it could not reach.
 
 ### 6a. What the panel is built out of
 
 Nothing here is bespoke. The surfaces are `.desk-card`, a heading that sits
 beside something is `.section-title`, a row of verbs is `.ops-actions`, a rail
 row is `.select-card .panel p-3` with `aria-pressed` like every other picker in
-the app, and its second line is `.desk-staged-sub`. The two gates and
-Broadcast's zone list are one component, `GatePicker.js` — a filter over a
-`.check-picker` box of `CheckField` rows, which is what `BulkActions.js`
-replaced its own `<select multiple>` with. Only `.quest-rail-zone` is still
-quest-specific.
+the app, and its second line is `.desk-staged-sub`. Only `.quest-rail-zone` is
+still quest-specific. The two gates are `CheckPicker.js`, the shared component this
+folder's own `GatePicker.js` became once a fourth call site outside it wanted
+one (`DEV-PANEL.md` §11b).
 
 Two cascade traps live here, and both bite silently. `.panel` carries **no
 padding** on purpose, so a call site that forgets `p-3`/`p-4` gets a card with

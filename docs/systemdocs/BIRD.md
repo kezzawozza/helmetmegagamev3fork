@@ -247,10 +247,19 @@ Two consequences worth stating:
 
 ## 9. A letter from the GM
 
-`/gm/dev?s=letters`. A GM types a name, picks a living character, writes, and
-optionally seals it with a mark they invent on the spot. The letter arrives
-exactly like a bird's, and the answer comes back on that player's conversation
-at `/gm/players`.
+`/gm/dev?s=bulk`, the **Letter** verb. A GM types a name, ticks one living
+character or fifty, writes, and optionally seals it with a mark they invent on
+the spot. The letter arrives exactly like a bird's, and the answer comes back
+on that player's conversation at `/gm/players`.
+
+**Many recipients is one sender, one seal, one body and N sheets** — a
+proclamation nailed to N windows, not a shared letter. Nothing here is
+per-sender or global: `mintLetterFor` mints fresh paper for each recipient, the
+reply window is `arrivalTurn + 1` for all of them, and the one-reply claim is
+per `BirdMessage`. So `sendGmLetters` is the single send in a loop with nothing
+shared between iterations but the text. It validates once before minting
+anything, runs one transaction per recipient, skips a dead one by name rather
+than refusing the batch, and caps at 200.
 
 It **rides `BirdMessage`** rather than getting a table of its own, which buys
 the reply window, the one-reply claim, the Reply button and the whole picker in

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import Panel from "@/app/components/Panel";
 import FormError from "@/app/components/FormError";
-import { useConfirm } from "@/app/components/ConfirmProvider";
+import useActionRunner from "@/app/components/useActionRunner";
+import useRetireDelete from "@/app/components/useRetireDelete";
+import ReorderButtons from "@/app/components/ReorderButtons";
 import {
   createLocation,
   retireLocation,
@@ -14,36 +16,18 @@ import {
 } from "../actions";
 
 export default function LocationsList({ zoneId, rows, canSuper }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState(null);
-  const confirm = useConfirm();
+  const { call, pending, error } = useActionRunner();
 
-  function run(action, ...args) {
-    setError(null);
-    startTransition(async () => {
-      const res = await action(...args);
-      if (res && res.ok === false) setError(res.error);
-    });
-  }
-
-  async function onDelete(loc) {
-    const blockers = await locationDeleteBlockers(loc.id);
-    if (blockers.length) {
-      await confirm({ title: "Can't delete this location", message: blockers.join("\n"), confirmLabel: "OK", cancelLabel: "" });
-      return;
-    }
-    if (!(await confirm({ title: `Delete "${loc.name}"?`, message: "This removes the row for good.", confirmLabel: "Delete" }))) return;
-    run(hardDeleteLocation, loc.id);
-  }
-
-  async function onRetire(loc) {
-    if (!(await confirm({ title: `Retire "${loc.name}"?`, message: "Drops out of pickers, travel and the map. Reversible.", confirmLabel: "Retire" }))) return;
-    run(retireLocation, loc.id);
-  }
+  const { onDelete, onRetire } = useRetireDelete({
+    noun: "location",
+    call,
+    blockers: locationDeleteBlockers,
+    hardDelete: hardDeleteLocation,
+    retire: retireLocation,
+  });
 
   return (
-    <section className="panel flex flex-col gap-3 p-3">
-      <h2 className="panel-header">Locations</h2>
+    <Panel title="Locations">
       <FormError>{error}</FormError>
       <table className="mono-table w-full">
         <thead>
@@ -72,18 +56,20 @@ export default function LocationsList({ zoneId, rows, canSuper }) {
               </td>
               <td>{l.retiredAt ? <span className="chip">retired</span> : "live"}</td>
               <td className="whitespace-nowrap">
-                <button className="btn-quiet" disabled={pending || i === 0} onClick={() => run(reorderLocation, zoneId, l.id, "up")}>
-                  ▲
-                </button>
-                <button className="btn-quiet" disabled={pending || i === rows.length - 1} onClick={() => run(reorderLocation, zoneId, l.id, "down")}>
-                  ▼
-                </button>
+                <ReorderButtons
+                  label={l.name}
+                  disabled={pending}
+                  first={i === 0}
+                  last={i === rows.length - 1}
+                  onUp={() => call(reorderLocation, zoneId, l.id, "up")}
+                  onDown={() => call(reorderLocation, zoneId, l.id, "down")}
+                />
               </td>
               <td className="whitespace-nowrap">
                 {canSuper && (
                   <>
                     {l.retiredAt ? (
-                      <button className="btn-quiet" disabled={pending} onClick={() => run(unretireLocation, l.id)}>
+                      <button className="btn-quiet" disabled={pending} onClick={() => call(unretireLocation, l.id)}>
                         Unretire
                       </button>
                     ) : (
@@ -107,7 +93,7 @@ export default function LocationsList({ zoneId, rows, canSuper }) {
         onSubmit={(e) => {
           e.preventDefault();
           const form = new FormData(e.currentTarget);
-          run(createLocation, zoneId, {
+          call(createLocation, zoneId, {
             slug: form.get("slug"),
             name: form.get("name"),
             indoors: form.get("indoors") === "on",
@@ -141,6 +127,6 @@ export default function LocationsList({ zoneId, rows, canSuper }) {
           New location
         </button>
       </form>
-    </section>
+    </Panel>
   );
 }

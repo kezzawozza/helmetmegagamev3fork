@@ -4,7 +4,8 @@
 // seat tag is what makes them that threat, so a GM who grants it by hand from
 // the character panel shows up here too, and there is no second copy of the
 // truth to drift.
-import { useMemo, useState, useTransition } from "react";
+import { useMemo } from "react";
+import useActionRunner from "@/app/components/useActionRunner";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
 import EmptyState from "@/app/components/EmptyState";
@@ -123,15 +124,13 @@ function PendingOffers({ rows }) {
 
 function PendingRow({ row }) {
   const confirm = useConfirm();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState(null);
+  const { run, pending, error } = useActionRunner();
 
   // Confirm first, transition second (DESIGN-SYSTEM.md §8). Awaiting the
   // dialog inside the transition deadlocks: the prompt needs an immediate
   // render, the transition cannot commit until the promise settles, and the
   // promise cannot settle until somebody clicks a dialog that never mounted.
   async function cancel() {
-    setError(null);
     const ok = await confirm({
       title: `Cancel the ${row.threatName} offer?`,
       message: `${row.handle} won't be able to accept it.`,
@@ -139,10 +138,7 @@ function PendingRow({ row }) {
       cancelLabel: "Leave it",
     });
     if (!ok) return;
-    startTransition(async () => {
-      const res = await cancelThreatSpawn({ spawnId: row.id });
-      if (!res?.ok) setError(res?.error ?? "Something went wrong.");
-    });
+    run(cancelThreatSpawn, { spawnId: row.id });
   }
 
   return (

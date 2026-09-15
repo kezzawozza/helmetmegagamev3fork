@@ -1,5 +1,3 @@
-"use client";
-
 // What the Dev Panel's bulk section can do, as a list rather than as six
 // branches spread through a component.
 //
@@ -9,6 +7,12 @@
 // Send a letter, Say something, and the Quests panel's Broadcast tab), which
 // meant learning the same screen four times and finding that three of the four
 // could only reach one target at a time.
+//
+// NO "use client", deliberately: the page reads VERB_KEYS and PLACE_KINDS to
+// validate the ?verb= and ?kind= an Advertise link arrives with, and a module
+// marked client hands a server component client-reference PROXIES rather than
+// the arrays — `PLACE_KINDS.some is not a function`, at request time only.
+// Nothing here is a hook or a component, so both sides can have it.
 //
 // `audience` picks which of the two pickers a verb draws: "people" over living
 // characters, "place" over zones/locations/rooms. `preview` picks which half of

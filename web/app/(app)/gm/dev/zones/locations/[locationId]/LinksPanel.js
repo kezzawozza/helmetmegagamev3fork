@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import Panel from "@/app/components/Panel";
 
 // A location's own travel edges, read-only — the full editor with a
 // create-a-link form lives at /gm/dev/zones/links, which needs a picker
 // across every location. This is just "what does this place connect to".
 export default function LinksPanel({ links }) {
   return (
-    <section className="panel flex flex-col gap-3 p-3">
-      <h2 className="panel-header">Travel links</h2>
+    <Panel title="Travel links">
       {links.length === 0 ? (
         <p className="text-muted text-sm">No links yet.</p>
       ) : (
@@ -27,6 +27,6 @@ export default function LinksPanel({ links }) {
           Manage links →
         </Link>
       </p>
-    </section>
+    </Panel>
   );
 }

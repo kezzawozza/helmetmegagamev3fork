@@ -483,7 +483,7 @@ now `radio-system-cerberon` / `radio-bracelet-cerberon` ("Radio System
 | The loot table | `db/lib/cavingLoot.js` |
 | The one trigger | `db/lib/cavingPass.js#rollCavingOnArrival` |
 | The zone hold a 1 puts on you | `db/lib/cavingPass.js#cavingHoldFor` (§2c) |
-| Its callers | `db/lib/locationTravel.js#performLocationMove` (mover + dragged), the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#bulkMoveCharacters` |
+| Its callers | `db/lib/locationTravel.js#performLocationMove` (mover + dragged), the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#applyBulkAction` (its Move verb) |
 | The safe-Location exemption | `db/lib/locationAttributes.js` (`safe`), authored in `docs/zones.yaml` |
 | Arrival DM senders | whichever face's location-move caller runs `performLocationMove` sends `moved[].cavingDm`; the two GM paths send their own |
 | Kind labels | `web/lib/cavingLabels.js` |

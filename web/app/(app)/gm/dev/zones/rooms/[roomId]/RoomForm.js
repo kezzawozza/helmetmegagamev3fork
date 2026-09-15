@@ -1,18 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import useActionRunner from "@/app/components/useActionRunner";
+import Panel from "@/app/components/Panel";
 import FormError from "@/app/components/FormError";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { updateRoom } from "../../actions";
 
 export default function RoomForm({ room }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState(null);
+  const { call, pending, error } = useActionRunner();
   const confirm = useConfirm();
 
   async function onSubmit(e) {
     e.preventDefault();
-    setError(null);
     const form = new FormData(e.currentTarget);
     const name = form.get("name");
     if (name !== room.name) {
@@ -22,23 +21,19 @@ export default function RoomForm({ room }) {
         confirmLabel: "Rename",
       }))) return;
     }
-    startTransition(async () => {
-      const res = await updateRoom(room.id, room.updatedAt, {
-        name,
-        kind: form.get("kind"),
-        sortOrder: form.get("sortOrder"),
-        description: form.get("description"),
-        soundproof: form.get("soundproof") === "on",
-        destroysContents: form.get("destroysContents") === "on",
-        accessTagSlugs: form.get("accessTagSlugs"),
-      });
-      if (res && res.ok === false) setError(res.error);
+    call(updateRoom, room.id, room.updatedAt, {
+      name,
+      kind: form.get("kind"),
+      sortOrder: form.get("sortOrder"),
+      description: form.get("description"),
+      soundproof: form.get("soundproof") === "on",
+      destroysContents: form.get("destroysContents") === "on",
+      accessTagSlugs: form.get("accessTagSlugs"),
     });
   }
 
   return (
-    <section className="panel flex flex-col gap-3 p-3">
-      <h2 className="panel-header">Room</h2>
+    <Panel title="Room">
       <FormError>{error}</FormError>
       <form className="flex flex-col gap-3" onSubmit={onSubmit}>
         <label className="field">
@@ -80,6 +75,6 @@ export default function RoomForm({ room }) {
           Save
         </button>
       </form>
-    </section>
+    </Panel>
   );
 }

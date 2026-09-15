@@ -21,6 +21,13 @@ export default function usePickList(items, initial = []) {
 
   const clear = useCallback(() => setPicked([]), []);
 
+  // For a caller drawing its own rows rather than handing them to CheckPicker
+  // — the inactivity report needs three columns and a chip, which a check row
+  // cannot say.
+  const toggle = useCallback((id) => {
+    setPicked((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+
   const set = useCallback((next) => setPicked([...next]), []);
 
   // "Check everyone in Town", "check the whole faction" — a one-shot union by
@@ -33,5 +40,5 @@ export default function usePickList(items, initial = []) {
     [items],
   );
 
-  return { picked, pickedSet, set, clear, checkWhere, count: picked.length };
+  return { picked, pickedSet, set, clear, toggle, checkWhere, count: picked.length };
 }

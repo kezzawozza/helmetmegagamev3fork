@@ -1,42 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import Panel from "@/app/components/Panel";
 import FormError from "@/app/components/FormError";
-import { useConfirm } from "@/app/components/ConfirmProvider";
+import useActionRunner from "@/app/components/useActionRunner";
+import useRetireDelete from "@/app/components/useRetireDelete";
 import { createRoom, retireRoom, unretireRoom, hardDeleteRoom, roomDeleteBlockers } from "../../actions";
 
 export default function RoomsList({ locationId, rows, canSuper }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState(null);
-  const confirm = useConfirm();
+  const { call, pending, error } = useActionRunner();
 
-  function run(action, ...args) {
-    setError(null);
-    startTransition(async () => {
-      const res = await action(...args);
-      if (res && res.ok === false) setError(res.error);
-    });
-  }
-
-  async function onDelete(room) {
-    const blockers = await roomDeleteBlockers(room.id);
-    if (blockers.length) {
-      await confirm({ title: "Can't delete this room", message: blockers.join("\n"), confirmLabel: "OK", cancelLabel: "" });
-      return;
-    }
-    if (!(await confirm({ title: `Delete "${room.name}"?`, message: "This removes the row for good.", confirmLabel: "Delete" }))) return;
-    run(hardDeleteRoom, room.id);
-  }
-
-  async function onRetire(room) {
-    if (!(await confirm({ title: `Retire "${room.name}"?`, message: "Reversible.", confirmLabel: "Retire" }))) return;
-    run(retireRoom, room.id);
-  }
+  const { onDelete, onRetire } = useRetireDelete({
+    noun: "room",
+    call,
+    blockers: roomDeleteBlockers,
+    hardDelete: hardDeleteRoom,
+    retire: retireRoom,
+    retireNote: "It drops out of every picker. Reversible.",
+  });
 
   return (
-    <section className="panel flex flex-col gap-3 p-3">
-      <h2 className="panel-header">Rooms</h2>
+    <Panel title="Rooms">
       <FormError>{error}</FormError>
       <table className="mono-table w-full">
         <thead>
@@ -67,7 +51,7 @@ export default function RoomsList({ locationId, rows, canSuper }) {
                 {canSuper && (
                   <>
                     {r.retiredAt ? (
-                      <button className="btn-quiet" disabled={pending} onClick={() => run(unretireRoom, r.id)}>
+                      <button className="btn-quiet" disabled={pending} onClick={() => call(unretireRoom, r.id)}>
                         Unretire
                       </button>
                     ) : (
@@ -91,7 +75,7 @@ export default function RoomsList({ locationId, rows, canSuper }) {
         onSubmit={(e) => {
           e.preventDefault();
           const form = new FormData(e.currentTarget);
-          run(createRoom, locationId, {
+          call(createRoom, locationId, {
             slug: form.get("slug"),
             name: form.get("name"),
             kind: form.get("kind"),
@@ -124,6 +108,6 @@ export default function RoomsList({ locationId, rows, canSuper }) {
           New room
         </button>
       </form>
-    </section>
+    </Panel>
   );
 }

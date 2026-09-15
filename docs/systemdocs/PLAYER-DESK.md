@@ -241,6 +241,13 @@ It has three doors, all the same component: the roster's **Message selected**,
 roster's checkboxes are not), and **Message pinned** in the inspector's pin
 row.
 
+Its roster is `CheckPicker` — the same picker the Dev Panel's bulk section
+wears (`DEV-PANEL.md` §11b) — so ticking characters looks and behaves the same
+on both desks. What stays here is what is actually about messaging: the
+character cap, the two one-shot "check this whole zone / faction" selects, and
+the send. It passes `scoreMatch` as the picker's `search`, which is how the
+filter still reaches a role or a faction rather than just a name.
+
 **Two search boxes on this desk, not four.** The rail's is **Search inbox** —
 it reaches every character *and* message text. The roster's is **Filter roster**
 — it only narrows the rows on screen, and is labelled for what it does rather
@@ -269,9 +276,11 @@ box this desk no longer draws.
 The adjudication desk fills the same slot with its own turn's standing
 (`InspectorColumn.js`'s `emptyStanding`).
 
-**Bulk zone moves are deliberately absent.** `bulkMoveCharacters` requires
-superadmin, so a button for it here would fail for most of the people looking
-at it. It stays on `/gm/dev`.
+**Bulk zone moves are deliberately absent.** Moving people is a place-editing
+verb, not a roster one, and it lives with its five siblings on `/gm/dev?s=bulk`
+(`applyBulkAction`, tier `gm` — this paragraph used to name a
+`bulkMoveCharacters` that has not existed for some time, and claimed a
+superadmin gate it never had).
 
 The faction hierarchy is a view of this table rather than a separate tab, and
 `/gm/players?tab=factions` still selects it — `/faction` sends a GM here.

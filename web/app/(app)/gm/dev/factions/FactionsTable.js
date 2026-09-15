@@ -1,6 +1,7 @@
 "use client";
 
 import SubmitButton from "@/app/components/SubmitButton";
+import Panel from "@/app/components/Panel";
 import Select from "@/app/components/Select";
 import ZoneChip from "@/app/components/ZoneChip";
 import { EmptyRow } from "@/app/components/EmptyState";
@@ -143,8 +144,7 @@ export default function FactionsTable({ rows, rooms = [], members = [], applicat
       {/* The member mover. The player-facing actions all refuse to act
           outside your own faction, which is the check a GM is here to skip —
           so this posts its own action rather than reusing one of theirs. */}
-      <section className="panel flex flex-col gap-3 p-3">
-        <h2 className="panel-header">Move somebody</h2>
+      <Panel title="Move somebody">
         <form action={assignFactionMember} className="flex flex-wrap items-end gap-2">
           <label className="field">
             <span className="field-label">Character</span>
@@ -181,12 +181,11 @@ export default function FactionsTable({ rows, rooms = [], members = [], applicat
           </CheckField>
           <SubmitButton pendingLabel="Moving…">Move</SubmitButton>
         </form>
-      </section>
+      </Panel>
 
       {/* Read-only. Answering an application for a faction would be answering
           for its officers; the mover above is the GM's way in. */}
-      <section className="panel flex flex-col gap-3 p-3">
-        <h2 className="panel-header">Pending applications ({applications.length})</h2>
+      <Panel title={<>Pending applications ({applications.length})</>}>
         <table className="data-table">
           <thead>
             <tr>
@@ -210,7 +209,7 @@ export default function FactionsTable({ rows, rooms = [], members = [], applicat
             {applications.length === 0 && <EmptyRow cols={4}>None.</EmptyRow>}
           </tbody>
         </table>
-      </section>
+      </Panel>
     </>
   );
 }

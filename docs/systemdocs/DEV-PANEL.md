@@ -334,7 +334,7 @@ above.
 
 ## 8. Custom tags
 
-`/gm/dev/tags` lists the whole catalog and lets a GM author their own. A
+`/gm/dev?s=tags` lists the whole catalog and lets a GM author their own. A
 GM-authored tag carries `Tag.custom = true` and lives only in the database.
 
 - **Slugs are server-generated as `custom-${slugify(name)}`, never typed.**
@@ -351,7 +351,7 @@ destructive counterpart — see `SYNC.md`.
 
 ### 8a. The shared custom-tag dialog
 
-Authoring a one-off tag isn't only a `/gm/dev/tags` action — a GM chasing a
+Authoring a one-off tag isn't only a `?s=tags` action — a GM chasing a
 Move or editing a sheet often wants to invent a tag on the spot and hand it to
 someone right there. `web/app/components/CustomTagDialog.js` is the one
 dialog for that, reached from several doors: the standalone catalog page's
@@ -366,7 +366,7 @@ not just little bracelets or something."*
 the catalog page's *edit* dialog. The two used to be different forms — this
 quick door sent five fields while the edit form sent sixteen — so a tag
 invented mid-adjudication couldn't expire, stack or be worn until someone
-walked to `/gm/dev/tags` and edited it. One component means they can't drift
+walked to `?s=tags` and edited it. One component means they can't drift
 again.
 
 It opens on **Basics** — Name, Category, Group, Description, Seen by others on
@@ -549,19 +549,22 @@ a GM actually opens.
 The split across two route groups is deliberate. `page.js` and `OpsNav.js`
 live in `(desk)/gm/dev/`, because the `(app)` layout's fixed `TurnChip` would
 float over a desk shell (same reason no desk carries one — `DESIGN-SYSTEM.md`
-§6). The server actions and the other sections (`characters/`, `factions/`,
-`tags/`) stay in `(app)/gm/dev/`, since only the top page needed to move.
+§6). The server actions, the client tables and the nested editors stay in
+`(app)/gm/dev/`, since only the top page needed to move.
 
-**One navigation, two renderers.** Because of that split there are two shells
-and each needs a nav: `OpsNav.js`, a vertical rail of sections inside the desk,
-and `DevSubNav.js`, a horizontal row in the `AppHeader` of the three PageShell
-sub-pages. Two renderers is a layout fact — the rail would look wrong in a page
-header — but the *destinations* are not: both read `DEV_PAGES` from
-`web/lib/devNav.js`, which is the single list of where `/gm/dev` can take you.
-`OpsNav` draws it as its fourth group ("Elsewhere", minus the panel you are
-already on); `DevSubNav` draws the whole list, panel included, as the way back.
-Each used to keep its own hand-written copy of the other's links, so adding or
-renaming a sub-page meant editing two files and, in practice, forgetting one.
+**One navigation now, not two.** Characters, Factions, Tags and Zones used to
+be four PageShell pages of their own, listed in an "Elsewhere ↗" group on the
+rail and again in a `DevSubNav.js` row in their own headers, both reading one
+shared `DEV_PAGES` list. Their index pages are **sections of this panel**
+now — `?s=characters`, `?s=factions`, `?s=tags`, `?s=zones` — so there is one
+rail and no shared list to keep: `DevSubNav.js` and `web/lib/devNav.js` are
+both gone. The old paths redirect to their sections.
+
+What stays a route is anything *below* an index: `/gm/dev/characters/[characterId]`
+(this doc's own panel, which mounts as a modeless modal over `/gm/turns` — §10)
+and the place editor's `zones/[zoneId]`, `zones/locations/[locationId]`,
+`zones/rooms/[roomId]` and `zones/links`. Each of those carries one named way
+back (`← Characters`, `← Zones`) rather than a five-item nav.
 
 **`/gm/dev/threats` is a redirect, not a page.** The threat surfaces are two
 *sections* of this panel (`?s=assignments`, `?s=antagonists` — `THREATS.md`
@@ -609,20 +612,26 @@ action is a public endpoint and a hidden button is a hint:
 |---|---|
 | `?s=reports` | **Repair**. `runDoctorAction` reads the posted `mode` **before** the guard and asks for `super` only when it is `repair` — the dry run is GM work |
 | `/gm/dev/factions` | Delete a faction (`FactionsTable`'s `canDelete` prop) |
-| `/gm/dev/tags` | Delete a custom tag |
+| `?s=tags` | Delete a custom tag |
 | `/gm/dev/characters/[id]` | Delete a character |
 
-`/gm/dev/characters` and `/gm/dev/factions` are GM-open pages now. The
-per-character panel this doc is about was always GM-gated, so its own index
-page being superadmin was an inconsistency, not a policy.
+Characters and Factions are GM-open. The per-character panel this doc is about
+was always GM-gated, so its own index being superadmin was an inconsistency,
+not a policy.
 
 ### 11b. The sections
 
-Twelve: **Game**, **Games**, **Turn**, **Configuration** and **The Depot** under "Game";
-**Bulk actions**, **Send a letter**, **Say something**, **System reports** and
-**Gamemasters** under "Operations"; **Assignments** and **Antagonists** under
-"Threats"; **Restart game** on its own under "Danger". Everything under "Game"
-and "Danger" is `super`; everything else is `gm`.
+Fifteen: **Game**, **History**, **Turn**, **Configuration**, **Depot** and
+**Oracle** under "Game"; **Bulk actions**, **System reports** and
+**Gamemasters** under "Operations"; **Quests**, **Characters**, **Factions**,
+**Tags** and **Zones** under "Content"; **Assignments** and **Antagonists**
+under "Threats"; **Archive & restart** on its own under "Danger". Everything
+under "Game" and "Danger" is `super`; everything else is `gm`.
+
+Two label notes. **History** is still `?s=games` — renaming the key would
+break every bookmark to buy nothing, and "Game" sitting beside "Games" was the
+actual problem. **Depot** and **Oracle** dropped their definite articles;
+nothing else on the rail carried one.
 The Game section — phase, lobby roster, the assignment preview, Start and End
 — is `LOBBY.md`. The two Threats sections replaced the old Antagonist Roster
 popup and have their own doc — `THREATS.md`; the Antagonists section also
@@ -695,16 +704,37 @@ trusting the posted ids, and sends through `web/lib/discordGuild.js#sendDm` so
 the nudge lands in the player's conversation on `/gm/players` instead of only
 in somebody's client.
 
-**Bulk actions** is one character picker and three verbs — **Move**,
-**Resources**, **Tag** — behind `applyBulkAction`. All three are raw edits like
-`updateCharacterRaw`'s: no Move cost, no `Action` filed, no adjacency check, no
-point spend, and no Undo. `AuditLog` is the only record (`REQUESTS.md` §1a), so
-each verb writes its own row — `gm_bulk_move`, `gm_bulk_resources`,
-`gm_bulk_tag` — and every run opens a `BULK_MOVE` `SystemReport` finished
-inside `after()`, because the Discord half runs past the response and a failure
-has nowhere else to be seen.
+**Bulk actions** is one section for the whole "pick an audience, then say or
+do one thing to all of them" family. Six verbs, two audiences:
 
-Two things about the verbs are load-bearing:
+| Verb | Picks | Calls |
+|---|---|---|
+| Move | characters | `applyBulkAction` |
+| Resources | characters | `applyBulkAction` |
+| Tag | characters | `applyBulkAction` |
+| Message | characters | `sendGmBroadcast` |
+| Letter | characters | `sendGmLetters` |
+| Say | zones / Locations / Rooms | `sendAmbientLine` |
+
+It used to be four sections — Bulk actions, Send a letter, Say something, and
+a Broadcast tab on the Quests panel — with four pickers, four previews and four
+send buttons between them, and three of the four could only reach one target at
+a time. `?s=letters` and `?s=ambient` still resolve; `resolveSection` maps them
+here rather than bouncing their owner to a home section.
+
+The two audiences hold **separate live selections**, so switching Move → Say →
+Move does not lose the roster you just picked. The character list is not
+zone-scoped; the place lists are, to the GM's own `GmZoneView` zones, and
+`sendAmbientLine` re-checks that scope per call.
+
+**The first three verbs are raw edits** like `updateCharacterRaw`'s: no Move
+cost, no `Action` filed, no adjacency check, no point spend, and no Undo.
+`AuditLog` is the only record (`REQUESTS.md` §1a), so each writes its own row —
+`gm_bulk_move`, `gm_bulk_resources`, `gm_bulk_tag` — and every run opens a
+`BULK_MOVE` `SystemReport` finished inside `after()`, because the Discord half
+runs past the response and a failure has nowhere else to be seen.
+
+Two things about those verbs are load-bearing:
 
 - **Tag goes through `grantTagSlugs` / `dropCharacterTag`** (`db/lib/tagWrites.js`),
   deliberately **not** the staged `applyTagOpsInTx` path the character panel
@@ -716,37 +746,49 @@ Two things about the verbs are load-bearing:
 - **Resources clamps at zero.** A negative balance is not a state the rest of
   the game knows how to read.
 
-The picker replaced a `<select multiple size={8}>` that offered no search, no
-place names and no way to see what you had picked without scrolling the box.
-`.bulk-picker` is its scroll surface.
+**Say** posts a line of scenery through `db/lib/ambientLine.js` and
+`postMessage`. The formatting is the whole reason the preview exists: `-#`
+subtext is **per line**, so a two-line scene typed by hand in Discord comes out
+half subtext, and `ambientLine` no longer signs anything itself — the panel
+renders exactly what will be posted. Many targets at once means one call per
+target, **sequentially, never `Promise.all`**: a fan-out across a zone list is
+the shape that earns a Discord rate-limit ban. A partial failure is reported
+per target. The intercom is the deliberate exception to all of this and is
+**not** reachable from here — a PA is a loudspeaker, not scenery
+(`db/lib/intercom.js`).
 
-**Say something** (`AmbientForm.js`) posts a line of scenery into a zone's
-`#summary`, a Location channel or a Room thread, through
-`db/lib/ambientLine.js` and `postMessage`. The formatting is the whole reason
-it exists: `-#` subtext is **per line**, so a two-line scene typed by hand in
-Discord comes out half subtext, and `ambientLine` no longer signs anything
-itself — the panel renders exactly what will be posted beside the textarea. The
-target picker is scoped to the GM's own `GmZoneView` zones (no rows means every
-zone) and `sendAmbientLine` re-checks that scope. The intercom is the
-deliberate exception to all of this and is **not** reachable from here — a PA
-is a loudspeaker, not scenery (`db/lib/intercom.js`).
+**Letter** puts a bird at somebody's window carrying a letter from whoever the
+GM says it is from — the God-King, a dead man, nobody at all. It is the Bird
+system with three branches, and `BIRD.md` §9 is its doc: the paper is minted
+rather than taken off a sender's sheet, the seal's mark is typed rather than
+pressed from a stamp, and the reply comes back as a row on that player's
+conversation at `/gm/players`. `sendGmLetters` takes many recipients — one
+sender, one seal, one body, N sheets, which is a proclamation nailed to N
+windows. It validates everything that can refuse the whole batch **before**
+minting anything, then runs **one transaction per recipient**, sequentially: a
+hundred-character transaction would hold a row lock against each of those
+players' own equip taps for as long as it ran (§9). A dead recipient is skipped
+**by name** rather than taking the batch down. Capped at 200.
 
-**Send a Letter** puts a bird at somebody's window carrying a letter from
-whoever the GM says it is from — the God-King, a dead man, nobody at all. It is
-the Bird system with three branches, and `BIRD.md` §9 is its doc: the paper is
-minted rather than taken off a sender's sheet, the seal's mark is typed rather
-than pressed from a stamp, and the reply comes back as a row on that player's
-conversation at `/gm/players` instead of as paper in a sender's hands.
+**Message** is the one verb that does not loop here at all: `sendGmBroadcast`
+already fans out sequentially on the server inside `after()`. It is the same
+action `/gm/players`' bulk composer calls — the shared internal is the action,
+not a loop.
 
-It is the one section on this page whose form is a **client component**
-(`SendLetterForm.js`). Everything else here is a bare `<form action={...}>`
-inside the server page, which has nowhere to report a refusal to; a letter has
-two of them worth reading ("no turn is open", "they're past reading it") and a
-pair of seal fields that only appear once Sealed is on.
+**The picker is shared.** `web/app/components/CheckPicker.js` (with
+`usePickList.js` for callers that have no selection state of their own) is one
+component across this section's two pickers, the quest gates, and
+`/gm/players`' `BulkComposer`. It was `quests/GatePicker.js`, whose header said
+to promote it on the fourth call site outside that folder; this was the fourth.
+What made it shareable without a `filterDef`/`renderRow`/`selectAllMode` prop
+soup: matching is a `search` **function** the caller passes, a row's second line
+is the existing `note` field, Select all always unions, and anything else beside
+the filter box goes in one `toolbar` slot.
 
-### 11c. The Games section
+### 11c. The History section
 
-`/gm/dev?s=games`, superadmin. Every `Game` row there has ever been, newest
+`/gm/dev?s=games` — the key is still `games`; the rail says History.
+Superadmin. Every `Game` row there has ever been, newest
 first: what it is called (its label, or the dates it ran — `gameTitle`), its
 short id, how it ended (Running / Ended / Nuked or Ascended with the turn /
 Never finished), whether its transcript has been exported to a packet or has
@@ -777,7 +819,7 @@ db:collapse-games`, off a command line and behind a dry run.
 | Validation, diff, tag ops, effect plan | `web/lib/characterWrite.js` |
 | Turn economy, the Move lock predicate | `web/lib/moveEconomy.js` |
 | FK-ordered character purge | `db/lib/deleteCharacter.js` |
-| Custom tag catalog | `web/app/(app)/gm/dev/tags/` |
+| Custom tag catalog | `web/app/(app)/gm/dev/tags/` (the table; the page is `?s=tags`) |
 | Bulk tagging | `web/app/(app)/gm/actions.js#bulkTagCharacters` |
 | Shared tag search | `web/lib/characterCreation.js#filterTagsByQuery` |
 | The one quantity control, shared with every player-facing dialog | `web/app/components/QuantityField.js` |
@@ -787,8 +829,11 @@ db:collapse-games`, off a command line and behind a dry run.
 | Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel`, and `.qty` / `.qty-btn` / `.qty-input` in `globals.css` |
 | Desk modal mount (shared by turns/players desks) + `prefetchDevPanel`, and its server actions (`getDevPanelData`, `getDevPanelRecord`) | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
 | The game-level panel (§11) — page shell + section rail | `web/app/(desk)/gm/dev/page.js`, `web/app/(desk)/gm/dev/OpsNav.js` |
-| Games (§11c) — every game there has ever been, and the way into each transcript | `web/app/(desk)/gm/dev/PastGames.js`, and `web/lib/gameLabel.js` for what a game is called |
-| Send a Letter (§11) — the form, and the action behind it | `web/app/(desk)/gm/dev/SendLetterForm.js`, `web/app/(app)/gm/dev/actions.js#sendGmLetter` |
+| History (§11c) — every game there has ever been, and the way into each transcript | `web/app/(desk)/gm/dev/PastGames.js`, and `web/lib/gameLabel.js` for what a game is called |
+| Bulk actions (§11b) — the six verbs and the shell that draws them | `web/app/(desk)/gm/dev/BulkActions.js`, `web/app/(desk)/gm/dev/bulkVerbs.js` |
+| The shared picker every "tick a set" surface wears | `web/app/components/CheckPicker.js`, `web/app/components/usePickList.js` |
+| Bulk letters (§11b) — the action behind the Letter verb | `web/app/(app)/gm/dev/actions.js#sendGmLetters` |
+| The tag catalog as a section, with its snapshot wiring | `web/app/(desk)/gm/dev/DevTagsSection.js` |
 | The game-level panel's server actions | `web/app/(app)/gm/dev/actions.js` |
 | The game-level panel's toggle help text, read through `InfoIcon` | `web/app/(app)/gm/dev/devHelp.js` |
 | The game-level panel's styling | `.desk-body--ops`, `.ops-nav`, `.ops-nav-group`, `.ops-nav-title`, `.ops-nav-item`, `.ops-main`, `.ops-section`, `.ops-section-head`, `.ops-lede`, `.ops-grid`, `.ops-toggles`, `.ops-toggle`, `.ops-toggle-note`, `.ops-actions`, `.ops-report`, `.ops-report-head`, `.ops-report-detail` in `globals.css` |
@@ -812,7 +857,9 @@ See `docs/systemdocs/DEPOT.md` §0f for the shipped table.
 
 ## Zones
 
-`/gm/dev/zones` — the place editor. Any GM can edit a Zone, Location or Room;
+`/gm/dev?s=zones` — the place editor. Its nested editors (`zones/[zoneId]`,
+`zones/locations/[locationId]`, `zones/rooms/[roomId]`, `zones/links`) are
+still routes of their own. Any GM can edit a Zone, Location or Room;
 retiring, hard-deleting and seeding a stash are superadmin-only, checked with
 `requireDev("super")`. See `docs/systemdocs/SYNC.md`'s new top note for why
 this exists instead of another pass of `docs/zones.yaml`.

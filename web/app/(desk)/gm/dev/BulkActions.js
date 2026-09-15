@@ -254,7 +254,7 @@ export default function BulkActions({
           <>
             {/* A kind is one value, so aria-pressed — .segmented is a control
                 with a value and a screen reader has to reach it. */}
-            <div className="segmented">
+            <div className="segmented self-start">
               {PLACE_KINDS.map((k) => (
                 <button
                   key={k.key}
@@ -437,7 +437,7 @@ export default function BulkActions({
           <p className="mono text-sm text-muted">{who} picked</p>
           {active.preview === PREVIEW.RENDERING ? (
             <pre className="desk-move-text whitespace-pre-wrap">
-              {verb === "say" ? subtext(text) || "—" : text || "—"}
+              {!text ? "—" : verb === "say" ? subtext(text) : text}
             </pre>
           ) : (
             <p className="desk-move-text">» {sentence}</p>

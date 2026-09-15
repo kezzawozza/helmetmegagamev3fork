@@ -1,7 +1,7 @@
 "use client";
 
 import FormError from "@/app/components/FormError";
-import { useState, useTransition } from "react";
+import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { forceAdvanceTurn } from "./actions";
 
@@ -18,8 +18,7 @@ import { forceAdvanceTurn } from "./actions";
 //      running the panel knows what ending a turn does.
 export default function EndTurnButton({ turnLabel }) {
   const confirm = useConfirm();
-  const [error, setError] = useState(null);
-  const [pending, startTransition] = useTransition();
+  const { run, pending, error } = useActionRunner();
 
   async function onClick() {
     const ok = await confirm({
@@ -29,19 +28,11 @@ export default function EndTurnButton({ turnLabel }) {
     });
     if (!ok) return;
 
-    setError(null);
-    startTransition(async () => {
-      // forceAdvanceTurn catches its own failures, but its authorization check
-      // runs before that try block and a transport error can reject too — with
-      // no error.js to land on, an unhandled rejection here would take the
-      // panel down.
-      try {
-        const res = await forceAdvanceTurn();
-        if (!res?.ok) setError(res?.error ?? "Something went wrong.");
-      } catch {
-        setError("Could not reach the server. Nothing was changed.");
-      }
-    });
+    // forceAdvanceTurn catches its own failures, but its authorization check
+    // runs before that try block and a transport error can reject too — with
+    // no error.js to land on, an unhandled rejection here would take the panel
+    // down. useActionRunner's own catch is what stops that.
+    run(forceAdvanceTurn);
   }
 
   return (

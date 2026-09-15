@@ -42,9 +42,18 @@ const DEFAULT_ROUTES = [
   { path: "/gm/structures", as: "gm" },
   { path: "/gm/dev?s=gamemasters", as: "gm" },
   { path: "/gm/dev", as: "gm" },
-  { path: "/gm/dev/characters", as: "gm" },
-  { path: "/gm/dev/factions", as: "gm" },
-  { path: "/gm/dev/tags", as: "gm" },
+  // Sections of the panel now, not pages. The old paths redirect, and that
+  // redirect is worth asserting: they are what /gm/audit's rows and a year of
+  // bookmarks point at.
+  { path: "/gm/dev?s=characters", as: "gm" },
+  { path: "/gm/dev?s=factions", as: "gm" },
+  { path: "/gm/dev?s=tags", as: "gm" },
+  { path: "/gm/dev?s=zones", as: "gm" },
+  { path: "/gm/dev?s=bulk", as: "gm" },
+  { path: "/gm/dev/characters", as: "gm", expect: "/gm/dev?s=characters" },
+  { path: "/gm/dev/factions", as: "gm", expect: "/gm/dev?s=factions" },
+  { path: "/gm/dev/tags", as: "gm", expect: "/gm/dev?s=tags" },
+  { path: "/gm/dev/zones", as: "gm", expect: "/gm/dev?s=zones" },
   { path: "/ledger", as: "gm", expect: "/character" }, // old sheet path forward (SHEET.md)
   { path: "/ledger", as: "player", expect: "/character" },
 

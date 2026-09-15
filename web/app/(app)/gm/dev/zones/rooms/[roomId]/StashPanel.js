@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import Panel from "@/app/components/Panel";
 import FormError from "@/app/components/FormError";
+import useActionRunner from "@/app/components/useActionRunner";
 import { seedRoomStash } from "../../actions";
 
 // The stash: what's stamped in room/RoomTag rows already, plus the seed
@@ -10,25 +12,22 @@ import { seedRoomStash } from "../../actions";
 // panel is allowed to do to it is add MORE, once, from a fresh authoring
 // list. Everyday quantity moves stay in Transfer/Storage on the player side.
 export default function StashPanel({ roomId, resources, stash, seededStashSlugs, canSuper }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState(null);
+  const { run, pending, error } = useActionRunner();
   const [result, setResult] = useState(null);
 
   function onSeed(e) {
     e.preventDefault();
-    setError(null);
     setResult(null);
     const text = new FormData(e.currentTarget).get("lines");
-    startTransition(async () => {
-      const res = await seedRoomStash(roomId, text);
-      if (res && res.ok === false) setError(res.error);
-      else setResult(`Seeded ${res.seeded} slug${res.seeded === 1 ? "" : "s"}.`);
+    // An arrow rather than `call`, because this is the one here that wants
+    // onOk — seedRoomStash reports how many slugs it actually took.
+    run(() => seedRoomStash(roomId, text), undefined, {
+      onOk: (res) => setResult(`Seeded ${res.seeded} slug${res.seeded === 1 ? "" : "s"}.`),
     });
   }
 
   return (
-    <section className="panel flex flex-col gap-3 p-3">
-      <h2 className="panel-header">Stash</h2>
+    <Panel title="Stash">
       <p>
         <span className="chip">{resources} ⬢</span>
       </p>
@@ -77,6 +76,6 @@ export default function StashPanel({ roomId, resources, stash, seededStashSlugs,
           </form>
         </>
       )}
-    </section>
+    </Panel>
   );
 }

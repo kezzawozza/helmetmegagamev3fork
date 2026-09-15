@@ -1,18 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import useActionRunner from "@/app/components/useActionRunner";
+import Panel from "@/app/components/Panel";
 import FormError from "@/app/components/FormError";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { updateLocation } from "../../actions";
 
 export default function LocationForm({ location, attributeSchema = [] }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState(null);
+  const { call, pending, error } = useActionRunner();
   const confirm = useConfirm();
 
   async function onSubmit(e) {
     e.preventDefault();
-    setError(null);
     const form = new FormData(e.currentTarget);
     const name = form.get("name");
     if (name !== location.name) {
@@ -26,21 +25,17 @@ export default function LocationForm({ location, attributeSchema = [] }) {
     for (const attr of attributeSchema) {
       attributes[attr.key] = attr.type === "boolean" ? form.get(`attr_${attr.key}`) === "on" : form.get(`attr_${attr.key}`);
     }
-    startTransition(async () => {
-      const res = await updateLocation(location.id, location.updatedAt, {
-        name,
-        indoors: form.get("indoors") === "on",
-        sortOrder: form.get("sortOrder"),
-        description: form.get("description"),
-        attributes,
-      });
-      if (res && res.ok === false) setError(res.error);
+    call(updateLocation, location.id, location.updatedAt, {
+      name,
+      indoors: form.get("indoors") === "on",
+      sortOrder: form.get("sortOrder"),
+      description: form.get("description"),
+      attributes,
     });
   }
 
   return (
-    <section className="panel flex flex-col gap-3 p-3">
-      <h2 className="panel-header">Location</h2>
+    <Panel title="Location">
       <FormError>{error}</FormError>
       <form className="flex flex-col gap-3" onSubmit={onSubmit}>
         <label className="field">
@@ -77,7 +72,7 @@ export default function LocationForm({ location, attributeSchema = [] }) {
           Save
         </button>
       </form>
-    </section>
+    </Panel>
   );
 }
 

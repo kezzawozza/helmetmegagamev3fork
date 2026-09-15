@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import Panel from "@/app/components/Panel";
+import useActionRunner from "@/app/components/useActionRunner";
 import FormError from "@/app/components/FormError";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { updateZone } from "../actions";
@@ -8,13 +9,11 @@ import { updateZone } from "../actions";
 const KINDS = ["SURFACE", "CAVE_GROUP", "CAVE_LEVEL"];
 
 export default function ZoneForm({ zone }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState(null);
+  const { call, pending, error } = useActionRunner();
   const confirm = useConfirm();
 
   async function onSubmit(e) {
     e.preventDefault();
-    setError(null);
     const form = new FormData(e.currentTarget);
     const name = form.get("name");
     if (name !== zone.name) {
@@ -24,23 +23,19 @@ export default function ZoneForm({ zone }) {
         confirmLabel: "Rename",
       }))) return;
     }
-    startTransition(async () => {
-      const res = await updateZone(zone.id, zone.updatedAt, {
-        name,
-        kind: form.get("kind"),
-        sortOrder: form.get("sortOrder"),
-        description: form.get("description"),
-        mapPolygon: form.get("mapPolygon"),
-        mapLabelX: form.get("mapLabelX"),
-        mapLabelY: form.get("mapLabelY"),
-      });
-      if (res && res.ok === false) setError(res.error);
+    call(updateZone, zone.id, zone.updatedAt, {
+      name,
+      kind: form.get("kind"),
+      sortOrder: form.get("sortOrder"),
+      description: form.get("description"),
+      mapPolygon: form.get("mapPolygon"),
+      mapLabelX: form.get("mapLabelX"),
+      mapLabelY: form.get("mapLabelY"),
     });
   }
 
   return (
-    <section className="panel flex flex-col gap-3 p-3">
-      <h2 className="panel-header">Zone</h2>
+    <Panel title="Zone">
       <FormError>{error}</FormError>
       <form className="flex flex-col gap-3" onSubmit={onSubmit}>
         <label className="field">
@@ -87,6 +82,6 @@ export default function ZoneForm({ zone }) {
           Save
         </button>
       </form>
-    </section>
+    </Panel>
   );
 }

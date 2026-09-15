@@ -1,28 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
+import Panel from "@/app/components/Panel";
+import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { createLink, updateLink, deleteLink } from "../actions";
 
 const ANNOUNCE = ["NONE", "TRUE_NAME", "CONCEALED"];
 
 export default function LinksTable({ rows, locationOptions, canSuper }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState(null);
+  const { call, pending, error } = useActionRunner();
   const confirm = useConfirm();
-
-  function run(action, ...args) {
-    setError(null);
-    startTransition(async () => {
-      const res = await action(...args);
-      if (res && res.ok === false) setError(res.error);
-    });
-  }
 
   async function onDelete(link) {
     if (!(await confirm({ title: "Delete this link?", message: `${link.aName} ↔ ${link.bName}`, confirmLabel: "Delete" }))) return;
-    run(deleteLink, link.id);
+    call(deleteLink, link.id);
   }
 
   return (
@@ -47,19 +39,18 @@ export default function LinksTable({ rows, locationOptions, canSuper }) {
         </thead>
         <tbody>
           {rows.map((l) => (
-            <LinkRow key={l.id} link={l} canSuper={canSuper} pending={pending} onSave={(input) => run(updateLink, l.id, l.updatedAt, input)} onDelete={() => onDelete(l)} />
+            <LinkRow key={l.id} link={l} canSuper={canSuper} pending={pending} onSave={(input) => call(updateLink, l.id, l.updatedAt, input)} onDelete={() => onDelete(l)} />
           ))}
         </tbody>
       </table>
 
-      <section className="panel flex flex-col gap-3 p-3">
-        <h2 className="panel-header">New link</h2>
+      <Panel title="New link">
         <form
           className="flex flex-wrap items-end gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             const form = new FormData(e.currentTarget);
-            run(createLink, {
+            call(createLink, {
               aId: form.get("aId"),
               bId: form.get("bId"),
               announce: form.get("announce"),
@@ -136,7 +127,7 @@ export default function LinksTable({ rows, locationOptions, canSuper }) {
             Create
           </button>
         </form>
-      </section>
+      </Panel>
     </div>
   );
 }

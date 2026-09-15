@@ -131,7 +131,7 @@ Use these instead of rolling one-off markup.
 
 | Class | For |
 |---|---|
-| `.panel` | Any card/section container. |
+| `.panel` | Any card/section container. A card **with** a heading is `Panel` — it carries the padding `.panel` deliberately does not, and writes the `.panel-header` for you. |
 | `.panel-header` | Its heading — serif `--fs-lg` with a hairline rule. |
 | `.section-title` | A heading that is a **flex child beside something else**. |
 | `.btn` | Solid primary button. |
@@ -152,6 +152,7 @@ Use these instead of rolling one-off markup.
 | `.chip-row` | A wrapping row of chips. The house form for a **multi**-select: each chip is a `<button className="chip">` keyed on `data-active` (plus `aria-pressed`), and `.chip[data-active]` gives it the accent border and label. |
 | `.select-card` | A `.panel` you pick. Selection is `aria-pressed`. Its left rule may carry a group colour set inline per row — a tag group in Point Buy, a desire family in the Desire picker — because those are freeform hexes out of data, not tokens. |
 | `.check-row` / `.switch-row` | A boolean and its label — via `CheckField` / `Switch`. |
+| `.check-picker` | A scrolling box of check rows with a filter over it — via `CheckPicker`, with `usePickList` when the caller has no selection state of its own. The house form for ticking a set out of a **long** list: a hundred-character roster, the whole tag catalog, every Location. It beats `.chip-row` exactly when the list is long enough to need a search box or a row needs a second line (a place, a role); `.chip-row` stays right for a short set of labels. Never a `<select multiple>`, which offers neither. |
 | `.status-pill` | A state, coloured by `data-tone`. |
 | `.empty-state` | "Nothing here" text. |
 | `.form-error` | Something went wrong. Always `--danger`. |
@@ -159,6 +160,7 @@ Use these instead of rolling one-off markup.
 | `.notice-stack` / `.notice-card` | The result notice — via `useNotice()` (`NoticeProvider.js`), never by hand. One line saying what a button just did; `data-tone="bad"` for a refusal. Not a `.modal-overlay`, on purpose. |
 | `.action-tile` / `.menu-item` / `.icon-btn` for a verb | A player action — via `ActionButton` (`variant="tile" | "icon" | "menu"`), which carries the label, the explaining sentence and, when greyed, the reason in one tooltip. |
 | `.stack-row` / `.stack-list` | A stack you are choosing some of — via `StackRow` / `StackPicker`. Replaces a checkbox and a "How many?" box. |
+| `ReorderButtons` | The ▲/▼ pair for a hand-ordered list. The arrows say nothing out loud, so the `label` prop is what carries the meaning. |
 | `.chip-row` as a single pick | A short local choice — via `ChipPicker`. A dropdown hides the answer behind a click; chips show it. Not for a long list (the Bird's every-character roster stays a `<select>`). |
 | `.field-dirty` | A control carrying a staged/unsaved edit. |
 | `.staged-row` | A staged row, toned by `data-staged` (add vs. remove). |
@@ -223,6 +225,9 @@ an error. Each now has one component.
 | A state | `StatusPill` with a **tone**, or `EnumPill` for a DB enum | A raw enum, or a colour picked at the call site |
 | Nothing here | `EmptyState`, or `EmptyRow` in a table | A bespoke `<p className="text-muted">` |
 | In flight / failed | `SubmitButton` and `FormError` | A `<form action>` with no pending state |
+| Calling a `{ ok, error }` action from a button | `useActionRunner` — `run(action, arg, { onOk, onFail })`, or `call(action, …args)` for an action taking several | A hand-rolled `useTransition` + `setError` block. Every hand-rolled copy was missing the catch, so a dropped connection left the button spinning with nothing said |
+| Ticking a set out of a long list | `CheckPicker`, with `usePickList` when the caller holds no selection of its own | A `<select multiple>`, or another private roster picker |
+| Retire / delete in the place editor | `useRetireDelete` — the blockers-first two-step confirm | A fourth copy of the same two dialogs, worded slightly differently |
 
 Five things about these are load-bearing:
 
