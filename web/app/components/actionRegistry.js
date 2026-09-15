@@ -70,7 +70,7 @@ export const ACTION_HELP = {
   destroy: "Destroy an item.",
   transfer: "Exchange resources or tags.",
   // Bascinet's words, verbatim.
-  tax: "Automatically tax your subjects",
+  tax: "Automatically tax your subjects.",
   loot: "Loot somebody that's bound or helpless.",
   free: "Cut somebody loose.",
   breakrestraints: "Make a Gambit to break your restraints. It's easier every turn.",
