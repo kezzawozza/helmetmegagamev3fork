@@ -106,14 +106,14 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
 // Pure, so every branch is testable without a database or a clock — the same shape db/lib/oracleCutoff.js uses, and for the same reason: all but one branch is a refusal, and a refusal the player can't read is a bug report.
 // `action` needs { playerFiled, moveKind, moveReviewStatus, lockExpiresAt, diceRoll }. A null action means nothing is filed, which is not an error anywhere — the caller decides whether that's "file one" or "nothing to withdraw".
 function moveIsEditable(action, openTurn, { now = new Date(), clockFrozen = false } = {}) {
-  if (!action) return { editable: false, reason: "no Move is filed" };
+  if (!action) return { editable: false, reason: "no Move was declared" };
   // THE die guard, and it is the one that actually has to hold. Everything below is about
   // when the window shuts; this is about the thing the window protects. A thrown die must
   // never be thrown twice — withdrawing a rolled Gambit and filing another would hand back
   // a fresh one, which is the exact prize this whole design removes.
   if (action.diceRoll != null) return { editable: false, reason: "the die is already thrown" };
   // A receipt. Bury, craft, torture, travel, a lesson, the labor you already got paid for — the thing happened, so there is nothing left to take back.
-  if (!action.playerFiled) return { editable: false, reason: "the game filed this one for you" };
+  if (!action.playerFiled) return { editable: false, reason: "the game declared this one for you" };
   // Labor pays the moment it's filed, so by the time it exists it is a receipt too. Withdraw is a Gambit's alone.
   if (action.moveKind !== "GAMBIT") return { editable: false, reason: "only a Gambit can be changed" };
   if (action.moveReviewStatus !== "OPEN") return { editable: false, reason: "a GM has already settled this Move" };
@@ -147,7 +147,7 @@ async function loadEditableMove(prisma, { character, actionId }) {
     where: { characterId: character.id, ...(actionId ? { id: actionId } : {}), ...(openTurn ? { turnId: openTurn.id } : {}) },
   });
   // The WHERE is the ownership check: another character's actionId simply doesn't match.
-  if (!action) return { ok: false, error: "That Move isn't yours to change." };
+  if (!action) return { ok: false, error: "That Move isn't yours." };
 
   const { editable, reason } = moveIsEditable(action, openTurn, { clockFrozen: await clockFrozen(prisma) });
   if (!editable) return { ok: false, error: `You can't change this Move — ${reason}.` };

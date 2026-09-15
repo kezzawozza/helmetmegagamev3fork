@@ -1,5 +1,5 @@
 const { formatLaborBonusNote, lazyYield, lazyExpression } = require("./laborAccess");
-const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
+const { rollResourceRange } = require("./resourceDelta");
 const { applyMoveEffects, describeMoveEffects } = require("./moveEffects");
 
 // Read at call time, not at import: the bot sets it, the web does not always need it.
@@ -76,19 +76,12 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
     `» ${action.description}`,
     `Kind: **${MOVE_KIND_WORD[action.moveKind] ?? "Move"}**`,
   ];
-  if (action.moveKind === "GAMBIT") {
-    // Says WHERE on purpose. Change and Take it back live on the web only — the Discord
-    // modal can file and nothing else — so a bare "you can change this" would send a
-    // Discord-first player hunting for a button that isn't there.
-    lines.push(
-      `🎲 *The die is thrown when Moves lock, not now. Until then you can change this or take it back${WEB_BASE_URL ? ` on ${WEB_BASE_URL}/character` : " from your sheet on the web"}.*`,
-    );
-  }
+  // A Labor says what it produced, in one line. It used to print the roll and the range it
+  // came out of ("Resource roll (0-9): +5 ⬢"); the range was mechanics a player could do
+  // nothing with, and the payout is the only part they act on.
   if (rollResult) {
-    lines.push(
-      `**Resource roll (${formatRangeExpression(laborExpression)}):** ${rollResult.value > 0 ? "+" : ""}${rollResult.value} ⬢`,
-    );
-    // The range above already has the tools baked in, so say so — otherwise a hunter with a Longbow can't tell 3-12 from the plain 0-9.
+    lines.push(`You labored, producing ${rollResult.value} ⬢`);
+    // The range has the tools baked in, so a hunter with a Longbow is still told their kit did something.
     if (bonusNote) lines.push(bonusNote);
   }
   // Everything else the day turned up. `resources` is dropped: the roll line above already said it, in the range's own words.
@@ -96,10 +89,13 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
     Object.fromEntries(Object.entries(applied ?? {}).filter(([key]) => key !== "resources")),
   );
   if (appliedLine) lines.push(`**Applied:** ${appliedLine}`);
+  // Says WHERE on purpose for a Gambit: editing and cancelling live on the web only — the
+  // Discord modal can file and nothing else — so a bare "you can edit it" would send a
+  // Discord-first player hunting for a button that isn't there.
   lines.push(
     action.moveKind === "GAMBIT"
-      ? "» *Filed. Yours until Moves lock.*"
-      : "» *Done. That's your day spent.*",
+      ? `» *Your Gambit was declared. You can edit it until the turn locks${WEB_BASE_URL ? `, at ${WEB_BASE_URL}/character` : ", from your sheet on the web"}.*`
+      : "» *Done.*",
   );
 
   return {
@@ -108,7 +104,6 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
     roll: {
       gambit: action.moveKind === "GAMBIT",
       resourceValue: rollResult ? rollResult.value : null,
-      expression: rollResult ? formatRangeExpression(laborExpression) : null,
       // `-#` is Discord subtext; a plain-text surface strips the prefix.
       bonusNote: bonusNote ? bonusNote.replace(/^-#\s*/, "") : null,
       applied: appliedLine || null,

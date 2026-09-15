@@ -39,7 +39,7 @@ test("a Gambit the player wrote is theirs while the window is open", () => {
 test("nothing filed is not an error, just nothing to change", () => {
   const { editable, reason } = moveIsEditable(null, turnStartedHoursAgo(1));
   assert.equal(editable, false);
-  assert.match(reason, /no Move is filed/);
+  assert.match(reason, /no Move was declared/);
 });
 
 test("a Move the game filed is a receipt, never editable", () => {
@@ -49,7 +49,7 @@ test("a Move the game filed is a receipt, never editable", () => {
     turnStartedHoursAgo(1),
   );
   assert.equal(editable, false);
-  assert.match(reason, /the game filed this one/);
+  assert.match(reason, /the game declared this one/);
 });
 
 test("a Labor is paid on the press, so there is nothing pending to take back", () => {

@@ -24,15 +24,13 @@ const MOVE_MODAL_ID = "move:new";
 // Kept word-for-word in step with web/app/(app)/chat/MoveDialog.js's
 // MOVE_KINDS. If the wording changes, change it in both places.
 const MOVE_HELP =
-  "-# Describe what you're hoping to accomplish — in the broadest sense, the ideal outcome, your intent. " +
-  "Mention relevant tags or circumstances that the GMs should consider. " +
-  "Labor needs no arbitration: it pays your best Laboring skill for where you're standing, right away. " +
-  "A Gambit you can rewrite or take back until Moves lock.";
+  "-# Describe what you're hoping to accomplish — in the broadest sense, the ideal outcome and your intent. " +
+  "Mention relevant tags or circumstances that the GMs should consider.";
 
 function buildMoveModal() {
   return new ModalBuilder()
     .setCustomId(MOVE_MODAL_ID)
-    .setTitle("Lock in your Move")
+    .setTitle("Declare your move")
     .addLabelComponents(
       new LabelBuilder()
         .setLabel("Your Move")
@@ -50,8 +48,8 @@ function buildMoveModal() {
             .setCustomId("move:kind")
             .setRequired(true)
             .addOptions(
-              { label: "Gambit", value: "GAMBIT", description: "Could go either way — rolls a die." },
-              { label: "Labor", value: "LABOR", description: "Work the day using your best Labor skill." },
+              { label: "Gambit", value: "GAMBIT", description: "An action affected by chance." },
+              { label: "Labor", value: "LABOR", description: "Produce resources using your best laboring skill." },
             ),
         ),
     )

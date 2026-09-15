@@ -23,8 +23,8 @@ import { submitMove, editMyMove, withdrawMyMove, moveContext } from "./actions";
 
 // Word for word from the Discord modal's radio group (bot/src/lib/moveModal.js). If the wording changes, change it in both places.
 export const MOVE_KINDS = [
-  { value: "GAMBIT", label: "Gambit", help: "Could go either way — rolls a die when Moves lock. Yours to change until then." },
-  { value: "LABOR", label: "Labor", help: "Work the day using your best Labor skill. Pays out now." },
+  { value: "GAMBIT", label: "Gambit", help: "An action affected by chance." },
+  { value: "LABOR", label: "Labor", help: "Produce resources using your best laboring skill." },
 ];
 
 // ROUTINE is no longer a kind anybody picks, but plenty of rows still carry it — every
@@ -101,12 +101,12 @@ export default function MoveDialog({ turn = null, characterId = null, existing =
     const sure = await confirm(
       kind === "LABOR"
         ? {
-            title: "Work the day?",
-            message: "Labor pays out straight away, and that's your day spent.",
-            confirmLabel: "Work",
-            cancelLabel: "Not yet",
+            title: "Labor?",
+            message: "You are paid immediately after declaring your labor.",
+            confirmLabel: "Yes",
+            cancelLabel: "No",
           }
-        : { title: "File this Gambit?", confirmLabel: "File", cancelLabel: "Not yet" },
+        : { title: "Declare this Gambit?", confirmLabel: "Yes", cancelLabel: "No" },
     );
     if (!sure) return;
     run(submitMove, { moveKind: kind, description: body }, {
@@ -119,11 +119,12 @@ export default function MoveDialog({ turn = null, characterId = null, existing =
   }
 
   async function withdraw() {
+    // No message line: the title is the whole question, and "your day is yours again" was
+    // restating what cancelling obviously does.
     const sure = await confirm({
-      title: "Take this Gambit back?",
-      message: "Your day is yours again, and you can file something else.",
-      confirmLabel: "Take it back",
-      cancelLabel: "Keep it",
+      title: "Cancel your Gambit?",
+      confirmLabel: "Undo",
+      cancelLabel: "Keep",
     });
     if (!sure) return;
     run(withdrawMyMove, { actionId: existing.id }, {
@@ -174,7 +175,7 @@ export default function MoveDialog({ turn = null, characterId = null, existing =
       )}
       {/* Height reserved either way, so the textarea doesn't jump (DESIGN-SYSTEM §5). */}
       <p className="move-help text-sm text-muted">
-        {editing ? "Yours to rewrite until Moves lock." : (chosen?.help ?? " ")}
+        {editing ? "You can edit this until the turn locks." : (chosen?.help ?? " ")}
       </p>
 
       {kind === "LABOR" && context && (
@@ -224,7 +225,7 @@ export default function MoveDialog({ turn = null, characterId = null, existing =
           .btn-quiet shape Break off and Stop watching already use. */}
       {editing && (
         <button type="button" className="btn-quiet" disabled={pending || shut} onClick={withdraw}>
-          Take it back
+          Cancel Gambit
         </button>
       )}
 
@@ -233,7 +234,7 @@ export default function MoveDialog({ turn = null, characterId = null, existing =
           Cancel
         </button>
         <button type="button" className="btn" disabled={!canFile} onClick={file}>
-          {editing ? "Save" : "File"}
+          {editing ? "Save" : "Declare"}
         </button>
       </div>
     </Modal>

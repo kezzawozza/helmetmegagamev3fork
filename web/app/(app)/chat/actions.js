@@ -1621,10 +1621,9 @@ export async function submitMove({ moveKind, description } = {}) {
   // The bot answers in Discord markdown; this panel prints plain text, so the
   // same facts are said in words. The Gambit roll itself stays hidden until
   // the turn-end reveal, exactly as it does in Discord.
-  const parts = [roll.gambit ? "Filed." : "Done."];
-  if (roll.gambit) parts.push("You can change it or take it back until Moves lock. Results come when the turn ends.");
+  const parts = [roll.gambit ? "Your move was declared." : "Done."];
   if (roll.resourceValue != null) {
-    parts.push(`Your day's work (${roll.expression}) came to ${roll.resourceValue > 0 ? "+" : ""}${roll.resourceValue} ⬢.`);
+    parts.push(`You labored, producing ${roll.resourceValue} ⬢.`);
     if (roll.bonusNote) parts.push(roll.bonusNote);
   }
   // A labor drop, the Tired a long day leaves, a refining shift's Squeeze. Said here
@@ -1701,7 +1700,7 @@ export async function editMyMove({ actionId, description } = {}) {
   });
   if (!result.ok) return { ok: false, error: result.error };
 
-  return { ok: true, line: result.unchanged ? "No change." : "Rewritten. Still yours until Moves lock." };
+  return { ok: true, line: result.unchanged ? "No change." : "Your move was edited." };
 }
 
 // Take a Gambit back and get the day returned. Deleting the row IS the refund.
@@ -1722,7 +1721,7 @@ export async function withdrawMyMove({ actionId } = {}) {
     await sendDm(dm.discordUserId, dm.content).catch(() => {});
   }
 
-  return { ok: true, line: "Taken back. Your day is your own again." };
+  return { ok: true, line: "Your move was canceled." };
 }
 
 // What the Move dialog shows before a Labor is committed — resolveLaborRate

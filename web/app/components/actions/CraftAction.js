@@ -365,8 +365,8 @@ export default function CraftAction({ presets, onDone, onClose }) {
               ? " That counts as your day's work — no labor pay today."
               : "";
           moveLine = craftBudget
-            ? `${takes}, on top of what you've already put into this turn's Routine.`
-            : `${takes}. It spends your Routine for the turn — you can keep working until the Move is spent.${labor}`;
+            ? `${takes}, on top of what you've already done this turn.`
+            : `${takes}. That starts your Move — you can keep working until it's spent.${labor}`;
         }
       }
       if (moveLine || cost > 0) {

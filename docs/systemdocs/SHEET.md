@@ -125,7 +125,7 @@ Who this is, where they stand, and:
   `SheetTurn.js`, over the same `play/actions.js#myMove` and the same minute
   poll (`play/useMyMove.js`, which `YouPanel.js` shares). File the Move from
   here. A **Gambit** that has not locked yet carries a quiet **Change…** under
-  its words, which reopens the same dialog on it to rewrite or **Take it back**;
+  its words, which reopens the same dialog on it to rewrite or **Cancel Gambit**;
   a Labor, or anything the game filed, has already happened and carries nothing
   (TURN-ENGINE.md §6a-i). A pending lesson or binding reads under that. The turn chip and the **Move…**
   button sit on ONE line: `.sheet-turn .chat-move` is a wrapping flex row, and
