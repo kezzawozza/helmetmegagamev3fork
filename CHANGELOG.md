@@ -6,6 +6,9 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · A soul reborn mid-close no longer pays upkeep for a turn it never lived
+
+
 ## 2026-09-15 · Remove Corrupt from the two Brigands who bought it before the role gate
 
 ✎ A one-off script, db/scripts/ops/revoke-brigand-corrupt.js — Dunkin D and John Johnson had it from before Corrupt's Desires were role-gated. Removed, no point refund, each player DMed
