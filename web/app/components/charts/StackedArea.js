@@ -9,13 +9,17 @@ import { num, scale, seriesColor } from "./chartUtils";
 //
 // `series`: [{ key, label }] identifies each stacked band, in the order they
 // stack (bottom to top). `categories`: [{ x, values: { [key]: number } }] is
-// one entry per turn. Missing/non-numeric values read as 0.
-export default function StackedArea({ series, categories, width = 640, height = 220 }) {
+// one entry per turn. Missing/non-numeric values read as 0. `title` names
+// what's being stacked, for the aria-label/table caption/empty-state — it
+// defaults to the original money-supply copy so Pulse.js needs no changes; a
+// caller stacking something else (e.g. Desire claims by tier) overrides it
+// instead of reading "Money supply" on the wrong data.
+export default function StackedArea({ series, categories, width = 640, height = 220, title = "Money supply by form" }) {
   const seriesList = Array.isArray(series) ? series.filter((s) => s && s.key) : [];
   const points = Array.isArray(categories) ? categories : [];
 
   if (seriesList.length === 0 || points.length === 0) {
-    return <EmptyChart width={width} height={height} label="No money-supply data for this range" />;
+    return <EmptyChart width={width} height={height} label={`No ${title.toLowerCase()} data for this range`} />;
   }
 
   const padL = 8;
@@ -51,7 +55,7 @@ export default function StackedArea({ series, categories, width = 640, height = 
     return { key: s.key, label: s.label || s.key, d: `${forward} ${backward} Z`, color: seriesColor(sIdx) };
   });
 
-  const tableLabel = `Money supply by form over ${points.length} turns: ${seriesList
+  const tableLabel = `${title} over ${points.length} turns: ${seriesList
     .map((s) => s.label || s.key)
     .join(", ")}`;
 
@@ -71,7 +75,7 @@ export default function StackedArea({ series, categories, width = 640, height = 
       </svg>
       <Legend items={bands.map((b) => ({ label: b.label, color: b.color }))} />
       <VisuallyHiddenTable
-        caption="Money supply by form over turns"
+        caption={`${title} over turns`}
         columns={["Turn", ...seriesList.map((s) => s.label || s.key)]}
         rows={points.map((c, i) => [
           c.x ?? i + 1,

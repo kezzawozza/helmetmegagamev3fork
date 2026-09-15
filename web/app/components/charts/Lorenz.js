@@ -5,7 +5,9 @@ import { VisuallyHiddenTable, EmptyChart } from "./StackedArea";
 // pairs (p = share of population, q = share of wealth), 0..1, sorted
 // ascending. `gini` is the precomputed coefficient, called out as text next
 // to the curve rather than re-derived here -- this component only draws.
-export default function Lorenz({ points, gini, width = 320, height = 320 }) {
+// `title` names what's distributed, defaulting to the original "resource
+// distribution" copy so /gm/economy's call site needs no changes.
+export default function Lorenz({ points, gini, width = 320, height = 320, title = "resource distribution" }) {
   const rows = Array.isArray(points) ? points.filter((r) => r && Number.isFinite(num(r.p))) : [];
 
   if (rows.length === 0) {
@@ -27,7 +29,7 @@ export default function Lorenz({ points, gini, width = 320, height = 320 }) {
     .join(" ");
 
   const giniText = Number.isFinite(num(gini, NaN)) ? num(gini).toFixed(2) : "n/a";
-  const label = `Lorenz curve of resource distribution. Gini coefficient ${giniText}`;
+  const label = `Lorenz curve of ${title}. Gini coefficient ${giniText}`;
 
   return (
     <div className="viz-root">

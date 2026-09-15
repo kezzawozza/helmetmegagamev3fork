@@ -4,10 +4,20 @@ import { VisuallyHiddenTable, EmptyChart } from "./StackedArea";
 // Server component -- one bar per turn, no interaction needed to read "minted
 // vs burned"; the shared value tokens plus the visible cap label carry it.
 //
-// `points`: [{ x, positive, negative }] -- positive = minted, negative =
-// burned this turn (both given as non-negative magnitudes; this component
-// draws the negative one downward from the zero line itself).
-export default function DivergingBars({ points, width = 640, height = 220 }) {
+// `points`: [{ x, positive, negative }] -- positive/negative are both given
+// as non-negative magnitudes; this component draws the negative one downward
+// from the zero line. `title`/`positiveLabel`/`negativeLabel` default to the
+// original mint/burn copy so every existing call site (Pulse.js) needs no
+// changes; a caller charting a different diverging pair (e.g. fulfilled vs
+// cancelled) overrides them instead of reading "Minted"/"Burned" on the wrong data.
+export default function DivergingBars({
+  points,
+  width = 640,
+  height = 220,
+  title = "Minted versus burned resources",
+  positiveLabel = "Minted",
+  negativeLabel = "Burned",
+}) {
   const rows = Array.isArray(points) ? points : [];
   if (rows.length === 0) {
     return <EmptyChart width={width} height={height} label="No mint/burn data for this range" />;
@@ -27,7 +37,7 @@ export default function DivergingBars({ points, width = 640, height = 220 }) {
   const slot = innerW / rows.length;
   const barW = Math.max(1, Math.min(24, slot - gap));
 
-  const label = `Minted versus burned resources over ${rows.length} turns`;
+  const label = `${title} over ${rows.length} turns`;
 
   return (
     <div className="viz-root">
@@ -76,17 +86,17 @@ export default function DivergingBars({ points, width = 640, height = 220 }) {
       >
         <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
           <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 2, background: "var(--chart-pos)" }} />
-          Minted
+          {positiveLabel}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
           <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 2, background: "var(--chart-neg)" }} />
-          Burned
+          {negativeLabel}
         </span>
         <span className="mono">peak {compactNumber(maxMag)}</span>
       </div>
       <VisuallyHiddenTable
-        caption="Minted versus burned per turn"
-        columns={["Turn", "Minted", "Burned"]}
+        caption={`${title} per turn`}
+        columns={["Turn", positiveLabel, negativeLabel]}
         rows={rows.map((r, i) => [r.x ?? i + 1, num(r.positive), num(r.negative)])}
       />
     </div>

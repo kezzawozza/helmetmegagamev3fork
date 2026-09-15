@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · A secret /analysis page for Desire balance
+
+✎ A comprehensive, unlisted dashboard at /analysis: every Desire claim ever, who's claiming what, which desires are most powerful or most rejected, catalog coverage, and more  
+✎ Reachable only by URL -- no login, never linked from any nav  
+− -
+
 ## 2026-09-15 · The Cerberon radio is capitalized in the web's place list
 
 ✎ The radio nets show a display name on the web; their Discord channel names stay lowercase as Discord requires
