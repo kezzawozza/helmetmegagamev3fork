@@ -2177,8 +2177,8 @@ model Character {
   appearance    String?
   turnPingOptIn Boolean @default(true)
 
-  // Take the road kit back up on arrival anywhere a mount may be out
-  // (db/lib/indoors.js#takeUpMountsOutdoors). Off by default: opt-in.
+  // Orphan: the "Automatically ride my mount" switch was removed. Nothing
+  // reads or writes this any more; kept rather than dropped (CARRY.md §3).
   autoMount     Boolean @default(false)
 
   // "Play from the web" (docs/systemdocs/HALL.md §6). While it is on, this

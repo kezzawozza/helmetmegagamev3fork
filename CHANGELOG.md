@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · The Automatically ride my mount switch is gone
+
+− The switch on the character sheet that put your horse and cart back on when you arrived somewhere. Mounts left outside now stay stowed until you equip them yourself
+
 ## 2026-09-15 · Chat's line sheet is just its verbs, and every label is sentence case
 
 ✎ The ⋯ sheet on a line has no title now, just Change, Delete, Look at, Photograph, Save to Notes. Take back is called Delete  

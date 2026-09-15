@@ -1215,7 +1215,8 @@ global CLIs. To make one able to build, run, and deploy:
   Bacchus was archived (`docs/archive/bacchus.yaml`), and `Character.missedMealStreak`
   joined it the same way when the fear dial replaced the Disappointed track
   (`MOOD.md`). `TagSource.CONDITION` became the newest of them when the mood
-  rework stopped projecting the dial onto a tag at all.
+  rework stopped projecting the dial onto a tag at all. `Character.autoMount`
+  joined them when the "Automatically ride my mount" switch was removed.
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning
