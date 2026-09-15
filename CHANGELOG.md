@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · The death DM no longer plugs Deadchat
+
+✎ That line existed to tell a new ghost the room was there, but it read as an ad for a room they're about to be dropped into anyway  
+− -
+
 ## 2026-09-15 · Torture is worth 3 points now, not 4
 
 ✎ The Torture Someone desire was overpriced next to the rest of the cruelty ladder  

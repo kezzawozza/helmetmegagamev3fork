@@ -1,5 +1,5 @@
 const { sendDm } = require("../../dm");
-const { openDeadchatTo, DEADCHAT_INVITE } = require("../../deadchat");
+const { openDeadchatTo } = require("../../deadchat");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("../../constants");
 const { stillAlive } = require("../../deathTeardown");
 const { revokeAllCharacterAccess } = require("../../accessSweep");
@@ -115,7 +115,7 @@ async function handleDeaths({ prisma, p, list, step, eachDm }) {
           await sendDm(
             prisma,
             death.discordUserId,
-            `You have died. ${death.reason}\n${DEADCHAT_INVITE}`,
+            `You have died. ${death.reason}`,
           ).catch((err) =>
             console.error(`Death DM to ${death.discordUserId} failed:`, err),
           );

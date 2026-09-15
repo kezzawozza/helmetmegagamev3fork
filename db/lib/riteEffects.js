@@ -25,7 +25,7 @@ const { resolveSeatConflicts, describeSeatConflicts } = require("./seatConflicts
 const { listObjectives, fulfillObjectives } = require("./objectives");
 const { setMood, MOOD_MIN } = require("./mood");
 const { normalizeChant, containsPhrase } = require("./rites");
-const { closeDeadchatTo, DEADCHAT_INVITE } = require("./deadchat");
+const { closeDeadchatTo } = require("./deadchat");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
 const { broadcastToZones } = require("./worldBroadcast");
 const {
@@ -97,7 +97,7 @@ async function killByRite(db, character, { turn = null, reason = null, content =
   const { member } = await applyDeathTeardown(db, { ...character, discordRoleId: roleId });
   if (member) {
     // The reason matters here more than anywhere else: a rite kills off-screen.
-    await sendDm(db, character.discordUserId, `You have died.${reason ? `\n${reason}` : ""}\n${DEADCHAT_INVITE}`, {
+    await sendDm(db, character.discordUserId, `You have died.${reason ? `\n${reason}` : ""}`, {
       source: "rite",
     }).catch(log(`death DM for ${character.name}`));
   }

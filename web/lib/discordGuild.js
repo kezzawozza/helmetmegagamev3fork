@@ -15,7 +15,7 @@ import {
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
 import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
-import { openDeadchatTo, DEADCHAT_INVITE } from "@lifeweb/db/lib/deadchat";
+import { openDeadchatTo } from "@lifeweb/db/lib/deadchat";
 import { applyDmPrefix, dmLogRow } from "@lifeweb/db/lib/dmPolicy";
 import { buildNickname } from "@lifeweb/db/lib/nicknameFormat";
 import {
@@ -446,7 +446,7 @@ export async function killCharacter(character, reason = null) {
     console.error(`Deadchat seat failed for ${character.id}:`, err),
   );
 
-  await sendDm(character.discordUserId, `You have died.${reason?.trim() ? `\n${reason.trim()}` : ""}\n${DEADCHAT_INVITE}`, {
+  await sendDm(character.discordUserId, `You have died.${reason?.trim() ? `\n${reason.trim()}` : ""}`, {
     source: "player_event",
   }).catch((err) => console.error(`Death DM failed for ${character.id}:`, err));
 }

@@ -214,16 +214,6 @@ async function deadchatHandle(discordUserId) {
   return handle;
 }
 
-// The line a death DM carries, so a player is told the room exists rather than left to find a new
-// channel appear with nothing said about it. `-#` subtext (CLAUDE.md): guidance under the message,
-// not competing with it.
-//
-// It names Deadchat in WORDS rather than as a <#id> mention, because this DM renders on both faces
-// and the web deliberately prints a channel mention as "somewhere" (db/lib/discordMarkup.js) — which
-// would make the one useful sentence useless exactly where a ghost is most likely to read it.
-const DEADCHAT_INVITE =
-  "-# You are still watching. The dead talk among themselves in Deadchat, and nobody living can hear it.";
-
 async function deadchatSpeakerName(character) {
   const base = character?.name ?? "Someone";
   const handle = await deadchatHandle(character?.discordUserId);
@@ -239,7 +229,6 @@ module.exports = {
   isDeadchatChannel,
   deadchatSpeakerName,
   forgetDeadchatHandles,
-  DEADCHAT_INVITE,
   DEADCHAT_ALLOW,
   DEADCHAT_DENY,
   CHANNEL_NAME: CHANNEL_NAME,
