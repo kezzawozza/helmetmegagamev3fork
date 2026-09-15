@@ -1373,7 +1373,7 @@ zones:
               - >-
                 If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear device and arm it, exploding Ravenheart.
               - >-
-                The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you two turns to get to the caves.
+                The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you 2 turns to get to the caves.
               - >-
                 You are formidable foes in battle, but if you are swarmed and attacked in melee, you may still die.
             difficulty: hard
@@ -1424,7 +1424,7 @@ zones:
               - >-
                 If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear device and arm it, exploding Ravenheart.
               - >-
-                The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you two turns to get to the caves.
+                The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you 2 turns to get to the caves.
               - >-
                 You are formidable foes in battle, but if you are swarmed and attacked in melee, you may still die.
             difficulty: hard

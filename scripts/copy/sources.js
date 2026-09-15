@@ -126,6 +126,14 @@ const COPY_CONSTANTS = new Set([
   "CONSOLE_TEXT",
   "REQUEST_TYPE_LABELS",
   "REQUEST_STATUS_LABELS",
+  // The verb strip's help sentences — one per action, on every button a player
+  // hovers (SHEET.md §2). The largest single block of player copy that no
+  // call-site matcher sees, since it is a bare slug -> sentence map.
+  "ACTION_HELP",
+  "BIND_VERBS",
+  "CHARACTER_STATUS",
+  "DESIRE_STATUS",
+  "LOBBY_STATUS",
 ]);
 
 // Object keys inside those constants (and inside command definitions) that
