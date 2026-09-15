@@ -2,14 +2,15 @@
 
 **Places moved off this page.** Zone, Location and Room are now authored on
 `/gm/dev/zones` (`docs/systemdocs/DEV-PANEL.md` §Zones), not in
-`docs/zones.yaml`. `db:sync-zones` used to be destructive — a dropped row
-lost its Discord footprint and everything in it — and that's exactly the
-kind of accident an admin UI with a soft retire is meant to stop happening
-again. `docs/zones.yaml` still exists on disk, and a later change turns
-`db:sync-zones` into a one-shot, additive `db:import-zones` (create missing
-rows, skip existing, never delete) for standing a game up the first time.
-Until that lands, treat the `docs/zones.yaml` row below as history, not
-instruction — don't hand-edit it expecting a sync to pick it up.
+`docs/zones.yaml`. The old `db:sync-zones` was destructive — a dropped row
+lost its Discord footprint and everything in it, which caused real
+incidents — and that's exactly the kind of accident an admin UI with a soft
+retire is meant to stop happening again. `docs/zones.yaml` still exists on
+disk, but only as the one-shot, additive `db:import-zones` now (create
+missing rows, skip existing, never update, never delete) — for standing a
+game up the first time, or adding a new region to a running one. Treat the
+`docs/zones.yaml` row below as history for everything else: hand-editing it
+no longer reaches a running game on its own.
 
 The remaining five hand-edited YAML files under `docs/` are the sole source
 of truth for their tables. Each has a sync that reconciles the database to
@@ -23,15 +24,15 @@ YAML and running the sync is the only way their rows change.
 
 | Master | Script | Table(s) | Match key | Removal behaviour |
 |---|---|---|---|---|
-| `docs/zones.yaml` | `db:sync-zones` | `Zone`, `Location`, `Room`, `LocationYield`, `Structure` (create-only, see §2) | `slug` | **Destructive** — a dropped Zone loses its DB row, its category, its `#summary` and its `Zone: {Name}` role; a dropped Location loses its channel and its `Location: {Name}` role; a dropped Room loses its thread and its stash (`RoomTag` cascades, `CARRY.md` §5). A `yield:` kind that leaves the YAML has its `LocationYield` row deleted; `base` is always written, but live drifted `current` is only reset when `base` itself changed (`LABORING.md` §3) |
+| `docs/zones.yaml` | `db:import-zones` | `Zone`, `Location`, `Room`, `LocationLink`, `LocationYield`, `Structure` | `slug` (a link by its endpoint pair, a yield/structure by location + kind/type) | **Additive, never deletes** — creates a row the database doesn't have yet, skips one that does, and never writes a `discord*Id` column. Keeping Discord true to the database afterwards is `db/lib/discordMirror/` (`npm run db:mirror`), not this importer |
 | `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b): it prunes a tag absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group absent from `docs/taggroups.yaml` too |
 | `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members or roles is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
 | `docs/labordrops.yaml` | `db:sync-labor-drops` | `LaborDropOption` | none (rebuilt whole) | **Destructive** — pure config, no player state ever points at a row. See `LABORDROPS.md` |
 
-**Run order matters:** zones → tags → roles → desires → documents → labor
-drops. Roles
+**Run order matters for the five routine syncs:** tags → roles → desires →
+documents → labor drops. Roles
 resolve a `starting_zone` and an optional `starting_location` by slug, and a
 Faction's zone by name, and validate
 `starting_tags` against the tag catalog; desires validate `requires.anyRoles`/
@@ -40,11 +41,15 @@ the Tag catalog, so it runs after both; documents validate against tags,
 roles *and* factions; labor drops validate every pool entry against the tag
 catalog and every scope against the zone/location catalogs, and has no
 dependents of its own, so it runs last. Running them out of order throws on a
-reference that would have existed.
+reference that would have existed. `db:import-zones` is a one-shot standing
+apart from this order — run it whenever `docs/zones.yaml` names a place that
+isn't in the database yet, before or after the rest, and follow it with
+`npm run db:mirror -- --apply` (or let the next bot restart or turn advance
+do it).
 
-`db:sync-narrowcast-channels` (§4) belongs right after `db:sync-zones`, because
-a registry entry's static `roleViewZones` grants name zone roles the zone sync
-creates.
+`db:sync-narrowcast-channels` provisions the `radio` category from its own
+registry; a zone role it grants against comes from whatever last ran
+`db:import-zones` and `db:mirror`.
 
 ## 2. Where they differ, in detail
 
@@ -94,68 +99,40 @@ notch weaker. `roles.yaml`'s `silo:` names a Room slug, and the sync writes it
 only while the faction has no silo at all. Re-pointing a silo in play writes a
 non-null id, which the sync never touches — so a Leader's choice is as safe as
 under create-only, and a faction that predates the column still gets the one
-the YAML names for it. Rooms come from `db:sync-zones`, which runs first; an
-unknown slug warns and skips rather than throwing.
+the YAML names for it. Rooms come from `db:import-zones`; an unknown slug
+warns and skips rather than throwing.
 
-A room's `stash:` is the same shape of promise, and the one that had to be
-rebuilt to keep it. It takes either a flat list of slugs (one each) or a map
-with `resources:` and an `items:` map of slug → count. `resources` is written
-only while the room holds none. The items half is keyed on
-**`Room.seededStashSlugs`** — the slugs this room has ever been given — so a
-slug is seeded **once, ever**, and a re-sync can neither undo a player
-carrying the anvil off nor quietly duplicate it.
+A room's `stash:` in `docs/zones.yaml` is history now, not instruction.
+`db:import-zones` never seeds one — a stash line in the YAML for a newly
+created room is reported with "seed from /gm/dev/zones, not the importer"
+instead of being written. That is the fix for what used to be a real faucet:
+the old sync restocked a stash on every run because taking the *last* unit
+of an item deletes its `RoomTag` row (`db/lib/tagWrites.js#dropRoomTag`), so
+a room players had stripped bare read as one that had never been seeded, and
+on 2026-09-10 a single `db:sync` put 139 items back into a live game that
+way. `Room.seededStashSlugs` still exists and still means "never seed this
+slug again", but the only writer of it now is the "Seed these items now"
+button on `/gm/dev/zones`. `db:dedupe-room-stash` (§4) is the cleanup that
+followed the 2026-09-10 incident.
 
-**It used to be keyed on whether a `RoomTag` row existed, and that was wrong
-in the one case nobody would notice.** Taking the *last* unit deletes the row
-(`db/lib/tagWrites.js#dropRoomTag`), so a room players had stripped bare was
-indistinguishable from one that had never been seeded, and every re-sync
-restocked it. A partial stack was safe; an emptied one was a faucet. On
-2026-09-10 a single `db:sync` put 139 items back into a live game — four wax
-stamps, a Graywall Key, three Cerberus Keys, a horse, 48 obols — on top of
-the copies players were already carrying. `db:dedupe-room-stash` is the
-cleanup that followed (§4).
+A Location's `structures:` is a promise the importer keeps at creation time
+only. It lists the slugs of placement tags that are always standing there
+(the Square's cross), and `db:import-zones` creates one `COMPLETE` `Structure`
+row per slug for a **newly created** Location — no builder, no payer — only
+while nothing of that type in `PRESENT_STATUSES` stands there yet. It never
+touches structures on a Location that already existed (skipped by slug, like
+everything else), and it never deletes one. Because tags may not have synced
+yet, a database with no `Tag` rows warns and skips; run `db:sync-tags` and
+`db:import-zones` again to pick those up.
 
-Two details of the new rule matter:
+### The importer plus the mirror
 
-- a slug is recorded **even when a `RoomTag` row already existed** — the room
-  demonstrably has the item, so the seed is spent either way;
-- an **unknown tag is skipped without being recorded**, because zones sync
-  before tags and a first-ever run warns and skips (`LAUNCH.md` §5 runs the
-  zone sync twice for exactly this). Recording it on that pass would strand
-  the item forever. This is not hypothetical: nine stash lines were skipped
-  that way at the 2026-09-10 game start because their `Tag` rows did not exist
-  yet, and seeded correctly on a later run.
-
-A Location's `structures:` is the third promise of that shape. It lists the
-slugs of placement tags that were always standing there (the Square's cross),
-and the sync creates one `COMPLETE` `Structure` row per slug — no builder, no
-payer — only while nothing of that type in `PRESENT_STATUSES` stands there.
-A razed (`RUINED`) or abandoned one is re-raised on the next run; a standing or
-half-built one is left alone. The sync never deletes a `Structure`. Because
-tags sync after zones, a database that has never seen `db:sync-tags` warns and
-skips on its first zone sync; `LAUNCH.md` §5 runs the zone sync a second time
-for exactly this reason.
-
-### One-time vs every-run
-
-`syncZones` is the one with a split personality:
-
-- **One-time:** Discord category, channel and role *creation*, and their
-  *names*. Keyed on the id columns being null. Renaming a zone or Location in
-  the YAML never renames a live channel. (One exception: a zone or Location
-  role recorded in the DB but **missing from the guild** is recreated —
-  someone deleted it by hand, the doctor reports it, this repairs it.)
-- **Every run:** channel topics, permission overwrites, category and channel
-  ordering, each Location's Room threads, its pinned anchor message, the
-  travel graph, `seatZoneId`, the map polygons (dormant), the cursed
-  role's colour, and the floored seeds (room stashes, Location structures).
-
-The Room threads and the anchors are the every-run items that also cover
-*freshly* provisioned Locations — provisioning creates channels, never
-threads or messages. Both are gated on a content hash (`Room.postHash`,
-`Location.anchorHash`), so a re-sync with no YAML edits makes no Discord
-writes for them at all, and a changed body is rewritten in place rather than
-recreated. See `CHANNELS.md` §4.
+`db:import-zones` only ever writes the database, and only rows that don't
+exist yet — it never touches Discord and never writes a `discord*Id` column.
+Turning a freshly created row into a category, channel, role or thread is
+`db/lib/discordMirror/`'s job instead, run by `npm run db:mirror -- --apply`
+or picked up automatically on the bot's next restart, the next turn advance,
+or the next queue drain.
 
 That hash is also what makes a **live room** cheap. A Room may carry
 `live: <key>` naming a renderer in `db/lib/roomLive.js`; its starter message
@@ -307,51 +284,16 @@ by slug before every row necessarily exists: TagGroup scalars → Tag scalars +
 `groupId` → `parentTag`/`requiredTag` links → `TagGroup.requiredTag` links →
 `requirement.skills`. Each pass writes only when something actually changed.
 
-`syncZones` runs more passes now that a zone, a Location and a Room are three
-separate tables:
-
-0. **Parse + validate.** No writes at all. A malformed master fails the whole
-   run before anything is touched.
-1. **DB upsert**, in sub-passes: **1a** zones by slug (cave levels flattened
-   out of their group's `levels:` list, parents before children so
-   `parentZoneId` resolves in one sweep); **1b** a second sweep stamping
-   `seatZoneId` (`parentZoneId ?? id`) once every zone id exists; **1c**
-   Locations by slug (a Location whose zone changed keeps its channel and
-   role — a text channel *can* reparent, done later by the ordering pass);
-   **1c-bis** Rooms by slug (a Room whose location or `kind` changed can't
-   just move — a thread can't reparent and can't change type — so its old
-   thread is deleted and it's recreated fresh by the room-thread pass); **1d**
-   the travel graph, both directions explicit.
-2. **Discord provisioning**, create-only, in two sub-passes: **2a** one role
-   per presence zone and one per Location; **2b** categories, `#summary`
-   channels and Location channels per `zoneChannelSpec`/`locationChannelSpec`.
-   Groups before levels, so a level's Locations can parent onto its group's
-   category.
-3. **Reconcile**, every run, for everything already provisioned — channel
-   topics and overwrites. Freshly provisioned zones/Locations skip the
-   overwrite reconcile (creation just applied the spec) but still get
-   ordered, threaded and anchored below. Category and channel ordering run
-   next, then **Room threads, then anchors** — in that order, because an
-   anchor's body embeds its Rooms' thread mentions.
-4. **Prune.** Rooms first (their threads live under Location channels), then
-   Locations (channel, role, row — characters standing there are set null and
-   the doctor reports them), then zones.
-5. **`#turns` access**, last — its view grants are keyed on zone roles, and
-   pass 2a can recreate a role with a new id partway through the run.
-
-Two implementation details in pass 3 are load-bearing:
-
-- Overwrites are reconciled **one request per target**, never a `PATCH` of the
-  whole array. A wholesale replace would evict overwrites this sync doesn't own
-  — the special channels' member grants, on the channels this same function is
-  reused for.
-- The delete half only touches a **managed set**: the GM role, the spectator
-  role, the cursed role and every zone/Location role. `@everyone` is
-  deliberately *not* in it — its `ViewChannel` deny is the single overwrite
-  the entire privacy model rests on, and excluding it structurally means no
-  future edit to the spec can turn this pass into the thing that strips a
-  zone or Location's privacy. Having the zone/Location roles in the set is
-  what makes a stray `Zone: Fortress` overwrite on a Town channel self-heal.
+Zones no longer have a multi-pass sync of their own. `db:import-zones`
+(`db/lib/importZones.js`) is the one-shot, additive half: it parses
+`docs/zones.yaml` with the same `parseZonesYaml`, creates a
+Zone/Location/Room/LocationLink/LocationYield/Structure the database doesn't
+have yet by slug, and skips — never updates, never deletes — anything that's
+already there. Keeping Discord true to whatever the database now holds is the
+other half, and it isn't the importer's job at all: `db/lib/discordMirror/`
+(`npm run db:mirror`) diffs the live guild against the rows and provisions,
+renames or reparents to match, on the bot's restart, the end of every turn,
+and a queue drain, as well as by hand.
 
 ## 3. Restart Game
 
@@ -429,30 +371,34 @@ holds keeps everything it references.
 
 Everything that runs from a terminal lives under `db/scripts/`: `sync/` for
 the YAML masters (§1) and `ops/` for the tools below. There are no repair
-backfills left; the every-run reconcile in `db:sync-zones` plus the channel
-doctor fix drift by diffing rather than by a script per symptom, and a
-pre-launch wipe rebuilds everything else from YAML.
+backfills left; `db:mirror` plus the channel doctor fix drift by diffing
+rather than by a script per symptom, and a pre-launch wipe rebuilds
+everything else from YAML.
 
 | Command | What it does |
 |---|---|
-| `db:sync` | All seven masters in the working order (zones, narrowcast channels, tags, roles, desires, documents, labor drops). |
+| `db:sync` | The five routine masters in order (tags, roles, desires, documents, labor drops), then a structure Discord mirror pass. Zones are not part of this run — see `db:import-zones` in §1. |
+| `db:import-zones` | One-shot, additive: creates whatever `docs/zones.yaml` names that the database doesn't have yet, skips the rest, never deletes. **Dry run by default**; `-- --apply` writes. See §1. |
+| `db:mirror` | Diffs the live Discord guild against the database and provisions, renames or reparents to match — the repair path for zones/locations/rooms/narrowcast/Deadchat now. **Dry run by default**; `-- --apply` writes, `-- --full` adds the member sweeps. `db/lib/discordMirror/`. |
 | `db:doctor` | The channel doctor from a terminal. **Dry run by default**; `-- --apply` repairs, `-- --full` adds the expensive scope (overwrites, threads, invites, narrowcast) on top of the cheap role-membership checks. See `CHANNELS.md` §6. |
 | `db:dedupe-room-stash` | Dry-run by default (`-- --apply`): removes room-stash items a re-sync re-created over a stack players had emptied, and the copies of those since picked up. Deletes the **floor** copy first — whoever looted the room keeps what they carried off — and reaches into a bag only where the injected unit was itself picked up, taking it from whoever took it, by the audit trail. Proof is a `RoomTag.createdAt` inside a known sync window, or a stack drawn to zero *before* that window with more drawn out after (the row that would prove it is destroyed when somebody empties it). Writes a `stash_dedupe` audit row per deletion and DMs each player "A duplicate item was removed."; idempotent — a second run reads those audit rows and takes nothing twice. Written for the 2026-09-10 incident above and kept because the evidence trail is worth having if it ever recurs. |
 | `db:prune-tags` | Dry-run by default (`-- --apply`): the destructive counterpart to `db:sync-tags` — deletes any Tag row absent from `docs/tags.yaml`, skipping GM-created and referenced tags, then any TagGroup absent from `docs/taggroups.yaml` once no surviving tag sits in it. |
 | `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Add `-- --include-catatonic` to also accept the Catatonic repaint (`CATATONIC_ROLE_COLOR` + the ` • Catatonic` suffix), which otherwise can never match — harmless while a character claims the role, but it strands one left by a finished game. "Permissionless" here means **`0` or exactly @everyone's bitfield**: Discord's create-role endpoint copies @everyone's permissions when the field is omitted, which `ensureCharacterRole` used to do, so a stricter test made this script a silent no-op. Guards the 250-role guild cap. |
-| `db:prune-stale-channels` | Dry-run by default (`-- --apply`): deletes categories, channels and `Zone:`/`Location:` roles left behind by a **previous game** — objects no DB row points at any more. `db:sync-zones` cannot reach these: it only prunes a Zone/Location row that left `docs/zones.yaml` while the DB still holds its Discord ids, and the doctor never deletes a channel at all. So a retired layout lingers beside the live one under a category of the same name. Conservative by construction, with no hardcoded ids — a category is a candidate only when its name matches a live `Zone.name` *and* nothing in the DB references it, channels are only ever deleted as that category's children, and the run aborts outright if any candidate turns out to be referenced. |
+| `db:prune-stale-channels` | Dry-run by default (`-- --apply`): deletes categories, channels and `Zone:`/`Location:` roles left behind by a **previous game** — objects no DB row points at any more, which nothing else reaches: `db:mirror` only ever adopts or creates, never deletes, and the doctor never deletes a channel either. So a retired layout lingers beside the live one under a category of the same name. Conservative by construction, with no hardcoded ids — a category is a candidate only when its name matches a live `Zone.name` *and* nothing in the DB references it, channels are only ever deleted as that category's children, and the run aborts outright if any candidate turns out to be referenced. |
 | `db:report-inactive-characters` | Read-only: ALIVE characters with no activity since turn 1, and anyone who has left the guild. |
 | `db:inspect-character` | Read-only, takes a name fragment: one character's `webOnly` (with the cooldown clock, and a warning when a flip left Room threads behind), `Character.concealed` against the gear actually equipped, any forced name, what `presentedIdentity` resolves to right now, and whether the equipped set would still pass the slot rules. Neither switch has a trace anywhere else a GM can read, and concealment is derived rather than stored, so "it says true and does nothing" is the normal state to have to explain. See `PROXYING.md` §5. |
-| `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#cerberon` channel from the special-channels registry. Run after `db:sync-zones`. |
+| `db:sync-narrowcast-channels` | Provisions **and reconciles** the `radio` category and its `#cerberon` channel from the special-channels registry — the same structure `db:mirror` now also provisions, kept as a scoped standalone. |
 | `db:rebuild-info-channel` | Destructive rebuild of `#info` from `infochannel.yaml` (`INFOCHANNEL.md`). |
 | `db:set-bot-avatar` | Pushes `docs/assets/bot-icon.png` to the bot user's avatar. |
-| `db:open-rp-channels` | Between games: opens every roleplay channel to the whole guild. Dry-run by default; writes an undo snapshot first. `db:sync-zones` re-walls them. |
+| `db:open-rp-channels` | Between games: opens every roleplay channel to the whole guild. Dry-run by default; writes an undo snapshot first. The next `db:mirror` re-walls them. |
 | `db:backup` | Takes a Railway volume backup now (`scripts/db/railway-backup.sh`). `migrate.sh` runs it before every migration. |
 
 ## 5. Where the code lives
 
-`db/lib/syncZones.js`, `syncTags.js`, `syncRoles.js`, `syncDesires.js`,
-`syncDocuments.js`, `syncSpecialChannels.js`, each with a thin
-`db/scripts/sync/*.js` terminal wrapper (`db/scripts/sync/all.js` runs them in order). `db/lib/zoneChannelSpec.js` is the
-one description of a zone's Discord layout; `db/lib/channelDoctor.js` is the
-reconciler; `db/lib/fullWipe.js` is the Restart Game nuke.
+`db/lib/syncTags.js`, `syncRoles.js`, `syncDesires.js`, `syncDocuments.js`,
+`syncSpecialChannels.js`, each with a thin `db/scripts/sync/*.js` terminal
+wrapper (`db/scripts/sync/all.js` runs them in order). `db/lib/importZones.js`
+is the zones importer, reusing `db/lib/syncZones/parse.js#parseZonesYaml`;
+`db/lib/discordMirror/` is the reconciler now (`db/lib/channelDoctor.js` is a
+thin alias over it); `db/lib/zoneChannelSpec.js` is the one description of a
+zone's Discord layout; `db/lib/fullWipe.js` is the Restart Game nuke.

@@ -1,9 +1,10 @@
 // A quest room is the only Room docs/zones.yaml does not master — a GM
-// stages it at runtime, so its slug is in no YAML file.
-// db/lib/syncZones/sync.js's pass-4 prune deletes every Room whose slug the
-// YAML does not name; without the `questId: null` guard, the next
-// db:sync-zones silently deletes every live quest. Checked at the source
-// (a Prisma where-clause), same trade discordMarkup.test.js makes.
+// stages it at runtime, so its slug is in no YAML file. That used to matter
+// for a reason this file checked directly: the old zones sync deleted every
+// Room whose slug the YAML didn't name, and a `questId: null` guard on that
+// prune was the only thing stopping it from deleting every live quest. That
+// prune is gone now — `db/lib/importZones.js` is additive-only and never
+// deletes anything — so there is no delete pass left to guard against.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -13,17 +14,6 @@ const { accessibleRooms } = require("../lib/roomAccess");
 const { questRoomKind, turnsRemaining, ALREADY_MOVED, INTERACT_PROMPT } = require("../lib/quests");
 const { roomAffordances, QUEST_INTERACT_PREFIX } = require("../lib/placeAffordances");
 const questText = require("../lib/questText");
-
-test("the zone sync's stale-room prune exempts quest rooms", () => {
-  const source = fs.readFileSync(path.join(__dirname, "..", "lib", "syncZones", "sync.js"), "utf8");
-  const match = source.match(/const staleRooms = await prisma\.room\.findMany\(\{[\s\S]*?\}\);/);
-  assert.ok(match, "could not find the stale-room prune in syncZones/sync.js — has it been renamed?");
-  assert.match(
-    match[0],
-    /questId:\s*null/,
-    "the stale-room prune must carry `questId: null`, or a sync deletes every live quest",
-  );
-});
 
 test("a quest room is only private when a gate is actually set", () => {
   assert.equal(questRoomKind({ accessTagSlugs: [], allowedCharacterIds: [] }), "PUBLIC");

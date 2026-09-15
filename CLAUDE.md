@@ -200,7 +200,7 @@ you pick the right doc — they are never enough to change code with.
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
 | [`INTERCEPT.md`](docs/systemdocs/INTERCEPT.md) | You're touching the Intercept verb — laying in wait, Safe and Ambush, the hold on somebody's movement and its Release, or **anything that asks whether a character may move** (`heldReasonFor`) |
 | [`ATTACK.md`](docs/systemdocs/ATTACK.md) | You're touching the Attack verb — the band gate that refuses a hopeless fight, the hold it puts on **both** sides, Break off, or the **Other** lens on `/gm/turns` |
-| [`QUESTS.md`](docs/systemdocs/QUESTS.md) | You're touching Quests — the `/gm/dev?s=quests` panel, a GM-staged room and its **Interact** button, the quest gates, the noticeboard manager or the zone broadcaster — or **anything that prunes Rooms** (`Room.questId` is the one row `db:sync-zones` must not delete) |
+| [`QUESTS.md`](docs/systemdocs/QUESTS.md) | You're touching Quests — the `/gm/dev?s=quests` panel, a GM-staged room and its **Interact** button, the quest gates, the noticeboard manager or the zone broadcaster — or **anything that touches a Room's `questId`**, which marks a room a GM minted at runtime rather than one `docs/zones.yaml` named |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
@@ -312,14 +312,18 @@ npm run db:backups                   # what is in the bucket. EXITS 1 if the
                                      #   how a dead backup system announces
                                      #   itself. See BACKUPS.md.
 
-# YAML masters -> DB. `db:sync` runs all eight in the working order; the
-# individual scripts exist for one master at a time. See SYNC.md.
-npm run db:sync                      # zones, narrowcast channels, deadchat,
-                                     #   tags, roles, desires, documents,
-                                     #   labor drops.
-npm run db:sync-zones                # docs/zones.yaml      (destructive; zones,
-                                     #   Locations, Rooms, their channels/
-                                     #   threads + roles)
+# YAML masters -> DB. `db:sync` runs the five routine ones in the working
+# order, then a Discord mirror pass; the individual scripts exist for one
+# master at a time. See SYNC.md.
+npm run db:sync                      # tags, roles, desires, documents, labor
+                                     #   drops, then db:mirror -- --apply.
+npm run db:import-zones              # docs/zones.yaml -> Zone/Location/Room/
+                                     #   LocationLink/LocationYield/Structure.
+                                     #   One-shot, additive: creates what's
+                                     #   missing, skips what exists, never
+                                     #   updates or deletes, never writes a
+                                     #   discord*Id. DRY RUN unless given
+                                     #   `-- --apply`. Not part of db:sync.
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
 npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced)
 npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
@@ -328,12 +332,14 @@ npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
 npm run db:sync-documents            # docs/documents.yaml  (destructive)
 npm run db:sync-labor-drops          # docs/labordrops.yaml (destructive; last)
                                      #   — see LABORDROPS.md
-npm run db:sync-narrowcast-channels  # #watch provisioning + reconcile.
-                                     #   Run AFTER db:sync-zones.
+npm run db:sync-narrowcast-channels  # #watch provisioning + reconcile —
+                                     #   db:mirror also provisions this now,
+                                     #   this is the scoped standalone.
 npm run db:sync-deadchat             # #deadchat provisioning + reconcile
                                      #   (db/lib/deadchat.js). Safe to re-run;
-                                     #   touches no per-member seat. Also runs
-                                     #   inside db:sync.
+                                     #   touches no per-member seat —
+                                     #   db:mirror also provisions this now,
+                                     #   this is the scoped standalone.
 npm run db:sync-info-channel         # #info, edited in place. The default:
                                      #   an edit notifies nobody, a repost
                                      #   pings every thread follower.
@@ -378,8 +384,9 @@ npm run db:prune-orphan-roles        # deletes Discord character roles no living
                                      #   match the normal signature.
 npm run db:prune-stale-channels      # deletes categories, channels and zone/
                                      #   location roles from a PREVIOUS game
-                                     #   that no DB row references. db:sync-
-                                     #   zones cannot see these. DRY RUN unless
+                                     #   that no DB row references. Nothing
+                                     #   else reaches these — db:mirror only
+                                     #   ever creates or adopts. DRY RUN unless
                                      #   given `-- --apply`.
 npm run db:check-config              # the GameConfig field registry vs. the
                                      #   schema (db/lib/gameConfigFields.js).
@@ -535,7 +542,7 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 
 | Role | Source | What it gates |
 |---|---|---|
-| **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:sync-zones` | Opens the zone's `#summary`, and — via `#turns`'s own role grants — the standing channels. Swapped by travel; reconciled by the channel doctor. |
+| **Zone role** | `Zone.discordRoleId`, one per presence zone ("Zone: Town"), created by `db:mirror` | Opens the zone's `#summary`, and — via `#turns`'s own role grants — the standing channels. Swapped by travel; reconciled by the channel doctor. |
 | **Location overwrite** (not a role) | A per-member permission overwrite on the Location's channel, written by `db/lib/locationMove.js` | Channel access: holding it is what shows you the one Location channel a character actually stands in. Swapped by every location change; reconciled by the channel doctor's `location-occupancy` check. Locations wear **no** Discord role — 56 of them would have eaten 56 of the guild's 250, and Discord allows 1000 overwrites per channel. |
 | **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone role and the Location overwrite** instead (`CHANNELS.md` §3). |
 | **GM role** | `DISCORD_GM_ROLE_ID` env var, **or** `TRIAL_GM_ROLE_ID` in `db/lib/roleIds.js` | `/gm` pages, the `/gm` and `/message` slash commands, and the GM's standing channel overwrites. Checked via REST (`isGm`), not stored on any model. The two are access-identical — `gmRoleIds()` is the only list, and the roster on `/gm/dev?s=gamemasters` is the one surface that tells them apart. |
@@ -548,7 +555,7 @@ state, plus one env-configured admin role. `Faction` is **not** one of them
 | **Turn-ping role** | `DISCORD_TURN_PING_ROLE_ID` env var | Plain opt-in notification, toggled from `/character`. |
 
 There is one more role family, and it is per-zone rather than global. A
-**`GM: <Zone>`** role (`Zone.gmRoleId`, provisioned by `db:sync-zones` beside
+**`GM: <Zone>`** role (`Zone.gmRoleId`, provisioned by `db:mirror` beside
 the access role) is what opens that zone's category, `#summary` and Location
 channels to a GM — the global GM roles above no longer open any of them. Which
 ones a GM holds comes from `GmZoneView`, the zones they picked from the
@@ -888,7 +895,7 @@ rebuild from the YAML masters and a wipe — someone's afternoon is in that
 database.
 
 - **Stop and ask before anything that can lose data on the live database.**
-  A migration that drops a column, `db:sync-zones`, `db:sync-documents`,
+  A migration that drops a column, `db:sync-documents`,
   `db:prune-tags -- --apply`, `db:prune-orphan-roles -- --apply`,
   `db:prune-stale-channels -- --apply`, a `#info` rebuild, a Restart Game
   wipe — none of these are "just do it" any more. **Restart Game got sharper,
