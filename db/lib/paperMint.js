@@ -2,6 +2,7 @@
 // `custom: true` so db:sync-tags never sees it, plus `ephemeral: true` so a
 // Restart Game sweeps it up (docs/systemdocs/PAPERWORK.md). Takes `prisma` (or a tx), stays off the @lifeweb/db barrel.
 
+const { TAG_CATEGORY } = require("./constants");
 const {
   PAPER_GROUP_SLUG,
   paperName,
@@ -27,7 +28,7 @@ const sealSlug = (characterId, attempt) => customSlug("envelope", characterId, a
 
 // Every runtime paper row wears the same shape. Weightless on purpose (CARRY.md's band table has a 0 rung).
 const PAPER_SHAPE = {
-  category: "items",
+  category: TAG_CATEGORY.ITEMS,
   pointCost: 0,
   custom: true,
   ephemeral: true,

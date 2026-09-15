@@ -2,6 +2,7 @@
 // A photo lives in the PAPER group for its chip colour only — it carries no `paperKind`, so it can never be written on, sealed, or pinned to a noticeboard.
 
 const { PAPER_GROUP_SLUG, noteCode } = require("./paper");
+const { TAG_CATEGORY } = require("./constants");
 const { createWithRetry } = require("./paperMint");
 const { photoName } = require("./photo");
 const { addToStack } = require("./tagWrites");
@@ -14,7 +15,7 @@ function photoSlug(characterId, attempt = 0) {
 }
 
 const PHOTO_SHAPE = {
-  category: "items",
+  category: TAG_CATEGORY.ITEMS,
   pointCost: 0,
   custom: true,
   ephemeral: true,

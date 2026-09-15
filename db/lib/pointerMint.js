@@ -4,6 +4,7 @@
 // A pair is found by slug alone: `custom-pointer-<code>-a`/`-b`, the same "slug prefix" idiom db/lib/disguiseMint.js uses. `<code>` is a random
 // 3-digit number, retried on collision against BOTH halves at once. Takes `prisma` (or a tx), stays off the @lifeweb/db barrel.
 const { createWithRetry } = require("./paperMint");
+const { TAG_CATEGORY } = require("./constants");
 const { addToStack } = require("./tagWrites");
 
 const POINTER_SLUG_PREFIX = "custom-pointer-";
@@ -46,7 +47,7 @@ async function mintPointerPair(db, baseTag) {
     });
     if (existing) continue;
     const shape = (half) => ({
-      category: "items",
+      category: TAG_CATEGORY.ITEMS,
       groupId,
       name: "Pointer Device",
       description: POINTER_DESCRIPTION,

@@ -75,6 +75,16 @@ Discord's way of rendering subtext; the web renders a SYSTEM row as
 `db/lib/scene.js#sceneLine` / `#sceneLineAt` is the one writer, best-effort
 like every other archive write.
 
+**The intercom passes `channelKind: "intercom"` instead of the default
+`"scene"`**, and that is what SystemRow (`web/app/(app)/chat/Feed.js`) reads
+to draw it `.chat-intercom` — bold, regular size, still no face — rather than
+`.chat-subtext`. It writes through `sceneLineAt` the same as every other
+ambient line, but it isn't one: CLAUDE.md's "Bot message style" calls it out
+as the deliberate exception to `-#`, a loudspeaker rather than scenery, full
+size on Discord too. Until 2026-09-15 the web side had no way to tell the two
+apart, so an announcement carrying `@here` on Discord rendered as the
+smallest, quietest text on the page.
+
 Beside, never instead: the poster still posts. And never through the outbox,
 which handles `WEB` rows only — a SYSTEM row can no more be re-posted into the
 channel it came from than a proxied one can.
@@ -1077,7 +1087,10 @@ a 48px head and a one-line composer:
   interval while it is mounted, for a key granted while the room stays quiet.
 - **A `SYSTEM` row renders as `.chat-subtext`**: muted, small, no face. That is
   the web half of the `-#` those lines go out as on Discord
-  (`db/lib/ambientLine.js`). Phase 4 is what actually writes them.
+  (`db/lib/ambientLine.js`). Phase 4 is what actually writes them. **The
+  intercom is the one `SYSTEM` row that isn't scenery** — `channelKind:
+  "intercom"` (§2) draws it `.chat-intercom` instead: bold, regular size,
+  still no face.
 - **The composer is hidden where `canSpeak` is false** — every place for a GM
   (§5a). In its place, one line saying so. The **Location is the exception**:
   it is `canSpeak: false` and still draws the box, command-only, so `/shout`

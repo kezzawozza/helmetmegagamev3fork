@@ -615,6 +615,14 @@ other. Nothing player-initiated ever grants or removes Hunger, the
 streak, or Dying via this path — no request type, no picker entry.
 `db/lib/hungerPass.js#runHungerPass` is the only writer of all three.
 
+A character born mid-close — Metempsychosis, or any death this same
+`resolveNeeds()` run reincarnated (`stagedPush`/`dyingDeath`/`ascension`/
+`nukeExplosion`/`catatonicDeath`/`xom` all route through `applyDeathToRow`,
+which can trigger a rebirth) — is excluded from this turn's bill: `db/index.js`
+passes a `bornBefore` cutoff, taken before any pass runs, and the pass never
+sees a character created after it. They start paying upkeep the turn after
+the one they woke up in.
+
 Per character, at the close of every turn:
 
 | State | Outcome |
@@ -698,6 +706,9 @@ can see the charge on `/gm/audit`.
 
 The Motorcycle (the other member of `FAST_TRAVEL_SLUGS`) is **not** charged —
 it is a machine, and nothing burns fuel for it.
+
+Same `bornBefore` cutoff as Hunger above, and for the same reason: a soul
+reincarnated mid-close hasn't had the horse long enough to owe its feed yet.
 
 ## 6. Auto-labor
 

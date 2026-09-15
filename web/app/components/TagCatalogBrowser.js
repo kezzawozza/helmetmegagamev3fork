@@ -21,6 +21,10 @@ const CUSTOM_TAG_TOOLTIP =
 // EffectComposer stages an add/remove) — passed as `renderActions(tag, {
 // held, staged })`. Everything else (search, tabs, grouping, held/staged
 // badges, description disclosure) is shared.
+// Not a Tag.category — a tab label that cannot collide with one, since every
+// real category comes from docs/tags.yaml's `categories:` map.
+const MINTED_TAB = "Minted";
+
 export default function TagCatalogBrowser({
   tags,
   heldTagIds = EMPTY_SET,
@@ -52,15 +56,44 @@ export default function TagCatalogBrowser({
   const tagsById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
   const uniqueTags = useMemo(() => [...tagsById.values()], [tagsById]);
   const sorted = useMemo(() => sortForMode(uniqueTags, "group", tagsById), [uniqueTags, tagsById]);
-  const categories = useMemo(() => menuCategories(sorted), [sorted]);
+
+  // Runtime-minted rows — every note a player wrote, every corpse, crate and
+  // photograph — get their OWN tab rather than swelling Items. There can be
+  // thousands of them and they are nobody's idea of a catalog, so a GM looking
+  // for a longsword should not scroll past a hundred letters to reach it.
+  //
+  // Bucketed off `Tag.ephemeral`, the column that already means exactly this
+  // (/gm/dev's quest picker filters on it for the same reason), NOT off the
+  // category string. Until 2026-09-26 the split happened by accident, because
+  // the minters wrote a lowercase "items" that sorted beside the real "Items" —
+  // useful-looking, but a second spelling of a category is a bug with a side
+  // effect, and it made those rows invisible in the /chat Things drawer. This
+  // is the same separation done on purpose.
+  const { catalog, minted } = useMemo(() => {
+    const catalogRows = [];
+    const mintedRows = [];
+    for (const t of sorted) (t.ephemeral ? mintedRows : catalogRows).push(t);
+    return { catalog: catalogRows, minted: mintedRows };
+  }, [sorted]);
+
+  const categories = useMemo(
+    () => [...menuCategories(catalog), ...(minted.length ? [MINTED_TAB] : [])],
+    [catalog, minted],
+  );
   const active = categories.includes(category) ? category : categories[0];
 
   const searching = query.trim().length > 0;
 
   const visible = useMemo(() => {
-    const pool = searching ? sorted : sorted.filter((t) => t.category === active);
+    // A search still crosses everything, minted rows included — the tabs are a
+    // browsing aid, and somebody who types a letter's title wants that letter.
+    const pool = searching
+      ? sorted
+      : active === MINTED_TAB
+        ? minted
+        : catalog.filter((t) => t.category === active);
     return filterTagsByQuery(pool, query);
-  }, [sorted, searching, active, query]);
+  }, [sorted, catalog, minted, searching, active, query]);
 
   const groups = useMemo(() => {
     const byKey = new Map();

@@ -26,9 +26,24 @@ is custom too and must survive a restart.
 **`Tag.description` is broadcast to every browser.** `getVisibleTags`
 (`web/lib/referenceData.js`) ships the whole catalog into `TagsProvider` on
 every page. A letter's text in that column would publish every letter in the
-game to everyone playing it. So the text lives in `Tag.paperText`, which
-`TAG_CHIP_FIELDS` never selects, and the description is composed per request,
-per viewer.
+game to everyone playing it. So the text lives in `Tag.paperText`, and the
+description is composed per request, per viewer.
+
+`web/lib/tagChipRows.js` is where that happens, and it is worth knowing which
+half of it you are holding. `chipSelect()` takes the paper column;
+`composeChipTag(row, ctx)` is the only thing that reads it, and it drops the
+column in both of its branches before anything crosses. `TAG_CHIP_FIELDS`, the
+narrow half, never selects it at all — which is the safe default, and why the
+store's catalog (`web/lib/pointBuyCatalog.js`, which spreads its whole row into
+its DTO) still takes that one.
+
+**A surface that renders a tag needs both halves.** Select the columns and skip
+the compose and a paper row arrives with `description` null and no `paper` — so
+it draws a chip with nothing behind it. That is not hypothetical: five GM
+surfaces drifted onto the narrow select and every written note on `/gm/turns`
+hovered blank until 2026-09-26. `paperKind` now rides in the narrow select for
+exactly this reason, so an uncomposed row is self-describing and `TagDetails.js`
+says so rather than rendering silence.
 
 `Tag.paperTitle` sits beside it and is the opposite kind of column: public, and
 deliberately so. It holds what the writer chose to advertise on the outside, and
@@ -107,7 +122,11 @@ The **Write** button on the Actions grid. Pick a sheet, type, submit.
 call `equipActions.js` makes: writing costs nothing, spends no Move, is the
 most frequent thing a scribe does, and there is nothing for a GM to
 adjudicate. What a GM needs is to *read* the letters, and they can — the text
-is on the tag, and every GM surface that renders a tag renders it.
+is on the tag, and every GM surface that renders a tag renders it. That is a
+claim about a mechanism, not a promise: a desk query selects `chipSelect()` and
+maps its rows through `composeChipTag(row, GM_CHIP_CTX)`, and `GM_CHIP_CTX` is
+what reaches `paperViewGm` — no literacy check, no holding check, no broken
+seal. A surface that skips the compose shows a GM nothing at all.
 
 ### 4a. Books
 

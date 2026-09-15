@@ -17,8 +17,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { EditIcon, TrashIcon } from "@/app/components/icons";
 import { formatCost, costColor } from "@/lib/characterCreation";
 import TagDetailSheet from "@/app/components/TagDetailSheet";
-import ChipLabel from "@/app/components/ChipLabel";
-import Tooltip from "@/app/components/Tooltip";
+import TagChip from "@/app/components/TagChip";
 import { updateCustomTag, deleteCustomTag } from "./actions";
 
 const FILTER_DEFS = [
@@ -115,9 +114,12 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
                 <td>
                   {/* The name opens the read-only detail sheet — full
                       description, chain, links. A button rather than a row
-                      onClick so the keyboard reaches it. The row itself is a
-                      chip (colour, mastery star) with a quick-read tooltip —
-                      `pinnable={false}` because the button is already a
+                      onClick so the keyboard reaches it. The chip itself is
+                      the shared TagChip, so the hover says exactly what it
+                      says everywhere else — it used to be a flat-text Tooltip
+                      over the raw description column, which drew a written
+                      note blank and showed none of the armour/cost/duration
+                      block. `pinnable={false}` because the button is already a
                       control of its own (Tooltip.js's own IconButton
                       precedent), so a second pin-on-click here would just be
                       clutter under the sheet this click already opens. */}
@@ -126,9 +128,7 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
                     className="text-left cursor-pointer"
                     onClick={() => setViewing(t)}
                   >
-                    <Tooltip text={t.description} pinnable={false}>
-                      <ChipLabel tag={{ name: t.name, group: t.groupColor ? { color: t.groupColor } : null, mastery: t.mastery }} />
-                    </Tooltip>
+                    <TagChip tag={t} pinnable={false} />
                   </button>
                   <div className="mono text-xs text-muted">{t.slug}</div>
                 </td>

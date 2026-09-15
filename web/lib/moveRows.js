@@ -2,7 +2,7 @@
 import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
 import { statusWord, WORKING_STATUSES } from "@lifeweb/db/lib/structures";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
-import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
+import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 
 // The DTO mappers the adjudication desk's queue is built from, one place so the RSC and server-action callers can't drift.
@@ -19,7 +19,7 @@ export const MOVE_INCLUDE = {
           tagId: true,
           quantity: true,
           expiresTurn: true,
-          tag: { select: TAG_CHIP_FIELDS },
+          tag: { select: chipSelect() },
         },
       },
     },
@@ -348,12 +348,17 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
   };
 }
 
-// One copy of each distinct held tag across a set of Moves, for TagChip rendering.
+// One copy of each distinct held tag across a set of Moves, for TagChip
+// rendering. moveRow() itself ships no tag object (just tagId/quantity), so
+// THIS is the desk's single funnel for what a chip knows — and therefore where
+// the compose belongs. Without it a paper tag arrives with a null description
+// and hovers blank, which is what /gm/turns did. GM context: a GM reads a
+// letter ungated (paperViewGm), same as every other desk surface.
 export function tagsByIdFor(actions) {
   const tagsById = {};
   for (const action of actions) {
     for (const ct of action.character.tags) {
-      if (!tagsById[ct.tagId]) tagsById[ct.tagId] = ct.tag;
+      if (!tagsById[ct.tagId]) tagsById[ct.tagId] = composeChipTag(ct.tag, GM_CHIP_CTX);
     }
   }
   return tagsById;

@@ -129,6 +129,7 @@ import {
   PACKAGE_LABEL_MAX,
   WHISPER_MAX,
   IMPERTURBABLE_SLUG,
+  TAG_CATEGORY,
 } from "@lifeweb/db/lib/constants";
 import {
   resolveTorture,
@@ -2927,7 +2928,7 @@ export async function packageItemsRequestImpl({
         custom: true,
         // Game state, not catalog — a Restart Game sweeps it up (TAGS.md §5d).
         ephemeral: true,
-        category: "items",
+        category: TAG_CATEGORY.ITEMS,
         groupId: group?.id ?? null,
         pointCost: 0,
         tradeable: true,

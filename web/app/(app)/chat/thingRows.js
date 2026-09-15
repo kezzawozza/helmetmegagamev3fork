@@ -4,9 +4,17 @@ import {
   transferableTags,
 } from "@/lib/tagRequests";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
+import { canonicalCategory } from "@/lib/sheetCards";
 
 // THE THINGS DRAWER's rows. Verbs are the SHEET's own predicates off the
 // catalog (TAGS.md §5) via web/lib/tagRequests.js; each re-checks server-side when pressed.
+//
+// Matched through canonicalCategory(), NOT by ===. This used to be an exact
+// GROUPS.includes(ct.tag.category), and every runtime-minted row — a note a
+// player wrote, a corpse, a photograph, a crate — carried the lowercase
+// spelling and so was missing from this drawer entirely: no Transfer, no
+// Destroy, and its weight absent from the total. The rows are backfilled now;
+// folding here is what stops the next slip being invisible again.
 const GROUPS = ["Items", "Assets"];
 
 // Spells db/lib/carry.js#rowWeight a second time (this module is in the
@@ -16,7 +24,7 @@ const WEIGHTLESS_CATEGORY = "Assets";
 function rowWeightLbs(ct) {
   const tag = ct?.tag;
   if (!tag?.tradeable) return 0;
-  if (tag.category === WEIGHTLESS_CATEGORY) return 0;
+  if (canonicalCategory(tag.category) === WEIGHTLESS_CATEGORY) return 0;
   return Math.round((tag.weightLbs ?? 0) * (ct.quantity ?? 1) * 100) / 100;
 }
 
@@ -46,13 +54,13 @@ export function thingGroups(characterTags = [], composeTag = (tag) => tag) {
   const canSmellPoison = canDetectPoison(characterTags);
 
   const rows = characterTags
-    .filter((ct) => GROUPS.includes(ct.tag?.category))
+    .filter((ct) => GROUPS.includes(canonicalCategory(ct.tag?.category)))
     .map((ct) => ({
       // characterTagId is what an equip toggle acts on; tagId preselects dialogs.
       characterTagId: ct.id ?? null,
       tagId: ct.tagId,
       tag: composeTag(ct.tag),
-      category: ct.tag.category,
+      category: canonicalCategory(ct.tag.category),
       quantity: ct.quantity ?? 1,
       equipped: Boolean(ct.equipped),
       // A partly-equipped stack can offer both Equip (reserve left) and Unequip (some already out).

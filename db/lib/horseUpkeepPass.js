@@ -6,7 +6,7 @@
 // each species bills SEPARATELY — a Horse plus an Arelitz Warbeast pays 2 ⬢, not 1.
 const { HORSE_SLUG, HORSE_UPKEEP_COST, UPKEEP_SLUGS } = require("./constants");
 
-async function runHorseUpkeepPass(prisma, turn) {
+async function runHorseUpkeepPass(prisma, turn, { bornBefore } = {}) {
   const tags = await prisma.tag.findMany({
     where: { slug: { in: UPKEEP_SLUGS } },
     select: { id: true, slug: true },
@@ -24,6 +24,11 @@ async function runHorseUpkeepPass(prisma, turn) {
         status: "ALIVE",
         resources: { gte: HORSE_UPKEEP_COST },
         tags: { some: { tagId: tag.id } },
+        // Excludes a soul born mid-close (Metempsychosis, or any death this
+        // same resolveNeeds() run reincarnated) — see db/index.js. They
+        // haven't been alive for the turn that's closing, so the horse
+        // hasn't been theirs to feed yet either.
+        ...(bornBefore ? { createdAt: { lt: bornBefore } } : {}),
       },
       data: { resources: { decrement: HORSE_UPKEEP_COST } },
     });

@@ -8,8 +8,13 @@ import { tagWeightLbs } from "./formatTagWeight";
 
 const CARD_ORDER = ["Health", "Skills", "Items", "Assets", "General", "Meta", "Demoness"];
 
-// Case-folded: the catalog has held both "Items" and "items".
-function canonicalCategory(raw) {
+// Case-folded, and exported because thingRows.js needs the same rule: until the
+// 2026-09-26 backfill the catalog genuinely held both "Items" and "items" (six
+// runtime minters wrote the YAML slug instead of the display name). The rows
+// are corrected now, but this stays as the belt to that migration's braces — a
+// future minter that slips should look wrong in a picker, not silently vanish
+// out of a bucket the way the Things drawer's exact match made it.
+export function canonicalCategory(raw) {
   const trimmed = raw?.trim() || "Other";
   return CARD_ORDER.find((c) => c.toLowerCase() === trimmed.toLowerCase()) ?? trimmed;
 }

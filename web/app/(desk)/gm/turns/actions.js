@@ -28,7 +28,7 @@ import { dropCharacterTag } from "@/lib/tagEffects";
 import { UserError, guarded } from "@/lib/actionResult";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH, MAX_REASON_LENGTH } from "@/lib/constants";
-import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
+import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
 import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 import {
   MOVE_INCLUDE,
@@ -1192,7 +1192,7 @@ async function getCharacterInspectorImpl({ characterId }) {
       zone: { select: { name: true } },
       location: { select: { name: true } },
       tags: {
-        select: { tagId: true, quantity: true, expiresTurn: true, equipped: true, tag: { select: TAG_CHIP_FIELDS } },
+        select: { tagId: true, quantity: true, expiresTurn: true, equipped: true, tag: { select: chipSelect() } },
       },
     },
   });
@@ -1228,7 +1228,10 @@ async function getCharacterInspectorImpl({ characterId }) {
       quantity: ct.quantity,
       expiresTurn: ct.expiresTurn,
       equipped: ct.equipped,
-      tag: ct.tag,
+      // InspectorColumn.js prefers this row over its tagsById fallback, and
+      // /gm/players and /gm/oracle pass no fallback at all — so an uncomposed
+      // row here is a blank paper hover on all three desks.
+      tag: composeChipTag(ct.tag, GM_CHIP_CTX),
     })),
   };
 }

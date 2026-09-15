@@ -12,7 +12,7 @@ import { turnEndsAt } from "@lifeweb/db/lib/turnClock";
 import { avatarReviewWhere } from "@lifeweb/db/lib/avatarReview";
 import { desireReviewWhere } from "@lifeweb/db/lib/desireReview";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
-import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
+import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
 import { deployVersion } from "@/lib/deployVersion";
 import { turnsSelectionHref } from "@/lib/routes";
 import {
@@ -202,15 +202,13 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       orderBy: { sortOrder: "asc" },
       select: { id: true, name: true, kind: true }, // `kind`: a CAVE_LEVEL has no #summary and fans out to its Locations
     }),
-    // The effect composer's search space. TAG_CHIP_FIELDS is what
-    // TagChip/ChipLabel need to render coloured with a working tooltip — see referenceData.js's own comment.
+    // The effect composer's search space. chipSelect() is what TagChip/ChipLabel
+    // need to render coloured with a working tooltip — the narrow half alone
+    // draws every player-written note blank (tagChipRows.js). Composed below,
+    // after the batch resolves.
     prisma.tag.findMany({
       orderBy: { name: "asc" },
-      select: {
-        ...TAG_CHIP_FIELDS,
-        stackable: true,
-        equippable: true,
-      },
+      select: chipSelect({ stackable: true, equippable: true }),
     }),
     getVisibleZones(),
     listSelectableZones(),
@@ -397,7 +395,9 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         visibleZoneIds: visibleZones?.map((z) => z.id) ?? [],
         visibleZoneNames: visibleZones?.map((z) => z.name) ?? null,
         tagsById: tagsById,
-        tagCatalog: tagCatalog,
+        // Composed here rather than in the query: a GM reads a letter ungated
+        // (paperViewGm), and `stackable`/`equippable` ride through untouched.
+        tagCatalog: tagCatalog.map((t) => composeChipTag(t, GM_CHIP_CTX)),
         roster: roster.map((c) => ({
         id: c.id,
         name: c.name,
