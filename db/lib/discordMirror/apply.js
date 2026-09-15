@@ -7,6 +7,10 @@
 // this codebase (broadcastIntercom, the doctor's sweeps, the zone sync) is a
 // plain for...of for the same reason, and so is this.
 //
+// AN OP THAT THROWS DOES NOT STOP THE RUN. One room's starter failing must not
+// cost the fifty behind it — the failure is recorded against that op and the
+// walk continues. The one thing that does stop it is the breaker, below.
+//
 // STOP WHEN THE BREAKER IS OPEN. Cloudflare counts 401/403/429 responses and
 // bans a token that emits 10,000 in ten minutes, so discordRest's breaker trips
 // at a tenth of that and refuses to send. Pushing the rest of the list into a
@@ -35,7 +39,9 @@ async function applyOps(ops, { apply = false, reason = null } = {}) {
       continue;
     }
     if (typeof op.run !== "function") {
-      // A delegate op, or one Phase 0 describes without carrying a thunk yet.
+      // An op the diff could describe but not carry out — a thread whose row
+      // never reached the diff, say. Recorded rather than swallowed, so it
+      // shows up on /gm/dev as work that did not happen.
       row.status = "skipped";
       row.detail = reason ?? "no runnable step attached";
       done.push(row);

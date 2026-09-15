@@ -53,6 +53,12 @@ function logStub(method, discordPath, body) {
   }
 }
 
+// Unique across PROCESSES, not just within one. The counter used to restart at
+// 1 every run, so a second script minted "local-1" again and handed it to a
+// different column — two rows pointing at one stand-in channel, which reads
+// downstream as drift that never settles. A real Discord id is never reused, so
+// neither is this one.
+const fakeIdPrefix = `local-${process.pid.toString(36)}`;
 let fakeIdSeq = 0;
 
 // The local answer to discordRequest(path, opts) — never touches the network.
@@ -75,7 +81,7 @@ function localDiscordRequest(discordPath, { method = "GET", body } = {}) {
     logStub(method, discordPath, body);
     fakeIdSeq += 1;
     return Promise.resolve({
-      id: `local-${fakeIdSeq}`,
+      id: `${fakeIdPrefix}-${fakeIdSeq}`,
       channel_id: segments[1] ?? null,
       content: body?.content ?? null,
       token: "local-webhook-token",

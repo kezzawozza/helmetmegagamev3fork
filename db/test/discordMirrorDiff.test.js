@@ -277,16 +277,12 @@ test("the radio channel's name never drifts on the dot Discord may have stripped
   }
 });
 
-test("the per-member sweeps are delegated, and only in the full scope", () => {
+test("the per-member sweeps are not ops — they run beside the op list", () => {
   const { desired } = provisioned();
   const live = liveFrom(desired);
+  // A world that matches produces nothing at any scope. The sweeps that
+  // reconcile who holds which role are sweeps.js's, not entries here: two
+  // detectors for one fault is one too many.
   assert.equal(buildOps({ desired, live, prisma: null, scope: "structure" }).ops.length, 0);
-
-  const full = buildOps({ desired, live, prisma: null, scope: "full" }).ops;
-  assert.deepEqual(
-    full.map((o) => o.targetId),
-    ["overwrites", "locationOccupancy", "turnsAccess"],
-  );
-  // Listed, never run in a dry run — none of them carries a thunk yet.
-  assert.ok(full.every((o) => o.kind === "delegate" && o.run === null));
+  assert.equal(buildOps({ desired, live, prisma: null, scope: "full" }).ops.length, 0);
 });

@@ -5642,3 +5642,37 @@ model QuestInteraction {
   @@unique([questId, characterId, turnId])
   @@index([questId])
 }
+
+/// One pending piece of Discord reconciliation. The zone editor, a quest, a
+/// GM's edit — anything that changes a row Discord mirrors — writes a job here
+/// and returns; the mirror catches up in the background
+/// (db/lib/discordMirror/queue.js). The web `after()` drain is the primary
+/// trigger, the bot's ready pass and the turn wrapup the backstop.
+///
+/// No foreign key on purpose: `targetType` names a kind ("location", "room",
+/// "zone", "special", "deadchat") and `targetId` a row that may be deleted
+/// before the job is drained. A job for a row that has gone simply matches
+/// nothing and is dropped.
+model MirrorJob {
+  id String @id @default(cuid())
+
+  targetType String
+  targetId   String
+
+  /// Why it was enqueued, for the Dev Panel. Not read by the mirror.
+  reason String
+
+  enqueuedAt DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  /// Bumped on every drain that did not finish the job. At 5 the mirror gives
+  /// up and leaves the row with its `error`, so a job stuck behind an open
+  /// circuit breaker is visible instead of retried forever.
+  attempts Int     @default(0)
+  error    String?
+
+  /// Repeat saves of the same place coalesce into one job.
+  @@unique([targetType, targetId])
+  @@index([finishedAt])
+}

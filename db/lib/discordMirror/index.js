@@ -1,26 +1,35 @@
 // The Discord mirror — the database is the master, and Discord is a picture of
 // it that the mirror keeps true.
 //
-// PHASE 0. Today this only ever LOOKS. `apply: true` is accepted and then
-// ignored with a line in the log, so this can ship beside the existing sync and
-// the channel doctor without changing a thing either of them does. What it
-// proves is agreement: run it against a database db:sync-zones has just
-// finished with, and it should report zero ops. Anything it reports instead is
-// a place where the mirror and the sync disagree about the world, and that is
-// worth knowing before Phase 1 hands it the keys.
+// A run has two halves. First the OBJECTS: desired.js turns the rows into the
+// roles, categories, channels, threads and pinned anchors that ought to exist,
+// live.js takes one snapshot of the guild, diff.js compares them into an
+// ordered op list, and apply.js walks it. Then the PEOPLE: sweeps.js runs the
+// channel doctor's sweeps, which reconcile who holds which role and who can
+// open which channel. `scope` says how far it goes —
 //
-// The four halves, each in its own file: desired.js (rows -> what should
-// exist, pure), live.js (one guild snapshot), diff.js (the ordered op list,
-// adopting by name before creating anything), apply.js (a sequential walk that
-// stops when the Discord breaker is open).
+//   "structure"  the op list only. Cheap, no member walk.
+//   "cheap"      plus the structure and role-membership sweeps. Bot restart,
+//                end of every turn.
+//   "full"       plus overwrites, threads, narrowcast and #turns access.
+//
+// `apply: false` reads and reports; `apply: true` writes. Both land as a
+// SystemReport so /gm/dev can show what the last run did.
+//
+// This is the repair path now: runChannelDoctor is a thin alias over it
+// (db/lib/channelDoctor.js), so the bot's ready pass and the turn wrapup come
+// through here too, and a Location whose channel was deleted is rebuilt rather
+// than reported with "run db:sync-zones" attached.
 const { isLocalMode } = require("../localMode");
 const { spectatorsVisibleNow } = require("../spectatorAccess");
 const { loadLiveStates } = require("../roomLive");
 const { roomComponents } = require("../syncZones/roomThreads");
+const { makeReporter } = require("../channelDoctor/shared");
 const { buildDesired } = require("./desired");
-const { loadLiveSnapshot, emptySnapshot } = require("./live");
+const { loadLiveSnapshot, snapshotFromDesired } = require("./live");
 const { buildOps } = require("./diff");
 const { applyOps } = require("./apply");
+const { runSweeps } = require("./sweeps");
 
 // Everything desired.js needs, in as few queries as it takes.
 async function loadRows(prisma) {
@@ -31,8 +40,7 @@ async function loadRows(prisma) {
     // Upsert, not findUnique — an empty database (LOCAL_MODE's first run, or a
     // fresh Postgres nobody has synced yet) has no GameConfig row at all, and
     // an adopt op that tries to write one of its columns back would throw
-    // P2025 the moment Phase 1 turns `run` on. syncSpecialChannels does the
-    // same thing for the same reason.
+    // P2025.
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
   ]);
 
@@ -47,20 +55,45 @@ async function loadRows(prisma) {
   return { zones, locations, rooms, config, liveStates, componentsByRoomId };
 }
 
-async function runDiscordMirror(prisma, { apply = false, scope = "structure", actorDiscordUserId = null } = {}) {
-  const startedAt = new Date();
+// `targets` narrows a run to part of the world: `[{ targetType: "location",
+// targetId: "abc" }]` is one Location's channel, its anchor and its rooms'
+// threads; `[{ targetType: "special" }]` is every radio net. It is what the
+// MirrorJob queue drains with, and what db:sync-narrowcast-channels and
+// db:sync-deadchat became. A selector with no targetId means every subject of
+// that type.
+function selectTargets(desired, targets) {
+  if (!targets || targets.length === 0) return desired;
+  const selectors = targets.map((t) => ({
+    type: String(t.targetType ?? t.type ?? ""),
+    id: t.targetId ?? t.id ?? null,
+  }));
+  if (selectors.some((s) => s.type === "all")) return desired;
+  return desired.filter((target) => {
+    const subject = target.subject;
+    if (!subject) return false;
+    return selectors.some((s) => s.type === subject.type && (s.id == null || String(s.id) === String(subject.id)));
+  });
+}
 
-  if (apply) {
-    console.log(
-      "mirror: apply is inert until Phase 1 — this run reads Discord and the database and writes neither.",
-    );
-  }
-  const reallyApply = false;
+async function runDiscordMirror(
+  prisma,
+  {
+    apply = false,
+    scope = "structure",
+    actorDiscordUserId = null,
+    targets = null,
+    reportKind = "MIRROR",
+  } = {},
+) {
+  const startedAt = new Date();
+  const findings = [];
+  const errors = [];
+  const report = makeReporter(findings, apply);
 
   const rows = await loadRows(prisma);
   const spectators = await spectatorsVisibleNow(prisma);
 
-  const desired = buildDesired({
+  const allDesired = buildDesired({
     zones: rows.zones,
     locations: rows.locations,
     rooms: rows.rooms,
@@ -70,36 +103,57 @@ async function runDiscordMirror(prisma, { apply = false, scope = "structure", ac
     componentsByRoomId: rows.componentsByRoomId,
     guildId: process.env.DISCORD_GUILD_ID,
   });
+  const desired = selectTargets(allDesired, targets);
 
-  // With no guild to look at, everything reads as "nothing exists yet", which
-  // is the honest answer rather than a crash.
+  // LOCAL_MODE answers every Discord read with "nothing exists", so its picture
+  // of the guild is built from the ids the rows already carry instead. See
+  // live.js#snapshotFromDesired for why an empty snapshot would be actively
+  // wrong there rather than merely blank.
   const haveGuild = Boolean(process.env.DISCORD_GUILD_ID && process.env.DISCORD_TOKEN) && !isLocalMode();
-  const live = haveGuild ? await loadLiveSnapshot() : emptySnapshot();
+  const live = haveGuild ? await loadLiveSnapshot() : snapshotFromDesired(allDesired);
 
-  const { ops, findings } = buildOps({ desired, live, prisma, scope });
-  const { failures } = await applyOps(ops, {
-    apply: reallyApply,
-    reason: "apply is inert until Phase 1",
-  });
+  const { ops, findings: diffFindings } = buildOps({ desired, live, prisma, scope });
+  findings.push(...diffFindings);
+
+  const { ran, deferred, failures: opFailures } = await applyOps(ops, { apply });
+
+  // The member half. It reports and repairs through the same reporter, so a
+  // doctor caller reading `findings` sees exactly what it always did.
+  if (!targets) {
+    try {
+      await runSweeps(prisma, { scope, report, errors, live });
+    } catch (err) {
+      errors.push({ check: "mirror-sweeps", target: scope, message: err?.message ?? String(err) });
+    }
+  }
 
   const byKind = {};
   for (const op of ops) byKind[op.kind] = (byKind[op.kind] ?? 0) + 1;
   const byCheck = {};
   for (const f of findings) byCheck[f.check] = (byCheck[f.check] ?? 0) + 1;
 
+  const failures = [
+    ...opFailures,
+    ...errors,
+    ...findings.filter((f) => f.error).map((f) => ({ check: f.check, target: f.target, message: f.error })),
+  ];
+
   const result = {
     scope,
     apply,
-    applied: reallyApply,
+    applied: apply,
     ops,
+    ran,
+    deferred,
     findings,
     failures,
+    repaired: findings.filter((f) => f.repaired).length,
   };
 
   await prisma.systemReport
     .create({
       data: {
-        kind: "MIRROR",
+        kind: reportKind,
         startedAt,
         finishedAt: new Date(),
         ok: failures.length === 0,
@@ -107,17 +161,21 @@ async function runDiscordMirror(prisma, { apply = false, scope = "structure", ac
         summary: {
           scope,
           apply,
-          applied: reallyApply,
-          guild: haveGuild ? "live" : "none",
+          applied: apply,
+          guild: haveGuild ? "live" : "local",
           targets: desired.length,
           ops: ops.length,
+          deferred: deferred.length,
           byKind,
           findings: findings.length,
+          repaired: result.repaired,
           byCheck,
         },
         failures: [
           ...failures,
-          ...findings.map((f) => ({ check: f.check, target: f.target, message: f.problem })),
+          ...findings
+            .filter((f) => !f.repaired && !f.error)
+            .map((f) => ({ check: f.check, target: f.target, message: f.problem })),
         ],
       },
     })

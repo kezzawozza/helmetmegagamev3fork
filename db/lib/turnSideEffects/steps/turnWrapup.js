@@ -54,6 +54,13 @@ async function wrapUpTurn({ prisma, p, step }, sideEffectsStartedAt) {
     ),
   );
 
+  // Whatever is still queued for Discord — the backstop behind the web app's
+  // own drain, so nothing sits pending for longer than a turn.
+  const { drainMirrorQueue } = require("../../discordMirror/queue");
+  await step("mirrorQueue", () =>
+    drainMirrorQueue(prisma).catch((err) => console.error("Post-turn mirror drain failed:", err)),
+  );
+
   // The Oracle is NOT here any more (docs/systemdocs/ORACLE.md). It used to be
   // this thunk's last step, on the argument that a synopsis arriving late costs
   // nothing. True, and beside the point: it is written FOR the gamemasters

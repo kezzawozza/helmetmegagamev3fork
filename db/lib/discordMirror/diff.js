@@ -21,15 +21,26 @@ function finding(check, target, problem) {
   return { check, target, problem, repaired: false, error: null };
 }
 
-function overwritesEqual(want = [], live = []) {
+// Drifted in either direction: an overwrite the spec names that Discord does not
+// hold (or holds with the wrong bits), or one Discord holds that the spec has
+// stopped naming AND the mirror is allowed to take back. That second half is
+// what makes a revoked grant actually go away — see managedIds in desired.js.
+function overwritesDrifted(want = [], live = [], managedIds = []) {
   const liveById = new Map((live ?? []).map((o) => [o.id, o]));
   for (const o of want) {
     const there = liveById.get(o.id);
-    if (!there) return false;
-    if (String(there.allow ?? "0") !== String(o.allow ?? "0")) return false;
-    if (String(there.deny ?? "0") !== String(o.deny ?? "0")) return false;
+    if (!there) return true;
+    if (String(there.allow ?? "0") !== String(o.allow ?? "0")) return true;
+    if (String(there.deny ?? "0") !== String(o.deny ?? "0")) return true;
   }
-  return true;
+  const wanted = new Set(want.map((o) => o.id));
+  const managed = new Set(managedIds);
+  for (const o of live ?? []) {
+    if (Number(o.type) !== 0) continue; // never a member seat
+    if (wanted.has(o.id) || !managed.has(o.id)) continue;
+    return true;
+  }
+  return false;
 }
 
 // Only the keys the spec actually names are compared: a channel carries plenty
@@ -95,7 +106,7 @@ function buildOps({ desired, live, prisma, scope = "structure" }) {
     } else if (target.targetType === "thread") {
       diffThread(target, { live, ops, findings, resolvedIdByKey });
     } else if (target.targetType === "anchor") {
-      diffAnchor(target, { live, ops, findings, resolvedIdByKey });
+      diffAnchor(target, { ops, findings, resolvedIdByKey, prisma });
     }
   }
 
@@ -146,39 +157,10 @@ function buildOps({ desired, live, prisma, scope = "structure" }) {
     });
   }
 
-  // The two halves the mirror deliberately does NOT reimplement. Both already
-  // exist, both are correct, and both are per-member work that would double this
-  // module's size for nothing. They are expressed as one delegate op each — in
-  // a dry run they are listed and not run, which is exactly what the plan asks
-  // Phase 0 to show.
-  if (scope === "full") {
-    ops.push({
-      order: ORDER.OVERWRITES,
-      kind: "delegate",
-      targetType: "sweep",
-      targetId: "overwrites",
-      reason:
-        "reconcile every zone, #summary and Location channel's standing overwrites " +
-        "(syncZones/parse.js#reconcileChannelOverwrites, via the doctor's overwrites sweep)",
-      run: null,
-    });
-    ops.push({
-      order: ORDER.CHARACTER_ACCESS,
-      kind: "delegate",
-      targetType: "sweep",
-      targetId: "locationOccupancy",
-      reason: "reconcile per-character Location channel overwrites and zone role membership (the doctor's cheap sweeps)",
-      run: null,
-    });
-    ops.push({
-      order: ORDER.TURNS_ACCESS,
-      kind: "delegate",
-      targetType: "sweep",
-      targetId: "turnsAccess",
-      reason: "re-key #turns view grants onto the current zone roles (db/lib/turnsChannelAccess.js)",
-      run: null,
-    });
-  }
+  // The per-member work — zone role membership, Location channel occupancy,
+  // narrowcast seats, #turns access — is NOT reimplemented here. Those sweeps
+  // already exist and are already right; index.js runs them after this op list,
+  // which is what `scope: "cheap"` and `scope: "full"` mean now (sweeps.js).
 
   ops.sort((a, b) => a.order - b.order);
   return { ops, findings };
@@ -336,8 +318,25 @@ function diffChannel(target, { live, ops, findings, resolvedIdByKey, writeId }) 
     });
   }
 
-  if (target.overwrites?.length && !overwritesEqual(target.overwrites, there.permission_overwrites)) {
-    findings.push(finding("mirror-overwrites", target.label, "standing permission overwrites do not match the spec"));
+  if (
+    target.overwrites?.length &&
+    overwritesDrifted(target.overwrites, there.permission_overwrites, target.managedIds)
+  ) {
+    ops.push({
+      order: ORDER.OVERWRITES,
+      kind: "overwrites",
+      targetType: "channel",
+      targetId: target.key,
+      reason: `${target.label}: standing permission overwrites do not match the spec`,
+      run: async () => {
+        const { reconcileChannelOverwrites } = require("../syncZones/parse");
+        await reconcileChannelOverwrites(
+          id,
+          { permission_overwrites: target.overwrites },
+          new Set(target.managedIds ?? []),
+        );
+      },
+    });
   }
 }
 
@@ -362,7 +361,7 @@ function diffThread(target, { live, ops, findings, resolvedIdByKey }) {
       targetType: "thread",
       targetId: target.key,
       reason: `${target.label}: the room's starter post no longer matches the row`,
-      run: null,
+      run: roomThreadRun(target, prisma),
     });
     return;
   }
@@ -378,7 +377,7 @@ function diffThread(target, { live, ops, findings, resolvedIdByKey }) {
     // getChannel is what settles it at apply time, so the mirror only says the
     // room needs a look and STOPS. Falling through to the name lookup below
     // would treat an ordinarily-archived thread as gone and adopt or create a
-    // second one right on top of it — Phase 1's very first duplicate.
+    // second one right on top of it, which is a duplicate room nobody asked for.
     findings.push(finding("mirror-missing", target.label, "the recorded thread is not among the guild's active threads (it may just be archived)"));
     return;
   }
@@ -399,13 +398,27 @@ function diffThread(target, { live, ops, findings, resolvedIdByKey }) {
       matches.length === 1
         ? `adopt the existing "${target.name}" thread (${matches[0].id}) and rewrite its starter`
         : `create the "${target.name}" thread`,
-    run: null,
+    run: roomThreadRun(target, prisma),
   });
+}
+
+// One thunk for every thread op there is. syncRoomThread already does the whole
+// job — adopt an existing thread by name (active OR archived, which the guild
+// snapshot cannot see), unarchive it, write or rewrite the starter, and record
+// the id, the starter id and the hash. Re-deriving any of that here would be a
+// second implementation of the room starter, which is exactly what the mirror
+// exists to stop.
+function roomThreadRun(target, prisma) {
+  if (!prisma || !target.room || !target.location) return null;
+  return async () => {
+    const { syncRoomThread } = require("../syncZones/roomThreads");
+    await syncRoomThread(prisma, target.room, target.location, null, target.liveState ?? null);
+  };
 }
 
 // --- Location anchors --------------------------------------------------
 
-function diffAnchor(target, { live, ops, resolvedIdByKey }) {
+function diffAnchor(target, { ops, resolvedIdByKey, prisma }) {
   const parentId = resolvedIdByKey.get(target.parentKey) ?? target.parentId ?? null;
   if (!parentId) return;
   if (target.currentId && target.currentHash === target.bodyHash) return;
@@ -417,7 +430,13 @@ function diffAnchor(target, { live, ops, resolvedIdByKey }) {
     reason: target.currentId
       ? `${target.label}: the pinned anchor no longer matches the row`
       : `${target.label}: no pinned anchor`,
-    run: null,
+    run:
+      prisma && target.location
+        ? async () => {
+            const { syncLocationAnchor } = require("../syncZones/roomThreads");
+            await syncLocationAnchor(prisma, target.location, target.rooms ?? []);
+          }
+        : null,
   });
 }
 

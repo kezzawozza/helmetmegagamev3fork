@@ -9,6 +9,7 @@ import { describeTurn } from "@/lib/turnFormat";
 import { listGuildMembers, listGmMembers, getGmSession } from "@/lib/discordGuild";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { inactiveCharacters, inactiveRows } from "@lifeweb/db/lib/inactivity";
+import { mirrorQueueStatus } from "@lifeweb/db/lib/discordMirror/queue";
 import { TRIAL_GM_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import CharacterLink from "@/app/components/CharacterLink";
 import {
@@ -49,7 +50,7 @@ import RitesPanel from "@/app/(app)/gm/dev/threats/RitesPanel";
 import BulkActions from "./BulkActions";
 import AmbientForm from "./AmbientForm";
 import InactivePanel from "./InactivePanel";
-import MirrorPreview from "./MirrorPreview";
+import MirrorPanel from "./MirrorPanel";
 import { RITES, riteByKey } from "@lifeweb/db/lib/rites";
 import { ensureRiteWords } from "@lifeweb/db/lib/riteWords";
 import { listObjectives, locationEligible, membersByParty } from "@lifeweb/db/lib/objectives";
@@ -231,6 +232,7 @@ export default async function DevPanelPage({ searchParams }) {
   let inactiveList = [];
   let inactiveTurn = null;
   let latestByKind = new Map();
+  let mirrorQueue = null;
   // The two threat sections. Each fetches only its own data, same as every
   // other section here.
   let assignmentRows = [];
@@ -515,10 +517,13 @@ export default async function DevPanelPage({ searchParams }) {
     case "reports": {
       // Latest report per kind — the section renders what actually happened,
       // instead of the fake success the wipe used to claim.
-      const [reports, inactive] = await Promise.all([
+      const [reports, inactive, queue] = await Promise.all([
         prisma.systemReport.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
         inactiveCharacters(prisma),
+        // What the mirror still owes Discord, and whether it can get there.
+        mirrorQueueStatus(prisma),
       ]);
+      mirrorQueue = queue;
       for (const report of reports) {
         if (!latestByKind.has(report.kind)) latestByKind.set(report.kind, report);
       }
@@ -1209,15 +1214,15 @@ export default async function DevPanelPage({ searchParams }) {
                   </form>
                 ) : null}
               </div>
-              {/* The Discord mirror, still read-only. Host access, like Repair
-                  above it: the panel it previews is the one that will rewrite
-                  the guild in Phase 1, and the action re-checks the tier. */}
+              {/* The Discord mirror. Host access, like Repair above it —
+                  Reconcile now rewrites the guild, and the action re-checks
+                  the tier rather than trusting the hidden button. */}
               {isMaster ? (
                 <>
                   <div className="ops-section-head">
                     <h2 className="section-title">Discord mirror</h2>
                   </div>
-                  <MirrorPreview />
+                  <MirrorPanel queue={mirrorQueue} />
                 </>
               ) : null}
 

@@ -118,6 +118,18 @@ module.exports = {
         .catch((err) => console.error("Channel doctor pass failed:", err));
     }
 
+    // Anything the web app enqueued and never drained — an edit saved while
+    // Discord was down, or while this process was. The web `after()` is the
+    // primary trigger (db/lib/discordMirror/queue.js); this is the backstop.
+    {
+      const { drainMirrorQueue } = require("@lifeweb/db/lib/discordMirror/queue");
+      await drainMirrorQueue(prisma)
+        .then((r) => {
+          if (r.jobs > 0) console.log(`Mirror queue: ${r.drained}/${r.jobs} job(s) drained.`);
+        })
+        .catch((err) => console.error("Mirror queue drain failed:", err));
+    }
+
     // Every GM's zone view, materialized as "GM: <Zone>" roles — seats a brand new GM (no rows
     // means every zone) and repairs a failed grant or a rejoin (db/lib/gmZoneRoles.js).
     {

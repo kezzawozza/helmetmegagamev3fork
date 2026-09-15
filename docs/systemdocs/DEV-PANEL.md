@@ -653,6 +653,18 @@ both full scope, both fired into `after()` so the button returns immediately
 and the outcome shows up where every other pass reports (`CHANNELS.md` §6).
 Repair is superadmin — see §11a.
 
+**Discord mirror** is the panel under them, superadmin only. **Preview mirror**
+reads the database, reads the guild once and lists every place the two
+disagree, writing nothing — safe to press on a live game. **Reconcile now** is
+the same comparison with the writes turned on: it creates what is missing,
+adopts a same-named object before it would cut a second, reparents, renames,
+rewrites a room starter that has drifted from its row, and then reconciles who
+can see what. It runs in `after()` and reports as a `MIRROR` row in the list
+below. The line under the buttons is the queue: how many places are waiting for
+Discord, how many are retrying after a failed pass, and whether the circuit
+breaker has suspended calls altogether. Waiting is normal and clears in
+seconds; retrying is not (`CHANNELS.md` §6a).
+
 **Who has gone quiet** sits above it: the same three buckets
 `npm run db:report-inactive-characters` prints — left the guild, never
 registered any activity, idle since day one — with a checkbox per row and a DM

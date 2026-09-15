@@ -5,16 +5,20 @@ const { getChannel, patchThread, listThreadMembers, addThreadMember, removeThrea
 const { accessibleRooms, roomAccessKeys, recordRoomThread } = require("../../roomAccess");
 
 async function runThreadsSweep({ report, errors, prisma, alive, characters, characterUserIds }) {
-  // Room threads: exist and are unarchived. Recreating one is the sync's
-  // job (it needs the YAML body), so a missing thread is report-only.
+  // Room threads: unarchived, and the row still points at something real.
+  //
+  // Building a missing thread is the mirror's job now (diff.js), not a report
+  // with "run db:sync-zones" on the end. A room with no thread recorded is
+  // therefore silent here — the mirror already has an op for it. A thread that
+  // is GONE is the one thing the mirror cannot see, since its guild snapshot
+  // lists only active threads and an archived room looks identical: so this is
+  // where that gets settled, by forgetting the dead id. The next mirror run
+  // sees a room with no thread and builds one.
   const rooms = await prisma.room.findMany({ include: { location: { select: { name: true } } } });
   const privateRooms = [];
   for (const room of rooms) {
     const label = `${room.location.name}/${room.name}`;
-    if (!room.discordThreadId) {
-      await report("room-thread", label, "room has no thread recorded (run db:sync-zones)");
-      continue;
-    }
+    if (!room.discordThreadId) continue;
     let live;
     try {
       live = await getChannel(room.discordThreadId, { allow404: true });
@@ -23,7 +27,12 @@ async function runThreadsSweep({ report, errors, prisma, alive, characters, char
       continue;
     }
     if (!live) {
-      await report("room-thread", label, "recorded room thread no longer exists (run db:sync-zones)");
+      await report("room-thread", label, "recorded room thread no longer exists — the mirror will rebuild it", () =>
+        prisma.room.update({
+          where: { id: room.id },
+          data: { discordThreadId: null, starterMessageId: null, postHash: null },
+        }),
+      );
       continue;
     }
     if (live.thread_metadata?.archived) {

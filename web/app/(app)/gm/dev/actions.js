@@ -29,6 +29,7 @@ import {
 } from "@lifeweb/db";
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
 import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
+import { drainMirrorQueue } from "@lifeweb/db/lib/discordMirror/queue";
 import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
 import { pickTurnBanner, nextTurnBanner } from "@lifeweb/db/lib/turnBanner";
 import { requireDev } from "@/lib/devAccess";
@@ -892,8 +893,8 @@ export async function runDoctorAction(formData) {
 
 // The Discord mirror, in preview. It only ever looks: db/lib/discordMirror
 // compares what the database says the world is against what the guild actually
-// holds, and hands back the list of things that do not match. Phase 0 runs no
-// Discord writes at all, so this is safe to press.
+// holds, and hands back the list of things that do not match. No Discord
+// writes, so this is safe to press on a live game.
 //
 // Synchronous rather than in after(), unlike the doctor: a preview nobody can
 // read is not a preview. It still writes its SystemReport, so the row is there
@@ -924,6 +925,47 @@ export async function previewMirrorAction(input) {
     console.error("Discord mirror preview failed:", err);
     return { ok: false, error: err?.message ?? "The mirror could not read the guild." };
   }
+}
+
+// Reconcile now — the same mirror, allowed to write. It creates the roles and
+// channels the database says should exist, adopts a same-named one before it
+// would ever cut a second, reparents, renames, rewrites a room starter that no
+// longer matches its row, and then runs the per-member sweeps.
+//
+// In after(), unlike the preview: a full apply over a hundred channels is not
+// something to hold a request open for. It lands as a SystemReport (kind
+// MIRROR), which is what the panel below the button is reading. The queue is
+// drained in the same pass, so a job waiting on a Discord outage goes out with
+// it.
+export async function reconcileMirrorAction() {
+  const session = await requireDev("super");
+
+  after(async () => {
+    try {
+      await runDiscordMirror(prisma, {
+        apply: true,
+        scope: "full",
+        actorDiscordUserId: session.discordUserId,
+      });
+      await drainMirrorQueue(prisma);
+    } catch (err) {
+      console.error("Discord mirror reconcile failed:", err);
+    }
+  });
+
+  revalidatePath("/gm/dev");
+  return { ok: true };
+}
+
+// The drain on its own: every place a save has queued for Discord, reconciled
+// in the background. This is the PRIMARY trigger for the queue — the web app is
+// the half that is always up — with the bot's ready pass and the turn wrapup
+// behind it as the backstop.
+export async function drainMirrorAction() {
+  await requireDev("super");
+  after(() => drainMirrorQueue(prisma).catch((err) => console.error("Mirror drain failed:", err)));
+  revalidatePath("/gm/dev");
+  return { ok: true };
 }
 
 // --- Bulk actions -----------------------------------------------------

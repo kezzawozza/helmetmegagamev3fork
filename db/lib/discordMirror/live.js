@@ -111,8 +111,65 @@ async function loadLiveSnapshot({ includeThreads = true } = {}) {
   };
 }
 
-// An empty snapshot, for a dry run with no guild to look at (LOCAL_MODE, or a
-// test). Everything reads as "nothing exists yet".
+// The snapshot LOCAL_MODE gets: everything the database already records an id
+// for is treated as present and correct.
+//
+// An empty snapshot would be wrong here, not merely blank. LOCAL_MODE answers
+// every Discord read with "nothing exists", so a mirror run against a fully
+// seeded local database would decide the whole guild was missing and propose
+// recreating all of it — and with apply on, it would. Locally the database IS
+// the guild, so the honest picture of Discord is the one the rows describe;
+// null one column and exactly that one object goes missing, which is what makes
+// a local apply testable at all.
+function snapshotFromDesired(desired = []) {
+  const snapshot = emptySnapshot();
+  for (const target of desired) {
+    if (!target.currentId) continue;
+    if (target.targetType === "channel") {
+      const channel = {
+        id: target.currentId,
+        type: Number(target.discordType),
+        name: String(target.name ?? ""),
+        parent_id: target.parentId ?? null,
+        topic: target.properties?.topic ?? null,
+        rate_limit_per_user: target.properties?.rate_limit_per_user ?? 0,
+        // The slot the rows say it should hold. Locally the database IS the
+        // guild, so a channel is by definition already where it belongs;
+        // pinning every one at 0 instead would have the ordering check propose
+        // a reshuffle on every single run.
+        position: target.position ?? 0,
+        permission_overwrites: (target.overwrites ?? []).map((o) => ({
+          id: o.id,
+          type: o.type,
+          allow: String(o.allow ?? "0"),
+          deny: String(o.deny ?? "0"),
+        })),
+      };
+      snapshot.channels.push(channel);
+      snapshot.channelsById.set(channel.id, channel);
+      pushInto(snapshot.channelsByKey, channelKey(channel.type, channel.parent_id, channel.name), channel);
+    } else if (target.targetType === "role") {
+      const role = { id: target.currentId, name: target.name, color: 0, permissions: "0" };
+      snapshot.roles.push(role);
+      snapshot.rolesById.set(role.id, role);
+      pushInto(snapshot.rolesByName, role.name, role);
+    } else if (target.targetType === "thread") {
+      const thread = {
+        id: target.currentId,
+        name: String(target.name ?? ""),
+        parent_id: target.parentId ?? null,
+        thread_metadata: { archived: false },
+      };
+      snapshot.threads.push(thread);
+      snapshot.threadsById.set(thread.id, thread);
+      pushInto(snapshot.threadsByKey, threadKey(thread.parent_id, thread.name), thread);
+    }
+  }
+  return snapshot;
+}
+
+// An empty snapshot, for a dry run with no guild to look at (a test).
+// Everything reads as "nothing exists yet".
 function emptySnapshot() {
   return {
     roles: [],
@@ -131,6 +188,7 @@ function emptySnapshot() {
 module.exports = {
   loadLiveSnapshot,
   emptySnapshot,
+  snapshotFromDesired,
   normalizeChannelName,
   channelKey,
   threadKey,

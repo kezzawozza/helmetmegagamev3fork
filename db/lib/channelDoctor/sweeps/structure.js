@@ -1,47 +1,18 @@
-// The channel doctor's "cheap: structure" sweep — zone/location channel
-// existence, connection-link tag slugs, the Character.zoneId denormalization,
-// the bot's role position, and the ghost role's appearance. Moved verbatim
-// out of runChannelDoctor (W2d).
-const { getChannel } = require("../../discordRest");
-
-async function runStructureSweep({ report, prisma, zones, locations, locationsById, rolesById, members, alive }) {
+// The mirror's structure sweep — the checks that are about ROWS rather than
+// Discord objects: a zone nobody can stand in, a connection naming a tag that
+// does not exist, a character whose denormalized zoneId disagrees with their
+// location, and the bot's own role position.
+//
+// What it no longer does is look for missing Discord structure. A zone with no
+// role, a category that has been deleted, a Location with no channel: those
+// used to be reported here with "run db:sync-zones" attached, and they are now
+// the mirror's own op list (db/lib/discordMirror/diff.js), which creates or
+// adopts the object instead of describing the problem. Two detectors for one
+// fault is one too many, and only one of them could ever fix it.
+async function runStructureSweep({ report, prisma, zones, rolesById, members, alive, locationsById }) {
   for (const zone of zones) {
-    if (zone.kind !== "CAVE_GROUP" && zone.discordRoleId && !rolesById.has(zone.discordRoleId)) {
-      await report("zone-structure", zone.name, "recorded zone role no longer exists (run db:sync-zones)");
-    }
-    if (zone.kind !== "CAVE_GROUP" && !zone.discordRoleId) {
-      await report("zone-structure", zone.name, "zone has no role recorded (run db:sync-zones)");
-    }
-    for (const [label, id] of [
-      ["category", zone.discordCategoryId],
-      ["summary", zone.discordSummaryChannelId],
-    ]) {
-      if (!id) continue;
-      const live = await getChannel(id, { allow404: true }).catch(() => undefined);
-      if (live === null) {
-        await report("zone-structure", `${zone.name}/${label}`, "recorded channel no longer exists (run db:sync-zones)");
-      }
-    }
     if (zone.kind !== "CAVE_GROUP" && zone.locations.length === 0) {
-      await report("zone-structure", zone.name, "zone has no locations — nobody can stand in it (check docs/zones.yaml)");
-    }
-  }
-  // A Location wears no role, so its structure is just its channel. The live
-  // channel object is kept, because its permission_overwrites are what the
-  // occupancy check below diffs — reading it twice would double the doctor's
-  // REST cost for nothing.
-  const liveLocationChannels = new Map();
-  for (const location of locations) {
-    const label = `${location.zoneName}/${location.name}`;
-    if (!location.discordChannelId) {
-      await report("location-structure", label, "location has no channel recorded (run db:sync-zones)");
-      continue;
-    }
-    const live = await getChannel(location.discordChannelId, { allow404: true }).catch(() => undefined);
-    if (live === null) {
-      await report("location-structure", label, "recorded channel no longer exists (run db:sync-zones)");
-    } else if (live) {
-      liveLocationChannels.set(location.id, live);
+      await report("zone-structure", zone.name, "zone has no locations — nobody can stand in it");
     }
   }
 
@@ -101,7 +72,6 @@ async function runStructureSweep({ report, prisma, zones, locations, locationsBy
     }
   }
 
-  return { liveLocationChannels };
 }
 
 module.exports = { runStructureSweep };

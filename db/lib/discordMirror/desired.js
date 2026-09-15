@@ -33,6 +33,7 @@ const { buildRoomBody, buildAnchorBody } = require("../syncZones/bodies");
 const { locationAnchorRows } = require("../locationAnchorRow");
 const { hashBody } = require("../syncZones/shared");
 const { intendedPositions, LEVEL_CHANNEL_STRIDE } = require("../syncZones/ordering");
+const { managedOverwriteIds } = require("../syncZones/parse");
 const { CHANNEL_TYPE_TEXT, CHANNEL_TYPE_CATEGORY } = require("./live");
 
 const PERM_VIEW_CHANNEL = 1024n;
@@ -130,6 +131,17 @@ function buildDesired({
   // db:sync-zones would compute for the identical rows.
   const zonesWithLocations = zones.map((z) => ({ ...z, locations: locationsByZoneId.get(z.id) ?? [] }));
   const positionByChannelId = new Map(intendedPositions(zonesWithLocations).map((p) => [p.id, p.position]));
+  const roleIdByZoneSlug = new Map(zones.filter((z) => z.discordRoleId).map((z) => [z.slug, z.discordRoleId]));
+  // The overwrites the reconcile is allowed to DELETE when the spec stops
+  // naming them: the GM roles, the spectator seat, and both zone role families.
+  // Never a member id — every occupant of a Location channel is one of those
+  // (CHANNELS.md 3), and sweeping them would empty the room.
+  const managedIds = [
+    ...managedOverwriteIds([
+      ...zones.map((z) => z.discordRoleId),
+      ...zones.map((z) => z.gmRoleId),
+    ]),
+  ];
 
   // --- zone roles ------------------------------------------------------
   //
@@ -143,6 +155,7 @@ function buildDesired({
         targetType: "role",
         kind: "zone-role",
         key: `role:zone:${zone.id}`,
+        subject: { type: "zone", id: zone.id },
         label: `Zone: ${zone.name}`,
         name: zoneRoleName(zone),
         order: ORDER.ZONE_ROLE,
@@ -158,6 +171,7 @@ function buildDesired({
         targetType: "role",
         kind: "zone-gm-role",
         key: `role:gm:${zone.id}`,
+        subject: { type: "zone", id: zone.id },
         label: `GM: ${zone.name}`,
         name: zoneGmRoleName(zone),
         order: ORDER.ZONE_GM_ROLE,
@@ -179,6 +193,7 @@ function buildDesired({
         targetType: "channel",
         kind: "zone-category",
         key: `category:zone:${zone.id}`,
+        subject: { type: "zone", id: zone.id },
         label: zone.name,
         name: spec.category.name,
         discordType: CHANNEL_TYPE_CATEGORY,
@@ -195,6 +210,7 @@ function buildDesired({
         targetType: "channel",
         kind: "zone-summary",
         key: `channel:summary:${zone.id}`,
+        subject: { type: "zone", id: zone.id },
         label: `${zone.name} / #summary`,
         name: spec.summary.name,
         discordType: CHANNEL_TYPE_TEXT,
@@ -218,6 +234,7 @@ function buildDesired({
       targetType: "channel",
       kind: "location-channel",
       key: `channel:location:${location.id}`,
+      subject: { type: "location", id: location.id },
       label: `${zone?.name ?? "?"} / ${location.name}`,
       name: spec.name,
       discordType: CHANNEL_TYPE_TEXT,
@@ -242,6 +259,7 @@ function buildDesired({
     targetType: "channel",
     kind: "special-category",
     key: "category:radio",
+    subject: { type: "special", id: "radio" },
     label: RADIO_CATEGORY_NAME,
     name: RADIO_CATEGORY_NAME,
     discordType: CHANNEL_TYPE_CATEGORY,
@@ -257,6 +275,7 @@ function buildDesired({
       targetType: "channel",
       kind: "special-channel",
       key: `channel:special:${entry.slug}`,
+      subject: { type: "special", id: entry.slug },
       label: `#${entry.slug}`,
       name: entry.slug,
       discordType: CHANNEL_TYPE_TEXT,
@@ -269,11 +288,21 @@ function buildDesired({
         topic: entry.topic,
         ...(entry.slowmode !== undefined ? { rate_limit_per_user: entry.slowmode } : {}),
       },
-      overwrites: outsideZoneOverwrites(guildId, {
-        gmAllow: PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES,
-        gmDeny: 0n,
-        spectators,
-      }),
+      overwrites: [
+        ...outsideZoneOverwrites(guildId, {
+          gmAllow: PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES,
+          gmDeny: 0n,
+          spectators,
+        }),
+        // The static zone-role view grants syncSpecialChannels used to apply.
+        // A zone dropped from `roleViewZones` goes deaf on its own: its role is
+        // in the managed set below, so the reconcile deletes an overwrite the
+        // spec no longer names.
+        ...(entry.roleViewZones ?? [])
+          .map((slug) => roleIdByZoneSlug.get(slug))
+          .filter(Boolean)
+          .map((roleId) => ({ id: roleId, type: 0, allow: PERM_VIEW_CHANNEL.toString(), deny: "0" })),
+      ],
       currentId: config[entry.configKey] ?? null,
       idColumn: { model: "gameConfig", id: 1, field: entry.configKey },
     });
@@ -287,6 +316,7 @@ function buildDesired({
     targetType: "channel",
     kind: "deadchat-category",
     key: "category:deadchat",
+    subject: { type: "deadchat", id: "category" },
     label: DEADCHAT_CATEGORY_NAME,
     name: DEADCHAT_CATEGORY_NAME,
     discordType: CHANNEL_TYPE_CATEGORY,
@@ -301,6 +331,7 @@ function buildDesired({
     targetType: "channel",
     kind: "deadchat-channel",
     key: "channel:deadchat",
+    subject: { type: "deadchat", id: "channel" },
     label: `#${DEADCHAT_CHANNEL_NAME}`,
     name: DEADCHAT_CHANNEL_NAME,
     discordType: CHANNEL_TYPE_TEXT,
@@ -337,6 +368,10 @@ function buildDesired({
       targetType: "thread",
       kind: "room-thread",
       key: `thread:room:${room.id}`,
+      subject: { type: "room", id: room.id },
+      room,
+      location: location ?? null,
+      liveState: room.live ? liveStates.get(room.live) ?? null : null,
       label: `${location?.name ?? "?"} / ${room.name}`,
       name: room.name.slice(0, 100),
       parentKey: location ? `channel:location:${location.id}` : null,
@@ -371,6 +406,9 @@ function buildDesired({
       targetType: "anchor",
       kind: "location-anchor",
       key: `anchor:location:${location.id}`,
+      subject: { type: "location", id: location.id },
+      location,
+      rooms: roomList,
       label: location.name,
       parentKey: `channel:location:${location.id}`,
       parentId: location.discordChannelId ?? null,
@@ -379,6 +417,10 @@ function buildDesired({
       currentHash: location.anchorHash ?? null,
       currentId: location.anchorMessageId ?? null,
     });
+  }
+
+  for (const target of targets) {
+    if (target.targetType === "channel") target.managedIds = managedIds;
   }
 
   return targets;

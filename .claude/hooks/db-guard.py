@@ -55,11 +55,13 @@ DESTRUCTIVE_SCRIPTS = {
     "db:prune-stale-channels": "db/scripts/ops/prune-stale-channels.js",
 }
 
-# NOT listed above, deliberately: `db:mirror` (db/scripts/ops/mirror.js) only
-# reads in Phase 0 — `--apply` is accepted and inert — so guarding it would
-# force CONFIRMED=1 onto a read-only preview, which is the habit this file's
-# header warns against. Add it the moment Phase 1 makes --apply real, since it
-# will then create, rename and reparent live Discord objects.
+# `db:mirror` is guarded only WITH `--apply` (see APPLY_ONLY_SCRIPTS below). A
+# bare `npm run db:mirror` is a read-only preview, and forcing CONFIRMED=1 onto
+# a preview is the habit this file's header warns against. With --apply it
+# creates, renames and reparents live Discord objects, so it joins the list.
+APPLY_ONLY_SCRIPTS = {
+    "db:mirror": "db/scripts/ops/mirror.js",
+}
 
 CONFIRM_TOKEN = "CONFIRMED=1"
 
@@ -146,11 +148,16 @@ def main():
         )
         return 2
 
-    for npm_name, script_path in DESTRUCTIVE_SCRIPTS.items():
+    guarded = dict(DESTRUCTIVE_SCRIPTS)
+    # Guarded only when --apply is on the command line; the dry run is free.
+    if "--apply" in c:
+        guarded.update(APPLY_ONLY_SCRIPTS)
+
+    for npm_name, script_path in guarded.items():
         if matches_script(c, npm_name, script_path) and CONFIRM_TOKEN not in c:
             sys.stderr.write(
-                f"db-guard: refused. '{npm_name}' deletes real rows, and DATABASE_URL points at "
-                "the live database — the one with playtest users who care about this data. "
+                f"db-guard: refused. '{npm_name}' changes real things, and DATABASE_URL points "
+                "at the live database — the one with playtest users who care about this data. "
                 "Stop and ask the user in chat before doing anything else; don't just retry with "
                 f"the bypass below on your own judgment. Once they've said yes, re-run with "
                 f"{CONFIRM_TOKEN} in front of the command.\n"
