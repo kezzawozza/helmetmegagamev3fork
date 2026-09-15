@@ -15,6 +15,7 @@ import {
   teachRequestImpl,
   confessRequestImpl,
   kissRequestImpl,
+  searchRequestImpl,
 } from "./actions/offers.js";
 import { taxRequestImpl } from "./actions/tax.js";
 import { transferRequestImpl } from "./actions/transfer.js";
@@ -99,6 +100,10 @@ export async function confessRequest(input) {
 
 export async function kissRequest(input) {
   return guarded(() => kissRequestImpl(input));
+}
+
+export async function searchRequest(input) {
+  return guarded(() => searchRequestImpl(input));
 }
 
 export async function taxRequest(input) {

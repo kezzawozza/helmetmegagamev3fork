@@ -24,7 +24,8 @@ import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { structuresAt } from "@lifeweb/db/lib/structures";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { roomLine, locationLine, zoneLine } from "@lifeweb/db/lib/placeLine";
-import { heldReasonFor } from "@lifeweb/db/lib/intercept";
+import { heldReasonFor, seenAs, identityOf, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
+import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
   performLocationMove,
@@ -1865,6 +1866,9 @@ function waitingOfferLabel(o, who) {
       return `${who} wants to take you along.`;
     case "KISS":
       return `${who} would like to kiss you.`;
+    case "SEARCH":
+      // Says where to go, because this row deliberately offers no Accept.
+      return `${who} wants to search you. Say yes in your DMs.`;
     default:
       return `${who} offers ${o.tag?.name ?? "a lesson"}.`;
   }
@@ -1916,13 +1920,20 @@ export async function waitingOnYou() {
     }),
   ]);
 
+  // IDENTITY_SELECT, not a bare name. Search is the first offer kind whose
+  // INITIATOR may be wearing a hood — every other one refuses a covered face at
+  // the gate, so its initiator is always somebody you have seen. Reading the row
+  // name here would put "Lord Greeblus wants to search you" in the victim's own
+  // to-do list, which is exactly the unmasking INTERCEPT.md §2 exists to stop.
   const initiators = offers.length
     ? await prisma.character.findMany({
         where: { id: { in: offers.map((o) => o.initiatorId) } },
-        select: { id: true, name: true },
+        select: IDENTITY_SELECT,
       })
     : [];
-  const nameOf = new Map(initiators.map((c) => [c.id, c.name]));
+  const nameOf = new Map(
+    initiators.map((c) => [c.id, capitalizeFirst(seenAs(identityOf(c)))]),
+  );
 
   const rows = [
     ...offers.map((o) => ({
@@ -1932,6 +1943,13 @@ export async function waitingOnYou() {
       // A chaplain waiting on a confession is never told what it is about,
       // here or anywhere else.
       label: waitingOfferLabel(o, nameOf.get(o.initiatorId) ?? "Somebody"),
+      // A search is the one kind this shortcut must NOT be able to accept.
+      // Saying yes to one is a two-step act — you get to hide things first
+      // (docs/systemdocs/SEARCH.md §2) — and this row has no Hide items
+      // control, so an Accept here would silently answer with nothing hidden
+      // for somebody who never learned they could. Saying NO loses nothing, so
+      // Decline stays. Yes lives on the DM card, which has all three buttons.
+      accept: o.kind !== "SEARCH",
       decline: true,
     })),
     ...spawns.map((s) => ({

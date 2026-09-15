@@ -39,6 +39,7 @@ import {
   Hexagon,
   ArrowLeftRight,
   Hand,
+  Backpack,
   Link,
   KeyRound,
   Bird,
@@ -162,6 +163,13 @@ export const LootIcon = lucide(Hand, "LootIcon");
 export const ShackleIcon = lucide(Link, "ShackleIcon");
 // Intercept — a halt sign, not Loot's Hand or Bind's Link: laying in wait is neither taking nor tying (INTERCEPT.md).
 export const InterceptIcon = lucide(OctagonMinus, "InterceptIcon");
+// The Search VERB (docs/systemdocs/SEARCH.md) — a pack, because the verb is
+// about what somebody is carrying. Named apart from SearchIcon above, which is
+// Chat's magnifying glass over the archive and a wholly different act. A glass
+// would have been wrong here anyway: 🔍 is the Discord inspect reaction and
+// EyeIcon is "Look at", both of which answer what you can SEE on somebody
+// rather than what is in their pockets.
+export const SearchPersonIcon = lucide(Backpack, "SearchPersonIcon");
 // Attack — crossed blades, distinct from Harm's Wound (damage done) and Intercept's halt sign (waiting) (ATTACK.md).
 export const AttackIcon = lucide(Swords, "AttackIcon");
 // Free — the key that opens it.

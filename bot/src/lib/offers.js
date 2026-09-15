@@ -10,6 +10,14 @@ const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { deliverCarryDrop } = require("@lifeweb/db/lib/carry");
 const { syncCharacterRoomAccess } = require("@lifeweb/db/lib/roomAccess");
 const { sendDm } = require("./dm");
+const { ack, respond } = require("./respond");
+const {
+  hideableFor,
+  setHiddenItems,
+  MENU_OPTION_LIMIT,
+} = require("@lifeweb/db/lib/search");
+const { SEARCH_HIDE_PICK_PREFIX } = require("@lifeweb/db/lib/offerRow");
+const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 
 async function settle(interaction, line) {
   const original = interaction.message?.content ?? "";
@@ -74,4 +82,97 @@ async function handleOfferDecline(interaction, offerId) {
   await handleOffer(interaction, offerId, DM_CHOICE.DECLINE);
 }
 
-module.exports = { handleOfferAccept, handleOfferDecline };
+// --- Search's third button (docs/systemdocs/SEARCH.md §2) -----------------
+//
+// TWO things here are easy to get wrong, and both are about WHICH message is
+// being edited.
+//
+// 1. This must NOT call settle(). That strips the components off the DM, which
+//    is how Accept and Decline finalise — but hiding is not an answer, so Yes
+//    and No have to be sitting there afterwards. It replies ephemerally
+//    instead, leaving the original alone.
+// 2. handleSearchHidePick then updates the EPHEMERAL it opened, never the DM.
+//
+// Everything both faces must agree about is db/lib/search.js#setHiddenItems;
+// what is left here is the picker's own chrome.
+async function handleSearchHideOpen(interaction, offerId) {
+  await ack(interaction);
+
+  const loaded = await hideableFor(prisma, {
+    offerId,
+    discordUserId: interaction.user.id,
+  });
+  if (!loaded.ok) {
+    await respond(interaction, loaded.reason);
+    return;
+  }
+  if (loaded.rows.length === 0) {
+    await respond(interaction, "You have nothing on you that could be hidden.");
+    return;
+  }
+
+  // Heaviest first, so what the 25-cap cuts is the pocket litter rather than
+  // the anvil. Discord caps a select menu at 25 options, and max_values must
+  // track the SLICE or the whole component is rejected.
+  const sorted = [...loaded.rows].sort((a, b) => (b.weightLbs ?? 0) - (a.weightLbs ?? 0));
+  const shown = sorted.slice(0, MENU_OPTION_LIMIT);
+  const already = new Set(loaded.hidden ?? []);
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId(`${SEARCH_HIDE_PICK_PREFIX}${offerId}`)
+    .setPlaceholder("What to hide…")
+    // Zero is a real answer: unticking everything is how you change your mind.
+    .setMinValues(0)
+    .setMaxValues(shown.length)
+    .addOptions(
+      shown.map((row) => ({
+        label: row.quantity > 1 ? `${row.name} ×${row.quantity}` : row.name,
+        value: row.tagId,
+        // Opens on what is already hidden, so reopening the picker shows the
+        // ticks rather than an empty menu that would silently clear them.
+        default: already.has(row.tagId),
+      })),
+    );
+
+  const truncated = sorted.length > shown.length;
+  await respond(interaction, {
+    content:
+      "Pick what you want to hide. Hiding fewer things hides them better." +
+      (truncated
+        ? `\n-# Showing the ${shown.length} heaviest of ${sorted.length}. Use the website for the rest.`
+        : ""),
+    components: [new ActionRowBuilder().addComponents(menu)],
+  });
+}
+
+async function handleSearchHidePick(interaction, offerId) {
+  // deferUpdate, not ack: the thing being acknowledged is the EPHEMERAL this
+  // select lives on, and the DM with Yes/No on it must be left alone.
+  await interaction.deferUpdate();
+
+  const saved = await setHiddenItems(prisma, {
+    offerId,
+    discordUserId: interaction.user.id,
+    tagIds: interaction.values,
+    // What this menu could actually show. Anything hidden BEYOND the 25-option
+    // slice is carried through rather than replaced away — otherwise saving
+    // here would quietly unhide what the player ticked on the web.
+    scope: interaction.component?.options?.map((o) => o.value) ?? null,
+  });
+  const line = saved.ok
+    ? saved.hidden.length === 0
+      ? "Hiding nothing. Answer the search when you're ready."
+      : `Hiding ${saved.hidden.length} thing${saved.hidden.length === 1 ? "" : "s"}. Answer the search when you're ready.`
+    : saved.reason;
+
+  await interaction
+    .editReply({ content: `» *${line}*`, components: [] })
+    .catch((err) => console.error("Search hide pick update failed:", err));
+}
+
+module.exports = {
+  handleOfferAccept,
+  handleOfferDecline,
+  handleSearchHideOpen,
+  handleSearchHidePick,
+};

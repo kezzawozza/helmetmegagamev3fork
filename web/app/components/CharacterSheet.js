@@ -162,6 +162,7 @@ export default function CharacterSheet({
   harmTargets = [],
   harmTags = [],
   kissTargets = [],
+  searchParties = [],
   kissBlocked = null,
   avatarUploadsEnabled = false,
   playPanelEnabled = true,
@@ -265,6 +266,7 @@ export default function CharacterSheet({
         harmTargets={harmTargets}
         harmTags={harmTags}
         kissTargets={kissTargets}
+        searchParties={searchParties}
         kissBlocked={kissBlocked}
         examineBlocked={examineBlocked}
         canCrucify={canCrucify}

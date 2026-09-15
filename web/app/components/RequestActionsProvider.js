@@ -134,6 +134,9 @@ export default function RequestActionsProvider({
   // your own hood. Both resolved server-side in web/lib/peoplePools.js so the
   // greyed button and kissRequestImpl's refusal read the same sentence.
   kissTargets = [],
+  // Search (docs/systemdocs/SEARCH.md). Hood-capable, so it is party-shaped
+  // ("character:<id>" / "hood:<token>") rather than a list of bare ids.
+  searchParties = [],
   kissBlocked = null,
   // Corpses (CORPSES.md): every body in reach — yours and the ones lying in
   // rooms here — built once server-side by db/lib/corpses.js#corpsesInReach so
@@ -313,6 +316,7 @@ export default function RequestActionsProvider({
     harmTags,
     doseTargets,
     kissTargets,
+    searchParties,
     kissBlocked,
     corpses,
     healTargets,
@@ -473,6 +477,10 @@ export default function RequestActionsProvider({
       // page load — the rule at the top of actionRegistry.js.
       canKiss: !kissBlocked,
       kissTargets,
+      // No `canSearch` beside it, deliberately. Search has no gate at all —
+      // nothing on your own sheet refuses it, and greying on who is standing
+      // near you is the one thing actionRegistry.js's rule forbids.
+      searchParties,
       // `show` gates whether ActionGrid renders the icon; canSendBirdToday
       // is a `gate` on top, so the button exists but is dead post-send.
       hasBird,
@@ -525,6 +533,7 @@ export default function RequestActionsProvider({
       extractBlocked,
       kissBlocked,
       kissTargets,
+      searchParties,
       teachers,
       learners,
       teachCostsMove,

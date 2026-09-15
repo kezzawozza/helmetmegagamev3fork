@@ -53,6 +53,23 @@ function seenByBystander(tag, characterTag, identityVisible = true) {
   return false;
 }
 
+// "Could this be palmed before a Search?" (docs/systemdocs/SEARCH.md §2) —
+// HIDDEN or WORN, never ALWAYS. It sits beside seenByBystander because it is
+// the same column read for a related question, and putting it in search.js
+// would be the call-site enum comparison TAGS.md §5 forbids. It is genuinely a
+// SECOND predicate rather than a wrapper: an equipped WORN item IS seen by a
+// bystander and is still hideable from a search, so seenByBystander cannot
+// answer this.
+//
+// Note the direction, because it is the opposite of the one above and the trap
+// is real. A VISION gate fails closed by HIDING. This one is an allowlist, so
+// it fails closed by REVEALING — a fifth TagVisibility value would arrive
+// searchable and unhideable, quietly. That is the safer of the two wrong
+// answers, but it is a wrong answer, so a new enum value has to come back here.
+function hideableFromSearch(tag) {
+  return tag?.inspectVisibility === "HIDDEN" || tag?.inspectVisibility === "WORN";
+}
+
 // "Could this character treat that affliction without rolling for it?" A
 // Gambit is by definition NOT routine, so a tier-7 affliction stays hidden
 // even from an Expert who could attempt it. A tag with no requirementSkills
@@ -91,5 +108,6 @@ module.exports = {
   satisfiedSkillIds,
   canTreatAsRoutine,
   seenByBystander,
+  hideableFromSearch,
   medicallyVisibleTags,
 };

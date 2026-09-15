@@ -95,6 +95,9 @@ import {
   loadResearchCatalog,
   researchableHeld,
 } from "@lifeweb/db/lib/research";
+// For the SEARCH offers' presented faces only — see pendingOffers below.
+import { seenAs, identityOf, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
+import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { parseSelection } from "@/lib/portrait/catalog";
 import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
@@ -472,6 +475,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     harmTags,
     doseTargets,
     kissTargets,
+    searchParties,
     kissBlocked,
   } = await loadPeoplePools(character, {
     discordUserId: session.discordUserId,
@@ -963,24 +967,41 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         .map((ct) => ct.tag)
         .sort((a, b) => a.name.localeCompare(b.name));
 
+  const openOffers = openTurn
+    ? await prisma.offer.findMany({
+        where: {
+          turnId: openTurn.id,
+          status: "PENDING",
+          OR: [{ initiatorId: character.id }, { responderId: character.id }],
+        },
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          kind: true,
+          initiatorId: true,
+          responderId: true,
+          tag: { select: { name: true } },
+        },
+      })
+    : [];
+
+  // Presented faces for the SEARCH offers below — one query, and only when
+  // there are any, since every other kind reads off the two rosters already
+  // loaded above.
+  const searchFaces = new Map();
+  const searchOtherIds = openOffers
+    .filter((o) => o.kind === "SEARCH")
+    .map((o) => (o.initiatorId === character.id ? o.responderId : o.initiatorId));
+  if (searchOtherIds.length > 0) {
+    const faces = await prisma.character.findMany({
+      where: { id: { in: [...new Set(searchOtherIds)] } },
+      select: IDENTITY_SELECT,
+    });
+    for (const row of faces) searchFaces.set(row.id, capitalizeFirst(seenAs(identityOf(row))));
+  }
+
   const pendingOffers = openTurn
-    ? (
-        await prisma.offer.findMany({
-          where: {
-            turnId: openTurn.id,
-            status: "PENDING",
-            OR: [{ initiatorId: character.id }, { responderId: character.id }],
-          },
-          orderBy: { createdAt: "asc" },
-          select: {
-            id: true,
-            kind: true,
-            initiatorId: true,
-            responderId: true,
-            tag: { select: { name: true } },
-          },
-        })
-      ).map((o) => {
+    ? openOffers.map((o) => {
         const otherId =
           o.initiatorId === character.id ? o.responderId : o.initiatorId;
         const other = [...here, ...zoneRoster].find((c) => c.id === otherId);
@@ -988,7 +1009,16 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           id: o.id,
           kind: o.kind,
           mine: o.initiatorId === character.id,
-          otherName: other?.name ?? "someone",
+          // SEARCH is the one kind either end of which may be hooded, and
+          // neither list above is safe for it: `here` drops concealed rows
+          // entirely, and rosterName() honours a forced name but NOT a hood, so
+          // zoneRoster would print the real one. Showing it here would put the
+          // hood's own secret in the other player's to-do list — the unmasking
+          // INTERCEPT.md §2 exists to stop. Resolved presented below instead.
+          otherName:
+            o.kind === "SEARCH"
+              ? (searchFaces.get(otherId) ?? "somebody")
+              : (other?.name ?? "someone"),
           // A chaplain waiting on a confession is never told what it's about; the penitent sees their own.
           tagName:
             o.kind === "CONFESSION" && o.responderId === character.id
@@ -1127,6 +1157,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       doseTargets: doseTargets,
       lastNameLocked: isDynastyMember(character.role?.slug),
       kissTargets: kissTargets,
+      searchParties: searchParties,
       kissBlocked: kissBlocked,
       storeTags: storeTags,
       storeHeldTags: storeHeldTags,

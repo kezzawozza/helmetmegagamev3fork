@@ -52,6 +52,11 @@ const PEOPLE_ACTIONS = [
   { mode: "free", label: "Free", preset: "targetId" },
   { mode: "harm", label: "Harm", preset: "targetId" },
   { mode: "kiss", label: "Kiss", preset: "targetId" },
+  // Search carries a hoodPrefix, like Transfer and unlike everything else on
+  // this menu: it is one of the two verbs that reaches a concealed person
+  // (docs/systemdocs/SEARCH.md §2). Without it the row is dropped for hoods
+  // by the filter below.
+  { mode: "search", label: "Search", preset: "targetId", prefix: "character:", hoodPrefix: "hood:" },
 ];
 
 // `person` is normalised by the two lists below to { ref, name, hooded }:

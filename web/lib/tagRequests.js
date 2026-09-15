@@ -2,10 +2,14 @@
 // catalog flag (docs/systemdocs/TAGS.md §5), re-checked server-side.
 
 import { holdsRequirement } from "./characterCreation";
+import { isTradeable } from "@lifeweb/db/lib/tradeable";
 
-export function isTradeable(tag) {
-  return Boolean(tag?.tradeable);
-}
+// Lifted into db/lib so Search can ask the same question from the other side of
+// the monorepo (SEARCH.md), and re-exported here so TAGS.md §5's "single reader"
+// stays true and every existing import keeps working. Imported as well as
+// re-exported, because `export … from` makes no local binding and this file is
+// one of the readers.
+export { isTradeable };
 
 const DEAD_SIMPLE_SKILL_SLUGS = (slug) => slug === "crafting" || slug.startsWith("smithing");
 

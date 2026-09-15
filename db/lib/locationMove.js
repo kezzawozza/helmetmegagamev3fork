@@ -27,6 +27,7 @@ const {
 const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
 const { cancelWatchOnMove, releaseHeldBy, INTERCEPT_CANCELLED_DM } = require("./intercept");
+const { cancelSearchOffersOnMove } = require("./search");
 const { closeFightsFor } = require("./attack");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW, LOCATION_VANTAGE_ALLOW, LOCATION_VANTAGE_DENY } = require("./zoneChannelSpec");
@@ -247,6 +248,19 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
       })
     : null;
 
+  // A pending search dies the same way, and for the same reasons (docs/systemdocs/SEARCH.md §5):
+  // here rather than in performLocationMove because this is the writer every relocation runs, above
+  // the Discord guard because the offer dying is a database fact and only the letter waits for a
+  // token, and behind `fromLocationId` because a Resync, a revive and a first placement are not moves.
+  // It fires for EITHER party — a search is two people standing in one place, and which of them left
+  // does not change that. Returns descriptors; the DMs go out below the guard with the rest.
+  const searchesOff = fromLocationId
+    ? await cancelSearchOffersOnMove(prisma, characterId).catch((err) => {
+        console.error(`Move: cancelling pending searches failed for ${characterId}:`, err.message ?? err);
+        return [];
+      })
+    : [];
+
   // Before the Discord guard below, because this is a DB change that must happen whether or not there's a token to talk to Discord with. Also before the settle further down, so the settle sees the reduced cap and grants Overburdened in the same pass (docs/systemdocs/CARRY.md §3).
   const parked = await parkMountsIndoors(prisma, characterId, toLocationId).catch((err) => {
     console.error(`Move: parking mounts failed for ${characterId}:`, err.message ?? err);
@@ -381,6 +395,16 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   if (droppedWatch?.cancelled) {
     await sendDm(prisma, discordUserId, INTERCEPT_CANCELLED_DM).catch((err) =>
       console.error(`Move: intercept-cancelled DM to ${discordUserId} failed:`, err.message ?? err),
+    );
+  }
+
+  // The searchers whose offer this move just killed. Each goes to a DIFFERENT
+  // person than the one moving, so these are addressed descriptors rather than
+  // `discordUserId` — and they ride here, beside the letter above, for the same
+  // reason: the cancel already happened, only the telling waits for a token.
+  for (const dm of searchesOff) {
+    await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+      console.error(`Move: search-cancelled DM to ${dm.discordUserId} failed:`, err.message ?? err),
     );
   }
 

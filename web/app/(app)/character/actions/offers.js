@@ -1,4 +1,4 @@
-// Learn/Teach, Confess, Kiss — the three offer/consent handshakes and the
+// Learn/Teach, Confess, Kiss, Search — the offer/consent handshakes and the
 // lesson-offer helper they share.
 
 import { after } from "next/server";
@@ -12,6 +12,8 @@ import {
   createKissOffer,
   KISS_SELECT,
 } from "@lifeweb/db/lib/kiss";
+import { createSearchOffer, SEARCH_SELECT } from "@lifeweb/db/lib/search";
+import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { sendDm } from "@/lib/discordGuild";
 import { ACT } from "@lifeweb/db/lib/incapacitation";
 import {
@@ -139,3 +141,52 @@ export async function kissRequestImpl({ targetCharacterId }) {
   return { pending: true };
 }
 
+// --- Search (docs/systemdocs/SEARCH.md) ----------------------------------
+
+// The one door, the Kiss shape. Every gate lives in
+// db/lib/search.js#searchAuthority so the picker, this action and the Yes
+// click all refuse for the same reasons, and createSearchOffer re-runs it on
+// whatever is posted rather than trusting the body. Acting character comes
+// from the session, never a posted id.
+//
+// `targetKey` rather than a bare id, because Search is the second verb in the
+// game that can reach somebody in a hood (Transfer is the first): a concealed
+// row arrives as "hood:<token>" and only resolveHoodToken can turn it into an
+// id — and only for somebody actually standing here, which is what stops the
+// token being a roster oracle.
+export async function searchRequestImpl({ targetKey }) {
+  const { character } = await requireCharacter({ needs: ACT });
+
+  const raw = String(targetKey ?? "");
+  const bare = raw.startsWith("character:") ? raw.slice("character:".length) : raw;
+  const targetId = bare.startsWith("hood:")
+    ? await resolveHoodToken(prisma, character, bare.slice("hood:".length))
+    : bare;
+
+  const target = targetId
+    ? await prisma.character.findFirst({
+        where: { id: targetId, status: "ALIVE" },
+        select: SEARCH_SELECT,
+      })
+    : null;
+  if (!target) throw new UserError(notHereMessage(target));
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open.");
+
+  const offer = await createSearchOffer(prisma, { actor: character, target, turn: openTurn });
+  if (!offer.ok) throw new UserError(offer.reason);
+
+  after(() =>
+    sendDm(offer.dm.discordUserId, offer.dm.content, {
+      components: offer.dm.components,
+      meta: offer.dm.meta,
+      source: "player_event",
+    }).catch((err) => console.error(`Search offer DM to ${target.id} failed:`, err)),
+  );
+
+  // No audit row here: createSearchOffer writes it in the same transaction as
+  // the Offer and the SearchAttempt that IS the ration (SEARCH.md §3).
+  revalidateAll();
+  return { pending: true };
+}

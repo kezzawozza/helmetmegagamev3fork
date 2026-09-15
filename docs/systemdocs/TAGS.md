@@ -822,6 +822,15 @@ has since been deleted outright along with the channel it opened.
   the day the migration ran. Under a new name a missed read site gets
   `undefined` and the tag stays hidden. A vision gate should fail closed.
 
+  **One other predicate reads this column, and it is not a wrapper around that
+  one.** `hideableFromSearch()` (same file) answers "could this be palmed before
+  a Search?" — `HIDDEN` or `WORN`, never `ALWAYS` ([`SEARCH.md`](SEARCH.md) §2).
+  It has to be separate because an equipped `WORN` dagger **is** seen by a
+  bystander and is still hideable from a search, so the two questions genuinely
+  differ. Note that it fails closed in the OPPOSITE direction: it is an
+  allowlist, so an unknown value comes out searchable-but-unhideable rather than
+  concealable. A new `TagVisibility` value has to visit both functions.
+
   Note it is a property of the tag being *seen*. The tag that widens what an
   inspect shows is read off the **inspector** instead: Seductive reveals the
   subject's active Desire, resolved by `db/lib/inspectVision.js`, which also
@@ -843,7 +852,8 @@ has since been deleted outright along with the channel it opened.
   tradeable tag (`CARRY.md` §1). One flag
   covers both directions — handing it to someone standing with you
   (`TRANSFER_TAG`) and lifting it off a corpse or a helpless body
-  (`LOOT_CHARACTER`). `web/lib/tagRequests.js#isTradeable` is the single
+  (`LOOT_CHARACTER`). `db/lib/tradeable.js#isTradeable` (re-exported by
+  `web/lib/tagRequests.js`, and in db/ so a Search can read it too) is the single
   reader; the Hand Over menu, the Loot dialog's per-target tag list, and both
   server actions all go through it, so the menu and the gate can't drift.
 

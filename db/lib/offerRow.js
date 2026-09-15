@@ -27,4 +27,37 @@ function escortButtonRow(offerId) {
   ];
 }
 
-module.exports = { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX, offerButtonRow, escortButtonRow };
+// Search (docs/systemdocs/SEARCH.md) is the one kind with a THIRD control, and
+// only that one is new plumbing: Yes and No wear the two prefixes above, so the
+// bot's router and the web's DmActionRow reach acceptSearch with no new branch
+// — the escortButtonRow trick, same custom ids, different chrome.
+//
+// Hiding is NOT an answer. It edits a pending row and leaves the Yes/No buttons
+// where they are, which is why it gets its own prefix rather than a DM_CHOICE:
+// the picker is re-openable, and answering is not.
+const SEARCH_HIDE_PREFIX = "search:hide:";
+// The select menu inside the ephemeral the button above opens.
+const SEARCH_HIDE_PICK_PREFIX = "search:hidepick:";
+
+function searchButtonRow(offerId) {
+  return [
+    {
+      type: 1,
+      components: [
+        { type: 2, style: 3, custom_id: `${OFFER_ACCEPT_PREFIX}${offerId}`, label: "Yes" },
+        { type: 2, style: 2, custom_id: `${OFFER_DECLINE_PREFIX}${offerId}`, label: "No" },
+        { type: 2, style: 2, custom_id: `${SEARCH_HIDE_PREFIX}${offerId}`, label: "Hide items" },
+      ],
+    },
+  ];
+}
+
+module.exports = {
+  OFFER_ACCEPT_PREFIX,
+  OFFER_DECLINE_PREFIX,
+  SEARCH_HIDE_PREFIX,
+  SEARCH_HIDE_PICK_PREFIX,
+  offerButtonRow,
+  escortButtonRow,
+  searchButtonRow,
+};

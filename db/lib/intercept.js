@@ -9,6 +9,10 @@ const { matchesTypedName } = require("./characterName");
 const { blockerFor, ACT } = require("./incapacitation");
 const { reFor } = require("./discordMarkup");
 const { DM_KIND } = require("./dmKinds");
+// For the auto-search refusal note only: it is guidance sitting under somebody's
+// own catch line rather than a notice of its own, which is what `-#` is for
+// (CLAUDE.md, "Bot message style"). The helper is used for its per-line prefixing.
+const { ambientLine } = require("./ambientLine");
 
 // WHY somebody cannot move, written onto Character.heldReason beside the timestamp.
 // Three values, not two: a fight holds BOTH sides and they're not in the same position, so the jumped and the jumper must not read the same sentence. A frozen table rather than hand-written strings across files — db/lib/characterDeath.js's clear once lacked this guard, and a typo'd literal is how that happens twice.
@@ -370,6 +374,45 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
     // The ambusher's own line is attack.js's now, since the button calls off a fight rather than releasing a hold — still one DM per victim, a button answers about exactly one person.
   }
   dms.push(...attackDmsOut);
+
+  // AUTO-SEARCH (docs/systemdocs/SEARCH.md §6). A watch with the box ticked also
+  // ASKS to search whoever it caught — it buys the ask and never the answer, so
+  // the consent DM is the ordinary one and No is a real answer.
+  //
+  // Required lazily for fileAttack's reason one block up: search.js requires this
+  // module back for seenAs/identityOf/IDENTITY_SELECT, so the cycle is resolved at
+  // call time rather than load time and neither half sees a partial exports object.
+  //
+  // Runs LAST, after the InterceptHit ration has claimed the catch and after the
+  // ambush has filed: searching somebody you did not actually stop would be a lie,
+  // which is what `hit.held` guards below — the same flag the victim's DM uses.
+  const { createSearchOffer } = require("./search");
+  for (const hit of hits.filter((h) => h.watch.autoSearch)) {
+    if (hit.ambush && !hit.held) continue;
+    const asked = await createSearchOffer(db, {
+      actor: hit.interceptor,
+      target: hit.target,
+      turn: openTurn,
+    }).catch((err) => {
+      console.error(`Intercept: auto-search for ${hit.target.id} failed:`, err.message ?? err);
+      return { ok: false, reason: null };
+    });
+    if (asked.ok) {
+      dms.push({ ...asked.dm, kind: DM_KIND.NOTICE });
+      continue;
+    }
+    // The TARGET is told nothing — they must not hear about a search that never
+    // happened. The person who ticked the box is, because silence there reads as
+    // a bug. Only reachable when the same searcher already searched this person by
+    // hand this turn, since InterceptHit is itself once per person per turn.
+    if (asked.reason && hit.interceptor.discordUserId) {
+      dms.push({
+        discordUserId: hit.interceptor.discordUserId,
+        content: ambientLine(asked.reason),
+        kind: DM_KIND.NOTICE,
+      });
+    }
+  }
 
   return { dms, hits };
 }

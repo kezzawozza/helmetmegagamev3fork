@@ -14,6 +14,9 @@
 // failed pass to retry.
 const { addToStack, replaceLowerTiers } = require("./tagWrites");
 const { LESSON_THRESHOLD } = require("./constants");
+// For the SEARCH expiry line only — see presentedNameOf below.
+const { seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
+const { capitalizeFirst } = require("./concealedIdentity");
 
 function rollLine(turn, action, bonus = 0) {
   const mod = (action.diceModifier ?? 0) + bonus;
@@ -56,11 +59,20 @@ async function runLessonPass(prisma, turn) {
     (
       await prisma.character.findMany({
         where: { id: { in: [...ids] } },
-        select: { id: true, name: true, discordUserId: true, status: true },
+        // IDENTITY_SELECT rather than a bare name, so presentedNameOf below
+        // can answer. It carries id/name/discordUserId/status already.
+        select: IDENTITY_SELECT,
       })
     ).map((c) => [c.id, c]),
   );
   const nameOf = (id) => people.get(id)?.name ?? "someone";
+  // Search is the one kind either end of which may be hooded, so its expiry
+  // notice is the one that must name the face rather than the row — the same
+  // rule INTERCEPT.md §2 applies to every other line about a concealed person.
+  const presentedNameOf = (id) => {
+    const row = people.get(id);
+    return row ? capitalizeFirst(seenAs(identityOf(row))) : "Someone";
+  };
   const dmTo = (id, content) => {
     const c = people.get(id);
     return c?.discordUserId
@@ -201,6 +213,11 @@ async function runLessonPass(prisma, turn) {
       if (claim.count === 0) continue;
       expired += 1;
       const other = nameOf(offer.responderId);
+      // One line per kind, and the lesson pair is the DEFAULT arm rather than
+      // one more branch — which is why every kind added since has to appear
+      // here or its expiry notice says "your offer to teach a skill". KISS and
+      // ESCORT were both reading that way until Search arrived and made the
+      // gap obvious; the two lines below are that fix, not new behaviour.
       const content =
         offer.kind === "BIND"
           ? `${other} didn't answer. The turn is over.`
@@ -208,9 +225,17 @@ async function runLessonPass(prisma, turn) {
             ? // Never names the tag: an expiry notice is not the place to
               // start writing somebody's sins into a DM log.
               `${other} never heard your confession. Your Move wasn't spent.`
-            : offer.initiatorId === offer.learnerId
-              ? `${other} never answered your offer to learn ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent.`
-              : `${other} never answered your offer to teach ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent.`;
+            : offer.kind === "KISS"
+              ? `${other} never answered you.`
+              : offer.kind === "ESCORT"
+                ? `${other} never answered. They aren't coming with you.`
+                : offer.kind === "SEARCH"
+                  ? // Never names what they were carrying: nothing was found,
+                    // and an expiry notice is not a consolation readout.
+                    `${presentedNameOf(offer.responderId)} never answered your search.`
+                  : offer.initiatorId === offer.learnerId
+                    ? `${other} never answered your offer to learn ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent.`
+                    : `${other} never answered your offer to teach ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent.`;
       const dm = dmTo(offer.initiatorId, content);
       if (dm) dms.push(dm);
     } catch (err) {

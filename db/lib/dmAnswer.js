@@ -11,6 +11,7 @@ const { acceptLesson, declineOffer } = require("./lessons");
 const { acceptBind } = require("./bind");
 const { acceptConfession } = require("./confession");
 const { acceptKiss } = require("./kiss");
+const { acceptSearch } = require("./search");
 const { acceptEscort } = require("./escort");
 const { acceptThreatSpawn, declineThreatSpawn } = require("./threatSpawn");
 const { declineAssignment } = require("./lobby");
@@ -69,6 +70,8 @@ function acceptOffer(prisma, offer, responder) {
       return acceptEscort(prisma, offer, responder);
     case "KISS":
       return acceptKiss(prisma, offer, responder);
+    case "SEARCH":
+      return acceptSearch(prisma, offer, responder);
     default:
       return acceptLesson(prisma, offer, responder);
   }

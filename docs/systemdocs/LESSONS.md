@@ -63,10 +63,10 @@ off (`db/lib/tagWrites.js#replaceLowerTiers`), same as buying the upgrade.
 ## 3. The Offer
 
 ```
-Offer { kind LESSON|BIND|CONFESSION|ESCORT, status PENDING|ACCEPTED|DECLINED|CANCELLED|EXPIRED|RESOLVED,
+Offer { kind LESSON|BIND|CONFESSION|ESCORT|KISS|SEARCH, status PENDING|ACCEPTED|DECLINED|CANCELLED|EXPIRED|RESOLVED,
         turnId, initiatorId, responderId,
         teacherId?, learnerId?, tagId?, threshold?, learnerActionId?, teacherActionId?,
-        outcome?, reason? }
+        hiddenTagIds[], outcome?, reason? }
 ```
 
 A handshake between two characters, alive for one turn. The **initiator**
@@ -85,6 +85,19 @@ window on the responder, so being picked up again inside it does not re-ask. The
 `interaction.update()`: the buttons come off the message and the outcome is
 written under it, so nothing can be clicked twice and no message id has to be
 stored. A stale button just says the offer's gone.
+
+`SEARCH` ([`SEARCH.md`](SEARCH.md)) is the newest, and the only one so far to
+need a **third** control. Yes and No still wear the two prefixes above, so the
+router and the web's `DmActionRow` needed no branch for them; what is new is
+**Hide items**, on its own `search:hide:` prefix, because hiding EDITS the
+pending row rather than answering it — the Yes/No pair has to survive it, so it
+can be neither an `interaction.update()` nor a `DM_CHOICE`. Its `hiddenTagIds`
+is the only pre-answer payload on this table; `outcome` stays what every kind
+writes at resolve time.
+
+It is also the first kind either end of which may be wearing a **hood**, which
+is why four surfaces that used to print `Character.name` off an offer now go
+through `seenAs()` — see `SEARCH.md` §2a before adding a fifth.
 
 Character ends are snapshot ids without FKs — the log-table convention. A
 dead character's offers stay readable.
