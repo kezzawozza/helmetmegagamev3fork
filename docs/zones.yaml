@@ -1004,7 +1004,7 @@ zones:
           wilderness: true
         map_node: 1
         description: >-
-          The trees thin, giving way to tough grass, slippery granite, and cold streams. A purple haze hangs over the rocky, inhospitable soil, but water gathers in root-webbed pockets between boulders—before disappearing under loose stone and surfacing again farther downhill. A rattling mountain wind moves freely through the gaps in the sinewy canopy, carrying spray from the falls and the constant rattle of shifting scree. Scrabbling up the mossy rocks would be difficult.
+          The trees thin, giving way to tough grass, slippery granite, and cold streams. A purple haze hangs over the rocky, inhospitable soil, but water gathers in root-webbed pockets between boulders — before disappearing under loose stone and surfacing again farther downhill. A rattling mountain wind moves freely through the gaps in the sinewy canopy, carrying spray from the falls and the constant rattle of shifting scree. Scrabbling up the mossy rocks would be difficult.
         yield: { hunting: 0.5, farming: 0.3, fishing: 0.9, prospecting: 0.5 }
         rooms:
           headwaters-gravel-field:
@@ -1536,7 +1536,7 @@ zones:
           gullies-plateau:
             name: Wisened Plateau
             description: >-
-              Where the slope encasing the road levels out, a small enclave forms to the side of the road. An old tree—rather short for its great width—grows here. The black leaves it hosts are the first on any tree for miles.
+              Where the slope encasing the road levels out, a small enclave forms to the side of the road. An old tree — rather short for its great width — grows here. The black leaves it hosts are the first on any tree for miles.
           gullies-fissure:
             name: Fissure
             description: >-
@@ -1800,7 +1800,7 @@ zones:
           woods-mirebed:
             name: Mirebed
             description: >-
-              Beneath interlocking roots, an area opens into a dry island of peat and old bone. Curled at its center lies something enormous beneath a blanket of moss: a lion-like body the size of a cottage, one horned head tucked beneath a folded wing, while a second shape—another neck—disappears beneath its mane. Each breath slow, and mushrooms have begun growing from the mud accumulated along its back. It sleeps no matter what you do.
+              Beneath interlocking roots, an area opens into a dry island of peat and old bone. Curled at its center lies something enormous beneath a blanket of moss: a lion-like body the size of a cottage, one horned head tucked beneath a folded wing, while a second shape — another neck — disappears beneath its mane. Each breath slow, and mushrooms have begun growing from the mud accumulated along its back. It sleeps no matter what you do.
             access: [forester, tracking]
             stash:
               items:
@@ -1818,7 +1818,7 @@ zones:
           drowned-marshes-stillwater:
             name: Stillwater
             description: >-
-              The basin’s center is deep, exposed, and almost entirely free of vegetation. On calm days the water becomes mirror-flat, making distant trees and clouds difficult to distinguish from their reflections.
+              The basin's center is deep, exposed, and almost entirely free of vegetation. On calm days the water becomes mirror-flat, making distant trees and clouds difficult to distinguish from their reflections.
           drowned-marshes-crypt:
             name: Crypt
             description: >-

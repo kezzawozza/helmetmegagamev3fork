@@ -22,7 +22,7 @@ const { resolveIngredients } = require("./riteIngredients");
 const { roomLine, answerPanic } = require("./riteEffects");
 
 // Posted once per attempt, the moment the last requirement lands.
-const TENSE_LINE = "You feel tense... Anyone else who wants to participate should join in now.";
+const TENSE_LINE = "You feel tense… Anyone else who wants to participate should join in now.";
 
 const ROOM_SELECT = {
   id: true,

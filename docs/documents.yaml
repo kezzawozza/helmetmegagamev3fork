@@ -417,14 +417,14 @@ documents:
     tags:
       - Thanati
     description: |-
-      The list of rites and their words can be obtained by crafting a {tag:grimoire}, which takes 1 {tag:blank-book}. To fulfill a rite, consume a {tag:flesh-of-tzchernobog} to gain {tag:dark-inspiration} and then prepare the ingredients—hold them or set them on the ground where you plan to commence the rite. You must then chant the Word of the Circle in a conversation or in the room. To account for time zones, you have twelve hours to meet the requirements after beginning. Once completed, you have an extra minute for any other cultists who wish to join in the chanting.
+      The list of rites and their words can be obtained by crafting a {tag:grimoire}, which takes 1 {tag:blank-book}. To fulfill a rite, consume a {tag:flesh-of-tzchernobog} to gain {tag:dark-inspiration} and then prepare the ingredients — hold them or set them on the ground where you plan to commence the rite. You must then chant the Word of the Circle in a conversation or in the room. To account for time zones, you have twelve hours to meet the requirements after beginning. Once completed, you have an extra minute for any other cultists who wish to join in the chanting.
   cult-leader:
     name: Cult Leader
     public: false
     tags:
       - Thanati Leader
     description: |-
-      You have emerged as the leader of Ravenheart’s cell of Thanati. They will follow your every order, and you must lead them to accomplish the Dark Lords instructions.
+      You have emerged as the leader of Ravenheart's cell of Thanati. They will follow your every order, and you must lead them to accomplish the Dark Lords instructions.
 
       You are the brains behind all the cults schemes. If you are captured, the entire cult will be in jeopardy. Have your underlings perform the riskiest of tasks instead.
 
@@ -448,13 +448,13 @@ documents:
 
       **Common Thanati Chants:**
 
-      “Crudux Cruo!”
+      "Crudux Cruo!"
 
-      “Geroxe bibox malax!”
+      "Geroxe bibox malax!"
 
-      “Geroxe Cruo!”
+      "Geroxe Cruo!"
 
-      “Maranax infirmux!”
+      "Maranax infirmux!"
 
       These chants allegedly commune with Tzchernobog, granting his servants strength as they conduct his bidding.
   thanati-network:

@@ -44,6 +44,12 @@ const YAML_SOURCES = [
       "Zone blurb (heads the Create-a-Topic post) or Location topic prose (the topic's starter message).",
   },
   {
+    file: "docs/desires.yaml",
+    group: "content-desires",
+    keys: ["name"],
+    where: "Desire name — the Desires panel on the sheet, the offer DM, and the GM's Desires surface. Upsert-by-slug; a name change is a rename, not a new Desire.",
+  },
+  {
     file: "docs/taggroups.yaml",
     group: "content-taggroups",
     keys: ["name"],
@@ -120,6 +126,14 @@ const COPY_CONSTANTS = new Set([
   "CONSOLE_TEXT",
   "REQUEST_TYPE_LABELS",
   "REQUEST_STATUS_LABELS",
+  // The verb strip's help sentences — one per action, on every button a player
+  // hovers (SHEET.md §2). The largest single block of player copy that no
+  // call-site matcher sees, since it is a bare slug -> sentence map.
+  "ACTION_HELP",
+  "BIND_VERBS",
+  "CHARACTER_STATUS",
+  "DESIRE_STATUS",
+  "LOBBY_STATUS",
 ]);
 
 // Object keys inside those constants (and inside command definitions) that
@@ -157,10 +171,13 @@ const DUAL_SURFACE_FILES = new Set([
   "db/lib/production.js",
 ]);
 
-// The `»` rule is per-call-site: all three sendDm twins apply it
-// automatically, so a hand-written one there doubles up. Everywhere else it
-// IS written inline and must stay.
-const GUILLEMET_AUTO_KINDS = new Set(["call:sendDm"]);
+// The `»` rule is per-call-site, and NO transport strips or doubles one:
+// db/lib/dmPolicy.js#applyDmPrefix is idempotent (it tests for the chevron
+// alone), and bot/src/lib/dm.js applies none at all — "no `»` here: callers
+// write their own". So a hand-written chevron is always preserved, and there
+// is no kind for which flagging one is correct. Kept as an empty set rather
+// than deleted, since guards.js reads it on every entry.
+const GUILLEMET_AUTO_KINDS = new Set();
 
 // --- Worksheet grouping — by what the player is looking at. First matching rule wins. ---
 const JS_GROUPS = [
@@ -210,6 +227,7 @@ const GROUP_TITLES = {
   "content-infochannel": "The Discord #info channel.",
   "content-locations": "Location descriptions — map nodes and channel topics.",
   "content-taggroups": "Tag group names.",
+  "content-desires": "Desire names — the catalog a player picks from.",
   "web-character": "Web: the character sheet and its panels.",
   "web-creation": "Web: character creation and the gate screens.",
   "web-map-faction": "Web: /faction, /documents, /notes, /archive chrome.",
@@ -227,6 +245,7 @@ const GROUP_ORDER = [
   "content-roles",
   "content-documents",
   "content-infochannel",
+  "content-desires",
   "content-locations",
   "content-taggroups",
   "web-character",

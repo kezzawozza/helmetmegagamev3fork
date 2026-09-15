@@ -69,5 +69,9 @@
     "@prisma/engines@6.19.3": true,
     "prisma@6.19.3": true,
     "unrs-resolver@1.12.2": true
+  },
+  "devDependencies": {
+    "@babel/parser": "^8.0.5",
+    "@babel/traverse": "^8.0.5"
   }
 }

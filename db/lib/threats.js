@@ -24,13 +24,13 @@ const TRIBUNAL_PARTY = { key: "tribunal", name: "Tribunal" };
 const THANATI_BRIEF = [
   "You are a Thanati. Crudux Cruo! This reality is flawed to its core. Lord Tzchernobog will deliver a new, perfect reality once this one has come to an end, when the last human observer has passed into nothingness.",
   "Read the Thanati document for more information.",
-  "Secrecy is your greatest strength. Ever since the arrival of the Inquisitor, the cult’s position has been tenuous. The capture of one of you will result in your exposure. Death is preferable to what the sadistic inquisition will do to you.",
+  "Secrecy is your greatest strength. Ever since the arrival of the Inquisitor, the cult's position has been tenuous. The capture of one of you will result in your exposure. Death is preferable to what the sadistic inquisition will do to you.",
   "You are running out of time. Be quick!",
 ];
 const THANATI_LEADER_BRIEF = [
   "You are the Thanati cult leader. Crudux Cruo! This reality is flawed to its core! Lord Tzchernobog will deliver a new, perfect reality once this one has come to an end, when the last human observer has passed into nothingness.",
   "Read the Thanati document for more information.",
-  "Secrecy is your greatest strength. Ever since the arrival of the Inquisitor, the cult’s position has been tenuous. The capture of one of you will result in your exposure. Death is preferable to what the sadistic inquisition will do to you.",
+  "Secrecy is your greatest strength. Ever since the arrival of the Inquisitor, the cult's position has been tenuous. The capture of one of you will result in your exposure. Death is preferable to what the sadistic inquisition will do to you.",
   "You are running out of time. Be quick, and organize your followers!",
 ];
 

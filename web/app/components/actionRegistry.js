@@ -70,7 +70,7 @@ export const ACTION_HELP = {
   destroy: "Destroy an item.",
   transfer: "Exchange resources or tags.",
   // Bascinet's words, verbatim.
-  tax: "Automatically tax your subjects",
+  tax: "Automatically tax your subjects.",
   loot: "Loot somebody that's bound or helpless.",
   free: "Cut somebody loose.",
   breakrestraints: "Make a Gambit to break your restraints. It's easier every turn.",
@@ -132,7 +132,7 @@ export const ACTION_HELP = {
   intercept: "Lay in wait at your location, intercepting a chosen target whenever they come.",
   // Bascinet's words, verbatim.
   attack:
-    "Attack someone, forcing them to stay in place until the turn ends and the combat is adjudicated. Attacking is permanent for the turn—you can, however, cancel it.",
+    "Attack someone, forcing them to stay in place until the turn ends and the combat is adjudicated. Attacking is permanent for the turn — you can, however, cancel it.",
   // The Cerberon's two. The first is Bascinet's own words, verbatim.
   warrant: "Declare a man fit for arrest. They are visible as being wanted.",
   wantedlist:

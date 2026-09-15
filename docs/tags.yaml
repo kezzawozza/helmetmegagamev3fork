@@ -471,7 +471,7 @@ tags:
     catalog: all
     name: Teaching
     category: skills
-    description: "You can train someone in a skill you have, and it costs you no Move at all — up to three people a turn. They'll succeed in a 5 or a 6. Without this tag, teaching takes your whole turn and they need a 6."
+    description: "You can train someone in a skill you have, and it costs you no Move at all — up to 3 people a turn. They'll succeed in a 5 or a 6. Without this tag, teaching takes your whole turn and they need a 6."
     pointCost: 4
     visible: false
     purchasable: true
@@ -1739,7 +1739,7 @@ tags:
     name: Hemophobia
     category: general
     group: general-personality
-    description: "Blood, especially your own blood, makes you dizzy..."
+    description: "Blood, especially your own blood, makes you dizzy…"
     fighting: { tree: both, tiers: -0.5, situational: true }
     pointCost: -4
     visible: false
@@ -2942,7 +2942,7 @@ tags:
     category: skills
     group: skills-fighting
     teachable: true
-    description: "While fighting with at least 2 other Cerberi, the combat skill of you and anyone else that has this tag is one level higher."
+    description: "While fighting with at least 2 other Cerberi, the combat skill of you and anyone else that has this tag is 1 level higher."
     fighting: { tree: melee, tiers: 1, situational: true }
     pointCost: 8
     requiredTag: melee-basic
@@ -3477,7 +3477,7 @@ tags:
     name: Hangover
     category: status
     group: status-debuffs
-    description: "Ugh..."
+    description: "Ugh…"
     fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
@@ -5101,7 +5101,7 @@ tags:
     name: Severe Pain
     category: health
     group: health-minor
-    description: "Your mind can't escape the pain—you are writhing, unfocused."
+    description: "Your mind can't escape the pain — you are writhing, unfocused."
     fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
@@ -5490,7 +5490,7 @@ tags:
     name: Fishing Boat
     category: assets
     group: assets-property
-    description: "A flat-bottomed boat with a pole. While equipped, gives the user 1 extra Zone crossing each turn between the Forest, Black Hills and Marshes, and adds +1 to Fishing Labor. It can carry four people. You can't have it out at the same time as a {tag:horse} or a {tag:cart}."
+    description: "A flat-bottomed boat with a pole. While equipped, gives the user 1 extra Zone crossing each turn between the Forest, Black Hills and Marshes, and adds +1 to Fishing Labor. It can carry 4 people. You can't have it out at the same time as a {tag:horse} or a {tag:cart}."
     pointCost: 4
     visible: true
     tradeable: true
@@ -10622,7 +10622,7 @@ tags:
     name: Heart
     category: items
     group: items-remains
-    description: "Someone’s once beating heart, now in the palm of your hand."
+    description: "Someone's once beating heart, now in the palm of your hand."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -11470,7 +11470,7 @@ tags:
     name: Motorcycle
     category: items
     group: items-special
-    description: "A two-wheeled motor vehicle that can carry up to two people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others."
+    description: "A two-wheeled motor vehicle that can carry up to 2 people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others."
     pointCost: 0
     equippable: true
     equipSlot: MOUNT
@@ -14067,7 +14067,7 @@ tags:
     category: items
     group: items-drink
     poison: true
-    description: "A powerful draught that requires two turns to create. Inflicts {tag:phrygian-toxin}."
+    description: "A powerful draught that requires 2 turns to create. Inflicts {tag:phrygian-toxin}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -14454,7 +14454,7 @@ tags:
     name: Pure Luck
     category: items
     group: items-drink
-    description: "A strange draught made with an {tag:aberrant-heart}. Can be consumed to gain {tag:aberrant-luck} for three turns."
+    description: "A strange draught made with an {tag:aberrant-heart}. Can be consumed to gain {tag:aberrant-luck} for 3 turns."
     pointCost: 0
     tradeable: true
     weight: 0.5

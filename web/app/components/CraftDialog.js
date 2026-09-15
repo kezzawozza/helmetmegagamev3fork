@@ -352,7 +352,7 @@ export default function CraftDialog({
                   {custom.active && (
                     <p className="text-xs text-muted">
                       {surcharge > 0 ? `Your words on your work, +${surcharge} ⬢ each. ` : ""}
-                      It will read as “{customCraftName(chosen.name, custom.name)}”.
+                      It will read as &quot;{customCraftName(chosen.name, custom.name)}&quot;.
                     </p>
                   )}
                 </>

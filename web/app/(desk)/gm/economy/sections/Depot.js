@@ -35,17 +35,17 @@ export function Depot({ books, generatorOn, generatorFuel, fuelMax, shuttleState
         <dl className="depot-totals">
           <div>
             <dt>Station account</dt>
-            <dd className="mono">{books.accountObols} ⬢</dd>
+            <dd className="mono">{books.accountObols} ¢</dd>
           </div>
           <div>
             <dt>Credit available</dt>
-            <dd className="mono">{books.creditAvailableObols} ⬢</dd>
+            <dd className="mono">{books.creditAvailableObols} ¢</dd>
           </div>
         </dl>
 
         <div style={{ minWidth: "14rem" }}>
           <div className="text-sm text-muted" style={{ marginBottom: "0.25rem" }}>
-            Debt drawn: {debt} / {cap} ⬢
+            Debt drawn: {debt} / {cap} ¢
           </div>
           <div className="depot-meter" role="img" aria-label={`${debt} of ${cap} obols drawn`}>
             <span className="depot-meter-fill" style={{ width: `${pct}%` }} />
