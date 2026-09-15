@@ -119,14 +119,13 @@ export function craftMoveCost(
   };
 }
 
-// The turn's ledger as the sheet and the dialog read it; null unless the open turn's Action carries one.
+// The turn's ledger as the sheet and the dialog read it; null unless the open turn's Action carries one. A turn's Routine can mix families now, so this reports only what's left of the Move — not a single family the whole turn is "locked" to.
 export function summarizeCraftBudget(action) {
   // `includes`, matching checkCraftMove: other machinery may append to gmNotes, and must not hide a live ledger.
   if (!action || !(action.gmNotes ?? "").includes("auto:craft") || !action.craftBudget)
     return null;
   const left = ledgerRemaining(action.craftBudget);
   return {
-    family: action.craftBudget.family ?? null,
     remainingNum: left.num,
     remainingDen: left.den,
   };

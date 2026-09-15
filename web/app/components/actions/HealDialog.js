@@ -9,7 +9,7 @@ import useSubmit from "./useSubmit";
 import { noticeLine } from "./noticeLines";
 import { useActionPools } from "./poolsContext";
 import { consumableTags } from "@/lib/tagRequests";
-import { craftFamilyLabel, fitsInRemaining, formatMoveFraction } from "@/lib/craftBudget";
+import { fitsInRemaining, formatMoveFraction } from "@/lib/craftBudget";
 import { healCharacterRequest } from "@/app/(app)/character/requestActions";
 
 // Heal: a patient standing here (you included), one of their afflictions, and
@@ -181,8 +181,7 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
             </p>
           )}
           {/* Committed-Routine warning, same shape as the Craft dialog's
-              (CraftAction.js): a different family refuses outright, the SAME
-              family with nothing left to give (medical at 8/8, e.g.) still
+              (CraftAction.js): a Routine with nothing left to give still
               can't pay even though the line above just quoted a price for
               it, and an ordinary declared Move / Gambit / build turn —
               hasMoved true, no craftBudget ledger at all — refuses too
@@ -190,14 +189,10 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
               recipeBlocked: "You've already used your Move this turn."). */}
           {billed &&
             (craftBudget ? (
-              craftBudget.family !== "medical" ? (
-                <p className="text-xs text-accent">
-                  {`You've used your turn on ${craftFamilyLabel(craftBudget.family)}.`}
-                </p>
-              ) : !fitsInRemaining(
-                  { num: affliction.moveCost.num, den: affliction.moveCost.den },
-                  { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
-                ) ? (
+              !fitsInRemaining(
+                { num: affliction.moveCost.num, den: affliction.moveCost.den },
+                { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
+              ) ? (
                 <p className="text-xs text-accent">Your Move is spent for this turn.</p>
               ) : null
             ) : hasMoved ? (
