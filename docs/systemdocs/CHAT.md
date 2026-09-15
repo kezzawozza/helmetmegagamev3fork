@@ -681,10 +681,37 @@ a 48px head and a one-line composer:
 - **`streamStore.js`** says whether the stream is up, and Chat draws the one
   line for when it is not, under the tab strip — the row that is on screen
   whichever pane is open and on a phone, which is where a stream drops most.
-- **`PlacesColumn.js`** draws **Here** (the Location), **Rooms** (public, then
-  the private ones a key or a guest row opens, marked `▪`), **Conversations**,
-  **Summary**, and exports `PlacesTabs` — the same list as the phone's
-  `.tab-bar`. Only one of the two is ever drawn.
+- **`PlacesColumn.js`** draws the column, and since the zone split it draws it
+  in two halves. The top is the places that belong to **no zone**: **Messages**
+  (the DM pseudo-place, §2b), **Radio** (the frequencies carried, §5d) and
+  **Faction** (the roster pseudo-place). Everything below that is **grouped by
+  zone**, the way Discord groups channels into categories, each group headed by
+  a horizontal divider carrying the zone's name — `—— TOWN ——`,
+  `—— FORTRESS ——`. Inside a group the sections are unchanged: **Summary** (the
+  zone's channel), **Here** (the Location), **Rooms** (public, then the private
+  ones a key or a guest row opens, marked `▪`), **Conversations**, and
+  **Elsewhere** (the streets walked out of this turn, still watched, all
+  read-only).
+
+  **The divider only draws when the column holds two or more zones.** A living
+  player stands in one zone, so their column is exactly what it always was —
+  the grouping is for the **GM and ghost seats**, which watch every zone at
+  once and used to get a flat alphabetical run of every Location in the game
+  under one "Here" heading, with the zone glued onto each label as a `Town · `
+  prefix. That prefix is gone from Location rows now; the divider above says
+  it. Room and conversation rows keep their `Marketplace · Back Room` prefix,
+  since one zone holds many Locations.
+
+  Each place carries its own `zoneId`/`zoneName`, stamped by
+  `db/lib/feedAccess.js#place()` — the column never re-derives a zone from a
+  label. Zone order is **`Zone.sortOrder`**, the authoring order from
+  `docs/zones.yaml`, so the web column and the Discord category list read in
+  the same order rather than one of them alphabetically.
+
+  A section folds shut and stays shut (`sectionFold.js`), and with the column
+  grouped the remembered key is scoped per zone — folding Rooms under Town
+  leaves Rooms under Fortress open. Ungrouped, the key is the bare title, so a
+  player's existing folds carried over.
 - **The unread mark** is one comparison: the newest **notable** seq in a place
   against the newest seq this browser has seen there. An unread place reads at
   full strength against a column that is otherwise `--muted`, and keeps its

@@ -56,7 +56,18 @@ function slowmodeMsFor(placeKey) {
 // One line of a place list. `canSpeak` is the composer's gate and the send
 // route's; `slowmodeSeconds` is what the composer tells a player they are
 // waiting for. `roomKind` is null for anything that is not a Room.
-function place({ placeKey, kind, name, description = "", roomKind = null, canSpeak, hasBoard = false, vantage = false }) {
+function place({
+  placeKey,
+  kind,
+  name,
+  description = "",
+  roomKind = null,
+  canSpeak,
+  hasBoard = false,
+  vantage = false,
+  zoneId = null,
+  zoneName = null,
+}) {
   return {
     placeKey,
     kind,
@@ -64,6 +75,12 @@ function place({ placeKey, kind, name, description = "", roomKind = null, canSpe
     description: description ?? "",
     roomKind,
     canSpeak,
+    // Which category this place sits in, so the web column can group by zone
+    // the way Discord groups by category (web/app/(app)/chat/PlacesColumn.js).
+    // Null means it belongs to no zone at all and is drawn above the groups:
+    // the radio nets here, and the DM/Faction pseudo-places Chat.js adds.
+    zoneId,
+    zoneName,
     // A place you walked out of and are still watching (db/lib/vantages.js).
     // Read-only by construction — every vantage place is built with canSpeak
     // false — and drawn under its own heading in the left column. The mirror
@@ -168,6 +185,10 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
     ...seen.filter((room) => room.kind === "PRIVATE"),
   ];
 
+  // Every place below is in the one zone this character stands in, so the
+  // stamp is computed once and spread onto each of them.
+  const zoneStamp = { zoneId: location.zone?.id ?? null, zoneName: location.zone?.name ?? null };
+
   const list = [
     place({
       placeKey: placeKeyForLocation(location.id),
@@ -175,6 +196,7 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
       name: location.name,
       description: location.description,
       canSpeak: LOCATION_CAN_SPEAK,
+      ...zoneStamp,
     }),
     ...ordered.map((room) =>
       place({
@@ -184,6 +206,7 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
         description: room.description,
         roomKind: room.kind,
         canSpeak: reachableIds.has(room.id),
+        ...zoneStamp,
       }),
     ),
     ...conversations.map((conversation) =>
@@ -192,6 +215,7 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
         kind: "conv",
         name: conversation.name,
         canSpeak: true,
+        ...zoneStamp,
       }),
     ),
     ...overheard.map((conversation) =>
@@ -200,6 +224,7 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
         kind: "conv",
         name: conversation.name,
         canSpeak: false,
+        ...zoneStamp,
       }),
     ),
   ];
@@ -207,7 +232,9 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
   // THE FOG OF WAR (db/lib/vantages.js): the streets walked out of earlier
   // this turn, still watched, all of them read-only. After Here/Rooms so the
   // place you actually stand in is never buried under the places you don't.
-  list.push(...(await vantagePlacesFor(prisma, { id: character.id, zoneId: location.zone?.id ?? null }, keys, location.id)));
+  list.push(
+    ...(await vantagePlacesFor(prisma, { id: character.id, zoneId: zoneStamp.zoneId }, keys, location.id, zoneStamp)),
+  );
 
   if (location.zone) {
     list.push(
@@ -217,6 +244,7 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
         name: location.zone.name,
         description: location.zone.description ?? "",
         canSpeak: true,
+        ...zoneStamp,
       }),
     );
   }
@@ -244,7 +272,7 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
 // guest row is spent by walking out (db/lib/roomAccess.js), so a room somebody
 // was let into does NOT follow them into the fog — only a key or a quest does.
 // No Scrying Eye here either: the eye is for the room you are standing in.
-async function vantagePlacesFor(prisma, character, keys, hereLocationId) {
+async function vantagePlacesFor(prisma, character, keys, hereLocationId, zoneStamp) {
   const vantages = await vantagesFor(prisma, character).catch((err) => {
     console.error(`Vantage places failed for ${character?.id}:`, err.message ?? err);
     return [];
@@ -278,6 +306,8 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId) {
       ...reachable.filter((room) => room.kind === "PRIVATE"),
     ];
 
+    // A vantage is always in the zone stood in — vantagesFor is scoped by
+    // zoneId — so it carries the caller's stamp and groups under that zone.
     out.push(
       place({
         placeKey: placeKeyForLocation(row.id),
@@ -286,6 +316,7 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId) {
         description: row.description,
         canSpeak: false,
         vantage: true,
+        ...zoneStamp,
       }),
       ...ordered.map((room) =>
         place({
@@ -296,6 +327,7 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId) {
           roomKind: room.kind,
           canSpeak: false,
           vantage: true,
+          ...zoneStamp,
         }),
       ),
       ...conversations.map((conversation) =>
@@ -305,6 +337,7 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId) {
           name: `${row.name} · ${conversation.name}`,
           canSpeak: false,
           vantage: true,
+          ...zoneStamp,
         }),
       ),
     );
@@ -365,9 +398,16 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
     ...(zoneIds ? { id: { in: zoneIds } } : {}),
   };
 
+  // Zone.sortOrder is the authoring order from docs/zones.yaml, so the web
+  // column reads Town, Fortress, … rather than alphabetically. It is scoped
+  // WITHIN a group, though — Caves is 1 and so is Town — so the seat zone
+  // (parentZoneId ?? id) has to sort first or the two cave levels interleave
+  // with the surface zones. Seat first, own order second, gives Town,
+  // Fortress, Forest, Black Hills, Marshes, Caves, Depths: the order the
+  // Discord categories sit in, which is the point of grouping at all.
   const zones = await prisma.zone.findMany({
     where: zoneWhere,
-    orderBy: { name: "asc" },
+    orderBy: [{ seatZone: { sortOrder: "asc" } }, { sortOrder: "asc" }, { name: "asc" }],
     select: {
       id: true,
       name: true,
@@ -395,6 +435,7 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
 
   const list = [];
   for (const zone of zones) {
+    const zoneStamp = { zoneId: zone.id, zoneName: zone.name };
     if (channellessSummaries || zone.discordSummaryChannelId) {
       list.push(
         place({
@@ -403,18 +444,23 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
           name: zone.name,
           description: zone.description ?? "",
           canSpeak: false,
+          ...zoneStamp,
         }),
       );
     }
     for (const location of zone.locations) {
       list.push(
         place({
+          // No zone prefix: the column draws these under a zone divider that
+          // already says it, and 15rem is not wide enough to say it twice.
+          // Rooms and conversations keep theirs — a zone holds many Locations.
           placeKey: placeKeyForLocation(location.id),
           kind: "loc",
-          name: `${zone.name} · ${location.name}`,
+          name: location.name,
           description: location.description,
           canSpeak: false,
           hasBoard: hasNoticeboard(location),
+          ...zoneStamp,
         }),
       );
       for (const room of location.rooms) {
@@ -426,6 +472,7 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
             description: room.description,
             roomKind: room.kind,
             canSpeak: false,
+            ...zoneStamp,
           }),
         );
       }
@@ -436,6 +483,7 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
             kind: "conv",
             name: `${location.name} · ${conversation.name}`,
             canSpeak: false,
+            ...zoneStamp,
           }),
         );
       }

@@ -6276,6 +6276,46 @@ label.chip {
   margin-bottom: var(--sp-3);
 }
 
+/* One zone's worth of the column (PlacesColumn.js). Discord has categories;
+   this is the web's. Only drawn when there is more than one zone to divide,
+   so a living player's column is unchanged. The rule runs to both edges of
+   the label the way .dm-day does in a DM thread. */
+.chat-zone-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* Generous above, tight below: the divider belongs to the group it opens,
+     and the gap is what makes one zone read as ending before the next starts. */
+  margin: var(--sp-5) var(--sp-3) var(--sp-2);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  /* Full strength against the --muted section titles underneath it. The two
+     are the same size and case, so weight and colour are the only things
+     saying TOWN sits ABOVE Summary/Here/Rooms rather than beside them. */
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* The first group opens right under Radio, which already has a section's worth
+   of space below it. */
+.chat-zone-group:first-of-type .chat-zone-divider {
+  margin-top: var(--sp-2);
+}
+
+.chat-zone-divider::before,
+.chat-zone-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+/* The label wins the space it needs; the rules take what is left. A long zone
+   name in a 15rem column wraps rather than pushing the rules off the end. */
+.chat-zone-divider > span {
+  min-width: 0;
+}
+
 .chat-section-title {
   font-size: var(--fs-2xs);
   letter-spacing: 0.08em;

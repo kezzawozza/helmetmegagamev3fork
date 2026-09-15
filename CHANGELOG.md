@@ -6,6 +6,9 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Chat's place list is split by zone now, the way Discord splits by category
+
+
 ## 2026-09-15 · Sake pays more, and alcoholics get a tasting Desire
 
 ✎ Drink sake is now worth 3 points  
