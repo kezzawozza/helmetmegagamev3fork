@@ -15,7 +15,7 @@ import TagEditor from "./TagEditor";
 import TurnTab from "./TurnTab";
 import GoalsTab from "./GoalsTab";
 import RecordTab from "./RecordTab";
-import { applyCharacterEdits, setCurseOverride } from "./actions";
+import { applyCharacterEdits, setCurseOverride, setCharacterMirroring } from "./actions";
 import { getDevPanelRecord } from "@/app/components/devPanelActions";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
@@ -413,6 +413,47 @@ function CurseOverride({ characterId, value }) {
   );
 }
 
+// The GM remedy for the switch's own 2-hour cooldown (db/lib/discordMirroring.js):
+// a player stuck off Discord with no way to flip it back themselves. Same
+// shape as CurseOverride above. OFF strips channel access immediately, so it
+// asks first; ON is a quiet grant and doesn't.
+function MirrorToggle({ characterId, value }) {
+  const [pending, startTransition] = useTransition();
+  const [refresh] = useRefresh();
+  const [error, setError] = useState(null);
+  const confirm = useConfirm();
+
+  const flip = (next) => {
+    setError(null);
+    startTransition(async () => {
+      const result = await setCharacterMirroring({ characterId, on: next });
+      if (result?.error) setError(result.error);
+      else refresh();
+    });
+  };
+
+  const onClick = async () => {
+    if (value && !(await confirm({
+      title: "Turn off Play on Discord too?",
+      message: "This strips their Discord channel access right away.",
+      confirmLabel: "Turn off",
+    }))) {
+      return;
+    }
+    flip(!value);
+  };
+
+  return (
+    <span className="field">
+      <span>{value ? "On" : "Off"}</span>{" "}
+      <button type="button" className="btn-quiet" disabled={pending} onClick={onClick}>
+        Turn {value ? "off" : "on"}
+      </button>
+      {error && <span className="text-danger text-xs">{error}</span>}
+    </span>
+  );
+}
+
 // The read-only facts a GM wants before touching anything — the live state
 // the panel is about to change, including the derived numbers that exist
 // nowhere as a column (points spent, slots used, the gambit modifier).
@@ -468,7 +509,10 @@ function StateStrip({
         // now — CHAT.md §6a even tells a GM to check the roster for
         // not-yet-mirrored players before turning Chat off, and there was
         // nothing to check.
-        ["Play on Discord too", character.discordMirrored ? "On" : "Off"],
+        [
+          "Play on Discord too",
+          <MirrorToggle key="mirror" characterId={character.id} value={character.discordMirrored} />,
+        ],
         [
           "Concealed",
           // The column is a wish; it only takes effect while something

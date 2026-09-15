@@ -73,7 +73,7 @@ async function shedThreads(prisma, character) {
 // Flip the switch. Returns { ok: true } or { ok: false, error, readyAt } —
 // `readyAt` is a Date, so the caller words the refusal in the reader's own
 // clock rather than this one's.
-async function setDiscordMirrored(prisma, character, on) {
+async function setDiscordMirrored(prisma, character, on, { bypassCooldown = false } = {}) {
   if (!character?.id) return { ok: false, error: "No character.", readyAt: null };
   const want = Boolean(on);
 
@@ -84,11 +84,14 @@ async function setDiscordMirrored(prisma, character, on) {
 
   // The DB half first, as ONE conditional update, so two clicks in one tick
   // cannot both pass. `discordMirrored: !want` in the WHERE makes a repeat of the current state a no-op.
+  // bypassCooldown skips ONLY the cooldown clause below — a GM remedy for a
+  // player stuck inside it — the conditional claim on the current value
+  // stays, so two flips still can't both land.
   const claimed = await prisma.character.updateMany({
     where: {
       id: character.id,
       discordMirrored: !want,
-      OR: [{ discordMirroredChangedAt: null }, { discordMirroredChangedAt: { lte: cutoff } }],
+      ...(bypassCooldown ? {} : { OR: [{ discordMirroredChangedAt: null }, { discordMirroredChangedAt: { lte: cutoff } }] }),
     },
     data: { discordMirrored: want, discordMirroredChangedAt: now },
   });

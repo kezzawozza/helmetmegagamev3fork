@@ -32,6 +32,7 @@ import {
 import { deleteCorpseFor } from "@lifeweb/db/lib/corpseMint";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { setDiscordMirrored } from "@lifeweb/db/lib/discordMirroring";
 import { cancelWatchOnMove } from "@lifeweb/db/lib/intercept";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
@@ -481,13 +482,43 @@ async function messageCharacterImpl({ characterId, message }) {
   return {};
 }
 
+// The GM remedy for "Play on Discord too" 's own cooldown
+// (db/lib/discordMirroring.js): a player stuck off Discord for up to two
+// hours with no way to flip it back themselves. Bypasses ONLY that
+// cooldown — the same conditional claim still guards the flip. ON re-mints
+// the personal role the flip skipped (ensureCharacterRole no-ops for an
+// unmirrored character), matching what the player's own flip does at
+// web/app/(app)/character/actions.js.
+async function setCharacterMirroringImpl({ characterId, on }) {
+  const session = await requireGm();
+  const character = await loadCharacter(characterId);
+  const want = Boolean(on);
+
+  const flip = await setDiscordMirrored(prisma, character, want, { bypassCooldown: true });
+  if (!flip.ok) throw new UserError(flip.error ?? "Couldn't change that.");
+
+  if (want) {
+    await ensureCharacterRole({ ...character, discordMirrored: true }).catch(() => {});
+  }
+
+  await audit(session, "gm_character_discord_mirror_set", characterId, { name: character.name, on: want });
+  repaint(characterId);
+  return { discordMirrored: want };
+}
+
 // Pure repair: re-pushes what Discord should already be showing. Refused for
-// a corpse.
+// a corpse, and for a character not mirrored to Discord — every step below
+// no-ops for one silently (ensureCharacterRole, syncCharacterNickname, the
+// channel half of applyLocationMoveSideEffects), so a GM pressing Resync got
+// a green button and nothing behind it.
 async function resyncDiscordImpl({ characterId }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
   if (character.status !== "ALIVE") {
     throw new UserError("There's nothing to sync for a dead character.");
+  }
+  if (!character.discordMirrored) {
+    throw new UserError(`${character.name} isn't mirrored to Discord — there's nothing to resync.`);
   }
 
   await audit(session, "gm_character_discord_resync", characterId, { name: character.name });
@@ -779,6 +810,9 @@ export async function messageCharacter(input) {
 }
 export async function resyncDiscord(input) {
   return guarded(() => resyncDiscordImpl(input));
+}
+export async function setCharacterMirroring(input) {
+  return guarded(() => setCharacterMirroringImpl(input));
 }
 export async function teleportCharacter(input) {
   return guarded(() => teleportCharacterImpl(input));

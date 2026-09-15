@@ -92,6 +92,10 @@ can't disagree about what an affliction is.
   state that reads to a player as "my hood does not work". The resolution
   happens in `web/lib/devPanelData.js`, through `presentedIdentity` — the same
   function every send path asks — rather than being restated on the client.
+  `Play on Discord too` is no longer read-only: a Turn on/off control next to
+  the readout calls `setCharacterMirroring`, which bypasses only the switch's
+  own 2-hour cooldown, for a player stuck off Discord with no way to flip it
+  back themselves.
 - **Action bar** — `IconButton`s over `.icon-btn`, in three clusters
   separated by `.dev-bar-sep`: life & turn · staging · repair. A destructive
   verb never sits flush against a harmless one.
