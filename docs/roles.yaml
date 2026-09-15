@@ -1429,7 +1429,7 @@ zones:
                 You are formidable foes in battle, but if you are swarmed and attacked in melee, you may still die.
             difficulty: hard
             multiple: true
-            weight: 1
+            weight: unlimited
             starting_resources: 8
             starting_zone: hills
             starting_location: hills-waterway
