@@ -122,9 +122,10 @@ export default function TagPicker({
               onClick={() => onSelect(isSelected ? null : tag.id)}
               className="select-card panel flex w-full items-start gap-3 p-3 text-left"
               // The category rule, off a --tag-* token (globals.css), same as
-              // every other tag face. It used to paint TagGroup.color inline.
+              // every other tag face. Width and colour both ride on the
+              // attribute now; an inline width here would be one more thing
+              // that has to agree with the stylesheet.
               data-tag-category={tag.category ? String(tag.category).toLowerCase() : undefined}
-              style={tag.category ? { borderLeftWidth: 3 } : undefined}
             >
               <span aria-hidden="true">{isSelected ? "◆" : "◇"}</span>
               <span className="min-w-0">
