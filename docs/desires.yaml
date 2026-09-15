@@ -1345,7 +1345,7 @@ desires:
     cooldownTurns: 4
   torture-someone:
     name: Torture someone for a reason.
-    tier: 4
+    tier: 3
     families: [cruelty, violence]
     requires:
       anyTags: [cruel]

@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Torture is worth 3 points now, not 4
+
+✎ The Torture Someone desire was overpriced next to the rest of the cruelty ladder  
+− -
+
 ## 2026-09-15 · A secret /analysis page for Desire balance
 
 ✎ A comprehensive, unlisted dashboard at /analysis: every Desire claim ever, who's claiming what, which desires are most powerful or most rejected, catalog coverage, and more  
