@@ -132,7 +132,7 @@ export const ACTION_HELP = {
   intercept: "Lay in wait at your location, intercepting a chosen target whenever they come.",
   // Bascinet's words, verbatim.
   attack:
-    "Attack someone, forcing them to stay in place until the turn ends and the combat is adjudicated. Attacking is permanent for the turn—you can, however, cancel it.",
+    "Attack someone, forcing them to stay in place until the turn ends and the combat is adjudicated. Attacking is permanent for the turn — you can, however, cancel it.",
   // The Cerberon's two. The first is Bascinet's own words, verbatim.
   warrant: "Declare a man fit for arrest. They are visible as being wanted.",
   wantedlist:

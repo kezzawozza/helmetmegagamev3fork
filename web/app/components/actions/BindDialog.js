@@ -25,7 +25,7 @@ export const BIND_VERBS = {
   bind: {
     title: "Bind",
     question: "Who are you tying up?",
-    empty: "There’s nobody here left to tie up.",
+    empty: "There's nobody here left to tie up.",
     confirm: (name) => ({ title: `Tie up ${name}?`, confirmLabel: "Tie them up" }),
     run: (id) => bindCharacterRequest({ targetCharacterId: id }),
     fit: (t) => !t.bound,
@@ -54,7 +54,7 @@ export const BIND_VERBS = {
   crucify: {
     title: "Crucify",
     question: "Who are you crucifying?",
-    empty: "There’s nobody here to put on the cross.",
+    empty: "There's nobody here to put on the cross.",
     note: "They go up on the cross now. They can still speak, but nothing else — and in a turn they are Dying. It doesn't spend your Move.",
     confirm: (name) => ({
       title: `Crucify ${name}?`,
