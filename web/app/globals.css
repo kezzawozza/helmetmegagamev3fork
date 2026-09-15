@@ -1960,21 +1960,31 @@ input[type="radio"]:disabled {
 /* The tag category rule -- the same mechanism as .zone-chip above, over a
    closed set of seven Tag categories. `data-tag-category` is written by
    ChipLabel.js, by the sheet's own rows and by the item card, all of which
-   want the same rule on a differently-shaped box, so the colour is keyed off
-   the attribute alone and each box asks for its own border width. It is
-   lower-cased at the call site, since the selector is case-sensitive and the
-   catalog stores "Items", not "items". A category with no token, or a tag
-   with no category at all, keeps the default border and loses nothing. */
-[data-tag-category="general"] { border-left-color: var(--tag-general); }
-[data-tag-category="skills"] { border-left-color: var(--tag-skills); }
-[data-tag-category="status"] { border-left-color: var(--tag-status); }
-[data-tag-category="health"] { border-left-color: var(--tag-health); }
-[data-tag-category="items"] { border-left-color: var(--tag-items); }
-[data-tag-category="assets"] { border-left-color: var(--tag-assets); }
-[data-tag-category="demoness"] { border-left-color: var(--tag-demoness); }
+   want the same rule on a differently-shaped box. It is lower-cased at the
+   call site, since the selector is case-sensitive and the catalog stores
+   "Items", not "items". A category with no token, or a tag with no category
+   at all, falls back to --border and loses nothing.
 
-.chip[data-tag-category] {
+   These set a CUSTOM PROPERTY rather than border-left-color directly, and
+   that is load-bearing. Painting the colour here lost to every box that
+   later declared the `border-left` SHORTHAND -- .sheet-row-face and
+   .item-card-face both do, both at the same (0,1,0) specificity, and both
+   further down the file, so the shorthand reset the colour straight back to
+   --border and the whole character sheet drew grey. A custom property is
+   resolved where it is USED, so it cannot be clobbered by declaration order,
+   and any new box opts in just by reading it. */
+[data-tag-category="general"] { --tag-rule: var(--tag-general); }
+[data-tag-category="skills"] { --tag-rule: var(--tag-skills); }
+[data-tag-category="status"] { --tag-rule: var(--tag-status); }
+[data-tag-category="health"] { --tag-rule: var(--tag-health); }
+[data-tag-category="items"] { --tag-rule: var(--tag-items); }
+[data-tag-category="assets"] { --tag-rule: var(--tag-assets); }
+[data-tag-category="demoness"] { --tag-rule: var(--tag-demoness); }
+
+.chip[data-tag-category],
+.select-card[data-tag-category] {
   border-left-width: 3px;
+  border-left-color: var(--tag-rule, var(--border));
 }
 
 /* The group icon, drawn inside the chip face, on a sheet row and on an item
@@ -9131,7 +9141,7 @@ label.chip {
   display: flex;
   flex-direction: column;
   padding: 4px var(--sp-2);
-  border-left: 3px solid var(--border);
+  border-left: 3px solid var(--tag-rule, var(--border));
   font-size: var(--fs-sm);
   line-height: 1.25;
 }
@@ -9206,7 +9216,7 @@ label.chip {
   flex-direction: column;
   gap: 1px;
   padding: 5px var(--sp-2);
-  border-left: 3px solid var(--border);
+  border-left: 3px solid var(--tag-rule, var(--border));
   font-size: var(--fs-sm);
   line-height: 1.25;
 }
@@ -9257,7 +9267,14 @@ label.chip {
 }
 
 /* The verbs: hidden until the row is hovered or holds focus on a pointer
-   device, always drawn on a touch one — there is nothing to hover there. */
+   device, always drawn on a touch one — there is nothing to hover there.
+
+   EVERY box that renders RowVerbs has to be named in the reveal below, or its
+   verbs are hidden with no way to bring them back. The item card learned that
+   the hard way: it renders the same .sheet-row-verbs inside .item-card-line,
+   which no reveal selector matched, so Use / Equip / Give / Destroy were
+   invisible on Items and Assets — every verb a player uses on their own
+   inventory. */
 .sheet-row-verbs {
   display: inline-flex;
   gap: var(--sp-1);
@@ -9272,7 +9289,10 @@ label.chip {
 
   .sheet-row-line:hover .sheet-row-verbs,
   .sheet-row-line:focus-within .sheet-row-verbs,
-  .sheet-row[data-open="true"] .sheet-row-verbs {
+  .sheet-row[data-open="true"] .sheet-row-verbs,
+  .item-card-line:hover .sheet-row-verbs,
+  .item-card-line:focus-within .sheet-row-verbs,
+  .item-card[data-open="true"] .sheet-row-verbs {
     visibility: visible;
   }
 }
