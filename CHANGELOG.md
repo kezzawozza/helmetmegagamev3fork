@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Written notes are legible again, and stop hiding from their owners
+
+✎ A note, letter or book a player wrote now shows its words when a GM hovers it — on the turns desk, the inspector and the dev panel alike. They had all been blank.  
+✎ Notes, corpses, crates and photographs now appear in a character's Things drawer. They were missing from it entirely, so nobody could hand one over or throw it away.  
+✚ The tag pickers have a Minted tab, so player-written notes stop burying the catalog
+
 ## 2026-09-15 · The bot recovers on its own from a broken Discord login
 
 ✎ Metempsychosis's description now tells a respawned player what they keep and what they lose  

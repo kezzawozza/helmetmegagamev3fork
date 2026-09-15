@@ -6,6 +6,7 @@ import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import TagCatalogView from "./TagCatalogView";
 import Loading from "./Skeleton";
 import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
+import { paperDescriptionGm, paperViewGm } from "@lifeweb/db/lib/paper";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -65,7 +66,15 @@ async function FreshDevTags({ userId }) {
           name: t.name,
           slug: t.slug,
           category: t.category,
-          description: t.description,
+          // A GM reads a letter ungated (PAPERWORK.md). Both helpers pass a
+          // non-paper row straight through, so this is a no-op for the
+          // catalog and the one thing that makes a player's note legible here.
+          // `paperText` itself never crosses — this DTO names its columns.
+          description: paperDescriptionGm(t),
+          paper: paperViewGm(t),
+          paperKind: t.paperKind,
+          // Catalog or runtime-minted, for the browser's Minted tab.
+          ephemeral: t.ephemeral,
           pointCost: t.pointCost,
           custom: t.custom,
           groupId: t.groupId,
@@ -100,6 +109,9 @@ async function FreshDevTags({ userId }) {
           // and prerequisite links (walked client-side over this same list),
           // the consume/expiry targets, and the requirement block.
           groupColor: t.group?.color ?? null,
+          // The nested shape ChipLabel/TagChip read (`tag.group.color`);
+          // `groupColor` above stays for the detail sheet's own flat lookups.
+          group: t.group ?? null,
           parentTagId: t.parentTagId,
           requiredTagId: t.requiredTagId,
           consumesInto: t.consumesInto,

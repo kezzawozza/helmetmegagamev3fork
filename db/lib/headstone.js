@@ -13,6 +13,8 @@
 //
 // Takes a tx as the first parameter (db/lib/dm.js convention); off the barrel.
 
+const { TAG_CATEGORY } = require("./constants");
+
 function headstoneSlug(name) {
   const base = (name ?? "")
     .toString()
@@ -37,7 +39,7 @@ async function mintHeadstone(tx, target) {
         slug,
         name,
         description,
-        category: "Items",
+        category: TAG_CATEGORY.ITEMS,
         pointCost: 0,
         custom: true,
         // Game state, not catalog — a Restart Game sweeps it up.

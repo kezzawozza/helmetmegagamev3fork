@@ -9,6 +9,7 @@ import { DEFAULT_MAX_DRAWBACK_TAGS, DEFAULT_MAX_DRAWBACK_POINTS } from "@/lib/ch
 import { projectDesireTemplateForGates, loadRoleBySlugForTemplates } from "@/lib/desireProjection";
 import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
 import { concealmentFrom, forcedNameFrom, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
+import { paperDescriptionGm, paperViewGm } from "@lifeweb/db/lib/paper";
 
 // The whole data-assembly behind the Dev Character Panel, extracted so it can
 // be shared by the standalone page (/gm/dev/characters/[characterId]) and the
@@ -108,6 +109,15 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         // across — cloning a longsword to make a notched one and silently
         // getting a weightless sword is the hole this door used to leave.
         weightLbs: true,
+        // Composed into `description`/`paper` in the projection below and
+        // never shipped raw — this DTO lists its columns by hand, so
+        // paperText cannot ride along by accident. Without these a
+        // player-written note hovered blank here too (tagChipRows.js).
+        paperKind: true,
+        paperText: true,
+        sealMark: true,
+        // Catalog or runtime-minted, for the browser's Minted tab.
+        ephemeral: true,
         group: { select: { name: true, color: true } },
       },
     }),
@@ -338,7 +348,13 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       name: t.name,
       slug: t.slug,
       category: t.category,
-      description: t.description,
+      // A GM reads a letter ungated (PAPERWORK.md); both helpers hand back the
+      // plain description / null for anything that isn't paper, so this is a
+      // passthrough for the other ~1000 rows.
+      description: paperDescriptionGm(t),
+      paper: paperViewGm(t),
+      paperKind: t.paperKind,
+      ephemeral: t.ephemeral,
       pointCost: t.pointCost,
       stackable: t.stackable,
       equippable: t.equippable,

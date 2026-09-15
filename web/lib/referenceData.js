@@ -21,7 +21,13 @@ export {
   DESIRE_UNLOCK_SELECT,
   TAG_CHIP_FIELDS,
   APPRAISAL_SELECT,
-  PAPER_FIELDS,
+  // The pair a TagChip surface wants. TAG_CHIP_FIELDS above is the narrow half
+  // and draws a paper tag blank — see tagChipRows.js's header.
+  chipSelect,
+  composeChipTag,
+  toChipRow,
+  chipContextFor,
+  GM_CHIP_CTX,
   stripEmptyUnlocks,
   stripWeightless,
   cookedTasteOnly,

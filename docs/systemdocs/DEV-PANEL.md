@@ -255,6 +255,21 @@ A non-empty search box searches the **whole catalog**, ignoring the active
 category tab, with a chip on each hit naming its category. Clear the box to
 go back to per-category browsing.
 
+**Minted is the last tab, and it is not a category.** Every runtime-minted row —
+the notes players wrote, corpses, crates, photographs — buckets there instead of
+swelling Items, which can otherwise be a hundred letters deep before the first
+longsword. It is derived from `Tag.ephemeral`, the column that already means
+exactly this (`/gm/dev`'s quest picker filters on it for the same reason), so it
+cannot drift from what the minters write. The tab only appears when there is
+something in it, and a search still crosses it: somebody typing a letter's title
+wants that letter, tab or no tab.
+
+This used to happen by accident. The minters wrote a lowercase `items` that
+`SELECT DISTINCT category` sorted into its own tab beside the real `Items` — the
+right shape for the wrong reason, and the same slip made those rows invisible in
+the `/chat` Things drawer (`TAGS.md` §1). The rows were backfilled on
+2026-09-26; this tab is that separation done deliberately.
+
 ## 7. Turn economy
 
 There is **no `turnsRemaining` column**. "Has this character acted" is

@@ -2,7 +2,7 @@
 // tag catalog, but the row carries `custom: true` so sync/prune-tags skip it
 // like homebrew; Tag.corpseOfCharacterId is what lets Restart Game delete just
 // these. Takes `prisma`/tx as a parameter; stays off the @lifeweb/db barrel.
-const { CORPSE_GROUP_SLUG, CORPSE_ROT_TURNS } = require("./constants");
+const { CORPSE_GROUP_SLUG, CORPSE_ROT_TURNS, TAG_CATEGORY } = require("./constants");
 const { pickRandomPublicRoom } = require("./roomStash");
 const { addToRoomStack, addToStack } = require("./tagWrites");
 const { expiryFrom } = require("./turnFormat");
@@ -39,7 +39,7 @@ async function createCorpseTag(tx, character, groupId, expiresTurn, weightLbs) {
           slug: corpseSlug(character.name, attempt),
           name: suffixed,
           description: corpseDescription(character.name),
-          category: "items",
+          category: TAG_CATEGORY.ITEMS,
           groupId,
           pointCost: 0,
           custom: true,

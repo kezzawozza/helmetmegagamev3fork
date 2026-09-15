@@ -13,7 +13,18 @@ Three levels:
   `Items`, `Assets`, plus the one hidden one, `Demoness`).
   Not its own DB table; `docs/tags.yaml`'s top-level `categories:` list is
   validation-only — `syncTagsFromYaml` rejects any tag/group whose
-  `category` isn't in that list. Because a category has no row of its own, a
+  `category` isn't in that list.
+
+  **The column holds the DISPLAY NAME, not the slug it is keyed by.** The YAML
+  maps `items:` to `name: Items`, and `syncTagsFromYaml` resolves one to the
+  other before writing, so every catalog row reads `Items`. A **runtime minter**
+  writes its own row and never goes through the sync, so it has to spell the
+  same thing by hand — use `TAG_CATEGORY` from `db/lib/constants.js` and never a
+  bare string. Five of the six got this wrong until 2026-09-26 (paper, corpses,
+  photographs, pointer devices and both kinds of crate all wrote the slug
+  `items`), which cost more than a stray tab in the GM pickers:
+  `web/app/(app)/chat/thingRows.js` buckets the Things drawer by matching this
+  string, so every one of those rows was missing from it outright. Because a category has no row of its own, a
   **hidden** category isn't a category-level field either: it's a group-level
   `requiredTag` on the one group that category contains (§3a). **Items are the portable
   half and Assets the standing half**: a revolver or a meal you carry and

@@ -81,6 +81,15 @@ export default function TagDetails({
   const becomes = chainTokens(tag.expiresInto);
   const treated = chainTokens(tag.removesInto);
   const cures = curesTokens(tag.cures);
+  // `paperKind` rides in the narrow select and `paper` only appears once
+  // composeChipTag has run, so the pair tells "uncomposed" from "not paper".
+  const uncomposedPaper = Boolean(tag.paperKind) && !tag.paper;
+  if (uncomposedPaper && process.env.NODE_ENV !== "production") {
+    console.error(
+      `TagDetails: "${tag.slug ?? tag.name}" is a paper row that was never composed. ` +
+        "Its query wants chipSelect() and composeChipTag() — see web/lib/tagChipRows.js.",
+    );
+  }
 
   return (
     <>
@@ -103,6 +112,14 @@ export default function TagDetails({
       ) : (
         tag.description && <ChipText text={tag.description} as="p" inTooltip={inTooltip} />
       )}
+      {/* A paper row with no composed `paper` got here off a select that
+          skipped composeChipTag (web/lib/tagChipRows.js) — its words live in
+          `paperText` and its `description` column is null, so both branches
+          above draw nothing. That silence is exactly how every paper on
+          /gm/turns hovered blank for months. Say so instead. Production gets
+          the honest line and no invented text; a dev gets told which tag and
+          what to fix. */}
+      {uncomposedPaper && <p className="text-muted text-xs">Nothing loaded about this one.</p>}
       {children}
       <dl className="tag-meta">
         {duration && <Meta label={duration.armed ? "Armed" : "Expires"}>{duration.label}</Meta>}

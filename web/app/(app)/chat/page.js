@@ -342,7 +342,9 @@ async function FreshChat({ userId }) {
           loadPeoplePools(character, { discordUserId: viewer.discordUserId, openTurn }),
           // The rooms a Transfer can reach, so "Move things" in a room can
           // hand the dialog its far side already picked.
-          loadStashRooms(character),
+          // Same chipCtx as the Things drawer above: one reader, so a letter
+          // does not read differently in a pocket than in a room stash.
+          loadStashRooms(character, { chipCtx }),
           // The turn card's first paint: which turn is open, whether Moves
           // have locked, and the Move already filed into it. The same server
           // action the column re-polls, so the two answers cannot differ.

@@ -114,6 +114,7 @@ import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import {
   CHIP_ROW_SELECT,
   CHIP_VIEWER_SELECT,
+  GM_CHIP_CTX,
   chipContextFor,
   composeChipTag,
   toChipRow,
@@ -1065,9 +1066,6 @@ async function gmPlace(placeKey) {
 
   return { session, location, locationId, roomId, conversationId, zoneId };
 }
-
-// A GM reads everything, wax seals included (PAPERWORK.md §"A GM works the same board") — no tags, so `canAppraise` stays false.
-const GM_CHIP_CTX = { gm: true };
 
 export async function gmPlaceView(placeKey) {
   const ctx = await gmPlace(placeKey);

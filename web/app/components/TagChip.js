@@ -33,6 +33,10 @@ export default function TagChip({
   // Overburdened, Dying, Catatonic on the chat rail's status strip. The chip
   // is otherwise identical; only the colour says so.
   tone = null,
+  // Passed through to HoverCard. A call site whose chip already sits inside a
+  // control of its own turns pinning off, so a click does one thing rather
+  // than two — same reasoning as Tooltip.js's own IconButton precedent.
+  pinnable = true,
 }) {
   const duration = tagDurationFor({ tag, expiresTurn, currentTurn, armedTurn });
 
@@ -59,7 +63,7 @@ export default function TagChip({
   );
 
   return (
-    <HoverCard panel={panel}>
+    <HoverCard panel={panel} pinnable={pinnable}>
       <ChipLabel tag={tag} quantity={quantity} duration={duration} data-tone={tone ?? undefined} />
     </HoverCard>
   );

@@ -9,12 +9,7 @@ import { peopleHere } from "@/lib/peopleHere";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { rosterName } from "@lifeweb/db/lib/presentedIdentity";
 import { isTradeable } from "@/lib/tagRequests";
-import {
-  TAG_CHIP_FIELDS,
-  cookedTasteOnly,
-  stripEmptyUnlocks,
-  stripWeightless,
-} from "@/lib/referenceData";
+import { chipSelect, chipContextFor, composeChipTag } from "@/lib/referenceData";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { craftMoveCost } from "@/lib/craftBudget";
 import { MEDICAL_SIMPLE_PER_TURN } from "@/lib/requests";
@@ -473,7 +468,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
 // check (`accessibleRooms`/`roomAccessKeys`) is identical either way; widening
 // the `where` in place is the point — a second, competing query here is
 // exactly what this function's own header warns against.
-export async function loadStashRooms(character, { scope = "location" } = {}) {
+export async function loadStashRooms(character, { scope = "location", chipCtx = null } = {}) {
   if (scope === "zone") {
     if (!character?.zoneId) return [];
     const [rows, keys] = await Promise.all([
@@ -501,6 +496,11 @@ export async function loadStashRooms(character, { scope = "location" } = {}) {
   }
 
   if (!character?.locationId) return [];
+  // The reader a stash chip's paper is resolved against. /chat already built
+  // one for the Things drawer and hands it in, so the same letter reads the
+  // same way in a pocket and on the floor; everybody else gets one built here.
+  // chipContextFor(null-ish) fails CLOSED — an unreadable line, never the text.
+  const ctx = chipCtx ?? (await chipContextFor(character));
   const [rows, keys] = await Promise.all([
     prisma.room.findMany({
       where: { locationId: character.locationId },
@@ -522,8 +522,8 @@ export async function loadStashRooms(character, { scope = "location" } = {}) {
             // to decide whether they want it, and until 2026-09-10 the row was
             // a bare name — so the only way to learn where a helmet went was to
             // carry it home and try it on. Spread it, don't retype it: that is
-            // the drift TAG_CHIP_FIELDS exists to stop.
-            tag: { select: { ...TAG_CHIP_FIELDS, stackable: true, equippable: true } },
+            // the drift chipSelect() exists to stop.
+            tag: { select: chipSelect({ stackable: true, equippable: true }) },
           },
         },
       },
@@ -541,10 +541,12 @@ export async function loadStashRooms(character, { scope = "location" } = {}) {
       quantity: rt.quantity,
       stackable: rt.tag.stackable,
       weightLbs: rt.tag.category === "Assets" ? 0 : (rt.tag.weightLbs ?? 0),
-      // The chip's own copy, through the same two filters every other
-      // TAG_CHIP_FIELDS caller runs: a dish names its taste and not its
-      // ingredients, and a weightless tag ships neither weight column.
-      tag: stripWeightless(stripEmptyUnlocks(cookedTasteOnly(rt.tag))),
+      // The chip's own copy. composeChipTag runs exactly the filters this
+      // used to spell out by hand — a dish names its taste and not its
+      // ingredients, a weightless tag ships neither weight column — AND
+      // resolves a paper against THIS reader. Never a GM context here: a
+      // sealed letter lying in a stash must stay sealed to whoever walks past.
+      tag: composeChipTag(rt.tag, ctx),
     })),
   }));
 }

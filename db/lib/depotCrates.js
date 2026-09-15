@@ -1,7 +1,7 @@
 // Crates: what a shipment looks like when the shuttle sets it down — packed into a random number of crates that must be opened (worth paying a Docker for, delays "bought" from "holding", and leaves a crate on the landing pad crackable by whoever's there). A crate is a TAG, created at runtime with custom: true — db/lib/pruneTags.js already skips custom rows so db:prune-tags won't eat them, and being a tag gives crates carry weight, transfers, room stashes and theft for free. One Tag row per crate, swept once the last instance is gone. Manifest printed on the crate, Bascinet's format: `[SHIPMENT ID RV-4471-K]: Coal x 4 | Bandage x 6 | ML-23`, or `[SHIPMENT ID RV-4471-K]: SEALED` if anything in it ships sealed — only a Depot Keycard opens a sealed crate, and one sealed line item seals the whole crate, so nobody knows which crate the dangerous thing is in.
 
 const { DEPOT_KEYCARD_SLUG } = require("./depotState");
-const { PACKAGE_MAX_LBS, PACKAGE_MAX_UNITS } = require("./constants");
+const { PACKAGE_MAX_LBS, PACKAGE_MAX_UNITS, TAG_CATEGORY } = require("./constants");
 
 // A crated ⬢ weighs a pound, so ⬢ pack against the same weight rule as everything else and ride in a crate with other goods. Loose on a sheet they weigh nothing and count against carryResourceCap instead (docs/systemdocs/CARRY.md §1) — freight and sheet never double-count the same ⬢.
 const RESOURCE_UNIT_LBS = 1;
@@ -128,7 +128,7 @@ function crateTagData(shipment, crates, { groupId = null, weightByTagId = new Ma
     custom: true,
     // Game state, not catalog — a Restart Game sweeps it up. See TAGS.md §5d.
     ephemeral: true,
-    category: "items",
+    category: TAG_CATEGORY.ITEMS,
     groupId,
     pointCost: 0,
     tradeable: true,

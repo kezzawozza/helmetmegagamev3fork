@@ -158,6 +158,26 @@ const FORTRESS_SLUG = "fortress";
 // #leave — GM-only departure alerts and catatonic deaths, hardcoded (db/lib/roleIds.js reason). Lives in db/ since db/index.js's turn-engine thunk posts death alerts here too.
 const LEAVE_ANNOUNCE_CHANNEL_ID = "1540014692926361651";
 
+// Tag.category holds the DISPLAY NAME from docs/tags.yaml's `categories:` map
+// ("Items"), not the slug it is keyed by ("items") — db/lib/syncTags.js resolves
+// one to the other before writing. Every runtime minter has to spell the same
+// thing, and for a long time five of the six did not: paper, corpses, photos,
+// pointer devices and crates all wrote the raw slug, so a player's own notes
+// landed in a second category one capital letter away from the real one. That
+// is not only cosmetic — web/app/(app)/chat/thingRows.js matches this string
+// exactly, so every one of those rows was invisible in the Things drawer.
+// Use these; never a bare string.
+const TAG_CATEGORY = Object.freeze({
+  META: "Meta",
+  GENERAL: "General",
+  SKILLS: "Skills",
+  STATUS: "Status",
+  HEALTH: "Health",
+  ITEMS: "Items",
+  ASSETS: "Assets",
+  DEMONESS: "Demoness",
+});
+
 module.exports = {
   FORTRESS_SLUG,
   LEAVE_ANNOUNCE_CHANNEL_ID,
@@ -240,4 +260,5 @@ module.exports = {
   MUSICIAN_PYTHAGOREAN_SLUG,
   INSTRUMENT_SLUG,
   MUSICIAN_SLUG,
+  TAG_CATEGORY,
 };
