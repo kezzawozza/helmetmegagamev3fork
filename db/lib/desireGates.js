@@ -1,14 +1,51 @@
+// Deterministic, no RNG/library needed: the same character+turn+template
+// always rolls the same way, so a picker reload mid-turn never shows a
+// different catalog — but the locked SET changes every turn, since
+// openTurnNumber is part of the seed. No DB write, no TURN_PASSES
+// registration, no migration: evaluateDesireCatalog stays a pure evaluator,
+// same contract as the rest of this file (see the header comment below).
+const MANIC_LOCK_FRACTION = 0.7;
+
+function manicScramblesTemplate(characterId, openTurnNumber, templateId) {
+  const seed = `${characterId}:${openTurnNumber}:${templateId}`;
+  let hash = 5381;
+  for (let i = 0; i < seed.length; i++) hash = Math.imul(hash, 33) ^ seed.charCodeAt(i);
+  // Murmur3's fmix32: without this, two seeds differing only in a trailing
+  // digit (template-0 vs template-1) land suspiciously close together in
+  // [0,1) — djb2's last step is a bare XOR with no further mixing, so the
+  // final character's influence never spreads across the other bits.
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 0x85ebca6b);
+  hash ^= hash >>> 13;
+  hash = Math.imul(hash, 0xc2b2ae35);
+  hash ^= hash >>> 16;
+  return (hash >>> 0) / 4294967295 < MANIC_LOCK_FRACTION;
+}
+
 // Pure Desire-catalog gate evaluator. No prisma import, not in the
 // @lifeweb/db barrel — deep-imported by client components. Order (first
-// match wins): hidden, locked, spent, cooldown, available. A hidden state
-// must be withheld entirely; a locked reason must never name a hidden tag (leaks Demoness).
-function evaluateDesireCatalog({ templates, heldTags, hiddenTagIds, roleSlug, history, openTurnNumber, desireSlots = 2 }) {
+// match wins): hidden, locked, spent, cooldown, [Manic's random lock],
+// available. A hidden state must be withheld entirely; a locked reason must
+// never name a hidden tag (leaks Demoness).
+function evaluateDesireCatalog({
+  templates,
+  heldTags,
+  hiddenTagIds,
+  roleSlug,
+  history,
+  openTurnNumber,
+  desireSlots = 2,
+  characterId = null,
+}) {
   const heldTagIds = new Set((heldTags || []).map((t) => t.id));
   const hidden_ = hiddenTagIds instanceof Set ? hiddenTagIds : new Set(hiddenTagIds || []);
   const allClauses = unionLockClauses(heldTags || []);
   const globalClauses = allClauses.filter(({ clause }) => clause.slot == null);
   const scopedClauses = allClauses.filter(({ clause }) => clause.slot != null);
   const hist = history || [];
+  // Manic (TAGS.md 4a): ~70% of the catalog locks at random each turn, re-rolled
+  // every turn — a trade for never waiting out a slot's own cooldown (below).
+  const manic = (heldTags || []).some((t) => t.slug === MANIC_SLUG);
 
   const slotLocksFor = (template) =>
     Array.from({ length: desireSlots }, (_, slotIndex) =>
@@ -61,6 +98,11 @@ function evaluateDesireCatalog({ templates, heldTags, hiddenTagIds, roleSlug, hi
         push("cooldown", null, availableFromTurn);
         continue;
       }
+    }
+
+    if (manic && characterId != null && manicScramblesTemplate(characterId, openTurnNumber, template.id)) {
+      push("locked", "Manic scrambles your Desires — check back next turn.", null);
+      continue;
     }
 
     push("available", null, null);
@@ -277,4 +319,7 @@ module.exports = {
   bottomSlotAddiction,
   unlockedBy,
   evalRequires,
+  // Exported for db/test/masteryTags.test.js — Manic's random-lock roll.
+  manicScramblesTemplate,
+  MANIC_LOCK_FRACTION,
 };

@@ -2291,8 +2291,8 @@ tags:
     category: general
     group: general-personality
     psychological: true
-    description: "Your Desire slots don't have a cooldown."
-    pointCost: 13
+    description: "Your Desire slots don't have a cooldown. However, your available desires are randomized every turn."
+    pointCost: 10
     visible: false
     purchasable: true
     purchasableAfterStart: true

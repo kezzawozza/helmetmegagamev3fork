@@ -236,6 +236,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     history: desires,
     openTurnNumber: openTurn?.number ?? 0,
     desireSlots: desireSlotsConfig,
+    characterId,
   });
   const desireCooldowns = desireStatesEvaluated
     .filter((e) => e.state === "cooldown" || e.state === "spent")
