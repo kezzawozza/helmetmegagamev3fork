@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · Deadchat catches up on Discord, and a dead GM can speak there
+
+✎ Web messages typed before Deadchat had a Discord channel are posted on the bot's next start; the outbox drains again after the mirror has built anything  
+✎ A GM whose own character died gets their voice in Deadchat like any other ghost, instead of being told they are a ghost who cannot speak  
+✎ A living GM reading Deadchat sees a line that says so, not the ghost line
+
 ## 2026-09-15 · Paper chips in the audit log name the right note
 
 ✎ The audit log's tag chips show a written note's words on hover — they were blank, the one desk last week's fix missed.  

@@ -135,7 +135,10 @@ export const loadFeedViewer = cache(async () => {
 
   const character = await loadFeedCharacter(session.discordUserId);
   const gm = Boolean(isGm) && !character;
-  const ghost = !character && !gm && (await isPlayerGhost(prisma, session.discordUserId));
+  // Independent of `gm`: a GM whose own character died is a ghost too. They
+  // keep the GM's view of the world and gain the one thing a ghost has that a
+  // GM does not, a voice in Deadchat (db/lib/feedAccess.js#gmPlacesFor).
+  const ghost = !character && (await isPlayerGhost(prisma, session.discordUserId));
   return {
     discordUserId: session.discordUserId,
     character,

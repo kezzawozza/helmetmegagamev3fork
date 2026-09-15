@@ -2186,6 +2186,10 @@ export default function Feed({
             <p className="chat-quiet italic">
               Go into a room, the zone summary channel, or a conversation to speak.
             </p>
+          ) : place.kind === "dead" && gm ? (
+            // A living GM reading the dead. They are not a ghost, so don't
+            // call them one; they answer the dead through /dm or the desk.
+            <p className="chat-quiet italic">GMs read Deadchat and don’t speak in it.</p>
           ) : (
             // Everywhere else a character may read but not speak. The street
             // is not here any more — it has its own line above — so what is

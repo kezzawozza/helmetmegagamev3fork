@@ -130,6 +130,15 @@ module.exports = {
         .catch((err) => console.error("Mirror queue drain failed:", err));
     }
 
+    // The outbox drained once above, before the doctor and the mirror ran. A
+    // channel either of them just created (Deadchat on its first day) had no
+    // target then, so every web row bound for it was skipped; now it has one.
+    // One indexed query when nothing is pending.
+    {
+      const { drainFeedOutbox } = require("../lib/feedOutbox");
+      await drainFeedOutbox().catch((err) => console.error("Feed outbox re-drain failed:", err));
+    }
+
     // Every GM's zone view, materialized as "GM: <Zone>" roles — seats a brand new GM (no rows
     // means every zone) and repairs a failed grant or a rejoin (db/lib/gmZoneRoles.js).
     {

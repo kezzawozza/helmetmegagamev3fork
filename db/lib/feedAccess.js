@@ -150,7 +150,7 @@ async function netPlacesFor(prisma, characterId) {
 // come from web/lib/feedAccess.js#loadFeedViewer and nothing here reads a
 // role to decide either — the ghost seat has no role left to read.
 async function placesFor(prisma, character, { gm = false, ghost = false, discordUserId = null } = {}) {
-  if (gm) return gmPlacesFor(prisma, discordUserId);
+  if (gm) return gmPlacesFor(prisma, discordUserId, { ghost });
   if (ghost) return ghostPlacesFor(prisma, discordUserId);
   if (!character?.id) return [];
   // A radio works even with no Location, so the column isn't empty.
@@ -366,7 +366,7 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId, zoneSta
 // A GM reads every place in their chosen zones (db/lib/gmZoneView.js — no
 // rows means every zone) and speaks in none: a GM who wants to say something
 // in a scene says it as a GM, on Discord or through the desk.
-async function gmPlacesFor(prisma, discordUserId) {
+async function gmPlacesFor(prisma, discordUserId, { ghost = false } = {}) {
   // Folds a seat down onto the zones it owns, so "Underground" arrives as
   // Underground + Caves + Depths with the cave Locations (db/lib/gmZoneView.js).
   const visible = await visibleZoneIds(prisma, discordUserId);
@@ -383,7 +383,10 @@ async function gmPlacesFor(prisma, discordUserId) {
   // LAST, where a ghost gets it first. The left column draws it in the same fixed section either way
   // (PlacesColumn.js), so order only decides `places[0]` — the place Chat opens on. A ghost opens on
   // the one place they can answer; a GM opens on their zones, which is what they came for.
-  return [...places, deadchatPlace({ canSpeak: false })];
+  //
+  // Unless the GM is dead themselves: then Deadchat is their seat as much as anybody's, and they
+  // speak there as their last character, the way the say route already resolves a ghost.
+  return [...places, deadchatPlace({ canSpeak: ghost })];
 }
 
 // The ghost seat, on the web — and since the Ghost role went, the ONLY place it exists. A dead
