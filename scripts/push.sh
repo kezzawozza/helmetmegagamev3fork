@@ -99,8 +99,20 @@ if [ "$allow_untracked_imports" -eq 0 ]; then
   missing_imports=""
   for spec in $(grep -rhoE '@lifeweb/db/lib/[A-Za-z0-9_/-]+' \
       web bot db --include='*.js' 2>/dev/null | sort -u); do
+    # A spec resolves to either a file or a FOLDER's index.js --
+    # `@lifeweb/db/lib/discordMirror` is seven files behind an index, and
+    # checking only the flat path reported it missing on every push while the
+    # build resolved it fine. A guard that cries wolf gets passed --allow-.
     file="db/${spec#@lifeweb/db/}.js"
-    if [ ! -f "$file" ] || ! git ls-files --error-unmatch "$file" >/dev/null 2>&1; then
+    dir="db/${spec#@lifeweb/db/}/index.js"
+    found=""
+    for candidate in "$file" "$dir"; do
+      if [ -f "$candidate" ] && git ls-files --error-unmatch "$candidate" >/dev/null 2>&1; then
+        found="$candidate"
+        break
+      fi
+    done
+    if [ -z "$found" ]; then
       missing_imports="$missing_imports  $spec -> $file"$'\n'
     fi
   done
