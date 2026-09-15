@@ -141,11 +141,21 @@ function zoneGmRoleName(zone) {
   return `GM: ${zone.name}`;
 }
 
+// A cave level has no GM seat of its own — its Locations wear the group's,
+// the same indirection Zone.seatZoneId makes. The one definition; db:sync-zones,
+// the channel doctor and the Discord mirror all called this out separately
+// before, and the three copies could (and once did, briefly) disagree.
+function gmRoleIdFor(zone, zoneById) {
+  if (!zone) return null;
+  return zone.gmRoleId ?? (zone.parentZoneId ? zoneById.get(zone.parentZoneId)?.gmRoleId ?? null : null);
+}
+
 module.exports = {
   zoneChannelSpec,
   locationChannelSpec,
   zoneRoleName,
   zoneGmRoleName,
+  gmRoleIdFor,
   LOCATION_MEMBER_ALLOW,
   LOCATION_VANTAGE_ALLOW,
   LOCATION_VANTAGE_DENY,

@@ -16,6 +16,7 @@
 const { getGuildRoles, listGuildMembers } = require("./discordRest");
 const { CURSE_SELECT } = require("./curse");
 const { spectatorsVisible } = require("./spectatorAccess");
+const { gmRoleIdFor } = require("./zoneChannelSpec");
 const { makeReporter } = require("./channelDoctor/shared");
 const { runStructureSweep } = require("./channelDoctor/sweeps/structure");
 const { runRoleMembershipSweep } = require("./channelDoctor/sweeps/roles");
@@ -62,12 +63,8 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
   const rolesById = new Map(liveRoles.map((r) => [r.id, r]));
   const alive = characters.filter((c) => c.status === "ALIVE");
   const zonesById = new Map(zones.map((z) => [z.id, z]));
-  // A cave level has no GM seat of its own — its Locations wear the group's,
-  // matching db:sync-zones' gmRoleIdFor and Zone.seatZoneId's indirection.
-  const gmRoleIdForZone = (z) =>
-    z.gmRoleId ?? (z.parentZoneId ? zonesById.get(z.parentZoneId)?.gmRoleId : null) ?? null;
   const locations = zones.flatMap((z) =>
-    z.locations.map((l) => ({ ...l, zoneName: z.name, zoneGmRoleId: gmRoleIdForZone(z) })),
+    z.locations.map((l) => ({ ...l, zoneName: z.name, zoneGmRoleId: gmRoleIdFor(z, zonesById) })),
   );
   const locationsById = new Map(locations.map((l) => [l.id, l]));
 

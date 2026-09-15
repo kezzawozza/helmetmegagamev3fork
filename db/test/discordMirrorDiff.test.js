@@ -77,6 +77,7 @@ function provisioned(over = {}) {
     rooms: [{ ...baseRoom }],
     config: { ...baseConfig },
     spectators: true,
+    guildId: "guild-1",
     ...over,
   };
   const first = buildDesired(rows);
@@ -242,6 +243,38 @@ test("a drifted topic is one patch op, ordered after the creates", () => {
   assert.equal(ops.length, 1);
   assert.equal(ops[0].kind, "patch");
   assert.match(ops[0].reason, /topic/);
+});
+
+test("a recorded thread absent from the active-thread snapshot is a finding, never a duplicate", () => {
+  const { desired } = provisioned();
+  // Dropped from the snapshot entirely — an archived thread, invisible to
+  // fetchActiveThreads, looks exactly like this.
+  const live = liveFrom(desired, { drop: ["thread:room:r1"] });
+
+  const { ops, findings } = buildOps({ desired, live, prisma: null });
+  assert.equal(ops.filter((o) => o.targetId === "thread:room:r1").length, 0);
+  const missing = findings.filter((f) => f.check === "mirror-missing");
+  assert.equal(missing.length, 1);
+  assert.match(missing[0].problem, /may just be archived/);
+});
+
+test("the radio channel's name never drifts on the dot Discord may have stripped", () => {
+  for (const storedName of ["27.065", "27065"]) {
+    const { desired } = provisioned();
+    const live = liveFrom(desired);
+    const target = desired.find((t) => t.key === "channel:special:27.065");
+    // Whether Discord kept the punctuation or stripped it, this is the same
+    // channel — comparing raw strings here would PATCH the name back to
+    // itself forever.
+    live.channelsById.get(target.currentId).name = storedName;
+
+    const { ops } = buildOps({ desired, live, prisma: null });
+    assert.deepEqual(
+      ops.filter((o) => o.targetId === "channel:special:27.065"),
+      [],
+      `stored as "${storedName}"`,
+    );
+  }
 });
 
 test("the per-member sweeps are delegated, and only in the full scope", () => {

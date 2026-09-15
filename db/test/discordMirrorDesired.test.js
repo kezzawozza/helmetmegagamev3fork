@@ -64,6 +64,7 @@ function build(over = {}) {
     rooms: [room()],
     config: {},
     spectators: true,
+    guildId: "guild-1",
     ...over,
   });
 }
@@ -101,6 +102,7 @@ test("a CAVE_LEVEL has no channels of its own and no GM seat — it wears the gr
     locations: [location({ id: "lc", slug: "pit", name: "The Pit", zoneId: "zl", discordChannelId: "chan-pit" })],
     rooms: [],
     config: {},
+    guildId: "guild-1",
   });
   assert.equal(byKind(targets, "zone-category").length, 1, "only the group's category");
   assert.equal(byKind(targets, "zone-summary").length, 0);

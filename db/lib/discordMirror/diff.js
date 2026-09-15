@@ -13,7 +13,7 @@
 // and before the database UPDATE would cut a second copy of everything on the
 // next pass. Two matches is the case nobody can guess at, so it becomes a
 // `mirror-ambiguous` finding and no create.
-const { channelKey, threadKey } = require("./live");
+const { channelKey, threadKey, normalizeChannelName, CHANNEL_TYPE_CATEGORY } = require("./live");
 const { ORDER } = require("./desired");
 
 // A finding, in the channel doctor's shape, so /gm/dev can render both.
@@ -39,15 +39,43 @@ function propertyDrift(want = {}, live = {}) {
   for (const [key, value] of Object.entries(want)) {
     if (value === undefined) continue;
     const there = live?.[key];
-    // A topic Discord never had reads back as null, and the spec writes "" for
-    // a Location with no description. Those are the same thing.
-    const same = key === "topic" ? String(there ?? "") === String(value ?? "") : there === value;
+    let same;
+    if (key === "topic") {
+      // A topic Discord never had reads back as null, and the spec writes "" for
+      // a Location with no description. Those are the same thing.
+      same = String(there ?? "") === String(value ?? "");
+    } else if (key === "name") {
+      // Compare the SAME way adoption does. Discord may have rewritten "27.065"
+      // down to "27065" on the way in — that is not drift, it is the name we
+      // asked for, so comparing the raw strings here would PATCH the name back
+      // to itself every single run forever.
+      same = normalizeChannelName(there) === normalizeChannelName(value);
+    } else {
+      same = there === value;
+    }
     if (!same) drift[key] = value;
   }
   return drift;
 }
 
-function buildOps({ desired, live, prisma, scope = "structure", writes = null }) {
+// Every live channel that could BE `name` in this spot: one whose stored name
+// normalizes the same way, in case Discord rewrote it, and one whose stored
+// name matches raw, in case it didn't. Only one of the two lookups usually
+// finds anything, but which one depends on characters neither of us can
+// enumerate up front, so both are checked and the results merged by id.
+function candidateChannels(live, type, parentId, name) {
+  const byId = new Map();
+  const add = (key) => {
+    for (const channel of live.channelsByKey.get(key) ?? []) byId.set(channel.id, channel);
+  };
+  add(channelKey(type, parentId, name));
+  if (Number(type) !== CHANNEL_TYPE_CATEGORY) {
+    add(`${Number(type)}:${parentId ?? ""}:${String(name ?? "")}`);
+  }
+  return [...byId.values()];
+}
+
+function buildOps({ desired, live, prisma, scope = "structure" }) {
   const ops = [];
   const findings = [];
   // Ids handed out during THIS diff — an adopt earlier in the list is what a
@@ -57,7 +85,7 @@ function buildOps({ desired, live, prisma, scope = "structure", writes = null })
   // that would collide is reported instead of thrown as a P2002 at write time.
   const claimedRoleIds = new Map();
 
-  const writeId = writes?.writeId ?? defaultWriteId(prisma);
+  const writeId = defaultWriteId(prisma);
 
   for (const target of desired) {
     if (target.targetType === "role") {
@@ -75,13 +103,34 @@ function buildOps({ desired, live, prisma, scope = "structure", writes = null })
   // must NOT ride along in it — Discord answers 400 code 40009, "Only one
   // channel can have a parent_id modified at a time" — so reparents are their
   // own ops above, and they are ordered ahead of this one.
-  const positions = [];
+  //
+  // The comparison is RELATIVE order, not the raw integer. Discord's own
+  // position numbers are dense per-guild-channel-type indices with gaps this
+  // module has no way to predict, so two channels sitting in the right order
+  // relative to their siblings can carry integers that never equal what
+  // positionFor() computed — that used to mean an op every single run,
+  // forever, for a category that was never actually wrong.
+  const bySiblingGroup = new Map();
   for (const target of desired) {
     if (target.targetType !== "channel" || target.position == null) continue;
     const id = target.currentId ?? resolvedIdByKey.get(target.key);
     if (!id) continue;
     const there = live.channelsById.get(id);
-    if (there && there.position !== target.position) positions.push({ id, position: target.position });
+    if (!there) continue;
+    const groupKey = there.parent_id ?? "";
+    const list = bySiblingGroup.get(groupKey) ?? [];
+    list.push({ id, intended: target.position, live: there.position });
+    bySiblingGroup.set(groupKey, list);
+  }
+  const positions = [];
+  for (const siblings of bySiblingGroup.values()) {
+    const intendedOrder = [...siblings].sort((a, b) => a.intended - b.intended).map((s) => s.id);
+    const liveOrder = [...siblings].sort((a, b) => a.live - b.live).map((s) => s.id);
+    const sameOrder =
+      intendedOrder.length === liveOrder.length && intendedOrder.every((id, i) => id === liveOrder[i]);
+    if (!sameOrder) {
+      for (const s of siblings) positions.push({ id: s.id, position: s.intended });
+    }
   }
   if (positions.length > 0) {
     ops.push({
@@ -213,7 +262,7 @@ function diffChannel(target, { live, ops, findings, resolvedIdByKey, writeId }) 
     if (target.currentId) {
       findings.push(finding("mirror-missing", target.label, "the recorded channel no longer exists in the guild"));
     }
-    const matches = live.channelsByKey.get(channelKey(target.discordType, parentId, target.name)) ?? [];
+    const matches = candidateChannels(live, target.discordType, parentId, target.name);
     if (matches.length > 1) {
       findings.push(
         finding("mirror-ambiguous", target.label, `${matches.length} channels are called "${target.name}" in the same place — refusing to guess, and creating nothing`),
@@ -323,10 +372,15 @@ function diffThread(target, { live, ops, findings, resolvedIdByKey }) {
     return;
   }
   if (target.currentId) {
-    // An ARCHIVED thread is not in the active snapshot, so this is a maybe, not
-    // a verdict. syncRoomThread's own getChannel is what settles it at apply
-    // time; the mirror only says the room needs a look.
+    // An ARCHIVED thread is not in the active snapshot — fetchActiveThreads
+    // cannot see it, and a Room auto-archives after 7 days idle, so this is
+    // routine, not damage. This is a maybe, not a verdict: syncRoomThread's own
+    // getChannel is what settles it at apply time, so the mirror only says the
+    // room needs a look and STOPS. Falling through to the name lookup below
+    // would treat an ordinarily-archived thread as gone and adopt or create a
+    // second one right on top of it — Phase 1's very first duplicate.
     findings.push(finding("mirror-missing", target.label, "the recorded thread is not among the guild's active threads (it may just be archived)"));
+    return;
   }
 
   const matches = live.threadsByKey.get(threadKey(parentId, target.name)) ?? [];

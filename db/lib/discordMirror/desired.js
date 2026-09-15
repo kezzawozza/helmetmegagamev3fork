@@ -16,6 +16,7 @@ const {
   locationChannelSpec,
   zoneRoleName,
   zoneGmRoleName,
+  gmRoleIdFor,
 } = require("../zoneChannelSpec");
 const { spectatorOverwrite } = require("../spectatorAccess");
 const { SPECIAL_CHANNELS } = require("../specialChannels");
@@ -24,8 +25,6 @@ const {
   CHANNEL_NAME: DEADCHAT_CHANNEL_NAME,
   CATEGORY_NAME: DEADCHAT_CATEGORY_NAME,
   CHANNEL_TOPIC: DEADCHAT_CHANNEL_TOPIC,
-  DEADCHAT_ALLOW,
-  DEADCHAT_DENY,
   GM_ALLOW: DEADCHAT_GM_ALLOW,
   GM_DENY: DEADCHAT_GM_DENY,
 } = require("../deadchat");
@@ -33,15 +32,12 @@ const { gmRoleIds } = require("../roleIds");
 const { buildRoomBody, buildAnchorBody } = require("../syncZones/bodies");
 const { locationAnchorRows } = require("../locationAnchorRow");
 const { hashBody } = require("../syncZones/shared");
+const { intendedPositions, LEVEL_CHANNEL_STRIDE } = require("../syncZones/ordering");
 const { CHANNEL_TYPE_TEXT, CHANNEL_TYPE_CATEGORY } = require("./live");
 
 const PERM_VIEW_CHANNEL = 1024n;
 const PERM_SEND_MESSAGES = 2048n;
 const PERM_ATTACH_FILES = 32768n;
-
-// Cave levels share the group's category; a level's Locations interleave as
-// level.sortOrder * this + location.sortOrder, matching syncZones/ordering.js.
-const LEVEL_CHANNEL_STRIDE = 10;
 
 // The op-order bands the plan fixes. A band is carried on the desired object so
 // diff.js never has to re-derive "roles come before channels" per target.
@@ -60,13 +56,6 @@ const ORDER = {
   CHARACTER_ACCESS: 120,
   TURNS_ACCESS: 130,
 };
-
-// A cave level has no seat of its own — its Locations wear the group's, the
-// same indirection Zone.seatZoneId makes. Mirrors sync.js's gmRoleIdFor.
-function gmRoleIdFor(zone, zoneById) {
-  if (!zone) return null;
-  return zone.gmRoleId ?? (zone.parentZoneId ? zoneById.get(zone.parentZoneId)?.gmRoleId ?? null : null);
-}
 
 function categoryKeyFor(zone, zoneById) {
   if (zone.kind === "CAVE_LEVEL") {
@@ -120,11 +109,27 @@ function buildDesired({
   spectators = true,
   liveStates = new Map(),
   componentsByRoomId = new Map(),
-  guildId = process.env.DISCORD_GUILD_ID,
+  guildId,
 } = {}) {
+  // No default from process.env: this module stays pure, so the caller (index.js)
+  // is the one place that touches the environment, and a test fixture is never
+  // silently borrowing whatever guild the last test happened to set.
+  if (!guildId) throw new Error("buildDesired needs a guildId");
+
   const targets = [];
   const zoneById = new Map(zones.map((z) => [z.id, z]));
   const locationById = new Map(locations.map((l) => [l.id, l]));
+  const locationsByZoneId = new Map();
+  for (const location of [...locations].sort((a, b) => a.sortOrder - b.sortOrder)) {
+    const list = locationsByZoneId.get(location.zoneId);
+    if (list) list.push(location);
+    else locationsByZoneId.set(location.zoneId, [location]);
+  }
+  // Feed sync.js's own ordering math the same zones-with-locations shape it
+  // builds itself, so a location's intended slot can never drift from what
+  // db:sync-zones would compute for the identical rows.
+  const zonesWithLocations = zones.map((z) => ({ ...z, locations: locationsByZoneId.get(z.id) ?? [] }));
+  const positionByChannelId = new Map(intendedPositions(zonesWithLocations).map((p) => [p.id, p.position]));
 
   // --- zone roles ------------------------------------------------------
   //
@@ -228,7 +233,7 @@ function buildDesired({
       overwrites: spec.permission_overwrites ?? [],
       currentId: location.discordChannelId ?? null,
       idColumn: { model: "location", id: location.id, field: "discordChannelId" },
-      position: positionFor(location, zone, zoneById),
+      position: positionByChannelId.get(location.discordChannelId) ?? null,
     });
   }
 
@@ -309,7 +314,6 @@ function buildDesired({
       gmDeny: DEADCHAT_GM_DENY,
       spectators: undefined,
     }),
-    memberAllow: { allow: DEADCHAT_ALLOW.toString(), deny: DEADCHAT_DENY.toString() },
     currentId: config.deadchatChannelId ?? null,
     idColumn: { model: "gameConfig", id: 1, field: "deadchatChannelId" },
   });
@@ -335,7 +339,6 @@ function buildDesired({
       key: `thread:room:${room.id}`,
       label: `${location?.name ?? "?"} / ${room.name}`,
       name: room.name.slice(0, 100),
-      threadKind: room.kind,
       parentKey: location ? `channel:location:${location.id}` : null,
       parentId: location?.discordChannelId ?? null,
       order: ORDER.ROOM_THREAD,
@@ -344,11 +347,20 @@ function buildDesired({
       hasStarter: Boolean(room.starterMessageId),
       currentId: room.discordThreadId ?? null,
       idColumn: { model: "room", id: room.id, field: "discordThreadId" },
-      roomId: room.id,
     });
   }
 
   // --- Location anchors -------------------------------------------------
+  //
+  // `roomsByLocationId` here is EVERY room row for the location — quest rooms
+  // included, since they carry no `questId: null` filter the way the YAML
+  // pruning pass does. That is deliberate: the full db:sync-zones pass only
+  // ever sees rooms that came from the YAML (a quest room has no slug there,
+  // so it never enters that pass's room list), but `refreshLocationAnchor`
+  // (syncZones/sync.js) reads every row for the location with no such filter,
+  // and it is that pass — not the full sync — that a quest's gate flip and
+  // this mirror both need to agree with, so a quest room's public thread shows
+  // up on the anchor exactly when refreshLocationAnchor would show it.
   for (const location of locations) {
     const roomList = (roomsByLocationId.get(location.id) ?? [])
       .slice()
@@ -366,23 +378,10 @@ function buildDesired({
       bodyHash: hashBody(`${body} ${JSON.stringify(components)}`),
       currentHash: location.anchorHash ?? null,
       currentId: location.anchorMessageId ?? null,
-      locationId: location.id,
     });
   }
 
   return targets;
-}
-
-// Where a Location channel should sit inside its category. A surface zone's
-// #summary takes slot 0, so its Locations start at 1; a cave level's are
-// offset by the level so the three levels read in map order rather than
-// clumped.
-function positionFor(location, zone, zoneById) {
-  if (!zone) return null;
-  if (zone.kind === "CAVE_LEVEL") {
-    return zone.sortOrder * LEVEL_CHANNEL_STRIDE + location.sortOrder;
-  }
-  return location.sortOrder + 1;
 }
 
 module.exports = { buildDesired, ORDER, gmRoleIdFor, LEVEL_CHANNEL_STRIDE };

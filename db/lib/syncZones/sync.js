@@ -21,6 +21,7 @@ const {
   locationChannelSpec,
   zoneRoleName,
   zoneGmRoleName,
+  gmRoleIdFor,
 } = require("../zoneChannelSpec");
 const { syncTurnsChannelAccess } = require("../turnsChannelAccess");
 const { spectatorsVisibleNow } = require("../spectatorAccess");
@@ -450,10 +451,6 @@ async function syncZonesFromYaml(prisma) {
   });
   const categoryIdFor = (zone) =>
     zone.discordCategoryId ?? (zone.parentZoneId ? zoneById.get(zone.parentZoneId)?.discordCategoryId : null) ?? null;
-  // A cave level has no seat of its own — its Locations wear the group's, the
-  // same indirection Zone.seatZoneId makes for stamped rows.
-  const gmRoleIdFor = (zone) =>
-    zone?.gmRoleId ?? (zone?.parentZoneId ? zoneById.get(zone.parentZoneId)?.gmRoleId : null) ?? null;
 
   for (const zone of provisionOrder) {
     const spec = zoneChannelSpec(zone, { spectators });
@@ -500,7 +497,7 @@ async function syncZonesFromYaml(prisma) {
     if (location.discordChannelId) continue;
     const zone = zoneById.get(location.zoneId);
     const channel = await createChannel({
-      ...locationChannelSpec(location, gmRoleIdFor(zone), { spectators }),
+      ...locationChannelSpec(location, gmRoleIdFor(zone, zoneById), { spectators }),
       parent_id: categoryIdFor(zone),
     });
     await prisma.location.update({ where: { id: location.id }, data: { discordChannelId: channel.id } });
@@ -546,7 +543,7 @@ async function syncZonesFromYaml(prisma) {
   }
   for (const location of locationsBySlug.values()) {
     if (location.justProvisioned || !location.discordChannelId) continue;
-    const want = locationChannelSpec(location, gmRoleIdFor(zoneById.get(location.zoneId)), { spectators });
+    const want = locationChannelSpec(location, gmRoleIdFor(zoneById.get(location.zoneId), zoneById), { spectators });
     await patchChannel(location.discordChannelId, { topic: want.topic ?? "" });
     const removed = await reconcileChannelOverwrites(location.discordChannelId, want, managed);
     for (const id of removed) {

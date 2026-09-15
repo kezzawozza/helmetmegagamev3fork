@@ -18,18 +18,22 @@ const { spectatorsVisibleNow } = require("../spectatorAccess");
 const { loadLiveStates } = require("../roomLive");
 const { roomComponents } = require("../syncZones/roomThreads");
 const { buildDesired } = require("./desired");
-const { loadLiveSnapshot, emptySnapshot, normalizeChannelName } = require("./live");
+const { loadLiveSnapshot, emptySnapshot } = require("./live");
 const { buildOps } = require("./diff");
 const { applyOps } = require("./apply");
 
 // Everything desired.js needs, in as few queries as it takes.
 async function loadRows(prisma) {
-  const [zones, locations, rooms, config, state] = await Promise.all([
+  const [zones, locations, rooms, config] = await Promise.all([
     prisma.zone.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.location.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.room.findMany({ orderBy: { sortOrder: "asc" } }),
-    prisma.gameConfig.findUnique({ where: { id: 1 } }),
-    prisma.gameState.findUnique({ where: { id: 1 }, select: { phase: true } }),
+    // Upsert, not findUnique — an empty database (LOCAL_MODE's first run, or a
+    // fresh Postgres nobody has synced yet) has no GameConfig row at all, and
+    // an adopt op that tries to write one of its columns back would throw
+    // P2025 the moment Phase 1 turns `run` on. syncSpecialChannels does the
+    // same thing for the same reason.
+    prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
   ]);
 
   // The two things desired.js cannot work out for itself, because both need
@@ -40,7 +44,7 @@ async function loadRows(prisma) {
     componentsByRoomId.set(room.id, await roomComponents(prisma, room, room.locationId));
   }
 
-  return { zones, locations, rooms, config: config ?? {}, state, liveStates, componentsByRoomId };
+  return { zones, locations, rooms, config, liveStates, componentsByRoomId };
 }
 
 async function runDiscordMirror(prisma, { apply = false, scope = "structure", actorDiscordUserId = null } = {}) {
@@ -64,6 +68,7 @@ async function runDiscordMirror(prisma, { apply = false, scope = "structure", ac
     spectators,
     liveStates: rows.liveStates,
     componentsByRoomId: rows.componentsByRoomId,
+    guildId: process.env.DISCORD_GUILD_ID,
   });
 
   // With no guild to look at, everything reads as "nothing exists yet", which
@@ -72,7 +77,7 @@ async function runDiscordMirror(prisma, { apply = false, scope = "structure", ac
   const live = haveGuild ? await loadLiveSnapshot() : emptySnapshot();
 
   const { ops, findings } = buildOps({ desired, live, prisma, scope });
-  const { ran, deferred, failures } = await applyOps(ops, {
+  const { failures } = await applyOps(ops, {
     apply: reallyApply,
     reason: "apply is inert until Phase 1",
   });
@@ -87,11 +92,8 @@ async function runDiscordMirror(prisma, { apply = false, scope = "structure", ac
     apply,
     applied: reallyApply,
     ops,
-    ran,
-    deferred,
     findings,
     failures,
-    repaired: ran.filter((r) => r.status === "ran").length,
   };
 
   await prisma.systemReport
@@ -124,12 +126,4 @@ async function runDiscordMirror(prisma, { apply = false, scope = "structure", ac
   return result;
 }
 
-module.exports = {
-  runDiscordMirror,
-  buildDesired,
-  buildOps,
-  applyOps,
-  loadLiveSnapshot,
-  emptySnapshot,
-  normalizeChannelName,
-};
+module.exports = { runDiscordMirror };

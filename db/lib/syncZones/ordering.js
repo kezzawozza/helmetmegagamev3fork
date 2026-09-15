@@ -26,13 +26,13 @@ async function sortZoneCategories(prisma) {
   if (updates.length > 0) await patchGuildChannelPositions(updates);
 }
 
-// Per surface zone: #summary then its location channels in sortOrder. Per cave level: location channels offset by level. `parent_id` must NOT ride along in the bulk position PATCH (Discord 400 code 40009), so drifted channels are repaired separately first.
-async function sortZoneChannels(prisma) {
-  const zones = await prisma.zone.findMany({
-    orderBy: { sortOrder: "asc" },
-    include: { locations: { orderBy: { sortOrder: "asc" } } },
-  });
-
+// Pure: the position (and parent) each already-provisioned category/channel
+// SHOULD hold, given zones with their locations nested and sorted by
+// sortOrder (as sortZoneChannels' own query loads them). A zone missing its
+// #summary and a location missing its channel are skipped — there is no live
+// object yet to place. No I/O, so the Discord mirror can reuse this to learn
+// a location's intended slot without touching the database or the guild.
+function intendedPositions(zones) {
   const intended = [];
   for (const zone of zones) {
     if (zone.kind === "SURFACE") {
@@ -58,6 +58,17 @@ async function sortZoneChannels(prisma) {
       });
     }
   }
+  return intended;
+}
+
+// Per surface zone: #summary then its location channels in sortOrder. Per cave level: location channels offset by level. `parent_id` must NOT ride along in the bulk position PATCH (Discord 400 code 40009), so drifted channels are repaired separately first.
+async function sortZoneChannels(prisma) {
+  const zones = await prisma.zone.findMany({
+    orderBy: { sortOrder: "asc" },
+    include: { locations: { orderBy: { sortOrder: "asc" } } },
+  });
+
+  const intended = intendedPositions(zones);
   if (intended.length === 0) return { ordered: 0, reparented: [] };
 
   const live = new Map((await getGuildChannels()).map((c) => [c.id, c]));
@@ -76,4 +87,6 @@ async function sortZoneChannels(prisma) {
 module.exports = {
   sortZoneCategories,
   sortZoneChannels,
+  intendedPositions,
+  LEVEL_CHANNEL_STRIDE,
 };
