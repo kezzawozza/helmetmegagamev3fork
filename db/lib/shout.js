@@ -22,15 +22,22 @@ const { aliasSubject } = require("./concealedIdentity");
 const MUFFLE_BY_DISTANCE = [0, 0, 0.4];
 
 // The line one Location gets. `viaName` is the hearer's own neighbour toward the noise, null only at distance 0. `shouterName`/`muffled` are distance-0 facts, ignored elsewhere, riding in an options bag so the three-argument calls elsewhere stay honest.
-// Distance 0 is FULL SIZE, everything beyond is `-#` subtext — the same split /play already makes: a shout in your own street is not scenery.
+// Three sizes, not two: distance 0 (your own place) is BIGGER than ordinary text, distance 1 (next door — still fully audible, MUFFLE_BY_DISTANCE[1] is 0) is NORMAL size, and everything past that is `-#` subtext, same as any other bit of scenery. The same three-way split /play makes (shoutChannelKind below) — a shout carries as far as it carries before it fades into background noise.
 function shoutLine(text, distance, viaName, options = {}) {
   return renderShout(shoutParts(text, distance, viaName, options), distance);
 }
 
 // Discord's rendering of parts already built. shout() rolls the static ONCE per Location and renders the Discord line from those same parts, so Discord and Chat blank the same letters — two different rolls let a reader who sees both faces fill in each other's gaps.
 function renderShout(parts, distance) {
-  if (distance === 0) return parts.text;
+  if (distance <= 1) return parts.text;
   return ambientLine(parts.text, parts.lines);
+}
+
+// The web's half of the same three-way split, for db/lib/scene.js#sceneLine's `channelKind` (CHAT.md §5, Feed.js). Distance 0 draws bigger than ordinary chat text, distance 1 draws at ordinary size, everything past that falls through to the default `"scene"` — plain muted subtext, same as a gate crossing or a smell.
+function shoutChannelKind(distance) {
+  if (distance === 0) return "shout";
+  if (distance === 1) return "shout-near";
+  return "scene";
 }
 
 // The same line as STRUCTURE rather than Discord formatting: `{ text, lines }`, exactly what ambientLine takes. db/lib/scene.js needs the pieces, not the rendered string, since a scene row deliberately stores no `-#` (the web draws a SYSTEM row as subtext itself).
@@ -224,7 +231,7 @@ async function deliverShout(prisma, { placeKey, here, heard = [] } = {}) {
         placeKey,
         text: here.scene.text,
         lines: here.scene.lines,
-        channelKind: "shout",
+        channelKind: shoutChannelKind(0),
       });
     } catch (err) {
       console.error(`Shout row for ${placeKey} failed:`, err?.message ?? err);
@@ -240,7 +247,12 @@ async function deliverShout(prisma, { placeKey, here, heard = [] } = {}) {
 
   for (const place of shoutAudience(placeKey, heard)) {
     try {
-      await sceneLine(prisma, { placeKey: place.placeKey, text: place.scene.text, lines: place.scene.lines });
+      await sceneLine(prisma, {
+        placeKey: place.placeKey,
+        text: place.scene.text,
+        lines: place.scene.lines,
+        channelKind: shoutChannelKind(place.distance),
+      });
     } catch (err) {
       console.error(`Shout row for ${place.name} failed:`, err?.message ?? err);
       continue;
@@ -259,6 +271,7 @@ module.exports = {
   shoutLine,
   shoutParts,
   renderShout,
+  shoutChannelKind,
   shouterNameFor,
   shoutAudience,
   shout,

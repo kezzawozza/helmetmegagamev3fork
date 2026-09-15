@@ -7145,6 +7145,16 @@ label.chip {
   padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
+/* A shout heard one hop away — still carries every word (MUFFLE_BY_DISTANCE[1]
+   is 0), so it reads at ordinary chat size rather than the muted subtext
+   farther hops get. Plain weight and the default text colour: this is the
+   middle of the three sizes, not another loudspeaker. */
+.chat-shout-near {
+  font-size: var(--fs-base);
+  margin-top: var(--sp-2);
+  padding-left: calc(var(--chat-face) + var(--sp-3));
+}
+
 /* The scroller and the jump-to-bottom pill. The wrapper exists only to give
    the pill something to be positioned against. */
 .chat-feed-wrap {
@@ -7922,7 +7932,8 @@ label.chip {
 
   .chat-subtext,
   .chat-intercom,
-  .chat-shout {
+  .chat-shout,
+  .chat-shout-near {
     padding-left: 0;
   }
 

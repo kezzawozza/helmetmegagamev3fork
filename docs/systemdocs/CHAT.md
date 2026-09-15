@@ -85,6 +85,16 @@ size on Discord too. Until 2026-09-15 the web side had no way to tell the two
 apart, so an announcement carrying `@here` on Discord rendered as the
 smallest, quietest text on the page.
 
+**A shout (`db/lib/shout.js`) carries two more `channelKind`s of its own:
+`"shout"` at distance 0 and `"shout-near"` at distance 1**, both read by the
+same `SystemRow` and drawn `.chat-shout` (bigger and bold than ordinary chat
+text) and `.chat-shout-near` (ordinary size, plain weight) respectively — a
+shout is heard as three sizes, not two, matching the three sizes Discord's own
+line renders in (`shoutChannelKind`/`renderShout` in `shout.js`: full text at
+0 and 1, `-#` only from 2 on). Distance 2 and beyond keep the default
+`"scene"` and fall through to `.chat-subtext`, same as any other bit of
+scenery.
+
 Beside, never instead: the poster still posts. And never through the outbox,
 which handles `WEB` rows only — a SYSTEM row can no more be re-posted into the
 channel it came from than a proxied one can.
@@ -1090,7 +1100,10 @@ a 48px head and a one-line composer:
   (`db/lib/ambientLine.js`). Phase 4 is what actually writes them. **The
   intercom is the one `SYSTEM` row that isn't scenery** — `channelKind:
   "intercom"` (§2) draws it `.chat-intercom` instead: bold, regular size,
-  still no face.
+  still no face. **A shout is three sizes**: `channelKind: "shout"` at
+  distance 0 draws `.chat-shout` (bigger and bold), `"shout-near"` at distance
+  1 draws `.chat-shout-near` (ordinary size), and distance 2+ keeps the
+  default `"scene"` and stays `.chat-subtext`.
 - **The composer is hidden where `canSpeak` is false** — every place for a GM
   (§5a). In its place, one line saying so. The **Location is the exception**:
   it is `canSpeak: false` and still draws the box, command-only, so `/shout`

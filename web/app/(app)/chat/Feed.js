@@ -107,18 +107,24 @@ function timeLabel(iso) {
 // `channelKind: "intercom"` in db/lib/scene.js precisely so this can tell it
 // apart and draw it full size and bold instead of small and muted.
 //
-// A shout heard at distance 0 (db/lib/shout.js) is louder still: it's tagged
-// `channelKind: "shout"` so it draws larger than ordinary chat text, not just
-// un-muted like the intercom. Farther-hop shouts keep no tag and fall through
-// to the default subtext, matching their muffled `-#` treatment on Discord.
+// A shout is three sizes, matching db/lib/shout.js#shoutChannelKind: distance
+// 0 (`"shout"`) draws bigger than ordinary chat text, distance 1
+// (`"shout-near"`, still fully audible on Discord too) draws at ordinary
+// size, and anything past that keeps no tag and falls through to the default
+// subtext — matching its muffled `-#` treatment on Discord.
 const SystemRow = memo(function SystemRow({ row }) {
   const shout = row.channelKind === "shout";
+  const shoutNear = row.channelKind === "shout-near";
   const intercom = row.channelKind === "intercom";
+  const className = shout
+    ? "chat-shout"
+    : shoutNear
+      ? "chat-shout-near"
+      : intercom
+        ? "chat-intercom"
+        : "chat-subtext";
   return (
-    <li
-      className={shout ? "chat-shout" : intercom ? "chat-intercom" : "chat-subtext"}
-      data-seq={row.seq ?? undefined}
-    >
+    <li className={className} data-seq={row.seq ?? undefined}>
       <ChatMarkdown content={row.content} />
     </li>
   );
