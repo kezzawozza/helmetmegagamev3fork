@@ -8,6 +8,14 @@ Entries below predate this format and list files instead.
 
 ## 2026-09-15 · Chat's place list is split by zone now, the way Discord splits by category
 
+✎ The Chat column groups everywhere you can read by zone, under a divider carrying the zone's name — TOWN, FORTRESS, and so on  
+✎ Bascinet, the radio frequencies and your faction stay pinned at the top, above the zones, since none of them is a place on the map  
+✎ Summary, Here, Rooms and Conversations read the same as before, just inside their zone's group now  
+✎ A GM or a ghost watching every zone at once used to get one flat run of every Location in the game under a single "Here" heading, in alphabetical order  
+✎ The zones sit in the order the map is written in, matching the Discord category list rather than the alphabet  
+✎ A Location row no longer repeats its zone ("Town · Cathedral" is just "Cathedral") — the divider above it says so  
+✎ Folding a section is remembered per zone, so shutting Town's Rooms leaves Fortress's open  
+✎ A player standing in one zone sees no divider, and their column is unchanged
 
 ## 2026-09-15 · Sake pays more, and alcoholics get a tasting Desire
 
