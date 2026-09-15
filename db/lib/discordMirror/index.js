@@ -80,6 +80,12 @@ async function runDiscordMirror(
   prisma,
   {
     apply = false,
+    // The structure ops (create, adopt, rename, reparent) are the half that can
+    // put new objects on the real guild. An automatic run (bot start, turn end)
+    // holds them until MIRROR_AUTO_STRUCTURE=1 says somebody has looked at the
+    // preview once; an explicit run (Reconcile now, db:mirror --apply, the
+    // editor's queue) always applies them.
+    applyStructure = apply,
     scope = "structure",
     actorDiscordUserId = null,
     targets = null,
@@ -116,7 +122,10 @@ async function runDiscordMirror(
   const { ops, findings: diffFindings } = buildOps({ desired, live, prisma, scope });
   findings.push(...diffFindings);
 
-  const { ran, deferred, failures: opFailures } = await applyOps(ops, { apply });
+  if (apply && !applyStructure && ops.length > 0) {
+    report("mirror-held", `${ops.length} structure change(s) held: set MIRROR_AUTO_STRUCTURE=1 or press Reconcile now`);
+  }
+  const { ran, deferred, failures: opFailures } = await applyOps(ops, { apply: apply && applyStructure });
 
   // Sweeps read `live` next, and it is the snapshot taken BEFORE the ops above
   // ran. A create or adopt that just succeeded put a Location channel (or a

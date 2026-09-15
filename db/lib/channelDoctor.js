@@ -7,6 +7,7 @@ const { runDiscordMirror } = require("./discordMirror");
 async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorDiscordUserId = null } = {}) {
   const { findings, failures, repaired } = await runDiscordMirror(prisma, {
     apply,
+    applyStructure: apply && process.env.MIRROR_AUTO_STRUCTURE === "1",
     scope: scope === "full" ? "full" : "cheap",
     actorDiscordUserId,
     // Its runs stay on their own SystemReport kind: /gm/dev shows the latest

@@ -25,6 +25,13 @@ mirror inline; the queue coalesces repeat saves to the same target
 (`@@unique([targetType, targetId])`) and caps retries at 5 attempts. A stuck
 job behind an open circuit breaker shows on `/gm/dev`, not silently.
 
+The automatic runs (bot start, turn end) hold back the structure half until
+`MIRROR_AUTO_STRUCTURE=1` is set. Until then they repair roles and overwrites
+the way the doctor always did, and file a `mirror-held` finding for anything
+they would have created. The first time this ships: open Preview mirror on
+`/gm/dev`, read the list, press Reconcile now, then set the variable. Reconcile
+now, `db:mirror --apply` and the editor's queue always apply structure.
+
 ## Adopt by name
 
 Before creating anything, the mirror checks for a same-named live object
