@@ -42,7 +42,7 @@ async function applySideEffects({ dms, sideEffects }) {
   }
 
   // The web's twin of the bot's syncMemberNickname. This one is the better of
-  // the two to be on: it honours the webOnly gate, so accepting a seat from the
+  // the two to be on: it honours the discordMirrored gate, so accepting a seat from the
   // web cannot be the thing that tells Discord who you are.
   if (sideEffects.nicknameSyncDiscordUserId) {
     try {

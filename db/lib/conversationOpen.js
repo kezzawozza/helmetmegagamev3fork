@@ -31,7 +31,7 @@ async function openConversationThread(
   const wanted = [...new Set(characterIds.filter(Boolean).map(String))];
   const members = await prisma.character.findMany({
     where: { id: { in: wanted } },
-    select: { id: true, discordUserId: true, webOnly: true },
+    select: { id: true, discordUserId: true, discordMirrored: true },
   });
 
   let thread;
@@ -63,7 +63,7 @@ async function openConversationThread(
       playerThreadId: conversation.id,
       characterId: member.id,
     }).catch((err) => console.error(`Conversation member row for ${member.id} failed:`, err));
-    if (member.discordUserId && !member.webOnly) {
+    if (member.discordUserId && member.discordMirrored) {
       await addThreadMember(thread.id, member.discordUserId).catch(() => {});
     }
   }

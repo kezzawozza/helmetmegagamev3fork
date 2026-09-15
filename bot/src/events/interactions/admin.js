@@ -262,7 +262,7 @@ async function handleThreadMemberCommand(interaction, action) {
     })
     .catch((err) => console.error("Failed to record thread invite:", err));
 
-  if (target.locationId === row.locationId && !target.webOnly && target.discordUserId) { // web-only is out of every channel on purpose (CHAT.md §6)
+  if (target.locationId === row.locationId && target.discordMirrored && target.discordUserId) { // not-mirrored is out of every channel on purpose (CHAT.md §6)
     try {
       await addThreadMember(channel.id, target.discordUserId);
     } catch (err) {

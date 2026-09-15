@@ -93,7 +93,7 @@ async function ghostCharacterFor(prisma, discordUserId) {
       gender: true,
       updatedAt: true,
       locationId: true,
-      webOnly: true,
+      discordMirrored: true,
     },
   });
   if (!isGhostIn(rows)) return null;

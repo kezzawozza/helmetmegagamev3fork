@@ -13,7 +13,7 @@ Two reasons, and both are Bascinet's.
   can see it, and a Location channel is opened with a per-member overwrite
   (`CHANNELS.md` §3). Standing in the Keep tells everyone else in the Keep
   which Discord account you are. Nothing short of not being there fixes that,
-  which is what the "web only" switch (§6) will do.
+  which is what the Discord opt-in switch (§6) fixes by default.
 - **A face that feels instant.** Earlier web UIs felt slow because a send went
   through a server action, a `revalidatePath`, and a re-render of the whole
   server-component tree. Chat cannot use that path. This page does not.
@@ -119,7 +119,7 @@ Until phase 2 the answer to "who is in this conversation" lived **only in
 Discord**, as a thread member list. Two things were wrong with that. The web
 feed could not read it without a REST call per conversation per render, and a
 player whose Discord account is out of the channels entirely — the phase 5
-"web only" switch — could not be in one at all.
+Discord opt-in switch — could not be in one at all.
 
 So the row is the truth and **Discord's thread membership is its projection**.
 Every writer records the row first and then adds the account:
@@ -344,9 +344,9 @@ reader's side is what keeps a notification from being an authorisation. Five
 things fire it: the feet (`applyLocationMoveSideEffects`), a key
 (`syncCharacterRoomAccess`, only when the entitled set actually changes),
 being let into or out of a conversation (`db/lib/conversations.js`), a room
-guest being added or shown out (`web/app/(app)/chat/actions.js`), and the "web only" switch
-(`db/lib/webOnly.js` — the place list is unchanged, the chip in the column is
-not). The stream re-reads the character (its Location moved, and the viewer it
+guest being added or shown out (`web/app/(app)/chat/actions.js`), and the
+Discord opt-in switch (`db/lib/discordMirroring.js` — the place list is
+unchanged, the chip in the column is not). The stream re-reads the character (its Location moved, and the viewer it
 opened with is stale), recomputes the place list, moves its subscriptions,
 sends `places` with `reason: "presence"`, and catches the newly visible places
 up from its own high-water mark rather than from zero — so walking into a room
@@ -453,10 +453,11 @@ the same NOTIFY.
 (`web/lib/navItems.js`). **`GameConfig.playPanelEnabled`** is the switch, in
 the Features group on `/gm/dev`, on by default. Off, the rail drops Chat,
 `/chat` bounces to `/character` (GMs included — they have the desk's Scene
-tab), ⌘K stops offering places and people, and the "Play from the web" switch
-is neither drawn nor honoured — except for a character already `webOnly`, who
-keeps it so they can come back, and is otherwise **not** flipped: check
-`/gm/players` for them before turning it off. `/api/feed/*` stays up for the
+tab), ⌘K stops offering places and people, and the "Play on Discord too" switch
+is neither drawn nor honoured — except for a character not yet mirrored, who
+keeps it so they can still switch on if Discord is all that's left, and is
+otherwise **not** flipped: check `/gm/players` for who is still off Discord
+before turning Chat off. `/api/feed/*` stays up for the
 Scene tab. Since phase 2 it has **left PageShell**: Chat owns
 its whole screen the way the `(desk)` workspaces do, as the `.chat-*` family in
 `globals.css` — a `100dvh` column whose regions scroll inside it, because a
@@ -779,7 +780,7 @@ a 48px head and a one-line composer:
   (a token is player-typed text), and for anyone living and not already a
   member writes the `PlayerThreadMember` row plus the `PlayerThreadInvite`
   beside it. The route then does the Discord half — `addThreadMember` for
-  somebody standing in the Location and not `webOnly`, and a DM either way.
+  somebody standing in the Location and mirrored to Discord (`discordMirrored`), and a DM either way.
   It can never fail the send: the words are the point.
 
   Conversations only. A room is opened by a key or a guest row and a mention
@@ -1012,8 +1013,8 @@ a 48px head and a one-line composer:
   which are things you do with your own hands anywhere.
 
   Three of these are the first web twins of commands that were **Discord-only**
-  — `/conceal`, `/shout` and `/roll` — which is to say a "web only" character
-  simply could not do them before. The bot has been switched over too, so
+  — `/conceal`, `/shout` and `/roll` — which is to say a character never
+  mirrored to Discord simply could not do them before. The bot has been switched over too, so
   there is one implementation of each and one cooldown: `/shout`'s is the
   newest `AuditLog` row with `actionType: "shout"` for the character, read by
   both faces, because there is no timestamp column on `Character` to share.
@@ -1768,7 +1769,7 @@ is the model.
    and the anchor redraw after a web gate flip.
 4. **Ambient lines write rows.** None of them archive today, so a web player
    never sees a gate crossing, a smell, a turret burst or a noticeboard pin.
-5. ~~**The "web only" switch**~~ — done, and described below.
+5. ~~**The Discord opt-in switch**~~ — done, and described below.
 6. ~~**Typing, markdown, mentions, the wipe, the GM view**~~ — done (§3, §5,
    §7, §8). What was deliberately left out: **Web Push** (VAPID keys, a service
    worker and iOS install guidance — its own change), **attachments**, and a
@@ -1777,63 +1778,61 @@ is the model.
 
 The desktop and mobile wireframes Bascinet chose are in §5.
 
-### 6a. The "web only" switch
+### 6a. The Discord opt-in switch
 
-**Play from the web**, a `Switch` under the picture on the Bio card, right
-after the turn ping. What it does is in its own `InfoIcon` now rather than in a
-paragraph under the row — the same treatment the hood switch beside it got. It is the answer to §1's first reason: a Discord channel
-lists every account that can see it, so standing in the Keep tells everybody
-else in the Keep which Discord account you are, and the only fix is not being
-there.
+**Play on Discord too**, a `Switch` under the picture on the Bio card, right
+after the turn ping, off by default. What it does is in its own `InfoIcon`
+now rather than in a paragraph under the row — the same treatment the hood
+switch beside it got. It is the answer to §1's first reason: a Discord
+channel lists every account that can see it, so standing in the Keep would
+tell everybody else in the Keep which Discord account you are, so a fresh
+character simply isn't in any of those channels until they ask to be.
 
-`Character.webOnly`, `Character.webOnlyChangedAt`, and
-`WEB_ONLY_COOLDOWN_SECONDS` in `db/lib/webOnly.js` (7200 — **two hours**;
-it was a `GameConfig` column nothing ever wrote until the 2026-09-07 config
-trim). One function flips
-it: `db/lib/webOnly.js#setWebOnly(prisma, character, on)`, returning
-`{ ok: true }` or `{ ok: false, error, minutes, readyAt }`.
+`Character.discordMirrored`, `Character.discordMirroredChangedAt`, and
+`DISCORD_MIRROR_COOLDOWN_SECONDS` in `db/lib/discordMirroring.js` (7200 —
+**two hours**). One function flips it:
+`db/lib/discordMirroring.js#setDiscordMirrored(prisma, character, on)`,
+returning `{ ok: true }` or `{ ok: false, error, minutes, readyAt }`. (This
+replaced the old opt-out `webOnly` switch on 2026-09-15 — see CLAUDE.md's
+note on the retired columns.)
 
-**The same switch is offered during character creation**, on the wizard's
-Identity step beside name and age (`CreateCharacterWizard.js`, gated on
-`GameConfig.playPanelEnabled` exactly as the Bio card's copy is). It is not a
-flip: `createCharacter` writes `Character.webOnly` as a plain column inside the
-creating transaction, so `applyLocationMoveSideEffects` and everything under it
-already read it as on and grant nothing. The point is that a web-only player is
-never added to the Location channel, the zone role, the narrowcast channels, the
-Room threads or the standing Conversations in the first place — before this, the
-only place to ask was a page you could not reach until the character existed, so
-they were added to all of it and then removed again. `setWebOnly` is not called
-there: its Discord half would revoke access that was never granted, and its
-cooldown guard would fight the create. `webOnlyChangedAt` is left **null**, so
-an accidental tick can be undone on the Bio card immediately rather than two
-hours later.
+**A new character starts off Discord, no checkbox needed.** `createCharacter`
+writes `Character.discordMirrored: false` as a plain column inside the
+creating transaction, so `applyLocationMoveSideEffects` and everything under
+it read it as already off and grant nothing — no Location channel, zone
+role, narrowcast channel, Room thread or standing Conversation is opened on
+Discord at placement. `setDiscordMirrored` is not called there: there is
+nothing to revoke, and its cooldown guard would fight the create.
+`discordMirroredChangedAt` is left **null**, so switching Discord on right
+after creating costs no cooldown.
 
-**ON** takes the account out of Discord: `revokeAllCharacterAccess(prisma,
-character, { keepGuests: true })` strips the zone role and every per-member
-overwrite (the Location channel, the zone channels, the narrowcast channels),
-then the Room threads named in `Character.roomThreadRoomIds` and every
-Conversation in `PlayerThreadMember` are left, and the column is cleared. The
-new `keepGuests` option is the whole difference from a death sweep: a
-`RoomGuest` row is **game state, not Discord state** — somebody let them into
-that room and they are still standing in it. `PlayerThreadMember` rows survive
-for the same reason, which is what §2a was built for.
+**ON** puts the account into Discord:
+`db/lib/locationMove.js#materializeDiscordPresence` — the Location
+overwrite, the zone role, narrowcast, `syncCharacterRoomAccess`, the
+Conversation thread adds for where they stand, and `applyPendingInvites`. It
+is built on the same four helpers a move uses rather than a second copy of
+them; the only difference is that there is no origin to swap away from, so
+every call is a pure grant.
 
-**OFF** puts it all back: `db/lib/locationMove.js#materializeDiscordPresence`
-— the Location overwrite, the zone role, narrowcast,
-`syncCharacterRoomAccess`, the Conversation thread adds for where they stand,
-and `applyPendingInvites`. It is built on the same four helpers a move uses
-rather than a second copy of them; the only difference is that there is no
-origin to swap away from, so every call is a pure grant.
+**OFF** takes it back out: `revokeAllCharacterAccess(prisma, character,
+{ keepGuests: true })` strips the zone role and every per-member overwrite
+(the Location channel, the zone channels, the narrowcast channels), then the
+Room threads named in `Character.roomThreadRoomIds` and every Conversation in
+`PlayerThreadMember` are left, and the nickname is cleared. The `keepGuests`
+option is the whole difference from a death sweep: a `RoomGuest` row is
+**game state, not Discord state** — somebody let them into that room and
+they are still standing in it. `PlayerThreadMember` rows survive for the
+same reason, which is what §2a was built for.
 
 **The order is the load-bearing part.** The database flip lands FIRST, inside
 the cooldown guard, and every Discord call after it is best-effort and
 individually logged. A failed REST call must never un-flip the switch: the flag
 is what every re-materialiser reads, so a half-applied ON that stays ON is
 repaired by the doctor's next pass, while one that rolled back would leave a
-player believing they were hidden when they were not.
+player believing they were in the channels when they were not.
 
 **The cooldown** is the travel pattern (`db/lib/locationTravel.js`): one
-`updateMany` whose WHERE carries `webOnly: !want` and `OR [{ null }, { lte
+`updateMany` whose WHERE carries `discordMirrored: !want` and `OR [{ null }, { lte
 cutoff }]`, so two clicks in one tick cannot both pass and re-saving the Bio
 card in the state you are already in spends nothing. A refusal reads *"You
 switched N minutes ago. You can switch again at HH:MM."* and **leaves the
@@ -1842,46 +1841,48 @@ away because a cooldown had two minutes left on it.
 
 **What survives either way:** DMs, the OOC report channel (opened by the Player
 role, not per character), guest rows, conversation membership, and the fiction —
-they still stand there and still appear in Who's here?. The places column shows
-one quiet `.chip`, **Playing from the web**.
+they still stand there and still appear in Who's here?. While off Discord, the
+places column shows one quiet `.chip`, **Playing from the web**.
 
-**The turn-ping role does NOT survive**, and it used to. The line here said it
-did, on the grounds that a turn ping "is a DM, not a channel" — which was simply
-wrong. The ping is a `<@&DISCORD_TURN_PING_ROLE_ID>` inside the `#turns` console
+**The turn-ping role only comes with the switch.** The ping is a
+`<@&DISCORD_TURN_PING_ROLE_ID>` inside the `#turns` console
 (`db/turnCalendar.js#buildTurnAnnouncement`, posted with no `allowed_mentions`
-so it really pings), and `#turns` is opened by the **zone role** this switch has
-just taken away (`db/lib/turnsChannelAccess.js`). So a web-only player was being
-pinged twice a day about a channel they could not open — and since the console is
-deleted and reposted every turn (`db/lib/turnAnnouncement.js#postTurnsConsole`),
-by the time they went looking the message that pinged them was gone. A player
-reported it as ghost pings.
+so it really pings), and `#turns` is opened by the **zone role** this switch
+grants. A player never mirrored to Discord has nowhere for that ping to
+arrive, so the role is never handed to them in the first place.
 
-**Two writers enforce it**, and `db/lib/webOnly.js` is deliberately not one of
-them. The Bio save (`web/app/(app)/character/actions.js`) already writes the
-role on the line after it calls `setWebOnly`, and it has to: it is the only
-place that sees somebody *already* web-only ticking the turn-ping box, which
-the flip itself never runs for. Doing it in both was two identical REST calls
-per flip. The other writer is `db/lib/channelDoctor.js`'s `turn-ping` reconcile
-(`turnPingOptIn && !webOnly`) — bidirectional, so that one predicate both takes
-the role off everybody already in the bad state and hands it back the moment
-they switch web-only off, with no backfill script.
+**Two writers enforce it**, and `db/lib/discordMirroring.js` is deliberately
+not one of them. The Bio save (`web/app/(app)/character/actions.js`) already
+writes the role on the line after it calls `setDiscordMirrored`, and it has
+to: it is the only place that sees somebody *already* mirrored ticking the
+turn-ping box, which the flip itself never runs for. Doing it in both was two
+identical REST calls per flip. The other writer is
+`db/lib/channelDoctor.js`'s `turn-ping` reconcile
+(`turnPingOptIn && discordMirrored`) — bidirectional, so that one predicate
+both takes the role off anybody who switches Discord off and hands it back
+the moment they switch it on, with no backfill script.
 
-Two things to know about that split. `setWebOnly` is an exported `db/lib`
-function with exactly one caller today; a future bot-side caller would skip the
-role and wait on the doctor. And `/gm/dev/characters/[id]` writes the
-`turnPingOptIn` COLUMN (`characterWrite.js`) with no Discord effect at all
-(`planDiscordEffects` has no turn-ping case), so a GM ticking that box also
-waits on the doctor — which predates this change.
+Two things to know about that split. `setDiscordMirrored` is an exported
+`db/lib` function with exactly one caller today; a future bot-side caller
+would skip the role and wait on the doctor. And `/gm/dev/characters/[id]`
+writes the `turnPingOptIn` COLUMN (`characterWrite.js`) with no Discord
+effect at all (`planDiscordEffects` has no turn-ping case), so a GM ticking
+that box also waits on the doctor.
 
-The player is told, rather than left to notice: while Play from the web is on,
-the Bio card draws a line under the turn-ping switch saying the ping has
-nowhere to arrive and that their answer is kept for when they switch back
+The player is told, rather than left to notice: while Play on Discord too is
+off, the Bio card draws a line under the turn-ping switch saying the ping has
+nowhere to arrive and that their answer is kept for when they switch it on
 (`web/app/components/AvatarField.js`). The box still records the preference —
 silently keeping a notification switch that cannot fire is the thing this whole
 entry is about.
 
 Which re-materialisers had to learn the flag is in `CHANNELS.md` §3, and it is
 the list to check against when adding another.
+
+**Discord goes quieter than it used to.** A fresh character defaults off
+Discord, so a GM reading Discord channels sees an emptier world than the game
+actually has. `/chat` and `/gm/turns` are where the real traffic is now — see
+`GAMEMASTERS.md`.
 
 ## 7. The wipe: a watermark, not a delete
 

@@ -14,7 +14,7 @@ async function runNarrowcastSweep({ report, errors, prisma, alive, config, chara
   const accessByCharacter = new Map();
   if (SPECIAL_CHANNELS.some((entry) => config?.[entry.configKey])) {
     for (const c of alive) {
-      if (c.webOnly) continue;
+      if (!c.discordMirrored) continue;
       accessByCharacter.set(c, computeNarrowcastAccess(await buildNarrowcastContext(prisma, c.id)));
     }
   }

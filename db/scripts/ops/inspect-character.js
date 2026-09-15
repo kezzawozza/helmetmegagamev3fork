@@ -4,7 +4,7 @@
 //
 //   npm run db:inspect-character -- "Semyun"
 //
-// "Play from the web" and concealment neither leave a trace anywhere a GM can
+// "Play on Discord too" and concealment neither leave a trace anywhere a GM can
 // read — concealment is derived at read time from the column AND what is
 // equipped, so `concealed: true` alone means nothing (PROXYING.md §5). Both
 // answers are computed here by the same functions every send path asks.
@@ -18,7 +18,7 @@ const {
 } = require("../../lib/presentedIdentity");
 const { HANDS_TAG_FIELDS, findEquipProblem, handsFor, handsUsed } = require("../../lib/equipSlots");
 
-const WEB_ONLY_COOLDOWN_SECONDS = 7200; // mirrors db/lib/webOnly.js's own unexported constant
+const DISCORD_MIRROR_COOLDOWN_SECONDS = 7200; // mirrors db/lib/discordMirroring.js's own exported constant
 
 function stamp(date) {
   return date ? date.toISOString() : "never";
@@ -26,7 +26,7 @@ function stamp(date) {
 
 function cooldownLine(changedAt) {
   if (!changedAt) return "no cooldown running — it has never been flipped";
-  const readyAt = new Date(changedAt.getTime() + WEB_ONLY_COOLDOWN_SECONDS * 1000);
+  const readyAt = new Date(changedAt.getTime() + DISCORD_MIRROR_COOLDOWN_SECONDS * 1000);
   const left = readyAt.getTime() - Date.now();
   if (left <= 0) return `free to flip (last flip ${stamp(changedAt)})`;
   return `REFUSES a flip for another ${Math.ceil(left / 60000)} min, until ${stamp(readyAt)}`;
@@ -58,8 +58,8 @@ async function main() {
       updatedAt: true,
       discordUserId: true,
       discordRoleId: true,
-      webOnly: true,
-      webOnlyChangedAt: true,
+      discordMirrored: true,
+      discordMirroredChangedAt: true,
       concealed: true,
       roomThreadRoomIds: true,
       location: { select: { name: true } },
@@ -95,10 +95,10 @@ async function main() {
     console.log(`  discordUserId ${c.discordUserId ?? "none"} · role ${c.discordRoleId ?? "none"}`);
     console.log(`  ${c.zone?.name ?? "nowhere"} / ${c.location?.name ?? "nowhere"}`);
 
-    console.log(`\n  Play from the web: ${c.webOnly}`);
-    console.log(`    last flipped ${stamp(c.webOnlyChangedAt)}`);
-    console.log(`    ${cooldownLine(c.webOnlyChangedAt)}`);
-    if (c.webOnly && c.roomThreadRoomIds?.length) {
+    console.log(`\n  Play on Discord too: ${c.discordMirrored}`);
+    console.log(`    last flipped ${stamp(c.discordMirroredChangedAt)}`);
+    console.log(`    ${cooldownLine(c.discordMirroredChangedAt)}`);
+    if (!c.discordMirrored && c.roomThreadRoomIds?.length) {
       console.log(`    STILL RECORDED IN ${c.roomThreadRoomIds.length} room thread(s): the flip's Discord half did not finish`);
     }
 

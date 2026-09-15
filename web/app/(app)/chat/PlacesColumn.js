@@ -122,7 +122,7 @@ export default function PlacesColumn({
   seen,
   newest,
   onSelect,
-  webOnly = false,
+  discordMirrored = false,
   chimeMuted = false,
   onToggleChime = null,
   // Null on a browser with no PushManager or no VAPID keys set (CHAT.md §5a).
@@ -247,7 +247,7 @@ export default function PlacesColumn({
           </div>
         );
       })}
-      {/* Foot: chime pref (useChatChimeMuted.js) and the webOnly reminder
+      {/* Foot: chime pref (useChatChimeMuted.js) and the not-mirrored reminder
           (CHAT.md §6). Tail: pinned to the bottom, never below the fold of a
           GM's every-room list. */}
       <div className="chat-places-tail">
@@ -275,7 +275,7 @@ export default function PlacesColumn({
             <CheckIcon width="15" height="15" />
           </button>
         )}
-        {webOnly && <span className="chip chat-webonly">Playing from the web</span>}
+        {!discordMirrored && <span className="chip chat-webonly">Playing from the web</span>}
       </div>
       {foot}
       </div>

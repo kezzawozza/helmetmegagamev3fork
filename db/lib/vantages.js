@@ -95,7 +95,7 @@ async function allVantages(prisma, alive) {
 
   const zoneOf = new Map(
     (alive ?? [])
-      .filter((c) => c.discordUserId && !c.webOnly && c.zoneId)
+      .filter((c) => c.discordUserId && c.discordMirrored && c.zoneId)
       .map((c) => [c.id, c.zoneId]),
   );
   if (zoneOf.size === 0) return [];
@@ -128,7 +128,7 @@ async function expireVantages(prisma, { keepTurnId = null } = {}) {
     where,
     select: {
       ...VANTAGE_SELECT,
-      character: { select: { id: true, discordUserId: true, webOnly: true, status: true } },
+      character: { select: { id: true, discordUserId: true, discordMirrored: true, status: true } },
     },
   });
   if (rows.length === 0) return [];

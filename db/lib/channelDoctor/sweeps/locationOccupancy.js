@@ -32,7 +32,7 @@ async function runLocationOccupancySweep({ report, prisma, locations, liveLocati
     // order so the second loop can never overwrite the first.
     const want = new Map();
     for (const c of alive) {
-      if (c.locationId !== location.id || c.webOnly || !c.discordUserId) continue;
+      if (c.locationId !== location.id || !c.discordMirrored || !c.discordUserId) continue;
       want.set(c.discordUserId, STANDING);
     }
     for (const discordUserId of watching.get(location.id) ?? []) {

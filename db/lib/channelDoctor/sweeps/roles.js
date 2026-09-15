@@ -30,10 +30,10 @@ async function runRoleMembershipSweep({
     await reconcileRoleMembership({
       roleId: zone.discordRoleId,
       label: `Zone: ${zone.name}`,
-      // A "web only" character holds no Discord access at all, so they are
+      // A character not mirrored to Discord holds no Discord access at all, so they are
       // not in this set and the doctor takes the role back off them if they
       // somehow still wear it (docs/systemdocs/CHAT.md §6).
-      shouldHave: alive.filter((c) => c.zoneId === zone.id && !c.webOnly).map((c) => c.discordUserId),
+      shouldHave: alive.filter((c) => c.zoneId === zone.id && c.discordMirrored).map((c) => c.discordUserId),
       members,
       report,
     });
@@ -42,17 +42,17 @@ async function runRoleMembershipSweep({
   await runLocationOccupancySweep({ report, prisma, locations, liveLocationChannels, alive });
 
   // Turn-ping: living characters' preferences, nobody else — and not a
-  // web-only one. The ping is a <@&role> inside the #turns console, and
-  // #turns is opened by the zone role that the web-only switch takes away
+  // un-mirrored one. The ping is a <@&role> inside the #turns console, and
+  // #turns is opened by the zone role that not mirroring takes away
   // (db/lib/turnsChannelAccess.js), so holding the role there meant being
   // pinged twice a day about a channel you cannot open. Bidirectional, like
   // every reconcile here, which is what makes this one predicate both take
   // the role off everybody already in that state and hand it back the moment
-  // they switch web-only off again.
+  // they switch Discord mirroring on.
   await reconcileRoleMembership({
     roleId: process.env.DISCORD_TURN_PING_ROLE_ID,
     label: "turn-ping",
-    shouldHave: alive.filter((c) => c.turnPingOptIn && !c.webOnly).map((c) => c.discordUserId),
+    shouldHave: alive.filter((c) => c.turnPingOptIn && c.discordMirrored).map((c) => c.discordUserId),
     members,
     report,
   });

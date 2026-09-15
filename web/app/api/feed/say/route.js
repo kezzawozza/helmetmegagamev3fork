@@ -134,13 +134,13 @@ async function pullIntoConversation(character, placeKey, content) {
 
   const where = conversation.location?.name ?? "somewhere";
   for (const target of added) {
-    // A "web only" character is out of every Discord channel on purpose
-    // (CHAT.md §6), and somebody standing elsewhere gets the invite row
-    // instead — it replays when they reach the Location.
+    // A character not mirrored to Discord is out of every Discord channel on
+    // purpose (CHAT.md §6), and somebody standing elsewhere gets the invite
+    // row instead — it replays when they reach the Location.
     if (
       conversation.threadId &&
       target.locationId === conversation.locationId &&
-      !target.webOnly &&
+      target.discordMirrored &&
       target.discordUserId
     ) {
       await addThreadMember(conversation.threadId, target.discordUserId).catch(() => {});

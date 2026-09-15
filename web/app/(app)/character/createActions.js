@@ -103,7 +103,6 @@ export async function createCharacter(formData) {
   const rawAge = Number.parseInt(formData.get("age")?.toString() ?? "", 10);
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
-  const postedWebOnly = formData.get("webOnly") === "on"; // gated against GameConfig.playPanelEnabled once config is loaded
   const postedRoleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
   // Consent for secretly-assigned antagonist seats; normalizeAntagonistSlugs
@@ -346,11 +345,10 @@ export async function createCharacter(formData) {
   // equipped at creation, so `equipped: false` is the whole truth.
   const heldTagRows = heldSlugs.map((slug) => ({ equipped: false, tag: { slug } }));
 
-  // `!== false`, not truthy: matches actions.js#updateCharacterProfile.
-  // Written as a plain column, not via db/lib/webOnly.js#setWebOnly (the FLIP
-  // path) — its Discord half would revoke access never granted. webOnlyChangedAt
-  // stays null so a mis-tick can be undone right away, no two-hour cooldown.
-  const webOnly = config?.playPanelEnabled !== false && postedWebOnly;
+  // Off by default, no checkbox: a fresh character starts on the web only,
+  // and picks up Discord later from the Bio card if they want it
+  // (db/lib/discordMirroring.js#setDiscordMirrored). discordMirroredChangedAt
+  // stays null so switching it on right away costs no cooldown.
 
   let created;
   try {
@@ -375,7 +373,7 @@ export async function createCharacter(formData) {
           name,
           gender: effectiveGender,
           age,
-          webOnly, // set before placement runs, so applyLocationMoveSideEffects sees it already on and grants nothing (CHAT.md §6a)
+          discordMirrored: false, // set before placement runs, so applyLocationMoveSideEffects sees it already off and grants nothing (CHAT.md §6a)
           roleId: role.id,
           roleTitle: role.name,
           factionId: role.factionId,

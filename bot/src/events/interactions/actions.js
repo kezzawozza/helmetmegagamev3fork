@@ -367,7 +367,7 @@ async function handleRollCommand(interaction) {
     return;
   }
 
-  // The whole row: castDie needs age, gender, concealed and webOnly to work
+  // The whole row: castDie needs age, gender, concealed and discordMirrored to work
   // out what to call the roller.
   const character = await findAliveCharacter(interaction.user.id);
   if (!character) {

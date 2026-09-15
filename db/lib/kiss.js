@@ -11,7 +11,7 @@ const { KISS_BLOCKING_SLUGS } = require("./constants");
 const { concealmentFrom, CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
 const { applyKissMood } = require("./mood");
 
-// Same clock as db/lib/webOnly.js. Spent by the ASK, not the answer — a decline doesn't refund it, or a whole room could be asked for free.
+// Same clock as db/lib/discordMirroring.js. Spent by the ASK, not the answer — a decline doesn't refund it, or a whole room could be asked for free.
 const KISS_COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
 // Keeping these apart is load-bearing: if accept also wrote "kiss" rows, being kissed would start a two-hour wall on the person who said yes.

@@ -297,7 +297,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       // is only a wish: it takes effect solely while something concealing is
       // equipped (CHAT.md §6a, PROXYING.md §5). So the resolved answer comes
       // along beside it, from the same function every send path asks.
-      webOnly: character.webOnly,
+      discordMirrored: character.discordMirrored,
       concealed: character.concealed,
       concealedInEffect: presentedIdentity(character, {
         forcedName: forcedNameFrom(heldTags),

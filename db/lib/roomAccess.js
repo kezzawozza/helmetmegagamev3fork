@@ -94,12 +94,12 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
   // What Discord has been told, so we act on the DIFFERENCE: entitlement is recomputed
   // constantly (every equip, every meal) and almost never changes, so this makes no calls at all.
   const record = await prisma.character
-    .findUnique({ where: { id: character.id }, select: { roomThreadRoomIds: true, webOnly: true } })
+    .findUnique({ where: { id: character.id }, select: { roomThreadRoomIds: true, discordMirrored: true } })
     .catch(() => null);
   const stored = new Set(record?.roomThreadRoomIds ?? []);
 
-  // "web only" (docs/systemdocs/CHAT.md §6): cleared rather than never computed, so the diff below REMOVES whatever they still stand in.
-  if (record?.webOnly) entitled.clear();
+  // not mirrored to Discord (docs/systemdocs/CHAT.md §6): cleared rather than never computed, so the diff below REMOVES whatever they still stand in.
+  if (!record?.discordMirrored) entitled.clear();
 
   const targets = rooms.filter((room) => entitled.has(room.id) !== stored.has(room.id));
   if (targets.length === 0) return result;

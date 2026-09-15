@@ -99,8 +99,8 @@ export async function loadFeedCharacter(discordUserId) {
       gender: true,
       updatedAt: true,
       locationId: true,
-      // webOnly is the chip in the places column (CHAT.md §6).
-      webOnly: true,
+      // discordMirrored is the chip in the places column (CHAT.md §6).
+      discordMirrored: true,
       location: {
         select: { id: true, name: true, description: true, indoors: true, zone: { select: { id: true, name: true, description: true } } },
       },

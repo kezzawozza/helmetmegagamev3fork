@@ -19,8 +19,8 @@ function fakePrisma(vantages) {
 }
 
 const location = { id: "loc", zoneName: "Town", name: "Square", discordChannelId: "chan" };
-const stander = { id: "c1", discordUserId: "u1", locationId: "loc", zoneId: "z", webOnly: false };
-const watcher = { id: "c2", discordUserId: "u2", locationId: "elsewhere", zoneId: "z", webOnly: false };
+const stander = { id: "c1", discordUserId: "u1", locationId: "loc", zoneId: "z", discordMirrored: true };
+const watcher = { id: "c2", discordUserId: "u2", locationId: "elsewhere", zoneId: "z", discordMirrored: true };
 const vantageRow = { characterId: "c2", locationId: "loc", zoneId: "z", turnId: "t1" };
 
 async function sweep(overwrites) {

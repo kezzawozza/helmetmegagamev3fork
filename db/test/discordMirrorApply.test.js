@@ -183,7 +183,7 @@ const CHARACTER = {
   zoneId: "z1",
   locationId: "l1",
   turnPingOptIn: false,
-  webOnly: false,
+  discordMirrored: true,
 };
 
 // No rooms: a room's thread is syncRoomThread's job, and that needs a real

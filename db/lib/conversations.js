@@ -125,7 +125,7 @@ async function pullMentionedIntoConversation(prisma, { conversation, content, sp
   // Living only, re-read from the DB rather than trusted off the token ({char:…} is player-typed text).
   const targets = await prisma.character.findMany({
     where: { id: { in: outside }, status: "ALIVE" },
-    select: { id: true, name: true, locationId: true, discordUserId: true, webOnly: true },
+    select: { id: true, name: true, locationId: true, discordUserId: true, discordMirrored: true },
   });
 
   const added = [];

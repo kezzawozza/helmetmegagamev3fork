@@ -71,7 +71,7 @@ async function runThreadsSweep({ report, errors, prisma, alive, characters, char
     for (const room of privateRooms) {
       const shouldHave = new Set(
         alive
-          .filter((c) => c.discordUserId && !c.webOnly)
+          .filter((c) => c.discordUserId && c.discordMirrored)
           .filter((c) => {
             const keys = keysByCharacter.get(c.id);
             return accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length > 0;

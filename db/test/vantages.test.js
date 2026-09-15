@@ -31,7 +31,7 @@ function fakePrisma({ openTurnId = "turn-2", rows = [] } = {}) {
   const dress = (row) => ({
     ...row,
     location: { id: row.locationId, name: row.locationId, zoneId: row.zoneId, discordChannelId: `ch-${row.locationId}` },
-    character: { id: row.characterId, discordUserId: `u-${row.characterId}`, webOnly: false, status: "ALIVE" },
+    character: { id: row.characterId, discordUserId: `u-${row.characterId}`, discordMirrored: true, status: "ALIVE" },
   });
   return {
     store,
@@ -128,9 +128,9 @@ test("the whole-game read drops a stale zone and skips web-only players", async 
     ],
   });
   const alive = [
-    { id: "ada", zoneId: "town", discordUserId: "u1", webOnly: false },
-    { id: "bo", zoneId: "forest", discordUserId: "u2", webOnly: false }, // walked out of the zone
-    { id: "cy", zoneId: "town", discordUserId: "u3", webOnly: true }, // holds no Discord access at all
+    { id: "ada", zoneId: "town", discordUserId: "u1", discordMirrored: true },
+    { id: "bo", zoneId: "forest", discordUserId: "u2", discordMirrored: true }, // walked out of the zone
+    { id: "cy", zoneId: "town", discordUserId: "u3", discordMirrored: false }, // holds no Discord access at all
   ];
   assert.deepEqual((await allVantages(prisma, alive)).map((r) => r.characterId), ["ada"]);
 });

@@ -80,7 +80,7 @@ export default function Chat({
   self,
   aside,
   autocorrect = false,
-  webOnly = false,
+  discordMirrored = false,
   // The people standing here, for the composer's @ list. The page hands the
   // same list to CharacterMentionsProvider, so what can be typed and what can
   // be rendered are one roster.
@@ -844,7 +844,7 @@ export default function Chat({
       seen={seen}
       newest={newest}
       onSelect={narrow ? onSelectFromDrawer : onSelect}
-      webOnly={webOnly}
+      discordMirrored={discordMirrored}
       chimeMuted={chimeMuted}
       onToggleChime={setChimeMuted}
       push={push.supported ? { on: push.on, busy: push.busy, onToggle: togglePush } : null}

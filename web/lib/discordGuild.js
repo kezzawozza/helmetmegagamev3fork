@@ -270,14 +270,14 @@ export async function updateGuildNickname(discordUserId, nickname) {
 export async function syncCharacterNickname(discordUserId, characterName) {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   if (!config?.nicknameSyncEnabled) return;
-  // "Play from the web" exists so that nothing on Discord says which character
-  // this account is, and a
-  // nickname is the loudest thing that could (docs/systemdocs/CHAT.md §6).
-  const hidden = await prisma.character.findFirst({
-    where: { discordUserId, status: "ALIVE", webOnly: true },
+  // Not being mirrored to Discord exists so that nothing on Discord says
+  // which character this account is, and a nickname is the loudest thing
+  // that could (docs/systemdocs/CHAT.md §6).
+  const notMirrored = await prisma.character.findFirst({
+    where: { discordUserId, status: "ALIVE", discordMirrored: false },
     select: { id: true },
   });
-  if (hidden) return;
+  if (notMirrored) return;
 
   const member = await getGuildMember(discordUserId);
   if (!member) return;
@@ -312,6 +312,8 @@ export async function ensureCharacterRole(character) {
   const token = process.env.DISCORD_TOKEN;
   const bare = formatBareName(character);
   if (!guildId || !token || !bare) return character.discordRoleId ?? null;
+  // Not mirrored to Discord: no name token to mint or repaint (CHAT.md §6).
+  if (!character.discordMirrored) return character.discordRoleId ?? null;
 
   const held = await prisma.characterTag.findMany({
     where: {
@@ -372,12 +374,12 @@ export async function syncCharacterNarrowcastAccess(characterId) {
 
   const character = await prisma.character.findUnique({
     where: { id: characterId },
-    select: { discordUserId: true, webOnly: true },
+    select: { discordUserId: true, discordMirrored: true },
   });
   if (!character?.discordUserId) return;
-  // "Play from the web" holds this account out of every channel, narrowcast
-  // included (docs/systemdocs/CHAT.md §6).
-  if (character.webOnly) return;
+  // Not mirrored to Discord holds this account out of every channel,
+  // narrowcast included (docs/systemdocs/CHAT.md §6).
+  if (!character.discordMirrored) return;
 
   const [ctx, config] = await Promise.all([
     buildNarrowcastContext(prisma, characterId),

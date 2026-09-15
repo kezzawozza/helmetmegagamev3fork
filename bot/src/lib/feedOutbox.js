@@ -117,7 +117,7 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
           create: { threadId: channelId, characterId: target.id },
         })
         .catch((err) => console.error("Failed to record a web thread invite:", err?.message ?? err));
-      if (target.locationId === conversation.locationId && !target.webOnly && target.discordUserId) {
+      if (target.locationId === conversation.locationId && target.discordMirrored && target.discordUserId) {
         await addThreadMember(channelId, target.discordUserId).catch(() => { });
       }
     }

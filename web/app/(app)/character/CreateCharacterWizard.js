@@ -174,10 +174,6 @@ export default function CreateCharacterWizard({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [age, setAge] = useState("");
-  // Off by default, same as the column. Asked here rather than only on the Bio
-  // card because creation is what hands out the Discord access — ticking it
-  // now means it is never granted, instead of granted and then revoked.
-  const [webOnly, setWebOnly] = useState(false);
   const [roleId, setRoleId] = useState(lockedRole?.id ?? null);
   const [selectedIds, setSelectedIds] = useState([]);
   // Opt-in, so nothing ticked is the honest default — a player who walks past
@@ -364,9 +360,6 @@ export default function CreateCharacterWizard({
     // it anyway, and posting it would imply otherwise.
     if (!lastNameLocked && lastName.trim()) fd.set("lastName", lastName.trim());
     if (age.trim()) fd.set("age", age.trim());
-    // "on" is what a checkbox posts, and what actions.js#updateCharacterProfile
-    // reads for the same field — the two readers agree on the wire format.
-    if (webOnly) fd.set("webOnly", "on");
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
     for (const slug of antagonists) fd.append("antagonistOptIns", slug);
@@ -593,18 +586,6 @@ export default function CreateCharacterWizard({
               placeholder={`${AGE_MIN}\u2013${AGE_MAX} \u2014 fixed once set, so leave it for later if you'd like`}
             />
           </label>
-          {/* The same switch as the Bio card's (AvatarField.js), one step
-              earlier. createCharacter writes the column inside the creating
-              transaction, so every grant site in the placement fan-out reads
-              it as already on and simply does nothing (CHAT.md \u00a76a). */}
-          {playPanelEnabled && (
-            <Switch checked={webOnly} onChange={(e) => setWebOnly(e.target.checked)}>
-              <span className="inline-flex items-center gap-1.5">
-                Play from the web
-                <InfoIcon text="Removes you from the Discord channels, preserving your character's anonymity. Recommended." />
-              </span>
-            </Switch>
-          )}
         </div>
       )}
 

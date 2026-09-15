@@ -26,21 +26,22 @@ const { visibleZoneIds } = require("./gmZoneView");
 const { SCRYING_EYE_SLUG, ROBE_SLUGS } = require("./thanati");
 const { vantagesFor } = require("./vantages");
 
-// Equipped Scrying Eye + ROBES ON + web-only switch. Web-only because Discord's
-// channel permissions can't show rooms the eye opens; robes because a stolen
-// eye is worth nothing outside the cult's dress. (docs/systemdocs/THANATI.md §4.)
+// Equipped Scrying Eye + ROBES ON + not mirrored to Discord. Not mirrored,
+// because Discord's channel permissions can't show rooms the eye opens;
+// robes because a stolen eye is worth nothing outside the cult's dress.
+// (docs/systemdocs/THANATI.md §4.)
 async function hasScryingEye(prisma, characterId) {
   const row = await prisma.character.findUnique({
     where: { id: characterId },
     select: {
-      webOnly: true,
+      discordMirrored: true,
       tags: {
         where: { equipped: true, quantity: { gt: 0 }, tag: { slug: { in: [SCRYING_EYE_SLUG, ...ROBE_SLUGS] } } },
         select: { tag: { select: { slug: true } } },
       },
     },
   });
-  if (!row?.webOnly) return false;
+  if (row?.discordMirrored) return false;
   const slugs = new Set(row.tags.map((ct) => ct.tag.slug));
   return slugs.has(SCRYING_EYE_SLUG) && ROBE_SLUGS.some((slug) => slugs.has(slug));
 }

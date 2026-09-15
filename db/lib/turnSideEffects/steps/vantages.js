@@ -27,9 +27,9 @@ async function expireTurnVantages({ prisma, p, step }) {
       touched.add(row.characterId);
       const character = row.character;
       // A dead or departed character has already had every overwrite in the
-      // game stripped (db/lib/accessSweep.js), and a web-only one never held
+      // game stripped (db/lib/accessSweep.js), and a non-mirrored one never held
       // any; either way the call would only be a 404 against the rate limit.
-      if (!character?.discordUserId || character.webOnly) continue;
+      if (!character?.discordUserId || !character.discordMirrored) continue;
       if (character.status !== "ALIVE") continue;
       if (!row.location?.discordChannelId) continue;
       await deleteChannelOverwrite(row.location.discordChannelId, character.discordUserId).catch((err) =>

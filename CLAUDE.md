@@ -221,7 +221,7 @@ you pick the right doc — they are never enough to change code with.
 | [`COOKING.md`](docs/systemdocs/COOKING.md) | You're touching the meals, an ingredient's `cooked:` block, `requirement.ingredientSlots`, the taste line, or **anything that asks what eating a dish does** (`web/lib/cooking.js`) |
 | [`TRINKETS.md`](docs/systemdocs/TRINKETS.md) | You're touching the forge's Gambit recipe, a tag's `inlayValue`, the tier table or the skilled floor, or **anything that mints a Trinket** (`db/lib/trinketPass.js`) |
 | [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript, `/archive`, or **anything that exports, imports or deletes a game's transcript** — the archive packets and the archive-or-discard wipe |
-| [`CHAT.md`](docs/systemdocs/CHAT.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the coming "web only" switch |
+| [`CHAT.md`](docs/systemdocs/CHAT.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the per-character Play on Discord switch |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |

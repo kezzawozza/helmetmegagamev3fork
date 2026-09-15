@@ -102,9 +102,9 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
   if (living > 0) return null;
 
   // Read off the DATABASE, not `deadCharacter`: callers pass rows of every
-  // shape, so a web-only player could read as `undefined` and be silently moved onto Discord.
+  // shape, so a non-mirrored player could read as `undefined` and be silently moved onto Discord.
   const previous = await prisma.character
-    .findUnique({ where: { id: deadCharacter.id }, select: { webOnly: true } })
+    .findUnique({ where: { id: deadCharacter.id }, select: { discordMirrored: true } })
     .catch(() => null);
 
   const [config, state] = await Promise.all([
@@ -150,8 +150,8 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
         name: identity.name,
         gender: identity.gender,
         age: identity.age,
-        // Carried across, not defaulted: dying must not silently move a web-only player onto Discord.
-        webOnly: previous?.webOnly ?? false,
+        // Carried across, not defaulted: dying must not silently move a non-mirrored player onto Discord.
+        discordMirrored: previous?.discordMirrored ?? false,
         roleId: role.id,
         roleTitle: role.name,
         factionId: role.factionId,

@@ -12,7 +12,7 @@ import {
 } from "@/lib/constants";
 import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
 import { syncCharacterNickname, setTurnPingRole, ensureCharacterRole } from "@/lib/discordGuild";
-import { setWebOnly } from "@lifeweb/db/lib/webOnly";
+import { setDiscordMirrored } from "@lifeweb/db/lib/discordMirroring";
 import { clockLabel } from "@/lib/dmTime";
 import { normalizeSelection } from "@/lib/portrait/catalog";
 import { renderPortrait } from "@/lib/portrait/render";
@@ -40,11 +40,12 @@ export async function updateCharacterProfile(_prevState, formData) {
   const appearance =
     formData.get("appearance")?.toString().trim().slice(0, APPEARANCE_MAX_LENGTH) || null;
   const turnPingOptIn = formData.get("turnPingOptIn") === "on";
-  // "Play from the web" (docs/systemdocs/CHAT.md §6). NOT written with the rest
-  // of the form: flipping it is a burst of Discord work on its own cooldown, so
-  // it goes through db/lib/webOnly.js#setWebOnly below and only when the value
-  // actually changed — saving the Bio card twice must not spend the cooldown.
-  const webOnly = formData.get("webOnly") === "on";
+  // "Play on Discord too" (docs/systemdocs/CHAT.md §6). NOT written with the
+  // rest of the form: flipping it is a burst of Discord work on its own
+  // cooldown, so it goes through db/lib/discordMirroring.js#setDiscordMirrored
+  // below and only when the value actually changed — saving the Bio card
+  // twice must not spend the cooldown.
+  const discordMirrored = formData.get("discordMirrored") === "on";
   // The conceal toggle — no Discord side effect, the proxy pipeline resolves
   // it at send time (PROXYING.md). A forced identity (Tag.forcedName) locks
   // it off, and fixes the face, so an upload is dropped too.
@@ -110,16 +111,16 @@ export async function updateCharacterProfile(_prevState, formData) {
   const updated = await prisma.character.update({ where: { id: character.id }, data });
 
   // Before the Discord calls below — a refusal is returned as worded, and the rest of the save STANDS.
-  let webOnlyError = null;
-  // While Chat is off, the switch is drawn only for a player already
-  // web-only (AvatarField.js); for everyone else a missing checkbox reads as
-  // "off, not unchanged", so the field is ignored outright.
+  let mirrorError = null;
+  // While Chat is off, forcing this switch off would strand a player with no
+  // way to play at all — so it's only honored when Chat is on, or the player
+  // is already stranded (not mirrored) and trying to switch back to Discord.
   const playEnabled = gameConfig?.playPanelEnabled !== false;
-  const webOnlyWanted = playEnabled || character.webOnly ? webOnly : false;
-  if (webOnlyWanted !== character.webOnly) {
-    const flip = await setWebOnly(prisma, character, webOnlyWanted);
+  const mirroredWanted = playEnabled || !character.discordMirrored ? discordMirrored : true;
+  if (mirroredWanted !== character.discordMirrored) {
+    const flip = await setDiscordMirrored(prisma, character, mirroredWanted);
     if (!flip.ok) {
-      webOnlyError = flip.readyAt
+      mirrorError = flip.readyAt
         ? `You switched ${flip.minutes} minutes ago. You can switch again at ${clockLabel(
             flip.readyAt.getTime(),
           )}.`
@@ -128,13 +129,15 @@ export async function updateCharacterProfile(_prevState, formData) {
   }
 
   await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
-  // A web-only player holds no turn-ping role (db/lib/webOnly.js). NOT read
-  // off `updated` — written before the flip above; a refused flip leaves them where they were.
-  const webOnlyNow = webOnlyError ? character.webOnly : webOnlyWanted;
-  await setTurnPingRole(session.discordUserId, updated.turnPingOptIn && !webOnlyNow).catch(() => {});
-  await ensureCharacterRole(updated).catch(() => {}); // self-heal: only ever creates a role that went missing
+  // A player not mirrored to Discord holds no turn-ping role
+  // (db/lib/discordMirroring.js). NOT read off `updated` — written before the
+  // flip above; a refused flip leaves them where they were.
+  const mirroredNow = mirrorError ? character.discordMirrored : mirroredWanted;
+  await setTurnPingRole(session.discordUserId, updated.turnPingOptIn && mirroredNow).catch(() => {});
+  // discordMirrored not read off `updated` for the same reason as mirroredNow above.
+  await ensureCharacterRole({ ...updated, discordMirrored: mirroredNow }).catch(() => {}); // self-heal: only ever creates a role that went missing
   revalidatePath("/character");
-  if (webOnlyError) return { error: webOnlyError };
+  if (mirrorError) return { error: mirrorError };
   // Has to come back from here — the upload branch is skipped when uploads
   // are off or no file was attached, and a confirmation for nothing sent would lie.
   return { ok: true, avatarUploaded: data.avatarData !== undefined };

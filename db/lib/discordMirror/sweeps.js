@@ -29,7 +29,7 @@ async function runSweeps(prisma, { scope, report, errors, live }) {
         zoneId: true,
         locationId: true,
         turnPingOptIn: true,
-        webOnly: true,
+        discordMirrored: true,
         // status and discordUserId come from here too — spreading it is what
         // keeps the ghost reconcile below reading the same fields the rule
         // does. Drop one and db/lib/curse.js answers from undefined.

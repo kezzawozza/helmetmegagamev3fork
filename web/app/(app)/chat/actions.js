@@ -139,8 +139,8 @@ async function actor(select) {
       locationId: true,
       factionId: true,
       discordUserId: true,
-      // "Play from the web" — nothing here may touch Discord for them (docs/systemdocs/CHAT.md §6).
-      webOnly: true,
+      // Not mirrored to Discord — nothing here may touch Discord for them (docs/systemdocs/CHAT.md §6).
+      discordMirrored: true,
       // Tag slugs are what room `access:` lists read — which rooms, which gates.
       role: { select: { slug: true } },
       tags: { select: { tag: { select: { slug: true } } } },
@@ -1346,14 +1346,14 @@ export async function openConversation({ roomId, name, inviteRefs = [] } = {}) {
   if (wanted.length > 0) {
     const guests = await prisma.character.findMany({
       where: { id: { in: wanted }, status: "ALIVE", locationId: room.locationId },
-      select: { id: true, discordUserId: true, webOnly: true },
+      select: { id: true, discordUserId: true, discordMirrored: true },
     });
     for (const guest of guests) {
       // The ROW first, then the account: membership is a database fact and
       // Discord is its projection, so a failed thread add never decides
       // whether the conversation is in somebody's places.
       await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: guest.id });
-      if (guest.discordUserId && !guest.webOnly) {
+      if (guest.discordUserId && guest.discordMirrored) {
         await addThreadMember(thread.id, guest.discordUserId).catch(() => {});
       }
     }
@@ -2154,7 +2154,7 @@ export async function rollHere(placeKey) {
     gender: true,
     concealed: true,
     locationId: true,
-    webOnly: true,
+    discordMirrored: true,
     discordUserId: true,
   });
   if (me.error) return { ok: false, error: me.error };
@@ -2414,7 +2414,7 @@ export async function addMember(placeKey, ref) {
 
     const target = await prisma.character.findFirst({
       where: { id: String(characterId ?? ""), status: "ALIVE" },
-      select: { id: true, name: true, locationId: true, discordUserId: true, webOnly: true },
+      select: { id: true, name: true, locationId: true, discordUserId: true, discordMirrored: true },
     });
     if (!target) return { ok: false, error: "That isn't a living character." };
 
@@ -2432,8 +2432,8 @@ export async function addMember(placeKey, ref) {
       })
       .catch((err) => console.error("Failed to record thread invite:", err?.message ?? err));
 
-    // A "web only" target is out of every channel on purpose (CHAT.md §6).
-    if (target.locationId === conversation.locationId && !target.webOnly && target.discordUserId) {
+    // A target not mirrored to Discord is out of every channel on purpose (CHAT.md §6).
+    if (target.locationId === conversation.locationId && target.discordMirrored && target.discordUserId) {
       await addThreadMember(conversation.threadId, target.discordUserId).catch(() => {});
     }
 

@@ -113,7 +113,7 @@ async function closeLocationTo(discordUserId, channelId) {
   );
 }
 
-// Everything Discord needs to know to put a character back where they already stand: the Location overwrite, zone role, narrowcast, private-room threads, conversations, and standing invites. This is the "web only" switch coming OFF (db/lib/webOnly.js, CHAT.md §6), built on the SAME four helpers a move uses — swapLocationOverwrite, swapRole, reconcileNarrowcastAccess, syncCharacterRoomAccess — rather than a second copy; there's no origin, so every call is a pure grant. Best-effort throughout, like every other call in this file — anything that fails is the channel doctor's next pass to repair, which it can now do because it knows the flag.
+// Everything Discord needs to know to put a character back where they already stand: the Location overwrite, zone role, narrowcast, private-room threads, conversations, and standing invites. This is the "Play on Discord too" switch turning ON (db/lib/discordMirroring.js, CHAT.md §6), built on the SAME four helpers a move uses — swapLocationOverwrite, swapRole, reconcileNarrowcastAccess, syncCharacterRoomAccess — rather than a second copy; there's no origin, so every call is a pure grant. Best-effort throughout, like every other call in this file — anything that fails is the channel doctor's next pass to repair, which it can now do because it knows the flag.
 async function materializeDiscordPresence(prisma, character) {
   if (!process.env.DISCORD_TOKEN) return;
   if (!character?.discordUserId || !character.locationId) return;
@@ -130,37 +130,37 @@ async function materializeDiscordPresence(prisma, character) {
 
   // The fog of war comes back on too. Vantage rows are a database fact and survived the switch being on (db/lib/vantages.js); this is the Discord half catching up, so the places they walked through earlier this turn are where they left them rather than dark until the next move.
   const vantages = await vantagesFor(prisma, { id: character.id, zoneId: location.zoneId }).catch((err) => {
-    console.error(`Web-only off: vantage lookup failed for ${character.id}:`, err.message ?? err);
+    console.error(`Discord mirror on: vantage lookup failed for ${character.id}:`, err.message ?? err);
     return [];
   });
   for (const vantage of vantages) {
     await openLocationTo(discordUserId, vantage.location?.discordChannelId ?? null, LOCATION_VANTAGE_ALLOW, LOCATION_VANTAGE_DENY);
   }
   await reconcileNarrowcastAccess(prisma, character.id, discordUserId).catch((err) =>
-    console.error(`Web-only off: narrowcast reconcile failed for ${character.id}:`, err.message ?? err),
+    console.error(`Discord mirror on: narrowcast reconcile failed for ${character.id}:`, err.message ?? err),
   );
   await syncCharacterRoomAccess(prisma, character).catch((err) =>
-    console.error(`Web-only off: room access sync failed for ${character.id}:`, err.message ?? err),
+    console.error(`Discord mirror on: room access sync failed for ${character.id}:`, err.message ?? err),
   );
 
   // Conversations are a DB row and Discord's member list is its projection (db/lib/conversations.js), so the rows survived the switch being on and this is the projection catching up. Location-filtered for the same reason /add is: Discord sheds a thread member who cannot see the parent.
   const conversations = await conversationsFor(prisma, character.id, {
     locationId: character.locationId,
   }).catch((err) => {
-    console.error(`Web-only off: conversation lookup failed for ${character.id}:`, err.message ?? err);
+    console.error(`Discord mirror on: conversation lookup failed for ${character.id}:`, err.message ?? err);
     return [];
   });
   for (const conversation of conversations) {
     await addThreadMember(conversation.threadId, discordUserId).catch((err) =>
       console.error(
-        `Web-only off: failed to re-add ${character.id} to conversation ${conversation.threadId}:`,
+        `Discord mirror on: failed to re-add ${character.id} to conversation ${conversation.threadId}:`,
         err.message ?? err,
       ),
     );
   }
 
   await applyPendingInvites(prisma, character).catch((err) =>
-    console.error(`Web-only off: thread invite pass failed for ${character.id}:`, err.message ?? err),
+    console.error(`Discord mirror on: thread invite pass failed for ${character.id}:`, err.message ?? err),
   );
 }
 
@@ -336,7 +336,7 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
         concealed: true,
         age: true,
         gender: true,
-        webOnly: true,
+        discordMirrored: true,
         tags: { select: { tag: { select: { slug: true } } } },
       },
     }),
@@ -396,9 +396,9 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     );
   }
 
-  // The "web only" switch holds this account out of every channel, so the Discord half of standing somewhere is simply not done for them (CHAT.md §6). Everything else below still runs: the gate crossing is scenery the rest of the zone reads, the keyed-door offer and parked-mount note are DMs, and the carry, corpse and presence work is the database.
+  // Not mirrored to Discord holds this account out of every channel, so the Discord half of standing somewhere is simply not done for them (CHAT.md §6). Everything else below still runs: the gate crossing is scenery the rest of the zone reads, the keyed-door offer and parked-mount note are DMs, and the carry, corpse and presence work is the database.
   // Grant BEFORE revoke, deliberately: an interrupted swap leaves the player seeing two streets for a moment (harmless, self-healing) rather than none (a lockout a player can't diagnose).
-  if (!character.webOnly) {
+  if (character.discordMirrored) {
     await openLocationTo(discordUserId, toLocation.discordChannelId ?? null, LOCATION_MEMBER_ALLOW);
 
     if (fromLocation && fromLocation.discordChannelId !== toLocation.discordChannelId) {
@@ -427,7 +427,7 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     console.error(`Move: keyed-door offer failed for ${characterId}:`, err.message ?? err),
   );
 
-  if (!character.webOnly && fromLocation?.zoneId !== toLocation.zoneId) {
+  if (character.discordMirrored && fromLocation?.zoneId !== toLocation.zoneId) {
     await swapRole(discordUserId, fromLocation?.zone?.discordRoleId ?? null, toLocation.zone?.discordRoleId ?? null, "zone");
     await reconcileNarrowcastAccess(prisma, characterId, discordUserId).catch((err) =>
       console.error(`Move: narrowcast reconcile failed for ${characterId}:`, err.message ?? err),

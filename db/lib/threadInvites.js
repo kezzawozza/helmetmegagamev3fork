@@ -19,21 +19,21 @@ async function applyPendingInvites(prisma, character) {
     select: { id: true, threadId: true },
   });
 
-  // The "web only" switch (CHAT.md §6) skips the Discord add below, but the membership row is still written and the INVITE ROW IS LEFT WHERE IT IS to replay when they come back off the switch.
-  const webOnly =
-    character.webOnly ??
+  // Not mirrored to Discord (CHAT.md §6) skips the Discord add below, but the membership row is still written and the INVITE ROW IS LEFT WHERE IT IS to replay when they switch mirroring on.
+  const discordMirrored =
+    character.discordMirrored ??
     (
       await prisma.character
-        .findUnique({ where: { id: character.id }, select: { webOnly: true } })
+        .findUnique({ where: { id: character.id }, select: { discordMirrored: true } })
         .catch(() => null)
-    )?.webOnly ??
+    )?.discordMirrored ??
     false;
 
   let applied = 0;
   for (const { id, threadId } of threads) {
     // The ROW first, then the account. Membership is a database fact (db/lib/conversations.js), so a Discord call that fails must not be what decides whether the web feed shows the conversation.
     await addConversationMember(prisma, { playerThreadId: id, characterId: character.id });
-    if (webOnly) continue;
+    if (!discordMirrored) continue;
     try {
       await addThreadMember(threadId, character.discordUserId);
       applied += 1;

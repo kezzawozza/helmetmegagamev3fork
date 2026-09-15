@@ -45,7 +45,7 @@ export default function BioForm({
       <AvatarField
         defaultTurnPingOptIn={character.turnPingOptIn}
         gender={character.gender}
-        defaultWebOnly={character.webOnly}
+        defaultDiscordMirrored={character.discordMirrored}
         playPanelEnabled={playPanelEnabled}
         defaultConcealed={character.concealed}
         uploadsEnabled={avatarUploadsEnabled}

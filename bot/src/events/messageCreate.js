@@ -223,7 +223,7 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds }) {
           create: { threadId: channel.id, characterId: target.id },
         })
         .catch((err) => console.error("Failed to record thread invite:", err));
-      if (target.locationId === conversation.locationId && !target.webOnly) { // web-only has no Discord presence to add (CHAT.md §6)
+      if (target.locationId === conversation.locationId && target.discordMirrored) { // not-mirrored has no Discord presence to add (CHAT.md §6)
         await channel.members.add(target.discordUserId).catch((err) =>
           console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err),
         );

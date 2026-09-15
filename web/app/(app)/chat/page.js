@@ -520,7 +520,7 @@ async function FreshChat({ userId }) {
     // composer draws in the same frame says what the confirmed one will say
     // (db/lib/say.js#transformSpeech).
     autocorrect: Boolean(gameConfig?.tupperAutocorrectEnabled),
-    webOnly: Boolean(viewer.character?.webOnly),
+    discordMirrored: Boolean(viewer.character?.discordMirrored),
     roster: mentionRoster,
     // A GM with no living character reads every zone they may see and may
     // take a line down (web/app/api/feed/delete/route.js).

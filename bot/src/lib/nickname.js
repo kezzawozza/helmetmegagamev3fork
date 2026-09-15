@@ -18,7 +18,7 @@ async function syncMemberNickname(member) {
     where: { discordUserId: member.id, status: "ALIVE", firstName: { not: "" } },
   });
   if (!character) return "skipped";
-  if (character.webOnly) return "skipped"; // CHAT.md §6: this account must stay unidentifiable as the character
+  if (!character.discordMirrored) return "skipped"; // CHAT.md §6: not mirrored, so this account must stay unidentifiable as the character
 
   const base = member.user.displayName;
   // Bare (first + last), not titled — the 32-char cap is shared between the

@@ -28,11 +28,12 @@ function SwitchInfo({ text }) {
 
 export default function AvatarField({
   defaultTurnPingOptIn,
-  defaultWebOnly = false,
-  // GameConfig.playPanelEnabled. Off, the "Play from the web" switch is drawn
-  // only for a player who is already web-only — a character taken out of
-  // Discord with no Chat to play in would be out of the game, but one already
-  // out must be able to come back. The server action holds the same line.
+  defaultDiscordMirrored = false,
+  // GameConfig.playPanelEnabled. Off, the "Play on Discord too" switch is
+  // drawn only for a player not already mirrored — a character with no
+  // Discord access and no Chat to play in would be out of the game, but one
+  // already stranded that way must be able to switch on and come back. The
+  // server action holds the same line.
   playPanelEnabled = true,
   defaultConcealed,
   uploadsEnabled = false,
@@ -182,25 +183,26 @@ export default function AvatarField({
             {resetting ? "Resetting…" : "Reset to Default"}
           </button>
         )}
-        {/* The ping is a role mention inside #turns, and Play from the web
-            closes #turns along with every other channel (CHAT.md §6). So the
-            box still records the preference — it is what comes back when they
-            switch back — but the line under it says plainly that nothing will
-            arrive meanwhile, rather than letting them tick a notification that
-            silently cannot be delivered. */}
+        {/* The ping is a role mention inside #turns, and staying off Discord
+            leaves #turns closed along with every other channel (CHAT.md §6).
+            So the box still records the preference — it is what comes back
+            when they switch on — but the line under it says plainly that
+            nothing will arrive meanwhile, rather than letting them tick a
+            notification that silently cannot be delivered. */}
         <Switch name="turnPingOptIn" defaultChecked={defaultTurnPingOptIn}>
           Ping me when the turn advances
         </Switch>
-        {/* The anonymity switch (docs/systemdocs/CHAT.md §6). On, this player's
-            Discord account is taken out of every game channel, so a member
-            sidebar can no longer say which account is standing in the room.
-            The cooldown is enforced server-side in db/lib/webOnly.js — this is
-            the hint, not the lock. */}
-        {(playPanelEnabled || defaultWebOnly) && (
-          <Switch name="webOnly" defaultChecked={defaultWebOnly}>
+        {/* The Discord opt-in (docs/systemdocs/CHAT.md §6). Off by default: a
+            member sidebar can't say which account is standing in the room
+            when the account was never put in the channel. Turning this ON
+            puts the Discord account into the game's channels. The cooldown is
+            enforced server-side in db/lib/discordMirroring.js — this is the
+            hint, not the lock. */}
+        {(playPanelEnabled || !defaultDiscordMirrored) && (
+          <Switch name="discordMirrored" defaultChecked={defaultDiscordMirrored}>
             <span className="inline-flex items-center gap-1.5">
-              Play from the web
-              <SwitchInfo text="Removes you from the Discord channels, preserving your character's anonymity. Recommended." />
+              Play on Discord too
+              <SwitchInfo text="Adds you to the Discord channels too. Off by default, to keep your character's anonymity." />
             </span>
           </Switch>
         )}

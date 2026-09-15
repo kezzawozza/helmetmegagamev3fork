@@ -253,7 +253,7 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
 // A rejoining player comes back with every role stripped and their Location overwrite swept by
 // guildMemberRemove, so this is a pure re-grant — same shape Revive uses (CHARACTERS.md §5b).
 async function restoreStandingRoles(member, character) {
-  if (character.webOnly) return; // web-only holds no Discord access on purpose (CHAT.md §6)
+  if (!character.discordMirrored) return; // not-mirrored holds no Discord access on purpose (CHAT.md §6)
 
   const zoneRoleId = character.zone?.discordRoleId ?? null;
   if (zoneRoleId) {

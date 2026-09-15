@@ -94,7 +94,7 @@ async function tokensToRoles(prisma, content) {
       discordUserId: true,
       locationId: true,
       zoneId: true,
-      webOnly: true,
+      discordMirrored: true,
     },
   });
   const byId = new Map(characters.map((c) => [c.id, c]));

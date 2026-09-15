@@ -23,7 +23,7 @@ const GUEST_SELECT = {
   status: true,
   locationId: true,
   discordUserId: true,
-  webOnly: true,
+  discordMirrored: true,
   updatedAt: true,
 };
 
@@ -70,8 +70,8 @@ async function addRoomGuest(prisma, { actor = null, roomId, characterId, gm = fa
     })
     .catch((err) => console.error("Failed to record room guest:", err.message ?? err));
 
-  // The guest ROW above is the grant; thread membership is only Discord's copy — a "web only" character has none (CHAT.md §6).
-  if (!target.webOnly && target.discordUserId && room.discordThreadId) {
+  // The guest ROW above is the grant; thread membership is only Discord's copy — a character not mirrored to Discord has none (CHAT.md §6).
+  if (target.discordMirrored && target.discordUserId && room.discordThreadId) {
     try {
       await addThreadMember(room.discordThreadId, target.discordUserId);
       // Without this the guest is never shown out: the mover's recompute only acts where entitlement and the record DISAGREE.

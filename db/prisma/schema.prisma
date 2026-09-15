@@ -2194,18 +2194,23 @@ model Character {
   // reads or writes this any more; kept rather than dropped (CARRY.md §3).
   autoMount     Boolean @default(false)
 
-  // "Play from the web" (docs/systemdocs/HALL.md §6). While it is on, this
-  // player's Discord account holds NO game access at all — no Location
-  // overwrite, no zone role, no room or conversation thread — so standing
-  // somewhere no longer tells the room which account they are. They read and
-  // speak on /play instead, and every re-materialiser (the mover, the doctor,
-  // room access, the invite replay, nickname sync) checks this flag first, or
-  // the next pass would quietly put them back. The fiction is untouched: they
-  // still stand there and still appear in Who's here.
+  // unread since 2026-09-15, drop after a week — replaced by
+  // discordMirrored below (opt-in Discord now, opt-out then).
   webOnly          Boolean   @default(false)
-  // Stamped on every flip, and the WEB_ONLY_COOLDOWN_SECONDS clock in
-  // db/lib/webOnly.js.
   webOnlyChangedAt DateTime?
+
+  // "Play on Discord too" (docs/systemdocs/CHAT.md §6). Off by default: a
+  // fresh character holds NO Discord game access at all — no Location
+  // overwrite, no zone role, no room or conversation thread — so nobody
+  // stands anywhere that tells the room which account they are. They read
+  // and speak on /play instead, and every re-materialiser (the mover, the
+  // doctor, room access, the invite replay, nickname sync) checks this flag
+  // first, or the next pass would quietly put them back. The fiction is
+  // untouched: they still stand there and still appear in Who's here.
+  discordMirrored          Boolean   @default(false)
+  // Stamped on every flip, and the DISCORD_MIRROR_COOLDOWN_SECONDS clock in
+  // db/lib/discordMirroring.js.
+  discordMirroredChangedAt DateTime?
 
   // 18-90, or null until the player first sets one. Free to edit while null;
   // the moment a number lands it is fixed — the /character input renders
