@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-15 · The house typography rules are written down
+
+✎ Straight quotes, the … glyph, a spaced em dash, and digits for anything a player counts or pays — the conventions the game's text already mostly followed are now stated in one place instead of being rediscovered each time  
+✎ Claude may bring text you hand over in line with those conventions without asking. Your wording, structure and tone stay yours; only the punctuation and the glyphs get touched  
+✎ Written down too: ⬢ and ¢ are two currencies at parity, not one with two spellings, so neither is ever swapped for the other in bulk
+
 ## 2026-09-15 · The Dev Panel's four broadcast sections are one
 
 ✎ Bulk actions now covers everything you do to a lot of people or a lot of places at once: move them, hand out Resources or a tag, send a DM, send a letter, or say a line the world says  

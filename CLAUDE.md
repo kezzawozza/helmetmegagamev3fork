@@ -853,6 +853,58 @@ line in
 `docs/systemdocs/infochannel.yaml` is, on purpose, the one place the glyph is
 introduced to players.
 
+## Typography in game text
+
+These apply everywhere a player can read the words: the YAML masters, bot and
+DM strings, the web UI, `docs/handbook.md`.
+
+- **Straight quotes and apostrophes**, never curly. In JSX text that means
+  `&apos;` and `&quot;` — `react/no-unescaped-entities` is an error in this
+  repo, and most of the curly ones that used to be here were somebody working
+  around it rather than a choice.
+- **`…`**, not three dots.
+- **An em dash gets its spaces**: `word — word`. The repo already writes it
+  that way about 326 times against 8.
+- **An en dash, tight, for a numeric range**: `0–4 ⬢`.
+- **A number a player counts or pays is a digit** — `3 turns`, `2 ⬢`, `150 lb`,
+  `a 5 or a 6`. Ordinary prose still spells one through nine: "one crate",
+  "two hands". And a sentence never opens with a numeral, so "One turn is one
+  real day" stays as it is.
+- **No double dagger, ever.** See the top of this file.
+
+Two things that look like mistakes and are not. A **trailing space on a bot
+string** is nearly always a concatenation joint — strip it and two words run
+together. And in Markdown, **two trailing spaces are a hard line break**;
+`docs/handbook.md` has 55 of them on purpose.
+
+`scripts/copy/` is the tool for a pass over all of it: `npm run copy:extract`
+pulls every player-facing string into `worksheets/`, and `npm run copy:reinject`
+writes edits back, refusing anything that would break a Discord length cap. It
+knows what is copy and what is a code comment, which a grep does not.
+
+### `⬢` and `¢` are two currencies, not one
+
+`⬢` is Resources. `¢` is obols, the physical coin. **One obol is one ⬢**
+(`DEPOT.md` §0) — that is parity, not identity, and the game converts between
+them: `DepotOrderTab.js` renders `{cartResources} ⬢ = {cartTotal} ¢`.
+
+So **never swap one glyph for the other in bulk.** A value read off an
+`*Obols`/`obols` field prints `¢`; `resources` prints `⬢`. Getting this wrong
+is quiet — the GM's Depot page spent a while showing the station account in ⬢
+while the player's own Bank tab showed the same number in ¢.
+
+### Editing Bascinet's text
+
+A comment saying "Bascinet's words, verbatim" means **do not rewrite the
+voice**. It does not mean do not touch.
+
+When Bascinet hands over new text — or you meet old text that missed a pass —
+bring it in line with everything above without asking: quotes, dashes,
+ellipses, digits, the glyphs, a missing full stop. The wording, the structure
+and the tone stay Bascinet's. Fixing a plain error in that text (a subject
+disagreeing with its verb, a doubled word) is welcome too; say in chat what you
+changed.
+
 ## Confirm dialog
 
 For any "are you sure?" moment in the web app, use the shared confirm dialog.
