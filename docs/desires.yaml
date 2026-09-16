@@ -654,13 +654,16 @@ desires:
       anyTags: [artist]
     cooldownTurns: 3
 
-  learn-to-read:
-    name: Learn to read
-    tier: 2
+  # Ungated, like its teach-a-skill mirror: the throttle is finding somebody
+  # who knows the thing and will spend a Move on you, not a tag or a role.
+  # On the ladder rather than the bare tier (see COOLDOWN POLICY above) —
+  # a lesson costs the LEARNER nothing, so it is a free income tap otherwise.
+  # Replaced learn-to-read, which was one skill's version of this.
+  learn-a-skill:
+    name: Learn a skill from someone
+    tier: 1
     families: [craft]
-    requires:
-      notTags: [literate]
-    oncePerLife: true
+    cooldownTurns: 5
 
   befriend-animal:
     name: Befriend a wild animal

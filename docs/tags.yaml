@@ -959,8 +959,8 @@ tags:
     group: general-traits
     description: "You can read and write, something most people in Ravenheart cannot do."
     pointCost: 4
-    # Teachable because two Desires already ask for it — learn-to-read, and the
-    # Scholastic's teach-literacy. Without the flag both were unreachable.
+    # Teachable because the Scholastic's teach-literacy Desire asks for it, and
+    # because learn-a-skill covers it. Without the flag neither was reachable.
     teachable: true
     purchasable: true
     purchasableAfterStart: true

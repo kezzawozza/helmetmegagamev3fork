@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Any lesson is worth a Tag Point now
+
+− Learn to read, which only paid the one time and only for one skill  
+✚ Learn a skill from someone — 1 point, any skill, once every 5 turns  
+✎ Anyone already holding Learn to read keeps it and can still fulfil it; it just leaves the picker
+
 ## 2026-09-16 · Arelitz Breeding can no longer be taught
 
 ✎ Breeding was the one 15-point capstone you could pick up in a single lesson — now it is learned the way every other mastery is, by buying it  
