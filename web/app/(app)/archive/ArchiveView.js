@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
+import useArchiveScroll from "@/app/components/useArchiveScroll";
 import { useRouter } from "next/navigation";
 import Modal from "@/app/components/Modal";
 import Select from "@/app/components/Select";
@@ -171,48 +172,10 @@ export default function ArchiveView({ game, games, currentGameId, zones, charact
 // The rows, and nothing else. Remounted whenever the filter changes, which is
 // what keeps "what is on screen" and "what was asked for" from disagreeing.
 function ArchiveStream({ query, first, view, total, onPick }) {
-  const [rows, setRows] = useState(first.rows);
-  const [cursor, setCursor] = useState(first.cursor);
-  const [done, setDone] = useState(first.done);
-  const [failed, setFailed] = useState(false);
-  // A ref, not state: two intersections can fire before a re-render lands, and
-  // a state flag would let the second one through and fetch the screen twice.
-  const loading = useRef(false);
-
-  const more = useCallback(async () => {
-    if (loading.current || done || !cursor) return;
-    loading.current = true;
-    setFailed(false);
-    try {
-      const res = await fetch(`/api/archive?${query}${query ? "&" : ""}cursor=${encodeURIComponent(cursor)}`);
-      if (!res.ok) throw new Error(String(res.status));
-      const data = await res.json();
-      setRows((prev) => [...prev, ...data.rows]);
-      setCursor(data.cursor);
-      setDone(data.done || !data.cursor);
-    } catch {
-      // Say so rather than looking like the end of the transcript. A silent
-      // stop reads as "that is all there was", which is a lie about a record.
-      setFailed(true);
-    } finally {
-      loading.current = false;
-    }
-  }, [cursor, done, query]);
-
-  // The sentinel wires its own observer through a ref callback rather than an
-  // effect — the element is the thing being watched, so it is the thing that
-  // should set the watch up and tear it down.
-  const sentinel = useCallback(
-    (node) => {
-      if (!node) return undefined;
-      const io = new IntersectionObserver((entries) => {
-        if (entries.some((e) => e.isIntersecting)) more();
-      }, { rootMargin: "600px" });
-      io.observe(node);
-      return () => io.disconnect();
-    },
-    [more],
-  );
+  // Rows, cursor and the sentinel come from the shared hook — the GM
+  // inspector's Archive tab scrolls the same transcript through the same
+  // endpoint, and two copies of this would eventually disagree.
+  const { rows, done, failed, more, sentinel } = useArchiveScroll({ query, first });
 
   const cite = useCallback((row) => {
     const url = `${window.location.origin}${window.location.pathname}${window.location.search}#e${row.id}`;

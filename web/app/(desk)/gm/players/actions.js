@@ -5,12 +5,6 @@ import { TURNS_PATH } from "@/lib/routes";
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
-import { placesFor } from "@lifeweb/db/lib/feedAccess";
-import {
-  placeKeyForLocation,
-  placeKeyForRoom,
-  placeKeyForConversation,
-} from "@lifeweb/db/lib/placeKey";
 import { getGmSession, sendDm } from "@/lib/discordGuild";
 import { UserError, guarded } from "@/lib/actionResult";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -561,46 +555,5 @@ export async function sendGmBroadcast({ characterIds, message }) {
     );
 
     return { recipientCount: recipients.length };
-  });
-}
-
-// The Scene tab: where this character is standing, as a place list Chat's
-// Feed can draw (docs/systemdocs/CHAT.md §8, PLAYER-DESK.md).
-//
-// Deliberately NOT a second place-list builder. It asks
-// db/lib/feedAccess.js#placesFor for the GM's OWN list — every place inside
-// the zones their GmZoneView allows, read-only by construction — and then
-// keeps the ones belonging to this character's Location. So a GM who cannot
-// see a zone cannot see a scene in it, and the gate is the same one the SSE
-// stream and /api/feed/history apply per request; nothing here is trusted
-// later.
-export async function getCharacterScene({ characterId }) {
-  return guarded(async () => {
-    const session = await requireGm();
-    const id = String(characterId ?? "").trim();
-    if (!id) throw new UserError("No character specified.");
-
-    const character = await prisma.character.findUnique({
-      where: { id },
-      select: { id: true, locationId: true, location: { select: { id: true, name: true } } },
-    });
-    if (!character?.locationId) return { places: [], locationName: null };
-
-    const [rooms, conversations, all] = await Promise.all([
-      prisma.room.findMany({ where: { locationId: character.locationId }, select: { id: true } }),
-      prisma.playerThread.findMany({ where: { locationId: character.locationId }, select: { id: true } }),
-      placesFor(prisma, null, { gm: true, discordUserId: session.discordUserId }),
-    ]);
-
-    const wanted = new Set([
-      placeKeyForLocation(character.locationId),
-      ...rooms.map((room) => placeKeyForRoom(room.id)),
-      ...conversations.map((conversation) => placeKeyForConversation(conversation.id)),
-    ]);
-
-    return {
-      places: all.filter((place) => wanted.has(place.placeKey)),
-      locationName: character.location?.name ?? null,
-    };
   });
 }

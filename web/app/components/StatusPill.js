@@ -43,3 +43,14 @@ export const LOBBY_STATUS = {
   EXPIRED: { label: "Expired", tone: "warn" },
   UNASSIGNED: { label: "In the lobby", tone: "muted" },
 };
+
+// AdminNote.severity. Monochromatic on purpose: severity is a WEIGHT, not a
+// kind, so it rides the --text -> --muted ladder rather than borrowing the
+// good/warn/bad vocabulary, which would make a Low note read as "fine". High
+// is the default tone (full-strength ink), Low is the existing muted grey, and
+// only the middle rung needed adding.
+export const ADMIN_NOTE_SEVERITY = {
+  HIGH: { label: "High", tone: "neutral" },
+  MEDIUM: { label: "Medium", tone: "subdued" },
+  LOW: { label: "Low", tone: "muted" },
+};

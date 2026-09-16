@@ -5394,7 +5394,8 @@ enum OracleSynopsisKind {
   THREATS
 }
 
-// A GM's own notes about a player, on the player desk's dossier.
+// A GM's note about a PLAYER — moderation history, on the player desk's
+// inspector and the dev panel. Both surfaces mount one component.
 //
 // NOT to be confused with Note above, which is a PLAYER's personal list of
 // messages they starred with a reaction in a location channel. That one is
@@ -5403,13 +5404,38 @@ enum OracleSynopsisKind {
 //
 // Append-only short notes with attribution rather than one shared editable
 // field, because five GMs editing a single textarea race each other and the
-// loser's paragraph vanishes with no trace of who ate it. A GM may delete
-// their own.
+// loser's paragraph vanishes with no trace of who ate it.
 //
-// A real relation with a cascade, unlike the log tables (DirectMessage,
-// AuditLog) that store snapshot columns on purpose: a note is live data ABOUT
-// a character rather than a record of something that happened, and it has no
-// meaning once the character is gone.
+// Keyed on discordUserId, NOT characterId, and snapshot columns rather than a
+// relation — the log-table convention DirectMessage and AuditLog follow. This
+// is a record about an ACCOUNT. GmCharacterNote tried the other shape (a real
+// relation to Character, cascading) and that was the bug: a moderation note
+// that dies with the character is useless, since the character dies and the
+// player stays. It was dropped unused in 20260913030000_drop_gm_character_note.
+enum AdminNoteSeverity {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model AdminNote {
+  id String @id @default(cuid())
+
+  // The player the note is ABOUT.
+  discordUserId String
+  // The GM who wrote it. A handle is resolved through DiscordAccount at read
+  // time rather than snapshotted, since a GM renaming themselves should not
+  // leave their old name on every note they ever wrote.
+  authorDiscordUserId String
+
+  body     String
+  severity AdminNoteSeverity @default(LOW)
+
+  createdAt DateTime @default(now())
+
+  @@index([discordUserId, createdAt])
+}
+
 // A threat seat offered to somebody who has no character yet: the GM presses
 // SPAWN on /gm/dev?s=assignments, this row is written, and the target gets a
 // DM carrying Accept / Decline. Accepting creates the character
