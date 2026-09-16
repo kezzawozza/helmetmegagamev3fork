@@ -32,8 +32,7 @@ third column of the shell**, not of the person view (§6): it is there on the
 roster too, and it does not get thrown away and rebuilt every time you open a
 different conversation. Its tabs are the five base ones —
 `Sheet · Tags · Moves · Archive · DMs`, same list as `/gm/turns` — plus this
-desk's own **Scene**, the live feed where that character is standing (§6,
-`CHAT.md` §8). Canon is not a sixth tab any more: it is folded into **Moves**
+desk's own **Notes** (§7). Canon is not a sixth tab any more: it is folded into **Moves**
 as the "This turn" section above that person's past turns (§6).
 
 Under the shared `.desk-*` mobile breakpoint (720px, `DESIGN-SYSTEM.md` §8),
@@ -526,9 +525,10 @@ GM clicked.
 
 ## 6. The inspector
 
-`Sheet · Tags · Moves · Archive · DMs · Scene`, the first five fetched on
-demand and memoized per
-`${characterId}:${tab}` for the life of the page view. **Moves** is that
+`Sheet · Tags · Moves · Archive · DMs`, plus this desk's **Notes**. Sheet,
+Tags, Moves and DMs are fetched on demand and memoized per
+`${characterId}:${tab}` for the life of the page view; **Archive** and
+**Notes** fetch for themselves and take no slot in it. **Moves** is that
 person's turns: this desk's **Canon** section on top ("This turn"), then that
 person's past turns underneath ("Past turns", ADJUDICATION.md §3). One
 question, one tab — Canon used to be a sixth tab pointing at Moves with a
@@ -540,7 +540,7 @@ players threw it away and rebuilt it. It is the adjudication desk's inspector
 now, literally: one component, `web/app/components/InspectorColumn.js`, mounted
 by both desks. There the character is context for a Move, here the Move is
 context for a character, but it is the same five base tabs over the same
-`getCharacterInspector` / `getArchiveSlice` fetchers, the same staged quick
+`getCharacterInspector` fetcher, the same staged quick
 edits (✕ a tag to stage its removal, click Resources or Tag points to stage a
 ± delta — which is why the player desk's `layout.js` loads this turn's
 unapplied `StagedEffect`s too), the same DM composer, the same
@@ -560,16 +560,47 @@ section can't fork the tab list or the tab-bar layout the way an extra tab
 could. The adjudication desk passes none.
 
 **`extraTabs` came back for exactly one thing, and it is not a regression of
-that argument.** `Scene` (`SceneTab.js`) is the live feed where the inspected
-character is standing — Chat's own `Feed` component, read-only, over that
-Location, its Rooms and its Conversations, on the same `/api/feed` stream and
-the same GM gate (`CHAT.md` §8). It is not a section above anything: there is
-no base tab it belongs over, it fetches nothing the shared fetchers know about,
-and it must NOT take a slot in the per-`(character, tab)` cache, because a
-stream cached for the life of the page view is a stream pointed at wherever
-somebody used to be. `extraTabs` is `{ [tabKey]: (ctx) => node }` like
-`tabPreludes`, appended after the base five, with `useInspectorData` skipped
-for it entirely.
+that argument.** `Notes` (§7) is not a section above anything: there is no base
+tab it belongs over, it fetches nothing the shared fetchers know about, and it
+must NOT take a slot in the per-`(character, tab)` cache, because it is keyed
+on the PLAYER — two characters on one account share one list, and a cache keyed
+on the character would hold two entries for it. `extraTabs` is
+`{ [tabKey]: (ctx) => node }` like `tabPreludes`, appended after the base five,
+with `useInspectorData` skipped for it entirely.
+
+`Scene` was the other one — Chat's `Feed`, read-only, over wherever the
+inspected character was standing. It was deleted along with `SceneTab.js` and
+`getCharacterScene` (`CHAT.md` §8).
+
+### 6a. The Archive tab reads /api/archive
+
+It used to have a server action of its own, `getArchiveSlice`: thirty rows,
+oldest at the top, a **Load older** button, and no way to sort or narrow. That
+was a worse copy of the `/archive` page sitting one directory over, so it was
+deleted and the tab became a client of the real thing.
+
+`web/lib/archiveQuery.js` already spoke `character`, `zone`, `day`, `q`, `show`
+and `order`, and `GET /api/archive` already paged them by keyset cursor — so
+the tab now builds a query with `archiveParamsToQuery` and scrolls it with
+`useArchiveScroll`, the IntersectionObserver hook lifted out of the `/archive`
+page so both surfaces scroll the same transcript through the same code.
+
+**A GM is never gated out of that route.** `web/lib/archiveAccess.js` shuts the
+current game's transcript until `GameState.archiveVisible`, but tests `!gm`
+first, so mid-game the tab works and the public page does not.
+
+Its defaults differ from the page's on purpose: **newest first** (`order=desc`,
+against the page's `asc`) because a GM opening somebody's transcript wants what
+just happened, and **Everything** (`show=all`, against the page's `speech`)
+because that is what this tab always showed.
+
+Filters are component state rather than the URL — a transcript view is worth
+linking to, an inspector tab is a lens over whoever is selected and has no
+shareable identity. The row list is **keyed on the query string**, so narrowing
+remounts it instead of appending new rows onto the old ones.
+
+One deliberate behaviour change: `archiveWhere` carries `deletedAt: null`, so
+a soft-deleted line no longer shows here. The old action had no such filter.
 
 **The caching story is the whole reason a prelude is not a tab.** A prelude
 owns its own fetching and its own freshness and takes **no** slot in the
@@ -613,8 +644,8 @@ two disconnected piles. `GmCharacterNote` was dropped unused
 (`20260913030000_drop_gm_character_note`, verified empty first); `AdminNote`
 replaces it and shares no code with it.
 
-It arrives through `extraTabs`, not `tabPreludes`, for Scene's two reasons
-(§6): there is no base tab it belongs above, and it must not take a slot in the
+It arrives through `extraTabs`, not `tabPreludes`, for two reasons (§6): there
+is no base tab it belongs above, and it must not take a slot in the
 per-`(character, tab)` cache — a cache keyed on the character would hold two
 entries for one player's one list, which could silently disagree. One
 component, `web/app/components/AdminNotes.js`, is also mounted as a tab of the
@@ -835,7 +866,6 @@ navigation. That hazard belongs to `router.refresh()`, which is
 | `conversation/ConversationPane.js` | Thread + composer, optimistic send |
 | `InspectorHost.js` | The shared inspector's player-desk half: derived selection, pins, the Canon prelude |
 | `components/InspectorColumn.js` | The shared inspector itself (ADJUDICATION.md §3) |
-| `SceneTab.js` | The **Scene** tab — Chat's `Feed`, read-only, on one place at a time through `/api/feed?place=` (CHAT.md §8) |
 | `CanonTab.js` | The "This turn" section — current Move, staged messages/effects, stage-a-DM box — rendered as the Moves tab's `tabPreludes` entry, refetched per mount |
 | `dmDraft.js` | The composer draft's `localStorage` key, shared with Canon |
 | `BulkComposer.js` / `BulkMessageButton.js` | The broadcast modal and its header door |

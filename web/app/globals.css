@@ -4772,6 +4772,48 @@ label.chip {
 
 /* A transcript row that opens ArchiveContextModal — full-width so the whole
    line is a click target, styled to disappear back into the row it wraps. */
+/* The Archive tab's own chrome. The tab pages /api/archive under these
+   filters (InspectorColumn.js), so the controls sit above a list that
+   remounts whenever one of them moves. Three short lines rather than one
+   row, because this column is 22rem and a segmented control does not
+   scroll the way .tab-bar does. */
+.desk-archive {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+/* Sticky against .desk-inspector-body, the scroll port: an endless list whose
+   filters scroll away leaves a GM ten screens down with no way to narrow
+   without going back up. Needs its own background or rows show through. */
+.desk-archive-filters {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.desk-archive-filter-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-2);
+}
+
+/* The scroll sentinel. It needs real height, or an empty element at the end
+   of the list can never intersect and the next screen is never asked for. */
+.desk-archive-more {
+  display: flex;
+  justify-content: center;
+  min-height: var(--sp-5);
+  align-items: center;
+}
+
 .desk-archive-row {
   display: block;
   width: 100%;

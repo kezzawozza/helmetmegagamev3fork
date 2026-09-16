@@ -180,7 +180,7 @@ DM, and a box to write back into.
 **It is not an archive place.** The whole feed pipeline — `placesFor`, the
 stream's catch-up, `history`, `say`, `feedStore`, the wipe floors — is keyed
 on `ArchiveEntry.seq`. A DM has no seq, must never appear in `/archive` or a
-GM's Scene tab, and must never be wiped by the turn. So Bascinet is a
+GM's transcript views, and must never be wiped by the turn. So Bascinet is a
 **pseudo-place**, the shape the faction banner already had: it is in the
 column and it round-trips through the hash (`#gm`, `DM_PLACE_KEY`), and what
 its row opens is a panel of its own, `DmPane.js`, rather than `Feed`.
@@ -394,10 +394,11 @@ selection.
 `GET /api/feed/places` answers the same list on its own, for a client that has
 reason to think it moved and no stream open to be told.
 
-**`?place=`** narrows a stream to one place. The GM desk's Scene tab (§8) is
-what asks: a GM's place list is every place in every zone they may see, and
-subscribing to hundreds of them to watch one room is silly. It narrows the
-subscription and nothing else — the place still has to be in `placesFor`.
+**`?place=`** narrows a stream to one place. The GM desk's Scene tab asked for
+it — a GM's place list is every place in every zone they may see, and
+subscribing to hundreds of them to watch one room is silly. That tab is gone
+(§8) and nothing asks today, but the narrowing still works and still proves
+nothing: the place has to be in `placesFor` either way.
 
 **Typing.** A third channel, `bascinet_typing`
 (`db/lib/typingNotify.js#notifyTyping`), carrying `{ placeKey, characterId }`
@@ -477,8 +478,7 @@ tab), ⌘K stops offering places and people, and the "Play on Discord too" switc
 is neither drawn nor honoured — except for a character not yet mirrored, who
 keeps it so they can still switch on if Discord is all that's left, and is
 otherwise **not** flipped: check `/gm/players` for who is still off Discord
-before turning Chat off. `/api/feed/*` stays up for the
-Scene tab. Since phase 2 it has **left PageShell**: Chat owns
+before turning Chat off. Since phase 2 it has **left PageShell**: Chat owns
 its whole screen the way the `(desk)` workspaces do, as the `.chat-*` family in
 `globals.css` — a `100dvh` column whose regions scroll inside it, because a
 chat that scrolled the document would drag the header off the top every time
@@ -1984,30 +1984,15 @@ a dot is "the newest seq here against the newest seq this browser saw here" and
 after a wipe there is no newest seq here until somebody speaks. No second pass,
 no `localStorage` to clear.
 
-## 8. The GM's Scene tab
+## 8. The GM's Scene tab (removed)
 
-The player desk's inspector (`PLAYER-DESK.md` §6) gains a **Scene** tab: what
-is being said where the inspected character is standing, live.
+There was a **Scene** tab on the player desk's inspector: Chat's own `Feed`,
+read-only, narrowed to wherever the inspected character was standing. It was
+deleted along with `SceneTab.js` and the `getCharacterScene` action behind it.
 
-It renders Chat's own `Feed`, not a GM-flavoured copy of it —
-`(desk)/gm/players/SceneTab.js` is a place picker, a stream and that component.
-The runs, the faces, the subtext, the tinted speech and the typing line all
-come out identically, which is the point: a GM reading a scene should be
-reading the player's page, not a transcript of it.
-
-Read-only twice over. `Feed`'s `readOnly` drops the composer, and the GM place
-list carries `canSpeak: false` on every entry anyway (§5a).
-
-`getCharacterScene({ characterId })` builds the list by asking
-`placesFor(prisma, null, { gm: true, discordUserId })` for the GM's **own**
-list and keeping the entries belonging to that character's Location — its
-Rooms and Conversations included. So a zone a GM's `GmZoneView` does not open
-has no scene in it, and the gate is the same one every request re-applies.
-
-It is the first thing to use `InspectorColumn`'s `extraTabs` — a whole tab
-rather than a `tabPreludes` section, because a prelude sits above a base tab's
-own body and this has no base tab to sit above, and because it is a live stream
-that must not take a slot in the shared per-(character, tab) fetch cache.
+`?place=` on the stream (§4) was built for it and is now unused. It is left in
+place — it is a working narrowing on a live endpoint, and removing it is a
+separate change from dropping the one caller.
 
 ## 9. The GM's right column
 

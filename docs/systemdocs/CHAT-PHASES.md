@@ -17,7 +17,7 @@ Every phase shipped, 2026-09-06. `CHAT.md` describes the whole of it: the one
 write path and the record (§2), conversation membership as a row (§2a),
 realtime including presence and typing (§3), the outbox (§4), the page and its
 access rules (§5, §5a–c), the "web only" switch (§6a), the Dawn watermark (§7)
-and the GM's Scene tab (§8).
+and the GM's Scene tab (§8, since removed).
 
 Three things were deferred on purpose rather than dropped. **Web Push** for
 mentions needs VAPID keys, a service worker and iOS install guidance, which is

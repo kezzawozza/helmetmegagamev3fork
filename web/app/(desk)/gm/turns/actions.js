@@ -1269,47 +1269,6 @@ async function getCharacterInspectorImpl({ characterId }) {
   };
 }
 
-const ARCHIVE_SLICE = 30;
-
-// Keyset-paged, same shape as getDmThreadPage: newest-first cursor, reversed
-// to reading order. ArchiveView's "Load older" bumps beforeMs/beforeId back.
-async function getArchiveSliceImpl({ characterId, beforeMs, beforeId }) {
-  await requireGm();
-  const where = { characterId: characterId ?? "" };
-  if (beforeMs) {
-    const beforeDate = new Date(Number(beforeMs));
-    where.OR = [
-      { sentAt: { lt: beforeDate } },
-      beforeId ? { sentAt: beforeDate, id: { lt: String(beforeId) } } : undefined,
-    ].filter(Boolean);
-  }
-  const rows = await prisma.archiveEntry.findMany({
-    where,
-    orderBy: [{ sentAt: "desc" }, { id: "desc" }],
-    take: ARCHIVE_SLICE + 1,
-  });
-  const hasMore = rows.length > ARCHIVE_SLICE;
-  // Wrapped in an object: guarded() spreads the payload, so a bare array
-  // would come back as indices.
-  return {
-    entries: rows
-      .slice(0, ARCHIVE_SLICE)
-      .reverse()
-      .map((e) => ({
-        id: e.id,
-        kind: e.kind,
-        content: e.content,
-        characterName: e.characterName,
-        concealedAlias: e.concealedAlias,
-        zoneName: e.zoneName,
-        turnNumber: e.turnNumber,
-        turnPhase: e.turnPhase,
-        sentAt: e.sentAt.toISOString(),
-      })),
-    hasMore,
-  };
-}
-
 // The Inspector's DMs tab uses web/app/(app)/gm/messages/actions.js
 // #getDmThreadPage and #sendGmDm directly, the same path /gm/messages uses.
 
@@ -1469,7 +1428,7 @@ async function getCharacterMoveHistoryImpl({ characterId }) {
     },
   });
 
-  // See getArchiveSliceImpl: guarded() spreads the payload.
+  // guarded() spreads the payload, so a bare array would come back as indices.
   return {
     rows: actions.map((a) => ({
       id: a.id,
@@ -1940,9 +1899,6 @@ export async function undoCavingFind(input) {
 }
 export async function getCharacterInspector(input) {
   return guarded(() => getCharacterInspectorImpl(input));
-}
-export async function getArchiveSlice(input) {
-  return guarded(() => getArchiveSliceImpl(input));
 }
 export async function getHeldTags(input) {
   return guarded(() => getHeldTagsImpl(input));
