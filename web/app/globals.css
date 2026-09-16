@@ -3615,14 +3615,65 @@ input[type="radio"]:disabled {
 
 /* ── Dev Character Panel (docs/systemdocs/DEV-PANEL.md) ─────────────────── */
 
-/* The derived-state readout under the header: a row of labeled clusters
-   (Identity/Economy/Turn/Discord — see .dev-state-group below), each of
-   which keeps its own auto-fill grid so its facts line up across wrapped
-   rows — a GM scans down one label, not across a ragged run of them. */
+/* A short run of label/value facts on one line — the Turn tab's Kind, Status,
+   Resources and Dice. The panel's own top-of-page readout used to be built out
+   of this too, fifteen facts deep and explaining none of them; it is a band of
+   .ledger-tile boxes now (DevBand.js), which is the same component the
+   player's sheet uses and can be opened for a sentence. */
 .dev-state-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem 1.5rem;
+}
+
+/* The three switches under the band: Play on Discord too, Concealed, Curse.
+   Not tiles — a tile opens on hover to say one thing, and these carry live
+   controls, which cannot live inside a <button> that is itself the control.
+   So they get their own row: state and verb on one line, the sentence that
+   explains them underneath, always visible. */
+/* The identity line: face, then name and where they stand. Not
+   .ledger-identity — that one carries `flex: 1 1 22rem` for the sheet's band,
+   where it sits in a flex ROW beside the tiles. Here the band is a column, so
+   the grow axis is vertical and it opened a hand's width of empty panel under
+   the name. */
+.dev-band-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* The band's tile row. Not .ledger-tiles: the player's sheet sits its five
+   tiles BESIDE the portrait and caps the row at 47rem, which fits five exactly
+   and leaves a hole at seven. Here the row has the panel to itself under the
+   identity line, so it just fills it. */
+.dev-band-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--sp-2);
+}
+
+.dev-switches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--sp-2);
+}
+
+.dev-switch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  background: var(--field-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  min-width: 0;
+}
+
+.dev-switch-note {
+  font-size: var(--fs-2xs);
+  line-height: 1.45;
+  color: var(--muted);
 }
 
 /* The action bar's clusters — Life, Body, Admin. A named group each, because
@@ -3654,31 +3705,6 @@ input[type="radio"]:disabled {
   z-index: 5;
   border-color: var(--accent);
   box-shadow: var(--e-3);
-}
-
-/* Each labeled cluster in the state strip (Identity/Economy/Turn/Discord).
-   The strip itself becomes a row of these; each keeps the strip's own
-   auto-fill grid for its own facts. A left rule (not a full box) separates
-   clusters without adding another bordered panel inside a panel. */
-.dev-state-group {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: 0.75rem 1rem;
-  padding-left: 0.75rem;
-  border-left: 1px solid var(--border);
-}
-
-.dev-state-group:first-child {
-  padding-left: 0;
-  border-left: none;
-}
-
-.dev-state-group-label {
-  grid-column: 1 / -1;
-  font-size: 0.6875rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--muted);
 }
 
 /* One row in the Dev Panel's Held section or catalog browser (TagEditor.js).

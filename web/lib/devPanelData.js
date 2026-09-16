@@ -1,4 +1,5 @@
-import { prisma, isDynastyMember, gambitModifierTotal } from "@lifeweb/db";
+import { prisma, isDynastyMember } from "@lifeweb/db";
+import { gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import { evaluateDesireCatalog, slotStates, desireSlotsNeverLock } from "@lifeweb/db/lib/desireGates";
 import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
 import { getGuildMember } from "@/lib/discordGuild";
@@ -271,6 +272,13 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     retired: t.retired,
   }));
 
+  // [{ label, value }] — what is weighing on their Gambit roll, named. Every
+  // caller must pass `mood`; a missed one reads undefined and lands in Fine.
+  const gambitParts = gambitModifiers(heldTags, {
+    hungerStreak: character.hungerStreak,
+    mood: character.mood,
+  });
+
   return {
     character: {
       id: character.id,
@@ -395,7 +403,12 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     startingTagPoints: config?.startingTagPoints ?? 12,
     openTurn: openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null,
-    gambitModifier: gambitModifierTotal(heldTags, { hungerStreak: character.hungerStreak, mood: character.mood }),
+    // The parts, not just the total: the band's Gambit tile opens to say WHICH
+    // modifiers, the way the player's own sheet does. Summed here rather than
+    // calling gambitModifierTotal beside it — two calls to the same module is
+    // two chances for the number and its explanation to disagree.
+    gambitModifier: gambitParts.reduce((sum, m) => sum + m.value, 0),
+    gambitParts,
     stagedForPush,
     openTurnAction: openTurnAction
       ? {

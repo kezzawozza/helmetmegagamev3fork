@@ -22,22 +22,21 @@ design:
 
 | | Staged | Immediate |
 |---|---|---|
-| What | Values — every editable column | Verbs — kill, revive, restore/spend turn, message, resync, delete — **and every tag change** |
+| What | Values — every editable column | Verbs — kill, revive, restore/spend turn, message, teleport, transfer, delete — **and every tag change** |
 | When | On **Apply** | The moment it's confirmed |
 | Undo | **Cancel** discards the lot | Its own inverse, if it has one |
 | Audit | One row for the whole Apply | One row each |
-| DM | Only if something changed | Every verb but Resync and Delete |
+| DM | Only if something changed | Every verb but Delete |
 
-**Every microaction but Resync and Delete tells the player.** A dev-panel edit
+**Every microaction but Delete tells the player.** A dev-panel edit
 is still a thing that happened to their character — `notifyCharacter()` in
 `actions.js` sends a plain DM (not a Request; nothing here rides the Request
 lifecycle) from `after()`, post-commit, same posture as the Discord-sync steps.
 It's a thin `source: "gm_dev"` wrapper around the shared
 `web/lib/notifyCharacter.js`, the same notifier every player-to-player
 Request uses (`REQUESTS.md`) — one DM helper, one posture, everywhere a
-player's sheet changes because of someone else's action. Resync is invisible
-plumbing with nothing to report; a deleted character has no row left to DM
-about. Apply summarises whatever actually changed (tags gained/lost,
+player's sheet changes because of someone else's action. A deleted character
+has no row left to DM about. Apply summarises whatever actually changed (tags gained/lost,
 resources, zone, name) rather than restating the whole diff. Kill is the one
 exception: it doesn't call `notifyCharacter` at all, because
 `killCharacter()` sends the death DM itself (`REQUESTS.md`) — a second one
@@ -76,36 +75,63 @@ can't disagree about what an affliction is.
 
 ## 3. Layout
 
-- **State strip** — the derived facts a GM wants before touching anything,
-  grouped into four labeled clusters (Identity, Economy, Turn, Discord)
-  rather than one undifferentiated grid. Economy is where the ones that exist
-  nowhere as a column live: points spent, equipment slots used, the gambit
-  modifier. Discord carries the live guild state (username, nickname,
-  Cursed, whether the personal role exists).
+- **The band** (`DevBand.js`) — who this is, then the derived facts a GM wants
+  before touching anything. It is built out of **`LedgerTile`**, the same box
+  the player's own sheet uses: a tile swaps its face for a sentence on hover,
+  focus or tap, inside the same height, and one open slot for the whole band
+  means two are never open at once. That component lived inside
+  `LedgerBand.js` until this panel wanted it; it is `web/app/components/` now,
+  and both surfaces import it.
 
-  Identity also carries the **two switches on `/character`** — `Play from the
-  web` and `Concealed` — which had no GM surface anywhere until they were put
-  here, though `CHAT.md` §6a tells a GM to look for web-only players before
-  turning Chat off. `Concealed` reads the resolved answer, not the column:
-  `Character.concealed` is only a wish and takes effect solely while something
-  concealing is equipped, so the strip says **On, but nothing worn** for the
-  state that reads to a player as "my hood does not work". The resolution
-  happens in `web/lib/devPanelData.js`, through `presentedIdentity` — the same
-  function every send path asks — rather than being restated on the client.
-  `Play on Discord too` is no longer read-only: a Turn on/off control next to
-  the readout calls `setCharacterMirroring`, which bypasses only the switch's
-  own 2-hour cooldown, for a player stuck off Discord with no way to flip it
-  back themselves.
-- **Action bar** — `IconButton`s over `.icon-btn`, in three clusters
-  separated by `.dev-bar-sep`: life & turn · staging · repair. A destructive
-  verb never sits flush against a harmless one.
+  That matters more here than it does on the sheet. The band used to be
+  fifteen bare label/value pairs in four labeled clusters, and a GM reading
+  `3 / 12 pts` off one had no way to ask what it meant. Every tile now says
+  what it is and where it is edited: **Resources**, **Tag points**, **Mood**
+  (the band word, with the dial's number in the detail), **Gambit die** (which
+  modifiers, from `gambitParts` — the parts, not a second opinion about the
+  total), **Equipped**, **Drawbacks** and **This turn**.
+
+  Under the tiles sit the **three answers that are not columns on the form**,
+  as `.dev-switch` boxes — state and verb on one line, the sentence that
+  explains them always visible underneath. A tile could not hold these: it
+  opens on hover to say one thing, and a live control cannot live inside a
+  `<button>` that is itself the control.
+
+  - `Play on Discord too` calls `setCharacterMirroring`, bypassing only the
+    switch's own 2-hour cooldown, for a player stuck off Discord with no way
+    to flip it back themselves.
+  - `Concealed` reads the resolved answer, not the column:
+    `Character.concealed` is only a wish and takes effect solely while
+    something concealing is equipped, so it says **On, but nothing worn** for
+    the state that reads to a player as "my hood does not work". The
+    resolution happens in `web/lib/devPanelData.js`, through
+    `presentedIdentity` — the same function every send path asks — rather than
+    being restated on the client.
+  - `Curse` is **Lift it** / **Curse them**, plus **Back to automatic** while a
+    GM's answer is forced. Same three states as ever (`db/lib/curse.js`: null
+    lets the rule decide, true and false overrule it and stay overruled) — but
+    the commonest thing a GM wants, lifting a curse off somebody who has earned
+    their way out of it, used to be one option in a `<select>` reading
+    "Automatic / Cursed / Not cursed" in the middle of a grid of read-only
+    facts, which is a fair description of a control nobody found. Lifting asks
+    first; it writes `Character.cursedOverride` and never `buriedAt`, since
+    stamping that would also take the body out of the world.
+- **Action bar** — `IconButton`s over `.icon-btn`, in named clusters: Life ·
+  Turn · Reach · Body · Admin. A destructive verb never sits flush against a
+  harmless one, and **Admin draws only for a superadmin** — Delete is all that
+  is left in it, so a plain GM would otherwise get an empty labelled group.
+
+  **Two buttons were removed.** The eye linked to `/character`, the signed-in
+  GM's own sheet rather than this character's. **Re-push Discord** re-sent the
+  role, the nickname and the channel overwrites a character should already
+  have, which is what `db:mirror` and the channel doctor do on every bot start
+  anyway — so it could only ever confirm that nothing was wrong.
 - **Tabs** — Identity · Tags · Turn · Goals · Record, on the existing
   `.tab-bar` / `.tab-item` classes. Identity's place field is a **Zone**
   select, listing presence zones only (the Caves group is a container, not a
   place); Apply swaps the zone's Discord role, and the empty option is a real
-  choice meaning "nowhere, and no zone channel access". The state strip's
-  Identity cluster shows `Zone` for the same reason — there is no Location to
-  show.
+  choice meaning "nowhere, and no zone channel access". The band's identity
+  line shows the zone for the same reason — there is no Location to show.
 - **Apply bar** — `.dev-apply-bar`, sticky at the bottom, and rendered **only
   when something is pending**, so the panel reads as a viewer until it isn't
   one. Sticky rather than fixed so it stays in the page column and can't cover
@@ -528,7 +554,7 @@ its own fetch, so the round trip overlaps the mount rather than following it.
 `reload()` (the `onMutated` path) drops the map entry first — a microaction
 just changed the sheet, so any parked promise is stale by definition.
 
-A microaction's refresh (Kill, Revive, resync, the staging buttons…) flows
+A microaction's refresh (Kill, Revive, Teleport, a tag gesture…) flows
 through an `onMutated` prop rather than a bare `router.refresh()`: in the
 modal it re-fetches `getDevPanelData` (so the open panel repaints) and also
 calls `router.refresh()` (so the desk's own queue rows and staged hints
