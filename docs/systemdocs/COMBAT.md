@@ -412,15 +412,48 @@ everybody in the room, on every page load.
 not what a person is, and that is why it is safe on a chip: the tags carrying a
 real shift are invisible to strangers in the first place.
 
-**GMs see everything**, on the inspector's Sheet tab, directly above the Armor
-fact — one edit in `InspectorColumn.js` that serves both `/gm/turns` and
-`/gm/players`, since both desks mount the same inspector. Deciding how a fight
-goes is the job the number is withheld from players for.
+**GMs see everything**, on the inspector's Sheet tab — and they read the same
+tile the player does, not a summary of it. It serves `/gm/turns`,
+`/gm/players` and `/gm/oracle` at once, since all three mount the same
+inspector, and the Move desk carries a copy. Deciding how a fight goes is the
+job the number is withheld from players for.
+
+It was two flat strings for a while — `"Melee: Seasoned | Ranged: Weak — 2
+situational"` over `"Melee: Good | Ballistic: Meager"` — which told a GM the
+answer and not one word of the working. Finding out *why* meant opening the
+Tags list and adding tiers up by hand, which is the exact arithmetic
+`fightingSkill.js` exists to have already done.
+
+**The GM's breakdown names the armour; the player's does not.** Armour never
+enters the fighting arithmetic (§2), so a line about it inside the band's own
+breakdown reads as though it does — which is why the sheet still has none. A
+GM is asking the other question, though: not how hard this person hits but
+what is turning the blow aside. So the GM surfaces pass `showArmorPieces` and
+get a line per dimension naming each worn piece and the word it earns
+**alone** — never a share of the combined value, because the stacking is
+multiplicative (`armorValue.js#combineArmor`) and there is no honest way to
+split it.
 
 ## 6. The surfaces
 
-- **`web/app/components/LedgerBand.js`** — the Combat readout, in the **band
-  row** beside This turn and Turn Effects rather than in the tile row. That
+- **`web/app/components/CombatReadout.js`** — THE Combat readout. One
+  component, every surface: the player's own sheet, the GM inspector's Sheet
+  tab, and the Move desk. It takes held tag rows and derives the rest itself,
+  so no surface can arrive at a second opinion about somebody's band — which
+  is exactly how the desk's old one-line version drifted.
+
+  **The rows it is handed must carry `equipped`.** Both `fightingSkill` and
+  `combineArmor` read a *missing* flag as equipped — deliberate latitude, so a
+  bare `Tag[]` still resolves — so a caller that drops the column does not
+  fail, it silently counts every sword in a sack and every breastplate in a
+  cart. `web/lib/moveRows.js` did exactly that until the Move desk started
+  drawing this.
+
+  The swap-in-place behaviour it wears is `web/app/components/DetailTile.js`,
+  lifted out of `LedgerBand.js` for the same reason: a second hand-rolled
+  hover panel on the desk would have drifted from this one immediately.
+- **`web/app/components/LedgerBand.js`** — where the player meets it, in the
+  **band row** beside This turn and Turn Effects rather than in the tile row. That
   row's `max-width` fits exactly five tiles and a sixth needs 856px; putting
   Combat there broke a line that had never wrapped.
 
@@ -440,7 +473,12 @@ goes is the job the number is withheld from players for.
   and RANGED as full-width stacked rows. Sized by the resting face, so opening
   it moves nothing. **Not a tooltip** — `SHEET.md` §3 is the rule for that
   surface, and swapping in place is what keeps it.
-- **`web/app/components/InspectorColumn.js`** — the GM's Fighting fact.
+- **`web/app/components/InspectorColumn.js`** — the GM's copy, under the Sheet
+  tab's facts, with the armour pieces.
+- **`web/app/(desk)/gm/turns/MoveDesk.js`** — the same tile in the arbitration
+  panel's header. How hard does this person hit and what happens when they are
+  hit are the two questions a ruling opens with, and answering them used to
+  mean leaving the Move for the right-hand rail.
 - **`web/app/components/TagDetails.js`** — one tag's own "In a fight" line.
 
 **A maiming costs more than tiers.** Missing Arm, Mangled Hand and Missing

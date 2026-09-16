@@ -18,6 +18,8 @@ const {
   partyOf,
   createEscortOffer,
 } = require("@lifeweb/db/lib/escort");
+const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
+const { walkWithinZone } = require("@lifeweb/db/lib/locationWalk");
 const { stowedMounts } = require("@lifeweb/db/lib/mounts");
 const { applyLocationMoveSideEffects } = require("@lifeweb/db/lib/locationMove");
 const { putChannelOverwrite } = require("@lifeweb/db/lib/discordRest");
@@ -59,26 +61,41 @@ function listNames(names) {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-// `from` null means first placement (arrival, not travel, costs nothing). The description is the
-// cost model in one line: a step inside the zone is free on a cooldown, an edge that leaves it spends the Move.
-function buildLocationSelectRow(locations, from) {
-  const shown = locations.slice(0, MENU_OPTION_LIMIT);
+// `entries` are { location, hops, through } — `hops` null for somewhere next
+// door, a number for somewhere farther in the same zone the character already
+// knows and could walk to (MAP.md §3c). `from` null means first placement
+// (arrival, not travel, costs nothing).
+//
+// Discord select menus have no option GROUPS, so the grouping here is the order
+// the caller hands them in plus this description line, which is the whole cost
+// model in one sentence: a step inside the zone is free on a cooldown, a walk is
+// several of those, an edge that leaves the zone spends the Move.
+function buildLocationSelectRow(entries, from) {
+  const shown = entries.slice(0, MENU_OPTION_LIMIT);
   const menu = new StringSelectMenuBuilder()
     .setCustomId(PICK_ID)
     .setPlaceholder("Choose where to go…")
     .addOptions(
-      shown.map((location) => ({
+      shown.map(({ location, hops, through }) => ({
         label: location.name.slice(0, 100),
         value: location.id,
-        description: (from
-          ? location.zoneId === from.zoneId
-            ? "Same zone"
-            : `Into ${location.zone?.name ?? "another zone"} — free, or costs a Move`
-          : `${location.zone?.name ?? "Somewhere"}`
-        ).slice(0, 100),
+        description: describeDestination(location, from, hops, through).slice(0, 100),
       })),
     );
   return new ActionRowBuilder().addComponents(menu);
+}
+
+// One line under a destination's name. Naming the first stop on a walk where it
+// fits, because which way you are about to go is the thing worth knowing.
+function describeDestination(location, from, hops, through) {
+  if (!from) return location.zone?.name ?? "Somewhere";
+  if (hops) {
+    const far = `${hops} hops`;
+    const first = through?.[0];
+    return first && `${far} — through ${first}`.length <= 100 ? `${far} — through ${first}` : `${far} away`;
+  }
+  if (location.zoneId === from.zoneId) return "Same zone";
+  return `Into ${location.zone?.name ?? "another zone"} — free, or costs a Move`;
 }
 
 // Who you are taking with you — the Discord twin of the party rack on /chat. Null when nobody can
@@ -175,8 +192,22 @@ function buildConfirmRow(locationId, { exert = false, go = true } = {}) {
 // swap must not make a committed move look refused. The channel doctor
 // reconciles whatever a miss here leaves.
 async function performMove(character, targetLocation, { exert = false } = {}) {
-  const result = await performLocationMove(prisma, character, targetLocation, { exert });
+  // Next door, or a walk of several hops across this zone (MAP.md §3c)? The
+  // route is worked out server-side from the id that came back on the select;
+  // nothing about the road is posted from Discord. `exert` means nothing on a
+  // walk, which never crosses a zone.
+  const adjacentLink = character.locationId
+    ? await linkBetween(prisma, character.locationId, targetLocation.id)
+    : null;
+  const walking = Boolean(character.locationId) && !adjacentLink;
+
+  const result = walking
+    ? await walkWithinZone(prisma, character, targetLocation)
+    : await performLocationMove(prisma, character, targetLocation, { exert });
   if (!result.ok) return result;
+
+  // Where they ACTUALLY got to — a walk can be stopped on the road.
+  const landed = result.arrivedAt ?? targetLocation;
 
   // Followers the way wouldn't take, already detached. The leader's message must not say WHY —
   // naming a hidden crawl's refusal would announce that the crawl is there (MAP.md §2a).
@@ -202,23 +233,29 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
   }
 
   // Sequential: firing a whole dragged party's REST calls at once trips the invalid-response breaker (db/lib/discordRest.js).
-  for (const entry of result.moved) {
-    await applyLocationMoveSideEffects(prisma, {
-      characterId: entry.character.id,
-      fromLocationId: entry.fromLocationId,
-      toLocationId: entry.toLocationId,
-      dismounted: entry.character.id === character.id ? result.dismounted : undefined, // mover only, never a dragged passenger's
-      walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js) — a dragged passenger walked too
-    }).catch((err) =>
-      console.error(`Move side effects failed for ${entry.character.name}:`, err.message ?? err),
-    );
+  // SKIPPED on a walk: locationWalk.js already ran this once per hop, and
+  // running it again over the merged list would fire every turret a second time
+  // and re-roll every Caving Die (MAP.md §3c).
+  if (!result.sideEffectsApplied) {
+    for (const entry of result.moved) {
+      await applyLocationMoveSideEffects(prisma, {
+        characterId: entry.character.id,
+        fromLocationId: entry.fromLocationId,
+        toLocationId: entry.toLocationId,
+        dismounted: entry.character.id === character.id ? result.dismounted : undefined, // mover only, never a dragged passenger's
+        walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js) — a dragged passenger walked too
+      }).catch((err) =>
+        console.error(`Move side effects failed for ${entry.character.name}:`, err.message ?? err),
+      );
+    }
   }
 
   // Caving Die "on arrival" trigger (db/lib/locationTravel.js, CAVING.md). Null off a cave level.
-  for (const entry of result.moved) {
-    if (!entry.cavingDm) continue;
-    await sendDm(prisma, entry.cavingDm.discordUserId, entry.cavingDm.content).catch((err) =>
-      console.error(`Caving arrival DM to ${entry.cavingDm.discordUserId} failed:`, err.message ?? err),
+  // A walk gathered one per hop and hands them over already collected.
+  const cavingDms = result.cavingDms ?? result.moved.map((entry) => entry.cavingDm).filter(Boolean);
+  for (const dm of cavingDms) {
+    await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+      console.error(`Caving arrival DM to ${dm.discordUserId} failed:`, err.message ?? err),
     );
   }
 
@@ -240,7 +277,7 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
     await sendDm(
       prisma,
       entry.character.discordUserId,
-      `*${character.name} brought you along to ${targetLocation.name}.*`,
+      `*${character.name} brought you along to ${landed.name}.*`,
       { kind: DM_KIND.QUIET },
     ).catch((err) =>
       console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),

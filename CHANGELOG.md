@@ -6,6 +6,37 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · A rejected portrait says less
+
+✎ The DM a player gets when a gamemaster turns down their portrait is one short line now, instead of a paragraph telling them to go and find a gamemaster
+
+## 2026-09-16 · Armor nerfed across the board; Overkill takes a full kit now
+
+✎ Every piece of armour in the game stops about a tenth less than it did  
+− Heavy Infantry Armor reaching Overkill on its own — it is Strong now, and so is a bulletproof vest paired with a helmet  
+✎ Heavy Infantry and the two Tribunal helmets took a deeper cut than the rest  
+✎ Overkill still exists: it takes both body layers together, a genuine full kit, or the Ordinator's Cataphract  
+✎ The Depot turret is correspondingly deadlier against anything less than a full kit
+
+## 2026-09-16 · Walking across a zone
+
+✚ Pick somewhere farther in your own zone and the game walks you there hop by hop — double-click it on the map, press Enter, or click it and press Go  
+✎ It is not a teleport: every step is a real move, so turrets, ambushes, gate lines, arrival moods and the Caving Die all happen at every stop on the road  
+✎ Stopped on the way? You keep the ground you covered, and you are told how far you got  
+✎ Only inside one zone, never across one, and only through places the character already knows
+
+## 2026-09-16 · The gamemaster reads the same Combat tile a player does
+
+✎ Fixed: the Move desk counted a stowed sword or a breastplate in a cart toward how good somebody is in a fight  
+✎ Gamemasters read a character's fighting band with its full breakdown now, not just the answer  
+✎ The gamemaster's breakdown also names each piece of armour someone is wearing, which the player's does not  
+✎ A character's tags on the gamemaster desk are sorted into the same cards the character sheet uses, with a filter box  
+✚ The combat readout on the arbitration panel, so a ruling no longer starts by leaving the Move
+
+## 2026-09-16 · The Scholastic actually starts with Research
+
+✎ Their role description always promised it, but the tag was never in their starting kit, so nobody could use the Cathedral archives
+
 ## 2026-09-16 · Nobody works themselves to exhaustion by accident
 
 ✎ The automatic day's work now stops once a character is Tired, instead of pushing on into Exhausted  

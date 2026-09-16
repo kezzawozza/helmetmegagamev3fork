@@ -20,7 +20,9 @@ import { whosHere, whosHereGm, resolveHoodToken } from "@lifeweb/db/lib/whosHere
 import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
-import { travelOptions, linksFor, endpoints, isHeldOpen } from "@lifeweb/db/lib/locationGraph";
+import { travelOptions, linksFor, endpoints, isHeldOpen, linkBetween, routesWithinZone } from "@lifeweb/db/lib/locationGraph";
+import { knownLocations } from "@lifeweb/db/lib/locationVisits";
+import { walkWithinZone } from "@lifeweb/db/lib/locationWalk";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { structuresAt } from "@lifeweb/db/lib/structures";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
@@ -423,10 +425,16 @@ export async function loadTravel() {
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  const { seen } = await knownLocations(prisma, character.id);
+  // Everywhere farther in their own zone they could walk to (MAP.md §3c). Kept
+  // OUT of `options` on purpose: that grid means "doors out of this room", and
+  // folding a three-hop walk into it would make the panel lie about what is
+  // next door.
+  const routes = await routesWithinZone(prisma, character, { known: seen });
   const [options, party, currentZone, action] = await Promise.all([
     travelOptions(prisma, character, character.locationId),
     partyOf(prisma, character.id),
-    character.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } }) : null,
+    character.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true, name: true } }) : null,
     // Whether the Move is spent — a push on is only offered after it is
     // (MAP.md §3). The same read the sheet's hasMoved makes.
     openTurn
@@ -451,6 +459,21 @@ export async function loadTravel() {
     // The Move already spent this turn: Go leaves the strip and the push on
     // is the only way across a zone with no travel left (MAP.md §3).
     moved: acted,
+    // The zone they are standing in, for the heading over the walks.
+    zoneName: currentZone?.name ?? null,
+    // More than one hop only — a neighbour is already a way out above, and
+    // listing it twice would read as two different journeys to one place.
+    walks: routes
+      .filter((row) => row.hops > 1)
+      .map((row) => ({
+        id: row.location.id,
+        name: row.location.name,
+        description: row.location.description || null,
+        hops: row.hops,
+        through: row.path.slice(0, -1).map((l) => l.name),
+        dismounts: row.dismounts,
+        indoors: parksMounts(row.location),
+      })),
     options: options.map((row) => {
       // Which way the push on's die leans for this character, said before
       // they commit (MAP.md §3). Null when it doesn't.
@@ -645,10 +668,21 @@ export async function travelTo({ locationId, exert = false } = {}) {
   const target = await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } });
   if (!target) return { ok: false, error: "That place no longer exists." };
 
+  // Adjacent, or a walk of several hops across this zone (MAP.md §3c)? The
+  // ROUTE IS RESOLVED SERVER-SIDE from the posted id and is never accepted from
+  // the browser — same reasoning that keeps the escort party out of the mover's
+  // parameters. `exert` means nothing on a walk: it never crosses a zone.
+  const adjacentLink = me.character.locationId
+    ? await linkBetween(prisma, me.character.locationId, target.id)
+    : null;
+  const walking = Boolean(me.character.locationId) && !adjacentLink;
+
   // Who comes along is read off Character.escortedById inside the move's own
   // transaction — nothing is posted from the browser, so there is nothing to
   // re-authorize here (MAP.md §3a).
-  const result = await performLocationMove(prisma, me.character, target, { exert: exert === true });
+  const result = walking
+    ? await walkWithinZone(prisma, me.character, target)
+    : await performLocationMove(prisma, me.character, target, { exert: exert === true });
   if (!result.ok) return { ok: false, error: result.reason };
 
   // Followers the way would not take, already detached. The leader's line
@@ -663,19 +697,26 @@ export async function travelTo({ locationId, exert = false } = {}) {
   }
 
   // Sequential on purpose: firing a whole dragged party's worth at once trips the invalid-response breaker (db/lib/discordRest.js).
-  for (const entry of result.moved) {
-    await applyLocationMoveSideEffects(prisma, {
-      characterId: entry.character.id,
-      fromLocationId: entry.fromLocationId,
-      toLocationId: entry.toLocationId,
-      // Only ever the mover's own mount.
-      dismounted: entry.character.id === me.character.id ? result.dismounted : undefined,
-      walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js) — a dragged passenger walked too
-    }).catch(() => {});
+  // SKIPPED for a walk: locationWalk.js already ran this per hop, and running it
+  // again over the merged list would fire every turret twice and re-roll every
+  // Caving Die (MAP.md §3c).
+  if (!result.sideEffectsApplied) {
+    for (const entry of result.moved) {
+      await applyLocationMoveSideEffects(prisma, {
+        characterId: entry.character.id,
+        fromLocationId: entry.fromLocationId,
+        toLocationId: entry.toLocationId,
+        // Only ever the mover's own mount.
+        dismounted: entry.character.id === me.character.id ? result.dismounted : undefined,
+        walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js) — a dragged passenger walked too
+      }).catch(() => {});
+    }
   }
-  // The Caving Die's "on arrival" trigger (CAVING.md).
-  for (const entry of result.moved) {
-    if (entry.cavingDm) await sendDm(entry.cavingDm.discordUserId, entry.cavingDm.content).catch(() => {});
+  // The Caving Die's "on arrival" trigger (CAVING.md). A walk collected one per
+  // hop, so it hands them over already gathered.
+  const cavingDms = result.cavingDms ?? result.moved.map((entry) => entry.cavingDm).filter(Boolean);
+  for (const dm of cavingDms) {
+    await sendDm(dm.discordUserId, dm.content).catch(() => {});
   }
   // Anybody laying in wait here (INTERCEPT.md), built inside performLocationMove.
   for (const dm of result.interceptDms ?? []) {
@@ -688,6 +729,12 @@ export async function travelTo({ locationId, exert = false } = {}) {
       allowedMentions: { parse: [] },
     }).catch(() => {});
   }
+  // Where they ACTUALLY got to, which on a walk is not always where they meant
+  // to go — an ambush, a gate shut behind somebody, a gun at the Depot. The
+  // ground they covered is real and they are standing on it, so every line
+  // below names this rather than the destination they picked.
+  const landed = result.arrivedAt ?? target;
+
   const brought = [];
   for (const entry of result.moved) {
     if (entry.character.id === me.character.id) continue;
@@ -695,11 +742,18 @@ export async function travelTo({ locationId, exert = false } = {}) {
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
     await sendDm(
       entry.character.discordUserId,
-      `*${me.character.name} brought you along to ${target.name}.*`,
+      `*${me.character.name} brought you along to ${landed.name}.*`,
     ).catch(() => {});
   }
 
-  const parts = [`Moved to ${target.name}.`];
+  const parts = [
+    walking && result.complete === false
+      ? `You got as far as ${landed.name}.`
+      : `Moved to ${landed.name}.`,
+  ];
+  // Always the mover's own sentence, never one written here — that is what
+  // keeps a hidden crawl's refusal identical to a nonexistent edge's (§2a).
+  if (result.stoppedBy?.reason) parts.push(result.stoppedBy.reason);
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0

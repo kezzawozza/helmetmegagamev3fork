@@ -229,12 +229,189 @@ async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS, { thro
   return out;
 }
 
+// ------------------------------------------------- walking across a zone
+
+// How many hops a walk may be. A safety rail, not a game rule: zones hold well
+// under a dozen Locations, so the BFS is naturally bounded, and this only stops
+// a mistake in the graph turning into a thirty-hop run of Discord calls.
+const WALK_HOPS = 8;
+
+// One sentence for every "there is no walk there", whatever the reason — the
+// place is unknown, it is in another zone, the only way is a hidden crawl, or a
+// gate is shut across the middle of it. Same discipline as crossingCheck's
+// hidden branch (MAP.md §2a): a refusal that read differently for a hidden way
+// would announce the way is there.
+const NO_WALK = "You don't know a way there.";
+
+// Every place this character could WALK to inside their own zone: the shortest
+// known, passable route to each, origin excluded from the path and destination
+// last. The second multi-hop question in this file, and allowed here for the
+// same reason soundRange is — nothing outside this module may read LocationLink.
+//
+// `known` is the character's FOG, handed in rather than read. That is
+// mandatory, not a style: db/lib/locationVisits.js already requires this module,
+// so requiring it back would close a cycle and resolve to a half-built exports
+// object at require time. Callers pass knownLocations(...).seen — `seen` and not
+// `stood`, because web/app/(app)/map/actions.js already draws the board off
+// `seen`, and a finder using the narrower set would refuse a rhombus the player
+// can see for a reason they cannot.
+//
+// Nothing here re-derives a gate: every edge is judged by crossingCheck, the
+// very verdict performLocationMove reaches again per hop. The hold and the
+// Caving Die are deliberately NOT asked — the mover asks them, in its own words,
+// at the hop that meets them, and a copy here would be a second rule to keep in
+// agreement.
+async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS } = {}) {
+  const from = character?.locationId ?? null;
+  const zoneId = character?.zoneId ?? null;
+  if (!from || !zoneId) return [];
+
+  const knownIds = known instanceof Set ? known : new Set(known ?? []);
+
+  const [links, locations] = await Promise.all([
+    prisma.locationLink.findMany({
+      // Exactly what crossingCheck and isHeldOpen read, plus the endpoints.
+      select: {
+        id: true,
+        aId: true,
+        bId: true,
+        hidden: true,
+        requiredTagSlug: true,
+        modular: true,
+        isOpen: true,
+        keyed: true,
+        onFoot: true,
+        openUntil: true,
+      },
+    }),
+    // The same-zone rule falls out of this WHERE rather than being re-checked
+    // per node, so a route can never leave the zone and come back through a
+    // Location nobody looked at.
+    prisma.location.findMany({
+      where: { zoneId, retiredAt: null },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        sortOrder: true,
+        indoors: true,
+        attributes: true,
+        zoneId: true,
+        zone: { select: { id: true, name: true, slug: true, kind: true, sortOrder: true } },
+      },
+    }),
+  ]);
+
+  const byId = new Map(locations.map((loc) => [loc.id, loc]));
+  // Standing here counts whether or not a visit row says so — you are looking
+  // at the place. Everywhere else has to be somewhere they already know.
+  const usable = (id) => byId.has(id) && (id === from || knownIds.has(id));
+  if (!usable(from)) return [];
+
+  // Equip-shaped, not the flat set: heldTagSlugs returns bare slugs and a stowed
+  // horse would read as one you are riding (MAP.md §2c).
+  const tags =
+    character?.tags ??
+    (character?.id
+      ? await prisma.characterTag.findMany({
+          where: { characterId: character.id },
+          select: { equipped: true, tag: { select: { slug: true } } },
+        })
+      : []);
+  const tagSlugs = new Set(tags.map((ct) => ct.tag?.slug).filter(Boolean));
+  const onFootBlocked = blocksOnFoot(equippedSlugs(tags));
+  // One clock for the whole traversal, the way resolveNeighbors takes one, so a
+  // propped keyed way cannot lapse halfway down the search and be both open and
+  // shut in a single route.
+  const now = new Date();
+
+  const slugOf = (id) => byId.get(id)?.slug ?? "";
+  const adjacency = new Map();
+  const join = (a, b, verdict) => {
+    if (!adjacency.has(a)) adjacency.set(a, []);
+    adjacency.get(a).push({ id: b, dismounts: Boolean(verdict.dismounts) });
+  };
+  for (const link of links) {
+    if (!usable(link.aId) || !usable(link.bId)) continue;
+    const verdict = crossingCheck(link, { tagSlugs, onFootBlocked, now });
+    if (!verdict.passable) continue;
+    join(link.aId, link.bId, verdict);
+    join(link.bId, link.aId, verdict);
+  }
+  // Sorted by slug so two equally short roads always resolve to the same one —
+  // soundRange's reason, sharper here: the surface that SHOWS the route and the
+  // walk that takes it must agree, or somebody is shot by a turret they were
+  // never told they would pass.
+  for (const [, list] of adjacency) {
+    list.sort((x, y) => slugOf(x.id).localeCompare(slugOf(y.id)));
+  }
+
+  const prev = new Map();
+  const dismountBy = new Map([[from, false]]);
+  const claimed = new Set([from]);
+  const found = [];
+  let frontier = [from];
+
+  for (let hops = 1; hops <= maxHops && frontier.length > 0; hops += 1) {
+    const next = [];
+    for (const nodeId of frontier) {
+      for (const neighbor of adjacency.get(nodeId) ?? []) {
+        if (claimed.has(neighbor.id)) continue;
+        claimed.add(neighbor.id);
+        prev.set(neighbor.id, nodeId);
+        // Sticky: a route that took your horse off you at hop 2 is still a
+        // route you finish on foot.
+        dismountBy.set(neighbor.id, Boolean(dismountBy.get(nodeId)) || neighbor.dismounts);
+        next.push(neighbor.id);
+        found.push({ id: neighbor.id, hops });
+      }
+    }
+    // The next level is walked in slug order too, so which node claims a
+    // contested neighbour never depends on the order rows came back in.
+    next.sort((x, y) => slugOf(x).localeCompare(slugOf(y)));
+    frontier = next;
+  }
+
+  const pathTo = (id) => {
+    const steps = [];
+    for (let at = id; at && at !== from; at = prev.get(at)) steps.unshift(byId.get(at));
+    return steps;
+  };
+
+  return found
+    .map((row) => ({
+      location: byId.get(row.id),
+      hops: row.hops,
+      path: pathTo(row.id),
+      dismounts: Boolean(dismountBy.get(row.id)),
+    }))
+    .sort((x, y) => x.hops - y.hops || x.location.slug.localeCompare(y.location.slug));
+}
+
+// The one route to one place, for the mover. A lookup over the same BFS rather
+// than a second traversal, so what a picker showed and what the walk takes can
+// never be different roads.
+async function pathWithinZone(prisma, character, targetLocationId, { known } = {}) {
+  if (!targetLocationId || targetLocationId === character?.locationId) {
+    return { ok: false, reason: NO_WALK };
+  }
+  const routes = await routesWithinZone(prisma, character, { known });
+  const hit = routes.find((row) => row.location.id === targetLocationId);
+  if (!hit) return { ok: false, reason: NO_WALK };
+  return { ok: true, hops: hit.hops, path: hit.path, dismounts: hit.dismounts };
+}
+
 // How long a propped door stays propped. Real hours, not turns: a physical door somebody wedged, and the point is that people can follow within the day.
 const KEYED_OPEN_MS = 24 * 60 * 60 * 1000;
 
 module.exports = {
   LINK_INCLUDE,
   KEYED_OPEN_MS,
+  WALK_HOPS,
+  NO_WALK,
+  routesWithinZone,
+  pathWithinZone,
   soundRange,
   endpoints,
   orderEndpoints,

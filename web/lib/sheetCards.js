@@ -12,7 +12,10 @@ import { tagWeightLbs, formatTagWeight } from "./formatTagWeight";
 // one-line row, where a single right-hand value is the right amount to say.
 export const INVENTORY_CARDS = new Set(["Items", "Assets"]);
 
-const CARD_ORDER = ["Health", "Skills", "Items", "Assets", "General", "Meta", "Demoness"];
+// Status is not drawn by the sheet at all (its band's StatusStrip owns those
+// chips), but it is FIRST for a surface that opts in: "is this person
+// Catatonic" is the question a GM asks before any other.
+const CARD_ORDER = ["Status", "Health", "Skills", "Items", "Assets", "General", "Meta", "Demoness"];
 
 // Case-folded, and exported because thingRows.js needs the same rule: until the
 // 2026-09-26 backfill the catalog genuinely held both "Items" and "items" (six
@@ -130,11 +133,15 @@ function byGroup(rows) {
   return list;
 }
 
-export function buildCards(characterTags = [], { currentTurn = null } = {}) {
+// `includeStatus` is for a surface with no StatusStrip above it. The sheet has
+// one in its band, which is why Status is dropped here by default; the GM
+// inspector's rail has nothing of the kind, and silently hiding Catatonic or
+// Wanted from the person adjudicating is the opposite of the point.
+export function buildCards(characterTags = [], { currentTurn = null, includeStatus = false } = {}) {
   const buckets = new Map();
   for (const ct of characterTags) {
     const category = canonicalCategory(ct.tag?.category);
-    if (category === "Status") continue;
+    if (category === "Status" && !includeStatus) continue;
     if (!buckets.has(category)) buckets.set(category, []);
     buckets.get(category).push(ct);
   }

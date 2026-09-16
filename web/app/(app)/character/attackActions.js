@@ -135,6 +135,13 @@ async function attackCharacterImpl({ targetCharacterId }) {
     locationId: character.locationId,
   });
   if (filed.already) throw new UserError("You're already fighting them.");
+  // Not the same refusal: that one is about a fight still going, this one is about one you called off. Minutes rather than a timestamp, the db/lib/bell.js wording — nobody wants to do clock arithmetic to find out when they may swing again.
+  if (filed.cooldownSecondsLeft) {
+    const minutes = Math.max(1, Math.ceil(filed.cooldownSecondsLeft / 60));
+    throw new UserError(
+      `You broke that fight off. Give it about ${minutes} more minute${minutes === 1 ? "" : "s"} before going back in.`,
+    );
+  }
 
   const seen = seenAs(identityOf(target));
   await logAudit(prisma, {

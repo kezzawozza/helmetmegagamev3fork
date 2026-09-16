@@ -10,11 +10,10 @@ import { useRef } from "react";
 // reaches players on a keyboard the same way.
 // `tone` colours the value by meaning, the rule StatusPill.js sets. `word` drops the mono face — a word is not data.
 //
-// It lived inside LedgerBand.js until the Dev Character Panel wanted the same
-// box: a GM reading "3 / 12 pts" off a bare grid had no way to ask what it
-// meant, which is the same problem the detail face was built to solve on the
-// player's sheet. One component, two surfaces (DEV-PANEL.md §3).
-export default function LedgerTile({
+// Lifted out of LedgerBand.js so the GM desks can wear the same behaviour:
+// the inspector's Combat readout and the Move desk's both mount this, and a
+// second hand-rolled hover panel would have drifted from this one immediately.
+export default function DetailTile({
   label,
   value,
   over = false,
@@ -30,6 +29,10 @@ export default function LedgerTile({
   // immediately closed the tile. Declared before the early return — a hook may not be called conditionally.
   const hovering = useRef(false);
   const className = "ledger-tile";
+  // A detail with nobody listening is a crash waiting for the one caller that
+  // forgets. It was a private component with three call sites before; now it
+  // is shared, so it absorbs the mistake instead of taking the page down.
+  const setOpen = onOpen ?? (() => {});
   if (!detail) {
     return (
       <div className={className}>
@@ -54,24 +57,24 @@ export default function LedgerTile({
       onPointerEnter={(e) => {
         if (e.pointerType !== "mouse") return;
         hovering.current = true;
-        onOpen(true);
+        setOpen(true);
       }}
       onPointerLeave={(e) => {
         if (e.pointerType !== "mouse") return;
         hovering.current = false;
-        onOpen(false);
+        setOpen(false);
       }}
       // Under a mouse the tile is already open, so a click would only close it.
       // Touch and keyboard land here with no pointer over the tile — there the click IS the way in and back out.
       onClick={() => {
         if (hovering.current) return;
-        onOpen(!open);
+        setOpen(!open);
       }}
       // :focus-visible so a tap (which also focuses) doesn't fight the click above.
       onFocus={(e) => {
-        if (e.target.matches(":focus-visible")) onOpen(true);
+        if (e.target.matches(":focus-visible")) setOpen(true);
       }}
-      onBlur={() => onOpen(false)}
+      onBlur={() => setOpen(false)}
     >
       <span className="field-label">{label}</span>
       {/* Both faces live in one relative box, detail ABSOLUTE inside it, so opening a tile can't change its height. `visibility` not `hidden`. */}

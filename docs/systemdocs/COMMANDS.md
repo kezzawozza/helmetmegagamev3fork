@@ -472,9 +472,12 @@ button keeps its historical id, `loc:open` — that id is baked into every
 standing `#turns` console message, so renaming it would break every console
 posted before the rework, and it is also the id the three anchor buttons'
 namespace was chosen to match. `handleTravelOpen` (the `/location` twin too)
-offers the current Location's direct neighbours (`Location.connectsTo`), or
+offers the current Location's direct neighbours, then everywhere **farther in
+the same zone** the character already knows and could walk to (`MAP.md` §3c), or
 every non-cave Location for a character who has none yet — arriving is not
-travel. Picking one (`handleTravelPick`) shows the cost as an option
+travel. Neighbours come first, which is the whole of the grouping a Discord
+select gives us: when the 25-option cap bites it eats the walks and never a way
+out, since a way out is the common case and the only way to leave the zone. Picking one (`handleTravelPick`) shows the cost as an option
 description and a `-#` line rather than asking the server anything: "Same
 zone" (free, on a cooldown), "Crosses into {Zone} — costs your Move", or
 "Arriving costs you nothing" on a first placement.
@@ -838,7 +841,7 @@ Two smaller rules on the same pair:
 | `bot/src/events/interactionCreate.js` | Every command, button, select and modal handler |
 | `bot/src/lib/turnsConsole.js` | The `#turns` anchor message |
 | `bot/src/lib/moveModal.js` | The Move modal |
-| `bot/src/lib/locationTravel.js` | The Location picker/drag/confirm rows, the pending-drag map, `performMove` |
+| `bot/src/lib/locationTravel.js` | The Location picker/drag/confirm rows, the pending-drag map, `performMove` — which picks between a single hop and a walk (`MAP.md` §3c) |
 | `db/lib/locationTravel.js` | `performLocationMove` — validation, the cooldown or the Move, dragging (`MAP.md` §3) |
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — the Discord half of a move, shared by bot and web (`MAP.md` §4) |
 | `db/lib/placeAffordances.js` | **The affordance catalog** — the label and the predicate for every place-bound button, plus `affordancesFor(prisma, character)` for Chat's place panel. Both row builders below read it, so a new button is one entry |

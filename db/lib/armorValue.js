@@ -42,7 +42,28 @@ function combineArmor(characterTags = [], field = "ballisticArmor") {
   return Math.round(Math.min(ARMOR_CAP, 1 - through) * 10000) / 10000;
 }
 
+// WHICH worn pieces are stopping anything, best first. combineArmor above answers "how much gets
+// through"; this answers "what is turning the blow aside", which is the question an adjudicating GM
+// actually has. Same equipped-only rule and the same `{ tag: {...} }`-or-bare-Tag latitude.
+// A piece is named with the word it earns ALONE — never a share of the combined value, because the
+// stacking is multiplicative and there is no honest way to split it.
+function armorPieces(characterTags = [], field = "ballisticArmor") {
+  const out = [];
+  for (const entry of characterTags) {
+    if (entry?.equipped === false) continue;
+    const tag = entry?.tag ?? entry;
+    const value = tag?.[field];
+    if (typeof value !== "number" || Number.isNaN(value) || value <= 0) continue;
+    out.push({ label: tag.name ?? tag.slug ?? "Something", word: armorWord(value), value });
+  }
+  // Heaviest piece first, then by name, so the list is stable between renders.
+  out.sort((a, b) => b.value - a.value || a.label.localeCompare(b.label));
+  return out;
+}
+
 // The Tag columns anything resolving armour must select. Miss one and armour silently stops working there.
+// armorPieces() additionally wants `name` (or `slug`) to have something to call a piece; every caller
+// today selects it anyway, so it stays out of here rather than widening a select nobody asked to widen.
 const ARMOR_TAG_FIELDS = { meleeArmor: true, ballisticArmor: true };
 
-module.exports = { ARMOR_CAP, ARMOR_TAG_FIELDS, armorWord, combineArmor };
+module.exports = { ARMOR_CAP, ARMOR_TAG_FIELDS, armorPieces, armorWord, combineArmor };

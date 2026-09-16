@@ -8,7 +8,7 @@ import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, crossingLine, travelFoot, openedByLabel } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel } from "@/lib/travelCost";
 import { loadTravel, travelTo } from "./actions";
 
 // TRAVEL: every way out of here as a node you can see. Loaded on mount and
@@ -82,7 +82,13 @@ export default function TravelNodes({ onDone, pick = null }) {
     );
   }
 
-  const chosen = target ? (data.options.find((o) => o.id === target) ?? null) : null;
+  const walks = data.walks ?? [];
+  // Picked out of either list. A walk carries no crossing and no cost, so the
+  // strip below reads its own sentence and never the crossing one.
+  const chosen = target
+    ? (data.options.find((o) => o.id === target) ?? walks.find((w) => w.id === target) ?? null)
+    : null;
+  const walking = Boolean(chosen && walks.some((w) => w.id === chosen.id));
   // chosen's OWN count, not the header's ambient one — a boat's bonus is
   // earned per crossing.
   const nextTurn = Boolean(chosen?.crossesZone && chosen.freeLeft <= 0);
@@ -159,9 +165,45 @@ export default function TravelNodes({ onDone, pick = null }) {
         </div>
       )}
 
+      {/* Farther in this zone — a walk of several hops (MAP.md §3c). Its own
+          heading rather than mixed into the grid above, because that grid means
+          "doors out of this room" and a three-hop walk is not one of those.
+          Clicking still only picks: the shortcut is the map's, and this panel is
+          the surface a stray tap landed on last time. */}
+      {walks.length > 0 && (
+        <>
+          <p className="chat-section-title">Further in {data.zoneName ?? "this zone"}</p>
+          <div className="chat-nodes">
+            {walks.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className="chat-node"
+                data-active={target === option.id ? "true" : undefined}
+                title={option.description ? `${option.name} — ${option.description}` : option.name}
+                disabled={pending}
+                onClick={(e) => {
+                  e.currentTarget.focus();
+                  setTarget(option.id);
+                }}
+              >
+                <span className="chat-node-name">{option.name}</span>
+                {/* The stops, where there is room for them — the same sentence
+                    the strip spells out in full once this is picked. */}
+                <span className="chat-node-zone">{option.through.join(" · ")}</span>
+                {option.description && <span className="chat-node-desc">{option.description}</span>}
+                <span className="chat-node-foot mono">{walkFoot(option, data.mounted)}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       {chosen && (
         <div className="chat-travel-confirm">
-          <p className="text-sm">{crossingLine(chosen, nextTurn, data.moved)}</p>
+          <p className="text-sm">
+            {walking ? walkLine(chosen) : crossingLine(chosen, nextTurn, data.moved)}
+          </p>
 
           {/* Who comes along is the party rack's business now — an escort persists, so only the count is owed here. */}
           {data.partySize > 0 && (

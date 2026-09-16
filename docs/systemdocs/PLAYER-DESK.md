@@ -544,7 +544,9 @@ context for a character, but it is the same five base tabs over the same
 edits (✕ a tag to stage its removal, click Resources or Tag points to stage a
 ± delta — which is why the player desk's `layout.js` loads this turn's
 unapplied `StagedEffect`s too), the same DM composer, the same
-`ArchiveContextModal`, and the same **`+ Custom tag`** door on the Tags tab.
+`ArchiveContextModal`, and the same **`+ Custom tag`** door on the Tags tab —
+which draws the character sheet's own cards now, Status first, with a filter
+box (ADJUDICATION.md §3), over a Sheet tab carrying the sheet's Combat tile.
 The door differs by desk and only by desk: `/gm/turns` defaults to *staging*
 the new tag because that desk is mid-push, `/gm/players` defaults to
 *applying* it because this one is a conversation.

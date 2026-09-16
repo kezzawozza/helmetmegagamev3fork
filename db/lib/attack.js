@@ -39,6 +39,18 @@ function attackHoldUntil(openTurn, now = new Date()) {
   return boundary && boundary > floor ? boundary : floor;
 }
 
+// AN HOUR, NOT A TURN. A turn is a whole real day, so "attacking is permanent for the turn" meant that calling a fight off — the decent thing to do when the scene moves on — spent your only shot at that person until tomorrow, and the game answered the next press with "you're already fighting them" about a fight nobody was in. The unique still stands and the row is still never deleted (ATTACK.md §2); a cancelled row is now a cooling-off period rather than a headstone, and after the hour it is REOPENED in place. Still one row per pair per turn, so nothing that counts fights or draws them learns a new shape.
+// Hardcoded rather than a GameConfig knob, the db/lib/bell.js posture: one rule, one right answer. Long enough that nobody can hound one person all afternoon — the thing the old rule existed to stop — short enough that a fight which restarts for a real reason can restart.
+const ATTACK_COOLDOWN_MS = 60 * 60 * 1000;
+
+// PURE, the bell.js shape. `cancelledAt` null means nothing to wait for.
+function attackCooldown(cancelledAt, now = Date.now()) {
+  if (!cancelledAt) return { ok: true, secondsLeft: 0 };
+  const elapsed = now - new Date(cancelledAt).getTime();
+  if (elapsed >= ATTACK_COOLDOWN_MS) return { ok: true, secondsLeft: 0 };
+  return { ok: false, secondsLeft: Math.ceil((ATTACK_COOLDOWN_MS - elapsed) / 1000) };
+}
+
 // Everyone still in a live fight with this character, either end of it. The one query the settle below runs, and the reason one person backing out of a three-way brawl doesn't unpick the whole thing.
 function liveAttackWhere(characterId, turnId) {
   return {
@@ -73,27 +85,9 @@ async function settleHold(db, characterId, turnId) {
   return { held: true };
 }
 
-// `attacker` and `target` are rows selected with intercept.js#IDENTITY_SELECT. The strength gate is the CALLER's business, not this function's — an ambush files one of these and is deliberately not gated (you set a watch blind). Returns { ok, already, dms }. A unique violation is not an error — it's the rule working, meaning these two are already in it this turn.
-async function fileAttack(db, { attacker, target, openTurn, fromAmbush = false, locationId = null }) {
-  const now = new Date();
-  const until = attackHoldUntil(openTurn, now);
-
-  try {
-    await db.attack.create({
-      data: {
-        attackerId: attacker.id,
-        targetCharacterId: target.id,
-        turnId: openTurn.id,
-        fromAmbush: Boolean(fromAmbush),
-        locationId: locationId ?? target.locationId ?? null,
-      },
-    });
-  } catch (err) {
-    if (err?.code === "P2002") return { ok: false, already: true, dms: [] };
-    throw err;
-  }
-
-  // BOTH sides, each held BY THE OTHER, each with its OWN reason — you don't start a fight and stroll off, but the jumped and the jumper must not read the same sentence off every shut way, and heldReason is the only thing that tells them apart. Conditional on the clock (the fireWatches rule): a hold already running longer than this one is left exactly where it is.
+// BOTH sides, each held BY THE OTHER, each with its OWN reason — you don't start a fight and stroll off, but the jumped and the jumper must not read the same sentence off every shut way, and heldReason is the only thing that tells them apart. Conditional on the clock (the fireWatches rule): a hold already running longer than this one is left exactly where it is.
+// One copy on purpose: a fresh attack and a reopened one hold identically, and the clock rule above is too subtle to keep in two places.
+async function holdBothSides(db, { attacker, target, until }) {
   for (const [who, by, reason] of [
     [target.id, attacker.id, HELD_REASON.ATTACK],
     [attacker.id, target.id, HELD_REASON.ATTACKING],
@@ -103,7 +97,40 @@ async function fileAttack(db, { attacker, target, openTurn, fromAmbush = false, 
       data: { heldUntil: until, heldById: by, heldReason: reason },
     });
   }
+}
 
+// `attacker` and `target` are rows selected with intercept.js#IDENTITY_SELECT. The strength gate is the CALLER's business, not this function's — an ambush files one of these and is deliberately not gated (you set a watch blind).
+// Returns { ok, already, cooldownSecondsLeft, dms }. A unique violation is not an error — it means these two already have a row this turn, and the row decides which of three things that is: a live fight (`already`, refuse, unchanged), a break-off still inside its hour (`cooldownSecondsLeft`, refuse with the wait), or a cooled-off one, which is REOPENED in place rather than re-created. See ATTACK_COOLDOWN_MS above.
+async function fileAttack(db, { attacker, target, openTurn, fromAmbush = false, locationId = null, now = new Date() }) {
+  const until = attackHoldUntil(openTurn, now);
+  const where = { attackerId: attacker.id, targetCharacterId: target.id, turnId: openTurn.id };
+  const place = locationId ?? target.locationId ?? null;
+
+  try {
+    await db.attack.create({
+      data: { ...where, fromAmbush: Boolean(fromAmbush), locationId: place },
+    });
+  } catch (err) {
+    if (err?.code !== "P2002") throw err;
+
+    const existing = await db.attack.findUnique({
+      where: { attackerId_targetCharacterId_turnId: where },
+      select: { id: true, cancelledAt: true },
+    });
+    // No row behind the clash: something else owns that unique, and refusing the old way is the honest answer.
+    if (!existing || existing.cancelledAt === null) return { ok: false, already: true, dms: [] };
+
+    const cool = attackCooldown(existing.cancelledAt, now.getTime());
+    if (!cool.ok) return { ok: false, already: false, cooldownSecondsLeft: cool.secondsLeft, dms: [] };
+
+    // The same fight resuming, so `createdAt` is left alone — when these two first came to blows this turn is what a GM reads it for. Where and how it started are re-stamped, because a reopened fight may begin somewhere else or out of an ambush this time.
+    await db.attack.update({
+      where: { id: existing.id },
+      data: { cancelledAt: null, fromAmbush: Boolean(fromAmbush), locationId: place },
+    });
+  }
+
+  await holdBothSides(db, { attacker, target, until });
   return { ok: true, already: false, until, dms: attackDms({ attacker, target, fromAmbush }) };
 }
 
@@ -203,8 +230,10 @@ module.exports = {
   ATTACK_TAG_SELECT,
   ATTACK_CANCEL_PREFIX,
   ATTACK_CALLED_OFF_DM,
+  ATTACK_COOLDOWN_MS,
   bestBandRank,
   attackRefusal,
+  attackCooldown,
   fileAttack,
   cancelAttack,
   closeFightsFor,

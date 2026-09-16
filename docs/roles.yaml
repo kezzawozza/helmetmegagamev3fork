@@ -662,6 +662,7 @@ zones:
             starting_zone: town
             starting_location: cathedral
             starting_tags:
+              - Research
               - Cathedral Key
               - Ravenhearter
               - Literate

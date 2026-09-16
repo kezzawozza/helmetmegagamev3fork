@@ -113,3 +113,40 @@ export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false
     cancelLabel: "Stay",
   };
 }
+
+// "A", "A and B", "A, B and C" — for naming the stops on a walk.
+function listOf(names) {
+  if (names.length <= 1) return names[0] ?? "";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+// What a WALK costs, in the words both surfaces print (MAP.md §3c). A walk is
+// inside your own zone and spends nothing at all — no travel, no Move — so the
+// only things worth saying are how far it is and whether the road is too narrow
+// for what you are riding. Here rather than in either component for the reason
+// travelFoot is here: /chat and /map both say it, and two copies would drift.
+export function walkFoot(route, mounted) {
+  const far = route.hops === 1 ? "1 hop" : `${route.hops} hops`;
+  // Same precedence travelFoot uses — a dismount is the one consequence worth
+  // the space, and saying "indoors" beside it would be the same news twice.
+  if (route.dismounts) return `${far} · on foot`;
+  if (mounted && route.indoors) return `${far} · indoors`;
+  return far;
+}
+
+// The line over Go once a walk is picked, and it NAMES THE STOPS.
+//
+// That is not decoration. The map moves on a double-click again (MAP.md §6c),
+// and the thing that makes a gesture safe — beyond it never crossing a zone —
+// is that the places you are about to walk through are on the screen before you
+// make it. If this sentence ever gets cut for space, the gesture should be cut
+// with it.
+export function walkLine(route) {
+  const through = route.through ?? [];
+  if (through.length === 0) return `To ${route.name}.`;
+  return `To ${route.name}, through ${listOf(through)}.`;
+}
+
+// The hint under the strip, on a mouse only. A walk is the only thing the
+// gesture may do, so this is only ever drawn beside one.
+export const WALK_HINT = "Double-click the place, or press Enter.";
