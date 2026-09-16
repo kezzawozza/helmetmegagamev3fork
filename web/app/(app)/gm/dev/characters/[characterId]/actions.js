@@ -32,7 +32,6 @@ import {
 import { deleteCorpseFor } from "@lifeweb/db/lib/corpseMint";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-import { setDiscordMirrored } from "@lifeweb/db/lib/discordMirroring";
 import { cancelWatchOnMove } from "@lifeweb/db/lib/intercept";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
@@ -482,30 +481,6 @@ async function messageCharacterImpl({ characterId, message }) {
   return {};
 }
 
-// The GM remedy for "Play on Discord too" 's own cooldown
-// (db/lib/discordMirroring.js): a player stuck off Discord for up to two
-// hours with no way to flip it back themselves. Bypasses ONLY that
-// cooldown — the same conditional claim still guards the flip. ON re-mints
-// the personal role the flip skipped (ensureCharacterRole no-ops for an
-// unmirrored character), matching what the player's own flip does at
-// web/app/(app)/character/actions.js.
-async function setCharacterMirroringImpl({ characterId, on }) {
-  const session = await requireGm();
-  const character = await loadCharacter(characterId);
-  const want = Boolean(on);
-
-  const flip = await setDiscordMirrored(prisma, character, want, { bypassCooldown: true });
-  if (!flip.ok) throw new UserError(flip.error ?? "Couldn't change that.");
-
-  if (want) {
-    await ensureCharacterRole({ ...character, discordMirrored: true }).catch(() => {});
-  }
-
-  await audit(session, "gm_character_discord_mirror_set", characterId, { name: character.name, on: want });
-  repaint(characterId);
-  return { discordMirrored: want };
-}
-
 // A raw relocation like Bulk Move's: no Move cost, no Action, no adjacency
 // check, and no cooldown stamp. Immediate, not staged, since it only touches
 // where the character stands.
@@ -771,9 +746,6 @@ export async function transferResources(input) {
 }
 export async function messageCharacter(input) {
   return guarded(() => messageCharacterImpl(input));
-}
-export async function setCharacterMirroring(input) {
-  return guarded(() => setCharacterMirroringImpl(input));
 }
 export async function teleportCharacter(input) {
   return guarded(() => teleportCharacterImpl(input));

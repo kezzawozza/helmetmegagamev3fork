@@ -10,7 +10,7 @@ const {
 const { sendAsCharacter } = require("../lib/proxy");
 const { isDesignatedTupperChannel, resolveChannelContext } = require("../lib/channels");
 const { sendDm } = require("../lib/dm");
-const { REPORT_CHANNEL_ID } = require("@lifeweb/db/lib/reportChannelAccess");
+const { maybeSendGmAutoReply } = require("@lifeweb/db/lib/gmAutoReply");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const { splitAttachments, buildInboundContent } = require("@lifeweb/db/lib/dmAttachments");
 const { addConversationMember } = require("@lifeweb/db/lib/conversations");
@@ -74,13 +74,16 @@ module.exports = {
           },
         })
         .catch((err) => console.error(`[dm] inbound log failed for ${message.author.id}:`, err.message));
+      // One quiet line back, at most once per 10 minutes (db/lib/gmAutoReply.js). Not awaited into
+      // the return path: the player's own message is already filed, and nothing about this reply is
+      // worth delaying or failing that.
+      maybeSendGmAutoReply(prisma, message.author.id);
       return;
     }
 
     // #turns: the console channel (bot/src/lib/turnsConsole.js), so typed text is simply removed.
-    // The report channel is the same kind of surface (bot/src/lib/reportChannel.js).
     const channelName = message.channel.name?.toLowerCase();
-    if (channelName === "turns" || message.channel.id === REPORT_CHANNEL_ID) {
+    if (channelName === "turns") {
       await message.delete().catch(() => { });
       return;
     }

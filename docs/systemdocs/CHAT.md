@@ -1891,8 +1891,8 @@ switched N minutes ago. You can switch again at HH:MM."* and **leaves the
 rest of the save standing** — the appearance somebody just typed is not thrown
 away because a cooldown had two minutes left on it.
 
-**What survives either way:** DMs, the OOC report channel (opened by the Player
-role, not per character), guest rows, conversation membership, and the fiction —
+**What survives either way:** DMs, guest rows, conversation membership, and the
+fiction —
 they still stand there and still appear in Who's here?. While off Discord, the
 places column shows one quiet `.chip`, **Playing from the web**.
 

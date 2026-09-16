@@ -6,7 +6,7 @@
 // account you are. Only ON grants that. OFF (the default) strips the
 // Location overwrite, zone role, every narrowcast overwrite, every
 // private-Room thread and Conversation thread.
-// Survives either way: DMs, the OOC report channel, RoomGuest rows,
+// Survives either way: DMs, RoomGuest rows,
 // PlayerThreadMember rows, and the fiction.
 //
 // THE TURN-PING ROLE GOES TOO — it's a <@&role> inside #turns, a channel

@@ -77,55 +77,52 @@ can't disagree about what an affliction is.
 
 - **The band** (`DevBand.js`) — who this is, then the derived facts a GM wants
   before touching anything. It is built out of **`DetailTile`**, the same box
-  the player's own sheet uses: a tile swaps its face for a sentence on hover,
-  focus or tap, inside the same height, and one open slot for the whole band
-  means two are never open at once. That component came out of `LedgerBand.js`
+  the player's own sheet uses. That component came out of `LedgerBand.js`
   when the GM desks started wearing the sheet's Combat readout
   (`SHEET.md` §2, `COMBAT.md` §6); this band is its third caller.
 
-  That matters more here than it does on the sheet. The band used to be
-  fifteen bare label/value pairs in four labeled clusters, and a GM reading
-  `3 / 12 pts` off one had no way to ask what it meant. Every tile now says
-  what it is and where it is edited: **Resources**, **Tag points**, **Mood**
-  (the band word, with the dial's number in the detail), **Gambit die** (which
-  modifiers, from `gambitParts` — the parts, not a second opinion about the
-  total), **Equipped**, **Drawbacks** and **This turn**.
+  The band used to be fifteen bare label/value pairs in four labeled
+  clusters, and after that a rulebook — every tile carried a sentence
+  explaining the rule behind it. A GM running this panel already knows the
+  rules, so the tiles are plain read-only boxes with nothing to hover:
+  **Resources**, **Tag points**, **Mood** (the band word), **Gambit die**
+  (opens to name which modifiers, from `gambitParts`), **Combat**
+  (`CombatReadout.js`, the same tile the player's sheet and `/gm/turns` show,
+  with `showArmorPieces` on — GM-only, names the worn pieces behind each
+  armour word), **Equipped**, **Drawbacks**, and **This turn**, which is the
+  one tile that still opens — to a fact about this character
+  (`${name} hasn't acted this turn`), never a rule.
 
-  Under the tiles sit the **three answers that are not columns on the form**,
-  as `.dev-switch` boxes — state and verb on one line, the sentence that
-  explains them always visible underneath. A tile could not hold these: it
-  opens on hover to say one thing, and a live control cannot live inside a
-  `<button>` that is itself the control.
+  **Concealed** sits under the tiles in its own box, not a tile — it has no
+  sentence to open, just a resolved answer that can disagree with what the
+  player set: `Character.concealed` is only a wish and takes effect solely
+  while something concealing is equipped, so it says **On, but nothing worn**
+  for the state that reads to a player as "my hood does not work". The
+  resolution happens in `web/lib/devPanelData.js`, through
+  `presentedIdentity` — the same function every send path asks — rather than
+  being restated on the client.
 
-  - `Play on Discord too` calls `setCharacterMirroring`, bypassing only the
-    switch's own 2-hour cooldown, for a player stuck off Discord with no way
-    to flip it back themselves.
-  - `Concealed` reads the resolved answer, not the column:
-    `Character.concealed` is only a wish and takes effect solely while
-    something concealing is equipped, so it says **On, but nothing worn** for
-    the state that reads to a player as "my hood does not work". The
-    resolution happens in `web/lib/devPanelData.js`, through
-    `presentedIdentity` — the same function every send path asks — rather than
-    being restated on the client.
-  - `Curse` is **Lift it** / **Curse them**, plus **Back to automatic** while a
-    GM's answer is forced. Same three states as ever (`db/lib/curse.js`: null
-    lets the rule decide, true and false overrule it and stay overruled) — but
-    the commonest thing a GM wants, lifting a curse off somebody who has earned
-    their way out of it, used to be one option in a `<select>` reading
-    "Automatic / Cursed / Not cursed" in the middle of a grid of read-only
-    facts, which is a fair description of a control nobody found. Lifting asks
-    first; it writes `Character.cursedOverride` and never `buriedAt`, since
-    stamping that would also take the body out of the world.
+  There is no Discord-mirror control here any more — a GM who needs to flip
+  a player's own "Play on Discord too" switch does it from `/character`
+  material, not this panel; this surface doesn't carry an opinion about it.
 - **Action bar** — `IconButton`s over `.icon-btn`, in named clusters: Life ·
   Turn · Reach · Body · Admin. A destructive verb never sits flush against a
   harmless one, and **Admin draws only for a superadmin** — Delete is all that
   is left in it, so a plain GM would otherwise get an empty labelled group.
 
-  **Two buttons were removed.** The eye linked to `/character`, the signed-in
-  GM's own sheet rather than this character's. **Re-push Discord** re-sent the
-  role, the nickname and the channel overwrites a character should already
-  have, which is what `db:mirror` and the channel doctor do on every bot start
-  anyway — so it could only ever confirm that nothing was wrong.
+  **Uncurse** lives in the Life cluster, beside Kill/Revive, and only draws
+  when the character is actually cursed (`curse.cursed`). It is a single
+  lift-only action — `setCurseOverride({ override: false })` — not a
+  curse-setting control: this panel offers no way to curse someone from here,
+  only to take it off. It writes `Character.cursedOverride` and never
+  `buriedAt`, since stamping that would also take the body out of the world.
+
+  **Two buttons were removed earlier.** The eye linked to `/character`, the
+  signed-in GM's own sheet rather than this character's. **Re-push Discord**
+  re-sent the role, the nickname and the channel overwrites a character
+  should already have, which is what `db:mirror` and the channel doctor do on
+  every bot start anyway — so it could only ever confirm that nothing was
+  wrong.
 - **Tabs** — Identity · Tags · Turn · Goals · Record · Notes, on the existing
   `.tab-bar` / `.tab-item` classes. **Notes** is the shared `AdminNotes`
   component, the same one the player desk's inspector mounts

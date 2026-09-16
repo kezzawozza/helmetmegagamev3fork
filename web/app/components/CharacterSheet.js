@@ -86,7 +86,7 @@ export default function CharacterSheet({
   hasWorkshop = false,
   tagCatalog,
   desireSlots = 2,
-  desireSlotLockTurns = 1,
+  desireSlotLockTurns = 2,
   desireSlotStates = [],
   desireCatalog = [],
   desireFamilies = [],

@@ -3648,11 +3648,6 @@ input[type="radio"]:disabled {
   gap: 1rem 1.5rem;
 }
 
-/* The three switches under the band: Play on Discord too, Concealed, Curse.
-   Not tiles — a tile opens on hover to say one thing, and these carry live
-   controls, which cannot live inside a <button> that is itself the control.
-   So they get their own row: state and verb on one line, the sentence that
-   explains them underneath, always visible. */
 /* The identity line: face, then name and where they stand. Not
    .ledger-identity — that one carries `flex: 1 1 22rem` for the sheet's band,
    where it sits in a flex ROW beside the tiles. Here the band is a column, so
@@ -3675,6 +3670,8 @@ input[type="radio"]:disabled {
   gap: var(--sp-2);
 }
 
+/* Concealed's box. Not a tile: it has no sentence to open, just a resolved
+   fact that can disagree with the column the player set. */
 .dev-switches {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
@@ -3690,12 +3687,6 @@ input[type="radio"]:disabled {
   border-radius: var(--r-sm);
   padding: var(--sp-2) var(--sp-3);
   min-width: 0;
-}
-
-.dev-switch-note {
-  font-size: var(--fs-2xs);
-  line-height: 1.45;
-  color: var(--muted);
 }
 
 /* The action bar's clusters — Life, Body, Admin. A named group each, because

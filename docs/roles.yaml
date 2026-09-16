@@ -1410,6 +1410,7 @@ zones:
               - Rough Camper
               - Outsider
               - Brave
+              - Literate
               - Radio (243.000)
             doc_elements:
               - godking
@@ -1452,6 +1453,7 @@ zones:
               - Tough
               - Rough Camper
               - Outsider
+              - Literate
               - Radio (243.000)
             doc_elements:
               - godking

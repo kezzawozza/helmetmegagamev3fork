@@ -68,7 +68,6 @@ export const AUDIT_FAMILIES = {
   faction: { label: "Faction", band: "player", prefixes: ["faction_"] },
   lifeweb: { label: "Lifeweb", band: "player", prefixes: [] },
   membership: { label: "Membership", band: "player", prefixes: ["member_", "player_"] },
-  report: { label: "OOC report", band: "player", prefixes: ["ooc_report_"] },
   gm: { label: "GM action", band: "machine", prefixes: ["gm_"] },
   staging: { label: "Staging", band: "machine", prefixes: ["staged_", "staging_"] },
   system: { label: "System", band: "machine", prefixes: ["turn_"] },
@@ -270,10 +269,6 @@ const R = {
     actor(),
     t(d.concealed ? "put their hood up" : "put their hood down"),
   ],
-
-  // ---- OOC reports (bot/src/lib/reportChannel.js) ----
-  ooc_report_opened: () => [actor(), t("opened an OOC report ticket")],
-  ooc_report_closed: (d) => [actor(), t("closed an OOC report ticket"), ...(d.name ? [t("—"), em(d.name)] : [])],
 
   // ---- System (actor is "system") ----
   // Weather was deleted; the clause is guarded so old rows that carry it still read.

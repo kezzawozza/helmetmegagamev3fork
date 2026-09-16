@@ -13,6 +13,12 @@ test("the » prefix is idempotent", () => {
   assert.equal(applyDmPrefix(null), "» ");
 });
 
+test("subtext keeps its own voice", () => {
+  // `» -# …` would be the game quoting you and the world murmuring at once.
+  const line = "-# GMs are only available to solve unintended bugs";
+  assert.equal(applyDmPrefix(line), line);
+});
+
 test("dmPolicy's copy of the kind strings still matches dmKinds", () => {
   assert.equal(DEFAULT_KIND, DM_KIND.NOTICE);
   assert.equal(dmLogRow({ discordUserId: "u", content: "x" }).kind, DM_KIND.NOTICE);
