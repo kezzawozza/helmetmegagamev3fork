@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Tribunal Ordinator gets Heavy Infantry Armor instead of Cataphract
+
+✎ The Cataphract suit is out of the Ordinator's starting kit, replaced by Heavy Infantry Armor
+
 ## 2026-09-15 · The house typography rules are written down
 
 ✎ Straight quotes, the … glyph, a spaced em dash, and digits for anything a player counts or pays — the conventions the game's text already mostly followed are now stated in one place instead of being rediscovered each time  
