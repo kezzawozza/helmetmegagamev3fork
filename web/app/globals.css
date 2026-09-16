@@ -9739,8 +9739,11 @@ button.equip-cell-face:focus-visible {
   width: 100%;
   height: 100%;
   /* The board pans, so the page must not: a two-finger drag over the map is
-     for the map. */
+     for the map. And a drag on a map is a pan, never a text selection — without
+     this, sweeping across the plate highlights every place name it passes and
+     leaves them blue until you click elsewhere. */
   touch-action: none;
+  user-select: none;
   cursor: grab;
 }
 
@@ -9904,6 +9907,16 @@ button.equip-cell-face:focus-visible {
    a phone, in the 640px block at the foot of this section. */
 .map-hud {
   display: contents;
+}
+
+/* The two floating boxes over the board. Neither is anything to read out of:
+   they are a switch, four buttons and a count, and a pan that ends on one
+   should not leave "12 of 56" highlighted behind it. Set on the boxes rather
+   than on .map-hud, which is display: contents on a desktop and so draws
+   nothing of its own. */
+.map-layers,
+.map-controls {
+  user-select: none;
 }
 
 .map-layers {
