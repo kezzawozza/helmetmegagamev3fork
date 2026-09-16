@@ -5,7 +5,7 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ArchiveContext from "@/app/components/ArchiveContext";
 import ClickMenu from "@/app/components/ClickMenu";
 import FormError from "@/app/components/FormError";
-import { MUTE_DURATIONS } from "@lifeweb/db/lib/ooc";
+import { MUTE_DURATIONS } from "@lifeweb/db/lib/oocMuteDurations";
 import { muteOoc, unmuteOoc } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { fullTimestamp } from "@/lib/dmTime";

@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · The GM desk loads again
+
+✎ It stopped loading for every GM this morning right after OOC shipped — a client component reached a helper that drags Prisma into the browser bundle, so the workspace crashed on hydration.
+
 ## 2026-09-16 · OOC works on the radio and in a zone summary
 
 ✚ You can now use /ooc on a radio net and in a zone summary, not just in a room or a conversation  

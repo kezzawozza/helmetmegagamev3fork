@@ -30,16 +30,9 @@ const OOC_ACTION = "ooc";
 
 // What a GM may pick from, and what the DM calls each one. One list, so the
 // menu, the DM and the arithmetic can never name different amounts of time.
-const MUTE_DURATIONS = [
-  { minutes: 5, label: "5 minutes" },
-  { minutes: 15, label: "15 minutes" },
-  { minutes: 180, label: "3 hours" },
-  { minutes: 1440, label: "1 day" },
-];
-
-function muteDurationLabel(minutes) {
-  return MUTE_DURATIONS.find((d) => d.minutes === Number(minutes))?.label ?? null;
-}
+// Lives in a leaf module — OocDesk.js is a client component and can't reach
+// this file without dragging Prisma into the browser bundle.
+const { MUTE_DURATIONS, muteDurationLabel } = require("./oocMuteDurations");
 
 // The live mute for an account, or null. `until` in the past is not a mute —
 // the row lapses on its own rather than being swept (schema.prisma, OocMute),
