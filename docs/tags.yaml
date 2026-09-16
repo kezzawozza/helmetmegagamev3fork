@@ -1104,7 +1104,7 @@ tags:
     category: general
     group: general-traits
     description: "You're unusually awake and alert. Very little gets past you."
-    fighting: { tree: both, tiers: 0.7 }
+    fighting: { tree: both, tiers: 0.4 }
     pointCost: 5
     visible: false
     purchasable: true
@@ -1161,7 +1161,7 @@ tags:
     category: general
     group: general-traits
     description: "Fearlessness isn't a choice, it's the natural state of your mind. Everything frightens you half as much."
-    fighting: { tree: both, tiers: 0.5 }
+    fighting: { tree: both, tiers: 0.3 }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1238,7 +1238,7 @@ tags:
     category: general
     group: general-traits
     description: "You see like a hawk. Or an eagle, you suppose."
-    fighting: { tree: ranged, tiers: 0.3 }
+    fighting: { tree: ranged, tiers: 0.5 }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1326,7 +1326,7 @@ tags:
     category: general
     group: general-traits
     description: "You can feel when you're being watched."
-    fighting: { tree: both, tiers: 0.7 }
+    fighting: { tree: both, tiers: 0.2 }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -11389,6 +11389,10 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
+    # The "thin breastplate beneath" the description has always mentioned,
+    # now worth something: Salvage Plate's numbers exactly.
+    melee: 0.35
+    ballistic: 0.1
     visible: worn
     weight: 3
     purchasable: false
@@ -13036,8 +13040,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.9
-    ballistic: 0.9
+    melee: 0.78
+    ballistic: 0.8
     weight: 30
     visible: true
     purchasable: false

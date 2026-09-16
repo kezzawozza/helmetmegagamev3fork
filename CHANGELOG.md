@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Awareness stops out-fighting the gun
+
+✎ Spotter, Sixth Sense and Brave gave far too much in a fight for traits that are not about fighting — all three come down  
+✎ Eagle Eyes goes up: an archer's aim should be worth more than an archer's alertness  
+✎ Heavy Infantry Armor is no longer near-impervious — still the best plate, but a real step down  
+✎ A Merchant's Garb now stops something, the thin breastplate the description always mentioned
+
 ## 2026-09-16 · The game remembers Discord handles
 
 ✎ Every guild member's Discord handle is now cached, so a GM can look somebody up by name instead of a numeric id  

@@ -154,8 +154,18 @@ that is a **ceiling, not a formula**:
 > combat actually earns, and the full share only when fighting is the tag's
 > whole job.
 
-Relentless (7 pts, pure nerve) takes its full +1. Eagle Eyes (2 pts) also helps
-you spot things and read at distance, so combat takes part of its 0.3.
+Relentless (7 pts, pure nerve) takes its full +1. Eagle Eyes used to be the
+example pointing the other way — 2 pts, and combat took only part of it.
+
+**Eagle Eyes is now the exception instead** (2026-09-16). At +0.5 for 2 points
+it is 0.25 a point, nearly double the ceiling, and that is deliberate: it is
+`tree: ranged`, so unlike the awareness tags it sits beside it never pays into
+both halves at once. The same pass cut Spotter (0.7 → 0.4), Sixth Sense
+(0.7 → 0.2) and Brave (0.5 → 0.3), all `tree: both`, because a pile of cheap
+unrelated traits was out-earning the weapon in somebody's hands. Eagle Eyes was
+raised in the same breath to keep an archer's *aim* worth more than an archer's
+*alertness*. If the ceiling is ever enforced here, the fix is the tag's price,
+not its tiers.
 
 ### Pricing a drawback
 
@@ -193,8 +203,8 @@ still floor a character but one no longer does it alone.
 **The smallest step is 0.1 tiers**, and that is what makes the small traits
 worth authoring at all. Steady costs 1 point and would round to nothing on a
 whole-tier scale; at +0.1 it is honest about being slight and it still
-*composes* — Steady, Eagle Eyes and Strong together come to most of a tier on
-an archer nobody would call a combat build.
+*composes* — Steady, Eagle Eyes and Strong together come to a tier and a
+tenth on an archer nobody would call a combat build.
 
 Three prices are worth a second look rather than being buried, and each is one
 number in one table:
@@ -208,8 +218,9 @@ number in one table:
   effect and leaves the cost alone.
 - **Brave already does two jobs** — `db/lib/mood.js` halves every mood swing it
   takes, `db/lib/torture.js` raises its torture threshold — and because mood
-  feeds the Gambit die it already pays off in a fight indirectly. +0.5 is a
-  third job priced modestly, not new ground.
+  feeds the Gambit die it already pays off in a fight indirectly. +0.3 is a
+  third job priced modestly, not new ground — it was +0.5 until 2026-09-16,
+  when every `tree: both` trait that was not really about fighting came down.
 
 ## 4. Authoring
 
