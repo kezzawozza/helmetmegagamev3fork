@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · A View as switch on /chat, and the name behind a hood
+
+✚ View as: GM / Player at the foot of the places column, for a gamemaster who is also playing a character  
+✚ While viewing as a GM, a concealed speaker reads as "Young Man (Greeblus)" in the scene and in the Here list, instead of the alias alone  
+− The "Playing from the web" chip  
+✎ The foot of the places column no longer leaves a strip of the scene showing underneath it
+
 ## 2026-09-16 · Subtle says what it does
 
 ✎ The Subtle tag now reads "Your whispers can't be heard by others." It used to claim the room never notices you doing it, which read as a general sneaking bonus the tag has never had

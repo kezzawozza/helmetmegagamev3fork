@@ -17,6 +17,7 @@ import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
+import { speakerDirectory } from "@/lib/gmSpeakers";
 import { loadNavItems } from "@/lib/navItems";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
@@ -129,6 +130,12 @@ async function FreshChat({ userId }) {
         return { selectable, selectedIds: visible?.map((zone) => zone.id) ?? [] };
       })()
     : null;
+
+  // The key ring that lets a GM read a hood (web/lib/gmSpeakers.js). Loaded
+  // here because `viewer.gm` is the gate and this is where it is already
+  // answered; ./actions.js#gmSpeakerNames re-serves it for anybody born after
+  // the page painted.
+  const gmSpeakers = viewer.gm ? await speakerDirectory(prisma) : null;
 
   if (!first) {
     return <SnapshotFresh scope="play" userId={userId} data={{ kind: "nowhere" }} />;
@@ -453,7 +460,11 @@ async function FreshChat({ userId }) {
   // unread dot before the pane has ever been opened (./DmPane.js, CHAT.md
   // §2b). Through the player chair's noise filter, so a mention relay lights
   // the dot the way any other word from Bascinet does.
-  const newestDm = viewer.character || viewer.ghost
+  //
+  // `playing` as well as `character`: the thread belongs to the ACCOUNT, not
+  // the body (Chat.js draws the row off `self.discordUserId`), so a GM sitting
+  // in the GM seat still has their own mail and still wants the dot on it.
+  const newestDm = viewer.character || viewer.playing || viewer.ghost
     ? await prisma.directMessage.findFirst({
         where: withoutDmNoise(
           { discordUserId: viewer.discordUserId, direction: "OUTBOUND" },
@@ -521,11 +532,18 @@ async function FreshChat({ userId }) {
     // composer draws in the same frame says what the confirmed one will say
     // (db/lib/say.js#transformSpeech).
     autocorrect: Boolean(gameConfig?.tupperAutocorrectEnabled),
-    discordMirrored: Boolean(viewer.character?.discordMirrored),
     roster: mentionRoster,
-    // A GM with no living character reads every zone they may see and may
-    // take a line down (web/app/api/feed/delete/route.js).
+    // A GM reads every zone they may see and may take a line down
+    // (web/app/api/feed/delete/route.js). Either they have no living character
+    // or they chose this seat from the switch below.
     gm: Boolean(viewer.gm),
+    // The View as switch at the foot of the places column, for a GM who is
+    // also playing somebody. Null for everybody else — nobody else has a
+    // second seat (web/lib/feedAccess.js#loadFeedViewer).
+    viewAs: viewer.canViewAsGm ? { mode: viewer.gm ? "gm" : "player" } : null,
+    // speakerKey -> real name, so a GM reads "A young man (Greeblus)" rather
+    // than the alias alone. GM-only, and empty for everybody else.
+    gmSpeakers,
     // A dead player with no living character reads every zone, and speaks
     // nowhere (db/lib/feedAccess.js#ghostPlacesFor).
     ghost: Boolean(viewer.ghost),

@@ -14,7 +14,7 @@ import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
 import LookReadout from "@/app/components/LookReadout";
 import useActionRunner from "@/app/components/useActionRunner";
-import { photographRow, starRow, lookAt, lookAtRow, loadTravel, placeMembers, toggleConceal } from "./actions";
+import { photographRow, starRow, lookAt, lookAtRow, loadTravel, placeMembers, toggleConceal, gmSpeakerNames } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import useNarrow from "./useNarrow";
@@ -80,6 +80,9 @@ import { MOVE_KINDS } from "./MoveDialog";
 // with a different row type, and sharing the constant would tie them together
 // for no gain.
 const RUN_GAP_MS = 7 * 60_000;
+// How often, at most, a GM's seat re-asks for the speaker directory when a row
+// turns up under a hood it does not know (web/lib/gmSpeakers.js).
+const SPEAKER_REFRESH_MS = 60_000;
 // How close to the bottom still counts as "reading the newest", in px.
 const STICK_PX = 40;
 // How close to the TOP starts the next page of the backlog. Further than
@@ -210,6 +213,10 @@ const ROW_VERBS = [
 // re-renders one of these, not the run of a hundred above it.
 const FeedRow = memo(function FeedRow({
   row,
+  // The name behind the alias, for a GM reading a scene, and null for every
+  // other reader. It is printed beside the alias and nowhere else — no
+  // tooltip, no second element, nothing to hover for.
+  realName = null,
   startsRun,
   mine,
   // Somebody else's line, and this reader may look at who said it: the row
@@ -296,7 +303,7 @@ const FeedRow = memo(function FeedRow({
         {startsRun && (
           <div className="chat-row-head">
             <span className="chat-row-name" data-alias={row.alias ? "true" : undefined}>
-              {row.name}
+              {realName ? `${row.name} (${realName})` : row.name}
             </span>
             <span className="chat-row-time mono">{timeLabel(row.sentAt)}</span>
             {row.editedAt && <span className="chat-row-edited">(edited)</span>}
@@ -603,9 +610,15 @@ export default function Feed({
   // updatedAt } — the @ list, and the same roster the page hands
   // CharacterMentionsProvider so a {char:…} renders back as a face.
   roster = [],
-  // A GM watching with no living character (web/lib/feedAccess.js#loadFeedViewer).
-  // They speak nowhere and act on nobody, but they may take a line down.
+  // A GM reading from the GM seat (web/lib/feedAccess.js#loadFeedViewer): no
+  // living character, or one who picked GM from the View as switch at the foot
+  // of the places column. They speak nowhere and act on nobody, but they may
+  // take a line down.
   gm = false,
+  // speakerKey -> real name, and only ever handed to the GM seat
+  // (web/lib/gmSpeakers.js). A hooded line reaches the browser with its
+  // characterId withheld, so this is how the host reads the name behind one.
+  gmSpeakers = null,
   // A dead player watching with no living character. They speak nowhere and
   // act on nobody either, and may take nothing down.
   ghost = false,
@@ -1752,6 +1765,31 @@ export default function Feed({
     return from < 0 ? 0 : rows.length - from;
   }, [rows, newAt]);
 
+  // Somebody born since the page painted is not in the directory the server
+  // seeded, so a hood they put on would read as the bare alias until a reload.
+  // One re-ask, throttled, the first time a row turns up under a key this
+  // does not know — the same shape GmAside.js loads its place with. Never in
+  // the player seat: there is no directory there to miss anything from.
+  const [speakers, setSpeakers] = useState(gmSpeakers);
+  const askedForSpeakersAt = useRef(0);
+  useEffect(() => {
+    if (!gm || !gmSpeakers) return undefined;
+    const missing = rows.some((row) => row.alias && row.speakerKey && !speakers?.[row.speakerKey]);
+    if (!missing) return undefined;
+    const now = Date.now();
+    if (now - askedForSpeakersAt.current < SPEAKER_REFRESH_MS) return undefined;
+    askedForSpeakersAt.current = now;
+    let cancelled = false;
+    gmSpeakerNames()
+      .then((res) => {
+        if (!cancelled && res?.ok) setSpeakers(res.speakers);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [gm, gmSpeakers, rows, speakers]);
+
   const withRuns = useMemo(
     () =>
       rows.map((row, i) => {
@@ -1801,8 +1839,16 @@ export default function Feed({
         // Same rule as canLook: a note is filed under a living character, and
         // a watcher of either kind has none. It used to draw for every row.
         const canStar = row.seq != null && !gm && !ghost;
+        // What the host reads behind the alias. Any row said under a name that
+        // is not the speaker's own — a hood, or a forced name like Apex Form's
+        // Beast — carries `alias` plus the `speakerKey` that names them in the
+        // directory. The player seat never has a directory, so this is always
+        // null there and the alias stands alone, which is the whole point of
+        // wearing one.
+        const realName = gm && row.alias && row.speakerKey ? (speakers?.[row.speakerKey] ?? null) : null;
         return {
           row,
+          realName,
           startsRun,
           mine,
           system,
@@ -1813,7 +1859,7 @@ export default function Feed({
           newLine: Boolean(row.seq) && row.seq === newAt,
         };
       }),
-    [rows, self.characterId, newAt, gm, ghost, hasCamera, openAction],
+    [rows, self.characterId, newAt, gm, speakers, ghost, hasCamera, openAction],
   );
 
   if (!place) {
@@ -1944,7 +1990,7 @@ export default function Feed({
               exhausted={backlog.exhausted}
               floored={backlog.floored}
             />
-            {withRuns.map(({ row, startsRun, mine, system, canLook, canPhoto, canRemove, canStar, newLine }) => {
+            {withRuns.map(({ row, realName, startsRun, mine, system, canLook, canPhoto, canRemove, canStar, newLine }) => {
               const key = row.clientId ?? row.seq;
               if (system) {
                 return (
@@ -1965,6 +2011,7 @@ export default function Feed({
                     // one React element, so the <li> and its <img> survive the
                     // swap instead of one unmounting as the other mounts.
                     row={row}
+                    realName={realName}
                     startsRun={startsRun}
                     mine={mine}
                     canLook={canLook}

@@ -6444,7 +6444,12 @@ label.chip {
      alternative is pull-to-refresh, or the page behind a drawer moving. */
   overscroll-behavior: contain;
   border-right: 1px solid var(--border);
-  padding: var(--sp-3) 0;
+  /* NO bottom padding, and that is load-bearing: the tail below is sticky, and
+     a sticky box cannot leave its containing block — which ends at this
+     column's CONTENT box. Bottom padding here parked the foot that far above
+     the window's edge and you read the scene through the strip underneath it.
+     The tail supplies its own bottom padding instead. */
+  padding: var(--sp-3) 0 0;
 }
 
 .chat-aside {
@@ -6514,12 +6519,6 @@ label.chip {
 .chat-aside-tabs > .desk-inspector-zones {
   padding-inline: 0;
   margin-top: auto;
-}
-
-/* The "Playing from the web" chip, in the foot beside the chime toggle. The
-   foot is a flex row and carries the padding now, so the chip carries none. */
-.chat-webonly {
-  margin: 0;
 }
 
 /* The centre is itself a column: the phone's tab strip, then the scene. */
@@ -8536,13 +8535,32 @@ label.chip {
   margin-top: auto;
 }
 
+/* View as: GM / Player, the first row of the tail. Only a gamemaster who is
+   also playing somebody gets one — everybody else has nothing to switch to.
+   The label is a label, not an explanation: there is no tooltip here. */
+.chat-view-as {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-3) 0;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+
+.chat-view-as .segmented {
+  margin-left: auto;
+}
+
+.chat-view-as .segmented button {
+  padding: var(--sp-1) var(--sp-2);
+}
+
 .chat-places-foot {
-  padding-bottom: var(--sp-2);
   display: flex;
   align-items: center;
   gap: var(--sp-2);
   flex-wrap: wrap;
-  padding: var(--sp-3) var(--sp-3) 0;
+  padding: var(--sp-3) var(--sp-3) var(--sp-2);
   font-size: var(--fs-2xs);
 }
 

@@ -67,6 +67,8 @@ import { paperDescription, paperView, paperViewGm, TITLE_MAX, WRITE_MAX } from "
 import { mintUnownedPaper } from "@lifeweb/db/lib/paperMint";
 import { cleanCustomText } from "@lifeweb/db/lib/customText";
 import { getGmSession } from "@/lib/discordGuild";
+import { writeChatViewAs } from "@/lib/viewAs";
+import { speakerDirectory } from "@/lib/gmSpeakers";
 import { readBlock } from "@lifeweb/db/lib/reading";
 import { addToStack, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
@@ -2690,4 +2692,39 @@ export async function removeMember(placeKey, ref) {
 
   await notifyPresence(prisma, result.target.id).catch(() => {});
   return { ok: true, line: result.line };
+}
+
+// ------------------------------------------------------- the GM's two seats
+
+// Which seat this gamemaster reads /chat from — their own character's scene,
+// or the watcher's view of every zone they hold. The switch at the foot of the
+// places column (./PlacesColumn.js) calls this and then reloads the page.
+//
+// Takes no target: a server action is a public endpoint, and the only person
+// anyone may re-seat is themselves. The gate is `isGm` and nothing else —
+// there is no seat here for a player to reach, and the places a GM seat lists
+// are still GmZoneView's (db/lib/feedAccess.js#gmPlacesFor), so this hands
+// nobody anything they did not already hold.
+export async function setChatViewAs(mode) {
+  const { session, isGm } = await getGmSession();
+  if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
+
+  await writeChatViewAs(mode === "gm" ? "gm" : null);
+  return { ok: true, mode: mode === "gm" ? "gm" : "player" };
+}
+
+// speakerKey -> real name, for a GM reading a scene. A hooded row carries no
+// characterId — db/lib/archive.js#feedRowShape withholds it per ROW, because
+// web/lib/feedHub.js shapes one row and fans it to every watcher of a place,
+// so there is no per-reader decision to be made down there. What a hooded row
+// DOES carry is `speakerKey`, the stable HMAC db/lib/hoodToken.js mints, so
+// one small directory resolves every row source at once — first paint, the
+// live stream, the history page and search — and it only ever reaches a GM.
+//
+// Refreshed by ./Feed.js when it meets a key it does not know: somebody born
+// since the page loaded.
+export async function gmSpeakerNames() {
+  const { session, isGm } = await getGmSession();
+  if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
+  return { ok: true, speakers: await speakerDirectory(prisma) };
 }

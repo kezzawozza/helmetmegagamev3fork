@@ -594,7 +594,7 @@ they stayed.
 │               │                                            │──────────────────────│
 │               │ · Alexandra is typing…                     │ THIS ROOM            │
 │               │────────────────────────────────────────────│ Storage · 2 loaves,  │
-│ 🔔  web-only  │ [ Say something in Council Room…         ] │ a key                │
+│ 🔔            │ [ Say something in Council Room…         ] │ a key                │
 │               │                                            │ [Drop][Take][Transfer]│
 │               │                                  4 s       │ [Intercom]           │
 │               │                                            │──────────────────────│
@@ -898,10 +898,12 @@ a 48px head and a one-line composer:
   `AuditLog` row — `photo_taken`, with the seq in `details`. No `turnId`: that
   column is for the per-turn rations, and this ration is per line.
 
-  **GM remove** is the same route the player's Delete uses. It pays for the
-  `isGm` REST check only when there is no living character to be, writes a
-  `gm_feed_remove` audit row after the removal, and a GM who DOES have a living
-  character takes the player path — the rule `loadFeedViewer` already applies.
+  **GM remove** is the same route the player's Delete uses. It writes a
+  `gm_feed_remove` audit row after the removal, and which of its two callers
+  anybody is comes from `loadFeedViewer` and nowhere else — the seat, not the
+  body (§9a). It used to answer that itself with `character ? false : isGm`, to
+  save a REST call, which is exactly the second copy of the rule §9a says not
+  to keep.
 - **The words themselves go through `ChatMarkdown.js`**, not
   `MarkdownContent.js`, which is still the DM renderer. It is `react-markdown`
   + `remark-gfm` + `remarkTokens` + **`remarkChat.js`**, which adds the three
@@ -1563,8 +1565,9 @@ Four things are read-only:
   does. The Scrying Eye stays where it was too: it is for the room you are
   standing in.
 
-- **A GM speaks nowhere.** A GM with no living character gets a read-only Chat
-  over every place inside `visibleZoneIds(prisma, discordUserId)`
+- **A GM speaks nowhere.** A GM in the GM seat — no living character, or one
+  who picked GM from the View as switch (§9a) — gets a read-only Chat over
+  every place inside `visibleZoneIds(prisma, discordUserId)`
   (`db/lib/gmZoneView.js`; no rows means every zone). Watching is not standing
   there — a GM who wants to say something says it as a GM.
 - **A ghost speaks in exactly one place.** A dead player
@@ -1893,8 +1896,12 @@ away because a cooldown had two minutes left on it.
 
 **What survives either way:** DMs, guest rows, conversation membership, and the
 fiction —
-they still stand there and still appear in Who's here?. While off Discord, the
-places column shows one quiet `.chip`, **Playing from the web**.
+they still stand there and still appear in Who's here?.
+
+The places column used to carry one quiet `.chip` reading **Playing from the
+web** while the switch was off. It is gone: it named a state the player had
+chosen on purpose, told them nothing they could act on, and took up the one
+row of the column that has a job.
 
 **The turn-ping role only comes with the switch.** The ping is a
 `<@&DISCORD_TURN_PING_ROLE_ID>` inside the `#turns` console
@@ -2024,11 +2031,51 @@ separate change from dropping the one caller.
 
 A GM used to get two controls in the right column: a Noticeboard button on a
 Location that had a board, and the zone rail. Everything else in `ChatAside` is
-built from `viewer.character` in `page.js`, and GM mode is the *absence* of one
-(`web/lib/feedAccess.js#loadFeedViewer` — a GM who is also playing gets the
-ordinary player column). So the one person reading every scene in the game had
-the least on the page: no idea who was standing in the room they were reading,
-what was stashed in it, or which way out was shut.
+built from `viewer.character` in `page.js`, and the GM seat is the *absence* of
+one. So the one person reading every scene in the game had the least on the
+page: no idea who was standing in the room they were reading, what was stashed
+in it, or which way out was shut.
+
+### 9a. Two seats, and the switch between them
+
+A GM has two ways to read `/chat`, and which one they are in used to be decided
+for them: `gm = isGm && !character`. A GM who rolled a character lost the
+watcher's view of every zone the same day they gained a body, which is the
+wrong way round — the view is most useful to somebody who is *also* in the
+game.
+
+So the foot of the places column carries a **View as: GM / Player** switch
+(`PlacesColumn.js`), drawn only for a GM who has a living character. Nobody
+else has two seats: a player has one, and a GM with no character is in the GM
+seat with nothing to switch to.
+
+**The seat is a cookie** (`web/lib/viewAs.js`), not a column. It is a view
+preference — per browser, carrying no game state, changing no Discord role, and
+granting nothing: the GM seat lists the places `GmZoneView` already allows
+(`gmPlacesFor` → `visibleZoneIds`), which is the same gate the GM desks use.
+That is also why it meshes with the Zones I see picker rather than replacing
+it: the picker is right there in `GmAside`, deciding what the GM seat contains.
+
+**One decision, one place.** `loadFeedViewer` reads the cookie and then hands
+back `character: null` in the GM seat. That single line is what carries the
+switch through `/chat`'s render, the SSE stream, `/api/feed/history`,
+`/api/feed/places` and `/api/feed/search` at once — `placesFor` ignores the
+character entirely once `gm` is set, so every one of them takes the watcher's
+path with no edit of its own, and `page.js` stops building a right column and
+starts computing `gmZones`. Two things ride alongside it: `playing`, the real
+character, for the handful of places that belong to the ACCOUNT rather than the
+body (the Bascinet DM thread, on both faces of §2b), and `canViewAsGm`, which
+is what draws the switch.
+
+Anything that answers the seat question *itself* is a second copy of the rule
+and will fall out of step. `/api/feed/delete` had one — `character ? false :
+isGm` — so a GM who flipped seats got the Remove button and a refusal from the
+route behind it. It goes through `loadFeedViewer` now.
+
+**Flipping seats reloads the page.** Not `router.refresh()`: the open SSE
+connection resolved its viewer when it connected and never re-gates itself, and
+the places, feed and seen stores are all keyed to the list about to be replaced
+whole.
 
 `GmAside.js` is that column, and it is deliberately the SAME SHAPE as
 `ChatAside` — the same tab strip, the same `.chat-aside-tabs` /
@@ -2074,9 +2121,34 @@ not have offered would make the action the way around the zone view.
 
 `db/lib/whosHere.js#whosHereGm` and `db/lib/presentedMembers.js`'s `gm` option.
 Both answer with the real name, and both add `presentedAs` — the alias the
-people in the room actually see. "Cersei Hristov, showing as a hooded figure"
-is the thing a GM reading a scene needs and the one thing the player's own list
-can never tell them.
+people in the room actually see. That is the thing a GM reading a scene needs
+and the one thing the player's own list can never tell them.
+
+**It reads as `a hooded figure (Cersei Hristov)`** — what the room sees, with
+the name behind it in brackets. Both in the column's Here list and on a line in
+the scene beside it, and it is the form `/archive` has always used. It used to
+be the real name with `showing as a hooded figure` on a second quiet line
+underneath, which read as two people until you looked twice. There is no
+tooltip and nothing to hover: a host either sees through a hood or does not.
+
+**The scene's half is resolved on the CLIENT, and that is not laziness.** A
+hooded row reaches the browser with its `characterId` withheld and a
+`speakerKey` in its place, and `db/lib/archive.js#feedRowShape` withholds it per
+ROW rather than per reader — `web/lib/feedHub.js` shapes one row and fans it to
+every watcher of a place, so there is no per-reader decision to be made down
+there without making it for whoever happened to subscribe first.
+
+So the GM is handed the key ring instead of a different scene:
+`web/lib/gmSpeakers.js#speakerDirectory` is `speakerKey` → real name, built off
+`db/lib/hoodToken.js`'s HMAC, which is stable for as long as `AUTH_SECRET` is.
+One map resolves every row the page will ever hold — the first paint, the live
+stream, the history fetch and search alike — and it only ever goes to a GM.
+`page.js` seeds it when `viewer.gm`; `chat/actions.js#gmSpeakerNames` re-serves
+it, throttled, when `Feed.js` meets a key it does not know, which is somebody
+born since the page painted.
+
+A forced name (Apex Form's "Beast") reads the same way. It is the same case:
+the room is not hearing the speaker's own name.
 
 `whosHereGm` is a sibling of `whosHere` rather than a flag on it, because the
 answer is a different SHAPE and not the same shape with something withheld:
