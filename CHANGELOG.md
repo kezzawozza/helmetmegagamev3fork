@@ -9,7 +9,7 @@ Entries below predate this format and list files instead.
 ## 2026-09-16 · Saint's Perform Miracle button
 
 ✚ A Saint gets a Perform Miracle button — two free instant cures a turn on somebody else's Moderate or lesser wound. Own pool, no Medical training needed  
-✎ The old ‡once-per-day‡ line in Saint's description is retired for the new twice-a-turn one
+✎ Saint's description is rewritten from "once per day, Moderately Severe or lesser" to "twice a turn, Moderate or lesser"
 
 ## 2026-09-16 · Two hoods in a room stop reading as one speaker
 
