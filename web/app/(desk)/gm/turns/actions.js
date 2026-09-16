@@ -1207,7 +1207,24 @@ async function getCharacterInspectorImpl({ characterId }) {
       zone: { select: { name: true } },
       location: { select: { name: true } },
       tags: {
-        select: { tagId: true, quantity: true, expiresTurn: true, equipped: true, tag: { select: chipSelect() } },
+        select: {
+          tagId: true,
+          quantity: true,
+          expiresTurn: true,
+          equipped: true,
+          // "2 of 5 worn" — the one fact a compact row can never carry, and
+          // what web/lib/sheetCards.js#itemFacts counts a partly-equipped
+          // stack by (SHEET.md). Nothing read it on the desk until the
+          // inspector's Tags tab started drawing the sheet's own cards.
+          equippedQuantity: true,
+          // chipSelect() alone draws a CHIP. The inspector's Tags tab draws
+          // the sheet's ROWS now, and sheetCards.js reads four columns a chip
+          // never needed: without them every item row loses its verbs mark,
+          // its stack, and the carry/labor value on its right.
+          tag: {
+            select: chipSelect({ equippable: true, stackable: true, carryBonus: true, laborBonus: true }),
+          },
+        },
       },
     },
   });
@@ -1243,6 +1260,7 @@ async function getCharacterInspectorImpl({ characterId }) {
       quantity: ct.quantity,
       expiresTurn: ct.expiresTurn,
       equipped: ct.equipped,
+      equippedQuantity: ct.equippedQuantity,
       // InspectorColumn.js prefers this row over its tagsById fallback, and
       // /gm/players and /gm/oracle pass no fallback at all — so an uncomposed
       // row here is a blank paper hover on all three desks.

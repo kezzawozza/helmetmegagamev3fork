@@ -111,6 +111,11 @@ Who this is, where they stand, and:
   pressable tile in a row of read-only ones read as a bug —
   `db/lib/carry.js#carryBreakdown` has said "for the hover breakdown on
   /character" the whole time — and that reason is gone.
+- **The tile itself is `web/app/components/DetailTile.js`**, and the Combat
+  one is `CombatReadout.js`. Both used to live inside `LedgerBand.js`; they
+  came out when the GM desks started wearing the same readout, so the swap-in-
+  place behaviour below is written once rather than approximated a second time
+  on the desk (COMBAT.md §6). Nothing on this page changed when they moved.
 - **Three ways in, and all three are needed.** A mouse opens on
   `pointerenter` and closes on leave. A **tap** is the click path: touch fires
   a synthesised `mouseenter` before its click, so the pointer handlers ignore

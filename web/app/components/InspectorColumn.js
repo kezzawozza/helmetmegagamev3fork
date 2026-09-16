@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
-import TagChip from "./TagChip";
+import CombatTile from "./CombatReadout";
+import ItemCard from "./ItemCard";
+import TagRow from "./TagRow";
+import { buildCards, itemFacts, matchesQuery, rowValue, INVENTORY_CARDS } from "@/lib/sheetCards";
 import { useRefresh } from "./useRefresh";
 import FactionLink from "./FactionLink";
 import DevCharacterButton from "./DevCharacterButton";
@@ -16,8 +19,6 @@ import MatchHint from "./MatchHint";
 import useSubmitOnEnter from "./useSubmitOnEnter";
 import useInspectorOverlay from "./useInspectorOverlay";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
-import { combineArmor, armorWord } from "@/lib/armorValue";
-import { fightingSkill } from "@/lib/fightingSkill";
 import {
   getCharacterInspector,
   getArchiveSlice,
@@ -150,19 +151,26 @@ function StagedDeltaFact({ display, pendingSuffix, onStage, disabled }) {
 const CUSTOM_TAG_TOOLTIP =
   "Use this for things that would affect adjudications—not just little bracelets or something.";
 
-// "Melee: Seasoned | Ranged: Weak — 2 situational". The two bands the same way
-// the Armor line prints its two, plus a count of the things a GM has to decide
-// for themselves: Duelist wants a duel, Guerrilla wants rough ground, and no
-// query can tell whether this fight is either. The count rather than the list,
-// because the Tags tab beside this one carries every one of them in full and a
-// facts row is one line.
-function fightingLine(tags) {
-  const resolved = fightingSkill(tags);
-  const situational = new Set(
-    [...resolved.melee.situational, ...resolved.ranged.situational].map((s) => s.label),
-  ).size;
-  const bands = `Melee: ${resolved.melee.band.label} | Ranged: ${resolved.ranged.band.label}`;
-  return situational ? `${bands} — ${situational} situational` : bands;
+// The one thing the rail's tag rows do that the sheet's do not: stage a
+// removal. It rides TagRow/ItemCard's `verbs` slot, the same slot the sheet
+// hands RowVerbs — which is why neither component needed touching to grow a
+// GM affordance.
+//
+// Nothing here applies: like everything else on the adjudication desk it
+// stages, and the player sees it at the turn-end push (ADJUDICATION.md).
+function StageRemove({ ct, pending, onRemove }) {
+  const name = ct.tag?.name ?? "tag";
+  if (pending?.removes?.has(ct.tagId)) return <span className="text-xs text-muted">staged −</span>;
+  return (
+    <button
+      type="button"
+      className="desk-chip-x"
+      aria-label={`Stage removing ${name}`}
+      onClick={() => onRemove(ct.tagId)}
+    >
+      ✕
+    </button>
+  );
 }
 
 function SheetView({
@@ -177,6 +185,12 @@ function SheetView({
   customTag,
 }) {
   const [creatingTag, setCreatingTag] = useState(false);
+  // Which Combat tile face is showing, and which tag row is expanded. Both
+  // live here rather than in the tab bodies so switching tabs and coming back
+  // lands you where you were.
+  const [combatOpen, setCombatOpen] = useState(false);
+  const [openTagId, setOpenTagId] = useState(null);
+  const [tagQuery, setTagQuery] = useState("");
   async function stageResources(delta) {
     const res = await createStagedEffects({ targetCharacterIds: [characterId], resources: delta });
     if (res?.ok) refresh();
@@ -198,20 +212,51 @@ function SheetView({
   }
 
   if (tab === "Tags") {
+    // The sheet's own cards, on the desk. This was one flat flex-wrap of
+    // chips in arrival order, which is unreadable at sixty tags — a GM could
+    // not tell a wound from a weapon from a skill. buildCards() is the pure
+    // half of web/lib/sheetCards.js and TagRow/ItemCard take no player
+    // context, so the rail gets the sheet's grouping, ordering and right-hand
+    // values without a second implementation to keep in step.
+    //
+    // What the rail adds that the sheet has not got: the stage-remove ✕ in
+    // TagRow's `verbs` slot, and a filter — "do they have a lockpick" is the
+    // question this tab is opened for.
+    const turn = currentTurnNumber ?? data.currentTurnNumber;
+    // buildCards() sorts on `ct.tag.name`, so a row that arrived without a
+    // composed tag would throw rather than render badly. The inspector action
+    // composes every row itself these days; the desk's own map stays as the
+    // belt to that, the same fallback the chips used before.
+    const rows = data.tags
+      .map((ct) => (ct.tag ? ct : { ...ct, tag: tagsById[ct.tagId] }))
+      .filter((ct) => ct.tag)
+      .filter((ct) => matchesQuery(ct, tagQuery));
+    // includeStatus: the rail has no StatusStrip of its own, so without this
+    // Catatonic and Wanted would simply vanish from the GM's view of somebody.
+    const cards = buildCards(rows, { currentTurn: turn, includeStatus: true });
     return (
-      <div className="flex flex-wrap gap-1.5 p-3">
-        {/* The custom-tag door. The desk decides whether it stages or grants
-            (the adjudication desk is mid-push, so it defaults to staging);
-            the dialog itself is the one shared component behind every door. */}
-        {customTag && (
-          <div className="flex w-full justify-end">
+      <div className="flex flex-col gap-3 p-3">
+        <div className="flex items-center gap-2">
+          <label className="field flex-1">
+            <span className="sr-only">Find a tag</span>
+            <input
+              type="search"
+              value={tagQuery}
+              placeholder="Find a tag…"
+              onChange={(e) => setTagQuery(e.target.value)}
+            />
+          </label>
+          {/* The custom-tag door. The desk decides whether it stages or grants
+              (the adjudication desk is mid-push, so it defaults to staging);
+              the dialog itself is the one shared component behind every door. */}
+          {customTag && (
             <Tooltip text={CUSTOM_TAG_TOOLTIP}>
               <button type="button" className="btn-quiet" onClick={() => setCreatingTag(true)}>
                 + Custom tag
               </button>
             </Tooltip>
-          </div>
-        )}
+          )}
+        </div>
         {creatingTag && customTag && (
           <CustomTagDialog
             categories={customTag.categories ?? []}
@@ -230,35 +275,44 @@ function SheetView({
             }}
           />
         )}
-        {data.tags.length ? (
-          data.tags.map((ct) => {
-            const isPendingRemove = pending?.removes?.has(ct.tagId);
-            return (
-              <span key={ct.tagId} className={`flex items-center gap-1 ${isPendingRemove ? "desk-chip-pending" : ""}`}>
-                <TagChip
-                  tag={ct.tag ?? tagsById[ct.tagId]}
-                  quantity={ct.quantity}
-                  expiresTurn={ct.expiresTurn}
-                  currentTurn={currentTurnNumber ?? data.currentTurnNumber}
-                />
-                {isPendingRemove ? (
-                  <span className="text-xs text-muted">staged −</span>
-                ) : (
-                  <button
-                    type="button"
-                    className="desk-chip-x"
-                    aria-label={`Stage removing ${ct.tag?.name ?? tagsById[ct.tagId]?.name ?? "tag"}`}
-                    onClick={() => removeTag(ct.tagId)}
-                  >
-                    ✕
-                  </button>
-                )}
-              </span>
-            );
-          })
-        ) : (
-          <p className="text-sm text-muted">No tags.</p>
+        {!data.tags.length && <p className="text-sm text-muted">No tags.</p>}
+        {data.tags.length > 0 && !cards.length && (
+          <p className="text-sm text-muted">Nothing matches that.</p>
         )}
+        {cards.map((card) => (
+          <section key={card.key} className="sheet-card" data-card={card.key.toLowerCase()}>
+            <h3 className="section-title">
+              {card.title} <span className="text-muted text-sm">{card.count}</span>
+              {card.weight ? <span className="text-muted text-sm"> · {card.weight} lb</span> : null}
+            </h3>
+            {card.groups.map((group) => (
+              <div key={group.key}>
+                {/* A sub-heading only earns its line when there is more than
+                    one group to tell apart — the sheet's own rule. */}
+                {card.groups.length > 1 && group.name && (
+                  <p className="sheet-group-name">{group.name}</p>
+                )}
+                <ul className="sheet-rows">
+                  {group.rows.map((ct) => {
+                    const shared = {
+                      ct,
+                      currentTurn: turn,
+                      worn: Boolean(ct.equipped),
+                      open: openTagId === ct.tagId,
+                      onToggle: () => setOpenTagId((was) => (was === ct.tagId ? null : ct.tagId)),
+                      verbs: <StageRemove ct={ct} pending={pending} onRemove={removeTag} />,
+                    };
+                    return INVENTORY_CARDS.has(card.key) ? (
+                      <ItemCard key={ct.tagId} {...shared} facts={itemFacts(ct, turn)} />
+                    ) : (
+                      <TagRow key={ct.tagId} {...shared} value={rowValue(ct, turn)} />
+                    );
+                  })}
+                </ul>
+              </div>
+            ))}
+          </section>
+        ))}
       </div>
     );
   }
@@ -295,33 +349,38 @@ function SheetView({
     ],
     ["Gambit", data.gambitModifier > 0 ? `+${data.gambitModifier}` : String(data.gambitModifier)],
     ["Acted", data.acted ? "yes" : "no"],
-    // Combined across every EQUIPPED piece (db/lib/armorValue.js#combineArmor),
-    // same words TagChip's own per-tag "Armour" line uses — an adjudicating
-    // GM needs the character's actual protection, not one gauntlet's rating.
-    // Always shown, "None" included: the fact that there is nothing to turn a
-    // blow aside matters exactly as much as a number would.
-    // Fighting sits directly above Armor because the two are one question when
-    // a GM is arbitrating a fight: how hard does this person hit, and what
-    // happens when they are hit. Same two-halves shape as the line below it.
-    //
-    // Unlike the player's own sheet, this is drawn for EVERY character —
-    // deciding what happens in a fight is exactly the GM's job, and it is the
-    // reason the number is withheld from players in the first place.
-    ["Fighting", fightingLine(data.tags)],
-    [
-      "Armor",
-      `Melee: ${armorWord(combineArmor(data.tags, "meleeArmor"))} | Ballistic: ${armorWord(combineArmor(data.tags, "ballisticArmor"))}`,
-    ],
   ];
   return (
-    <dl className="desk-inspector-facts p-3">
-      {facts.map(([label, value]) => (
-        <div key={label}>
-          <dt className="field-label">{label}</dt>
-          <dd className="mono text-sm">{value}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="flex flex-col gap-3 p-3">
+      <dl className="desk-inspector-facts">
+        {facts.map(([label, value]) => (
+          <div key={label}>
+            <dt className="field-label">{label}</dt>
+            <dd className="mono text-sm">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {/* The same readout the player reads on their own sheet, and more of it.
+          It used to be two flat strings in the facts list above — a GM was
+          told "Melee: Seasoned" and had to go do the arithmetic in the Tags
+          list to find out why, which is the exact job db/lib/fightingSkill.js
+          exists to have already done.
+
+          Drawn for EVERY character, unlike the sheet's: deciding what happens
+          in a fight is the GM's job, and is the reason the band is withheld
+          from players in the first place (COMBAT.md §5).
+
+          `showArmorPieces` is the GM's extra — the sheet's breakdown names no
+          armour, because armour never enters the fighting arithmetic and a
+          line there would read as though it did (COMBAT.md §2). A GM
+          arbitrating a hit is asking the other question. */}
+      <CombatTile
+        tags={data.tags}
+        showArmorPieces
+        open={combatOpen}
+        onOpen={setCombatOpen}
+      />
+    </div>
   );
 }
 

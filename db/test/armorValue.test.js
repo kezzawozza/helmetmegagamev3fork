@@ -5,7 +5,7 @@
 // "Meager" instead of "Sufficient".
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { armorWord, combineArmor, ARMOR_CAP } = require("../lib/armorValue");
+const { armorPieces, armorWord, combineArmor, ARMOR_CAP } = require("../lib/armorValue");
 
 const piece = (ballisticArmor) => ({ equipped: true, tag: { ballisticArmor } });
 
@@ -65,4 +65,42 @@ test("combineArmor: reads meleeArmor or ballisticArmor by field, never both at o
   const entry = { equipped: true, tag: { meleeArmor: 0.6, ballisticArmor: 0.2 } };
   assert.equal(combineArmor([entry], "meleeArmor"), 0.6);
   assert.equal(combineArmor([entry], "ballisticArmor"), 0.2);
+});
+
+// --- armorPieces ---------------------------------------------------------
+// combineArmor says how much gets through; this says WHAT is stopping it, for
+// the GM surfaces (COMBAT.md §6). The two must never disagree about which
+// pieces are in play, which is what the equipped tests below are really for.
+
+const named = (name, meleeArmor, equipped = true) => ({ equipped, tag: { name, meleeArmor } });
+
+test("armorPieces: names worn pieces, heaviest first, with the word each earns alone", () => {
+  const rows = [named("Leather Cap", 0.15), named("Mail Hauberk", 0.5)];
+  assert.deepEqual(
+    armorPieces(rows, "meleeArmor").map((p) => [p.label, p.word]),
+    [
+      ["Mail Hauberk", "Good"],
+      ["Leather Cap", "Meager"],
+    ],
+  );
+});
+
+test("armorPieces: a stowed piece is not worn, and combineArmor agrees", () => {
+  const rows = [named("Mail Hauberk", 0.5), named("Stowed Breastplate", 0.6, false)];
+  assert.equal(armorPieces(rows, "meleeArmor").length, 1);
+  assert.equal(armorWord(combineArmor(rows, "meleeArmor")), "Good");
+});
+
+test("armorPieces: a bare Tag[] with no equipped flag still resolves", () => {
+  assert.equal(armorPieces([{ name: "Mail", meleeArmor: 0.5 }], "meleeArmor").length, 1);
+});
+
+test("armorPieces: nothing worn, and a piece worth nothing, are both an empty list", () => {
+  assert.deepEqual(armorPieces([], "meleeArmor"), []);
+  assert.deepEqual(armorPieces([named("Shirt", 0)], "meleeArmor"), []);
+});
+
+test("armorPieces: falls back to the slug, then to a placeholder, for a nameless tag", () => {
+  assert.equal(armorPieces([{ slug: "odd-plate", meleeArmor: 0.3 }], "meleeArmor")[0].label, "odd-plate");
+  assert.equal(armorPieces([{ meleeArmor: 0.3 }], "meleeArmor")[0].label, "Something");
 });

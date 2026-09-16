@@ -19,6 +19,13 @@ export const MOVE_INCLUDE = {
           tagId: true,
           quantity: true,
           expiresTurn: true,
+          // LOAD-BEARING for the Move desk's Combat readout. Both
+          // db/lib/fightingSkill.js and db/lib/armorValue.js#combineArmor read
+          // a MISSING `equipped` as equipped — deliberate latitude, so a bare
+          // Tag[] still resolves — which means dropping the column here does
+          // not fail, it silently counts every sword in a sack and every
+          // breastplate in a cart.
+          equipped: true,
           tag: { select: chipSelect() },
         },
       },
@@ -155,6 +162,9 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
       tagId: ct.tagId,
       quantity: ct.quantity,
       expiresTurn: ct.expiresTurn,
+      // See MOVE_INCLUDE above: without this the desk's band reads a stowed
+      // weapon as a drawn one.
+      equipped: ct.equipped,
     })),
     resourceDelta: a.resourceDelta ?? null,
     resourceRollExpression: a.resourceRollExpression ?? null,

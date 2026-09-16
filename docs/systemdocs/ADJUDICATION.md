@@ -608,7 +608,14 @@ instance is a change to the hub, not a slider.
   same Discord channel/thread with a jump link when the message still exists
   (`getArchiveContext`); and the Sheet/Tags tabs stage deltas in place — ✕ a
   held tag to stage its removal, click Resources or Tag points to stage a
-  ± delta. All three route through the same `createStagedEffects` the tray
+  ± delta. The **Tags tab draws the character sheet's own cards** now
+  (`web/lib/sheetCards.js#buildCards` + `TagRow`/`ItemCard`), bucketed Status →
+  Health → Skills → Items → Assets → General → Meta with a filter box over the
+  lot; it was one flat wrap of chips in arrival order, which nobody could read
+  at sixty tags. The ✕ rides `TagRow`'s own `verbs` slot, so neither shared
+  component needed touching to grow a GM affordance. The **Sheet tab carries
+  the Combat readout** the player reads on their own sheet, plus the armour
+  pieces a GM gets and a player does not (COMBAT.md §5). All three route through the same `createStagedEffects` the tray
   uses, so they land at the push like any other staged effect. `EffectComposer`'s
   own tag browser carries a "+ Custom tag" door too (`CustomTagDialog.js`,
   `DEV-PANEL.md` §8a) for inventing a one-off tag against the composer's
@@ -844,6 +851,7 @@ adjudicable the moment the Ram is a ruin.
 | `db/lib/roomTagOps.js` | Tag adds and removes against a room's stash — the floor's answer to `tagOps.js`, minus everything that is about a body |
 | `db/lib/roomStash.js` | The room stash helpers, including `addRoomResources` — a clamped mint/burn, as opposed to `resourceTransfer.js#moveParty`'s conserving leg |
 | `.../StagedItems.js` / `StagingTray.js` / `PushPreview.js` | Staged-row lists, the tray, the per-recipient preview |
+| `web/app/components/CombatReadout.js` | The Combat tile — the Move desk's header and the inspector's Sheet tab, the same one the player's sheet draws (COMBAT.md §6) |
 | `web/app/components/InspectorColumn.js` | Sheet / Tags / Moves / Archive / DMs + pins — **shared with `/gm/players`**, which puts its Canon section above the Moves tab through `tabPreludes` (PLAYER-DESK.md §6) |
 | `web/app/components/ArchiveContextModal.js` | The "in context" slice behind an Archive row, moved alongside it |
 | `web/app/components/GmAvatar.js` | The small GM pfp, fed by `web/lib/gmProfiles.js` |

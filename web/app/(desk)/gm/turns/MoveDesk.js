@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import TagChip from "@/app/components/TagChip";
+import CombatTile from "@/app/components/CombatReadout";
 import Tooltip from "@/app/components/Tooltip";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
@@ -110,6 +111,20 @@ export default function MoveDesk({
   // leaves this null, so the composer opens blank as before.
   const [messagePrefill, setMessagePrefill] = useState(null);
   const [error, setError] = useState(null);
+  // Which face the Combat tile is showing. Same swap-in-place behaviour as the
+  // sheet and the inspector — one component, three surfaces.
+  const [combatOpen, setCombatOpen] = useState(false);
+  // The desk ships tag rows keyed by id and the tag bodies in one shared map
+  // (moveRows.js#tagsByIdFor), so they have to be joined back up before
+  // anything can resolve a band off them. `equipped` rides the row, not the
+  // tag — a stowed sword is a different character in a fight than a drawn one.
+  const combatTags = useMemo(
+    () =>
+      (move.tags ?? [])
+        .map((t) => (tagsById[t.tagId] ? { ...t, tag: tagsById[t.tagId] } : null))
+        .filter(Boolean),
+    [move.tags, tagsById],
+  );
   const [pending, startTransition] = useTransition();
 
   // Read off the enum, not the display label — a live lock never masks this
@@ -249,6 +264,15 @@ export default function MoveDesk({
           </button>
         </div>
       </header>
+
+      {/* How hard does this person hit, and what happens when they are hit —
+          the two questions an arbitration opens with, which this panel used to
+          answer by sending the GM off to the right-hand inspector. Same tile,
+          same breakdown on hover, plus the armour pieces a GM gets and a
+          player does not (COMBAT.md §2). */}
+      <div className="mt-3 flex">
+        <CombatTile tags={combatTags} showArmorPieces open={combatOpen} onOpen={setCombatOpen} />
+      </div>
 
       {move.tags?.length ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
