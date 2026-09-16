@@ -529,11 +529,30 @@ instance is a change to the hub, not a slider.
   opens the inspector on the person being held, and so does clicking any name
   in the strip. Each live pairing carries a ✕ that calls that one fight off.
 - **OOC lens** — every out-of-character line said this turn (`db/lib/ooc.js`),
-  newest first, with the speaker, the words and the place. **Read-only, and
-  the lens has no desk** for the same reason `Other` has none, only harder:
-  there is nothing a GM *does* to a sentence that has already been said.
-  Clicking a row, or `⏎`, opens the speaker in the inspector, which is the one
-  thing a GM reading a line actually wants next.
+  newest first, with the speaker, the words and the place. It shipped read-only
+  and with no desk, on the argument that there is nothing a GM *does* to a
+  sentence already said. Reading it turned out to be the thing they do: a line
+  on its own ("is Mountaineering the skill for the Road by the Keep?") says
+  nothing about what prompted it. **So a row opens a desk now** — the
+  surrounding transcript with that line marked (`OocDesk.js`), which is
+  `ArchiveContext`, the same component the inspector's Archive tab opens in a
+  modal. One renderer, one fetch, one anchor rule between the two.
+
+  The desk carries the two verbs a GM actually has. **Message player** is
+  `onInspect(characterId, name, "DMs")` and nothing else — `inspect()` has
+  taken a tab argument all along, and "DMs" is already one of the inspector's
+  base tabs. **Mute OOC** takes a duration from a menu and stops `/ooc` and the
+  composer's OOC mode for that long, and nothing else: speech and shouting are
+  the character's, and a mute is about the person. It is keyed on the ACCOUNT
+  (`OocMute`, `schema.prisma`), so it follows a player across characters, and
+  `until` is the whole mechanism — the row lapses on its own, nothing sweeps
+  it. The player is told in a DM; lifting it early says nothing.
+
+  A row needs `details.archiveEntryId` to show its scene, stapled on by
+  `deliverOoc` at delivery — `getArchiveContext` takes an `ArchiveEntry` id and
+  the audit row is written before the scene row exists. A line said before that
+  backlink existed has none, and the desk says so rather than drawing an empty
+  scene.
 
   The rows **are** the `AuditLog` rows the OOC rate limit already writes
   (`actionType: "ooc"`) — there is no OOC table, and adding one would mean two
@@ -849,7 +868,10 @@ adjudicable the moment the Ram is a ruin.
 | `web/app/(desk)/layout.js` | The full-viewport route group's GM gate |
 | `web/app/(desk)/gm/turns/page.js` | RSC: queue, staged rows, catalog, roster — all DTOs |
 | `.../Workspace.js` | Client shell: selection, inspector context + cache, layout |
-| `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue. **There is no tab registry** — the six lenses are a `LENSES` whitelist in `Workspace.js`, a hand-written button each in the `.desk-rail-lens` strip, and a branch each in one ternary. Adding a seventh means touching all three, and the rail does not get wider: `.desk-rail-lens button` in `globals.css` carries the `min-width: 0` / `white-space: nowrap` / smaller type that keeps six labels and their counts on one line each |
+| `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue. **There is no tab registry** — the six lenses are a `LENSES` whitelist in `Workspace.js`, a hand-written button each in the `.desk-rail-lens` strip, and a branch each in one ternary. Adding a seventh means touching all three, plus `parseSelection` in `page.js` if it takes a deep link |
+| `.desk-rail-lens` (globals.css) | **Three across, two deep — measured, not guessed.** Six labels want about 415px of text and one row of a 23rem rail gives them 341, so every tab clipped its own name; the arithmetic was wrong twice before anybody put a browser on it. Three columns give each ~113px against a 92px worst case. `.segmented` draws one seam per row, so the grid puts the borders back by `nth-child`. The rail itself went 19rem → 23rem in `.desk-body`, and the literal is repeated in the 1024px block — both have to move together |
+| `.../OocDesk.js` | One OOC line in its scene, plus Message player and Mute OOC |
+| `web/app/components/ArchiveContext.js` | The "in context" slice itself — shared by that desk and `ArchiveContextModal.js`, which is only the frame now |
 | `web/lib/moveRows.js` | The Move / staged-effect / staged-message DTO mappers, shared by `page.js` and the History fetchers so they can't drift |
 | `.../deskStore.js` | The desk's client-owned rows: seed, patch, the newer-wins reconciliation rule |
 | `.../deskDraft.js` | What a GM has typed and not saved — the Result boxes and the Kind switch, keyed by row, mirrored to `localStorage`. Also the desk's record of WHICH rows are dirty, which is what `DeskStream.js` buffers against |

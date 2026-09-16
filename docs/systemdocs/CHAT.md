@@ -95,7 +95,23 @@ line renders in (`shoutChannelKind`/`renderShout` in `shout.js`: full text at
 `"scene"` and fall through to `.chat-subtext`, same as any other bit of
 scenery.
 
-**An OOC line is the fourth of these, `channelKind: "ooc"`** (`db/lib/ooc.js`),
+**An OOC line is spelled TWICE, and it has to be.** `[OOC]: hi` at the start of
+a block is a Markdown **link reference definition** — label `OOC`, destination
+`hi` — and a definition renders as nothing, so the line was invisible on /play
+while showing perfectly on Discord, whose parser has no such syntax. It bit
+exactly the messages people send: a single word is a valid link destination, so
+"hi", "brb", "yes?" and any URL all vanished, while "hello there" survived
+because the space makes the destination invalid and it falls back to a
+paragraph. That is why it got through review — the line you try by hand works.
+
+So `db/lib/ooc.js` keeps two: `oocBody()` for Discord, plain, and
+`oocRowBody()` for the archive row, with the brackets escaped
+(`\[OOC\]: …`), which renders as the literal `[OOC]: …` the format promises.
+`deliverOoc` builds both itself rather than taking them as arguments, so no
+caller can hand the escaped one to Discord or the plain one to the archive.
+`db/test/ooc.test.js` pins it.
+
+**The line is `channelKind: "ooc"`** (`db/lib/ooc.js`),
 drawn `.chat-ooc` — subtext-sized like the scenery, because none of it is
 happening in the room either, but with a rule down its left edge so a GM or a
 player can tell it from a smell at a glance. The body already carries its own
@@ -504,10 +520,20 @@ like everything else.
   `data-live` above it.
 - **The composer shows a Send button under a coarse (touch) pointer.** The
   slowmode clock shows before it bites, and a character count is drawn where
-  a command actually caps its text.
-- **Speak / Shout / OOC is one `.segmented` across the top of the box** on
-  desktop, and folds into the `+` beside the box on a phone, where the ✉ and
-  the hood already live. It stores **no state of its own**: each of the two that
+  a command actually caps its text. On desktop Send stands as tall as the box
+  beside it, capped at about three lines so a six-line message does not turn it
+  into the largest object on the page.
+- **"Enter to send · Shift+Enter for a line" is the box's own placeholder**, not
+  a readout beside it — it says one thing about the box, so it belongs in the
+  box, and it costs the row nothing. Never under a coarse pointer, where Enter
+  IS a newline and the hint would be a lie, and never in command mode, where the
+  command's own placeholder is the question being asked.
+- **Speak / Shout / OOC is an inline dropdown at the head of the composer row**
+  on desktop, and folds into the `+` beside the box on a phone, where the ✉ and
+  the hood already live. It was a `.segmented` strip ACROSS THE TOP of the box
+  for a day, which cost the composer a whole band of chrome for a three-item
+  choice — the row is one line now: dropdown, box, send. It stores **no state
+  of its own**: each of the two that
   is not plain speech is already a command in `./commands.js`, so the control
   enters command mode and `runCurrent()` does the sending, the clearing, the
   length cap and the hand-back-on-refusal. Which mode you are in is *derived*

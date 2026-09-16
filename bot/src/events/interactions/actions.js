@@ -539,7 +539,7 @@ async function handleOocCommand(interaction) {
 
   // Cannot fail the send: the rate-limit row is already claimed, so a dead
   // channel is one audience short rather than a refusal (db/lib/ooc.js).
-  await deliverOoc(prisma, { placeKey, body: result.body, line: result.line });
+  await deliverOoc(prisma, { placeKey, text: result.text, auditId: result.auditId });
 
   await respond(interaction, "Sent.");
 }

@@ -8,6 +8,7 @@ import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
+import Select from "@/app/components/Select";
 import { CameraIcon, EditIcon, EyeIcon, HoodIcon, MoreIcon, NotesIcon, PlusIcon, QuillIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
@@ -120,6 +121,21 @@ function timeLabel(iso) {
 // (`"shout-near"`, still fully audible on Discord too) draws at ordinary
 // size, and anything past that keeps no tag and falls through to the default
 // subtext — matching its muffled `-#` treatment on Discord.
+// The keys, said inside the box rather than beside it. It was its own element
+// in the composer row, which cost the row a whole readout to say one thing
+// about the box it sat next to — so it is ghost text in the box now, gone the
+// moment anybody types.
+//
+// NEVER under a coarse pointer: there Enter is a newline (Discord's app does
+// the same) and the button beside the box is the send, so the hint would be a
+// lie. Never in command mode either — the command's own placeholder is the
+// question being asked, and this would talk over it.
+const SEND_HINT = "Enter to send · Shift+Enter for a line";
+
+function withSendHint(placeholder, show) {
+  return show ? `${placeholder}  ·  ${SEND_HINT}` : placeholder;
+}
+
 const SystemRow = memo(function SystemRow({ row }) {
   const shout = row.channelKind === "shout";
   const shoutNear = row.channelKind === "shout-near";
@@ -2072,27 +2088,36 @@ export default function Feed({
         <div className="chat-composer">
           {place.canSpeak ? (
             <>
+              {/* Speak / Shout / OOC, inline at the head of the composer row —
+                  not a strip above the box, which was a whole extra band of
+                  chrome for a three-item choice. Desktop only: on a phone the
+                  same three sit under the + beside the box, where the rest of
+                  the composer's verbs already live.
+
+                  Hidden when there is only Speak to pick — a control with one
+                  option is decoration.
+
+                  The shared Select, never a bare <select>: it draws its own
+                  popup rather than OS chrome that ignores the theme, and it
+                  already puts `.control` on its trigger — the surface without
+                  .field's label column, which is exactly a control inline in a
+                  toolbar (DESIGN-SYSTEM.md §5). So the class here is only the
+                  width. */}
+              {!narrow && speechModes.length > 1 && (
+                <Select
+                  className="chat-mode-select"
+                  aria-label="How to talk"
+                  value={speechMode ?? "speak"}
+                  onChange={(e) => pickSpeechMode(e.target.value)}
+                >
+                  {speechModes.map((m) => (
+                    <option key={m.mode} value={m.mode}>
+                      {m.label}
+                    </option>
+                  ))}
+                </Select>
+              )}
               <div className="field chat-composer-box" data-command={command ? "true" : undefined}>
-                {/* Speak / Shout / OOC, across the top of the box. Desktop
-                    only: on a phone the same three sit under the + beside the
-                    box, where the rest of the composer's verbs already live
-                    and where there is no room for a third row of chrome.
-                    Hidden when there is only Speak to pick — a control with
-                    one option is decoration. */}
-                {!narrow && speechModes.length > 1 && (
-                  <div className="segmented chat-speech-modes" role="group" aria-label="How to talk">
-                    {speechModes.map((m) => (
-                      <button
-                        key={m.mode}
-                        type="button"
-                        aria-pressed={speechMode === m.mode}
-                        onClick={() => pickSpeechMode(m.mode)}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
                 {/* COMMAND MODE reads as a strip across the top of the box —
                     what you are running, what it does, and a way out. It used
                     to be a floating accent-tinted pill above the textarea,
@@ -2125,9 +2150,12 @@ export default function Feed({
                   placeholder={
                     command
                       ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it")
-                      : concealed && alias
-                        ? `Say something as ${alias}…`
-                        : `Say something in ${place.name}…`
+                      : withSendHint(
+                          concealed && alias
+                            ? `Say something as ${alias}…`
+                            : `Say something in ${place.name}…`,
+                          !coarse,
+                        )
                   }
                   onChange={onDraftChange}
                   onKeyDown={(e) => {
@@ -2283,11 +2311,11 @@ export default function Feed({
                   {command ? "Run" : "Send"}
                 </button>
               )}
-              {/* Two quiet readouts under the send. The keys, because nothing
-                  on the page said Enter would send; and the count, but only
-                  where a limit actually exists to run into — the refusal used
-                  to be the first mention of one. */}
-              {!coarse && <span className="chat-composer-keys">Enter to send · Shift+Enter for a line</span>}
+              {/* The count, drawn only where a limit actually exists to run
+                  into — the refusal used to be the first mention of one. The
+                  keys hint used to sit here beside it; it is the box's own
+                  placeholder now (see SEND_HINT), which says the same thing in
+                  the place you are already looking and costs the row nothing. */}
               {command && textArgOf(command.entry)?.maxLength && (
                 <span
                   className="chat-composer-count mono"

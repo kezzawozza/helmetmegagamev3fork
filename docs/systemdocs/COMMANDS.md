@@ -383,6 +383,13 @@ on the web (`.chat-ooc`, subtext with a rule down its left edge). No name is
 attached. Who said it lives in the `AuditLog` row instead, which is what the
 GM's OOC lens reads (`ADJUDICATION.md` §3).
 
+**A GM can mute it.** `OocMute` (`schema.prisma`) is one row per ACCOUNT with
+an `until`, set from the OOC lens on `/gm/turns` (`ADJUDICATION.md` §3). It
+refuses `/ooc` and the composer's OOC mode with "Your OOC is muted." and stops
+nothing else — a muted player still speaks and still shouts, because those
+belong to their character. Checked ahead of the rate limit, so a refused send
+costs no token. The row lapses on its own; nothing sweeps it.
+
 **Speech is refused if it looks like OOC.** A `(`, a `[`, or the bare word
 "ooc" in a message sent through the ordinary composer refuses the whole thing
 — `db/lib/oocGuard.js`, checked inside `prepareSpeech` — and the player gets

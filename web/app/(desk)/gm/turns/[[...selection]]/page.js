@@ -64,7 +64,10 @@ function parseSelection(sel) {
   if (typeof sel !== "string") return null;
   const [type, id, ...rest] = sel.split("/");
   if (rest.length || !id) return null;
-  if (!["move", "caving", "history"].includes(type)) return null;
+  // "desire" and "ooc" open a desk in Workspace.js the same way the first
+  // three do; "desire" was simply missed when its lens landed, so a
+  // ?sel=desire/<id> link resolved to nothing.
+  if (!["move", "caving", "history", "desire", "ooc"].includes(type)) return null;
   return { type, id };
 }
 
@@ -314,9 +317,21 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   const desireCtx = { usernameById, catatonicIds };
   const desireRows = desireClaims.map((d) => desireClaimRow(d, desireCtx));
 
-  // The OOC lens — read-only, and deliberately so: there is nothing for a GM
-  // to DO to a line that was said, which is why it has rows and no desk.
-  const oocRows = oocLines.map((a) => oocRow(a, { usernameById, catatonicIds }));
+  // The OOC lens. Live mutes for exactly the accounts on this lens, so the
+  // desk's button can say Unmute without a second round trip — `until` in the
+  // past is not a mute, and the row lapses on its own (schema.prisma, OocMute),
+  // so the filter here IS the expiry.
+  const oocAccounts = [
+    ...new Set(oocLines.map((a) => a.targetCharacter?.discordUserId).filter(Boolean)),
+  ];
+  const oocMutes = oocAccounts.length
+    ? await prisma.oocMute.findMany({
+        where: { discordUserId: { in: oocAccounts }, until: { gt: new Date() } },
+        select: { discordUserId: true, until: true },
+      })
+    : [];
+  const mutedUntilByUser = new Map(oocMutes.map((m) => [m.discordUserId, m.until.toISOString()]));
+  const oocRows = oocLines.map((a) => oocRow(a, { usernameById, catatonicIds, mutedUntilByUser }));
 
   const effectCtx = { usernameById, locationNameById, openTurn };
   const messageCtx = { usernameById, openTurn };
