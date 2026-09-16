@@ -150,6 +150,7 @@ const THREATS = [
         "fragmentation-grenade",
         "motorcycle",
         "supply-kit",
+        "radio-243000",
       ],
     },
     spawn: {
@@ -178,6 +179,7 @@ const THREATS = [
         "fragmentation-grenade",
         "motorcycle",
         "supply-kit",
+        "radio-243000",
       ],
     },
     spawn: {

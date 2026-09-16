@@ -1,5 +1,5 @@
 // The registry of SPECIAL CHANNELS — standing channels outside the zone system. Each entry fully describes a channel: provisioning, static role grants, per-character access, wipe behavior, ghost visibility and tupper routing all derive from it. Access rules stay CODE, not a YAML mini-language.
-// #cerberon and #27.065 are the two radio nets. #intercom is now a button in the Council Room (db/lib/intercom.js); its GameConfig column stays as an orphan.
+// #cerberon, #27.065 and #243.000 are the three radio nets. #intercom is now a button in the Council Room (db/lib/intercom.js); its GameConfig column stays as an orphan.
 
 const SPECIAL_CHANNELS = [
   {
@@ -33,6 +33,20 @@ const SPECIAL_CHANNELS = [
     roleViewZones: [],
     // No listener-only half here: there is a single radio, and it both hears and speaks.
     member: (ctx) => (ctx.tagSlugs.has("radio-27065") ? { view: true, send: true } : null),
+  },
+  {
+    slug: "243.000",
+    name: "243.000",
+    configKey: "freq243000ChannelId",
+    categoryConfigKey: "radioCategoryId",
+    topic:
+      "The Tribunal's own frequency. Everyone holding a radio tuned to it hears everything said, and anyone who hears may answer.",
+    tupper: true,
+    wipe: "clear",
+    ghostsMaySee: true,
+    roleViewZones: [],
+    // Same shape as 27.065: one radio, hears and speaks both.
+    member: (ctx) => (ctx.tagSlugs.has("radio-243000") ? { view: true, send: true } : null),
   },
 ];
 

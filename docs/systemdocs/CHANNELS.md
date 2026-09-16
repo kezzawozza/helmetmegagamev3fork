@@ -897,10 +897,10 @@ first, then `CONFIRMED=1`. `db:sync-narrowcast-channels` and `db:sync-deadchat`
 are thin wrappers over the same thing, scoped to the radio nets and to
 Deadchat. Every run lands as a `SystemReport`.
 
-## 7. Special channels (`#cerberon`, `#27.065`)
+## 7. Special channels (`#cerberon`, `#27.065`, `#243.000`)
 
 Standing channels outside the zone system, under one `radio` category (id on
-`GameConfig.radioCategoryId`). Both are radio nets.
+`GameConfig.radioCategoryId`). All three are radio nets.
 `db/lib/specialChannels.js` is a **registry**:
 one entry fully describes a channel — its `GameConfig` id columns, topic,
 tupper routing, wipe behaviour, ghost visibility, static role grants, an
@@ -917,12 +917,15 @@ two access twins and the wipe.
 |---|---|---|
 | `#cerberon` | **Radio Bracelet (Cerberon)** or **Radio System (Cerberon)** holders (per-member overwrite) | Radio System (Cerberon) holders only |
 | `#27.065` | **Radio (27.065)** holders (per-member overwrite) | the same — everyone who hears may answer |
+| `#243.000` | **Radio (243.000)** holders (per-member overwrite) | the same — everyone who hears may answer |
 
 The Radio tags are transferable, so possession is what matters — a bracelet
 handed to a character outside the Cerberon still opens `#cerberon`. Nobody
 buys a **Radio (27.065)** in point-buy either; the Thanati shelf is the only
-source, at 20 (`db/lib/thanati.js`). The two nets are separate frequencies
-and never mix.
+source, at 20 (`db/lib/thanati.js`). **Radio (243.000)** is the Tribunal's
+own frequency — a `starting_tags` grant on the Tribune and Tribunal Ordinator
+roles (`docs/roles.yaml`), and on `db/lib/threats.js`'s `assign.tagSlugs` for
+both, never bought. The three nets are separate frequencies and never mix.
 
 Both are **also places on `/chat`**, as the `net:<slug>` place kind — see
 `CHAT.md` §5d. The rule there is this same `member` function, so the two faces
