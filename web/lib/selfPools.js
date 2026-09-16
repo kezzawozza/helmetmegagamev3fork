@@ -41,7 +41,7 @@ import {
 // picker is closed on most loads, so the first paint carries only the slot half.
 export async function loadDesireView(character, { openTurn, gameConfig, withCatalog = true } = {}) {
   const desireSlots = gameConfig?.desireSlots ?? 2;
-  const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 1;
+  const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 2;
   // Manic: slotStates below already comes back unlocked for a holder; the sheet labels a slot off that.
   const slotsNeverLock = desireSlotsNeverLock(character.tags ?? []);
   const heldTags = (character.tags ?? []).map((ct) => ct.tag);
