@@ -4,13 +4,15 @@ import { evaluateDesireCatalog, slotStates, desireSlotsNeverLock } from "@lifewe
 import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
 import { getGuildMember } from "@/lib/discordGuild";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
+import { carryStatus } from "@lifeweb/db/lib/carry";
 import { isSuperadmin } from "@/lib/superadmin";
 import { isHealable } from "@/lib/healRequests";
-import { DEFAULT_MAX_DRAWBACK_TAGS, DEFAULT_MAX_DRAWBACK_POINTS } from "@/lib/characterCreation";
+import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
 import { projectDesireTemplateForGates, loadRoleBySlugForTemplates } from "@/lib/desireProjection";
 import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
 import { concealmentFrom, forcedNameFrom, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 import { paperDescriptionGm, paperViewGm } from "@lifeweb/db/lib/paper";
+import { prettifyActionType } from "@/lib/auditNarrative";
 
 // The whole data-assembly behind the Dev Character Panel, extracted so it can
 // be shared by the standalone page (/gm/dev/characters/[characterId]) and the
@@ -45,6 +47,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     member,
     pendingStaged,
     transferRoster,
+    latestAudit,
   ] = await Promise.all([
     // The place picker's options. A character stands in a Location, never on
     // a zone row, so this is the whole Location table grouped by zone.
@@ -122,7 +125,16 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         group: { select: { slug: true, name: true } },
       },
     }),
-    prisma.characterTag.findMany({ where: { characterId }, include: { tag: true } }),
+    // chipSelect() + composeChipTag() is what any surface drawing the sheet's
+    // own cards (web/lib/sheetCards.js) needs — TAG_CHIP_FIELDS alone misses
+    // carryBonus/laborBonus, which sheetCards.js#rowValue reads, and a raw
+    // Tag row's `description`/`paper` are wrong for a paper tag until
+    // composed. Same select the adjudication desk's inspector already uses
+    // for the same reason (web/app/(desk)/gm/turns/actions.js).
+    prisma.characterTag.findMany({
+      where: { characterId },
+      include: { tag: { select: chipSelect({ equippable: true, stackable: true, carryBonus: true, laborBonus: true }) } },
+    }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
     prisma.desire.findMany({
@@ -191,6 +203,14 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    // The band's "Last activity" tile — one row, indexed by targetCharacterId
+    // + createdAt already (AuditLog_details_trgm_idx's neighbour), so this
+    // costs nothing worth batching separately.
+    prisma.auditLog.findFirst({
+      where: { targetCharacterId: characterId },
+      orderBy: { createdAt: "desc" },
+      select: { actionType: true, createdAt: true },
+    }),
   ]);
 
   // A staged transfer this character is the "to" end of is a pending credit;
@@ -213,6 +233,15 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       }
     : null;
 
+  // Composed ONCE, reused everywhere below that used to read the raw
+  // `heldTags` — gambitModifiers/evaluateDesireCatalog/desireSlotsNeverLock
+  // only ever read `.slug`/`.id`, which composeChipTag never touches, so
+  // this is a strict superset of the raw shape, not a behavior change for
+  // them. `held` (the flattened DTO array) and the new `characterTags` (the
+  // nested shape the main-body tag display wants, same as
+  // InspectorColumn.js's SheetView) both read off this one composition.
+  const heldTagsComposed = heldTags.map((ct) => ({ ...ct, tag: composeChipTag(ct.tag, GM_CHIP_CTX) }));
+
   // The GM-facing Desire read-outs for GoalsTab. Two different shapes off the
   // same `desireTemplates` fetch:
   //   - desireCatalog: the full picker list, retired rows included and
@@ -231,7 +260,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
   );
   const { visible: desireStatesEvaluated } = evaluateDesireCatalog({
     templates: projectedDesireTemplates,
-    heldTags: heldTags.map((ct) => ct.tag),
+    heldTags: heldTagsComposed.map((ct) => ct.tag),
     hiddenTagIds: new Set(),
     roleSlug: character.role?.slug ?? null,
     history: desires,
@@ -256,7 +285,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     openTurnNumber: openTurn?.number ?? 0,
     desireSlots: desireSlotsConfig,
     lockTurns: desireSlotLockTurns,
-    noLock: desireSlotsNeverLock(heldTags),
+    noLock: desireSlotsNeverLock(heldTagsComposed),
   }).map((slot) => ({
     slotIndex: slot.slotIndex,
     lockedUntilTurn: slot.lockedUntilTurn,
@@ -272,12 +301,34 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     retired: t.retired,
   }));
 
+  // The band's Goals tile: a count, not the whole list — GoalsTab is where a
+  // GM actually works with one. "Ready" means the slot isn't currently
+  // filled by an ACTIVE desire and isn't locked out, i.e. a GM could award
+  // into it right now.
+  const activeSlotIndexes = new Set(
+    desires.filter((d) => d.status === "ACTIVE").map((d) => d.slotIndex),
+  );
+  const goalsSummary = {
+    active: activeSlotIndexes.size,
+    total: desireSlotsConfig,
+    ready: desireSlotStates.filter(
+      (s) =>
+        !activeSlotIndexes.has(s.slotIndex) &&
+        (s.lockedUntilTurn == null || s.lockedUntilTurn <= (openTurn?.number ?? 0)),
+    ).length,
+  };
+
   // [{ label, value }] — what is weighing on their Gambit roll, named. Every
   // caller must pass `mood`; a missed one reads undefined and lands in Fine.
-  const gambitParts = gambitModifiers(heldTags, {
+  const gambitParts = gambitModifiers(heldTagsComposed, {
     hungerStreak: character.hungerStreak,
     mood: character.mood,
   });
+
+  // The band's Carrying tile: the same carryStatus() LedgerBand.js's own
+  // "Carrying" tile calls, fed the nested shape it needs — not the flattened
+  // `held` below, which drops the columns carryStatus reads.
+  const carry = carryStatus({ tags: heldTagsComposed, resources: character.resources }, config);
 
   return {
     character: {
@@ -319,8 +370,8 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       discordMirrored: character.discordMirrored,
       concealed: character.concealed,
       concealedInEffect: presentedIdentity(character, {
-        forcedName: forcedNameFrom(heldTags),
-        concealment: concealmentFrom(heldTags),
+        forcedName: forcedNameFrom(heldTagsComposed),
+        concealment: concealmentFrom(heldTagsComposed),
       }).concealed,
       discordRoleId: character.discordRoleId,
       avatarMimeType: character.avatarMimeType,
@@ -383,7 +434,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       // affliction is — isHealable is the shared predicate.
       healable: isHealable(t),
     })),
-    held: heldTags.map((ct) => ({
+    held: heldTagsComposed.map((ct) => ({
       tagId: ct.tagId,
       name: ct.tag.name,
       slug: ct.tag.slug,
@@ -395,8 +446,9 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       twoHanded: ct.tag.twoHanded,
       expiresTurn: ct.expiresTurn,
       source: ct.source,
-      // For the state strip's drawback point total — a negative pointCost is
-      // what makes a tag a drawback (TAGS.md §4a).
+      // A negative pointCost is what makes a tag a drawback (TAGS.md §4a) —
+      // read by nothing in this DTO's own band any more, but cheap to leave
+      // for whatever next reads it off a held row rather than the catalog.
       pointCost: ct.tag.pointCost,
       // The band's Combat tile reads this same array (db/lib/fightingSkill.js
       // FIGHTING_TAG_FIELDS, db/lib/armorValue.js ARMOR_TAG_FIELDS) — one
@@ -407,11 +459,27 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       category: ct.tag.category,
       meleeArmor: ct.tag.meleeArmor,
       ballisticArmor: ct.tag.ballisticArmor,
+      // The band's Afflictions tile — isHealable is the same predicate the
+      // catalog's own `tags[].healable` above already runs.
+      healable: isHealable(ct.tag),
+    })),
+    // The nested shape web/lib/sheetCards.js#buildCards wants (a `tag` on
+    // every row, not a flattened one) — the main body's held-tags display
+    // reuses the exact grouping/ordering the sheet and the GM inspector
+    // already draw, rather than a second implementation of "what card does
+    // this go in".
+    characterTags: heldTagsComposed.map((ct) => ({
+      tagId: ct.tagId,
+      quantity: ct.quantity,
+      equipped: ct.equipped,
+      equippedQuantity: ct.equippedQuantity,
+      expiresTurn: ct.expiresTurn,
+      source: ct.source,
+      tag: ct.tag,
     })),
     feed: { dropSlug: HUNGER_SLUG, grantSlug: ATE_MEAL_SLUG },
-    maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
-    maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     startingTagPoints: config?.startingTagPoints ?? 12,
+    carry,
     openTurn: openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null,
     // The parts, not just the total: the band's Gambit tile opens to say WHICH
     // modifiers, the way the player's own sheet does. Summed here rather than
@@ -449,6 +517,12 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     desireCatalog,
     desireFamilies: desireFamilies(),
     desireCooldowns,
+    goalsSummary,
+    // The band's Last activity tile — null for a character with no audit
+    // history yet (a fresh creation nobody has touched).
+    lastActivity: latestAudit
+      ? { label: prettifyActionType(latestAudit.actionType), createdAt: latestAudit.createdAt.toISOString() }
+      : null,
   };
 }
 

@@ -84,27 +84,77 @@ can't disagree about what an affliction is.
   The band used to be fifteen bare label/value pairs in four labeled
   clusters, and after that a rulebook — every tile carried a sentence
   explaining the rule behind it. A GM running this panel already knows the
-  rules, so the tiles are plain read-only boxes with nothing to hover:
-  **Resources**, **Tag points**, **Mood** (the band word), **Gambit die**
-  (opens to name which modifiers, from `gambitParts`), **Combat**
-  (`CombatReadout.js`, the same tile the player's sheet and `/gm/turns` show,
-  with `showArmorPieces` on — GM-only, names the worn pieces behind each
-  armour word), **Equipped**, **Drawbacks**, and **This turn**, which is the
-  one tile that still opens — to a fact about this character
-  (`${name} hasn't acted this turn`), never a rule.
+  rules, so the tiles are plain read-only boxes with nothing to hover, except
+  where noted.
 
-  **Concealed** sits under the tiles in its own box, not a tile — it has no
-  sentence to open, just a resolved answer that can disagree with what the
-  player set: `Character.concealed` is only a wish and takes effect solely
-  while something concealing is equipped, so it says **On, but nothing worn**
-  for the state that reads to a player as "my hood does not work". The
-  resolution happens in `web/lib/devPanelData.js`, through
-  `presentedIdentity` — the same function every send path asks — rather than
-  being restated on the client.
+  **Four primary tiles, kept on one line: Resources, Tag points, Mood** (the
+  band word), and **Gambit die** (opens to name which modifiers, from
+  `gambitParts`). **Combat** (`CombatReadout.js`, the same tile the player's
+  sheet and `/gm/turns` show, with `showArmorPieces` on — GM-only, names the
+  worn pieces behind each armour word) sits on its own full-width row below
+  them, not in the tile grid — its two-tree readout needs a third of the
+  band's width to lay out without wrapping into a neighbour, the same reason
+  `LedgerBand.js` gives.
+
+  **A second row of tiles below Combat is the informational glance** — free
+  to wrap over more than one line, unlike the primary four. **Equipped**,
+  **Drawbacks**, and the bare **This turn** answered questions nobody was
+  asking and are gone; in their place:
+
+  - **Concealed** — a resolved answer that can disagree with what the player
+    set: `Character.concealed` is only a wish and takes effect solely while
+    something concealing is equipped, so it says **On, but nothing worn** for
+    the state that reads to a player as "my hood does not work". The
+    resolution happens in `web/lib/devPanelData.js`, through
+    `presentedIdentity` — the same function every send path asks — rather
+    than being restated on the client.
+  - **This turn** — now the Move's own kind (`moveKindLabel`,
+    `web/lib/moves.js`) when they've filed one, opening to its description —
+    a fact about this character, never a rule.
+  - **Staged for push** — the adjudication workspace's queued changes against
+    this sheet, promoted from a footer line into a tile.
+  - **Carrying** — `carryStatus()` (`db/lib/carry.js`), the same function
+    `LedgerBand.js`'s own "Carrying" tile calls, fed the nested
+    `characterTags` shape (below) rather than the flattened `held`.
+  - **Expiring soon** — held tags due to run out this turn or next.
+  - **Afflictions** — held tags the `isHealable` predicate calls an
+    affliction, the same one the wound picker and Heal-all button use.
+  - **Hunger** — whether the Hungry tag (`feed.dropSlug`) is currently held.
+  - **Goals** — active Desires over the configured slot count, opening to say
+    how many slots are unlocked and empty (`goalsSummary`,
+    `web/lib/devPanelData.js`).
+  - **Last activity** — the character's most recent `AuditLog` row,
+    prettified (`web/lib/auditNarrative.js#prettifyActionType`).
+
+  The identity line above the tiles also carries a **Cursed** badge
+  (`curse.cursed`, not `Character.status` — that enum has no cursed value of
+  its own), **Leader**/**Treasurer** chips, and a **turn ping** mark, none of
+  which draw when they'd say nothing.
 
   There is no Discord-mirror control here any more — a GM who needs to flip
   a player's own "Play on Discord too" switch does it from `/character`
   material, not this panel; this surface doesn't carry an opinion about it.
+- **Held tags** (`HeldTagsBody.js`) — always visible in the panel's main
+  body, between the action bar and the tabs, not gated behind the Tags tab.
+  Reuses the sheet's own grouping and rows — `buildCards`/`TagRow`/`ItemCard`
+  from `web/lib/sheetCards.js` — the same reuse `InspectorColumn.js`'s
+  `SheetView` already established for the adjudication desk, so a GM reads
+  the same cards everywhere a tag list shows up. `includeStatus: true`
+  because this panel has no `StatusStrip` of its own. Unlike `SheetView`'s ✕
+  (which only *stages* a removal), every verb here — the quantity stepper,
+  Equip/Unequip, Make permanent, Remove — fires immediately through the same
+  `applyCharacterEdits` call the Tags tab's Grant flow uses: this is the GM's
+  live edit surface, not the adjudication desk. Removing a tag whose
+  `removesInto` chain would leave an aftermath behind (`TAGS.md` §5c) still
+  asks first, naming what it will leave — the one gesture here that
+  repeating its inverse does **not** undo.
+
+  The nested shape it needs (`{ tag, quantity, equipped, … }`, with `tag`
+  composed via `chipSelect()`/`composeChipTag()` — `web/lib/tagChipRows.js`
+  — rather than a raw Tag row) is `characterTags` on the DTO, built once in
+  `web/lib/devPanelData.js` and reused for the Combat tile's `held`
+  projection, `carryStatus()`, `gambitModifiers`, and the Desire gates —
+  one composition, not five queries.
 - **Action bar** — `IconButton`s over `.icon-btn`, in named clusters: Life ·
   Turn · Reach · Body · Admin. A destructive verb never sits flush against a
   harmless one, and **Admin draws only for a superadmin** — Delete is all that
@@ -201,12 +251,13 @@ no box, and the button just reads "Grant". The `force: true` escape hatch that
 used to let a GM stack anything is gone (`TAGS.md` §5a).
 
 **The two steppers mean different things, and that is the point.** On a
-*catalog* row — a tag not yet held — it is "how many to grant", so it feeds an
-`add`. On a *Holds* row it is **the resulting count**, so it feeds a
-`patch quantity`, which `applyTagOpsInTx` writes straight onto the row. Setting
-a stack of seven to three is one gesture; it used to be four clicks of "Take
-one", because the Remove button was pinned to `quantity: 1` and ignored the
-number box sitting beside it.
+`TagEditor.js` *catalog* row — a tag not yet held — it is "how many to
+grant", so it feeds an `add`. On a `HeldTagsBody.js` row for an existing
+holding it is **the resulting count**, so it feeds a `patch quantity`, which
+`applyTagOpsInTx` writes straight onto the row. Setting a stack of seven to
+three is one gesture; it used to be four clicks of "Take one", because the
+Remove button was pinned to `quantity: 1` and ignored the number box sitting
+beside it.
 
 Two consequences of an absolute count worth knowing:
 
@@ -214,10 +265,10 @@ Two consequences of an absolute count worth knowing:
   `remove` before sending. `validateTagOps` refuses a `patch` below 1 outright
   rather than degrading to a removal, so the conversion cannot be left to the
   server.
-- **Rapid steps coalesce.** An absolute quantity is idempotent, so the Holds
-  stepper debounces and sends only the number it settles on. A stream of deltas
-  could not be collapsed that way — this is the concrete reason the control
-  sets a count rather than nudging one.
+- **Rapid steps coalesce.** An absolute quantity is idempotent, so
+  `HeldTagsBody.js`'s stepper debounces and sends only the number it settles
+  on. A stream of deltas could not be collapsed that way — this is the
+  concrete reason the control sets a count rather than nudging one.
 
 Applied **removes → adds → patches → equipped**. Removes lead so swapping one
 tier of a chain for another can't trip the equip cap halfway through; the
@@ -236,7 +287,7 @@ Every add stamps its expiry through `expiryFor(tag, openTurn)`. This is not
 optional: the sweep matches on `expiresTurn`, so a timed tag granted with a
 null there never expires at all.
 
-## 6. The Tags tab is not PointBuy
+## 6. The Tags tab is add-only
 
 `PointBuy` is the *player's* rules-respecting store and stays that way. The GM
 editor shares its pure helpers and deliberately drops every gate:
@@ -246,37 +297,29 @@ editor shares its pure helpers and deliberately drops every gate:
   `TagGroup` gate; this is the surface that does it.
 - **No budget.** Cost is information, never a limit — `tagPoints` is a field
   on the Identity tab.
-- **Quantity, equipped and expiry** are all reachable, none of which the
-  player's store exposes.
 
 Both menus share `filterTagsByQuery` from `characterCreation.js`, so search
 behaves identically. In `PointBuy` the search runs **after** `unlockedTags`,
 never instead of it — otherwise a lucky search string would reveal a gated tag.
 
-**Layout.** `TagEditor.js` splits into two permanent sections:
+**`TagEditor.js` used to split into two permanent sections — Holds and the
+catalog. Holds is gone from this tab.** What a character actually has moved
+to the panel's main body (`HeldTagsBody.js`, §3) — always visible, not
+gated behind a click — because "what does this character have" and "what am
+I adding" are different questions, and conflating them is why a Grant button
+here once quietly meant something different from the stepper sitting above
+it. The tab is exactly what's left: search, grant, create custom.
 
-- **Holds** — a one-line row per tag the character actually has: name, source,
-  an equipped chip, an expiry badge, and the count stepper. Every action that
-  touches an existing holding lives here — the count, Equip toggle, Make
-  permanent — so the same tag is never changed from two places. A
-  non-stackable tag has no count to set, so it carries a plain Remove instead.
-
-  Removing a tag whose `removesInto` chain would leave an aftermath behind
-  (`TAGS.md` §5c) still asks first, naming what it will leave. It is the one
-  gesture here that repeating its inverse does **not** undo: re-adding a Broken
-  Bone does not clear the Splinted the removal left. Everything else commits
-  silently, because the stepper is its own inverse.
-- **Catalog** — the browser, still tabbed by category. Within a tab, tags are
+- **Catalog** — the browser, tabbed by category. Within a tab, tags are
   bucketed under a small header per `TagGroup` (name plus the group's own
   colour as a swatch — the one inline colour in the app, since it's freeform
   data out of the database, not a theme token), chain order inside the
   group, ungrouped tags last under no header. Each row is one line — checkbox
   (mass-grant), name, cost, badges (custom / held) — with the
   description behind a native `<details>` disclosure so the tab isn't a mile
-  of always-open panels. A held tag still shows up in the catalog (that's how
-  a GM finds the next tier of a chain), but carries no action there — just a
-  "held ×N — edit in Holds" line. It used to offer a Grant that quietly meant
-  something different from the stepper above it.
+  of always-open panels. A held tag still shows up (that's how a GM finds the
+  next tier of a chain), but carries no action here — just a "held ×N" line;
+  editing an existing holding happens in the main body now, not this tab.
 
   The catalog half — search, tabs, grouping, the row shell, multi-select — is
   the shared `web/app/components/TagCatalogBrowser.js`, extracted so
@@ -284,10 +327,9 @@ never instead of it — otherwise a lucky search string would reveal a gated tag
   power-user tag surface instead of a flat name/slug search box. Row actions
   are the one thing each caller supplies (`renderActions`): `TagEditor.js`
   grants live, `EffectComposer.js` stages an add/remove op instead. Held-tag
-  context differs too — `TagEditor.js` keeps its own Holds section above the
-  browser (with the live-mutation actions the browser doesn't render);
-  `EffectComposer.js` shows the *target's* held tags read-only next to its
-  own staged-ops list, since a staged effect only ever adds a fresh op.
+  context differs too — `EffectComposer.js` shows the *target's* held tags
+  read-only next to its own staged-ops list, since a staged effect only ever
+  adds a fresh op.
 
 A non-empty search box searches the **whole catalog**, ignoring the active
 category tab, with a chip on each hit naming its category. Clear the box to

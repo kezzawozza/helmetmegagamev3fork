@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Dragging the map no longer highlights its text
+
+✎ A drag across the map is a pan, not a text selection — the place names and the zoom bar no longer light up blue when you sweep past them
+
 ## 2026-09-16 · A View as switch on /chat, and the name behind a hood
 
 ✚ View as: GM / Player at the foot of the places column, for a gamemaster who is also playing a character  
