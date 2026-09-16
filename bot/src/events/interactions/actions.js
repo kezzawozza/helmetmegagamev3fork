@@ -512,8 +512,10 @@ async function handleOocCommand(interaction) {
 
   const character = await actingCharacter(interaction, {
     // discordUserId because ooc() stamps the rate-limit AuditLog row with it,
-    // and /gm/turns's OOC lens reads those rows back to a person.
-    select: { id: true, locationId: true, discordUserId: true },
+    // and /gm/turns's OOC lens reads those rows back to a person. `name`
+    // because the presented identity used for the label falls back to it when
+    // nothing conceals or forces (db/lib/presentedIdentity.js).
+    select: { id: true, name: true, locationId: true, discordUserId: true },
   });
   if (!character) {
     await respond(interaction, "You don't have a living character.");
@@ -533,7 +535,9 @@ async function handleOocCommand(interaction) {
 
   // Every refusal past here is ooc()'s, in finished sentences respond() prints
   // as they stand — the wrong place, the length cap, and the rate limit.
-  const result = await ooc(prisma, character, text, { placeKey });
+  // `source: "DISCORD"` so ooc() knows to fold <@&roleId> into {char:id} tokens
+  // for the archive spelling, matching db/lib/say.js#prepareSpeech.
+  const result = await ooc(prisma, character, text, { placeKey, source: "DISCORD" });
   if (!result.ok) {
     await respond(interaction, result.error);
     return;
@@ -541,7 +545,13 @@ async function handleOocCommand(interaction) {
 
   // Cannot fail the send: the rate-limit row is already claimed, so a dead
   // channel is one audience short rather than a refusal (db/lib/ooc.js).
-  await deliverOoc(prisma, { placeKey, text: result.text, auditId: result.auditId });
+  await deliverOoc(prisma, {
+    placeKey,
+    text: result.text,
+    rowContent: result.rowContent,
+    name: result.name,
+    auditId: result.auditId,
+  });
 
   await respond(interaction, "Sent.");
 }

@@ -23,6 +23,9 @@ const { postMessage } = require("./discordRest");
 const { isOocPlaceKey, discordTargetForPlaceKey, placePairForAudit } = require("./placeKey");
 const { MESSAGE_LIMIT } = require("./sayLimits");
 const { checkSpeechBucket, OOC_CAPACITY, OOC_REFILL_MS } = require("./speechRateLimit");
+const { presentedIdentity } = require("./presentedIdentity");
+const { loadPresentedState } = require("./examineSnapshot");
+const { stampMentionNames, rolesToTokens } = require("./characterMentions");
 
 // The AuditLog row IS the rate limit, the GM's OOC lens on /gm/turns, and the
 // record — one row, the way the shout cooldown already works.
@@ -46,10 +49,12 @@ async function oocMuteFor(prisma, discordUserId) {
   return row;
 }
 
-// The hard format, written exactly once. Everything a player sends through here
-// comes out this shape on both faces; there is no variant and no name.
-function oocBody(text) {
-  return `[OOC]: ${text}`;
+// The hard format. `[OOC (Alice): hi]` with the presented name inside the
+// bracket, or the un-named `[OOC]: hi` if the caller could not resolve one
+// (defensive shim — every real path threads a name).
+function oocBody(text, name = null) {
+  const label = name ? `[OOC (${name}): ${text}]` : `[OOC]: ${text}`;
+  return label;
 }
 
 // THE SAME LINE, SPELLED FOR MARKDOWN — and it has to be, which is not obvious.
@@ -62,22 +67,29 @@ function oocBody(text) {
 // "yes?" and any URL all vanished, while "hello there" survived because the
 // space makes it an invalid destination and it falls back to a paragraph.
 //
-// Escaping the brackets renders as the literal `[OOC]: …` the format asks for.
-// Only the ARCHIVE row needs it: the Discord line below must stay unescaped or
-// Discord prints the backslashes. db/test/ooc.test.js pins both halves.
-function oocRowBody(text) {
-  return `\\[OOC\\]: ${text}`;
+// Only the OUTER brackets need escaping — the inner `(Name)` is not part of the
+// definition-shape trap. The Discord line below must stay unescaped or Discord
+// prints the backslashes. db/test/ooc.test.js pins both halves.
+function oocRowBody(rowContent, name = null) {
+  return name
+    ? `\\[OOC (${name}): ${rowContent}\\]`
+    : `\\[OOC\\]: ${rowContent}`;
 }
 
 // Discord's rendering of the same body: `-#` subtext, per line.
-function oocLine(text) {
-  return ambientLine(oocBody(text));
+function oocLine(text, name = null) {
+  return ambientLine(oocBody(text, name));
 }
 
-// `character` needs { id, discordUserId }. `placeKey` is where it was typed.
-// Returns { ok: true, text, body, line, placeKey } or { ok: false, error, retryAfter? }.
-// Posting is deliverOoc()'s half.
-async function ooc(prisma, character, text, { placeKey = null } = {}) {
+// `character` needs { id, name, discordUserId }. `placeKey` is where it was
+// typed. `source` is "DISCORD" or "WEB" — it decides whether the raw body
+// carries `<@&roleId>` tokens (Discord's character-role mentions) that must
+// be folded to `{char:id}` before the archive row keeps them, matching
+// db/lib/say.js#prepareSpeech.
+//
+// Returns { ok: true, text, rowContent, name, placeKey, auditId } or
+// { ok: false, error, retryAfter? }. Posting is deliverOoc()'s half.
+async function ooc(prisma, character, text, { placeKey = null, source = "WEB" } = {}) {
   const body = String(text ?? "").trim();
   if (!body) return { ok: false, error: "Say something." };
   if (body.length > MESSAGE_LIMIT) {
@@ -105,6 +117,35 @@ async function ooc(prisma, character, text, { placeKey = null } = {}) {
   });
   if (!room.ok) {
     return { ok: false, retryAfter: room.retryAfter, error: "You're using OOC too much." };
+  }
+
+  // forced > concealed > own, the same rule /speak uses (db/lib/say.js:175):
+  // an OOC line said from behind a hood must not out the player as the
+  // character behind it, so the label reads the same identity the room sees.
+  // Log-and-continue on failure — the words still go out under the plain
+  // shape.
+  let name = character.name ?? null;
+  try {
+    const loaded = await loadPresentedState(prisma, character.id);
+    const identity = presentedIdentity(character, {
+      forcedName: loaded.forcedName,
+      concealment: loaded.concealment,
+    });
+    if (identity?.name) name = identity.name;
+  } catch (err) {
+    console.error("OOC presented identity load failed:", err?.message ?? err);
+  }
+
+  // Two spellings, differing only in mentions (db/lib/say.js#prepareSpeech).
+  // `body` is what Discord posts (raw); `rowContent` is what the archive row
+  // keeps, with `<@&roleId>` character-role mentions folded to `{char:id|Name}`
+  // tokens so a rename never rewrites what was said.
+  let rowContent = body;
+  try {
+    const withTokens = source === "DISCORD" ? await rolesToTokens(prisma, body) : body;
+    rowContent = await stampMentionNames(prisma, withTokens);
+  } catch (err) {
+    console.error("OOC mention stamping failed:", err?.message ?? err);
   }
 
   // Claimed BEFORE the posting loop, like shout's: that loop is real seconds of
@@ -141,6 +182,8 @@ async function ooc(prisma, character, text, { placeKey = null } = {}) {
   return {
     ok: true,
     text: body,
+    rowContent,
+    name,
     placeKey,
     auditId: claimed?.id ?? null,
   };
@@ -152,17 +195,27 @@ async function ooc(prisma, character, text, { placeKey = null } = {}) {
 //
 // NOTHING HERE MAY THROW — by the time this runs the limit is already spent, so
 // a dead channel is one audience short, not a failed send.
-// `text` is the raw message; both spellings are built HERE rather than passed
-// in, so a caller cannot hand the escaped one to Discord or the plain one to
-// the archive (see oocRowBody).
-async function deliverOoc(prisma, { placeKey, text, auditId = null } = {}) {
+// `text` is the Discord spelling; `rowContent` is the archive spelling with
+// character-role mentions folded to `{char:id|Name}` tokens; `name` is the
+// presented identity read by ooc() and used for the label. Callers pass the
+// three straight from ooc()'s return so the escaped body never reaches Discord
+// and the plain one never reaches the archive.
+async function deliverOoc(
+  prisma,
+  { placeKey, text, rowContent = null, name = null, auditId = null } = {},
+) {
   if (!placeKey || !text) return;
-  const line = oocLine(text);
+  const rowText = rowContent ?? text;
+  const line = oocLine(text, name);
 
   try {
     // No `-#` in the row: the web draws a SYSTEM row as subtext itself (CHAT.md
     // §5). `channelKind` is what lets Feed.js tell this from a smell or a gate.
-    const row = await sceneLine(prisma, { placeKey, text: oocRowBody(text), channelKind: "ooc" });
+    const row = await sceneLine(prisma, {
+      placeKey,
+      text: oocRowBody(rowText, name),
+      channelKind: "ooc",
+    });
     // THE BACKLINK. The GM's OOC lens opens the surrounding scene by handing
     // this id to getArchiveContext, which takes an ArchiveEntry id and nothing
     // else — and the audit row is written before any of this, so it cannot
@@ -185,8 +238,10 @@ async function deliverOoc(prisma, { placeKey, text, auditId = null } = {}) {
   try {
     const target = await discordTargetForPlaceKey(prisma, placeKey);
     const channelId = target?.threadId ?? target?.channelId ?? null;
-    // parse: [] — the text is player-typed and nobody asked to be pinged by it.
-    if (channelId) await postMessage(channelId, line, undefined, { parse: [] });
+    // parse: ["users"] — a player pinging another player is exactly what OOC
+    // is for. Role and @everyone/@here mentions stay blocked: character roles
+    // are empty, and an @everyone from a player-typed line is a footgun.
+    if (channelId) await postMessage(channelId, line, undefined, { parse: ["users"] });
   } catch (err) {
     console.error(`OOC into ${placeKey} failed:`, err?.message ?? err);
   }

@@ -2279,14 +2279,25 @@ export async function oocHere(text, placeKey = null) {
   });
   if (!mine) return { ok: false, error: "You can't speak in here." };
 
-  const result = await ooc(prisma, { ...me.character, discordUserId: me.discordUserId }, text, { placeKey });
+  const result = await ooc(
+    prisma,
+    { ...me.character, discordUserId: me.discordUserId },
+    text,
+    { placeKey, source: "WEB" },
+  );
   if (!result.ok) {
     return { ok: false, error: result.error, retryAfter: result.retryAfter ?? null };
   }
 
   // Never throws — the send is already claimed, so a dead channel is one
   // audience short rather than a failed send (db/lib/ooc.js).
-  await deliverOoc(prisma, { placeKey, text: result.text, auditId: result.auditId });
+  await deliverOoc(prisma, {
+    placeKey,
+    text: result.text,
+    rowContent: result.rowContent,
+    name: result.name,
+    auditId: result.auditId,
+  });
 
   return { ok: true };
 }

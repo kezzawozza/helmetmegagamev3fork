@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · OOC lines name the speaker, and mentions ping
+
+✎ The line reads [OOC (Alice): hi] now — the presented identity, so a hooded speaker stays hooded ("A young man") and a forced name still forces. Same rule /speak already uses.  
+✎ @somebody in an OOC line pings them on Discord. @everyone/@here and role mentions still don't.
+
 ## 2026-09-16 · The GM desk loads again
 
 ✎ It stopped loading for every GM this morning right after OOC shipped — a client component reached a helper that drags Prisma into the browser bundle, so the workspace crashed on hydration.
