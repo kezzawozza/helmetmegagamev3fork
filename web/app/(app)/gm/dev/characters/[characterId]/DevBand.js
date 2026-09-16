@@ -1,38 +1,28 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { handsFor, handsUsed } from "@lifeweb/db/lib/equipSlots";
 import { bandOf } from "@lifeweb/db/lib/mood";
 import { formatGambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import CombatTile from "@/app/components/CombatReadout";
 import DetailTile from "@/app/components/DetailTile";
 import FactionLink from "@/app/components/FactionLink";
 import StatusPill, { CHARACTER_STATUS } from "@/app/components/StatusPill";
 import TagPointsValue from "@/app/components/TagPointsValue";
-import { useConfirm } from "@/app/components/ConfirmProvider";
-import { useRefresh } from "@/app/components/useRefresh";
-import { setCurseOverride, setCharacterMirroring } from "./actions";
 
-// The band across the top of the Dev Character Panel: who this is, the derived
-// numbers a GM wants before touching anything, and the three switches that are
-// not columns on the form.
+// The band across the top of the Dev Character Panel: who this is, and the
+// derived numbers a GM wants before touching anything.
 //
-// It used to be a 15-fact grid of bare label/value pairs, and the complaint
-// about it was exactly right: it was tall, and it explained nothing. A GM
-// reading "3 / 12 pts" off it had no way to ask what that meant. So it is
-// built out of the same DetailTile the player's own sheet uses — a box that
-// SWAPS ITS FACE for a sentence on hover, focus or tap, inside the same
-// height. Every number here says what it is and where it comes from, and the
-// panel got shorter rather than longer.
-//
-// The numbers are read-only. The Identity tab is where they are edited and the
-// action bar is where things happen — except the three switches below the
-// tiles, which have no column on the form at all.
+// It used to be a 15-fact grid of bare label/value pairs, and it read like a
+// rulebook: every tile carried a sentence explaining the rule behind it. A GM
+// running this panel already knows the rules — so the tiles are read-only
+// boxes with nothing to hover, except This turn, which names a fact about
+// THIS character rather than a rule.
 export default function DevBand({
   character,
   staged,
   discord,
-  curse,
   held,
   maxDrawbackTags,
   maxDrawbackPoints,
@@ -119,43 +109,25 @@ export default function DevBand({
       </div>
 
       <div className="dev-band-tiles">
-          <DetailTile
-            label="Resources"
-            value={`${staged.resources} ⬢`}
-            detail="What they can spend. Set it on the Identity tab."
-            {...tile("resources")}
-          />
-          <DetailTile
-            label="Tag points"
-            value={<TagPointsValue points={staged.tagPoints} />}
-            detail="Unspent, and the player spends them at /store."
-            {...tile("points")}
-          />
+          <DetailTile label="Resources" value={`${staged.resources} ⬢`} />
+          <DetailTile label="Tag points" value={<TagPointsValue points={staged.tagPoints} />} />
           <DetailTile
             label="Mood"
             value={moodBand?.label ?? "Fine"}
             tone={moodBand?.tone ?? "muted"}
             word
-            detail={`The dial reads ${staged.mood ?? 0}. It moves nightly and shifts their Gambit roll.`}
-            {...tile("mood")}
           />
           <DetailTile
             label="Gambit die"
             value={gambitModifier ? `${gambitModifier > 0 ? "+" : ""}${gambitModifier}` : "±0"}
             over={Boolean(gambitModifier)}
-            detail={
-              gambitParts?.length
-                ? formatGambitModifiers(gambitParts)
-                : "Nothing is weighing on their roll."
-            }
+            detail={gambitParts?.length ? formatGambitModifiers(gambitParts) : null}
             {...tile("gambit")}
           />
           <DetailTile
             label="Equipped"
             value={`${equipped} · ${hands}/${handCap} hands`}
             over={hands > handCap}
-            detail="Slots spent, then hands used of the hands they have. Change it on the Tags tab."
-            {...tile("equipped")}
           />
           <DetailTile
             label="Drawbacks"
@@ -164,8 +136,6 @@ export default function DevBand({
                 {drawbacks.count}/{maxDrawbackTags} · {drawbacks.points}/{maxDrawbackPoints} pts
               </span>
             }
-            detail="Point-bought only, against the creation ceilings. A fact, not a limit."
-            {...tile("drawbacks")}
           />
           <DetailTile
             label="This turn"
@@ -175,32 +145,33 @@ export default function DevBand({
             detail={
               openTurn
                 ? hasActed
-                  ? "They have filed a Move. The Turn tab has it."
-                  : "They have not acted yet. The bar can spend the turn."
-                : "No turn is open, so nobody can act."
+                  ? `${character.name} has filed a Move`
+                  : `${character.name} hasn't acted this turn`
+                : "No turn is open"
             }
             {...tile("turn")}
           />
       </div>
 
-      {/* The three answers that are not columns on the form. Each is a live
-          control with its state written beside it, rather than a readout a GM
-          has to go somewhere else to act on. */}
+      {/* Combat lives on its own row, not in the tile grid above — the same
+          reason LedgerBand.js gives: the tile row's columns fit a short
+          value each, and Combat's two-tree readout needs a third of the
+          band's width to lay out without wrapping into its neighbour. */}
+      <div className="sheet-band-row">
+        <CombatTile tags={held} showArmorPieces {...tile("combat")} />
+      </div>
+
+      {/* Concealed has no column on the form and no verb — it's a resolved
+          fact, not a switch. The column itself is only a wish: it takes
+          effect solely while something concealing is equipped, which is why
+          this can read differently from what the player set. */}
       <div className="dev-switches">
-        <MirrorSwitch characterId={character.id} value={character.discordMirrored} />
         <div className="dev-switch">
           <span className="field-label">Concealed</span>
-          {/* The column is only a wish: it takes effect solely while something
-              concealing is equipped. A bare "Yes" against a player insisting
-              they are visible would teach a GM nothing. */}
           <span className="text-sm">
             {character.concealedInEffect ? "Yes" : character.concealed ? "On, but nothing worn" : "No"}
           </span>
-          <span className="dev-switch-note">
-            Their own switch on /character. It only bites while something concealing is equipped.
-          </span>
         </div>
-        <CurseSwitch characterId={character.id} curse={curse} name={character.name} />
       </div>
 
       {stagedForPush && (
@@ -226,122 +197,5 @@ export default function DevBand({
         </p>
       )}
     </section>
-  );
-}
-
-// The GM remedy for the switch's own 2-hour cooldown (db/lib/discordMirroring.js):
-// a player stuck off Discord with no way to flip it back themselves. OFF strips
-// channel access immediately, so it asks first; ON is a quiet grant and doesn't.
-function MirrorSwitch({ characterId, value }) {
-  const [pending, startTransition] = useTransition();
-  const [refresh] = useRefresh();
-  const [error, setError] = useState(null);
-  const confirm = useConfirm();
-
-  const onClick = async () => {
-    setError(null);
-    if (
-      value &&
-      !(await confirm({
-        title: "Turn off Play on Discord too?",
-        message: "This strips their Discord channel access right away.",
-        confirmLabel: "Turn off",
-      }))
-    ) {
-      return;
-    }
-    startTransition(async () => {
-      const result = await setCharacterMirroring({ characterId, on: !value });
-      if (result?.error) setError(result.error);
-      else refresh();
-    });
-  };
-
-  return (
-    <div className="dev-switch">
-      <span className="field-label">Play on Discord too</span>
-      <span className="flex items-center gap-2 text-sm">
-        {value ? "On" : "Off"}
-        <button type="button" className="btn-quiet" disabled={pending} onClick={onClick}>
-          Turn {value ? "off" : "on"}
-        </button>
-      </span>
-      <span className="dev-switch-note">
-        Their own switch on /character, bypassing its 2-hour cooldown.
-      </span>
-      {error && <span className="text-danger text-xs">{error}</span>}
-    </div>
-  );
-}
-
-// The GM's thumb on the curse (db/lib/curse.js). It used to be a three-option
-// <select> reading "Automatic / Cursed / Not cursed" in the middle of a grid of
-// read-only facts, which is a fair description of a control nobody found: the
-// commonest thing a GM wants — lift a curse off somebody who has earned their
-// way out of it — was a dropdown that never said it could do that.
-//
-// Now the verb is a button and it says what it does. The three states are
-// still the three states: null lets the rule decide, true and false overrule it
-// and stay overruled, so "Back to automatic" is always offered beside them.
-//
-// It writes Character.cursedOverride and NOT buriedAt. Stamping that to lift a
-// curse would also take the body out of the world — un-lootable, un-draggable,
-// gone from every target menu (db/lib/presence.js, db/lib/escort.js).
-function CurseSwitch({ characterId, curse, name }) {
-  const [pending, startTransition] = useTransition();
-  const [refresh] = useRefresh();
-  const [error, setError] = useState(null);
-  const confirm = useConfirm();
-
-  const set = (override) => {
-    setError(null);
-    startTransition(async () => {
-      const result = await setCurseOverride({ characterId, override });
-      if (result?.error) setError(result.error);
-      else refresh();
-    });
-  };
-
-  const lift = async () => {
-    if (
-      !(await confirm({
-        title: `Lift the curse on ${name}?`,
-        message:
-          "Their next character may take any role, at full points. It stays lifted until a gamemaster puts it back.",
-        confirmLabel: "Lift it",
-      }))
-    ) {
-      return;
-    }
-    set(false);
-  };
-
-  return (
-    <div className="dev-switch">
-      <span className="field-label">Curse</span>
-      <span className="flex flex-wrap items-center gap-2 text-sm">
-        {curse.cursed ? "Cursed" : "Not cursed"}
-        {curse.override !== null && curse.override !== undefined && <em className="text-muted">— forced</em>}
-        {curse.cursed ? (
-          <button type="button" className="btn-quiet" disabled={pending} onClick={lift}>
-            Lift it
-          </button>
-        ) : (
-          <button type="button" className="btn-quiet" disabled={pending} onClick={() => set(true)}>
-            Curse them
-          </button>
-        )}
-        {(curse.override === true || curse.override === false) && (
-          <button type="button" className="btn-quiet" disabled={pending} onClick={() => set(null)}>
-            Back to automatic
-          </button>
-        )}
-      </span>
-      <span className="dev-switch-note">
-        A cursed player&apos;s next character may only be a Migrant or a Bum, six points short. Left to
-        itself the rule says yes while their last body is still lying unburied.
-      </span>
-      {error && <span className="text-danger text-xs">{error}</span>}
-    </div>
   );
 }

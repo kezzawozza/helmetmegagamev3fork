@@ -225,7 +225,6 @@ export default function DevPanel({
         character={character}
         staged={staged}
         discord={discord}
-        curse={curse}
         held={held}
         maxDrawbackTags={maxDrawbackTags}
         maxDrawbackPoints={maxDrawbackPoints}
@@ -239,6 +238,7 @@ export default function DevPanel({
       <ActionBar
         character={character}
         canDelete={canDelete}
+        curse={curse}
         hasActed={Boolean(openTurnAction)}
         openTurn={openTurn}
         locations={locations}

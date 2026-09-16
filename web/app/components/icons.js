@@ -63,6 +63,7 @@ import {
   Plus,
   Stamp,
   Unlock,
+  Sparkles,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -136,6 +137,8 @@ export function SpeakerIcon({ muted, ...props }) {
 // ── Dev Character Panel action bar (docs/systemdocs/DEV-PANEL.md) — one icon per microaction, 15px inside .icon-btn.
 
 export const SkullIcon = lucide(Skull, "SkullIcon");
+// Lift a curse — a cleansing sparkle, distinct from Revive's Ankh (that's a body coming back, not a penalty going away).
+export const UncurseIcon = lucide(Sparkles, "UncurseIcon");
 // Restore turn — counter-clockwise arrow, "give it back".
 export const RestoreIcon = lucide(RotateCcw, "RestoreIcon");
 // Spend turn — skip to the end, mirror of RestoreIcon.

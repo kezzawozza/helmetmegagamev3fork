@@ -386,6 +386,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     held: heldTags.map((ct) => ({
       tagId: ct.tagId,
       name: ct.tag.name,
+      slug: ct.tag.slug,
       quantity: ct.quantity,
       equipped: ct.equipped,
       equippedQuantity: ct.equippedQuantity,
@@ -397,6 +398,15 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       // For the state strip's drawback point total — a negative pointCost is
       // what makes a tag a drawback (TAGS.md §4a).
       pointCost: ct.tag.pointCost,
+      // The band's Combat tile reads this same array (db/lib/fightingSkill.js
+      // FIGHTING_TAG_FIELDS, db/lib/armorValue.js ARMOR_TAG_FIELDS) — one
+      // query already fetched the whole Tag row, so this just carries what
+      // combat arithmetic needs through to the client rather than a second
+      // fetch.
+      fighting: ct.tag.fighting,
+      category: ct.tag.category,
+      meleeArmor: ct.tag.meleeArmor,
+      ballisticArmor: ct.tag.ballisticArmor,
     })),
     feed: { dropSlug: HUNGER_SLUG, grantSlug: ATE_MEAL_SLUG },
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
