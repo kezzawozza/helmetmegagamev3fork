@@ -160,6 +160,7 @@ const INTERNAL_KEYS = [
   "radioCategoryId",
   "cerberonChannelId",
   "freq27065ChannelId",
+  "freq243000ChannelId",
   // Deadchat (db/lib/deadchat.js). Provisioned, not configured — like the radio
   // ids above, it is here so the registry check does not read it as drift.
   "deadchatCategoryId",

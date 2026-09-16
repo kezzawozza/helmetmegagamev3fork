@@ -6880,6 +6880,24 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # The Tribunal's own net — starting_tags on the Tribune and Tribunal
+  # Ordinator roles (docs/roles.yaml), and db/lib/threats.js's assign list for
+  # both. Same shape as radio-27065 above. Opens #243.000
+  # (db/lib/specialChannels.js).
+  radio-243000:
+    catalog: gm
+    name: Radio (243.000)
+    category: items
+    group: items-gear
+    description: "A radio hardset to a certain frequency."
+    pointCost: 4
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   # Cave loot, ultracommon, and seeded by hand across the caves, the depths and
   # the Black Hills (docs/zones.yaml) so the ground itself is a source.
   rock:

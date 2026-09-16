@@ -522,6 +522,10 @@ model GameConfig {
   // Radio (27.065) both hears and speaks on. Column name can't lead with a
   // digit; the channel itself is named after the frequency.
   freq27065ChannelId String?
+  // The third net: the Tribunal's own frequency, held by the Tribune and
+  // Tribunal Ordinator seats (Radio (243.000), docs/tags.yaml). Same shape
+  // as freq27065ChannelId above.
+  freq243000ChannelId String?
 
   // DEADCHAT (db/lib/deadchat.js): the one room the dead talk in, and the only
   // place a ghost has a voice. Its own category rather than the radio one — a
