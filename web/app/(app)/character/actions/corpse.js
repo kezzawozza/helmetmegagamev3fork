@@ -2,6 +2,7 @@
 
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
+import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { UserError } from "@/lib/actionResult";
@@ -249,15 +250,18 @@ export async function mutilateRequestImpl({
     });
     if (!subject) throw new UserError("That body isn't there any more.");
   } else {
-    if (targetCharacterId === character.id)
+    // A KEY, not an id — somebody in a mask is listed by token (db/lib/targetKey.js). You can cut a
+    // piece off a man whose name you never learned, and a tied-up stranger is exactly that case.
+    const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
+    if (targetId === character.id)
       throw new UserError("You can't do that to yourself.");
     // The WHOLE row, not a select: a lethal part hands this to killCharacter, which needs discordRoleId and
     // everything revokeAllCharacterAccess needs — a partial row here orphans a Discord role.
     subject = await prisma.character.findFirst({
-      where: { id: targetCharacterId ?? "", status: "ALIVE" },
+      where: { id: targetId ?? "", status: "ALIVE" },
       include: { tags: { include: { tag: { select: { slug: true } } } } },
     });
-    if (!subject || !isHere(character, subject))
+    if (!subject || !isHere(character, subject, { allowConcealed: true }))
       throw new UserError(notHereMessage(subject));
     if (!isBoundTarget(subject))
       throw new UserError(`${subject.name} isn't tied up.`);

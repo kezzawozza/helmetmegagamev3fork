@@ -4,6 +4,7 @@
 const { fightingSkill, bandRank, FIGHTING_TAG_FIELDS } = require("./fightingSkill");
 const { turnEndsAt } = require("./turnClock");
 const { SAFE_HOLD_MS, HELD_REASON, seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
+const { hoodToken } = require("./hoodToken"); // zero-require leaf; no cycle.
 const { DM_KIND } = require("./dmKinds");
 const { DM_ACTION, dmAction } = require("./dmActions");
 
@@ -181,7 +182,21 @@ async function attacksBy(db, attackerId, turnId) {
     orderBy: { createdAt: "asc" },
   });
   // By the face the room saw, never the row — the intercept.js rule, and it matters as much here: attacking a hooded stranger must not unmask them.
-  return rows.map((row) => ({ id: row.targetCharacter.id, name: seenAs(identityOf(row.targetCharacter)) }));
+  //
+  // That rule reaches the ID as well as the name. This list goes to a browser, and /api/avatar/<id>
+  // answers with a face, so a hooded opponent carries an HMAC token in place of their id — otherwise
+  // swinging at a stranger would be the cheapest unmasking in the game, which is exactly what
+  // matchesArrival() refuses to let Intercept be. `key` is what a caller posts back; `id` stays null
+  // for a hood so nothing can accidentally reach past it.
+  return rows.map((row) => {
+    const presented = identityOf(row.targetCharacter);
+    const token = presented?.concealed ? hoodToken(row.targetCharacter.id) : null;
+    return {
+      id: token ? null : row.targetCharacter.id,
+      key: token ? `hood:${token}` : `character:${row.targetCharacter.id}`,
+      name: seenAs(presented),
+    };
+  });
 }
 
 const ATTACK_CANCEL_PREFIX = "atk:cancel:";

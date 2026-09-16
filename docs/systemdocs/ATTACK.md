@@ -255,6 +255,27 @@ Every name a player is shown goes through `seenAs()` — the face the room saw,
 never the row. Attacking a hooded stranger does not unmask them, and neither
 does the audit row, which stores `presented`.
 
+**And a hooded stranger CAN be attacked.** Until 2026-09-16 they could not: the
+picker was built from `peopleHere()`, whose `hereWhere` drops anybody concealed,
+and `attackCharacterImpl` re-checked `isHere()` with `allowConcealed` left at
+its default — so a man in a mask was both missing from the list and refused if
+you posted his id anyway. Since `forcesConceal` is set on ordinary closed
+helmets, that made a Tribunal Helmet a shield against being attacked at all,
+and it is how somebody walked into a Thanati hideout, took what they liked and
+left with nobody able to lay a hand on them.
+
+The rule it broke is the one the rest of this section states: **a hood hides WHO
+somebody is, never THAT they are standing in front of you.** Concealment costs
+you a name and nothing else.
+
+So the picker is built from `whosHere()` now, both halves of it, exactly as
+Transfer and Search are (`web/lib/peoplePools.js`). A concealed row carries an
+HMAC **token** in place of its id — `/api/avatar/<id>` answers with a face, so
+shipping the id *is* the unmasking — and `db/lib/targetKey.js` is the one place
+that turns a posted key back into an id, for somebody actually standing here.
+`attacksBy()` withholds the id the same way, or the **Break off** list would
+have been the cheapest unmasking in the game.
+
 ## 7. The GM's Other lens
 
 A fourth tab on `/gm/turns`, beside Moves / Caving / History, keyboard **o**.

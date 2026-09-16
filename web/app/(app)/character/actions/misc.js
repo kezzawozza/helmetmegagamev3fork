@@ -12,6 +12,7 @@ import {
   canOpenCrate,
 } from "@lifeweb/db";
 import { heldReasonFor } from "@lifeweb/db/lib/intercept";
+import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { cleanCustomText, CUSTOM_DESCRIPTION_MAX } from "@/lib/customCraft";
 import { mintCustomCraft, unmintCustomCraft } from "./crafting.js";
 import { applyHiddenCures } from "@lifeweb/db/lib/hiddenCures";
@@ -1453,16 +1454,22 @@ export async function bindCharacterRequestImpl({
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
+  // The picker posts a KEY, not an id: somebody in a mask is listed by HMAC token, because
+  // /api/avatar/<id> would draw the face the mask is for (db/lib/targetKey.js). Resolving it here
+  // keeps every check below working on a real id, and it answers null for anybody not standing
+  // here — which is what stops a token being a way to ask after somebody who has already left.
+  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
+
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
-  if (targetCharacterId === character.id)
+  if (targetId === character.id)
     throw new UserError("You can't bind yourself.");
 
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] } },
+    where: { id: targetId ?? "", status: { in: ["ALIVE", "DEAD"] } },
     select: BIND_SELECT,
   });
-  if (!target || !isHere(character, target, { allowDead: true }))
+  if (!target || !isHere(character, target, { allowDead: true, allowConcealed: true }))
     throw new UserError(notHereMessage(target));
   if (isBoundTarget(target))
     throw new UserError(`${target.name} is already bound.`);
@@ -1517,12 +1524,18 @@ export async function freeCharacterRequestImpl({
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
+  // The picker posts a KEY, not an id: somebody in a mask is listed by HMAC token, because
+  // /api/avatar/<id> would draw the face the mask is for (db/lib/targetKey.js). Resolving it here
+  // keeps every check below working on a real id, and it answers null for anybody not standing
+  // here — which is what stops a token being a way to ask after somebody who has already left.
+  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
+
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
 
   // Ropes or shackles — Free cuts either (Bascinet's ruling on Dungeons).
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    where: { id: targetId ?? "", status: "ALIVE" },
     include: {
       tags: {
         where: { tag: { slug: { in: RESTRAINT_SLUGS } } },
@@ -1530,7 +1543,7 @@ export async function freeCharacterRequestImpl({
       },
     },
   });
-  if (!target || !isHere(character, target))
+  if (!target || !isHere(character, target, { allowConcealed: true }))
     throw new UserError(notHereMessage(target));
 
   const held = target.tags[0];
@@ -1679,9 +1692,15 @@ export async function crucifyCharacterRequestImpl({
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
+  // The picker posts a KEY, not an id: somebody in a mask is listed by HMAC token, because
+  // /api/avatar/<id> would draw the face the mask is for (db/lib/targetKey.js). Resolving it here
+  // keeps every check below working on a real id, and it answers null for anybody not standing
+  // here — which is what stops a token being a way to ask after somebody who has already left.
+  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
+
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
-  if (targetCharacterId === character.id)
+  if (targetId === character.id)
     throw new UserError("You can't crucify yourself.");
   if (!character.tags.some((ct) => ct.tag.slug === FUNDAMENTALIST_SLUG))
     throw new UserError("Only a Fundamentalist would.");
@@ -1694,7 +1713,7 @@ export async function crucifyCharacterRequestImpl({
   if (!cross) throw new UserError("There is no cross standing here.");
 
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    where: { id: targetId ?? "", status: "ALIVE" },
     select: {
       id: true,
       name: true,
@@ -1705,7 +1724,7 @@ export async function crucifyCharacterRequestImpl({
       tags: { select: { tag: { select: { slug: true } } } },
     },
   });
-  if (!target || !isHere(character, target))
+  if (!target || !isHere(character, target, { allowConcealed: true }))
     throw new UserError(notHereMessage(target));
   if (target.tags.some((ct) => ct.tag.slug === CRUCIFIED_SLUG))
     throw new UserError(`${target.name} is already on the cross.`);
@@ -1772,9 +1791,15 @@ export async function shackleCharacterRequestImpl({
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
+  // The picker posts a KEY, not an id: somebody in a mask is listed by HMAC token, because
+  // /api/avatar/<id> would draw the face the mask is for (db/lib/targetKey.js). Resolving it here
+  // keeps every check below working on a real id, and it answers null for anybody not standing
+  // here — which is what stops a token being a way to ask after somebody who has already left.
+  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
+
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
-  if (targetCharacterId === character.id)
+  if (targetId === character.id)
     throw new UserError("You can't shackle yourself.");
 
   const location = await loadBuildGround(character.locationId);
@@ -1785,7 +1810,7 @@ export async function shackleCharacterRequestImpl({
   if (!dungeon) throw new UserError("There are no dungeons here.");
 
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    where: { id: targetId ?? "", status: "ALIVE" },
     select: {
       id: true,
       name: true,
@@ -1796,7 +1821,7 @@ export async function shackleCharacterRequestImpl({
       tags: { select: { tagId: true, tag: { select: { slug: true } } } },
     },
   });
-  if (!target || !isHere(character, target))
+  if (!target || !isHere(character, target, { allowConcealed: true }))
     throw new UserError(notHereMessage(target));
   if (target.tags.some((ct) => ct.tag.slug === SHACKLED_SLUG))
     throw new UserError(`${target.name} is already shackled.`);
@@ -1865,9 +1890,15 @@ const THANATI_LEADER_SLUG = "thanati-leader";
 export async function tortureCharacterRequestImpl({ targetCharacterId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
+  // The picker posts a KEY, not an id: somebody in a mask is listed by HMAC token, because
+  // /api/avatar/<id> would draw the face the mask is for (db/lib/targetKey.js). Resolving it here
+  // keeps every check below working on a real id, and it answers null for anybody not standing
+  // here — which is what stops a token being a way to ask after somebody who has already left.
+  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
+
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
-  if (targetCharacterId === character.id)
+  if (targetId === character.id)
     throw new UserError("You can't torture yourself.");
   // Re-checked here and not merely in the UI: the hidden button is a hint.
   const torturerSlugs = character.tags.map((ct) => ct.tag.slug);
@@ -1875,7 +1906,7 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
     throw new UserError("You don't know how.");
 
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    where: { id: targetId ?? "", status: "ALIVE" },
     select: {
       ...EXAMINE_SUBJECT_SELECT,
       status: true,
@@ -1890,7 +1921,7 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
       },
     },
   });
-  if (!target || !isHere(character, target))
+  if (!target || !isHere(character, target, { allowConcealed: true }))
     throw new UserError(notHereMessage(target));
   if (!isBoundTarget(target))
     throw new UserError(`${target.name} isn't tied up.`);
@@ -2141,9 +2172,13 @@ export async function harmCharacterRequestImpl({
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
+  // A KEY, not an id (db/lib/targetKey.js). Finishing off a man face-down on the floor does not
+  // require knowing his name, and harmTargets lists him by token when he is masked.
+  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
+
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
-  if (targetCharacterId === character.id)
+  if (targetId === character.id)
     throw new UserError("Pick someone else.");
 
   const lethal = Boolean(rawLethal);
@@ -2152,10 +2187,10 @@ export async function harmCharacterRequestImpl({
     throw new UserError("Pick an injury, tick Finish them, or both.");
 
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    where: { id: targetId ?? "", status: "ALIVE" },
     include: { tags: { include: { tag: { select: { slug: true } } } } },
   });
-  if (!target || !isHere(character, target))
+  if (!target || !isHere(character, target, { allowConcealed: true }))
     throw new UserError(notHereMessage(target));
 
   const heldSlugs = new Set(target.tags.map((ct) => ct.tag.slug));
@@ -2266,9 +2301,12 @@ const ACHING_SLUG = "aching";
 export async function brandCharacterRequestImpl({ targetCharacterId, description: rawDescription }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
+  // A KEY, not an id (db/lib/targetKey.js) — a brand goes on a body, and a hood is still a body.
+  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
+
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
-  if (targetCharacterId === character.id)
+  if (targetId === character.id)
     throw new UserError("You can't brand yourself.");
   // Re-checked here and not merely in the UI: the hidden button is a hint.
   if (!character.tags.some((ct) => ct.tag.slug === BRANDING_IRON_SLUG))
@@ -2278,10 +2316,10 @@ export async function brandCharacterRequestImpl({ targetCharacterId, description
   if (!description) throw new UserError("Say what the brand marks them with.");
 
   const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    where: { id: targetId ?? "", status: "ALIVE" },
     include: { tags: { include: { tag: { select: { slug: true } } } } },
   });
-  if (!target || !isHere(character, target))
+  if (!target || !isHere(character, target, { allowConcealed: true }))
     throw new UserError(notHereMessage(target));
   const targetSlugs = target.tags.map((ct) => ct.tag.slug);
   if (!targetSlugs.some((slug) => INCAPACITATING_SLUGS.has(slug)))
