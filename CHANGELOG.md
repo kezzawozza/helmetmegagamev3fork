@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · An item is always something you can hand over
+
+✎ Anything in the Items category is now tradeable automatically, so a new item can never arrive as something nobody can give away or loot off a body  
+− The Tradeable tickbox, gone from the item side of the GM tag maker  
+✎ Assets still choose: a horse changes hands, a gallows does not  
+✎ The Pretty Flower somebody made can be handed over now  
+✎ The Packaging Equipment at the Factory can be carried off, at 40 lb  
+− The Quickened Nerve-Braid, out of the game
+
 ## 2026-09-16 · Tribunal Ordinator gets Heavy Infantry Armor instead of Cataphract
 
 ✎ The Cataphract suit is out of the Ordinator's starting kit, replaced by Heavy Infantry Armor
