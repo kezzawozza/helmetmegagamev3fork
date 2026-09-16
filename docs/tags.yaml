@@ -2228,6 +2228,11 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: false
+    # The four Cerberon roles and the Sheriff — the people with something to
+    # sell. Corruption is a betrayal of a post, so it needs a post to betray:
+    # a bum who prioritizes his own comfort is just a bum. The same five the
+    # corrupt Desires gate on (docs/desires.yaml §4e).
+    onlyRoles: [incarn, cerberus, censor, squire, sheriff]
 
   houndmaster:
     catalog: gm

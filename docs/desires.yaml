@@ -1558,7 +1558,7 @@ desires:
     families: [theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [cerberus, sheriff, censor, incarn]
+      anyRoles: [cerberus, sheriff, censor, incarn, squire]
 
   cook-a-lavish-meal:
     name: Cook a lavish meal
@@ -1663,14 +1663,14 @@ desires:
       anyTags: [death-wish]
 
   # === 4e. Drafted fill-ins =================================================
-  # Corrupt (T: corrupt, R: cerberus/sheriff/censor/incarn)
+  # Corrupt (T: corrupt, R: cerberus/sheriff/censor/incarn/squire)
   look-the-other-way:
     name: Look the other way in return for something.
     tier: 1
     families: [duty, theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [cerberus, sheriff, censor, incarn]
+      anyRoles: [cerberus, sheriff, censor, incarn, squire]
 
   sell-a-cerberon-secret:
     name: "Sell Cerberon information or equipment"
@@ -1678,7 +1678,7 @@ desires:
     families: [betrayal, theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [cerberus, sheriff, censor, incarn]
+      anyRoles: [cerberus, sheriff, censor, incarn, squire]
 
   shake-down-a-merchant:
     name: Attack and loot the Merchant.
@@ -1686,7 +1686,7 @@ desires:
     families: [theft, cruelty]
     requires:
       anyTags: [corrupt]
-      anyRoles: [cerberus, sheriff, censor, incarn]
+      anyRoles: [cerberus, sheriff, censor, incarn, squire]
 
   pocket-60:
     name: Hold 60 ¢ that was never yours
@@ -1695,7 +1695,7 @@ desires:
     families: [theft]
     requires:
       anyTags: [corrupt]
-      anyRoles: [cerberus, sheriff, censor, incarn]
+      anyRoles: [cerberus, sheriff, censor, incarn, squire]
 
   # Brave (T: brave)
   stand-your-ground-alone:
