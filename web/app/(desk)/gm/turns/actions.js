@@ -1698,7 +1698,7 @@ async function rejectAvatarImpl({ characterId }) {
   if (character.discordUserId && character.status === "ALIVE") {
     await sendDm(
       character.discordUserId,
-      "Your portrait has been taken down, and your character is back to their default face. Have a word with a GM before putting up another one.",
+      "Your portrait wasn't approved.",
       { kind: DM_KIND.NOTICE },
     ).catch((err) => console.error("Avatar rejection DM failed:", err));
   }

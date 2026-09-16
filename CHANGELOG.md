@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · A rejected portrait says less
+
+✎ The DM a player gets when a gamemaster turns down their portrait is one short line now, instead of a paragraph telling them to go and find a gamemaster
+
 ## 2026-09-16 · Armor nerfed across the board; Overkill takes a full kit now
 
 ✎ Every piece of armour in the game stops about a tenth less than it did  
