@@ -2785,6 +2785,8 @@ tags:
     name: Smithing (Gunpowder)
     category: skills
     group: skills-crafting
+    # The one mastery that IS teachable, on purpose: powder is a formula, and
+    # a formula passes hand to hand. Every other capstone stays unteachable.
     teachable: true
     description: "{tag:saltpeter} is your best friend. Requires Skilled smithing."
     pointCost: 9
@@ -5359,11 +5361,14 @@ tags:
   # tradeable object, only the method is secret. Purchasing the skill is
   # unaffected: `loadPointBuyCatalog` gates on `purchasable`, never on
   # `catalogVisibility`.
+  # Not teachable, like every other mastery except Smithing (Gunpowder):
+  # a 15-point capstone must not be had for the price of one Lesson Move.
+  # The secret is the method, and the method is not a lesson.
   arelitz-breeding:
     catalog: gm
     name: Arelitz Breeding
     category: skills
-    teachable: true
+    teachable: false
     description: "You are a master of the ancient art of breeding Arelitz, horse-hybrids that have various effects, including the {tag:arelitz-ovum} and {tag:arelitz-warbeast}"
     pointCost: 15
     mastery: true

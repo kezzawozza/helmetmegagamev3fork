@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Arelitz Breeding can no longer be taught
+
+✎ Breeding was the one 15-point capstone you could pick up in a single lesson — now it is learned the way every other mastery is, by buying it  
+✎ Smithing (Gunpowder) stays teachable on purpose: a powder formula passes hand to hand
+
 ## 2026-09-16 · Literacy can be taught
 
 ✎ Anyone literate can now teach reading, and anyone can learn it — the two Desires that ask for it were impossible before

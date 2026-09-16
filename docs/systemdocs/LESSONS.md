@@ -46,10 +46,20 @@ Constants: `db/lib/constants.js` (`TEACHING_SLUG`, `DRILL_INSTRUCTOR_SLUG`,
 ## 2. What can be taught
 
 A tag is a **skill** for this purpose when `Tag.teachable` is true — a flag in
-`docs/tags.yaml`, set on every entry in the `skills` category, not a category
-heuristic (TAGS.md §5). `db/lib/lessons.js#teachableSkills(teacher, learner,
-catalog)` is the one rule, used by the page to build the menus and by the
-offer and accept paths to re-check them:
+`docs/tags.yaml`, not a category heuristic (TAGS.md §5). It is set on most of
+the `skills` category and on two general traits (Literate, Camouflage), and
+deliberately withheld from two kinds of skill:
+
+- **masteries**, the 12–15 point capstones — a capstone must not be had for
+  the price of one Lesson Move. Smithing (Gunpowder) is the one exception,
+  because a powder formula passes hand to hand.
+- **role-exclusive crafts** — Blessing, Research and the Teaching tree. They
+  are the role's own work rather than a lesson, and you cannot be taught to
+  teach.
+
+`db/lib/lessons.js#teachableSkills(teacher, learner, catalog)` is the one
+rule, used by the page to build the menus and by the offer and accept paths
+to re-check them:
 
 - the teacher holds the skill **or a higher tier of it** (`parentTagId` chain
   — a Melee (Expert) can teach Melee (Basic));
