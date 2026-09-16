@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Walking across a zone
+
+✚ Pick somewhere farther in your own zone and the game walks you there hop by hop — double-click it on the map, press Enter, or click it and press Go  
+✎ It is not a teleport: every step is a real move, so turrets, ambushes, gate lines, arrival moods and the Caving Die all happen at every stop on the road  
+✎ Stopped on the way? You keep the ground you covered, and you are told how far you got  
+✎ Only inside one zone, never across one, and only through places the character already knows
+
 ## 2026-09-16 · The gamemaster reads the same Combat tile a player does
 
 ✎ Fixed: the Move desk counted a stowed sword or a breastplate in a cart toward how good somebody is in a fight  
