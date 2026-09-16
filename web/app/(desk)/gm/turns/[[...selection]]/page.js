@@ -22,12 +22,14 @@ import {
   CAVING_ROLL_INCLUDE,
   AVATAR_REVIEW_SELECT,
   DESIRE_CLAIM_INCLUDE,
+  OOC_INCLUDE,
   moveRow,
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
   avatarReviewRow,
   desireClaimRow,
+  oocRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
 import { deskRowContext, structuresByLocation } from "@/lib/deskRows";
@@ -108,6 +110,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     interceptHits,
     avatarsToReview,
     desireClaims,
+    oocLines,
     stagedEffects,
     stagedMessages,
     roster,
@@ -170,6 +173,22 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       take: 50,
       include: DESIRE_CLAIM_INCLUDE,
     }),
+    // The OOC lens — every out-of-character line said this turn (db/lib/ooc.js).
+    // Scoped to the open turn like the Moves and Caving lenses, because unlike
+    // a portrait or a Desire claim this IS a thing that happened this turn and
+    // stops being interesting when the turn does.
+    //
+    // The AuditLog row the rate limit writes is the only record there is, so
+    // this reads it rather than a table of its own. Capped: a turn's chatter
+    // has no ceiling and the rail is not a transcript.
+    openTurn
+      ? prisma.auditLog.findMany({
+          where: { actionType: "ooc", turnId: openTurn.id },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+          include: OOC_INCLUDE,
+        })
+      : [],
     // Open-turn staging plus every unapplied stray from earlier turns —
     // the strays feed the missed-push banner.
     prisma.stagedEffect.findMany({
@@ -295,6 +314,10 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   const desireCtx = { usernameById, catatonicIds };
   const desireRows = desireClaims.map((d) => desireClaimRow(d, desireCtx));
 
+  // The OOC lens — read-only, and deliberately so: there is nothing for a GM
+  // to DO to a line that was said, which is why it has rows and no desk.
+  const oocRows = oocLines.map((a) => oocRow(a, { usernameById, catatonicIds }));
+
   const effectCtx = { usernameById, locationNameById, openTurn };
   const messageCtx = { usernameById, openTurn };
   const effects = stagedEffects.map((e) => stagedEffectRow(e, effectCtx));
@@ -414,6 +437,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         cavingRolls: cavingRows,
         otherRows: otherRows,
         desireRows: desireRows,
+        oocRows: oocRows,
         stagedEffects: effects,
         stagedMessages: messages,
         gmProfiles: gmProfilesById,

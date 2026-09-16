@@ -51,6 +51,9 @@ const { castDie } = require("@lifeweb/db/lib/roll");
 const { messageLink } = require("../../lib/mentions");
 const { fileMove } = require("@lifeweb/db/lib/moves");
 const { shout, deliverShout } = require("@lifeweb/db/lib/shout");
+const { ooc, deliverOoc } = require("@lifeweb/db/lib/ooc");
+const { oocRejectionDm } = require("@lifeweb/db/lib/oocGuard");
+const { sendDm } = require("../../lib/dm");
 const { clockFrozen } = require("@lifeweb/db/lib/gameState");
 const { resolveChannelContext } = require("../../lib/channels");
 const { ack, respond, scheduleDismiss } = require("../../lib/respond");
@@ -190,6 +193,14 @@ async function handleSpeakSubmit(interaction, channelId) {
     source: "DISCORD",
   });
   if (!prepared.ok) {
+    // Nothing was posted and the modal is gone, so the words only exist in the
+    // refusal. The DM hands them back (db/lib/oocGuard.js) — never allowed to
+    // fail the reply, which is the answer either way.
+    if (prepared.oocRejected) {
+      await sendDm(interaction.user, { content: oocRejectionDm(prepared.original ?? body) }).catch((err) =>
+        console.error("OOC rejection DM failed:", err?.message ?? err),
+      );
+    }
     await respond(interaction, `${prepared.refusal}`);
     return;
   }
@@ -483,6 +494,56 @@ async function handleShoutCommand(interaction) {
 }
 
 
+// /ooc. The player talking rather than the character, so this is deliberately
+// thinner than handleShoutCommand above: no sound range, no muffling, and no
+// voice gate — a gag is something done to a character, and the person behind
+// one can still ask a question about the rules.
+async function handleOocCommand(interaction) {
+  await ack(interaction);
+
+  // ooc() refuses an empty body too; asking here keeps the better ordering, so
+  // somebody who typed nothing is told to say something rather than that this
+  // is the wrong channel for it.
+  const text = interaction.options.getString("message")?.trim();
+  if (!text) {
+    await respond(interaction, "Say something.");
+    return;
+  }
+
+  const character = await actingCharacter(interaction, {
+    // discordUserId because ooc() stamps the rate-limit AuditLog row with it,
+    // and /gm/turns's OOC lens reads those rows back to a person.
+    select: { id: true, locationId: true, discordUserId: true },
+  });
+  if (!character) {
+    await respond(interaction, "You don't have a living character.");
+    return;
+  }
+
+  // Unlike a shout, this is anchored to the CHANNEL and not to where the
+  // character stands — an OOC line is addressed to the people reading the same
+  // place you are reading, which is a fact about the channel. Still a Room or a
+  // Conversation and nothing else (db/lib/placeKey.js#isScenePlaceKey).
+  const channel = interaction.channel;
+  const placeKey = channel
+    ? await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id })
+    : null;
+
+  // Every refusal past here is ooc()'s, in finished sentences respond() prints
+  // as they stand — the wrong place, the length cap, and the rate limit.
+  const result = await ooc(prisma, character, text, { placeKey });
+  if (!result.ok) {
+    await respond(interaction, result.error);
+    return;
+  }
+
+  // Cannot fail the send: the rate-limit row is already claimed, so a dead
+  // channel is one audience short rather than a refusal (db/lib/ooc.js).
+  await deliverOoc(prisma, { placeKey, body: result.body, line: result.line });
+
+  await respond(interaction, "Sent.");
+}
+
 module.exports = {
   handleMoveOpen,
   handleMoveSubmit,
@@ -494,4 +555,5 @@ module.exports = {
   handleRollCommand,
   handlePlayCommand,
   handleShoutCommand,
+  handleOocCommand,
 };

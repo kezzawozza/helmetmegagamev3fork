@@ -303,6 +303,24 @@ client, not a support inbox.
   (`turn result`, `broadcast`) are the only other furniture. Times come from
   `web/lib/dmTime.js` and tick with `useNowTick`, so "Today" flips at
   midnight.
+- **A player's name here carries their account**: `Aleksei Ivanov (@forgeybot)`,
+  in the thread header and above every inbound run. This desk is the one place
+  it belongs — on `/play` a character is a character and the account behind them
+  is nobody's business, but a GM answering a question needs to know which player
+  they are answering. The rail has shown the handle beside the name for a while
+  (`PlayerRail.js`); this is the same fact in the two places that were still
+  missing it. Composed once in `web/lib/deskSpeaker.js`, which has **no
+  imports** because both callers are client components.
+
+  Two traps. The handle is shipped **beside** the label rather than folded into
+  it (`/api/gm/thread`), because `ConversationPane` also hands `label` to
+  `CharacterAvatar` as its alt name, where the parenthesis would be wrong — and
+  `DmThread`'s `Row` keeps the bare `name` for the avatar for the same reason.
+  And it is **GM-perspective only**: `DmThread` is shared with the player's own
+  Bascinet pane, where the reader *is* the account and telling them their own
+  handle says nothing. A missing handle is ordinary — `listGuildMembers()` does
+  not know a player who has left the guild — so it falls back to the bare name
+  rather than leaving empty parentheses behind.
 - **An inbound image renders inline** (`DmThread.js#AttachedImages`,
   `db/lib/dmAttachments.js`), reusing the raw Discord CDN url a player's
   attachment carried — no re-hosting, no click-to-reveal gate. Discord's

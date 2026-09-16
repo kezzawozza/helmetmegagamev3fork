@@ -17,6 +17,7 @@ import { dayKey, dayLabel, clockLabel, formatDmTime, fullTimestamp } from "@/lib
 import { DM_ACTION, dmActionOf } from "@lifeweb/db/lib/dmActions";
 import DmActionRow from "./DmActionRow";
 import { useRequestActions } from "./RequestActionsProvider";
+import { deskSpeakerName } from "@/lib/deskSpeaker";
 
 // The one shared thread — the player desk's conversation pane and the
 // inspector's DMs tab both render this. Flat rows, one header (avatar, name,
@@ -324,6 +325,12 @@ function Row({ item, gmProfileById, character, now, perspective, onRetry, onDisc
         ? BASCINET_PROFILE
         : null;
   const name = outbound ? (message.authorDiscordUserId ? profile?.username ?? "GM" : "Bascinet") : character?.name ?? "Player";
+  // The name in the META line only — `name` above still goes to the avatar,
+  // where the handle would be wrong. GM desk only: on the player's own pane
+  // (perspective "player") the reader IS the account, so telling them their own
+  // handle says nothing, and `character.username` is not passed there anyway.
+  const displayName =
+    !outbound && perspective !== "player" ? deskSpeakerName(name, character?.username) : name;
   const sourceLabel = outbound ? SOURCE_LABELS[message.source] : null;
   const embed = isEmbed(message);
   const letter = isLetter(message);
@@ -351,7 +358,7 @@ function Row({ item, gmProfileById, character, now, perspective, onRetry, onDisc
       <div className="dm-row-body">
         {head && (
           <div className="dm-row-meta">
-            <span className="dm-row-name">{name}</span>
+            <span className="dm-row-name">{displayName}</span>
             {sourceLabel && <span className="chip chip-quiet">{sourceLabel}</span>}
             <time className="dm-row-time mono" title={fullTimestamp(ms)}>
               {formatDmTime(ms, now)}

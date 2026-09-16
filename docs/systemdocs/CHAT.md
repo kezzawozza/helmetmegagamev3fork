@@ -95,6 +95,13 @@ line renders in (`shoutChannelKind`/`renderShout` in `shout.js`: full text at
 `"scene"` and fall through to `.chat-subtext`, same as any other bit of
 scenery.
 
+**An OOC line is the fourth of these, `channelKind: "ooc"`** (`db/lib/ooc.js`),
+drawn `.chat-ooc` — subtext-sized like the scenery, because none of it is
+happening in the room either, but with a rule down its left edge so a GM or a
+player can tell it from a smell at a glance. The body already carries its own
+`[OOC]:` tag, so the styling never has to say it twice. It wears no face for the
+same reason every other SYSTEM row does not: nobody's character said it.
+
 Beside, never instead: the poster still posts. And never through the outbox,
 which handles `WEB` rows only — a SYSTEM row can no more be re-posted into the
 channel it came from than a proxied one can.
@@ -498,6 +505,25 @@ like everything else.
 - **The composer shows a Send button under a coarse (touch) pointer.** The
   slowmode clock shows before it bites, and a character count is drawn where
   a command actually caps its text.
+- **Speak / Shout / OOC is one `.segmented` across the top of the box** on
+  desktop, and folds into the `+` beside the box on a phone, where the ✉ and
+  the hood already live. It stores **no state of its own**: each of the two that
+  is not plain speech is already a command in `./commands.js`, so the control
+  enters command mode and `runCurrent()` does the sending, the clearing, the
+  length cap and the hand-back-on-refusal. Which mode you are in is *derived*
+  from `command` — two copies of "which voice is this" could disagree, and the
+  one in `command` is the one that actually sends. Picking a mode keeps whatever
+  is already typed: it is a change of voice, not a change of subject.
+
+  Which modes appear comes off the same `where` gate the slash list takes, so a
+  place that cannot be shouted in never offers Shout. The server actions
+  re-check it anyway — a server action is a public endpoint and the selector is
+  a hint, not a lock.
+- **A message that looks out of character is refused outright.** A `(`, a `[`,
+  or the bare word "ooc" (`db/lib/oocGuard.js`, gated inside `prepareSpeech`)
+  means nothing is posted and nothing is recorded; the player gets their own
+  text back in a DM pointing them at `/ooc`. Deadchat is exempt — it is out of
+  character by design.
 - **Speech over one message SPLITS.** The count under the box is silent below
   `COUNT_FROM` (1500), then reads `1742/2000`, then `sends as 2 messages`,
   then refuses. `db/lib/say.js#sayInPieces` splits the send with

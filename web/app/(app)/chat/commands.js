@@ -2,20 +2,28 @@
 
 // The composer's slash commands: the web twins of bot/src/lib/commands.js. THE REGISTRY IS DATA, deliberately — a list, not a keydown branch, so ⌘K can offer it too.
 // Entry shape: name, description, where (place kinds — "loc"|"room"|"conv"|"zone"), args ([{name, kind, placeholder, optional}], only ONE text arg, always last), run(values, ctx) → { ok, line, error } or null.
-// This file is imported by a "use client" component, so it must never reach for @lifeweb/db. Everything it calls is a server action from ./actions.
+// This file is imported by a "use client" component, so it must never reach for @lifeweb/db — barring the zero-require modules written for exactly that (db/lib/sayLimits.js). Everything it calls is a server action from ./actions.
 
 import {
   submitMove,
   toggleConceal,
   shoutHere,
+  oocHere,
   rollHere,
   playHere,
   addMember,
   removeMember,
 } from "./actions";
+// The one exception to the rule above: db/lib/sayLimits.js has zero requires by
+// design precisely so a client component may hold it (Feed.js does too).
+import { MESSAGE_LIMIT } from "@lifeweb/db/lib/sayLimits";
 
 // Same cap as the Discord option — this posts into a couple of dozen channels.
 const SHOUT_LIMIT = 300;
+
+// An OOC line reaches one place, so it takes ordinary speech's cap rather than
+// the shout's.
+const OOC_LIMIT = MESSAGE_LIMIT;
 
 const EVERYWHERE = ["loc", "room", "conv", "zone", "net"];
 
@@ -53,6 +61,13 @@ export const COMMANDS = [
     where: ["room", "conv"],
     args: [{ name: "message", kind: "text", placeholder: "What you yell…", maxLength: SHOUT_LIMIT }],
     run: ({ message }, ctx) => shoutHere(message, ctx.placeKey),
+  },
+  {
+    name: "ooc",
+    description: "Say something out of character.",
+    where: ["room", "conv"],
+    args: [{ name: "message", kind: "text", placeholder: "Out of character…", maxLength: OOC_LIMIT }],
+    run: ({ message }, ctx) => oocHere(message, ctx.placeKey),
   },
   {
     name: "roll",

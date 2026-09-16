@@ -329,6 +329,51 @@ export function desireClaimRow(d, { usernameById, catatonicIds } = {}) {
   };
 }
 
+// An out-of-character line somebody said this turn (db/lib/ooc.js). The row a
+// GM reads on the OOC lens IS the AuditLog row the rate limit already writes —
+// there is no OOC table, and adding one would mean two records of the same
+// sentence that could disagree.
+//
+// `details.text` is the frozen copy of what was said, and `location`/`room` are
+// the real columns rather than a name off `details`, so a GM can filter by place
+// the same way /gm/audit does.
+export const OOC_INCLUDE = {
+  targetCharacter: {
+    select: {
+      id: true,
+      name: true,
+      updatedAt: true,
+      zoneId: true,
+      zone: { select: { name: true } },
+      discordUserId: true,
+    },
+  },
+  location: { select: { name: true } },
+  room: { select: { name: true } },
+};
+
+export function oocRow(a, { usernameById, catatonicIds } = {}) {
+  const c = a.targetCharacter;
+  const text = typeof a.details?.text === "string" ? a.details.text : "";
+  // A Room is the more precise of the two and the one a GM recognises; the
+  // Location is the fallback for a conversation held on the open street.
+  const where = a.room?.name ?? a.location?.name ?? "";
+  return {
+    id: a.id,
+    characterId: c?.id ?? null,
+    characterName: c?.name ?? "Somebody",
+    avatarVersion: c?.updatedAt?.getTime?.() ?? null,
+    catatonic: c ? (catatonicIds?.has(c.id) ?? false) : false,
+    discordUsername: usernameById?.get?.(c?.discordUserId) ?? "",
+    zoneId: c?.zoneId ?? null,
+    zoneName: c?.zone?.name ?? "",
+    placeName: where,
+    text,
+    searchText: `${c?.name ?? ""} ${text} ${where}`,
+    createdAtMs: a.createdAt.getTime(),
+  };
+}
+
 export function cavingRollRow(c, { usernameById, catatonicIds }) {
   const nameFor = usernameById.get(c.character.discordUserId) ?? c.character.discordUserId;
   return {

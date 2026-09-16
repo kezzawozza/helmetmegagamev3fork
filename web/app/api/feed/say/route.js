@@ -9,6 +9,7 @@ import { loadFeedCharacter } from "@/lib/feedAccess";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 import { sendDm } from "@/lib/discordGuild";
 import { MENTION_SOURCE } from "@lifeweb/db/lib/dmKinds";
+import { oocRejectionDm } from "@lifeweb/db/lib/oocGuard";
 
 // POST /api/feed/say — the web half of the send. Every gate, transform and
 // identity decision lives in db/lib/say.js, the one write path the Discord
@@ -73,6 +74,14 @@ export async function POST(request) {
   });
 
   if (!said.ok) {
+    // Nothing was posted, so the words only exist in the composer the player is
+    // about to lose. The DM hands them back (db/lib/oocGuard.js). Never allowed
+    // to fail the response: the refusal is the answer either way.
+    if (said.oocRejected) {
+      await sendDm(session.discordUserId, oocRejectionDm(said.original ?? content)).catch((err) =>
+        console.error("OOC rejection DM failed:", err?.message ?? err),
+      );
+    }
     // A slowmode refusal is the only one with a clock on it, and the composer
     // shows the seconds rather than a flat "no".
     const status = said.retryAfter ? 429 : 403;
