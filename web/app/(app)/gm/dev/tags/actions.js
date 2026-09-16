@@ -8,6 +8,7 @@ import { UserError, guarded } from "@/lib/actionResult";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getGmSession, syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
+import { TAG_CATEGORY } from "@lifeweb/db/lib/constants";
 import { applyTagOpsInTx } from "@/lib/characterWrite";
 import {
   normalizeExpiresInto,
@@ -168,7 +169,13 @@ function scalarsFrom(input) {
     equippable,
     consumable: Boolean(input.consumable),
     removable: Boolean(input.removable),
-    tradeable: Boolean(input.tradeable),
+    // Derived for items, the same rule db/lib/syncTags.js applies to the YAML —
+    // an item is a thing, and a thing can be handed over. This is the door the
+    // flower came through: a GM picked Items, left the box unticked, and minted
+    // something nobody could give away OR weigh. The form hides the box now, but
+    // a server action is a public endpoint, so the rule belongs here rather than
+    // there. The DB column holds the DISPLAY name ("Items"), not the YAML slug.
+    tradeable: category === TAG_CATEGORY.ITEMS || Boolean(input.tradeable),
     healable: Boolean(input.healable),
     teachable: Boolean(input.teachable),
     administerable: Boolean(input.administerable),

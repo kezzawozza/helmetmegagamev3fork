@@ -104,6 +104,25 @@ const HIDDEN_CATEGORIES = new Set(["demoness"]);
 // validateTags refuse anything else.
 const DESTROYABLE_CATEGORIES = new Set(["items", "assets"]);
 
+// `Tag.tradeable` goes the same way, for items only. An item is a thing, and a
+// thing can be handed over or lifted off a body — 426 of the 428 here said so,
+// and the two that didn't were a graft in somebody's neck and a bolted-down
+// bench. That is a default with two exceptions, not a decision worth making 428
+// times, and the one time it got made wrong (a GM's flower, minted untradeable
+// and therefore also weightless) nobody found out for days.
+//
+// ASSETS ARE NOT IN THIS SET, and won't be. They are genuinely split: a horse,
+// a cart, a plow and a dog change hands; a forge, a palisade, a gallows and a
+// trebuchet do not. There is no category boundary under that — "is it nailed
+// down" is a fact about the thing — so an Asset still says which it is, and
+// validateTags still throws if it stays quiet.
+//
+// This is an AUTHORING rule, and it lives on the two authoring doors: here, and
+// scalarsFrom in web/app/(app)/gm/dev/tags/actions.js. It deliberately does not
+// reach the runtime minters — db/lib/disguiseMint.js writes an Items row with
+// tradeable: false on purpose, because an act you are wearing is not cargo.
+const ALWAYS_TRADEABLE_CATEGORIES = new Set(["items"]);
+
 // JSON.stringify with object keys sorted recursively, array order kept.
 // Only for the change-detection compare below — jsonb hands keys back in its
 // own order, so a naive stringify of a stored object never matches the
@@ -475,21 +494,30 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" sets visible: named beside concealsIdentity or forcesName — a tag that hides who you are can't be the tag that only shows while it doesn't`,
       );
     }
-    // `tradeable` must be explicit for items/assets — silence would default
-    // to unmovable and nobody would notice until a player couldn't hand
-    // over what they made.
-    if ((t.category === "items" || t.category === "assets") && typeof t.tradeable !== "boolean") {
+    // `tradeable` is derived for items now (ALWAYS_TRADEABLE_CATEGORIES), so an
+    // authored line is stale whichever way it points — `true` says nothing the
+    // category doesn't, and `false` is a claim the sync is about to overrule.
+    // Both throw rather than shrug, for the reason the `removable` pair below
+    // gives: a silently ignored key is exactly how that flag went stale.
+    if (ALWAYS_TRADEABLE_CATEGORIES.has(t.category) && t.tradeable !== undefined) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" sets tradeable but is in category "${t.category}", which is always tradeable now — drop the line (see that file's header)`,
+      );
+    }
+    // An Asset still says which it is, and silence would default to unmovable:
+    // nobody would notice until a player couldn't hand over their horse.
+    if (t.category === "assets" && typeof t.tradeable !== "boolean") {
       throw new Error(
         `docs/tags.yaml: tag "${t.slug}" is in category "${t.category}" but does not set tradeable — say true or false explicitly, since it decides whether the tag can be handed over or looted off a body`,
       );
     }
-    // `weight` must be explicit for a TRADEABLE item, for the same reason
-    // `tradeable` must: silence would default to weightless and a new sword
-    // would cost nobody anything to carry. Two exemptions, both because the
-    // tag is not cargo (docs/systemdocs/CARRY.md §1): Assets carry themselves
-    // or do not move at all, and an untradeable item is part of you — nobody
-    // hauls the Quickened Nerve Braid, it is grafted into their neck.
-    if (t.category === "items" && t.tradeable && typeof t.weight !== "number") {
+    // `weight` must be explicit for an item, for the reason `tradeable` used
+    // to be: silence would default to weightless and a new sword would cost
+    // nobody anything to carry. Assets are exempt because they are not cargo
+    // (docs/systemdocs/CARRY.md §1) — a horse carries itself and a forge does
+    // not move at all. Items have no exemption any more: there is no such
+    // thing as an untradeable item to be "part of you" rather than hauled.
+    if (t.category === "items" && typeof t.weight !== "number") {
       throw new Error(
         `docs/tags.yaml: tag "${t.slug}" is an item but sets no weight — give it a pounds figure off the band table in the header of that file`,
       );
@@ -841,7 +869,7 @@ async function syncTagsFromYaml(prisma) {
       // At most one exclusive tag per character (the Beliefs); rule lives in
       // web/lib/characterCreation.js#exclusiveConflict.
       exclusive: entry.exclusive ?? false,
-      tradeable: entry.tradeable ?? false,
+      tradeable: ALWAYS_TRADEABLE_CATEGORIES.has(entry.category) || (entry.tradeable ?? false),
       weightLbs: entry.weight ?? null,
       carryBonus: entry.carryBonus ?? null,
       // Authored as the short `melee:`/`ballistic:` a catalog line reads well

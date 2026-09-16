@@ -81,12 +81,22 @@
 #                     menu and nothing else ever does. Write `removable: false`
 #                     on the handful an item is not allowed to be binned from
 #                     — the three corpses (Butcher and Bury are the two ways a
-#                     body leaves), the nuke halves, the grafted nerve braid,
-#                     the bolted-down crating bench — and say why in a comment
+#                     body leaves), the nuke halves — and say why in a comment
 #                     beside it. The sync THROWS on `removable: true` anywhere,
 #                     and on `removable: false` outside those two categories,
 #                     where it would do nothing. A cure is `healable`, not
 #                     this. Destroying refunds nothing.
+#   tradeable       - whether the tag can be handed over, or lifted off a body
+#                     (docs/systemdocs/TAGS.md §5). ITEMS DO NOT WRITE IT: an
+#                     item is a thing, and a thing can change hands, so the
+#                     sync derives it the way it derives `removable` and THROWS
+#                     on the line either way round. Assets DO write it, and
+#                     must: they are genuinely split, since a horse, a cart, a
+#                     plow and a dog change hands while a forge, a palisade and
+#                     a gallows do not. Everything else is untradeable and says
+#                     nothing. A runtime mint is not bound by this — a Disguise
+#                     is an Items row that is deliberately not cargo — but that
+#                     is code, not this file.
 #   craftable       - the Craft menu (docs/systemdocs/CRAFTING.md): whether a
 #                     player can make this tag. The recipe is the
 #                     `requirement:` block below, and every listed skill must
@@ -135,10 +145,10 @@
 #                     explicitly rather than omitting it — omission means the
 #                     tag is not cargo at all, which is a different claim.
 #                     Omit it for anything weightless: every skill, status,
-#                     injury and belief; every Asset, since a horse carries
-#                     itself and a house does not move at all; and any
-#                     untradeable item, which is part of you rather than cargo
-#                     (nobody hauls a graft out of their own neck).
+#                     injury and belief, and every Asset, since a horse
+#                     carries itself and a house does not move at all. EVERY
+#                     item needs one, with no exemption — an item is always
+#                     cargo now (see `tradeable` above).
 #                     PRICE IT OFF THE BAND, never by feel, the same way a
 #                     point cost is priced off TAGS.md §4a:
 #                       0       Negligible   key, letter, badge, coin, cigarette
@@ -152,9 +162,8 @@
 #                     A thing with an obvious real weight gets that weight
 #                     (a longsword is 3 lb, a halberd 6); the band is for
 #                     what has none. Never price by feel.
-#                     db/lib/syncTags.js THROWS if a TRADEABLE `items` tag
-#                     omits it, so new gear can never sneak in weighing
-#                     nothing.
+#                     db/lib/syncTags.js THROWS if an `items` tag omits it,
+#                     so new gear can never sneak in weighing nothing.
 #   consumable      - whether a player can use this tag up from their
 #                     character sheet — eat the meal, unpack the crate.
 #                     Default false. Consuming always takes exactly ONE
@@ -5437,7 +5446,6 @@ tags:
     group: items-food
     description: "A large egg colored like ivory, still wet with the placenta. It can be sold or cracked open into foodstuffs."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -6013,7 +6021,6 @@ tags:
     group: items-gear
     description: "A fleshy item cut from a dead Graga. It's useful in many tonics. The Merchant is always looking for more."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -6037,7 +6044,6 @@ tags:
     group: items-gear
     description: "The extracted, wrinkled mass of a Skinless. A miraculous organ, prized for its alchemical properties."
     pointCost: 0
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -6077,7 +6083,6 @@ tags:
     group: items-corpse
     description: "The spindly corpse of a Nekker. Can be butchered to produce {tag:nekker-pheromones}."
     pointCost: 0
-    tradeable: true
     weight: 35
     stackable: false
     visible: true
@@ -6093,7 +6098,6 @@ tags:
     group: items-corpse
     description: "The bloated corpse of a Graga. Can be butchered to produce {tag:graga-sac}."
     pointCost: 0
-    tradeable: true
     weight: 75
     stackable: false
     visible: true
@@ -6109,7 +6113,6 @@ tags:
     group: items-corpse
     description: "The pink, slimy corpse of a Skinless. Can be butchered to produce {tag:skinless-brain}."
     pointCost: 0
-    tradeable: true
     weight: 55
     stackable: false
     visible: true
@@ -6127,7 +6130,6 @@ tags:
     group: items-gear
     description: "A white powdery compound."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -6153,7 +6155,6 @@ tags:
     group: items-gear
     description: "Raw silver ore, ready for the forge."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -6183,7 +6184,6 @@ tags:
     group: items-gear
     description: "A workable ingot, smelted from ore."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -6211,7 +6211,6 @@ tags:
     group: items-gear
     description: "A green mineral."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -6228,7 +6227,6 @@ tags:
     group: items-gear
     description: "A red ore."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -6248,7 +6246,6 @@ tags:
     group: items-gear
     description: "A workable iron ingot."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -6286,7 +6283,6 @@ tags:
     group: items-gear
     description: "A trinket. When making it, a Gambit die is rolled. The quality is random but influenced by your skill. It is very valuable to the merchant."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -6310,7 +6306,6 @@ tags:
     group: items-gear
     description: "Saltpeter ground fine and refined until it is eager to burn."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -6342,7 +6337,6 @@ tags:
     equippable: true
     equipSlot: ACCESSORY
     visible: worn
-    tradeable: true
     weight: 0.5
     stackable: true
     purchasable: false
@@ -6368,7 +6362,6 @@ tags:
     group: items-gear
     description: "A wax plug with an animal smell that carries farther than it should. Things in the dark would rather follow it than you."
     pointCost: 2
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -6403,7 +6396,6 @@ tags:
     group: items-gear
     description: "The cut out heart of an Aberrant."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -6424,7 +6416,6 @@ tags:
     group: items-gear
     description: "A raven's eye."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -6446,7 +6437,6 @@ tags:
     group: items-gear
     description: "A dark forest herb. Harmless."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -6470,7 +6460,6 @@ tags:
     group: items-gear
     description: "Seed pods weeping a milky sap."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -6489,7 +6478,6 @@ tags:
     group: items-gear
     description: "Glossy leaves that numb the tongue."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -6511,7 +6499,6 @@ tags:
     group: items-gear
     description: "The heart of a rainbow trout, hardly bigger than a thumbnail."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -6537,7 +6524,6 @@ tags:
     group: items-gear
     description: "A dense, springy moss that grows thickly on fallen trees."
     pointCost: 0
-    tradeable: true
     weight: 0.3
     stackable: true
     visible: false
@@ -6557,7 +6543,6 @@ tags:
     description: "A jarful of dark, patient leeches. Set on a bruise, they draw the bad blood out — cures {tag:bruised}."
     pointCost: 0
     depotPrice: 1
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -6580,7 +6565,6 @@ tags:
     group: items-gear
     description: "A black rock that rubs off on one's hands."
     pointCost: 0
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -6604,7 +6588,6 @@ tags:
     group: items-gear
     description: "A fist-sized chunk of rock, coal and a paler vein running through it together."
     pointCost: 0
-    tradeable: true
     weight: 4
     stackable: true
     visible: false
@@ -6629,7 +6612,6 @@ tags:
     group: items-gear
     description: "A fleck of gold, panned or picked loose from the rock. Small, but real."
     pointCost: 0
-    tradeable: true
     weight: 0.2
     stackable: true
     visible: false
@@ -6652,7 +6634,6 @@ tags:
     group: items-gear
     description: "A crate of ore, sorted and ready for the forge — Coal, Silver, and an ingot of Steel already smelted."
     pointCost: 0
-    tradeable: true
     weight: 6
     stackable: true
     visible: false
@@ -6676,7 +6657,6 @@ tags:
     group: items-gear
     description: "A crate of ore, heavier than most — extra Coal and a second ingot of Steel alongside the Silver."
     pointCost: 0
-    tradeable: true
     weight: 10
     stackable: true
     visible: false
@@ -6712,7 +6692,6 @@ tags:
     group: items-gear
     description: "A promising streak, panned out and pocketed whole."
     pointCost: 0
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -6729,7 +6708,6 @@ tags:
     group: items-gear
     description: "A sack of ore, heavier than it looks."
     pointCost: 0
-    tradeable: true
     weight: 6
     stackable: true
     visible: false
@@ -6746,7 +6724,6 @@ tags:
     group: items-gear
     description: "A speck of ore, easy to miss — unless you're looking for it."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -6763,7 +6740,6 @@ tags:
     group: items-gear
     description: "A short run of ore, worth following to its end."
     pointCost: 0
-    tradeable: true
     weight: 4
     stackable: true
     visible: false
@@ -6780,7 +6756,6 @@ tags:
     group: items-gear
     description: "A single nugget, heavier in the hand than it looks."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -6802,7 +6777,6 @@ tags:
     description: "Synthetic liquid that can be consumed to gain {tag:fertilized-fields}."
     pointCost: 2
     depotPrice: 4
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -6823,7 +6797,6 @@ tags:
     group: items-gear
     description: "An instrument of one's choice — type {cmd:play} to play it."
     pointCost: 1
-    tradeable: true
     weight: 4
     visible: true
     purchasable: true
@@ -6839,7 +6812,6 @@ tags:
     description: "An old device that sends messages to all its paired Systems and Bracelets. Tuned to the Cerberon's frequency."
     pointCost: 14
     requiredTag: cerberon
-    tradeable: true
     weight: 8
     stackable: true
     visible: true
@@ -6853,7 +6825,6 @@ tags:
     group: items-gear
     description: "A metal bracelet that receives messages from Radio Systems. Tuned to the Cerberon's frequency."
     pointCost: 0
-    tradeable: true
     weight: 0.2
     stackable: true
     visible: worn
@@ -6873,7 +6844,6 @@ tags:
     group: items-gear
     description: "A radio hardset to a certain frequency."
     pointCost: 4
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -6907,7 +6877,6 @@ tags:
     group: items-gear
     description: "A hefty stone. Can be thrown with varying results."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -6921,7 +6890,6 @@ tags:
     group: items-gear
     description: "A long coil of braided rope, stiff with grime."
     pointCost: 2
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -6943,7 +6911,6 @@ tags:
     group: items-gear
     description: "Strong spring jaws with a pressure plate."
     pointCost: 2
-    tradeable: true
     weight: 10
     stackable: true
     visible: true
@@ -6967,7 +6934,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: ACCESSORY
-    tradeable: true
     weight: 4
     stackable: true
     visible: worn
@@ -6989,7 +6955,6 @@ tags:
     group: items-gear
     description: "A metal wedge that can be used once to open a locked door."
     pointCost: 3
-    tradeable: true
     weight: 0
     stackable: false
     visible: false
@@ -7007,7 +6972,6 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    tradeable: true
     weight: 3
     stackable: true
     visible: worn
@@ -7027,7 +6991,6 @@ tags:
     group: items-gear
     description: "An extendable tool used to see far away sights up close."
     pointCost: 2
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -7041,7 +7004,6 @@ tags:
     group: items-gear
     description: "Makeup, a change of clothes, an array of false mustaches… Can be used to temporarily change one's name and appearance for 3 turns. Reusable."
     pointCost: 2
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -7063,7 +7025,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: ACCESSORY
-    tradeable: true
     weight: 0
     # Stackable as of the Merchant Update: a trader turns up with a handful,
     # Starting Wares grants two, and the Depot's Sell counter takes a stack in
@@ -7089,7 +7050,6 @@ tags:
     description: "Brushes, pigment, and a stretch of canvas. Artists can use them to make a {tag:painting}."
     pointCost: 0
     depotPrice: 3
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -7119,7 +7079,6 @@ tags:
     group: items-gear
     description: "A painting of middling beauty. It'll fetch a good price."
     pointCost: 0
-    tradeable: true
     weight: 6
     stackable: true
     visible: true
@@ -7148,7 +7107,6 @@ tags:
     group: items-gear
     description: "A few honest lines on paper — a face, a street, and a moment kept. Worth little at the counter and rather more to the right person."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -7175,7 +7133,6 @@ tags:
     group: items-gear
     description: "A small emblem worked in tin, pinned where it can be seen showing a name or icon."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -7202,7 +7159,6 @@ tags:
     group: items-gear
     description: "A weathered coin."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -7221,7 +7177,6 @@ tags:
     group: items-gear
     description: "Carved bone strung on old cord — a dead man's luck, worn as a ward against the same rope."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -7237,7 +7192,6 @@ tags:
     group: items-gear
     description: "A ring, still on the hand that was buried with it."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -7260,7 +7214,6 @@ tags:
     group: items-gear
     description: "A small coin used by the Merchant."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -7293,7 +7246,6 @@ tags:
     group: items-gear
     description: "A wooden cross."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -7307,7 +7259,6 @@ tags:
     group: items-gear
     description: "A purse of useful things."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -7324,7 +7275,6 @@ tags:
     group: items-food
     description: "A dead, hairless creature. It is probably edible."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -7349,7 +7299,6 @@ tags:
     group: items-food
     description: "It has grown mold on it, but it's edible."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -7365,7 +7314,6 @@ tags:
     group: items-food
     description: "Shriveled arthropods on a stick."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -7381,7 +7329,6 @@ tags:
     group: items-food
     description: "The bad cuts, jellied."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -7397,7 +7344,6 @@ tags:
     group: items-food
     description: "A can of cold soup. A mix of wilted vegetables in a watery broth. The label reads VOLGOGA."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -7418,7 +7364,6 @@ tags:
     description: "A cardboard container with a faded stamp. The lettering says VOLGOGA. You can open it and hopefully find some food."
     pointCost: 0
     depotPrice: 1
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -7449,7 +7394,6 @@ tags:
     description: "An assortment of stale rations and crafting ingredients — bulk goods."
     pointCost: 0
     depotPrice: 3
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -7466,7 +7410,6 @@ tags:
     group: items-food
     description: "A pale maggot, squirming in your hand. You can squish it into a mug for maggot milk."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -7490,7 +7433,6 @@ tags:
     group: items-drink
     description: "A freshly squeezed cup of milk."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -7518,7 +7460,6 @@ tags:
     group: items-gear
     description: "A kit full of various useful things. Can be consumed to gain 8 ⬢."
     pointCost: 0
-    tradeable: true
     weight: 10
     stackable: true
     visible: false
@@ -7547,7 +7488,6 @@ tags:
     group: items-gear
     description: "A small locked box, pitched over the fortress walls with the rest of the trash — whoever tossed it clearly wanted it gone, lock and all."
     pointCost: 0
-    tradeable: true
     weight: 8
     stackable: false
     visible: false
@@ -7568,7 +7508,6 @@ tags:
     group: items-gear
     description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
-    tradeable: true
     weight: 6
     stackable: false
     visible: false
@@ -7595,7 +7534,6 @@ tags:
     group: items-gear
     description: "A locked box from the Abandoned Homestead's basement, shelved in with the rest of the unlabelled tinctures."
     pointCost: 0
-    tradeable: true
     weight: 8
     stackable: false
     visible: false
@@ -7612,7 +7550,6 @@ tags:
     group: items-gear
     description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
-    tradeable: true
     weight: 6
     stackable: false
     visible: false
@@ -7638,7 +7575,6 @@ tags:
     group: items-gear
     description: "A strongbox the current finally gave up, rusted shut but still holding what someone locked inside."
     pointCost: 0
-    tradeable: true
     weight: 8
     stackable: false
     visible: false
@@ -7655,7 +7591,6 @@ tags:
     group: items-gear
     description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
-    tradeable: true
     weight: 6
     stackable: false
     visible: false
@@ -7688,7 +7623,6 @@ tags:
     group: items-gear
     description: "A small lockbox, silted over and forgotten — the kind of thing that turns up wherever the digging is good, not just one place in particular."
     pointCost: 0
-    tradeable: true
     weight: 6
     stackable: false
     visible: false
@@ -7705,7 +7639,6 @@ tags:
     group: items-gear
     description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
-    tradeable: true
     weight: 4
     stackable: false
     visible: false
@@ -7732,7 +7665,6 @@ tags:
     group: items-gear
     description: "A lockbox, wedged in wherever the digging turned it up — nobody buries something like this on purpose and forgets it."
     pointCost: 0
-    tradeable: true
     weight: 6
     stackable: false
     visible: false
@@ -7749,7 +7681,6 @@ tags:
     group: items-gear
     description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
-    tradeable: true
     weight: 4
     stackable: false
     visible: false
@@ -7776,7 +7707,6 @@ tags:
     group: items-gear
     description: "A small lockbox, netted up along with everything else — whatever sank it isn't telling."
     pointCost: 0
-    tradeable: true
     weight: 6
     stackable: false
     visible: false
@@ -7793,7 +7723,6 @@ tags:
     group: items-gear
     description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
-    tradeable: true
     weight: 4
     stackable: false
     visible: false
@@ -7823,7 +7752,6 @@ tags:
     group: items-gear
     description: "A gambling den's cashbox, small enough to walk off with if you're quick about it. Still locked."
     pointCost: 0
-    tradeable: true
     weight: 5
     stackable: false
     visible: false
@@ -7840,7 +7768,6 @@ tags:
     group: items-gear
     description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
-    tradeable: true
     weight: 3
     stackable: false
     visible: false
@@ -7868,7 +7795,6 @@ tags:
     group: items-gear
     description: "A small reliquary box, left at the Ancient Shrine — an offering, or something somebody hid there and never came back for."
     pointCost: 0
-    tradeable: true
     weight: 5
     stackable: false
     visible: false
@@ -7885,7 +7811,6 @@ tags:
     group: items-gear
     description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
-    tradeable: true
     weight: 3
     stackable: false
     visible: false
@@ -7916,7 +7841,6 @@ tags:
     group: items-gear
     description: "A photograph, sun-bleached almost to nothing. Whoever's in it isn't anymore."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -7932,7 +7856,6 @@ tags:
     group: items-gear
     description: "Stopped at whatever hour it was dropped. Still a fine watch."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -7948,7 +7871,6 @@ tags:
     group: items-gear
     description: "Wind it and it still plays — a few bars, then the same few bars again."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -7964,7 +7886,6 @@ tags:
     group: items-gear
     description: "A single bead off a longer strand, worn against something. Didn't work, or the strand would still be whole."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -7980,7 +7901,6 @@ tags:
     group: items-gear
     description: "Someone's, once. Still engraved on the inside."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -7996,7 +7916,6 @@ tags:
     group: items-gear
     description: "A numbered stub for something nobody came back to claim. Might still be behind the counter."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -8012,7 +7931,6 @@ tags:
     group: items-gear
     description: "Worn smooth by someone else's thumb, once, at the Shrine."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -8035,7 +7953,6 @@ tags:
     group: items-gear
     description: "A stone without a single flaw — the kind that ends up on a crown, not a merchant's scale. Fit for a king. Or a Baron."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -8051,7 +7968,6 @@ tags:
     group: items-gear
     description: "A thin metal canister. Can be thrown to obscure vision and make people choke."
     pointCost: 0
-    tradeable: true
     weight: 1.5
     stackable: true
     visible: false
@@ -8065,7 +7981,6 @@ tags:
     group: items-gear
     description: "A sealed canister. Can be thrown to obscure vision, cause choking, and irritate people's skin."
     pointCost: 0
-    tradeable: true
     weight: 1.5
     stackable: true
     visible: false
@@ -8081,7 +7996,6 @@ tags:
     group: items-special
     description: "Is it still active?"
     pointCost: 0
-    tradeable: true
     weight: 8
     stackable: true
     visible: true
@@ -8101,7 +8015,6 @@ tags:
     group: items-gear
     description: "A field trauma kit that immediately heals minor wounds, up to broken bones."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -8145,7 +8058,6 @@ tags:
     description: "A compact medical injector that immediately heals minor wounds, up to broken bones."
     pointCost: 0
     depotPrice: 46
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -8185,7 +8097,6 @@ tags:
     group: items-gear
     description: "Goods you came in with, still crated. Unpack them whenever you like. [This is a small trader's stock, should you wish to go into business. Its real value is in what you can talk somebody into paying for it.]"
     pointCost: 14
-    tradeable: true
     weight: 12
     purchasable: true
     purchasableAfterStart: false
@@ -8237,7 +8148,6 @@ tags:
     group: items-gear
     description: "Live off the rivers of Ravenheart. Gives a {tag:fishing-boat} and {tag:laboring-fishing}."
     pointCost: 1
-    tradeable: true
     weight: 2
     purchasable: true
     purchasableAfterStart: false
@@ -8255,7 +8165,6 @@ tags:
     group: items-gear
     description: "Live off the land of Ravenheart. Gives a {tag:work-knife} and {tag:laboring-farming}."
     pointCost: 0
-    tradeable: true
     weight: 1
     purchasable: true
     purchasableAfterStart: false
@@ -8273,7 +8182,6 @@ tags:
     group: items-gear
     description: "Live off the harsh forests of Ravenheart. Gives {tag:laboring-hunting}, {tag:forester}, {tag:rough-camper} and a {tag:shortbow}."
     pointCost: 2
-    tradeable: true
     weight: 2
     purchasable: true
     purchasableAfterStart: false
@@ -8313,7 +8221,6 @@ tags:
     group: items-gear
     description: "Live carrying out messages for the Baron and telling the day's news. Gives a {tag:horse}, a {tag:trumpet}, a {tag:bird} and four sheets of {tag:paper}."
     pointCost: 7
-    tradeable: true
     weight: 2
     purchasable: true
     purchasableAfterStart: false
@@ -8340,7 +8247,6 @@ tags:
     group: items-gear
     description: "Live out your days as a knight of Ravenheart and reminisce on your valor during the Skinless attack of 1088. Gives knighthood, {tag:plate-armor}, a {tag:broadsword}, a {tag:shield}, a {tag:knights-helmet}, {tag:melee-trained}, {tag:ranged-basic} and a {tag:devoted-follower}, along with {tag:old} and {tag:arthritis}."
     pointCost: 9
-    tradeable: true
     weight: 3
     purchasable: true
     purchasableAfterStart: false
@@ -8366,7 +8272,6 @@ tags:
     group: items-gear
     description: "Live to train the Successor and the Heir in your specialized trade. Gives {tag:teaching}, {tag:intelligent} and {tag:insightful}."
     pointCost: 4
-    tradeable: true
     weight: 1
     purchasable: true
     purchasableAfterStart: false
@@ -8385,7 +8290,6 @@ tags:
     group: items-gear
     description: "Live as an envoy from the church. Gives {tag:chaplain}, {tag:pious} and {tag:blessing}."
     pointCost: 4
-    tradeable: true
     weight: 1
     purchasable: true
     purchasableAfterStart: false
@@ -8404,7 +8308,6 @@ tags:
     group: items-gear
     description: "Live to host and enjoy marvelous feasts. Gives {tag:game-master}, an {tag:iron-liver} and two {tag:alcohol}."
     pointCost: 3
-    tradeable: true
     weight: 4
     purchasable: true
     purchasableAfterStart: false
@@ -8428,7 +8331,6 @@ tags:
     group: items-gear
     description: "Live to run your manor from outside the fortress gates. Gives an {tag:heirloom}, a {tag:rapier}, two {tag:manor-key} and {tag:appraisal}."
     pointCost: 5
-    tradeable: true
     weight: 2
     purchasable: true
     purchasableAfterStart: false
@@ -8450,7 +8352,6 @@ tags:
     group: items-gear
     description: "Live as a general member of the court, here to try their fate. Gives {tag:pretty}."
     pointCost: 1
-    tradeable: true
     weight: 1
     purchasable: true
     purchasableAfterStart: false
@@ -8467,7 +8368,6 @@ tags:
     group: items-gear
     description: "Live to treat the Keep's wounded. Gives {tag:medical-skilled} and a {tag:sanctuary-key}."
     pointCost: 4
-    tradeable: true
     weight: 1
     purchasable: true
     purchasableAfterStart: false
@@ -8485,7 +8385,6 @@ tags:
     group: items-gear
     description: "Live to paint portraits of the Baron and his family. Gives {tag:artist}, {tag:musician}, an {tag:instrument} and {tag:appraisal}."
     pointCost: 5
-    tradeable: true
     weight: 2
     purchasable: true
     purchasableAfterStart: false
@@ -8508,7 +8407,6 @@ tags:
     group: items-gear
     description: "Live to improve the defenses of Ravenheart. Gives {tag:builder-expert}, a {tag:hatchet}, a {tag:work-knife}, a {tag:purse} and a {tag:cart}."
     pointCost: 8
-    tradeable: true
     weight: 3
     purchasable: true
     purchasableAfterStart: false
@@ -8533,7 +8431,6 @@ tags:
     group: items-gear
     description: "[SHIPMENT ID RV-6207-M]: Coal x 2 | Squeeze"
     pointCost: 0
-    tradeable: true
     weight: 11
     visible: true
     purchasable: false
@@ -8551,7 +8448,6 @@ tags:
     group: items-gear
     description: "A merchant's crate, still nailed shut. The manifest on the side reads: Coffee x2, Alcohol, Work Knife."
     pointCost: 0
-    tradeable: true
     weight: 6
     visible: true
     purchasable: false
@@ -8570,7 +8466,6 @@ tags:
     group: items-gear
     description: "Allows the wearer to see clearly, removing the downside of {tag:nearsighted}."
     pointCost: 2
-    tradeable: true
     weight: 0
     stackable: true
     visible: worn
@@ -8592,7 +8487,6 @@ tags:
     group: items-gear
     description: "A game set with weighted and shaved dice, marked and bonus cards, and an assortment of other tricks to guarantee the owner's victory."
     pointCost: 7
-    tradeable: true
     weight: 2
     purchasable: true
     purchasableAfterStart: false
@@ -8606,7 +8500,6 @@ tags:
     group: items-keys
     description: "A small metal key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     purchasable: false
@@ -8627,7 +8520,6 @@ tags:
     group: items-keys
     description: "A small metal key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     purchasable: false
@@ -8648,7 +8540,6 @@ tags:
     group: items-keys
     description: "A key to the forester's waystation."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     purchasable: false
@@ -8669,7 +8560,6 @@ tags:
     group: items-keys
     description: "A key to the property room at Graywall."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     purchasable: false
@@ -8694,7 +8584,6 @@ tags:
     group: items-keys
     description: "A small piece of plastic, with a metal lining on one edge."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     purchasable: false
@@ -8706,7 +8595,6 @@ tags:
     group: items-keys
     description: "The Baron's key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     purchasable: false
@@ -8734,7 +8622,6 @@ tags:
     group: items-keys
     description: "A finely engraved key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -8772,7 +8659,6 @@ tags:
     group: items-keys
     description: "A finely engraved key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -8795,7 +8681,6 @@ tags:
     group: items-keys
     description: "A menacing metal key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -8818,7 +8703,6 @@ tags:
     group: items-keys
     description: "A menacing metal key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -8841,7 +8725,6 @@ tags:
     group: items-keys
     description: "A wooden key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -8864,7 +8747,6 @@ tags:
     group: items-keys
     description: "An old key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -8887,7 +8769,6 @@ tags:
     group: items-keys
     description: "An old key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -8910,7 +8791,6 @@ tags:
     group: items-keys
     description: "An old key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -8933,7 +8813,6 @@ tags:
     group: items-keys
     description: "A small key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -8956,7 +8835,6 @@ tags:
     group: items-keys
     description: "A small key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -8979,7 +8857,6 @@ tags:
     group: items-keys
     description: "A small key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -9002,7 +8879,6 @@ tags:
     group: items-keys
     description: "A small key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -9025,7 +8901,6 @@ tags:
     group: items-keys
     description: "A small key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -9048,7 +8923,6 @@ tags:
     group: items-keys
     description: "A small key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -9071,7 +8945,6 @@ tags:
     group: items-keys
     description: "A small key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -9094,7 +8967,6 @@ tags:
     group: items-keys
     description: "A finely made key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -9117,7 +8989,6 @@ tags:
     group: items-keys
     description: "A finely made key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -9140,7 +9011,6 @@ tags:
     group: items-keys
     description: "A finely made key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -9163,7 +9033,6 @@ tags:
     group: items-keys
     description: "A finely made key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -9186,7 +9055,6 @@ tags:
     group: items-keys
     description: "A finely made key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -9214,7 +9082,6 @@ tags:
     pointCost: 14
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2.5
     stackable: true
     visible: worn
@@ -9239,7 +9106,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2
     stackable: true
     visible: worn
@@ -9257,7 +9123,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2
     stackable: true
     visible: worn
@@ -9297,7 +9162,6 @@ tags:
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 1
     stackable: true
     visible: worn
@@ -9328,7 +9192,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: worn
@@ -9355,7 +9218,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2
     stackable: true
     visible: worn
@@ -9383,7 +9245,6 @@ tags:
     laborBonus: { kind: fishing, amount: 1 }
     equippable: true
     equipSlot: ACCESSORY
-    tradeable: true
     weight: 3
     stackable: true
     visible: true
@@ -9415,7 +9276,6 @@ tags:
     laborBonus: { kind: prospecting, amount: 1 }
     equippable: true
     equipSlot: ACCESSORY
-    tradeable: true
     weight: 4
     stackable: true
     visible: worn
@@ -9441,7 +9301,6 @@ tags:
     laborBonus: { kind: hunting, amount: 1 }
     equippable: true
     equipSlot: ACCESSORY
-    tradeable: true
     weight: 10
     stackable: true
     visible: true
@@ -9500,7 +9359,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: worn
@@ -9526,7 +9384,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 4
     stackable: true
     visible: true
@@ -9551,7 +9408,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2
     stackable: true
     visible: worn
@@ -9579,7 +9435,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 1.5
     stackable: true
     visible: worn
@@ -9600,7 +9455,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 5
     stackable: true
     visible: true
@@ -9626,7 +9480,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 1.5
     stackable: true
     visible: worn
@@ -9653,7 +9506,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 2
     stackable: true
     visible: worn
@@ -9681,7 +9533,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 4
     stackable: true
     visible: true
@@ -9709,7 +9560,6 @@ tags:
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 1
     stackable: true
     visible: worn
@@ -9737,7 +9587,6 @@ tags:
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 1
     stackable: true
     visible: worn
@@ -9766,7 +9615,6 @@ tags:
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2
     stackable: true
     visible: worn
@@ -9795,7 +9643,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 4
     stackable: true
     visible: true
@@ -9821,7 +9668,6 @@ tags:
     requiredTag: ranged-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2
     stackable: true
     visible: worn
@@ -9849,7 +9695,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 3
     stackable: true
     visible: true
@@ -9875,7 +9720,6 @@ tags:
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 4
     stackable: true
     visible: worn
@@ -9904,7 +9748,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 4
     stackable: true
     visible: worn
@@ -9932,7 +9775,6 @@ tags:
     pointCost: 3
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: worn
@@ -9961,7 +9803,6 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: ACCESSORY
-    tradeable: true
     weight: 2
     stackable: true
     visible: worn
@@ -9989,7 +9830,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 6
     stackable: true
     visible: true
@@ -10017,7 +9857,6 @@ tags:
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 3
     stackable: true
     visible: worn
@@ -10046,7 +9885,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 5
     stackable: true
     visible: worn
@@ -10076,7 +9914,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 3.5
     stackable: true
     visible: worn
@@ -10104,7 +9941,6 @@ tags:
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2.5
     stackable: true
     visible: worn
@@ -10134,7 +9970,6 @@ tags:
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2.5
     stackable: true
     visible: worn
@@ -10160,7 +9995,6 @@ tags:
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2.5
     stackable: true
     visible: worn
@@ -10191,7 +10025,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 4
     stackable: true
     visible: true
@@ -10221,7 +10054,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 6
     stackable: true
     visible: true
@@ -10248,7 +10080,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 7
     stackable: true
     visible: true
@@ -10279,7 +10110,6 @@ tags:
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 5
     stackable: true
     visible: worn
@@ -10306,7 +10136,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 8
     stackable: true
     visible: true
@@ -10335,7 +10164,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 7
     stackable: true
     visible: true
@@ -10362,7 +10190,6 @@ tags:
     requiredTag: ranged-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 3
     stackable: true
     visible: worn
@@ -10388,7 +10215,6 @@ tags:
     requiredTag: ranged-basic
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 4
     stackable: true
     visible: worn
@@ -10419,7 +10245,6 @@ tags:
     depotPrice: 20
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2
     visible: worn
     purchasable: true
@@ -10442,7 +10267,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 2
     stackable: true
     visible: worn
@@ -10474,7 +10298,6 @@ tags:
     group: items-food
     description: "Meat, cut from a person."
     pointCost: 0
-    tradeable: true
     weight: 5
     stackable: true
     visible: false
@@ -10521,7 +10344,6 @@ tags:
     group: items-remains
     description: "A human eyeball, it looks back at you."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -10542,7 +10364,6 @@ tags:
     group: items-remains
     description: "Someone let their tongue slip!"
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -10563,7 +10384,6 @@ tags:
     group: items-remains
     description: "A human hand."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -10584,7 +10404,6 @@ tags:
     group: items-remains
     description: "A human foot."
     pointCost: 0
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -10605,7 +10424,6 @@ tags:
     group: items-remains
     description: "A human bone."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -10621,7 +10439,6 @@ tags:
     group: items-remains
     description: "A human stomach."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -10642,7 +10459,6 @@ tags:
     group: items-remains
     description: "Someone's once beating heart, now in the palm of your hand."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -10687,7 +10503,6 @@ tags:
     description: "An onion. Goes well in soups."
     pointCost: 0
     depotPrice: 3
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -10709,7 +10524,6 @@ tags:
     category: items
     group: items-food
     pointCost: 0
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -10730,7 +10544,6 @@ tags:
     group: items-food
     description: "A deer's liver. Best cooked."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -10751,7 +10564,6 @@ tags:
     group: items-food
     description: "Goose fat. A delicacy, good for cooking."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -10773,7 +10585,6 @@ tags:
     description: "A hard wheel of cheese. You could cook with it."
     pointCost: 0
     depotPrice: 6
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -10796,7 +10607,6 @@ tags:
     group: items-food
     description: "An ugly eel. You could cook with it."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -10818,7 +10628,6 @@ tags:
     category: items
     group: items-food
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -10842,7 +10651,6 @@ tags:
     category: items
     group: items-food
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -10864,7 +10672,6 @@ tags:
     category: items
     group: items-food
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -10890,7 +10697,6 @@ tags:
     description: "A cave morel. You could cook with it."
     pointCost: 0
     depotPrice: 5
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -10913,7 +10719,6 @@ tags:
     description: "Rock salt. You could cook with it."
     pointCost: 0
     depotPrice: 1
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -10939,7 +10744,6 @@ tags:
     description: "Foreign spices. Tastes delicious in meals."
     pointCost: 0
     depotPrice: 14
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -10963,7 +10767,6 @@ tags:
     description: "Butter. A delicacy."
     pointCost: 0
     depotPrice: 8
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -10985,7 +10788,6 @@ tags:
     description: "A can of food, labeled VOLGOGA CRAB. It smells fishy. The label has a faded drawing of a crab."
     pointCost: 0
     depotPrice: 2
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -11003,7 +10805,6 @@ tags:
     group: items-food
     description: "An honest, well-made meal."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -11038,7 +10839,6 @@ tags:
     group: items-food
     description: "A worthy meal made with a special ingredient."
     pointCost: 0
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -11088,7 +10888,6 @@ tags:
     group: items-food
     description: "Hardtack, dried meat, and whatever else keeps. It weighs next to nothing and tastes like the bottom of a pack, but it is a meal that'll keep you going."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -11114,7 +10913,6 @@ tags:
     group: items-food
     description: "Golden, sticky, and gone far too fast. A plate of these makes an occasion out of an ordinary evening."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -11142,7 +10940,6 @@ tags:
     group: items-food
     description: "Corrupted edible food. It is a sloppy, withered shadow of what it used to be."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -11175,7 +10972,6 @@ tags:
     description: "Allows you to build and smith."
     pointCost: 9
     visible: true
-    tradeable: true
     weight: 100
     purchasable: false
     purchasableAfterStart: false
@@ -11200,7 +10996,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     requiredTag: medical-basic
-    tradeable: true
     weight: 12
     sellable: true
     sellablePrice: 19
@@ -11218,7 +11013,6 @@ tags:
     description: "Various equipment and devices designed to bring harm to others. Torture-related Gambits attempted while equipped or at a Location holding this gain +1."
     pointCost: 0
     visible: true
-    tradeable: true
     weight: 20
     purchasable: false
     purchasableAfterStart: false
@@ -11243,7 +11037,6 @@ tags:
     description: "A branding iron. It allows you to permanently brand captives."
     pointCost: 0
     visible: false
-    tradeable: true
     weight: 2
     purchasable: false
     purchasableAfterStart: false
@@ -11269,7 +11062,6 @@ tags:
     group: items-special
     description: "A glass vial swirling with color. You can activate it to blind someone."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -11286,7 +11078,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 15
     visible: true
     purchasable: false
@@ -11299,7 +11090,6 @@ tags:
     group: items-special
     description: "A standard-issue fragmentation grenade."
     pointCost: 0
-    tradeable: true
     weight: 1.5
     stackable: true
     visible: false
@@ -11315,7 +11105,6 @@ tags:
     group: items-special
     description: "A plastic explosive, good at breaching walls."
     pointCost: 0
-    tradeable: true
     weight: 4
     stackable: true
     visible: false
@@ -11329,7 +11118,6 @@ tags:
     group: items-special
     description: "A small metal device that shuts down anything electronic in a 10-foot radius."
     pointCost: 0
-    tradeable: true
     weight: 1.5
     stackable: true
     visible: false
@@ -11346,7 +11134,6 @@ tags:
     description: "Choose a non-combat heirloom. Can be sold to the Merchant if worst comes to worst."
     pointCost: 5
     requiredTag: courtier
-    tradeable: true
     weight: 0
     visible: false
     purchasable: true
@@ -11364,7 +11151,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 40
     visible: true
     purchasable: false
@@ -11388,7 +11174,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: ACCESSORY
-    tradeable: true
     weight: 0
     visible: worn
     purchasable: false
@@ -11401,7 +11186,6 @@ tags:
     group: items-special
     description: "You can consume it to teleport anywhere."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -11420,27 +11204,12 @@ tags:
     description: "Can be consumed to reveal all overground locations immediately."
     pointCost: 0
     depotPrice: 4
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
-
-  quickened-nerve-braid:
-    catalog: secret
-    name: Quickened Nerve-Braid
-    category: items
-    group: items-special
-    description: "A group of metal wires grafted into the neck to transmit electric spasms. Allows the user to attain the speed of a galloping horse once per day."
-    fighting: { situational: true }
-    pointCost: 0
-    tradeable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
 
   # A mount, not loot: it sits in FAST_TRAVEL_SLUGS beside the Horse
   # (db/lib/mounts.js), so equipping it buys the extra
@@ -11462,7 +11231,6 @@ tags:
     group: items-special
     description: "A large capsule of a fissile explosive. A gift from God King Enoch II. There's no way to activate it."
     pointCost: 0
-    tradeable: true
     weight: 100
     visible: true
     purchasable: false
@@ -11476,7 +11244,6 @@ tags:
     group: items-special
     description: "It can be inserted into the {tag:nuclear-device} to start a ten minute countdown. It also points to where the device is at all times."
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -11493,7 +11260,6 @@ tags:
     equippable: true
     equipSlot: MOUNT
     equipLayer: 1
-    tradeable: true
     # Weightless like the horse and the cart: you ride it, you don't carry it.
     weight: 0
     visible: true
@@ -11514,7 +11280,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 6
     stackable: true
     visible: worn
@@ -11528,7 +11293,6 @@ tags:
     group: items-special
     description: "An arrow no bow has ever touched. You feel compelled to stab yourself with it, hard."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -11545,7 +11309,6 @@ tags:
     group: items-special
     description: "A strange kind of book: you can only read it once. Your breath slows when you near it. [You must be {tag:literate} to understand its contents.]"
     pointCost: 0
-    tradeable: true
     weight: 5
     visible: false
     purchasable: false
@@ -11574,7 +11337,6 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    tradeable: true
     weight: 3
     stackable: false
     visible: worn
@@ -11591,7 +11353,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     visible: worn
-    tradeable: true
     weight: 3
     purchasable: false
     purchasableAfterStart: false
@@ -11607,7 +11368,6 @@ tags:
     equipSlot: BODY
     equipLayer: 1
     visible: worn
-    tradeable: true
     weight: 2
     purchasable: false
     purchasableAfterStart: false
@@ -11623,7 +11383,6 @@ tags:
     equipSlot: BODY
     equipLayer: 1
     visible: worn
-    tradeable: true
     weight: 3
     purchasable: false
     purchasableAfterStart: false
@@ -11642,7 +11401,6 @@ tags:
     group: items-special
     description: "A sharp plastic card bearing the Merchant's name, face and, funnily enough, their home address — somewhere in a certain city far away."
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -11663,7 +11421,6 @@ tags:
     group: items-keys
     description: "A worn plastic card on a lanyard."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -11680,7 +11437,6 @@ tags:
     equippable: true
     equipSlot: ACCESSORY
     visible: worn
-    tradeable: true
     stackable: true
     weight: 0
     purchasable: false
@@ -11704,7 +11460,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: ACCESSORY
-    tradeable: true
     weight: 0
     visible: worn
     purchasable: false
@@ -11720,7 +11475,6 @@ tags:
     equippable: true
     equipSlot: ACCESSORY
     visible: worn
-    tradeable: true
     weight: 0
     purchasable: false
     purchasableAfterStart: false
@@ -11735,7 +11489,6 @@ tags:
     equippable: true
     equipSlot: ACCESSORY
     visible: worn
-    tradeable: true
     weight: 0
     purchasable: false
     purchasableAfterStart: false
@@ -11751,7 +11504,6 @@ tags:
     equipSlot: BODY
     equipLayer: 1
     visible: worn
-    tradeable: true
     weight: 2
     purchasable: false
     purchasableAfterStart: false
@@ -11766,7 +11518,6 @@ tags:
     equippable: true
     equipSlot: ACCESSORY
     visible: worn
-    tradeable: true
     weight: 0
     purchasable: false
     purchasableAfterStart: false
@@ -11782,7 +11533,6 @@ tags:
     equipSlot: BODY
     equipLayer: 2
     visible: worn
-    tradeable: true
     weight: 5
     purchasable: false
     purchasableAfterStart: false
@@ -11798,7 +11548,6 @@ tags:
     equipSlot: BODY
     equipLayer: 1
     visible: worn
-    tradeable: true
     weight: 3
     purchasable: false
     purchasableAfterStart: false
@@ -11814,7 +11563,6 @@ tags:
     equipSlot: BODY
     equipLayer: 1
     visible: worn
-    tradeable: true
     weight: 3
     purchasable: false
     purchasableAfterStart: false
@@ -11830,7 +11578,6 @@ tags:
     equipSlot: WEAPON
     twoHanded: true
     visible: true
-    tradeable: true
     weight: 6
     purchasable: false
     purchasableAfterStart: false
@@ -11846,7 +11593,6 @@ tags:
     equipSlot: WEAPON
     twoHanded: true
     visible: true
-    tradeable: true
     weight: 6
     purchasable: false
     purchasableAfterStart: false
@@ -11888,7 +11634,6 @@ tags:
     depotPrice: 4
     sellable: true
     sellablePrice: 3
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -11909,7 +11654,6 @@ tags:
     depotPrice: 2
     sellable: true
     sellablePrice: 1
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -11950,7 +11694,6 @@ tags:
     description: "A ream of blank sheets. It can be consumed into paper."
     pointCost: 1
     depotPrice: 2
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -11986,7 +11729,6 @@ tags:
     group: items-paper
     description: "*Blank paper.*"
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -12000,7 +11742,6 @@ tags:
     group: items-paper
     description: "Notes describing the location of a vein of ore, in a vast chasm."
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -12027,7 +11768,6 @@ tags:
     group: items-paper
     description: "A book of blank pages, ready to be written in."
     pointCost: 0
-    tradeable: true
     weight: 1.5
     stackable: true
     visible: false
@@ -12055,7 +11795,6 @@ tags:
     group: items-gear
     description: "It will detail the available rites and their words of corruption."
     pointCost: 0
-    tradeable: true
     weight: 1.5
     stackable: true
     visible: false
@@ -12084,7 +11823,6 @@ tags:
     group: items-gear
     description: "Its pupil darts around frantically, overwhelmed by vision through the veil. Holding it in your hand while wearing your robes lets you see through walls."
     pointCost: 0
-    tradeable: true
     weight: 1
     equippable: true
     equipSlot: ACCESSORY
@@ -12108,7 +11846,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
-    tradeable: true
     weight: 1
     stackable: true
     visible: worn
@@ -12125,7 +11862,6 @@ tags:
     group: items-gear
     description: "A poisoned tooth. Once installed, it may be bitten down on, releasing a deadly nerve agent into the room you are in."
     pointCost: 0
-    tradeable: true
     weight: 0
     stackable: true
     visible: false
@@ -12153,7 +11889,6 @@ tags:
     group: items-drink
     description: "A small phial of black liquid. It can kill in seconds."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -12175,7 +11910,6 @@ tags:
     group: items-special
     description: "A singular stick of dynamite, can be combined with four others to make a bundle."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -12189,7 +11923,6 @@ tags:
     group: items-special
     description: "A bundle of dynamite, could easily devastate a crowd or building."
     pointCost: 0
-    tradeable: true
     weight: 5
     stackable: true
     visible: false
@@ -12219,7 +11952,6 @@ tags:
     bookText: >-
       Once there was a Plague Doctor whose story became legend that no man now lives to tell. Here I have written it down for any that may yet find this book in my dying hour. The Plague Doctor was a lord of the Sanctuary, so powerful and so wise he could use his skills to create life... He had such a knowledge of his art that he could even keep the hopelessly ill he cared about from dying. The skills taught in the Sanctuary and the machines found there are a pathway to many operations some might consider to be unnatural. He became so powerful... the only thing he was afraid of was losing his power, which eventually, of course, he did. Unfortunately, he taught his apprentice everything he knew, then his apprentice killed him in his sleep. Now he has come for all that know his story, even for me. It is ironic - the Plague Doctor could save others from death, but not himself.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12233,7 +11965,6 @@ tags:
     bookText: >-
       Dear Diary, It's been 4 days in these caves...at least I think it has. Time seems to have lost all meaning, and I'm unsure whether I've been walking this through this current passage for hours or days. I can't help but feel a blooming hope that I will find the exit soon, for I encountered something today that I've not seen since I entered this place: a hole. Tomorrow I jump to my destiny, and discover what is at the bottom of the hole. With luck, it will be my salvation. Caspian
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12249,7 +11980,6 @@ tags:
 
       "Wherever they might be they always remember that the past was a lie, that memory has no return, that every spring gone by could never be recovered, and that the wildest and most tenacious love was an ephemeral truth in the end."
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12265,7 +11995,6 @@ tags:
 
       "If your enemy is secure at all points, be prepared for him. If he is in superior strength, evade him. If your opponent is temperamental, seek to irritate him. Pretend to be weak, that he may grow arrogant. If he is taking his ease, give him no rest. If his forces are united, separate them. If sovereign and subject are in accord, put division between them. Attack him where he is unprepared, appear where you are not expected."
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12281,7 +12010,6 @@ tags:
 
       "Ludwig Boltzmann, who spent much of his life studying statistical mechanics, died in 1906 by his own hand. Paul Ehrenfest, carrying on the work, died similarly in 1933. Now it is our turn to study statistical mechanics."
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12300,7 +12028,6 @@ tags:
 
       Every household has there staple foods, and for most of the pleasent peasents its bread, plain and simple. I write this recipe book for those young folks who never learnt from their mothers or need something new. I bring you the simple flat bread with nothing more than the essentials, the sweet breads filled with fruits as a nice after bread treat, and the illustrious red bread rumored to come from cows blood, but is actually an ancient recipe using the illustrious red bean.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12316,7 +12043,6 @@ tags:
 
       Many people have independentaly found sweet breads, or sweet loafs, but few I've met have ever rediscovered the wonderous texture of cake themselves. I write this Tome for those chefs who hold the budget for sugar and the customers to pay for it. There is the pancake, a wondoursly simple take cooked in your standard pan topped with fruits or cream. There stands the cupcake, a small form factor cake based off muffins, perfect for tea partys. Then I bring you the classic cake, able to adapt to any size, audience, or occasion whether personel or commercial.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12332,7 +12058,6 @@ tags:
 
       People know there baked goods for the soft texture and filling nature, but I introduce to those most talented chefs the baking that results in the flaky and crumbly tastes only those of times long past enjoyed. There is the pastry's made of dough folded with perfection that gives you flaking. The crumbles made of sugar and oats that crunches dissolves for a perfect dessert. Finally I supply the recipe for the perfect pie crust, that both flakes and crumbles ro perfecrly outline any filling whether sweet or savoury.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12347,7 +12072,6 @@ tags:
     bookText: |-
       Lilac was either a pigeon or a demon, depending on the account, or perhaps she never existed to begin with. Not many descriptions on her physical form exist because the most notable thing about The Bird is the devastation that follows in her absence. Enemies became allies, and the allied betrayed another. The fortress never knew peace and the town never knew silence after The Bird had disappeared. Screams that even The Watch could not handle filled the days and nights to follow. Some medics in contemporary society will heal and feed whatever birds they come across out of respect for the Mother Healer, who is said to have offered her services to save Lilac.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12361,7 +12085,6 @@ tags:
     bookText: |-
       So long have I dreamed of light to share its gift with my skin. I crave the warmth of a loved one and the clarity to know thyself in the mirror. The travelers speak of green. Green leaves above, green grass below, green forests on the horizon. I know of green. Green is some of the moss on these dark metallic walls. These numb walls. The walls that numb me back. The numbness makes a divide in the current of my despair for the arrival of my tears. I wonder if the sun feels as warm as the wet running down my cheek, and if I will only know the coldness of the air that comes after the emotion falls to the floor.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12375,7 +12098,6 @@ tags:
     bookText: |-
       Women love better when their material conditions are satisfied. It is in the interest of commoners and in the interest of lovers to ensure that housing, food, and medical care is provided to all. Feel the passion, the aggressive intimacy, the primal desire when one no longer needs to think about where their next meal comes from or their preferred method of sacrificing their health. To love truly is to be socialist. The royalty and the privileged fates control our resources so that we fear and hate and cry instead of becoming empowered to smile, to laugh, to kiss. Go organize your friends and family, and love freely.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12419,7 +12141,6 @@ tags:
 
       The past, I’ve found, has a habit of catching up to you…
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12463,7 +12184,6 @@ tags:
 
       The sad part is, they were usually right.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12513,7 +12233,6 @@ tags:
 
       It was gonna be a long night…
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12527,7 +12246,6 @@ tags:
     bookText: |-
       Play together, eat cheese, make cheese, go to the inn, get drunk, do a surgical operation, eat another rat, run for headman, work in the fields, stand guard, learn literature, plant a tree, cosplay as a dog to intimidate cats, wear a fancy hat,...
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12541,7 +12259,6 @@ tags:
     bookText: |-
       The ingredients for hot chocolate are milk, cacao, sugar, starch, and (if you feel fancy) cinnymon. Moreover EVO oil is best oil.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12559,7 +12276,6 @@ tags:
       §3201.1 Prohibition Against Gratuitus Prolixity and Obfuscatory Circumlocution in Codificatory Processes:
       ...
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12573,7 +12289,6 @@ tags:
     bookText: |-
       The sword was flying high in the sky, until it gained conciusness and became aware its metal. This day the weight of existence came down on it, as the sword fall from Heaven.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12587,7 +12302,6 @@ tags:
     bookText: |-
       The time shall come in which The Mime dies, at that moment only Archon will come to serve the final Judgement. Only salvation will be found in those believed impaired, who lied to everyone, to keep their secrets. Now they stand witness, and have a chance to act.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12601,7 +12315,6 @@ tags:
     bookText: |-
       Believe in the legs. Legs will save thee, they make thee swift, fast. Thou don't need to fear any enemy, as long as thy legs are stronger than the ones of their horses, for thou are faster.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12615,7 +12328,6 @@ tags:
     bookText: >-
       Larry Luca lied his way into Lynn's love and affection, and invited her into his life. Lynn entered Larry's lodging, the locale's light illuminating softly. Larry Luca pulled Lynn in to feel her love in a lip lock. Larry Luca lobbed Lynn, who landed and lay on the bed, as Larry leapt to lick Lynn's royal flesh all over.
     pointCost: 0
-    tradeable: true
     weight: 1.5
     visible: false
     purchasable: false
@@ -12642,7 +12354,6 @@ tags:
     pointCost: 1
     exclusive: true
     requiredTag: courtier
-    tradeable: true
     weight: 0
     visible: false
     purchasable: true
@@ -12663,7 +12374,6 @@ tags:
     pointCost: 1
     exclusive: true
     requiredTag: courtier
-    tradeable: true
     weight: 0
     visible: false
     purchasable: true
@@ -12684,7 +12394,6 @@ tags:
     pointCost: 1
     exclusive: true
     requiredTag: courtier
-    tradeable: true
     weight: 0
     visible: false
     purchasable: true
@@ -12705,7 +12414,6 @@ tags:
     pointCost: 1
     exclusive: true
     requiredTag: courtier
-    tradeable: true
     weight: 0
     visible: false
     purchasable: true
@@ -12726,7 +12434,6 @@ tags:
     pointCost: 1
     exclusive: true
     requiredTag: courtier
-    tradeable: true
     weight: 0
     visible: false
     purchasable: true
@@ -12747,7 +12454,6 @@ tags:
     pointCost: 1
     exclusive: true
     requiredTag: courtier
-    tradeable: true
     weight: 0
     visible: false
     purchasable: true
@@ -12788,7 +12494,6 @@ tags:
     sealOffice: Banneret
     sealMark: "Three ravens on a tree branch."
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -12808,7 +12513,6 @@ tags:
     sealOffice: Baron
     sealMark: "A raven clutching a banner."
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -12828,7 +12532,6 @@ tags:
     sealOffice: Esculap
     sealMark: "A staff wrapped with snakes."
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -12848,7 +12551,6 @@ tags:
     sealOffice: Meister
     sealMark: "A single goblet."
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -12868,7 +12570,6 @@ tags:
     sealOffice: Censor
     sealMark: "A shield with a sword."
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -12888,7 +12589,6 @@ tags:
     sealOffice: Hand
     sealMark: "An open palm."
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -12908,7 +12608,6 @@ tags:
     sealOffice: Bishop
     sealMark: "A cross wreathed in vines."
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -12928,7 +12627,6 @@ tags:
     sealOffice: Inquisitor
     sealMark: "A cross with a rapier on one side and a skull on the other."
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -12952,7 +12650,6 @@ tags:
     group: items-paper
     sealOffice: Merchant
     pointCost: 0
-    tradeable: true
     weight: 0
     visible: false
     purchasable: false
@@ -12979,7 +12676,6 @@ tags:
     depotPrice: 5
     sellable: true
     sellablePrice: 1
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -13001,7 +12697,6 @@ tags:
     description: "Wash up."
     pointCost: 0
     depotPrice: 1
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13018,7 +12713,6 @@ tags:
     description: "Makes you smell good."
     pointCost: 0
     depotPrice: 2
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13038,7 +12732,6 @@ tags:
     depotPrice: 2
     sellable: true
     sellablePrice: 1
-    tradeable: true
     weight: 0.2
     stackable: true
     visible: false
@@ -13058,7 +12751,6 @@ tags:
     depotPrice: 3
     sellable: true
     sellablePrice: 2
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13085,7 +12777,6 @@ tags:
     pointCost: 0
     sellable: true
     sellablePrice: 2
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13106,7 +12797,6 @@ tags:
     pointCost: 0
     sellable: true
     sellablePrice: 2
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13129,7 +12819,6 @@ tags:
     depotPrice: 3
     sellable: true
     sellablePrice: 2
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -13152,7 +12841,6 @@ tags:
     depotPrice: 3
     sellable: true
     sellablePrice: 2
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13174,7 +12862,6 @@ tags:
     depotPrice: 9
     sellable: true
     sellablePrice: 7
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -13198,7 +12885,6 @@ tags:
     depotPrice: 10
     sellable: true
     sellablePrice: 7
-    tradeable: true
     weight: 6
     visible: true
     purchasable: false
@@ -13214,7 +12900,6 @@ tags:
     group: items-gear
     description: "A loud brass instrument that can be heard for miles."
     pointCost: 0
-    tradeable: true
     weight: 3
     visible: true
     purchasable: false
@@ -13231,7 +12916,6 @@ tags:
     depotPrice: 10
     sellable: true
     sellablePrice: 7
-    tradeable: true
     weight: 1.5
     equippable: true
     equipSlot: WEAPON
@@ -13249,7 +12933,6 @@ tags:
     depotPrice: 11
     sellable: true
     sellablePrice: 7
-    tradeable: true
     weight: 2
     visible: false
     purchasable: false
@@ -13270,7 +12953,6 @@ tags:
     depotPrice: 19
     sellable: true
     sellablePrice: 13
-    tradeable: true
     weight: 0.5
     visible: false
     purchasable: true
@@ -13286,7 +12968,6 @@ tags:
     depotPrice: 19
     sellable: true
     sellablePrice: 13
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -13303,7 +12984,6 @@ tags:
     depotPrice: 26
     sellable: true
     sellablePrice: 17
-    tradeable: true
     weight: 8
     visible: true
     purchasable: false
@@ -13334,7 +13014,6 @@ tags:
     equipLayer: 2
     melee: 0.93
     ballistic: 0.93
-    tradeable: true
     weight: 65
     visible: true
     purchasable: false
@@ -13352,7 +13031,6 @@ tags:
     equipLayer: 2
     melee: 0.9
     ballistic: 0.9
-    tradeable: true
     weight: 30
     visible: true
     purchasable: false
@@ -13373,7 +13051,6 @@ tags:
     sealedShipping: true
     sellable: true
     sellablePrice: 20
-    tradeable: true
     weight: 12
     equippable: true
     equipSlot: BODY
@@ -13429,7 +13106,6 @@ tags:
     sealedShipping: true
     sellable: true
     sellablePrice: 27
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13453,7 +13129,6 @@ tags:
     sealedShipping: true
     sellable: true
     sellablePrice: 31
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13473,7 +13148,6 @@ tags:
     sealedShipping: true
     sellable: true
     sellablePrice: 45
-    tradeable: true
     weight: 5
     visible: true
     purchasable: false
@@ -13491,7 +13165,6 @@ tags:
     sellablePrice: 44
     equippable: true
     equipSlot: ACCESSORY
-    tradeable: true
     weight: 1
     stackable: true
     visible: worn
@@ -13508,7 +13181,6 @@ tags:
     depotPrice: 74
     sellable: true
     sellablePrice: 49
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13532,7 +13204,6 @@ tags:
     sealedShipping: true
     sellable: true
     sellablePrice: 89
-    tradeable: true
     weight: 2
     equippable: true
     equipSlot: WEAPON
@@ -13558,7 +13229,6 @@ tags:
     sealedShipping: true
     sellable: true
     sellablePrice: 128
-    tradeable: true
     weight: 9
     equippable: true
     equipSlot: WEAPON
@@ -13579,7 +13249,6 @@ tags:
     sealedShipping: true
     sellable: true
     sellablePrice: 266
-    tradeable: true
     weight: 8
     equippable: true
     equipSlot: WEAPON
@@ -13600,7 +13269,6 @@ tags:
     sealedShipping: true
     sellable: true
     sellablePrice: 113
-    tradeable: true
     weight: 3
     equippable: true
     equipSlot: WEAPON
@@ -13619,7 +13287,6 @@ tags:
     depotPrice: 111
     sellable: true
     sellablePrice: 74
-    tradeable: true
     weight: 3
     equippable: true
     equipSlot: WEAPON
@@ -13638,7 +13305,6 @@ tags:
     depotPrice: 55
     sellable: true
     sellablePrice: 37
-    tradeable: true
     weight: 1
     equippable: true
     equipSlot: WEAPON
@@ -13655,7 +13321,6 @@ tags:
     group: items-drink
     description: "One of many different kinds of fungus that are all pale and taste like mud. An important ingredient in a great many recipes."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -13680,7 +13345,6 @@ tags:
     group: items-drink
     description: "Beer, ale, and other fine drinks."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -13709,7 +13373,6 @@ tags:
     group: items-special
     description: "Water that has been prayed over. Poured on the offender, it reduces the efficacy of unholy activity."
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -13735,7 +13398,6 @@ tags:
     group: items-special
     description: "Consecrated oil, golden and slow to pour. Anointing someone marks them {tag:blessed} for a time."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13762,7 +13424,6 @@ tags:
     group: items-drink
     description: "Properly boiled and refined cave fungus."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13794,7 +13455,6 @@ tags:
     group: items-drink
     description: "A wine as dark as a raven's blood. A valuable export."
     pointCost: 0
-    tradeable: true
     weight: 2.5
     stackable: true
     visible: false
@@ -13835,7 +13495,6 @@ tags:
     group: items-drink
     description: "A bottle that stinks of rotting flesh. Can be uncorked to give {tag:vomiting} to everyone in a closed room."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13874,7 +13533,6 @@ tags:
     group: items-drink
     description: "Poop. Can be applied to a blade to give those cut {tag:infected}. How dishonorable!"
     pointCost: 0
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -13904,7 +13562,6 @@ tags:
     description: "An alchemical substance that can cure a minor infection outright, but does not help against {tag:festering}."
     pointCost: 0
     depotPrice: 7
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13928,7 +13585,6 @@ tags:
     group: items-drink
     description: "A special concoction distilled with alcohol until it turns pale. Can be consumed to gain {tag:night-vision} for 2 turns."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13958,7 +13614,6 @@ tags:
     group: items-drink
     description: "A draught that soothes pain, but is rapidly addictive."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13987,7 +13642,6 @@ tags:
     group: items-drink
     description: "A bottle of alcohol and a rag."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -14015,7 +13669,6 @@ tags:
     poison: true
     description: "A draught refined from {tag:nightshade-herb}. Inflicts {tag:choking as the consumer begins to perish."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14059,7 +13712,6 @@ tags:
     group: items-weapons
     description: "A crude bomb packed with raw {tag:saltpeter} mined out of the Caves."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -14087,7 +13739,6 @@ tags:
     poison: true
     description: "A powerful draught that requires 2 turns to create. Inflicts {tag:phrygian-toxin}."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14124,7 +13775,6 @@ tags:
     group: items-drink
     description: "Poppy refined into something uncannily pure. Grants {tag:pain-immunity}."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14150,7 +13800,6 @@ tags:
     group: items-drink
     description: "A draught made with rendered {tag:graga-sac}. If consumed, gain 2 turns of {tag:brutish-strength}."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14176,7 +13825,6 @@ tags:
     group: items-drink
     description: "A draught brewed from {tag:cave-fungus}. Can be consumed to remove {tag:infected}, {tag:festering} and {tag:feverish}, and greatly improve the condition of someone with {tag:sepsis}."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14201,7 +13849,6 @@ tags:
     group: items-drink
     description: "It's boiled into a pale syrupy mix, capable of neutralizing even exotic poisons and venoms."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14236,7 +13883,6 @@ tags:
     group: items-drink
     description: "Eye drops refined from {tag:cave-fungus}. Can be consumed to gain {tag:increased-accuracy} for 2 turns."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14262,7 +13908,6 @@ tags:
     group: items-drink
     description: "Increases recovery. Brewed from {tag:cave-fungus}."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14292,7 +13937,6 @@ tags:
     group: items-drink
     description: "A bitter green syrup distilled from {tag:coca-leaves}. Can be consumed to gain {tag:stimulant-high}."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14320,7 +13964,6 @@ tags:
     description: "A brown powder. You can smoke it to become {tag:inspired} — your next Gambit is rolled with advantage."
     pointCost: 0
     depotPrice: 12
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14338,7 +13981,6 @@ tags:
     poison: true
     description: "A vial full of a clear acid drawn from cave fungus. Inflicts {tag:hallucinating}."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14373,7 +14015,6 @@ tags:
     group: items-drink
     description: "A milky but tasteless potion. Can be consumed to transfigure into a new name and appearance."
     pointCost: 2
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14398,7 +14039,6 @@ tags:
     group: items-drink
     description: "A clear potion distilled from a {tag:graga-sac}. Can be consumed to gain {tag:invisible} for 2 turns."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14428,7 +14068,6 @@ tags:
     group: items-drink
     description: "A substance wrung out of a dead nekker. Can be consumed to gain {tag:pheromones}."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14450,7 +14089,6 @@ tags:
     group: items-drink
     description: "A black draught made with a {tag:ravens-eye}. It can be consumed to send a message anywhere."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14474,7 +14112,6 @@ tags:
     group: items-drink
     description: "A strange draught made with an {tag:aberrant-heart}. Can be consumed to gain {tag:aberrant-luck} for 3 turns."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14506,7 +14143,6 @@ tags:
     group: items-drink
     description: "A cloudy draught made with a {tag:skinless-brain}. It can be consumed to ask the universe anything during one's next rest (ask a GM)."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14532,7 +14168,6 @@ tags:
     group: items-drink
     description: "A clear, cold draught."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14562,7 +14197,6 @@ tags:
     description: "A bitter draught that clears the basic poisons."
     pointCost: 0
     depotPrice: 16
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14586,7 +14220,6 @@ tags:
     group: items-drink
     description: "A bitter draught that clears fevers."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14611,7 +14244,6 @@ tags:
     description: "A cooling salve to treat burns."
     pointCost: 0
     depotPrice: 16
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14641,7 +14273,6 @@ tags:
     group: items-gear
     description: "A barber-surgeon's kit, containing clamps, needles and sutures. It allows you to perform surgeries, but with a -1 to the Gambit die."
     pointCost: 0
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -14671,7 +14302,6 @@ tags:
     group: items-drink
     description: "Rendered from an aberrant heart, black and thick. A lifesaving coagulation."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14738,7 +14368,6 @@ tags:
     description: "A carved peg buckled tight with leather straps. You can walk again."
     pointCost: 0
     depotPrice: 31
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
@@ -14766,7 +14395,6 @@ tags:
     description: "A fitted iron hook."
     pointCost: 0
     depotPrice: 31
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -14794,7 +14422,6 @@ tags:
     description: "A prosthetic hand."
     pointCost: 0
     depotPrice: 52
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -14821,7 +14448,6 @@ tags:
     group: items-gear
     description: "A painted glass sphere."
     pointCost: 0
-    tradeable: true
     weight: 0.2
     stackable: true
     visible: false
@@ -14855,7 +14481,6 @@ tags:
     group: items-gear
     description: "Salvaged machinery that works just as well as the real thing."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -14879,7 +14504,6 @@ tags:
     group: items-gear
     description: "Salvaged machinery that works just as well as the real thing."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -14905,7 +14529,6 @@ tags:
     group: items-gear
     description: "Salvaged machinery that works just as well as the real thing."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -14994,7 +14617,6 @@ tags:
     group: items-drink
     description: "A pale cream, granting supreme beauty."
     pointCost: 0
-    tradeable: true
     weight: 0.5
     stackable: true
     visible: false
@@ -15045,7 +14667,6 @@ tags:
     concealsIdentity: true
     concealSprite: soulbreaker1
     visible: worn
-    tradeable: true
     weight: 7
     purchasable: false
     purchasableAfterStart: false
@@ -15065,7 +14686,6 @@ tags:
     forcesConceal: true
     concealSprite: cerberus
     visible: worn
-    tradeable: true
     weight: 7
     purchasable: false
     purchasableAfterStart: false
@@ -15085,7 +14705,6 @@ tags:
     forcesConceal: true
     concealSprite: hero0
     visible: worn
-    tradeable: true
     weight: 7
     stackable: true
     purchasable: false
@@ -15114,7 +14733,6 @@ tags:
     concealsIdentity: true
     concealSprite: fighterhelmet
     visible: worn
-    tradeable: true
     weight: 6
     stackable: true
     purchasable: false
@@ -15145,7 +14763,6 @@ tags:
     forcesConceal: true
     concealSprite: tribhelm
     visible: worn
-    tradeable: true
     weight: 6
     purchasable: false
     purchasableAfterStart: false
@@ -15165,7 +14782,6 @@ tags:
     forcesConceal: true
     concealSprite: vietnamordinator
     visible: worn
-    tradeable: true
     weight: 6
     purchasable: false
     purchasableAfterStart: false
@@ -15185,7 +14801,6 @@ tags:
     forcesConceal: true
     concealSprite: tspacehelmet
     visible: worn
-    tradeable: true
     weight: 8
     purchasable: false
     purchasableAfterStart: false
@@ -15202,7 +14817,6 @@ tags:
     concealsIdentity: true
     concealSprite: pumpkin
     visible: worn
-    tradeable: true
     weight: 8
     purchasable: false
     purchasableAfterStart: false
@@ -15222,7 +14836,6 @@ tags:
     description: "Dark brown robes drape the wearer. Gives bonuses to the servants of Tzchernobog in combat, and allows the use of Thanati enchanted items."
     fighting: { tree: both, tiers: 2, when: { holds: [thanati], equipped: [black-robes] } }
     pointCost: 0
-    tradeable: true
     weight: 2
     equippable: true
     equipSlot: BODY
@@ -15249,7 +14862,6 @@ tags:
     description: "These robes glow with dark power! Their fabric is as hard as mail, and will deflect significant amounts of damage. They still function as normal robes. Their luminescence means they are visible upon inspection, even when not worn."
     fighting: { tree: both, tiers: 2, when: { holds: [thanati], equipped: [shimmering-robes] } }
     pointCost: 0
-    tradeable: true
     weight: 2
     equippable: true
     equipSlot: BODY
@@ -15279,7 +14891,6 @@ tags:
     forcesConceal: true
     concealSprite: silvermask
     visible: worn
-    tradeable: true
     weight: 3
     purchasable: false
     purchasableAfterStart: false
@@ -15297,7 +14908,6 @@ tags:
     forcesConceal: true
     concealSprite: plaguedoctor
     visible: worn
-    tradeable: true
     weight: 1
     purchasable: false
     purchasableAfterStart: false
@@ -15315,7 +14925,6 @@ tags:
     forcesConceal: true
     concealSprite: rat
     visible: worn
-    tradeable: true
     weight: 1
     purchasable: false
     purchasableAfterStart: false
@@ -15340,7 +14949,6 @@ tags:
     forcesConceal: true
     concealSprite: bone
     visible: worn
-    tradeable: true
     weight: 1.5
     purchasable: false
     purchasableAfterStart: false
@@ -15377,7 +14985,6 @@ tags:
     equippable: true
     equipSlot: HEAD
     visible: worn
-    tradeable: true
     weight: 1
     stackable: true
     purchasable: false
@@ -15405,7 +15012,6 @@ tags:
     forcesConceal: true
     concealSprite: balaclava
     visible: worn
-    tradeable: true
     weight: 0.3
     purchasable: false
     purchasableAfterStart: false
@@ -15423,7 +15029,6 @@ tags:
     equippable: true
     equipSlot: HEAD
     visible: worn
-    tradeable: true
     weight: 1
     stackable: true
     purchasable: false
@@ -15451,7 +15056,6 @@ tags:
     forcesConceal: true
     concealSprite: hood
     visible: worn
-    tradeable: true
     weight: 0.5
     purchasable: false
     purchasableAfterStart: false
@@ -15474,7 +15078,6 @@ tags:
     forcesConceal: true
     concealSprite: bag
     visible: worn
-    tradeable: true
     weight: 0.3
     purchasable: false
     purchasableAfterStart: false
@@ -15497,7 +15100,6 @@ tags:
     concealsIdentity: true
     concealSprite: plebhood
     visible: worn
-    tradeable: true
     weight: 0.5
     purchasable: true
     purchasableAfterStart: false
@@ -15515,7 +15117,6 @@ tags:
     concealsIdentity: true
     concealSprite: leper
     visible: worn
-    tradeable: true
     weight: 0.5
     purchasable: true
     purchasableAfterStart: false
@@ -15532,7 +15133,6 @@ tags:
     melee: 0.25
     ballistic: 0.05
     visible: worn
-    tradeable: true
     weight: 1
     stackable: true
     purchasable: true
@@ -15561,7 +15161,6 @@ tags:
     concealsIdentity: true
     concealSprite: hauberkhood
     visible: worn
-    tradeable: true
     weight: 4
     stackable: true
     purchasable: true
@@ -15588,7 +15187,6 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: gas_mask
-    tradeable: true
     weight: 2
     stackable: true
     visible: worn
@@ -15609,7 +15207,6 @@ tags:
     concealsIdentity: true
     concealSprite: paladin1
     visible: worn
-    tradeable: true
     weight: 4
     stackable: true
     purchasable: true
@@ -15639,7 +15236,6 @@ tags:
     melee: 0.35
     ballistic: 0.1
     visible: worn
-    tradeable: true
     weight: 4
     purchasable: true
     purchasableAfterStart: false
@@ -15662,7 +15258,6 @@ tags:
     forcesConceal: true
     concealSprite: knight0
     visible: worn
-    tradeable: true
     weight: 6
     stackable: true
     purchasable: true
@@ -15687,7 +15282,6 @@ tags:
     equippable: true
     equipSlot: HEAD
     visible: worn
-    tradeable: true
     weight: 1
     purchasable: false
     purchasableAfterStart: false
@@ -15702,7 +15296,6 @@ tags:
     equippable: true
     equipSlot: HEAD
     visible: worn
-    tradeable: true
     weight: 0.5
     purchasable: false
     purchasableAfterStart: false
@@ -15720,7 +15313,6 @@ tags:
     melee: 0.3
     ballistic: 0.05
     visible: worn
-    tradeable: true
     weight: 8
     stackable: true
     purchasable: true
@@ -15747,7 +15339,6 @@ tags:
     melee: 0.25
     ballistic: 0.05
     visible: worn
-    tradeable: true
     weight: 3
     stackable: true
     purchasable: true
@@ -15776,7 +15367,6 @@ tags:
     melee: 0.4
     ballistic: 0.15
     visible: true
-    tradeable: true
     weight: 10
     stackable: true
     purchasable: true
@@ -15803,7 +15393,6 @@ tags:
     melee: 0.5
     ballistic: 0.25
     visible: true
-    tradeable: true
     weight: 25
     stackable: true
     purchasable: true
@@ -15837,7 +15426,6 @@ tags:
     melee: 0.2
     ballistic: 0.1
     visible: worn
-    tradeable: true
     weight: 8
     stackable: true
     purchasable: false
@@ -15865,7 +15453,6 @@ tags:
     melee: 0.45
     ballistic: 0.1
     visible: true
-    tradeable: true
     weight: 25
     stackable: true
     purchasable: true
@@ -15894,7 +15481,6 @@ tags:
     melee: 0.6
     ballistic: 0.2
     visible: worn
-    tradeable: true
     weight: 25
     stackable: true
     purchasable: true
@@ -15926,7 +15512,6 @@ tags:
     melee: 0.6
     ballistic: 0.2
     visible: true
-    tradeable: true
     weight: 20
     stackable: true
     purchasable: true
@@ -15955,7 +15540,6 @@ tags:
     melee: 0.4
     ballistic: 0.3
     visible: true
-    tradeable: true
     weight: 40
     purchasable: false
     purchasableAfterStart: false
@@ -15973,7 +15557,6 @@ tags:
     melee: 0.7
     ballistic: 0.25
     visible: true
-    tradeable: true
     weight: 55
     stackable: true
     purchasable: true
@@ -16007,7 +15590,6 @@ tags:
     melee: 0.35
     ballistic: 0.1
     visible: true
-    tradeable: true
     weight: 20
     purchasable: true
     purchasableAfterStart: false
@@ -16030,7 +15612,6 @@ tags:
     melee: 0.7
     ballistic: 0.95
     visible: worn
-    tradeable: true
     weight: 2
     purchasable: false
     purchasableAfterStart: false
@@ -16046,7 +15627,6 @@ tags:
     description: "A cross. As simple as it is, it is beautiful."
     pointCost: 0
     visible: false
-    tradeable: true
     weight: 0
     purchasable: false
     purchasableAfterStart: false
@@ -16221,7 +15801,6 @@ tags:
     group: items-gear
     description: "An instant camera. You can 📸 react a person's message to take a picture of them."
     pointCost: 2
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -16243,7 +15822,6 @@ tags:
     description: "A kit of two pointer devices. They always point at each other."
     pointCost: 0
     depotPrice: 6
-    tradeable: true
     weight: 1
     stackable: true
     visible: false
@@ -16310,7 +15888,6 @@ tags:
     group: items-gear
     description: "A fibrous, pink substance harvested from the waterlogged marshes. While alive, it squirmed and bit at anyone handling it."
     pointCost: 0
-    tradeable: true
     weight: 28
     stackable: true
     visible: true
@@ -16329,7 +15906,6 @@ tags:
     group: items-gear
     description: "A gelatinous pink cube."
     pointCost: 0
-    tradeable: true
     weight: 17
     stackable: true
     visible: true
@@ -16360,7 +15936,7 @@ tags:
     group: items-gear
     description: "Bolten down tools that allow one to package things into crates."
     pointCost: 0
-    tradeable: false
+    weight: 40
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -16377,7 +15953,6 @@ tags:
     equipSlot: ACCESSORY
     melee: 0.15
     ballistic: 0.05
-    tradeable: true
     weight: 2
     stackable: true
     visible: worn
@@ -16401,7 +15976,6 @@ tags:
     group: items-keys
     description: "A large key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -16424,7 +15998,6 @@ tags:
     group: items-keys
     description: "A finely made key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -16447,7 +16020,6 @@ tags:
     group: items-keys
     description: "A wooden key."
     pointCost: 0
-    tradeable: true
     stackable: true
     weight: 0
     visible: false
@@ -16470,7 +16042,6 @@ tags:
     group: items-gear
     description: "A swollen crate."
     pointCost: 0
-    tradeable: true
     weight: 6
     visible: true
     purchasable: false
@@ -16485,7 +16056,6 @@ tags:
     group: items-drink
     description: "Freebase alcohol. Not good for one's vision."
     pointCost: 0
-    tradeable: true
     weight: 2
     stackable: true
     visible: false
@@ -16585,7 +16155,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
-    tradeable: true
     weight: 12
     visible: true
     purchasable: false

@@ -869,13 +869,28 @@ has since been deleted outright along with the channel it opened.
   reader; the Hand Over menu, the Loot dialog's per-target tag list, and both
   server actions all go through it, so the menu and the gate can't drift.
 
+  **For Items it is DERIVED, not written.** An item is a thing, and a thing can
+  change hands — so `db/lib/syncTags.js`'s `ALWAYS_TRADEABLE_CATEGORIES` sets it
+  for every `items` tag, and the sync **throws** on an authored line either way
+  round, exactly as it does for `removable`. Write neither `true` nor `false` on
+  an item.
+
+  **Assets still write it, and must.** They are the genuinely split category: a
+  horse, a cart, a plow and a dog change hands; a forge, a brewery, a palisade,
+  a gallows and a trebuchet do not. There is no category boundary under that —
+  "is it nailed down" is a fact about the thing, not a class of thing — so an
+  Asset says which it is and the sync throws if it stays quiet.
+
   It used to be a category test — `["Items", "Assets"]` — from back when the
-  field was set on almost nothing. That was wrong in both directions at once.
-  It let a corpse be stripped of its **House**, its **Manor** and its
-  **Drone**, none of which are things you carry away from a body; and it
-  ignored the sixteen Items that already said `tradeable: false`, including the
-  Quickened Nerve Braid, which is *grafted into the holder's neck*. The catalog
-  had been carrying the right answer for months and nothing read it.
+  field was set on almost nothing, and it was wrong in both directions at once:
+  it let a corpse be stripped of its **House** and its **Manor**, and it ignored
+  the Items that said `tradeable: false`. Reading the column fixed that. But the
+  column then spent a year being a decision nobody was really making — 426 of
+  428 Items said `true` — until a GM minted a flower at `/gm/dev/tags` with the
+  box unticked and nobody could hand it over, or even weigh it. Deriving it is
+  what closes that; the two dissenters were retired rather than kept (the
+  Quickened Nerve Braid is gone from the game, and the crating bench weighs
+  40 lb and can be carried off).
 
   Office regalia (the Bishop's Mitre, the Sheriff's Badge, the clan banners) is
   deliberately `true`. Prying a badge off the body of the man who held the
@@ -885,13 +900,21 @@ has since been deleted outright along with the channel it opened.
   migration; do that only if handing an office over by dropdown turns out to be
   a real problem in play.
 
-  `syncTags.js` **throws** if a tag in `items` or `assets` omits the field.
-  It reads as `?? false`, so silence would sync a new sword as unmovable and
-  nobody would find out until a player couldn't hand over the thing they had
-  just forged. Every other category still defaults to `false` — a skill or an
-  injury is not a thing you carry. The same trap exists for GM-made tags on
-  `/gm/dev/tags`, where the checkbox defaults off; its label spells out the
-  consequence rather than relying on the GM knowing.
+  Every other category defaults to `false` — a skill or an injury is not a
+  thing you carry.
+
+  **`/gm/dev/tags` obeys the same rule, and the lock is the server action.**
+  `scalarsFrom` forces it for `TAG_CATEGORY.ITEMS`, and the Tradeable checkbox
+  is simply not drawn when the category is Items, with a line in its place
+  saying so. The checkbox was where the flower went wrong, and a label
+  explaining the consequence is not a fix — a server action is a public
+  endpoint, so the form is the hint and `scalarsFrom` is the lock.
+
+  **The runtime minters are deliberately outside all of this.**
+  `db/lib/disguiseMint.js` writes an Items row with `tradeable: false` on
+  purpose: an act you are wearing is not cargo. The rule lives on the two
+  *authoring* doors — the YAML sync and the GM form — and must never be pushed
+  down into the mints or a Prisma middleware, which would break that.
 
   One tag outside Items/Assets sets it: `detonation-charge`, a keg of dynamite
   filed under `general`. The old category test blocked it; it is transferable

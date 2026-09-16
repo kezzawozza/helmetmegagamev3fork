@@ -5,6 +5,7 @@ import CheckField from "@/app/components/CheckField";
 import Select from "@/app/components/Select";
 import InfoIcon from "@/app/components/InfoIcon";
 import { filterTagsByQuery } from "@/lib/characterCreation";
+import { TAG_CATEGORY } from "@lifeweb/db/lib/constants";
 
 // The one tag form body, shared by CustomTagDialog and TagCatalog.js's edit
 // dialog, so the two field sets can't drift apart. Renders no modal or submit
@@ -164,6 +165,11 @@ export default function TagFieldset({
   selfId = null,
 }) {
   const equippable = Boolean(values.equippable);
+  // Tradeable is derived for items — the sync does it for docs/tags.yaml and
+  // scalarsFrom does it for this form's action, so the box would be a control
+  // over nothing. It reads the DISPLAY name the DB column holds ("Items"), which
+  // is what the category list on both doors is built from, not the YAML slug.
+  const isItem = values.category === TAG_CATEGORY.ITEMS;
   const hasDuration = String(values.defaultDurationTurns ?? "").trim() !== "";
   // A door whose tag rows carry no slug drops the picker rather than offer
   // selections that would never match.
@@ -303,15 +309,21 @@ export default function TagFieldset({
           <section className="flex flex-col gap-1.5">
             <span className="field-label">Behaviour</span>
             <div className="grid gap-1 sm:grid-cols-2">
-              {BEHAVIOUR_FIELDS.map(([key, label]) => (
-                <CheckField
-                  key={key}
-                  checked={Boolean(values[key])}
-                  onChange={(e) => set(key, e.target.checked)}
-                >
-                  {label}
-                </CheckField>
-              ))}
+              {BEHAVIOUR_FIELDS.map(([key, label]) =>
+                key === "tradeable" && isItem ? (
+                  <p key={key} className="text-xs text-muted">
+                    An item can always be handed over, or looted off a body.
+                  </p>
+                ) : (
+                  <CheckField
+                    key={key}
+                    checked={Boolean(values[key])}
+                    onChange={(e) => set(key, e.target.checked)}
+                  >
+                    {label}
+                  </CheckField>
+                ),
+              )}
               <CheckField
                 checked={Boolean(values.concealsIdentity)}
                 disabled={!equippable}

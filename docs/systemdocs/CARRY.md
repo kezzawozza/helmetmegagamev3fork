@@ -14,7 +14,7 @@ A character carries two loads against two caps, both live on `/gm/dev`:
 
 | Load | Counts | Base cap |
 |---|---|---|
-| Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Three things weigh nothing: **Assets** (a horse carries itself, a house does not move), **untradeable** items (the Quickened Nerve Braid grafted into your neck), and everything that was never cargo — skills, injuries, statuses, beliefs. | `GameConfig.carryWeightLbs`, default 71 |
+| Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Two things weigh nothing: **Assets** (a horse carries itself, a house does not move), and everything that was never cargo — skills, injuries, statuses, beliefs. Every item weighs something, since every item is tradeable (`TAGS.md` §5). The one exception is a runtime mint that is not cargo — a Disguise you are wearing. | `GameConfig.carryWeightLbs`, default 71 |
 | ⬢ | `Character.resources` | `GameConfig.carryResourceCap`, default 25 |
 
 **⬢ have one weight, and it is inside a crate.** Loose on a sheet a ⬢ weighs
@@ -92,9 +92,8 @@ could not help, so it would only waste draws on letters while the
 anvil stayed put.
 
 **Price an item off this table, not by feel** — the same discipline the point
-scale gets in [`TAGS.md`](TAGS.md) §4a. `db/lib/syncTags.js` throws if a
-tradeable `items` tag omits `weight:`, so new gear cannot arrive weighing
-nothing.
+scale gets in [`TAGS.md`](TAGS.md) §4a. `db/lib/syncTags.js` throws if an
+`items` tag omits `weight:`, so new gear cannot arrive weighing nothing.
 
 | Band | lb | Examples |
 |---|---|---|
