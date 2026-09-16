@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Every deploy was failing on the radio's tag
+
+✎ The 243.000 radio declared itself tradeable, which items always are now — the tag sync refused the whole file, and that sync runs on every deploy
+
 ## 2026-09-16 · An item is always something you can hand over
 
 ✎ Anything in the Items category is now tradeable automatically, so a new item can never arrive as something nobody can give away or loot off a body  

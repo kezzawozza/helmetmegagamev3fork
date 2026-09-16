@@ -6861,7 +6861,6 @@ tags:
     group: items-gear
     description: "A radio hardset to a certain frequency."
     pointCost: 4
-    tradeable: true
     weight: 3
     stackable: true
     visible: false
