@@ -36,17 +36,21 @@ const REINCARNATION_AGE_MAX = 49;
 // them in, but /store already spends this column mid-game.
 
 // Who the new body turns out to be: a transmigrated soul wakes up as somebody
-// ELSE, nothing inherited from the corpse. Same three rolls
-// web/app/actions.js#startAsLocalPlayer makes: uniform gender, then a name
-// from db/lib/nameCorpus.js (NEUTRAL draws from both pools). No name-collision
-// check — Character.name is a denormalized display mirror, not a key.
+// ELSE, nothing inherited from the corpse. A coin flip between MAN and WOMAN —
+// a reincarnated soul lands in a body that reads as one or the other, never
+// the third pool NEUTRAL draws from. Then a name from db/lib/nameCorpus.js
+// gendered off that roll. No name-collision check — Character.name is a
+// denormalized display mirror, not a key.
 // Two things are NOT rolled: `role.lockedGender` wins (Baroness/Heir/Successor
 // set it; rolling over it would style a male Baroness off the wrong word), and
 // the dynasty surname is FETCHED from the living Baron (db/lib/dynasty.js),
 // never rolled — no living Baron means no last name at all
 // (web/lib/dynasty.js#dynastyLastName answers the same way).
+const REINCARNATION_GENDERS = GENDERS.filter((g) => g !== "NEUTRAL");
 async function rollIdentity(prisma, role) {
-  const gender = role.lockedGender ?? GENDERS[Math.floor(Math.random() * GENDERS.length)];
+  const gender =
+    role.lockedGender ??
+    REINCARNATION_GENDERS[Math.floor(Math.random() * REINCARNATION_GENDERS.length)];
   const lastNameLocked = isDynastyMember(role.slug);
   const { firstName, lastName } = randomCharacterName({ gender, lastNameLocked });
 

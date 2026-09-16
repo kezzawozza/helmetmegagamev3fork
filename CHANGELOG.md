@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · A reincarnation lands on man or woman, never the third pool
+
+✎ A soul coming back through Metempsychosis rolls between Man and Woman now, not the three-way flip that could seat them as gender-neutral. Locked roles (Baroness/Heir/Successor) still win as before.
+
 ## 2026-09-16 · Saint's Perform Miracle button
 
 ✚ A Saint gets a Perform Miracle button — two free instant cures a turn on somebody else's Moderate or lesser wound. Own pool, no Medical training needed  
