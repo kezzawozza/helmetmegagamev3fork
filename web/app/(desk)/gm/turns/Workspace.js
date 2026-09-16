@@ -10,6 +10,7 @@ import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
 import CavingDesk from "./CavingDesk";
 import DesireDesk from "./DesireDesk";
+import OocDesk from "./OocDesk";
 import { getMoveHistory } from "./actions";
 import InspectorColumn from "@/app/components/InspectorColumn";
 import useInspectorOverlay, { InspectorToggle } from "@/app/components/useInspectorOverlay";
@@ -510,6 +511,10 @@ export default function Workspace({
   // no live/history split, so this looks straight at the page's own rows
   // (desireRows), the same way otherRows never gets a store or a history arm.
   const selectedDesire = selected?.type === "desire" ? (desireRows ?? []).find((d) => d.id === selected.id) : null;
+  // Same shape as the Desire above: a plain lookup in the RSC's own row list,
+  // no desk store and no history arm — an OOC line is an AuditLog row, not one
+  // of the four types deskRows.js#deskPatchFor can re-read.
+  const selectedOoc = selected?.type === "ooc" ? (oocRows ?? []).find((o) => o.id === selected.id) : null;
 
   // Net staged resources/tag points and pending tag ops per character, over
   // everything not yet applied by a push.
@@ -786,6 +791,14 @@ export default function Workspace({
               onOpenDev={onOpenDev}
               gmProfiles={gmProfiles}
             />
+          ) : selectedOoc ? (
+            <OocDesk
+              key={selectedOoc.id}
+              row={selectedOoc}
+              onInspect={inspect}
+              onClose={deselect}
+              registerEscape={registerEscape}
+            />
           ) : selectedDesire ? (
             <DesireDesk
               key={selectedDesire.id}
@@ -804,7 +817,7 @@ export default function Workspace({
                   the rail.
                 </p>
               ) : (
-                <p className="text-sm text-muted">Pick a Move, a Caving roll, or a Desire claim from the queue.</p>
+                <p className="text-sm text-muted">Pick a Move, a Caving roll, a Desire claim or an OOC line from the queue.</p>
               )}
             </div>
           )}

@@ -26,6 +26,7 @@ import { getGmProfiles } from "@/lib/gmProfiles";
 import { turnAt } from "@/lib/auditQuery";
 import { dropCharacterTag } from "@/lib/tagEffects";
 import { UserError, guarded } from "@/lib/actionResult";
+import { muteDurationLabel, oocMuteFor } from "@lifeweb/db/lib/ooc";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH, MAX_REASON_LENGTH } from "@/lib/constants";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
@@ -1930,4 +1931,84 @@ export async function rejectDesireClaim(input) {
 }
 export async function getCharacterAuditSlice(input) {
   return guarded(() => getCharacterAuditSliceImpl(input));
+}
+
+// ---- OOC mutes (db/lib/ooc.js, OocMute) -------------------------------------
+//
+// A GM stopping one player talking out of character for a while, from the OOC
+// lens. It stops `/ooc` and the composer's OOC mode and nothing else: speech
+// and shouting belong to the character, and this is about the person.
+//
+// Keyed on the ACCOUNT, so it follows the player across characters. `until` is
+// the whole mechanism — the row lapses on its own, nothing sweeps it.
+async function muteOocImpl({ discordUserId, minutes } = {}) {
+  const session = await requireGm();
+  const account = String(discordUserId ?? "").trim();
+  if (!account) throw new UserError("No player to mute.");
+
+  // The label IS the validation: a duration the menu does not offer has no
+  // name, and an unnamed duration could not be put in the DM anyway.
+  const label = muteDurationLabel(minutes);
+  if (!label) throw new UserError("Pick how long.");
+
+  const until = new Date(Date.now() + Number(minutes) * 60_000);
+  await prisma.oocMute.upsert({
+    where: { discordUserId: account },
+    update: { until, byDiscordUserId: session.discordUserId },
+    create: { discordUserId: account, until, byDiscordUserId: session.discordUserId },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_ooc_muted",
+      details: { discordUserId: account, minutes: Number(minutes), until: until.toISOString() },
+    },
+  });
+
+  // Told, not left to find out by being refused. Never allowed to fail the
+  // mute: the row is already written, and a closed DM is not a reason to
+  // pretend it isn't.
+  await sendDm(account, `Your OOC was muted for ${label}`).catch((err) =>
+    console.error("OOC mute DM failed:", err?.message ?? err),
+  );
+
+  return { ok: true, mutedUntil: until.toISOString() };
+}
+
+async function unmuteOocImpl({ discordUserId } = {}) {
+  const session = await requireGm();
+  const account = String(discordUserId ?? "").trim();
+  if (!account) throw new UserError("No player to unmute.");
+
+  // deleteMany, not delete: lifting a mute that has already lapsed on its own
+  // is the ordinary case, not a missing row to throw about.
+  await prisma.oocMute.deleteMany({ where: { discordUserId: account } });
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_ooc_unmuted",
+      details: { discordUserId: account },
+    },
+  });
+  // No DM. Being told you were muted is the part that needed saying.
+  return { ok: true, mutedUntil: null };
+}
+
+// Read-back for the desk, so a button that says Unmute is saying something
+// true rather than something the page was rendered with.
+async function getOocMuteImpl({ discordUserId } = {}) {
+  await requireGm();
+  const row = await oocMuteFor(prisma, String(discordUserId ?? "").trim());
+  return { ok: true, mutedUntil: row ? row.until.toISOString() : null };
+}
+
+export async function muteOoc(input) {
+  return guarded(() => muteOocImpl(input));
+}
+export async function unmuteOoc(input) {
+  return guarded(() => unmuteOocImpl(input));
+}
+export async function getOocMute(input) {
+  return guarded(() => getOocMuteImpl(input));
 }

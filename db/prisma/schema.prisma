@@ -5771,3 +5771,31 @@ model DiscordAccount {
   /// What a GM actually searches by.
   @@index([username])
 }
+
+/// A player stopped from talking out of character for a while (db/lib/ooc.js).
+/// A GM sets it from the OOC lens on /gm/turns; it stops `/ooc` and the
+/// composer's OOC mode, and NOTHING else — speech and shouting are a
+/// character's, and this is about the person.
+///
+/// Keyed on the ACCOUNT, not a character, for DiscordAccount's reason above:
+/// OOC is the player talking, so a player with two characters is one mute, and
+/// per-character copies could disagree with each other.
+///
+/// `until` is a DateTime rather than a flag plus a sweep — the keyed-way
+/// pattern Character.heldUntil already names (MAP.md §2b). It lapses on its
+/// own: no cron, no pass, no row to clean up, and one comparison against now()
+/// is the whole check. A row left behind past its time is simply not a mute.
+model OocMute {
+  /// The snowflake, as the key: one live mute per account by construction, so
+  /// setting one twice is an upsert rather than a second row to reconcile.
+  discordUserId String @id
+
+  /// When it lifts. Past this the row means nothing.
+  until DateTime
+
+  /// The GM who set it, for /gm/audit to read back beside the AuditLog row.
+  byDiscordUserId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

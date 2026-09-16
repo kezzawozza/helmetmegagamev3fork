@@ -189,6 +189,7 @@ const SELECTION_TYPE_FOR_LENS = {
   caving: "caving",
   history: "history",
   desires: "desire",
+  ooc: "ooc",
 };
 
 function RailFilters({ table, filterDefs, searchPlaceholder, header, children }) {
@@ -625,23 +626,22 @@ function HoldRow({ row, matchFor, onInspect, onOpenMove, active, kbd }) {
   );
 }
 
-// One out-of-character line (db/lib/ooc.js). READ-ONLY, and that is the shape
-// of the whole lens: there is nothing a GM does to a sentence that has already
-// been said, so the row carries no buttons and the lens carries no desk. The
-// row opens the speaker in the inspector, which is the one thing a GM reading
-// this list actually wants next.
+// One out-of-character line (db/lib/ooc.js). The row opens a DESK now — the
+// surrounding transcript with this line marked (OocDesk.js) — because a line
+// on its own tells a GM nothing about what prompted it, which is the question
+// they are reading the lens to answer.
 //
-// A plain .desk-queue-row rather than a .desk-queue-rowset, for the same
-// reason: the rowset exists to hang sibling action buttons off, and there are
-// none.
-function OocRow({ row, matchFor, onInspect, kbd }) {
+// A plain .desk-queue-row rather than a .desk-queue-rowset: the rowset exists
+// to hang sibling action buttons off, and the verbs live on the desk.
+function OocRow({ row, matchFor, onSelect, active, kbd }) {
   return (
     <button
       type="button"
       className="desk-queue-row"
       data-row-key={row.id}
+      data-active={active || undefined}
       data-kbd={kbd ? "" : undefined}
-      onClick={() => onInspect?.(row.characterId, row.characterName)}
+      onClick={() => onSelect?.({ type: "ooc", id: row.id })}
     >
       <span className="flex items-center gap-2">
         <CharacterAvatar
@@ -1087,12 +1087,6 @@ export default function QueueRail({
           onInspect?.(row.targetCharacterId, row.targetName);
           return;
         }
-        // The OOC lens has no desk either — ⏎ opens the speaker, which is the
-        // one thing a GM reading a line actually wants next.
-        if (lens === "ooc") {
-          onInspect?.(row.characterId, row.characterName);
-          return;
-        }
         const type = lens === "history" ? historySelectionType : (SELECTION_TYPE_FOR_LENS[lens] ?? "move");
         onSelect({ type, id: row.id });
         return;
@@ -1320,7 +1314,8 @@ export default function QueueRail({
                 key={row.id}
                 row={row}
                 matchFor={oocTable.matchFor}
-                onInspect={onInspect}
+                onSelect={onSelect}
+                active={selected?.type === "ooc" && selected.id === row.id}
                 kbd={lens === "ooc" && kbdId === row.id}
               />
             ))}

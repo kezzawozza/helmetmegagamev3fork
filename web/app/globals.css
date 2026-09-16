@@ -3832,7 +3832,13 @@ input[type="radio"]:disabled {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 19rem minmax(0, 1fr) 22rem;
+  /* 23rem, not 19: /gm/turns' lens strip carries six tabs and their counts,
+     and at 19 the labels ran over each other (see .desk-rail-lens button).
+     /gm/players shares this rule on purpose — the two are sibling desks and a
+     rail that changed width when you switched between them would read as the
+     page moving under you. The literal is repeated in the 1024px block below;
+     both have to move together. */
+  grid-template-columns: 23rem minmax(0, 1fr) 22rem;
 }
 
 .desk-rail,
@@ -3853,27 +3859,49 @@ input[type="radio"]:disabled {
    left leaves a gap that reads as a missing third tab. Adjudication-only: the
    player rail has no lenses (one queue, not several), so this class belongs
    to /gm/turns' QueueRail alone. */
+/* THREE ACROSS, TWO DEEP — not one row of six.
+   Measured, because the arithmetic was wrong twice: at the rail's width the
+   six labels want about 415px of text and one row gives them 341px, so every
+   tab was clipping its own name. Three columns give each one ~113px against a
+   92px worst case ("Desires (14)"), with room to spare.
+   A count never leaves its label this way, which was the complaint about the
+   first attempt, and no label is cut, which was the complaint about the
+   second. The strip costs one more line of rail height; six unreadable tabs
+   cost more than that.
+   Still .segmented, so the joined-pill look has to survive becoming a block:
+   the rules below put the seams back. */
 .desk-rail-lens {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   /* No bottom margin: .desk-rail-filters sits directly under this and brings
      its own 0.75rem of top padding, so a margin here would stack into a
      1.5rem trench that only /gm/turns has. */
   margin: 0.75rem 0.75rem 0;
 }
+/* .segmented draws a border-left on every button but the first, which is the
+   right seam for one row and the wrong one for a grid: it wants no left edge
+   at the START OF EACH ROW, and a top edge on the second row. */
+.desk-rail-lens button:nth-child(3n + 1) {
+  border-left: none;
+}
+.desk-rail-lens button:nth-child(n + 4) {
+  border-top: 1px solid var(--border);
+}
 .desk-rail-lens button {
-  flex: 1;
-  /* SIX lenses (Moves/Caving/Other/Desires/OOC/History) share 19rem minus
-     margins, and the rail does not get wider to hold them — .segmented's
-     default padding and tracking fit three. `min-width: 0` is what lets
-     `flex: 1` shrink a button below its own content; without it the labels
-     set the floor and the strip overflows the rail.
-
-     `nowrap` is the one that matters: a label and its count are one thing, and
-     "Moves" sitting above "(4)" read as two broken rows rather than one tab. */
+  /* `nowrap` keeps a label and its count on one line — "Moves" sitting above
+     "(4)" reads as two broken rows rather than one tab. `overflow: hidden` is
+     the backstop that stops that same nowrap running OVER the next tab if a
+     count ever gets long enough to beat the grid's ~113px; shrinking a box
+     without clipping its text is exactly how `Moves (13)` ended up printed
+     across `Caving`. `min-width: 0` lets a grid track shrink below its own
+     content at all, which is what makes the clip possible rather than the
+     overflow.
+     Tighter tracking than .segmented's default, which is set for three
+     comfortable tabs rather than six. */
   min-width: 0;
   white-space: nowrap;
-  font-size: var(--fs-2xs);
-  padding-inline: 4px;
+  overflow: hidden;
+  padding-inline: 6px;
   letter-spacing: 0.02em;
 }
 
@@ -5715,7 +5743,7 @@ label.chip {
 @media (max-width: 1024px) {
   .desk-body--turns,
   .desk-body--players {
-    grid-template-columns: 19rem minmax(0, 1fr);
+    grid-template-columns: 23rem minmax(0, 1fr);
   }
 
   .desk-inspector-toggle {
@@ -7325,6 +7353,29 @@ label.chip {
   flex-shrink: 0;
 }
 
+/* Speak / Shout / OOC, inline at the head of the row. As narrow as its longest
+   label and no narrower — it must not take room from the box, which is the
+   thing anybody is actually aiming at. */
+.chat-mode-select {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  font-size: var(--fs-xs);
+}
+
+/* The desktop send stands as tall as the box beside it. It used to be a
+   button's own height next to a two-line textarea, which read as a control
+   that had come loose from the thing it sends.
+
+   Capped, because the box grows to about six lines (Feed.js sizes it off
+   scrollHeight) and a send that grew with it would become the largest object
+   on the page for a long message. Three lines is where it stops looking like
+   a button. */
+.chat-composer > .btn {
+  align-self: stretch;
+  max-height: 5.5rem;
+}
+
 /* The box grows with its text (Feed.js sets the height off scrollHeight, up
    to about six lines), so nothing here may pin it. */
 .chat-composer textarea {
@@ -8108,7 +8159,6 @@ label.chip {
     min-height: 44px;
   }
 
-  .chat-composer-keys,
   .chat-countdown {
     padding-bottom: 0;
   }
@@ -8311,13 +8361,6 @@ label.chip {
 
 /* The keys, spelled out once beside the send. Nothing on the page said Enter
    would send, and a desktop had no send button at all until 2026-09-09. */
-.chat-composer-keys {
-  font-size: var(--fs-2xs);
-  color: var(--muted);
-  align-self: center;
-  white-space: nowrap;
-}
-
 /* Only drawn where a command actually caps its text. The refusal used to be
    the first anybody heard of a limit. */
 .chat-composer-count {
@@ -8464,19 +8507,6 @@ label.chip {
 }
 
 /* Paperwork and the hood, at the composer's right edge. */
-/* Speak / Shout / OOC, across the top of the composer box (Feed.js). A
-   `.segmented` like any other, sized down to sit inside a text box rather than
-   beside one — full-size segments would be taller than the one-line composer
-   they label. Desktop only: the phone folds the same three into the + menu. */
-.chat-speech-modes {
-  align-self: flex-start;
-  margin-bottom: var(--sp-2);
-}
-.chat-speech-modes button {
-  font-size: var(--fs-2xs);
-  padding: 2px var(--sp-2);
-}
-
 .chat-composer-tools {
   display: flex;
   align-items: center;

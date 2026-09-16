@@ -352,16 +352,27 @@ export const OOC_INCLUDE = {
   room: { select: { name: true } },
 };
 
-export function oocRow(a, { usernameById, catatonicIds } = {}) {
+export function oocRow(a, { usernameById, catatonicIds, mutedUntilByUser } = {}) {
   const c = a.targetCharacter;
   const text = typeof a.details?.text === "string" ? a.details.text : "";
   // A Room is the more precise of the two and the one a GM recognises; the
   // Location is the fallback for a conversation held on the open street.
   const where = a.room?.name ?? a.location?.name ?? "";
+  const account = c?.discordUserId ?? null;
   return {
     id: a.id,
     characterId: c?.id ?? null,
     characterName: c?.name ?? "Somebody",
+    // The ACCOUNT, because both of the desk's verbs are about the player: the
+    // DM goes to them, and an OOC mute is keyed on them (schema.prisma, OocMute).
+    discordUserId: account,
+    // Written back onto the audit row by db/lib/ooc.js#deliverOoc, and what
+    // the desk hands getArchiveContext. Null on any line said before that
+    // backlink existed, or whose scene row failed to write.
+    archiveEntryId: typeof a.details?.archiveEntryId === "string" ? a.details.archiveEntryId : null,
+    // Only ever a LIVE mute — the caller drops lapsed rows, so the desk can
+    // treat "not null" as "muted" without asking the clock during render.
+    mutedUntil: (account && mutedUntilByUser?.get?.(account)) ?? null,
     avatarVersion: c?.updatedAt?.getTime?.() ?? null,
     catatonic: c ? (catatonicIds?.has(c.id) ?? false) : false,
     discordUsername: usernameById?.get?.(c?.discordUserId) ?? "",
