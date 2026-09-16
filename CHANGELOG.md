@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Subtle says what it does
+
+✎ The Subtle tag now reads "Your whispers can't be heard by others." It used to claim the room never notices you doing it, which read as a general sneaking bonus the tag has never had
+
+
 ## 2026-09-16 · A mask hides your name, not your body
 
 ✚ You can attack, bind, torture, crucify, shackle, harm, mutilate and brand somebody whose face is covered — they show in the picker as the room sees them  
