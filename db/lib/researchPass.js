@@ -18,7 +18,7 @@
 const { mintLetterFor } = require("./paperMint");
 // The same die line a learner reads, so a Research DM and a Lesson DM never
 // disagree about how a modifier is shown.
-const { rollLine } = require("./lessonPass");
+const { rollLine } = require("./gambitModifier");
 const { forcedNameFrom, concealmentFrom, presentedIdentity } = require("./presentedIdentity");
 const {
   RESEARCH_MARKER_RE,

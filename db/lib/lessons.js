@@ -19,8 +19,8 @@
 // NOT on the @lifeweb/db barrel; require it by path. Web files the offer and
 // the bot answers the click, so everything both sides check lives here.
 const { rollWithAdvantage } = require("./advantage");
-const { consumeInspiredIfUsed } = require("./tagWrites");
-const { gambitModifierTotal } = require("./gambitModifier");
+const { consumeInspiredIfUsed, addToStack, replaceLowerTiers } = require("./tagWrites");
+const { gambitModifierTotal, rollLine } = require("./gambitModifier");
 const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
 const { isHere, notHereMessage } = require("./presence");
@@ -427,6 +427,15 @@ function confirmLines(action) {
 // and cancel a lesson that was already under way. A failure BEFORE the claim
 // cancels the offer only while it is still PENDING; a failure AFTER the
 // claim is the claimant's own and cancels the ACCEPTED row it just made.
+// Did the lesson take? The pure half, so every branch is testable without a database —
+// the same split db/lib/torture.js and db/lib/breakRestraints.js use.
+// A dead learner never learns, whatever the die said: the roll is thrown when the offer is
+// accepted, and somebody can be killed between the offer and the answer.
+function lessonOutcome({ die, diceModifier = 0, charmBonus = 0, threshold, learnerStatus }) {
+  const total = (die ?? 0) + diceModifier + charmBonus;
+  return { total, succeeded: learnerStatus === "ALIVE" && total >= threshold };
+}
+
 async function acceptLesson(prisma, offer, responder) {
   const fresh = await prisma.offer.findUnique({ where: { id: offer.id } });
   if (!fresh || fresh.status !== "PENDING")
@@ -487,6 +496,49 @@ async function acceptLesson(prisma, offer, responder) {
       // Inspired is spent the instant it wins one.
       const learnerAdvantage = rollWithAdvantage(learner.tags, 6, { gambitOnly: true });
       await consumeInspiredIfUsed(tx, learner.id, learnerAdvantage.source);
+      const diceModifier = gambitModifierTotal(learner.tags, {
+        hungerStreak: learner.hungerStreak,
+        mood: learner.mood,
+      });
+
+      // The Minted Charm (docs/tags.yaml): +1 to the wearer's Learn roll while EQUIPPED —
+      // the student-side sibling of Teaching (Drill Instructor), which moves the threshold
+      // from the teacher's side instead. Read now rather than at turn end, because now is
+      // when the lesson happens.
+      const charm = await tx.characterTag.findFirst({
+        where: { characterId: learner.id, equipped: true, tag: { slug: "minted-charm" } },
+        select: { id: true },
+      });
+      const charmBonus = charm ? 1 : 0;
+      const { text: rollText } = rollLine(turn, { diceRoll: learnerAdvantage.die, diceModifier }, charmBonus);
+      const { total, succeeded } = lessonOutcome({
+        die: learnerAdvantage.die,
+        diceModifier,
+        charmBonus,
+        threshold,
+        learnerStatus: learner.status,
+      });
+
+      // The grant, here and not in a pass. `already` keeps a repeat lesson from stacking a
+      // skill somebody already has, exactly as the turn-end pass did.
+      let replaced = [];
+      if (succeeded) {
+        const already = await tx.characterTag.findUnique({
+          where: { characterId_tagId: { characterId: learner.id, tagId: tag.id } },
+        });
+        if (!already) {
+          replaced = await replaceLowerTiers(tx, learner.id, tag.id);
+          await addToStack(tx, learner.id, tag.id, 1, { source: "LESSON" });
+        }
+      }
+
+      const resultMessage = succeeded
+        ? `Learned ${tag.name} from ${teacher.name} (${total} vs ${threshold}).`
+        : `Failed to learn ${tag.name} from ${teacher.name} (${total} vs ${threshold}).`;
+
+      // PASSED and appliedEffects {}, so this never reaches the adjudication desk and the
+      // staged push skips it. It stays a GAMBIT because a die really was thrown — the desk
+      // draws it as "Lesson (auto)" (web/lib/moves.js) — but there is nothing left to judge.
       const learnerAction = await tx.action.create({
         data: {
           characterId: learner.id,
@@ -495,13 +547,13 @@ async function acceptLesson(prisma, offer, responder) {
           status: "CONFIRMED",
           confirmedAt: new Date(),
           moveKind: "GAMBIT",
-          moveReviewStatus: "OPEN",
+          moveReviewStatus: "PASSED",
+          reviewedAt: new Date(),
+          resultMessage,
+          appliedEffects: {},
           description: `Learning ${tag.name} from ${teacher.name}.`,
           diceRoll: learnerAdvantage.die,
-          diceModifier: gambitModifierTotal(learner.tags, {
-            hungerStreak: learner.hungerStreak,
-            mood: learner.mood,
-          }),
+          diceModifier,
           zoneId: learner.zoneId ?? null,
           gmNotes: "auto:lesson",
         },
@@ -539,6 +591,18 @@ async function acceptLesson(prisma, offer, responder) {
           threshold,
           learnerActionId: learnerAction.id,
           teacherActionId: teacherAction?.id ?? null,
+          // RESOLVED here, not ACCEPTED: there is no later pass to come looking.
+          status: "RESOLVED",
+          resolvedAt: new Date(),
+          outcome: {
+            diceRoll: learnerAdvantage.die,
+            diceModifier,
+            charmBonus,
+            total,
+            threshold,
+            succeeded,
+            replaced,
+          },
         },
       });
 
@@ -562,7 +626,7 @@ async function acceptLesson(prisma, offer, responder) {
         },
       });
 
-      return { ok: true, learnerAction, teacherAction };
+      return { ok: true, learnerAction, teacherAction, rollText, succeeded };
     });
     if (!result.ok) return result;
 
@@ -573,20 +637,38 @@ async function acceptLesson(prisma, offer, responder) {
       ? confirmLines(result.teacherAction)
       : `» *Teaching ${tag.name} to ${learner.name}. It costs you no Move.*`;
     const responderIsLearner = responder.id === learner.id;
+
+    // The lesson is over before this returns, so both people hear how it went now rather
+    // than at dawn. [PLAYER TEXT — Bascinet to rewrite]
+    const learnerOutcome = result.succeeded
+      ? `${result.rollText} → you learned **${tag.name}** from ${teacher.name}.`
+      : `${result.rollText} → you didn't learn **${tag.name}** this time.`;
+    const teacherOutcome = result.succeeded
+      ? `${learner.name} picked up **${tag.name}**.`
+      : `${learner.name} didn't learn **${tag.name}**.`;
+
+    const dms = [];
+    // The person who did NOT press the button is told the offer was answered AND how it
+    // turned out, in one DM rather than two.
+    if (responderIsLearner && teacher.discordUserId) {
+      dms.push({
+        discordUserId: teacher.discordUserId,
+        content: `${learner.name} accepted.\n${teacherLines}\n${teacherOutcome}`,
+      });
+    }
+    if (!responderIsLearner && learner.discordUserId) {
+      dms.push({
+        discordUserId: learner.discordUserId,
+        content: `${teacher.name} accepted.\n${learnerLines}\n${learnerOutcome}`,
+      });
+    }
+
     return {
       ok: true,
-      line: responderIsLearner ? learnerLines : teacherLines,
-      dms: [
-        responderIsLearner
-          ? {
-              discordUserId: teacher.discordUserId,
-              content: `${learner.name} accepted.\n${teacherLines}`,
-            }
-          : {
-              discordUserId: learner.discordUserId,
-              content: `${teacher.name} accepted.\n${learnerLines}`,
-            },
-      ].filter((dm) => dm.discordUserId),
+      line: responderIsLearner
+        ? `${learnerLines}\n${learnerOutcome}`
+        : `${teacherLines}\n${teacherOutcome}`,
+      dms,
     };
   } catch (err) {
     if (err instanceof LessonRefused)
@@ -748,6 +830,7 @@ async function cancelOffersForCharacter(db, characterId) {
 }
 
 module.exports = {
+  lessonOutcome,
   LESSON_CATALOG_SELECT,
   teachableSkills,
   learnableSkills,
