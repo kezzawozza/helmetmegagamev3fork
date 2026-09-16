@@ -156,6 +156,7 @@ const THREATS = [
     spawn: {
       gender: "MAN",
       honorific: "Ordinator",
+      namePool: "TRIBUNAL",
       roleSlug: "tribunal-ordinator",
       locationSlug: "hills-waterway",
       resources: 8,
@@ -186,6 +187,7 @@ const THREATS = [
     spawn: {
       gender: "MAN",
       honorific: ["Sergeant", "Corporal"],
+      namePool: "TRIBUNAL",
       roleSlug: "tribune",
       locationSlug: "hills-waterway",
       resources: 8,
@@ -292,6 +294,67 @@ const SPAWN_NAMES = {
   ],
 };
 
+// The Tribunal names itself, and the pool is the seat's alone — `spawn.namePool:
+// "TRIBUNAL"` opts in. Both seats are MAN, so there is no gender split here. All
+// 50 carry a surname, which the shared pool above never has: a Tribunal officer
+// arrives with a full name, everyone else with one.
+const TRIBUNAL_NAMES = [
+  { firstName: "Yevgeny", lastName: "Kostoprav" },
+  { firstName: "Arkhip", lastName: "Chernomor" },
+  { firstName: "Fyodor", lastName: "Volkodav" },
+  { firstName: "Nikita", lastName: "Zloradov" },
+  { firstName: "Danilo", lastName: "Shkurodyor" },
+  { firstName: "Ilarion", lastName: "Mertvograd" },
+  { firstName: "Stepan", lastName: "Krovopolin" },
+  { firstName: "Miroslav", lastName: "Groznenko" },
+  { firstName: "Yaropolk", lastName: "Kostolom" },
+  { firstName: "Lavrenty", lastName: "Zubodrob" },
+  { firstName: "Tikhon", lastName: "Mogilnikov" },
+  { firstName: "Prokhor", lastName: "Smertyashin" },
+  { firstName: "Zosim", lastName: "Palachov" },
+  { firstName: "Rodion", lastName: "Peklovsky" },
+  { firstName: "Serafim", lastName: "Volchizub" },
+  { firstName: "Ansgar", lastName: "Todwacht" },
+  { firstName: "Dietrich", lastName: "Schwarzhand" },
+  { firstName: "Otho", lastName: "Blutgraber" },
+  { firstName: "Kaspar", lastName: "Grabenholt" },
+  { firstName: "Volkmar", lastName: "Eisenzahn" },
+  { firstName: "Helmuth", lastName: "Kaltbrandt" },
+  { firstName: "Reinhard", lastName: "Knochwald" },
+  { firstName: "Wilhelm", lastName: "Dornhaus" },
+  { firstName: "Gottfried", lastName: "Aschenmund" },
+  { firstName: "Konrad", lastName: "Wolfsgrimm" },
+  { firstName: "Eckhart", lastName: "Steinnacht" },
+  { firstName: "Siegmund", lastName: "Rabenhold" },
+  { firstName: "Lothar", lastName: "Galgenbruch" },
+  { firstName: "Hartmut", lastName: "Bleichmann" },
+  { firstName: "Egon", lastName: "Nachtrieger" },
+  { firstName: "Malachi", lastName: "Vurdalakov" },
+  { firstName: "Ezekiel", lastName: "Gadyukin" },
+  { firstName: "Uriel", lastName: "Krovogryz" },
+  { firstName: "Amos", lastName: "Chernokosti" },
+  { firstName: "Boaz", lastName: "Kandalov" },
+  { firstName: "Azariah", lastName: "Smertograd" },
+  { firstName: "Ithamar", lastName: "Kostogryz" },
+  { firstName: "Obadiah", lastName: "Mrakobesov" },
+  { firstName: "Zebediah", lastName: "Chernozub" },
+  { firstName: "Abiram", lastName: "Grobovoi" },
+  { firstName: "Amitai", lastName: "Dunkelhart" },
+  { firstName: "Yitzhak", lastName: "Sturmgrab" },
+  { firstName: "Eliphaz", lastName: "Winterhalt" },
+  { firstName: "Gershom", lastName: "Kreuzdorn" },
+  { firstName: "Nahum", lastName: "Eisenkalt" },
+  { firstName: "Abner", lastName: "Hollenstamm" },
+  { firstName: "Zadok", lastName: "Feldgrau" },
+  { firstName: "Baruch", lastName: "Morgenstern" },
+  { firstName: "Shimon", lastName: "Wehrmark" },
+  { firstName: "Levi", lastName: "Aschenbrandt" },
+];
+
+const NAME_POOLS = {
+  TRIBUNAL: TRIBUNAL_NAMES,
+};
+
 function pick(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
@@ -308,9 +371,12 @@ function randomSpawnName(gender) {
 function rollSpawnIdentity(spawn) {
   const gender = spawn.gender === "ROLL" ? pick(["MAN", "WOMAN"]) : (spawn.gender ?? "NEUTRAL");
   const rank = spawn.honorific ?? null;
+  const pool = NAME_POOLS[spawn.namePool];
+  const drawn = pool ? pick(pool) : { firstName: randomSpawnName(gender), lastName: null };
   return {
     gender,
-    firstName: randomSpawnName(gender),
+    firstName: drawn.firstName,
+    lastName: drawn.lastName ?? null,
     honorific: Array.isArray(rank) ? pick(rank) : rank,
   };
 }
@@ -326,6 +392,7 @@ module.exports = {
   ASSIGNABLE_THREATS,
   SEAT_TAG_SLUGS,
   SPAWN_NAMES,
+  TRIBUNAL_NAMES,
   THREAT_SPAWN_ACCEPT_PREFIX,
   THREAT_SPAWN_DECLINE_PREFIX,
   threatBySlug,

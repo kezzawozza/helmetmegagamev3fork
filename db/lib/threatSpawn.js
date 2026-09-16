@@ -122,8 +122,8 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
         ? await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } })
         : null;
 
-  const { gender, firstName, honorific } = rollSpawnIdentity(threat.spawn);
-  const name = formatCharacterName({ honorific, firstName, title: null, lastName: null });
+  const { gender, firstName, lastName, honorific } = rollSpawnIdentity(threat.spawn);
+  const name = formatCharacterName({ honorific, firstName, title: null, lastName });
 
   // Stamped before the transaction: a tag with a catalog duration must arrive already carrying expiresTurn, since nothing backfills it later.
   const tagRows = [];
@@ -154,7 +154,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
           honorific,
           firstName,
           title: null,
-          lastName: null,
+          lastName,
           name,
           gender,
           age: null,
