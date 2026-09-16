@@ -407,9 +407,15 @@ desires:
     cooldownTurns: 3
 
   kill-someone-you-hate:
-    name: Kill someone you hate
-    tier: 4
+    name: Contribute to killing someone you hate
+    tier: 2
     families: [violence]
+
+  murder-rival:
+    name: Individually murder your rival
+    tier: 4
+    families: [feud, violence]
+    oncePerLife: true
 
   # Gambling ladder (2026-09-02): a bet, then stakes that climb, then the
   # once-ever big win. win-3-gambling was retired by this pass.
@@ -551,7 +557,7 @@ desires:
 
   obtain-vengeance:
     name: Obtain vengeance
-    tier: 3
+    tier: 1
     families: [feud, violence]
 
   be-crowned-baron:
