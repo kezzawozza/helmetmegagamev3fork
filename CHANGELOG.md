@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Armor nerfed across the board; Overkill takes a full kit now
+
+✎ Every piece of armour in the game stops about a tenth less than it did  
+− Heavy Infantry Armor reaching Overkill on its own — it is Strong now, and so is a bulletproof vest paired with a helmet  
+✎ Heavy Infantry and the two Tribunal helmets took a deeper cut than the rest  
+✎ Overkill still exists: it takes both body layers together, a genuine full kit, or the Ordinator's Cataphract  
+✎ The Depot turret is correspondingly deadlier against anything less than a full kit
+
 ## 2026-09-16 · Walking across a zone
 
 ✚ Pick somewhere farther in your own zone and the game walks you there hop by hop — double-click it on the map, press Enter, or click it and press Go  

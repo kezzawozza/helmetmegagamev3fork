@@ -320,9 +320,10 @@ number could fix.
 | kit | protection | graze | minor | deep | grievous | dying | dead |
 |---|---|---|---|---|---|---|---|
 | nothing | 0.00 | 6% | 14% | 16% | 24% | 22% | 18% |
-| a Censor's Helmet | 0.35 | 25% | 20% | 15% | 17% | 13% | 9% |
-| plate and a helm | 0.51 | 33% | 20% | 14% | 15% | 11% | 8% |
-| Light Infantry Armour | 0.80 | 44% | 19% | 12% | 12% | 8% | 6% |
+| a Censor's Helmet | 0.31 | 23% | 20% | 15% | 18% | 13% | 10% |
+| plate and a helm | 0.45 | 30% | 20% | 14% | 16% | 11% | 8% |
+| Heavy Infantry Armor | 0.70 | 40% | 19% | 12% | 13% | 9% | 6% |
+| a full infantry kit | 0.90 | 47% | 18% | 11% | 11% | 8% | 5% |
 | shield and armour both | 0.95 | 48% | 18% | 11% | 11% | 7% | 5% |
 
 The best kit in the game still buries about one wearer in twenty.
@@ -331,8 +332,9 @@ Armour is read off `Tag.ballisticArmor` directly, so it can never fall behind
 the catalog. See §TAGS.md for the two columns and the word scale players
 actually see.
 
-Light Infantry Armour carrying the highest ballistic value in the game is the
-catalog's own claim about it — "nothing forged in Ravenheart stops a bullet".
+No single piece forged in Ravenheart reaches Overkill on its own any more —
+that takes a full kit, or the Tribunal's own Cataphract. The catalog's claim
+about the place holds: "nothing forged in Ravenheart stops a bullet".
 The turret is where that line finally means something mechanical, and it is why
 nothing forged sits above 0.3 ballistic.
 

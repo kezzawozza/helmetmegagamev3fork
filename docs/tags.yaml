@@ -11391,8 +11391,8 @@ tags:
     equipLayer: 1
     # The "thin breastplate beneath" the description has always mentioned,
     # now worth something: Salvage Plate's numbers exactly.
-    melee: 0.35
-    ballistic: 0.1
+    melee: 0.31
+    ballistic: 0.09
     visible: worn
     weight: 3
     purchasable: false
@@ -13000,18 +13000,16 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # The Tribunal's own kit, and the best body armour in the game — above Light
-  # Infantry on both numbers, which TAGS.md notes is already the ceiling
-  # ("nothing forged in Ravenheart stops a bullet"). Deliberately carries NO
-  # equipSlot, exactly like the light set: the two have to compete for the same
-  # flat slot rather than being wearable together.
-  # The Ordinator's armour, and the top of the ballistic ladder. Deliberately
-  # 0.93 rather than 0.95: combineArmor caps a COMBINED value at 0.95, so a suit
-  # authored at the cap makes the wearer's helmet worth literally nothing. At
-  # 0.93 the Ordinator Helmet still buys the last two points, which is what
-  # stacking is supposed to do.
+  # The Ordinator's armour, and the top of both ladders — the one suit still
+  # worth Overkill on its own. Deliberately short of the cap: combineArmor caps
+  # a COMBINED value at 0.95, so a suit authored at the cap makes the wearer's
+  # helmet worth literally nothing. At 0.86 the Ordinator Helmet still buys
+  # real points on top, which is what stacking is supposed to do.
   #
-  # Weight 50 is most of a carry allowance on its own — "slow and heavy" is a
+  # It sits on BODY layer 2, so it competes with Heavy Infantry rather than
+  # layering over it — nobody wears two outer suits.
+  #
+  # Weight 65 is most of a carry allowance on its own — "slow and heavy" is a
   # real cost, not flavour.
   cataphract-armor:
     catalog: gm
@@ -13023,8 +13021,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.93
-    ballistic: 0.93
+    melee: 0.86
+    ballistic: 0.86
     weight: 65
     visible: true
     purchasable: false
@@ -13040,8 +13038,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.78
-    ballistic: 0.8
+    melee: 0.68
+    ballistic: 0.7
     weight: 30
     visible: true
     purchasable: false
@@ -13066,8 +13064,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    melee: 0.75
-    ballistic: 0.75
+    melee: 0.66
+    ballistic: 0.66
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -14673,8 +14671,8 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    melee: 0.6
-    ballistic: 0.5
+    melee: 0.53
+    ballistic: 0.44
     concealsIdentity: true
     concealSprite: soulbreaker1
     visible: worn
@@ -14691,8 +14689,8 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    melee: 0.5
-    ballistic: 0.35
+    melee: 0.44
+    ballistic: 0.31
     concealsIdentity: true
     forcesConceal: true
     concealSprite: cerberus
@@ -14710,8 +14708,8 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    melee: 0.5
-    ballistic: 0.35
+    melee: 0.44
+    ballistic: 0.31
     concealsIdentity: true
     forcesConceal: true
     concealSprite: hero0
@@ -14739,8 +14737,8 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    melee: 0.4
-    ballistic: 0.28
+    melee: 0.35
+    ballistic: 0.25
     concealsIdentity: true
     concealSprite: fighterhelmet
     visible: worn
@@ -14768,8 +14766,8 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    melee: 0.45
-    ballistic: 0.4
+    melee: 0.36
+    ballistic: 0.3
     concealsIdentity: true
     forcesConceal: true
     concealSprite: tribhelm
@@ -14787,8 +14785,8 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    melee: 0.45
-    ballistic: 0.4
+    melee: 0.36
+    ballistic: 0.3
     concealsIdentity: true
     forcesConceal: true
     concealSprite: vietnamordinator
@@ -14806,8 +14804,8 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    melee: 0.3
-    ballistic: 0.2
+    melee: 0.26
+    ballistic: 0.18
     concealsIdentity: true
     forcesConceal: true
     concealSprite: tspacehelmet
@@ -14877,8 +14875,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    melee: 0.65
-    ballistic: 0.75
+    melee: 0.57
+    ballistic: 0.66
     # `true`, not `worn`, and the description is the reason: the plain robes
     # only show when somebody is wearing them, but these glow, so an inspection
     # finds them in a sack too.
@@ -14896,8 +14894,8 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: HEAD
-    melee: 0.15
-    ballistic: 0.1
+    melee: 0.13
+    ballistic: 0.09
     concealsIdentity: true
     forcesConceal: true
     concealSprite: silvermask
@@ -15141,8 +15139,8 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    melee: 0.25
-    ballistic: 0.05
+    melee: 0.22
+    ballistic: 0.04
     visible: worn
     weight: 1
     stackable: true
@@ -15167,8 +15165,8 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: HEAD
-    melee: 0.25
-    ballistic: 0.05
+    melee: 0.22
+    ballistic: 0.04
     concealsIdentity: true
     concealSprite: hauberkhood
     visible: worn
@@ -15213,8 +15211,8 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: HEAD
-    melee: 0.35
-    ballistic: 0.1
+    melee: 0.31
+    ballistic: 0.09
     concealsIdentity: true
     concealSprite: paladin1
     visible: worn
@@ -15244,8 +15242,8 @@ tags:
     depotPrice: 13
     equippable: true
     equipSlot: HEAD
-    melee: 0.35
-    ballistic: 0.1
+    melee: 0.31
+    ballistic: 0.09
     visible: worn
     weight: 4
     purchasable: true
@@ -15263,8 +15261,8 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    melee: 0.5
-    ballistic: 0.15
+    melee: 0.44
+    ballistic: 0.13
     concealsIdentity: true
     forcesConceal: true
     concealSprite: knight0
@@ -15321,8 +15319,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    melee: 0.3
-    ballistic: 0.05
+    melee: 0.26
+    ballistic: 0.04
     visible: worn
     weight: 8
     stackable: true
@@ -15347,8 +15345,8 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
-    melee: 0.25
-    ballistic: 0.05
+    melee: 0.22
+    ballistic: 0.04
     visible: worn
     weight: 3
     stackable: true
@@ -15375,8 +15373,8 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: WEAPON
-    melee: 0.4
-    ballistic: 0.15
+    melee: 0.35
+    ballistic: 0.13
     visible: true
     weight: 10
     stackable: true
@@ -15401,8 +15399,8 @@ tags:
     pointCost: 4
     equippable: true
     equipSlot: WEAPON
-    melee: 0.5
-    ballistic: 0.25
+    melee: 0.44
+    ballistic: 0.22
     visible: true
     weight: 25
     stackable: true
@@ -15434,8 +15432,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.2
-    ballistic: 0.1
+    melee: 0.18
+    ballistic: 0.09
     visible: worn
     weight: 8
     stackable: true
@@ -15461,8 +15459,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    melee: 0.45
-    ballistic: 0.1
+    melee: 0.4
+    ballistic: 0.09
     visible: true
     weight: 25
     stackable: true
@@ -15489,8 +15487,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    melee: 0.6
-    ballistic: 0.2
+    melee: 0.53
+    ballistic: 0.18
     visible: worn
     weight: 25
     stackable: true
@@ -15520,8 +15518,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.6
-    ballistic: 0.2
+    melee: 0.53
+    ballistic: 0.18
     visible: true
     weight: 20
     stackable: true
@@ -15548,8 +15546,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.4
-    ballistic: 0.3
+    melee: 0.35
+    ballistic: 0.26
     visible: true
     weight: 40
     purchasable: false
@@ -15565,8 +15563,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.7
-    ballistic: 0.25
+    melee: 0.62
+    ballistic: 0.22
     visible: true
     weight: 55
     stackable: true
@@ -15598,8 +15596,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.35
-    ballistic: 0.1
+    melee: 0.31
+    ballistic: 0.09
     visible: true
     weight: 20
     purchasable: true
@@ -15620,8 +15618,8 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
-    melee: 0.7
-    ballistic: 0.95
+    melee: 0.62
+    ballistic: 0.85
     visible: worn
     weight: 2
     purchasable: false
@@ -15962,8 +15960,8 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: ACCESSORY
-    melee: 0.15
-    ballistic: 0.05
+    melee: 0.13
+    ballistic: 0.04
     weight: 2
     stackable: true
     visible: worn
