@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · The gamemaster reads the same Combat tile a player does
+
+✎ Fixed: the Move desk counted a stowed sword or a breastplate in a cart toward how good somebody is in a fight  
+✎ Gamemasters read a character's fighting band with its full breakdown now, not just the answer  
+✎ The gamemaster's breakdown also names each piece of armour someone is wearing, which the player's does not  
+✎ A character's tags on the gamemaster desk are sorted into the same cards the character sheet uses, with a filter box  
+✚ The combat readout on the arbitration panel, so a ruling no longer starts by leaving the Move
+
 ## 2026-09-16 · The Scholastic actually starts with Research
 
 ✎ Their role description always promised it, but the tag was never in their starting kit, so nobody could use the Cathedral archives
