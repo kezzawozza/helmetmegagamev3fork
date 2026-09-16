@@ -3,7 +3,7 @@
 const RESEARCH_TAG_SLUG = "research";
 const CATHEDRAL_LOCATION_SLUG = "cathedral";
 
-// Machine-marker idiom (db/lib/lessonPass.js), never rendered (MoveDesk.js), refused on a player Edit (moves.js).
+// Machine-marker idiom (db/lib/offerExpiryPass.js), never rendered (MoveDesk.js), refused on a player Edit (moves.js).
 // `(?:^|\n)`: stagedPush.js APPENDS "auto:silent_close" via newline join, so matching must work mid-string too.
 const RESEARCH_MARKER_RE = /(?:^|\n)auto:research:([a-z0-9-]+)/;
 

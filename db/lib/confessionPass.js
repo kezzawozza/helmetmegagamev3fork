@@ -7,7 +7,7 @@
 // with a result line, so the staged push closes it as adjudicated rather than
 // silently.
 //
-// PENDING confessions are NOT expired here — db/lib/lessonPass.js already
+// PENDING confessions are NOT expired here — db/lib/offerExpiryPass.js already
 // expires every PENDING offer on the turn regardless of kind, and running two
 // passes at the same rows would be a race for no gain. Its expiry DM has a
 // CONFESSION branch.

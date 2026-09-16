@@ -1,5 +1,5 @@
 // The per-turn research pass, run from db/index.js#resolveNeeds() right
-// after runLessonPass — same slot as Lessons, for the same reason: the die
+// after runOfferExpiryPass — same slot, for the same reason: the die
 // was decided at file time (Action.diceRoll/diceModifier, set by the
 // Research desk), and this is where it gets read and turned into a result.
 // docs/systemdocs/TURN-ENGINE.md §2 (2c).
@@ -18,7 +18,7 @@
 const { mintLetterFor } = require("./paperMint");
 // The same die line a learner reads, so a Research DM and a Lesson DM never
 // disagree about how a modifier is shown.
-const { rollLine } = require("./lessonPass");
+const { rollLine } = require("./gambitModifier");
 const { forcedNameFrom, concealmentFrom, presentedIdentity } = require("./presentedIdentity");
 const {
   RESEARCH_MARKER_RE,
@@ -51,7 +51,7 @@ async function runResearchPass(prisma, turn) {
       moveReviewStatus: "OPEN",
       // Coarse DB pre-filter; RESEARCH_MARKER_RE below is what actually
       // extracts and validates the slug, the same "filter with the regex in
-      // JS" split runLessonPass's siblings use for a Json-adjacent marker.
+      // JS" split this pass's siblings use for a Json-adjacent marker.
       gmNotes: { contains: "auto:research:" },
     },
     include: {
@@ -110,7 +110,7 @@ async function runResearchPass(prisma, turn) {
         });
         // A GM already wrote a result on this Move. Theirs stands; the pass
         // grants nothing — the "a GM already wrote a result" guard
-        // runLessonPass follows for the same reason.
+        // the research pass follows for the same reason.
         if (!fresh || fresh.moveReviewStatus !== "OPEN") return null;
 
         // The ingredient is not consumed, so it should still be on the

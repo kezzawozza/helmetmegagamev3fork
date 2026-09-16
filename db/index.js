@@ -49,7 +49,7 @@ const { runLaborYieldPass } = require("./lib/laborYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
 const { runTaxPass } = require("./lib/taxPass");
 const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
-const { runLessonPass } = require("./lib/lessonPass");
+const { runOfferExpiryPass } = require("./lib/offerExpiryPass");
 const { runResearchPass } = require("./lib/researchPass");
 const { runConfessionPass } = require("./lib/confessionPass");
 const { expireQuestsPass: runQuestExpiryPass } = require("./lib/quests");
@@ -394,24 +394,24 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Auto-labor audit log failed:", err));
   }
 
-  // Lessons (db/lib/lessonPass.js): the learner's Gambit is SOLVED here,
+  // Offer expiry (db/lib/offerExpiryPass.js): every PENDING offer on the turn,
   // before the push closes it, and PENDING offers expire. After autoLabor
   // only so a learner who never accepted still worked their day.
   let lessons = null;
   if (!done.has("lessons")) {
-    lessons = await runLessonPass(prisma, turn).catch(async (err) => {
-      await passFailed("Lessons", err);
+    lessons = await runOfferExpiryPass(prisma, turn).catch(async (err) => {
+      await passFailed("Offer expiry", err);
       return null;
     });
     if (lessons) await markDone("lessons");
   }
   const { dms: lessonDms = [], ...lessonSummary } = lessons ?? {};
-  if (lessons && (lessons.resolved || lessons.expired || lessons.failed)) {
+  if (lessons && (lessons.expired || lessons.failed)) {
     await prisma.auditLog
       .create({
         data: {
           actorDiscordUserId: "system",
-          actionType: "lessons_resolved",
+          actionType: "offers_expired",
           details: lessonSummary,
         },
       })

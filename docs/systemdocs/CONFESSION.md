@@ -91,7 +91,7 @@ deliberate — the shared GM-reject hook (`cancelOffersForAction`) then needs no
 special case, and the Routine/Gambit columns line up.
 
 **Two things live in the lesson pass, not this one.**
-`db/lib/lessonPass.js` expires every PENDING offer on the closing turn
+`db/lib/offerExpiryPass.js` expires every PENDING offer on the closing turn
 whatever its kind, so `confessionPass.js` deliberately expires nothing —
 two passes racing the same rows would buy nothing. Its expiry DM has a
 CONFESSION branch, which also names no tag. And `cancelOffersForAction` in

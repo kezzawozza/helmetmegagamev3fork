@@ -4,7 +4,7 @@
 const test = require("node:test");
 const assert = require("node:assert");
 
-const { teachesFree, lessonThreshold } = require("../lib/lessons");
+const { teachesFree, lessonThreshold, lessonOutcome } = require("../lib/lessons");
 const {
   TEACHING_SLUG,
   DRILL_INSTRUCTOR_SLUG,
@@ -48,4 +48,33 @@ test("a missing skill never reads as a fighting skill", () => {
     lessonThreshold(who(TEACHING_SLUG, DRILL_INSTRUCTOR_SLUG), null),
     LESSON_THRESHOLD,
   );
+});
+
+// --- the outcome, now that a lesson resolves the moment it is accepted -------
+
+test("the die has to reach the threshold", () => {
+  assert.equal(lessonOutcome({ die: 4, threshold: 5, learnerStatus: "ALIVE" }).succeeded, false);
+  assert.equal(lessonOutcome({ die: 5, threshold: 5, learnerStatus: "ALIVE" }).succeeded, true);
+  assert.equal(lessonOutcome({ die: 6, threshold: 5, learnerStatus: "ALIVE" }).succeeded, true);
+});
+
+test("Hunger and mood move the total, and so does the Minted Charm", () => {
+  // A 4 misses a 5 on its own, and makes it wearing the charm.
+  assert.equal(lessonOutcome({ die: 4, threshold: 5, learnerStatus: "ALIVE" }).total, 4);
+  assert.equal(
+    lessonOutcome({ die: 4, charmBonus: 1, threshold: 5, learnerStatus: "ALIVE" }).succeeded,
+    true,
+  );
+  // A Hungry learner can miss one they would otherwise have made.
+  assert.equal(
+    lessonOutcome({ die: 5, diceModifier: -1, threshold: 5, learnerStatus: "ALIVE" }).succeeded,
+    false,
+  );
+});
+
+test("a learner who died between the offer and the answer learns nothing", () => {
+  // The roll is thrown at acceptance, so somebody can be killed in between.
+  const { total, succeeded } = lessonOutcome({ die: 6, threshold: 4, learnerStatus: "DEAD" });
+  assert.equal(total, 6, "the die still reads what it rolled");
+  assert.equal(succeeded, false);
 });

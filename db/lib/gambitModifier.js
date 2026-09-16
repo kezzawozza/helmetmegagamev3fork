@@ -49,8 +49,23 @@ function formatGambitModifiers(modifiers = []) {
   return modifiers.map((m) => `${m.value > 0 ? "+" : "−"}${Math.abs(m.value)} ${m.label}`).join(" ");
 }
 
+// The die as the player reads it: the raw roll, the summed modifier, and the total.
+// `bonus` is a per-caller extra on top of the stored diceModifier — the Minted Charm's
+// +1 on a lesson is the one user. Lived in the lesson pass until lessons stopped resolving there;
+// researchPass.js and the lesson path both read it, so it belongs beside the modifier
+// maths rather than inside whichever pass happened to define it first.
+function rollLine(turn, action, bonus = 0) {
+  const mod = (action.diceModifier ?? 0) + bonus;
+  const total = (action.diceRoll ?? 0) + mod;
+  const die = mod
+    ? `**${action.diceRoll}** (${mod > 0 ? `+${mod}` : mod}) → **${total}**`
+    : `**${action.diceRoll}**`;
+  return { text: `🎲 Your Gambit for turn ${turn.number}: ${die}`, total };
+}
+
 module.exports = {
   gambitModifiers,
   gambitModifierTotal,
   formatGambitModifiers,
+  rollLine,
 };

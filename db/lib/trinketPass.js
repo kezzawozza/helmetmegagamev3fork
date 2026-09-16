@@ -12,7 +12,7 @@
 // folding in Hunger/mood via `Action.diceModifier` could knock it back down
 // on exactly the turns it matters most. Reads `diceRoll` alone.
 //
-// Returns Discord work as data, never sends it (db/lib/lessonPass.js's
+// Returns Discord work as data, never sends it (db/lib/offerExpiryPass.js's
 // contract); a null return is a failed pass to retry.
 const { SMITHING_SKILLED_SLUG } = require("./constants");
 const { mintCustomCraft } = require("./customCraftMint");
