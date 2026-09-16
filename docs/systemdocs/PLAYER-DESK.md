@@ -603,11 +603,46 @@ the inspector is a column of the shell now, so it writes the draft's
 `localStorage` key directly (`players/dmDraft.js`) and the composer — whose
 value *is* that store, read through `useSyncExternalStore` — picks it up.
 
-## 7. GM notes (removed)
+## 7. Admin notes
 
-There is no GM-notes tab. `GmCharacterNote` still exists in the schema —
-nothing reads or writes it — and stays orphaned on purpose; dropping it is a
-separate, deliberate migration.
+A **Notes** tab on the inspector, keyed on `discordUserId` rather than
+`characterId` — the same key the rest of this desk uses, and the reason the
+predecessor was the wrong shape: a note about somebody's conduct does not stop
+applying when they roll a new character, and a player with two characters had
+two disconnected piles. `GmCharacterNote` was dropped unused
+(`20260913030000_drop_gm_character_note`, verified empty first); `AdminNote`
+replaces it and shares no code with it.
+
+It arrives through `extraTabs`, not `tabPreludes`, for Scene's two reasons
+(§6): there is no base tab it belongs above, and it must not take a slot in the
+per-`(character, tab)` cache — a cache keyed on the character would hold two
+entries for one player's one list, which could silently disagree. One
+component, `web/app/components/AdminNotes.js`, is also mounted as a tab of the
+Dev Character Panel (`DEV-PANEL.md`); it takes `discordUserId` and nothing
+else, so it cannot be handed a character by mistake.
+
+**It is the second deliberate exception to §9's revalidation rule.** Nothing in
+either route's server render reads a note, so `revalidatePath` would invalidate
+the whole desk layout to refresh a list the server never sent. The actions
+return the fresh list and the component sets it.
+
+Append-only, and every GM may read and write. Any GM may delete any note, and a
+delete writes an `admin_note_deleted` audit row carrying the body — a note that
+could be erased leaving no trace of what it said is the failure the append-only
+shape exists to prevent.
+
+The only prose on the surface is the heading and one line under it. Severity is
+monochromatic on purpose: High/Medium/Low is one scale, where good/warn/bad is
+three kinds, and a Low note drawn in green would read as "fine". It rides the
+`--text` → `--muted` ladder, with `subdued` as the middle rung.
+
+**Known limit:** the inspector renders nothing for somebody with no character
+(`InspectorHost.js` nulls `inspected` without a `characterId`), so a
+conversation-only player's notes are not reachable from this desk yet — even
+though the key they are stored under is the one that person does have. The data
+is fine; it is the inspector that is character-gated. Widening it means teaching
+every base tab a character-less state, which is a rework of a shared component
+rather than a note feature.
 
 ## 8. Getting between the desks
 
@@ -634,7 +669,11 @@ below it**. So every `revalidatePath("/gm/players")` is
 `revalidatePath("/gm/players", "layout")` — without it a GM sitting in a
 conversation never sees the list move. There are a dozen call sites across
 `faction/`, `gm/`, `gm/dev/`, `lifeweb/`, `gamemasters/` and the adjudication
-desk's own actions. `markConversationRead` is the deliberate exception (§5).
+desk's own actions. There are two deliberate exceptions:
+`markConversationRead` (§5) and the Admin notes actions (§7), neither of which
+revalidates at all — in both cases the server render never held the thing that
+changed, so invalidating the layout would cost the whole desk to refresh
+something it never sent.
 
 ## 9a. The live inbox
 

@@ -1845,6 +1845,12 @@ input[type="radio"]:disabled {
 .status-pill[data-tone="muted"] { color: var(--muted); }
 .status-pill[data-tone="good"] { color: var(--positive); }
 .status-pill[data-tone="warn"] { color: var(--warning); }
+/* Between neutral (--text) and muted: the middle rung of a WEIGHT ladder, not
+   a colour. AdminNote severity is the first user — High/Medium/Low is one
+   scale, where good/warn/bad is three kinds, so a Low note must read as quiet
+   rather than as "fine". Mixed between --text and --muted, so it cannot fail a
+   contrast gate that --muted does not already fail. */
+.status-pill[data-tone="subdued"] { color: color-mix(in oklab, var(--text) 55%, var(--muted)); }
 .status-pill[data-tone="bad"] { color: var(--danger); }
 .status-pill[data-tone="accent"] { color: var(--accent-text); }
 
@@ -3744,6 +3750,45 @@ input[type="radio"]:disabled {
   padding: 0.25rem 0.5rem;
 }
 
+
+/* ── Admin notes (PLAYER-DESK.md §7, DEV-PANEL.md §3) ────────────────────── */
+
+/* One component, two mounts: a tab of the shared inspector on /gm/players and
+   a tab of the Dev Character Panel. Keyed on the PLAYER, so the same list sits
+   under every character they have ever had. Sits between the two sections for
+   the two surfaces that mount it. */
+.admin-note-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Severity, author and date on one quiet line above the note itself, with the
+   delete pushed to the end of it rather than given a row of its own. */
+.admin-note-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.admin-note-meta .admin-note-delete {
+  margin-left: auto;
+}
+
+/* The body is the content, and it keeps the line breaks a GM typed. */
+.admin-note-body {
+  white-space: pre-wrap;
+  font-size: var(--fs-sm);
+}
 
 /* ── Adjudication workspace (docs/systemdocs/ADJUDICATION.md) ───────────── */
 

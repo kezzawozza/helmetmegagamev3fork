@@ -22,7 +22,7 @@ design:
 
 | | Staged | Immediate |
 |---|---|---|
-| What | Values — every editable column | Verbs — kill, revive, restore/spend turn, message, teleport, transfer, delete — **and every tag change** |
+| What | Values — every editable column | Verbs — kill, revive, restore/spend turn, message, teleport, transfer, delete — **and every tag change**, and every admin note |
 | When | On **Apply** | The moment it's confirmed |
 | Undo | **Cancel** discards the lot | Its own inverse, if it has one |
 | Audit | One row for the whole Apply | One row each |
@@ -126,8 +126,19 @@ can't disagree about what an affliction is.
   role, the nickname and the channel overwrites a character should already
   have, which is what `db:mirror` and the channel doctor do on every bot start
   anyway — so it could only ever confirm that nothing was wrong.
-- **Tabs** — Identity · Tags · Turn · Goals · Record, on the existing
-  `.tab-bar` / `.tab-item` classes. Identity's place field is a **Zone**
+- **Tabs** — Identity · Tags · Turn · Goals · Record · Notes, on the existing
+  `.tab-bar` / `.tab-item` classes. **Notes** is the shared `AdminNotes`
+  component, the same one the player desk's inspector mounts
+  (`PLAYER-DESK.md` §7). It is keyed on the PLAYER, not the character, so it is
+  the same list under every character that player has ever had — two characters
+  on one account see one pile, which is the point. It takes no part in the
+  staged-edit form: nothing of it is in `EDITABLE_FIELDS`, so a note never joins
+  the Apply bar's diff and **Cancel cannot discard one** — notes commit the
+  moment they are added, like a microaction. It needs none of the deferred
+  `loadRecord` machinery either, because it fetches on mount and the mount is
+  the fetch. One consequence worth knowing rather than discovering: a half-typed
+  note is **not** dirty-guarded, so closing the modal with text still in the box
+  loses it, the same way the Tags tab behaves. Identity's place field is a **Zone**
   select, listing presence zones only (the Caves group is a container, not a
   place); Apply swaps the zone's Discord role, and the empty option is a real
   choice meaning "nowhere, and no zone channel access". The band's identity
@@ -840,7 +851,7 @@ db:collapse-games`, off a command line and behind a dry run.
 | Shared DTO assembly (page + desk modal) — `loadDevPanelProps` to open, `loadDevPanelRecord` for the deferred Record tab | `web/lib/devPanelData.js` |
 | Staged state, tabs, Apply bar, the "modal" frame | `DevPanel.js` |
 | Microaction row and its dialogs | `ActionBar.js` |
-| Tabs | `IdentityTab.js`, `TagEditor.js`, `TurnTab.js`, `GoalsTab.js`, `RecordTab.js` |
+| Tabs | `IdentityTab.js`, `TagEditor.js`, `TurnTab.js`, `GoalsTab.js`, `RecordTab.js`, and the shared `web/app/components/AdminNotes.js` + `adminNoteActions.js` |
 | Server actions | `actions.js` (same directory) |
 | Validation, diff, tag ops, effect plan | `web/lib/characterWrite.js` |
 | Turn economy, the Move lock predicate | `web/lib/moveEconomy.js` |

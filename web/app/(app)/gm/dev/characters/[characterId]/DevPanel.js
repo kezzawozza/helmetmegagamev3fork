@@ -11,12 +11,13 @@ import TagEditor from "./TagEditor";
 import TurnTab from "./TurnTab";
 import GoalsTab from "./GoalsTab";
 import RecordTab from "./RecordTab";
+import AdminNotes from "@/app/components/AdminNotes";
 import { applyCharacterEdits } from "./actions";
 import { getDevPanelRecord } from "@/app/components/devPanelActions";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 
-const TABS = ["Identity", "Tags", "Turn", "Goals", "Record"];
+const TABS = ["Identity", "Tags", "Turn", "Goals", "Record", "Notes"];
 
 // The Dev Character Panel's shell: it owns the staged edit state, the tab, and
 // the Apply/Cancel footer. Everything else is a presentational tab.
@@ -317,6 +318,14 @@ export default function DevPanel({
           discordUserId={character.discordUserId}
         />
       )}
+
+      {/* Keyed on the PLAYER, so this is the same list under every character
+          that player has. Deliberately NOT part of the staged-edit form: it is
+          not in EDITABLE_FIELDS, so a note never joins the Apply bar's diff and
+          Cancel cannot discard one — notes commit immediately, like a
+          microaction. It needs none of loadRecord's machinery either, because
+          the mount IS the fetch. */}
+      {tab === "Notes" && <AdminNotes discordUserId={character.discordUserId} />}
 
       {/* The footer appears only when there is something to commit, so the
           panel reads as a viewer until the moment it isn't one. */}

@@ -9,6 +9,7 @@ import usePins from "@/app/components/usePins";
 import BulkComposer from "./BulkComposer";
 import CanonTab from "./CanonTab";
 import SceneTab from "./SceneTab";
+import AdminNotes from "@/app/components/AdminNotes";
 import GmZoneRail from "@/app/components/GmZoneRail";
 
 // The player desk's half of the shared inspector (the other is
@@ -157,6 +158,17 @@ export default function InspectorHost({
   // its stream moves with them.
   const extraTabs = useMemo(
     () => ({
+      // Before Scene, because the tab bar is seven items in a 22rem column and
+      // .tab-bar scrolls rather than wraps — last would mean off-screen at rest.
+      //
+      // Keyed on the PLAYER, not the character: the same notes follow somebody
+      // across every character they have had, which is exactly why the shared
+      // per-(character, tab) cache would be wrong for them — two characters,
+      // one list, two entries that could silently disagree. An extra tab is
+      // skipped by that cache, so this is the right seam as well as the only one.
+      "Notes": ({ inspected: who }) => (
+        <AdminNotes key={who.discordUserId} discordUserId={who.discordUserId} />
+      ),
       "Scene": ({ inspected: who }) => <SceneTab key={who.characterId} characterId={who.characterId} />,
     }),
     [],
