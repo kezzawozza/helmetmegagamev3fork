@@ -115,6 +115,7 @@ export async function loadDesireView(character, { openTurn, gameConfig, withCata
     history,
     openTurnNumber,
     desireSlots,
+    characterId: character.id,
   });
 
   // The `hidden` half never reaches this variable; a "locked" entry is dropped too, cooldown rows stay.

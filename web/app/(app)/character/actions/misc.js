@@ -2415,6 +2415,7 @@ export async function claimDesireImpl({
       history,
       openTurnNumber,
       desireSlots,
+      characterId: character.id,
     });
     if (hidden.length > 0) throw new UserError(DESIRE_NOT_AVAILABLE);
     const evaluated = visible[0];

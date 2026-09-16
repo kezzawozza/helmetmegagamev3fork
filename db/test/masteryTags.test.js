@@ -5,7 +5,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { resolveDelta, multiplierFor, MULTIPLIER_SLUGS, EVENTS } = require("../lib/mood");
 const { fightingSkillFor } = require("../lib/fightingSkill");
-const { slotStates, desireSlotsNeverLock } = require("../lib/desireGates");
+const { slotStates, desireSlotsNeverLock, evaluateDesireCatalog, manicScramblesTemplate } = require("../lib/desireGates");
 
 const AMOR = ["amor-fati"];
 
@@ -175,6 +175,122 @@ test("Manic still leaves the last claim readable in the slot", () => {
   const history = [{ slotIndex: 0, endedTurnNumber: 5, status: "FULFILLED", id: "d1" }];
   const slot = slotStates({ history, openTurnNumber: 5, desireSlots: 1, lockTurns: 1, noLock: true })[0];
   assert.equal(slot.lastEnded.id, "d1");
+});
+
+// --- Manic's random Desire lock (TAGS.md 4a) -------------------------------
+// The trade for never waiting out a slot's own cooldown, above: ~70% of the
+// catalog locks at random each turn, re-rolled every turn.
+
+const MANIC_TAG = { id: "manic-tag-id", slug: "manic", name: "Manic" };
+
+function stubTemplate(id, overrides = {}) {
+  return {
+    id,
+    retired: false,
+    tier: 1,
+    families: [],
+    requiresAnyTags: [],
+    requiresAllTags: [],
+    requiresNotTags: [],
+    requiresAnyRoles: [],
+    requiresNotRoles: [],
+    requiresAnyOf: false,
+    onceEver: false,
+    cooldownTurns: null,
+    ...overrides,
+  };
+}
+
+test("Manic's random lock is deterministic for the same character, turn and template", () => {
+  const a = manicScramblesTemplate("char-1", 5, "template-1");
+  const b = manicScramblesTemplate("char-1", 5, "template-1");
+  assert.equal(a, b);
+});
+
+test("Manic's locked set changes from turn to turn", () => {
+  const templateIds = Array.from({ length: 50 }, (_, i) => `template-${i}`);
+  const turn5 = templateIds.filter((id) => manicScramblesTemplate("char-1", 5, id)).sort();
+  const turn6 = templateIds.filter((id) => manicScramblesTemplate("char-1", 6, id)).sort();
+  assert.notDeepEqual(turn5, turn6);
+});
+
+test("Manic locks roughly 70% of the catalog, not all or none of it", () => {
+  const templateIds = Array.from({ length: 2000 }, (_, i) => `template-${i}`);
+  const lockedCount = templateIds.filter((id) => manicScramblesTemplate("char-1", 9, id)).length;
+  const fraction = lockedCount / templateIds.length;
+  assert.ok(fraction > 0.55 && fraction < 0.85, `expected roughly 70% locked, got ${fraction}`);
+});
+
+test("a non-Manic character is never touched by the random lock", () => {
+  const templates = Array.from({ length: 20 }, (_, i) => stubTemplate(`t${i}`));
+  const { visible } = evaluateDesireCatalog({
+    templates,
+    heldTags: [],
+    hiddenTagIds: new Set(),
+    roleSlug: null,
+    history: [],
+    openTurnNumber: 9,
+    desireSlots: 2,
+    characterId: "char-1",
+  });
+  assert.ok(visible.every((v) => v.state === "available"));
+});
+
+test("without a characterId, Manic's random lock is skipped entirely", () => {
+  const templates = Array.from({ length: 20 }, (_, i) => stubTemplate(`t${i}`));
+  const { visible } = evaluateDesireCatalog({
+    templates,
+    heldTags: [MANIC_TAG],
+    hiddenTagIds: new Set(),
+    roleSlug: null,
+    history: [],
+    openTurnNumber: 9,
+    desireSlots: 2,
+    // no characterId passed
+  });
+  assert.ok(visible.every((v) => v.state === "available"));
+});
+
+test("Manic's random lock never overrides an earlier gate (cooldown wins)", () => {
+  const templates = [stubTemplate("cooldown-t", { cooldownTurns: 10 })];
+  const history = [{ templateId: "cooldown-t", status: "FULFILLED", endedTurnNumber: 1 }];
+  const { visible } = evaluateDesireCatalog({
+    templates,
+    heldTags: [MANIC_TAG],
+    hiddenTagIds: new Set(),
+    roleSlug: null,
+    history,
+    openTurnNumber: 2,
+    desireSlots: 2,
+    characterId: "char-1",
+  });
+  assert.equal(visible[0].state, "cooldown");
+});
+
+test("Manic can lock an otherwise-available template", () => {
+  // Find an id the deterministic roll actually locks for this character+turn,
+  // so the assertion below is never flaky.
+  let lockedId = null;
+  for (let i = 0; i < 200; i++) {
+    if (manicScramblesTemplate("char-1", 9, `probe-${i}`)) {
+      lockedId = `probe-${i}`;
+      break;
+    }
+  }
+  assert.ok(lockedId, "expected at least one locked id among 200 probes");
+
+  const { visible } = evaluateDesireCatalog({
+    templates: [stubTemplate(lockedId)],
+    heldTags: [MANIC_TAG],
+    hiddenTagIds: new Set(),
+    roleSlug: null,
+    history: [],
+    openTurnNumber: 9,
+    desireSlots: 2,
+    characterId: "char-1",
+  });
+  assert.equal(visible[0].state, "locked");
+  assert.match(visible[0].reason, /Manic/);
 });
 
 // --- Metempsychosis: who the new body turns out to be. reincarnate() itself
