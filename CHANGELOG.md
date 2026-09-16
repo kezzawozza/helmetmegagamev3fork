@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · The Scholastic actually starts with Research
+
+✎ Their role description always promised it, but the tag was never in their starting kit, so nobody could use the Cathedral archives
+
 ## 2026-09-16 · Nobody works themselves to exhaustion by accident
 
 ✎ The automatic day's work now stops once a character is Tired, instead of pushing on into Exhausted  
