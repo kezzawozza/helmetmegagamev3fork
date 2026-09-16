@@ -9,7 +9,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const yaml = require("js-yaml");
 
-const { attackRefusal, bestBandRank, cancelAttack, closeFightsFor, fileAttack, MAX_BAND_GAP, TOO_STRONG } = require("../lib/attack");
+const { ATTACK_COOLDOWN_MS, attackCooldown, attackRefusal, bestBandRank, cancelAttack, closeFightsFor, fileAttack, MAX_BAND_GAP, TOO_STRONG } = require("../lib/attack");
 const { bandRank } = require("../lib/fightingSkill");
 
 // A held row in the shape every surface passes: `{ tag, equipped }`.
@@ -135,7 +135,16 @@ function fakeDb(ids) {
         }
         rows.push({ id: `r${rows.length}`, cancelledAt: null, ...data });
       },
+      findUnique: async ({ where }) => {
+        const key = where.attackerId_targetCharacterId_turnId ?? where;
+        return rows.find((r) => matchRow(key, r)) ?? null;
+      },
       findMany: async ({ where }) => rows.filter((r) => matchRow(where, r)),
+      update: async ({ where, data }) => {
+        const row = rows.find((r) => r.id === where.id);
+        if (row) Object.assign(row, data);
+        return row ?? null;
+      },
       updateMany: async ({ where, data }) => {
         let count = 0;
         for (const r of rows) if (matchRow(where, r)) { Object.assign(r, data); count += 1; }
@@ -178,12 +187,39 @@ test("an attack holds both sides, and they read different reasons", async () => 
   assert.deepEqual(f.held(), { a: "attacking<-b", b: "attack<-a" });
 });
 
-test("attacking is permanent for the turn, before AND after breaking off", async () => {
+test("a live fight refuses a second attack, and says so in its own words", async () => {
   const f = fakeDb(["a", "b"]);
   assert.equal((await fileAttack(f.db, { attacker: who("a"), target: who("b"), openTurn: TURN })).ok, true);
-  assert.equal((await fileAttack(f.db, { attacker: who("a"), target: who("b"), openTurn: TURN })).already, true);
+  const again = await fileAttack(f.db, { attacker: who("a"), target: who("b"), openTurn: TURN });
+  assert.equal(again.already, true);
+  assert.equal(again.cooldownSecondsLeft, undefined); // not a cooldown — they are IN it
+});
+
+test("a broken-off fight waits out the hour, then restarts in the same row", async () => {
+  const f = fakeDb(["a", "b"]);
+  await fileAttack(f.db, { attacker: who("a"), target: who("b"), openTurn: TURN });
   await cancelAttack(f.db, { attackerId: "a", targetCharacterId: "b", turnId: "t1" });
-  assert.equal((await fileAttack(f.db, { attacker: who("a"), target: who("b"), openTurn: TURN })).already, true);
+  assert.deepEqual(f.held(), { a: "free", b: "free" }); // the hold lifts, which is what made the old refusal a lie
+
+  const tooSoon = await fileAttack(f.db, { attacker: who("a"), target: who("b"), openTurn: TURN });
+  assert.equal(tooSoon.ok, false);
+  assert.equal(tooSoon.already, false);
+  assert.ok(tooSoon.cooldownSecondsLeft > 0 && tooSoon.cooldownSecondsLeft <= 3600);
+
+  const later = new Date(Date.now() + ATTACK_COOLDOWN_MS + 1000);
+  const back = await fileAttack(f.db, { attacker: who("a"), target: who("b"), openTurn: TURN, now: later });
+  assert.equal(back.ok, true);
+  assert.deepEqual(f.held(), { a: "attacking<-b", b: "attack<-a" }); // held again, both sides
+  assert.deepEqual(f.live(), ["a->b"]); // reopened in place — still ONE row for the pair, not a second
+});
+
+test("attackCooldown counts down from the break off", () => {
+  assert.deepEqual(attackCooldown(null), { ok: true, secondsLeft: 0 });
+  const t = 10_000_000;
+  assert.equal(attackCooldown(new Date(t), t).ok, false);
+  assert.equal(attackCooldown(new Date(t), t).secondsLeft, 3600);
+  assert.equal(attackCooldown(new Date(t), t + ATTACK_COOLDOWN_MS - 1).ok, false);
+  assert.deepEqual(attackCooldown(new Date(t), t + ATTACK_COOLDOWN_MS), { ok: true, secondsLeft: 0 });
 });
 
 test("fighting back is its own row, and the roles flip when one side stops", async () => {

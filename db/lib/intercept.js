@@ -303,8 +303,9 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
       fromAmbush: true,
       locationId,
     });
-    // The unique on Attack already has these two, this turn — button-attacked, or
-    // ambushed and broken off. Nobody was newly held, so the victim must NOT be told "it's an ambush, you can't move": a false line is worse than no line. Very hard to reach (the InterceptHit ration above stops the same catcher twice a turn), but it costs one flag to never lie.
+    // The unique on Attack already has these two, this turn, and the row said no:
+    // a fight still going, or one broken off inside its cooling-off hour
+    // (attack.js#ATTACK_COOLDOWN_MS). Nobody was newly held, so the victim must NOT be told "it's an ambush, you can't move": a false line is worse than no line. Very hard to reach (the InterceptHit ration above stops the same catcher twice a turn), but it costs one flag to never lie.
     hit.held = filed.ok;
     attackDmsOut.push(...filed.dms);
   }

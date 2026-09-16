@@ -43,14 +43,41 @@ still going.
 ## 2. The row is the rule
 
 `Attack`, one row per attacker per target per turn, and the
-`@@unique([attackerId, targetCharacterId, turnId])` **is** "attacking is
-permanent for the turn". The `InterceptHit` shape exactly: the insert claims
-the act, so nothing is ever counted.
+`@@unique([attackerId, targetCharacterId, turnId])` is what keeps it that way.
+The `InterceptHit` shape exactly: the insert claims the act, so nothing is ever
+counted.
 
-Breaking off **stamps `cancelledAt` and never deletes**. A deleted row would
-hand the unique back and let somebody attack the same person all afternoon.
-It is also what a GM reads afterwards — a fight somebody started and called off
-is still something that happened.
+Breaking off **stamps `cancelledAt` and never deletes**. It is what a GM reads
+afterwards — a fight somebody started and called off is still something that
+happened — and deleting it would hand the unique straight back.
+
+**A cancelled row is a cooling-off period, not a headstone.** This used to be
+"attacking is permanent for the turn", which sounded fair until you noticed a
+turn is a whole real day: calling a fight off because the scene had moved on
+spent your only swing at that person until tomorrow, and the next press was
+answered with *"You're already fighting them"* about a fight nobody was in.
+The hold had lifted and the other person could walk away, so the sentence was
+simply untrue.
+
+So the unit is an hour rather than a turn — `ATTACK_COOLDOWN_MS` in
+`db/lib/attack.js`, the `db/lib/bell.js` shape, hardcoded because there is one
+right answer. The clock starts at the **break off**, not at the attack, so a
+long fight does not let you re-engage the moment you let go. Nobody hounds one
+person all afternoon, which is what the old rule was protecting; a fight that
+restarts for a real reason can restart.
+
+The unique stays, and this is the part worth keeping straight: a cooled-off row
+is **reopened in place**, not replaced. `fileAttack` reads the clashing row and
+answers one of three ways — a live fight refuses as it always did, a row still
+inside its hour refuses with the minutes left, and a cooled-off one has its
+`cancelledAt` cleared and both sides held again. So it is still one row per
+pair per turn, and everything downstream that assumes that
+(`web/lib/holdClusters.js`'s one-per-pairing rule, the desk's Call off button)
+never learns a new shape. Each press is its own `request_attack_filed` audit
+row, which is where the history of a fight restarting actually lives.
+
+A GM calling a fight off from `/gm/turns` goes through the same `cancelAttack`,
+so it starts the same hour. One rule for both.
 
 Only the attacker may call it off. `cancelAttack`'s `WHERE` is the ownership
 check; there is no second lookup to disagree with it.
