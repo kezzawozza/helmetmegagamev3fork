@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · A mask hides your name, not your body
+
+✚ You can attack, bind, torture, crucify, shackle, harm, mutilate and brand somebody whose face is covered — they show in the picker as the room sees them  
+− The bug where anyone in a closed helmet could not be touched at all. A Tribunal, Cerberus, Censor's or Knight's helmet was a shield against being attacked, and seven living characters were wearing one  
+✎ This is what let somebody walk into a hideout, take what they liked and leave with nobody able to lay a hand on them  
+✎ Attacking a hood still does not unmask them: the picker and the Break off list both carry a token instead of a name, and the audit row records only what the room saw  
+✎ Loot and Heal deliberately still cannot reach a hood — their pickers would have to show you a masked person's pockets or their wounds, which names them nearly as well as a name does
+
 ## 2026-09-16 · A rejected portrait says less
 
 ✎ The DM a player gets when a gamemaster turns down their portrait is one short line now, instead of a paragraph telling them to go and find a gamemaster

@@ -6,10 +6,12 @@ import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
+import { ChevronDownIcon } from "@/app/components/icons";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, WALK_HINT } from "@/lib/travelCost";
 import { loadMap } from "./actions";
+import useMapNarrow from "./useMapNarrow";
 import { travelTo } from "../chat/actions";
 
 // The map. Every Location this character knows, drawn on the plate it was
@@ -106,6 +108,10 @@ export default function MapBoard({ onClose = null }) {
   const [data, setData] = useState(null);
   const [nonce, setNonce] = useState(0);
   const [sel, setSel] = useState(null);
+  // The phone's sheet, and only the phone's — see the card block below. Closed
+  // is the resting state, so the plate gets the screen it is the point of.
+  const narrow = useMapNarrow();
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [labels, setLabels] = useState(true);
   const [layer, setLayer] = useState(null);
   const { run, pending, error } = useActionRunner();
@@ -463,6 +469,9 @@ export default function MapBoard({ onClose = null }) {
     if (panned.current) return;
     if (ev.target?.closest?.(".map-node")) return;
     setSel(null);
+    // And on a phone it puts the sheet back down to its one-line bar, since
+    // the open lists cover the plate just as much as a card does.
+    setSheetOpen(false);
   };
 
   // On the window rather than the SVG, and deliberately NOT via
@@ -625,7 +634,16 @@ export default function MapBoard({ onClose = null }) {
   const drawnIds = new Set(drawn.map((n) => n.id));
   const here = data.you.locationId ? byId.get(data.you.locationId) : null;
   const chosen = sel ? byId.get(sel) : null;
-  const card = chosen ?? here ?? null;
+  // On a WIDE screen the card is a column beside the board, covering nothing,
+  // so with nothing picked it shows where you stand rather than sitting empty.
+  //
+  // On a phone that fallback was the whole bug: the card is a sheet OVER the
+  // plate there, and falling back to `here` meant it was never empty — so
+  // tapping open ground (which only clears `sel`) changed nothing, and Cancel
+  // is gated behind !isHere so it never drew either. A description over half
+  // the board with no way out of it, which MAP.md §6c already calls a trap.
+  // Narrow shows the card ONLY for a place actually picked.
+  const card = chosen ?? (narrow ? null : here) ?? null;
   const exits = nodes.filter((n) => n.adjacent);
   // Farther in this zone, nearest first. Its own list under its own heading: a
   // three-hop walk is not a way OUT of this room, and folding it into the grid
@@ -835,11 +853,54 @@ export default function MapBoard({ onClose = null }) {
         </div>
       </div>
 
-      {/* data-picked is the whole phone layout: under 640px the card is a
-          sheet over the board, and this is what decides whether it is a strip
-          of Ways out or open far enough to show Go. No state of its own —
-          `chosen` already knows. */}
-      <aside className="map-card panel" data-picked={chosen ? "true" : undefined}>
+      {/* data-picked and data-open are the whole phone layout: under 640px the
+          card is a sheet over the board, and these decide how far it is up.
+          Three states, and the resting one is closed —
+
+            nothing picked, shut   a one-line bar saying where you stand;
+            nothing picked, open   that bar plus Ways out and Further in;
+            something picked       that place's card, far enough for Go.
+
+          It used to have two, and the resting one was a full location card
+          plus both lists under a 32dvh cap — over the plate, on a screen with
+          no room to spare, and with neither of its two documented ways out
+          working (see `card` above). The bar is what keeps MAP.md §6e's "a
+          caption and its Ways out list" true: the caption is always there and
+          the list is one tap into it. */}
+      <aside
+        className="map-card panel"
+        data-picked={chosen ? "true" : undefined}
+        data-open={narrow && !chosen && sheetOpen ? "true" : undefined}
+      >
+        {/* Cancel lives inside the card and is gated behind !isHere, so a
+            picked place you are ALREADY STANDING IN has no button to shut it
+            with. On a phone that is the sheet covering the board again. */}
+        {narrow && chosen && (
+          <button
+            type="button"
+            className="map-card-close"
+            aria-label="Close"
+            onClick={() => setSel(null)}
+          >
+            ✕
+          </button>
+        )}
+
+        {narrow && !chosen && (
+          <button
+            type="button"
+            className="map-peek"
+            aria-expanded={sheetOpen}
+            disabled={!here}
+            onClick={() => setSheetOpen((wasOpen) => !wasOpen)}
+          >
+            <span className="map-peek-name">
+              {here ? here.name : "You aren't on the map yet."}
+            </span>
+            {here && <ChevronDownIcon width="14" height="14" />}
+          </button>
+        )}
+
         {card ? (
           <MapCard
             node={card}
@@ -852,11 +913,11 @@ export default function MapBoard({ onClose = null }) {
             onGo={() => go(card)}
             onExert={() => go(card, { exert: true })}
           />
-        ) : (
+        ) : narrow ? null : (
           <EmptyState>You aren&apos;t on the map yet.</EmptyState>
         )}
 
-        {!chosen && exits.length > 0 && (
+        {!chosen && (!narrow || sheetOpen) && exits.length > 0 && (
           <div className="map-exits">
             <p className="chat-section-title">Ways out</p>
             {exits.map((n) => (
@@ -871,7 +932,7 @@ export default function MapBoard({ onClose = null }) {
           </div>
         )}
 
-        {!chosen && walks.length > 0 && (
+        {!chosen && (!narrow || sheetOpen) && walks.length > 0 && (
           <div className="map-exits">
             <p className="chat-section-title">Further in {here?.zoneName ?? "this zone"}</p>
             {walks.map((n) => (
@@ -883,7 +944,9 @@ export default function MapBoard({ onClose = null }) {
           </div>
         )}
 
-        {onClose && (
+        {/* Not on a shut phone sheet: the bar is one line, and a second row
+            under it is the sheet growing back. */}
+        {onClose && (!narrow || sheetOpen || chosen) && (
           <button type="button" className="btn-quiet map-return" onClick={onClose}>
             Return to game
           </button>

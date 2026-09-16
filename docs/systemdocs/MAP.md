@@ -975,6 +975,15 @@ open ground. It is a second way out of a card, beside Cancel and the node's own
 second click, because on a phone a description sitting over most of the board
 with nothing obvious to do about it is a trap.
 
+For a long time it said that and did not do it. `card` fell back to `here`
+whenever nothing was picked, so on a phone the sheet was never empty, and
+clearing `sel` — which is all this handler does — changed nothing a player
+could see. Cancel could not help either: it is gated behind `!isHere`, so the
+one card that was always up was the one card with no button to shut it. The
+fallback is a desktop-only thing now (§6e), which is what finally makes this
+paragraph true. On a phone there is a **✕** on a picked card as well, and this
+same tap puts an opened sheet back down to its bar.
+
 `canTravelTo(node, here)` is the one predicate the board and the card read for
 **Go**, so a place can never offer it while its own card is showing a refusal.
 It has two ways to say yes: next door and open, or `walkable` — somewhere
@@ -1053,9 +1062,28 @@ and a tablet wide enough for the two-column layout keeps the bar.
 **Under 640px the card is a sheet over the board, not a column beside it.**
 It used to be a strip underneath taking 40% of an already short screen, which
 letterboxed the plate. Over it, the drawing runs on underneath and anything
-the sheet covers is one drag away. Its two heights come off `sel` and nothing
-else, through a `data-picked` attribute — nothing picked is a caption and its
-Ways out list, something picked opens far enough to show Go. The `.map-hud` wrapper is
+the sheet covers is one drag away.
+
+**It has three heights there, and the resting one is a single line.** They come
+off `data-picked` and `data-open`, and the component behind them is
+`useMapNarrow.js` — a 640px media query, matching this block exactly, because
+CSS drawing a sheet while the component still fills a column is its own bug.
+
+| | What the sheet is | Roughly |
+|---|---|---|
+| nothing picked, shut | the name of where you stand, and a chevron | one line |
+| nothing picked, open | that bar, plus Ways out and Further in | up to 62dvh |
+| something picked | that place's card, far enough to show Go | up to 62dvh |
+
+It had two, and the resting one was wrong in a way that took a player report to
+see. The cap said 32dvh, but what sat under it was a whole location card —
+description, Inside lists and both way-lists — because `card` fell back to
+`here` and `data-picked` was keyed on `chosen` instead, so the CSS and the
+contents disagreed about whether anything was picked. A third of a short screen,
+permanently, over the one thing the page is for, with neither documented way out
+working (§6c). **So on a narrow screen `card` does not fall back to `here`.**
+A wide one still does, and should: there the card is a column beside the board,
+it covers nothing, and an empty column would be worse than a full one. The `.map-hud` wrapper is
 `display: contents` on a desktop, so the layer switch and the zoom bar each keep
 the corner they have always had; on a phone it is a column, which is what let
 the two stack rather than fight over 486px of a 390px screen — and is now

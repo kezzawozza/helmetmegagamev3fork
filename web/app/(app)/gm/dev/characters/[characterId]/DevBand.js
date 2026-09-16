@@ -5,8 +5,8 @@ import { handsFor, handsUsed } from "@lifeweb/db/lib/equipSlots";
 import { bandOf } from "@lifeweb/db/lib/mood";
 import { formatGambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import DetailTile from "@/app/components/DetailTile";
 import FactionLink from "@/app/components/FactionLink";
-import LedgerTile from "@/app/components/LedgerTile";
 import StatusPill, { CHARACTER_STATUS } from "@/app/components/StatusPill";
 import TagPointsValue from "@/app/components/TagPointsValue";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -20,7 +20,7 @@ import { setCurseOverride, setCharacterMirroring } from "./actions";
 // It used to be a 15-fact grid of bare label/value pairs, and the complaint
 // about it was exactly right: it was tall, and it explained nothing. A GM
 // reading "3 / 12 pts" off it had no way to ask what that meant. So it is
-// built out of the same LedgerTile the player's own sheet uses — a box that
+// built out of the same DetailTile the player's own sheet uses — a box that
 // SWAPS ITS FACE for a sentence on hover, focus or tap, inside the same
 // height. Every number here says what it is and where it comes from, and the
 // panel got shorter rather than longer.
@@ -119,19 +119,19 @@ export default function DevBand({
       </div>
 
       <div className="dev-band-tiles">
-          <LedgerTile
+          <DetailTile
             label="Resources"
             value={`${staged.resources} ⬢`}
             detail="What they can spend. Set it on the Identity tab."
             {...tile("resources")}
           />
-          <LedgerTile
+          <DetailTile
             label="Tag points"
             value={<TagPointsValue points={staged.tagPoints} />}
             detail="Unspent, and the player spends them at /store."
             {...tile("points")}
           />
-          <LedgerTile
+          <DetailTile
             label="Mood"
             value={moodBand?.label ?? "Fine"}
             tone={moodBand?.tone ?? "muted"}
@@ -139,7 +139,7 @@ export default function DevBand({
             detail={`The dial reads ${staged.mood ?? 0}. It moves nightly and shifts their Gambit roll.`}
             {...tile("mood")}
           />
-          <LedgerTile
+          <DetailTile
             label="Gambit die"
             value={gambitModifier ? `${gambitModifier > 0 ? "+" : ""}${gambitModifier}` : "±0"}
             over={Boolean(gambitModifier)}
@@ -150,14 +150,14 @@ export default function DevBand({
             }
             {...tile("gambit")}
           />
-          <LedgerTile
+          <DetailTile
             label="Equipped"
             value={`${equipped} · ${hands}/${handCap} hands`}
             over={hands > handCap}
             detail="Slots spent, then hands used of the hands they have. Change it on the Tags tab."
             {...tile("equipped")}
           />
-          <LedgerTile
+          <DetailTile
             label="Drawbacks"
             value={
               <span className={overDrawbackCap ? "text-danger" : undefined}>
@@ -167,7 +167,7 @@ export default function DevBand({
             detail="Point-bought only, against the creation ceilings. A fact, not a limit."
             {...tile("drawbacks")}
           />
-          <LedgerTile
+          <DetailTile
             label="This turn"
             value={openTurn ? `${openTurn.number} ${openTurn.phase}` : "none open"}
             word

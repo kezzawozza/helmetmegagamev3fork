@@ -99,9 +99,6 @@ Who this is, where they stand, and:
   half again on a quiet turn when the forecast renders nothing.
 - **A box with something to say SWAPS ITS OWN FACE for it.** Hover, focus or
   click and the value is replaced by the breakdown, inside the same box. The
-  box itself is `LedgerTile` in `web/app/components/` — it lived in this file
-  until the Dev Character Panel's band wanted the same thing
-  (`DEV-PANEL.md` §3), and both surfaces import it now. The
   detail is absolutely positioned inside it, so the box is sized by its resting
   face alone and **opening one cannot move anything** — which is the whole
   point. It used to append a block under the row and shove the rest of the
@@ -118,7 +115,8 @@ Who this is, where they stand, and:
   one is `CombatReadout.js`. Both used to live inside `LedgerBand.js`; they
   came out when the GM desks started wearing the same readout, so the swap-in-
   place behaviour below is written once rather than approximated a second time
-  on the desk (COMBAT.md §6). Nothing on this page changed when they moved.
+  on the desk (COMBAT.md §6). The Dev Character Panel's band is the third
+  caller (`DEV-PANEL.md` §3). Nothing on this page changed when they moved.
 - **Three ways in, and all three are needed.** A mouse opens on
   `pointerenter` and closes on leave. A **tap** is the click path: touch fires
   a synthesised `mouseenter` before its click, so the pointer handlers ignore
@@ -160,6 +158,19 @@ Who this is, where they stand, and:
   everywhere else: its name, the sentence saying what it does, and — when it is
   greyed — the pool's `gateReason`. A gated verb is dashed and does not press.
   The Trumpet joins the row when held.
+- **On a touch screen that tooltip IS the button** (`ActionButton.js`). It could
+  not be read at all before: every variant passed `pinnable={false}`, which is
+  what switches off the one tap path `HoverCard` has, so a tap fell straight
+  through to the verb. For the instant verbs that ask nothing first
+  (`components/actions/index.js`) that tap *was* the action — and Break
+  restraints justifies skipping its confirm on the grounds that "the tooltip
+  already says what pressing it does", which on a phone had never once been
+  true. Now the first tap pins the panel and the panel carries a real button at
+  its foot. A greyed verb takes `aria-disabled` rather than `disabled` there,
+  because a disabled button dispatches no click and the reason it is greyed is
+  the thing a touch player most needs to reach. Two verbs carry no help sentence
+  and both open a dialog rather than committing, so they keep the plain path;
+  so does `variant="menu"`, which is already the inside of a menu.
 
 ## 3. The rail (`TagRail.js`)
 
@@ -216,7 +227,22 @@ Use, Equip/Unequip, Give, Destroy, Heal. The predicates are Chat's
 handlers are the sheet's own dialogs through `RequestActionsProvider.open`
 with the tag preselected, or `equipActions.js#toggleEquip`. Heal opens the
 Heal dialog on yourself and that wound. Hidden until hover or focus on a
-pointer device, always drawn on a touch one.
+pointer device.
+
+**On a touch screen they are not beside the row at all — they are at the foot
+of the details it opens.** They used to be drawn permanently there, because the
+hide-until-hover rule is inside an `@media (hover: hover)` block and a phone
+simply falls through it. That put Use and Destroy a thumb's width from the face
+you tap to read the row, and Use is the one verb on this surface with no dialog
+behind it: `TagRail.js#consume` goes straight to the server. A player reported
+exactly what that shape predicts — reaching to read something and eating it
+instead. `TagRow.js` and `ItemCard.js` read `useIsCoarsePointer()` and render
+`{verbs}` in one place or the other, never both: two copies hidden by CSS would
+put every verb in the accessibility tree twice.
+
+So on a phone **tapping a row means "what is this?" and nothing else.** Acting
+is a second tap, from inside what the first one opened — the rule
+[`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) §9 now states for the whole app.
 
 The header holds **Spend Tag Points** (the store modal) and the filter box:
 name, description or group; a card with nothing left hides while a query is

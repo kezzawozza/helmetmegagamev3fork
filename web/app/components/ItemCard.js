@@ -3,6 +3,7 @@
 import TagDetails from "./TagDetails";
 import TagMarks from "./TagMarks";
 import TagIcon from "./TagIcon";
+import { useIsCoarsePointer } from "./useIsCoarsePointer";
 
 // One held item as a CARD rather than a line — the Items and Assets rails
 // (web/lib/sheetCards.js#INVENTORY_CARDS). Everything else on the sheet keeps
@@ -20,7 +21,8 @@ import TagIcon from "./TagIcon";
 // Everything else is deliberately the same as a row: the category rule, the
 // group icon, the shared state marks, the same verbs, and the same
 // TagDetails opening inline on click. A card is a denser row, not a new
-// language.
+// language — including where the verbs go on a touch screen, which TagRow.js
+// explains.
 export default function ItemCard({
   ct,
   facts = [],
@@ -35,6 +37,7 @@ export default function ItemCard({
   const tag = ct.tag;
   const stack = (ct.quantity ?? 1) > 1 ? ct.quantity : null;
   const category = tag.category ? String(tag.category).toLowerCase() : null;
+  const coarse = useIsCoarsePointer();
 
   return (
     <li className="item-card" data-open={open ? "true" : undefined}>
@@ -67,7 +70,7 @@ export default function ItemCard({
           )}
           {note && <span className="sheet-row-note">{note}</span>}
         </button>
-        {verbs}
+        {!coarse && verbs}
       </div>
       {open && (
         <div className="sheet-row-details">
@@ -84,6 +87,7 @@ export default function ItemCard({
             inTooltip
             poisonMarker={Boolean(ct.poisonMarker)}
           />
+          {coarse && verbs}
         </div>
       )}
     </li>
