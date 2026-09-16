@@ -15,7 +15,6 @@ import {
   RestoreIcon,
   SkipIcon,
   MessageIcon,
-  SyncIcon,
   TrashIcon,
   WoundIcon,
   BandageIcon,
@@ -29,7 +28,6 @@ import {
   restoreTurn,
   spendTurn,
   messageCharacter,
-  resyncDiscord,
   teleportCharacter,
   deleteCharacter,
   transferResources,
@@ -38,23 +36,15 @@ import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
 // The microaction row. Verbs, not values.
 //
-// Two families, and the split matters:
+// Every button here FIRES: its own server action, its own audit row, and its
+// effect the moment it is confirmed. All of them touch things the staged form
+// deliberately does not carry — status, the Action row, where they stand, the
+// tags — so any of them can be used mid-edit without racing the Apply bar.
 //
-//   IMMEDIATE — kill, revive, restore/spend turn, message, resync, delete.
-//     Each fires its own server action, writes its own audit row, and takes
-//     effect the moment it is confirmed. All of them touch fields the staged
-//     form deliberately does NOT carry (status, the Action row, Discord), so
-//     they can be used mid-edit without racing anything.
-//
-//   STAGING — refund points, and only that. It writes the tagPoints COLUMN,
-//     which is still a staged value, so it pushes into the pending diff and is
-//     undone by Cancel like any other edit.
-//
-// Inflict wound, heal all and feed used to sit in that second family and were
-// the awkward part of it — three buttons in a row of verbs that looked like
-// they fired and didn't. They all push TAG ops, and tag changes now commit on
-// the gesture, so they are simply verbs too. What is left is a clean split:
-// columns stage, verbs and tags fire.
+// Inflict wound, heal all, feed and a Refund points button used to stage
+// instead, which made them three buttons in a row of verbs that looked like
+// they fired and didn't. The tag three fire now, Refund points is gone, and
+// what is left is a clean split: columns stage, verbs and tags fire.
 export default function ActionBar({
   character,
   canDelete,
@@ -223,10 +213,10 @@ export default function ActionBar({
   return (
     <>
       {/* Thirteen bare icons in a row, split only by hairlines, meant every
-          verb had to be hovered to be read. Three named clusters instead:
-          Life (are they alive, do they have a turn), Body (what is on the
-          sheet), Admin (Discord, deletion). The icons stay — the label is
-          what says which neighbourhood you are in. */}
+          verb had to be hovered to be read. Named clusters instead: Life,
+          Turn, Reach (message, teleport, ⬢), Body (what is on the sheet) and
+          Admin (deletion). The icons stay — the label is what says which
+          neighbourhood you are in. */}
       <section className="panel dev-bar p-3">
         <div className="dev-bar-cluster">
           <span className="field-label">Life</span>
@@ -357,30 +347,31 @@ export default function ActionBar({
           </div>
         </div>
 
-        <div className="dev-bar-cluster">
-          <span className="field-label">Admin</span>
-          <div className="flex items-center gap-2">
-          <IconButton
-            icon={SyncIcon}
-            label="Re-push their Discord role, nickname and channel access"
-            disabled={pending || !alive}
-            onClick={() => run(() => resyncDiscord({ characterId: character.id }))}
-          />
-          {/* The eye is gone. It linked to /character — the SIGNED-IN GM's own
-              sheet, never this character's — so it answered a question nobody
-              asked with somebody else's answer. There is no GM-facing view of
-              another character's player sheet to point it at; this panel is
-              that view. */}
-          {canDelete && (
-            <IconButton
-              icon={TrashIcon}
-              label={`Delete ${character.name} permanently`}
-              disabled={pending}
-              onClick={() => setDialog("delete")}
-            />
-          )}
+        {/* Two buttons used to live here beside Delete, and both are gone.
+            Re-push Discord re-sent the role, the nickname and the channel
+            overwrites a character should already have — which is what
+            db:mirror and the channel doctor do on every bot start anyway, so
+            it could only ever confirm that nothing was wrong. The eye linked
+            to /character, the SIGNED-IN GM's own sheet rather than this
+            character's, so it answered a question nobody asked with somebody
+            else's answer. There is no GM-facing view of another character's
+            player sheet to point it at; this panel is that view.
+
+            So the cluster is Delete alone, and it draws only for a superadmin
+            — an empty labelled group is worse than no group. */}
+        {canDelete && (
+          <div className="dev-bar-cluster">
+            <span className="field-label">Admin</span>
+            <div className="flex items-center gap-2">
+              <IconButton
+                icon={TrashIcon}
+                label={`Delete ${character.name} permanently`}
+                disabled={pending}
+                onClick={() => setDialog("delete")}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <FormError>{error}</FormError>
         {!error && done && <p className="w-full text-sm text-accent">{done}.</p>}

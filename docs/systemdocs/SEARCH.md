@@ -174,7 +174,7 @@ Three ways, and only the first is new code.
   end it as surely as legs do. Above the `DISCORD_TOKEN` guard, the
   `recordArrival` reasoning: the offer dying is a database fact and must not
   depend on there being a token; only the letter waits for one. Behind
-  `fromLocationId`, so a Resync, a revive and a first placement are not moves.
+  `fromLocationId`, so a revive and a first placement are not moves.
 
   **The test is CO-LOCATION, not "somebody moved", and that is load-bearing.**
   `performLocationMove` fires the watches — which is where an auto-search offer

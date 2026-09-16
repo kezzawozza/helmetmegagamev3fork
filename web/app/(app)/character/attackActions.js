@@ -9,9 +9,11 @@ import { sendDm } from "@/lib/discordGuild";
 import { guarded, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
-import { peopleHere } from "@/lib/peopleHere";
+import { resolveHereTarget } from "@/lib/hereTarget";
+import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
-import { isHere, HERE_FIELDS, notHereMessage } from "@lifeweb/db/lib/presence";
+import { HERE_FIELDS } from "@lifeweb/db/lib/presence";
+import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { IDENTITY_SELECT, identityOf, seenAs } from "@lifeweb/db/lib/intercept";
 import { attackMoveBlock } from "@lifeweb/db/lib/combatGate";
 import {
@@ -87,12 +89,23 @@ async function loadAttacksImpl() {
   if (!character) redirect("/character");
   const openTurn = await getOpenTurn();
 
-  // The dialog's picker. peopleHere is the ONE roster behind every people-
-  // picker on the sheet, so this cannot list somebody Loot or Bind would not.
-  const here = await peopleHere(character, { select: IDENTITY_SELECT });
+  // The dialog's picker, BOTH halves of it — the same shape Transfer and Search
+  // use (web/lib/peoplePools.js). It deliberately does NOT come through
+  // peopleHere() any more: that roster drops anybody in a mask, so a man in a
+  // closed helm could not be swung at, which made a helmet a shield against
+  // being attacked at all. A hood hides WHO somebody is, never THAT they are
+  // standing in front of you.
+  //
+  // A concealed row carries an HMAC token in place of its id, because
+  // /api/avatar/<id> answers with a face — shipping the id IS the unmasking.
+  // attackCharacterImpl resolves it back through db/lib/targetKey.js.
+  const roomNow = await whosHere(prisma, character, { includeSelf: false, withSightings: true });
   return {
     ok: true,
-    people: here.map((row) => ({ id: row.id, name: seenAs(identityOf(row)) })),
+    people: [
+      ...roomNow.named.map((row) => ({ id: `character:${row.characterId}`, name: row.name })),
+      ...roomNow.concealed.filter((row) => row.token).map((row) => ({ id: `hood:${row.token}`, name: row.alias })),
+    ],
     fighting: await attacksBy(prisma, character.id, openTurn?.id ?? null),
     // Why the dialog's Attack button is dead, or null. Advisory — the same
     // sentence is thrown for real below — and it deliberately does NOT reach
@@ -101,10 +114,12 @@ async function loadAttacksImpl() {
   };
 }
 
-async function attackCharacterImpl({ targetCharacterId }) {
+async function attackCharacterImpl({ targetKey, targetCharacterId }) {
   const { session, character } = await me({ needs: ACT });
-  if (!targetCharacterId) throw new UserError("Pick somebody to attack.");
-  if (targetCharacterId === character.id) throw new UserError("You can't attack yourself.");
+  // `targetCharacterId` is still accepted so a page loaded before this shipped
+  // keeps working; the dialog posts `targetKey` now.
+  const key = targetKey ?? targetCharacterId;
+  if (!key) throw new UserError("Pick somebody to attack.");
 
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("There's no turn open right now.");
@@ -115,12 +130,10 @@ async function attackCharacterImpl({ targetCharacterId }) {
   const spent = await attackMoveBlock(prisma, character.id, openTurn.id);
   if (spent) throw new UserError(spent);
 
-  const target = await prisma.character.findUnique({
-    where: { id: targetCharacterId },
-    select: FULL_SELECT,
-  });
-  // Re-checked server-side on the posted id, never trusted from the dialog.
-  if (!target || !isHere(character, target)) throw new UserError(notHereMessage(target));
+  // Re-checked server-side on the posted key, never trusted from the dialog.
+  // allowConcealed is on inside this helper: a mask is not cover from a fist.
+  const target = await resolveHereTarget(character, key, { select: FULL_SELECT });
+  if (target.id === character.id) throw new UserError("You can't attack yourself.");
 
   // THE GATE, and it is the only thing a player ever learns about somebody
   // else's band. See docs/systemdocs/COMBAT.md §5 for why that is a deliberate
@@ -173,7 +186,7 @@ async function attackCharacterImpl({ targetCharacterId }) {
   return { ok: true, line: `You attack ${seen}.` };
 }
 
-async function cancelAttackImpl({ targetCharacterId }) {
+async function cancelAttackImpl({ targetKey, targetCharacterId }) {
   const { session, character } = await me();
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("There's no turn open right now.");
@@ -181,15 +194,25 @@ async function cancelAttackImpl({ targetCharacterId }) {
   // NO combatGate check here, deliberately. Breaking off is the one way out of
   // a fight for a player whose Move is already spent, and gating it would trap
   // exactly the person the gate above exists to protect somebody from.
-  const target = await prisma.character.findUnique({
-    where: { id: targetCharacterId ?? "" },
-    select: { ...IDENTITY_SELECT, status: true },
-  });
+  //
+  // The row resolves from a KEY, because an opponent in a mask is listed by
+  // token rather than id (db/lib/attack.js#attacksBy) — you can break off a
+  // fight with a stranger without ever learning who they were. No co-presence
+  // check: you may call off a fight with somebody who has already walked away,
+  // which is the whole point of Break off, so this cannot use
+  // resolveHereTarget() and resolves the key directly instead.
+  const targetId = (await resolveTargetKey(prisma, character, targetKey ?? targetCharacterId)) ?? "";
+  const target = targetId
+    ? await prisma.character.findUnique({
+        where: { id: targetId },
+        select: { ...IDENTITY_SELECT, status: true },
+      })
+    : null;
   // cancelAttack's WHERE is the ownership check — only the person who started
   // it may call it off — so there is no second lookup here to disagree with it.
   const done = await cancelAttack(prisma, {
     attackerId: character.id,
-    targetCharacterId: targetCharacterId ?? "",
+    targetCharacterId: targetId,
     turnId: openTurn.id,
   });
   if (!done.ok) throw new UserError("You aren't fighting them.");
@@ -198,7 +221,7 @@ async function cancelAttackImpl({ targetCharacterId }) {
   await logAudit(prisma, {
     actorDiscordUserId: session.discordUserId,
     actionType: "request_attack_cancelled",
-    targetCharacterId: targetCharacterId ?? null,
+    targetCharacterId: targetId || null,
     turnId: openTurn.id,
     details: { presented: seen },
   });

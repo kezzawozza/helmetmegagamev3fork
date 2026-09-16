@@ -53,7 +53,10 @@ export default function AttackDialog({ onDone, onClose }) {
 
   // Anybody you are already fighting is off the picker — the row for them is
   // in the list below, and pressing it again could only ever be refused.
-  const busyWith = new Set(fighting.map((row) => row.id));
+  // Matched on the KEY, not an id: a hooded opponent has no id on either list
+  // (db/lib/attack.js#attacksBy), and comparing the two by id would put a mask
+  // you are already fighting back in the picker.
+  const busyWith = new Set(fighting.map((row) => row.key));
   const options = people.filter((row) => !busyWith.has(row.id));
   const target = options.find((row) => row.id === targetId) ?? null;
 
@@ -66,7 +69,7 @@ export default function AttackDialog({ onDone, onClose }) {
     });
     if (!ok) return;
     submit(
-      () => attackCharacterRequest({ targetCharacterId: target.id }),
+      () => attackCharacterRequest({ targetKey: target.id }),
       (res) => onDone(res.line),
     );
   }
@@ -100,7 +103,7 @@ export default function AttackDialog({ onDone, onClose }) {
         <div className="field">
           <span className="field-label">You are fighting</span>
           {fighting.map((row) => (
-            <div key={row.id} className="chip-row">
+            <div key={row.key} className="chip-row">
               <span className="text-sm">{row.name}</span>
               <button
                 type="button"
@@ -108,9 +111,9 @@ export default function AttackDialog({ onDone, onClose }) {
                 disabled={busy}
                 onClick={() =>
                   submit(
-                    () => cancelAttackRequest({ targetCharacterId: row.id }),
+                    () => cancelAttackRequest({ targetKey: row.key }),
                     (res) => {
-                      setFighting((rows) => rows.filter((r) => r.id !== row.id));
+                      setFighting((rows) => rows.filter((r) => r.key !== row.key));
                       onDone(res.line);
                     },
                   )

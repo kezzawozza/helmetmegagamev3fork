@@ -18,10 +18,18 @@ const FORCING_HOOD = {
   tag: { concealsIdentity: true, forcesConceal: true, concealSprite: { not: null } },
 };
 
-// Always strict about hoods, no opt-out: Transfer is the one action that
-// reaches a concealed person, and it does NOT come through here — it asks
-// db/lib/whosHere.js instead. isHere() below still takes
-// `allowConcealed`, the re-check Transfer keeps (web/lib/transferReach.js).
+// Always strict about hoods, no opt-out. The verbs that DO reach a concealed person do not come
+// through here at all — they ask db/lib/whosHere.js, which hands back a token instead of an id, and
+// post it back through db/lib/targetKey.js. That set is no longer just Transfer: Search joined it,
+// and then every verb that acts on a BODY rather than on a name (Attack, Bind, Free, Crucify,
+// Shackle, Torture, Harm, Mutilate, Brand), because a hood hides WHO somebody is and never THAT they
+// are standing there. Until that landed, `forcesConceal` being set on ordinary closed helmets meant
+// putting a Tribunal Helmet on made a man unattackable.
+//
+// Loot and Heal are deliberately still outside it: their pickers carry the target's tag list, and an
+// inventory or a wound list identifies a person nearly as well as a name does.
+//
+// isHere() below takes `allowConcealed`, which every one of those verbs passes.
 function hereWhere(character, { includeDead = false } = {}) {
   return {
     locationId: character.locationId,

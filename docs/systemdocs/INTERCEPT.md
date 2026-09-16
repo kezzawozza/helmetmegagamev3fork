@@ -55,10 +55,11 @@ Both halves of that are load-bearing, and they are different hooks on purpose:
   surely as legs do. It sits **above** that function's `DISCORD_TOKEN` guard,
   the `recordArrival` reasoning: losing the watch is a database fact and must
   not depend on there being a token to talk to Discord with. Only the letter
-  waits for one. It fires only when `fromLocationId` is set, because a GM's
-  Discord resync, a revive and a first placement all pass `null` for something
-  that is not a move — without that check, pressing **Resync** would silently
-  end a player's ambush.
+  waits for one. It fires only when `fromLocationId` is set, because a revive
+  and a first placement both pass `null` for something that is not a move —
+  without that check, reviving somebody would silently end their ambush. The
+  dev panel's **Re-push Discord** button was the third of these and is gone
+  (`DEV-PANEL.md` §2).
 - **The anchor** is the same rule written twice, on purpose: `anchorHolds()`
   for the dialog, and a `where` clause for `fireWatches` (§5). A row is inert
   anywhere but its own Location, so a relocation that skipped the delete leaves

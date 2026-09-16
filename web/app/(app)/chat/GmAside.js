@@ -246,12 +246,7 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
           </div>
         )}
 
-        {openTab === "gm" && (
-          <>
-            {kind === "net" && <EmptyState>A frequency is not a place. Nobody stands on one.</EmptyState>}
-            <GmSayBox selected={selected} onSaid={onPlaceChanged} />
-          </>
-        )}
+        {openTab === "gm" && <GmSayBox selected={selected} onSaid={onPlaceChanged} />}
       </div>
 
       {/* Bottom-pinned by .chat-aside-tabs > .desk-inspector-zones. */}

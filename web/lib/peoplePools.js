@@ -148,8 +148,35 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     // `withSightings` so the dropdown and the HERE column six inches above it
     // call the same person the same thing — the name you HOLD, frozen at the
     // last line you heard them say.
-    whosHere(prisma, character, { includeSelf: false, withSightings: true }),
+    whosHere(prisma, character, { includeSelf: false, withSightings: true, withHoodIds: true }),
   ]);
+
+  // THE HOODED HALF of the rosters below. A hood hides WHO somebody is, never THAT they are standing
+  // there — so the verbs that act on a BODY (Bind, Free, Crucify, Shackle, Torture, Kiss) have to be
+  // able to reach one. Until this they could not, and since forcesConceal is set on ordinary closed
+  // helmets, putting a Tribunal Helmet on made a person unbindable and unattackable both.
+  //
+  // `withHoodIds` is the server-only token -> id map (db/lib/whosHere.js); the rows it names never
+  // travel with an id, only the token, because /api/avatar/<id> would draw the face the mask is for.
+  // Loot and Heal are deliberately NOT extended: their rows carry the target's tag list — an
+  // inventory or a wound list identifies a person nearly as well as a name does, so those two need
+  // their details loaded after the action is authorised rather than shipped to the picker.
+  const hoodIds = roomNow.hoodIds ?? new Map();
+  const hoodNameByToken = new Map(roomNow.concealed.filter((c) => c.token).map((c) => [c.token, c.alias]));
+  const hoodRows = hoodIds.size
+    ? await prisma.character.findMany({
+        where: { id: { in: [...hoodIds.values()] }, status: "ALIVE" },
+        select: { id: true, tags: { select: { tag: { select: { slug: true } } } } },
+      })
+    : [];
+  const hoodTokenById = new Map([...hoodIds].map(([token, id]) => [id, token]));
+  // Shaped like a roster row, but keyed by token and carrying only what is plainly VISIBLE about a
+  // person — that they are tied up, that they are out cold. None of it says who they are.
+  const hoodRoster = hoodRows.map((c) => ({
+    id: `hood:${hoodTokenById.get(c.id)}`,
+    name: hoodNameByToken.get(hoodTokenById.get(c.id)) ?? "somebody",
+    slugs: new Set(c.tags.map((ct) => ct.tag.slug)),
+  }));
 
   const selfEntry = { id: character.id, name: rosterName(character) };
   const peopleParties = [selfEntry, ...here.map((c) => ({ id: c.id, name: rosterName(c) }))];
@@ -367,25 +394,46 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // Bind and Free split this one list on `bound`; Crucify on `crucified`;
   // Shackle on `bound && !shackled`. `bound` counts shackles too — Free,
   // Torture and Mutilate treat a shackled person as tied up.
-  const bindTargets = zoneRoster
-    .filter((c) => c.status === "ALIVE")
-    .map((c) => ({
+  const bindTargets = [
+    ...zoneRoster
+      .filter((c) => c.status === "ALIVE")
+      .map((c) => ({
+        id: `character:${c.id}`,
+        name: rosterName(c),
+        bound: c.tags.some((ct) => ct.tag.slug === "bound" || ct.tag.slug === "shackled"),
+        shackled: c.tags.some((ct) => ct.tag.slug === "shackled"),
+        crucified: c.tags.some((ct) => ct.tag.slug === "crucified"),
+      })),
+    // Whether somebody is tied up is a fact about the rope, not about their face.
+    ...hoodRoster.map((c) => ({
       id: c.id,
-      name: rosterName(c),
-      bound: c.tags.some((ct) => ct.tag.slug === "bound" || ct.tag.slug === "shackled"),
-      shackled: c.tags.some((ct) => ct.tag.slug === "shackled"),
-      crucified: c.tags.some((ct) => ct.tag.slug === "crucified"),
-    }));
+      name: c.name,
+      bound: c.slugs.has("bound") || c.slugs.has("shackled"),
+      shackled: c.slugs.has("shackled"),
+      crucified: c.slugs.has("crucified"),
+    })),
+  ];
 
   // `finishable` is the narrower Dying-or-Bound gate on the lethal half.
-  const harmTargets = helpless
-    .filter((c) => c.status === "ALIVE")
-    .map((c) => ({
-      id: c.id,
-      name: rosterName(c),
-      condition: conditionOf(c),
-      finishable: c.tags.some((ct) => FINISHABLE_SLUGS.has(ct.tag.slug)),
-    }));
+  const harmTargets = [
+    ...helpless
+      .filter((c) => c.status === "ALIVE")
+      .map((c) => ({
+        id: `character:${c.id}`,
+        name: rosterName(c),
+        condition: conditionOf(c),
+        finishable: c.tags.some((ct) => FINISHABLE_SLUGS.has(ct.tag.slug)),
+      })),
+    // Same rule: being unconscious on the floor is something the room can see.
+    ...hoodRoster
+      .filter((c) => [...c.slugs].some((slug) => INCAPACITATING_SLUGS.has(slug)))
+      .map((c) => ({
+        id: c.id,
+        name: c.name,
+        condition: null,
+        finishable: [...c.slugs].some((slug) => FINISHABLE_SLUGS.has(slug)),
+      })),
+  ];
 
   // Poison's own dose-a-helpless-person roster (M4) — the same helpless
   // class Harm and Loot use, minus the dead (a poison lands on a body's
@@ -425,6 +473,9 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // Menu hygiene only. kissRequestImpl re-runs the whole gate through
   // kissAuthority on whatever id is posted, and so does the Accept click a day
   // later, so a stale page can never push a kiss past this list.
+  // NOT extended with hoods, and not an oversight: kissBlock() already refuses a mask over the face,
+  // so a concealed row could only ever be a person you are told you cannot kiss. Bare ids, because
+  // nothing here needs a token — kissRequestImpl is untouched by the target-key change.
   const kissTargets = here
     .filter((p) => !kissBlock(p, { self: false }))
     .map((p) => ({ id: p.id, name: rosterName(p) }));

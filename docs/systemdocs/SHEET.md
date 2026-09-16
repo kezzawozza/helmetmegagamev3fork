@@ -115,7 +115,8 @@ Who this is, where they stand, and:
   one is `CombatReadout.js`. Both used to live inside `LedgerBand.js`; they
   came out when the GM desks started wearing the same readout, so the swap-in-
   place behaviour below is written once rather than approximated a second time
-  on the desk (COMBAT.md §6). Nothing on this page changed when they moved.
+  on the desk (COMBAT.md §6). The Dev Character Panel's band is the third
+  caller (`DEV-PANEL.md` §3). Nothing on this page changed when they moved.
 - **Three ways in, and all three are needed.** A mouse opens on
   `pointerenter` and closes on leave. A **tap** is the click path: touch fires
   a synthesised `mouseenter` before its click, so the pointer handlers ignore

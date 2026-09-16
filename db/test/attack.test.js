@@ -250,3 +250,39 @@ test("a death closes the fight from EITHER end", async () => {
   assert.deepEqual(f.held(), { a: "free", b: "free" });
   assert.deepEqual(f.live(), []);
 });
+
+// ─── attacksBy and the hooded opponent ─────────────────────────────────────
+// The "You are fighting" list goes to a browser. /api/avatar/<id> answers with a face, so a hooded
+// opponent must travel as a token — otherwise swinging at a stranger would unmask them, which is the
+// one thing db/lib/intercept.js#matchesArrival is written to prevent.
+const { attacksBy: attacksByFn } = require("../lib/attack");
+const { hoodToken: hoodTokenFn } = require("../lib/hoodToken");
+
+process.env.AUTH_SECRET ||= "test-secret-for-hood-tokens";
+
+const maskTags = (over) =>
+  over
+    ? [{ equipped: true, tag: { forcedName: null, name: "Hood", concealsIdentity: true, concealSprite: "hood", forcesConceal: true, equipLayer: 1 } }]
+    : [];
+const maskedFightRow = (id, name, masked) => ({
+  targetCharacter: { id, name, concealed: false, age: 30, gender: "MAN", tags: maskTags(masked) },
+});
+const fakeAttackDb = (rows) => ({ attack: { findMany: async () => rows } });
+
+test("attacksBy names an opponent in the open and hands back their id", async () => {
+  const [row] = await attacksByFn(fakeAttackDb([maskedFightRow("c1", "Horvath", false)]), "me", "turn1");
+  assert.equal(row.name, "Horvath");
+  assert.equal(row.id, "c1");
+  assert.equal(row.key, "character:c1");
+});
+
+test("attacksBy withholds a hooded opponent's id and travels as a token instead", async () => {
+  const [row] = await attacksByFn(fakeAttackDb([maskedFightRow("c2", "Oleg", true)]), "me", "turn1");
+  assert.equal(row.id, null, "a hooded opponent must carry no raw character id");
+  assert.equal(row.key, `hood:${hoodTokenFn("c2")}`);
+  assert.ok(!/Oleg/.test(row.name), "a hood is never named outright");
+});
+
+test("attacksBy answers nothing without an open turn", async () => {
+  assert.deepEqual(await attacksByFn(fakeAttackDb([maskedFightRow("c1", "Horvath", false)]), "me", null), []);
+});
