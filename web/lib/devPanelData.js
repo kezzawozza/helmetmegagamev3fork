@@ -483,7 +483,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       tag: ct.tag,
     })),
     feed: { dropSlug: HUNGER_SLUG, grantSlug: ATE_MEAL_SLUG },
-    startingTagPoints: config?.startingTagPoints ?? 12,
+    startingTagPoints: config?.startingTagPoints ?? 8,
     carry,
     openTurn: openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null,
     // The parts, not just the total: the band's Gambit tile opens to say WHICH

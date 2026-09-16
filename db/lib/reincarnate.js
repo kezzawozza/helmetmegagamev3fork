@@ -21,9 +21,9 @@ const { isDynastyMember, DYNASTY_HEAD_SLUG } = require("./dynasty");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { sendDm } = require("./dm");
 
-// Half the default `startingTagPoints` of 12, not a second full budget: a
+// Half the default `startingTagPoints` of 8, not a second full budget: a
 // second life, not a better one.
-const REINCARNATION_BONUS_POINTS = 6;
+const REINCARNATION_BONUS_POINTS = 4;
 
 // Short of the catalog's own AGE_MAX of 90 on purpose: a uniform 18-90 roll
 // averages 54, and db/lib/concealedIdentity.js reads 55+ as "Old", so half of
@@ -119,7 +119,7 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
   // Seat's own bonus counts (web/lib/characterCreation.js#computeBudget); the
   // Cursed penalty does NOT apply since the soul found a body.
   const budget =
-    (config?.startingTagPoints ?? 12) + (role.extraStartingPoints ?? 0) + REINCARNATION_BONUS_POINTS;
+    (config?.startingTagPoints ?? 8) + (role.extraStartingPoints ?? 0) + REINCARNATION_BONUS_POINTS;
 
   // Role's own kit, resolved like the wizard: entries may carry a count ("obol x5"), summed not repeated.
   const wanted = new Map();

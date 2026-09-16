@@ -384,7 +384,7 @@ model GameConfig {
   // role's own `extra_starting_points` and the Cursed penalty are applied
   // (see web/lib/characterCreation.js#computeBudget). Editable live from
   // the Dev Panel so it can be tuned right up to launch.
-  startingTagPoints Int @default(12)
+  startingTagPoints Int @default(8)
 
   // Whether a role that grants a faction Leader seat still requires the
   // @Leader Whitelist Discord role (db/lib/roleIds.js). Off means every player

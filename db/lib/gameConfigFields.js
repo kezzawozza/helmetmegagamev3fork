@@ -27,7 +27,7 @@ const GROUPS = [
 const FIELDS = [
   // --- Character creation --------------------------------------------------
   {
-    key: "startingTagPoints", type: "int", group: "creation", default: 12, min: 0, max: 100,
+    key: "startingTagPoints", type: "int", group: "creation", default: 8, min: 0, max: 100,
     label: "Starting Tag Points",
   },
   {

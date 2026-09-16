@@ -386,7 +386,7 @@ Before this, the sign was catalog-style while the colour was pool-style, so
 Frail read as "`-3`, in green" — two conventions disagreeing on one line.
 
 A character's budget is
-`GameConfig.startingTagPoints` (default 12) `+ role.extra_starting_points`
+`GameConfig.startingTagPoints` (default 8) `+ role.extra_starting_points`
 `- 6 if the player is Cursed`, computed by
 `web/lib/characterCreation.js#computeBudget`. Anything unspent is kept on
 `Character.tagPoints`.
@@ -611,9 +611,9 @@ at whichever it reaches first:**
   phobia and habit drawbacks).
 - **`GameConfig.maxDrawbackPoints`** — how many points those drawbacks may
   claim back in total, stored as a **positive magnitude**. **13** by default
-  (widened from 12 the same day) — one point *above* `startingTagPoints`,
-  deliberately: a build carrying six real problems can now buy one point's
-  worth more than the starting budget, rather than the old exact symmetry.
+  (widened from 12 the same day). It used to sit one point *above*
+  `startingTagPoints`; since the budget dropped to 8 on 2026-09-16 the cap has
+  stood on its own, so drawbacks can claim back more than the starting budget.
 
 Both are live on `/gm/dev`, and `0` is a real setting on either: no drawbacks
 at all.

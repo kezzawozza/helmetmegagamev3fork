@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Fewer points at creation, and a smaller second life
+
+✎ Characters now start with 8 points to spend instead of 12  
+✎ A reincarnated soul gets 4 bonus points instead of 6
+
 ## 2026-09-16 · Dragging the map no longer highlights its text
 
 ✎ A drag across the map is a pan, not a text selection — the place names and the zoom bar no longer light up blue when you sweep past them

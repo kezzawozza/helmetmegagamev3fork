@@ -551,7 +551,7 @@ Two things arrive on top of the YAML package, both in `createCharacter`:
 ## 3. The point economy
 
 ```
-budget = GameConfig.startingTagPoints      (default 12, live on /gm/dev)
+budget = GameConfig.startingTagPoints      (default 8, live on /gm/dev)
        + role.extra_starting_points        (Outsider +4; no other role sets it)
        - 6 if the player is Cursed
 ```
@@ -569,11 +569,12 @@ a drawback you could buy mid-game would be a point farm.
 Drawbacks face **two** ceilings, and a build stops at whichever it reaches
 first: at most `GameConfig.maxDrawbackTags` of them may be bought (**6** by
 default), claiming back at most `GameConfig.maxDrawbackPoints` points in total
-(**13** by default). The point cap sits one **above** `startingTagPoints` on
-purpose, not equal to it — so the most a maxed-out build can net from
-drawbacks is one point more than it started with, rather than the old exact
-symmetry. Both are live on `/gm/dev`. Either alone leaves a
-hole: a count cap spends the same slot on a −1 as on a −11, and a point cap
+(**13** by default). The point cap used to sit one **above**
+`startingTagPoints`, so a maxed-out build could net one point more than it
+started with. The budget dropped to 8 on 2026-09-16 and the cap stayed where it
+was, so the two no longer track each other — a build deep in drawbacks can now
+claim back rather more than it began with, which is the intended trade. Both
+are live on `/gm/dev`. Either alone leaves a hole: a count cap spends the same slot on a −1 as on a −11, and a point cap
 alone never stops a pile of small ones. The role's own starting tags land as
 `GM_GRANT` and never pass through the purchase path, so the Meister's free
 Frail and the Headman's Old count against neither. `TAGS.md` §4a is the full
@@ -880,7 +881,7 @@ See `docs/systemdocs/DEPOT.md` §0g.
 
 A `mastery` tag (`TAGS.md` §4a). A character holding it who dies is rolled
 straight into a new one instead of going back through the wizard as a Cursed
-re-roll: **a random role with a free seat, `startingTagPoints + 6`, and no
+re-roll: **a random role with a free seat, `startingTagPoints + 4`, and no
 Curse.** `db/lib/reincarnate.js`.
 
 It hangs off `db/lib/characterDeath.js#applyDeathToRow` rather than off the
