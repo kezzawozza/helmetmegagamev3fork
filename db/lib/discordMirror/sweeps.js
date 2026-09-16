@@ -11,6 +11,11 @@ const { runOverwritesSweep } = require("../channelDoctor/sweeps/overwrites");
 const { runThreadsSweep } = require("../channelDoctor/sweeps/threads");
 const { runNarrowcastSweep } = require("../channelDoctor/sweeps/narrowcast");
 const { runTurnsAccessSweep } = require("../channelDoctor/sweeps/turnsAccess");
+const {
+  accountRowsFromMembers,
+  planDiscordAccountSync,
+  applyDiscordAccountSync,
+} = require("../discordAccounts");
 
 // `scope` decides how much of this runs: "structure" none of it, "cheap" the
 // first two, "full" all six.
@@ -62,6 +67,27 @@ async function runSweeps(prisma, { scope, report, errors, live }) {
   for (const location of locations) {
     const channel = location.discordChannelId ? live.channelsById.get(location.discordChannelId) : null;
     if (channel) liveLocationChannels.set(location.id, channel);
+  }
+
+  // --- cheap: the handle cache -----------------------------------------
+
+  // Free: `memberList` is already in hand above, and the plan reads before it
+  // writes, so a guild where nobody renamed themselves costs one indexed query.
+  // Planned and repaired separately so a dry run stays a dry run. Never fails
+  // the run — a stale handle is a search miss, not broken Discord.
+  try {
+    const plan = await planDiscordAccountSync(prisma, accountRowsFromMembers(memberList));
+    const drifted = plan.toCreate.length + plan.toUpdate.length;
+    if (drifted > 0) {
+      await report(
+        "discord-handles",
+        `${drifted} account(s)`,
+        `${plan.toCreate.length} handle(s) never cached, ${plan.toUpdate.length} renamed`,
+        () => applyDiscordAccountSync(prisma, plan),
+      );
+    }
+  } catch (err) {
+    errors.push(`Discord handle cache failed: ${err.message}`);
   }
 
   // --- cheap: structure ------------------------------------------------

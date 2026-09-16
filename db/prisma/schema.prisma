@@ -516,12 +516,12 @@ model GameConfig {
   // npm run db:sync-narrowcast-channels; never touched again after that.
   // #intercom used to be the second one; it is a button on the Council Room
   // table now, so its column is gone with it.
-  radioCategoryId    String?
-  cerberonChannelId  String?
+  radioCategoryId     String?
+  cerberonChannelId   String?
   // The second net (2026-09-10): an open frequency anyone holding a
   // Radio (27.065) both hears and speaks on. Column name can't lead with a
   // digit; the channel itself is named after the frequency.
-  freq27065ChannelId String?
+  freq27065ChannelId  String?
   // The third net: the Tribunal's own frequency, held by the Tribune and
   // Tribunal Ordinator seats (Radio (243.000), docs/tags.yaml). Same shape
   // as freq27065ChannelId above.
@@ -2208,7 +2208,7 @@ model Character {
 
   // Orphan: the "Automatically ride my mount" switch was removed. Nothing
   // reads or writes this any more; kept rather than dropped (CARRY.md §3).
-  autoMount     Boolean @default(false)
+  autoMount Boolean @default(false)
 
   // unread since 2026-09-15, drop after a week — replaced by
   // discordMirrored below (opt-in Discord now, opt-out then).
@@ -4335,7 +4335,7 @@ model PendingTax {
   // both off one target files two rows, same as everywhere else two things
   // move together (FACTIONS.md, resourceTransfer.js's own ⬢-only shape).
   // Defaulted for the rows filed before Obols were taxable.
-  kind PendingTaxKind @default(RESOURCES)
+  kind      PendingTaxKind @default(RESOURCES)
 
   // Set by the Refuse button (db/lib/tax.js#refuseTax). The pass's own claim
   // re-checks this, so a refusal landing between the read and the close still
@@ -5709,4 +5709,36 @@ model MirrorJob {
   /// Repeat saves of the same place coalesce into one job.
   @@unique([targetType, targetId])
   @@index([finishedAt])
+}
+
+/// The Discord handle behind an account, cached so a GM can search "peace.lock"
+/// instead of a snowflake. Discord offers no name-to-id lookup, and nothing else
+/// stores one: Character keys on discordUserId and renders the name live, which
+/// works on a page holding the member already and nowhere else.
+///
+/// A CACHE, not an identity table — auth still resolves through
+/// Character.discordUserId and no gate reads this. One row is one ACCOUNT, not
+/// one character, so a player with three characters has a single handle that
+/// cannot disagree with itself.
+///
+/// Every writer upserts (db/lib/discordAccounts.js): the bot's member sweep at
+/// ready, a web sign-in, and the mirror. Handles are mutable, so a row is
+/// reconciled rather than created once. A member leaving the guild is NOT a
+/// delete — the handle behind their archive lines outlives their membership.
+model DiscordAccount {
+  /// The snowflake. Deliberately the primary key rather than a cuid: there is
+  /// exactly one row per account and every caller already holds this id.
+  discordUserId String @id
+
+  /// Discord's unique handle, e.g. "peace.lock". Stored in Discord's own casing;
+  /// lookups go through normalizeHandle() and match case-insensitively.
+  username String
+
+  /// The display name, which most accounts set and some do not.
+  globalName String?
+
+  updatedAt DateTime @updatedAt
+
+  /// What a GM actually searches by.
+  @@index([username])
 }

@@ -81,6 +81,25 @@ const nextAuth = NextAuth({
       if (discordUserId) {
         token.discordUserId = discordUserId;
       }
+      // Cache the handle behind the account while Discord is handing it to us —
+      // this is the one moment the web sees it, and there is no name-to-id
+      // lookup to recover it later (db/lib/discordAccounts.js). Only on a real
+      // OAuth sign-in: the Credentials provider (local dev) carries no profile.
+      // Awaited but never allowed to throw — a cache write must not cost
+      // somebody their sign-in.
+      if (discordUserId && profile?.username) {
+        try {
+          const { prisma } = await import("@lifeweb/db");
+          const { rememberDiscordAccount } = await import("@lifeweb/db/lib/discordAccounts");
+          await rememberDiscordAccount(prisma, {
+            discordUserId,
+            username: profile.username,
+            globalName: profile.global_name ?? null,
+          });
+        } catch (err) {
+          console.error("Failed to remember Discord handle on sign-in:", err);
+        }
+      }
       return token;
     },
     async session({ session, token }) {

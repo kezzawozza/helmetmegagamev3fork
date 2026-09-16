@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · The game remembers Discord handles
+
+✎ Every guild member's Discord handle is now cached, so a GM can look somebody up by name instead of a numeric id  
+✎ Nothing is visible yet — this is the groundwork; the search itself comes next
+
 ## 2026-09-16 · Any lesson is worth a Tag Point now
 
 − Learn to read, which only paid the one time and only for one skill  

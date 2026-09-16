@@ -7,6 +7,7 @@ const {
   recordInvalidResponse,
 } = require("@lifeweb/db/lib/discordRest");
 const { syncNicknamesForGuild } = require("../lib/nickname");
+const { syncDiscordAccountsForGuild } = require("../lib/discordAccountSync");
 const { advanceTurn } = require("../lib/turnEngine");
 const { ensureTurnsConsole } = require("../lib/turnsConsole");
 const { ensureReportAnchor } = require("../lib/reportChannel");
@@ -160,6 +161,9 @@ module.exports = {
     }
 
     for (const guild of client.guilds.cache.values()) {
+      // Before the nickname sync, which is gated on its own GameConfig switch: a handle
+      // cache should not stop filling because nickname syncing was turned off.
+      await syncDiscordAccountsForGuild(guild);
       await syncNicknamesForGuild(guild).catch((err) => console.error("Failed to sync nicknames:", err));
       // guildMemberRemove only fires while the gateway is up, so this diff against live membership
       // is the only thing that catches a player who left during a restart. See leaveReconcile.js
