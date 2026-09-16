@@ -174,7 +174,7 @@ async function deliverOoc(prisma, { placeKey, text, auditId = null } = {}) {
     if (row?.id && auditId) {
       await prisma.auditLog.update({
         where: { id: auditId },
-        data: { details: { text: body, placeKey, archiveEntryId: row.id } },
+        data: { details: { text, placeKey, archiveEntryId: row.id } },
       });
     }
   } catch (err) {

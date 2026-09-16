@@ -35,7 +35,7 @@ const FIELDS = [
     label: "Max drawback tags",
   },
   {
-    key: "maxDrawbackPoints", type: "int", group: "creation", default: 13, min: 0, max: 60,
+    key: "maxDrawbackPoints", type: "int", group: "creation", default: 8, min: 0, max: 60,
     label: "Max drawback points",
   },
   {

@@ -569,12 +569,10 @@ a drawback you could buy mid-game would be a point farm.
 Drawbacks face **two** ceilings, and a build stops at whichever it reaches
 first: at most `GameConfig.maxDrawbackTags` of them may be bought (**6** by
 default), claiming back at most `GameConfig.maxDrawbackPoints` points in total
-(**13** by default). The point cap used to sit one **above**
-`startingTagPoints`, so a maxed-out build could net one point more than it
-started with. The budget dropped to 8 on 2026-09-16 and the cap stayed where it
-was, so the two no longer track each other — a build deep in drawbacks can now
-claim back rather more than it began with, which is the intended trade. Both
-are live on `/gm/dev`. Either alone leaves a hole: a count cap spends the same slot on a −1 as on a −11, and a point cap
+(**8** by default). The point cap matches `startingTagPoints` exactly: you can
+never claim back more than you started with. Both dropped together on
+2026-09-16, from 13 and 12. Both are live on `/gm/dev`. Either alone leaves a
+hole: a count cap spends the same slot on a −1 as on a −11, and a point cap
 alone never stops a pile of small ones. The role's own starting tags land as
 `GM_GRANT` and never pass through the purchase path, so the Meister's free
 Frail and the Headman's Old count against neither. `TAGS.md` §4a is the full

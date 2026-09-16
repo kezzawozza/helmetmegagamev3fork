@@ -610,10 +610,10 @@ at whichever it reaches first:**
   **6** by default (widened from 5 on 2026-09-05, to make room for the new
   phobia and habit drawbacks).
 - **`GameConfig.maxDrawbackPoints`** — how many points those drawbacks may
-  claim back in total, stored as a **positive magnitude**. **13** by default
-  (widened from 12 the same day). It used to sit one point *above*
-  `startingTagPoints`; since the budget dropped to 8 on 2026-09-16 the cap has
-  stood on its own, so drawbacks can claim back more than the starting budget.
+  claim back in total, stored as a **positive magnitude**. **8** by default
+  (down from 13 on 2026-09-16, when the starting budget dropped too) — it
+  matches `startingTagPoints`, so a build can never claim back more than it
+  started with.
 
 Both are live on `/gm/dev`, and `0` is a real setting on either: no drawbacks
 at all.

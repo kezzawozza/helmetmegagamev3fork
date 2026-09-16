@@ -489,7 +489,7 @@ model GameConfig {
   // every drawback carries a negative pointCost, so nothing has to do a sign
   // dance to compare against it. It matches startingTagPoints on purpose:
   // you can never claim back more than you started with.
-  maxDrawbackPoints Int @default(13)
+  maxDrawbackPoints Int @default(8)
 
   // How many Desire slots a character has, each of which can be claimed into
   // once every desireSlotLockTurns turns. Same live-editable posture as

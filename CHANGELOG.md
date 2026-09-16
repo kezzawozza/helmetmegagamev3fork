@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Drawbacks can claim back 8 again, and OOC lines link to their scene
+
+✎ The drawback point cap drops to 8, matching the new starting budget  
+✎ Fixed the OOC backlink, which had been failing silently — a GM's OOC lens can open the surrounding scene again
+
 ## 2026-09-16 · Fewer points at creation, and a smaller second life
 
 ✎ Characters now start with 8 points to spend instead of 12  
