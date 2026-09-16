@@ -3,7 +3,7 @@
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
-import { crossingCheck, travelOptions } from "@lifeweb/db/lib/locationGraph";
+import { crossingCheck, travelOptions, routesWithinZone } from "@lifeweb/db/lib/locationGraph";
 import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import { recordArrival, knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
@@ -99,6 +99,14 @@ async function buildMap({ character, unfogged }) {
   const neighbours = character?.locationId ? await travelOptions(prisma, character, character.locationId) : [];
   const adjacent = new Map(neighbours.map((row) => [row.location.id, row]));
 
+  // Everywhere in their own zone they could WALK to (MAP.md §3c). Fed the very
+  // set `visible()` below reads, so a walkable node is always one the board was
+  // already drawing — no new row ships, and the fog rule of §6b is untouched.
+  const walks = character?.locationId
+    ? await routesWithinZone(prisma, character, { known: known.seen })
+    : [];
+  const walkTo = new Map(walks.map((row) => [row.location.id, row]));
+
   const party = character ? await partyOf(prisma, character.id) : [];
 
   // Only places they have stood — a room is a door you must have stood in front of.
@@ -120,6 +128,7 @@ async function buildMap({ character, unfogged }) {
 
     const here = Boolean(character?.locationId && location.id === character.locationId);
     const near = adjacent.get(location.id) ?? null;
+    const walk = walkTo.get(location.id) ?? null;
     const stood = unfogged || known.stood.has(location.id);
     // THIS crossing's own count, not a flat one shared by every node — a
     // boat's bonus is earned per crossing (db/lib/mounts.js#boatCrossing),
@@ -155,6 +164,16 @@ async function buildMap({ character, unfogged }) {
       indoors: parksMounts(location),
       adjacent: Boolean(near),
       passable: Boolean(near?.passable),
+      // Reachable on foot inside this zone, through places they already know.
+      // The board's Go reads this as well as `passable`; the DOUBLE-CLICK reads
+      // it and nothing else, which is what keeps a gesture off every crossing.
+      walkable: Boolean(walk),
+      walkHops: walk?.hops ?? null,
+      // The stops on the way, named before they commit — the guard that makes
+      // the gesture safe (MAP.md §6c). Never the destination itself.
+      walkThrough: walk ? walk.path.slice(0, -1).map((l) => l.name) : null,
+      // A narrow way somewhere along the road would take their horse off them.
+      walkDismounts: Boolean(walk?.dismounts),
       crossesZone: Boolean(near?.crossesZone),
       freeLeft,
       // Whether Push on belongs on the card for this crossing (MAP.md §3).

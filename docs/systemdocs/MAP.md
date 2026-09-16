@@ -316,7 +316,9 @@ was 60 until 2026-09-08, which was long enough to feel like a wall)
 gates it, enforced by a **conditional `updateMany`** whose `WHERE` clause
 *is* the check (`lastLocationMoveAt` null or old enough) — the same shape the
 hunger decrement and the mount's daily claim use, so two clicks in one tick
-can't both pass. A refusal reports the exact seconds left.
+can't both pass. A refusal reports the exact seconds left. A **walk** of several
+hops claims it once, at its first hop, and swaps the clock for a position check
+on every hop after — §3c.
 
 **An Overburdened character can't cross into another zone at all.** Over a
 carry cap (`CARRY.md` §2), `performLocationMove` refuses the crossing with a
@@ -642,6 +644,109 @@ And because a teleport crosses no graph link, `announceGateCrossing` has no
 edge to read and posts nothing: you arrive without the gate line a walker would
 set off, which is the closest thing the item has to stealth.
 
+## 3c. Walking across a zone
+
+**Pick somewhere farther in your own zone and the game walks you there, hop by
+hop.** `db/lib/locationWalk.js#walkWithinZone` is the whole of it, and the first
+thing to know about it is what it is **not**: it is not a mover, and it is not a
+teleport. Every step is the ordinary single-hop pair every other caller runs —
+`performLocationMove` for the database half, then `applyLocationMoveSideEffects`
+for the Discord and game half. This file writes no `Character.locationId` of its
+own.
+
+That is the design rather than an implementation detail. Because each hop is the
+real one, **everything fires at every stop on the road**: the Depot and
+gatehouse turrets, anybody laying in wait, the gate lines, arrival mood, the
+Caving Die, the carry settle and the fog write. Walking past a watched
+crossroads gets you caught there. A walk is a shortcut through the clicking, not
+a shortcut past the game.
+
+**It costs nothing**, because a hop inside a zone costs nothing (§3). No travel,
+no Move, no confirm dialog. That is also exactly why it is the only thing the
+map's double-click may do (§6c).
+
+**The road is fog-limited.** `routesWithinZone` / `pathWithinZone` in
+`db/lib/locationGraph.js` are the second multi-hop question in that file, beside
+`soundRange` and allowed there for the same reason — nothing outside it may read
+`LocationLink`. Three rules, and each is load-bearing:
+
+- **Only through places the character already knows.** The fog set is `seen`,
+  not `stood`, because `loadMap`'s own `visible()` draws the board off `seen` —
+  a finder using the narrower set would refuse a rhombus the player is looking
+  at, for a reason they cannot see.
+- **The fog set is handed IN, never read here.** `db/lib/locationVisits.js`
+  already requires `locationGraph.js`, so requiring it back would close a cycle
+  and resolve to a half-built exports object at require time — a silent
+  `undefined`, not a clean error. Callers pass `knownLocations(…).seen`.
+- **Same zone, every step of it, not just the endpoints.** It falls out of the
+  `where: { zoneId }` on the location query rather than being re-checked per
+  node, so a road cannot duck out of the zone and back in through somewhere
+  nobody looked at.
+
+Every edge is judged by `crossingCheck`, the very verdict `performLocationMove`
+reaches again at each hop — there is no second copy of the gating rule here. The
+hold and the Caving Die are deliberately **not** asked: the mover asks them, in
+its own words, at the hop that meets them. Neighbour lists are sorted by slug
+before the search, `soundRange`'s reason sharpened — the surface that *shows* a
+route and the walk that *takes* it must pick the same road, or somebody is shot
+by a turret on a street they were never told they would pass.
+
+`WALK_HOPS` is a module constant, not a `GameConfig` field: a safety rail so a
+mistake in the graph cannot become a thirty-hop run of Discord calls.
+
+**The debounce is claimed once, by the first hop.**
+`GameConfig.locationMoveCooldownSeconds` is a debounce on clicking, not a game
+rule, and waiting it out between hops would make a four-hop walk nine seconds of
+refusals. So hop 1 makes the ordinary claim — two tabs starting a walk in the
+same tick still resolve to one — and every later hop passes `skipCooldown`,
+which **swaps** the conditional `updateMany`'s clock for `locationId: <where we
+read them>` rather than dropping it. That is a narrower guard, not a missing
+one, and the right one for a walk: the thing a walk must never do is step on
+from a position it no longer occupies, so an escort, a GM teleport or a Stepstone
+landing mid-route stops it. `data` is untouched either way, so every hop
+re-stamps `lastLocationMoveAt` and the **last** hop is the one the next click
+waits on. `skipCooldown` is refused outright on anything but a same-zone hop, so
+it can never become the hole that skips the free-crossing arithmetic.
+
+**It stops at the first refusal and keeps the ground covered.** `ok: false` only
+when the very first hop refused and nobody moved; anything later is `ok: true,
+complete: false` with `stoppedBy`, and the player is standing where the last hop
+put them. Every surface leads with **"You got as far as the Yard."** and then
+prints **the mover's own sentence**, never one written at the surface — that is
+what keeps a hidden crawl's refusal identical to a nonexistent edge's (§2a).
+
+**The mover has no death gate, and the walk supplies one.** This is the sharpest
+edge in the feature. `performLocationMove`'s incapacitation check is
+`blockerFor(tags, ACT)`, and death sets `status: "DEAD"` while *stripping* tags
+rather than granting a blocker — so a walker the Depot gun killed at hop 2 would
+march on and be delivered to the destination as a corpse. The loop re-reads the
+mover between hops and checks `status` itself. The re-read is mandatory for
+three more reasons besides: `status`, `heldUntil` and `tags` are all written by
+`applyLocationMoveSideEffects` *after* the mover already returned. It re-reads
+with `ESCORT_SELECT`, because the next hop hands that row straight back to the
+mover, which re-authorises the party off it (§3a's missing-`faction` trap).
+
+**The party follows the whole way, and nothing was needed to make it so.** Each
+hop reads `escortedById` inside its own transaction, so followers are carried
+step by step and roll their own turret and Caving dice at every stop. One the
+road refuses at hop 3 is left standing at hop 3 rather than back at the start —
+which is right, they walked that far. The mover's own `escortedById` is cleared
+at hop 1, the ordinary "walking under your own power detaches you" rule (§3a),
+so setting off on a walk puts down whoever was carrying *you*.
+
+**The caller must not run its own side-effect loop.** `walkWithinZone` returns
+`sideEffectsApplied: true` and both faces branch on it. Reusing the single-hop
+loop over the merged `moved` list would fire every turret twice and re-roll
+every Caving Die — the easiest thing here to get wrong.
+
+**What it costs in traffic** is worth knowing rather than discovering. Each hop
+is a transaction plus a full `applyLocationMoveSideEffects`: the channel
+overwrite swap, room access, thread invites, `notifyPresence`, a gate line. A
+long walk with a party is a genuinely multi-second action and the Discord sidebar
+visibly steps through each Location. That is correct — each stop really happened
+— and it is what `WALK_HOPS` is small for. Same-zone hops write no archive rows
+either way, since those are gated on `crossedZone`.
+
 ## 4. The Discord half
 
 **`db/lib/locationMove.js#applyLocationMoveSideEffects(prisma, entry)`** is
@@ -796,13 +901,11 @@ same numbers through `web/lib/travelCost.js#travelFoot` — extracted from
 costs — and Go calls the same `travelTo`, which re-derives every gate
 server-side regardless.
 
-**Nothing travels on a gesture. Picking a node only picks it**, on both
-surfaces and every pointer, and the card's (or the strip's) **Go** is the only
-door onto `travelTo`. A second click on the place you already picked unpicks it
-on the map, and on the Travel panel leaves the strip where it is. A real
-double-click therefore picks and unpicks, which is why there is no
-`onDoubleClick` here to fight the 6px drag guard that stops a pan from
-registering as a pick, and why a double tap on this board no longer means *go*.
+**A click only picks**, on both surfaces and every pointer, and the card's (or
+the strip's) **Go** is the ordinary door onto `travelTo` — including for a place
+several hops away, which is how a walk is taken on a phone. A second click on
+the place you already picked unpicks it on the map, and on the Travel panel
+leaves the strip where it is.
 
 **A zone crossing asks again on top of that.** Go opens the shared
 `useConfirm()` dialog, naming the zone, what the crossing spends, and how many
@@ -810,20 +913,61 @@ people come with you. Both surfaces build that sentence from one place,
 `web/lib/travelCost.js#crossingConfirm`, for the same reason they share
 `travelFoot`.
 
-The second click used to be the Go button for a hop inside your own zone — one
-gesture instead of a trip across the plate to the card. Two complaints ended it.
-A player double-clicked while reading the menu, crossed a zone he had not chosen
-and took somebody with him, which took the shortcut off crossings; then on a
-phone, where the Travel panel is a drawer full of small nodes, a tap that landed
-on the node already chosen moved somebody with no sentence in front of it at
-all. What the strip says — the place, whether it spends your Move, how many
-people are with you — is worth one deliberate press, even for a free hop.
+#### The gesture, and the two limits on it
 
-**Enter is nobody's shortcut either.** The Travel panel's nodes are real
-`<button>`s, so Enter on a focused node is another pick; the map, whose rhombi
-are SVG `<g>` elements with no focus of their own, listens for nothing. Tab to
-**Go**. There is deliberately **no Escape**: on `/chat` the map sits in a Modal
-that already owns it.
+**A double-click on the map walks you there, and Enter does the same thing.**
+It is a shortcut for a mouse, not the way the feature works — everything it can
+do, Go on the card can do, on any device.
+
+This was taken out once, and the history is why the limits are shaped the way
+they are. The second click used to be Go for a hop inside your own zone. Two
+complaints ended it. A player double-clicked while reading the menu, crossed a
+zone he had not chosen and took somebody with him; then on a phone, where the
+Travel panel is a drawer full of small nodes, a tap that landed on the node
+already chosen moved somebody with no sentence in front of it at all.
+
+So the gesture is back under exactly the two limits that answer those two
+complaints, and `canGestureTo` in `MapBoard.js` is both of them in one place:
+
+- **Never across a zone.** That is the first complaint, closed at the root
+  rather than warned about: a hop inside your own zone spends no travel, no
+  Move, and nothing anybody else has to live with. There is nothing left for a
+  stray double-click to waste. A crossing still wants the strip, the confirm
+  dialog and a deliberate press — `canGestureTo` is deliberately a SHORTER list
+  than `canTravelTo`, and that gap is the whole design.
+- **Never down a road that would take your horse off you.** The one thing a
+  walk does that cannot be undone for free (§2c). Go still offers it, with
+  `· on foot` written on the node first.
+- **A mouse, tested on the pointer itself.** `PointerEvent.pointerType`, kept in
+  a ref on every `pointerdown`, and **not** a `(pointer: fine)` media query —
+  which is true on a tablet with a mouse paired to it *while a finger is on the
+  glass*, and would hand the second complaint straight back. A finger reports
+  `"touch"` and a pencil `"pen"`, so a tap can never be a gesture on any device.
+  `.map-hint` is hidden under `(pointer: coarse)` for the same reason, so a
+  phone is never told about a shortcut it does not have.
+
+**And the stops are named before the gesture is made.** The card reads
+`Through the Market and the Yard.` above Go, from
+`web/lib/travelCost.js#walkLine`. That sentence is what turns "a gesture moved
+me somewhere" back into "I chose to walk through the Market and the Yard", and
+it is load-bearing rather than decorative: if it ever gets cut for space, the
+gesture should be cut with it.
+
+**Order matters in the handler, and is easy to get wrong.** A browser fires
+`click`, `click`, `dblclick` — so the second-click unpick has *already* set
+`sel` to null by the time `onDoubleClick` runs. The handler therefore acts on
+its own node and asks `sel` nothing; written as `if (sel === n.id)` it would
+never once fire, and would read as the feature simply not working.
+
+**Enter is the same affordance with a keyboard.** It is a **document-level**
+`keydown` that only exists while a node is picked, not a focusable rhombus.
+Fifty SVG `<g>`s in the tab order in front of Go is worse than no keyboard
+support at all, and `role="button"` on each would have a screen reader read the
+whole plate as a toolbar. It stands aside whenever `document.activeElement` is a
+`button`, `a`, `input`, `textarea`, `select` or anything in a `[role=dialog]` —
+so Enter on Go, on the layer switch, or inside the confirm dialog this very
+handler can open is never handled twice. There is still deliberately **no
+Escape**: on `/chat` the map sits in a Modal that already owns it.
 
 **Tapping the plate itself unpicks**, on both surfaces. A node's own handler
 owns its clicks and the drag guard still applies, so this is only ever a tap on
@@ -831,8 +975,12 @@ open ground. It is a second way out of a card, beside Cancel and the node's own
 second click, because on a phone a description sitting over most of the board
 with nothing obvious to do about it is a trap.
 
-`canTravelTo(node, here)` is the one predicate the board and the card read, so
-a place can never offer Go while its own card is showing a refusal.
+`canTravelTo(node, here)` is the one predicate the board and the card read for
+**Go**, so a place can never offer it while its own card is showing a refusal.
+It has two ways to say yes: next door and open, or `walkable` — somewhere
+farther in your own zone, reached through places you already know (§3c).
+`canGestureTo` is the narrower second predicate above, and the only one the
+double-click and Enter read.
 
 ### 6d. The plate
 
@@ -918,6 +1066,7 @@ carrying the layer switch alone.
 | File | Role |
 |---|---|
 | `db/lib/locationTravel.js` | `performLocationMove` — validation, the cooldown or the Move, walking the party, the Caving roll; no Discord |
+| `db/lib/locationWalk.js` | `walkWithinZone` — several hops inside one zone on one press (§3c). NOT a mover: every hop is `performLocationMove` and then `applyLocationMoveSideEffects`, which is what makes the turrets and the ambushes real at every stop |
 | `db/lib/escort.js` | The escort authority, the party, and the consent handshake — §3a. The ONLY module that decides who follows whom |
 | `db/lib/travelArrivalPass.js` | a DRAIN. Nothing files work for it; it lands anybody left mid-journey by the removal of deferred travel (§3) |
 | `db/lib/intercept.js` | Laying in wait, and the hold it puts on somebody — [`INTERCEPT.md`](INTERCEPT.md). The ONLY module that decides who a watch catches |
@@ -927,10 +1076,10 @@ carrying the layer switch alone.
 | `db/lib/seatZone.js` | `seatZoneIdFor` — the presence-zone → seat-zone mapping |
 | `db/lib/mounts.js` | `FAST_TRAVEL_SLUGS`, `isMounted`, `fastTravelCapacity` (the seat count §3a gates the mount's bonus on) |
 | `db/lib/turnFormat.js` | `turnDay` — the in-game day a mount's second crossing is claimed against |
-| `db/lib/locationGraph.js` | `LocationLink` reads and the gating verdict — the only module that touches the edge model |
+| `db/lib/locationGraph.js` | `LocationLink` reads and the gating verdict — the only module that touches the edge model. Also the two multi-hop questions: `soundRange` for how far a shout carries, and `routesWithinZone` / `pathWithinZone` for a walk (§3c) |
 | `db/lib/locationAttributes.js` | The attribute registry, its sync-time validation, and the prose Examine prints |
 | `db/lib/locationVisits.js` | The fog: what one character knows of the map. The ONLY module that reads or writes `LocationVisit` |
 | `db/lib/startingMemories.js` | The map a character is made knowing — role slug and Commoner kit to Location slugs — §6a |
 | `web/app/(app)/map/` | `loadMap()`, the board, and the route — §6 |
-| `web/lib/travelCost.js` | `travelFoot` — what a hop costs, in the words both travel surfaces print |
+| `web/lib/travelCost.js` | `travelFoot` — what a hop costs, in the words both travel surfaces print. `walkFoot` / `walkLine` are the same job for a walk |
 | `docs/zones.yaml` | The master: zones, Locations (with their seeded `structures:`), Rooms, and `connections:` with its edge types |

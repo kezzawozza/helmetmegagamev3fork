@@ -26,10 +26,13 @@ const {
 } = require("../../lib/locationTravel");
 const {
   travelOptions,
+  routesWithinZone,
+  pathWithinZone,
   gateOperable,
   isHeldOpen,
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
+const { knownLocations } = require("@lifeweb/db/lib/locationVisits");
 const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
 const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
@@ -56,6 +59,7 @@ async function handleTravelOpen(interaction) {
   let current = null;
   let destinations;
   let shut = [];
+  let walks = [];
   if (!character.locationId) {
     destinations = await prisma.location.findMany({
       where: { retiredAt: null, zone: { kind: { not: "CAVE_GROUP" } } },
@@ -72,14 +76,31 @@ async function handleTravelOpen(interaction) {
     const rows = await travelOptions(prisma, character, character.locationId);
     destinations = rows.filter((row) => row.passable).map((row) => row.location);
     shut = rows.filter((row) => !row.passable);
+
+    // Farther in this zone, through places they already know (MAP.md §3c).
+    // Appended AFTER the neighbours, which is the whole of the grouping Discord
+    // gives us — so when the 25-option cap bites it eats the walks and never a
+    // way out, which is the common case and the only way to leave the zone.
+    const here = new Set(destinations.map((location) => location.id));
+    const { seen } = await knownLocations(prisma, character.id);
+    walks = (await routesWithinZone(prisma, character, { known: seen }))
+      .filter((row) => row.hops > 1 && !here.has(row.location.id));
   }
 
-  if (destinations.length === 0 && shut.length === 0) {
+  if (destinations.length === 0 && shut.length === 0 && walks.length === 0) {
     await respond(interaction, "Nowhere to go from here.");
     return;
   }
 
-  const truncated = destinations.length - Math.min(destinations.length, MENU_OPTION_LIMIT);
+  const entries = [
+    ...destinations.map((location) => ({ location, hops: null, through: null })),
+    ...walks.map((row) => ({
+      location: row.location,
+      hops: row.hops,
+      through: row.path.slice(0, -1).map((l) => l.name),
+    })),
+  ];
+  const truncated = entries.length - Math.min(entries.length, MENU_OPTION_LIMIT);
   const shutLine =
     shut.length > 0
       ? `-# Closed to you right now: ${shut.map((row) => row.location.name).join(", ")}.`
@@ -87,13 +108,13 @@ async function handleTravelOpen(interaction) {
   await respond(interaction, {
     content: [
       held ? `» *${held}*` : null,
-      destinations.length > 0 ? "Where would you like to go?" : "» *Every way out of here is closed to you.*",
+      entries.length > 0 ? "Where would you like to go?" : "» *Every way out of here is closed to you.*",
       shutLine,
       truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25.` : null,
     ]
       .filter(Boolean)
       .join("\n"),
-    components: destinations.length > 0 ? [buildLocationSelectRow(destinations, current)] : [],
+    components: entries.length > 0 ? [buildLocationSelectRow(entries, current)] : [],
   });
 }
 
@@ -249,10 +270,26 @@ async function handleTravelPick(interaction) {
   // when it does — the picker is the only place a Discord player reads the
   // odds before committing.
   const exertNote = canExert ? exertEdgeSentence(exertEdgeFor(character.tags ?? [])) : null;
+
+  // Farther in this zone, so a walk of several hops (MAP.md §3c). Asked only
+  // where it could be one — inside the zone, and somewhere they are not already
+  // standing beside — and the stops are NAMED, because which way you are about
+  // to go is the thing worth knowing before you press Confirm.
+  const walk =
+    character.locationId && !crossing
+      ? await pathWithinZone(prisma, character, target.id, {
+        known: (await knownLocations(prisma, character.id)).seen,
+      })
+      : null;
+  const walkLine =
+    walk?.ok && walk.hops > 1
+      ? `-# ${walk.hops} hops, through ${listNames(walk.path.slice(0, -1).map((l) => l.name))}. Nothing to pay.${walk.dismounts ? " One of the ways is too narrow for what you're riding." : ""}`
+      : null;
+
   const cost = !character.locationId
     ? "-# Arriving costs you nothing."
     : !crossing
-      ? "-# You have free zone moves left, so this is free."
+      ? walkLine ?? "-# You have free zone moves left, so this is free."
       : left > 0
         ? `-# Crossing into ${target.zone.name} uses 1 of your ${left} free ${left === 1 ? "move" : "moves"} this turn.`
         : !acted
@@ -348,7 +385,19 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
   const brought = result.moved
     .filter((entry) => entry.character.id !== character.id)
     .map((entry) => entry.character.name);
-  const parts = [`» Moved to **${target.name}**.`];
+  // Where they ACTUALLY got to. A walk of several hops can be stopped on the
+  // road — an ambush, a gate shut behind somebody, the gun at the Depot — and
+  // the ground they covered is real, so the line names it rather than the place
+  // they picked (MAP.md §3c).
+  const landed = result.arrivedAt ?? target;
+  const parts = [
+    result.complete === false
+      ? `» You got as far as **${landed.name}**.`
+      : `» Moved to **${landed.name}**.`,
+  ];
+  // Always the mover's own sentence, never one written here — a refusal reworded
+  // at the surface is how a hidden crawl gets announced (MAP.md §2a).
+  if (result.stoppedBy?.reason) parts.push(result.stoppedBy.reason);
   if (result.spentTurn) parts.push("Your Move is spent.");
   if (result.exert) parts.push(exertResultLine(result.exert));
   if (result.usedFreeMove) {

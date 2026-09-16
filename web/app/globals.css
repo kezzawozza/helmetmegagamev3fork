@@ -9848,6 +9848,21 @@ button.equip-cell-face:focus-visible {
   width: 100%;
 }
 
+/* The double-click / Enter hint. Hidden outright on a coarse pointer: a phone
+   has neither, and telling it about a shortcut it cannot take is worse than
+   saying nothing. The gesture itself is gated on PointerEvent.pointerType in
+   MapBoard.js — this only keeps the words off a screen that has no use for
+   them, so the two never disagree about who the shortcut is for. */
+.map-hint {
+  margin-top: 0.25rem;
+}
+
+@media (pointer: coarse) {
+  .map-hint {
+    display: none;
+  }
+}
+
 .map-exits {
   display: flex;
   flex-direction: column;

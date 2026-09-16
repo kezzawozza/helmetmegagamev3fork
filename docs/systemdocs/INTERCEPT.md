@@ -229,6 +229,18 @@ your friend is plain to see.
 cross a zone: a held person cannot walk anywhere. `listed` is left alone, so the
 ways still draw, shut, with the reason on them.
 
+**A watch catches somebody mid-walk, at a Location they were only passing
+through.** A walk of several hops across a zone (`MAP.md` §3c) is the real
+single-hop move repeated, so `fireWatches` runs at every stop on the road, not
+just at the far end. A hold landing in the middle ends the walk there, and the
+walker is told how far they got and then your own line — they are standing at
+your Location, not at the one they picked.
+
+That is deliberate, and it is what stops a walk being a free pass across the
+zone: a watched crossroads is a real reason to go the long way round. The
+walker's **own** watch dies at the first hop either way, under §1's rule that
+any move at all cancels it.
+
 ## 5. Firing
 
 `fireWatches` is called once by `performLocationMove` with the whole arriving

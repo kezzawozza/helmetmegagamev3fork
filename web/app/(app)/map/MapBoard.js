@@ -8,7 +8,7 @@ import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, crossingLine, travelFoot, openedByLabel } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, WALK_HINT } from "@/lib/travelCost";
 import { loadMap } from "./actions";
 import { travelTo } from "../chat/actions";
 
@@ -65,13 +65,40 @@ const FIT_MAX = 2.1;
 // being dragged along does not read as the map having lost you.
 const POLL_MS = 10_000;
 
-// Whether Go is on offer for a node. THE one predicate: the card's confirm
-// strip, the second click and Enter all read it, so a place can never travel on
-// a gesture while its own card is showing a refusal.
+// Whether Go is on offer for a node. THE one predicate the card's confirm strip
+// reads, so a place can never offer Go while its own card is showing a refusal.
+// Two ways to qualify now: next door and open, or somewhere farther in your own
+// zone you could walk to through places you already know (MAP.md §3c).
 function canTravelTo(node, here) {
   if (!node) return false;
   if (here && node.id === here.id) return false;
-  return Boolean(node.adjacent && node.passable);
+  if (node.adjacent && node.passable) return true;
+  return Boolean(node.walkable);
+}
+
+// What a GESTURE may do, and it is deliberately LESS than what Go may do.
+//
+// Double-click moved somebody across a zone they had not chosen once already,
+// and that is why it was taken out (MAP.md §6c). It is back under two limits
+// that answer exactly that: never across a zone — so nothing a gesture does
+// costs a travel, the Move, or anybody else's afternoon — and never down a road
+// that would take your horse off you several hops from here, which is the one
+// thing a walk does that cannot be undone for free. Everything else still wants
+// the strip, the confirm and a deliberate press.
+function canGestureTo(node, here) {
+  if (!canTravelTo(node, here)) return false;
+  return !node.crossesZone && !node.walkDismounts;
+}
+
+// A walk's numbers in the shape travelCost's walk helpers read.
+function routeOf(node) {
+  return {
+    name: node.name,
+    hops: node.walkHops ?? 0,
+    through: node.walkThrough ?? [],
+    dismounts: Boolean(node.walkDismounts),
+    indoors: Boolean(node.indoors),
+  };
 }
 
 export default function MapBoard({ onClose = null }) {
@@ -115,6 +142,15 @@ export default function MapBoard({ onClose = null }) {
   // The live pinch: how far apart the two fingers were and where their midpoint
   // sat, in plate pixels. Null whenever fewer than two are down.
   const pinch = useRef(null);
+  // What kind of pointer last touched the board — "mouse", "touch" or "pen".
+  //
+  // This, and NOT a media query, is what makes the double-click a desktop
+  // affordance. `(pointer: fine)` is true on a tablet with a mouse paired to it
+  // while a FINGER is on the glass, which is precisely the case that got the
+  // gesture removed the first time (MAP.md §6c): a tap landing on a node moved
+  // somebody with no sentence in front of it. Asking the pointer that produced
+  // the event cannot get that wrong. Same idiom as LedgerBand.js.
+  const pointerKind = useRef(null);
 
   // How much of the plate the board can actually show, in plate pixels. With
   // "slice" the viewBox is scaled to COVER the element, so the visible window
@@ -400,6 +436,7 @@ export default function MapBoard({ onClose = null }) {
     const p = toWorld(ev);
     if (!p) return;
     pointers.current.set(ev.pointerId, { cx: ev.clientX, cy: ev.clientY });
+    pointerKind.current = ev.pointerType;
     if (pointers.current.size === 1) {
       panned.current = false;
       drag.current = { vx: p.vx, vy: p.vy, x: view.current.x, y: view.current.y };
@@ -537,6 +574,38 @@ export default function MapBoard({ onClose = null }) {
     });
   };
 
+  // Enter travels, once a place is picked — and only what a gesture may take
+  // (canGestureTo), which is the same short list the double-click gets.
+  //
+  // A DOCUMENT listener rather than focusable rhombi, deliberately. Making
+  // fifty SVG <g>s focusable would put fifty stops in the tab order in front of
+  // Go, and role="button" on each would have a screen reader read the whole
+  // plate as a toolbar — Tab-to-Go is better than both (MAP.md §6c). So the
+  // shortcut only exists while something is picked, and it gets out of the way
+  // of anything that legitimately wants the key: Go and Cancel, the layer
+  // switch, and the confirm dialog this very handler can open.
+  useEffect(() => {
+    if (!sel || !data?.ok) return undefined;
+    const onKey = (ev) => {
+      if (ev.key !== "Enter" || ev.repeat) return;
+      if (ev.metaKey || ev.ctrlKey || ev.altKey || ev.shiftKey) return;
+      const el = document.activeElement;
+      if (el && el !== document.body && el.closest("button, a, input, textarea, select, [role=dialog]")) return;
+      // Same test the double-click makes: a board last touched by a finger has
+      // no keyboard to press this with anyway, and asking keeps the two paths
+      // honest about being one affordance.
+      if (pointerKind.current !== "mouse") return;
+      const nodes = data.nodes ?? [];
+      const node = nodes.find((n) => n.id === sel);
+      const standing = data.you?.locationId ? nodes.find((n) => n.id === data.you.locationId) : null;
+      if (!canGestureTo(node, standing)) return;
+      ev.preventDefault();
+      go(node);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+
   // ---------------------------------------------------------------- render
 
   if (!data) {
@@ -558,6 +627,14 @@ export default function MapBoard({ onClose = null }) {
   const chosen = sel ? byId.get(sel) : null;
   const card = chosen ?? here ?? null;
   const exits = nodes.filter((n) => n.adjacent);
+  // Farther in this zone, nearest first. Its own list under its own heading: a
+  // three-hop walk is not a way OUT of this room, and folding it into the grid
+  // above would make the card lie about what is next door. On a phone, where
+  // the card is a sheet over the board, this is the comfortable way to reach
+  // one without hunting for a rhombus.
+  const walks = nodes
+    .filter((n) => n.walkable && !n.adjacent)
+    .sort((x, y) => (x.walkHops ?? 0) - (y.walkHops ?? 0) || x.name.localeCompare(y.name));
 
   return (
     <div className="map-board">
@@ -643,8 +720,28 @@ export default function MapBoard({ onClose = null }) {
                     // card is the only door now, and it is on screen the moment
                     // you pick, since the sheet opens. So this is just the way
                     // back out of a card sitting over the board, and there is
-                    // no onDoubleClick to fight the drag guard above.
+                    // The gesture below is a separate onDoubleClick and does
+                    // not read `sel`, so this unpick cannot eat it.
                     setSel(null);
+                  }}
+                  onDoubleClick={() => {
+                    // The gesture is back, and narrower than Go — see
+                    // canGestureTo for the two limits and why they are the ones
+                    // (MAP.md §6c).
+                    //
+                    // ORDER MATTERS HERE and is easy to get wrong: a browser
+                    // fires click, click, dblclick — so the second click above
+                    // has ALREADY set `sel` to null by the time this runs. A
+                    // handler written as `if (sel === n.id)` would never once
+                    // fire and would read as the feature simply not working.
+                    // This acts on its own node and asks `sel` nothing.
+                    if (panned.current) return;
+                    if (pointerKind.current !== "mouse") return;
+                    if (!canGestureTo(n, here)) return;
+                    // Put the card back the second click took away, so they can
+                    // see where they went.
+                    setSel(n.id);
+                    go(n);
                   }}
                 >
                   {/* The thing a finger aims at. First, so it paints under the
@@ -774,6 +871,18 @@ export default function MapBoard({ onClose = null }) {
           </div>
         )}
 
+        {!chosen && walks.length > 0 && (
+          <div className="map-exits">
+            <p className="chat-section-title">Further in {here?.zoneName ?? "this zone"}</p>
+            {walks.map((n) => (
+              <button key={n.id} type="button" className="map-exit" onClick={() => setSel(n.id)}>
+                <span>{n.name}</span>
+                <span className="mono">{walkFoot(routeOf(n), travel?.mounted)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {onClose && (
           <button type="button" className="btn-quiet map-return" onClick={onClose}>
             Return to game
@@ -837,6 +946,13 @@ function ViaChip({ slug }) {
 function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onExert }) {
   const isHere = here && node.id === here.id;
   const reachable = canTravelTo(node, here);
+  // Farther in this zone rather than next door — a walk of several hops. Note
+  // this is on the CARD, so it reaches every device: clicking a place you are
+  // not beside and pressing Go is the ordinary way to do this on a phone. The
+  // double-click is only a shortcut for a mouse on top of it.
+  const walking = !isHere && Boolean(node.walkable) && !node.adjacent;
+  // Whether the double-click / Enter shortcut applies to this node at all.
+  const gestural = canGestureTo(node, here);
   // node's OWN count, not the header's ambient one — a boat's bonus is
   // earned per crossing, so a water-eligible destination can still be free
   // even when the header's pre-selection number already reads 0.
@@ -877,11 +993,16 @@ function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onE
           the board stays readable while somebody has hold of you. */}
       {travel?.held ? <p className="text-sm">{travel.held}</p> : null}
 
-      {!isHere && node.adjacent && (
+      {!isHere && (node.adjacent || node.walkable) && (
         <div className="map-confirm">
           {reachable ? (
             <>
-              <p className="text-sm">{crossingLine(node, nextTurn, travel?.moved)}</p>
+              {/* A walk says how far and names the stops; a single hop says what
+                  the crossing costs. Both sentences come from travelCost.js, so
+                  this card and the Travel panel cannot word them differently. */}
+              <p className="text-sm">
+                {walking ? walkLine(routeOf(node)) : crossingLine(node, nextTurn, travel?.moved)}
+              </p>
               {travel?.partySize > 0 && (
                 <p className="chat-quiet-line">
                   {travel.partySize === 1 ? "One person" : `${travel.partySize} people`} with you.
@@ -913,6 +1034,10 @@ function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onE
                   Cancel
                 </button>
               </div>
+              {/* Only where a gesture would actually be taken, and only for a
+                  mouse — .map-hint is hidden outright on a coarse pointer, so a
+                  phone is never told about a shortcut it does not have. */}
+              {gestural && <p className="chat-quiet-line map-hint">{WALK_HINT}</p>}
             </>
           ) : (
             // Straight off crossingCheck, which already carries its own mark.

@@ -124,7 +124,10 @@ there is no ceiling on the steps.
 
 **There is no cap.** Walk from one cave into the next and each rolls; walk
 *back* through the four rooms you came in by and each of those rolls again.
-First visit or fifth, the die does not care.
+First visit or fifth, the die does not care. A multi-hop **walk** across a cave
+level (`MAP.md` §3c) is no exception and needs none: it is the single-hop move
+repeated, so every stop on the road rolls, for the walker and for everyone they
+are carrying.
 
 It used to care. `CavingRoll.@@unique([characterId, turnId, trigger,
 locationId])` capped it at one roll per Location per turn, and `rollCaving`

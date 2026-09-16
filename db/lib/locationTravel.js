@@ -339,7 +339,16 @@ class MoveRefused extends Error {
 // `exert`: push on for one more crossing on the die instead of the Move (see
 // pushOn). Refused, not downgraded, when it does not apply — the surfaces
 // only offer it where exertRefusal says nothing.
-async function performLocationMove(prisma, character, targetLocation, { exert = false } = {}) {
+//
+// `skipCooldown`: this hop is a step INSIDE a walk that already claimed the
+// debounce at its first hop (db/lib/locationWalk.js, MAP.md §3c). It swaps the
+// same-zone claim's clock condition for "you are still standing where I read
+// you" — a narrower guard, not a missing one, and the right one for a walk,
+// since the thing a walk must never do is step on from a position it no longer
+// occupies. NEVER pass it from a client, and never spread a caller's opts
+// object in here: it is refused below for anything but a same-zone hop, so it
+// can never be the hole that skips the free-crossing arithmetic.
+async function performLocationMove(prisma, character, targetLocation, { exert = false, skipCooldown = false } = {}) {
   if (!targetLocation?.zone) throw new Error("performLocationMove needs targetLocation.zone");
 
   // The MOVER's own state — escorting asks whether the TARGET is helpless, but "can this
@@ -380,6 +389,10 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
   // A first placement (no current location) is free — it isn't travel, it's arrival. A walk inside the zone is free on the cooldown. Only a hop whose edge crosses into another zone files the Move.
   const first = !currentLocation;
   const crossedZone = !first && currentLocation.zoneId !== targetLocation.zoneId;
+  // A walk never crosses a zone, so its cooldown shortcut must never reach the branch that spends a free crossing or the Move. Refused rather than quietly downgraded: a silent no-op here would be a free border hop.
+  if (skipCooldown && crossedZone) {
+    return { ok: false, reason: "You can't walk into another zone." };
+  }
 
   let openTurn = null;
   if (crossedZone) {
@@ -592,12 +605,15 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
         });
       } else {
         // Same zone (or first placement): the cooldown, enforced by the WHERE of a conditional update so two clicks in one tick can't both pass.
+        // A later hop of a walk swaps that clock for the position it read, which is why the claim is never simply dropped — see skipCooldown's note on the signature. `data` is untouched either way, so every hop re-stamps lastLocationMoveAt and the walk's LAST hop is the one the next click waits on.
         const cutoff = new Date(now.getTime() - cooldownMs);
         const claimed = await tx.character.updateMany({
-          where: {
-            id: character.id,
-            OR: [{ lastLocationMoveAt: null }, { lastLocationMoveAt: { lte: cutoff } }],
-          },
+          where: skipCooldown
+            ? { id: character.id, locationId: character.locationId }
+            : {
+                id: character.id,
+                OR: [{ lastLocationMoveAt: null }, { lastLocationMoveAt: { lte: cutoff } }],
+              },
           data: {
             locationId: targetLocation.id,
             zoneId: targetLocation.zoneId,
@@ -606,6 +622,8 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
           },
         });
         if (claimed.count === 0) {
+          // Inside a walk the claim can only have failed because somebody else moved them — an escort, a GM teleport, a Stepstone — so the breath line would be a lie.
+          if (skipCooldown) throw new MoveRefused("Somebody moved you before you got there.");
           const row = await tx.character.findUnique({
             where: { id: character.id },
             select: { lastLocationMoveAt: true },

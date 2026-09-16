@@ -39,7 +39,12 @@ reverses.
   crates on a landing pad that anyone with a keycard can walk into.
 - **The lights can go out.** A generator burns fuel every turn and takes the
   whole Depot down with it when the tank empties.
-- **The room can kill you.** A turret, off by default, that reads faces.
+- **The room can kill you.** A turret, off by default, that reads faces. It
+  fires on **arrival**, so walking *through* the Depot on the way somewhere else
+  is an arrival like any other — a multi-hop walk across the zone (`MAP.md` §3c)
+  is the single-hop move repeated, and the gun does not care that you were only
+  passing. A walk the turret kills stops there rather than delivering a body to
+  the destination.
 
 `Character.depotDebt` is gone; the line lives on `Depot.debtObols`.
 
