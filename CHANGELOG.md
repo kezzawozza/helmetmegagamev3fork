@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Reincarnations are younger
+
+✎ A reincarnated soul rolls a random age from 18 to 49 now, down from 18 to 65 — no more elderly reincarnations
+
 ## 2026-09-16 · Drawbacks can claim back 8 again, and OOC lines link to their scene
 
 ✎ The drawback point cap drops to 8, matching the new starting budget  

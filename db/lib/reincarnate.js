@@ -27,9 +27,10 @@ const REINCARNATION_BONUS_POINTS = 4;
 
 // Short of the catalog's own AGE_MAX of 90 on purpose: a uniform 18-90 roll
 // averages 54, and db/lib/concealedIdentity.js reads 55+ as "Old", so half of
-// all reincarnations would wake up elderly. 18-65 averages 41, landing most
-// souls in the middle band with no age adjective.
-const REINCARNATION_AGE_MAX = 65;
+// all reincarnations would wake up elderly. 18-49 averages 33 and stays a
+// comfortable margin below "Old", landing every soul in the middle band with
+// no age adjective.
+const REINCARNATION_AGE_MAX = 49;
 
 // Points arrive UNSPENT on Character.tagPoints — no wizard menu to spend
 // them in, but /store already spends this column mid-game.
