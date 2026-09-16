@@ -10,7 +10,6 @@ const { syncNicknamesForGuild } = require("../lib/nickname");
 const { syncDiscordAccountsForGuild } = require("../lib/discordAccountSync");
 const { advanceTurn } = require("../lib/turnEngine");
 const { ensureTurnsConsole } = require("../lib/turnsConsole");
-const { ensureReportAnchor } = require("../lib/reportChannel");
 const { refreshLocationChannels } = require("../lib/channels");
 const { startFeedOutbox } = require("../lib/feedOutbox");
 const { runWhisperPoll } = require("../lib/whisperPoll");
@@ -175,7 +174,6 @@ module.exports = {
         );
       }
       await ensureTurnsConsole(guild).catch((err) => console.error("Failed to ensure turns console:", err));
-      await ensureReportAnchor(guild).catch((err) => console.error("Failed to ensure report anchor:", err));
       // Warms client.channels.cache with every active thread, private ones included — GUILD_CREATE
       // only ships threads the bot already belongs to, so without this a reaction on one never
       // fires messageReactionAdd. A thread created after boot still needs its per-reaction fallback.

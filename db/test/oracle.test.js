@@ -51,7 +51,6 @@ test("the machine band never reaches the model", () => {
     "superadmin_turn_forced",
     "move_solve",
     "turn_advanced",
-    "ooc_report_opened",
   ];
   const lines = auditLinesFor(
     machine.map((actionType) => ({ actionType, actorDiscordUserId: "u1", details: {} })),
