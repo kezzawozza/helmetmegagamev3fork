@@ -80,6 +80,7 @@ import {
 } from "@lifeweb/db/lib/conversations";
 import { toggleConceal as concealRule } from "@lifeweb/db/lib/conceal";
 import { shout, deliverShout } from "@lifeweb/db/lib/shout";
+import { ooc, deliverOoc } from "@lifeweb/db/lib/ooc";
 import { XOM_SHRINE_ROOM_SLUG, grantXom } from "@lifeweb/db/lib/xom";
 import { openConversationThread } from "@lifeweb/db/lib/conversationOpen";
 import { castDie } from "@lifeweb/db/lib/roll";
@@ -2244,6 +2245,40 @@ export async function shoutHere(text, placeKey = null) {
   await deliverShout(prisma, { placeKey, here: result.here, heard: result.heard });
 
   return { ok: true, line: result.line };
+}
+
+// /ooc. The player talking, not the character — so none of shout's reach and
+// none of speech's voice tags apply. db/lib/ooc.js does the deciding and both
+// halves of delivery; this is the web sequencing around it.
+export async function oocHere(text, placeKey = null) {
+  const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
+  if (me.error) return { ok: false, error: me.error };
+
+  // WHERE, then WHETHER, both before ooc() — which claims the rate-limit row,
+  // so asking afterwards would spend a send on a place the player can't post
+  // in. Same order and the same two gates as shoutHere above, and for the same
+  // reason: a server action is a public endpoint and the selector is a hint,
+  // not a lock.
+  if (!isScenePlaceKey(placeKey)) {
+    return { ok: false, error: "You can only do that in a room or in a conversation." };
+  }
+
+  const mine = await mayWritePlace(prisma, me.character, placeKey, {
+    gm: false,
+    discordUserId: me.discordUserId,
+  });
+  if (!mine) return { ok: false, error: "You can't speak in here." };
+
+  const result = await ooc(prisma, { ...me.character, discordUserId: me.discordUserId }, text, { placeKey });
+  if (!result.ok) {
+    return { ok: false, error: result.error, retryAfter: result.retryAfter ?? null };
+  }
+
+  // Never throws — the send is already claimed, so a dead channel is one
+  // audience short rather than a failed send (db/lib/ooc.js).
+  await deliverOoc(prisma, { placeKey, body: result.body, line: result.line });
+
+  return { ok: true };
 }
 
 // /roll. One d6, in the place that is open — and the place is re-checked

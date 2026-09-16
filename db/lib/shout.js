@@ -1,5 +1,5 @@
 // What a shout sounds like from N places away, who hears it, and how it is delivered.
-// Both faces call shout() below (bot/src/events/interactionCreate.js#handleShoutCommand, web/app/(app)/chat/actions.js#shoutHere), plus the turn engine for a Xom scream. The cooldown is an AuditLog row (no timestamp column on Character), so it survives a restart and is shared across both faces.
+// Both faces call shout() below (bot/src/events/interactionCreate.js#handleShoutCommand, web/app/(app)/chat/actions.js#shoutHere), plus the turn engine for a Xom scream. The rate limit is replayed from the AuditLog rows themselves (db/lib/speechRateLimit.js, no timestamp column on Character), so it survives a restart and is shared across both faces.
 // shoutLine/shoutParts are pure — no prisma, no I/O. db/lib/locationGraph.js#soundRange answers WHO hears; they answer WHAT they hear; deliverShout() puts it in front of them.
 // Distance takes the words away before it takes the direction away — you always learn which way to run, but stop learning what was said. You learn WHO shouted only at distance zero, and it is the PRESENTED name (db/lib/presentedIdentity.js), so concealment still holds. From one hop out nobody is named at all.
 
@@ -8,6 +8,11 @@ const { sceneLine } = require("./scene");
 const { postMessage } = require("./discordRest");
 const { soundRange } = require("./locationGraph");
 const { loadVoiceState } = require("./say");
+const {
+  checkSpeechBucket,
+  SHOUT_CAPACITY,
+  SHOUT_REFILL_MS,
+} = require("./speechRateLimit");
 const { placeKeyForLocation, parsePlaceKey, discordTargetForPlaceKey } = require("./placeKey");
 const { muffle } = require("./muffle");
 const {
@@ -122,10 +127,7 @@ async function soundproofAt(prisma, placeKey) {
   return false;
 }
 
-// Five minutes between shouts, per character. The bot's number.
-const SHOUT_COOLDOWN_MS = 5 * 60_000;
-
-// The AuditLog row IS the cooldown and the record of the shout. `targetCharacterId` is the shouter (no other party), so the read is keyed on the character rather than the driving account.
+// The AuditLog row IS the rate limit and the record of the shout. `targetCharacterId` is the shouter (no other party), so the read is keyed on the character rather than the driving account.
 const SHOUT_ACTION = "shout";
 
 // Who hears it, and what they hear. `character` needs { id, locationId, discordUserId }; the name comes off a fresh read (loadShouterName). `placeKey` is where the shout was MADE — the only way to tell a vault from the street outside it.
@@ -145,22 +147,15 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
     return { ok: false, error: `You can't get the words out — you're ${voice.shoutBlock.name}.` };
   }
 
-  const last = await prisma.auditLog
-    .findFirst({
-      where: { actionType: SHOUT_ACTION, targetCharacterId: character.id },
-      orderBy: { createdAt: "desc" },
-      select: { createdAt: true },
-    })
-    .catch(() => null);
-  const since = Date.now() - (last?.createdAt?.getTime?.() ?? 0);
-  if (since < SHOUT_COOLDOWN_MS) {
-    const left = SHOUT_COOLDOWN_MS - since;
-    const minutes = Math.max(1, Math.ceil(left / 60_000));
-    return {
-      ok: false,
-      retryAfter: Math.ceil(left / 1000),
-      error: `You need about ${minutes} more minute${minutes === 1 ? "" : "s"}.`,
-    };
+  // A leaky bucket now, not a flat five-minute cooldown (db/lib/speechRateLimit.js) — the same limiter /ooc uses, so the two answer the shape of "too much" the same way. Three at once, then one back every five minutes: the old long-run rate, with room to yell twice while something is actually happening.
+  const throat = await checkSpeechBucket(prisma, {
+    actionType: SHOUT_ACTION,
+    characterId: character.id,
+    capacity: SHOUT_CAPACITY,
+    refillMs: SHOUT_REFILL_MS,
+  });
+  if (!throat.ok) {
+    return { ok: false, retryAfter: throat.retryAfter, error: "You're shouting too much." };
   }
 
   // Two different things muffle a shout: `sealed` (the walls hold it — nothing leaves the thread) and `gagged` ({tag:bound} — the yell happens and the room hears it, but it doesn't carry past; not a refusal, COMMANDS.md §2d, so it takes the hops, never the room).
@@ -194,7 +189,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   // Nobody at all is worth saying rather than "you shout" into a void, still ahead of the cooldown claim. The `!muffled` guard is load-bearing: a soundproof room empties `heard` by design and would otherwise refuse every muffled shout.
   if (!muffled && heard.length === 0) return { ok: false, error: "There's nobody here to hear it." };
 
-  // Claimed once the shout is certain, BEFORE the caller's posting loop — that loop is real seconds of REST calls, long enough for a second shout to slip past a cooldown claimed at the end. `turnId` is set since this row is the ration the cooldown reads back (REQUESTS.md §1a).
+  // Claimed once the shout is certain, BEFORE the caller's posting loop — that loop is real seconds of REST calls, long enough for a second shout to slip past a limit claimed at the end. `turnId` is set since this row is the ration the cooldown reads back (REQUESTS.md §1a).
   const openTurn = await prisma.turn
     .findFirst({ where: { status: "OPEN" }, select: { id: true } })
     .catch(() => null);

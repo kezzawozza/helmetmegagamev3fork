@@ -504,7 +504,8 @@ instance is a change to the hub, not a slider.
   is open right now — Zone stays derived from what's actually loaded. The
   whole view survives a reload, split across three `sessionStorage` keys by
   write frequency (`web/app/components/useSessionState.js`): `gm-turns-rail`
-  (filters per lens, the two travel toggles, the active lens — subscribed,
+  (filters per lens — `moves`, `caving`, `other`, `desires`, `ooc`, `history`,
+  `history-caving` — the two travel toggles, the active lens — subscribed,
   click-frequency), `gm-turns-desk` (tray open/expanded, the inspected
   character, the History turn — Workspace.js's half), and `gm-turns-view`
   (search text and queue scroll position per lens — unsubscribed
@@ -527,6 +528,21 @@ instance is a change to the hub, not a slider.
   one a GM scrolls past. So a row still has **no desk**: clicking it, or `⏎`,
   opens the inspector on the person being held, and so does clicking any name
   in the strip. Each live pairing carries a ✕ that calls that one fight off.
+- **OOC lens** — every out-of-character line said this turn (`db/lib/ooc.js`),
+  newest first, with the speaker, the words and the place. **Read-only, and
+  the lens has no desk** for the same reason `Other` has none, only harder:
+  there is nothing a GM *does* to a sentence that has already been said.
+  Clicking a row, or `⏎`, opens the speaker in the inspector, which is the one
+  thing a GM reading a line actually wants next.
+
+  The rows **are** the `AuditLog` rows the OOC rate limit already writes
+  (`actionType: "ooc"`) — there is no OOC table, and adding one would mean two
+  records of the same sentence that could disagree. Scoped to the open turn like
+  Moves and Caving, because unlike a portrait or a Desire claim this *is* a thing
+  that happened this turn, and capped at 200: a turn's chatter has no ceiling and
+  the rail is not a transcript. Sorted by recency alone, since no row is waiting
+  on anybody. Search covers the words themselves, which is what a GM chasing
+  "who said that" actually has.
 - **History lens** — the same rail over any turn, the open one included.
   Its two parameters sit on **one line of selects** above the filters —
   **Showing** (Moves or Caving) and **Turn** (the open turn first, marked
@@ -833,7 +849,7 @@ adjudicable the moment the Ram is a ruin.
 | `web/app/(desk)/layout.js` | The full-viewport route group's GM gate |
 | `web/app/(desk)/gm/turns/page.js` | RSC: queue, staged rows, catalog, roster — all DTOs |
 | `.../Workspace.js` | Client shell: selection, inspector context + cache, layout |
-| `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue |
+| `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue. **There is no tab registry** — the six lenses are a `LENSES` whitelist in `Workspace.js`, a hand-written button each in the `.desk-rail-lens` strip, and a branch each in one ternary. Adding a seventh means touching all three, and the rail does not get wider: `.desk-rail-lens button` in `globals.css` carries the `min-width: 0` / `white-space: nowrap` / smaller type that keeps six labels and their counts on one line each |
 | `web/lib/moveRows.js` | The Move / staged-effect / staged-message DTO mappers, shared by `page.js` and the History fetchers so they can't drift |
 | `.../deskStore.js` | The desk's client-owned rows: seed, patch, the newer-wins reconciliation rule |
 | `.../deskDraft.js` | What a GM has typed and not saved — the Result boxes and the Kind switch, keyed by row, mirrored to `localStorage`. Also the desk's record of WHICH rows are dirty, which is what `DeskStream.js` buffers against |

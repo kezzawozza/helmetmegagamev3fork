@@ -40,6 +40,9 @@ function mintNonce() {
 export default function ConversationPane({
   discordUserId,
   label,
+  // The Discord handle behind `label`, from /api/gm/thread. Separate from the
+  // label because the label is also the avatar's alt name.
+  username = null,
   characterId,
   avatarVersion,
   zoneName,
@@ -331,7 +334,11 @@ export default function ConversationPane({
             ← Back
           </button>
           <CharacterAvatar characterId={characterId} name={label} version={avatarVersion} size={32} zoomable />
+          {/* The character, then the account behind them. Two elements rather
+              than one composed string so the handle can be drawn quiet — and so
+              the name is still the thing that survives the truncate. */}
           <h2 className="section-title truncate">{label}</h2>
+          {username && <span className="text-xs text-muted truncate">(@{username})</span>}
           {zoneName ? <ZoneChip zoneName={zoneName} /> : null}
           {status && <EnumPill map={CHARACTER_STATUS} value={status} />}
         </div>
@@ -384,7 +391,7 @@ export default function ConversationPane({
             gmProfiles={gmProfiles}
             onLoadOlder={loadOlder}
             hasMore={pages.hasMore}
-            character={characterId ? { id: characterId, name: label, avatarVersion } : null}
+            character={characterId ? { id: characterId, name: label, avatarVersion, username } : null}
             newSinceMs={lastReadAtMs}
             myDiscordUserId={myDiscordUserId}
             onRetry={retrySend}

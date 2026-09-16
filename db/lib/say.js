@@ -19,6 +19,7 @@ const { chunkMessage } = require("./chunkText");
 const { MESSAGE_LIMIT, MAX_SAY_PIECES, tooManyPieces } = require("./sayLimits");
 const { echoSpeech } = require("./gateEcho");
 const { deadchatSpeakerName } = require("./deadchat");
+const { containsOoc, OOC_REFUSAL } = require("./oocGuard");
 
 
 // Same number on both faces: past it, ✏️/❌ refuse, and so do ✎/✕ on the web.
@@ -110,6 +111,17 @@ async function prepareSpeech(
   const raw = content ?? "";
   if (!raw.trim()) return { ok: false, refusal: "There wasn't anything in your message." };
   if (raw.length > MESSAGE_LIMIT) return { ok: false, refusal: lengthRefusal(raw.length) };
+
+  // Speech is in character; `(`, `[` and the bare word "ooc" say it was not
+  // meant to be (db/lib/oocGuard.js). Refused outright rather than posted and
+  // tidied later, and handed back to the player in a DM by the caller —
+  // `oocRejected` is how they know to send it. /ooc is where it goes instead.
+  //
+  // Never for a ghost: Deadchat is out of character by design (CLAUDE.md,
+  // "Death, ghosts and Deadchat"), so filtering it would be backwards.
+  if (!ghost && containsOoc(raw)) {
+    return { ok: false, refusal: OOC_REFUSAL, oocRejected: true, original: raw };
+  }
 
   // `skipSlowmode` is for pieces AFTER the first of a split send — otherwise piece 1 would refuse piece 2, leaving half a message posted.
   if (web && !skipSlowmode) {
@@ -258,6 +270,13 @@ async function sayInPieces(
 ) {
   const raw = content ?? "";
   if (!raw.trim()) return { ok: false, refusal: "There wasn't anything in your message." };
+
+  // Checked over the WHOLE text, before it is split: a marker in the third
+  // piece would otherwise refuse only that piece, leaving the first two
+  // standing in the room (see partlySent below).
+  if (!ghost && containsOoc(raw)) {
+    return { ok: false, refusal: OOC_REFUSAL, oocRejected: true, original: raw };
+  }
 
   const pieces = chunkMessage(raw);
   if (pieces.length === 0) return { ok: false, refusal: "There wasn't anything in your message." };

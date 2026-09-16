@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, InteractionContextType } = require("discord.js");
+const { MESSAGE_LIMIT } = require("@lifeweb/db/lib/sayLimits");
 
 // Slash command definitions, registered GLOBALLY (see registerCommands) so
 // they are usable in the bot's DMs as well as in the guild — a guild command
@@ -133,6 +134,20 @@ const commandDefinitions = [
     .setDescription("Yell, loud enough that the next few places over hear you.")
     .addStringOption((opt) =>
       opt.setName("message").setDescription("What you yell").setRequired(true).setMaxLength(300),
+    )
+    .setContexts(GUILD_ONLY),
+  // Guild-only for /play's reason again: OOC is talk between the people in a
+  // place, and a DM has no place.
+  //
+  // A string option rather than /message's modal, /shout's reasoning: filling
+  // in a slash-command option shows no typing indicator either, so the modal
+  // would buy nothing. 2000 rather than /shout's 300 — this reaches one
+  // channel, so ordinary speech's cap is the right one.
+  new SlashCommandBuilder()
+    .setName("ooc")
+    .setDescription("Say something out of character, to the place you're in.")
+    .addStringOption((opt) =>
+      opt.setName("message").setDescription("What you want to say").setRequired(true).setMaxLength(MESSAGE_LIMIT),
     )
     .setContexts(GUILD_ONLY),
   // Guild-only: a die rolled in a DM has no audience, which is the whole

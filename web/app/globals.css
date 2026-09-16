@@ -3890,9 +3890,18 @@ input[type="radio"]:disabled {
 }
 .desk-rail-lens button {
   flex: 1;
-  /* Four lenses (Moves/Requests/Caving/History) share 19rem minus margins;
-     .segmented's default padding and tracking fit three, not four. */
-  padding-inline: 6px;
+  /* SIX lenses (Moves/Caving/Other/Desires/OOC/History) share 19rem minus
+     margins, and the rail does not get wider to hold them — .segmented's
+     default padding and tracking fit three. `min-width: 0` is what lets
+     `flex: 1` shrink a button below its own content; without it the labels
+     set the floor and the strip overflows the rail.
+
+     `nowrap` is the one that matters: a label and its count are one thing, and
+     "Moves" sitting above "(4)" read as two broken rows rather than one tab. */
+  min-width: 0;
+  white-space: nowrap;
+  font-size: var(--fs-2xs);
+  padding-inline: 4px;
   letter-spacing: 0.02em;
 }
 
@@ -7294,6 +7303,22 @@ label.chip {
   padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
+/* Out of character (db/lib/ooc.js) — the PLAYER talking, not the character and
+   not the world. Subtext-sized like the scenery, because none of it is
+   happening in the room either, but its own rule so it can be told from a
+   smell or a gate crossing at a glance: the accent border is the whole tell.
+   The body already carries its `[OOC]:` tag, so nothing here needs to say it
+   twice. Wears no face, like every other SYSTEM row, so it keeps the same
+   face-gutter indent. */
+.chat-ooc {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-top: var(--sp-2);
+  margin-left: calc(var(--chat-face) + var(--sp-3));
+  padding-left: var(--sp-2);
+  border-left: 2px solid var(--border);
+}
+
 /* The scroller and the jump-to-bottom pill. The wrapper exists only to give
    the pill something to be positioned against. */
 .chat-feed-wrap {
@@ -8468,6 +8493,19 @@ label.chip {
 }
 
 /* Paperwork and the hood, at the composer's right edge. */
+/* Speak / Shout / OOC, across the top of the composer box (Feed.js). A
+   `.segmented` like any other, sized down to sit inside a text box rather than
+   beside one — full-size segments would be taller than the one-line composer
+   they label. Desktop only: the phone folds the same three into the + menu. */
+.chat-speech-modes {
+  align-self: flex-start;
+  margin-bottom: var(--sp-2);
+}
+.chat-speech-modes button {
+  font-size: var(--fs-2xs);
+  padding: 2px var(--sp-2);
+}
+
 .chat-composer-tools {
   display: flex;
   align-items: center;

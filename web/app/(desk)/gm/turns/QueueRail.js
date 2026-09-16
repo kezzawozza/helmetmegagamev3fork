@@ -68,7 +68,7 @@ function makeMoveSearchMap(tagsById) {
 export const RAIL_STORAGE_KEY = "gm-turns-rail";
 export const RAIL_STORAGE_DEFAULT = {
   lens: "moves",
-  filters: {}, // { moves, caving, other, history, "history-caving" } — each an initialFilters-shaped object
+  filters: {}, // { moves, caving, other, desires, ooc, history, "history-caving" } — each an initialFilters-shaped object
   hideTravel: true,
   hideHistoryTravel: true,
   historyKind: "moves", // "moves" | "caving"
@@ -166,6 +166,20 @@ const otherSearchMap = (r) => ({
 });
 // A live hold is the only one a GM can still do anything about.
 const OTHER_TONES = { Holding: "bad", New: "warn", Stopped: "neutral", "Called off": "neutral" };
+
+// The OOC lens. No status and no kind — a line was said or it was not — so
+// the only axis left to narrow by is where it was said.
+const OOC_FILTER_DEFS = [
+  { key: "zone", label: "Zone", value: (r) => r.zoneName },
+  { key: "place", label: "Place", value: (r) => r.placeName },
+];
+const oocSearchMap = (r) => ({
+  name: r.characterName,
+  username: r.discordUsername,
+  // The words themselves, which is what a GM chasing "who said that" has.
+  text: r.text,
+  zone: `${r.zoneName ?? ""} ${r.placeName ?? ""}`,
+});
 
 // The keyboard lens flips, and what ⏎ selects in each lens. The History
 // lens over the OPEN turn selects a live "move" — see historyIsOpenTurn.
@@ -611,6 +625,50 @@ function HoldRow({ row, matchFor, onInspect, onOpenMove, active, kbd }) {
   );
 }
 
+// One out-of-character line (db/lib/ooc.js). READ-ONLY, and that is the shape
+// of the whole lens: there is nothing a GM does to a sentence that has already
+// been said, so the row carries no buttons and the lens carries no desk. The
+// row opens the speaker in the inspector, which is the one thing a GM reading
+// this list actually wants next.
+//
+// A plain .desk-queue-row rather than a .desk-queue-rowset, for the same
+// reason: the rowset exists to hang sibling action buttons off, and there are
+// none.
+function OocRow({ row, matchFor, onInspect, kbd }) {
+  return (
+    <button
+      type="button"
+      className="desk-queue-row"
+      data-row-key={row.id}
+      data-kbd={kbd ? "" : undefined}
+      onClick={() => onInspect?.(row.characterId, row.characterName)}
+    >
+      <span className="flex items-center gap-2">
+        <CharacterAvatar
+          characterId={row.characterId}
+          name={row.characterName}
+          version={row.avatarVersion}
+          catatonic={row.catatonic}
+          size={40}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5 truncate font-medium">
+            <span className="truncate">{row.characterName}</span>
+            <MatchHint match={matchFor(row)} />
+          </span>
+          {/* The words, then where. Two lines rather than one: the sentence is
+              what the lens is for, and sharing a line with a place name would
+              truncate it first. */}
+          <span className="block truncate text-xs">{row.text}</span>
+          {row.placeName && (
+            <span className="block truncate text-xs text-muted">{row.placeName}</span>
+          )}
+        </span>
+      </span>
+    </button>
+  );
+}
+
 function OtherRows({ rows, matchFor, onInspect, onOpenMove, kbdId, kbdLens, openRowId }) {
   return rows.map((row) => {
     const active = openRowId === row.id;
@@ -649,6 +707,7 @@ export default function QueueRail({
   cavingRolls,
   otherRows,
   desireRows,
+  oocRows,
   onInspect,
   onOpenMove,
   visibleZoneNames,
@@ -675,6 +734,7 @@ export default function QueueRail({
   const cavingFilterDefs = useMemo(() => CAVING_FILTER_DEFS, []);
   const otherFilterDefs = useMemo(() => OTHER_FILTER_DEFS, []);
   const desireFilterDefs = useMemo(() => DESIRE_FILTER_DEFS, []);
+  const oocFilterDefs = useMemo(() => OOC_FILTER_DEFS, []);
   const moveSearchMap = useMemo(() => makeMoveSearchMap(tagsById), [tagsById]);
 
   // The rail's persisted view state. Each table's filters live under their
@@ -785,6 +845,23 @@ export default function QueueRail({
     pageSize: 1000,
     ...makeFiltersProps("desires"),
   });
+  // The OOC lens. Newest first and nothing else — there is no status to sort
+  // ahead of recency the way every other lens has, because none of these rows
+  // is waiting on anybody.
+  const rankedOocRows = useMemo(
+    () => inView(oocRows ?? []).map((r) => ({ ...r, queueOrder: -r.createdAtMs })),
+    [oocRows, inView],
+  );
+  const oocTable = useTableState({
+    rows: rankedOocRows,
+    filterDefs: oocFilterDefs,
+    searchMap: oocSearchMap,
+    rankBySearch: true,
+    initialSort: { key: "queueOrder", dir: "asc" },
+    pageSize: 1000,
+    ...makeFiltersProps("ooc"),
+  });
+
   // The History lens is the Moves lens over a past turn.
   const historyTable = useTableState({
     rows: rankedHistoryMoves,
@@ -888,6 +965,7 @@ export default function QueueRail({
       caving: cavingTable.visible,
       other: otherTable.visible,
       desires: desireTable.visible,
+      ooc: oocTable.visible,
       history: historyIsCaving ? historyCavingTable.visible : historyShown,
     }),
     [
@@ -895,6 +973,7 @@ export default function QueueRail({
       cavingTable.visible,
       otherTable.visible,
       desireTable.visible,
+      oocTable.visible,
       historyIsCaving,
       historyCavingTable.visible,
       historyShown,
@@ -1008,6 +1087,12 @@ export default function QueueRail({
           onInspect?.(row.targetCharacterId, row.targetName);
           return;
         }
+        // The OOC lens has no desk either — ⏎ opens the speaker, which is the
+        // one thing a GM reading a line actually wants next.
+        if (lens === "ooc") {
+          onInspect?.(row.characterId, row.characterName);
+          return;
+        }
         const type = lens === "history" ? historySelectionType : (SELECTION_TYPE_FOR_LENS[lens] ?? "move");
         onSelect({ type, id: row.id });
         return;
@@ -1046,6 +1131,9 @@ export default function QueueRail({
         </button>
         <button type="button" aria-pressed={lens === "desires"} onClick={() => onLens?.("desires")}>
           Desires{desireUnreviewedCount > 0 ? ` (${desireUnreviewedCount})` : ""}
+        </button>
+        <button type="button" aria-pressed={lens === "ooc"} onClick={() => onLens?.("ooc")}>
+          OOC{oocTable.total > 0 ? ` (${oocTable.total})` : ""}
         </button>
         <button type="button" aria-pressed={lens === "history"} onClick={() => onLens?.("history")}>
           History
@@ -1216,6 +1304,28 @@ export default function QueueRail({
             />
             {otherTable.total === 0 && (
               <p className="p-3 text-sm text-muted">No miscellaneous requests.</p>
+            )}
+          </div>
+        </>
+      ) : lens === "ooc" ? (
+        <>
+          <RailFilters
+            table={oocTable}
+            filterDefs={oocFilterDefs}
+            searchPlaceholder="name, @handle, what was said…"
+          />
+          <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
+            {oocTable.visible.map((row) => (
+              <OocRow
+                key={row.id}
+                row={row}
+                matchFor={oocTable.matchFor}
+                onInspect={onInspect}
+                kbd={lens === "ooc" && kbdId === row.id}
+              />
+            ))}
+            {oocTable.total === 0 && (
+              <p className="p-3 text-sm text-muted">Nothing said out of character this turn.</p>
             )}
           </div>
         </>

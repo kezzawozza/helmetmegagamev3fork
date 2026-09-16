@@ -164,6 +164,7 @@ const {
   handleRollCommand,
   handlePlayCommand,
   handleShoutCommand,
+  handleOocCommand,
 } = require("./interactions/actions");
 
 module.exports = {
@@ -186,6 +187,7 @@ module.exports = {
         if (interaction.commandName === "roll") return void (await handleRollCommand(interaction));
         if (interaction.commandName === "play") return void (await handlePlayCommand(interaction));
         if (interaction.commandName === "shout") return void (await handleShoutCommand(interaction));
+        if (interaction.commandName === "ooc") return void (await handleOocCommand(interaction));
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleTravelOpen(interaction));
         if (interaction.customId === CANCEL_ID) return void (await handleTravelCancel(interaction));

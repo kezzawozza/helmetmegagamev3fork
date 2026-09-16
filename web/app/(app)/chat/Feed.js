@@ -107,6 +107,11 @@ function timeLabel(iso) {
 // `channelKind: "intercom"` in db/lib/scene.js precisely so this can tell it
 // apart and draw it full size and bold instead of small and muted.
 //
+// An OOC line is the third: not the world talking and not a character
+// talking, but the PLAYER (db/lib/ooc.js). Subtext like the scenery, because
+// it is not happening in the room either — but its own tag, so it can be told
+// apart from a smell at a glance.
+//
 // A shout is three sizes, matching db/lib/shout.js#shoutChannelKind: distance
 // 0 (`"shout"`) draws bigger than ordinary chat text, distance 1
 // (`"shout-near"`, still fully audible on Discord too) draws at ordinary
@@ -116,13 +121,16 @@ const SystemRow = memo(function SystemRow({ row }) {
   const shout = row.channelKind === "shout";
   const shoutNear = row.channelKind === "shout-near";
   const intercom = row.channelKind === "intercom";
+  const ooc = row.channelKind === "ooc";
   const className = shout
     ? "chat-shout"
     : shoutNear
       ? "chat-shout-near"
       : intercom
         ? "chat-intercom"
-        : "chat-subtext";
+        : ooc
+          ? "chat-ooc"
+          : "chat-subtext";
   return (
     <li className={className} data-seq={row.seq ?? undefined}>
       <ChatMarkdown content={row.content} />
@@ -1089,14 +1097,60 @@ export default function Feed({
     [setCmdError],
   );
 
-  const pickCommand = useCallback((entry) => {
+  // `keepText` is for the speech-mode control below, which is a change of
+  // VOICE rather than a change of subject — somebody who typed a sentence and
+  // then decided it was out of character should not have to type it again.
+  // The `/` popover still clears, since there the text WAS the command name.
+  const pickCommand = useCallback((entry, keepText = "") => {
     setSlash(null);
     setMention(null);
-    setDraft("");
+    setDraft(keepText);
     setCmdLine(null);
     setCommand({ entry, values: {} });
     requestAnimationFrame(() => textareaRef.current?.focus());
   }, []);
+
+  // ---- Speak / Shout / OOC -------------------------------------------------
+  //
+  // Three ways of talking, as one control. Each of the two that are not plain
+  // speech is ALREADY a command in ./commands.js, so this drives command mode
+  // rather than adding a third send path: runCurrent() below does the sending,
+  // the clearing, the length cap and the hand-back-on-refusal, and all of that
+  // stays written once. The control is the affordance; `command` is the state.
+  //
+  // Which modes are offered comes off the same `where` gate the slash list
+  // takes, so a place that cannot be shouted in never shows a Shout button —
+  // and oocHere/shoutHere re-check it anyway, since a server action is a
+  // public endpoint.
+  const speechModes = useMemo(
+    () =>
+      [
+        { mode: "speak", label: "Speak", command: null },
+        { mode: "shout", label: "Shout", command: "shout" },
+        { mode: "ooc", label: "OOC", command: "ooc" },
+      ].filter((m) => !m.command || available.some((entry) => entry.name === m.command)),
+    [available],
+  );
+  // Derived, never stored — two copies of "which voice is this" could disagree,
+  // and the one in `command` is the one that actually sends. Null while some
+  // OTHER command is open (/move, /look), which leaves all three unpressed:
+  // honest, since none of them is what the box would run.
+  const speechMode = command
+    ? (speechModes.find((m) => m.command === command.entry.name)?.mode ?? null)
+    : "speak";
+  const pickSpeechMode = useCallback(
+    (mode) => {
+      const picked = speechModes.find((m) => m.mode === mode);
+      if (!picked) return;
+      if (!picked.command) {
+        exitCommand(draft);
+        return;
+      }
+      const entry = available.find((e) => e.name === picked.command);
+      if (entry) pickCommand(entry, draft);
+    },
+    [available, draft, exitCommand, pickCommand, speechModes],
+  );
 
   // Looking somebody up from `/look`. ONE path for a name and for a hood: the
   // server tells a 32-hex token from a character id itself, so the browser is
@@ -1972,6 +2026,26 @@ export default function Feed({
           {place.canSpeak ? (
             <>
               <div className="field chat-composer-box" data-command={command ? "true" : undefined}>
+                {/* Speak / Shout / OOC, across the top of the box. Desktop
+                    only: on a phone the same three sit under the + beside the
+                    box, where the rest of the composer's verbs already live
+                    and where there is no room for a third row of chrome.
+                    Hidden when there is only Speak to pick — a control with
+                    one option is decoration. */}
+                {!narrow && speechModes.length > 1 && (
+                  <div className="segmented chat-speech-modes" role="group" aria-label="How to talk">
+                    {speechModes.map((m) => (
+                      <button
+                        key={m.mode}
+                        type="button"
+                        aria-pressed={speechMode === m.mode}
+                        onClick={() => pickSpeechMode(m.mode)}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {/* COMMAND MODE reads as a strip across the top of the box —
                     what you are running, what it does, and a way out. It used
                     to be a floating accent-tinted pill above the textarea,
@@ -2216,7 +2290,7 @@ export default function Feed({
               you are standing — so they sit on the composer rather than in the
               right column. On a phone the two fold behind one + at the left
               edge of the box (Discord's), so the row is +, the box, and send. */}
-          {(lettersMenu.length > 0 || canConceal) && (
+          {(lettersMenu.length > 0 || canConceal || (narrow && speechModes.length > 1)) && (
             <span className={narrow ? "chat-composer-tools chat-composer-tools--folded" : "chat-composer-tools"}>
               {narrow ? (
                 <span className="chat-tool-wrap">
@@ -2230,6 +2304,26 @@ export default function Feed({
                   />
                   {toolsOpen && (
                     <div className="chat-menu chat-menu--left" role="menu" aria-label="More">
+                      {/* The phone's Speak / Shout / OOC. Radios rather than
+                          buttons — they are three states of one thing, and one
+                          of them is always on — so the menu says which voice
+                          the box is currently in without a second control. */}
+                      {speechModes.length > 1 &&
+                        speechModes.map((m) => (
+                          <button
+                            key={m.mode}
+                            type="button"
+                            role="menuitemradio"
+                            aria-checked={speechMode === m.mode}
+                            className="menu-item"
+                            onClick={() => {
+                              setToolsOpen(false);
+                              pickSpeechMode(m.mode);
+                            }}
+                          >
+                            {m.label}
+                          </button>
+                        ))}
                       {lettersMenu.map((entry) => (
                         <button
                           key={entry.mode}
