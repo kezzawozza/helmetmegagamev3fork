@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · OOC works on the radio and in a zone summary
+
+✚ You can now use /ooc on a radio net and in a zone summary, not just in a room or a conversation  
+✎ Shout, Play and Roll are unchanged — those are things your character does, so they still only work in a room or a conversation
+
 ## 2026-09-16 · Reincarnations are younger
 
 ✎ A reincarnated soul rolls a random age from 18 to 49 now, down from 18 to 65 — no more elderly reincarnations

@@ -65,7 +65,10 @@ export const COMMANDS = [
   {
     name: "ooc",
     description: "Say something out of character.",
-    where: ["room", "conv"],
+    // Wider than the three around it: a summary and a radio net take an OOC
+    // line, because none of it is the character talking. See
+    // db/lib/placeKey.js#isOocPlaceKey, which oocHere re-checks.
+    where: ["room", "conv", "zone", "net"],
     args: [{ name: "message", kind: "text", placeholder: "Out of character…", maxLength: OOC_LIMIT }],
     run: ({ message }, ctx) => oocHere(message, ctx.placeKey),
   },

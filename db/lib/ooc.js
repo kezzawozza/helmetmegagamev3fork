@@ -7,6 +7,12 @@
 // range, no distance, no muffling — none of that is happening in the fiction,
 // because none of this is happening in the fiction.
 //
+// Which is also why it reaches WIDER than a shout does. The scene predicate
+// keeps /shout, /play and /roll out of a zone #summary and off a radio net,
+// since none of those three is a thing you can do across a broadcast. An OOC
+// line is not the character doing anything, so it goes wherever there is a
+// composer to type it into — db/lib/placeKey.js#isOocPlaceKey.
+//
 // For the same reason no voice tag applies. A gag, a bound pair of hands and a
 // mute are things done to a CHARACTER; the player behind them can still ask
 // whether Mountaineering is the skill they need.
@@ -14,7 +20,7 @@
 const { ambientLine } = require("./ambientLine");
 const { sceneLine } = require("./scene");
 const { postMessage } = require("./discordRest");
-const { isScenePlaceKey, discordTargetForPlaceKey, placePairForAudit } = require("./placeKey");
+const { isOocPlaceKey, discordTargetForPlaceKey, placePairForAudit } = require("./placeKey");
 const { MESSAGE_LIMIT } = require("./sayLimits");
 const { checkSpeechBucket, OOC_CAPACITY, OOC_REFILL_MS } = require("./speechRateLimit");
 
@@ -86,7 +92,9 @@ async function ooc(prisma, character, text, { placeKey = null } = {}) {
   }
 
   if (!character?.id) return { ok: false, error: "You don't have a living character." };
-  if (!isScenePlaceKey(placeKey)) return { ok: false, error: "You can't say that here." };
+  // isOocPlaceKey, not isScenePlaceKey: a zone #summary and a radio net take an
+  // OOC line even though neither takes a shout. See the note on the predicate.
+  if (!isOocPlaceKey(placeKey)) return { ok: false, error: "You can't say that here." };
 
   // Muted by a GM (schema.prisma, OocMute). Ahead of the rate limit for the
   // same reason every other refusal here is: a refused send must not cost a

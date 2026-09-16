@@ -92,7 +92,7 @@ import { presentedNameOf, resolveMemberToken } from "@lifeweb/db/lib/presentedMe
 import { notifyPresence } from "@lifeweb/db/lib/presenceNotify";
 import { sceneLine } from "@lifeweb/db/lib/scene";
 import { playInstrument } from "@lifeweb/db/lib/instrumentPlay";
-import { parsePlaceKey, isScenePlaceKey } from "@lifeweb/db/lib/placeKey";
+import { parsePlaceKey, isScenePlaceKey, isOocPlaceKey } from "@lifeweb/db/lib/placeKey";
 import { removeThreadMember } from "@lifeweb/db/lib/discordRest";
 import { BELL_ROOM_SLUG, RING_WORD, bellWordMatches, bellCooldown, broadcastBell } from "@lifeweb/db/lib/bell";
 import {
@@ -2266,8 +2266,11 @@ export async function oocHere(text, placeKey = null) {
   // in. Same order and the same two gates as shoutHere above, and for the same
   // reason: a server action is a public endpoint and the selector is a hint,
   // not a lock.
-  if (!isScenePlaceKey(placeKey)) {
-    return { ok: false, error: "You can only do that in a room or in a conversation." };
+  // isOocPlaceKey, wider than the scene gate the three above take: a summary
+  // and a radio net are places a player can be read in, and an OOC line is the
+  // player (db/lib/placeKey.js#isOocPlaceKey).
+  if (!isOocPlaceKey(placeKey)) {
+    return { ok: false, error: "You can't say that here." };
   }
 
   const mine = await mayWritePlace(prisma, me.character, placeKey, {

@@ -232,6 +232,19 @@ function isScenePlaceKey(placeKey) {
   return kind === "room" || kind === "conv";
 }
 
+// OOC is NOT a scene rule, and it needed its own predicate. Everything
+// isScenePlaceKey gates — a shout, a performance, a die roll — is a thing the
+// CHARACTER does, so it is refused where the fiction has no room for it. An OOC
+// line is the opposite: it is the player asking the people reading the same
+// place a question, and none of it is happening in the world. So it reaches a
+// zone #summary and a radio net too, and only the places with no composer at
+// all are left out — a Location (the street takes no voice, CHAT.md 5b) and
+// Deadchat, which is already nothing but out-of-character talk.
+function isOocPlaceKey(placeKey) {
+  const kind = parsePlaceKey(placeKey)?.kind;
+  return kind === "room" || kind === "conv" || kind === "zone" || kind === "net";
+}
+
 // Where on Discord a place key points, for the outbox. A webhook cannot be
 // created on a thread, so `channelId` is always the owning channel and
 // `threadId` is non-null only for a Room or Conversation.
@@ -303,6 +316,7 @@ module.exports = {
   placeKeyForZone,
   parsePlaceKey,
   isScenePlaceKey,
+  isOocPlaceKey,
   forgetPlaceKeys,
   placePairForAudit,
 };

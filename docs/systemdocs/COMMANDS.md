@@ -868,6 +868,14 @@ anybody stands in, so a die cast into one has no audience to see it thrown. A
 buttons — so a voice in one is a voice in a room the game says nobody is
 talking in.
 
+**`/ooc` is not one of the three.** It reaches a zone summary and a radio net
+as well, on `db/lib/placeKey.js#isOocPlaceKey` — `room`, `conv`, `zone` and
+`net` all true, `loc` and `dead` false. The two rulings above are about a
+CHARACTER: you cannot throw a die into a broadcast or shout down the street.
+An OOC line is the player asking the people reading the same place a question,
+and none of it happens in the world, so the only places left out are the ones
+with no composer to type it into.
+
 Before this the two faces disagreed and neither was right. The bot asked
 `resolveChannelContext` for `channelKind === "location"`, which resolves the
 same for the street and for every thread hanging off it, so `/shout` and

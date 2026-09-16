@@ -522,8 +522,10 @@ async function handleOocCommand(interaction) {
 
   // Unlike a shout, this is anchored to the CHANNEL and not to where the
   // character stands — an OOC line is addressed to the people reading the same
-  // place you are reading, which is a fact about the channel. Still a Room or a
-  // Conversation and nothing else (db/lib/placeKey.js#isScenePlaceKey).
+  // place you are reading, which is a fact about the channel. And it is a wider
+  // set of channels than a shout takes: a zone #summary and a radio net count
+  // too (db/lib/placeKey.js#isOocPlaceKey), since none of this is the character
+  // talking. ooc() is what refuses; nothing is checked here.
   const channel = interaction.channel;
   const placeKey = channel
     ? await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id })

@@ -1656,6 +1656,10 @@ The kind carries its own weight and almost nothing else changed:
 It is **not** a scene: `isScenePlaceKey` excludes it, so `/shout`, `/play` and
 `/roll` are not offered. You cannot shout across a frequency.
 
+`/ooc` **is** offered, and that is why it has a predicate of its own
+(`isOocPlaceKey`). The three above are things a character does; an OOC line is
+the player, so a frequency is as good a place to ask a question as a room is.
+
 A GM reads both nets and speaks on neither, flat and last in `gmPlacesFor` —
 `GmZoneView` has nothing to say about a channel that is in no zone, and
 withholding them would make the desk the one place a GM cannot read a
