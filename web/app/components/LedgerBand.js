@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useRef, useState } from "react";
+import { Fragment, useState } from "react";
 import { armorWord, combineArmor } from "@/lib/armorValue";
 import { fightingSkill, TREES } from "@/lib/fightingSkill";
 import { formatGambitModifiers, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
@@ -9,98 +9,11 @@ import StatusStrip from "@/app/(app)/chat/StatusStrip";
 import ActionGrid from "./ActionGrid";
 import AvatarZoom from "./AvatarZoom";
 import FactionLink from "./FactionLink";
+import LedgerTile from "./LedgerTile";
 import SheetTurn from "./SheetTurn";
 import SoundTrumpetButton from "./SoundTrumpetButton";
 import TagDetails from "./TagDetails";
 import TurnForecast from "./TurnForecast";
-
-// One number and its label. The label is the word, the value carries the
-// glyph (CLAUDE.md house rule for ⬢). A tile with something to say SWAPS ITS
-// OWN FACE for it on hover, focus or click, inside the same box at the same
-// height — no layout shift, and no tooltip (this sheet has none, SHEET.md
-// §3). Click matters as much as hover: a phone has no hover, and focus
-// reaches players on a keyboard the same way.
-// `tone` colours the value by meaning, the rule StatusPill.js sets. `word` drops the mono face — a word is not data.
-function Tile({
-  label,
-  value,
-  over = false,
-  tone = null,
-  word = false,
-  detail = null,
-  open = false,
-  onOpen = null,
-  children = null,
-}) {
-  // Whether a MOUSE is over this tile: a touch tap fires a synthesised
-  // mouseenter before its click, and without this the tap opened then
-  // immediately closed the tile. Declared before the early return — a hook may not be called conditionally.
-  const hovering = useRef(false);
-  const className = "ledger-tile";
-  if (!detail) {
-    return (
-      <div className={className}>
-        <span className="field-label">{label}</span>
-        <span
-          className="ledger-tile-value"
-          data-over={over ? "true" : "false"}
-          data-tone={tone ?? undefined}
-          data-word={word ? "true" : undefined}
-        >
-          {value}
-        </span>
-        {children}
-      </div>
-    );
-  }
-  return (
-    <button
-      type="button"
-      className={`${className} ledger-tile-button`}
-      aria-expanded={open}
-      onPointerEnter={(e) => {
-        if (e.pointerType !== "mouse") return;
-        hovering.current = true;
-        onOpen(true);
-      }}
-      onPointerLeave={(e) => {
-        if (e.pointerType !== "mouse") return;
-        hovering.current = false;
-        onOpen(false);
-      }}
-      // Under a mouse the tile is already open, so a click would only close it.
-      // Touch and keyboard land here with no pointer over the tile — there the click IS the way in and back out.
-      onClick={() => {
-        if (hovering.current) return;
-        onOpen(!open);
-      }}
-      // :focus-visible so a tap (which also focuses) doesn't fight the click above.
-      onFocus={(e) => {
-        if (e.target.matches(":focus-visible")) onOpen(true);
-      }}
-      onBlur={() => onOpen(false)}
-    >
-      <span className="field-label">{label}</span>
-      {/* Both faces live in one relative box, detail ABSOLUTE inside it, so opening a tile can't change its height. `visibility` not `hidden`. */}
-      <span className="ledger-tile-faces">
-        <span className="ledger-tile-face" data-open={open ? "true" : "false"}>
-          <span
-            className="ledger-tile-value"
-            data-over={over ? "true" : "false"}
-            data-tone={tone ?? undefined}
-            data-word={word ? "true" : undefined}
-          >
-            {value}
-          </span>
-          {children}
-        </span>
-        <span className="ledger-tile-detail" data-open={open ? "true" : "false"}>
-          {detail}
-        </span>
-      </span>
-    </button>
-  );
-}
 
 // What the Mood box says when you open it. Bascinet's words, verbatim.
 const MOOD_DETAIL =
@@ -284,7 +197,7 @@ export default function LedgerBand({
         {/* Five tiles, one row — Combat lives on the row below instead of squeezing a sixth, double-width tile in. */}
         <div className="ledger-tiles">
           {/* One open slot across the band, so two boxes never show detail at once. */}
-          <Tile
+          <LedgerTile
             label="Free moves"
             value={zoneMoves != null ? zoneMoves : "—"}
             over={zoneMoves === 0}
@@ -292,12 +205,12 @@ export default function LedgerBand({
             open={tileOpen === "moves"}
             onOpen={(want) => setTileOpen(want ? "moves" : null)}
           />
-          <Tile
+          <LedgerTile
             label="Resources"
             value={carry ? `${carry.resources} / ${carry.resourcesCap} ⬢` : `${character.resources} ⬢`}
             over={Boolean(carry && carry.resources > carry.resourcesCap)}
           />
-          <Tile
+          <LedgerTile
             label="Carrying"
             value={carrying ? `${carrying} lb` : "—"}
             over={Boolean(carry && carry.weightUsed > carry.weightCap)}
@@ -314,9 +227,9 @@ export default function LedgerBand({
                 <span className="depot-meter-fill" style={{ width: `${loadPct}%` }} />
               </span>
             )}
-          </Tile>
+          </LedgerTile>
           {/* The mood dial as ONE WORD (docs/systemdocs/MOOD.md), never the number; the tone picks the token. */}
-          <Tile
+          <LedgerTile
             label="Mood"
             value={moodBand?.label ?? "Fine"}
             tone={moodBand?.tone ?? "muted"}
@@ -326,7 +239,7 @@ export default function LedgerBand({
             onOpen={(want) => setTileOpen(want ? "mood" : null)}
           />
           {/* The modifier the bot actually rolls the Gambit die against — same module, same arguments — and says WHICH modifiers. */}
-          <Tile
+          <LedgerTile
             label="Gambit die"
             value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
             over={Boolean(gambit)}
@@ -346,7 +259,7 @@ export default function LedgerBand({
           </div>
         )}
         {combat && (
-          <Tile
+          <LedgerTile
             label="Combat"
             value={<CombatFace combat={combat} armor={armorWords} />}
             detail={<CombatDetail combat={combat} />}

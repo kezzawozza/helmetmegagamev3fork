@@ -506,42 +506,6 @@ async function setCharacterMirroringImpl({ characterId, on }) {
   return { discordMirrored: want };
 }
 
-// Pure repair: re-pushes what Discord should already be showing. Refused for
-// a corpse, and for a character not mirrored to Discord — every step below
-// no-ops for one silently (ensureCharacterRole, syncCharacterNickname, the
-// channel half of applyLocationMoveSideEffects), so a GM pressing Resync got
-// a green button and nothing behind it.
-async function resyncDiscordImpl({ characterId }) {
-  const session = await requireGm();
-  const character = await loadCharacter(characterId);
-  if (character.status !== "ALIVE") {
-    throw new UserError("There's nothing to sync for a dead character.");
-  }
-  if (!character.discordMirrored) {
-    throw new UserError(`${character.name} isn't mirrored to Discord — there's nothing to resync.`);
-  }
-
-  await audit(session, "gm_character_discord_resync", characterId, { name: character.name });
-
-  after(async () => {
-    try {
-      await ensureCharacterRole(character);
-      await syncCharacterNickname(character.discordUserId, formatBareName(character));
-      await applyLocationMoveSideEffects(prisma, {
-        characterId,
-        fromLocationId: null,
-        toLocationId: character.locationId,
-      });
-      await afterInventoryChange(characterId);
-    } catch (err) {
-      console.error("Dev Panel resync failed:", err);
-    }
-  });
-
-  repaint(characterId);
-  return { name: character.name };
-}
-
 // A raw relocation like Bulk Move's: no Move cost, no Action, no adjacency
 // check, and no cooldown stamp. Immediate, not staged, since it only touches
 // where the character stands.
@@ -807,9 +771,6 @@ export async function transferResources(input) {
 }
 export async function messageCharacter(input) {
   return guarded(() => messageCharacterImpl(input));
-}
-export async function resyncDiscord(input) {
-  return guarded(() => resyncDiscordImpl(input));
 }
 export async function setCharacterMirroring(input) {
   return guarded(() => setCharacterMirroringImpl(input));

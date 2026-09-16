@@ -99,6 +99,9 @@ Who this is, where they stand, and:
   half again on a quiet turn when the forecast renders nothing.
 - **A box with something to say SWAPS ITS OWN FACE for it.** Hover, focus or
   click and the value is replaced by the breakdown, inside the same box. The
+  box itself is `LedgerTile` in `web/app/components/` — it lived in this file
+  until the Dev Character Panel's band wanted the same thing
+  (`DEV-PANEL.md` §3), and both surfaces import it now. The
   detail is absolutely positioned inside it, so the box is sized by its resting
   face alone and **opening one cannot move anything** — which is the whole
   point. It used to append a block under the row and shove the rest of the

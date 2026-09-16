@@ -1,21 +1,17 @@
 "use client";
 
-import { handsFor, handsUsed } from "@lifeweb/db/lib/equipSlots";
-import { CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useRef, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRefresh } from "@/app/components/useRefresh";
-import FactionLink from "@/app/components/FactionLink";
-import TagPointsValue from "@/app/components/TagPointsValue";
 import Modal from "@/app/components/Modal";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ActionBar from "./ActionBar";
+import DevBand from "./DevBand";
 import IdentityTab from "./IdentityTab";
 import TagEditor from "./TagEditor";
 import TurnTab from "./TurnTab";
 import GoalsTab from "./GoalsTab";
 import RecordTab from "./RecordTab";
-import { applyCharacterEdits, setCurseOverride, setCharacterMirroring } from "./actions";
+import { applyCharacterEdits } from "./actions";
 import { getDevPanelRecord } from "@/app/components/devPanelActions";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
@@ -61,6 +57,7 @@ export default function DevPanel({
   maxDrawbackPoints,
   openTurn,
   gambitModifier,
+  gambitParts,
   stagedForPush,
   openTurnAction,
   desires,
@@ -223,7 +220,7 @@ export default function DevPanel({
 
   const body = (
     <>
-      <StateStrip
+      <DevBand
         character={character}
         staged={staged}
         discord={discord}
@@ -232,6 +229,7 @@ export default function DevPanel({
         maxDrawbackTags={maxDrawbackTags}
         maxDrawbackPoints={maxDrawbackPoints}
         gambitModifier={gambitModifier}
+        gambitParts={gambitParts}
         openTurn={openTurn}
         hasActed={Boolean(openTurnAction)}
         stagedForPush={stagedForPush}
@@ -371,237 +369,4 @@ export default function DevPanel({
   // shared bar, with the name, the face and the way back in it. The modal
   // frame above still wants `titleWithAvatar`, which is why it stays.
   return body;
-}
-
-// The GM's thumb on the curse. Three states, because "not cursed" and "work it
-// out" are different answers: Automatic lets db/lib/curse.js decide from the
-// body and the re-roll, the other two overrule it and stay overruled.
-//
-// This replaces adding or removing the Cursed role in Discord by hand, which
-// is what a GM used to do before the curse became a database fact.
-function CurseOverride({ characterId, value }) {
-  const [pending, startTransition] = useTransition();
-  const [refresh] = useRefresh();
-  const [error, setError] = useState(null);
-
-  const onChange = (next) => {
-    setError(null);
-    startTransition(async () => {
-      const result = await setCurseOverride({
-        characterId,
-        override: next === "auto" ? null : next === "cursed",
-      });
-      if (result?.error) setError(result.error);
-      else refresh();
-    });
-  };
-
-  return (
-    <span className="field">
-      <select
-        value={value === null || value === undefined ? "auto" : value ? "cursed" : "clear"}
-        disabled={pending}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label="Curse override"
-      >
-        <option value="auto">Automatic</option>
-        <option value="cursed">Cursed</option>
-        <option value="clear">Not cursed</option>
-      </select>
-      {error && <span className="text-danger text-xs">{error}</span>}
-    </span>
-  );
-}
-
-// The GM remedy for the switch's own 2-hour cooldown (db/lib/discordMirroring.js):
-// a player stuck off Discord with no way to flip it back themselves. Same
-// shape as CurseOverride above. OFF strips channel access immediately, so it
-// asks first; ON is a quiet grant and doesn't.
-function MirrorToggle({ characterId, value }) {
-  const [pending, startTransition] = useTransition();
-  const [refresh] = useRefresh();
-  const [error, setError] = useState(null);
-  const confirm = useConfirm();
-
-  const flip = (next) => {
-    setError(null);
-    startTransition(async () => {
-      const result = await setCharacterMirroring({ characterId, on: next });
-      if (result?.error) setError(result.error);
-      else refresh();
-    });
-  };
-
-  const onClick = async () => {
-    if (value && !(await confirm({
-      title: "Turn off Play on Discord too?",
-      message: "This strips their Discord channel access right away.",
-      confirmLabel: "Turn off",
-    }))) {
-      return;
-    }
-    flip(!value);
-  };
-
-  return (
-    <span className="field">
-      <span>{value ? "On" : "Off"}</span>{" "}
-      <button type="button" className="btn-quiet" disabled={pending} onClick={onClick}>
-        Turn {value ? "off" : "on"}
-      </button>
-      {error && <span className="text-danger text-xs">{error}</span>}
-    </span>
-  );
-}
-
-// The read-only facts a GM wants before touching anything — the live state
-// the panel is about to change, including the derived numbers that exist
-// nowhere as a column (points spent, slots used, the gambit modifier).
-function StateStrip({
-  character,
-  staged,
-  discord,
-  curse,
-  held,
-  maxDrawbackTags,
-  maxDrawbackPoints,
-  gambitModifier,
-  openTurn,
-  hasActed,
-  stagedForPush,
-}) {
-  // Slots spent, not rows worn — a stack equipped 3-of-5 spends 3.
-  const equipped = held.reduce((sum, h) => sum + (h.equippedQuantity ?? 0), 0);
-  // Hands, not a flat count: the only equipment limit that is a number now
-  // (db/lib/equipSlots.js). The layered slots refuse on their own. handsUsed
-  // expands each row by its own equippedQuantity, matching `equipped` above.
-  const hands = handsUsed(held.filter((h) => h.equippedQuantity > 0));
-  // The cap this character actually has — a maiming takes hands away.
-  const handCap = handsFor(held);
-  // Point-bought drawbacks only, matching the ceilings PointBuy enforces — a
-  // GM-inflicted wound is not one of the player's tags. Shown as a fact, not
-  // a limit: a GM grant deliberately ignores every gate, these included.
-  // Both halves, because either one alone tells a GM half the rule.
-  const drawbacks = held.reduce(
-    (acc, h) => {
-      if (h.source !== "POINT_BUY" || (h.pointCost ?? 0) >= 0) return acc;
-      return { count: acc.count + 1, points: acc.points - h.pointCost };
-    },
-    { count: 0, points: 0 },
-  );
-  const overDrawbackCap = drawbacks.count > maxDrawbackTags || drawbacks.points > maxDrawbackPoints;
-  // Four labeled clusters instead of one undifferentiated 15-fact grid, so a
-  // GM's eye lands on the right group instead of scanning the whole strip.
-  // Purely presentational — every value below is unchanged from before.
-  const groups = [
-    [
-      "Identity",
-      [
-        ["Status", CHARACTER_STATUS[character.status]?.label ?? character.status],
-        ["Role", staged.roleTitle ?? "—"],
-        [
-          "Faction",
-          <FactionLink key="f" factionId={character.factionId} name={character.factionName ?? "—"} />,
-        ],
-        ["Location", character.locationName ?? "—"],
-        ["Zone", character.zoneName ?? "—"],
-        // Both switches on /character, which had no GM surface at all until
-        // now — CHAT.md §6a even tells a GM to check the roster for
-        // not-yet-mirrored players before turning Chat off, and there was
-        // nothing to check.
-        [
-          "Play on Discord too",
-          <MirrorToggle key="mirror" characterId={character.id} value={character.discordMirrored} />,
-        ],
-        [
-          "Concealed",
-          // The column is a wish; it only takes effect while something
-          // concealing is equipped. A GM reading a bare "Yes" against a player
-          // insisting they are visible would learn nothing.
-          character.concealedInEffect ? "Yes" : character.concealed ? "On, but nothing worn" : "No",
-        ],
-      ],
-    ],
-    [
-      "Economy",
-      [
-        ["Resources", `${staged.resources} ⬢`],
-        ["Tag points", <TagPointsValue key="tp" points={staged.tagPoints} />],
-        ["Equipped", `${equipped} · ${hands} / ${handCap} hands`],
-        [
-          "Drawbacks",
-          <span key="db" className={overDrawbackCap ? "text-danger" : undefined}>
-            {drawbacks.count} / {maxDrawbackTags} · {drawbacks.points} / {maxDrawbackPoints} pts
-          </span>,
-        ],
-        ["Gambit", gambitModifier > 0 ? `+${gambitModifier}` : String(gambitModifier)],
-      ],
-    ],
-    [
-      "Turn",
-      [
-        ["Turn", openTurn ? `${openTurn.number} ${openTurn.phase}` : "none open"],
-        ["Acted", hasActed ? "yes" : "no"],
-      ],
-    ],
-    [
-      "Curse",
-      [
-        ["Cursed", curse.cursed ? "yes" : "no"],
-        [
-          "Override",
-          <CurseOverride key="co" characterId={character.id} value={curse.override} />,
-        ],
-      ],
-    ],
-    [
-      "Discord",
-      [
-        ["Discord", discord.username ?? "not in guild"],
-        ["Nickname", discord.nickname ?? "—"],
-        ["Name role", character.discordRoleId ? "provisioned" : "missing"],
-        ["Ghost seat", character.status === "ALIVE" ? "no" : "yes"],
-      ],
-    ],
-  ];
-
-  return (
-    <section className="panel p-3">
-      <div className="dev-state-strip">
-        {groups.map(([label, facts]) => (
-          <dl key={label} className="dev-state-group">
-            <span className="dev-state-group-label">{label}</span>
-            {facts.map(([factLabel, value]) => (
-              <div key={factLabel}>
-                <dt className="field-label">{factLabel}</dt>
-                <dd className="mono text-sm">{value}</dd>
-              </div>
-            ))}
-          </dl>
-        ))}
-      </div>
-      {stagedForPush && (
-        /* The adjudication workspace has queued changes against this sheet
-           for the turn-end push. Live edits here are additive with those —
-           nothing corrupts — but a GM who can't see the queue double-grants. */
-        <p className="mt-2 text-xs text-accent">
-          Staged for the push:{" "}
-          {[
-            stagedForPush.resources
-              ? `${stagedForPush.resources > 0 ? "+" : ""}${stagedForPush.resources} ⬢`
-              : null,
-            stagedForPush.tagOps
-              ? `${stagedForPush.tagOps} tag change${stagedForPush.tagOps === 1 ? "" : "s"}`
-              : null,
-            (stagedForPush.tagPoints ?? 0)
-              ? `${stagedForPush.tagPoints > 0 ? "+" : ""}${stagedForPush.tagPoints} tag points`
-              : null,
-          ]
-            .filter(Boolean)
-            .join(", ")}{" "}
-          — queued in /gm/turns, lands at turn end.
-        </p>
-      )}
-    </section>
-  );
 }
