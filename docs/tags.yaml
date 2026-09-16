@@ -1931,7 +1931,7 @@ tags:
     name: Subtle
     category: general
     group: general-traits
-    description: "You are talented at whispering and saying things quietly. The room never notices you doing it."
+    description: "Your whispers can't be heard by others."
     pointCost: 2
     visible: false
     purchasable: true
