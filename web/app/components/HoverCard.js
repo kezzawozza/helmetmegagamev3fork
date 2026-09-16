@@ -10,6 +10,12 @@ import { placePanel } from "./portalPlacement";
 // Click/Enter/Space pins it open so the reader can reach into it; `pinnable={false}`
 // wraps an already-interactive child (Chat's places column rows) — no tab stop, click
 // and keys pass through to the child untouched, hover/focus still open the panel.
+//
+// `panel` may be a FUNCTION of `close` rather than a node, for a panel that
+// carries a control of its own and has to put itself away once it is used —
+// ActionButton.js's touch path, where the pinned panel IS the button. An
+// outside tap already unpins, but a tap on the panel's own button is inside it
+// by definition, so there has to be a way to ask.
 export default function HoverCard({ children, panel, className = "", pinnable = true, ...triggerProps }) {
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
@@ -89,6 +95,8 @@ export default function HoverCard({ children, panel, className = "", pinnable = 
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [pinned]);
 
+  const panelNode = typeof panel === "function" ? panel(closePin) : panel;
+
   return (
     <>
       <span
@@ -106,9 +114,9 @@ export default function HoverCard({ children, panel, className = "", pinnable = 
       >
         {children}
       </span>
-      {/* `panel &&`: without it, no panel content renders an empty tooltip box. */}
+      {/* `panelNode &&`: without it, no panel content renders an empty tooltip box. */}
       {open &&
-        panel &&
+        panelNode &&
         createPortal(
           <span
             ref={panelRef}
@@ -133,7 +141,7 @@ export default function HoverCard({ children, panel, className = "", pinnable = 
                 ✕
               </button>
             )}
-            {panel}
+            {panelNode}
           </span>,
           document.body,
         )}

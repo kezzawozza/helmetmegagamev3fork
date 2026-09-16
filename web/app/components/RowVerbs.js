@@ -8,7 +8,9 @@
 // its own, and each is re-checked server-side when pressed.
 //
 // Visible text, no tooltips: this surface has none (SHEET.md). Drawn on hover
-// or focus on a pointer device and always on a touch one (globals.css).
+// or focus on a pointer device (globals.css). On a touch one it is not on the
+// line at all — TagRow.js renders it inside the row's opened details, and says
+// why.
 export default function RowVerbs({ verbs, pending = false, onUse, onEquip, onGive, onDestroy, onHeal, onResearch }) {
   const items = [];
   if (verbs.consumable && onUse) items.push(["use", "Use", onUse]);
