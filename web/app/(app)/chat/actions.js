@@ -20,6 +20,7 @@ import { whosHere, whosHereGm, resolveHoodToken } from "@lifeweb/db/lib/whosHere
 import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
+import { maybeSendGmAutoReply } from "@lifeweb/db/lib/gmAutoReply";
 import { travelOptions, linksFor, endpoints, isHeldOpen, linkBetween, routesWithinZone } from "@lifeweb/db/lib/locationGraph";
 import { knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { walkWithinZone } from "@lifeweb/db/lib/locationWalk";
@@ -1952,6 +1953,10 @@ export async function sendToGms(content, clientNonce) {
     },
     select: PLAYER_DM_SELECT,
   });
+  // The same quiet line a DM typed on Discord gets (db/lib/gmAutoReply.js), on the same 10-minute
+  // clock — the window is the log row, so writing here and then DMing the bot is still one reply.
+  // It goes to Discord rather than into this pane: QUIET is drawn on neither face.
+  maybeSendGmAutoReply(prisma, me.discordUserId);
   return { ok: true, row: playerDmRow(row) };
 }
 

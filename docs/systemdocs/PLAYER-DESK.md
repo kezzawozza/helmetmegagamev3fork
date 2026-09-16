@@ -445,6 +445,33 @@ client, not a support inbox.
   within seconds, and re-running the whole layout for it was the desk's most
   frequent full re-render.
 
+### The line the game says back
+
+A player writing to the GMs — a DM to the bot, or the composer on `/chat` — gets
+one automatic reply setting the expectation:
+
+> -# GMs are only available to solve unintended bugs and deal with OOC disputes.
+> If you have questions about the game, please use [#questions](…). Your message
+> may not be answered.
+
+`db/lib/gmAutoReply.js#maybeSendGmAutoReply` sends it, and three things about it
+matter:
+
+- **`QUIET`**, so it is logged and drawn on neither face. The desk shows the
+  player's words with nothing of ours underneath them.
+- **Once per player per 10 minutes.** The cooldown state is the last OUTBOUND
+  row carrying `source: "gm_auto_reply"` rather than a column — there is no
+  character behind a raw Discord account, and keying on the row makes the window
+  hold across both entry points, so writing in Chat and then DMing the bot is
+  still one reply.
+- **Best-effort.** A player with closed DMs, or a Discord hiccup, must never stop
+  their own message being filed, so neither call site awaits it.
+
+The `#questions` link is a masked Markdown link built from a hardcoded channel id
+(the `db/lib/roleIds.js` reasoning), not a `<#id>` mention — the web deliberately
+renders a channel mention as a bare "somewhere", and an id-built link survives the
+channel being renamed.
+
 ## 5a. Opening somebody is not a navigation
 
 Clicking a name in the rail used to be a real Next navigation into a

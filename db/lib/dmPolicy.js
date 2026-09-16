@@ -15,9 +15,12 @@ const DEFAULT_SOURCE = "bot_auto";
 
 // The `»` marking a line as the game restating something at you (CLAUDE.md, "Bot message style").
 // Idempotent — tests for the chevron ALONE, not `"» "`, so `»hi` doesn't become `» »hi`.
+// Subtext is left alone for the same reason bot/src/lib/respond.js leaves it alone: `-#` is the
+// world talking quietly under the conversation, not the game quoting you back at yourself, and
+// `» -# …` would be both voices at once.
 function applyDmPrefix(content) {
   const text = String(content ?? "");
-  return text.startsWith("»") ? text : `» ${text}`;
+  return text.startsWith("»") || text.startsWith("-#") ? text : `» ${text}`;
 }
 
 // The exact `data` for a DirectMessage.create after a send. One place, so a new column is added to
