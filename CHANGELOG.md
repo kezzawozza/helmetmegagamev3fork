@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Two new ways to take something that isn't yours
+
+✚ Steal, on any stash you can reach. The goods always move — a die only decides whether the room is told you did it  
+✚ Pickpocket, on anybody standing near you. You get 15 lb, or 30 as a master, and on a poor roll they feel your hand  
+✎ Pickpocketing is a skill anyone can buy now, 3 points, instead of a Brigand-only tag  
+✚ Pickpocketing (Skilled), 2 points, Brigands only — almost never fails, and carries twice as much  
+✎ Stealth, Clumsy and how drunk you are all move the Steal die
+
 ## 2026-09-16 · A reincarnation lands on man or woman, never the third pool
 
 ✎ A soul coming back through Metempsychosis rolls between Man and Woman now, not the three-way flip that could seat them as gender-neutral. Locked roles (Baroness/Heir/Successor) still win as before.
