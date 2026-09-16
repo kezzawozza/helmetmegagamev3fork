@@ -154,7 +154,7 @@ const THREATS = [
       ],
     },
     spawn: {
-      gender: "ROLL",
+      gender: "MAN",
       honorific: "Ordinator",
       roleSlug: "tribunal-ordinator",
       locationSlug: "hills-waterway",
@@ -184,7 +184,7 @@ const THREATS = [
       ],
     },
     spawn: {
-      gender: "ROLL",
+      gender: "MAN",
       honorific: ["Sergeant", "Corporal"],
       roleSlug: "tribune",
       locationSlug: "hills-waterway",
@@ -301,7 +301,7 @@ function randomSpawnName(gender) {
 }
 
 // Everything a spawned character is called. `gender: "ROLL"` is a seat that
-// does not care which — every antagonist but the Demoness — and it is resolved
+// does not care which; the Demoness and both Tribunal seats name one — and it is resolved
 // HERE, never written: Character.gender is an enum of MAN/WOMAN/NEUTRAL and
 // Prisma rejects the sentinel. `honorific` is the seat's rank, a string or a
 // list to roll from; a seat without one arrives untitled, as they all used to.
