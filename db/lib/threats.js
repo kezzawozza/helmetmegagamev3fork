@@ -70,7 +70,7 @@ const THREATS = [
     zone: "Town, or Cave",
     assign: { tagPoints: 17, tagSlugs: ["cruel", "judge", "rough-camper", "outsider", "brave"] },
     spawn: {
-      gender: "MAN",
+      gender: "ROLL",
       roleSlug: null,
       resources: 3,
       tagPoints: 17,
@@ -104,7 +104,7 @@ const THREATS = [
     brief: THANATI_BRIEF,
     assign: { tagPoints: 4, tagSlugs: ["thanati", "underquarter-basements", "literate"] },
     spawn: {
-      gender: "NEUTRAL",
+      gender: "ROLL",
       roleSlug: null,
       resources: 3,
       tagPoints: 4,
@@ -122,7 +122,7 @@ const THREATS = [
     brief: THANATI_LEADER_BRIEF,
     assign: { tagPoints: 7, tagSlugs: ["thanati", "thanati-leader", "underquarter-basements", "literate"] },
     spawn: {
-      gender: "NEUTRAL",
+      gender: "ROLL",
       roleSlug: null,
       resources: 3,
       tagPoints: 7,
@@ -154,7 +154,8 @@ const THREATS = [
       ],
     },
     spawn: {
-      gender: "NEUTRAL",
+      gender: "ROLL",
+      honorific: "Ordinator",
       roleSlug: "tribunal-ordinator",
       locationSlug: "hills-waterway",
       resources: 8,
@@ -183,7 +184,8 @@ const THREATS = [
       ],
     },
     spawn: {
-      gender: "NEUTRAL",
+      gender: "ROLL",
+      honorific: ["Sergeant", "Corporal"],
       roleSlug: "tribune",
       locationSlug: "hills-waterway",
       resources: 8,
@@ -288,15 +290,29 @@ const SPAWN_NAMES = {
     "Halvard", "Ceril", "Rodrigan", "Ysbrand", "Emeric", "Tobias",
     "Warrin", "Anselm", "Dorian", "Fenric", "Marcus", "Oswin",
   ],
-  NEUTRAL: [
-    "Ash", "Corvin", "Wren", "Sable", "Lark", "Rowan",
-    "Vesper", "Quill", "Ember", "Marlow", "Peregrine", "Sorrel",
-  ],
 };
 
+function pick(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
 function randomSpawnName(gender) {
-  const pool = SPAWN_NAMES[gender] ?? SPAWN_NAMES.NEUTRAL;
-  return pool[Math.floor(Math.random() * pool.length)];
+  return pick(SPAWN_NAMES[gender] ?? SPAWN_NAMES[pick(["MAN", "WOMAN"])]);
+}
+
+// Everything a spawned character is called. `gender: "ROLL"` is a seat that
+// does not care which — every antagonist but the Demoness — and it is resolved
+// HERE, never written: Character.gender is an enum of MAN/WOMAN/NEUTRAL and
+// Prisma rejects the sentinel. `honorific` is the seat's rank, a string or a
+// list to roll from; a seat without one arrives untitled, as they all used to.
+function rollSpawnIdentity(spawn) {
+  const gender = spawn.gender === "ROLL" ? pick(["MAN", "WOMAN"]) : (spawn.gender ?? "NEUTRAL");
+  const rank = spawn.honorific ?? null;
+  return {
+    gender,
+    firstName: randomSpawnName(gender),
+    honorific: Array.isArray(rank) ? pick(rank) : rank,
+  };
 }
 
 // The web builds the buttons, the bot routes clicks — REST/gateway twin convention (ARCHITECTURE.md).
@@ -321,6 +337,7 @@ module.exports = {
   optInWhitelisted,
   WHITELISTED_OPT_IN_SLUGS,
   randomSpawnName,
+  rollSpawnIdentity,
   ANTAGONISTS, // kept under the old name — the column is still Character.antagonistOptIns.
   ANTAGONIST_SLUGS,
   normalizeAntagonistSlugs,

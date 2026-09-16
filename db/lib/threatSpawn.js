@@ -2,7 +2,7 @@
 // target Accept/Decline buttons. The click lands in the BOT (a DM has no guild), so this shared work lives here — bot/src/lib/threatSpawn.js stays thin.
 // This module does the DATABASE half only and RETURNS what the caller must do to Discord (ARCHITECTURE.md's returned-side-effects pattern) — creating
 // the personal role and placing the character are REST calls the two faces already own differently. The transaction mirrors createCharacter's
-// (web/app/(app)/character/createActions.js); where it differs, nobody is picking — the name is rolled, the gender comes from the seat.
+// (web/app/(app)/character/createActions.js); where it differs, nobody is picking — name, gender and rank are all rolled off the seat (rollSpawnIdentity).
 const { parseStartingTag } = require("./startingTags");
 const { roleCapacity } = require("./roleCapacity");
 const { heldSeats } = require("./seatCount");
@@ -18,7 +18,7 @@ const { seedMemories } = require("./locationVisits");
 const { startingMemorySlugs } = require("./startingMemories");
 const {
   threatBySlug,
-  randomSpawnName,
+  rollSpawnIdentity,
   THREAT_SPAWN_ACCEPT_PREFIX,
   THREAT_SPAWN_DECLINE_PREFIX,
   SHUTTLE_ARRIVAL_SLUGS,
@@ -122,8 +122,8 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
         ? await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } })
         : null;
 
-  const firstName = randomSpawnName(threat.spawn.gender);
-  const name = formatCharacterName({ honorific: null, firstName, title: null, lastName: null });
+  const { gender, firstName, honorific } = rollSpawnIdentity(threat.spawn);
+  const name = formatCharacterName({ honorific, firstName, title: null, lastName: null });
 
   // Stamped before the transaction: a tag with a catalog duration must arrive already carrying expiresTurn, since nothing backfills it later.
   const tagRows = [];
@@ -151,12 +151,12 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
       const character = await tx.character.create({
         data: {
           discordUserId,
-          honorific: null,
+          honorific,
           firstName,
           title: null,
           lastName: null,
           name,
-          gender: threat.spawn.gender,
+          gender,
           age: null,
           roleId: spawn.role.id,
           roleTitle: spawn.role.name,

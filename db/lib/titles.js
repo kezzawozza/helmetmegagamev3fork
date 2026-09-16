@@ -10,8 +10,13 @@
 const GENDERS = Object.freeze(["MAN", "WOMAN", "NEUTRAL"]);
 
 const TITLES = Object.freeze([
-  // Martial
-  { words: "Sergeant", tags: ["sergeant"] },
+  // Martial. The Tribunal's two ranks sit on the seat rather than a tag, so a
+  // spawned Tribune wears one from the moment the shuttle lands; Ordinator
+  // also rides the insignia, which means whoever loots it off the body may
+  // style themselves with it.
+  { words: "Sergeant", tags: ["sergeant"], roles: ["tribune"] },
+  { words: "Corporal", roles: ["tribune"] },
+  { words: "Ordinator", tags: ["ordinator-insignia"], roles: ["tribunal-ordinator"] },
   { words: "Constable", tags: ["cerberon"] },
   { words: "Censor", roles: ["censor"] },
 
