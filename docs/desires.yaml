@@ -92,9 +92,9 @@
 #     5, which mostly taught players to ignore them. 3 is honest about what
 #     they are: small, frequent, and worth a point.
 #
-# Seven singles are set by hand against their own act rather than by either
+# Six singles are set by hand against their own act rather than by either
 # rule: make-a-merchant-purchase 5 (buying anything at all is not an
-# achievement), see-a-monster 4, save-a-life-medical 3, torture-someone 6.
+# achievement), see-a-monster 4, torture-someone 6.
 # Three more on 2026-09-07: critique-art 3 (a tier-1 goal the ladder would put
 # at 5, but critiquing a DIFFERENT piece is the point), and feed-the-lifeweb 6
 # and steal-fate-item 6, both above tier 3 and so outside the ladder entirely —
@@ -518,7 +518,7 @@ desires:
 
   cheat-someone:
     name: Cheat someone
-    tier: 3
+    tier: 1
     families: [theft, scheming]
 
   win-a-duel:
@@ -1114,7 +1114,7 @@ desires:
 
   save-the-barons-life:
     name: Save the Baron's life
-    tier: 5
+    tier: 3
     families: [bravery, duty]
     requires:
       anyRoles: [hand]
@@ -1197,13 +1197,12 @@ desires:
     requires:
       anyRoles: [arbiter]
 
-  save-a-life-medical:
-    name: Save a life
+  treat-a-deadly-wound:
+    name: Treat a deadly wound
     tier: 1
     families: [medical, charity]
     requires:
       anyTags: [medical-basic]
-    cooldownTurns: 3
 
   give-a-loan:
     name: Give a loan
