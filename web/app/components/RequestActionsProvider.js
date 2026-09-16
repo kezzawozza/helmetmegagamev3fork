@@ -61,6 +61,13 @@ export default function RequestActionsProvider({
   hasWorkshop = false,
   canHeal = false,
   healsLeft = null,
+  // Saint's Perform Miracle (docs/tags.yaml `saint:`): two free instant cures a
+  // turn on someone else's Moderate-or-lesser wound. Own AuditLog counter, no
+  // Medical training needed. Resolved server-side in web/lib/peoplePools.js so
+  // the shown count and performMiracleRequestImpl's re-check can't disagree.
+  canMiracle = false,
+  miracleTargets = [],
+  miraclesLeft = null,
   // Surgery needs a site (M3, TAGS.md §5c; reworked M6b) — whether Surgical
   // Equipment, a Surgical Theater, or a Portable Surgical Pack is in reach
   // right now, resolved server-side (web/lib/peoplePools.js). A hint for the
@@ -322,6 +329,8 @@ export default function RequestActionsProvider({
     healTargets,
     healParties,
     healsLeft,
+    miracleTargets,
+    miraclesLeft,
     hasSurgicalSite,
     surgicalSitePenalty,
     hasMoved,
@@ -451,6 +460,10 @@ export default function RequestActionsProvider({
       canConsume: consumable.length > 0,
       canPoison: poisonable.length > 0,
       canHeal,
+      canMiracle,
+      canMiracleNow: canMiracle && (miraclesLeft ?? 0) > 0,
+      miracleTargets,
+      miraclesLeft,
       // Research's two, composed here rather than at either call site so the
       // sheet row and the place card can never disagree. `canResearch` is
       // every gate open at once; `researchHint` names the first one that
@@ -527,6 +540,9 @@ export default function RequestActionsProvider({
       consumable,
       poisonable,
       canHeal,
+      canMiracle,
+      miracleTargets,
+      miraclesLeft,
       canResearch,
       researchHint,
       examineBlocked,

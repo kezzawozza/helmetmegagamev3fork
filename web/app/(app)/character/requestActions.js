@@ -23,7 +23,7 @@ import {
   poisonItemRequestImpl,
   poisonCharacterRequestImpl,
 } from "./actions/poison.js";
-import { healCharacterRequestImpl } from "./actions/medical.js";
+import { healCharacterRequestImpl, performMiracleRequestImpl } from "./actions/medical.js";
 import {
   buryCharacterRequestImpl,
   butcherCorpseRequestImpl,
@@ -128,6 +128,9 @@ export async function poisonCharacterRequest(input) {
 
 export async function healCharacterRequest(input) {
   return guarded(() => healCharacterRequestImpl(input));
+}
+export async function performMiracleRequest(input) {
+  return guarded(() => performMiracleRequestImpl(input));
 }
 export async function researchRequest(input) {
   return guarded(() => researchRequestImpl(input));

@@ -2162,7 +2162,7 @@ tags:
     name: Saint
     category: general
     group: general-beliefs
-    description: "You are at peace. Once per day, you can instantly cure a Moderately Severe or lesser wound (refer to the Medical document). You cannot fight anyone, not even in self-defense. You'd rather let yourself be killed."
+    description: "You are at peace. Twice a turn, you can instantly cure someone else's Moderate or lesser wound (refer to the Medical document). You cannot fight anyone, not even in self-defense. You'd rather let yourself be killed."
     fighting: { situational: true }
     pointCost: 14
     visible: true

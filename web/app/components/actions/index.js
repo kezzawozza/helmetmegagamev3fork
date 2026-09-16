@@ -25,6 +25,7 @@ import DestroyDialog from "./DestroyDialog";
 import PackageDialog from "./PackageDialog";
 import PurchaseDialog from "./PurchaseDialog";
 import HealDialog from "./HealDialog";
+import MiracleDialog from "./MiracleDialog";
 import LessonDialog from "./LessonDialog";
 import KissDialog from "./KissDialog";
 import SearchDialog from "./SearchDialog";
@@ -116,6 +117,7 @@ export const DIALOGS = {
   package: PackageDialog,
   purchase: PurchaseDialog,
   heal: HealDialog,
+  miracle: MiracleDialog,
   learn: LessonDialog,
   teach: LessonDialog,
   confess: LessonDialog,

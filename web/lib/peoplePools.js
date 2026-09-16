@@ -23,9 +23,12 @@ import {
   isHealable,
   isInflictable,
   isGambitHeal,
+  isMiracleable,
+  MIRACLE_PER_TURN,
   needsSurgicalSite,
   countsAgainstHealCap,
   healCapFor,
+  SAINT_SLUG,
   satisfiedSkillIds,
   HEAL_SKILL_SELECT,
 } from "@/lib/healRequests";
@@ -350,6 +353,43 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     }))
     .filter((t) => t.healable.length > 0);
 
+  // Saint's Perform Miracle (docs/tags.yaml `saint:`): a Saint may instantly
+  // cure someone else's Moderate-or-lesser wound, twice a turn, no ⬢ and no
+  // Move. Own AuditLog counter — never draws on the medic's
+  // MEDICAL_SIMPLE_PER_TURN pool, and no Medical tag needed.
+  const isSaint = heldSlugSet.has(SAINT_SLUG);
+  const miraclesThisTurn =
+    isSaint && openTurn && discordUserId
+      ? await prisma.auditLog.count({
+          where: {
+            actorDiscordUserId: discordUserId,
+            actionType: "request_perform_miracle",
+            turnId: openTurn.id,
+          },
+        })
+      : 0;
+  const miraclesLeft = isSaint
+    ? Math.max(0, MIRACLE_PER_TURN - miraclesThisTurn)
+    : 0;
+  // Others only — a Saint doesn't miracle themselves (plan §1).
+  const miracleTargets = isSaint
+    ? here
+        .map((t) => ({
+          id: t.id,
+          name: rosterName(t),
+          miraculable: t.tags
+            .map((ct) => ct.tag)
+            .filter(isMiracleable)
+            .map((tag) => ({
+              tagId: tag.id,
+              tagName: tag.name,
+              slug: tag.slug,
+            })),
+        }))
+        .filter((t) => t.miraculable.length > 0)
+    : [];
+  const canMiracle = isSaint;
+
   // The catalog name of whichever incapacitating tag they hold.
   function conditionOf(c) {
     return c.tags.find((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))?.tag.name ?? null;
@@ -495,6 +535,9 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     healsLeft,
     hasSurgicalSite,
     surgicalSitePenalty,
+    canMiracle,
+    miracleTargets,
+    miraclesLeft,
     lootTargets,
     consumeTargets,
     bindTargets,

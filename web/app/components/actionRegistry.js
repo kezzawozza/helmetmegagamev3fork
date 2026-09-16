@@ -359,6 +359,18 @@ export const ACTION_SECTIONS = [
         gate: "canHeal",
         gateReason: "You have no Medical training.",
       },
+      // Saint's Perform Miracle (docs/tags.yaml `saint:`). HIDDEN for anyone
+      // who isn't a Saint — a permanently dead icon would only teach that this
+      // exists and you can't have it. When the count is spent the button greys
+      // via the gate rather than disappearing, so a Saint reads a reason.
+      {
+        mode: "miracle",
+        icon: BandageIcon,
+        label: "Perform Miracle",
+        show: "canMiracle",
+        gate: "canMiracleNow",
+        gateReason: "You've used both miracles this turn.",
+      },
       { mode: "loot", icon: LootIcon, label: "Loot" },
       { mode: "bind", icon: ShackleIcon, label: "Bind" },
       // Greys on YOUR OWN mouth and nothing else — a broken jaw, a hood you

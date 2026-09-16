@@ -95,6 +95,9 @@ export default function CharacterSheet({
   desireAddiction = null,
   canHeal = false,
   healsLeft = null,
+  canMiracle = false,
+  miracleTargets = [],
+  miraclesLeft = null,
   // Surgery's site (the medical pass, M3, reworked M6b): whether one is in
   // reach at all, and whether the only thing standing in for it is a
   // Portable Surgical Pack, which the Gambit takes a −1 for.
@@ -219,6 +222,9 @@ export default function CharacterSheet({
         hasWorkshop={hasWorkshop}
         canHeal={canHeal}
         healsLeft={healsLeft}
+        canMiracle={canMiracle}
+        miracleTargets={miracleTargets}
+        miraclesLeft={miraclesLeft}
         hasSurgicalSite={hasSurgicalSite}
         surgicalSitePenalty={surgicalSitePenalty}
         hasMoved={hasMoved}

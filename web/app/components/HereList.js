@@ -46,6 +46,7 @@ import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
 // "hood:<token>" via resolveHoodToken (web/lib/peoplePools.js). No prefix means named-rows-only.
 const PEOPLE_ACTIONS = [
   { mode: "heal", label: "Heal", preset: "patientId" },
+  { mode: "miracle", label: "Perform Miracle", preset: "patientId" },
   { mode: "transfer", label: "Transfer", preset: "toKey", prefix: "character:", hoodPrefix: "hood:" },
   { mode: "loot", label: "Loot", preset: "targetId" },
   { mode: "bind", label: "Bind", preset: "targetId" },
