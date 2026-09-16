@@ -80,12 +80,22 @@ async function hoodedKey(character, key) {
   return id ? `character:${id}` : "";
 }
 
-export async function transferRequestImpl({
-  fromKey,
-  toKey,
-  tags: rawTags,
-  amount: rawAmount,
-}) {
+// `options` is a SECOND parameter, and it has to stay one. requestActions.js
+// calls this as `guarded(() => transferRequestImpl(input))` and hands the
+// client's whole input object straight through, so anything read off `input`
+// is settable by whoever is typing in the browser — an `announceTake: false`
+// posted from a console would let any player empty every stash in the game in
+// silence. As a second argument it is unreachable from the browser, and
+// actions/steal.js is the only caller that passes it.
+export async function transferRequestImpl(
+  {
+    fromKey,
+    toKey,
+    tags: rawTags,
+    amount: rawAmount,
+  },
+  { announceTake = true } = {},
+) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
   const amount =
@@ -432,7 +442,9 @@ export async function transferRequestImpl({
       ),
     );
   }
-  if (from.kind === "room")
+  // Steal is the one taker that suppresses this (docs/systemdocs/THEFT.md §1):
+  // it posts its own line, and only when the roll went badly.
+  if (from.kind === "room" && announceTake)
     after(() => announceInRoom(from, character, `takes ${goods}.`));
 
   revalidateAll();

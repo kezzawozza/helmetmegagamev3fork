@@ -198,6 +198,7 @@ export default function RequestActionsProvider({
   canDisguise = false,
   // Torture: you hold `torturer`. Your own sheet; the action re-checks it and
   // that the target is Bound.
+  canPickpocket = false,
   canTorture = false,
   canMutilate = false,
   // Brand: you hold `branding-iron`. Your own sheet; the action re-checks it
@@ -516,6 +517,7 @@ export default function RequestActionsProvider({
       canCrucify,
       canShackle,
       canDisguise,
+      canPickpocket,
       canTorture,
       canMutilate,
       canBrand,
@@ -570,6 +572,7 @@ export default function RequestActionsProvider({
       canCrucify,
       canShackle,
       canDisguise,
+      canPickpocket,
       canTorture,
       canMutilate,
       canBrand,

@@ -19,6 +19,8 @@ import {
 } from "./actions/offers.js";
 import { taxRequestImpl } from "./actions/tax.js";
 import { transferRequestImpl } from "./actions/transfer.js";
+import { stealRequestImpl } from "./actions/steal.js";
+import { pickpocketRequestImpl, pickpocketTakeImpl } from "./actions/pickpocket.js";
 import {
   poisonItemRequestImpl,
   poisonCharacterRequestImpl,
@@ -112,6 +114,21 @@ export async function taxRequest(input) {
 
 export async function transferRequest(input) {
   return guarded(() => transferRequestImpl(input));
+}
+
+// Steal and Pickpocket (docs/systemdocs/THEFT.md). Note that `input` is handed
+// straight through, which is why transferRequestImpl takes its announce switch
+// as a SECOND argument rather than a field on this object.
+export async function stealRequest(input) {
+  return guarded(() => stealRequestImpl(input));
+}
+
+export async function pickpocketRequest(input) {
+  return guarded(() => pickpocketRequestImpl(input));
+}
+
+export async function pickpocketTakeRequest(input) {
+  return guarded(() => pickpocketTakeImpl(input));
 }
 
 export async function consumeTagRequest(input) {

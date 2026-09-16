@@ -2406,7 +2406,9 @@ tags:
   # Two Brigand-group entries that are skills in everything but their category.
   # The Brigand gate is a GROUP gate (taggroups.yaml `general-brigand`), and a
   # group's category has to match its tags', so a brigand-only competence has
-  # to be filed under `general` — same reason Forger and Pickpocket already are.
+  # to be filed under `general` — same reason Forger and Pickpocketing (Skilled)
+  # already are. (Pickpocketing (Basic) used to be a third; it left the group on
+  # 2026-09-16 and is open to everyone now.)
   biter:
     catalog: gm
     name: Biter
@@ -2440,13 +2442,38 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # Out of the Brigand group on 2026-09-16, when the Pickpocket button was
+  # built and the tag stopped being decorative. The slug stays `pickpocket` on
+  # purpose: db:sync-tags is upsert-only, so renaming in place keeps every
+  # Brigand who already bought it. general-traits carries no requiredTag, which
+  # is the whole of "anyone may learn this now" — the gate was never on the tag,
+  # it was on the group (taggroups.yaml `general-brigand`).
   pickpocket:
-    catalog: gm
-    name: Pickpocket
+    catalog: all
+    name: Pickpocketing (Basic)
     category: general
-    group: general-brigand
+    group: general-traits
     description: "Your hands lighten burdened pockets. Your thefts are very hard to detect."
     pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
+  # requiredTag, not parentTag: a prerequisite that does NOT replace, so a
+  # master holds both rungs and pays 5 in total. parentTag would delete Basic on
+  # purchase and leave every gate in db/lib/pickpocket.js having to accept
+  # either tag to mean the same thing.
+  #
+  # Still in general-brigand, so the Basic rung is open to everyone and the
+  # second one is not.
+  pickpocketing-skilled:
+    catalog: all
+    name: Pickpocketing (Skilled)
+    category: general
+    group: general-brigand
+    description: "Your pickpocketing almost always succeeds."
+    pointCost: 2
+    requiredTag: pickpocket
+    visible: false
     purchasable: true
     purchasableAfterStart: true
 

@@ -779,6 +779,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     heldSlugs.has("fundamentalist") &&
     sitesHere.some((s) => s.typeSlug === "crucifix" && s.status === "COMPLETE");
   const canDisguise = heldSlugs.has("disguise-kit"); // disguiseSelfRequest re-checks; hidden button is a hint, not a lock
+  // pickpocketRequest re-checks the tag; a greyed button is a hint, not a lock.
+  // GATE rather than SHOW (the Heal posture, not the Torture one): the tag is
+  // purchasable by anybody now, so a dead icon points at something a player can
+  // go and buy rather than teaching them a secret.
+  const canPickpocket = heldSlugs.has("pickpocket") || heldSlugs.has("pickpocketing-skilled");
   const canTorture = heldSlugs.has("torturer"); // tortureCharacterRequest re-checks the tag and that the target is Bound
   const canMutilate = MUTILATE_GATE_SLUGS.some((slug) => heldSlugs.has(slug)); // Cruel, Torturer or Thanati
   const canBrand = heldSlugs.has("branding-iron"); // brandCharacterRequest re-checks tag and target's incapacitation
@@ -1138,6 +1143,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canCrucify: canCrucify,
       canShackle: canShackle,
       canDisguise: canDisguise,
+      canPickpocket: canPickpocket,
       canTorture: canTorture,
       canMutilate: canMutilate,
       canBrand: canBrand,

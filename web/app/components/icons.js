@@ -64,6 +64,8 @@ import {
   Stamp,
   Unlock,
   Sparkles,
+  Grab,
+  VenetianMask,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -176,6 +178,14 @@ export const InterceptIcon = lucide(OctagonMinus, "InterceptIcon");
 // EyeIcon is "Look at", both of which answer what you can SEE on somebody
 // rather than what is in their pockets.
 export const SearchPersonIcon = lucide(Backpack, "SearchPersonIcon");
+// Steal (docs/systemdocs/THEFT.md) — a hand closing on something. Deliberately
+// close to Loot's open Hand, because it is the same gesture: the difference
+// between the two verbs is who is watching, not what the fingers do.
+export const StealIcon = lucide(Grab, "StealIcon");
+// Pickpocket — a mask. Not a hand, because the other two theft verbs already
+// own hands and a third would be unreadable at icon size; what this verb is
+// actually about is not being recognised.
+export const PickpocketIcon = lucide(VenetianMask, "PickpocketIcon");
 // Attack — crossed blades, distinct from Harm's Wound (damage done) and Intercept's halt sign (waiting) (ATTACK.md).
 export const AttackIcon = lucide(Swords, "AttackIcon");
 // Free — the key that opens it.

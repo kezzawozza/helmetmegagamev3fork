@@ -319,3 +319,8 @@ so neither half ever sees a partial exports object.
 | `web/app/components/actions/SearchDialog.js` | the asker's picker |
 | `web/app/components/SearchHidePanel.js` | the responder's picker |
 | `bot/src/lib/offers.js` | the Discord hide picker |
+
+`SearchAttempt` is no longer the only table of this shape: `PickpocketAttempt`
+([`THEFT.md`](THEFT.md) §2d) is the second, for the same reason §3 gives here —
+no cooldown behind it, and a ration that has to survive a bad outcome. It goes
+one step further and carries the authorization for a second act as well.

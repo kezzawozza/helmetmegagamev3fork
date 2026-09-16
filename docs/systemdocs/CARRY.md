@@ -546,6 +546,14 @@ thread** (`db/lib/roomAnnounce.js`): "*Ada leaves Graga Sac ×3 and 12 ⬢
 here.*" The room is told the presented name, the same one a shout uses — your
 own, a forced name, or "*A young man takes a Lantern.*" if you are concealed.
 
+**Steal is the one exception, and it is worth knowing before you trust a room
+thread as a record.** The Steal verb ([`THEFT.md`](THEFT.md) §1) moves things
+out of a stash on this same path and suppresses that line on a good d6 — so a
+stack going missing with nothing said about it is ordinary now, and the audit
+log is the only complete account of what a stash held. The switch is
+`transferRequestImpl`'s SECOND parameter rather than a field on its input, for
+the reason THEFT.md §1d gives.
+
 **You can hand something to a stranger in a hood** — the one action that
 reaches a concealed person. The row reads "a young man" and its value is
 `hood:<token>` rather than `character:<id>`; `PROXYING.md` §5 has the rule and

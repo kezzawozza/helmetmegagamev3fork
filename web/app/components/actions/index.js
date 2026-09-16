@@ -29,6 +29,7 @@ import MiracleDialog from "./MiracleDialog";
 import LessonDialog from "./LessonDialog";
 import KissDialog from "./KissDialog";
 import SearchDialog from "./SearchDialog";
+import PickpocketDialog from "./PickpocketDialog";
 import TaxDialog from "./TaxDialog";
 import WriteDialog from "./WriteDialog";
 import SealDialog from "./SealDialog";
@@ -113,6 +114,8 @@ export const DIALOGS = {
   hideout: HideoutDialog,
   transfer: MoveThingsDialog,
   loot: MoveThingsDialog,
+  // Steal is the same dialog with both ends decided (THEFT.md §1).
+  steal: MoveThingsDialog,
   destroy: DestroyDialog,
   package: PackageDialog,
   purchase: PurchaseDialog,
@@ -123,6 +126,7 @@ export const DIALOGS = {
   confess: LessonDialog,
   kiss: KissDialog,
   search: SearchDialog,
+  pickpocket: PickpocketDialog,
   tax: TaxDialog,
   write: WriteDialog,
   seal: SealDialog,

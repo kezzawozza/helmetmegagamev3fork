@@ -58,6 +58,7 @@ export default function CharacterSheet({
   canCrucify = false,
   canShackle = false,
   canDisguise = false,
+  canPickpocket = false,
   canTorture = false,
   canMutilate = false,
   canBrand = false,
@@ -278,6 +279,7 @@ export default function CharacterSheet({
         canCrucify={canCrucify}
         canShackle={canShackle}
         canDisguise={canDisguise}
+        canPickpocket={canPickpocket}
         canTorture={canTorture}
         canMutilate={canMutilate}
         canBrand={canBrand}

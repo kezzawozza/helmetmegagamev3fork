@@ -2326,6 +2326,8 @@ model Character {
   // (docs/systemdocs/SEARCH.md §4). Same two-ended shape as the catches above.
   searchesOfThem   SearchAttempt[] @relation("SearchTarget")
   searchesTheyMade SearchAttempt[] @relation("SearchSearcher")
+  pocketsPicked    PickpocketAttempt[] @relation("PickpocketThief")
+  pocketsOfTheirs  PickpocketAttempt[] @relation("PickpocketTarget")
 
   // Fights this character started, and fights started on them
   // (docs/systemdocs/ATTACK.md). Two relations to the same table, so both
@@ -4491,6 +4493,58 @@ model SearchAttempt {
   createdAt DateTime @default(now())
 
   @@unique([searcherId, targetCharacterId, turnId])
+  @@index([targetCharacterId])
+}
+
+// A hand in somebody's pocket (docs/systemdocs/THEFT.md §2). One row per thief
+// per target per turn, and this one row does TWO jobs on purpose.
+//
+// It is the RATION — the insert is the claim, the SearchAttempt discipline
+// (SEARCH.md §3). Pickpocket has no cooldown behind it, so a count-then-create
+// would not be race-proof, and the claim has to survive a failed roll or
+// failing would be a free retry.
+//
+// And it is the AUTHORIZATION for the second half. Pickpocket is two acts —
+// roll, then pick what to take — and the take re-reads this row to learn
+// whether it may happen at all and how many pounds are left. That is why the
+// die and the budget are columns rather than something handed to the browser:
+// an authorization that travelled through a client is not one.
+//
+// Deliberately NOT an Offer. Every Offer in the game is a consent handshake —
+// it DMs buttons, it expires in offerExpiryPass.js, it is voided by death, and
+// it shows up in the responder's waiting-on-you list in /chat. A pickpocket
+// target is never asked anything and on a good roll is never told, so the one
+// surface an Offer would light up is exactly the one that must stay dark.
+model PickpocketAttempt {
+  id String @id @default(cuid())
+
+  thiefId String
+  thief   Character @relation("PickpocketThief", fields: [thiefId], references: [id], onDelete: Cascade)
+
+  targetCharacterId String
+  targetCharacter   Character @relation("PickpocketTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+
+  // Not a foreign key, the InterceptHit/SearchAttempt reasoning: a claim token,
+  // and deleting a turn must never cascade into somebody's spent ration. It is
+  // also what expires this row for free — the take looks it up by the CURRENTLY
+  // open turn, so a turn boundary invalidates the authorization with no sweep.
+  turnId String
+
+  die     Int
+  bonus   Int    @default(0)
+  // "clean" | "noticed" | "failed" (db/lib/pickpocket.js). The die is shown to
+  // nobody; this is the only record of which band it landed in.
+  outcome String
+
+  // What the roll bought, and how much of it is gone. spentLbs is claimed by a
+  // conditional updateMany whose WHERE is the check, so two tabs cannot both
+  // spend the last pound.
+  budgetLbs Float
+  spentLbs  Float @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([thiefId, targetCharacterId, turnId])
   @@index([targetCharacterId])
 }
 
