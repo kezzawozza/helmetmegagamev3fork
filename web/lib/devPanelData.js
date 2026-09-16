@@ -224,7 +224,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
   //     page, so nothing is withheld from the GM's own view (constraint:
   //     never let this projection reach a player payload).
   const desireSlotsConfig = config?.desireSlots ?? 2;
-  const desireSlotLockTurns = config?.desireSlotLockTurns ?? 1;
+  const desireSlotLockTurns = config?.desireSlotLockTurns ?? 2;
   const roleBySlugForDesires = await loadRoleBySlugForTemplates(prisma, desireTemplates);
   const projectedDesireTemplates = desireTemplates.map((t) =>
     projectDesireTemplateForGates(roleBySlugForDesires, t),

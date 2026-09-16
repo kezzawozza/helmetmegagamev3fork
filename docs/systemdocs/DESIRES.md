@@ -65,11 +65,13 @@ pass:
 
   First, **`cooldownTurns: 1` is inert**. The per-slot lock below already shuts
   a slot for the turn a claim lands in, so a per-desire cooldown of 1 is
-  dominated by a gate that was going to fire anyway. 2 is the smallest value
-  that changes anything — never write 1. (This tracks
-  `desireSlotLockTurns`, which was **2** until 2026-09-07; while it was, `2`
-  was inert as well. No entry in the catalog sits at 2, so nothing was
-  rebalanced when the lock came down.)
+  dominated by a gate that was going to fire anyway. (This tracks
+  `desireSlotLockTurns`, which was **2** until 2026-09-07, **1** until
+  2026-09-16, and is **2** again now. At a lock of 2 it is `1` **and** `2` that
+  are inert, and 3 is the smallest value that changes anything.) One entry sits
+  at 2 on purpose — `cause-chaos`, which is a Rage+Xom character's only goal and
+  is written down at 2 so nobody tidies it up the ladder. It is dominated by the
+  slot lock rather than wrong, so it was left where it is.
 
   Second, **a `requires` gate is not a throttle.** It decides who may take a
   goal, never how often, and a tag or role held permanently costs nothing on
@@ -91,11 +93,12 @@ pass:
   rows. `slotStates` also returns `lockedTurnsLeft` (`lockedUntilTurn −
   openTurnNumber`, never below 1), and every surface labels a locked slot by
   that — `Locked (1t)`, via `web/lib/desireLabels.js#lockedSlotLabel` — never
-  by the absolute turn number, which means nothing to a player. At the default of **1**, a claim on turn N leaves the slot shut for the
-  rest of N, shut through N+1, and open on N+2. This is the throttle on
+  by the absolute turn number, which means nothing to a player. At the default of **2**, a claim on turn N leaves the slot shut for the
+  rest of N, shut through N+1 and N+2, and open on N+3. This is the throttle on
   income itself, independent of which template is being claimed. It has moved
-  three times: one turn until 2026-09-02, then two, then back to one on
-  2026-09-07 — and it is a live `/gm/dev` knob rather than a constant. Note it is one TURN, not one day —
+  four times: one turn until 2026-09-02, then two, back to one on
+  2026-09-07, and back to two on 2026-09-16 when Desire farming was paying out
+  faster than the economy wanted — and it is a live `/gm/dev` knob rather than a constant. Note it is one TURN, not one day —
   `Turn.number` increments once daily, so each turn of lockout is a real day —
   and an in-game day, being two turns, is two of them.
 
@@ -544,7 +547,7 @@ have in play:
 - **`desireSlots`** (default 2) — how many slots a character has. The
   **bottom** one is what an Addiction binds (§3). Lowering this hides a slot
   rather than deleting what was claimed in it. See §1.
-- **`desireSlotLockTurns`** (default 1) — whole turns a slot stays shut after a
+- **`desireSlotLockTurns`** (default 2) — whole turns a slot stays shut after a
   claim lands in it (§2). This is the tuning knob on how fast Tag Points enter
   the game, so it is the first number to reach for if income is running hot or
   cold. `0` disables the lock entirely, which is a debugging setting, not a
