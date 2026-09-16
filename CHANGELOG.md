@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Nobody works themselves to exhaustion by accident
+
+✎ The automatic day's work now stops once a character is Tired, instead of pushing on into Exhausted  
+✎ Laboring to exhaustion is a Labor you file by hand  
+✎ Laboring (Tireless) still works automatically through it
+
 ## 2026-09-16 · Awareness stops out-fighting the gun
 
 ✎ Spotter, Sixth Sense and Brave gave far too much in a fight for traits that are not about fighting — all three come down  

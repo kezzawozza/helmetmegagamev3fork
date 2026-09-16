@@ -1,5 +1,6 @@
 // Tired -> Exhausted ladder (docs/systemdocs/TAGS.md, docs/systemdocs/LABORING.md §4). Labor
-// (db/lib/moveEffects.js) and a bad night (db/lib/dawnAfflictionPass.js) both escalate identically;
+// (db/lib/moveEffects.js) and a bad night (db/lib/dawnAfflictionPass.js) both escalate identically —
+// though only a HAND-FILED Labor reaches the second rung, since the auto-labor pass stops at Tired;
 // the Exhausted->Tired decay is the ordinary `expiresInto` chain (TAGS.md §5c). Pure and DB-free.
 const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 

@@ -2,6 +2,10 @@
 // Labor for every ALIVE character who filed nothing on the closing turn and is
 // able to work.
 //
+// It works you until you are Tired, and then it leaves you alone. Nobody is
+// driven into Exhausted by doing nothing — that rung is only ever reached on
+// purpose now. So an idle character settles into work, rest, work, rest.
+//
 // This replaces the old Default Move pass. There is no standing order to save
 // any more — not acting IS the order, and what it buys you is a day's work.
 // The consequence worth stating out loud: filing a Routine or a Gambit now
@@ -27,6 +31,7 @@ const {
 const { placementOf } = require("./structures");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
+const { TIRED_SLUG, LABORING_TIRELESS_SLUG } = require("./constants");
 const { isRefinery, loadRefineryStashes, refineryInputFor } = require("./refinery");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 const { alivePassCharacters } = require("./aliveCharacters");
@@ -150,6 +155,17 @@ async function runAutoLaborPass(prisma, turn) {
     // Tied to a chair, bleeding out, stunned or long gone quiet. Silent on
     // purpose: they didn't ask for this turn, and the tag is the explanation.
     if ([...tagSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
+      skipped += 1;
+      continue;
+    }
+
+    // Auto-labor stops one rung short of Exhausted. Pushing a Tired character
+    // over that line is a choice, so it has to be a Labor they file by hand —
+    // db/lib/laborAccess.js#computeLaborAccess still allows it. Laboring
+    // (Tireless) is exempt, because shrugging off fatigue is what that tag is
+    // for. Silent, like the skip above: the tag on their own sheet is the
+    // reason, and an empty Move saying so would only clutter a GM's desk.
+    if (tagSlugs.has(TIRED_SLUG) && !tagSlugs.has(LABORING_TIRELESS_SLUG)) {
       skipped += 1;
       continue;
     }

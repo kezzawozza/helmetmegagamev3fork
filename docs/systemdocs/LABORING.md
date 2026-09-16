@@ -250,6 +250,12 @@ second turn and `tired` clears on its own too, since nothing renewed it,
 which is what lets a player pick their own pacing: two Labors and one forced
 rest is the minimum cycle, but resting longer is free.
 
+**Only a deliberate act reaches the second rung.** The auto-labor pass stops
+at `tired` (§8), so doing nothing can never wear a character out — a hand-filed
+Labor, a hard push in travel (`MAP.md` §3) or a bad night is what takes
+somebody to `exhausted`. Working yourself into the ground is a choice you make,
+not something that happens to you while you're away.
+
 `db/lib/moveEffects.js`'s `exhausted` payout effect is the writer for the
 Labor half of the ladder; a bad night's sleep (Guilt Ridden, Insomniac —
 `db/lib/dawnAfflictionPass.js`) steps the same ladder for the same reason, so
@@ -425,6 +431,13 @@ sends nothing for anyone who:
   an unskilled Labor pays nothing, so filing one for somebody who never asked
   would buy them a `tired` for a day that bought them nothing. They can still
   file one by hand any turn they like,
+- is **Tired**, unless they hold Laboring (Tireless). The pass works a
+  character up to the first rung of the ladder and no further: the second one
+  costs enough that stepping onto it should be somebody's decision, so it takes
+  a Labor filed by hand. The practical shape of this is that an idle character
+  works every other turn — they labor, they come out `tired`, they sit out the
+  next turn while it clears, and they work again. Tireless is exempt because
+  it is the tag that means fatigue doesn't stop you,
 - is Exhausted, or is standing where none of their skills reach — the pass
   keeps skipping this case, even though the resolver would now hand back an
   `unskilled` 0 ⬢ rate for it, and for the same reason as the bullet above.
