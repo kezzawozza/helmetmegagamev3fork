@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Two hoods in a room stop reading as one speaker
+
+✎ Two Young Men in one scene render as two speakers on Discord, not one collapsed block.
+
 ## 2026-09-16 · OOC lines name the speaker, and mentions ping
 
 ✎ The line reads [OOC (Alice): hi] now — the presented identity, so a hooded speaker stays hooded ("A young man") and a forced name still forces. Same rule /speak already uses.  

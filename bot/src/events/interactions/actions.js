@@ -205,11 +205,19 @@ async function handleSpeakSubmit(interaction, channelId) {
     return;
   }
 
+  // Fetched once so the discriminator on a concealed send scopes to the open
+  // turn (db/lib/concealedDiscriminator.js); the archive would look this up
+  // again on the write below, but the modal is a cold path so one extra query
+  // is cheaper than plumbing it through recordSpeech.
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
+
   let posted;
   try {
     posted = await postAsCharacterTo(channel, character, {
       content: prepared.content,
       identity: prepared.identity,
+      turnNumber: openTurn?.number ?? null,
+      placeKey: prepared.placeKey,
     });
   } catch (err) {
     console.error("Failed to post a Speak message:", err);
