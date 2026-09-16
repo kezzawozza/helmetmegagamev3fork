@@ -76,12 +76,12 @@ can't disagree about what an affliction is.
 ## 3. Layout
 
 - **The band** (`DevBand.js`) — who this is, then the derived facts a GM wants
-  before touching anything. It is built out of **`LedgerTile`**, the same box
+  before touching anything. It is built out of **`DetailTile`**, the same box
   the player's own sheet uses: a tile swaps its face for a sentence on hover,
   focus or tap, inside the same height, and one open slot for the whole band
-  means two are never open at once. That component lived inside
-  `LedgerBand.js` until this panel wanted it; it is `web/app/components/` now,
-  and both surfaces import it.
+  means two are never open at once. That component came out of `LedgerBand.js`
+  when the GM desks started wearing the sheet's Combat readout
+  (`SHEET.md` §2, `COMBAT.md` §6); this band is its third caller.
 
   That matters more here than it does on the sheet. The band used to be
   fifteen bare label/value pairs in four labeled clusters, and a GM reading

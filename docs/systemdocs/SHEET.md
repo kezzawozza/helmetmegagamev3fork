@@ -99,9 +99,6 @@ Who this is, where they stand, and:
   half again on a quiet turn when the forecast renders nothing.
 - **A box with something to say SWAPS ITS OWN FACE for it.** Hover, focus or
   click and the value is replaced by the breakdown, inside the same box. The
-  box itself is `LedgerTile` in `web/app/components/` — it lived in this file
-  until the Dev Character Panel's band wanted the same thing
-  (`DEV-PANEL.md` §3), and both surfaces import it now. The
   detail is absolutely positioned inside it, so the box is sized by its resting
   face alone and **opening one cannot move anything** — which is the whole
   point. It used to append a block under the row and shove the rest of the
@@ -118,7 +115,8 @@ Who this is, where they stand, and:
   one is `CombatReadout.js`. Both used to live inside `LedgerBand.js`; they
   came out when the GM desks started wearing the same readout, so the swap-in-
   place behaviour below is written once rather than approximated a second time
-  on the desk (COMBAT.md §6). Nothing on this page changed when they moved.
+  on the desk (COMBAT.md §6). The Dev Character Panel's band is the third
+  caller (`DEV-PANEL.md` §3). Nothing on this page changed when they moved.
 - **Three ways in, and all three are needed.** A mouse opens on
   `pointerenter` and closes on leave. A **tap** is the click path: touch fires
   a synthesised `mouseenter` before its click, so the pointer handlers ignore
