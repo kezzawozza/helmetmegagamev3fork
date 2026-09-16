@@ -3670,25 +3670,6 @@ input[type="radio"]:disabled {
   gap: var(--sp-2);
 }
 
-/* Concealed's box. Not a tile: it has no sentence to open, just a resolved
-   fact that can disagree with the column the player set. */
-.dev-switches {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: var(--sp-2);
-}
-
-.dev-switch {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  background: var(--field-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  padding: var(--sp-2) var(--sp-3);
-  min-width: 0;
-}
-
 /* The action bar's clusters — Life, Body, Admin. A named group each, because
    an unbroken run of thirteen bare icons could only be read by hovering every
    one of them; the hairline rules that used to separate them said a boundary

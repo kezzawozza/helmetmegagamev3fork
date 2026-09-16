@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { handsFor, handsUsed } from "@lifeweb/db/lib/equipSlots";
 import { bandOf } from "@lifeweb/db/lib/mood";
 import { formatGambitModifiers } from "@lifeweb/db/lib/gambitModifier";
+import { moveKindLabel } from "@/lib/moves";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import CombatTile from "@/app/components/CombatReadout";
 import DetailTile from "@/app/components/DetailTile";
@@ -16,20 +16,24 @@ import TagPointsValue from "@/app/components/TagPointsValue";
 //
 // It used to be a 15-fact grid of bare label/value pairs, and it read like a
 // rulebook: every tile carried a sentence explaining the rule behind it. A GM
-// running this panel already knows the rules — so the tiles are read-only
-// boxes with nothing to hover, except This turn, which names a fact about
-// THIS character rather than a rule.
+// running this panel already knows the rules — so the primary tiles are
+// read-only boxes with nothing to hover. Equipped/Drawbacks/the bare "This
+// turn" answered questions nobody was asking; they're gone, replaced below by
+// facts a GM actually glances at.
 export default function DevBand({
   character,
   staged,
   discord,
+  curse,
   held,
-  maxDrawbackTags,
-  maxDrawbackPoints,
+  feed,
+  carry,
+  goalsSummary,
+  lastActivity,
   gambitModifier,
   gambitParts,
   openTurn,
-  hasActed,
+  openTurnAction,
   stagedForPush,
 }) {
   // One open slot for the whole band, so two boxes never show detail at once.
@@ -39,27 +43,32 @@ export default function DevBand({
     onOpen: (want) => setTileOpen(want ? key : null),
   });
 
-  // Slots spent, not rows worn — a stack equipped 3-of-5 spends 3.
-  const equipped = held.reduce((sum, h) => sum + (h.equippedQuantity ?? 0), 0);
-  // Hands, not a flat count: the only equipment limit that is a number now
-  // (db/lib/equipSlots.js). The layered slots refuse on their own. handsUsed
-  // expands each row by its own equippedQuantity, matching `equipped` above.
-  const hands = handsUsed(held.filter((h) => h.equippedQuantity > 0));
-  // The cap this character actually has — a maiming takes hands away.
-  const handCap = handsFor(held);
-  // Point-bought drawbacks only, matching the ceilings PointBuy enforces — a
-  // GM-inflicted wound is not one of the player's tags. Shown as a fact, not
-  // a limit: a GM grant deliberately ignores every gate, these included.
-  const drawbacks = held.reduce(
-    (acc, h) => {
-      if (h.source !== "POINT_BUY" || (h.pointCost ?? 0) >= 0) return acc;
-      return { count: acc.count + 1, points: acc.points - h.pointCost };
-    },
-    { count: 0, points: 0 },
-  );
-  const overDrawbackCap = drawbacks.count > maxDrawbackTags || drawbacks.points > maxDrawbackPoints;
   const moodBand = bandOf(staged.mood ?? 0);
   const status = CHARACTER_STATUS[character.status];
+
+  // Tags due to run out this turn or next — free of anything a GM has to go
+  // looking for.
+  const expiringSoon = held.filter(
+    (h) => h.expiresTurn != null && h.expiresTurn <= (openTurn?.number ?? 0) + 1,
+  ).length;
+  // healable is the same isHealable predicate the wound picker/heal-all
+  // button already agree on (web/lib/devPanelData.js).
+  const afflictions = held.filter((h) => h.healable).length;
+  const hungry = held.some((h) => h.slug === feed.dropSlug);
+
+  const stagedSummary = stagedForPush
+    ? [
+        stagedForPush.resources
+          ? `${stagedForPush.resources > 0 ? "+" : ""}${stagedForPush.resources} ⬢`
+          : null,
+        stagedForPush.tagOps
+          ? `${stagedForPush.tagOps} tag change${stagedForPush.tagOps === 1 ? "" : "s"}`
+          : null,
+        (stagedForPush.tagPoints ?? 0)
+          ? `${stagedForPush.tagPoints > 0 ? "+" : ""}${stagedForPush.tagPoints} tag points`
+          : null,
+      ].filter(Boolean)
+    : [];
 
   return (
     <section className="panel sheet-band">
@@ -88,6 +97,11 @@ export default function DevBand({
           <h2 className="ledger-name">{staged.name || character.name}</h2>
           <p className="m-0 mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
             <StatusPill tone={status?.tone ?? "neutral"}>{status?.label ?? character.status}</StatusPill>
+            {/* Not read off Character.status — that enum has no CURSED value
+                of its own (CHARACTER_STATUS.CURSED is the ghost seat's
+                colour, not a live fact). curse.cursed is db/lib/curse.js's
+                own answer, so this can be true on an ALIVE character. */}
+            {curse?.cursed && <StatusPill tone="bad">Cursed</StatusPill>}
             <span>
               {staged.roleTitle || "No role"} ·{" "}
               <FactionLink
@@ -95,6 +109,8 @@ export default function DevBand({
                 name={character.factionName ?? "No faction"}
                 className="ledger-faction"
               />
+              {character.isLeader && <span className="chip">Leader</span>}
+              {character.isTreasurer && <span className="chip">Treasurer</span>}
             </span>
           </p>
           <p className="m-0 text-sm text-muted">
@@ -104,53 +120,27 @@ export default function DevBand({
             {discord.username ?? "not in the guild"}
             {discord.nickname ? ` · "${discord.nickname}"` : ""}
             {character.discordRoleId ? "" : " · no name role"}
+            {character.turnPingOptIn ? " · turn ping" : ""}
           </p>
         </div>
       </div>
 
       <div className="dev-band-tiles">
-          <DetailTile label="Resources" value={`${staged.resources} ⬢`} />
-          <DetailTile label="Tag points" value={<TagPointsValue points={staged.tagPoints} />} />
-          <DetailTile
-            label="Mood"
-            value={moodBand?.label ?? "Fine"}
-            tone={moodBand?.tone ?? "muted"}
-            word
-          />
-          <DetailTile
-            label="Gambit die"
-            value={gambitModifier ? `${gambitModifier > 0 ? "+" : ""}${gambitModifier}` : "±0"}
-            over={Boolean(gambitModifier)}
-            detail={gambitParts?.length ? formatGambitModifiers(gambitParts) : null}
-            {...tile("gambit")}
-          />
-          <DetailTile
-            label="Equipped"
-            value={`${equipped} · ${hands}/${handCap} hands`}
-            over={hands > handCap}
-          />
-          <DetailTile
-            label="Drawbacks"
-            value={
-              <span className={overDrawbackCap ? "text-danger" : undefined}>
-                {drawbacks.count}/{maxDrawbackTags} · {drawbacks.points}/{maxDrawbackPoints} pts
-              </span>
-            }
-          />
-          <DetailTile
-            label="This turn"
-            value={openTurn ? `${openTurn.number} ${openTurn.phase}` : "none open"}
-            word
-            tone={openTurn ? null : "muted"}
-            detail={
-              openTurn
-                ? hasActed
-                  ? `${character.name} has filed a Move`
-                  : `${character.name} hasn't acted this turn`
-                : "No turn is open"
-            }
-            {...tile("turn")}
-          />
+        <DetailTile label="Resources" value={`${staged.resources} ⬢`} />
+        <DetailTile label="Tag points" value={<TagPointsValue points={staged.tagPoints} />} />
+        <DetailTile
+          label="Mood"
+          value={moodBand?.label ?? "Fine"}
+          tone={moodBand?.tone ?? "muted"}
+          word
+        />
+        <DetailTile
+          label="Gambit die"
+          value={gambitModifier ? `${gambitModifier > 0 ? "+" : ""}${gambitModifier}` : "±0"}
+          over={Boolean(gambitModifier)}
+          detail={gambitParts?.length ? formatGambitModifiers(gambitParts) : null}
+          {...tile("gambit")}
+        />
       </div>
 
       {/* Combat lives on its own row, not in the tile grid above — the same
@@ -161,41 +151,59 @@ export default function DevBand({
         <CombatTile tags={held} showArmorPieces {...tile("combat")} />
       </div>
 
-      {/* Concealed has no column on the form and no verb — it's a resolved
-          fact, not a switch. The column itself is only a wish: it takes
-          effect solely while something concealing is equipped, which is why
-          this can read differently from what the player set. */}
-      <div className="dev-switches">
-        <div className="dev-switch">
-          <span className="field-label">Concealed</span>
-          <span className="text-sm">
-            {character.concealedInEffect ? "Yes" : character.concealed ? "On, but nothing worn" : "No"}
-          </span>
-        </div>
+      {/* The informational glance: what filled the hole Equipped/Drawbacks/
+          the bare "This turn" left. Its own grid, free to wrap over more than
+          one line — unlike the primary four above, there's no attempt to
+          keep these on a single row. */}
+      <div className="dev-band-tiles">
+        <DetailTile
+          label="Concealed"
+          value={character.concealedInEffect ? "Yes" : character.concealed ? "On, but nothing worn" : "No"}
+        />
+        <DetailTile
+          label="This turn"
+          value={
+            openTurnAction
+              ? moveKindLabel(openTurnAction.moveKind, openTurnAction.gmNotes)
+              : openTurn
+                ? "Not yet"
+                : "No turn"
+          }
+          word
+          tone={openTurnAction ? null : "muted"}
+          detail={openTurnAction?.description || null}
+          {...tile("thisTurn")}
+        />
+        <DetailTile
+          label="Staged for push"
+          value={stagedSummary.length ? stagedSummary.join(", ") : "None"}
+          tone={stagedSummary.length ? "warn" : "muted"}
+          detail={stagedSummary.length ? "Queued in /gm/turns, lands at turn end." : null}
+          {...tile("staged")}
+        />
+        <DetailTile label="Carrying" value={`${carry.weightUsed} lb`} over={carry.weightUsed > carry.weightCap} />
+        <DetailTile label="Expiring soon" value={String(expiringSoon)} over={expiringSoon > 0} />
+        <DetailTile label="Afflictions" value={String(afflictions)} over={afflictions > 0} />
+        <DetailTile label="Hunger" value={hungry ? "Hungry" : "Fed"} tone={hungry ? "warn" : "good"} />
+        <DetailTile
+          label="Goals"
+          value={`${goalsSummary.active}/${goalsSummary.total}`}
+          tone={goalsSummary.ready > 0 ? "warn" : null}
+          detail={
+            goalsSummary.ready > 0
+              ? `${goalsSummary.ready} slot${goalsSummary.ready === 1 ? "" : "s"} ready`
+              : null
+          }
+          {...tile("goals")}
+        />
+        <DetailTile
+          label="Last activity"
+          value={lastActivity?.label ?? "None"}
+          tone={lastActivity ? null : "muted"}
+          detail={lastActivity ? new Date(lastActivity.createdAt).toLocaleString() : null}
+          {...tile("lastActivity")}
+        />
       </div>
-
-      {stagedForPush && (
-        /* The adjudication workspace has queued changes against this sheet
-           for the turn-end push. Live edits here are additive with those —
-           nothing corrupts — but a GM who can't see the queue double-grants. */
-        <p className="m-0 text-xs text-accent">
-          Staged for the push:{" "}
-          {[
-            stagedForPush.resources
-              ? `${stagedForPush.resources > 0 ? "+" : ""}${stagedForPush.resources} ⬢`
-              : null,
-            stagedForPush.tagOps
-              ? `${stagedForPush.tagOps} tag change${stagedForPush.tagOps === 1 ? "" : "s"}`
-              : null,
-            (stagedForPush.tagPoints ?? 0)
-              ? `${stagedForPush.tagPoints > 0 ? "+" : ""}${stagedForPush.tagPoints} tag points`
-              : null,
-          ]
-            .filter(Boolean)
-            .join(", ")}{" "}
-          — queued in /gm/turns, lands at turn end.
-        </p>
-      )}
     </section>
   );
 }

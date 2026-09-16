@@ -6,6 +6,7 @@ import Modal from "@/app/components/Modal";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ActionBar from "./ActionBar";
 import DevBand from "./DevBand";
+import HeldTagsBody from "./HeldTagsBody";
 import IdentityTab from "./IdentityTab";
 import TagEditor from "./TagEditor";
 import TurnTab from "./TurnTab";
@@ -53,9 +54,11 @@ export default function DevPanel({
   roles,
   tags,
   held,
+  characterTags,
   feed,
-  maxDrawbackTags,
-  maxDrawbackPoints,
+  carry,
+  goalsSummary,
+  lastActivity,
   openTurn,
   gambitModifier,
   gambitParts,
@@ -225,13 +228,16 @@ export default function DevPanel({
         character={character}
         staged={staged}
         discord={discord}
+        curse={curse}
         held={held}
-        maxDrawbackTags={maxDrawbackTags}
-        maxDrawbackPoints={maxDrawbackPoints}
+        feed={feed}
+        carry={carry}
+        goalsSummary={goalsSummary}
+        lastActivity={lastActivity}
         gambitModifier={gambitModifier}
         gambitParts={gambitParts}
         openTurn={openTurn}
-        hasActed={Boolean(openTurnAction)}
+        openTurnAction={openTurnAction}
         stagedForPush={stagedForPush}
       />
 
@@ -250,6 +256,16 @@ export default function DevPanel({
         onApplyTags={applyTagOps}
         refresh={refresh}
         onDeleted={onDeleted}
+      />
+
+      {/* Always visible, not gated behind the Tags tab — grouped and
+          separated the way the player's own sheet is (HeldTagsBody.js). The
+          Tags tab below is add-only now. */}
+      <HeldTagsBody
+        characterName={character.name}
+        characterTags={characterTags}
+        openTurn={openTurn}
+        onApplyOps={applyTagOps}
       />
 
       <div className="tab-bar" role="tablist">
@@ -286,7 +302,6 @@ export default function DevPanel({
           characterName={character.name}
           tags={tags}
           held={held}
-          openTurn={openTurn}
           onApplyOps={applyTagOps}
         />
       )}
