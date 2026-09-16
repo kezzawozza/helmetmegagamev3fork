@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-16 · Literacy can be taught
+
+✎ Anyone literate can now teach reading, and anyone can learn it — the two Desires that ask for it were impossible before
+
 ## 2026-09-16 · Every deploy was failing on the radio's tag
 
 ✎ The 243.000 radio declared itself tradeable, which items always are now — the tag sync refused the whole file, and that sync runs on every deploy
