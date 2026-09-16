@@ -30,6 +30,18 @@ function isAutoLabor(gmNotes) {
 // A gmNotes marker a GM never types themselves (db/lib/locationTravel.js).
 const AUTO_ZONE_CHANGE = "auto:zone_change";
 
+// A lesson's learner-side Gambit (db/lib/lessons.js). It reaches the desk OPEN with its
+// die already rolled, which makes it look exactly like an ordinary Gambit waiting to be
+// judged — and it is the one row a GM must NOT Solve: db/lib/lessonPass.js treats a
+// SOLVED row as "a GM wrote the result, theirs stands", returns without granting, and the
+// learner silently never gets the skill. Labelling it is the cheap half of the fix; the
+// real one is to stop filing it OPEN at all.
+const AUTO_LESSON = "auto:lesson";
+
+function isAutoLesson(gmNotes) {
+  return typeof gmNotes === "string" && gmNotes.includes(AUTO_LESSON);
+}
+
 // gmNotes can carry more than one marker, so check for the substring, not equality.
 export function isTravelMove(gmNotes) {
   return typeof gmNotes === "string" && gmNotes.includes(AUTO_ZONE_CHANGE);
@@ -46,6 +58,7 @@ export const MOVE_REVIEW_TONES = {
 export function moveKindLabel(moveKind, gmNotes) {
   if (isTravelMove(gmNotes)) return "Travel";
   if (isAutoLabor(gmNotes)) return "Labor (auto)";
+  if (isAutoLesson(gmNotes)) return "Lesson (auto)";
   return MOVE_KIND_LABELS[moveKind] ?? "Move";
 }
 
