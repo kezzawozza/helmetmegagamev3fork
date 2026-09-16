@@ -153,7 +153,7 @@ back to the caller** rather than doing it.
 - `advanceTurn()` returns a `runSideEffects` thunk (`TURN-ENGINE.md` §3).
 - `runHungerPass` returns `starvedDiscordUserIds`.
 - `runAutoLaborPass` returns `dms`.
-- `runLessonPass` (`db/lib/lessonPass.js`, `LESSONS.md`) returns `dms`, run
+- `runOfferExpiryPass` (`db/lib/offerExpiryPass.js`, `LESSONS.md`) returns `dms`, run
   between `autoLabor` and `stagedPush`.
 - `performTravel` returns `oldZone` so each caller runs its own access twin.
 

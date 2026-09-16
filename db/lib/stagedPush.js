@@ -383,9 +383,12 @@ async function runStagedPushPass(prisma, turn) {
   // Independent of the routine-closing logic below: the die was already
   // decided at submit, this pass just delivers the news. Every CONFIRMED
   // Gambit still unpaid this turn qualifies.
-  // A lesson's Gambit is excluded: the lesson pass (db/lib/lessonPass.js)
-  // already told the learner the die AND what it did, in one line. A
-  // research Gambit is excluded for the same reason: db/lib/researchPass.js
+  // A lesson's Gambit is excluded: it is settled the moment the lesson is
+  // accepted (db/lib/lessons.js), which already told the learner the die AND
+  // what it did, in one line. A settled lesson carries appliedEffects and never
+  // reaches `unapplied` anyway — the marker check still earns its place for a
+  // lesson accepted BEFORE that change shipped, which is OPEN with no effects.
+  // A research Gambit is excluded for the same reason: db/lib/researchPass.js
   // already told the researcher the die and what it turned up.
   const gambitRollNotices = [];
   for (const action of unapplied) {

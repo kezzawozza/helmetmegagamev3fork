@@ -1,8 +1,14 @@
 # Lessons and consent handshakes
 
-Learn Skill and Teach Skill on `/character`, the Teaching tag tree, the
-`Offer` model both of them and Bind run on, and the turn pass that resolves a
-lesson. This is the game's first code-adjudicated Gambit.
+Learn Skill and Teach Skill on `/character`, the Teaching tag tree, and the
+`Offer` model both of them and Bind run on.
+
+**A lesson happens when it is accepted.** The die is thrown, the skill lands and
+both people are told, all inside the transaction that answers the offer. It used
+to resolve at turn end, which left the learner's Gambit sitting OPEN on the
+adjudication desk for an outcome no GM decides — and solving that row DESTROYED
+the lesson, because the pass read a SOLVED Move as "a GM wrote the result, theirs
+stands" and returned without granting. Nothing reaches the desk now.
 
 ## 1. The rules
 
@@ -141,14 +147,15 @@ dead character's offers stay readable.
    to hang the count on, and excluding the offer being accepted, which the
    claim has already flipped to ACCEPTED. Everyone else is capped by owing a
    free Move slot.
-3. **Resolve** (`db/lib/lessonPass.js`, the `"lessons"` pass — between
-   `autoLabor` and `stagedPush` in `TURN_PASSES`). For each ACCEPTED lesson
-   on the closing turn: learner Action gone → CANCELLED (a GM rejected it);
-   Action already `SOLVED` → RESOLVED with `outcome.gmDecided`, no grant (the
-   GM's word stands); otherwise `total = diceRoll + diceModifier`,
-   `succeeded = total >= threshold`, grant on success, set the Action `SOLVED`
-   with a `resultMessage`. A **Minted Charm** the learner has EQUIPPED at
-   resolution adds +1 to the total (2026-09-07; docs/tags.yaml
+3. **Resolve**, in the same transaction as the accept (`db/lib/lessons.js`).
+   `lessonOutcome` is the pure half — `total = diceRoll + diceModifier +
+   charmBonus`, `succeeded = learner is ALIVE && total >= threshold` — and is
+   unit-tested on its own, the way `torture.js` and `breakRestraints.js` split.
+   On success the skill is granted and lower tiers are replaced; either way the
+   learner's Action is filed **PASSED** with a `resultMessage` and
+   `appliedEffects: {}`, which keeps it off the desk and out of the staged push,
+   and the Offer goes straight to RESOLVED. A **Minted Charm** the learner has
+   EQUIPPED adds +1 to the total (2026-09-07; docs/tags.yaml
    `minted-charm`, a hidden smith craft) — the student-side sibling of
    Drill Instructor, which moves the threshold from the teacher's side; the
    bonus is folded into the die line and recorded on `outcome.charmBonus`. Both sides are DM'd the die and the result in one
@@ -273,7 +280,8 @@ never automatic, and a success still lands at the close of the turn.
 | Thing | File |
 |---|---|
 | Eligibility, offer, accept, decline, cancel hooks | `db/lib/lessons.js` |
-| Turn pass | `db/lib/lessonPass.js` (`"lessons"` in `db/index.js`) |
+| Offer expiry turn pass | `db/lib/offerExpiryPass.js` (still keyed `"lessons"` in `db/index.js` — the key is written into `Turn.resolvedPasses`, so renaming it would orphan half-resolved turns) |
+| One-off drain for lessons stranded by the change | `db/scripts/ops/resolve-inflight-lessons.js` |
 | Bind, both doors | `db/lib/bind.js` |
 | Button row + prefixes | `db/lib/offerRow.js` |
 | Bot click handlers | `bot/src/lib/offers.js`, routed in `bot/src/events/interactionCreate.js` |

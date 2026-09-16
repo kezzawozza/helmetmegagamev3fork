@@ -48,17 +48,21 @@ each arrived at by getting them wrong first.
    who didn't act and can work. **First**, because a day's labor *earns*
    resources and the Hunger pass below spends them; the other order makes a
    player whose work buys them a meal go hungry anyway. See `LABORING.md` §8.
-2b. **Lessons pass** (`db/lib/lessonPass.js`, `"lessons"` in `TURN_PASSES`) —
-   the game's first code-adjudicated Gambit. For every ACCEPTED lesson `Offer`
-   on the closing turn it rolls the modified die (threshold 5 for a normal
-   lesson, 4 for a fighting skill under a Drill Instructor teacher), grants
-   the skill on success with `TagSource.LESSON`, and DMs both sides the die
-   and the result in one line — so step 3 below skips its own 🎲 result DM
-   for a Gambit whose `gmNotes` reads `auto:lesson`, since this pass already
-   sent one. Every still-PENDING lesson offer on the turn expires here too,
-   with a DM to the initiator. Its slot is load-bearing: **after** the
-   auto-labor pass, and **before** the staged push, so the push's silent-close and
-   payout logic sees the lesson's Action already resolved. See `LESSONS.md`.
+2b. **Offer expiry pass** (`db/lib/offerExpiryPass.js`, still keyed `"lessons"`
+   in `TURN_PASSES`). Every still-PENDING offer on the closing turn expires
+   here, **whatever its kind** — lesson, bind, confession, kiss, escort or
+   search — each with its own line DM'd to the initiator. One pass for all of
+   them on purpose, which is why `db/lib/confessionPass.js` does no expiring of
+   its own; two passes racing the same rows would double-DM.
+
+   It used to resolve accepted lessons too, and was named for that. **A lesson
+   is settled the moment it is accepted now** (`db/lib/lessons.js`), so there is
+   nothing accepted left for this to find. The pass key stays `"lessons"`
+   because it is written into `Turn.resolvedPasses`; renaming it would make
+   every half-resolved turn look like it still owed the pass. Step 3 below still
+   skips its own 🎲 DM for a Gambit whose `gmNotes` reads `auto:lesson` — a
+   settled lesson never reaches it anyway, but one accepted before the change
+   shipped is still out there. See `LESSONS.md`.
 2c. **Research pass** (`db/lib/researchPass.js`, `"research"` in
    `TURN_PASSES`) — the Scholastic's own code-adjudicated Gambit, same shape
    as Lessons and slotted right after it. For every Action this turn whose

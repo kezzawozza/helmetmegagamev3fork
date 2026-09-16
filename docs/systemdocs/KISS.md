@@ -146,7 +146,7 @@ present. `db/lib/placeLine.js` stays where it is; the rites use it.
 - **No Desire is claimed.** `kiss-someone`, `dem-offered-kiss` and
   `dem-kiss-a-broken` stay GM-adjudicated. Blocking `broken` in §2 is what
   keeps `dem-kiss-a-broken` a GM's job rather than a button.
-- **No turn pass.** `lessonPass.js` already expires every PENDING offer at
+- **No turn pass.** `offerExpiryPass.js` already expires every PENDING offer at
   turn close, kind-agnostic, so a kiss nobody answered dies with the day.
 
 ## 7. The gate is your own mouth, never the room

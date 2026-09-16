@@ -92,7 +92,7 @@ covered face at the gate, so four surfaces had been free to print
 - the waiting-on-you list in `/chat` (`chat/actions.js#waitingOnYou`),
 - the sheet's pending-offer line (`character/page.js` → `SheetTurn.js`),
 - the decline wording (`lessons.js#declineOffer`),
-- and the turn-close expiry notice (`lessonPass.js`).
+- and the turn-close expiry notice (`offerExpiryPass.js`).
 
 All four now go through `seenAs(identityOf(row))`. Without that, asking to
 search somebody while hooded would put your real name in their own to-do
@@ -202,7 +202,7 @@ Three ways, and only the first is new code.
 
   **The ration is not refunded** — the ask spent it (`KISS.md` §4), or walking
   out of a room and back in would be a free second attempt.
-- **They never answer.** `lessonPass.js` expires every PENDING offer at turn
+- **They never answer.** `offerExpiryPass.js` expires every PENDING offer at turn
   close, kind-agnostically, so this is free.
 - **Somebody dies.** `characterDeath.js` voids PENDING offers already.
 

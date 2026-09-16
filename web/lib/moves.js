@@ -30,12 +30,12 @@ function isAutoLabor(gmNotes) {
 // A gmNotes marker a GM never types themselves (db/lib/locationTravel.js).
 const AUTO_ZONE_CHANGE = "auto:zone_change";
 
-// A lesson's learner-side Gambit (db/lib/lessons.js). It reaches the desk OPEN with its
-// die already rolled, which makes it look exactly like an ordinary Gambit waiting to be
-// judged — and it is the one row a GM must NOT Solve: db/lib/lessonPass.js treats a
-// SOLVED row as "a GM wrote the result, theirs stands", returns without granting, and the
-// learner silently never gets the skill. Labelling it is the cheap half of the fix; the
-// real one is to stop filing it OPEN at all.
+// A lesson's learner-side Gambit (db/lib/lessons.js). A lesson is settled the moment it
+// is accepted now, so its row arrives already PASSED and there is nothing to solve.
+// The label still matters for the ones filed BEFORE that shipped: those sit OPEN with a
+// die showing, look exactly like an ordinary Gambit awaiting judgement, and solving one
+// DESTROYS it — the old turn-end pass read a SOLVED row as "a GM wrote the result, theirs
+// stands" and returned without ever granting the skill.
 const AUTO_LESSON = "auto:lesson";
 
 function isAutoLesson(gmNotes) {

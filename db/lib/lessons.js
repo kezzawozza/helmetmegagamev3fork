@@ -11,7 +11,7 @@
 // nothing, may already have locked in some other Move, and carries up to
 // TEACHING_CAPACITY students a turn; their student needs a 5.
 //
-// The lesson pass (db/lib/lessonPass.js) rolls the result at turn end. This is
+// The result is rolled and applied the moment the offer is accepted. This is
 // the game's first code-adjudicated Gambit: a fixed threshold on the modified
 // die, nothing for a GM to narrate.
 //
