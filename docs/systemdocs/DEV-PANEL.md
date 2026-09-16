@@ -174,8 +174,11 @@ can't disagree about what an affliction is.
   every bot start anyway — so it could only ever confirm that nothing was
   wrong.
 - **Tabs** — Identity · Tags · Turn · Goals · Record · Notes, on the existing
-  `.tab-bar` / `.tab-item` classes. **Notes** is the shared `AdminNotes`
-  component, the same one the player desk's inspector mounts
+  `.tab-bar` / `.tab-item` classes. The Notes tab's own label reads
+  **"Notes (N)"** once N is above zero — `adminNotesCount`, a plain
+  `prisma.adminNote.count()` in `web/lib/devPanelData.js`, so a GM sees there
+  is something to read without opening the tab first. **Notes** is the shared
+  `AdminNotes` component, the same one the player desk's inspector mounts
   (`PLAYER-DESK.md` §7). It is keyed on the PLAYER, not the character, so it is
   the same list under every character that player has ever had — two characters
   on one account see one pile, which is the point. It takes no part in the

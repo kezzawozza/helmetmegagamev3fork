@@ -59,6 +59,7 @@ export default function DevPanel({
   carry,
   goalsSummary,
   lastActivity,
+  adminNotesCount,
   openTurn,
   gambitModifier,
   gambitParts,
@@ -279,7 +280,11 @@ export default function DevPanel({
             className="tab-item"
             onClick={() => openTab(t)}
           >
-            {t}
+            {/* A GM's own reason to click Notes at all: an empty pile says
+                just "Notes", same as every other tab, but a non-empty one
+                says how many are waiting, right on the tab bar rather than
+                behind a click. */}
+            {t === "Notes" && adminNotesCount > 0 ? `Notes (${adminNotesCount})` : t}
           </button>
         ))}
       </div>

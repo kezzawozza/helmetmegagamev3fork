@@ -48,6 +48,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     pendingStaged,
     transferRoster,
     latestAudit,
+    adminNotesCount,
   ] = await Promise.all([
     // The place picker's options. A character stands in a Location, never on
     // a zone row, so this is the whole Location table grouped by zone.
@@ -211,6 +212,10 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       orderBy: { createdAt: "desc" },
       select: { actionType: true, createdAt: true },
     }),
+    // The Notes tab's own count, so its label can say "Notes (3)" without
+    // waiting on AdminNotes.js's own client-side fetch — keyed on the
+    // PLAYER, same as the notes themselves (PLAYER-DESK.md §7).
+    prisma.adminNote.count({ where: { discordUserId: character.discordUserId } }),
   ]);
 
   // A staged transfer this character is the "to" end of is a pending credit;
@@ -523,6 +528,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     lastActivity: latestAudit
       ? { label: prettifyActionType(latestAudit.actionType), createdAt: latestAudit.createdAt.toISOString() }
       : null,
+    adminNotesCount,
   };
 }
 
