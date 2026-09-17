@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import PageShell from "@/app/components/PageShell";
 import AppHeader from "@/app/components/AppHeader";
 import DocumentMarkdown from "@/app/components/DocumentMarkdown";
@@ -24,7 +24,7 @@ export default async function HandbookPage() {
   const body = getHandbookBody();
   if (!body) notFound();
 
-  const session = await auth();
+  const { session } = await getGmSession();
   const signedIn = !!session?.discordUserId;
 
   return (

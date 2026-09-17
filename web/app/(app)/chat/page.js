@@ -4,7 +4,7 @@ import { withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { feedWipeFloors, floorForPlace, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 import { Suspense } from "react";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import ChatView from "./ChatView";
@@ -57,7 +57,12 @@ export const dynamic = "force-dynamic";
 const HISTORY_ROWS = 100;
 
 export default async function PlayPage() {
-  const session = await auth();
+  // getGmSession() rather than auth(): it is React-cached and the layout above
+  // has already made the call, so this costs nothing and — the point — issues no
+  // second headers() read. A bare auth() does, and a slow render that outlives
+  // its own response then reads request data in Next's `after` phase, which is
+  // refused outright (next/dist/server/request/utils.js). The page died with it.
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   return (
     <SnapshotPage

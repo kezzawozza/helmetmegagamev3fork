@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
@@ -7,7 +6,7 @@ import RosterView from "../RosterView";
 import Loading from "../Skeleton";
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { cursedUserIds } from "@lifeweb/db/lib/curse";
-import { listGuildMembers } from "@/lib/discordGuild";
+import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
 
@@ -24,7 +23,7 @@ import { getOpenTurn } from "@/lib/turn";
 // mounts the shell, and streams FreshPlayerRoster in behind it. A browser that has
 // been here before paints its last data in the first frame.
 export default async function PlayerRosterPage({ searchParams }) {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   return (
     <SnapshotPage scope="gm-players" userId={session.discordUserId} render={RosterView} fallback={<Loading />}>

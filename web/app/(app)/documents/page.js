@@ -4,7 +4,6 @@ import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import DocumentsView from "./DocumentsView";
 import Loading from "./Skeleton";
-import { auth } from "@/lib/auth";
 import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { prisma, startingTagSlugs as parseStartingTagSlugs } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
@@ -32,7 +31,7 @@ export const metadata = { title: "Documents" };
 // mounts the shell, and streams FreshDocuments in behind it. A browser that has
 // been here before paints its last data in the first frame.
 export default async function DocumentsPage() {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   return (
     <SnapshotPage scope="documents" userId={session.discordUserId} render={DocumentsView} fallback={<Loading />}>

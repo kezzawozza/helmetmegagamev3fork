@@ -25,7 +25,7 @@ import {
   presentedIdentity,
   forcedNameFrom,
 } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 
@@ -92,7 +92,7 @@ function ledgerRow(entry, who) {
 // mounts the shell, and streams FreshDepot in behind it. A browser that has
 // been here before paints its last data in the first frame.
 export default async function DepotPage() {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   return (
     <SnapshotPage scope="depot" userId={session.discordUserId} render={DepotView} fallback={<Loading />}>
@@ -104,7 +104,7 @@ export default async function DepotPage() {
 }
 
 async function FreshDepot() {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
   const character = await prisma.character.findFirst({

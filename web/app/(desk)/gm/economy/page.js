@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { auth } from "@/lib/auth";
 import { prisma } from "@lifeweb/db";
 import { visibleZoneIds as loadVisibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { reasonLabel, reasonFlow, FLOW, REASONS } from "@lifeweb/db/lib/economyReasons";
@@ -47,7 +46,7 @@ async function currentGameId() {
 }
 
 export default async function EconomyPage({ searchParams }) {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
   const rawSearch = await searchParams;

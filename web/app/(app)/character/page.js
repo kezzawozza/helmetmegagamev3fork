@@ -62,7 +62,6 @@ import { groupRoles } from "@lifeweb/db/lib/roleGroups";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen, readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { deployVersion } from "@/lib/deployVersion";
-import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
 import { myMove } from "../chat/actions";
@@ -70,6 +69,7 @@ import { loadDesireView, loadLettersView } from "@/lib/selfPools";
 import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
+  getGmSession,
   getGuildMember,
   isGm,
   isLeaderWhitelisted,
@@ -231,7 +231,7 @@ async function loadCreationData(discordUserId) {
 // Snapshotted (web/lib/snapshot, CHAT.md §5c): reads the session, mounts the
 // shell, streams FreshCharacter in behind it.
 export default async function CharacterPage({ searchParams }) {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   return (
     <SnapshotPage scope="character" userId={session.discordUserId} render={CharacterView} fallback={<Loading />}>

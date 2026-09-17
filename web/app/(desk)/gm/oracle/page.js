@@ -4,7 +4,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
@@ -22,7 +22,7 @@ export default async function OraclePage({ searchParams }) {
   // same posture as /chat's playPanelEnabled. Superadmin, not GM: the point is reviewing the Oracle first.
   const config = await prisma.gameConfig.findFirst({ select: { oraclePlaytest: true } });
   if (config?.oraclePlaytest) {
-    const session = await auth();
+    const { session } = await getGmSession();
     if (!isSuperadmin(session?.discordUserId)) redirect("/gm/players");
   }
 

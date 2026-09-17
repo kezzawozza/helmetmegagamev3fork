@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
@@ -79,7 +79,7 @@ function legacyPathSelection(segments) {
 // Snapshotted (web/lib/snapshot, CHAT.md §5c): reads the session, mounts the
 // shell, streams FreshTurnsWorkspace in behind it.
 export default async function TurnsWorkspacePage({ params, searchParams }) {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   const { selection } = await params;
   // An old path-shaped deep link — one hop onto the query form.

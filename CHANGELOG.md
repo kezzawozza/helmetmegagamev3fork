@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Pages stopped loading when the site got busy
+
+✎ Chat, the sheet and the GM desks could all fail with "That page didn't load" while the server was under load — worst on the Messages pane, since that is what people open Chat for  
+✎ The cause was the page asking who you are a second time, late, after the browser had already given up waiting; every page now reuses the answer the site already had
+
 ## 2026-09-17 · Remove stray skull glyphs
 
 ✎ Drop the death emoji from the staged-effect label and the skull from Feed Person and REQUESTS.md
