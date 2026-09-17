@@ -23,8 +23,7 @@ const { postMessage } = require("./discordRest");
 const { isOocPlaceKey, discordTargetForPlaceKey, placePairForAudit } = require("./placeKey");
 const { MESSAGE_LIMIT } = require("./sayLimits");
 const { checkSpeechBucket, OOC_CAPACITY, OOC_REFILL_MS } = require("./speechRateLimit");
-const { presentedIdentity } = require("./presentedIdentity");
-const { loadPresentedState } = require("./examineSnapshot");
+const { loadPresentedIdentity } = require("./presentedIdentity");
 const { stampMentionNames, rolesToTokens } = require("./characterMentions");
 
 // The AuditLog row IS the rate limit, the GM's OOC lens on /gm/turns, and the
@@ -81,8 +80,12 @@ function oocLine(text, name = null) {
   return ambientLine(oocBody(text, name));
 }
 
-// `character` needs { id, name, discordUserId }. `placeKey` is where it was
-// typed. `source` is "DISCORD" or "WEB" — it decides whether the raw body
+// `character` needs { id, name, discordUserId } — and `name` only as the
+// fallback if the identity load below fails, because the label's name is
+// RE-READ off the database rather than taken from this argument. Both callers
+// pass a four-column row; that is fine now, and was not before.
+//
+// `placeKey` is where it was typed. `source` is "DISCORD" or "WEB" — it decides whether the raw body
 // carries `<@&roleId>` tokens (Discord's character-role mentions) that must
 // be folded to `{char:id}` before the archive row keeps them, matching
 // db/lib/say.js#prepareSpeech.
@@ -122,19 +125,14 @@ async function ooc(prisma, character, text, { placeKey = null, source = "WEB" } 
   // forced > concealed > own, the same rule /speak uses (db/lib/say.js:175):
   // an OOC line said from behind a hood must not out the player as the
   // character behind it, so the label reads the same identity the room sees.
-  // Log-and-continue on failure — the words still go out under the plain
+  // The loader re-reads the row rather than reading `character`, which is how
+  // this used to leak: both callers select four columns, none of them
+  // `concealed`, so an ordinary hood resolved to the real name. It
+  // log-and-continues on failure — the words still go out under the plain
   // shape.
   let name = character.name ?? null;
-  try {
-    const loaded = await loadPresentedState(prisma, character.id);
-    const identity = presentedIdentity(character, {
-      forcedName: loaded.forcedName,
-      concealment: loaded.concealment,
-    });
-    if (identity?.name) name = identity.name;
-  } catch (err) {
-    console.error("OOC presented identity load failed:", err?.message ?? err);
-  }
+  const { identity } = await loadPresentedIdentity(prisma, character.id);
+  if (identity?.name) name = identity.name;
 
   // Two spellings, differing only in mentions (db/lib/say.js#prepareSpeech).
   // `body` is what Discord posts (raw); `rowContent` is what the archive row

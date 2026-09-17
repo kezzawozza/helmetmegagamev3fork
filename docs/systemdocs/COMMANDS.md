@@ -375,13 +375,28 @@ same place you are reading.
 **One format, written once.** Every `/ooc` on both faces comes out as
 
 ```
--# [OOC]: {message}
+-# [OOC (Young Man): {message}]
 ```
 
 through `db/lib/ambientLine.js` on Discord and a `channelKind: "ooc"` scene row
-on the web (`.chat-ooc`, subtext with a rule down its left edge). No name is
-attached. Who said it lives in the `AuditLog` row instead, which is what the
-GM's OOC lens reads (`ADJUDICATION.md` §3).
+on the web (`.chat-ooc`, subtext with a rule down its left edge). The web
+spelling escapes the outer brackets and Discord's does not, for a Markdown
+reason `db/lib/ooc.js` explains at length. Who said it *also* lives in the
+`AuditLog` row, which is what the GM's OOC lens reads (`ADJUDICATION.md` §3) —
+that row names the account, so it answers past the hood below.
+
+**The name in the bracket is the PRESENTED one.** Forced > concealed > own, the
+same ladder `/speak` and a shout use, decided in one place
+(`db/lib/presentedIdentity.js`). A hooded player reads as "Young Man" in OOC
+exactly as they do in the scene, and somebody wearing a forced name reads as
+that name. This is not optional politeness: OOC is the one line a player types
+as themselves, so a hood that held everywhere else and dropped here would out
+them for asking a rules question.
+
+`db/lib/ooc.js` **re-reads the character row** to get it, rather than trusting
+the row its callers pass — both of them select four columns, none of which is
+`concealed`, and for a while that is exactly how the name leaked. The shared
+loader is `loadPresentedIdentity()`; `db/lib/shout.js` uses the same one.
 
 **A GM can mute it.** `OocMute` (`schema.prisma`) is one row per ACCOUNT with
 an `until`, set from the OOC lens on `/gm/turns` (`ADJUDICATION.md` §3). It

@@ -15,12 +15,7 @@ const {
 } = require("./speechRateLimit");
 const { placeKeyForLocation, parsePlaceKey, discordTargetForPlaceKey } = require("./placeKey");
 const { muffle } = require("./muffle");
-const {
-  CONCEALMENT_TAG_FIELDS,
-  concealmentFrom,
-  forcedNameFrom,
-  presentedIdentity,
-} = require("./presentedIdentity");
+const { loadPresentedIdentity } = require("./presentedIdentity");
 const { aliasSubject } = require("./concealedIdentity");
 
 // How much is lost at each remove. Index IS the hop count; index 0 is never reached (your own Location returns above). Past the end of the table the words are gone and only the direction survives.
@@ -73,36 +68,10 @@ function shouterNameFor(character, identity) {
   return identity.name || null;
 }
 
-// The columns presentedIdentity() reads, plus the tags it resolves against. Modelled on db/lib/whosHere.js#PRESENT_SELECT minus Role/Faction — hearing somebody yell tells you their name, not who they answer to.
-const SHOUTER_SELECT = {
-  id: true,
-  name: true,
-  age: true,
-  gender: true,
-  concealed: true,
-  updatedAt: true,
-  tags: {
-    where: {
-      OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
-    },
-    select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
-  },
-};
-
-// The shouter's own row, re-read here rather than trusted from the caller — the web's actor() and the bot's select carry neither age/gender/concealed nor the tags, and growing both call sites is exactly what CONCEALMENT_TAG_FIELDS warns against. Any failure returns null, rendered as the anonymous line.
+// The shouter's own row, re-read rather than trusted from the caller — db/lib/presentedIdentity.js#loadPresentedIdentity says why, and owns the column list now that /ooc needs the same one. Any failure returns null, rendered as the anonymous line.
 async function loadShouterName(prisma, characterId) {
-  try {
-    const row = await prisma.character.findUnique({ where: { id: characterId }, select: SHOUTER_SELECT });
-    if (!row) return null;
-    const identity = presentedIdentity(row, {
-      forcedName: forcedNameFrom(row.tags),
-      concealment: concealmentFrom(row.tags),
-    });
-    return shouterNameFor(row, identity);
-  } catch (err) {
-    console.error("Shout identity load failed:", err.message ?? err);
-    return null;
-  }
+  const { row, identity } = await loadPresentedIdentity(prisma, characterId);
+  return row ? shouterNameFor(row, identity) : null;
 }
 
 // Does this place eat a shout? A Room may be `soundproof` (docs/zones.yaml), and a Conversation inherits it from the Room it hangs under (PlayerThread.roomId is nullable, so one held on the open Location inherits nothing). A Location itself never is.

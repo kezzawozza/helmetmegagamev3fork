@@ -108,3 +108,22 @@ test("a row too old to carry a face errs toward the hood", () => {
   assert.equal(wasHooded({ concealedAlias: "Old Woman", presentedAvatarPath: null }), true);
   assert.equal(wasHooded({ concealedAlias: "Old Woman", presentedAvatarPath: null }, { forcedName: "Old Woman" }), false);
 });
+
+// The /ooc regression: presentedIdentity() answers off the ROW, and a caller
+// that loaded a narrow select has no `concealed` column to answer from. That
+// used to resolve to the real name, which outed hooded players in OOC for as
+// long as the label carried a name (db/lib/ooc.js).
+test("a row loaded without the concealed column conceals rather than names", () => {
+  const { concealed, ...noColumn } = speaker;
+  const identity = presentedIdentity(noColumn, { forcedName: null, concealment: concealmentFrom([hood]) });
+  assert.equal(identity.concealed, true);
+  assert.equal(identity.name, "Woman");
+});
+
+// The other half, and the one the guard above could plausibly break: `false` is
+// a real answer — a hood owned and not pulled up — and must stay the real name.
+test("concealed false is an answer, not a missing column", () => {
+  const identity = presentedIdentity(bareFaced, { forcedName: null, concealment: concealmentFrom([hood]) });
+  assert.equal(identity.concealed, false);
+  assert.equal(identity.name, "Semyun Varyutskaya");
+});
