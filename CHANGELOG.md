@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Party chat, and Deadchat loses its subtitle
+
+✚ A party is now a chat: each party gets its own channel under Radio on the web, and a private thread under #gameplay on Discord. Members added and dropped as parties form, travel and split.  
+✚ Party talk bleeds — like a whisper — to a random public room in the party's location. Same fragment on Discord and in Chat.  
+− The Deadchat description under its name is gone; the name is enough.
+
 ## 2026-09-16 · Two new ways to take something that isn't yours
 
 ✚ Steal, on any stash you can reach. The goods always move — a die only decides whether the room is told you did it  

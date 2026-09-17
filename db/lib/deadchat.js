@@ -45,7 +45,6 @@ const CHANNEL_TYPE_CATEGORY = 4;
 
 const CATEGORY_NAME = "Beyond";
 const CHANNEL_NAME = "deadchat";
-const CHANNEL_TOPIC = "The dead talk among themselves. Nobody living can hear this.";
 
 // One ghost's seat. Reactions are allowed (a ghost still stars a line onto their own /notes page);
 // everything that would let them reshape the room is denied by name, the way the Ghost role's mask
@@ -105,7 +104,6 @@ async function ensureDeadchatChannel(prisma, { fresh = false } = {}) {
       const created = await createChannel({
         name: CHANNEL_NAME,
         type: CHANNEL_TYPE_TEXT,
-        topic: CHANNEL_TOPIC,
         parent_id: categoryId,
       });
       channelId = created.id;
@@ -117,9 +115,9 @@ async function ensureDeadchatChannel(prisma, { fresh = false } = {}) {
     await patchChannel(channelId, { parent_id: categoryId });
   }
 
-  // Reconciled every run from here down, like the special channels: a drifted topic is cosmetic, a
+  // Reconciled every run from here down, like the special channels: the name reset is cosmetic, a
   // missing @everyone deny is the whole room open to the living.
-  await patchChannel(channelId, { name: CHANNEL_NAME, topic: CHANNEL_TOPIC });
+  await patchChannel(channelId, { name: CHANNEL_NAME });
   await putChannelOverwrite(channelId, guildId, {
     deny: (PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES).toString(),
   });
@@ -233,9 +231,8 @@ module.exports = {
   DEADCHAT_DENY,
   CHANNEL_NAME: CHANNEL_NAME,
   // Read by db/lib/discordMirror/desired.js, so the mirror describes this room
-  // from the same three strings that provision it.
+  // from the same strings that provision it.
   CATEGORY_NAME,
-  CHANNEL_TOPIC,
   GM_ALLOW,
   GM_DENY,
 };

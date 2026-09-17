@@ -18,6 +18,7 @@ const {
   partyOf,
   createEscortOffer,
 } = require("@lifeweb/db/lib/escort");
+const { syncPartyMembership } = require("@lifeweb/db/lib/partyChat");
 const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
 const { walkWithinZone } = require("@lifeweb/db/lib/locationWalk");
 const { stowedMounts } = require("@lifeweb/db/lib/mounts");
@@ -159,6 +160,7 @@ async function applyBring(mover, pickedIds, turn) {
       out.attached.push(candidate.name);
     }
   }
+  await syncPartyMembership(prisma, mover.id).catch(() => {});
   return out;
 }
 

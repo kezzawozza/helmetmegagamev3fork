@@ -52,6 +52,7 @@ import {
   acceptEscort,
   escortReason,
 } from "@lifeweb/db/lib/escort";
+import { syncPartyMembership } from "@lifeweb/db/lib/partyChat";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { dismountedMessage } from "@lifeweb/db/lib/indoors";
@@ -629,6 +630,7 @@ export async function bringAlong(targetId) {
   if (!(await attach(prisma, me.character.id, target.id, { takeover: verdict === "FORCED" }))) {
     return { ok: false, error: "Somebody else has them." };
   }
+  await syncPartyMembership(prisma, me.character.id).catch(() => {});
   return { ok: true, line: `${target.name} is with you.` };
 }
 
@@ -642,6 +644,7 @@ export async function putDown(targetId) {
   });
   if (!target) return { ok: false, error: "They aren't with you." };
   await detach(prisma, target.id);
+  await syncPartyMembership(prisma, me.character.id).catch(() => {});
   return { ok: true, line: `You let ${target.name} go.` };
 }
 
@@ -659,6 +662,9 @@ export async function answerEscort({ offerId, accept } = {}) {
     : await declineOffer(prisma, offer, me.character);
   for (const dm of result.dms ?? []) {
     await sendDm(dm.discordUserId, dm.content).catch(() => {});
+  }
+  if (accept && result.ok) {
+    await syncPartyMembership(prisma, offer.initiatorId).catch(() => {});
   }
   return result.ok ? { ok: true, line: result.line } : { ok: false, error: result.reason };
 }

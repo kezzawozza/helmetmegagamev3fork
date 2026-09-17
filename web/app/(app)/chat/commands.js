@@ -25,7 +25,7 @@ const SHOUT_LIMIT = 300;
 // the shout's.
 const OOC_LIMIT = MESSAGE_LIMIT;
 
-const EVERYWHERE = ["loc", "room", "conv", "zone", "net"];
+const EVERYWHERE = ["loc", "room", "conv", "zone", "net", "party"];
 
 export const COMMANDS = [
   {
@@ -68,7 +68,7 @@ export const COMMANDS = [
     // Wider than the three around it: a summary and a radio net take an OOC
     // line, because none of it is the character talking. See
     // db/lib/placeKey.js#isOocPlaceKey, which oocHere re-checks.
-    where: ["room", "conv", "zone", "net"],
+    where: ["room", "conv", "zone", "net", "party"],
     args: [{ name: "message", kind: "text", placeholder: "Out of character…", maxLength: OOC_LIMIT }],
     run: ({ message }, ctx) => oocHere(message, ctx.placeKey),
   },

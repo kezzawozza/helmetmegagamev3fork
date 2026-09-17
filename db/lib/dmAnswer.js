@@ -13,6 +13,7 @@ const { acceptConfession } = require("./confession");
 const { acceptKiss } = require("./kiss");
 const { acceptSearch } = require("./search");
 const { acceptEscort } = require("./escort");
+const { syncPartyMembership } = require("./partyChat");
 const { acceptThreatSpawn, declineThreatSpawn } = require("./threatSpawn");
 const { declineAssignment } = require("./lobby");
 const { holdKeyedOpen } = require("./gates");
@@ -89,6 +90,9 @@ async function answerOffer(prisma, { id, discordUserId, choice }) {
   const base = empty();
   base.dms = result.dms ?? [];
   if (result.ok && result.boundId) Object.assign(base.sideEffects, await afterBind(prisma, result.boundId));
+  if (result.ok && accepting && offer.kind === "ESCORT") {
+    await syncPartyMembership(prisma, offer.initiatorId).catch(() => {});
+  }
   return { ok: result.ok, line: result.ok ? result.line : result.reason, ...base };
 }
 

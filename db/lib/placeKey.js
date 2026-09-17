@@ -28,6 +28,10 @@ function placeKeyForNet(slug) {
   return slug ? `net:${slug}` : null;
 }
 
+function placeKeyForParty(partyThreadId) {
+  return partyThreadId ? `party:${partyThreadId}` : null;
+}
+
 // Deadchat: the room the dead talk in (db/lib/deadchat.js). There is exactly one, so this is a
 // constant rather than a function of anything — exported so nobody hand-writes the string.
 const DEADCHAT_PLACE_KEY = "dead:main";
@@ -83,6 +87,12 @@ async function resolveChannelKey(prisma, channelId, parentId) {
     select: { id: true },
   });
   if (conversation) return placeKeyForConversation(conversation.id);
+
+  const party = await prisma.partyThread.findFirst({
+    where: { threadId: channelId },
+    select: { id: true },
+  });
+  if (party) return placeKeyForParty(party.id);
 
   const zone = await prisma.zone.findFirst({
     where: { discordSummaryChannelId: channelId },
@@ -165,6 +175,16 @@ async function archiveContextForPlaceKey(prisma, placeKey) {
     return { zoneId: null, zoneName: null, channelKind: entry.slug, threadName: null };
   }
 
+  // A party thread belongs to no zone; its name is the "X's Party" it opened with.
+  if (parsed.kind === "party") {
+    const party = await prisma.partyThread.findUnique({
+      where: { id: parsed.id },
+      select: { name: true },
+    });
+    if (!party) return empty;
+    return { zoneId: null, zoneName: null, channelKind: "party", threadName: party.name };
+  }
+
   const zone = await prisma.zone.findUnique({ where: { id: parsed.id }, select: { id: true, name: true } });
   if (!zone) return empty;
   return { zoneId: zone.id, zoneName: zone.name, channelKind: "summary", threadName: null };
@@ -178,7 +198,7 @@ function parsePlaceKey(placeKey) {
   const kind = placeKey.slice(0, at);
   const id = placeKey.slice(at + 1);
   if (!id) return null;
-  if (!["loc", "room", "conv", "zone", "net", "dead"].includes(kind)) return null;
+  if (!["loc", "room", "conv", "zone", "net", "dead", "party"].includes(kind)) return null;
   return { kind, id };
 }
 
@@ -242,7 +262,7 @@ function isScenePlaceKey(placeKey) {
 // Deadchat, which is already nothing but out-of-character talk.
 function isOocPlaceKey(placeKey) {
   const kind = parsePlaceKey(placeKey)?.kind;
-  return kind === "room" || kind === "conv" || kind === "zone" || kind === "net";
+  return kind === "room" || kind === "conv" || kind === "zone" || kind === "net" || kind === "party";
 }
 
 // Where on Discord a place key points, for the outbox. A webhook cannot be
@@ -278,6 +298,18 @@ async function discordTargetForPlaceKey(prisma, placeKey) {
     return { channelId: conversation.location.discordChannelId, threadId: conversation.threadId };
   }
 
+  // A party thread hangs off the parent channel named by GameConfig.partyChannelId.
+  if (parsed.kind === "party") {
+    const party = await prisma.partyThread.findUnique({
+      where: { id: parsed.id },
+      select: { threadId: true },
+    });
+    if (!party?.threadId) return null;
+    const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+    if (!config?.partyChannelId) return null;
+    return { channelId: config.partyChannelId, threadId: party.threadId };
+  }
+
   if (parsed.kind === "zone") {
     const zone = await prisma.zone.findUnique({
       where: { id: parsed.id },
@@ -306,6 +338,7 @@ async function discordTargetForPlaceKey(prisma, placeKey) {
 
 module.exports = {
   placeKeyForNet,
+  placeKeyForParty,
   DEADCHAT_PLACE_KEY,
   placeKeyForChannel,
   discordTargetForPlaceKey,

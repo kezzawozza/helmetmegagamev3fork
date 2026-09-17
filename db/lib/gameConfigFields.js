@@ -165,6 +165,10 @@ const INTERNAL_KEYS = [
   // ids above, it is here so the registry check does not read it as drift.
   "deadchatCategoryId",
   "deadchatChannelId",
+  // Party chat (db/lib/partyChat.js): the parent channel each party's private
+  // thread hangs off, under the Gameplay category. Provisioned by the mirror.
+  "gameplayCategoryId",
+  "partyChannelId",
   // Retired 2026-09-13: the per-slot rules in db/lib/equipSlots.js are the
   // whole equipment limit. The column stays, unread, so nothing drops a value.
   "equipSlots",

@@ -10,6 +10,7 @@ const {
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { buildNarrowcastContext, computeNarrowcastAccess, SPECIAL_CHANNELS } = require("./specialChannels");
 const { applyPendingInvites } = require("./threadInvites");
+const { syncPartyMembership } = require("./partyChat");
 const { conversationsFor } = require("./conversations");
 const { notifyPresence } = require("./presenceNotify");
 const { syncCharacterRoomAccess } = require("./roomAccess");
@@ -470,6 +471,14 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   }
   await applyPendingInvites(prisma, { ...character, locationId: toLocationId }).catch((err) =>
     console.error(`Move: thread invite pass failed for ${characterId}:`, err.message ?? err),
+  );
+
+  // The party thread follows the leader (db/lib/partyChat.js). Cheap no-op for
+  // anyone not leading anybody: syncPartyMembership returns early on an empty
+  // party. If this character is a leader, currentLocationId gets refreshed and
+  // members' visibility follows.
+  await syncPartyMembership(prisma, characterId).catch((err) =>
+    console.error(`Move: party sync failed for ${characterId}:`, err.message ?? err),
   );
 
   // The feet moved, so the web's place list did too: every open /chat tab of this character re-asks db/lib/feedAccess.js#placesFor (CHAT.md §3).

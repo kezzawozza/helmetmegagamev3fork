@@ -542,6 +542,12 @@ model GameConfig {
   deadchatCategoryId String?
   deadchatChannelId  String?
 
+  // PARTY CHAT (db/lib/partyChat.js): one private thread per party, hung off a
+  // parent channel under the Gameplay category. Provisioned by the mirror; the
+  // per-party threads are opened live by the escort flow.
+  gameplayCategoryId String?
+  partyChannelId     String?
+
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
   // catatonicTurns turns straight is flagged; the flag lifts the moment they
@@ -1332,6 +1338,7 @@ model Location {
   quests           Quest[]
   characters       Character[]
   playerThreads    PlayerThread[]
+  partyThreads     PartyThread[]
   startingForRoles Role[]          @relation("RoleStartingLocation")
   yields           LocationYield[]
   noticePosts      NoticePost[]
@@ -1771,6 +1778,51 @@ model PlayerThreadMember {
 /// threadId deliberately carries no FK to PlayerThread so the doctor can
 /// clean the two independently; characterId is a plain id for the same
 /// reason.
+/// PARTY CHAT (db/lib/partyChat.js). One private thread per party — the leader
+/// bringing anyone along opens it; the last passenger put down tears it down.
+/// Keyed on the ORIGINAL CREATOR's character (`creatorCharacterId @unique`),
+/// so a leader has at most one party thread at a time and the name stays
+/// frozen even if leadership shifts. Hung off the parent channel named by
+/// `GameConfig.partyChannelId`, under the Gameplay category — not a Location
+/// channel, because a party moves with the leader.
+///
+/// characterId inside PartyThreadMember carries no FK, matching
+/// PlayerThreadMember: the row is keyed to the PartyThread and cascades with
+/// it, and a wiped character takes its rows through the game wipe rather than
+/// through a constraint here.
+model PartyThread {
+  id       String @id @default(cuid())
+  threadId String @unique
+  name     String
+
+  creatorCharacterId String @unique
+
+  currentLocationId String?
+  currentLocation   Location? @relation(fields: [currentLocationId], references: [id], onDelete: SetNull)
+
+  lastActivityTurn Int?
+  lastActivityAt   DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members PartyThreadMember[]
+
+  @@index([currentLocationId])
+}
+
+model PartyThreadMember {
+  partyThreadId String
+  partyThread   PartyThread @relation(fields: [partyThreadId], references: [id], onDelete: Cascade)
+
+  characterId String
+
+  createdAt DateTime @default(now())
+
+  @@id([partyThreadId, characterId])
+  @@index([characterId])
+}
+
 model PlayerThreadInvite {
   threadId    String
   characterId String
@@ -5479,7 +5531,7 @@ model AdminNote {
   id String @id @default(cuid())
 
   // The player the note is ABOUT.
-  discordUserId String
+  discordUserId       String
   // The GM who wrote it. A handle is resolved through DiscordAccount at read
   // time rather than snapshotted, since a GM renaming themselves should not
   // leave their old name on every note they ever wrote.
