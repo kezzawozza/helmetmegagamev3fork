@@ -11,6 +11,7 @@ import {
 } from "@lifeweb/db/lib/resourceTransfer";
 import { getOpenTurn } from "@/lib/turn";
 import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
+import { isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 import {
   presentedIdentity,
   forcedNameFrom,
@@ -230,6 +231,12 @@ export async function transferRequestImpl(
     }
     if (!isTradeable(held.tag))
       throw new UserError("That isn't something that can change hands.");
+    // ⬢ are a tradeable stack row and would pass the line above, but this
+    // dialog has its own ⬢ field and THAT is the ledgered path — applyTransfer
+    // books one row for the movement, a tag pick books none. The picker leaves
+    // them out (web/lib/tagRequests.js), and a picker is a hint, not a lock.
+    if (isResourcesRow(held))
+      throw new UserError("Move ⬢ with the Resources field, not as an item.");
     let max = held.quantity;
     if (!held.tag.stackable && to.kind === "character") {
       if (recipientHeld.has(line.tagId))

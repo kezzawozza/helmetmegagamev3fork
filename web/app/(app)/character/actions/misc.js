@@ -12,7 +12,7 @@ import {
   canOpenCrate,
 } from "@lifeweb/db";
 import { heldReasonFor } from "@lifeweb/db/lib/intercept";
-import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
+import { resourcesOf, isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { cleanCustomText, CUSTOM_DESCRIPTION_MAX } from "@/lib/customCraft";
 import { mintCustomCraft, unmintCustomCraft } from "./crafting.js";
@@ -1310,6 +1310,16 @@ export async function lootCharacterRequestImpl({
     const held = target.tags.find((ct) => ct.tagId === pick.tagId);
     if (!held || !isTradeable(held.tag)) {
       throw new UserError("That isn't something you can take off a body.");
+    }
+    // ⬢ are a tradeable stack row, so they pass the check above — and this
+    // verb already has its own ⬢ field, which is the ledgered path
+    // (moveResources -> moveParty writes the row; a tag pick writes none). The
+    // picker filters them out (web/lib/peoplePools.js), but a picker is a hint
+    // and not a lock (CLAUDE.md), so refuse them here too. Without this a
+    // crafted post moves a body's whole purse with nothing in the book, and
+    // /gm/economy reads both parties as permanently drifted.
+    if (isResourcesRow(held)) {
+      throw new UserError("Take ⬢ with the Resources field, not as an item.");
     }
     const quantity = held.tag.stackable
       ? (parseCount(pick.quantity, { min: 1, max: held.quantity }) ?? null)
