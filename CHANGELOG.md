@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · The composer's row actually sits on one line now
+
+✎ The Speak picker, the text and the send button were each at a slightly different height inside the message box. They are all on one line now, on a desktop, a tablet and a phone.  
+✎ The box says "Say something…" instead of "Say something in {place}…". The long version wrapped onto a second line on a phone and got cut off, and the place is named right above the box anyway. A hood still says "Say something as {alias}…", since that one is about the name you are wearing.  
+✚ On a tablet held in landscape the box was drawn shorter than the two buttons beside it. Fixed.  
+✚ An empty box on a phone drew itself two lines tall before anybody had typed, because it was sizing itself to fit the wrapped placeholder. It is one line until you write something.
+
 ## 2026-09-17 · Mood gains from drinks, meals, music, kisses and confessions are all up about 15%
 
 ✎ Shelter, the Cathedral, every drink and treat, a fulfilled Desire, Confession, Kiss and Music all lift the mood dial a bit more than before
