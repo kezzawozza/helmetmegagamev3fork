@@ -59,9 +59,11 @@ Concretely:
   split, which matters *more* in a monochrome palette, not less: with only one
   hue to spend, the legible-text value and the fill value diverge further apart
   than they do in a two-colour scheme.
-- **`web/lib/turnFormat.js`.** Add `"crt"` to `THEMES`. It should not be
-  reachable from `themeForPhase` — it is an override theme, set through
-  `BASCINET_THEME` (see `web/app/layout.js`).
+- **`web/lib/clockTheme.js`.** Add `"crt"` to `THEMES`. `themeForPhase` no
+  longer exists — the look now comes from the real Chicago clock
+  (`lookAt`/`resolveLook`), and a CRT look would be unreachable from it. It
+  would be an override theme only, set through `BASCINET_THEME` (see
+  `web/app/layout.js`).
 - **The atmosphere layers.** `.grain` and `.vignette` in `globals.css` are the
   seam to work at. A CRT variant swaps grain for scanlines and turns the
   vignette up; both are already single fixed `pointer-events: none` layers at

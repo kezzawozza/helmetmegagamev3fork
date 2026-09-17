@@ -251,12 +251,21 @@ establish.
 3. **Shared set consolidation.** Section 5: the desk rails, the log
    renderer, the page families' private buttons and headers. Pure refactor,
    no visible change beyond the look already landed.
-4. **Chat.** Section 6, in its listed order: composer, instant own line,
+4. **The sheet.** `docs/design/mockups/character/index.html` is the spec,
+   built on the real data and on the components phase 3 produced: the band
+   with the blackletter name, the five tiles, the This turn / Combat / Turn
+   effects row, the verb strip as hairline-split groups of bevelled buttons
+   with gated verbs dashed, the tag rail with its next-tier lines, the equip
+   board with slot wells, Mood as the nine-band strip, Desires. Headings in
+   this pass go to a bold serif as the mockup draws them, app-wide, and the
+   name on the sheet takes `--font-display` and `--blackletter`. Phase 1
+   restyled the old layout; this is the layout. `SHEET.md` is updated with it.
+5. **Chat.** Section 6, in its listed order: composer, instant own line,
    cached place switch, unread and notified, name mentions (bot and web), the
    intercom block, the places column, the rails and the you-panel frame.
-5. **Tier names.** Section 7, with the doc and handbook sweep.
-6. **GM desks.** Section 8.
-7. **Docs.** Rewrite `DESIGN-SYSTEM.md` to the new rules, retire
+6. **Tier names.** Section 7, with the doc and handbook sweep.
+7. **GM desks.** Section 8.
+8. **Docs.** Rewrite `DESIGN-SYSTEM.md` to the new rules, retire
    `CRT-TERMINAL.md`, update `CHAT.md` and `SHEET.md`, and delete this file's
    sections 3 to 6 in favour of pointers, so there is one design doc again.
 

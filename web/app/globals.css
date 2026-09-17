@@ -124,6 +124,44 @@
   }
 }
 
+/* --lamp is where the day sits on the dawn->dusk ramp, 0 at 06:00 Chicago and
+   0.6 just before 18:00 (web/lib/clockTheme.js). The server stamps it inline
+   on <html> and LampTick.js rewrites it every five minutes.
+
+   Registered, so it is ALWAYS a valid number: an unregistered --lamp that was
+   missing or malformed would make every color-mix() below invalid at computed
+   value time and blank six tokens at once. NEVER give it a transition — a
+   registered number property would then animate, and REDESIGN.md §9 forbids
+   animating the gradient. */
+@property --lamp {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+/* The lamp ramp: the two ends of the day, on a selector both looks match, so
+   each hex has exactly one home and nothing is duplicated between the blocks.
+   These six pairs ARE the difference in lamp warmth. Dusk takes the --dusk-*
+   end flat; dawn mixes toward it with the clock. audit-contrast.js reads this
+   block and re-mixes it in JS, so a value changed here is gated at every step
+   of the ramp, not just at the ends. */
+[data-theme] {
+  --lamp: 0;
+
+  --dawn-bg: #12100e;
+  --dusk-bg: #0e0c09;
+  --dawn-surface: #2a2521;
+  --dusk-surface: #26201a;
+  --dawn-surface-raised: #3a3430;
+  --dusk-surface-raised: #363028;
+  --dawn-border: #605448;
+  --dusk-border: #5b4f40;
+  --dawn-text: #bdb7ab;
+  --dusk-text: #b3ada2;
+  --dawn-speech: #ecb694;
+  --dusk-speech: #eeb086;
+}
+
 /* Dusk — the lamps banked. The warmer, lower of the two looks on the one rust
    ground (REDESIGN.md §3). Warm black, iron, dried blood; no teal, no orange.
    The surfaces sit higher than the chat mockup's #0d0b08/#171310/#211b16
@@ -132,11 +170,11 @@
    for dark rather than black. bg -> surface is 1.21, surface -> raised 1.23. */
 [data-theme="dusk"] {
   color-scheme: dark;
-  --bg: #0e0c09;
-  --surface: #26201a;
-  --surface-raised: #363028;
+  --bg: var(--dusk-bg);
+  --surface: var(--dusk-surface);
+  --surface-raised: var(--dusk-surface-raised);
   --field-bg: rgba(0, 0, 0, 0.32); /* recessed BELOW the surface, not another panel */
-  --border: #5b4f40;
+  --border: var(--dusk-border);
 
   /* The bevel pair (REDESIGN.md §3, Shape). --border-hi is the lit top-left
      edge of a .btn, --border-lo the shadowed bottom-right and the hard dark
@@ -146,11 +184,11 @@
   --border-hi: #6b5d4c;
   --border-lo: #0b0907;
 
-  --text: #b3ada2;
+  --text: var(--dusk-text);
 
   /* Quoted speech in a Chat row (CHAT.md §5). A warm lift of --text, not a
      second accent. Gated at AA against --surface like every other text token. */
-  --speech: #eeb086;
+  --speech: var(--dusk-speech);
   --muted: #9f9789;
 
   /* Dried blood, desaturated a little from the mockup's #7a2a24/#d8806a per
@@ -243,15 +281,23 @@
    (REDESIGN.md §4). bg -> surface 1.25, surface -> raised 1.24. */
 [data-theme="dawn"] {
   color-scheme: dark;
-  --bg: #12100e;
-  --surface: #2a2521;
-  --surface-raised: #3a3430;
+  /* The six tokens the day's gradient moves (REDESIGN.md §4). --lamp slides
+     0 -> 0.6 between 06:00 and 18:00 Chicago, so each of these starts at its
+     --dawn-* value and travels most of the way to its --dusk-* one; at 18:00
+     data-theme flips to dusk and the whole block changes at once. srgb, not
+     oklab, because audit-contrast.js has to reproduce the mix exactly and
+     these are two near-identical warm darks where the spaces agree anyway.
+     The other nine tokens that differ between the looks stay static here and
+     change only at the switch. */
+  --bg: color-mix(in srgb, var(--dawn-bg) calc((1 - var(--lamp)) * 100%), var(--dusk-bg));
+  --surface: color-mix(in srgb, var(--dawn-surface) calc((1 - var(--lamp)) * 100%), var(--dusk-surface));
+  --surface-raised: color-mix(in srgb, var(--dawn-surface-raised) calc((1 - var(--lamp)) * 100%), var(--dusk-surface-raised));
   --field-bg: rgba(0, 0, 0, 0.28);
-  --border: #605448;
+  --border: color-mix(in srgb, var(--dawn-border) calc((1 - var(--lamp)) * 100%), var(--dusk-border));
   --border-hi: #706253;
   --border-lo: #0d0b09;
-  --text: #bdb7ab;
-  --speech: #ecb694;
+  --text: color-mix(in srgb, var(--dawn-text) calc((1 - var(--lamp)) * 100%), var(--dusk-text));
+  --speech: color-mix(in srgb, var(--dawn-speech) calc((1 - var(--lamp)) * 100%), var(--dusk-speech));
   --muted: #a59d8b;
   --accent: #7c3a31;
   --accent-text: #d59182;

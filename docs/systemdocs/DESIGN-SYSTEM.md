@@ -100,10 +100,13 @@ Three things about the token set are load-bearing and easy to undo by accident:
 
 ## 3. Themes
 
-One rust palette, two named looks. `dusk` and `dawn` follow the current turn's
-phase via `themeForPhase`, and both are *underground darks* — Ravenheart is a
+One rust palette, two named looks, both *underground darks* — Ravenheart is a
 cave civilisation, so they differ by lamplight temperature and lift, not by
-daylight.
+daylight. The look follows real Chicago wall-clock time via
+`web/lib/clockTheme.js`: dawn 06:00–18:00 with a slow warmth ramp on six
+tokens driven by `--lamp`, dusk 18:00–06:00 flat, hard switch at 18:00.
+`BASCINET_THEME` pins either look with no ramp. `audit:contrast` gates the
+ramp at five points.
 
 A CRT/terminal look is a parked option, written up in `CRT-TERMINAL.md`. **Read
 that before rebuilding it** — it has been half-built and deleted twice.
