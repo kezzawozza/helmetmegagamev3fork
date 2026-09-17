@@ -313,13 +313,19 @@ export default function MoveDesk({
           )}
           <div className="flex flex-col gap-1">
             <span className="field-label">Dice</span>
-            {/* A player's Gambit is not rolled until Moves lock (db/lib/gambitCutoff.js),
-                so an empty one before the cutoff is waiting, not missing. Working the desk
-                after the lock is the intended order (ADJUDICATION.md), but a GM who opens
-                it early should not read "—" as a broken row. */}
+            {/* The die is thrown at submit, so the desk has it hours before the lock and
+                adjudication can start early (ADJUDICATION.md). The Hunger/mood modifier is
+                not settled until the lock, though, so until it is, the total on screen is
+                still going to move — which has to be said, not left to surprise a GM who
+                already wrote a ruling against it. An empty one is waiting, not missing. */}
             <span className="mono text-sm">
-              {move.rollLabel ||
-                (move.moveKind === "GAMBIT" && move.confirmed ? "rolls at lock-in" : "—")}
+              {move.rollLabel
+                ? move.modifierPending
+                  ? `${move.rollLabel} · modifiers at lock-in`
+                  : move.rollLabel
+                : move.moveKind === "GAMBIT" && move.confirmed
+                  ? "rolls at lock-in"
+                  : "—"}
             </span>
           </div>
           <div className="flex flex-col gap-1">

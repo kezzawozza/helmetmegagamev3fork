@@ -189,15 +189,41 @@ tray as "unattached" for the GM to keep or drop.
   Move the *game* filed (a craft, a burial, a torture, a travel stub, a
   lesson) is a receipt for something that already happened. `Action.playerFiled`
   is what tells those apart, and it defaults false so it fails closed.
-- **The Gambit's die is thrown at the cutoff, not at submit.** `db/lib/
-  gambitCutoff.js`, a per-minute poll in the bot sharing `turnClock.js`'s
-  `cutoffReached` with the Oracle's own cutoff run, with a backstop at the
-  head of the staged push for a frozen clock or a bot that was down. This is
-  what makes the edit window safe rather than exploitable: while the die was
-  rolled at submit, an uncapped edit was a re-roll button. There is nothing to
-  fish for until the window shuts, and once it has shut nobody can touch their
-  Move. **A GM opening the desk before the lock sees "rolls at lock-in"
-  rather than a die** — working the desk after the lock is the intended order.
+- **The Gambit's die is thrown at submit, and it belongs to the character and
+  the turn rather than to the Move.** `db/lib/gambitDie.js`, called from
+  `moveConfirm.js` inside the confirming transaction. One row per character per
+  turn, and the unique index is the claim, so two submits racing can neither
+  throw twice nor spend Inspired twice. **A GM sees the die the moment it is
+  filed and can start adjudicating hours before the lock**, which is the whole
+  reason it moved.
+  The edit window survives that, and the binding is why. The die used to be
+  thrown at the cutoff precisely because rolling at submit made an uncapped edit
+  a re-roll button — flip Gambit → Routine → Gambit and fish all afternoon.
+  Delaying the roll removed the prize; so does binding it. An edit, a withdraw
+  and re-file, and a GM's kind flip on the desk all read the same number back,
+  so there is nothing to fish for. That matters most for **withdraw, which
+  deletes the Action row outright** (`moveEconomy.js#deleteActionRestoringTurn`)
+  — a die kept on that row would go with it.
+  **Withdrawing does not hand Inspired back.** The row is the spend, it outlives
+  the Action, and re-filing returns the same boosted die.
+- **What still happens at the cutoff is the MODIFIER.** `db/lib/gambitCutoff.js`,
+  a per-minute poll in the bot sharing `turnClock.js`'s `cutoffReached` with the
+  Oracle's own cutoff run, with a backstop at the head of the staged push for a
+  frozen clock or a bot that was down. Hunger and mood are read there, so the
+  die answers *what you rolled* and the modifier answers *how you were when the
+  day closed*. There is no randomness in a modifier, so nothing to fish for on
+  that side either. It also still throws a die for any row that somehow reached
+  the lock without one.
+  The pass picks its rows on **`playerFiled: true` and `diceModifier: null`**.
+  Not `diceRoll: null`, which is what it used to use — a player's Gambit carries
+  a die from submit now, so that no longer tells it apart from Research, the
+  forge's Trinket, an above-skill heal, a lesson or a confession, all of which
+  file their own Gambits pre-rolled. And not `diceModifier: null` alone, because
+  the Trinket deliberately leaves the modifier null and must not be stamped with
+  a Hunger penalty.
+  **Between submit and the lock the desk says `rolled 4 · modifiers at
+  lock-in`**, because the total on screen is still going to move and a GM should
+  not write a ruling against a number that changes under them.
 - **Reject is still the GM-side escape hatch**, and still the only way to
   return a Move that is not a pending Gambit: deletes the Action, frees the
   turn, DMs the player "Your Move
@@ -234,7 +260,8 @@ tray as "unattached" for the GM to keep or drop.
   See `TURN-ENGINE.md` for where in the push it fires.
 - **A Gambit's die is revealed by the push, and only by the push.** The d6 is
   rolled and stored at submit so the desk has it immediately, but the player
-  reads it in one DM at the turn close (`formatGambitRollDm`,
+  reads it in one DM at the turn close and not a minute before — not at the
+  lock, which is three hours earlier (`formatGambitRollDm`,
   `db/lib/stagedPush.js`) — landing beside the staged private messages that
   say what it actually did. Nothing else shows a player their own roll: not
   the confirm DM, not `/character`. Every confirmed Gambit gets the DM

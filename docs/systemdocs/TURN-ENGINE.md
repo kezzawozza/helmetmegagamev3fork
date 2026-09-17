@@ -99,13 +99,17 @@ each arrived at by getting them wrong first.
    on it targets them, in which case the summary stands alone. The only Routine
    skipped outright is one whose `gmNotes` carry an `auto:` marker, meaning
    another pass is already DMing them about it. Every Gambit gets its own DM
-   regardless: the d6 is rolled and
-   stored at submit (`db/lib/moveConfirm.js`) and shown to the player
-   nowhere else, so this is where they find out how it fell. `/character`
+   regardless: the d6 is rolled and stored at submit
+   (`db/lib/moveConfirm.js` → `db/lib/gambitDie.js`) so the GM desk has it
+   immediately, and shown to the player nowhere else, so this is where they
+   find out how it fell. `/character`
    used to reveal it at Moves lock — three hours early
    (`MOVE_LOCK_HOURS`, `db/lib/turnClock.js`) — which handed players a bare
    number with no outcome attached; it now strips the die unconditionally
-   (`web/app/(app)/character/page.js`).
+   (`web/app/(app)/character/page.js`). The gap between the throw and the
+   telling is wider than it used to be, so that strip carries more weight:
+   the number exists from the moment a Move is filed, and belongs to the
+   player only here.
    Its slot is load-bearing three ways: **after** the auto-labor pass
    (whose rows arrive already stamped, so this one skips them), **before**
    the progression/sweep (a staged "remove Infected" must beat the
@@ -798,11 +802,20 @@ otherwise lock the whole turn the moment it opened. `locked` is true only
 *between* the cutoff and the end, so a turn that outlives its derived end (a
 missed cron) reopens rather than staying shut forever.
 
-**One thing now fires on the cutoff itself.** The Oracle drafts the turn's
+**Two things fire on the cutoff itself.** The Oracle drafts the turn's
 chronicle a couple of minutes after the lock, off the bot's minute cron
 (`db/lib/oracleCutoff.js`), so a GM has it in front of them for the whole
 adjudication window rather than after the push. It used to run at turn close.
 See `ORACLE.md` §2.
+
+The other is the **Gambit settle pass** (`db/lib/gambitCutoff.js`), on the same
+minute cron and sharing `cutoffReached` with it. The die itself is thrown back
+at submit now; what lands here is `Action.diceModifier`, the Hunger and mood
+reading, so the die answers what you rolled and the modifier answers how the
+character was when the day closed. It is also what finally shuts the edit
+window on a turn where `hasLock` is false — a settled `diceModifier` is the
+mark `moveIsEditable` reads when there is no cutoff to compare against. The
+staged push runs it again as the backstop. See `ADJUDICATION.md`.
 
 Enforced in the bot at both `move:open` (the `#turns` button and `/move`) and
 on modal submit — a modal can sit open on screen across the cutoff — with an

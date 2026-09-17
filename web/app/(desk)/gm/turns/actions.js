@@ -4,8 +4,7 @@ import { revalidatePath } from "next/cache";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { after } from "next/server";
 import { prisma, Prisma, revertMoveEffects } from "@lifeweb/db";
-import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
-import { consumeInspiredIfUsed } from "@lifeweb/db/lib/tagWrites";
+import { ensureGambitDie } from "@lifeweb/db/lib/gambitDie";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { validateRoomTagOps } from "@lifeweb/db/lib/roomTagOps";
@@ -948,15 +947,18 @@ async function releaseMoveLockImpl({ actionId }) {
   return { patch: await deskPatchFor({ moveIds: [actionId] }) };
 }
 
-// A Gambit always carries a fresh roll, a Routine never does, so switching
-// kind rewrites the dice rather than leaving a stale number.
+// A Gambit carries a die and a Routine never does, so switching kind rewrites
+// the dice rather than leaving a stale number.
 //
-// Returns { data, advantageSource } rather than consuming Inspired itself —
-// this stays a pure function; the caller (inside its own transaction) calls
-// consumeInspiredIfUsed with the source.
-function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
+// Takes `tx` and is async because the die is not this function's to invent:
+// ensureGambitDie owns every throw, and flipping a Gambit to Routine and back
+// must hand the character THE SAME die rather than a new one. That closes a
+// GM-side re-roll loop the old design left open — the comment below already
+// claimed to roll "the same die the player's own submit path would have", and
+// now it does. It also means Inspired is spent by the helper, inside this same
+// transaction, so the caller owes no consume.
+async function normalizeEdits(tx, action, edits, characterTags, hungerStreak, mood) {
   const data = {};
-  let advantageSource = null;
 
   const kind = ["GAMBIT", "ROUTINE", "LABOR"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
   // A player's LABOR is paid at confirm now and arrives here with appliedEffects stamped
@@ -977,19 +979,21 @@ function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
       data.diceRoll = null;
       data.diceModifier = null;
     } else {
-      // Rolled from the character's current tags/hungerStreak/mood, not
-      // whatever was true when the player submitted. That includes Lucky or
-      // Inspired: a GM switching a Routine to a Gambit must roll the same
-      // die the player's own submit path would have (db/lib/advantage.js).
-      const advantage = rollWithAdvantage(characterTags, 6, { gambitOnly: true });
-      data.diceRoll = advantage.die;
+      // The character's die for this turn — theirs if they already threw one, a
+      // new one if this is the first Gambit they have carried today. Flipping to
+      // ROUTINE above nulls the columns but leaves the GambitDie row standing,
+      // which is exactly what makes flipping back give the number back.
+      const gambit = await ensureGambitDie(tx, { turnId: action.turnId, character: { id: action.characterId, tags: characterTags } });
+      data.diceRoll = gambit.die;
+      // The modifier IS recomputed from the character's state right now, not
+      // carried — it is a reading of how they are, and unlike the die there is
+      // nothing random in it to fish for.
       data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak, mood });
-      advantageSource = advantage.source;
     }
   }
 
   data.resultMessage = edits.resultMessage?.toString().trim() || null;
-  return { data, advantageSource, revertPayout };
+  return { data, revertPayout };
 }
 
 // mode: "save" keeps edits and leaves it open; "solve" marks SOLVED (nothing
@@ -1028,7 +1032,8 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
       return { status: "OPEN", note: "Reopened." };
     }
 
-    const { data, advantageSource, revertPayout } = normalizeEdits(
+    const { data, revertPayout } = await normalizeEdits(
+      tx,
       action,
       edits,
       action.character.tags,
@@ -1038,7 +1043,6 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
     // Before the update below clears appliedEffects: revertMoveEffects reads it off the row
     // it is handed, so it has to see the payout it is undoing.
     if (revertPayout) await revertMoveEffects(tx, action);
-    await consumeInspiredIfUsed(tx, action.character.id, advantageSource);
 
     if (mode === "save") {
       // Save keeps the edits and leaves status wherever it was.

@@ -15,7 +15,7 @@
 const { Prisma } = require("@prisma/client");
 const { addResources, applyMoveEffects, describeMoveEffects } = require("./moveEffects");
 const { formatRangeExpression } = require("./resourceDelta");
-const { rollPendingGambits } = require("./gambitCutoff");
+const { settleGambitDice } = require("./gambitCutoff");
 const { TagOpError, validateTagOps, applyTagOpsInTx } = require("./tagOps");
 const { validateRoomTagOps, applyRoomTagOpsInTx } = require("./roomTagOps");
 const { addRoomResources } = require("./roomStash");
@@ -55,10 +55,11 @@ function formatRoutineCloseDm(turn, action, applied, adjudicated) {
   return lines.join("\n");
 }
 
-// The Gambit reveal. The die is thrown when Moves lock (db/lib/gambitCutoff.js) and
-// withheld from the player until the turn closes — this DM is where they find out. Raw +
-// modifier + total only, no per-contributor breakdown (that needs tags this pass doesn't
-// load).
+// The Gambit reveal. The die is thrown at submit (db/lib/gambitDie.js) and the modifier
+// settled at the lock (db/lib/gambitCutoff.js), but BOTH are withheld from the player
+// until the turn closes — this DM is where they find out, and it is the only place. The
+// desk sees the die all day; the player does not. Raw + modifier + total only, no
+// per-contributor breakdown (that needs tags this pass doesn't load).
 function formatGambitRollDm(turn, action) {
   const { diceRoll, diceModifier } = action;
   const mod = diceModifier ?? 0;
@@ -273,14 +274,16 @@ async function applyOneStagedEffect(prisma, row, turn) {
 async function runStagedPushPass(prisma, turn) {
   const failures = [];
 
-  // ── 0. any Gambit that never got its die ─────────────────────────────────
-  // The dice are thrown at the Move cutoff (db/lib/gambitCutoff.js), but that is a per-minute poll
-  // in the BOT process against a window a frozen clock or a short turn never opens. This is the
-  // backstop, and it is a no-op on an ordinary turn where the cutoff already fired.
+  // ── 0. any Gambit that never got its modifier ────────────────────────────
+  // The die itself lands at submit now (db/lib/gambitDie.js); what the cutoff still settles is the
+  // Hunger/mood modifier (db/lib/gambitCutoff.js). But that is a per-minute poll in the BOT process
+  // against a window a frozen clock or a short turn never opens. This is the backstop — it throws a
+  // die too for anything that reached here without one — and it is a no-op on an ordinary turn where
+  // the cutoff already fired.
   try {
-    await rollPendingGambits(prisma, turn.id);
+    await settleGambitDice(prisma, turn.id);
   } catch (err) {
-    console.error("Backstop Gambit roll failed:", err);
+    console.error("Backstop Gambit settle failed:", err);
     failures.push({ kind: "gambitRoll", id: turn.id, error: String(err?.message ?? err) });
   }
 

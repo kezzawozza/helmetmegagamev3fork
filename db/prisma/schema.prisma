@@ -2388,6 +2388,10 @@ model Character {
   pocketsPicked    PickpocketAttempt[] @relation("PickpocketThief")
   pocketsOfTheirs  PickpocketAttempt[] @relation("PickpocketTarget")
 
+  // One thrown d6 per turn, whatever this character does with their Move
+  // (docs/systemdocs/ADJUDICATION.md). See GambitDie below.
+  gambitDice GambitDie[]
+
   // Fights this character started, and fights started on them
   // (docs/systemdocs/ATTACK.md). Two relations to the same table, so both
   // ends are named.
@@ -4617,6 +4621,47 @@ model PickpocketAttempt {
 
   @@unique([thiefId, targetCharacterId, turnId])
   @@index([targetCharacterId])
+}
+
+// The d6 a character's Gambit rides on, thrown ONCE per turn and bound to the
+// character rather than to their Move (docs/systemdocs/ADJUDICATION.md).
+//
+// It exists as its own row for one reason: withdrawing a Move DELETES the
+// Action (db/lib/moveEconomy.js#deleteActionRestoringTurn), so a die kept on
+// that row would vanish with it and a re-file would roll a fresh one. That is
+// the exact re-roll button this design exists to remove — the die is thrown at
+// submit so a GM can start adjudicating hours before the lock, and a player who
+// could withdraw their way to a better one would be fishing all afternoon.
+// Editing, withdrawing and re-filing, and a GM's kind flip, all read this row
+// back. There is nothing to shop for.
+//
+// The unique index IS the rule — the insert is the claim, the same shape as
+// PickpocketAttempt above. turnId is deliberately NOT a foreign key, for the
+// same reason it is not one there: a claim token, and deleting a turn must not
+// cascade into a die somebody already paid Inspired for.
+model GambitDie {
+  id String @id @default(cuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  turnId String
+
+  // The die that was KEPT. Lucky throws twice (db/lib/advantage.js), so `rolls`
+  // holds both — the desk and the audit want to see the pair, not just the
+  // winner.
+  die   Int
+  rolls Int[]
+
+  // "lucky" | "inspired" | null. Load-bearing rather than decoration: it is the
+  // record that Inspired was already burned for this turn, so a re-file reading
+  // this row back can never burn it a second time.
+  advantageSource String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([characterId, turnId])
+  @@index([turnId])
 }
 
 // A fight somebody started (docs/systemdocs/ATTACK.md). One row per attacker

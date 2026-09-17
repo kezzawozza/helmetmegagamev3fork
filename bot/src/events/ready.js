@@ -265,18 +265,20 @@ module.exports = {
         });
     });
 
-    // Every pending Gambit throws its d6 the moment Moves lock (db/lib/gambitCutoff.js). Every
-    // minute for the same reason as the Oracle above: the cutoff derives from the turn's own
-    // startedAt, and ticking makes it self-healing if the bot was down when the window shut. The
-    // roll is what makes a Gambit final, so until this fires a player may still rewrite or withdraw
-    // one. Cheap on every tick but one a day, and the staged push rolls anything this missed.
+    // Every player Gambit gets its Hunger/mood modifier the moment Moves lock
+    // (db/lib/gambitCutoff.js) — the die itself was thrown back at submit. Every minute for the same
+    // reason as the Oracle above: the cutoff derives from the turn's own startedAt, and ticking makes
+    // it self-healing if the bot was down when the window shut. Settling is what makes a Gambit
+    // final, so until this fires a player may still rewrite or withdraw one — which costs them
+    // nothing and gains them nothing, since the die does not change. Cheap on every tick but one a
+    // day, and the staged push settles anything this missed.
     let gambitCutoffRunning = false;
     cron.schedule("* * * * *", () => {
       if (gambitCutoffRunning) return;
       gambitCutoffRunning = true;
       runGambitCutoff(prisma)
-        .then(({ ran, rolled, turnNumber }) => {
-          if (ran && rolled) console.log(`Gambit cutoff: threw ${rolled} dice for turn #${turnNumber}.`);
+        .then(({ ran, settled, turnNumber }) => {
+          if (ran && settled) console.log(`Gambit cutoff: settled ${settled} Moves for turn #${turnNumber}.`);
         })
         .catch((err) => console.error("Gambit cutoff check failed:", err))
         .finally(() => {

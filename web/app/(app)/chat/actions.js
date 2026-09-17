@@ -1723,9 +1723,12 @@ export async function myMove() {
         playerFiled: true,
         moveReviewStatus: true,
         lockExpiresAt: true,
-        // moveIsEditable's first and hardest guard. Omit it and `undefined != null` is
-        // false, so a rolled Gambit would quietly read as still editable.
-        diceRoll: true,
+        // moveIsEditable's backstop guard for a turn with no cutoff to read. Omit it and
+        // `undefined != null` is false, so a settled Gambit would quietly read as still editable.
+        // NOT `diceRoll` — this payload is fetched by the player's own action, and while nothing
+        // here ever returned the number, a die sitting in it is a loaded gun. The die is the
+        // player's at turn close and not a minute before (db/lib/stagedPush.js).
+        diceModifier: true,
       },
     }),
   ]);

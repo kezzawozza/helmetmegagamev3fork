@@ -324,13 +324,18 @@ export default function DesireCatalog({
 
             {/* The catalog scrolls itself rather than growing the modal — the
                 slots pane must stay reachable however long the list gets. */}
-            <div className="flex flex-col gap-3 overflow-y-auto pr-1" style={{ maxHeight: "62vh" }}>
+            {/* The spacing around a family header is its own PADDING, never a
+                gap. A sticky header needs an unbroken opaque band: with gap-3
+                between sections and gap-2 above the list, the rows scrolled
+                right through the transparent strips above and below it and
+                sliced the heading in half. */}
+            <div className="flex flex-col overflow-y-auto pr-1" style={{ maxHeight: "62vh" }}>
               {sections.map((section) => (
-                <div key={section.key} className="flex flex-col gap-2">
+                <div key={section.key} className="flex flex-col pb-3">
                   {section.name && (
                     <div
-                      className="sticky top-0 z-[1] flex items-center gap-2 py-1 text-xs font-bold uppercase tracking-wide text-muted"
-                      style={{ background: "var(--bg)" }}
+                      className="sticky top-0 z-[1] flex items-center gap-2 pb-2 pt-3 text-xs font-bold uppercase tracking-wide text-muted"
+                      style={{ background: "var(--surface-raised)" }}
                     >
                       {/* A family colour is a freeform hex out of
                           docs/desires.yaml, used raw — same as a TagGroup's. */}
@@ -345,7 +350,9 @@ export default function DesireCatalog({
                       <span className="font-normal normal-case">({section.rows.length})</span>
                     </div>
                   )}
-                  <ul className="flex flex-col gap-2">
+                  {/* A family-less section has no header to carry the top
+                      spacing, so the list carries its own. */}
+                  <ul className={`flex flex-col gap-2${section.name ? "" : " pt-3"}`}>
                     {section.rows.map((row) => (
                       <DesireRow
                         key={row.entry.slug}

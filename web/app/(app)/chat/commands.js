@@ -2,6 +2,7 @@
 
 // The composer's slash commands: the web twins of bot/src/lib/commands.js. THE REGISTRY IS DATA, deliberately — a list, not a keydown branch, so ⌘K can offer it too.
 // Entry shape: name, description, where (place kinds — "loc"|"room"|"conv"|"zone"), args ([{name, kind, placeholder, optional}], only ONE text arg, always last), run(values, ctx) → { ok, line, error } or null.
+// Plus optional `verb`: the word on the composer's send button while this command is being typed. It defaults to "Run", which is right for a command that DOES something — conceal, roll, look. A command that just puts words in the room is sending, not running, so /ooc and /shout say "Send" instead.
 // This file is imported by a "use client" component, so it must never reach for @lifeweb/db — barring the zero-require modules written for exactly that (db/lib/sayLimits.js). Everything it calls is a server action from ./actions.
 
 import {
@@ -58,6 +59,7 @@ export const COMMANDS = [
   {
     name: "shout",
     description: "Yell. You'll be heard nearby.",
+    verb: "Send",
     where: ["room", "conv"],
     args: [{ name: "message", kind: "text", placeholder: "What you yell…", maxLength: SHOUT_LIMIT }],
     run: ({ message }, ctx) => shoutHere(message, ctx.placeKey),
@@ -65,6 +67,7 @@ export const COMMANDS = [
   {
     name: "ooc",
     description: "Say something out of character.",
+    verb: "Send",
     // Wider than the three around it: a summary and a radio net take an OOC
     // line, because none of it is the character talking. See
     // db/lib/placeKey.js#isOocPlaceKey, which oocHere re-checks.

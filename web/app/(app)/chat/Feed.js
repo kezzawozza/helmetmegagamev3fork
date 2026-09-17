@@ -1206,6 +1206,12 @@ export default function Feed({
     [placeKey, onTravelPick, onConverse, onLookUp],
   );
 
+  // The word on the send button. A command DOES something, so it runs by
+  // default — but /ooc and /shout only put words in the room, and "Run" read
+  // like a program was about to start rather than a line about to be said.
+  // Each entry says so itself (commands.js), so this stays one lookup.
+  const sendLabel = command ? (command.entry.verb ?? "Run") : "Send";
+
   // Enter, in command mode. Every gate here is a hint — each command's `run`
   // lands on a server action that re-resolves the actor and re-checks
   // everything, so a missing argument caught here only spares a round trip.
@@ -2291,7 +2297,7 @@ export default function Feed({
               {narrow ? (
                 <IconButton
                   icon={SendIcon}
-                  label={command ? "Run" : "Send"}
+                  label={sendLabel}
                   className="icon-btn chat-send"
                   size="lg"
                   onClick={command ? runCurrent : submit}
@@ -2312,7 +2318,7 @@ export default function Feed({
                       : !draft.trim() || waitSeconds > 0
                   }
                 >
-                  {command ? "Run" : "Send"}
+                  {sendLabel}
                 </button>
               )}
               {/* The count, drawn only where a limit actually exists to run

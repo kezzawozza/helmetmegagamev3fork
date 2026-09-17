@@ -6,6 +6,9 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Gambits roll at submit so GMs can start adjudicating early
+
+
 ## 2026-09-17 · The GM pages stopped loading, and why
 
 ✎ A private-room invite Discord keeps refusing is now remembered and left alone for ten minutes instead of being retried on every single request — the retries were eating the whole Discord budget  

@@ -138,14 +138,18 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     description: a.description,
     kindLabel: moveKindLabel(a.moveKind, a.gmNotes),
     moveKind: a.moveKind ?? "ROUTINE",
-    // Only a CONFIRMED Gambit is ever thrown a die (db/lib/gambitCutoff.js filters on it), so
-    // this is what lets the desk say "rolls at lock-in" without promising one to a row that
+    // Only a CONFIRMED Gambit is ever thrown a die (confirming is what throws it —
+    // db/lib/moveConfirm.js), so this is what keeps the desk from promising one to a row that
     // can never get it — an abandoned PENDING_TYPE draft, or a quest Interact, which files
     // through fileMove and is never confirmed.
     confirmed: a.status === "CONFIRMED",
     isTravel: isTravelMove(a.gmNotes),
     gmNotes: a.gmNotes ?? "",
     rollLabel: rollLabel(a),
+    // The die lands at submit, the Hunger/mood modifier only at the lock (db/lib/gambitCutoff.js),
+    // so between the two the desk is showing a number whose TOTAL will still move. Say so rather
+    // than let it change under a GM mid-adjudication.
+    modifierPending: a.diceRoll != null && a.diceModifier == null,
     statusLabel: moveStatusLabel(a, now),
     // The enum itself, alongside the label — clients branch on this, not the string (MoveDesk.js).
     reviewStatus: a.moveReviewStatus,

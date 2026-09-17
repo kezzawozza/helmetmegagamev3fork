@@ -1,6 +1,7 @@
 const { formatLaborBonusNote, lazyYield, lazyExpression } = require("./laborAccess");
 const { rollResourceRange } = require("./resourceDelta");
 const { applyMoveEffects, describeMoveEffects } = require("./moveEffects");
+const { ensureGambitDie } = require("./gambitDie");
 
 // Read at call time, not at import: the bot sets it, the web does not always need it.
 const WEB_BASE_URL = process.env.WEB_BASE_URL?.replace(/\/+$/, "") ?? "";
@@ -13,7 +14,8 @@ const MOVE_KIND_WORD = { GAMBIT: "Gambit", LABOR: "Labor", ROUTINE: "Move" };
 //
 // TWO THINGS RESOLVE HERE AND ONE DOES NOT.
 // Labor pays on the spot: the ⬢ and any labor drop land now, and `appliedEffects` is stamped so the turn-end push skips the row (stagedPush.js filters on appliedEffects being null). A Labor Move is a receipt — the work is done and the day is spent.
-// A Gambit's d6 is NOT rolled here any more. It is rolled once, at the Move cutoff, by db/lib/gambitCutoff.js. That is what lets a player rewrite or withdraw a Gambit until lock-in without it becoming a re-roll button: there is nothing to re-roll until the window shuts.
+// A Gambit's d6 IS rolled here, at submit, so a GM can start adjudicating hours before Moves lock instead of waiting on the cutoff. It does not become a re-roll button, because the die is bound to the CHARACTER AND TURN rather than to this row (db/lib/gambitDie.js) — an edit, a withdraw and re-file, or a GM's kind flip all read the same number back. The player is told nothing until the turn closes, same as ever.
+// What does NOT resolve here is Action.diceModifier. Hunger and mood stay read at the cutoff by db/lib/gambitCutoff.js, so the die answers what you rolled and the modifier answers how you were when the day closed. A null diceModifier is the signal that the settle pass still owes this row.
 async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = null } = {}) {
   const rollResult = action.resourceRollExpression ? rollResourceRange(action.resourceRollExpression) : null;
   // Lazy takes its quarter after the roll, not off the range — same rule as the auto-labor pass. Cut laborExpression the same way so the sheet/GM desk print the range the payout is actually inside.
@@ -39,11 +41,24 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
   let applied = null;
 
   const updated = await prisma.$transaction(async (tx) => {
+    // The die, inside the confirming transaction so a Gambit can never end up
+    // CONFIRMED without one. ensureGambitDie hands back the turn's existing die
+    // when there is one, so a re-file after a withdraw gets the same number.
+    // `diceRoll == null` is belt and braces rather than a real branch — only
+    // fileMove's rows reach here, and Research/Trinket/heal/Lessons/Confession
+    // file their own Gambits with the die already in the row and never confirm
+    // through this path. If one ever did, its die is its own.
+    const gambit =
+      action.moveKind === "GAMBIT" && action.diceRoll == null
+        ? await ensureGambitDie(tx, { turnId: action.turnId, character: action.character })
+        : null;
+
     const row = await tx.action.update({
       where: { id: action.id },
       data: {
         status: "CONFIRMED",
         confirmedAt: new Date(),
+        ...(gambit ? { diceRoll: gambit.die } : {}),
         ...(rollResult
           ? { resourceRollValue: rollResult.value, resourceDelta, resourceRollExpression: laborExpression }
           : {}),

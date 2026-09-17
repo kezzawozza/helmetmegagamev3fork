@@ -2260,8 +2260,11 @@ input[type="radio"]:disabled {
 
 .modal-overlay {
   /* The pinned .modal-header's own height, declared where every descendant
-     inherits it — .modal-substick offsets against it. */
-  --modal-head-h: 3.5rem;
+     inherits it — .modal-substick offsets against it. DERIVED, not measured:
+     .modal-header is --sp-4 of padding top and bottom around a .section-title,
+     and the hand-written 3.5rem that used to sit here was 1px short of that,
+     so every substick bar slid a pixel under the header. */
+  --modal-head-h: calc(var(--sp-4) * 2 + var(--fs-lg) * var(--lh-heading));
   position: fixed;
   inset: 0;
   z-index: 100;
