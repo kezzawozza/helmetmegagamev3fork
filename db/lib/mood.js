@@ -77,6 +77,12 @@ const EVENTS = Object.freeze({
   CORPSE: -5,
   TURRET: -25,
   HUNGER: -5,
+  STARVING: -10,
+  // One-time hits, charged only the turn a character crosses DOWN into the
+  // band (db/lib/hunger.js's THRESHOLD_MOOD_HIT) — not the nightly ambient
+  // HUNGER/STARVING above, which keep landing every turn the band holds.
+  HUNGRY_ONSET: -30,
+  STARVING_ONSET: -30,
   NOBLE_MEAL: -10,
   ROBBED: -10,
   CONFESSION: 17,
@@ -111,12 +117,13 @@ const CONSUME_RELIEF = Object.freeze({
   // A hot drink. Keyed on the status rather than the bean, same as the drinks.
   tea: 17,
   caffeinated: 17,
-  "maggot-milk": 17,
+  // Maggot Milk is deliberately NOT here any more (the hunger meter rework):
+  // it carries its own `cooked.mood: 7` now and is priced by the new
+  // raw-food rule (db/lib/hunger.js#rawFoodMoodTerms), same as Honey and
+  // Fish Roe below — a row here would silently win over that.
   // The treats. Sugar does not grow in Ravenheart.
   sweets: 9,
-  honey: 9,
   "honeyed-cakes": 9,
-  "fish-roe": 9,
   pumpkin: 9,
   // Celebrations. Neither grants a status, so both key by the item.
   "sky-lantern": 9,
@@ -209,7 +216,7 @@ const MULTIPLIERS = Object.freeze([
 const AMOR_FATI_SHOCK = Object.freeze(
   new Set(["WOUND", "DYING", "CRUCIFIED", "TORTURED", "MUTILATED", "BRANDED", "BOUND", "ROBBED", "TURRET", "CAVE_TROUBLE", "DEATH_SEEN"]),
 );
-const AMOR_FATI_AMBIENT = Object.freeze(new Set(["WILDERNESS", "CAVE", "HUNGER", "CORPSE", "NOBLE_MEAL"]));
+const AMOR_FATI_AMBIENT = Object.freeze(new Set(["WILDERNESS", "CAVE", "HUNGER", "STARVING", "CORPSE", "NOBLE_MEAL"]));
 const AMOR_FATI_SHARE = -0.5;
 
 // Takes the RAW base, not the multiplied harm, and that is the fix rather than

@@ -35,6 +35,8 @@ import { cancelWatchOnMove } from "@lifeweb/db/lib/intercept";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { applyMood, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
+import { HUNGER_MAX, hungerDm } from "@lifeweb/db/lib/hunger";
+import { clearHungerBands } from "@lifeweb/db/lib/hungerBands";
 import { DesireRevokeRefused, revokeDesireCore } from "@lifeweb/db/lib/desireReview";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 import { gmTransferResources } from "@/lib/gmTransfer";
@@ -362,6 +364,44 @@ async function setCurseOverrideImpl({ characterId, override }) {
   await audit(session, "gm_curse_override", characterId, { name: character.name, override, cursed });
   repaint(characterId);
   return { cursed, override };
+}
+
+// "Fed them" — the Dev Panel's Feed button. Sets the 0-100 hunger meter
+// (db/lib/hunger.js) straight to full and clears whatever band tags it left
+// behind, in one microaction: no tag-op pair to hand-roll any more (the old
+// drop-Hungry/grant-Ate-Meal gesture, from before hungerValue existed).
+async function feedCharacterImpl({ characterId }) {
+  const session = await requireGm();
+  const character = await loadCharacter(characterId);
+  if (character.hungerValue === HUNGER_MAX) {
+    throw new UserError(`${character.name} is already fed.`);
+  }
+
+  const hungerValueBefore = character.hungerValue;
+  await prisma.$transaction(async (tx) => {
+    await tx.character.update({
+      where: { id: characterId },
+      data: { hungerValue: HUNGER_MAX, starvingSinceTurn: null },
+    });
+    // Redundant with the update above for THIS character (hungerValue is
+    // already at HUNGER_MAX by the time this runs), but it's what actually
+    // deletes the held Hungry/Starving rows — the same helper the consume
+    // path uses (db/lib/hungerBands.js), so the two can never disagree about
+    // what "cleared" means.
+    await clearHungerBands(tx, characterId, HUNGER_MAX);
+    await tx.auditLog.create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "gm_character_fed",
+        targetCharacterId: characterId,
+        details: { name: character.name, hungerValueBefore },
+      },
+    });
+  });
+
+  notifyCharacter(session, character, hungerDm({ kind: "recovered" }));
+  repaint(characterId);
+  return { name: character.name };
 }
 
 async function restoreTurnImpl({ characterId, reason }) {
@@ -735,6 +775,9 @@ export async function reviveCharacter(input) {
 }
 export async function setCurseOverride(input) {
   return guarded(() => setCurseOverrideImpl(input));
+}
+export async function feedCharacter(input) {
+  return guarded(() => feedCharacterImpl(input));
 }
 export async function restoreTurn(input) {
   return guarded(() => restoreTurnImpl(input));

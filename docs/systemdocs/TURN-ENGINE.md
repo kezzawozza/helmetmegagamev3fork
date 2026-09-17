@@ -46,10 +46,10 @@ each arrived at by getting them wrong first.
    cheaper failure than a losing racer double-charging everyone's upkeep.
 2. **Auto-labor pass** (`db/lib/autoLaborPass.js`) — files a Labor for anyone
    who didn't act and can work. **First**, because a day's labor *earns*
-   resources and the upkeep passes below spend them; the other order makes a
-   player whose work should have fed their horse come up short anyway. (Hunger
-   was the headline reason until 9/2026, when eating stopped costing ⬢ — the
-   rule outlived it, since the horse still eats.) See `LABORING.md` §8.
+   resources before the horse upkeep pass below spends them (§5b) — the other
+   order charges the horse's feed against a wage that hasn't landed yet.
+   (Hunger was the headline reason until 9/2026, when eating stopped costing
+   ⬢ — the rule outlived it, since the horse still eats.) See `LABORING.md` §8.
 2b. **Offer expiry pass** (`db/lib/offerExpiryPass.js`, still keyed `"lessons"`
    in `TURN_PASSES`). Every still-PENDING offer on the closing turn expires
    here, **whatever its kind** — lesson, bind, confession, kiss, escort or
@@ -116,8 +116,9 @@ each arrived at by getting them wrong first.
    (whose rows arrive already stamped, so this one skips them), **before**
    the progression/sweep (a staged "remove Infected" must beat the
    progression, and a staged fresh grant carries `expiresTurn > N` so the
-   sweep can't eat it), and **before** the upkeep passes (deferred income lands
-   before anything spends it — the same income-before-upkeep rule as step 2).
+   sweep can't eat it), and **before** the horse upkeep pass (deferred income
+   lands before its bill — the same income-before-upkeep rule as step 2, now
+   about the horse's feed rather than Hunger, which charges no ⬢ at all, §5).
    Every row is
    claimed with a conditional write (`appliedAt`, or `appliedEffects` DbNull
    → `{}`), so the resume path can never apply one twice. The staged DMs and
@@ -213,7 +214,7 @@ each arrived at by getting them wrong first.
    the very next close. The pass also stamps `Character.catatonicSinceTurn`
    when it grants and nulls it when it clears — the death countdown below.
    Ordering against Hunger doesn't matter; it touches neither
-   resources nor the Hunger streak.
+   resources nor the hunger meter.
 7b. **Catatonic death pass** (`db/lib/catatonicDeathPass.js`) — the other
    automatic death, alongside 4b. A character
    who has held `catatonic-afk` for `GameConfig.catatonicDeathTurns` consecutive
@@ -328,8 +329,8 @@ each arrived at by getting them wrong first.
    mechanic inside two turns and hand the Church a list of names.
 
 8b. **Carry pass** (`db/lib/carryPass.js`) — **after** hunger, so it sees the
-   final sheet: Labor payouts, staged pushes, the sweep and the ⬢ upkeep all
-   happen earlier in the close and none of them may settle in place.
+   final sheet: Labor payouts, staged pushes, the sweep and the horse's feed
+   all happen earlier in the close and none of them may settle in place.
    `settleCarry` for every ALIVE character holding a tradeable tag or
    Overburdened — one transaction each — and the overflow drops ride back for
    the thunk (`CARRY.md` §3). There used to be a third clause, asking for
@@ -338,7 +339,7 @@ each arrived at by getting them wrong first.
    is already caught by the first clause, exactly like one carrying a sword.
 8c. **Mood pass** (`db/lib/moodPass.js`, `"mood"` in `TURN_PASSES`) — the
    nightly settle for the mood dial (`MOOD.md`). Slotted after hunger,
-   so it sees the final Hunger streak, and after carry, so it sees the final
+   so it sees the final hunger band, and after carry, so it sees the final
    sheet; before travel arrival, so a traveller pays the night for the
    Location they ended the day in rather than the one they haven't reached yet.
    It applies the turn's flat harms and reliefs to `Character.mood`, slides
@@ -493,10 +494,14 @@ The thunk performs, in narrative order:
    player **still in the guild**; for a departed one each would just 403
    into the REST breaker's tally), then access revoke, role delete, and one
    combined `#leave` post naming everyone who died this turn.
-4. Hunger DMs — one per player who starved, or who ate and still carries some
-   of the streak, or who just cleared the last of it. A fed character whose
-   streak was already 0 sends nothing: there is nothing to report, since eating
-   costs them no ⬢ and moves no number they can see.
+4. Hunger DMs — one per player who crossed newly into Hungry or Starving this
+   close (`db/lib/hungerPass.js`'s own notices), plus the Dying line for
+   anyone whose three-turn Starving clock just ran out (§5). A character who
+   stayed in the same band, or who ate enough to clear one already, hears
+   nothing from this step — the tag leaving their sheet is the whole notice.
+   (The Dev Panel's Feed Them button sends its own `recovered` line instead,
+   since a GM acting on someone's sheet needs telling apart from the
+   player's own eating — `db/lib/hunger.js#hungerDm`.)
 5. **The staged deliveries** — every unsent `StagedMessage` for the closing
    turn. PRIVATE rows fan out one DM per recipient (per-recipient try/catch,
    failures collected onto the row's `deliveryFailures` and into one
@@ -620,111 +625,94 @@ exit — taking the announcement, the console text and the button row with it.
 
 ## 5. Hunger
 
-A `hungry` Status tag in `docs/tags.yaml` (`durationTurns: 1`), stacking
-additively with Mood. The penalty escalates: **−1 to the die per consecutive
-turn gone hungry**, read off `Character.hungerStreak` and floored at **−6**
-(`HUNGER_STREAK_CAP` in `db/lib/hungerPass.js`) — see `db/lib/gambitModifier.js`
-for how the streak and Mood combine into one number. Reaching the cap grants
-`dying` with a one-turn clock; nothing here kills anyone, same as every other
-terminal tag chain (§3) — the Dying death pass (§2 4b) is what finishes at the
-next close what starving started, and the Catatonic death pass (§2 7b) is the
-other. Nothing player-initiated ever grants or removes Hunger, the
-streak, or Dying via this path — no request type, no picker entry.
-`db/lib/hungerPass.js#runHungerPass` is the only writer of all three.
+A 0-100 meter, `Character.hungerValue` (`db/lib/hunger.js`), decaying by
+`HUNGER_DECAY_PER_TURN` (10, doubled to 20 by `fast-metabolism`) at the close of
+every turn. `hungerless` pins the meter at `HUNGER_MAX` (100), clears
+`starvingSinceTurn`, and is skipped entirely. **Hunger costs no ⬢ at all any
+more** — the old upkeep (pay 1 ⬢, or 2 with a Big Appetite, or go Hungry) is
+gone outright, and with it `Character.hungerStreak`'s old escalating −1-per-turn
+Gambit penalty and `HUNGER_STREAK_CAP`. `hungerStreak` is an orphan column now
+— nothing writes or reads it — the same fate as `Character.missedMealStreak`
+below.
+
+Two thresholds carve the meter into bands, not one escalating streak:
+**Hungry** at `HUNGRY_THRESHOLD` (30) or below, **Starving** at
+`STARVING_THRESHOLD` (0) or below — nested, not exclusive, since Starving sits
+*inside* the Hungry range (`db/lib/hunger.js#bandOf`/`#crossings`). A
+character at or under 0 holds both tags at once; only the Gambit modifier
+(`db/lib/gambitModifier.js`) picks one and never sums them: **−1** Hungry,
+**−3** Starving, Starving winning outright. Crossing DOWN into either band for
+the first time — not merely remaining in one already held — charges a
+one-time **−30** mood hit (`HUNGRY_ONSET`/`STARVING_ONSET`, `MOOD.md`); a
+single turn's decay crossing both bands at once still charges exactly the two
+hits that fired, never a third for the distance travelled.
+
+What raises the meter is eating, not a turn spent fed: a raw foodstuff
+restores `foodHungerFor(tag)` (its own `cooked.hunger`, or `Tag.mealHunger`
+for a minted dish, or a flat fallback for an unpriced item that still grants
+`ate-meal`); a cooked dish sums its own `mealHunger` plus every ingredient's.
+The write is one atomic, clamped `UPDATE ... LEAST(HUNGER_MAX, ...)`
+(`web/app/(app)/character/actions/misc.js#consumeTagRequestImpl`), and the
+Hungry/Starving tags come off the instant the meter crosses back over their
+threshold — not at the next turn close — via
+`db/lib/hungerBands.js#clearHungerBands`, shared with the Dev Panel's Feed
+Them button (`gm/dev/characters/[characterId]/actions.js#feedCharacter`).
+Nothing player-initiated ever grants or removes Hungry, Starving, or Dying via
+this path directly — no request type, no picker entry; eating only ever moves
+the meter, and the pass reads the meter fresh each close.
+
+Reaching 0 and staying there for **`STARVING_DEATH_TURNS` (3) consecutive
+closes** grants `dying` with a one-turn clock — an inference this rework made
+(the doc names no such rule for prolonged Starving), easy to retune in
+`db/lib/hunger.js`. Nothing here kills anyone, same as every other terminal
+tag chain (§3) — the Dying death pass (§2 4b) is what finishes at the next
+close what starving started, and the Catatonic death pass (§2 7b) is the
+other. `Character.starvingSinceTurn` is the clock: stamped the turn the meter
+first reads at or below 0, cleared the instant it eats back above 0 — so
+eating on the second of three starved turns resets the count to zero rather
+than merely pausing it. `db/lib/hungerPass.js#runHungerPass` is the only
+turn-pass writer of `hungerValue`, `starvingSinceTurn`, and the two band tags.
 
 A character born mid-close — Metempsychosis, or any death this same
 `resolveNeeds()` run reincarnated (`stagedPush`/`dyingDeath`/`ascension`/
 `nukeExplosion`/`catatonicDeath`/`xom` all route through `applyDeathToRow`,
 which can trigger a rebirth) — is excluded from this turn's pass: `db/index.js`
 passes a `bornBefore` cutoff, taken before any pass runs, and the pass never
-sees a character created after it. They were not alive for the turn that is
-closing, so marking the body hungry for a day it never had would be a lie.
-Their first hungry turn is the one after they woke up.
-
-**Nobody is charged anything to eat.** The pass asks one question — is there
-an `ate-meal` tag on the sheet when the turn closes? — and food is the only
-thing that puts one there (`COOKING.md`).
+sees a character created after it. They start decaying the turn after the one
+they woke up in.
 
 Per character, at the close of every turn:
 
 | State | Outcome |
 |---|---|
-| Holds `hungerless` | Skipped entirely; streak resets to 0 (immunity, not eating — a full reset). |
-| Holds `ate-meal` | **Fed.** The tag is consumed, streak drops by **one tick**. |
-| Anything else | Goes Hungry, streak **+1**. |
+| Holds `hungerless` | Pinned at `HUNGER_MAX`; `starvingSinceTurn` cleared; skipped entirely. |
+| Holds `fast-metabolism` | Decays **20** instead of 10. |
+| Otherwise | Decays **10**. |
 
-That is the whole table, and it used to be five rows long. Until 9/2026 the
-pass **billed** a character 1 ⬢ a turn (2 with Fast Metabolism) to feed
-themselves, and you went hungry only if you could not cover it. ⬢ in a pocket
-bought dinner out of thin air, which meant two things that both read badly: a
-cooked meal was a second bill for the same dinner — it already cost ⬢ to make
-— so eating well was strictly worse than paying the 1 ⬢, and everyone who
-never cooked paid a silent tax for existing. Eating is an act now, not a
-direct debit. Raw material is not dinner.
+Every decay is floored at 0 — `Character.hungerValue` can never go negative
+without a `Math.max`, the same structural-clamp discipline the old resource
+decrement used, just aimed at the meter instead of ⬢. Crossing down into
+Hungry or Starving for the first time this close grants the tag (`expiresTurn`
+one turn out, `createMany({ skipDuplicates: true })`) and charges the one-time
+mood hit; crossing back up over a threshold drops it. A character who stays
+exactly where they were — still Hungry, still above 0 — hears nothing: the DM
+only fires on a fresh crossing, never once per turn spent in a band.
 
-**`fast-metabolism` does nothing at all right now.** Its entire mechanic was
-doubling a charge that no longer exists, so a holder is fed by one meal like
-anybody else. It is left in the catalog rather than retired on purpose: the
-foodstuff-item work that is coming needs something to hang off, and "needs two
-meals a turn" is the obvious shape for it. Until that lands, treat the tag as
-inert — it is not quietly costing anyone anything.
+### There is no starvation brake here, on purpose
 
-Everything downstream of the table is **unchanged**, because none of it was
-ever keyed to the money. The streak still climbs, `hungry` still costs
-Gambits, and the mood pass still reads the streak. Only the till is gone —
-with one exception, immediately below.
+An earlier revision of this pass shipped with `HUNGER_CAN_KILL = false`: the
+⬢ charge had come out, but no foodstuff existed yet for a character with no
+Cooking to eat, so letting Starving reach `dying` unconditionally would have
+killed every such character on schedule with no action that could have saved
+them. The brake's own comment named its exact condition for going away: "flip
+it to `true` in the same change that ships foodstuff items, and not before."
 
-### The starvation brake
-
-**`HUNGER_CAN_KILL` in `db/lib/hungerPass.js` is `false`, and hunger does not
-reach Dying while it is.** This is temporary and it is deliberate.
-
-Taking the ⬢ charge out left a hole nobody can climb out of. Being fed is now
-entirely "is there an `ate-meal` tag on the sheet at close", and the only four
-things that grant one are a meal you cooked (Cooking, 5 points), a Depot ware,
-a GM hand-out, and a labor drop. None of those is reliably available:
-
-- **The Depot is not a shop.** An order spends `Depot.accountObols`, the
-  station's shared float, at a Landing Pad, on a shuttle cycle
-  (`DEPOT.md`). A player cannot walk up and buy lunch with their own ⬢.
-- **The food drops hang off three pools only** — fishing, farming and
-  prospecting (`docs/labordrops.yaml`). Basic and skilled labour turn up no
-  food at all.
-
-So a character on basic labour in Town who did not buy Cooking has **no food
-source in the game**. Left lethal, that is not a difficulty setting: it is
-every such character dead on turn 6, having had no action available that would
-have helped. Before the rework they ate automatically off the 1 ⬢ auto-labor
-pays them, so this player never starved at all.
-
-The brake keeps the mechanic honest without the body count. The streak still
-climbs, `hungry` still lands, the Gambit penalty still bites and the pass still
-reports who it spared — so the gap is visible on the audit row rather than
-hidden. It just stops short of granting Dying.
-
-**Flip it to `true` in the same change that ships foodstuff items, and not
-before.** That change is the prerequisite, not the follow-up.
-
-A single fed turn only clears **one tick** of the streak, not the whole thing
-— a character six turns deep in Hunger needs six fed turns to climb back to
-0, the same way it took six starved turns to get there. The `hungry` tag
-itself is re-granted for as long as the streak is above 0 after eating, not
-only on a turn actually spent starving — so its meaning is "carrying hunger
-damage", not "starved this turn". A Hunger granted while closing turn N
-carries `expiresTurn = N + 1`, so it bites for exactly turn N+1; eating on
-turn N is what decides whether it's re-granted for N+1, at one point lower
-than it was.
-
-The streak itself has no `expiresTurn` of its own — it's a plain Int column,
-computed in the pass off the value it already read, not off a DB
-`increment`/`decrement` return (neither hands back the new total in time to
-decide who crosses the cap, or who still carries Hunger after eating, this
-turn). Only starving ever pushes it up; eating only ever brings it down, one
-tick per turn, floored at 0 structurally rather than by arithmetic — a
-`hungerStreak: { gt: 0 }` where-guard, not a `Math.max`. It keeps
-counting past 6 if nobody intervenes; the penalty just stays floored there,
-and re-granting `dying` on a later starved turn is a harmless `skipDuplicates`
-no-op.
+**This is that change.** Soilery ships the foodstuff catalog the brake was
+waiting on — six growable crops, ten more foodstuffs, and the seed-bag/Farming
+chain that gets a character to them without Cooking at all — on top of the
+Depot wares and labor drops that already existed. `STARVING_DEATH_TURNS`
+(above, this same section) is therefore unconditional, with no flag gating
+it: the prerequisite and the follow-up landed in the same rework.
 
 One summary `hunger_resolved` audit row per turn, not one per character: at
 100+ players the latter would drown `/gm/audit`.
@@ -756,9 +744,9 @@ the opposite of how the rest of the horse works, and all three are deliberate:
   the animal at the door. The feed ignores all of it. A horse in your pocket
   still eats, so stowing it is not a way to skip the bill.
 - **Short of the cost, nothing happens.** A character at 0 ⬢ is charged nothing
-  and keeps the horse — no starving marker, no runaway, no streak. Hunger used
-  to have a row of exactly this shape and no longer does (§5, 9/2026), so this
-  is now the only place in the close where being broke is answered by silence.
+  and keeps the horse — no starving marker, no runaway. Hunger used to have a
+  row of exactly this shape and no longer does (§5, 9/2026), so this is now the
+  only place in the close where being broke is answered by silence.
 - **Each species bills separately.** A Horse and an Arelitz Warbeast together
   eat 2 ⬢, not 1 — the pass walks `UPKEEP_SLUGS` and charges once per slug
   held.
@@ -977,7 +965,9 @@ markers for the desk's labels.
 | `db/lib/laborYield.js` | Location yield drift, and the quality words |
 | `db/lib/horseUpkeepPass.js` | The horse's feed (§5b) |
 | `db/lib/resourceStack.js` | ⬢ as a stack row — the only reader and writer of a ⬢ balance (`CARRY.md`, `ECONOMY.md`) |
-| `db/lib/hungerPass.js` | The Hunger pass (§5) |
+| `db/lib/hunger.js` | The 0-100 hunger meter itself — thresholds, decay, banding (§5) |
+| `db/lib/hungerPass.js` | The Hunger pass |
+| `db/lib/hungerBands.js` | Clearing Hungry/Starving the instant eating clears the threshold (§5) |
 | `db/lib/catatonicPass.js` | The Catatonic (AFK) flagging pass |
 | `db/lib/catatonicDeathPass.js` | The Catatonic death pass (§2 7b) |
 | `db/lib/dyingDeathPass.js` | The Dying death pass (§2 4b) |

@@ -2,6 +2,7 @@
 
 const GODFLESH_ATTRIBUTE = "godflesh";
 const REFINERY_ATTRIBUTE = "refinery";
+const SOILERY_ATTRIBUTE = "soilery";
 const SAFE_ATTRIBUTE = "safe";
 // WILDERNESS/HAVEN read by the mood dial (db/lib/mood.js#placeClassOf); WHEELS by db/lib/indoors.js, alongside the `indoors` column.
 const WILDERNESS_ATTRIBUTE = "wilderness";
@@ -35,6 +36,13 @@ const ATTRIBUTES = {
   refinery: {
     type: "boolean",
     describe: () => "**Refinery**: laboring here turns Godflesh into Squeeze.",
+  },
+
+  // A placeholder stand-in for the Farms rework (db/lib/soilery.js): gates the Sow/Reap buttons.
+  // Deliberately minimal — the whole Farms Location is expected to be redesigned later.
+  soilery: {
+    type: "boolean",
+    describe: () => "**Soilery**: you can sow and reap crops here.",
   },
 
   // Ground the Caving Die skips (db/lib/cavingPass.js) — said out loud so a player can read the answer.
@@ -254,6 +262,7 @@ function attributesFromInput(input = {}) {
 module.exports = {
   GODFLESH_ATTRIBUTE,
   REFINERY_ATTRIBUTE,
+  SOILERY_ATTRIBUTE,
   SAFE_ATTRIBUTE,
   WILDERNESS_ATTRIBUTE,
   HAVEN_ATTRIBUTE,

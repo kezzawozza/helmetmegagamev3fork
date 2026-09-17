@@ -209,6 +209,7 @@ you pick the right doc — they are never enough to change code with.
 | [`LABORING.md`](docs/systemdocs/LABORING.md) | You're touching Laboring — the tag ladder, a Location's `yield:` coefficients and their drift, the tools (`laborBonus`), the auto-labor pass, or the Examine button |
 | [`LABORDROPS.md`](docs/systemdocs/LABORDROPS.md) | You're touching the labor drop die — `docs/labordrops.yaml`, `db/lib/laborDrops.js`, or the `laborDrop` entry in `db/lib/moveEffects.js` |
 | [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
+| [`SOILERY.md`](docs/systemdocs/SOILERY.md) | You're touching Farming — the Farm button, seed bags and their sowing licences, the wither roll, the `soilery` Location attribute, or **anything that asks what eating restores** (`db/lib/hunger.js`) |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
 | [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
 | [`MOOD.md`](docs/systemdocs/MOOD.md) | You're touching the mood dial — the nine bands and the Mood box on the sheet, what sinks or lifts a mood, the phobias, Brave / Rough Camper / Outsider / Spelunker, `moodIntensity`, or the nightly mood pass |

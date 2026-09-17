@@ -89,6 +89,7 @@ async function mintCustomCraft(
     consumesIntoResources: baseTag.consumesIntoResources,
     cookedFrom: key,
     mealMood: baseTag.mealMood,
+    mealHunger: baseTag.mealHunger,
     sellable: baseTag.sellable,
     sellablePrice: sellablePriceOverride ?? baseTag.sellablePrice,
     defaultDurationTurns: baseTag.defaultDurationTurns,

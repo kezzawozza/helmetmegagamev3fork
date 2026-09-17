@@ -45,6 +45,10 @@ const TABS = [
 export default function CharacterSheet({
   character,
   mode,
+  // The 0-100 hunger meter's ONLY client-visible trace (db/lib/hunger.js):
+  // "hungry" | "starving" | null, resolved server-side in character/page.js
+  // so the raw hungerValue never crosses into the flight payload at all.
+  hungerWarning = null,
   openTurn,
   avatarSrc,
   transferParties,
@@ -158,6 +162,10 @@ export default function CharacterSheet({
   canSeeExtract = false,
   canExtract = false,
   extractBlocked = null,
+  canSeeFarm = false,
+  canFarm = false,
+  farmBlocked = null,
+  farmMaxCrops,
   canSeePackage = false,
   lootTargets = [],
   // Who a cure or an administerable item could be given to (the medical
@@ -272,6 +280,10 @@ export default function CharacterSheet({
         canSeeExtract={canSeeExtract}
         canExtract={canExtract}
         extractBlocked={extractBlocked}
+        canSeeFarm={canSeeFarm}
+        canFarm={canFarm}
+        farmBlocked={farmBlocked}
+        farmMaxCrops={farmMaxCrops}
         canSeePackage={canSeePackage}
         lootTargets={lootTargets}
         consumeTargets={consumeTargets}
@@ -318,6 +330,7 @@ export default function CharacterSheet({
           sitesHere={sitesHere}
           hasTrumpet={hasTrumpet}
           isSelf={isSelf}
+          hungerWarning={hungerWarning}
         />
 
         <div className="tab-bar sheet-tabs" role="tablist">

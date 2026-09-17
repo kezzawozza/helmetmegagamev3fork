@@ -9,6 +9,11 @@ const assert = require("node:assert/strict");
 const { gambitModifiers, gambitModifierTotal, formatGambitModifiers } = require("../lib/gambitModifier");
 
 const hungry = [{ tag: { slug: "hungry" } }];
+const starving = [{ tag: { slug: "starving" } }];
+// A Starving character holds BOTH tags at once (db/lib/hunger.js's
+// HUNGRY_THRESHOLD/STARVING_THRESHOLD) — this is the shape a real sheet
+// hands in, not an edge case nobody hits.
+const starvingAndHungry = [{ tag: { slug: "hungry" } }, { tag: { slug: "starving" } }];
 
 test("the two bottom mood bands are the only ones that cost dice", () => {
   assert.equal(gambitModifierTotal([], { mood: -90 }), -2);
@@ -39,30 +44,33 @@ test("the band is NAMED, so the confirm DM can say why", () => {
   assert.deepEqual(gambitModifiers([], { mood: 50 }), []);
 });
 
-test("hunger sums on top of the mood, and scales with the streak", () => {
-  assert.equal(gambitModifierTotal(hungry, { hungerStreak: 1, mood: 0 }), -1);
-  assert.equal(gambitModifierTotal(hungry, { hungerStreak: 3, mood: 0 }), -3);
-  assert.equal(gambitModifierTotal(hungry, { hungerStreak: 3, mood: -90 }), -5);
-  // Holding the tag with no streak recorded still costs the first point.
+test("Hungry costs -1, Starving costs -3, flat — no streak to scale it any more", () => {
   assert.equal(gambitModifierTotal(hungry, { mood: 0 }), -1);
-  // Not holding it costs nothing, whatever the streak says.
-  assert.equal(gambitModifierTotal([], { hungerStreak: 4, mood: 0 }), 0);
+  assert.equal(gambitModifierTotal(starving, { mood: 0 }), -3);
+  assert.equal(gambitModifierTotal([], { mood: 0 }), 0);
+});
+
+test("Starving wins outright and never sums with Hungry", () => {
+  // Holding both tags at once (the real shape a Starving sheet carries)
+  // still costs exactly -3, never -4.
+  assert.equal(gambitModifierTotal(starvingAndHungry, { mood: 0 }), -3);
+  assert.deepEqual(gambitModifiers(starvingAndHungry, { mood: 0 }), [{ label: "Starving", value: -3 }]);
 });
 
 test("a good mood and a bad gut cancel, which nothing could do before", () => {
-  // Hunger's first point against Ecstatic's: a wash, not a penalty.
-  assert.equal(gambitModifierTotal(hungry, { hungerStreak: 1, mood: 70 }), 0);
-  // Hunger still outruns it once the streak builds.
-  assert.equal(gambitModifierTotal(hungry, { hungerStreak: 3, mood: 70 }), -2);
+  // Hungry against Ecstatic: a wash, not a penalty.
+  assert.equal(gambitModifierTotal(hungry, { mood: 70 }), 0);
+  // Starving still outruns it.
+  assert.equal(gambitModifierTotal(starving, { mood: 70 }), -2);
   // Both contributions are still NAMED, even when they sum to nothing.
-  assert.deepEqual(gambitModifiers(hungry, { hungerStreak: 1, mood: 70 }), [
+  assert.deepEqual(gambitModifiers(hungry, { mood: 70 }), [
     { label: "Hungry", value: -1 },
     { label: "Ecstatic", value: 1 },
   ]);
 });
 
 test("a bare Tag[] works as well as the CharacterTag[] shape", () => {
-  assert.equal(gambitModifierTotal([{ slug: "hungry" }], { hungerStreak: 2, mood: 0 }), -2);
+  assert.equal(gambitModifierTotal([{ slug: "starving" }], { mood: 0 }), -3);
 });
 
 test("no mood argument means Fine, which is the silent failure worth naming", () => {
@@ -72,10 +80,10 @@ test("no mood argument means Fine, which is the silent failure worth naming", ()
 });
 
 test("the breakdown formats with a real minus sign, as the bot rolls it", () => {
-  assert.equal(formatGambitModifiers(gambitModifiers(hungry, { hungerStreak: 2, mood: -90 })), "−2 Hungry −2 Panicking");
+  assert.equal(formatGambitModifiers(gambitModifiers(starving, { mood: -90 })), "−3 Starving −2 Panicking");
 });
 
 test("a gain formats with a plain ASCII plus, not the U+2212 minus's twin", () => {
   assert.equal(formatGambitModifiers(gambitModifiers([], { mood: 70 })), "+1 Ecstatic");
-  assert.equal(formatGambitModifiers(gambitModifiers(hungry, { hungerStreak: 1, mood: 70 })), "−1 Hungry +1 Ecstatic");
+  assert.equal(formatGambitModifiers(gambitModifiers(hungry, { mood: 70 })), "−1 Hungry +1 Ecstatic");
 });

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { bandOf } from "@lifeweb/db/lib/mood";
+import { bandOf as hungerBandOf, HUNGER_MAX } from "@lifeweb/db/lib/hunger";
 import { formatGambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import { moveKindLabel } from "@/lib/moves";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
@@ -26,7 +27,6 @@ export default function DevBand({
   discord,
   curse,
   held,
-  feed,
   carry,
   goalsSummary,
   lastActivity,
@@ -54,7 +54,12 @@ export default function DevBand({
   // healable is the same isHealable predicate the wound picker/heal-all
   // button already agree on (web/lib/devPanelData.js).
   const afflictions = held.filter((h) => h.healable).length;
-  const hungry = held.some((h) => h.slug === feed.dropSlug);
+  // The 0-100 hunger meter (db/lib/hunger.js), read straight off `character`
+  // the same way `mood` above is — never shown as a number on the player's
+  // own sheet, but this panel is superadmin-only debugging.
+  const hungerBand = hungerBandOf(character.hungerValue ?? HUNGER_MAX);
+  const HUNGER_TONE = { fed: "muted", hungry: "warn", starving: "bad" };
+  const HUNGER_LABEL = { fed: "Fed", hungry: "Hungry", starving: "Starving" };
 
   const stagedSummary = stagedForPush
     ? [
@@ -184,7 +189,17 @@ export default function DevBand({
         <DetailTile label="Carrying" value={`${carry.weightUsed} lb`} over={carry.weightUsed > carry.weightCap} />
         <DetailTile label="Expiring soon" value={String(expiringSoon)} over={expiringSoon > 0} />
         <DetailTile label="Afflictions" value={String(afflictions)} over={afflictions > 0} />
-        <DetailTile label="Hunger" value={hungry ? "Hungry" : "Fed"} tone={hungry ? "warn" : "good"} />
+        <DetailTile
+          label="Hunger"
+          value={HUNGER_LABEL[hungerBand]}
+          tone={HUNGER_TONE[hungerBand]}
+          detail={`The meter reads ${character.hungerValue ?? HUNGER_MAX}/${HUNGER_MAX}.${
+            character.starvingSinceTurn != null
+              ? ` Starving since turn ${character.starvingSinceTurn}.`
+              : ""
+          } Never shown as a number on their own sheet — set it with Feed Them, on the action bar.`}
+          {...tile("hunger")}
+        />
         <DetailTile
           label="Goals"
           value={`${goalsSummary.active}/${goalsSummary.total}`}

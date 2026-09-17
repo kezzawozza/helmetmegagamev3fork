@@ -1,189 +1,232 @@
-// Per-turn Hunger, run from db/index.js#resolveNeeds() so the bot's cron
-// advance and the Dev Panel's "End turn" button behave identically.
+// Per-turn Hunger upkeep, run from db/index.js#resolveNeeds() so the bot's
+// cron advance and the Dev Panel's "End turn" button behave identically.
 // See TURN-ENGINE.md for the full ordering.
 //
-// This pass used to BILL a character 1 ⬢ a turn (2 with Fast Metabolism) to
-// feed themselves, and go hungry only if they could not cover it. That is
-// gone as of 9/2026: eating is an act, not a direct debit. The only question
-// now is whether they ate — whether an `ate-meal` tag is on the sheet when
-// the turn closes — and food is what puts it there (docs/systemdocs/COOKING.md).
-// A meal already costs ⬢ to cook, so the old charge was a second bill for the
-// same dinner; the players who never cooked simply paid a silent tax for
-// existing.
-//
-// Everything downstream is unchanged, because none of it was ever keyed to the
-// money: the streak still climbs, `hungry` still costs Gambits
-// (db/lib/gambitModifier.js), six straight turns still ends in Dying, and the
-// mood pass still reads the streak. Only the till is gone.
+// The 0-100 meter itself (thresholds, decay, banding) lives in the
+// Prisma-free db/lib/hunger.js — this file is the Prisma-in-tx half: reading
+// every ALIVE character's hungerValue, writing the decay, and granting/
+// dropping the hungry/starving tags and the eventual dying tag off it.
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
-// FAST_METABOLISM_SLUG is deliberately NOT here any more. Its whole mechanic
-// was doubling this pass's ⬢ charge to 2, and there is no charge to double —
-// the tag is inert until the foodstuff work gives it something to mean (say,
-// needing two meals a turn). It is left in the catalog rather than retired so
-// that work has something to hang off; see docs/systemdocs/TURN-ENGINE.md §5.
-const { HUNGER_SLUG, HUNGERLESS_SLUG, ATE_MEAL_SLUG, DYING_SLUG } = require("./constants");
+const {
+  HUNGER_SLUG,
+  STARVING_SLUG,
+  HUNGERLESS_SLUG,
+  FAST_METABOLISM_SLUG,
+  DYING_SLUG,
+} = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 const { applyMood } = require("./mood");
 const { alivePassCharacters } = require("./aliveCharacters");
-
-const HUNGER_STREAK_CAP = 6;
-
-// THE STARVATION BRAKE — flip this to true in the same change that ships
-// foodstuff items, and not before.
-//
-// Stripping the ⬢ charge left a hole nobody can climb out of. Being fed is
-// now entirely "is there an `ate-meal` tag on the sheet", and the only things
-// that grant one are: a meal you cooked (needs Cooking, 5 points), a Depot
-// ware (ordered against the STATION's account at a Landing Pad, not something
-// a player buys with their own ⬢), a GM hand-out, or a labor drop — and the
-// food drops hang off the fishing, farming and prospecting pools only
-// (docs/labordrops.yaml). A character on basic labour in Town with no Cooking
-// has NO food source in the game at all.
-//
-// Left lethal, that is not a difficulty setting, it is every such character
-// dead on turn 6 having had no action available that would have helped. So
-// until food exists, the streak still climbs and `hungry` still lands — the
-// mechanic stays visible and testable, and the Gambit penalty still bites —
-// but it stops short of Dying. Nobody starves to death over a system that has
-// not been built.
-//
-// Turning it back on is this one constant. See docs/systemdocs/TURN-ENGINE.md §5.
-const HUNGER_CAN_KILL = false;
-
-// `notice.streak` is the count AFTER this turn's change, already clamped to
-// HUNGER_STREAK_CAP, matching gambitModifier.js's penalty.
-function hungerDm(notice) {
-  if (notice.kind === "recovered") {
-    return "You ate, and you're back to full strength.";
-  }
-  if (notice.kind === "recovering") {
-    return `You ate, but you're still weak from hunger. −${notice.streak} to Gambits.`;
-  }
-  return `You went hungry this turn. −${notice.streak} to Gambits.`;
-}
-
-const DYING_DM =
-  "You haven't eaten in 6 turns straight. Your body is giving out — you're **Dying**. A GM will decide what happens next.";
+const {
+  HUNGER_MAX,
+  HUNGER_DECAY_PER_TURN,
+  HUNGER_DECAY_FAST_METABOLISM,
+  HUNGRY_THRESHOLD,
+  STARVING_THRESHOLD,
+  STARVING_DEATH_TURNS,
+  clampHunger,
+  decayFor,
+  crossings,
+  hungerDm,
+  DYING_DM,
+} = require("./hunger");
 
 async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   const tags = await prisma.tag.findMany({
     where: {
       slug: {
-        in: [HUNGER_SLUG, HUNGERLESS_SLUG, ATE_MEAL_SLUG, DYING_SLUG],
+        in: [HUNGER_SLUG, STARVING_SLUG, HUNGERLESS_SLUG, FAST_METABOLISM_SLUG, DYING_SLUG],
       },
     },
     select: { id: true, slug: true, defaultDurationTurns: true },
   });
 
-  const hungerTag = tags.find((t) => t.slug === HUNGER_SLUG);
-  if (!hungerTag) {
-    console.error(`Hunger pass skipped: no "${HUNGER_SLUG}" tag — run npm run db:sync-tags.`);
+  const hungryTag = tags.find((t) => t.slug === HUNGER_SLUG);
+  const starvingTag = tags.find((t) => t.slug === STARVING_SLUG);
+  if (!hungryTag || !starvingTag) {
+    console.error(
+      `Hunger pass skipped: no "${HUNGER_SLUG}"/"${STARVING_SLUG}" tag — run npm run db:sync-tags.`,
+    );
     return null;
   }
   const hungerlessId = tags.find((t) => t.slug === HUNGERLESS_SLUG)?.id ?? null;
-  const ateMealId = tags.find((t) => t.slug === ATE_MEAL_SLUG)?.id ?? null;
+  // Missing is non-fatal, unlike the two band tags above: nobody holds it,
+  // so everyone just decays at the flat rate.
+  const fastMetabolismId = tags.find((t) => t.slug === FAST_METABOLISM_SLUG)?.id ?? null;
+  if (!fastMetabolismId) {
+    console.error(
+      `Hunger pass: no "${FAST_METABOLISM_SLUG}" tag — run npm run db:sync-tags. Everyone decays at the flat rate.`,
+    );
+  }
   const dyingId = tags.find((t) => t.slug === DYING_SLUG)?.id ?? null;
-  if (!dyingId && HUNGER_CAN_KILL) {
-    console.error(`Hunger pass: no "${DYING_SLUG}" tag — run npm run db:sync-tags. Streak cap won't grant it.`);
+  if (!dyingId) {
+    console.error(`Hunger pass: no "${DYING_SLUG}" tag — run npm run db:sync-tags. Starving to death won't grant it.`);
   }
 
-  // A noble's dinner is no longer this pass's business: skipping it costs
-  // a mood hit at the mood pass instead (db/lib/moodPass.js, the `dined` marker).
-  const gateIds = [hungerlessId, ateMealId].filter(Boolean);
-  // A character born mid-close (see db/index.js#resolveNeeds) wasn't alive for
-  // the turn that's closing — exclude them rather than mark a body hungry for
-  // a day it never had.
+  // Only the two gating tags — Hungerless (pins the meter) and Fast
+  // Metabolism (doubles the decay). Hungry/Starving/Dying are this pass's
+  // OUTPUT, computed off hungerValue itself, not read as input. Keeps this
+  // cheap at 100+ characters, same reasoning as the old streak-based pass.
+  const gateIds = [hungerlessId, fastMetabolismId].filter(Boolean);
+  // A character born mid-close (see db/index.js#resolveNeeds) wasn't alive
+  // for the turn that's closing — exclude them from this run's decay rather
+  // than charge a body for a day it never had.
   const characters = await alivePassCharacters(prisma, {
     where: bornBefore ? { createdAt: { lt: bornBefore } } : undefined,
     select: {
       id: true,
       discordUserId: true,
-      hungerStreak: true,
-      // Only the gating tags, not the whole tag set — keeps this cheap at
-      // 100+ characters.
+      hungerValue: true,
+      starvingSinceTurn: true,
       tags: { where: { tagId: { in: gateIds } }, select: { tagId: true } },
     },
   });
 
-  // Three buckets, and every character falls in exactly one. `fed` was two
-  // buckets until the ⬢ charge went (those who ate, and those who paid), and
-  // collapsing them is most of what this pass lost.
-  const toZero = []; // hungerless: the streak is not just held, it is reset
-  const fed = []; // ate a meal: it is eaten below, and the streak drops a tick
-  const toStarve = [];
+  const hungerlessIds = [];
+  // Split by decay rate, then again by whether the floor bites, mirroring
+  // the structural-clamp discipline the old pass used for resources: the
+  // WHERE guard matches its own decrement, so hungerValue can never go
+  // negative without a Math.max.
+  const normalDecayIds = [];
+  const normalFloorIds = [];
+  const fastDecayIds = [];
+  const fastFloorIds = [];
+
+  const hungryGrantIds = [];
+  const hungryDropIds = [];
+  const starvingGrantIds = [];
+  const starvingDropIds = [];
+  const starvingSinceStampIds = [];
+  const starvingSinceClearIds = [];
+  const enteredHungryIds = [];
+  const enteredStarvingIds = [];
+  const newlyDyingIds = [];
+  const hungerNotices = [];
+
+  let decayed = 0;
 
   for (const character of characters) {
-    const held = new Set(character.tags.map((ct) => ct.tagId));
-    if (hungerlessId && held.has(hungerlessId)) toZero.push(character);
-    else if (ateMealId && held.has(ateMealId)) fed.push(character);
-    // Nothing else feeds anybody. No meal on the sheet is a hungry turn, and
-    // ⬢ in a pocket buy nothing here any more — raw material is not dinner.
-    else toStarve.push(character);
+    const heldTagIds = new Set(character.tags.map((ct) => ct.tagId));
+
+    if (hungerlessId && heldTagIds.has(hungerlessId)) {
+      hungerlessIds.push(character.id);
+      continue;
+    }
+
+    decayed += 1;
+    const fastMetabolism = Boolean(fastMetabolismId && heldTagIds.has(fastMetabolismId));
+    const heldSlugs = fastMetabolism ? new Set([FAST_METABOLISM_SLUG]) : new Set();
+    const decay = decayFor(heldSlugs);
+
+    const before = character.hungerValue;
+    const after = clampHunger(before - decay);
+
+    if (fastMetabolism) {
+      if (before >= decay) fastDecayIds.push(character.id);
+      else fastFloorIds.push(character.id);
+    } else if (before >= decay) {
+      normalDecayIds.push(character.id);
+    } else {
+      normalFloorIds.push(character.id);
+    }
+
+    const cross = crossings(before, after);
+
+    if (after <= HUNGRY_THRESHOLD) hungryGrantIds.push(character.id);
+    else hungryDropIds.push(character.id);
+    if (after <= STARVING_THRESHOLD) starvingGrantIds.push(character.id);
+    else starvingDropIds.push(character.id);
+
+    let effectiveStarvingSinceTurn = character.starvingSinceTurn ?? null;
+    if (cross.enteredStarving && effectiveStarvingSinceTurn == null) {
+      effectiveStarvingSinceTurn = turn.number;
+      starvingSinceStampIds.push(character.id);
+    } else if (cross.leftStarving && effectiveStarvingSinceTurn != null) {
+      effectiveStarvingSinceTurn = null;
+      starvingSinceClearIds.push(character.id);
+    }
+
+    const isNewlyDying =
+      dyingId != null &&
+      after <= STARVING_THRESHOLD &&
+      effectiveStarvingSinceTurn != null &&
+      turn.number - effectiveStarvingSinceTurn >= STARVING_DEATH_TURNS - 1;
+    if (isNewlyDying) newlyDyingIds.push(character.id);
+
+    if (cross.enteredHungry) enteredHungryIds.push(character.id);
+    if (cross.enteredStarving) enteredStarvingIds.push(character.id);
+
+    // One DM per newly-entered band (never one per point of decay) —
+    // Starving's line wins if both would somehow fire on the same close,
+    // matching the Gambit modifier's "Starving wins outright" rule. A
+    // character not freshly entering either band, and not newly dying,
+    // hears nothing this turn — decay is silent until it crosses a line.
+    if (cross.enteredStarving || isNewlyDying) {
+      hungerNotices.push({ discordUserId: character.discordUserId, kind: "starving", justDied: isNewlyDying });
+    } else if (cross.enteredHungry) {
+      hungerNotices.push({ discordUserId: character.discordUserId, kind: "hungry", justDied: false });
+    }
   }
 
-  const idsOf = (list) => list.map((character) => character.id);
+  const hungryExpiresTurn = expiryFrom(turn.number + 1, hungryTag.defaultDurationTurns ?? 1);
+  const starvingExpiresTurn = expiryFrom(turn.number + 1, starvingTag.defaultDurationTurns ?? 1);
 
-  const expiresTurn = expiryFrom(turn.number + 1, hungerTag.defaultDurationTurns ?? 1);
-
-  // Computed in JS off the streak already loaded above, since an
-  // increment/decrement in the same transaction wouldn't hand back the new
-  // value, and this pass needs it now to decide the DMs.
-  const fedWithNewStreak = fed.map((character) => ({
-    character,
-    newStreak: Math.max(character.hungerStreak - 1, 0),
-  }));
-  const stillHungryAfterEating = fedWithNewStreak.filter((f) => f.newStreak > 0);
-
-  const hungerNotices = [
-    ...toStarve.map((character) => ({
-      discordUserId: character.discordUserId,
-      kind: "starved",
-      streak: Math.min(character.hungerStreak + 1, HUNGER_STREAK_CAP),
-      justDied: HUNGER_CAN_KILL && dyingId != null && character.hungerStreak + 1 >= HUNGER_STREAK_CAP,
-    })),
-    ...fedWithNewStreak
-      .filter((f) => f.character.hungerStreak > 0)
-      .map((f) => ({
-        discordUserId: f.character.discordUserId,
-        kind: f.newStreak > 0 ? "recovering" : "recovered",
-        streak: f.newStreak,
-        justDied: false,
-      })),
-  ];
-  const newlyDyingIds =
-    dyingId && HUNGER_CAN_KILL
-      ? toStarve.filter((character) => character.hungerStreak + 1 >= HUNGER_STREAK_CAP).map((character) => character.id)
-      : [];
-
-  // One transaction so a character can't have their Ate Meal eaten without the
-  // streak moving with it, or land at the streak cap without Dying landing too.
+  // One transaction: a character can't land at a new hungerValue without the
+  // matching band tags landing with it, or reach the death timer without
+  // `dying` granted in the same beat.
   await prisma.$transaction([
-    prisma.characterTag.deleteMany({
-      where: { characterId: { in: idsOf(fed) }, tagId: ateMealId ?? "" },
+    prisma.character.updateMany({
+      where: { id: { in: hungerlessIds } },
+      data: { hungerValue: HUNGER_MAX, starvingSinceTurn: null },
+    }),
+    prisma.character.updateMany({
+      where: { id: { in: normalDecayIds } },
+      data: { hungerValue: { decrement: HUNGER_DECAY_PER_TURN } },
+    }),
+    prisma.character.updateMany({
+      where: { id: { in: normalFloorIds } },
+      data: { hungerValue: 0 },
+    }),
+    prisma.character.updateMany({
+      where: { id: { in: fastDecayIds } },
+      data: { hungerValue: { decrement: HUNGER_DECAY_FAST_METABOLISM } },
+    }),
+    prisma.character.updateMany({
+      where: { id: { in: fastFloorIds } },
+      data: { hungerValue: 0 },
     }),
     prisma.characterTag.createMany({
-      data: [...toStarve, ...stillHungryAfterEating.map((f) => f.character)].map((character) => ({
-        characterId: character.id,
-        tagId: hungerTag.id,
+      data: hungryGrantIds.map((characterId) => ({
+        characterId,
+        tagId: hungryTag.id,
         source: "EVENT",
-        expiresTurn,
+        expiresTurn: hungryExpiresTurn,
       })),
       skipDuplicates: true,
     }),
-    prisma.character.updateMany({
-      where: { id: { in: idsOf(toZero) } },
-      data: { hungerStreak: 0 },
+    prisma.characterTag.deleteMany({
+      where: { characterId: { in: hungryDropIds }, tagId: hungryTag.id },
     }),
-    // Floor is structural rather than a Math.max on an earlier read — the
-    // `gt: 0` where-guard is its own clamp.
-    prisma.character.updateMany({
-      where: { id: { in: idsOf(fed) }, hungerStreak: { gt: 0 } },
-      data: { hungerStreak: { decrement: 1 } },
+    prisma.characterTag.createMany({
+      data: starvingGrantIds.map((characterId) => ({
+        characterId,
+        tagId: starvingTag.id,
+        source: "EVENT",
+        expiresTurn: starvingExpiresTurn,
+      })),
+      skipDuplicates: true,
+    }),
+    prisma.characterTag.deleteMany({
+      where: { characterId: { in: starvingDropIds }, tagId: starvingTag.id },
     }),
     prisma.character.updateMany({
-      where: { id: { in: idsOf(toStarve) } },
-      data: { hungerStreak: { increment: 1 } },
+      where: { id: { in: starvingSinceStampIds } },
+      data: { starvingSinceTurn: turn.number },
+    }),
+    prisma.character.updateMany({
+      where: { id: { in: starvingSinceClearIds } },
+      data: { starvingSinceTurn: null },
     }),
     ...(newlyDyingIds.length && dyingId
       ? [
@@ -193,7 +236,10 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
               tagId: dyingId,
               source: "EVENT",
               // One-turn clock: granted at close N, expires N + 1, then
-              // db/lib/dyingDeathPass.js takes over.
+              // db/lib/dyingDeathPass.js takes over. Kept granting it the
+              // same way turn after turn while nothing changes — a GM
+              // confirms the death by hand, same as every other terminal
+              // chain (tagExpiryPass.js).
               expiresTurn: turn.number + 1,
             })),
             skipDuplicates: true,
@@ -202,10 +248,27 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
       : []),
   ]);
 
-  // Starving to death's door is frightening (docs/systemdocs/MOOD.md). The
-  // grant above is a batch createMany, so the dial moves here, after it lands;
-  // the band DMs ride back beside the hunger notices rather than being sent.
+  // Starving to death's door is frightening (docs/systemdocs/MOOD.md). These
+  // ride after the transaction, the same pattern the old pass used for its
+  // DYING mood hit — a batch createMany can't carry a per-row mood term, so
+  // the dial moves here, once the grant has landed. Each list only ever
+  // holds a FRESH crossing this turn, so nobody is charged twice for
+  // remaining in a band they already occupied.
   const moodDms = [];
+  for (const characterId of enteredHungryIds) {
+    const moved = await applyMood(prisma, characterId, { kind: "HUNGRY_ONSET", notify: false }).catch((err) => {
+      console.error(`Hunger pass: hungry onset mood failed for ${characterId}:`, err.message ?? err);
+      return null;
+    });
+    if (moved?.dm) moodDms.push(moved.dm);
+  }
+  for (const characterId of enteredStarvingIds) {
+    const moved = await applyMood(prisma, characterId, { kind: "STARVING_ONSET", notify: false }).catch((err) => {
+      console.error(`Hunger pass: starving onset mood failed for ${characterId}:`, err.message ?? err);
+      return null;
+    });
+    if (moved?.dm) moodDms.push(moved.dm);
+  }
   for (const characterId of newlyDyingIds) {
     const moved = await applyMood(prisma, characterId, { kind: "DYING", notify: false }).catch((err) => {
       console.error(`Hunger pass: dying mood failed for ${characterId}:`, err.message ?? err);
@@ -219,18 +282,11 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   // already flushed.
   return {
     turnNumber: turn.number,
-    starved: toStarve.length,
-    // Records that the brake held somebody back, so a GM reading the audit row
-    // can see the pass WOULD have killed had food existed.
-    ...(HUNGER_CAN_KILL
-      ? {}
-      : {
-          spared: toStarve.filter((c) => c.hungerStreak + 1 >= HUNGER_STREAK_CAP).length,
-        }),
-    fed: fed.length,
-    skipped: toZero.length,
-    recovering: stillHungryAfterEating.length,
-    starvedCharacterIds: toStarve.map((character) => character.id),
+    decayed,
+    skipped: hungerlessIds.length,
+    enteredHungry: enteredHungryIds.length,
+    enteredStarving: enteredStarvingIds.length,
+    newlyDying: newlyDyingIds.length,
     hungerNotices,
     moodDms,
     newlyDyingCharacterIds: newlyDyingIds,
@@ -241,5 +297,4 @@ module.exports = {
   runHungerPass,
   hungerDm,
   DYING_DM,
-  HUNGER_STREAK_CAP,
 };

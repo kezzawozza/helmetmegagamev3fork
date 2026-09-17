@@ -1305,6 +1305,8 @@ zones:
         description: >-
           Smoke rises from thatch-roofed houses on the other side of the river from the town. They're slightly elevated, just above the cattails, but still vulnerable. There's a small guard tower.
         yield: { farming: 1.0 }
+        # Placeholder for the Farms rework: stands in for a real Soilery until the whole Location is redesigned.
+        attributes: { soilery: true }
         rooms:
           farms-fields:
             name: Fields

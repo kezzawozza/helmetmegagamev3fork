@@ -30,6 +30,14 @@ function isAutoLabor(gmNotes) {
 // A gmNotes marker a GM never types themselves (db/lib/locationTravel.js).
 const AUTO_ZONE_CHANGE = "auto:zone_change";
 
+// A Soilery Farm Move (web/app/(app)/character/actions/soilery.js): commits at press, resolves
+// its wither die and Exhausted lockout at push (db/lib/moveEffects.js's `farmed` entry).
+const AUTO_FARM = "auto:farm";
+
+function isAutoFarm(gmNotes) {
+  return typeof gmNotes === "string" && gmNotes.includes(AUTO_FARM);
+}
+
 // A lesson's learner-side Gambit (db/lib/lessons.js). A lesson is settled the moment it
 // is accepted now, so its row arrives already PASSED and there is nothing to solve.
 // The label still matters for the ones filed BEFORE that shipped: those sit OPEN with a
@@ -59,6 +67,7 @@ export function moveKindLabel(moveKind, gmNotes) {
   if (isTravelMove(gmNotes)) return "Travel";
   if (isAutoLabor(gmNotes)) return "Labor (auto)";
   if (isAutoLesson(gmNotes)) return "Lesson (auto)";
+  if (isAutoFarm(gmNotes)) return "Farming";
   return MOVE_KIND_LABELS[moveKind] ?? "Move";
 }
 

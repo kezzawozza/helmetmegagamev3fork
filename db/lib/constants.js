@@ -1,6 +1,8 @@
 const HUNGER_SLUG = "hungry";
+// The deeper band of the 0-100 hunger meter (db/lib/hunger.js) — <= 0 hunger.
+const STARVING_SLUG = "starving";
 const HUNGERLESS_SLUG = "hungerless";
-// Doubles the per-turn upkeep to 2 ⬢ (db/lib/hungerPass.js), hardcoded by slug — no generic upkeep field on Tag.
+// Doubles the meter's decay to 20/turn (db/lib/hunger.js), hardcoded by slug — no generic upkeep field on Tag.
 const FAST_METABOLISM_SLUG = "fast-metabolism";
 const DYING_SLUG = "dying";
 // Vaporised outright (Thanati rites, the bomb — db/lib/characterDeath.js `gib`). No corpse minted.
@@ -182,6 +184,7 @@ module.exports = {
   FORTRESS_SLUG,
   LEAVE_ANNOUNCE_CHANNEL_ID,
   HUNGER_SLUG,
+  STARVING_SLUG,
   HUNGERLESS_SLUG,
   FAST_METABOLISM_SLUG,
   DYING_SLUG,

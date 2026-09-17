@@ -572,6 +572,11 @@ model GameConfig {
   // post — a notice nobody took down is a notice nobody wanted.
   // See docs/systemdocs/PAPERWORK.md.
   noticeExpiryTurns Int @default(10)
+
+  // The most crops one Farm action may sow in a single plan
+  // (db/lib/soilery.js#validatePlan, FARM_MAX_CROPS is the fallback
+  // default). Edited on /gm/dev. See SOILERY.md.
+  farmMaxCrops Int @default(50)
 }
 
 /// Where a game is in its life. The turn cron and the force-advance button
@@ -2170,15 +2175,20 @@ model Character {
   // risk, since the button is hidden the whole time `bound` is absent.
   boundSinceTurnNumber Int?
 
-  // Consecutive turns' worth of hunger this character is carrying — written
-  // only by db/lib/hungerPass.js. Each hungry turn increments it; a fed turn
-  // (paid or Ate Meal) only sheds ONE tick, not the whole streak, so it takes
-  // as many fed turns to climb back down as it took starved turns to climb
-  // up. Hungerless resets it to 0 outright (immunity, not eating). It scales
-  // the Gambit penalty (db/lib/gambitModifier.js). At 6 the pass grants
-  // `dying` and leaves it there — a GM confirms the death by hand, same as
-  // every other terminal chain (tagExpiryPass.js).
+  // Orphan since the hunger rework.
   hungerStreak Int @default(0)
+
+  // The 0-100 hunger meter (docs/systemdocs/COOKING.md, the Soilery doc).
+  // Decays -10/turn (-20 with fast-metabolism), restored by eating. Never
+  // shown to a player as a number — the sheet only ever shows the
+  // hungry/starving tag chips. Written by db/lib/hungerPass.js and the
+  // consume path (web/app/(app)/character/actions/misc.js).
+  hungerValue Int @default(100)
+
+  // The turn number hungerValue first hit 0 — null once fed back above the
+  // Starving threshold. Used to count the consecutive turns that eventually
+  // grant `dying` (STARVING_DEATH_TURNS in db/lib/hunger.js).
+  starvingSinceTurn Int?
 
   // The mood dial, +64 down to −100 (docs/systemdocs/MOOD.md). Nothing shows
   // the number to a player; db/lib/mood.js projects the band it falls in onto
@@ -3245,6 +3255,12 @@ model Tag {
   // worth +30. See MOOD.md §6.
   mealMood Float?
 
+  // A meal recipe's own hunger restoration, added on top of each
+  // ingredient's `cooked.hunger`. Copied onto the minted dish row by
+  // db/lib/customCraftMint.js, same as mealMood above. See
+  // docs/systemdocs/COOKING.md §3.
+  mealHunger Int?
+
   // How many ingredients this recipe takes: `{ min, max }`, authored as
   // `requirement.ingredientSlots`. A sibling of requirementItems below rather
   // than a second `anyOf` entry — the legal set is "any tag with a `cooked`
@@ -3894,6 +3910,13 @@ model Action {
   // staged push owns and claims rows through. Written and read by the Craft
   // path only. Null on every Action that is not a craft.
   craftBudget Json?
+
+  // The Soilery farm plan committed at filing — which crops, how many of
+  // each, licensed by the sowing tags spent at submission time. Resolved
+  // (wither rolls and all) at the turn push, via the "farmed" MOVE_EFFECTS
+  // entry (db/lib/moveEffects.js), same as appliedEffects staying null until
+  // then. Null on every Action that is not a farm.
+  farmPlan Json?
 
   // The Result box — the GM-facing canon of what happened, never auto-sent
   // (players are told through StagedMessages at the push; ADJUDICATION.md).

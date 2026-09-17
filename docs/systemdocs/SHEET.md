@@ -151,15 +151,14 @@ Who this is, where they stand, and:
   turn card beside it. Past three items the rest fold behind a `+N more`,
   decided by counting them and never by measuring the box (`ExpandableText.js`
   explains why). It reads: tags on their last turn and what they become (`expiresInto`),
-  crafts and builds that finish, the road's end, dinner, and the animals'
-  feed. Renders nothing on a quiet turn.
+  crafts and builds that finish, the road's end, a hunger warning, and the
+  animals' feed. Renders nothing on a quiet turn.
 
-  **Dinner is one clause with no number in it**, because there is no longer an
-  amount to afford: the forecast mirrors `hungerPass.js`, which since 9/2026
-  charges nobody for food. Hungerless or already holding `ate-meal` and it says
-  nothing at all; otherwise it says **"You'll go hungry"**. It used to forecast
-  a cost — 1 ⬢, 2 with Fast Metabolism, and a different line if you could not
-  cover it — and that half is gone with the charge behind it.
+  **The hunger warning is one clause with no number in it** —
+  "You'll go hungry" / "You'll start starving" on the turn the meter's decay
+  would first cross that threshold (`db/lib/hunger.js`), computed server-side
+  in `character/page.js` so the raw `hungerValue` never reaches the client;
+  never said again once a band is already held.
 
   **The animals' feed is the half that still costs ⬢**, and it is a separate
   pass (`horseUpkeepPass.js`, `TURN-ENGINE.md` §5b). The line counts how many

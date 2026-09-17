@@ -641,7 +641,29 @@ function normalizeCooked(cooked, { slug, normalizeInto, label = "docs/tags.yaml"
     );
   }
   const cures = cooked.cures === true;
-  return { taste: taste.trim(), mood, into, ...(cures ? { cures: true } : {}) };
+  // Opt-in, stored only when present — how much this ingredient restores on the hunger meter (db/lib/hunger.js). Absent means "not a meaningful food" (foodHungerFor falls back to DEFAULT_FOOD_HUNGER for anything that still grants ate-meal). Required lazily so hunger.js does not require this file (no cycle) — same reasoning as the mood import above.
+  const { HUNGER_MAX, HUNGER_MIN } = require("./hunger");
+  const hunger = cooked.hunger ?? null;
+  if (hunger != null && (!Number.isInteger(hunger) || hunger < HUNGER_MIN || hunger > HUNGER_MAX)) {
+    throw new Error(
+      `${label}: tag "${slug}" cooked.hunger must be a whole number from ${HUNGER_MIN} to ${HUNGER_MAX}`,
+    );
+  }
+  // Opt-in flag: renders the taste as a bare adjective ("It tastes acidic.") instead of the default noun form ("It tastes like X."). Existing tags leave this unset and keep rendering exactly as before — see web/lib/cooking.js.
+  if (cooked.tasteForm != null && cooked.tasteForm !== "adjective") {
+    throw new Error(
+      `${label}: tag "${slug}" cooked.tasteForm must be "adjective" or omitted`,
+    );
+  }
+  const tasteForm = cooked.tasteForm === "adjective" ? "adjective" : null;
+  return {
+    taste: taste.trim(),
+    mood,
+    into,
+    ...(cures ? { cures: true } : {}),
+    ...(hunger != null ? { hunger } : {}),
+    ...(tasteForm ? { tasteForm } : {}),
+  };
 }
 
 // `inlayValue` — TRINKETS.md: what a raw material adds to a minted Trinket's sell price when inlaid (see schema comment on Tag.inlayValue). A positive whole number, or absent.

@@ -71,7 +71,9 @@ export function stripWeightless(tag) {
 
 // A cook is told an ingredient's TASTE and nothing else, not mood or effect
 // (COOKING.md); the whole `cooked` Json block is cut down here on the server
-// before it crosses, and `cookedFrom` dropped outright.
+// before it crosses, and `cookedFrom` dropped outright. Deliberate, and it
+// also keeps `cooked.hunger` server-only — hunger must never leak to the
+// client (see Soilery hunger-meter rework).
 export function cookedTasteOnly(tag) {
   if (!tag?.cooked && !tag?.cookedFrom?.length) return tag;
   const { cooked, cookedFrom, ...rest } = tag;

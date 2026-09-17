@@ -185,6 +185,15 @@ export default function RequestActionsProvider({
   canSeeExtract = false,
   canExtract = false,
   extractBlocked = null,
+  // The Farms placeholder (db/lib/soilery.js). Same posture as Extract just
+  // above: whether this ground is a Soilery is a fact about where you're
+  // standing, resolved server-side in character/page.js. `farmBlocked` is
+  // farmRefusalFor()'s own sentence — the same one farmRequestImpl throws on
+  // a bypassed request.
+  canSeeFarm = false,
+  canFarm = false,
+  farmBlocked = null,
+  farmMaxCrops,
   canSeePackage = false,
   // Crucify: you hold `fundamentalist` and a COMPLETE Cross stands where you
   // are. Both facts about YOUR sheet and YOUR ground, resolved in
@@ -315,6 +324,7 @@ export default function RequestActionsProvider({
     canRead,
     resources,
     carry,
+    farmMaxCrops,
     transferParties,
     transferSilo,
     lootTargets,
@@ -476,7 +486,12 @@ export default function RequestActionsProvider({
       canExamine: !examineBlocked,
       // The sentence ActionGrid appends to a greyed button's tooltip, so a
       // player reads why instead of DMing to ask.
-      gateReason: { examine: examineBlocked, extract: extractBlocked, kiss: kissBlocked },
+      gateReason: {
+        examine: examineBlocked,
+        extract: extractBlocked,
+        farm: farmBlocked,
+        kiss: kissBlocked,
+      },
       canLearn: teachers.length > 0,
       // Symmetrical with canLearn: a list the server already filtered to who
       // is standing here and what they could actually take off you.
@@ -513,6 +528,8 @@ export default function RequestActionsProvider({
       canButcher,
       canSeeExtract,
       canExtract,
+      canSeeFarm,
+      canFarm,
       canSeePackage,
       canCrucify,
       canShackle,
@@ -549,6 +566,7 @@ export default function RequestActionsProvider({
       researchHint,
       examineBlocked,
       extractBlocked,
+      farmBlocked,
       kissBlocked,
       kissTargets,
       searchParties,
@@ -568,6 +586,8 @@ export default function RequestActionsProvider({
       canButcher,
       canSeeExtract,
       canExtract,
+      canSeeFarm,
+      canFarm,
       canSeePackage,
       canCrucify,
       canShackle,

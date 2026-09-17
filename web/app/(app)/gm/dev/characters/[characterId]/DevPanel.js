@@ -55,7 +55,6 @@ export default function DevPanel({
   tags,
   held,
   characterTags,
-  feed,
   carry,
   goalsSummary,
   lastActivity,
@@ -231,7 +230,6 @@ export default function DevPanel({
         discord={discord}
         curse={curse}
         held={held}
-        feed={feed}
         carry={carry}
         goalsSummary={goalsSummary}
         lastActivity={lastActivity}
@@ -253,7 +251,6 @@ export default function DevPanel({
         transferRoster={transferRoster}
         tags={tags}
         held={held}
-        feed={feed}
         onApplyTags={applyTagOps}
         refresh={refresh}
         onDeleted={onDeleted}
