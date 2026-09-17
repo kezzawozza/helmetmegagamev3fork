@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · The who's-here menu now checks your own sheet
+
+✎ Perform Miracle no longer appears on the person menu for anyone who isn't a Saint — it was the one surface that ignored the button's own rules, so every player saw it  
+✎ Heal and Kiss now grey out there too, with the same reason the sheet gives, instead of opening a dialog that refuses
+
 ## 2026-09-17 · Read the whole roster once instead of one member at a time
 
 ✎ The web app reads Discord's member list once instead of asking about each player separately, which is what was rate-limiting everyone

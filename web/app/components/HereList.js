@@ -9,7 +9,7 @@ import FormError from "@/app/components/FormError";
 import LookReadout from "@/app/components/LookReadout";
 import { EyeIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
-import { ACTION_HELP } from "@/app/components/actionRegistry";
+import { ACTION_HELP, actionFor, reasonFor } from "@/app/components/actionRegistry";
 import { lookAtRow } from "@/app/(app)/chat/actions";
 import { loadPeopleHere } from "@/app/(app)/character/rosterActions";
 import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
@@ -39,11 +39,20 @@ import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
 // row is greyed for a fact about the person it names — that's the dialog's
 // answer and the server's, never a menu hint.
 //
+// AND THESE ARE THE REGISTRY'S ROWS, so they take the registry's `show` and
+// `gate` with them — the same two keys ActionGrid.js reads. This menu used to
+// carry neither, which is how Perform Miracle came to sit on the menu of every
+// player who wasn't a Saint. The two rules don't fight: every gate in the
+// registry is a fact about YOUR OWN sheet by construction, so honouring them
+// here hides nothing about who is standing near you.
+//
 // Look at is NOT on this menu (the eye on the row already is it). Move
 // Player is gone entirely — the party rack below this list replaced it
 // (docs/systemdocs/MAP.md §3a).
 // `hoodPrefix` makes a row offerable to a hood: transferRequestImpl parses
 // "hood:<token>" via resolveHoodToken (web/lib/peoplePools.js). No prefix means named-rows-only.
+// Everything else about a row — whether it shows at all, whether it is greyed,
+// and the sentence saying why — comes from the registry, not from here.
 const PEOPLE_ACTIONS = [
   { mode: "heal", label: "Heal", preset: "patientId" },
   { mode: "miracle", label: "Perform Miracle", preset: "patientId" },
@@ -65,6 +74,7 @@ const PEOPLE_ACTIONS = [
 function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
   const actions = useRequestActions();
   const open = actions?.open ?? null;
+  const pools = actions?.pools ?? null;
 
   const pick = useCallback(
     (entry) => {
@@ -77,19 +87,33 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
   );
 
   // A hood with no token is a hood nothing can act ON (hoodToken mints none without an AUTH_SECRET); Converse still works.
-  const entries = PEOPLE_ACTIONS.filter((entry) => (person.hooded ? entry.hoodPrefix && person.ref : true));
+  // Then the registry's own `show`, exactly as ActionGrid.js applies it. A mode
+  // the registry doesn't know stays on the menu, so nothing can vanish by
+  // accident — the filter only ever removes a row somebody wrote a rule for.
+  const entries = PEOPLE_ACTIONS.filter((entry) => {
+    if (person.hooded && !(entry.hoodPrefix && person.ref)) return false;
+    const action = actionFor(entry.mode);
+    return action?.show ? Boolean(pools?.[action.show]) : true;
+  });
 
   return (
     <div className="chat-menu" role="menu" aria-label={person.name}>
-      {entries.map((entry) => (
-        <ActionButton
-          key={entry.mode}
-          variant="menu"
-          label={entry.label}
-          help={ACTION_HELP[entry.mode] ?? null}
-          onClick={() => pick(entry)}
-        />
-      ))}
+      {entries.map((entry) => {
+        // The label stays the menu's own — these are spelled-out verbs, not the
+        // rack's glyph captions. Everything else is the registry's.
+        const action = actionFor(entry.mode);
+        return (
+          <ActionButton
+            key={entry.mode}
+            variant="menu"
+            label={entry.label}
+            help={ACTION_HELP[entry.mode] ?? null}
+            disabled={action?.gate ? !pools?.[action.gate] : false}
+            reason={action ? reasonFor(action, pools) : null}
+            onClick={() => pick(entry)}
+          />
+        );
+      })}
       {/* Only offered where there is a door to open; the server re-checks that this character may work it. */}
       {addPlace && onAddMember && person.ref && (
         <ActionButton
