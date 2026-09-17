@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Mood gains from drinks, meals, music, kisses and confessions are all up about 15%
+
+✎ Shelter, the Cathedral, every drink and treat, a fulfilled Desire, Confession, Kiss and Music all lift the mood dial a bit more than before
+
 ## 2026-09-17 · The composer is one box now, and the hood button is gone
 
 ✎ The message box on /chat is one rounded container, the way Discord's is: the Speak picker, the ✉ and the send all sit inside it. It was three separate bordered boxes standing in a line, with a solid orange Send slab stretched to the full height of the middle one.  
