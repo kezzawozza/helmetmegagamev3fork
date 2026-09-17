@@ -8,10 +8,14 @@
 // no body to bury and never waits on a mourner. The seat is whatever is
 // actually open, same as everyone else gets — in a full game Bum or Migrant,
 // since those are the only two that reopen on a death (db/lib/roleCapacity.js).
+//
+// The new body is granted Metempsychosis again, so the loop never breaks on
+// its own, and one more stack of Heightened Psychosis — a pure counter, never
+// touched anywhere else, that makes quantity the number of past lives.
 // Lives in db/lib because EIGHT callers kill people, all through
 // db/lib/characterDeath.js#applyDeathToRow. Takes `prisma` as a parameter and
 // stays off the @lifeweb/db barrel, the db/lib/dm.js convention; require it by path.
-const { METEMPSYCHOSIS_SLUG } = require("./constants");
+const { METEMPSYCHOSIS_SLUG, HEIGHTENED_PSYCHOSIS_SLUG } = require("./constants");
 const { roleCapacity, isSpawnOnly } = require("./roleCapacity");
 const { heldSeatsByRole } = require("./seatCount");
 const { effectivePlayerCount } = require("./gameState");
@@ -102,9 +106,12 @@ async function openRoles(prisma, config, state) {
 // Discord user, or no seat left anywhere. Every null is a normal outcome, not
 // an error.
 // THE CALLER OWNS THE TAG CHECK: db/lib/characterDeath.js counts the holding
-// before it flips the status, since a gib deletes the tag rows outright.
+// before it flips the status, since a gib deletes the tag rows outright. Same
+// story for `priorPsychosisCount` — it is the dying character's OWN stack,
+// read at that same moment for that same reason, and handed in rather than
+// re-queried here.
 // Same posture as db/lib/dm.js.
-async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
+async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisCount = 0 } = {}) {
   const discordUserId = deadCharacter.discordUserId;
   if (!discordUserId) return null;
 
@@ -138,9 +145,13 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
     const { slug, quantity } = parseStartingTag(entry);
     wanted.set(slug, (wanted.get(slug) ?? 0) + quantity);
   }
-  const startingTags = wanted.size
-    ? await prisma.tag.findMany({ where: { slug: { in: [...wanted.keys()] } } })
-    : [];
+  // The soul carries two things no role's kit ever lists, which is why these
+  // overwrite rather than add: Metempsychosis renewing itself is what makes
+  // the loop infinite, and Heightened Psychosis's count is the number of
+  // lives spent, not a quantity any role kit gets a vote on.
+  wanted.set(METEMPSYCHOSIS_SLUG, 1);
+  wanted.set(HEIGHTENED_PSYCHOSIS_SLUG, priorPsychosisCount + 1);
+  const startingTags = await prisma.tag.findMany({ where: { slug: { in: [...wanted.keys()] } } });
 
   const identity = await rollIdentity(prisma, role);
 

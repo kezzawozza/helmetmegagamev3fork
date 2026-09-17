@@ -956,6 +956,18 @@ The seat it lands in is whatever is actually open, same as anyone else's — in
 a full game Bum or Migrant, those being the only two that reopen on a death,
 but a role nobody ever took is fair game.
 
+**The new body is granted Metempsychosis again**, so the loop never breaks on
+its own — the catalog line's "you can respawn freely and infinitely" is
+literal, not flavor. Every trip through also adds one stack of
+**Heightened Psychosis**, a `visible: false`, non-`mastery`, purely code-granted
+counter (`docs/tags.yaml`) that nobody buys and nothing else touches:
+`CharacterTag.quantity` on that tag *is* the number of lives this soul has
+already spent. `db/lib/characterDeath.js#applyDeathToRow` reads the dying
+character's own stack **before** the claim (and before a possible gib), the
+same timing and the same reason it already reads the Metempsychosis holding
+itself, and hands the count into `reincarnate()` as `priorPsychosisCount` so a
+gib can never reset it to zero.
+
 It hangs off `db/lib/characterDeath.js#applyDeathToRow` rather than off the
 wizard, because **nine** callers kill people — the dying, catatonic,
 ascension, nuke and turret passes, the rites, the web's own `killCharacter`,

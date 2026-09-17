@@ -8,7 +8,7 @@ const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
 const { SEAT_TAG_SLUGS } = require("./threats");
 const { applyMood } = require("./mood");
-const { GIBBED_SLUG, METEMPSYCHOSIS_SLUG } = require("./constants");
+const { GIBBED_SLUG, METEMPSYCHOSIS_SLUG, HEIGHTENED_PSYCHOSIS_SLUG } = require("./constants");
 const { NOT_A_FIGHT } = require("./intercept");
 const { closeFightsFor } = require("./attack");
 const { teardownPartyThread } = require("./partyChat");
@@ -77,6 +77,17 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   const reborn = await prisma.characterTag
     .count({ where: { characterId: character.id, tag: { slug: METEMPSYCHOSIS_SLUG } } })
     .catch(() => 0);
+  // Same reason, same timing: how many lives this soul has already spent, off
+  // the dying character's own stack — a gib would otherwise erase the count
+  // it is about to carry forward.
+  const priorPsychosis = reborn
+    ? await prisma.characterTag
+        .findFirst({
+          where: { characterId: character.id, tag: { slug: HEIGHTENED_PSYCHOSIS_SLUG } },
+          select: { quantity: true },
+        })
+        .catch(() => null)
+    : null;
 
   // Same reason, same moment: what is over the face has to be read before the
   // unequip below takes it off. A gib keeps none of it — vaporizeTags deletes
@@ -181,7 +192,7 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     // Required HERE not at the top: reincarnate -> locationMove -> ... loops back to this file,
     // and a top-level require would resolve to a half-built exports object.
     const { reincarnate } = require("./reincarnate");
-    await reincarnate(prisma, character, { turn }).catch(
+    await reincarnate(prisma, character, { turn, priorPsychosisCount: priorPsychosis?.quantity ?? 0 }).catch(
       (err) => console.error(`Reincarnation failed for ${character.id}:`, err.message ?? err),
     );
   }

@@ -155,6 +155,8 @@ const WOUND_TAG_GROUPS = Object.freeze(["health-wounds", "health-maiming", "heal
 const LUCKY_SLUG = "lucky";
 const MANIC_SLUG = "manic";
 const METEMPSYCHOSIS_SLUG = "metempsychosis";
+// A pure counter (db/lib/reincarnate.js): one stack added per life spent, never removed by rolling.
+const HEIGHTENED_PSYCHOSIS_SLUG = "heightened-psychosis";
 const AMOR_FATI_SLUG = "amor-fati";
 const IMPERTURBABLE_SLUG = "imperturbable";
 // Imperturbable's opposite number, and the only other tag that PINS the dial
@@ -269,6 +271,7 @@ module.exports = {
   LUCKY_SLUG,
   MANIC_SLUG,
   METEMPSYCHOSIS_SLUG,
+  HEIGHTENED_PSYCHOSIS_SLUG,
   AMOR_FATI_SLUG,
   IMPERTURBABLE_SLUG,
   CHANGA_HIGH_SLUG,

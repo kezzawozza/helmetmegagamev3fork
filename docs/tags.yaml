@@ -2415,9 +2415,13 @@ tags:
     mastery: true
 
   # On death this rolls the holder straight into a new body: a random role with
-  # a free seat, the starting budget plus 6, and no Curse. See CHARACTERS.md.
+  # a free seat, the starting budget plus 4, and no Curse. See CHARACTERS.md.
   # The description is deliberately vague — the player is told what it does by
   # DM when they take it, not by the catalog line.
+  # The new body is granted THIS tag again (db/lib/reincarnate.js), so the
+  # loop never breaks on its own — the catalog line's "infinitely" is literal.
+  # It also picks up one more stack of heightened-psychosis, below, every
+  # time — a soul worn thinner with every trip through a new skull.
   metempsychosis:
     catalog: all
     name: Metempsychosis
@@ -2429,6 +2433,22 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     mastery: true
+
+  # A pure counter, never chosen and never removable — db/lib/reincarnate.js
+  # adds one stack every time Metempsychosis fires, so quantity IS the number
+  # of past lives. Not `mastery`: nobody buys this, so none of that band's
+  # rules (store-only, no negative cost) have anything to say about it.
+  heightened-psychosis:
+    catalog: gm
+    name: Heightened Psychosis
+    category: general
+    group: general-traits
+    description: "Your soul has been poured into one too many bodies. Something about you no longer sits quite right."
+    pointCost: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
 
   # A negative factor in db/lib/mood.js MULTIPLIERS, which flips harm into
   # relief. Shocks pay HALF their sting back as mood; the ever-present costs
