@@ -2451,6 +2451,10 @@ tags:
   pickpocket:
     catalog: all
     name: Pickpocketing (Basic)
+    # See comment above: slug stays `pickpocket` on purpose, so the rename
+    # keeps every Brigand who already bought it. keepSlug: true tells the
+    # syncer this drift is deliberate.
+    keepSlug: true
     category: general
     group: general-traits
     description: "Your hands lighten burdened pockets. Your thefts are very hard to detect."

@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · docs/tags: mark pickpocket's slug rename deliberate
+
+✎ The 2026-09-16 rename to Pickpocketing (Basic) kept the slug on purpose (the comment above it says so), but forgot the keepSlug: true marker. Pre-Deploy's sync-tags refused every deploy after until this landed.
+
 ## 2026-09-17 · Party chat, and Deadchat loses its subtitle
 
 ✚ A party is now a chat: each party gets its own channel under Radio on the web, and a private thread under #gameplay on Discord. Members added and dropped as parties form, travel and split.  
