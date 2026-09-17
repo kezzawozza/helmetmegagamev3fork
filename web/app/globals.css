@@ -7376,6 +7376,13 @@ label.chip {
   background: transparent;
   border-color: transparent;
   color: var(--muted);
+  /* Same height as everything else on the row. `.control` brings `padding: 8px
+     10px` and a 1px border, which made this 32px next to a 26px send — and the
+     row is align-items: flex-end, so three heights meant three different text
+     positions. The trigger is already a centred flex box, so a height is all it
+     takes; no padding maths, and it survives a font-size change. */
+  height: 26px;
+  padding: 0 var(--sp-1);
 }
 
 .chat-composer-box .chat-mode-select:hover {
@@ -7395,6 +7402,11 @@ label.chip {
   border: 0;
   border-radius: 0;
   padding: var(--sp-1) 0;
+  /* border-box so a height here means what it means on the buttons beside it.
+     A textarea's scrollHeight ALREADY includes its padding, so assigning it to
+     a content-box height added that padding a second time and drew the box 8px
+     taller than its own text. */
+  box-sizing: border-box;
 }
 
 .chat-composer textarea::placeholder {
@@ -8726,6 +8738,18 @@ label.chip {
   /* A square stays a square: the floor is a width as well as a height. */
   .chat-shell .icon-btn {
     min-width: var(--tap);
+  }
+  /* The composer's other two, so the row stays ONE line on a touch screen.
+     The icon buttons above are floored at any width, but the textarea's own 44
+     lives in the 720px block — so a tablet in landscape (coarse pointer, wide
+     viewport) drew a 34px box between two 44px buttons. That is the tablet case
+     this block is keyed on the pointer for in the first place. */
+  .chat-shell .chat-composer textarea {
+    min-height: var(--tap);
+  }
+
+  .chat-shell .chat-composer-box .chat-mode-select {
+    height: var(--tap);
   }
   /* 36 is for a label you may also press, inside prose. */
   .chat-shell .chip,

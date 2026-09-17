@@ -2210,18 +2210,25 @@ export default function Feed({
                     }
                     rows={1}
                     value={draft}
-                    // Just where you are, the way Discord says just which
-                    // channel you are in. "Enter to send · Shift+Enter for a
-                    // line" used to ride along on the end of this: permanent
-                    // chrome, at full size, for something anybody learns on
-                    // their first message — and it was the longest thing in the
-                    // composer.
+                    // Three words, and no place name. It read "Say something
+                    // in {place}…", which wrapped to two lines on a phone — and
+                    // a textarea cannot ellipsis a placeholder, so the second
+                    // line was simply cut off. The place is named in the header
+                    // directly above the scene anyway, so the box was repeating
+                    // it. "Enter to send · Shift+Enter for a line" used to ride
+                    // along on the end of this too: permanent chrome, at full
+                    // size, for something anybody learns on their first message.
+                    //
+                    // The hood keeps its own line. That one is not a label for
+                    // where you are, it is a warning about which name every row
+                    // you send will wear. The aria-label above still says the
+                    // place, where the words cost no pixels.
                     placeholder={
                       command
                         ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it")
                         : concealed && alias
                           ? `Say something as ${alias}…`
-                          : `Say something in ${place.name}…`
+                          : "Say something…"
                     }
                     onChange={onDraftChange}
                     onKeyDown={(e) => {

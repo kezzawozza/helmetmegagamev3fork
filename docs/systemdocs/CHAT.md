@@ -532,8 +532,24 @@ like everything else.
   presses. **The send is a quiet glyph on both faces now**, `.chat-composer-send`
   on a desktop and the 44px accent `.chat-send` under a coarse pointer, where
   it really is the thing a thumb aims at.
+
+  **Every child of `.chat-composer-row` is the same height**, and that is what
+  makes the row read as one line: 26px under a fine pointer, `--tap` under a
+  coarse one. The row is `align-items: flex-end`, so the controls stay level
+  with the LAST line as the box grows — which only looks right if they all
+  start equal. Two need saying so explicitly: the Speak picker, because
+  `.control` brings its own `padding: 8px 10px` and a border, and the textarea,
+  which is `box-sizing: border-box` here so a height means what it means on the
+  buttons beside it (a textarea's `scrollHeight` already includes its padding,
+  so a content-box height counted it twice). The coarse-pointer floor for both
+  lives in the `.chat-shell` touch block rather than the 720px one, or a tablet
+  in landscape draws a 34px box between two 44px buttons.
 - **The box is one line at rest and grows to about six.** `rows={1}` is only
-  the floor; `useComposerAutosize` sets the height off `scrollHeight`. All
+  the floor; `useComposerAutosize` sets the height off `scrollHeight` — but
+  **only once something is typed**. An empty box clears the inline height and
+  lets CSS own it, because `scrollHeight` counts the PLACEHOLDER: on a narrow
+  screen a wrapping placeholder made an empty box measure 54px against a 44px
+  line and draw itself two lines tall before anybody had touched it. All
   three composers share that hook — the scene's, Bascinet's pane and the GM's
   system box — because a one-line box with no autosize scrolls a long message
   inside a single line instead of growing to hold it.
@@ -545,12 +561,20 @@ like everything else.
   `:focus-visible` rule is untouched, and the picker, the ✉ and the send inside
   the same box all keep their ring. Only the textarea has a caret to stand in
   for one — do not extend this to anything that hasn't.
-- **The placeholder says where you are and nothing else** — "Say something in
-  {place}…", or "Say something as {alias}…" under a hood. "Enter to send ·
-  Shift+Enter for a line" used to ride along on the end of it: permanent
-  chrome, at full size, for something anybody learns on their first message,
-  and the longest thing in the composer. It is gone; the send button's tooltip
-  is what is left, which is why the send stays a labelled `IconButton`.
+- **The placeholder is "Say something…" and nothing else** — no place name. It
+  said "Say something in {place}…", which wraps to two lines on a phone, and a
+  textarea cannot ellipsis a placeholder, so the second line was cut off. The
+  head names the place directly above the scene on both faces, so the box was
+  repeating it. Two things it still says: **"Say something as {alias}…"** under
+  a hood, which is a warning about the name every row will wear rather than a
+  label for where you are, and the **`aria-label`**, which keeps the place name
+  because words cost a screen reader no pixels.
+
+  "Enter to send · Shift+Enter for a line" used to ride along on the end of it
+  too: permanent chrome, at full size, for something anybody learns on their
+  first message, and the longest thing in the composer. It is gone; the send
+  button's tooltip is what is left, which is why the send stays a labelled
+  `IconButton`.
 - **Speak / Shout / OOC is an inline dropdown at the head of the composer row**
   on desktop — inside the box now, at the left of `.chat-composer-row`, with
   its `.control` surface and border taken off so it reads as a label you press

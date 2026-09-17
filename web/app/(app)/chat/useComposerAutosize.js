@@ -18,6 +18,15 @@ export default function useComposerAutosize(ref, value, extra = null) {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // An empty box is one line, and CSS is what says how tall a line is (rows=1,
+    // plus the touch floor). Measuring here instead would measure the
+    // PLACEHOLDER: scrollHeight counts it, so on a narrow screen — where "Say
+    // something in Supply Room…" wraps — an empty box reported 54px against a
+    // 44px line and drew itself two lines tall before anybody had typed.
+    if (!value) {
+      el.style.height = "";
+      return;
+    }
     el.style.height = "auto";
     const line = parseFloat(getComputedStyle(el).lineHeight) || 20;
     el.style.height = `${Math.min(el.scrollHeight, Math.round(line * 6) + 12)}px`;
