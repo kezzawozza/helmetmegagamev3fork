@@ -23,6 +23,7 @@ import HideoutDialog from "./HideoutDialog";
 import MoveThingsDialog from "./MoveThingsDialog";
 import DestroyDialog from "./DestroyDialog";
 import PackageDialog from "./PackageDialog";
+import FarmDialog from "./FarmDialog";
 import PurchaseDialog from "./PurchaseDialog";
 import HealDialog from "./HealDialog";
 import LessonDialog from "./LessonDialog";
@@ -114,6 +115,7 @@ export const DIALOGS = {
   loot: MoveThingsDialog,
   destroy: DestroyDialog,
   package: PackageDialog,
+  farm: FarmDialog,
   purchase: PurchaseDialog,
   heal: HealDialog,
   learn: LessonDialog,

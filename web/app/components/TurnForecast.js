@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import {
-  ATE_MEAL_SLUG,
-  FAST_METABOLISM_SLUG,
   HORSE_UPKEEP_COST,
-  HUNGERLESS_SLUG,
   UPKEEP_SLUGS,
 } from "@lifeweb/db/lib/constants";
 import { chainTokens } from "@/lib/tagChains";
@@ -35,6 +32,11 @@ export default function TurnForecast({
   craftProjects = [],
   sitesHere = [],
   resources = 0,
+  // "hungry" | "starving" | null — resolved server-side, off the actual
+  // hungerValue and the coming turn's decay (db/lib/hunger.js), on the turn
+  // it would FIRST cross that threshold. Never the raw number: character/
+  // page.js computes this and never sends hungerValue itself to the client.
+  hungerWarning = null,
 }) {
   const [open, setOpen] = useState(false);
   if (openTurnNumber == null) return null;
@@ -83,19 +85,19 @@ export default function TurnForecast({
   const heldUpkeepCount = UPKEEP_SLUGS.filter((slug) => held.has(slug)).length;
   const horseCost = heldUpkeepCount * HORSE_UPKEEP_COST;
 
-  // Dinner, the way db/lib/hungerPass.js settles it: Hungerless owes nothing,
-  // a meal already eaten covers it, otherwise the flat 1 ⬢ (2 with Fast
-  // Metabolism) — and under the full cost you pay nothing and go Hungry. The
-  // horse's feed is billed before Hunger (TURN-ENGINE.md §7d) so it folds
-  // into the same total here.
-  if (!held.has(HUNGERLESS_SLUG) && !held.has(ATE_MEAL_SLUG)) {
-    const dinnerCost = held.has(FAST_METABOLISM_SLUG) ? 2 : 1;
-    const totalCost = horseCost + dinnerCost;
-    items.push(
-      <span key="dinner">{resources >= totalCost ? `You'll consume ${totalCost} ⬢` : "You'll go hungry"}</span>,
-    );
-  } else if (horseCost > 0) {
-    // Hungerless, or already fed — Dinner is skipped, but the horse still eats.
+  // The 0-30 hunger meter (db/lib/hunger.js): no ⬢ cost any more, and never a
+  // number — just a one-time warning on the turn decay would newly cross a
+  // threshold. Staying in a band already entered says nothing new (the doc's
+  // rule; hungerWarning is only ever non-null on the crossing turn itself).
+  if (hungerWarning === "starving") {
+    items.push(<span key="hunger">You&apos;ll start starving</span>);
+  } else if (hungerWarning === "hungry") {
+    items.push(<span key="hunger">You&apos;ll go hungry</span>);
+  }
+
+  // The horse's feed (and every other UPKEEP_SLUGS animal) is its own line
+  // now that Hunger costs no ⬢ to fold it into.
+  if (horseCost > 0) {
     items.push(
       <span key="horse-upkeep">
         {resources >= horseCost

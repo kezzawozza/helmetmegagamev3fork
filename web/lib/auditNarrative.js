@@ -111,6 +111,16 @@ const R = {
     ...(d.granted?.length ? [t("for"), ...joinChips(d.granted)] : []),
     ...(d.resourcesGranted ? [t("and"), res(d.resourcesGranted)] : []),
   ],
+  // Soilery (db/lib/soilery.js): the harvest itself isn't decided yet at this point — it lands at
+  // turn push (db/lib/moveEffects.js's `farmed` entry) — so this is the PLAN the character filed,
+  // not the outcome. `d.farmPlan.rows` is `[{ slug, tagId, tagName, planted }, ...]`.
+  request_farm: (d) => [
+    actor(), t("sowed"),
+    ...(d.farmPlan?.rows?.length
+      ? joinChips(d.farmPlan.rows.map((row) => `${row.planted}× ${row.tagName}`))
+      : [t("a field")]),
+    ...(d.locationName ? [t("at"), zone(d.locationName)] : []),
+  ],
   request_buy_tags: (d) => [
     actor(), t("bought"), ...joinChips(d.tags ?? []),
     ...(d.totalPoints ? [t(`for ${d.totalPoints} point${d.totalPoints === 1 ? "" : "s"}`)] : []),

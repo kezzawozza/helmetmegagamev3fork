@@ -1,5 +1,5 @@
 const { sendDm } = require("../../dm");
-const { hungerDm, DYING_DM } = require("../../hungerPass");
+const { hungerDm, DYING_DM } = require("../../hunger");
 
 async function sendHungerNotices({ prisma, p, eachDm }) {
   await eachDm("hunger", p.hungerNotices, async (notice) => {

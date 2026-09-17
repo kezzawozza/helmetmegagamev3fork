@@ -189,6 +189,10 @@
 #                     Both halves are validated against this file. The
 #                     condition is applied by the grant, and by nothing else:
 #                     consuming says nothing about what it leaves behind.
+#   cooked:         - what this tag contributes as a COOKING ingredient — see
+#                     docs/systemdocs/COOKING.md §3 for the field reference
+#                     (taste, mood, hunger, tasteForm, into, cures). Not
+#                     documented here since it lives entirely in that doc.
 #   requirement:    - what it costs a character to add (craftable) or remove
 #                     (healable) this tag in play. Enforced by Craft and Heal.
 #                     One shared block covers whichever direction applies to
@@ -319,7 +323,7 @@ tags:
     catalog: gm
     name: Hungerless
     category: meta
-    description: "Never flagged hungry, even with insufficient Resources."
+    description: "You never get hungry. You do not need to eat at all."
     pointCost: 0
     purchasable: false
 
@@ -1471,7 +1475,7 @@ tags:
     keepSlug: true
     category: general
     group: general-traits
-    description: "You consume 2 ⬢ per turn."
+    description: "You get hungry twice as fast as anyone else."
     pointCost: -6
     purchasable: true
     purchasableAfterStart: false
@@ -3321,19 +3325,26 @@ tags:
     purchasableAfterStart: true
 
   # --- Status -----------------------------------------------------------
+  # Nothing reads this as a held tag any more — db/lib/hunger.js#grantsAteMeal
+  # and db/lib/mood.js's relief floor both check a FOOD TAG's own
+  # `consumesInto` list (did eating THIS grant Ate Meal), never whether the
+  # character is still holding it. `durationTurns: 1` exists purely so "you
+  # ate today" doesn't sit on a sheet forever now that the old hunger pass
+  # (which used to eat this tag itself) no longer touches it at all.
   ate-meal:
     catalog: gm
     name: Ate Meal
     category: status
     group: status-food
-    description: "You don't consume any Resources today, because you ate a proper meal. Sheds 1 turn of Hunger."
+    description: "You sat down to a proper meal today."
     pointCost: 0
     purchasable: false
+    durationTurns: 1
 
   # "Ate a fine or lavish meal this turn" — what a noble needs to sleep easy
   # (docs/systemdocs/MOOD.md). No durationTurns on purpose: a 1-turn grant
-  # would be swept before the mood pass reads it, so that pass eats it itself,
-  # the way the hunger pass eats Ate Meal.
+  # would be swept before the mood pass reads it, so that pass eats it itself
+  # instead — unlike Ate Meal above, which now just expires on its own.
   dined:
     catalog: gm
     name: Dined
@@ -3350,11 +3361,28 @@ tags:
     name: Hungry
     category: status
     group: status-debuffs
-    description: "Your stomach is grumbling, and you feel somewhat distracted. You have a -1 modifier on all Gambits per turn you have been hungry."
+    description: "Your stomach is grumbling and you're finding it hard to think straight. Eat something. -1 on all Gambits."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1
+
+  # Deliberate near-duplicate of Hungry, not a replacement for it — a
+  # character at or below the Starving threshold holds BOTH tags at once
+  # (db/lib/hunger.js's HUNGRY_THRESHOLD/STARVING_THRESHOLD), and it's the
+  # Gambit modifier (db/lib/gambitModifier.js) that picks Starving and never
+  # sums the two.
+  starving:
+    catalog: gm
+    name: Starving
+    category: status
+    group: status-debuffs
+    description: "You have not eaten in far too long. Your hands shake and you can barely stand. -3 on all Gambits, and you cannot keep this up."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+    fighting: { tree: both, tiers: -1 }
 
   catatonic-afk:
     catalog: gm
@@ -5467,6 +5495,11 @@ tags:
     consumable: true
     consumesInto: []
     consumesIntoResources: 5
+    cooked:
+      taste: "creamy"
+      tasteForm: "adjective"
+      mood: 10
+      hunger: 4
     sellable: true
     sellablePrice: 10
 
@@ -7463,7 +7496,8 @@ tags:
       - ate-meal
     cooked:
       taste: "milk"
-      mood: 12
+      mood: 7
+      hunger: 3
 
   supply-kit:
     catalog: gm
@@ -10523,10 +10557,596 @@ tags:
     consumable: true
     consumesInto: []
     cooked:
-      taste: "onions"
-      mood: 8
+      taste: "acrid"
+      tasteForm: "adjective"
+      mood: 2
+      hunger: 4
     sellable: true
     sellablePrice: 2
+
+  # Soilery farm crops (docs/systemdocs/SOILERY.md). Sown from a seed bag,
+  # grown in a licensed Farms field, and reaped at turn close via
+  # db/lib/soilery.js — see CROPS there for the exact sowing/crop slug
+  # pairing, which these MUST match exactly.
+  wheat:
+    catalog: all
+    name: Wheat
+    category: items
+    group: items-food
+    description: "A sheaf of raw wheat. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    # Raw it is a bad idea and no dinner. Cooked it is bread. Same
+    # raw/cooked split as blind-fish/deep-morel above.
+    consumesInto: [nauseous]
+    cooked:
+      taste: "crunchy"
+      tasteForm: "adjective"
+      mood: -5
+      hunger: 2
+      into: []
+    sellable: true
+    sellablePrice: 1
+
+  potato:
+    catalog: all
+    name: Potato
+    category: items
+    group: items-food
+    description: "A potato, fresh from the dirt. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "earthy"
+      tasteForm: "adjective"
+      mood: 2
+      hunger: 4
+    sellable: true
+    sellablePrice: 2
+
+  tomato:
+    catalog: all
+    name: Tomato
+    category: items
+    group: items-food
+    description: "A ripe tomato. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "acidic"
+      tasteForm: "adjective"
+      mood: 3
+      hunger: 4
+    sellable: true
+    sellablePrice: 2
+
+  carrot:
+    catalog: all
+    name: Carrot
+    category: items
+    group: items-food
+    description: "A carrot, pulled from the earth. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "earthy"
+      tasteForm: "adjective"
+      mood: 3
+      hunger: 4
+    sellable: true
+    sellablePrice: 2
+
+  plump-helmet:
+    catalog: all
+    name: Plump Helmet
+    category: items
+    group: items-food
+    description: "A stubby fungus that passes for a vegetable in the caves. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "earthy"
+      tasteForm: "adjective"
+      mood: 1
+      hunger: 3
+    sellable: true
+    sellablePrice: 2
+
+  # Grown in the fields like the other Soilery crops above, but not a
+  # foodstuff — no cooked: block, not consumable. Crushing it into fibre for
+  # rope or thread is a later Crafting page; out of scope here.
+  pigtails:
+    catalog: all
+    name: Pigtails
+    category: items
+    group: items-gear
+    description: "A bundle of tough fibrous reeds, grown in the fields. Could be crushed into fibre for rope or thread, if anyone worked out how."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 2
+
+  # Soilery non-growable foodstuffs (docs/systemdocs/SOILERY.md) — same base
+  # shape as the farm crops above, but obtained some other way, not sown.
+  meat:
+    catalog: all
+    name: Meat
+    category: items
+    group: items-food
+    description: "A cut of raw meat. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "meaty"
+      tasteForm: "adjective"
+      mood: 5
+      hunger: 4
+    sellable: true
+    sellablePrice: 2
+
+  rations:
+    catalog: all
+    name: Rations
+    category: items
+    group: items-food
+    description: "A hard block of preserved rations. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [nauseous]
+    cooked:
+      taste: "acrid"
+      tasteForm: "adjective"
+      mood: -5
+      hunger: 4
+      into: []
+    sellable: true
+    sellablePrice: 2
+
+  dead-rat:
+    catalog: all
+    name: Dead Rat
+    category: items
+    group: items-food
+    description: "A dead rat. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [nauseous]
+    cooked:
+      taste: "meaty"
+      tasteForm: "adjective"
+      mood: -10
+      hunger: 3
+      into: []
+    sellable: true
+    sellablePrice: 2
+
+  sugar:
+    catalog: all
+    name: Sugar
+    category: items
+    group: items-food
+    description: "A twist of raw sugar. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "sweet"
+      tasteForm: "adjective"
+      mood: 20
+      hunger: 4
+    sellable: true
+    sellablePrice: 2
+
+  # Deliberate near-duplicate of hard-cheese, not a rename — see the Soilery
+  # plan. Leave hard-cheese alone.
+  cheese:
+    catalog: all
+    name: Cheese
+    category: items
+    group: items-food
+    description: "A wedge of cheese. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "cheesy"
+      tasteForm: "adjective"
+      mood: 15
+      hunger: 4
+    sellable: true
+    sellablePrice: 2
+
+  # The doc calls this "Fat", but that slug is already taken by an unrelated
+  # general character trait (see `fat:` above) — renamed to avoid the slug
+  # collision db:sync-tags would throw on.
+  rendered-fat:
+    catalog: all
+    name: Rendered Fat
+    category: items
+    group: items-food
+    description: "A tub of rendered fat. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "creamy"
+      tasteForm: "adjective"
+      mood: 10
+      hunger: 4
+    sellable: true
+    sellablePrice: 2
+
+  # Deliberate near-duplicate of river-eel, not a rename — see the Soilery
+  # plan. Leave river-eel alone.
+  eel:
+    catalog: all
+    name: Eel
+    category: items
+    group: items-food
+    description: "An eel. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "fishy"
+      tasteForm: "adjective"
+      mood: 7
+      hunger: 5
+    sellable: true
+    sellablePrice: 2
+
+  dustfish:
+    catalog: all
+    name: Dustfish
+    category: items
+    group: items-food
+    description: "A pale fish coated in cave dust. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [nauseous]
+    cooked:
+      taste: "acidic"
+      tasteForm: "adjective"
+      mood: -15
+      hunger: 5
+      into: []
+    sellable: true
+    sellablePrice: 2
+
+  haggar:
+    catalog: all
+    name: Haggar
+    category: items
+    group: items-food
+    description: "A haggar, hauled up from somewhere deep. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "fishy"
+      tasteForm: "adjective"
+      mood: 5
+      hunger: 5
+    sellable: true
+    sellablePrice: 2
+
+  tunnel-trout:
+    catalog: all
+    name: Tunnel Trout
+    category: items
+    group: items-food
+    description: "A trout, fished out of some flooded tunnel. You could cook with it."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "fishy"
+      tasteForm: "adjective"
+      mood: 5
+      hunger: 5
+    sellable: true
+    sellablePrice: 2
+
+  # Soilery seed bags + sowing tickets (docs/systemdocs/SOILERY.md). A bag is
+  # consumed into a one-turn sowing licence; db/lib/soilery.js#CROPS is the
+  # canonical sowing-slug/crop-slug pairing — the SOWING tags below MUST
+  # match it exactly (the bag slugs themselves aren't referenced anywhere
+  # else, so they follow the normal "slug is the name, slugified" rule
+  # instead of the plan's literal `seed-bag-<crop>` draft naming).
+  # One bag licenses any amount of that crop up to the turn's cap of 50.
+  wheat-seed-bag:
+    catalog: all
+    name: Wheat Seed Bag
+    category: items
+    group: items-seeds
+    description: "A sack of seed wheat. Open it in the fields to sow."
+    pointCost: 0
+    depotPrice: 4
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [sowing-wheat]
+    sellable: true
+    sellablePrice: 2
+
+  sowing-wheat:
+    catalog: gm
+    name: Sowing Wheat
+    category: status
+    group: status-buffs
+    description: "You have wheat seed to hand, and today is the day for it."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  potato-seed-bag:
+    catalog: all
+    name: Potato Seed Bag
+    category: items
+    group: items-seeds
+    description: "A sack of seed potatoes. Open it in the fields to sow."
+    pointCost: 0
+    depotPrice: 4
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [sowing-potato]
+    sellable: true
+    sellablePrice: 2
+
+  sowing-potato:
+    catalog: gm
+    name: Sowing Potato
+    category: status
+    group: status-buffs
+    description: "You have potato seed to hand, and today is the day for it."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  tomato-seed-bag:
+    catalog: all
+    name: Tomato Seed Bag
+    category: items
+    group: items-seeds
+    description: "A sack of seed tomato. Open it in the fields to sow."
+    pointCost: 0
+    depotPrice: 4
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [sowing-tomato]
+    sellable: true
+    sellablePrice: 2
+
+  sowing-tomato:
+    catalog: gm
+    name: Sowing Tomato
+    category: status
+    group: status-buffs
+    description: "You have tomato seed to hand, and today is the day for it."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  carrot-seed-bag:
+    catalog: all
+    name: Carrot Seed Bag
+    category: items
+    group: items-seeds
+    description: "A sack of seed carrot. Open it in the fields to sow."
+    pointCost: 0
+    depotPrice: 4
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [sowing-carrot]
+    sellable: true
+    sellablePrice: 2
+
+  sowing-carrot:
+    catalog: gm
+    name: Sowing Carrot
+    category: status
+    group: status-buffs
+    description: "You have carrot seed to hand, and today is the day for it."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  onion-seed-bag:
+    catalog: all
+    name: Onion Seed Bag
+    category: items
+    group: items-seeds
+    description: "A sack of seed onion. Open it in the fields to sow."
+    pointCost: 0
+    depotPrice: 4
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [sowing-onion]
+    sellable: true
+    sellablePrice: 2
+
+  sowing-onion:
+    catalog: gm
+    name: Sowing Onion
+    category: status
+    group: status-buffs
+    description: "You have onion seed to hand, and today is the day for it."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  plump-helmet-seed-bag:
+    catalog: all
+    name: Plump Helmet Seed Bag
+    category: items
+    group: items-seeds
+    description: "A sack of plump helmet spores. Open it in the fields to sow."
+    pointCost: 0
+    depotPrice: 4
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [sowing-plump-helmet]
+    sellable: true
+    sellablePrice: 2
+
+  sowing-plump-helmet:
+    catalog: gm
+    name: Sowing Plump Helmet
+    category: status
+    group: status-buffs
+    description: "You have plump helmet spores to hand, and today is the day for it."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  pigtails-seed-bag:
+    catalog: all
+    name: Pigtails Seed Bag
+    category: items
+    group: items-seeds
+    description: "A sack of pigtails seed. Open it in the fields to sow."
+    pointCost: 0
+    depotPrice: 4
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [sowing-pigtails]
+    sellable: true
+    sellablePrice: 2
+
+  sowing-pigtails:
+    catalog: gm
+    name: Sowing Pigtails
+    category: status
+    group: status-buffs
+    description: "You have pigtails seed to hand, and today is the day for it."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
 
   boar-loin:
     catalog: all
@@ -10673,6 +11293,7 @@ tags:
     cooked:
       taste: "crayfish"   # Bascinet has not written this one.
       mood: 12
+      hunger: 5
     sellable: true
     sellablePrice: 3
 
@@ -10788,7 +11409,8 @@ tags:
     consumesInto: []
     cooked:
       taste: "butter"   # Bascinet has not written this one.
-      mood: 30
+      mood: 15
+      hunger: 4
     sellable: true
     sellablePrice: 6
 
@@ -10829,6 +11451,9 @@ tags:
     custom: { cost: 0, describable: false }
     # Was a flat 15 in db/lib/mood.js. The ingredient does the work now.
     mealMood: 5
+    # A cooked plate beats its raw ingredients (db/lib/hunger.js#foodHungerFor
+    # sums this with each ingredient's own cooked.hunger) — SOILERY.md §6.
+    mealHunger: 4
     consumable: true
     consumesInto:
       - ate-meal
@@ -10864,6 +11489,8 @@ tags:
     # Was a flat 30 in db/lib/mood.js, which was the single largest relief in
     # the game and left the ingredient nothing to say. See MOOD.md §6.
     mealMood: 8
+    # See fine-meal's mealHunger comment above — the Lavish rung is worth more.
+    mealHunger: 6
     consumable: true
     consumesInto:
       - ate-meal
@@ -12824,6 +13451,7 @@ tags:
     cooked:
       taste: "little crunchies"
       mood: 28
+      hunger: 4
 
   honey:
     catalog: gm
@@ -12846,6 +13474,7 @@ tags:
     cooked:
       taste: "honey"
       mood: 20
+      hunger: 4
 
   sky-lantern:
     catalog: gm

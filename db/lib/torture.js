@@ -49,7 +49,7 @@ function tortureBonuses({ torturerSlugs = [], equipmentInReach = false } = {}) {
   );
 }
 
-// `gambitMods` is gambitModifiers(torturerTags, { hungerStreak, mood }) — computed by the caller since those read Character columns this file never sees.
+// `gambitMods` is gambitModifiers(torturerTags, { mood }) — computed by the caller since mood reads a Character column this file never sees.
 function resolveTorture({ die, rolls = null, torturerSlugs = [], targetSlugs = [], equipmentInReach = false, gambitMods = [] }) {
   const modifiers = [...tortureBonuses({ torturerSlugs, equipmentInReach }), ...gambitMods];
   const total = die + modifiers.reduce((sum, m) => sum + m.value, 0);

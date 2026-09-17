@@ -953,7 +953,7 @@ async function releaseMoveLockImpl({ actionId }) {
 // Returns { data, advantageSource } rather than consuming Inspired itself —
 // this stays a pure function; the caller (inside its own transaction) calls
 // consumeInspiredIfUsed with the source.
-function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
+function normalizeEdits(action, edits, characterTags, mood) {
   const data = {};
   let advantageSource = null;
 
@@ -976,13 +976,13 @@ function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
       data.diceRoll = null;
       data.diceModifier = null;
     } else {
-      // Rolled from the character's current tags/hungerStreak/mood, not
-      // whatever was true when the player submitted. That includes Lucky or
-      // Inspired: a GM switching a Routine to a Gambit must roll the same
-      // die the player's own submit path would have (db/lib/advantage.js).
+      // Rolled from the character's current tags/mood, not whatever was true
+      // when the player submitted. That includes Lucky or Inspired: a GM
+      // switching a Routine to a Gambit must roll the same die the player's
+      // own submit path would have (db/lib/advantage.js).
       const advantage = rollWithAdvantage(characterTags, 6, { gambitOnly: true });
       data.diceRoll = advantage.die;
-      data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak, mood });
+      data.diceModifier = gambitModifierTotal(characterTags, { mood });
       advantageSource = advantage.source;
     }
   }
@@ -1031,7 +1031,6 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
       action,
       edits,
       action.character.tags,
-      action.character.hungerStreak,
       action.character.mood,
     );
     // Before the update below clears appliedEffects: revertMoveEffects reads it off the row
@@ -1252,7 +1251,7 @@ async function getCharacterInspectorImpl({ characterId }) {
       : character.zone?.name || "Unassigned",
     resources: character.resources,
     tagPoints: character.tagPoints,
-    gambitModifier: gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak, mood: character.mood }),
+    gambitModifier: gambitModifierTotal(character.tags, { mood: character.mood }),
     acted,
     currentTurnNumber: openTurn?.number ?? null,
     tags: character.tags.map((ct) => ({

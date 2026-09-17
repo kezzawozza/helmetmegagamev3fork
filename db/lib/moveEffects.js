@@ -39,8 +39,9 @@ const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
 const { rollWithAdvantage } = require("./advantage");
 const { expiryFrom } = require("./turnFormat");
-const { nextLaborFatigueSlug } = require("./laborFatigue");
+const { nextLaborFatigueSlug, grantExhaustedOutright } = require("./laborFatigue");
 const { TIER_TO_LABOR_DROP_TYPE, pickLaborDropOption } = require("./laborDrops");
+const { reap, harvestLine } = require("./soilery");
 
 // One entry per pushable thing. `read` decides what this Move would push right now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert`
 // takes back exactly what was snapshotted.
@@ -205,6 +206,79 @@ const MOVE_EFFECTS = {
       }
     },
   },
+
+  // Soilery (db/lib/soilery.js, docs' Soilery plan §B6): a Farm Move commits at press — the seed
+  // bag's licence is spent and gone the moment `farmRequestImpl` files it — but the wither die and
+  // the Exhausted lockout only land here, at push, exactly like `refined` above. `action.farmPlan`
+  // is `{ v: 1, rows: [{ slug, tagId, tagName, planted }, ...] }`, written by farmRequestImpl.
+  farmed: {
+    read: (action) => (action.farmPlan?.rows?.length ? 1 : 0),
+    apply: async (tx, action) => {
+      const plan = action.farmPlan;
+      const tagIds = plan.rows.map((row) => row.tagId);
+      const tags = await tx.tag.findMany({
+        where: { id: { in: tagIds } },
+        select: { id: true, stackable: true },
+      });
+      const stackableById = new Map(tags.map((tag) => [tag.id, tag.stackable]));
+
+      const rows = [];
+      for (const row of plan.rows) {
+        const reaped = reap(row.planted);
+        if (reaped > 0) {
+          const { addToStack } = require("./tagWrites");
+          await addToStack(tx, action.characterId, row.tagId, reaped, {
+            source: "EVENT",
+            stackable: stackableById.get(row.tagId) ?? true,
+          });
+        }
+        // `cropName` (not `tagName`) on the way out — harvestLine()/farmDm() read this shape,
+        // matching what a stored farmPlan row is named going IN versus what a resolved harvest
+        // row is named coming OUT.
+        rows.push({
+          slug: row.slug,
+          tagId: row.tagId,
+          cropName: row.tagName,
+          planted: row.planted,
+          reaped,
+        });
+      }
+
+      // Never `tired` directly (Context §2 of the plan): a day at the plough grants Exhausted
+      // OUTRIGHT, replacing a held Tired rather than escalating through it.
+      const turn = await tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } });
+      const fatigue = turn ? await grantExhaustedOutright(tx, action.characterId, turn.number) : null;
+
+      return { rows, fatigue };
+    },
+    revert: async (tx, action, snapshot) => {
+      if (!snapshot) return;
+      const { dropCharacterTag } = require("./tagWrites");
+      for (const row of snapshot.rows ?? []) {
+        if (row.reaped > 0) await dropCharacterTag(tx, action.characterId, row.tagId, row.reaped);
+      }
+      const fatigue = snapshot.fatigue;
+      if (!fatigue) return;
+      const exhaustedTag = await tx.tag.findUnique({ where: { slug: EXHAUSTED_SLUG }, select: { id: true } });
+      if (exhaustedTag) {
+        await tx.characterTag.deleteMany({ where: { characterId: action.characterId, tagId: exhaustedTag.id } });
+      }
+      if (fatigue.replacedTired) {
+        const tiredTag = await tx.tag.findUnique({ where: { slug: TIRED_SLUG }, select: { id: true } });
+        if (tiredTag) {
+          await tx.characterTag.createMany({
+            data: [{
+              characterId: action.characterId,
+              tagId: tiredTag.id,
+              source: "EVENT",
+              expiresTurn: fatigue.replacedTired.expiresTurn,
+            }],
+            skipDuplicates: true,
+          });
+        }
+      }
+    },
+  },
 };
 
 // Pushes everything this Move is worth and returns the blob to stamp on `Action.appliedEffects`. Callers run this inside their own transaction.
@@ -254,6 +328,7 @@ function describeMoveEffects(applied) {
           : `+${value.produced?.quantity ?? 0} Squeeze, −1 Godflesh`,
       );
     }
+    else if (key === "farmed") parts.push(harvestLine(value.rows));
     else parts.push(`${key}: ${value}`);
   }
   return parts.join(", ");

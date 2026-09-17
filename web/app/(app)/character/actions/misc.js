@@ -210,6 +210,12 @@ import {
   DESIRE_RELIEF_PER_POINT,
 } from "@lifeweb/db/lib/mood";
 import {
+  HUNGER_MAX,
+  foodHungerFor,
+  rawFoodMoodTerms,
+} from "@lifeweb/db/lib/hunger";
+import { clearHungerBands } from "@lifeweb/db/lib/hungerBands";
+import {
   NAME_LIMITS,
   formatCharacterName,
   formatBareName,
@@ -861,10 +867,18 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // EVERYTHING ELSE takes the largest single figure, never a sum — Bliss is
   // one drink, and Sweets is a treat rather than a treat plus a meal.
   const isDish = ingredientTags.length > 0 || held.tag.mealMood != null;
+  // The 0-30 hunger meter (db/lib/hunger.js): a dish sums its own mealHunger
+  // plus every ingredient's; anything else is whatever foodHungerFor makes of
+  // the single tag being eaten (0 for anything that isn't food at all).
+  const hungerRestored = isDish
+    ? foodHungerFor(held.tag) + ingredientTags.reduce((s, t) => s + foodHungerFor(t), 0)
+    : foodHungerFor(held.tag);
   const moodTerms = isDish
     ? dishMoodTerms(held.tag.mealMood, ingredientTags.map((t) => t.cooked?.mood ?? 0))
-    : null;
-  const moodRelief = isDish ? 0 : consumeReliefFor(held.tag.slug, grantSlugs);
+    : hungerRestored > 0
+      ? rawFoodMoodTerms(held.tag.cooked?.mood ?? 0)
+      : null;
+  const moodRelief = moodTerms ? 0 : consumeReliefFor(held.tag.slug, grantSlugs);
 
   // What the eater is told, and the only thing they are told: a dish names
   // its tastes and never its ingredients. `line` is returned to the client,
@@ -1032,6 +1046,16 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     // is a property of the leeches, not of eating them whole.
     await applyHiddenCures(tx, target.id, held.tag.slug);
     for (const ing of ingredientTags) await applyHiddenCures(tx, target.id, ing.slug);
+    // The hunger meter (db/lib/hunger.js): one atomic, clamped write so a
+    // concurrent write can never push it past HUNGER_MAX, then the band
+    // clean-up — eating enough clears Hungry/Starving the instant it happens
+    // rather than waiting for the next turn close (the doc's literal rule).
+    if (hungerRestored > 0) {
+      const [row] = await tx.$queryRaw`
+        UPDATE "Character" SET "hungerValue" = LEAST(${HUNGER_MAX}, "hungerValue" + ${hungerRestored})
+        WHERE "id" = ${target.id} RETURNING "hungerValue" AS after`;
+      await clearHungerBands(tx, target.id, row?.after ?? 0);
+    }
     if (moodTerms?.length) await applyMoodTerms(tx, target.id, moodTerms);
     else if (moodRelief) await applyMood(tx, target.id, { kind: "DRINK", base: moodRelief });
 
@@ -1115,6 +1139,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         granted: granted.map((g) => g.tagName),
         resourcesGranted: allResourcesGranted,
         moodRelief: moodRelief || undefined,
+        hungerRestored: hungerRestored || undefined,
         // The GM's copy of what a dish was, which is the only place the
         // ingredients are ever written down after the craft — the eater is
         // told the taste and nothing else.
@@ -1227,10 +1252,7 @@ export async function researchRequestImpl({ ingredientSlug }) {
           moveReviewStatus: "OPEN",
           description: `Researching ${ingredient.tag.name} in the Cathedral.`,
           diceRoll: researchAdvantage.die,
-          diceModifier: gambitModifierTotal(character.tags, {
-            hungerStreak: character.hungerStreak,
-            mood: character.mood,
-          }),
+          diceModifier: gambitModifierTotal(character.tags, { mood: character.mood }),
           zoneId: character.zoneId ?? null,
           locationId: character.locationId ?? null,
           gmNotes: researchMarker(ingredientSlug),
@@ -1958,11 +1980,8 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
     torturerSlugs,
     targetSlugs,
     equipmentInReach,
-    // Hungry, Afraid and Panicking count here as on any Gambit.
-    gambitMods: gambitModifiers(character.tags, {
-      hungerStreak: character.hungerStreak,
-      mood: character.mood,
-    }),
+    // Hungry, Starving, Afraid and Panicking count here as on any Gambit.
+    gambitMods: gambitModifiers(character.tags, { mood: character.mood }),
   });
   const rollLine = formatTortureRoll(result);
 

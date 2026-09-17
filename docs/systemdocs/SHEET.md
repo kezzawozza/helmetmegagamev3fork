@@ -148,9 +148,11 @@ Who this is, where they stand, and:
   turn card beside it. Past three items the rest fold behind a `+N more`,
   decided by counting them and never by measuring the box (`ExpandableText.js`
   explains why). It reads: tags on their last turn and what they become (`expiresInto`),
-  crafts and builds that finish, the road's end, and dinner (the
-  `hungerPass.js` rule: Hungerless owes nothing, a meal covers it, otherwise
-  1 ⬢, 2 with Fast Metabolism, and short of that you go Hungry). Renders
+  crafts and builds that finish, the road's end, and a hunger warning —
+  "You'll go hungry" / "You'll start starving" on the turn the meter's decay
+  would first cross that threshold (`db/lib/hunger.js`), computed server-side
+  in `character/page.js` so the raw `hungerValue` never reaches the client;
+  never a number, and never said again once a band is already held. Renders
   nothing on a quiet turn.
 - **The verb strip** — `ActionGrid variant="strip"`: every action in
   `actionRegistry.js` as one wrapping row of small labelled buttons, sections

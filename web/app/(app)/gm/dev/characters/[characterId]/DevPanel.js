@@ -52,7 +52,6 @@ export default function DevPanel({
   roles,
   tags,
   held,
-  feed,
   maxDrawbackTags,
   maxDrawbackPoints,
   openTurn,
@@ -245,7 +244,6 @@ export default function DevPanel({
         transferRoster={transferRoster}
         tags={tags}
         held={held}
-        feed={feed}
         onApplyTags={applyTagOps}
         refresh={refresh}
         onDeleted={onDeleted}

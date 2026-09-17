@@ -33,7 +33,6 @@ async function pendingGambits(db, turnId) {
       character: {
         select: {
           id: true,
-          hungerStreak: true,
           mood: true,
           tags: { select: { tag: { select: { slug: true } } } },
         },
@@ -57,10 +56,7 @@ async function rollPendingGambits(db, turnId) {
       // Lucky throws this twice and keeps the better die (db/lib/advantage.js). Inspired is spent
       // the instant it wins one — but only once the claim below has actually landed.
       const advantage = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
-      const diceModifier = gambitModifierTotal(character.tags, {
-        hungerStreak: character.hungerStreak,
-        mood: character.mood,
-      });
+      const diceModifier = gambitModifierTotal(character.tags, { mood: character.mood });
 
       // The claim IS the `diceRoll: null` in the WHERE. A second tick finds count 0 and drops
       // its roll on the floor, un-spent. Paired with the Inspired spend in ONE transaction:

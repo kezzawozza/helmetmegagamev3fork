@@ -61,6 +61,7 @@ import {
   ResourcesIcon,
   BrandIcon,
   BreakRestraintsIcon,
+  FarmIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -119,6 +120,7 @@ export const ACTION_HELP = {
     "Take the datacard out and stop the countdown. Safe again, and you can arm it as many times as you like.",
   extract:
     "Cut Godflesh out of the marsh. Once a day, and it costs you no turn. You need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves.",
+  farm: "Sow the fields with seed you're licensed to plant. It takes your whole Move, and the harvest comes in when the turn closes.",
   package:
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
   bird: "Send a letter you're holding to someone, by bird. You have to guess their zone — guess wrong and the bird comes back with it still on.",
@@ -229,6 +231,21 @@ export const ACTION_SECTIONS = [
         gate: "canExtract",
         gateReason: "You have nothing to cut with.",
         instant: true,
+      },
+      // The Farms placeholder (db/lib/soilery.js). Same HIDE-when-wrong-ground
+      // posture as Extract just above, but a dialog rather than an instant
+      // verb — sowing is a whole plan of crops, not a single click. `canFarm`
+      // folds in the skill, the Exhausted/Tired lockout and the once-a-turn
+      // Move check (db/lib/soilery.js#farmRefusalFor); farmBlocked's own
+      // sentence is what pools.gateReason.farm shows instead of the generic
+      // one below.
+      {
+        mode: "farm",
+        icon: FarmIcon,
+        label: "Farm",
+        show: "canSeeFarm",
+        gate: "canFarm",
+        gateReason: "You're worn out.",
       },
       // HIDDEN, never greyed, the same rule Extract just above follows: being
       // Bound is a fact about YOUR OWN sheet, and a dead row on every other

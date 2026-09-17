@@ -46,7 +46,9 @@ Three levels:
   never deleted by the sync — `db:prune-tags` will prune one once it's
   absent from `docs/taggroups.yaml` and no surviving tag sits in it, but
   these three stay listed there, so the rows survive; don't reuse those
-  slugs and don't put anything back in them.
+  slugs and don't put anything back in them. `items-seeds` (seed bags and
+  sowing tickets, `SOILERY.md`) is the newest group, split off `items-food`
+  since a raw seed packet isn't a meal.
 - **Tag** — the catalog entry itself.
 
 ## 2. Master sources: `docs/tags.yaml` and `docs/taggroups.yaml`
@@ -961,7 +963,7 @@ has since been deleted outright along with the channel it opened.
   turn — Hunger, the wound progression, Exhausted, a stack rerolling its
   clock, the staged push — grants for the turn about to open, so it passes
   `turn.number + 1` to `expiryFrom`. Note the ordering it implies: `resolveNeeds()` sweeps *before*
-  the Hunger pass grants, so a still-broke character's Hunger is cleared and
+  the Hunger pass grants, so a still-hungry character's Hunger is cleared and
   re-granted rather than colliding with `@@unique([characterId, tagId])`. See
   `REQUESTS.md` §4.
 
@@ -1175,11 +1177,15 @@ of a two-turn tag lose one every two turns.
 
 `consumable` marks a tag a player can **use up** from their own character
 sheet, and `consumesInto` (a list of tag *slugs*) is what it turns into. A
-meal is `consumable` with `consumesInto: [ate-meal]`; `ate-meal` carries
-`durationTurns: 1` and the Hunger pass consumes it — so the whole chain falls
-out of machinery that already existed. Nothing here is meal-specific: the one
-rule that *is* about meals (a Fine Meal cheers everyone but a noble) is
-expressed as catalog data in `docs/tags.yaml`, not as code.
+meal is `consumable` with `consumesInto: [ate-meal]`; `ate-meal` is a plain
+Status marker now, with no `durationTurns` and nothing that sweeps it — since
+the hunger rework it is read, not consumed: `db/lib/hunger.js#foodHungerFor`'s
+fallback treats "grants `ate-meal`" as the signal that an unpriced item still
+counts as food, and Nobility's own marker (`dined`, granted alongside it by
+`fine-meal`/`lavish-meal`) is what the mood pass actually clears each close
+(`MOOD.md`). Nothing here is meal-specific: the one rule that *is* about
+meals (a Fine Meal cheers everyone but a noble) is expressed as catalog data
+in `docs/tags.yaml`, not as code.
 
 Five rules carry it:
 
@@ -1192,7 +1198,7 @@ Five rules carry it:
 - **A granted tag starts its own clock.** `expiresTurn` is computed as
   `turn.number + defaultDurationTurns` at the moment of the grant — the same
   absolute-turn expression every other writer uses — which is what makes
-  chains work (meal -> Ate Meal that the sweep then clears).
+  chains work (a drink -> Tipsy that the sweep then clears).
 - **An already-held non-stackable grant is left completely alone**, expiry
   included: the character's existing one is the live truth, and clobbering it
   would silently extend or cut short something they already had. One
@@ -1239,9 +1245,10 @@ Five rules carry it:
   `{ "<slug>": N }`, null for almost every tag), resolved by the same
   `resolveConsumeGrants()` and applied by `grantTagSlugs()`, which prefers the
   override and falls back to the tag's own duration. An override on a target
-  that has no duration of its own is legal and simply gives it one — but never
-  point one at `ate-meal`, which is deliberately never swept because the
-  Hunger pass consumes it explicitly.
+  that has no duration of its own is legal and simply gives it one — but
+  `ate-meal` carries no duration and nothing sweeps it (see §5b above), so
+  pointing an override at it would just hand a standing marker an expiry
+  nothing currently expects.
 
 Consuming applies and writes one `AuditLog` row in the same transaction —
 there is no approval step, no reason, and **no Undo** any more (`REQUESTS.md`
@@ -1909,11 +1916,20 @@ access-controlled: `/api/documents` ships every document's *name* but a body
 only to a reader who may open it, so a chip for a paper you have not been
 handed renders inert rather than either vanishing or leaking.
 
-`hungry`, `hungerless` and `ate-meal` are the first tags granted and consumed
-by automatic game logic rather than by a player, a GM, or a starting package —
+`hungry` and `starving` are the first tags granted and cleared entirely by
+automatic game logic rather than by a player, a GM, or a starting package —
 `db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
-their only reader. `db/lib/constants.js` holds the slugs so neither file
-hardcodes a string. `catatonic-afk` is a third: `db/lib/catatonicPass.js` (after
+is the reader that turns them into a Gambit penalty (`db/lib/hunger.js` is
+the pure module both depend on for the 0-30 meter's thresholds and decay).
+`db/lib/constants.js` holds the slugs so no file hardcodes a string.
+`hungerless` and `fast-metabolism` are traits instead — held from creation
+or a GM grant, never written by the pass itself, only read by it to gate the
+decay. `ate-meal` is neither: since the hunger rework it's a standing
+marker, granted by an ordinary `consumesInto` on a meal tag like any other
+grant, and read (not written) only by `db/lib/hunger.js#foodHungerFor`'s
+unpriced-food fallback — the hunger pass never touches it at all.
+
+`catatonic-afk` is a third automatically-managed tag: `db/lib/catatonicPass.js` (after
 `GameConfig.catatonicTurns` idle turns) and
 `db/lib/playerDeparture.js` (a guild leave, ungated — departure is a fact,
 not a dial) are its two writers, it now carries a consequence — held for

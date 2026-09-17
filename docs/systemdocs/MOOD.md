@@ -111,7 +111,10 @@ key on.
 | Someone dies in your Location | DEATH_SEEN | −15 to each witness | `characterDeath.js#applyDeathToRow` |
 | An unburied body in your Location at turn end | CORPSE | −5 | mood pass |
 | Shot at by a turret and alive, hit or graze, either gun | TURRET | −25 | `turretPass.js#applyTurretShot` |
-| `hungerStreak > 0` at turn end | HUNGER | −5 | mood pass |
+| Holds `hungry` at turn end | HUNGER | −5 | mood pass |
+| Holds `starving` at turn end | STARVING | −10 | mood pass (wins over HUNGER; never both) |
+| Freshly crossed into Hungry this close | HUNGRY_ONSET | −30 | one-time, `hungerPass.js`, not the mood pass |
+| Freshly crossed into Starving this close | STARVING_ONSET | −30 | one-time, `hungerPass.js`, not the mood pass |
 | A noble with no `dined` marker at turn end | NOBLE_MEAL | −10 | mood pass |
 | Looted while alive | ROBBED | −10 | `lootCharacterRequestImpl` |
 
@@ -397,7 +400,7 @@ Hungerless and Dying nobles are exempt. "Ate one this turn" is the hidden
 `dined` status tag that `fine-meal` and `lavish-meal` consume into beside
 `ate-meal`. It has **no `durationTurns`** — a 1-turn grant would be swept at
 position 10 of `TURN_PASSES`, nine passes before the mood pass reads it — so
-the mood pass deletes it itself, exactly as the hunger pass eats `ate-meal`.
+the mood pass deletes it itself.
 The marker is hidden and the sheet shows no Dinner row for it — the old
 Disappointed tracker went with the track, on Bascinet's call. The Merchant now
 starts with Nobility too, and therefore with its 1-point Desire lock.
@@ -406,7 +409,7 @@ starts with Nobility too, and therefore with its 1-point Desire lock.
 ## 9. The turn pass
 
 `db/lib/moodPass.js`, `"mood"` in `TURN_PASSES`, in the slot the phobia pass
-held: **after `hunger`** (it reads the final `hungerStreak`), **after `carry`**
+held: **after `hunger`** (it reads the final `hungry`/`starving` bands), **after `carry`**
 (the final sheet) and **before `corpseFollow`**. It used to matter that it also
 ran before `travelArrival`, so a traveller paid the night where they set out
 from; travel lands at once now (`MAP.md` §3), so everybody simply pays the

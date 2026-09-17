@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { handsFor, handsUsed } from "@lifeweb/db/lib/equipSlots";
 import { bandOf } from "@lifeweb/db/lib/mood";
+import { bandOf as hungerBandOf } from "@lifeweb/db/lib/hunger";
 import { formatGambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import DetailTile from "@/app/components/DetailTile";
@@ -69,6 +70,14 @@ export default function DevBand({
   );
   const overDrawbackCap = drawbacks.count > maxDrawbackTags || drawbacks.points > maxDrawbackPoints;
   const moodBand = bandOf(staged.mood ?? 0);
+  // The 0-30 hunger meter (db/lib/hunger.js). Read straight off `character`,
+  // not `staged` — there is no form field for it, the way there is for
+  // Resources/Tag points/Mood. Never shown as a number on the player's own
+  // sheet, but this panel is superadmin-only debugging, the same posture the
+  // Mood tile's detail popover already takes with the raw dial.
+  const hungerBand = hungerBandOf(character.hungerValue ?? 30);
+  const HUNGER_TONE = { fed: "muted", hungry: "warn", starving: "bad" };
+  const HUNGER_LABEL = { fed: "Fed", hungry: "Hungry", starving: "Starving" };
   const status = CHARACTER_STATUS[character.status];
 
   return (
@@ -138,6 +147,18 @@ export default function DevBand({
             word
             detail={`The dial reads ${staged.mood ?? 0}. It moves nightly and shifts their Gambit roll.`}
             {...tile("mood")}
+          />
+          <DetailTile
+            label="Hunger"
+            value={HUNGER_LABEL[hungerBand]}
+            tone={HUNGER_TONE[hungerBand]}
+            word
+            detail={`The meter reads ${character.hungerValue ?? 30}/30.${
+              character.starvingSinceTurn != null
+                ? ` Starving since turn ${character.starvingSinceTurn}.`
+                : ""
+            } Never shown as a number on their own sheet — set it with Feed Them, on the action bar.`}
+            {...tile("hunger")}
           />
           <DetailTile
             label="Gambit die"

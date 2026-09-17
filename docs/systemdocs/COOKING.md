@@ -74,6 +74,13 @@ no Offer or CraftProject pins.
       taste: "little crunchies"
       mood: 28
       into: [nauseous]        # OPTIONAL — read §4
+
+  tomato:
+    cooked:
+      taste: acidic
+      tasteForm: adjective    # OPTIONAL — see below
+      mood: 3
+      hunger: 4               # OPTIONAL — see below
 ```
 
 **The presence of this block is the only thing that makes a tag cookable.**
@@ -90,6 +97,19 @@ YAML entry and a `db:sync-tags`.
 - **`mood`** is signed, on the `MOOD.md` scale.
 - **`into`** is what it grants the eater, in the same shapes `consumesInto`
   takes (`oneOf` included).
+- **`hunger`** is optional — a whole number from 0 to 30, how much this
+  ingredient restores on the 0-30 hunger meter (`foodHungerFor`,
+  `db/lib/hunger.js`). Absent means "not really food" — eating it still grants
+  `ate-meal` if it's tagged for that, but restores nothing.
+- **`tasteForm`** is optional and only ever `"adjective"`. By default
+  `web/lib/cooking.js` renders `taste` as a noun ("It tastes like onions.");
+  `tasteForm: "adjective"` renders it bare instead ("It tastes acidic.").
+  Existing tags leave this unset and are unaffected — nobody rewrote the 58
+  noun-style tastes to add it.
+
+Both fields were added for the new Soilery crop and foodstuff tags (wheat,
+potato, meat, cheese, and the rest) — see [`SOILERY.md`](SOILERY.md) §6 for
+the full list and where each one lives.
 
 ## 4. Raw is not cooked
 

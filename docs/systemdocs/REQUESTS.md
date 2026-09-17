@@ -224,9 +224,9 @@ Three notes on deliberate choices:
   teardown already rely on. A corpse whose player hasn't come back yet still
   gets the DM as before.
 - **Consume has no resource field and no quantity field.** A meal already
-  cost ⬢ to make and the Hunger pass charges its own upkeep, so a third
-  charge here would be the same meal paid for three times; and taking one
-  unit at a time is the point of a stack. See `TAGS.md` §5b.
+  cost ⬢ to make, and Consume is where it restores hunger now (§4) — a
+  resource charge on top would be the same meal paid for twice; and taking
+  one unit at a time is the point of a stack. See `TAGS.md` §5b.
 - **Transfer Tag and Loot both filter on `tradeable`.** Not on `category`,
   which is what they used to do and which was wrong in both directions — it
   let a corpse be stripped of its Drone, and it ignored the
@@ -271,17 +271,20 @@ Three notes on deliberate choices:
 
 ## 4. Hunger and the Gambit modifier
 
-Hunger is the Needs layer, and the only thing that modifies a Gambit die.
+Hunger is the Needs layer, and one of two things that modify a Gambit die
+(the other is mood).
 
-It is a `hungry` Status tag (`docs/tags.yaml`, `durationTurns: 1`, not
-`purchasable`, and not destroyable — Status never is). Its penalty is not flat — it escalates with
-`Character.hungerStreak`, a plain Int column counting consecutive turns closed
-hungry.
+It is now a 0-30 meter, `Character.hungerValue` (`db/lib/hunger.js`), not a
+streak. Two Status tags read off it — `hungry` (`docs/tags.yaml`,
+`durationTurns: 1`, granted at `HUNGRY_THRESHOLD` (10) or below) and
+`starving` (granted at `STARVING_THRESHOLD` (0) or below) — neither
+`purchasable`, neither destroyable (Status never is).
 
 Riding the tag system means the per-turn expiry sweep already in
-`db/index.js#resolveNeeds` handles it for free —
+`db/index.js#resolveNeeds` handles their removal for free —
 `characterTag.deleteMany({ where: { expiresTurn: { lte: turn.number } } })` —
-with no bespoke expiry column to keep in step.
+with no bespoke expiry column to keep in step. Eating also drops them
+immediately, outside the sweep — see below.
 
 > **Create Item and the zone cache are gone.** `CREATE_TAG` let a player invent
 > an Item that wasn't in the catalog and have it become a real `Tag` row on their
@@ -303,98 +306,81 @@ with no bespoke expiry column to keep in step.
 
 ### Hunger
 
-Nothing player-initiated ever grants or removes Hunger, the streak, or
-what it leads to — there is no request type, no picker entry, no
-`tagEffects.js` case. `db/lib/hungerPass.js#runHungerPass` is the only
-writer of all three, called from `resolveNeeds()` at the close of every turn:
+Nothing player-initiated ever grants or removes Hungry, Starving, or the
+`dying` chain prolonged Starving leads to — there is no request type, no
+picker entry, no `tagEffects.js` case for any of the three.
+`db/lib/hungerPass.js#runHungerPass` is the only turn-pass writer of
+`hungerValue`, `starvingSinceTurn`, and the two band tags, called from
+`resolveNeeds()` at the close of every turn:
 
-1. Holds `hungerless` → **skipped entirely**. No resource taken, no Hunger,
-   streak reset to 0 — this is immunity, not eating, so it's still a full
-   reset rather than the one-tick rule below.
-2. Holds `ate-meal` → **shielded** from Hunger, the tag is consumed whether or
-   not they were broke, **no ⬢ is taken**, and the streak drops by **one
-   tick**. The meal was already paid for when it was cooked (2 ⬢ a Fine, 3 ⬢ a
-   Lavish), so charging the upkeep on top of that made eating strictly worse
-   than the 1 ⬢ it saves. Eating *settles* the turn's upkeep; the streak it
-   took several starved turns to climb takes that many fed turns to climb back
-   down.
-3. **Check first, then pay**: short of the turn's cost you go Hungry, owe
-   nothing, and the streak **increments**; able to cover it, you pay, stay
-   fed, and the streak drops by **one tick**. The cost is 1 ⬢ for everyone
-   except a holder of `fast-metabolism`, who owes **2** — and at 1 ⬢ that
-   holder keeps their coin and starves rather than half-eating.
+1. Holds `hungerless` → **skipped entirely**. Pinned at `HUNGER_MAX` (30),
+   `starvingSinceTurn` cleared — this is immunity, not eating, so it is
+   always a full reset rather than the ordinary decay below.
+2. Holds `fast-metabolism` → decays **6** instead of the flat 3.
+3. Everyone else → decays **3**, floored at 0.
 
-So the upkeep always buys a fed turn, and `Character.resources` can never go
-negative — the clamp is structural, not a `Math.max`, and it lives on step 3,
-the only branch that still pays. Structural means the check and the payment
-are the *same statement*: the decrement carries `resources: { gte: n }` in its
-own `where`, which is why the 1 ⬢ and 2 ⬢ payers are charged in two separate
-batches. Read the balance in one query and decrement in another and a
-player who spends in between goes to −1, which is what used to happen, and
-turn rollover is exactly when players are most active.
+**Hunger costs no ⬢ at all.** The old upkeep — pay 1 ⬢ (2 with Fast
+Metabolism) or go Hungry — and the escalating streak penalty it drove are
+both gone outright. `Character.hungerStreak` is an orphan column now, the
+same fate as `Character.missedMealStreak` (`TURN-ENGINE.md` §5a); nothing
+writes or reads it.
 
-A single fed turn only sheds **one tick**, not the whole streak — a character
-six turns deep needs six fed turns to reach 0, the same as it took six starved
-turns to get there. So the `hungry` tag no longer means "starved this turn";
-it's re-granted for as long as the streak is above 0 after eating, meaning
-"still carrying hunger damage." The floor is the same structural posture as
-the resources clamp above: `hungerStreak: { gt: 0 }` in the decrement's own
-`where`, not a `Math.max` on a value read moments earlier.
+What raises the meter is eating, not a turn spent fed. Consume restores
+`foodHungerFor(tag)` — a raw foodstuff's own `cooked.hunger`, a minted dish's
+`Tag.mealHunger` (summed across every ingredient for a cooked plate), or a
+flat fallback for an unpriced item that still grants `ate-meal` — in one
+atomic, clamped write (`LEAST(HUNGER_MAX, "hungerValue" + restored)`,
+`web/app/(app)/character/actions/misc.js#consumeTagRequestImpl`). The
+Hungry/Starving tags come off the moment the meter crosses back over their
+threshold, not at the next sweep — `db/lib/hungerBands.js#clearHungerBands`,
+shared with the Dev Panel's Feed Them button.
 
-**The streak and the cap.** Each consecutive hungry turn is worth an
-additional −1 to the die, floored at **−6** (`HUNGER_STREAK_CAP`). Reaching the
-cap grants `dying`, the same terminal tag every untreated-wound chain lands on
-(see `TURN-ENGINE.md` §3's "NOTHING HERE KILLS ANYONE"). The pass itself still
-kills nobody; `dying` carries a one-turn clock, and the Dying death pass
-(`TURN-ENGINE.md` §2 4b) is what ends it at the next close. The streak is computed in the pass off the value it
-already read for the resource check, not off a database `increment`/
-`decrement`'s return value, because neither would hand back the new total in
-time to decide who just crossed the cap this turn, who still carries Hunger
-after eating, or what to put in their DM. Only starving pushes it up; eating
-only ever brings it down. It's allowed to keep counting past 6 if nobody
-intervenes; the penalty simply stays floored, and trying to re-grant `dying`
-on a later starved turn is a harmless `skipDuplicates` no-op, not an error.
+**Bands, not a streak.** `db/lib/hunger.js#crossings` reports, per turn,
+whether the meter crossed DOWN into Hungry or Starving for the first time
+(never merely for remaining there) — each fresh crossing grants the tag
+(`expiresTurn` one turn out, `createMany({ skipDuplicates: true })`) and
+charges a one-time **−30** mood hit (`HUNGRY_ONSET`/`STARVING_ONSET`,
+`MOOD.md`); crossing back UP over a threshold drops the tag. Starving sits
+*inside* the Hungry range — a character at or below 0 holds both tags
+together — and only the Gambit modifier picks one, below.
 
-**The expiry arithmetic**, and why the pass runs *after* the sweep:
+**Three consecutive closes at 0 or below** (`STARVING_DEATH_TURNS` — an
+inference this rework made; the doc names no such rule) grants `dying`, the
+same terminal tag every untreated-wound chain lands on (see `TURN-ENGINE.md`
+§3's "NOTHING HERE KILLS ANYONE"). The pass itself still kills nobody;
+`dying` carries a one-turn clock, and the Dying death pass (`TURN-ENGINE.md`
+§2 4b) is what ends it at the next close. `Character.starvingSinceTurn` is
+the clock: stamped the turn the meter first reads at or below 0, cleared the
+instant it eats back above 0 — eating on the second of three starved turns
+resets the count to zero, not merely pauses it.
+
+**The expiry arithmetic**, and why the pass runs *after* the sweep, is
+unchanged from before the rework:
 
 | moment | what happens |
 | --- | --- |
-| close of turn **N** | sweep deletes `expiresTurn <= N` — clears Hunger granted at the close of N−1 |
-| close of turn **N** | pass grants Hunger with `expiresTurn = N + 1` |
-| turn **N+1** open | tag is live; every Gambit rolled this turn takes the −1 |
+| close of turn **N** | sweep deletes `expiresTurn <= N` — clears a band tag granted at the close of N−1 |
+| close of turn **N** | pass grants Hungry/Starving with `expiresTurn = N + 1` |
+| turn **N+1** open | tag is live; every Gambit rolled this turn takes the modifier |
 | close of turn **N+1** | sweep (`lte: N+1`) deletes it |
 
-Exactly one turn of bite, and it is the *next* turn. Eating on turn N decides
-whether the tag is re-granted for N+1 at all — and if the streak was more than
-1, it's re-granted one tick lower than it was, not cleared. Run the pass
-*before* the sweep instead and a still-broke character's re-grant collides with
-`@@unique([characterId, tagId])` and is silently dropped, leaving them holding
-a tag that expires immediately.
+Run the pass *before* the sweep instead and a still-hungry character's
+re-grant collides with `@@unique([characterId, tagId])` and is silently
+dropped, leaving them holding a tag that expires immediately.
 
-Going hungry sends one DM naming the *actual* penalty in effect
-(`» You went hungry this turn. −3 to Gambits.`) via `db/lib/dm.js#sendDm`, the
-REST twin that exists so this fires from both the bot's cron and the Dev
-Panel's End-turn button. Crossing the streak cap sends a second, distinct DM
-about Dying, right after the Hunger one — so a player who's about to see
-Dying on their sheet already knows why. Eating sends its own DM too, unless
-the streak was already 0: one naming the smaller-but-still-there penalty
-(`» You ate, but you're still weak from hunger. −4 to Gambits.`) while any
-streak remains, or a short "back to full strength" line the turn it finally
-clears. A quiet −1 ⬢ sends nothing.
-
-`runHungerPass` does not send any of these DMs itself. It returns
-`hungerNotices` on its summary — one entry per character who starved or whose
-streak changed from eating, carrying `discordUserId`, a `kind` (`starved` /
-`recovering` / `recovered`), the already-clamped `streak`, and `justDied` —
-and the sending happens in `advanceTurn()`'s `runSideEffects()` thunk,
-alongside the turn announcement and the message wipe. The pass is therefore two
-reads and several bulk writes with no network call in it at all — which
-matters because at 100+ players the DMs are
-sequential Discord round-trips *per starving character*, and awaiting that
-inside the Dev Panel's server action used to hold the request open long enough
-to freeze the web app's navigation. The list is split back off the summary in
-`resolveNeeds()` before the audit row is written, so the logged details are
-unchanged.
+The DM copy for each crossing — `hungry` / `starving` / `recovered` / `dying`
+— lives in `db/lib/hunger.js#hungerDm`/`DYING_DM`. None of the four lines
+names a number, per the design: a player learns their band from the tag chip
+on their own sheet, never a figure. `runHungerPass` does not send any of
+these itself. It returns `hungerNotices` on its summary — one entry per
+character who freshly crossed into Hungry or Starving this close, carrying
+`discordUserId`, a `kind` (`"hungry"` / `"starving"`), and `justDied` — and
+the sending happens in `advanceTurn()`'s `runSideEffects()` thunk, alongside
+the turn announcement and the message wipe. The pass is therefore reads and
+bulk writes with no network call in it at all — which matters because at
+100+ players the DMs are sequential Discord round-trips, and awaiting that
+inside the Dev Panel's server action used to hold the request open long
+enough to freeze the web app's navigation.
 
 The pass writes **one summary `hunger_resolved` audit row** per turn, not one
 per character — at 100+ players the latter would push 200 entries a day into
@@ -402,16 +388,21 @@ per character — at 100+ players the latter would push 200 entries a day into
 
 ### The summed modifier
 
-Hunger is currently the only contributor, so the "sum" is one number.
-`db/lib/gambitModifier.js` is still the single source of it, shared by the
-bot and the web app so the number a player is shown and the number applied
-cannot drift — the same posture as `specialChannels.js`. It still returns a
-*list* of named contributions rather than a bare number, because the confirm
-DM names them and because adding a second contributor should be an append
-there rather than a rewrite of five call sites. Hunger is a boolean tag whose
-*size* comes from a Character column (`hungerStreak`) the turn engine writes —
-`gambitModifiers`/`gambitModifierTotal` take it as a second argument for
-exactly that reason, since it isn't something the tag list alone carries.
+Hunger and mood are the two contributors. `db/lib/gambitModifier.js` is still
+the single source of the sum, shared by the bot and the web app so the number
+a player is shown and the number applied cannot drift — the same posture as
+`specialChannels.js`. It still returns a *list* of named contributions rather
+than a bare number, because the confirm DM names them and because adding a
+third contributor should be an append there rather than a rewrite of five
+call sites.
+
+Hunger is no longer a Character column feeding a formula — `hungerBandOf`
+reads the `hungry`/`starving` tags straight off the character's own held
+tags, the same list every other tag-driven modifier reads, and picks
+**Starving over Hungry, never both**: `−1` Hungry, `−3` Starving.
+`gambitModifiers`/`gambitModifierTotal` take that tag list and `{ mood }` —
+mood still rides in as a second argument, since it lives on `Character`, not
+a tag.
 
 Only a Gambit rolls a die, so only a Gambit can carry the modifier.
 `bot/src/events/interactionCreate.js#handleMoveConfirm` stores the **raw** roll
@@ -422,7 +413,7 @@ modifier. `Action.diceModifier` is one `Int`, so the per-contributor breakdown
 is display-only — rebuilt for the DM, and mirrored into the `move_confirmed`
 audit entry's `diceModifiers`, which is the only place it survives.
 
-The DM reads `🎲 **4** −2 Hungry → **2**`. It is keyed on whether *any*
+The DM reads `🎲 **4** −1 Hungry → **3**`. It is keyed on whether *any*
 contributor applied rather than on the total, so a contributor worth 0 would
 still show its work instead of pretending nothing happened.
 The sheet band's Gambit tile (`LedgerBand.js`) reads the same module.

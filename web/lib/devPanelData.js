@@ -8,7 +8,6 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { isHealable } from "@/lib/healRequests";
 import { DEFAULT_MAX_DRAWBACK_TAGS, DEFAULT_MAX_DRAWBACK_POINTS } from "@/lib/characterCreation";
 import { projectDesireTemplateForGates, loadRoleBySlugForTemplates } from "@/lib/desireProjection";
-import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
 import { concealmentFrom, forcedNameFrom, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 import { paperDescriptionGm, paperViewGm } from "@lifeweb/db/lib/paper";
 
@@ -274,10 +273,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
 
   // [{ label, value }] — what is weighing on their Gambit roll, named. Every
   // caller must pass `mood`; a missed one reads undefined and lands in Fine.
-  const gambitParts = gambitModifiers(heldTags, {
-    hungerStreak: character.hungerStreak,
-    mood: character.mood,
-  });
+  const gambitParts = gambitModifiers(heldTags, { mood: character.mood });
 
   return {
     character: {
@@ -309,6 +305,12 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       // (docs/systemdocs/MOOD.md). It was missing while this was `fear`, so
       // that box read 0 for everybody however frightened they were.
       mood: character.mood,
+      // The 0-30 hunger meter (db/lib/hunger.js). Never shown as a number on
+      // the player's own sheet, but this is a GM-only debugging surface
+      // (superadmin-gated), so the raw figure is fine here the way `mood`
+      // above already is.
+      hungerValue: character.hungerValue,
+      starvingSinceTurn: character.starvingSinceTurn,
       turnPingOptIn: character.turnPingOptIn,
       // The two switches on /character a GM could not see. Both matter when a
       // player reports being visible, or unhidden, when they expect otherwise
@@ -398,7 +400,10 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       // what makes a tag a drawback (TAGS.md §4a).
       pointCost: ct.tag.pointCost,
     })),
-    feed: { dropSlug: HUNGER_SLUG, grantSlug: ATE_MEAL_SLUG },
+    // "Fed them" is a real microaction now (feedCharacter, actions.js) that
+    // sets hungerValue to HUNGER_MAX and clears the bands itself — it needs
+    // no tag-op pair handed down the way the old drop-Hungry/grant-Ate-Meal
+    // gesture did.
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     startingTagPoints: config?.startingTagPoints ?? 12,

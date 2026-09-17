@@ -47,6 +47,11 @@ bubbles the tag descriptions render through.
 | `laboring-fishing` | Laboring (Fishing) | 7–13 | `requiredTag: laboring-skilled` |
 | `laboring-prospecting` | Laboring (Prospecting) | 2–8 | `requiredTag: laboring-skilled` |
 
+`laboring-farming` also gates a second, unrelated verb: the Farm button
+(sowing seed bags on `soilery` ground, [`SOILERY.md`](SOILERY.md)). That one
+pays **no ⬢** and is not a `LocationYield`-priced Labor at all — it just
+happens to reuse this same skill tag as its gate.
+
 The slugs were `laborer-*` before this rework and are `laboring-*` now, because
 `db/lib/syncTags.js` enforces that **a slug is always its name, slugified** — so
 anyone reading a slug in code or in a Desire's `requires` knows which tag it is.

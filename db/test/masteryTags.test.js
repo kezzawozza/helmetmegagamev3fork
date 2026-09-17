@@ -36,7 +36,7 @@ test("a shock pays back half its sting as mood instead of taking it", () => {
 });
 
 test("the ever-present miseries simply stop landing, and do not become a pleasure", () => {
-  for (const kind of ["WILDERNESS", "CAVE", "HUNGER", "CORPSE", "NOBLE_MEAL"]) {
+  for (const kind of ["WILDERNESS", "CAVE", "HUNGER", "STARVING", "CORPSE", "NOBLE_MEAL"]) {
     const got = resolveDelta({ kind, base: -10, heldSlugs: AMOR });
     assert.equal(got, 0, `${kind} should be nothing at all, got ${got}`);
     assert.ok(Object.is(got, 0), `${kind} resolved to -0`); // not -0

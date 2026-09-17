@@ -140,6 +140,12 @@ reconstructed sum and its live balance. The books then close at the seam, and
 **a plug's size is a diagnostic, not history** — Health reports them for
 exactly that reason.
 
+**Hunger is no longer one of these passes.** The hunger rework
+(`db/lib/hunger.js`) replaced the old ⬢-upkeep-and-streak system with a
+0-30 meter that costs no ⬢ at all — `HUNGER` stays in `economyReasons.js`
+only because historic `EconomyEntry` rows still name it, and the sentence
+above describes that history, not anything Hunger charges today.
+
 ## 7. Who sees what
 
 `/gm/economy` is open to **every GM**, zone-scoped and redacted. Superadmins

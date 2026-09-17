@@ -63,6 +63,7 @@ import {
   Plus,
   Stamp,
   Unlock,
+  Sprout,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -196,6 +197,8 @@ export const QuillIcon = lucide(Feather, "QuillIcon");
 export const BrandIcon = lucide(Stamp, "BrandIcon");
 // Package — a banded crate.
 export const CrateIcon = lucide(Package, "CrateIcon");
+// Farm — a seedling, distinct from Extract's Pickaxe: sowing grows something rather than cutting it out.
+export const FarmIcon = lucide(Sprout, "FarmIcon");
 
 // ── Hand-drawn: no Lucide equivalent — same 24×24 grid, currentColor, round caps/joins, 1.6 stroke.
 
