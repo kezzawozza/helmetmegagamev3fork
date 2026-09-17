@@ -243,11 +243,11 @@ test("two nights indoors clear a −20, and one in a Haven does better", () => {
   for (let i = 0; i < 2; i += 1) mood = night(mood, "INDOORS");
   assert.equal(mood, 0);
   assert.equal(bandOf(mood).label, "Fine");
-  assert.equal(PLACE_TERMS.INDOORS + MOOD_DRIFT_UP, 10);
+  assert.equal(PLACE_TERMS.INDOORS + MOOD_DRIFT_UP, 11);
 
   // A haven does it in one: −20 is Uncomfortable, and one night there is not.
   const haven = night(-20, "HAVEN");
-  assert.equal(haven, -4);
+  assert.equal(haven, -2);
   assert.equal(bandOf(haven).label, "Fine");
 });
 
@@ -284,8 +284,8 @@ test("a bed never makes anybody happy, however many nights they sleep in one", (
   assert.equal(night(60), 20);
   assert.equal(night(4), 0);
 
-  // Recovery from a bad mood is untouched — the full +16 still lands.
-  assert.equal(night(-50), -34);
+  // Recovery from a bad mood is untouched — the full +18 still lands.
+  assert.equal(night(-50), -32);
 });
 
 test("a good bed absorbs the night's hunger and lands exactly on Fine", () => {
@@ -343,14 +343,14 @@ test("only the three bands that move a Gambit say anything, and only on the way 
 
 test("a consume is worth its largest single figure, never a sum", () => {
   // Bliss lands two statuses and is one drink.
-  assert.equal(consumeReliefFor("bliss", ["euphoric", "high"]), 30);
+  assert.equal(consumeReliefFor("bliss", ["euphoric", "high"]), 35);
   // A treat is a treat, not a treat plus a meal.
-  assert.equal(consumeReliefFor("sweets", ["ate-meal"]), 8);
-  assert.equal(consumeReliefFor("honeyed-cakes", ["ate-meal"]), 8);
-  assert.equal(consumeReliefFor("coffee", ["caffeinated"]), 15);
-  assert.equal(consumeReliefFor("sky-lantern", []), 8);
+  assert.equal(consumeReliefFor("sweets", ["ate-meal"]), 9);
+  assert.equal(consumeReliefFor("honeyed-cakes", ["ate-meal"]), 9);
+  assert.equal(consumeReliefFor("coffee", ["caffeinated"]), 17);
+  assert.equal(consumeReliefFor("sky-lantern", []), 9);
   // Any proper meal at all is the floor under the food.
-  assert.equal(consumeReliefFor("trail-ration", ["ate-meal"]), 5);
+  assert.equal(consumeReliefFor("trail-ration", ["ate-meal"]), 6);
   // And a plain thing is worth nothing.
   assert.equal(consumeReliefFor("stepstone", []), 0);
 });
@@ -359,8 +359,8 @@ test("a cooked meal is priced by dishMoodTerms, not by this table", () => {
   // The two rows that used to sit here are gone: a dish is a minted row, so
   // its slug never matches a table keyed by slug (COOKING.md). Both fall
   // through to the ate-meal floor if anything ever asks.
-  assert.equal(consumeReliefFor("fine-meal", ["ate-meal", "dined"]), 5);
-  assert.equal(consumeReliefFor("lavish-meal", ["ate-meal", "dined"]), 5);
+  assert.equal(consumeReliefFor("fine-meal", ["ate-meal", "dined"]), 6);
+  assert.equal(consumeReliefFor("lavish-meal", ["ate-meal", "dined"]), 6);
 });
 
 test("a bad Ration Box draw lands negative, not swallowed by ate-meal's +5 floor", () => {

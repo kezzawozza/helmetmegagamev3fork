@@ -43,7 +43,7 @@ const DM_BAND_KEYS = new Set(["afraid", "panicking", "ecstatic"]);
 
 // What a night somewhere is worth, on top of the drift. Exactly one applies,
 // chosen by placeClassOf. Harm is negative, comfort positive.
-const PLACE_TERMS = Object.freeze({ CAVE: -14, WILDERNESS: -10, OPEN: 4, INDOORS: 6, HAVEN: 12 });
+const PLACE_TERMS = Object.freeze({ CAVE: -14, WILDERNESS: -10, OPEN: 5, INDOORS: 7, HAVEN: 14 });
 
 // Overnight slide toward Fine from both sides, never overshooting 0: fear
 // wears off slowly (drift up small), a good evening is mostly gone by morning.
@@ -79,13 +79,13 @@ const EVENTS = Object.freeze({
   HUNGER: -5,
   NOBLE_MEAL: -10,
   ROBBED: -10,
-  CONFESSION: 15,
-  KISS: 15,
-  MUSIC: 10,
-  CATHEDRAL: 10,
+  CONFESSION: 17,
+  KISS: 17,
+  MUSIC: 12,
+  CATHEDRAL: 12,
 });
-const DESIRE_RELIEF_PER_POINT = 10;
-const DRINK_RELIEF = 30;
+const DESIRE_RELIEF_PER_POINT = 12;
+const DRINK_RELIEF = 35;
 
 // What one consume is worth, by the STATUS it lands you in (a drink or a drug
 // — keyed this way so a brew added to the catalog later is soothing the day it
@@ -109,21 +109,21 @@ const CONSUME_RELIEF = Object.freeze({
   high: DRINK_RELIEF,
   euphoric: DRINK_RELIEF,
   // A hot drink. Keyed on the status rather than the bean, same as the drinks.
-  tea: 15,
-  caffeinated: 15,
-  "maggot-milk": 15,
+  tea: 17,
+  caffeinated: 17,
+  "maggot-milk": 17,
   // The treats. Sugar does not grow in Ravenheart.
-  sweets: 8,
-  honey: 8,
-  "honeyed-cakes": 8,
-  "fish-roe": 8,
-  pumpkin: 8,
+  sweets: 9,
+  honey: 9,
+  "honeyed-cakes": 9,
+  "fish-roe": 9,
+  pumpkin: 9,
   // Celebrations. Neither grants a status, so both key by the item.
-  "sky-lantern": 8,
-  firecracker: 8,
-  cigarette: 8,
+  "sky-lantern": 9,
+  firecracker: 9,
+  cigarette: 9,
   // Any proper meal at all, and the floor under every food above.
-  "ate-meal": 5,
+  "ate-meal": 6,
   // The Ration Box's bad draws (all `consumesInto: [ate-meal]` too, which is
   // exactly why consumeReliefFor above has to let the item's own negative
   // entry win outright rather than being maxed against ate-meal's floor).

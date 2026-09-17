@@ -17,7 +17,7 @@ deliberately removed, and everything below is written as a delta from it.
 - At turn end the penitent's d6 plus the ordinary Gambit modifier (Hunger,
   Afraid, Panic — `db/lib/gambitModifier.js`) is checked against **5**. On a
   pass the tag comes off. On a fail it stays and the Move is spent. Absolution
-  also lifts the penitent's mood by 15 (`MOOD.md`).
+  also lifts the penitent's mood by 17 (`MOOD.md`).
 - Both sides must be at the same Location and unconcealed
   (`db/lib/presence.js`), both alive, and neither may already have a Move.
 - You cannot confess to yourself.

@@ -246,25 +246,25 @@ something. Now it does — a drink, a feast, music, a fulfilled Desire — and a
 buys only the right not to be miserable.
 
 Recovery is deliberately untouched. At −50 a Haven night still lands its full
-+16; only *crossing* 0 is blocked, so nobody climbs out of a hole any slower than
++18; only *crossing* 0 is blocked, so nobody climbs out of a hole any slower than
 they did before.
 
 | Event | Base | Where |
 |---|---|---|
-| End the turn OPEN (a settled place, outdoors) | +4 **to Fine only** | mood pass |
-| End the turn INDOORS | +6 **to Fine only** | mood pass |
-| End the turn in a HAVEN | +12 **to Fine only** | mood pass |
-| Consume anything that lands you tipsy / wasted / unconscious / blind-drunk / high / euphoric | +30 | `consumeTagRequestImpl` |
-| Consume `tea`, `maggot-milk`, or anything granting `caffeinated` (Coffee) | +15 | same |
+| End the turn OPEN (a settled place, outdoors) | +5 **to Fine only** | mood pass |
+| End the turn INDOORS | +7 **to Fine only** | mood pass |
+| End the turn in a HAVEN | +14 **to Fine only** | mood pass |
+| Consume anything that lands you tipsy / wasted / unconscious / blind-drunk / high / euphoric | +35 | `consumeTagRequestImpl` |
+| Consume `tea`, `maggot-milk`, or anything granting `caffeinated` (Coffee) | +17 | same |
 | Eat a **cooked dish** | its own small figure plus its ingredients', §6a | `dishMoodTerms` |
-| Consume a treat — `sweets`, `honey`, `honeyed-cakes`, `fish-roe`, `pumpkin` | +8 | same |
-| Consume a `cigarette`, a `sky-lantern` or a `firecracker` | +8 | same |
-| Consume anything at all that grants `ate-meal` | +5 | same |
-| Fulfil a Desire (player claim or GM award) | +10 per point | both award sites |
-| A confession the die absolved | +15 | `confessionPass.js` |
-| A **Musician's** `/play` with an instrument, once per listener per turn (Musician (Pythagorean): ×4, +40) | +10 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
-| A **Musician's** `/play` with no instrument — sung — same ration (Musician (Pythagorean): ×4, +32) | +8 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
-| Walk into the Cathedral, once per turn | +10 **to Fine only** | `applyArrivalMood` |
+| Consume a treat — `sweets`, `honey`, `honeyed-cakes`, `fish-roe`, `pumpkin` | +9 | same |
+| Consume a `cigarette`, a `sky-lantern` or a `firecracker` | +9 | same |
+| Consume anything at all that grants `ate-meal` | +6 | same |
+| Fulfil a Desire (player claim or GM award) | +12 per point | both award sites |
+| A confession the die absolved | +17 | `confessionPass.js` |
+| A **Musician's** `/play` with an instrument, once per listener per turn (Musician (Pythagorean): ×4, +48) | +12 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
+| A **Musician's** `/play` with no instrument — sung — same ration (Musician (Pythagorean): ×4, +36) | +9 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
+| Walk into the Cathedral, once per turn | +12 **to Fine only** | `applyArrivalMood` |
 | Be healed of a wound | +½ what it took | `healCharacterRequestImpl` |
 
 The food rules are keyed on the *status* a consume grants where there is a
@@ -440,7 +440,7 @@ The designer's checks, all asserted in `db/test/mood.test.js`:
 - Seven wilderness moves are −14: **Uncomfortable** from the walk alone. A
   wilderness night on top (−10 + 4) lands at −20, still Uncomfortable.
 - A moderately severe wound (rung 3, −30) on top of that is −50: **Anxious**.
-- At −20, two nights indoors (+6 +4 each) clear the dial; one night in a Haven
+- At −20, two nights indoors (+7 +4 each) clear the dial; one night in a Haven
   reaches Fine on its own. Both run through the cap in the test rather than
   adding the constants up, because a plain sum would agree no matter what the
   cap did.
@@ -448,7 +448,7 @@ The designer's checks, all asserted in `db/test/mood.test.js`:
   Fine leave the dial at 0, not at +82. That was the one real hole Ecstatic
   opened — +12 a night against a −4 drift, netting +8 forever — and §6's
   `capAtFine` rule is what closed it. The test walks all thirty nights.
-- A Haven night from −50 still lands its full +16. The cap must never be
+- A Haven night from −50 still lands its full +18. The cap must never be
   mistakable for slower recovery; it only ever blocks *crossing* 0.
 
 The dial is clamped in the database (`LEAST/GREATEST` in the UPDATE), so two
