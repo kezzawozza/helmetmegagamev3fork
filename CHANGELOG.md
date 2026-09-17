@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Oracle: dial the token cap back to 10000
+
+✎ 200000 was reckless; 10000 is still well above any observed page and keeps a runaway model from burning the budget.
+
 ## 2026-09-17 · Oracle: lift the per-page token cap
 
 ✎ The 1800/1400 caps were tuned for gpt-class models; nano-gpt's deepseek runs long and every page came back truncated. Raised to 200000 so the model's own context is the ceiling.
