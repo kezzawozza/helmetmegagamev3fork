@@ -300,7 +300,7 @@ export default async function PlayerDeskLayout({ children }) {
             GM's id are desk-wide, so they are handed down once here rather
             than fetched per conversation — which is what opening somebody
             used to pay a Discord round trip for. */}
-        <DeskMiddle gmProfiles={gmProfiles} myDiscordUserId={session.discordUserId}>
+        <DeskMiddle rows={rows} gmProfiles={gmProfiles} myDiscordUserId={session.discordUserId}>
           {children}
         </DeskMiddle>
         {/* The third column is the shell's, not the person view's: it stays
