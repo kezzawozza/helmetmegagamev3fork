@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Party backfill: sync each leader instead of just reconciling existing threads
+
+✎ The first pass assumed a live PartyThread existed and only stamped overwrites. In reality no thread had ever been opened — the escort chains predated the deploy. Backfill now calls syncPartyMembership per leader, which opens the thread, stamps overwrites, adds mirrored members. Two live parties reconciled.
+
 ## 2026-09-17 · Party auto-add: open #party per member before inviting to the thread
 
 ✚ A per-member overwrite on #party is stamped before addThreadMember, so private-thread invites don't 403 for lack of parent view. Cleared when a member leaves the party or the thread is torn down. Deadchat's shape.  

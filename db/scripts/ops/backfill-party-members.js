@@ -1,54 +1,59 @@
-// One-shot: reconcile the two currently-live PartyThreads whose Discord adds
-// silently 403'd before the per-member #party overwrite existed. Reads every
-// PartyThreadMember, stamps a per-member overwrite on the parent, then invites
-// the mirrored ones to their party thread. Idempotent — putChannelOverwrite
-// and addThreadMember are both fine to re-run.
+// One-shot backfill for the party-chat deploy: every ALIVE character with
+// somebody escorted needs a PartyThread, and every currently-open thread's
+// members need the per-member #party overwrite stamp. syncPartyMembership does
+// exactly this per leader — this script just walks the escort chain and calls
+// it for each distinct leader.
+//
+// Idempotent. Safe to re-run: syncPartyMembership creates missing threads,
+// diffs member rows, and skips no-op writes.
 //
 // `npm run db:backfill-party-members` to preview, `-- --apply` to run for real.
 require("dotenv").config();
 const { prisma } = require("../../index");
-const { openPartyChannelTo } = require("../../lib/partyChat");
-const { addThreadMember } = require("../../lib/discordRest");
+const { syncPartyMembership } = require("../../lib/partyChat");
+
+async function leadersWithParties() {
+  const rows = await prisma.character.findMany({
+    where: { escortedById: { not: null }, status: "ALIVE" },
+    select: { escortedById: true },
+  });
+  return [...new Set(rows.map((r) => r.escortedById).filter(Boolean))];
+}
 
 async function main() {
   const apply = process.argv.includes("--apply");
-  const parties = await prisma.partyThread.findMany({
-    select: {
-      id: true,
-      threadId: true,
-      name: true,
-      creatorCharacterId: true,
-      members: { select: { characterId: true } },
-    },
-  });
-  console.log(`Found ${parties.length} party thread(s).`);
-  if (parties.length === 0) return;
+  const leaderIds = await leadersWithParties();
+  console.log(`Found ${leaderIds.length} leader(s) with a live party.`);
 
-  for (const party of parties) {
-    console.log(`\n"${party.name}" (thread ${party.threadId})`);
-    const memberIds = party.members.map((m) => m.characterId);
-    if (memberIds.length === 0) {
-      console.log("  no members");
-      continue;
-    }
-    const characters = await prisma.character.findMany({
-      where: { id: { in: memberIds } },
-      select: { id: true, name: true, discordUserId: true, discordMirrored: true },
+  for (const leaderId of leaderIds) {
+    const leader = await prisma.character.findUnique({
+      where: { id: leaderId },
+      select: {
+        id: true,
+        name: true,
+        discordUserId: true,
+        discordMirrored: true,
+      },
     });
-    for (const c of characters) {
-      const mirrored = Boolean(c.discordUserId && c.discordMirrored);
-      const tag = mirrored ? "MIRRORED" : "web-only";
-      console.log(`  - ${c.name} [${tag}] ${c.discordUserId ?? ""}`);
-      if (!apply) continue;
-      if (!mirrored) continue;
-      const opened = await openPartyChannelTo(prisma, c.discordUserId);
-      console.log(`      opened #party seat: ${opened}`);
-      try {
-        await addThreadMember(party.threadId, c.discordUserId);
-        console.log("      added to thread: ok");
-      } catch (err) {
-        console.log(`      added to thread: FAILED ${err.message ?? err}`);
-      }
+    const party = await prisma.character.findMany({
+      where: { escortedById: leaderId },
+      select: { name: true, discordMirrored: true },
+    });
+    const existing = await prisma.partyThread.findUnique({
+      where: { creatorCharacterId: leaderId },
+      select: { threadId: true, name: true, members: { select: { characterId: true } } },
+    });
+    console.log(
+      `\n${leader?.name}${leader?.discordMirrored ? "" : " [web]"} — carrying ${party.length}: ${party.map((p) => p.name).join(", ")}`,
+    );
+    console.log(`  thread: ${existing ? `${existing.name} (${existing.threadId}, ${existing.members.length} row(s))` : "NONE"}`);
+    if (!apply) continue;
+
+    try {
+      const thread = await syncPartyMembership(prisma, leaderId);
+      console.log(`  synced: ${thread ? `${thread.name} / ${thread.threadId}` : "no-op"}`);
+    } catch (err) {
+      console.error(`  SYNC FAILED:`, err.message ?? err);
     }
   }
   if (!apply) console.log("\nDRY RUN — pass -- --apply to write.");
