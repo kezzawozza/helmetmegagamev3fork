@@ -3,6 +3,7 @@ import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
+import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { getGmSession } from "@/lib/discordGuild";
 import { UserError } from "@/lib/actionResult";
 import { blockerFor, SPEAK } from "@lifeweb/db/lib/incapacitation";
@@ -68,9 +69,29 @@ export function parseCount(raw, { min = 0, max = Number.MAX_SAFE_INTEGER } = {})
 
 // --- Parties ------------------------------------------------------------
 
-// "character:<id>" / "room:<id>" on both ends; re-exported here (prisma bound) from db/lib/parties.js beside applyTransfer.
-export function resolveParty(key, opts) {
-  return dbResolveParty(prisma, key, opts);
+// "character:<id>" / "room:<id>" / "hood:<token>"; re-exported here (prisma bound) from db/lib/parties.js beside applyTransfer.
+//
+// The hood arm used to live inside transfer.js as its own `hoodedKey`, which
+// meant Transfer was the only party surface that could name a person in a mask:
+// a masked stranger could not be asked to pay for a cure or a craft, because
+// resolveParty split the key on ":" and answered null for a "hood" kind. It is
+// one question, so it gets one answer here — pass `actor` and a hood token
+// resolves to the character standing in front of them, or to nobody.
+//
+// resolveHoodToken re-checks co-presence itself, so a token minted in a room
+// this character has since left names no one; `allowDead` widens it to an
+// unburied body, which only a source-side loot ever wants.
+export async function resolveParty(key, { actor = null, ...opts } = {}) {
+  const raw = String(key ?? "");
+  if (raw.startsWith("hood:")) {
+    if (!actor) return null;
+    const id = await resolveHoodToken(prisma, actor, raw.slice("hood:".length), {
+      includeDead: opts.allowDead === true,
+    });
+    if (!id) return null;
+    return dbResolveParty(prisma, `character:${id}`, opts);
+  }
+  return dbResolveParty(prisma, raw, opts);
 }
 
 // Serializer every craft touching a ration or a stack takes first — Postgres holds it to end of transaction, so two tabs submitting at once queue up instead of both reading the same count.

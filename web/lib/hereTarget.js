@@ -29,7 +29,10 @@ function refusalFor(key, target) {
 // their own gates on top (db/lib/kiss.js#kissBlock, db/lib/bind.js).
 export async function resolveHereTarget(character, key, { select, allowDead = false, status } = {}) {
   if (!character?.locationId) throw new UserError("You aren't anywhere you could do that.");
-  const id = await resolveTargetKey(prisma, character, key);
+  // allowDead widens the hood resolver the same way it widens isHere() below —
+  // a body is a legal target for Loot and for nothing else, and the two halves
+  // have to be told the same thing or a masked corpse resolves to nobody.
+  const id = await resolveTargetKey(prisma, character, key, { allowDead });
   const target = id
     ? await prisma.character.findFirst({
         where: { id, ...(status ? { status } : {}) },

@@ -1936,6 +1936,19 @@ model Character {
   // and Who's here? lists the alias instead of the name.
   concealed Boolean @default(false)
 
+  // Which concealing item was over this character's face at the moment they
+  // died, stamped by db/lib/characterDeath.js just BEFORE it unequips
+  // everything. Death used to take the hood off by accident — concealment only
+  // counts an EQUIPPED mask (db/lib/presentedIdentity.js#concealmentFrom), so
+  // the unequip-on-death pass named every masked corpse in the room's Loot
+  // menu, and killing somebody was the reliable way to learn who they were.
+  //
+  // Still DERIVED, never trusted: a body reads as concealed only while it also
+  // still HOLDS this tag, so looting the helmet off a corpse unmasks it with no
+  // second write and no catch-up pass. A gib leaves this null — the tags are
+  // vaporized, so there is nothing left over the face.
+  deathMaskTagId String?
+
   // Personal Discord role titled after this character's BARE name (first +
   // last, via formatBareName) and seeded to a muted color by
   // db/lib/roleColor.js#hashNameToColor from that same bare string, re-synced

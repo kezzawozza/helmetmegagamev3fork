@@ -31,7 +31,6 @@ import {
   canReachParty,
   outOfReachMessage,
 } from "@/lib/transferReach";
-import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import {
@@ -69,16 +68,6 @@ import { lootCharacterRequestImpl } from "./misc.js";
 // wearing Transfer's clothes, and it is handed to lootCharacterRequestImpl
 // rather than reimplemented here. An upright person is still refused: listing
 // what is in their pockets would show their hidden tags.
-
-// "hood:<token>" -> "character:<id>", or the key untouched. Null when the
-// token names nobody standing here, which resolveParty then refuses as an
-// unknown party — the same answer a made-up id gets.
-async function hoodedKey(character, key) {
-  const raw = String(key ?? "");
-  if (!raw.startsWith("hood:")) return raw;
-  const id = await resolveHoodToken(prisma, character, raw.slice("hood:".length));
-  return id ? `character:${id}` : "";
-}
 
 // `options` is a SECOND parameter, and it has to stay one. requestActions.js
 // calls this as `guarded(() => transferRequestImpl(input))` and hands the
@@ -119,18 +108,16 @@ export async function transferRequestImpl(
 
   // A "hood:<token>" key names a concealed person by an opaque handle rather
   // than an id, so the browser is never told who is under the mask
-  // (db/lib/whosHere.js). resolveHoodToken re-checks co-presence itself and
-  // answers null for a token minted in a room this character has since left.
-  const [fromResolved, toResolved] = await Promise.all([
-    hoodedKey(character, fromKey),
-    hoodedKey(character, toKey),
-  ]);
+  // (db/lib/whosHere.js). resolveParty knows both shapes now (actions/shared.js)
+  // and re-checks co-presence itself, so a token minted in a room this
+  // character has since left names nobody.
+  //
   // `allowDead` on the SOURCE only: taking things off a corpse is the whole
   // point of a loot-shaped transfer, while handing something TO a body is not
   // a thing. Loot resolves its target the same way.
   const [from, to] = await Promise.all([
-    resolveParty(fromResolved, { allowDead: true }),
-    resolveParty(toResolved),
+    resolveParty(fromKey, { actor: character, allowDead: true }),
+    resolveParty(toKey, { actor: character }),
   ]);
   if (!from) throw new UserError("Unknown source.");
   if (!to) throw new UserError("Unknown recipient.");

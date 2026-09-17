@@ -86,7 +86,17 @@ const KISS_SELECT = {
 // `self` picks the person the sentence is about. Refusal NAMES the tag
 // (blockerFor() habit): "You're Bound." beats "You can't do that".
 function kissBlock(character, { self }) {
-  const who = self ? "You're" : `${character.name} is`;
+  // Covered face, derived rather than listed — the /conceal WISH column is not
+  // it, since a forcesConceal helmet never touches that column.
+  //
+  // Resolved FIRST, because it decides how everything below is allowed to be
+  // worded: a refusal must never be an unmasking. A hood can be posted at this
+  // gate now that every picker reaches one, and "Sir Alder is Bound." would hand
+  // over the name the helmet was bought to hide. So a concealed subject is
+  // "They", always, and the item is never named either — that a mask is what is
+  // stopping you is plain enough from looking at them.
+  const piece = concealmentFrom(character.tags);
+  const who = self ? "You're" : piece ? "They're" : `${character.name} is`;
 
   // Capability table first (db/lib/incapacitation.js) — everything that blocks ACT blocks KISS through it, one table rather than a second list beside it.
   const blocker = blockerFor(character.tags, KISS);
@@ -99,12 +109,10 @@ function kissBlock(character, { self }) {
     return `${who} ${row?.tag?.name ?? row?.name ?? fiction}.`;
   }
 
-  // Covered face, derived rather than listed — presence.js filters the /conceal WISH column, which a forcesConceal helmet never touches.
-  const piece = concealmentFrom(character.tags);
   if (piece)
     return self
       ? `You can't kiss when you have a ${piece.name} on.`
-      : `${character.name} can't kiss when they have a ${piece.name} on.`;
+      : "They have their face covered.";
 
   return null;
 }
@@ -115,7 +123,12 @@ function kissAuthority(actor, target) {
   if (actor.id === target.id) return "Kiss somebody else.";
   if (actor.status !== "ALIVE") return "You can't do that right now.";
   if (target.status !== "ALIVE") return notHereMessage(target);
-  if (!isHere(actor, target)) return notHereMessage(target);
+  // allowConcealed, and it changes nothing in practice: kissBlock below refuses
+  // a covered face on either side, so a hood is still told no. It is written
+  // this way so the refusal comes from the RULE about mouths rather than from
+  // co-presence quietly reporting somebody standing in front of you as absent —
+  // and so the day a concealing item leaves the mouth free, this still holds.
+  if (!isHere(actor, target, { allowConcealed: true })) return notHereMessage(target);
   return kissBlock(actor, { self: true }) ?? kissBlock(target, { self: false });
 }
 

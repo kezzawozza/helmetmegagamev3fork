@@ -16,11 +16,13 @@ import { performMiracleRequest } from "@/app/(app)/character/requestActions";
 
 export default function MiracleDialog({ mode, presets, onDone, onClose }) {
   const pools = useActionPools();
-  const selfId = pools.selfId;
+  // The pools are keyed now ("character:<id>" / "hood:<token>"), so the self
+  // row is matched by its KEY rather than by a bare id.
+  const selfKey = pools.selfId ? `character:${pools.selfId}` : null;
   const { roster, loading } = useRoster(["people"], {
     seed: { people: { miracleTargets: pools.miracleTargets ?? [] } },
   });
-  const targets = (roster?.people?.miracleTargets ?? []).filter((t) => t.id !== selfId);
+  const targets = (roster?.people?.miracleTargets ?? []).filter((t) => t.id !== selfKey);
   const miraclesLeft = roster?.people?.miraclesLeft ?? pools.miraclesLeft ?? 0;
 
   const [patientId, setPatientId] = useState(presets?.patientId ?? "");

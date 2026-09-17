@@ -1392,6 +1392,17 @@ purely as a fallback for a tag that never came through the catalog (one a GM
 wrote in the Dev Panel, or a runtime clone), and it lands the case it cannot
 answer on the gentler rung.
 
+**Dying is off the ladder, and it is the only tag that is.** Its cure is a
+rescue rather than a procedure: 4 ⬢, no turns, Medical (Basic), and an
+unconditional Gambit. It used to sit at tier 7 — and `needsSurgicalSite()` keys
+off the `medical-expert` slug, so that pricing meant the Heal action refused
+outright unless a Surgical Theater or a Portable Surgical Pack was in reach. A
+man bleeding out in a field could not be saved by anybody, which is not what
+death's door is for. The difficulty now lives entirely in the die: even Esculap
+rolls for it. The real bill is what is underneath — Dying is stamped on top of
+the chain that caused it, so stabilizing somebody leaves every wound still to
+pay for at its own rung.
+
 Tiers 5–7 were repriced by the medical pass (M2 — 6→7, 8→9, 8→14) precisely
 because a whole Move stopped being what any of them actually cost once the
 lower rungs moved onto shares; the ⬢ went up with the tier's now-relative
@@ -1750,9 +1761,10 @@ is.
 
 That turn is the whole design, and three wounds are exempt from it on purpose
 (the `dead` token above) because their descriptions promise otherwise.
-`dying` is visible and carries a tier-7 cure,
-so a heroic save is still on the table — a medic with Medical III, a
-Gambit, 13 ⬢ and one turn can pull someone back. What went away is the version
+`dying` is visible and carries a cure of its own,
+so a heroic save is still on the table — any medic with Medical (Basic), a
+Gambit and 4 ⬢ can try to pull someone back, anywhere, with no surgical site
+needed. See "Dying is off the ladder" below for why those are the numbers. What went away is the version
 where a character sat on death's door indefinitely because no GM had got to
 the Kill button. The pass is also careful in one direction: a `dying` row with
 a **null** `expiresTurn` is stamped for the next close and its holder warned

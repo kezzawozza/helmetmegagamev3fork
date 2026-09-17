@@ -21,15 +21,24 @@ const PRESENT_SELECT = {
   // is drawn in. roleGroupHue() decides which groups have one.
   role: { select: { groupSlug: true } },
   concealed: true,
+  status: true,
+  buriedAt: true,
+  // What was over the face at the moment of death (Character.deathMaskTagId).
+  // A corpse wears nothing — death unequips — so the living rule below would
+  // name every masked body the moment it hit the floor.
+  deathMaskTagId: true,
   age: true,
   gender: true,
   updatedAt: true,
   lastSeenAt: true,
   tags: {
+    // Every concealing piece, equipped or not, rather than only the worn ones:
+    // a corpse's remembered mask is by definition no longer in its slot, and
+    // concealmentFrom() goes on ignoring the unequipped for everybody alive.
     where: {
-      OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
+      OR: [{ tag: { forcedName: { not: null } } }, { tag: { concealsIdentity: true } }],
     },
-    select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
+    select: { tagId: true, equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
   },
 };
 
@@ -43,19 +52,49 @@ function isOnline(lastSeenAt, now = Date.now()) {
   return Boolean(lastSeenAt) && now - lastSeenAt.getTime() < ONLINE_WINDOW_MS;
 }
 
+// What a dead body still has over its face, or null. The remembered tag has to
+// be BOTH stamped and still held — a dangling id (the catalog pruned it, or
+// somebody walked off with the helmet) reads as a bare face, which is the safe
+// direction and the one that makes looting a mask off mean something.
+function deathMaskPiece(row) {
+  if (!row?.deathMaskTagId || !Array.isArray(row.tags)) return null;
+  const held = row.tags.find((ct) => ct.tagId === row.deathMaskTagId);
+  const tag = held?.tag;
+  if (!tag?.concealsIdentity || !tag?.concealSprite) return null;
+  // `forced` stays the tag's own forcesConceal, not a blanket true: it means "a
+  // sack you cannot take off", and a corpse's ability to take anything off is
+  // not what it is describing. Nothing downstream reads it for a dead row — the
+  // hidden decision below is the death mask's presence alone — but a field that
+  // lies is a field somebody trusts later.
+  return {
+    sprite: tag.concealSprite,
+    name: tag.name ?? null,
+    tagId: row.deathMaskTagId,
+    forced: Boolean(tag.forcesConceal),
+  };
+}
+
 // The one place "is this person hidden from this viewer" is decided; every
 // readout and resolveHoodToken read it rather than asking again. `sightings`
 // is a caller's own lastSightings Map; without one, `withSightings` decides whether to go and ask.
 async function presentRows(
   prisma,
   viewer,
-  { locationId, includeSelf = true, withSightings = false, sightings = null } = {},
+  { locationId, includeSelf = true, includeDead = false, withSightings = false, sightings = null } = {},
 ) {
   const where = locationId ?? viewer?.locationId ?? null;
   if (!where) return [];
 
   const present = await prisma.character.findMany({
-    where: { status: "ALIVE", locationId: where },
+    // `includeDead` adds the UNBURIED dead, for the verbs that act on a body
+    // (Loot, Engrave, Bury, Butcher). A buried one is out of the world and is
+    // never here, the same rule hereWhere() keeps.
+    where: {
+      locationId: where,
+      ...(includeDead
+        ? { OR: [{ status: "ALIVE" }, { status: "DEAD", buriedAt: null }] }
+        : { status: "ALIVE" }),
+    },
     select: PRESENT_SELECT,
     orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
   });
@@ -66,9 +105,16 @@ async function presentRows(
   return present
     .filter((c) => includeSelf || c.id !== viewer?.id)
     .map((c) => {
-      const piece = concealmentFrom(c.tags);
+      const dead = c.status === "DEAD";
+      // A corpse wears nothing — death unequips — so concealmentFrom() answers
+      // null for one however it died. What it wore is remembered instead
+      // (Character.deathMaskTagId), and still DERIVED rather than trusted: the
+      // mask counts only while the body also still HOLDS it, so looting the
+      // helmet off unmasks the corpse with no second write anywhere.
+      const deathPiece = dead ? deathMaskPiece(c) : null;
+      const piece = deathPiece ?? concealmentFrom(c.tags);
       const forced = forcedNameFrom(c.tags);
-      const live = Boolean(piece && (piece.forced || c.concealed));
+      const live = dead ? Boolean(deathPiece) : Boolean(piece && (piece.forced || c.concealed));
       const self = c.id === viewer?.id;
       const sighting = self ? null : (seenBy.get(c.id) ?? null); // you have always seen yourself.
       const seen = self || Boolean(sighting);
@@ -190,11 +236,15 @@ async function whosHereGm(prisma, locationId) {
 
 // Which concealed character at the VIEWER's Location the token names, or
 // null. Reads presentRows() rather than deciding for itself, so it can never disagree with the list that minted it.
-async function resolveHoodToken(prisma, viewer, token, { sightings = null } = {}) {
+async function resolveHoodToken(prisma, viewer, token, { sightings = null, includeDead = false } = {}) {
   if (!token || !viewer?.locationId) return null;
   // No key, no answer — the same reason hoodToken() above mints none.
   if (!process.env.AUTH_SECRET) return null;
-  const rows = await presentRows(prisma, viewer, { withSightings: true, sightings });
+  // `includeDead` is the CALLER's business, and it has to be, because it is the
+  // verb that knows whether a body is a legal target: Loot allows one, Heal
+  // does not. Off by default, so a token minted over a corpse resolves to
+  // nobody for every verb that never asked for one.
+  const rows = await presentRows(prisma, viewer, { withSightings: true, sightings, includeDead });
   for (const c of rows) {
     if (!c.hidden || c.forced) continue;
     if (hoodToken(c.id) === token) return c.id;

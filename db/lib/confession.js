@@ -105,8 +105,11 @@ async function validateConfession(
   if (heldSlugs(penitent).has(GUILT_RIDDEN_SLUG))
     return "You can't bring yourself to confess.";
   if (chaplain.id === penitent.id) return "You can't confess to yourself.";
-  if (!isHere(chaplain, penitent)) return notHereMessage(penitent);
-  if (!isHere(penitent, chaplain)) return notHereMessage(chaplain);
+  // allowConcealed both ways. A confessional is a box built so neither side
+  // sees the other, so a hood is if anything the point — and the chaplain is
+  // never shown the sin regardless (CONFESSION.md).
+  if (!isHere(chaplain, penitent, { allowConcealed: true })) return notHereMessage(penitent);
+  if (!isHere(penitent, chaplain, { allowConcealed: true })) return notHereMessage(chaplain);
   if (!isChaplain(chaplain))
     return `${chaplain.name} can't take a confession.`;
   if (!tag) return "Unknown burden.";

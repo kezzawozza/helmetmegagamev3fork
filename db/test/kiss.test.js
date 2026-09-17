@@ -110,8 +110,23 @@ test("nobody kisses themselves, the dead, or somebody across the map", () => {
   assert.ok(kissAuthority(person({ locationId: null }), other()));
 });
 
-test("a concealed target is unreachable, the presence.js rule", () => {
-  assert.ok(kissAuthority(person(), other({ concealed: true })));
+// The /conceal COLUMN is only a wish (PROXYING.md §5): concealment is what is
+// over the face, derived at read time, so a row left `concealed: true` after the
+// mask came off is an ordinary bare-faced person. Co-presence no longer refuses
+// on the column either — every people-picker reaches a hood now, and the rule
+// about mouths is what says no. The mask case is covered above.
+test("the conceal column alone is not a covered face", () => {
+  assert.equal(kissAuthority(person(), other({ concealed: true })), null);
+});
+
+// A refusal must never be an unmasking, so a hooded subject is "They" and the
+// helmet is not named back at you.
+test("a refusal about somebody hooded never names them", () => {
+  const masked = other({ name: "Sir Alder", tags: [hood(), tag("bound", { name: "Bound" })] });
+  const refusal = kissAuthority(person(), masked);
+  assert.ok(refusal);
+  assert.doesNotMatch(refusal, /Alder/);
+  assert.match(kissBlock(other({ name: "Sir Alder", tags: [hood()] }), { self: false }), /face covered/);
 });
 
 test("KISS_SELECT carries what the rules actually read", () => {

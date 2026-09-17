@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
+import { pickerKey, pickerName } from "@/lib/peopleHere";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import {
   LESSON_CATALOG_SELECT,
@@ -452,6 +453,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // cannot disagree about who is standing near you.
   const {
     here,
+    hereAll,
     zoneRoster,
     peopleParties,
     transferParties,
@@ -986,8 +988,14 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     id: character.id,
     tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })),
   };
-  // rosterName, not c.name — a forced name is what an offer addresses (web/lib/peoplePools.js).
-  const hereForLessons = here.map((c) => ({ id: c.id, name: rosterName(c) }));
+  // Both halves, keyed. A lesson is a thing two people do standing next to each
+  // other, and there is nothing about a mask that stops somebody being shown how
+  // to sharpen a blade — the offer handshake means they consent either way, and
+  // db/lib/lessons.js never reads the far sheet (LESSONS.md §4).
+  //
+  // pickerName, not c.name — a forced name is what an offer addresses, and a
+  // hood is addressed by its alias (web/lib/peopleHere.js).
+  const hereForLessons = hereAll.map((c) => ({ id: pickerKey(c), name: pickerName(c) }));
   const skillChip = (t) => ({ id: t.id, name: t.name });
   const learnable = learnableSkills(meForLessons, lessonCatalog).map(skillChip);
   const myTeachable = knownTeachableSkills(meForLessons, lessonCatalog).map(skillChip);
@@ -997,9 +1005,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const teachCostsMove = !teachesFree(meForLessons);
   // Confession (CONFESSION.md). Only the penitent gets a menu — no list is
   // built for a chaplain, which would show everybody's addictions unasked.
-  const confessors = here
+  // A hooded chaplain still hears a confession — a confessional is a box built
+  // so neither side sees the other, so a hood is if anything the point.
+  const confessors = hereAll
     .filter((c) => c.tags.some((ct) => ct.tag.slug === "chaplain"))
-    .map((c) => ({ id: c.id, name: rosterName(c) }));
+    .map((c) => ({ id: pickerKey(c), name: pickerName(c) }));
   // Guilt Ridden can't bring themself to confess at all — mirrors db/lib/confession.js#confessableTags so the button hides, not fails.
   const mySins = heldSlugs.has(GUILT_RIDDEN_SLUG)
     ? []

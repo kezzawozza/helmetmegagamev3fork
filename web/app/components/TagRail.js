@@ -147,7 +147,11 @@ export default function TagRail({
         onEquip={v.equippable && ct.id ? () => equip(ct) : null}
         onGive={open ? () => open("transfer", ct.tag.id) : null}
         onDestroy={open ? () => open("destroy", ct.tag.id) : null}
-        onHeal={pools.canHeal && open && selfId ? () => open("heal", ct.tag.id, { patientId: selfId }) : null}
+        onHeal={
+          pools.canHeal && open && selfId
+            ? () => open("heal", ct.tag.id, { patientId: `character:${selfId}` })
+            : null
+        }
         onResearch={open ? () => open("research") : null}
       />
     );

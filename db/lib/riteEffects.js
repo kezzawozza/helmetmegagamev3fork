@@ -118,7 +118,7 @@ async function reviveByRite(db, dead, { location, turnNumber }) {
   await db.$transaction(async (tx) => {
     await tx.character.update({
       where: { id: dead.id },
-      data: { status: "ALIVE", buriedAt: null, locationId: location.id, zoneId: location.zoneId },
+      data: { status: "ALIVE", buriedAt: null, deathMaskTagId: null, locationId: location.id, zoneId: location.zoneId },
     });
     await grantTagSlugs(tx, dead.id, [GHOUL_SLUG, SERVANT_SLUG, HUNGERLESS_SLUG], turnNumber);
   });

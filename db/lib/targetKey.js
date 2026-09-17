@@ -28,10 +28,14 @@ function splitTargetKey(raw) {
 // The id the key names, or null. Null is always "nobody you can reach", never an error: a made-up id,
 // an expired token and a token for somebody who has since walked off all deserve the same answer, so
 // that none of them tells the caller which of the three it was.
-async function resolveTargetKey(prisma, actor, raw, { sightings = null } = {}) {
+async function resolveTargetKey(prisma, actor, raw, { sightings = null, allowDead = false } = {}) {
   const { kind, value } = splitTargetKey(raw);
   if (!value) return null;
-  if (kind === "hood") return resolveHoodToken(prisma, actor, value, { sightings });
+  // `allowDead` only widens who a HOOD token may name. A plain character key is
+  // still just an id, and the caller's own isHere() decides whether a body is a
+  // legal target for that verb — this flag exists so the token resolver and
+  // that check can agree rather than one of them quietly disagreeing.
+  if (kind === "hood") return resolveHoodToken(prisma, actor, value, { sightings, includeDead: allowDead });
   return value;
 }
 

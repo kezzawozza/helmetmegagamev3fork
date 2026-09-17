@@ -309,6 +309,11 @@
 # Esculap rolls for, which is why it shares tier 6's price — what separates
 # them is the Gambit, not the bill.
 #
+# ONE tag is deliberately off the ladder: `dying`. Its cure is a rescue rather
+# than a procedure, so it is priced as first aid (4 ⬢, no turns, medical-basic)
+# and made hard by an unconditional Gambit instead of by the bill. The block
+# itself says why. Nothing else in the category gets to do this.
+#
 # Tier 0 is a real choice, not a gap: something that realistically isn't
 # treatable, runs its course quickly, and does no lasting harm (Vomiting, a
 # Migraine, a Concussion) gets NO requirement block, which is exactly what
@@ -4255,12 +4260,30 @@ tags:
     # Dying death pass reads this clock and kills at the close instead. See
     # db/lib/dyingDeathPass.js and TAGS.md §5c.
     durationTurns: 1
-    removesInto: [recovering, drained]
+    # Pulled back from the door and wrung out, not comfortably Recovering.
+    removesInto: [drained]
     healable: true
+    # OFF THE LADDER, on purpose — the one exception in the health category, and
+    # the reason is that this cure is a rescue rather than a procedure. It was
+    # written as a tier-7 rung (13 ⬢, a whole turn, medical-expert), and
+    # needsSurgicalSite() keys off exactly the medical-expert slug, so treating
+    # somebody refused outright without a Surgical Theater or a Portable
+    # Surgical Pack in reach. A man bleeding out in a field could not be saved
+    # by anyone, which is not what death's door is meant to be.
+    #
+    # So: first-aid money, any medic, anywhere — and ALWAYS a Gambit, even for
+    # an Esculap. The difficulty is the die, never the bill. `turnsCost` is 0
+    # because a Gambit takes the Move whole and never charges the turns column
+    # (web/app/(app)/character/actions/medical.js takes the requireFreeMove
+    # branch); a 1 there only printed a cost nobody was billed.
+    #
+    # The real price is what is underneath. Dying is stamped on top of the chain
+    # that caused it, so stabilizing somebody leaves every wound still to pay
+    # for at its own rung.
     requirement:
-      turnsCost: 1
-      resourceCost: 13
-      skills: [medical-expert]
+      turnsCost: 0
+      resourceCost: 4
+      skills: [medical-basic]
       gambit: true
 
   # The end of the line. Not a wound and not curable — a marker on a sheet

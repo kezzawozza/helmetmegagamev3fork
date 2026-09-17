@@ -1,0 +1,22 @@
+-- Which concealing item was over a character's face when they died.
+--
+-- Concealment only ever counted an EQUIPPED mask
+-- (db/lib/presentedIdentity.js#concealmentFrom), and db/lib/characterDeath.js
+-- unequips everything on death. So dying took your hood off: a masked man who
+-- went down was listed in everyone's Loot menu under his real name a moment
+-- later, and killing somebody was the reliable way to learn who they were.
+--
+-- This column is the memory of the piece, stamped just BEFORE that unequip.
+-- Concealment stays derived rather than stored: a body reads as hooded only
+-- while it also still HOLDS this tag, so looting the helmet off a corpse
+-- unmasks it with no second write and no catch-up pass anywhere.
+--
+-- Deliberately NOT a foreign key. It is a remembered id, not a relation — the
+-- tag catalog is synced from docs/tags.yaml and a prune must never cascade into
+-- a corpse's face. A dangling id simply reads as "no longer held", which is the
+-- safe direction.
+--
+-- Additive only. Nullable, no default, no backfill: every corpse already in the
+-- ground keeps the bare face it has now.
+
+ALTER TABLE "Character" ADD COLUMN "deathMaskTagId" TEXT;

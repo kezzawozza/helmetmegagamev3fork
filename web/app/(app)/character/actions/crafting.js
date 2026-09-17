@@ -368,10 +368,13 @@ async function recheckGrantsUnderLock(tx, character, tag) {
 // Who pays: you, a room here, or a person here. Defaults to you.
 export async function resolveCraftPayer(character, payerKey, cost) {
   const key = payerKey || `character:${character.id}`;
-  const payer = await resolveParty(key);
+  // allowConcealed — same reason as the heal payer (actions/medical.js): a hood
+  // is somebody standing in front of you with a purse, and resolveParty has
+  // already re-checked that they are.
+  const payer = await resolveParty(key, { actor: character });
   if (!payer) throw new UserError("That payer isn't here any more — pick another.");
-  if (!(await canReachParty(character, payer)))
-    throw new UserError(outOfReachMessage(payer));
+  if (!(await canReachParty(character, payer, { allowConcealed: true })))
+    throw new UserError(payer.concealed ? "They aren't here." : outOfReachMessage(payer));
   if (cost > payer.balance)
     throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
   return payer;

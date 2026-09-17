@@ -74,4 +74,4 @@ function notHereMessage(target) {
   return target?.name ? `${target.name} isn't here.` : "They aren't here.";
 }
 
-module.exports = { hereWhere, isHere, HERE_FIELDS, notHereMessage };
+module.exports = { hereWhere, isHere, concealedNow, HERE_FIELDS, notHereMessage };

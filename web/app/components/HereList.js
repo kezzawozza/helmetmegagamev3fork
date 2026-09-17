@@ -49,24 +49,31 @@ import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
 // Look at is NOT on this menu (the eye on the row already is it). Move
 // Player is gone entirely — the party rack below this list replaced it
 // (docs/systemdocs/MAP.md §3a).
-// `hoodPrefix` makes a row offerable to a hood: transferRequestImpl parses
-// "hood:<token>" via resolveHoodToken (web/lib/peoplePools.js). No prefix means named-rows-only.
+// Every row carries both prefixes now, and that is the whole rule: a hood hides
+// WHO you are, never THAT you are standing there, so every verb on this menu
+// reaches one. The preset it hands over is a TARGET KEY — "character:<id>" for
+// somebody named, "hood:<token>" for somebody in a mask — which is the shape
+// every pool in web/lib/peoplePools.js is keyed by and db/lib/targetKey.js
+// resolves. A row with no hoodPrefix is dropped for hoods by the filter below,
+// which is how Heal and Loot used to vanish for exactly the person bleeding out
+// in front of you.
+//
 // Everything else about a row — whether it shows at all, whether it is greyed,
 // and the sentence saying why — comes from the registry, not from here.
+const HOOD_KEYS = { prefix: "character:", hoodPrefix: "hood:" };
 const PEOPLE_ACTIONS = [
-  { mode: "heal", label: "Heal", preset: "patientId" },
-  { mode: "miracle", label: "Perform Miracle", preset: "patientId" },
-  { mode: "transfer", label: "Transfer", preset: "toKey", prefix: "character:", hoodPrefix: "hood:" },
-  { mode: "loot", label: "Loot", preset: "targetId" },
-  { mode: "bind", label: "Bind", preset: "targetId" },
-  { mode: "free", label: "Free", preset: "targetId" },
-  { mode: "harm", label: "Harm", preset: "targetId" },
-  { mode: "kiss", label: "Kiss", preset: "targetId" },
-  // Search carries a hoodPrefix, like Transfer and unlike everything else on
-  // this menu: it is one of the two verbs that reaches a concealed person
-  // (docs/systemdocs/SEARCH.md §2). Without it the row is dropped for hoods
-  // by the filter below.
-  { mode: "search", label: "Search", preset: "targetId", prefix: "character:", hoodPrefix: "hood:" },
+  { mode: "heal", label: "Heal", preset: "patientId", ...HOOD_KEYS },
+  { mode: "miracle", label: "Perform Miracle", preset: "patientId", ...HOOD_KEYS },
+  { mode: "transfer", label: "Transfer", preset: "toKey", ...HOOD_KEYS },
+  { mode: "loot", label: "Loot", preset: "targetId", ...HOOD_KEYS },
+  { mode: "bind", label: "Bind", preset: "targetId", ...HOOD_KEYS },
+  { mode: "free", label: "Free", preset: "targetId", ...HOOD_KEYS },
+  { mode: "harm", label: "Harm", preset: "targetId", ...HOOD_KEYS },
+  // Kiss keeps its row for a hood even though kissBlock() will refuse a covered
+  // face: the refusal is the gate, and the menu is not the place to re-implement
+  // it (web/lib/peoplePools.js says the same about kissTargets).
+  { mode: "kiss", label: "Kiss", preset: "targetId", ...HOOD_KEYS },
+  { mode: "search", label: "Search", preset: "targetId", ...HOOD_KEYS },
 ];
 
 // `person` is normalised by the two lists below to { ref, name, hooded }:

@@ -27,7 +27,9 @@ import {
   detonateCollar,
 } from "@lifeweb/db/lib/collar";
 import { resourcesOf, isResourcesRow } from "@lifeweb/db/lib/resourceStack";
-import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
+import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
+import { concealedNow } from "@lifeweb/db/lib/presence";
+import { resolveHereTarget } from "@/lib/hereTarget";
 import { cleanCustomText, CUSTOM_DESCRIPTION_MAX } from "@/lib/customCraft";
 import { mintCustomCraft, unmintCustomCraft } from "./crafting.js";
 import { applyHiddenCures } from "@lifeweb/db/lib/hiddenCures";
@@ -753,7 +755,12 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // included — lands on `target`, which defaults to the actor. Self-consume
   // is deliberately not ACT-gated (TAGS.md §5f); administering someone else
   // is, since it's an act done TO them rather than to your own sheet.
-  const administered = Boolean(targetCharacterId) && targetCharacterId !== character.id;
+  // A key rather than a bare id (db/lib/targetKey.js), so "character:<id>" and
+  // "hood:<token>" both name somebody. splitTargetKey is what tells self from
+  // other now — the old bare comparison would read "character:<me>" as another
+  // person and ACT-gate a self-consume.
+  const posted = splitTargetKey(targetCharacterId ?? "");
+  const administered = Boolean(posted.value) && !(posted.kind === "character" && posted.value === character.id);
   let target = character;
   if (administered) {
     const blocker = blockerFor(character.tags, ACT);
@@ -763,20 +770,31 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     if (!character.locationId) {
       throw new UserError("You aren't anywhere you could treat someone.");
     }
-    const found = await prisma.character.findFirst({
-      where: { id: targetCharacterId, status: "ALIVE" },
-      include: {
+    // A hood costs you your name, not your right to be handed a cure by the
+    // person standing next to you. resolveHereTarget throws the blank refusal
+    // for a token, so a "no" never prints the name behind the mask.
+    const found = await resolveHereTarget(character, targetCharacterId, {
+      status: "ALIVE",
+      select: {
+        id: true,
+        name: true,
+        concealed: true,
+        locationId: true,
+        status: true,
+        buriedAt: true,
+        discordUserId: true,
         // `resists` (M4): resolveConsumeGrants below needs the TARGET's own
         // resist-traits, administered or self — Iron Constitution shrugging
         // off a poison lands on whoever holds it, not whoever swallowed it.
         tags: { include: { tag: { select: { id: true, slug: true, name: true, resists: true } } } },
       },
     });
-    if (!found || !isHere(character, found)) throw new UserError(notHereMessage(found));
     const targetSlugs = new Set(found.tags.map((ct) => ct.tag.slug));
     const intersects = curesList.some((slug) => targetSlugs.has(slug));
     if (!intersects && !held.tag.administerable) {
-      throw new UserError(`${found.name} doesn't have anything that ${held.tag.name} can treat.`);
+      // Never their name when a mask is what you are looking at.
+      const who = concealedNow(found) ? "They" : found.name;
+      throw new UserError(`${who} ${concealedNow(found) ? "don't" : "doesn't"} have anything that ${held.tag.name} can treat.`);
     }
     target = found;
   }
@@ -1336,9 +1354,25 @@ export async function lootCharacterRequestImpl({
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");
 
-  const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: { in: ["ALIVE", "DEAD"] } },
-    include: {
+  // A target key, not a bare id: "hood:<token>" is how a person in a mask — or
+  // a body still wearing one — is named without their id crossing the wire.
+  // Going through the pockets of somebody who cannot stop you is the plainest
+  // thing there is to do to a stranger, and Search already reached one
+  // (SEARCH.md); Loot was the hold-out, which made a closed helmet a way to
+  // keep your purse after you had been knocked cold.
+  const target = await resolveHereTarget(character, targetCharacterId, {
+    allowDead: true,
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      concealed: true,
+      locationId: true,
+      buriedAt: true,
+      resources: true,
+      // notifyCharacter's two: the DM address, and the status it checks before
+      // sending one to somebody who has since died (web/lib/notifyCharacter.js).
+      discordUserId: true,
       tags: {
         include: {
           tag: {
@@ -1354,9 +1388,7 @@ export async function lootCharacterRequestImpl({
       },
     },
   });
-  if (target?.buriedAt) throw new UserError("They're already in the ground.");
-  if (!target || !isHere(character, target, { allowDead: true }))
-    throw new UserError(notHereMessage(target));
+  if (target.buriedAt) throw new UserError("They're already in the ground.");
 
   // A corpse needs no further excuse; a living target has to be helpless —
   // otherwise it's a Gambit for a GM to adjudicate.
@@ -1527,7 +1559,9 @@ export async function bindCharacterRequestImpl({
   // /api/avatar/<id> would draw the face the mask is for (db/lib/targetKey.js). Resolving it here
   // keeps every check below working on a real id, and it answers null for anybody not standing
   // here — which is what stops a token being a way to ask after somebody who has already left.
-  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
+  // allowDead to match the isHere() below — a body still wearing its mask is a
+  // hood the resolver has to be willing to name, or tying one up refuses.
+  const targetId = await resolveTargetKey(prisma, character, targetCharacterId, { allowDead: true });
 
   if (!character.locationId)
     throw new UserError("You aren't anywhere you could do that.");

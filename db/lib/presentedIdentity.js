@@ -10,6 +10,9 @@ const HELM_PREFIX = "/assets/helms/"; // a hood's face; see wasHooded.
 
 // Exported so every call site resolving an identity selects the same fields.
 const CONCEALMENT_TAG_FIELDS = {
+  // The winning piece's own id, so concealmentFrom() can name the item a body
+  // was wearing when it died (Character.deathMaskTagId, db/lib/characterDeath.js).
+  id: true,
   name: true,
   concealsIdentity: true,
   concealSprite: true,
@@ -79,9 +82,11 @@ function concealmentFrom(tags) {
     const wins = !best
       || rank > best.rank
       || (rank === best.rank && String(name ?? "").localeCompare(String(best.name ?? "")) < 0);
-    if (wins) best = { sprite: tag.concealSprite, rank, name };
+    // tagId is the piece itself, for the one caller that has to remember WHICH
+    // item was over the face rather than just that something was.
+    if (wins) best = { sprite: tag.concealSprite, rank, name, tagId: entry?.tagId ?? tag?.id ?? null };
   }
-  return best ? { sprite: best.sprite, name: best.name ?? null, forced } : null;
+  return best ? { sprite: best.sprite, name: best.name ?? null, tagId: best.tagId ?? null, forced } : null;
 }
 
 async function loadConcealment(prisma, characterId) {

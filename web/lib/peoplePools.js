@@ -7,9 +7,10 @@ import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { RESOURCES_SELECT, resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
-import { peopleHere } from "@/lib/peopleHere";
+import { peopleHere, hoodsHere, pickerName, pickerKey } from "@/lib/peopleHere";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { rosterName } from "@lifeweb/db/lib/presentedIdentity";
+import { medicallyVisibleTags } from "@lifeweb/db/lib/medicalVision";
 import { isTradeable } from "@/lib/tagRequests";
 import { chipSelect, chipContextFor, composeChipTag } from "@/lib/referenceData";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
@@ -49,154 +50,149 @@ import {
 // narrowed to who is standing at this Location and hasn't hidden their face
 // (web/lib/peopleHere.js), and every server action re-checks the same
 // predicate on the id it is posted.
+
+// The two selects, named because BOTH halves of every roster are loaded with
+// them — the named people (peopleHere) and the people in masks (hoodsHere).
+// One literal each, so a hood row can never come back shaped differently from
+// the row beside it and quietly lose a field a picker reads.
+//
+// HERE_SELECT is what Heal, Miracle, Kiss and Learn read.
+const HERE_SELECT = {
+  id: true,
+  name: true,
+  // No `resources` — a balance is nobody else's business.
+  tags: {
+    select: {
+      tagId: true,
+      // `equipped` and the four concealment fields are KISS's, and they
+      // ride along here rather than in a second query: kissBlock() only
+      // counts a hood somebody is actually WEARING, and a row loaded
+      // without them reports every mask as a bare face — wrong in the
+      // one direction it must not be.
+      equipped: true,
+      tag: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          healable: true,
+          requirementTurns: true,
+          requirementPerTurn: true,
+          requirementResources: true,
+          requirementGambit: true,
+          // HEAL_SKILL_SELECT: the id qualifies the medic, and the slug is
+          // what needsSurgicalSite() matches medical-expert on — without it
+          // a patient standing here never warns that their wound needs a site.
+          requirementSkills: { select: HEAL_SKILL_SELECT },
+          // medicallyVisibleTags' two columns, for the HOODED half of the Heal
+          // and Miracle rosters below: `inspectVisibility` is what a bystander
+          // can see at all, `category` is what narrows the doctor's-eye
+          // exception to afflictions. Miss either and a hood's wound list comes
+          // back silently empty.
+          inspectVisibility: true,
+          category: true,
+          // What to CALL them: a forced name (Apex Form -> "Beast") is
+          // not concealment — a Beast is openly a Beast — but every
+          // picker below used to print the real name underneath it.
+          // rosterName() is the one answer now.
+          forcedName: true,
+          concealsIdentity: true,
+          concealSprite: true,
+          forcesConceal: true,
+          equipLayer: true,
+        },
+      },
+    },
+  },
+};
+
+// ZONE_SELECT is every action on a body standing here — Loot, Bind, Free,
+// Harm, Dose, administer — and it reaches the unburied dead.
+const ZONE_SELECT = {
+  id: true,
+  name: true,
+  status: true,
+  // No ⬢ column to select — the whole tag set below carries the stack, and
+  // resourcesOf() reads it straight off the loaded row (schema.prisma).
+  tags: {
+    select: {
+      tagId: true,
+      quantity: true,
+      tag: {
+        select: {
+          name: true,
+          slug: true,
+          category: true,
+          stackable: true,
+          tradeable: true,
+          // Weight, and DELIBERATELY nothing more. A room's stash rows
+          // carry a whole chip; pockets do not. The loot filter below is
+          // `tradeable`, not catalogVisibility, so a secret tag somebody
+          // is carrying is already named here — adding its description,
+          // its recipe and its cost to that would hand a looter the
+          // catalog entry as well (REQUESTS.md §5b). What it weighs is
+          // not a secret from the person about to pick it up.
+          weightLbs: true,
+          // rosterName()'s half — see the note in the roster above.
+          forcedName: true,
+        },
+      },
+    },
+  },
+};
+
 export async function loadPeoplePools(character, { discordUserId, openTurn } = {}) {
   // The people a sheet can act on: standing at this Location, alive and
   // unconcealed. One roster for every picker, so the menus can't disagree —
   // and the server re-checks the same predicate. `here` carries what Heal and
   // Learn need; `zoneRoster` is the roster for the actions that also work on
   // a corpse.
-  const [here, zoneRoster, tierRows, roomNow] = await Promise.all([
-    peopleHere(character, {
-      select: {
-        id: true,
-        name: true,
-        // No `quantity` on the tag rows below, so nothing here can tell you
-        // how much of anything somebody has — their ⬢ included. A balance is
-        // nobody else's business; these rows are only asked what a medic or a
-        // teacher needs to know.
-        tags: {
-          select: {
-            tagId: true,
-            // `equipped` and the four concealment fields are KISS's, and they
-            // ride along here rather than in a second query: kissBlock() only
-            // counts a hood somebody is actually WEARING, and a row loaded
-            // without them reports every mask as a bare face — wrong in the
-            // one direction it must not be.
-            equipped: true,
-            tag: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                healable: true,
-                requirementTurns: true,
-                requirementPerTurn: true,
-                requirementResources: true,
-                requirementGambit: true,
-                // HEAL_SKILL_SELECT: the id qualifies the medic, and the slug is
-                // what needsSurgicalSite() matches medical-expert on — without it
-                // a patient standing here never warns that their wound needs a site.
-                requirementSkills: { select: HEAL_SKILL_SELECT },
-                // What to CALL them: a forced name (Apex Form -> "Beast") is
-                // not concealment — a Beast is openly a Beast — but every
-                // picker below used to print the real name underneath it.
-                // rosterName() is the one answer now.
-                forcedName: true,
-                concealsIdentity: true,
-                concealSprite: true,
-                forcesConceal: true,
-                equipLayer: true,
-              },
-            },
-          },
-        },
-      },
-    }),
-    // ONE roster for every action on somebody standing here (Loot, Move,
-    // Bind, Free, Harm), including the unburied dead.
-    peopleHere(character, {
-      includeDead: true,
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        // No ⬢ column to select — the whole tag set below carries the stack,
-        // and resourcesOf() reads it straight off the loaded row.
-        tags: {
-          select: {
-            tagId: true,
-            quantity: true,
-            tag: {
-              select: {
-                name: true,
-                slug: true,
-                category: true,
-                stackable: true,
-                tradeable: true,
-                // Weight, and DELIBERATELY nothing more. A room's stash rows
-                // carry a whole chip; pockets do not. The loot filter below is
-                // `tradeable`, not catalogVisibility, so a secret tag somebody
-                // is carrying is already named here — adding its description,
-                // its recipe and its cost to that would hand a looter the
-                // catalog entry as well (REQUESTS.md §5b). What it weighs is
-                // not a secret from the person about to pick it up.
-                weightLbs: true,
-                // rosterName()'s half — see the note in the roster above.
-                forcedName: true,
-              },
-            },
-          },
-        },
-      },
-    }),
+  const [here, hereHoods, zoneRoster, zoneHoods, tierRows, roomNow] = await Promise.all([
+    // The NAMED half: standing at this Location, alive, face uncovered.
+    peopleHere(character, { select: HERE_SELECT }),
+    // The HOODED half of the same roster. A hood hides WHO somebody is, never
+    // THAT they are standing there, so it feeds every picker the named half
+    // feeds. Rows come back keyed "hood:<token>" and named by their alias —
+    // web/lib/peopleHere.js strips the id and the real name on the way out,
+    // because /api/avatar/<id> is ungated and shipping an id IS the unmasking.
+    hoodsHere(character, { select: HERE_SELECT }),
+    // ONE roster for every action on somebody standing here (Loot, Bind, Free,
+    // Harm, Dose), including the unburied dead.
+    peopleHere(character, { includeDead: true, select: ZONE_SELECT }),
+    hoodsHere(character, { includeDead: true, select: ZONE_SELECT }),
     prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
-    // TRANSFER'S recipient list, BOTH halves of it. A hood hides WHO somebody
-    // is, not THAT they are standing there, and handing a coin to a stranger
-    // is a thing you can plainly do to a person whose name you do not know —
-    // so Transfer is the one picker that reaches one, and `concealed` carries
-    // an HMAC handle rather than the character id behind the mask.
-    //
-    // The NAMED half comes from here too, and that is the point of the call:
-    // peopleHere() splits on the `concealed` COLUMN while this splits on what
-    // is actually over the face, and mixing the two left people in neither
-    // list or in both. Somebody wearing a sack with the column off (a forced
-    // hood is not a choice) was offered twice, once by their real name; and
-    // with sightings on, somebody who spoke bare-faced and then masked up
-    // would have fallen out of both. One question, one answer.
-    //
-    // `withSightings` so the dropdown and the HERE column six inches above it
-    // call the same person the same thing — the name you HOLD, frozen at the
+    // TRANSFER'S and SEARCH'S recipient lists, both halves, as whosHere answers
+    // it: `withSightings` so the dropdown and the HERE column six inches above
+    // it call the same person the same thing — the name you HOLD, frozen at the
     // last line you heard them say.
     whosHere(prisma, character, { includeSelf: false, withSightings: true, withHoodIds: true }),
   ]);
 
-  // THE HOODED HALF of the rosters below. A hood hides WHO somebody is, never THAT they are standing
-  // there — so the verbs that act on a BODY (Bind, Free, Crucify, Shackle, Torture, Kiss) have to be
-  // able to reach one. Until this they could not, and since forcesConceal is set on ordinary closed
-  // helmets, putting a Tribunal Helmet on made a person unbindable and unattackable both.
-  //
-  // `withHoodIds` is the server-only token -> id map (db/lib/whosHere.js); the rows it names never
-  // travel with an id, only the token, because /api/avatar/<id> would draw the face the mask is for.
-  // Loot and Heal are deliberately NOT extended: their rows carry the target's tag list — an
-  // inventory or a wound list identifies a person nearly as well as a name does, so those two need
-  // their details loaded after the action is authorised rather than shipped to the picker.
-  const hoodIds = roomNow.hoodIds ?? new Map();
-  const hoodNameByToken = new Map(roomNow.concealed.filter((c) => c.token).map((c) => [c.token, c.alias]));
-  const hoodRows = hoodIds.size
-    ? await prisma.character.findMany({
-        where: { id: { in: [...hoodIds.values()] }, status: "ALIVE" },
-        select: { id: true, tags: { select: { tag: { select: { slug: true } } } } },
-      })
-    : [];
-  const hoodTokenById = new Map([...hoodIds].map(([token, id]) => [id, token]));
-  // Shaped like a roster row, but keyed by token and carrying only what is plainly VISIBLE about a
-  // person — that they are tied up, that they are out cold. None of it says who they are.
-  const hoodRoster = hoodRows.map((c) => ({
-    id: `hood:${hoodTokenById.get(c.id)}`,
-    name: hoodNameByToken.get(hoodTokenById.get(c.id)) ?? "somebody",
-    slugs: new Set(c.tags.map((ct) => ct.tag.slug)),
-  }));
+  // Every picker below reads the two halves together. A hood row already
+  // carries its alias in `name`, so rosterName() — which resolves a FORCED name
+  // off the tags — must not be run over one.
+  // pickerName / pickerKey (web/lib/peopleHere.js) are what tell the two halves
+  // apart everywhere: a hood row carries its alias and its whole key already.
+  const hereAll = [...here, ...hereHoods];
+  const zoneAll = [...zoneRoster, ...zoneHoods];
 
+  // PartySelect builds its own value as `${kind ?? "character"}:${id}`, so every
+  // row in the three lists below carries a BARE id and a hood carries its bare
+  // token with `kind: "hood"`. The action pools further down are the opposite —
+  // they post `id` verbatim, so those carry the whole key.
   const selfEntry = { id: character.id, name: rosterName(character) };
-  const peopleParties = [selfEntry, ...here.map((c) => ({ id: c.id, name: rosterName(c) }))];
-  // TRANSFER'S list, and only Transfer's. `peopleParties` above is the Heal
-  // payer list and Craft's, and transferRequestImpl is the one action that
-  // knows how to resolve a hood token — offering one anywhere else would be a
-  // row you can pick and cannot use.
-  //
-  // `kind: "hood"` makes PartySelect write "hood:<token>" instead of
-  // "character:<id>". A token is null when AUTH_SECRET is unset, and an
-  // untokened hood is not offerable.
+  const hoodParty = (c) => ({ id: c.token, name: c.name, kind: "hood" });
+  // The PAYER list — Heal's and Craft's. Both halves, because a hood is
+  // somebody standing in front of you with a purse, and resolveParty
+  // (character/actions/shared.js) knows how to turn a token back into them.
+  const peopleParties = [
+    selfEntry,
+    ...here.map((c) => ({ id: c.id, name: rosterName(c) })),
+    ...hereHoods.filter((c) => c.token).map(hoodParty),
+  ];
+  // TRANSFER'S list. `kind: "hood"` makes PartySelect write "hood:<token>"
+  // instead of wrapping the value in "character:". A token is null when
+  // AUTH_SECRET is unset, and an untokened hood is not offerable.
   const transferParties = [
     selfEntry,
     ...roomNow.named.map((c) => ({ id: c.characterId, name: c.name })),
@@ -301,12 +297,24 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     name: rosterName(character),
     tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })),
   };
-  const healTargets = (canHeal ? [selfAsPatient, ...here] : [])
+  // What a medic may treat on a PATIENT IN A MASK. A hood costs you your name,
+  // and the wound list is the one place that could hand the name straight back
+  // — so a hooded row is narrowed to what this medic could actually see:
+  // plainly visible afflictions, plus the ones their own training lets them
+  // diagnose. That is medicallyVisibleTags with `identityVisible: false`, the
+  // same rule the concealed 🔍 embed follows (PROXYING.md §5), so the two
+  // surfaces can never disagree about what a mask hides.
+  //
+  // A named patient is unchanged: everything treatable, as before.
+  const treatableOn = (t) =>
+    t.hooded
+      ? medicallyVisibleTags(t.tags, satisfied, false).map((row) => row.characterTag.tag)
+      : t.tags.map((ct) => ct.tag);
+  const healTargets = (canHeal ? [selfAsPatient, ...hereAll] : [])
     .map((t) => ({
-      id: t.id,
-      name: rosterName(t),
-      healable: t.tags
-        .map((ct) => ct.tag)
+      id: t === selfAsPatient ? `character:${t.id}` : pickerKey(t),
+      name: t === selfAsPatient ? t.name : pickerName(t),
+      healable: treatableOn(t)
         .filter(isHealable)
         .map((tag) => {
           // Above your tier, or the ladder's top rung, and it's a roll rather
@@ -379,12 +387,12 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     : 0;
   // Others only — a Saint doesn't miracle themselves (plan §1).
   const miracleTargets = isSaint
-    ? here
+    ? hereAll
         .map((t) => ({
-          id: t.id,
-          name: rosterName(t),
-          miraculable: t.tags
-            .map((ct) => ct.tag)
+          id: pickerKey(t),
+          name: pickerName(t),
+          // Same narrowing as Heal: a Saint reading a hood reads a hood.
+          miraculable: treatableOn(t)
             .filter(isMiracleable)
             .map((tag) => ({
               tagId: tag.id,
@@ -400,12 +408,16 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   function conditionOf(c) {
     return c.tags.find((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))?.tag.name ?? null;
   }
-  const helpless = zoneRoster.filter((c) => c.status === "DEAD" || conditionOf(c));
+  const helpless = zoneAll.filter((c) => c.status === "DEAD" || conditionOf(c));
 
   // A body, or anyone who can't stop you. Only `tradeable` tags come off.
+  // Hoods included: going through the pockets of somebody who cannot stop you
+  // is the plainest thing there is to do to a stranger, and Search already
+  // reaches one (SEARCH.md), so the pockets were never the secret. The mask
+  // itself is in this list — taking it is how a body gets a face back.
   const lootTargets = helpless.map((c) => ({
-    id: c.id,
-    name: rosterName(c),
+    id: pickerKey(c),
+    name: pickerName(c),
     status: c.status,
     condition: conditionOf(c),
     resources: resourcesOf(c),
@@ -437,32 +449,24 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // a share of a neighbour's — it used to ride on the Move Player dialog's
   // roster, which went away with that dialog, and the two questions were
   // never the same one.
-  const consumeTargets = zoneRoster
+  const consumeTargets = zoneAll
     .filter((c) => c.status === "ALIVE")
-    .map((c) => ({ id: c.id, name: rosterName(c) }));
+    .map((c) => ({ id: pickerKey(c), name: pickerName(c) }));
 
   // Bind and Free split this one list on `bound`; Crucify on `crucified`;
   // Shackle on `bound && !shackled`. `bound` counts shackles too — Free,
   // Torture and Mutilate treat a shackled person as tied up.
-  const bindTargets = [
-    ...zoneRoster
-      .filter((c) => c.status === "ALIVE")
-      .map((c) => ({
-        id: `character:${c.id}`,
-        name: rosterName(c),
-        bound: c.tags.some((ct) => ct.tag.slug === "bound" || ct.tag.slug === "shackled"),
-        shackled: c.tags.some((ct) => ct.tag.slug === "shackled"),
-        crucified: c.tags.some((ct) => ct.tag.slug === "crucified"),
-      })),
-    // Whether somebody is tied up is a fact about the rope, not about their face.
-    ...hoodRoster.map((c) => ({
-      id: c.id,
-      name: c.name,
-      bound: c.slugs.has("bound") || c.slugs.has("shackled"),
-      shackled: c.slugs.has("shackled"),
-      crucified: c.slugs.has("crucified"),
-    })),
-  ];
+  // Whether somebody is tied up is a fact about the rope, not about their face,
+  // so both halves are here and read the same way.
+  const bindTargets = zoneAll
+    .filter((c) => c.status === "ALIVE")
+    .map((c) => ({
+      id: pickerKey(c),
+      name: pickerName(c),
+      bound: c.tags.some((ct) => ct.tag.slug === "bound" || ct.tag.slug === "shackled"),
+      shackled: c.tags.some((ct) => ct.tag.slug === "shackled"),
+      crucified: c.tags.some((ct) => ct.tag.slug === "crucified"),
+    }));
 
   // The collar's rosters (docs/systemdocs/COLLAR.md). Everybody standing here,
   // alive, hoods included — and deliberately NOT filtered on who is already
@@ -471,46 +475,37 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // refuses an uncollared target by name instead, which costs the clicker a
   // turn of attention and tells them one thing rather than all of them.
   //
+  // One list now that the roster carries both halves: pickerKey/pickerName
+  // keep a hood's alias and its "hood:<token>" key, so no collar picker can
+  // name who is behind one.
+  //
   // collarTargets carries a SELF row that no other pool here does: you may put
   // a collar on your own neck, and peopleHere never returns you to yourself.
-  const collarRoster = [
-    ...zoneRoster
-      .filter((c) => c.status === "ALIVE")
-      .map((c) => ({ id: `character:${c.id}`, name: rosterName(c) })),
-    ...hoodRoster.map((c) => ({ id: c.id, name: c.name })),
-  ];
+  const collarRoster = zoneAll
+    .filter((c) => c.status === "ALIVE")
+    .map((c) => ({ id: pickerKey(c), name: pickerName(c) }));
   const collarTargets = [{ id: `character:${character.id}`, name: rosterName(character) }, ...collarRoster];
   // Unlock and Detonate act on other people only — there is no reading of
   // either that wants your own name in the list.
   const collarOthers = collarRoster;
 
-  // `finishable` is the narrower Dying-or-Bound gate on the lethal half.
-  const harmTargets = [
-    ...helpless
-      .filter((c) => c.status === "ALIVE")
-      .map((c) => ({
-        id: `character:${c.id}`,
-        name: rosterName(c),
-        condition: conditionOf(c),
-        finishable: c.tags.some((ct) => FINISHABLE_SLUGS.has(ct.tag.slug)),
-      })),
-    // Same rule: being unconscious on the floor is something the room can see.
-    ...hoodRoster
-      .filter((c) => [...c.slugs].some((slug) => INCAPACITATING_SLUGS.has(slug)))
-      .map((c) => ({
-        id: c.id,
-        name: c.name,
-        condition: null,
-        finishable: [...c.slugs].some((slug) => FINISHABLE_SLUGS.has(slug)),
-      })),
-  ];
+  // `finishable` is the narrower Dying-or-Bound gate on the lethal half. Same
+  // rule again: being unconscious on the floor is something the room can see.
+  const harmTargets = helpless
+    .filter((c) => c.status === "ALIVE")
+    .map((c) => ({
+      id: pickerKey(c),
+      name: pickerName(c),
+      condition: conditionOf(c),
+      finishable: c.tags.some((ct) => FINISHABLE_SLUGS.has(ct.tag.slug)),
+    }));
 
   // Poison's own dose-a-helpless-person roster (M4) — the same helpless
   // class Harm and Loot use, minus the dead (a poison lands on a body's
   // living owner or not at all — there's nobody home to dose).
   const doseTargets = helpless
     .filter((c) => c.status === "ALIVE")
-    .map((c) => ({ id: c.id, name: rosterName(c), condition: conditionOf(c) }));
+    .map((c) => ({ id: pickerKey(c), name: pickerName(c), condition: conditionOf(c) }));
 
   // Not the whole Health category (TAGS.md §5c) — isInflictable narrows it to
   // wounds and maiming. Filtered in JS so this and the server action's
@@ -536,26 +531,33 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     })
   ).filter(isInflictable);
 
-  // Who this character could kiss (docs/systemdocs/KISS.md). `here` is already
-  // narrowed to the living, unconcealed people standing at this Location, so
-  // what is left to ask is kissBlock's question — a mouth injury, a state with
-  // nobody home, a Ghoul, a covered face.
+  // Who this character could kiss (docs/systemdocs/KISS.md). Both halves go in
+  // and kissBlock's own question decides — a mouth injury, a state with nobody
+  // home, a Ghoul, a covered face.
+  //
+  // In practice that filter empties the hooded half on its own, because a mask
+  // over the face is exactly what kissBlock refuses. It is still written this
+  // way rather than as a special case: one rule for the whole roster means the
+  // day a concealing item leaves the mouth free, nothing here has to change.
   //
   // Menu hygiene only. kissRequestImpl re-runs the whole gate through
-  // kissAuthority on whatever id is posted, and so does the Accept click a day
+  // kissAuthority on whatever key is posted, and so does the Accept click a day
   // later, so a stale page can never push a kiss past this list.
-  // NOT extended with hoods, and not an oversight: kissBlock() already refuses a mask over the face,
-  // so a concealed row could only ever be a person you are told you cannot kiss. Bare ids, because
-  // nothing here needs a token — kissRequestImpl is untouched by the target-key change.
-  const kissTargets = here
+  const kissTargets = hereAll
     .filter((p) => !kissBlock(p, { self: false }))
-    .map((p) => ({ id: p.id, name: rosterName(p) }));
+    .map((p) => ({ id: pickerKey(p), name: pickerName(p) }));
 
   return {
+    // `here` and `zoneRoster` are the NAMED halves, still separate because two
+    // callers look somebody up by real id in them (character/page.js). `hereAll`
+    // and `zoneAll` are the same lists with the hooded half folded in, for
+    // anything that just needs a roster.
     here,
+    hereAll,
     kissTargets,
     kissBlocked,
     zoneRoster,
+    zoneAll,
     peopleParties,
     transferParties,
     searchParties,

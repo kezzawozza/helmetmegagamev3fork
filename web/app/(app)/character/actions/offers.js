@@ -13,7 +13,7 @@ import {
   KISS_SELECT,
 } from "@lifeweb/db/lib/kiss";
 import { createSearchOffer, SEARCH_SELECT } from "@lifeweb/db/lib/search";
-import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
+import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { sendDm } from "@/lib/discordGuild";
 import { ACT } from "@lifeweb/db/lib/incapacitation";
 import {
@@ -55,14 +55,25 @@ async function lessonOfferImpl({ teacherId, learnerId, tagId }) {
   return { pending: true };
 }
 
+// The partner arrives as a TARGET KEY — "character:<id>" or "hood:<token>" —
+// because a lesson is two people standing next to each other and a mask does not
+// stop one being given. resolveTargetKey re-checks co-presence for a token and
+// answers null for anybody who has walked off, which createLessonOffer then
+// refuses the same way it refuses a made-up id.
+async function partnerIdFrom(character, key) {
+  const id = await resolveTargetKey(prisma, character, key);
+  if (!id) throw new UserError("They aren't here.");
+  return id;
+}
+
 export async function learnRequestImpl({ teacherId, tagId }) {
   const { character } = await requireCharacter({ needs: ACT });
-  return lessonOfferImpl({ teacherId, learnerId: character.id, tagId });
+  return lessonOfferImpl({ teacherId: await partnerIdFrom(character, teacherId), learnerId: character.id, tagId });
 }
 
 export async function teachRequestImpl({ learnerId, tagId }) {
   const { character } = await requireCharacter({ needs: ACT });
-  return lessonOfferImpl({ teacherId: character.id, learnerId, tagId });
+  return lessonOfferImpl({ teacherId: character.id, learnerId: await partnerIdFrom(character, learnerId), tagId });
 }
 
 // --- Confession (docs/systemdocs/CONFESSION.md) --------------------------
@@ -71,9 +82,12 @@ export async function teachRequestImpl({ learnerId, tagId }) {
 // confessing, from the session, never the posted body. `chaplainId`/`tagId` re-validated inside createConfessionOffer.
 export async function confessRequestImpl({ chaplainId, tagId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
+  // A confessional is built so neither side sees the other, so a hooded chaplain
+  // is if anything the point — hence a target key rather than a bare id.
+  const chaplainRealId = await partnerIdFrom(character, chaplainId);
   const offer = await createConfessionOffer(prisma, {
     penitentId: character.id,
-    chaplainId,
+    chaplainId: chaplainRealId,
     tagId,
   });
   if (!offer.ok) throw new UserError(offer.reason);
@@ -115,11 +129,18 @@ export async function confessRequestImpl({ chaplainId, tagId }) {
 export async function kissRequestImpl({ targetCharacterId }) {
   const { character } = await requireCharacter({ needs: ACT });
 
-  const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE" },
-    select: KISS_SELECT,
-  });
-  if (!target) throw new UserError(notHereMessage(target));
+  // A target key like every other people-picker. In practice kissAuthority will
+  // refuse a hood anyway — a covered face is one of the things it blocks — but
+  // the key is what every roster posts now, and a verb that could not parse one
+  // would refuse with "they aren't here" about somebody standing right there.
+  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
+  const target = targetId
+    ? await prisma.character.findFirst({
+        where: { id: targetId, status: "ALIVE" },
+        select: KISS_SELECT,
+      })
+    : null;
+  if (!target) throw new UserError("They aren't here.");
 
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is open.");
@@ -157,11 +178,9 @@ export async function kissRequestImpl({ targetCharacterId }) {
 export async function searchRequestImpl({ targetKey }) {
   const { character } = await requireCharacter({ needs: ACT });
 
-  const raw = String(targetKey ?? "");
-  const bare = raw.startsWith("character:") ? raw.slice("character:".length) : raw;
-  const targetId = bare.startsWith("hood:")
-    ? await resolveHoodToken(prisma, character, bare.slice("hood:".length))
-    : bare;
+  // One resolver for every verb (db/lib/targetKey.js) — this used to unwrap the
+  // key by hand, which is the drift that module exists to stop.
+  const targetId = await resolveTargetKey(prisma, character, targetKey);
 
   const target = targetId
     ? await prisma.character.findFirst({

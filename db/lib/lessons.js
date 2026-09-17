@@ -276,8 +276,13 @@ async function validateLesson(
   if (!learner || learner.status !== "ALIVE")
     return "That student isn't around any more.";
   if (teacher.id === learner.id) return "You can't teach yourself.";
-  if (!isHere(teacher, learner)) return notHereMessage(learner);
-  if (!isHere(learner, teacher)) return notHereMessage(teacher);
+  // allowConcealed on both ends: a lesson is two people standing next to each
+  // other, and there is nothing about a mask that stops one being given or
+  // taken. The offer handshake is the consent either way, and nothing here
+  // reads the far sheet (LESSONS.md §4). Co-presence itself is what matters,
+  // and that is a physical fact a hood does not change.
+  if (!isHere(teacher, learner, { allowConcealed: true })) return notHereMessage(learner);
+  if (!isHere(learner, teacher, { allowConcealed: true })) return notHereMessage(teacher);
   // No "can you teach at all?" check: everyone can. What the tag changes is
   // the threshold and whether a Routine is owed, both handled elsewhere.
   if (!tag) return "Unknown skill.";

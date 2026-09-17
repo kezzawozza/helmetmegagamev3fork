@@ -84,8 +84,13 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
 
   const fromSelf = fromKey === selfKey;
   const fromRoom = fromKey.startsWith("room:") ? rooms.find((r) => `room:${r.id}` === fromKey) : null;
+  // `lootTargets` rows arrive already keyed — "character:<id>" for somebody
+  // named, "hood:<token>" for somebody (or some body) in a mask — so the match
+  // is on the key itself rather than one rebuilt here.
   const fromPerson =
-    fromKey.startsWith("character:") && !fromSelf ? lootable.find((c) => `character:${c.id}` === fromKey) : null;
+    (fromKey.startsWith("character:") || fromKey.startsWith("hood:")) && !fromSelf
+      ? (lootable.find((c) => c.id === fromKey) ?? null)
+      : null;
   const toSelf = toKey === selfKey;
   const toIsCharacter = toKey.startsWith("character:") || toKey.startsWith("hood:");
 
@@ -97,7 +102,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
         ...(loot ? [] : [{ id: selfKey, label: "You" }]),
         ...rooms.map((r) => ({ id: `room:${r.id}`, label: r.name, note: "room" })),
         ...lootable.map((c) => ({
-          id: `character:${c.id}`,
+          id: c.id,
           label: c.name,
           note: c.status === "DEAD" ? "dead" : (c.condition ?? "helpless").toLowerCase(),
         })),
@@ -194,7 +199,9 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
     if (key === selfKey) return "you";
     const [kind, id] = key.split(":");
     if (kind === "room") return rooms.find((r) => r.id === id)?.name ?? "the room";
-    return people.find((c) => c.id === id)?.name ?? lootable.find((c) => c.id === id)?.name ?? "them";
+    // `people` (transferParties) carries bare ids and hood tokens, `lootable`
+    // carries whole keys — hence the two lookups.
+    return people.find((c) => c.id === id)?.name ?? lootable.find((c) => c.id === key)?.name ?? "them";
   }
 
   function whatMoved() {

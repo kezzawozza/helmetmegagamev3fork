@@ -40,10 +40,9 @@ import {
   canReachParty,
   outOfReachMessage,
 } from "@/lib/transferReach";
-import {
-  isHere,
-  notHereMessage,
-} from "@/lib/peopleHere";
+import { concealedNow } from "@lifeweb/db/lib/presence";
+import { medicallyVisibleTags } from "@lifeweb/db/lib/medicalVision";
+import { resolveHereTarget } from "@/lib/hereTarget";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import {
   SURGICAL_EQUIPMENT_SLUG,
@@ -130,19 +129,39 @@ export async function healCharacterRequestImpl({
     throw new UserError("You need Medical I to treat anyone.");
   }
 
-  // No `id: { not: character.id }` — treating yourself is the ordinary case.
-  const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE" },
-    include: {
+  // No exclusion of self — treating yourself is the ordinary case, and
+  // resolveHereTarget lets a key naming you through for exactly that reason.
+  //
+  // The key is a target key now, not a bare id: "character:<id>" for somebody
+  // standing in the open and "hood:<token>" for somebody in a mask. A hood
+  // hides WHO you are, never THAT you are bleeding in front of a doctor, and
+  // until this a closed helmet made a person unhealable by anybody.
+  const target = await resolveHereTarget(character, targetCharacterId, {
+    status: "ALIVE",
+    select: {
+      id: true,
+      name: true,
+      concealed: true,
+      locationId: true,
+      status: true,
+      buriedAt: true,
+      discordUserId: true,
       tags: { include: { tag: { include: { requirementSkills: true } } } },
     },
   });
-  if (!target || !isHere(character, target))
-    throw new UserError(notHereMessage(target));
 
   const held = target.tags.find((ct) => ct.tagId === tagId);
   if (!held || !isHealable(held.tag))
     throw new UserError("That isn't something you can treat.");
+  // The picker narrows a HOODED patient's wound list to what this medic could
+  // actually see (web/lib/peoplePools.js), and the picker is a hint, never the
+  // lock — so the same predicate runs again here. Without it, posting any tag
+  // id would treat, and confirm, an affliction the mask was hiding.
+  if (concealedNow(target) && target.id !== character.id) {
+    const visible = medicallyVisibleTags(target.tags, satisfied, false);
+    if (!visible.some((row) => row.characterTag.tagId === held.tagId))
+      throw new UserError("That isn't something you can treat.");
+  }
 
   // Above your tier, or the top rung, is a GAMBIT rather than a refusal
   // (TAGS.md §5c) — nothing is out of reach, only whether you roll for it.
@@ -216,10 +235,15 @@ export async function healCharacterRequestImpl({
     if (outsideMoveCost) await resolveCraftMove(character, openTurn, outsideMoveCost);
   }
 
-  const payer = await resolveParty(payerKey);
+  // allowConcealed, because a hood is a person standing right there who can
+  // hand over coins: resolveParty has already re-verified co-presence for a
+  // token, and refusing here would only mean a masked friend cannot pay for
+  // your cure. outOfReachMessage prints a name, so a hood that somehow got this
+  // far is refused in the blank form instead (web/lib/hereTarget.js#refusalFor).
+  const payer = await resolveParty(payerKey, { actor: character });
   if (!payer) throw new UserError("Unknown payer.");
-  if (!(await canReachParty(character, payer)))
-    throw new UserError(outOfReachMessage(payer));
+  if (!(await canReachParty(character, payer, { allowConcealed: true })))
+    throw new UserError(payer.concealed ? "They aren't here." : outOfReachMessage(payer));
 
   // Straight off the tag, never off the client.
   const cost = healCost(held.tag);
@@ -440,21 +464,41 @@ export async function performMiracleRequestImpl({ targetCharacterId, tagId }) {
   if (!heldSlugs.has(SAINT_SLUG)) {
     throw new UserError("Only a Saint may perform a miracle.");
   }
-  if (targetCharacterId === character.id) {
-    throw new UserError("A Saint doesn't perform miracles on themselves.");
-  }
   if (!character.locationId) {
     throw new UserError("You aren't anywhere you could touch anyone.");
   }
 
-  const target = await prisma.character.findFirst({
-    where: { id: targetCharacterId ?? "", status: "ALIVE" },
-    include: { tags: { include: { tag: true } } },
+  // A hood is a body you can lay hands on, so this takes a target key like the
+  // rest (db/lib/targetKey.js). The self check moved BELOW the resolve: a key
+  // naming you is "character:<id>", not a bare id, and comparing the raw string
+  // would have quietly stopped catching it.
+  const target = await resolveHereTarget(character, targetCharacterId, {
+    status: "ALIVE",
+    select: {
+      id: true,
+      name: true,
+      concealed: true,
+      locationId: true,
+      status: true,
+      buriedAt: true,
+      discordUserId: true,
+      tags: { include: { tag: true } },
+    },
   });
-  if (!target || !isHere(character, target)) throw new UserError(notHereMessage(target));
+  if (target.id === character.id) {
+    throw new UserError("A Saint doesn't perform miracles on themselves.");
+  }
 
   const held = target.tags.find((ct) => ct.tagId === tagId);
   if (!held || !isMiracleable(held.tag)) {
+    throw new UserError("That isn't a wound a miracle could touch.");
+  }
+  // On a masked subject, only a wound the room can plainly see. An empty
+  // `satisfied` set is the point rather than an oversight: sainthood is not a
+  // medical training, so the doctor's-eye exception inside medicallyVisibleTags
+  // buys a Saint nothing and this reduces to the bystander read.
+  if (concealedNow(target) && !medicallyVisibleTags(target.tags, new Set(), false)
+      .some((row) => row.characterTag.tagId === held.tagId)) {
     throw new UserError("That isn't a wound a miracle could touch.");
   }
 

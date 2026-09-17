@@ -16,9 +16,16 @@ import { healCharacterRequest } from "@/app/(app)/character/requestActions";
 // who pays — three chip rows, each appearing once the one above is answered.
 // Gated on YOUR Medical training, never on who is hurt nearby.
 
+// `kind` rather than a hardcoded "character:", the same shape PartySelect and
+// MoveThingsDialog build: a payer in a mask arrives as a bare token with
+// `kind: "hood"`, and resolveParty knows both (character/actions/shared.js).
 function partyChips(parties, selfId) {
   return [
-    ...(parties?.characters ?? []).map((c) => ({ id: `character:${c.id}`, label: c.id === selfId ? `${c.name} (you)` : c.name })),
+    ...(parties?.characters ?? []).map((c) => ({
+      id: `${c.kind ?? "character"}:${c.id}`,
+      label: c.id === selfId ? `${c.name} (you)` : c.name,
+      note: c.kind === "hood" ? "hooded" : null,
+    })),
     ...(parties?.rooms ?? []).map((r) => ({ id: `room:${r.id}`, label: r.name, note: "room" })),
   ];
 }
@@ -74,7 +81,8 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
       });
       if (!ok) return;
     }
-    const self = patient.id === selfId;
+    // The patient rows are keyed ("character:<id>" / "hood:<token>").
+    const self = patient.id === selfKey;
     submit(
       () =>
         healCharacterRequest({
@@ -111,7 +119,7 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
     >
       <ChipPicker
         label="Who are you treating?"
-        options={targets.map((t) => ({ id: t.id, label: t.id === selfId ? `${t.name} (you)` : t.name }))}
+        options={targets.map((t) => ({ id: t.id, label: t.id === selfKey ? `${t.name} (you)` : t.name }))}
         value={patientId}
         onChange={(id) => {
           setPatientId(id);

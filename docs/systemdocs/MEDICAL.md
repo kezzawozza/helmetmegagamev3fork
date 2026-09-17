@@ -278,8 +278,10 @@ prosthetics. Both are gated on an ingredient (`cybernetic-core`) nothing
 drops yet, same as `last-breath`'s `aberrant-heart` — buildable the day the
 loot-table pass wires one in, inert until then.
 
-**`last-breath` is the one item door onto a tier-7 cure that isn't a
-Gambit.** Dying is always a roll through Heal — even an Esculap rolls for it
+**`last-breath` is the one door onto curing Dying that isn't a
+Gambit.** Dying is always a roll through Heal — even an Esculap rolls for it,
+since the tag carries `requirementGambit` outright rather than sitting on a
+tier anybody can out-rank (`TAGS.md` §5c, "Dying is off the ladder")
 — but an item's `cures` list is a flat yes/no with no tier to reach above, so
 a held bottle cures Dying outright, no die involved, the same way White Honey
 bypasses Envenomated's own tier. Its recipe (and the two cybernetics') is

@@ -291,7 +291,7 @@ async function reviveCharacterImpl({ characterId }) {
     // buriedAt goes with the status: a revived character must never be a live
     // person still marked buried, which would leave them un-lootable and
     // missing from every zone target menu (BURY_CHARACTER, REQUESTS.md §5d).
-    data: { status: "ALIVE", buriedAt: null },
+    data: { status: "ALIVE", buriedAt: null, deathMaskTagId: null },
   });
 
   // And the body goes too (docs/systemdocs/CORPSES.md). The Tag row cascades

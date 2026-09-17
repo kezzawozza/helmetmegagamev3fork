@@ -12,6 +12,36 @@ const { GIBBED_SLUG, METEMPSYCHOSIS_SLUG } = require("./constants");
 const { NOT_A_FIGHT } = require("./intercept");
 const { closeFightsFor } = require("./attack");
 const { teardownPartyThread } = require("./partyChat");
+const { CONCEALMENT_TAG_FIELDS, concealmentFrom } = require("./presentedIdentity");
+
+// The concealing piece this character is wearing RIGHT NOW, or null — read off
+// the database rather than off `character`, since callers pass varying shapes
+// and the claim below is about to unequip everything.
+//
+// It has to happen before the unequip, because concealment only ever counts an
+// EQUIPPED mask: without this, dying took your hood off, and a masked body was
+// named in the room's Loot menu a moment after it hit the floor. Only a hood
+// that was actually IN EFFECT is remembered — the same `forced || concealed`
+// rule the living are judged by (db/lib/whosHere.js#presentRows), so a helmet
+// worn with the toggle off stays what it was, a helmet.
+async function maskWornNow(prisma, characterId) {
+  const row = await prisma.character
+    .findUnique({
+      where: { id: characterId },
+      select: {
+        concealed: true,
+        tags: {
+          where: { equipped: true, tag: { concealsIdentity: true } },
+          select: { tagId: true, equipped: true, tag: { select: CONCEALMENT_TAG_FIELDS } },
+        },
+      },
+    })
+    .catch(() => null);
+  if (!row) return null;
+  const piece = concealmentFrom(row.tags);
+  if (!piece || !(piece.forced || row.concealed)) return null;
+  return piece.tagId ?? null;
+}
 
 // Marks one character DEAD. Returns { claimed } — false when no longer ALIVE,
 // in which case NOTHING else is written: the update's `status: "ALIVE"`
@@ -48,12 +78,18 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     .count({ where: { characterId: character.id, tag: { slug: METEMPSYCHOSIS_SLUG } } })
     .catch(() => 0);
 
+  // Same reason, same moment: what is over the face has to be read before the
+  // unequip below takes it off. A gib keeps none of it — vaporizeTags deletes
+  // the row, so there is nothing left for a face to be derived from.
+  const deathMaskTagId = gib ? null : await maskWornNow(prisma, character.id);
+
   const claimed = await prisma.character.updateMany({
     where: { id: character.id, status: expectStatus },
     data: {
       status: "DEAD",
       discordRoleId: null,
       catatonicSinceTurn: null,
+      deathMaskTagId,
     },
   });
   if (claimed.count === 0) return { claimed: false };

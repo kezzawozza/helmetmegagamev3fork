@@ -193,7 +193,8 @@ export const FAST_PATHS = {
     const patient = (bag.healTargets ?? []).find((t) => t.id === seed.patientId);
     if (!patient || (patient.healable ?? []).length !== 1) return null;
     const affliction = patient.healable[0];
-    const self = patient.id === bag.selfId;
+    // Keyed pools (web/lib/peoplePools.js): the patient row is "character:<id>".
+    const self = patient.id === `character:${bag.selfId}`;
     // What this confirm is about to quote as costing the Move — the same
     // reading HealDialog.js makes, off `moveCost` (web/lib/peoplePools.js).
     // It has to be BOTH the sentence below and `billedSeen`: the server
