@@ -20,11 +20,22 @@
 const { ambientLine } = require("./ambientLine");
 const { sceneLine } = require("./scene");
 const { postMessage } = require("./discordRest");
-const { isOocPlaceKey, discordTargetForPlaceKey, placePairForAudit } = require("./placeKey");
+const {
+  isOocPlaceKey,
+  discordTargetForPlaceKey,
+  placePairForAudit,
+  archiveContextForPlaceKey,
+} = require("./placeKey");
 const { MESSAGE_LIMIT } = require("./sayLimits");
 const { checkSpeechBucket, OOC_CAPACITY, OOC_REFILL_MS } = require("./speechRateLimit");
 const { loadPresentedIdentity } = require("./presentedIdentity");
-const { stampMentionNames, rolesToTokens } = require("./characterMentions");
+const { stampMentionNames, rolesToTokens, tokensToRoles, canHearPing } = require("./characterMentions");
+const { sendDm } = require("./dm"); // by path, never the barrel — three exports share the name (CLAUDE.md)
+const { pushToUser } = require("./webPush");
+
+// The same cap bot/src/lib/feedOutbox.js puts on a web mention: a line naming half the room is one line, not
+// twenty notifications.
+const MAX_MENTION_RELAYS = 10;
 
 // The AuditLog row IS the rate limit, the GM's OOC lens on /gm/turns, and the
 // record — one row, the way the shout cooldown already works.
@@ -193,18 +204,34 @@ async function ooc(prisma, character, text, { placeKey = null, source = "WEB" } 
 //
 // NOTHING HERE MAY THROW — by the time this runs the limit is already spent, so
 // a dead channel is one audience short, not a failed send.
-// `text` is the Discord spelling; `rowContent` is the archive spelling with
+// `text` is the body as typed; `rowContent` is the archive spelling with
 // character-role mentions folded to `{char:id|Name}` tokens; `name` is the
 // presented identity read by ooc() and used for the label. Callers pass the
 // three straight from ooc()'s return so the escaped body never reaches Discord
-// and the plain one never reaches the archive.
+// and the plain one never reaches the archive. Discord's own spelling is
+// derived here rather than passed in, so there is one place a mention can be
+// left un-translated instead of two.
 async function deliverOoc(
   prisma,
   { placeKey, text, rowContent = null, name = null, auditId = null } = {},
 ) {
   if (!placeKey || !text) return;
   const rowText = rowContent ?? text;
-  const line = oocLine(text, name);
+  // Discord's spelling of the same mentions. `rowText` is the face-neutral one — `{char:id|Name}` — and that is
+  // the literal string Discord would have printed, braces and all, if the line went out as typed. tokensToRoles
+  // is the same rewrite bot/src/lib/feedOutbox.js does on the way out of a WEB row; a Discord-origin line
+  // round-trips back to the `<@&roleId>` it arrived as, so both sources leave here on one path. It also hands
+  // back WHO was named, which is the relay's list.
+  let discordText = text;
+  let characters = [];
+  try {
+    const roles = await tokensToRoles(prisma, rowText);
+    discordText = roles.content;
+    characters = roles.characters;
+  } catch (err) {
+    console.error("OOC mention rewrite failed:", err?.message ?? err);
+  }
+  const line = oocLine(discordText, name);
 
   try {
     // No `-#` in the row: the web draws a SYSTEM row as subtext itself (CHAT.md
@@ -236,12 +263,49 @@ async function deliverOoc(
   try {
     const target = await discordTargetForPlaceKey(prisma, placeKey);
     const channelId = target?.threadId ?? target?.channelId ?? null;
+    if (!channelId) return;
     // parse: ["users"] — a player pinging another player is exactly what OOC
     // is for. Role and @everyone/@here mentions stay blocked: character roles
     // are empty, and an @everyone from a player-typed line is a footgun.
-    if (channelId) await postMessage(channelId, line, undefined, { parse: ["users"] });
+    const posted = await postMessage(channelId, line, undefined, { parse: ["users"] });
+    await relayOocMentions(prisma, { placeKey, characters, channelId, messageId: posted?.id ?? null });
   } catch (err) {
     console.error(`OOC into ${placeKey} failed:`, err?.message ?? err);
+  }
+}
+
+// Somebody's name was in an OOC line. Same contract as every other relay in the game
+// (bot/src/lib/mentions.js#notifyMentioned, bot/src/lib/feedOutbox.js#relayWebMentions): where and a jump link,
+// never the words. It has to live here rather than in the outbox, because an OOC row is a SYSTEM row
+// (db/lib/scene.js) and the outbox only carries WEB ones — which is why an OOC mention used to notify nobody at
+// all even once it resolved. Character roles are held by nobody, so this DM is the whole notification.
+//
+// Best-effort like everything else past the rate-limit claim: a failed DM is one player un-nudged, never a
+// thrown send.
+async function relayOocMentions(prisma, { placeKey, characters = [], channelId, messageId }) {
+  if (characters.length === 0 || !messageId) return;
+  const guildId = process.env.DISCORD_GUILD_ID;
+  if (!guildId) return;
+  const link = `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+
+  const context = await archiveContextForPlaceKey(prisma, placeKey).catch(() => null);
+  const place = context?.zoneName ?? (context?.channelKind ? `#${context.channelKind}` : "somewhere");
+  const where = context?.threadName ? `${place} · ${context.threadName}` : place;
+
+  for (const person of characters.slice(0, MAX_MENTION_RELAYS)) {
+    if (!person?.discordUserId) continue;
+    // A ping must not carry further than the place it was typed in, the same rule a spoken one follows.
+    if (!(await canHearPing(prisma, person, placeKey).catch(() => false))) continue;
+    await sendDm(prisma, person.discordUserId, `*You were mentioned in ${where}.*\n${link}`, {
+      source: "mention",
+      meta: { placeKey, where },
+    }).catch((err) => console.error(`OOC couldn't relay a mention to ${person.name}:`, err?.message ?? err));
+    // Browser notification for a closed /chat tab; after the DM and wrapped so a failed push never costs it.
+    await pushToUser(prisma, person.discordUserId, {
+      title: `${person.name} was named`,
+      body: `in ${where}`,
+      url: `/chat#${encodeURIComponent(placeKey)}`,
+    }).catch(() => {});
   }
 }
 

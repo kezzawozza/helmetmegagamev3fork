@@ -787,6 +787,18 @@ who could see any line that ever named them. Nobody is dropped from that list
 now (`web/lib/mentionDirectory.js`); the frozen name in the token is what
 decides whether a face is drawn.
 
+**And the face the chip draws is the PRESENTED one.** `CharMention`
+(`web/app/components/messageTokens.js`) used to hand `CharacterAvatar` only a
+`characterId`, which builds `/api/avatar/<id>` — a route that is deliberately
+identity-blind and serves the real portrait whatever is over it. The frozen-name
+check was the only gate, and it only ever caught a **rename**: pulling a hood up
+never touches `Character.name`, so the chip printed the correctly-hooded name
+beside the true face. The directory now carries the presented `avatarPath` and a
+`hidden` flag, both straight off `presentedIdentity()`, and the chip passes that
+path through — a hooded or forced-name subject falls to the question-mark plate
+instead. The **name** text is untouched: a row records who somebody was as they
+were known then.
+
 Four states, and only the eye's absence marks the difference in the column:
 
 | | you have heard them | you have not |
@@ -911,6 +923,34 @@ The composer on `/chat` writes tokens directly, over an `@` autocomplete of
 `whosHere().named`: you can only name somebody you can see, and a row only
 renders a name its reader could have seen too (CHAT.md §5).
 
+### The `@` menu opens inside `/ooc` and `/shout` too
+
+The composer's `@` list used to be switched off for the whole of **command
+mode** along with the slash list — and Speak, Shout and OOC are one control
+driving that same mode (`Feed.js`, the speech-mode strip), so pressing **OOC**
+silently disabled the `@` key in a box that looked identical to the one beside
+it. What went out was the literal text `@Alice`, which nothing downstream can
+rescue: `stampMentionNames` rewrites tokens and `rolesToTokens` rewrites real
+`<@&roleId>` entities, and neither does a free-text name lookup.
+
+A command opts in with `mentions: true` in `web/app/(app)/chat/commands.js`.
+Only the two that put words in a room have it — a `/move` description or a
+`/look` target is not a place to mint a character chip. The **slash** list
+stays off in command mode, since you are already inside a command, and the open
+`@` list takes Enter before the command branch does, so Enter means "take the
+name I am pointing at" rather than "send the line".
+
+**A shout carries a mention only as far as the words go.** `shout()` builds
+three spellings of the same sentence: the `{char:…}` one for the archive row,
+the `<@&roleId>` one for Discord, and a **flat** one — `tokensToNames`, the
+token replaced by the name it froze — for two hops out and beyond. The flat one
+is what gets muffled. Run a token through `muffle()` and it comes out as broken
+braces with the named person's name sitting perfectly legible inside a redacted
+sentence, which is the one word the distance was there to take away.
+
+A shout gets no relay DM: everyone the mention could reach already heard it,
+and the widest broadcast in the game is not a place to open a new ping path.
+
 **Mentions must be read before the message is proxied** — `sendAsCharacter`
 deletes the original, taking `message.mentions` with it — but the jump link
 needs the *proxied* message's id. So the order is **capture → proxy → relay**.
@@ -949,6 +989,23 @@ quoted.
 **A concealed message relays nothing at all** — the room isn't meant to know
 who spoke, and a DM naming the place would hand the target a thread to pull
 on.
+
+**An OOC line relays too, and it has to do it itself.** An OOC row is a
+`SYSTEM` row (`db/lib/scene.js`) and the outbox carries `WEB` ones only, so
+`relayWebMentions` never saw it and a name in an OOC line notified nobody at
+all — the character role it points at is held by nobody, so the DM is the whole
+notification. `db/lib/ooc.js#relayOocMentions` sends it, same contract as the
+two above: where and a jump link, never the words. The gate is
+`canHearPing(prisma, character, placeKey)` in `db/lib/characterMentions.js`,
+which answers for a place key of any kind — earshot for a Location, Room,
+Conversation or zone, `computeNarrowcastAccess` for a special channel. Deadchat
+and a party thread answer **no**: neither is a place, both are memberships, and
+a relay that guessed would be a ping carrying further than the room it was
+typed in.
+
+`deliverOoc` also posts the **role** spelling rather than the body it was
+handed. It used to post the raw text, so a web-typed mention arrived on Discord
+reading `{char:cl9…|Ada}`, braces and all.
 
 ### Adding to a conversation
 

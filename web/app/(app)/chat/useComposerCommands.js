@@ -173,8 +173,12 @@ export default function useComposerCommands({
       setCmdLine(null);
       setCmdError(null);
 
-      // Already in command mode: the box is the command's text argument, and
-      // no menu belongs in it.
+      // Already in command mode: the box is the command's text argument, so the
+      // SLASH list never belongs in it — you are inside a command already. The
+      // @ list does, for the two commands whose argument is a line somebody
+      // SAYS (./commands.js `mentions`). The composer reads `mentionsHere` and
+      // runs its own @ menu over the same keystroke; this branch still takes
+      // the change, because the slash half must stay shut either way.
       if (command) {
         setDraft(value);
         onTyping?.();
@@ -272,6 +276,9 @@ export default function useComposerCommands({
     setArg,
     runCurrent,
     onDraftChange,
+    // Whether the command currently in the box is one the @ menu may open
+    // inside. Read by ./Feed.js — the hook itself owns no mention state.
+    mentionsHere: Boolean(command?.entry?.mentions),
     readSlash,
     onKeyDown,
     // The word on the send button. A command DOES something, so it runs by

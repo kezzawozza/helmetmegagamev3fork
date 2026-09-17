@@ -32,6 +32,36 @@ test("three hops away hears only that someone shouted, and which way", () => {
   assert.equal(shoutParts("Run!", 3, null).text, "You hear someone shout somewhere nearby.");
 });
 
+// A mention inside a shout, and why it stops being a mention two hops out (db/lib/shout.js).
+//
+// shout() picks the body per distance: the `{char:…}` spelling near, the flattened one far. This pins the
+// reason. A token run through the static comes out as broken braces with the named person's name sitting
+// perfectly readable in the middle of a redacted sentence — the one word the distance was there to take away.
+const { tokensToNames } = require("../lib/characterMentions");
+
+test("near enough to hear the words, the token is still a token", () => {
+  const row = "{char:p1|Ada} help";
+  assert.equal(shoutParts(row, 0, null).text, "You hear someone shout: » {char:p1|Ada} help");
+  assert.ok(shoutParts(row, 1, "the Gate").text.includes("{char:p1|Ada}"));
+});
+
+test("the static never gets a token to chew on", () => {
+  const flat = tokensToNames("{char:p1|Ada} help");
+  for (let i = 0; i < 20; i += 1) {
+    const { text } = shoutParts(flat, 2, "the Gate");
+    assert.ok(!text.includes("{char:"), text);
+    assert.ok(!text.includes("}"), text);
+  }
+});
+
+test("the flattened body is the same LENGTH the static expects", () => {
+  // Muffling blanks characters one for one, so the far row must be built from prose, never from a token
+  // that happens to be longer than the name it prints.
+  const flat = tokensToNames("{char:p1|Ada} help");
+  assert.equal(flat, "Ada help");
+  assert.match(shoutParts(flat, 2, "the Gate").text, /: » .{8}$/);
+});
+
 // The place gate the three moment-to-moment verbs share (db/lib/placeKey.js).
 // Both faces ask this one question, so a drift between them fails here first.
 const { isScenePlaceKey } = require("../lib/placeKey");

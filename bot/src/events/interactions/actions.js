@@ -483,7 +483,7 @@ async function handleShoutCommand(interaction) {
   // Every refusal past this point is shout()'s, in finished sentences respond()
   // prints as they stand — the empty body, no living character, nowhere to
   // stand, a mute, and the cooldown with its minutes already counted.
-  const result = await shout(prisma, character, text, { placeKey });
+  const result = await shout(prisma, character, text, { placeKey, source: "DISCORD" });
   if (!result.ok) {
     await respond(interaction, result.error);
     return;

@@ -1040,12 +1040,18 @@ export default function Feed({
     (event) => {
       const value = event.target.value;
       const caret = event.target.selectionStart ?? value.length;
-      // Command mode and the `/` shorthand belong to the hook; if it took the
-      // change there is nothing for the @ list to do with it. That includes a
+      // Command mode and the `/` shorthand belong to the hook. That includes a
       // `dialog` entry like /decree — the hook runs it immediately and this
       // branch never sees it.
+      //
+      // The one thing still ours inside a command is the @ list, for /ooc and
+      // /shout: both put a line in a room, and being named in one should ping
+      // you exactly as it does from the box beside it. It used to be shut off
+      // here with the slash list, which is why @ silently did nothing the
+      // moment anybody pressed OOC or Shout.
       if (cmd.onDraftChange(value)) {
-        setMention(null);
+        const named = cmd.mentionsHere ? mentionQueryAt(value, caret) : null;
+        setMention(named ? { ...named, active: 0 } : null);
         return;
       }
 
@@ -2102,12 +2108,11 @@ export default function Feed({
                     }
                     onChange={onDraftChange}
                     onKeyDown={(e) => {
-                      // The `/` list and command mode own the keys while either
-                      // is up — checked first, the same way the @ list owns
-                      // them below while IT is open.
-                      if (cmd.onKeyDown(e)) return;
                       // The @ list owns the arrows and Enter while it is open —
-                      // it is the thing the keystroke is aimed at.
+                      // it is the thing the keystroke is aimed at. ABOVE the
+                      // command branch, not below it: inside /ooc or /shout the
+                      // list can be open too, and there Enter means "take the
+                      // name I am pointing at", never "send the line".
                       if (mention && matches.length > 0) {
                         if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                           e.preventDefault();
@@ -2126,6 +2131,9 @@ export default function Feed({
                           return;
                         }
                       }
+                      // The `/` list and command mode own the keys while either
+                      // is up, once the @ list above has had its say.
+                      if (cmd.onKeyDown(e)) return;
                       // Nothing typed, and Up: recall your own last line into
                       // its editor. Only on an EMPTY box, so Up inside a draft
                       // still moves the caret through what you are writing.

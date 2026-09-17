@@ -3,6 +3,7 @@
 
 const { parsePlaceKey } = require("./placeKey");
 const { charactersNamedIn } = require("./mentions");
+const { buildNarrowcastContext, computeNarrowcastAccess, NARROWCAST_SLUGS } = require("./specialChannels");
 const {
   CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
@@ -109,6 +110,16 @@ async function tokensToRoles(prisma, content) {
   return { content: rewritten, characters: ids.map((id) => byId.get(id)).filter(Boolean) };
 }
 
+// Row -> plain prose. The third spelling, for a line whose text is about to be MANGLED: db/lib/shout.js muffles a
+// shout at two hops out by blanking random characters, and a `{char:…}` run through that comes out as broken
+// braces with the named person's name still perfectly legible in the middle of a redacted sentence. Flattening
+// the token first means the name is redacted with everything else. Pure — stampMentionNames has already run, so
+// every live token carries its name, and a token with no name half predates the freeze and has none to print.
+function tokensToNames(content) {
+  if (typeof content !== "string") return content;
+  return content.replace(TOKEN_RE, (raw, _id, frozenName) => frozenName || "someone");
+}
+
 // Discord -> row. Only a role that IS a character's name token is rewritten: Character.discordRoleId is @unique, so the lookup answers with one character or nothing, and a GM/spectator/player role resolves to nothing and is left alone — same rule bot/src/lib/mentions.js has always applied to the relay DM.
 async function rolesToTokens(prisma, content) {
   if (typeof content !== "string" || !content.includes("<@&")) return content;
@@ -212,6 +223,24 @@ async function charactersNamedNearby(prisma, { placeKey, content, speakerId = nu
   return charactersNamedIn(content, shaped, { speakerId });
 }
 
+// The same question for a place key of ANY kind, including the ones earshot has no answer for. A special channel
+// has no zone at all, so it asks whether the target currently hears that channel instead — the rule
+// bot/src/lib/mentions.js#canHearPing has always applied to a Discord-origin ping, now reachable from db/lib
+// too. Deadchat and a party thread answer NO for now: neither is a place, both are memberships, and a relay that
+// guessed would be a ping carrying further than the room it was typed in.
+async function canHearPing(prisma, character, placeKey) {
+  if (!character || character.status !== "ALIVE") return false;
+  const parsed = parsePlaceKey(placeKey);
+  if (!parsed) return false;
+  if (parsed.kind === "dead" || parsed.kind === "party") return false;
+  if (parsed.kind === "net") {
+    if (!NARROWCAST_SLUGS.includes(parsed.id)) return false;
+    const ctx = await buildNarrowcastContext(prisma, character.id);
+    return Boolean(computeNarrowcastAccess(ctx)[parsed.id]?.view);
+  }
+  return inEarshot(character, await earshotForPlaceKey(prisma, placeKey));
+}
+
 module.exports = {
   TOKEN_RE,
   ROLE_RE,
@@ -221,7 +250,9 @@ module.exports = {
   stampMentionNames,
   tokensToRoles,
   rolesToTokens,
+  tokensToNames,
   earshotForPlaceKey,
   inEarshot,
   charactersNamedNearby,
+  canHearPing,
 };

@@ -85,6 +85,10 @@ export const COMMANDS = [
     description: "Yell. You'll be heard nearby.",
     verb: "Send",
     where: ["room", "conv"],
+    // The @ menu opens inside this box. Only the two commands whose text argument is a line somebody SAYS
+    // get it — a /move description or a /look target is not a place to mint a character chip. ./Feed.js
+    // reads this flag; db/lib/shout.js folds the token it produces into the archive row.
+    mentions: true,
     args: [{ name: "message", kind: "text", placeholder: "What you yell…", maxLength: SHOUT_LIMIT }],
     run: ({ message }, ctx) => shoutHere(message, ctx.placeKey),
   },
@@ -96,6 +100,7 @@ export const COMMANDS = [
     // line, because none of it is the character talking. See
     // db/lib/placeKey.js#isOocPlaceKey, which oocHere re-checks.
     where: ["room", "conv", "zone", "net", "party"],
+    mentions: true, // see /shout above
     args: [{ name: "message", kind: "text", placeholder: "Out of character…", maxLength: OOC_LIMIT }],
     run: ({ message }, ctx) => oocHere(message, ctx.placeKey),
   },

@@ -16,6 +16,7 @@ const {
 const { placeKeyForLocation, parsePlaceKey, discordTargetForPlaceKey } = require("./placeKey");
 const { muffle } = require("./muffle");
 const { loadPresentedIdentity } = require("./presentedIdentity");
+const { stampMentionNames, rolesToTokens, tokensToRoles, tokensToNames } = require("./characterMentions");
 const { aliasSubject } = require("./concealedIdentity");
 
 // How much is lost at each remove. Index IS the hop count; index 0 is never reached (your own Location returns above). Past the end of the table the words are gone and only the direction survives.
@@ -100,8 +101,9 @@ async function soundproofAt(prisma, placeKey) {
 const SHOUT_ACTION = "shout";
 
 // Who hears it, and what they hear. `character` needs { id, locationId, discordUserId }; the name comes off a fresh read (loadShouterName). `placeKey` is where the shout was MADE — the only way to tell a vault from the street outside it.
+// `source` is "DISCORD" or "WEB" — it decides whether the raw body carries `<@&roleId>` character-role mentions that must be folded to `{char:id}` before the archive row keeps them, matching db/lib/say.js#prepareSpeech and db/lib/ooc.js.
 // Returns { ok: true, muffled, here: { line, scene }, heard: [{ locationId, placeKey, name, distance, viaName, line, scene, discordChannelId }] } or { ok: false, error, retryAfter? } (seconds). `here` is ALWAYS present, even when `heard` is empty (inside a soundproof room it is the only thing there is). Posting is deliverShout()'s half — every caller hands this result straight to it.
-async function shout(prisma, character, text, { placeKey = null } = {}) {
+async function shout(prisma, character, text, { placeKey = null, source = "WEB" } = {}) {
   const body = String(text ?? "").trim();
   if (!body) return { ok: false, error: "Say something." };
   // 300, the option's own maximum: goes into a couple dozen channels, half with most letters knocked out.
@@ -134,15 +136,42 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   const muffled = sealed || gagged;
   const shouterName = await loadShouterName(prisma, character.id);
 
+  // THREE SPELLINGS OF THE SAME SENTENCE, because a shout is the one thing in the game that deliberately
+  // destroys its own text. `rowText` is what the archive keeps — `{char:id|Name}`, face-neutral, the same
+  // rewrite db/lib/say.js#prepareSpeech does. `discordText` is the chip Discord draws. `plainText` is the
+  // token flattened to the name it froze, and it is what gets MUFFLED: run a token through muffle() and you
+  // get broken braces with the named person's name sitting perfectly legible inside a redacted sentence —
+  // the one word distance was supposed to take away. Two hops out both faces use the flat one.
+  let rowText = body;
+  let discordText = body;
+  try {
+    rowText = await stampMentionNames(prisma, source === "DISCORD" ? await rolesToTokens(prisma, body) : body);
+    discordText = (await tokensToRoles(prisma, rowText)).content;
+  } catch (err) {
+    console.error("Shout mention stamping failed:", err?.message ?? err);
+  }
+  const plainText = tokensToNames(rowText);
+  // muffle(_, 0) is the identity, so rendering the two spellings at distance 0 or 1 is deterministic and the
+  // faces cannot drift. Past that there is one call and one roll, as before.
+  const bodyAt = (distance) => (distance <= 1 ? rowText : plainText);
+
   // The room you are standing in, rendered once, named and told about the walls if any.
-  const hereScene = shoutParts(body, 0, null, { shouterName, muffled });
-  const here = { line: renderShout(hereScene, 0), scene: hereScene };
+  const hereScene = shoutParts(rowText, 0, null, { shouterName, muffled });
+  const here = {
+    line: renderShout(shoutParts(discordText, 0, null, { shouterName, muffled }), 0),
+    scene: hereScene,
+  };
 
   // WHO hears it, before the cooldown is claimed: a turned-away shout must not cost five minutes of throat. Skipped when soundproof (nowhere for the BFS to go); a gag asks the same BFS for just its origin (maxHops 0).
   const range = sealed ? [] : await soundRange(prisma, character.locationId, gagged ? 0 : undefined);
   const heard = range.map((place) => {
     // Rolled once: `scene` (db/lib/scene.js, Chat) and `line` (Discord) carry the same static.
-    const scene = shoutParts(body, place.distance, place.viaName, { shouterName, muffled });
+    const scene = shoutParts(bodyAt(place.distance), place.distance, place.viaName, { shouterName, muffled });
+    // Only the near two need a second render: past them the static has already eaten the mention.
+    const discordScene =
+      place.distance <= 1
+        ? shoutParts(discordText, place.distance, place.viaName, { shouterName, muffled })
+        : scene;
     return {
       locationId: place.locationId,
       placeKey: placeKeyForLocation(place.locationId),
@@ -150,7 +179,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
       discordChannelId: place.discordChannelId,
       distance: place.distance,
       viaName: place.viaName,
-      line: renderShout(scene, place.distance),
+      line: renderShout(discordScene, place.distance),
       scene,
     };
   });

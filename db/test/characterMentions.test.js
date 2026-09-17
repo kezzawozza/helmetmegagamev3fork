@@ -15,6 +15,8 @@ const {
   mentionsCharacter,
   mentionedIdsIn,
   stampMentionNames,
+  tokensToNames,
+  tokensToRoles,
 } = require("../lib/characterMentions");
 
 // Enough of a Prisma client for stampMentionNames: it makes exactly one
@@ -117,4 +119,74 @@ test("text with no mention is returned untouched, without a query", async () => 
     },
   };
   assert.equal(await stampMentionNames(prisma, "just talking"), "just talking");
+});
+
+// The third spelling, for text that is about to be destroyed on purpose (db/lib/shout.js muffles a shout at
+// two hops out). A token survives muffle() as broken braces around a perfectly legible name, which is the one
+// word the distance was meant to take away — so it is flattened to prose first.
+test("tokensToNames flattens a token to the name it froze", () => {
+  assert.equal(tokensToNames("hey {char:p1|The Baroness}, over here"), "hey The Baroness, over here");
+});
+
+test("a token with no frozen name flattens to someone, never to a raw id", () => {
+  assert.equal(tokensToNames("hey {char:p1}"), "hey someone");
+});
+
+test("tokensToNames leaves a line with no mention in it exactly as it was", () => {
+  assert.equal(tokensToNames("just talking"), "just talking");
+  assert.equal(tokensToNames(""), "");
+});
+
+test("every token goes, so nothing brace-shaped is left for muffle to shred", () => {
+  const flat = tokensToNames("{char:p1|Ada} told {char:h1|Young Woman} and {char:b1}");
+  assert.equal(flat, "Ada told Young Woman and someone");
+  assert.ok(!flat.includes("{char:"), flat);
+});
+
+// The way OUT. A row's token has to become a Discord chip before it is posted, or the braces go out as
+// literal text — which is exactly what /ooc did: it posted the body it was handed, so a web-typed mention
+// arrived on Discord reading `{char:cl9…|Ada}`.
+function fakeRoleset(rows) {
+  return {
+    character: {
+      findMany: async ({ where }) => rows.filter((r) => where.id.in.includes(r.id)),
+    },
+  };
+}
+const withRole = (id, name, discordRoleId) => ({
+  id,
+  name,
+  status: "ALIVE",
+  discordRoleId,
+  discordUserId: `u-${id}`,
+  locationId: "loc1",
+  zoneId: "z1",
+  discordMirrored: true,
+});
+
+test("a row token becomes a Discord role mention, and never reaches a channel as braces", async () => {
+  const prisma = fakeRoleset([withRole("p1", "Sir Alder", "12345678901234567")]);
+  const { content, characters } = await tokensToRoles(prisma, "over here {char:p1|Sir Alder}");
+  assert.equal(content, "over here <@&12345678901234567>");
+  assert.ok(!content.includes("{char:"), content);
+  assert.deepEqual(characters.map((c) => c.id), ["p1"]);
+});
+
+test("a character with no role falls back to the frozen name, not to the raw token", async () => {
+  const prisma = fakeRoleset([withRole("p1", "Sir Alder", null)]);
+  const { content } = await tokensToRoles(prisma, "over here {char:p1|Sir Alder}");
+  assert.equal(content, "over here Sir Alder");
+});
+
+test("a line with no mention costs no query", async () => {
+  const prisma = {
+    character: {
+      findMany: async () => {
+        throw new Error("tokensToRoles queried for a line with no mention in it");
+      },
+    },
+  };
+  const { content, characters } = await tokensToRoles(prisma, "just talking");
+  assert.equal(content, "just talking");
+  assert.deepEqual(characters, []);
 });
