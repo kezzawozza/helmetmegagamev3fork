@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Party auto-add: open #party per member before inviting to the thread
+
+✚ A per-member overwrite on #party is stamped before addThreadMember, so private-thread invites don't 403 for lack of parent view. Cleared when a member leaves the party or the thread is torn down. Deadchat's shape.  
+✚ Every catch in partyChat now logs — the 403s were silent, which is how the bug shipped.  
+✚ db:backfill-party-members reconciles the two live party threads whose members were dropped by the same 403.
+
 ## 2026-09-17 · Block one character's avatar uploads
 
 ✎ A GM toggle on the character dev panel refuses new uploads from that person only. The current picture stays; the portrait maker still works; the global switch is unaffected.
