@@ -7281,6 +7281,14 @@ tags:
   # db/lib/depot.js has always described. The economy ledger still books it as
   # form BALANCE rather than GOODS, so /gm/economy goes on telling ⬢ and obols
   # apart (docs/systemdocs/ECONOMY.md §1).
+  #
+  # HIDDEN, exactly like `obol`, and for the same two reasons. A visible stack
+  # put a bare "Resources" line in every bystander's Examine, which announced
+  # that there was a balance worth taking — the one fact the officer-only
+  # ⬢ line is written to withhold. And `hideableFromSearch` only covers HIDDEN
+  # and WORN (db/lib/medicalVision.js), so a visible stack could never be
+  # palmed: obols were safe from a search and the ⬢ beside them never were,
+  # which made converting at the Depot strictly correct rather than a trade.
   resources:
     catalog: all
     name: Resources
@@ -7290,7 +7298,7 @@ tags:
     pointCost: 0
     weight: 1
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     depotPrice: 2

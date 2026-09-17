@@ -100,11 +100,12 @@ function concealedReadout(identity, subject) {
     line: concealedLine(identity.alias),
     appearance: null,
     ailments: seen.filter(isHealth).map((ct) => ct.tag.name),
-    // ⬢ are left out: how much somebody is carrying is the officer-gated
-    // `resources` line below, and a bare "Resources" chip here would announce
-    // to any passer-by that there is a balance to take at all — which is the
-    // thing that gate exists to withhold. The sibling money tag, `obol`, is
-    // `visible: false` for the same reason.
+    // ⬢ are left out. The catalog already hides them (`visible: false` on
+    // `resources`, same as `obol`), so nothing reaches here today — this is
+    // the belt to that flag's braces, and it is worth keeping because the
+    // rule is not really about visibility: how much somebody holds is the
+    // officer-gated `resources` line below, and a bare "Resources" chip would
+    // announce to any passer-by that there is a balance worth taking.
     equipment: withoutResources(seen.filter((ct) => !isHealth(ct))).map((ct) => ct.tag.name),
     tags: [],
     desire: null,
@@ -150,9 +151,11 @@ function examineReadout({
     ailments: [],
     equipment: [],
     tags: [
-      // Same rule as the bystander readout above, and here it also stops the
-      // officer seeing "Resources" in the chip row AND "Resources: 12 ⬢" two
-      // lines under it, as if they were two different things.
+      // Same rule as the bystander readout above, and likewise a no-op while
+      // the catalog hides ⬢. It stays because it is what stops an officer
+      // seeing "Resources" in the chip row AND "Resources: 12 ⬢" two lines
+      // under it, as if they were two different things, the day somebody makes
+      // the stack visible again.
       ...medicallyVisibleTags(subject.tags, satisfied, identityVisible)
         .filter((entry) => !isResourcesRow(entry.characterTag))
         .map((entry) => describeTag(entry, openTurnNumber)),
