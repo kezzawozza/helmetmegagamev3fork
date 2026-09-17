@@ -5,8 +5,10 @@
 //
 // Run with: npm test --workspace=db
 const test = require("node:test");
+
+process.env.AUTH_SECRET ||= "test-secret-for-hood-tokens";
 const assert = require("node:assert/strict");
-const { escortAuthority, escortReason, escortRefusal, ESCORT_SELECT } = require("../lib/escort");
+const { escortAuthority, escortReason, escortRefusal, escortName, escortKey, escortHidden, ESCORT_SELECT } = require("../lib/escort");
 const { freeZoneMoves, freeMovesLeft, fitsMount, CHARACTER_SELECT } = require("../lib/locationTravel");
 const { equippedSlugs } = require("../lib/mounts");
 
@@ -24,6 +26,20 @@ const person = (over = {}) => ({
   ...over,
 });
 const tag = (slug, name) => ({ tag: { slug, name } });
+const maskTag = () => ({
+  tagId: "mask",
+  equipped: true,
+  tag: {
+    id: "mask",
+    slug: "knights-helmet",
+    name: "Knight's Helmet",
+    concealsIdentity: true,
+    concealSprite: "helm",
+    forcesConceal: false,
+    equipLayer: 1,
+    forcedName: null,
+  },
+});
 
 // --- who follows ----------------------------------------------------------
 
@@ -103,10 +119,49 @@ test("a passenger cannot bring anyone along themselves", () => {
   assert.equal(escortRefusal(passenger, person()), "You're being brought along yourself.");
 });
 
-test("a hood is off the list, the way it is off every other picker", () => {
-  assert.equal(escortAuthority(leader(), person({ concealed: true })), null);
-  // But a corpse cannot hold a hood up, so the dead still show.
-  assert.equal(escortAuthority(leader(), person({ status: "DEAD", concealed: true })), "FORCED");
+// A hood hides WHO somebody is, never THAT they are standing there, and hauling
+// a stranger along is one of the plainest things you can do to somebody whose
+// name you do not know (PROXYING.md §5). It used to refuse outright, which meant
+// a masked friend bleeding out could not be carried to a surgeon by anybody.
+// What a hood still costs is the NAME, and that is escortName's job.
+test("a hood comes along like anybody else — the mask costs the name, not the ride", () => {
+  const masked = person({ concealed: true, tags: [maskTag()] });
+  assert.equal(escortAuthority(leader(), masked), "ASK");
+  assert.equal(escortAuthority(leader(), person({ concealed: true, tags: [maskTag(), tag("bound", "Bound")] })), "FORCED");
+});
+
+test("no list ever prints the name under the mask", () => {
+  const masked = person({ name: "Sir Alder", concealed: true, age: 20, gender: "MAN", tags: [maskTag()] });
+  assert.equal(escortHidden(masked), true);
+  assert.equal(escortName(masked), "a young man");
+  assert.ok(!escortKey(masked).includes("P"), "a hood is keyed by token, never by id");
+
+  const bare = person({ name: "Ann Vell" });
+  assert.equal(escortHidden(bare), false);
+  assert.equal(escortName(bare), "Ann Vell");
+  assert.equal(escortKey(bare), "character:P");
+});
+
+// Death unequips, so a body's mask is REMEMBERED rather than worn
+// (Character.deathMaskTagId, CORPSES.md §1b). Note the rows below: not equipped.
+test("a body keeps its mask until somebody takes it", () => {
+  const stamped = (tags) =>
+    person({ name: "Sir Alder", status: "DEAD", age: 20, gender: "MAN", deathMaskTagId: "mask", tags });
+  const worn = { tagId: "mask", equipped: false, tag: { ...maskTag().tag, id: "mask" } };
+
+  assert.equal(escortName(stamped([worn])), "a young man");
+  assert.equal(escortName(stamped([])), "Sir Alder", "looted: the face comes back");
+  assert.equal(escortName(person({ name: "Ann Vell", status: "DEAD" })), "Ann Vell", "never wore one");
+});
+
+test("a forced name is not a hood, however much is over the face", () => {
+  const beast = person({
+    name: "Jorren Vask",
+    concealed: true,
+    tags: [maskTag(), { tagId: "apex", equipped: true, tag: { slug: "apex-form", name: "Apex Form", forcedName: "Beast" } }],
+  });
+  assert.equal(escortHidden(beast), false);
+  assert.equal(escortName(beast), "Beast");
 });
 
 test("the reason says why they follow, not why they cannot", () => {

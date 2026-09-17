@@ -17,7 +17,10 @@ const {
   detach,
   partyOf,
   createEscortOffer,
+  escortName,
+  escortKey,
 } = require("@lifeweb/db/lib/escort");
+const { resolveTargetKey } = require("@lifeweb/db/lib/targetKey");
 const { syncPartyMembership } = require("@lifeweb/db/lib/partyChat");
 const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
 const { walkWithinZone } = require("@lifeweb/db/lib/locationWalk");
@@ -128,29 +131,37 @@ function buildBringRow(candidates) {
 // instead of being attached; everybody else attaches on the spot, and
 // everybody untricked is put down. Returns { attached, asked, dropped, dms }
 // so the caller can say what happened in one line.
-async function applyBring(mover, pickedIds, turn) {
-  const picked = new Set(pickedIds);
+async function applyBring(mover, pickedKeys, turn) {
+  // The menu's values are TARGET KEYS, not ids — the roster offers people in
+  // masks now, and a hood is named by an HMAC token so their id never leaves the
+  // server (db/lib/targetKey.js, PROXYING.md §5). Everything below matches on the
+  // key, and escortName() is what any of these lines is allowed to say out loud.
+  const picked = new Set(pickedKeys);
   const candidates = await escortCandidates(prisma, mover, turn?.number ?? null);
-  const byId = new Map(candidates.map((c) => [c.id, c]));
+  const byKey = new Map(candidates.map((c) => [c.id, c]));
   const out = { attached: [], asked: [], dropped: [], dms: [] };
 
   for (const row of await partyOf(prisma, mover.id)) {
-    if (!picked.has(row.id)) {
+    if (!picked.has(escortKey(row))) {
       await detach(prisma, row.id);
-      out.dropped.push(row.name);
+      out.dropped.push(escortName(row));
     }
   }
 
-  for (const id of picked) {
-    const candidate = byId.get(id);
+  for (const key of picked) {
+    const candidate = byKey.get(key);
     if (!candidate || candidate.attached) continue; // a picker is a hint; this is the lock
+    // The key back to an id, once, here — the candidate list is already
+    // co-presence-checked, and this re-checks it a second time for the lock.
+    const id = await resolveTargetKey(prisma, mover, key, { allowDead: true });
+    if (!id) continue;
     if (candidate.verdict === "ASK") {
       if (!turn) continue;
       const target = await prisma.character.findUnique({ where: { id }, select: ESCORT_SELECT });
       if (!target || !escortAuthority(mover, target, turn.number)) continue;
       const offer = await createEscortOffer(prisma, { actor: mover, target, turn });
       if (offer.ok) {
-        out.asked.push(target.name);
+        out.asked.push(escortName(target));
         out.dms.push(offer.dm);
       }
       continue;

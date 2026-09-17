@@ -496,7 +496,26 @@ one answer:
 | `FORCED` | a corpse; anyone holding an `INCAPACITATING_SLUGS` tag | attaches at once |
 | `CONSENTED` | somebody whose standing agreement to *you* has not lapsed | attaches at once |
 | `ASK` | any other living character standing with you | files an `ESCORT` `Offer` and DMs them |
-| `null` | not standing with you, hooded, yourself, buried, **willingly** following somebody else, or **you yourself are being brought along** | not offered |
+| `null` | not standing with you, yourself, buried, held in a fight, **willingly** following somebody else, or **you yourself are being brought along** | not offered |
+
+**A hood comes along like anybody else.** Hauling a stranger is one of the
+plainest things you can do to somebody whose name you do not know, so
+`escortAuthority` no longer refuses a mask — it used to, which meant a masked
+friend bleeding out could not be carried to a surgeon by anyone
+(`PROXYING.md` §5). What a hood still costs is the **name**: `escortName(row)`
+is what every list prints, `escortKey(row)` is what a picker posts back — an
+HMAC token rather than an id, because `/api/avatar/<id>` answers with a face —
+and `hooded` on the row is what makes the party rack draw the question-mark
+plate instead of asking for one. A body still wearing its mask is named the
+same way (`CORPSES.md` §1b).
+
+**A hold says so now.** Being attacked holds both sides until the turn ends
+(`INTERCEPT.md`), and `escortAuthority` refuses anyone held — above the
+helpless→`FORCED` branch, on purpose, so an ambusher's prisoner is not
+somebody else's to walk off with. That is still the rule; what changed is that
+`escortRefusal` reads `heldReasonFor` instead of falling through to a flat
+"You can't take them along.", so a player is told a fight is what is stopping
+them rather than left guessing.
 
 **Force beats an arrangement.** Both `FORCED` branches are reached *before*
 the `escortedById` guard, so a captor takes their prisoner off whoever is

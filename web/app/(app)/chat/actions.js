@@ -48,7 +48,11 @@ import {
   createEscortOffer,
   acceptEscort,
   escortReason,
+  escortName,
+  escortKey,
+  escortHidden,
 } from "@lifeweb/db/lib/escort";
+import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { syncPartyMembership } from "@lifeweb/db/lib/partyChat";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
@@ -558,10 +562,13 @@ export async function loadParty() {
     ]);
     riding = {
       leaderId: character.escortedById,
-      leaderName: leaderRow?.name ?? "somebody",
+      leaderName: leaderRow ? escortName(leaderRow) : "somebody",
+      // escortName, never row.name: a party can carry somebody in a mask now,
+      // and the rack is the one place that would publish the name they are
+      // wearing it to hide (PROXYING.md §5). No id on a hood row either.
       companions: companions
         .filter((row) => row.id !== character.id)
-        .map((row) => ({ id: row.id, name: row.name, status: row.status })),
+        .map((row) => ({ id: escortKey(row), name: escortName(row), status: row.status, hooded: escortHidden(row) })),
     };
   }
 
@@ -592,9 +599,13 @@ export async function loadParty() {
     candidates,
     // Re-derived rather than read off `candidates`: a follower can be with you and no longer be a candidate.
     party: party.map((row) => ({
-      id: row.id,
-      name: row.name,
+      id: escortKey(row),
+      name: escortName(row),
       status: row.status,
+      // The avatar's own gate. A hood row is keyed by token, so /api/avatar
+      // could not draw the face even if it tried — this is what makes it draw
+      // the question-mark plate instead of nothing.
+      hooded: escortHidden(row),
       reason: escortReason(row, escortAuthority(character, row, openTurn?.number ?? null)),
     })),
     incoming: incoming.map((offer) => ({ id: offer.id, from: askerNames.get(offer.initiatorId) ?? "Somebody" })),
@@ -602,12 +613,17 @@ export async function loadParty() {
 }
 
 // Pick somebody up. FORCED and CONSENTED attach at once; anyone else is asked. Re-derived — the panel's verdict is a hint.
-export async function bringAlong(targetId) {
+export async function bringAlong(targetKey) {
   const me = await actor(MOVER_SELECT);
   if (me.error) return { ok: false, error: me.error };
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
-  const target = await prisma.character.findUnique({ where: { id: targetId ?? "" }, select: MOVER_SELECT });
+  // A KEY now (db/lib/targetKey.js), because the picker offers hoods — their id
+  // never travels. allowDead, since a body is the most FORCED follower there is.
+  const targetId = await resolveTargetKey(prisma, me.character, targetKey, { allowDead: true });
+  const target = targetId
+    ? await prisma.character.findUnique({ where: { id: targetId }, select: MOVER_SELECT })
+    : null;
   const verdict = escortAuthority(me.character, target, openTurn?.number ?? null);
   // Says WHICH rule refused, not just "you can't".
   if (!verdict) return { ok: false, error: escortRefusal(me.character, target) };
@@ -617,7 +633,7 @@ export async function bringAlong(targetId) {
     const offer = await createEscortOffer(prisma, { actor: me.character, target, turn: openTurn });
     if (!offer.ok) return { ok: false, error: offer.reason };
     await sendDm(offer.dm.discordUserId, offer.dm.content, { components: offer.dm.components, meta: offer.dm.meta }).catch(() => {});
-    return { ok: true, line: `You asked ${target.name} to come with you.` };
+    return { ok: true, line: `You asked ${escortName(target)} to come with you.` };
   }
 
   // A FORCED target is taken, not agreed with — escortAuthority already decided above; attach must not re-decide it.
@@ -625,21 +641,26 @@ export async function bringAlong(targetId) {
     return { ok: false, error: "Somebody else has them." };
   }
   await syncPartyMembership(prisma, me.character.id).catch(() => {});
-  return { ok: true, line: `${target.name} is with you.` };
+  return { ok: true, line: `${escortName(target)} is with you.` };
 }
 
 // Put somebody down. Always allowed: letting go is never gated.
-export async function putDown(targetId) {
+export async function putDown(targetKey) {
   const me = await actor(MOVER_SELECT);
   if (me.error) return { ok: false, error: me.error };
-  const target = await prisma.character.findFirst({
-    where: { id: targetId ?? "", escortedById: me.character.id },
-    select: { id: true, name: true },
-  });
+  // A key, like the picker that offered it. allowDead: you can be carrying a
+  // body, and putting one down is exactly as ungated as putting anyone down.
+  const targetId = await resolveTargetKey(prisma, me.character, targetKey, { allowDead: true });
+  const target = targetId
+    ? await prisma.character.findFirst({
+        where: { id: targetId, escortedById: me.character.id },
+        select: MOVER_SELECT,
+      })
+    : null;
   if (!target) return { ok: false, error: "They aren't with you." };
   await detach(prisma, target.id);
   await syncPartyMembership(prisma, me.character.id).catch(() => {});
-  return { ok: true, line: `You let ${target.name} go.` };
+  return { ok: true, line: `You let ${escortName(target)} go.` };
 }
 
 // Answering an ask from the web. Same two functions the bot's buttons call, so the two faces can't drift.

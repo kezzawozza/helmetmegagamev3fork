@@ -1,9 +1,15 @@
 // Escorting — the party you carry with you (docs/systemdocs/MAP.md §3a). The one module that knows what an escort is, the way db/lib/locationGraph.js is the one module that knows what an edge is: you attach somebody once and they come along until something breaks it. The four verdicts escortAuthority returns are the whole rule set — FORCED (a corpse or anyone helpless: attaches on the spot, no asking), CONSENTED (they already said yes to YOU and the window hasn't lapsed: attaches on the spot, the whole reason the window exists — picking the same person back up shouldn't re-ask), ASK (any other living character standing with you: files an ESCORT Offer and DMs Accept/Cancel), null (not standing with you, yourself, buried, or already following somebody else: not offered at all).
 // Co-presence is LOCATION grain, not zone — you walk to somebody to take them. Takes `prisma` as a parameter and is deliberately NOT on the @lifeweb/db barrel (db/lib/dm.js convention); require it by path.
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
-const { hereWhere, notHereMessage } = require("./presence");
+const { notHereMessage } = require("./presence");
+// One module owns the hold and every sentence about it (INTERCEPT.md); this
+// only reads it. Required by path rather than off the barrel, same as the rest.
+const { heldReasonFor } = require("./intercept");
 const { escortButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
+const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
+const { aliasRow } = require("./concealedIdentity");
+const { hoodToken } = require("./hoodToken");
 
 // How many turns an accepted escort keeps counting as consent. Two, so a party that walks apart and regroups inside the same day isn't asked twice.
 const CONSENT_TURNS = 2;
@@ -28,11 +34,61 @@ const ESCORT_SELECT = {
   heldUntil: true,
   heldById: true,
   heldReason: true,
-  tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
+  // What a picker and the party rack are allowed to CALL them — the alias half
+  // (age/gender) and the mask half. Carrying somebody is a thing you can plainly
+  // do to a stranger, so a hood is offerable; naming them while you carry them
+  // is not, which is what escortName below is for.
+  age: true,
+  gender: true,
+  deathMaskTagId: true,
+  tags: {
+    select: {
+      tagId: true,
+      equipped: true,
+      tag: { select: { slug: true, name: true, ...CONCEALMENT_TAG_FIELDS, forcedName: true } },
+    },
+  },
 };
 
 function isHelpless(target) {
   return Boolean(target.tags?.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug)));
+}
+
+// Is this row hidden, and what should a list call it? One answer for the picker
+// and for the party rack, because those two disagreeing is how carrying a hood
+// would have published their name the moment you picked them up.
+//
+// A corpse's mask is remembered rather than worn (Character.deathMaskTagId,
+// CORPSES.md §1b) — death unequips — so the dead arm reads the stamp and checks
+// the body still holds the tag, exactly as db/lib/whosHere.js does.
+function escortHidden(row) {
+  const forced = forcedNameFrom(row?.tags);
+  if (forced) return false; // a forced name is not hiding (PROXYING.md §5).
+  if (row?.status === "DEAD") {
+    if (!row.deathMaskTagId || !Array.isArray(row.tags)) return false;
+    const held = row.tags.find((ct) => ct.tagId === row.deathMaskTagId)?.tag;
+    return Boolean(held?.concealsIdentity && held?.concealSprite);
+  }
+  const piece = concealmentFrom(row?.tags);
+  return Boolean(piece && (piece.forced || row?.concealed));
+}
+
+// The name a list may print: their own, a forced one, or the alias a stranger
+// sees. NEVER row.name for somebody hidden.
+function escortName(row) {
+  if (!row) return "somebody";
+  if (escortHidden(row)) return aliasRow(row, null);
+  return forcedNameFrom(row.tags) ?? row.name;
+}
+
+// The key a picker posts back (db/lib/targetKey.js): a token for a hood, so the
+// id never crosses the wire, an id for anybody else. Null when AUTH_SECRET is
+// unset, which is also when hoodToken() mints nothing — an untokened hood is
+// simply not offerable.
+function escortKey(row) {
+  if (!escortHidden(row)) return `character:${row.id}`;
+  const token = hoodToken(row.id);
+  return token ? `hood:${token}` : null;
 }
 
 // The verdict. Pure, so the panel, the bot picker and the server-side re-check all share one answer — a picker is a hint and this is the lock. `turnNumber` is the OPEN turn's number the consent window is measured in; a caller with no open turn passes null and simply never gets CONSENTED, the safe direction — they get asked again.
@@ -55,8 +111,12 @@ function escortAuthority(leader, target, turnNumber = null) {
   // FORCE COMES FIRST, and that ordering is the whole point of this block: a prisoner is not somebody's to keep by having asked first, so a friendly arrangement must never outrank the rope. Only a body and the helpless reach it — nobody holds a rank that walks a healthy, conscious person anywhere.
   if (target.status === "DEAD") return "FORCED";
   if (target.status !== "ALIVE") return null;
-  // The presence rule, mirrored from db/lib/presence.js#isHere: a hood is the game's "you don't know who this is", so it's off every picker and every gate.
-  if (target.concealed) return null;
+  // NO concealment refusal. A hood hides WHO somebody is, never THAT they are
+  // standing there, and hauling a stranger along is one of the plainest things
+  // you can do to somebody whose name you do not know (PROXYING.md §5). It used
+  // to refuse here on the raw column, which meant a masked friend bleeding out
+  // could not be carried to a surgeon by anyone. What a hood still costs is the
+  // name: escortName() above is what every list prints instead.
   // Somebody has hold of them (INTERCEPT.md). Above the FORCED branches on purpose: an ambusher's own prisoner isn't theirs to walk off with either — the ambush is a standoff, and taking them somewhere is what the Gambit is for. performLocationMove re-checks this per follower, since a hold can land between the pick and the walk.
   if (target.heldUntil && new Date(target.heldUntil).getTime() > Date.now()) return null;
   if (isHelpless(target)) return "FORCED";
@@ -85,7 +145,7 @@ function escortReason(target, verdict) {
   return null;
 }
 
-// Why they CANNOT be taken, for the answer a click gets. escortReason above is its opposite number and only speaks for people who passed. hereWhere() has already dropped the far away, the hooded, the buried and yourself before a candidate is judged, so the branch that fires here can only be a WILLING follower, whose walking with somebody is plain to see anyway. Their leader is deliberately not named: the refusal doesn't need it, and naming them would say more than the player asked.
+// Why they CANNOT be taken, for the answer a click gets. escortReason above is its opposite number and only speaks for people who passed. Their leader is deliberately not named: the refusal doesn't need it, and naming them would say more than the player asked.
 function escortRefusal(leader, target) {
   if (!target) return "They aren't here any more.";
   if (target.buriedAt) return "They're in the ground.";
@@ -93,14 +153,30 @@ function escortRefusal(leader, target) {
   if (!leader?.locationId || target.locationId !== leader.locationId) return notHereMessage(target);
   if (leader.escortedById) return "You're being brought along yourself.";
   if (target.escortedById && target.escortedById !== leader.id) return "They're already with somebody.";
+  // A hold is the one refusal here a player cannot see for themselves, and the
+  // one most likely to matter: somebody who went down in a fight is held until
+  // the turn ends (INTERCEPT.md), which is exactly when a friend most wants to
+  // carry them to a surgeon. It used to fall through to the flat sentence
+  // below, so the answer to "why can't I pick him up" was nothing at all.
+  //
+  // heldReasonFor's own wording, not a second one — and it names no holder,
+  // which keeps this refusal as quiet as the rest of them.
+  const held = heldReasonFor(target);
+  if (held) return held;
   return "You can't take them along.";
 }
 
 // Everyone standing here, each with its verdict. The panel draws the lot: nothing is filtered out for being ASK, since "you'd have to ask them" is the useful half of the answer.
 async function escortCandidates(prisma, leader, turnNumber = null) {
   if (!leader?.locationId) return [];
+  // presentWhere rather than hereWhere: everybody standing here, hoods included.
+  // escortAuthority below is the filter, and it no longer refuses a mask.
   const rows = await prisma.character.findMany({
-    where: hereWhere(leader, { includeDead: true }),
+    where: {
+      locationId: leader.locationId,
+      id: { not: leader.id },
+      OR: [{ status: "ALIVE" }, { status: "DEAD", buriedAt: null }],
+    },
     select: ESCORT_SELECT,
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   });
@@ -108,10 +184,15 @@ async function escortCandidates(prisma, leader, turnNumber = null) {
   for (const row of rows) {
     const verdict = escortAuthority(leader, row, turnNumber);
     if (!verdict) continue;
+    // A KEY, not an id — a hood's id never goes to a browser, because
+    // /api/avatar/<id> answers with a face. An untokened hood is unofferable.
+    const id = escortKey(row);
+    if (!id) continue;
     out.push({
-      id: row.id,
-      name: row.name,
+      id,
+      name: escortName(row),
       status: row.status,
+      hooded: escortHidden(row),
       verdict,
       attached: row.escortedById === leader.id,
       reason: escortReason(row, verdict),
@@ -280,6 +361,9 @@ module.exports = {
   escortReason,
   escortRefusal,
   escortCandidates,
+  escortName,
+  escortKey,
+  escortHidden,
   partyOf,
   attach,
   detach,
