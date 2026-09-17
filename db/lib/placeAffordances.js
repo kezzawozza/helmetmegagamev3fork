@@ -10,6 +10,7 @@
 // anything true of a person is a dialog on the web, a refusal on Discord.
 
 const { hasNoticeboard } = require("./noticeboard");
+const { hasAttribute } = require("./locationAttributes");
 const { QUEST_INTERACT_PREFIX } = require("./questText");
 const { INTERCOM_ROOM_SLUG } = require("./intercom");
 const {
@@ -68,6 +69,17 @@ const LOCATION_AFFORDANCES = [
   { id: "converse", label: "Converse", tone: PLAIN, prefix: CONVERSE_PREFIX },
   // Only where docs/zones.yaml declared one (db/lib/noticeboard.js).
   { id: "noticeboard", label: "Noticeboard", tone: PLAIN, prefix: NOTICEBOARD_PREFIX, when: hasNoticeboard },
+  // The Depot's drop box. On the LOCATION rather than one room, so it is
+  // reachable from wherever at the Depot you happen to be standing — and again
+  // on the Railyard's own post (below), which is where somebody meeting the
+  // train already is.
+  {
+    id: "dropbox",
+    label: "Dropbox",
+    tone: PLAIN,
+    prefix: ROOM_DROPBOX_PREFIX,
+    when: (location) => hasAttribute(location, "depot"),
+  },
 ];
 
 // Everything on a Room's starter post. Storage is on every one of them;
@@ -118,20 +130,16 @@ const ROOM_AFFORDANCES = [
     prefix: ROOM_ATM_PREFIX,
     when: (room) => room?.slug === STOREFRONT_ROOM_SLUG,
   },
-  // The one-way door out of an inventory and into the Depot's books. What goes
-  // in is gone at once and settles when the train next leaves.
-  //
-  // On the STOREFRONT and not in the Railyard, and that is load-bearing: the
-  // Railyard is behind a Depot Keycard, so a box in there would be a box only
-  // Dockers could reach — and selling is the half of this counter that had to
-  // open to everybody. The crates stay in the Railyard; the box is at the
-  // counter, which is also where a customer would look for it.
+  // The Depot's drop box, second copy. The first is on the Location itself
+  // (LOCATION_AFFORDANCES above) so it is reachable from anywhere at the Depot;
+  // this one is on the Railyard because that is where somebody meeting the
+  // train is already standing.
   {
     id: "dropbox",
-    label: "Drop Box",
+    label: "Dropbox",
     tone: PLAIN,
     prefix: ROOM_DROPBOX_PREFIX,
-    when: (room) => room?.slug === STOREFRONT_ROOM_SLUG,
+    when: (room) => room?.slug === RAILYARD_ROOM_SLUG,
   },
   // The Merchant's gun, on the wall the Merchant's Office description has
   // called a big red button since before anything could press one. The second

@@ -1,17 +1,22 @@
 import { redirect } from "next/navigation";
 import PageShell from "@/app/components/PageShell";
 import TreasuryDesk from "./TreasuryDesk";
-import { prisma, MEISTERS_TERMINAL_SLUG, loadDepot, vaultObols, TREASURY } from "@lifeweb/db";
+import { prisma, loadDepot, vaultObols, TREASURY } from "@lifeweb/db";
+import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 
 // The Meister's terminal: every account in Ravenheart, what the Vault actually
 // holds against them, and the one number he sets.
 //
-// Gated on the TAG and never the Meister role, the same call /depot's licence
-// makes and for the same reason — the terminal is tradeable, so handing it over
-// really does hand over the books. A superadmin reads it as host access, the
-// way /lifeweb works; the action re-checks the tag either way.
+// Gated on PLACE AND KEY rather than on a tag or the Meister role: you have to
+// be standing in the Keep and able to get through the office door
+// (`canReadTreasury`, db/lib/depotCounter.js). The terminal is a thing on a
+// desk, so reaching the desk is the permission — which also means walking out
+// of the Keep takes the page away again, and the nav rail follows it.
+//
+// A superadmin reads it as host access, the way /lifeweb works, but does not
+// get the dial; actions.js re-checks the real gate either way.
 //
 // This replaced the Tax button, which filed a levy per person per turn and was
 // answered by a DM. The sell tax is quieter and much harder to dodge: it comes
@@ -22,15 +27,9 @@ export default async function TreasuryPage() {
   if (!session?.discordUserId) redirect("/");
 
   const superadmin = isSuperadmin(session.discordUserId);
-  const holder = await prisma.character.findFirst({
-    where: {
-      discordUserId: session.discordUserId,
-      status: "ALIVE",
-      tags: { some: { tag: { slug: MEISTERS_TERMINAL_SLUG } } },
-    },
-    select: { id: true },
-  });
-  if (!holder && !superadmin) redirect("/character");
+  const gate = await canReadTreasury(prisma, session.discordUserId);
+  if (!gate.ok && !superadmin) redirect("/character");
+  const holder = gate.ok;
 
   const [depot, accounts, coin, staged] = await Promise.all([
     loadDepot(prisma),

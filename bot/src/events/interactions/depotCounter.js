@@ -55,7 +55,7 @@ async function handleAtmOpen(interaction) {
 
   if (!state.account) {
     await respond(interaction, {
-      content: "» *Nothing here is yours yet. Opening an account costs nothing.*",
+      content: "» *Opening an account costs nothing.*",
       components: [
         new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(ATM_OPEN_PREFIX).setLabel("Create an account").setStyle(ButtonStyle.Primary),
@@ -65,7 +65,7 @@ async function handleAtmOpen(interaction) {
     return;
   }
 
-  const backing = state.account.backed ? ` The Vault holds ${state.vaultObols} ¢.` : " Held off-world.";
+  const backing = state.account.backed ? ` The treasury holds ${state.vaultObols} ¢.` : " Held off-world.";
   await respond(interaction, {
     content:
       `» *${state.account.fingerprint} — ${state.account.balanceObols} ¢ in the account, ` +
@@ -122,26 +122,18 @@ async function handleDropBoxOpen(interaction) {
     return;
   }
   if (!state.account) {
-    await respond(interaction, "You have no account here yet. The ATM opens one.");
+    await respond(interaction, "You don't have an account yet.");
     return;
   }
   if (!state.sellable.length) {
-    await respond(interaction, "Nothing on you the station buys.");
+    await respond(interaction, "Nothing on you the depot buys.");
     return;
   }
 
-  const where =
-    state.defaultDestination === "MERCHANT"
-      ? "the Merchant's account"
-      : state.defaultDestination === "TREASURY"
-        ? "the Treasury"
-        : "your account";
-  const tax = state.sellTaxRate > 0 ? ` The Meister takes ${state.sellTaxRate}%.` : "";
-
   await respond(interaction, {
     content:
-      `» *It pays into ${where} when the train next leaves.${tax} ` +
-      `Pick a destination on the Depot page if you want a different one.*`,
+      "» *The next time the train leaves, anything you put in the dropbox will be automatically sold and " +
+      "credited to your chosen account.*",
     components: [
       new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()

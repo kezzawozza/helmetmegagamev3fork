@@ -1,4 +1,5 @@
-import { prisma, MORTUS_SLUG, MEISTERS_TERMINAL_SLUG } from "@lifeweb/db";
+import { prisma, MORTUS_SLUG } from "@lifeweb/db";
+import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { railKindSql } from "@/lib/dmThread";
@@ -35,9 +36,11 @@ const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", 
 // is a shop window — read-only unless you are standing in it, which is the page's
 // own business, not the rail's. See docs/systemdocs/DEPOT.md §2.
 const DEPOT_NAV_ITEM = { href: "/depot", label: "Depot", icon: "store", section: "player" };
-// The Meister's terminal over the town's accounts. Follows the TAG, never the
-// role — the terminal is tradeable and a role check would quietly break that,
-// the same call /depot's own licence gate makes. See docs/systemdocs/DEPOT.md §8.
+// The Meister's terminal over the town's accounts. Follows PLACE AND KEY, the
+// same predicate the page itself gates on (db/lib/depotCounter.js), so the rail
+// can never offer an item that redirects. It comes and goes as its holder walks
+// in and out of the Keep, which is the cost of a terminal being a thing on a
+// desk. See docs/systemdocs/DEPOT.md §0h.
 const TREASURY_NAV_ITEM = { href: "/treasury", label: "Treasury", icon: "store", section: "player" };
 
 // Streamed separately (Suspense boundary in AppRail) — the live Discord role check and the
@@ -58,14 +61,12 @@ async function loadUnreadConversationCount(discordUserId) {
 }
 
 export async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, hasMortusTag, hasTerminalTag, config, gameConfig, pastGames] = await Promise.all([
+  const [{ isGm: gm }, hasMortusTag, treasuryGate, config, gameConfig, pastGames] = await Promise.all([
     getGmSession(),
     prisma.characterTag.findFirst({
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
     }),
-    prisma.characterTag.findFirst({
-      where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MEISTERS_TERMINAL_SLUG } },
-    }),
+    canReadTreasury(prisma, discordUserId),
     prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
     // Chat switch (CHAT.md §5). Presentation here; /chat enforces it.
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true, oraclePlaytest: true } }),
@@ -89,7 +90,7 @@ export async function loadNavItems(discordUserId) {
   const withArchive =
     gm || config?.archiveVisible || pastGames > 0 ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
   const withDepot = [...withArchive, DEPOT_NAV_ITEM];
-  const withTreasury = hasTerminalTag || superadmin ? [...withDepot, TREASURY_NAV_ITEM] : withDepot;
+  const withTreasury = treasuryGate.ok || superadmin ? [...withDepot, TREASURY_NAV_ITEM] : withDepot;
   if (!superadmin) return withTreasury;
   const lastGm = withTreasury.findLastIndex((item) => item.section === "gm");
   return [...withTreasury.slice(0, lastGm + 1), DEV_NAV_ITEM, ...withTreasury.slice(lastGm + 1)];

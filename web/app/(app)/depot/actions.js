@@ -69,14 +69,14 @@ async function requireDepotStanding() {
       bankAccount: true,
     },
   });
-  if (!character) throw new UserError("You need a living character to do that.");
+  if (!character) throw new UserError("You don't have a living character.");
   if (character.location?.slug !== DEPOT_LOCATION_SLUG) {
-    throw new UserError("The Depot is its own room in the caves. You have to be standing in it.");
+    throw new UserError("You're not standing at the Depot.");
   }
 
   // Working a counter is an ACT.
   const blocker = blockerFor(character.tags, ACT);
-  if (blocker) throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
+  if (blocker) throw new UserError(`You can't act — you're ${blocker.name}.`);
 
   const held = heldSlugSet(character);
   return {
@@ -90,7 +90,7 @@ async function requireDepotStanding() {
 
 async function requireLicensedMerchant() {
   const gate = await requireDepotStanding();
-  if (!gate.licensed) throw new UserError("That one wants the Merchant's Licence.");
+  if (!gate.licensed) throw new UserError("You don't have the Merchant's License.");
   return gate;
 }
 
@@ -99,7 +99,7 @@ async function requireLicensedMerchant() {
 async function requireAccount() {
   const gate = await requireDepotStanding();
   if (!gate.character.bankAccount) {
-    throw new UserError("You have no account here yet. Open one at the ATM first.");
+    throw new UserError("You don't have an account yet.");
   }
   return { ...gate, account: gate.character.bankAccount };
 }
@@ -151,14 +151,14 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
     throw new UserError("Nothing on the order.");
   }
   if (rawItems.length > MAX_ORDER_LINES) {
-    throw new UserError(`That's more than ${MAX_ORDER_LINES} line items. Split the order.`);
+    throw new UserError(`More than ${MAX_ORDER_LINES} line items — split the order.`);
   }
 
   // Collapse duplicate lines before pricing: the same ware sent twice is one line, not two that each pass the clamp.
   const wanted = new Map();
   for (const item of rawItems) {
     const quantity = normalizeQuantity(item?.quantity);
-    if (quantity == null) throw new UserError("That isn't a quantity the Depot will handle.");
+    if (quantity == null) throw new UserError("That isn't a quantity.");
     wanted.set(item?.tagId ?? "", (wanted.get(item?.tagId ?? "") ?? 0) + quantity);
   }
 
@@ -172,7 +172,7 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
   const tags = await prisma.tag.findMany({
     where: { id: { in: [...wanted.keys()] }, depotPrice: { not: null } },
   });
-  if (tags.length !== wanted.size) throw new UserError("The Depot doesn't stock one of those.");
+  if (tags.length !== wanted.size) throw new UserError("The depot doesn't stock that.");
 
   let total = 0;
   const lines = [];
@@ -182,7 +182,7 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
 
   if (resourceUnits > 0) {
     if (normalizeQuantity(resourceUnits) == null) {
-      throw new UserError("That's more ⬢ than the station will put on one train.");
+      throw new UserError("That's more ⬢ than the depot will put on one train.");
     }
     total += RESOURCE_IMPORT_PRICE * resourceUnits;
     // No tagId marks it as Resources downstream (db/lib/depotCrates.js packs it).
@@ -199,11 +199,11 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
     const quantity = wanted.get(tag.id);
     // Re-clamped after the merge, not just each submitted line — else two lines of 99 would slip 198 through.
     if (normalizeQuantity(quantity) == null) {
-      throw new UserError(`That's more ${tag.name} than the station will put on one train.`);
+      throw new UserError(`That's more ${tag.name} than the depot will put on one train.`);
     }
     // Non-stackable wares are unique per character (CharacterTag), so ordering two would charge for two, deliver one.
     if (!tag.stackable && quantity > 1) {
-      throw new UserError(`The station will not ship more than one ${tag.name}.`);
+      throw new UserError(`The depot will not ship more than one ${tag.name}.`);
     }
     total += tag.depotPrice * quantity;
     lines.push({
@@ -215,7 +215,7 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
     });
   }
 
-  // The catalog prices in ⬢ and an obol is one ⬢, so the cart total IS the price.
+  // The catalog prices in ¢ (DEPOT.md §0), so the cart total IS the price.
   if ((account.balanceObols ?? 0) < total) {
     throw new UserError(`That order is ${total} ¢ and your account holds ${account.balanceObols ?? 0}.`);
   }
@@ -231,7 +231,7 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous }) {
       econ: { other: COMPANY, reason: "DEPOT_ORDER", ...turnStamp(openTurn) },
     });
     if (-moved.delta < total) {
-      throw new UserError("Your account moved while you were ordering. Try again.");
+      throw new UserError("Your account was edited. Try again.");
     }
 
     await tx.depotOrder.create({
@@ -339,11 +339,11 @@ async function depotTurretImpl(input) {
 async function depotSaleDestinationImpl({ saleId, destination: rawDestination }) {
   const session = await whoAmI();
   const state = lift(await counterState(prisma, session.discordUserId));
-  if (!state.account) throw new UserError("You have no account here yet.");
+  if (!state.account) throw new UserError("You don't have an account yet.");
 
   const destination = DESTINATIONS.has(rawDestination) ? rawDestination : "SELF";
   if (destination === "MERCHANT" && !state.canSellToMerchant) {
-    throw new UserError("Selling to the Merchant's account wants his Licence or a Depot Keycard.");
+    throw new UserError("You don't have the Merchant's License or a Depot Keycard.");
   }
 
   // The WHERE is the ownership check and the settled check at once — never a
@@ -371,7 +371,7 @@ async function depotSaleDestinationImpl({ saleId, destination: rawDestination })
 async function depotCreditImpl({ direction: rawDirection, amount: rawAmount }) {
   const { session, character } = await requireLicensedMerchant();
   const account = character.bankAccount;
-  if (!account) throw new UserError("You have no account here yet. Open one at the ATM first.");
+  if (!account) throw new UserError("You don't have an account yet.");
 
   const depot = await loadDepot(prisma);
   const draw = rawDirection !== "REPAY";
@@ -398,7 +398,7 @@ async function depotCreditImpl({ direction: rawDirection, amount: rawAmount }) {
         : { id: 1, debtObols: { gte: amount } },
       data: { debtObols: draw ? { increment: amount } : { decrement: amount } },
     });
-    if (count === 0) throw new UserError("The line moved while you were drawing. Try again.");
+    if (count === 0) throw new UserError("The line was edited. Try again.");
 
     // Two legs: the debt itself (form DEBT) and the cash it puts in the account (form ACCOUNT); repay is the same pair backward.
     await record(

@@ -931,7 +931,8 @@ either: an obol is one ⬢ and the rate never existed as a knob.
 
 The last two duplicate a player-facing surface rather than being the only
 door: the sell tax rate is really the Meister's own dial, set day to day
-from `/treasury`, gated on the Meister's Terminal tag (`DEPOT.md` §0h), and
+from `/treasury`, which gates on standing in the Keep with a key to his office
+(`DEPOT.md` §0h), and
 the turret's switch is really a red button on the Merchant's Office starter
 post, typed word, re-checked at submit, the same pattern as the Censor's
 (`DEPOT.md` §0i) — this checkbox is a superadmin's way to flip it without

@@ -46,7 +46,7 @@ test("a Vault with the coin pays out, and the stash goes down by exactly that mu
 
 test("a short Vault refuses rather than paying what it has", async () => {
   const tx = fakeTx(10);
-  await assert.rejects(() => takeFromVault(tx, 40, { coin: COIN, room: ROOM }), /Vault is short/);
+  await assert.rejects(() => takeFromVault(tx, 40, { coin: COIN, room: ROOM }), /treasury is empty/);
   // Untouched: the refusal is what rolls the caller's account debit back, so a
   // partial decrement here would be money created out of a failed withdrawal.
   assert.equal(tx.state.quantity, 10);
@@ -56,7 +56,7 @@ test("taking exactly what is there is allowed; one more is not", async () => {
   const tx = fakeTx(7);
   await takeFromVault(tx, 7, { coin: COIN, room: ROOM });
   assert.equal(tx.state.quantity, 0);
-  await assert.rejects(() => takeFromVault(tx, 1, { coin: COIN, room: ROOM }), /Vault is short/);
+  await assert.rejects(() => takeFromVault(tx, 1, { coin: COIN, room: ROOM }), /treasury is empty/);
 });
 
 test("a refusal carries a userMessage, so both faces say the same sentence", async () => {
@@ -85,4 +85,64 @@ test("a rate of zero takes nothing, and a rate outside 0-100 is clamped rather t
   // still reach this — it must not hand a seller a negative payout.
   assert.equal(taxOn(100, -50), 0);
   assert.equal(taxOn(100, 500), 100);
+});
+
+// ------------------------------------------------- who reads the Meister's desk
+
+// The gate moved off a tag onto place-and-key (DEPOT.md §0h), so these pin the
+// two halves separately: being in the Keep is not enough, and holding the key is
+// not enough either.
+const { canReadTreasury } = require("../lib/depotCounter");
+
+const OFFICE = { id: "room_office", kind: "PRIVATE", accessTagSlugs: ["meisters-key", "barons-key"] };
+
+function fakePrisma({ locationSlug, heldSlugs = [] }) {
+  return {
+    character: {
+      async findFirst() {
+        if (!locationSlug) return null;
+        return { id: "c1", location: { slug: locationSlug } };
+      },
+    },
+    room: {
+      async findUnique() {
+        return OFFICE;
+      },
+    },
+    characterTag: {
+      async findMany() {
+        return heldSlugs.map((slug) => ({ tag: { slug } }));
+      },
+    },
+    roomGuest: { async findMany() { return []; } },
+    quest: { async findMany() { return []; } },
+  };
+}
+
+test("the Meister's own key, standing in the Keep, opens the desk", async () => {
+  const out = await canReadTreasury(fakePrisma({ locationSlug: "keep", heldSlugs: ["meisters-key"] }), "u1");
+  assert.equal(out.ok, true);
+});
+
+test("the Baron's key opens it too, because the door's own list says so", async () => {
+  // Read off Room.accessTagSlugs rather than named in code, so re-keying the
+  // office in docs/zones.yaml moves this with it.
+  const out = await canReadTreasury(fakePrisma({ locationSlug: "keep", heldSlugs: ["barons-key"] }), "u1");
+  assert.equal(out.ok, true);
+});
+
+test("the right key in the wrong place is refused — the terminal is a thing on a desk", async () => {
+  const out = await canReadTreasury(fakePrisma({ locationSlug: "depot", heldSlugs: ["meisters-key"] }), "u1");
+  assert.equal(out.ok, false);
+  assert.match(out.error, /office/i);
+});
+
+test("standing in the Keep with no key is refused", async () => {
+  const out = await canReadTreasury(fakePrisma({ locationSlug: "keep", heldSlugs: ["depot-keycard"] }), "u1");
+  assert.equal(out.ok, false);
+});
+
+test("no living character is refused before anything else is asked", async () => {
+  const out = await canReadTreasury(fakePrisma({ locationSlug: null }), "u1");
+  assert.equal(out.ok, false);
 });

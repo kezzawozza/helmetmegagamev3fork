@@ -78,7 +78,7 @@ export function Depot({ books, trainHere, tradePoints }) {
           <div>
             <dt>On the rails</dt>
             <dd className="mono">
-              {books.manifestLines} line{books.manifestLines === 1 ? "" : "s"} · {books.manifestValue} ⬢
+              {books.manifestLines} line{books.manifestLines === 1 ? "" : "s"} · {books.manifestValue} ¢
             </dd>
           </div>
           <div>

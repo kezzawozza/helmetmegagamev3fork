@@ -7008,7 +7008,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 5
+    sellablePrice: 7
 
   bear-trap:
     catalog: all
@@ -7052,7 +7052,7 @@ tags:
       skills: [crafting, fundamentalist]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   skeleton-wedge:
     catalog: all
@@ -9361,7 +9361,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   hatchet:
     catalog: all
@@ -9385,7 +9385,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   # Three tools that exist only to make a Laboring specialisation pay better.
   # Priced against docs/systemdocs/TAGS.md 4a: minor edges at 2, the Plow at 5
@@ -9415,7 +9415,7 @@ tags:
     # Dead Simple convention (cost + 1), NOT the depot wage floor: at 0 turns
     # the free ration would mint the margin as a free action (4/turn on top of
     # an untouched labor day). The depot's 12 stays the impatience premium.
-    sellablePrice: 4
+    sellablePrice: 6
     depotPrice: 11
 
   # Prospecting's own tool, same shape as Fishing Rod above — every other
@@ -9443,7 +9443,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
     depotPrice: 11
 
   trapping-gear:
@@ -9526,7 +9526,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   quarterstaff:
     catalog: all
@@ -9551,7 +9551,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   cudgel:
     catalog: all
@@ -9577,7 +9577,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   # Deliberately not craftable — see SMITHING.md §3.
   truncheon:
@@ -9622,7 +9622,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   sickle:
     catalog: all
@@ -9647,7 +9647,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   shortbow:
     catalog: all
@@ -9673,7 +9673,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   # ─── Simple ────────────────────────────────────────────────────────────────
   spear:
@@ -11202,7 +11202,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   # --- Special ------------------------------------------------------------
   # Relics, grafts and machinery. None of it is purchasable at any price and
@@ -11603,27 +11603,6 @@ tags:
     pointCost: 0
     weight: 0
     stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-
-  # The Meister's window onto the town's money: /treasury, which lists every
-  # account, the coin in the Vault standing behind them, and the sell tax he
-  # sets. Gated on this TAG and never the Meister role, the same call the
-  # Merchant's Licence makes and for the same reason — it is tradeable, so
-  # handing it over really does hand over the books.
-  #
-  # It replaced the Taxman tag and its button, which filed a levy per person
-  # per turn and could be refused by DM. The sell tax is quieter and far harder
-  # to dodge: it comes off every sale at the counter before anybody is paid.
-  meisters-terminal:
-    catalog: gm
-    name: Meister's Terminal
-    category: items
-    group: items-keys
-    description: "A key to a cabinet in the Meister's office, and the ledger inside it."
-    pointCost: 0
-    weight: 0
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -15352,7 +15331,7 @@ tags:
       resourceCost: 3
       skills: [crafting]
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   mail-coif:
     catalog: all
@@ -15532,7 +15511,7 @@ tags:
       resourceCost: 3
       skills: [crafting]
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   buckler:
     catalog: all
@@ -15558,7 +15537,7 @@ tags:
       resourceCost: 3
       skills: [crafting]
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   # ─── Simple (2 pt / 6 ⬢ / 1 turn) ───
   shield:
@@ -16176,7 +16155,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   factory-key:
     catalog: gm

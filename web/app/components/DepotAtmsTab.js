@@ -2,7 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRefresh } from "./useRefresh";
-import { depotBank, depotCredit, depotOpenAccount } from "@/app/(app)/depot/actions";
+import {
+  depotBank,
+  depotCredit,
+  depotOpenAccount,
+} from "@/app/(app)/depot/actions";
 import RequestDialog from "./RequestDialog";
 
 // Your account, and the door between a claim and a coin.
@@ -66,10 +70,13 @@ export default function DepotAtmsTab({
     return (
       <section className="panel p-5">
         <h2 className="panel-header">No account</h2>
-        <p className="mt-3 text-sm text-muted">
-          Nothing here is yours yet. Opening one takes a moment and costs nothing.
-        </p>
-        <button type="button" className="btn mt-4" disabled={disabled || pending} onClick={open}>
+        <p className="mt-3 text-sm text-muted">Opening one costs nothing.</p>
+        <button
+          type="button"
+          className="btn mt-4"
+          disabled={disabled || pending}
+          onClick={open}
+        >
           Create an account
         </button>
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
@@ -87,7 +94,9 @@ export default function DepotAtmsTab({
   return (
     <div className="depot-split">
       <section className="panel p-5">
-        <h2 className="panel-header">{account.backed ? "Treasury account" : "Offshore account"}</h2>
+        <h2 className="panel-header">
+          {account.backed ? "Treasury account" : "Offshore account"}
+        </h2>
 
         <dl className="depot-totals">
           <div>
@@ -104,7 +113,7 @@ export default function DepotAtmsTab({
           </div>
           {account.backed && (
             <div className={vaultObols < balance ? "text-danger" : undefined}>
-              <dt>In the Vault</dt>
+              <dt>In the treasury</dt>
               <dd className="mono">{vaultObols} ¢</dd>
             </div>
           )}
@@ -112,8 +121,8 @@ export default function DepotAtmsTab({
 
         <p className="mt-3 text-sm text-muted">
           {account.backed
-            ? "Your coin sits in the Keep's Vault. You can only draw out what is actually in there."
-            : "The Company holds this off-world. There is no vault behind it."}
+            ? "Backed by the treasury — you can only draw what's there."
+            : "Held off-world, with no treasury behind it."}
         </p>
 
         <div className="mt-4 flex gap-2">
@@ -152,7 +161,11 @@ export default function DepotAtmsTab({
                 <dd className="mono">{creditAvailable} ¢</dd>
               </div>
             </dl>
-            <div className="depot-meter" role="img" aria-label={`${debt} of ${cap} drawn`}>
+            <div
+              className="depot-meter"
+              role="img"
+              aria-label={`${debt} of ${cap} drawn`}
+            >
               <span className="depot-meter-fill" style={{ width: `${pct}%` }} />
             </div>
             <div className="mt-4 flex gap-2">
@@ -176,21 +189,27 @@ export default function DepotAtmsTab({
           </>
         )}
 
-        <h2 className={licensed ? "panel-header mt-6" : "panel-header"}>Your transactions</h2>
-        {ledger.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">Nothing yet.</p>
-        ) : (
-          <ul className="depot-list mt-3">
-            {ledger.slice(0, 20).map((row) => (
-              <li key={row.id}>
-                <span>
-                  {row.label}
-                  {row.detail ? ` — ${row.detail}` : ""}
-                </span>
-                <span className="mono">{row.delta ? `${row.delta > 0 ? "+" : ""}${row.delta} ¢` : "—"}</span>
-              </li>
-            ))}
-          </ul>
+        {ledger.length > 0 && (
+          <>
+            <h2 className={licensed ? "panel-header mt-6" : "panel-header"}>
+              Your transactions
+            </h2>
+            <ul className="depot-list mt-3">
+              {ledger.slice(0, 20).map((row) => (
+                <li key={row.id}>
+                  <span>
+                    {row.label}
+                    {row.detail ? ` — ${row.detail}` : ""}
+                  </span>
+                  <span className="mono">
+                    {row.delta
+                      ? `${row.delta > 0 ? "+" : ""}${row.delta} ¢`
+                      : "—"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
 

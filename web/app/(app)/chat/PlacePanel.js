@@ -584,7 +584,7 @@ function AtmDialog({ onClose, onDone }) {
   if (!state.account) {
     return (
       <Modal open title="The ATM" onClose={onClose}>
-        <p className="text-sm text-muted">Nothing here is yours yet. Opening an account costs nothing.</p>
+        <p className="text-sm text-muted">Opening an account costs nothing.</p>
         <FormError>{error}</FormError>
         <div className="modal-actions">
           <button
@@ -612,7 +612,7 @@ function AtmDialog({ onClose, onDone }) {
       <p className="text-sm text-muted">
         {state.account.fingerprint} · {state.account.balanceObols} ¢ in the account, {state.heldObols} ¢ in your
         pocket.
-        {state.account.backed ? ` The Vault holds ${state.vaultObols} ¢.` : " Held off-world."}
+        {state.account.backed ? ` The treasury holds ${state.vaultObols} ¢.` : " Held off-world."}
       </p>
       <div className="field">
         <label className="field-label" htmlFor="chat-atm-dir">
@@ -686,7 +686,7 @@ function DropBoxDialog({ onClose, onDone }) {
   if (!state.sellable.length) {
     return (
       <Modal open title="The drop box" onClose={onClose}>
-        <EmptyState>Nothing on you the station buys.</EmptyState>
+        <EmptyState>Nothing on you the depot buys.</EmptyState>
       </Modal>
     );
   }
@@ -697,8 +697,8 @@ function DropBoxDialog({ onClose, onDone }) {
   return (
     <Modal open title="The drop box" onClose={onClose}>
       <p className="text-sm text-muted">
-        Whatever goes in is gone at once and pays out when the train next leaves.
-        {state.sellTaxRate > 0 ? ` The Meister takes ${state.sellTaxRate}%.` : ""}
+        The next time the train leaves, anything you put in the dropbox will be automatically sold and credited to
+        your chosen account.
       </p>
       <div className="field">
         <label className="field-label" htmlFor="chat-drop-what">
@@ -805,8 +805,8 @@ function DepotTurretDialog({ onClose, onDone }) {
       danger={!state.armed}
       help={
         state.armed
-          ? "The gun drops back into the ceiling and the shop is safe to stand in again."
-          : "It fires on every face that is not the one on file. Conceal yours and it fires on you."
+          ? "The gun retracts and the shop is safe again."
+          : "It fires on any face not on file. Concealing yours means it fires on you too."
       }
       onClose={onClose}
       pending={pending}

@@ -19,7 +19,7 @@ const { isArrivalTurn, RAILYARD_ROOM_SLUG } = require("./train");
 const { record, roomParty, COMPANY, turnStamp } = require("./economyLedger");
 
 const TRAIN_ARRIVED_LINE = {
-  text: "You hear the train grind in and stop. Somebody starts unloading.",
+  text: "You hear the train arrive.",
   signed: false,
 };
 

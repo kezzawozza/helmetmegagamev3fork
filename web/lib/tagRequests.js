@@ -27,9 +27,9 @@ export { isTradeable };
 // refuses anything finer, and a cost the budget cannot hold exactly is work
 // somebody did not pay for).
 //
-// Its flat markup came down with it, +3 ⬢ to +1: four a day at +1 is 4 ⬢/turn,
-// comfortably under the Simple rung's quarter-pieces at 8. The bottom rung
-// pays least, which is the shape SMITHING.md §2 and DEPOT.md §4 ask for.
+// Its price did NOT come down with it. The markup was cut to +1 ¢ in the same
+// pass and put back: the free ration was the problem, and the turn cost fixes it
+// on its own (SMITHING.md §2, DEPOT.md §4).
 //
 // A recipe's OWN `perTurn` ration still exists and still works; it just has no
 // shared pool behind it any more.

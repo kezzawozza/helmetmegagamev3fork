@@ -11,6 +11,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { isArrivalTurn, isDepartureTurn, trainHere, trainState } = require("../lib/train");
 const { stampFor } = require("../lib/trainArrivalPass");
+const { locationAffordances, roomAffordances } = require("../lib/placeAffordances");
 const { crateTagData, splitIntoCrates } = require("../lib/depotCrates");
 const {
   MANIFESTS,
@@ -138,4 +139,41 @@ test("paying to keep your name off it replaces the stamp, and only this row reme
   assert.equal(stampFor(order), "ANONYMOUS");
   assert.equal(stampFor(order).includes("Ada"), false);
   assert.equal(stampFor(order).includes("AV-2017"), false);
+});
+
+// --------------------------------------------------------------- the counter
+
+const DEPOT_LOCATION = { id: "loc_depot", name: "Depot", attributes: { depot: true } };
+const ELSEWHERE = { id: "loc_town", name: "Town", attributes: {} };
+
+function labels(list) {
+  return list.map((e) => e.label);
+}
+
+test("the Dropbox hangs off the Depot LOCATION, so it is reachable from any room in it", () => {
+  assert.ok(labels(locationAffordances(DEPOT_LOCATION)).includes("Dropbox"));
+  assert.equal(labels(locationAffordances(ELSEWHERE)).includes("Dropbox"), false);
+});
+
+test("and again on the Railyard, where somebody meeting the train already is", () => {
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "depot-railyard" })), ["Storage", "Dropbox"]);
+});
+
+test("the ATM is the Storefront's, and the Storefront no longer carries the box", () => {
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "depot-storefront" })), ["Storage", "ATM"]);
+});
+
+test("the Merchant's gun is on his own office wall and nowhere else", () => {
+  assert.ok(labels(roomAffordances({ id: "r", slug: "depot-merchants-office" })).includes("Toggle Turret"));
+  assert.equal(labels(roomAffordances({ id: "r", slug: "depot-railyard" })).includes("Toggle Turret"), false);
+});
+
+test("the anchor's buttons still chunk under Discord's five-per-row cap", () => {
+  // The Depot carries a noticeboard AND the Dropbox, which put it past five for
+  // the first time. locationAnchorRows chunks; this is here so a seventh button
+  // does not one day silently overflow a row instead.
+  const { locationAnchorRows } = require("../lib/locationAnchorRow");
+  const rows = locationAnchorRows({ ...DEPOT_LOCATION, attributes: { depot: true, noticeboard: true } });
+  assert.ok(rows.length >= 2, "seven buttons should be more than one row");
+  for (const row of rows) assert.ok(row.components.length <= 5, "a row is over Discord's cap");
 });

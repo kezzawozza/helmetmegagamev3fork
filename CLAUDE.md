@@ -883,16 +883,27 @@ pulls every player-facing string into `worksheets/`, and `npm run copy:reinject`
 writes edits back, refusing anything that would break a Discord length cap. It
 knows what is copy and what is a code comment, which a grep does not.
 
-### `⬢` and `¢` are two currencies, not one
+### `⬢` is a material and `¢` is the money
 
-`⬢` is Resources. `¢` is obols, the physical coin. **One obol is one ⬢**
-(`DEPOT.md` §0) — that is parity, not identity, and the game converts between
-them: `DepotOrderTab.js` renders `{cartResources} ⬢ = {cartTotal} ¢`.
+`⬢` is Resources. `¢` is obols, the coin. **One obol is one ⬢** (`DEPOT.md`
+§0) — parity, not identity, and the two stopped being interchangeable in
+9/2026 even though they stayed equal.
 
-So **never swap one glyph for the other in bulk.** A value read off an
-`*Obols`/`obols` field prints `¢`; `resources` prints `⬢`. Getting this wrong
-is quiet — the GM's Depot page spent a while showing the station account in ⬢
-while the player's own Bank tab showed the same number in ¢.
+**`⬢` has exactly one job: `resourceCost`.** What a recipe charges to make
+something, and what a cure charges to treat somebody. Labour still pays it,
+because what a day's work produces is material.
+
+**`¢` is everything else**: `depotPrice`, `sellablePrice`, a `BankAccount`
+balance, the Vault, the sell tax, the credit line, and every wage figure in
+`DEPOT.md` §4's tables. It used to be that ⬢ was the unit everything was
+denominated in, which made it a currency that happened to weigh a pound each.
+It is not that any more.
+
+So **never swap one glyph for the other in bulk**, and never on the reasoning
+that they are the same number. A value read off an `*Obols`/`obols` field or a
+price column prints `¢`; a `resourceCost` or a labour yield prints `⬢`. Getting
+it wrong is quiet — the GM's Depot page spent a while showing the station
+account in ⬢ while the player's own Bank tab showed the same number in ¢.
 
 ### Editing Bascinet's text
 

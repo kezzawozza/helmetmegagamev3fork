@@ -23,7 +23,7 @@ const { roomParty, COMPANY, turnStamp } = require("./economyLedger");
 const { MERCHANT_LICENSE_SLUG } = require("./depot");
 
 const TRAIN_DEPARTED_LINE = {
-  text: "You hear the train pull out, loaded, and the rails go quiet.",
+  text: "You hear the train leave.",
   signed: false,
 };
 

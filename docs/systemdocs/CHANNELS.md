@@ -1115,12 +1115,14 @@ it diffs the live overwrites against the spec for you.
 
 ## The Railyard
 
-`depot-railyard`, a PRIVATE thread under the Depot Location's channel,
-authored in `docs/zones.yaml` with `access: [depot-keycard]`. It replaced the
-Landing Pad — same shape, new slug. Membership is exactly "holds the
-keycard", handled by `db/lib/roomAccess.js` and reconciled by the channel
-doctor's room-membership check — the Depot feature adds **no access code of
-its own**.
+`depot-railyard`, a PUBLIC thread under the Depot Location's channel, authored
+in `docs/zones.yaml` with no `access:` list at all. It replaced the Landing Pad,
+which was PRIVATE behind `depot-keycard` — so the membership work the channel
+doctor used to do for that room is simply gone, and the Depot feature adds
+**no access code of its own** either way.
+
+Crates land in a room anyone can walk into, which is a known hole, open on
+purpose (`DEPOT.md` §0c).
 
 Its starter description is static and sync-owned like every other room's,
 but says whether the train is at the platform through `live: train` in

@@ -151,9 +151,7 @@ export default function DepotBuyingTab({ wares, openManifests, account, train, d
       <section className="panel p-5 depot-aside">
         <h2 className="panel-header">Your order</h2>
 
-        {cartLines.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">Nothing picked yet.</p>
-        ) : (
+        {cartLines.length > 0 && (
           <ul className="depot-list mt-3">
             {cartLines.map((l) => (
               <li key={l.id}>
@@ -198,7 +196,7 @@ export default function DepotBuyingTab({ wares, openManifests, account, train, d
           Place order
         </button>
 
-        {!account && <p className="mt-3 text-sm text-muted">You need an account here first. The ATMs tab opens one.</p>}
+        {!account && <p className="mt-3 text-sm text-muted">Open an account on the ATMs tab first.</p>}
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </section>
 
@@ -213,7 +211,7 @@ export default function DepotBuyingTab({ wares, openManifests, account, train, d
           onConfirm={submit}
         >
           <p className="text-sm text-muted">
-            {cartTotal} ¢ out of your account now. It comes down as crates in the Railyard — the train{" "}
+            {cartTotal} ¢ comes out now. It arrives as crates in the Railyard — the train{" "}
             {train?.nextLabel ?? "arrives on its next run"}.
           </p>
         </RequestDialog>

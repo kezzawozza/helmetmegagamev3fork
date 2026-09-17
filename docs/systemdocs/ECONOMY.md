@@ -36,6 +36,12 @@ spread is the Merchant's margin, not the value of a ⬢. **A ware priced on both
 sides must never be counted as goods AND as balance** —
 `goodsValueInWorld()` excludes both slugs for exactly that reason.
 
+**⬢ and ¢ stopped being interchangeable in 9/2026, without stopping being equal.**
+One obol is still one ⬢ and nothing converts — but ⬢ are a *material* now, spent
+on a recipe or a cure and nothing else, and ¢ are the money: every price, wage,
+balance and tax. The panel still counts both, because both are value; what
+changed is which glyph a surface prints. See `DEPOT.md` §0.
+
 **Never sum an account and the coin behind it.** A claim and the pile it draws
 on are two things, and the ATM is the door between them (`DEPOT.md` §0g). A
 panel that adds a TREASURY balance to the Vault's stash is counting the same
@@ -64,7 +70,7 @@ Every entry has two ends, and each is one of:
 - `world:mint` and `world:burn`
 
 Mint and burn are the only two things that change the money supply. That is
-why they are named accounts rather than a null end: "where did 400 ⬢ come
+why they are named accounts rather than a null end: "where did 400 of it come
 from" has to be answerable, and before this it was not.
 
 ## 3. The invariant
@@ -154,7 +160,7 @@ drags PrismaClient into the browser bundle.
 
 Each reason declares a `flow` — `FAUCET`, `SINK`, `TRANSFER` or `INTERNAL` —
 and that is what the charts group on. `INTERNAL` is the one worth
-understanding: an ATM withdrawal is the same ⬢ changing coat, so counting it as
+understanding: an ATM withdrawal is the same money changing coat, so counting it as
 trade would make a quiet turn at the Depot look like a boom.
 
 **Five reasons arrived with the Depot rework** (`DEPOT.md`): `BANK_DEPOSIT`,
@@ -245,12 +251,12 @@ and make the read path merge rather than choose.
 | Section | The question |
 |---|---|
 | Pulse | What is the town worth, is the supply growing, and is one person sitting on it |
-| Flows | Where does ⬢ come from, where does it go, and who trades with whom |
+| Flows | Where does money come from, where does it go, and who trades with whom |
 | Faucets | Which sources pay, and how much |
-| Sinks | What spends ⬢, and what destroys it — the Spillway and an overdrawn purse have their own panel, because those two are destruction rather than spending |
+| Sinks | What spends money, and what destroys it — the Spillway and an overdrawn purse have their own panel, because those two are destruction rather than spending |
 | Ledger | The book: every entry, filterable, newest first |
 | Accounts | Every purse and stash, and what moved through it this turn |
-| Goods | The catalog against reality — prices, what exists, what actually trades, and any ware whose round trip prints ⬢ |
+| Goods | The catalog against reality — prices, what exists, what actually trades, and any ware whose round trip prints money |
 | The Depot | Every account in the game, split TREASURY from OFFSHORE, against the coin in the Vault. A claim and its backing are shown APART, always (§1) |
 | Factions | Silo treasuries, and what went in and out this turn |
 | Health | Drift, un-hooked call sites, and the backfill seam |

@@ -137,8 +137,8 @@ Move math, and nothing more — four fill a Routine exactly, the same as any
 other 0.25-turn rung. The shared pool (`DEAD_SIMPLE_PER_TURN`) is gone from
 `web/lib/tagRequests.js` and does not come back; `craftAllowance()`
 (`web/lib/requests.js`) now only honours a recipe's own `perTurn`, and Dead
-Simple names none. Its flat markup came down with it, `DEPOT.md`'s +3 ⬢ to
-+1 ⬢ — four a day at +1 is 4 ⬢/turn, the bottom rung of the wage curve.
+Simple names none. Its flat markup is unchanged at **+3 ¢** — cutting it as well
+was nerfing one rung twice for one problem (`DEPOT.md` §4).
 
 **Not every Dead Simple smith recipe is a weapon.** `branding-iron` gates on
 `skills: [smithing]` the same as Work Knife and Hatchet, but it's a standing

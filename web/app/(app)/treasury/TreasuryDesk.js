@@ -45,12 +45,10 @@ export default function TreasuryDesk({ rate, vaultObols, claims, stagedValue, ac
   return (
     <div className="flex flex-col gap-4">
       <section className="panel p-5">
-        <p className="text-sm text-muted">
-          Every account in Ravenheart, and the coin in the Vault standing behind the Treasury ones.
-        </p>
+        <p className="text-sm text-muted">Every account, and the coin backing the Treasury ones.</p>
         <dl className="depot-totals">
           <div className={short ? "text-danger" : undefined}>
-            <dt>In the Vault</dt>
+            <dt>In the treasury</dt>
             <dd className="mono">{vaultObols} ¢</dd>
           </div>
           <div>
@@ -64,7 +62,7 @@ export default function TreasuryDesk({ rate, vaultObols, claims, stagedValue, ac
         </dl>
         {short && (
           <p className="mt-3 text-sm text-danger">
-            The Vault holds less than the accounts claim. Withdrawals will start being refused.
+            The treasury holds less than the accounts claim — withdrawals will be refused.
           </p>
         )}
       </section>
@@ -88,9 +86,9 @@ export default function TreasuryDesk({ rate, vaultObols, claims, stagedValue, ac
           </button>
         </div>
         <p className="mt-3 text-sm text-muted">
-          Taken off every sale before the seller is paid. It goes into the Vault as coin.
+          Taken off every sale before the seller is paid, into the treasury as coin.
         </p>
-        {readOnly && <p className="mt-2 text-sm text-muted">Reading only. Setting it wants the terminal.</p>}
+        {readOnly && <p className="mt-2 text-sm text-muted">Read-only — setting it wants the terminal.</p>}
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </section>
 

@@ -14,11 +14,22 @@
 // (db/lib/dm.js convention), and is deliberately NOT on the barrel: require it
 // by path. See docs/systemdocs/DEPOT.md §0g.
 
-const { DEPOT_LOCATION_SLUG } = require("./depot");
-const { MERCHANT_LICENSE_SLUG } = require("./depot");
+const {
+  DEPOT_LOCATION_SLUG,
+  MERCHANT_LICENSE_SLUG,
+  MEISTERS_OFFICE_ROOM_SLUG,
+  KEEP_LOCATION_SLUG,
+} = require("./depot");
 const { DEPOT_KEYCARD_SLUG, loadDepot } = require("./depotState");
+const { roomAccessKeys, accessibleRooms } = require("./roomAccess");
 const { MERCHANTS_OFFICE_ROOM_SLUG } = require("./train");
-const { ARM_WORD, DISARM_WORD, turretWordMatches } = require("./gatehouseTurret");
+const {
+  ARM_WORD,
+  DISARM_WORD,
+  turretWordMatches,
+  TURRET_ARMED_LINE,
+  TURRET_DISARMED_LINE,
+} = require("./gatehouseTurret");
 const { openAccount, bumpBankAccount, vaultAndCoin, takeFromVault, TREASURY } = require("./bankAccounts");
 const { addToStack, dropCharacterTag, addToRoomStack } = require("./tagWrites");
 const { COMPANY, characterParty, roomParty, turnStamp } = require("./economyLedger");
@@ -48,7 +59,7 @@ async function counterActor(prisma, discordUserId) {
     return fail("You're not standing at the Depot.");
   }
   const blocker = blockerFor(character.tags, ACT);
-  if (blocker) return fail(`You can't do that right now. You're ${blocker.name}.`);
+  if (blocker) return fail(`You can't act — you're ${blocker.name}.`);
 
   const held = new Set(character.tags.map((ct) => ct.tag.slug));
   return {
@@ -153,7 +164,7 @@ async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, t
   if (!actor.ok) return actor;
   const { character } = actor;
   const account = character.bankAccount;
-  if (!account) return fail("You have no account here yet.");
+  if (!account) return fail("You don't have an account yet.");
 
   const withdrawing = direction !== "DEPOSIT";
   const amount = Math.trunc(Number(rawAmount));
@@ -166,7 +177,7 @@ async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, t
   const { room: vault, coin } = await vaultAndCoin(prisma);
   if (!coin) return fail("The obol isn't in the catalog yet. A GM needs to run the tag sync.");
   const backed = account.class === TREASURY;
-  if (backed && !vault) return fail("The Vault isn't in the database yet. A GM needs to run the zone sync.");
+  if (backed && !vault) return fail("The treasury isn't in the database yet. A GM needs to run the zone sync.");
 
   if (!withdrawing) {
     const holding = await prisma.characterTag.findUnique({
@@ -193,7 +204,7 @@ async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, t
         econ: { reason, ...stamp },
       });
       if (Math.abs(moved.delta) < amount) {
-        const err = new Error("Your account moved while you were counting. Try again.");
+        const err = new Error("Your account was edited. Try again.");
         err.userMessage = err.message;
         throw err;
       }
@@ -257,7 +268,7 @@ async function dropIntoBox(prisma, discordUserId, { tagId, quantity: rawQuantity
   if (!actor.ok) return actor;
   const { character, held } = actor;
   const account = character.bankAccount;
-  if (!account) return fail("You have no account here yet.");
+  if (!account) return fail("You don't have an account yet.");
 
   const quantity = Math.trunc(Number(rawQuantity));
   if (!Number.isInteger(quantity) || quantity < 1) return fail("That isn't a quantity.");
@@ -266,12 +277,12 @@ async function dropIntoBox(prisma, discordUserId, { tagId, quantity: rawQuantity
   // Selling into the Merchant's books is a job, not a favour: it wants his
   // papers or his keycard. That is the whole of the Docker's seat.
   if (destination === "MERCHANT" && !held.has(MERCHANT_LICENSE_SLUG) && !held.has(DEPOT_KEYCARD_SLUG)) {
-    return fail("Selling to the Merchant's account wants his Licence or a Depot Keycard.");
+    return fail("You don't have the Merchant's License or a Depot Keycard.");
   }
 
   const tag = await prisma.tag.findUnique({ where: { id: String(tagId ?? "") } });
-  if (!tag) return fail("The Depot doesn't know what that is.");
-  if (tag.sellablePrice == null) return fail(`The station doesn't buy ${tag.name}.`);
+  if (!tag) return fail("The depot doesn't know what that is.");
+  if (tag.sellablePrice == null) return fail(`The depot doesn't buy ${tag.name}.`);
 
   const holding = await prisma.characterTag.findUnique({
     where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
@@ -335,7 +346,7 @@ async function dropIntoBox(prisma, discordUserId, { tagId, quantity: rawQuantity
 async function depotTurretPanel(prisma, discordUserId) {
   const actor = await counterActor(prisma, discordUserId);
   if (!actor.ok) return actor;
-  if (!actor.licensed) return fail("That one wants the Merchant's Licence.");
+  if (!actor.licensed) return fail("You don't have the Merchant's License.");
 
   const office = await prisma.room.findUnique({
     where: { slug: MERCHANTS_OFFICE_ROOM_SLUG },
@@ -365,7 +376,7 @@ async function toggleDepotTurret(prisma, discordUserId, { word, turn = null } = 
   // disarming needs you standing here — so arming is refused rather than
   // offered as a one-click suicide with a GM-only cure.
   if (next && !panel.hasFace) {
-    return fail("There's no face on file. It would shoot everyone, you included.");
+    return fail("There's no face on file — it would shoot everyone, you included.");
   }
 
   await prisma.$transaction(async (tx) => {
@@ -385,17 +396,47 @@ async function toggleDepotTurret(prisma, discordUserId, { word, turn = null } = 
     ok: true,
     armed: next,
     locationId: actor.character.locationId,
-    // The room's only warning. The caller speaks it — a REST call has no
-    // business inside the transaction above.
-    ambient: next
-      ? "Something in the ceiling wakes up and swivels."
-      : "The thing in the ceiling settles back into its housing.",
+    // The room's only warning, and the Censor's gun's own two lines rather than
+    // a second pair — see db/lib/gatehouseTurret.js. The caller speaks it: a
+    // REST call has no business inside the transaction above.
+    ambient: (next ? TURRET_ARMED_LINE : TURRET_DISARMED_LINE).text,
     line: next ? "The button toggles on." : "The button toggles off.",
   };
 }
 
+// Who may read /treasury: somebody standing in the Keep who can get through the
+// Meister's office door. ONE predicate, because the page, the action behind its
+// one control and the nav rail all ask it and must not drift — the rail showing
+// an item that redirects is worse than no item.
+//
+// The door's keys are read off the Room's own accessTagSlugs rather than named
+// here, so re-keying the office in docs/zones.yaml moves the gate with it.
+async function canReadTreasury(prisma, discordUserId) {
+  const character = await prisma.character.findFirst({
+    where: { discordUserId, status: "ALIVE" },
+    select: { id: true, location: { select: { slug: true } } },
+  });
+  if (!character) return { ok: false, error: "You don't have a living character." };
+  if (character.location?.slug !== KEEP_LOCATION_SLUG) {
+    return { ok: false, error: "The terminal is in the Meister's office." };
+  }
+
+  const room = await prisma.room.findUnique({
+    where: { slug: MEISTERS_OFFICE_ROOM_SLUG },
+    select: { id: true, kind: true, accessTagSlugs: true },
+  });
+  if (!room) return { ok: false, error: "The Meister's office isn't in the database yet." };
+
+  const keys = await roomAccessKeys(prisma, character.id);
+  if (!accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length) {
+    return { ok: false, error: "The office is locked." };
+  }
+  return { ok: true, character };
+}
+
 module.exports = {
   DESTINATIONS,
+  canReadTreasury,
   counterActor,
   counterState,
   openCounterAccount,

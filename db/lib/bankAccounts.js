@@ -169,8 +169,8 @@ async function takeFromVault(tx, amount, { coin, room }) {
     data: { quantity: { decrement: amount } },
   });
   if (!count) {
-    const err = new Error("The Vault is short. There isn't that much coin in it.");
-    err.userMessage = "The Vault is short. There isn't that much coin in it.";
+    const err = new Error("ERROR: The treasury is empty.");
+    err.userMessage = "ERROR: The treasury is empty.";
     throw err;
   }
   await tx.roomTag.deleteMany({ where: { roomId: room.id, tagId: coin.id, quantity: { lte: 0 } } });

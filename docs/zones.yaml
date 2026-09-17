@@ -1940,9 +1940,12 @@ zones:
                 description: >-
                   An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
                 stash: [tea, sweets]
+              # PUBLIC on purpose, and eyes open: crates land here, so anybody
+              # can walk in and carry one off. That is a known hole nobody has
+              # closed yet — the alternative was a cargo room only Dockers could
+              # reach, which defeats opening the counter up in the first place.
               depot-railyard:
                 name: Railyard
-                access: [depot-keycard]
                 live: train
                 description: >-
                   Rusted overhangs, overgrown with wilted, sunthirsted vines, occlude the cargo hub. A deep railway bisects the platforms. Every other turn, a cargo train rolls in.

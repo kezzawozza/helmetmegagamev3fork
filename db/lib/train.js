@@ -59,7 +59,7 @@ function trainState(turnNumber) {
     return { here: true, label: "at the platform", nextLabel: "leaves at the end of this turn" };
   }
   if (isArrivalTurn(n)) {
-    return { here: false, label: "somewhere down the line", nextLabel: "arrives at the end of this turn" };
+    return { here: false, label: "away", nextLabel: "arrives at the end of this turn" };
   }
   // Turn 1, and only turn 1: nothing has run yet.
   return { here: false, label: "not in yet", nextLabel: "first arrives at the end of the next turn" };

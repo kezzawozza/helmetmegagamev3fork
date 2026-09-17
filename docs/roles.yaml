@@ -332,7 +332,6 @@ zones:
               - Medical (Basic)
               - Literate
               - Meister's Key
-              - Meister's Terminal
               - Bird
               - Obol x5
             doc_elements:
@@ -1197,7 +1196,7 @@ zones:
               - >-
                 You are the legs of the Merchant's business. The Depot is at the bottom of the Caves and their customers are not, so somebody carries the goods up and the money down — that is you. Somebody also collects from the people who owe them. That is also you.
               - >-
-                Your keycard gets you into the Railyard, cracks a sealed crate, and lets you sell into the Merchant's books instead of your own.
+                Your keycard cracks a sealed crate, and lets you sell into the Merchant's books instead of your own.
             difficulty: easy
             bank_account: offshore
             multiple: true

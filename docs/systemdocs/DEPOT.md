@@ -25,16 +25,20 @@ never changes what an older trade says it was worth.
 
 ## 0. The system
 
-- **The money is obols (¢), and one obol is one ⬢.** Nothing converts and
-  nothing rounds. **The catalog still prices in ⬢** — `depotPrice` and
-  `sellablePrice` are what a thing is *worth*, and that has to keep meaning the
-  same number whether the Merchant is buying it or a player is haggling over
-  it — so every authored price is already a whole number of obols too. An
-  obol makes value **portable**: a weightless stackable tag holding the same
-  amount as a sack of ⬢, but one a fortune of which still fits in a pocket.
-  ⬢ are a tag too, and a one-pound one (`TAGS.md`), so the difference
-  between the two currencies is weight, and where the money is good. ⬢ are raw
-  material anybody will take anywhere; an obol is paper the station honours.
+- **The money is obols (¢). The catalog prices in ¢.** `depotPrice` and
+  `sellablePrice` are coin, and every surface that shows one shows the ¢ glyph.
+  One obol is one ⬢, so nothing converts and nothing rounds — but parity is not
+  a reason to print the wrong glyph, and the two are not the same kind of thing
+  any more.
+- **⬢ have exactly one job left: `resourceCost`.** What a recipe charges to
+  make something, and what a cure charges to treat somebody. That is the whole
+  of it. They used to be the unit everything was denominated in — the wage, the
+  price, the sell-back, the tax — and that made them a currency that happened to
+  weigh a pound each. They are a **material** now: you earn them by working, and
+  you either spend them on a recipe or carry them to the counter and sell them
+  for coin. An obol makes value portable — weightless, where a ⬢ is a pound — so
+  a fortune in coin fits in a pocket and the same fortune in material is a
+  cart's worth of work.
 - **Everybody has an account, and most of them are claims on the Keep.** A
   `BankAccount` is fingerprinted to one character. A TREASURY account — nearly
   everyone's — is backed by real `obol` tags in the Vault under the Keep, and a
@@ -102,9 +106,9 @@ What your tags decide is the **shelf**, and one seat's paperwork:
 |---|---|
 | **Anyone, standing there** | Order off the general manifest, use the ATM at the counter, put things in the drop box beside it, open an account. |
 | **Silver Chip** | …plus the black market: drink, smoke and worse. |
-| **Depot Keycard** | Enter the Railyard, where the crates land. Open one, sealed or not. Sell into the Merchant's account rather than their own. Spends nothing of its own. |
+| **Depot Keycard** | Open a sealed crate. Sell into the Merchant's account rather than their own. Spends nothing of its own, and no longer opens any door — the Railyard is public. |
 | **Merchant's Licence** | …plus the whole manifest, sealed goods included, the Company's credit line, the gun on the office wall, and the sight of everybody's staged selling. |
-| **Meister's Terminal** | `/treasury`: every account, the Vault's backing, and the sell tax rate. |
+| **A key to the Meister's office**, standing in the Keep | `/treasury`: every account, the Vault's backing, and the sell tax rate (§0h). |
 
 The licence is checked, never the Merchant **role** — the licence is tradeable
 and a role check would quietly break that. The keycard and the terminal are
@@ -122,8 +126,14 @@ on top.
 ## 0c. The Railyard, and the train
 
 The Railyard is a **real room** — a thread under the Depot channel, authored in
-`docs/zones.yaml` as `depot-railyard`, behind the keycard. It replaced the
-Landing Pad. Its starter message says whether the train is at the platform —
+`docs/zones.yaml` as `depot-railyard`, and **public**. It replaced the Landing
+Pad, which was behind a Depot Keycard.
+
+**Anybody can walk in, and crates land here.** That is a known hole and it is
+open deliberately: the alternative is a cargo room only Dockers can reach, which
+defeats opening the counter up at all. Bascinet's call, eyes open — "people can
+just take whatever… we'll figure out the rest later." Whatever closes it later
+is not a lock on this door; a lock on this door is the thing that was tried. Its starter message says whether the train is at the platform —
 `live: train` in `docs/zones.yaml`, rendered by `db/lib/roomLive.js` and
 repainted by `refreshLiveRooms` every close.
 
@@ -267,14 +277,13 @@ a forge that could mint them would mint the market open for everybody.
 ## 0f. The drop box, and the sell tax
 
 Selling used to be the Merchant sending a shuttle up with whatever was standing
-on the pad, paid into the station's float. It is a box on the Storefront counter
-now.
+on the pad, paid into the station's float. It is a box anybody can drop something
+into now.
 
-**On the Storefront and not in the Railyard**, and that is load-bearing: the
-Railyard is behind a Depot Keycard, so a box in there would be a box only
-Dockers could reach — and selling is the half of this counter that had to open
-to everybody. The crates stay in the Railyard; the box is where a customer would
-look for it.
+**It is on the LOCATION, not one room** (`db/lib/placeAffordances.js`), so it is
+reachable from wherever at the Depot somebody happens to be standing — and again
+on the Railyard's own post, because that is where somebody meeting the train
+already is. Two buttons, one dialog.
 
 - **What goes in is deleted at once.** That is what makes it a one-way door:
   nothing sits in a stash waiting to be stolen back out, and the seller has
@@ -344,9 +353,23 @@ noticeboard. Nothing collects it automatically.
 
 ## 0h. The Meister's terminal
 
-`/treasury`, gated on the **Meister's Terminal** tag the way `/lifeweb` is gated
-on Mortus. A superadmin reads it (host access, not game permission) but does not
-get the dial; `web/app/(app)/treasury/actions.js` re-checks the tag.
+`/treasury`, and the gate is **place and key, not a tag**: a living character
+standing at the `keep` Location who can get through the Meister's office door.
+`canReadTreasury` in `db/lib/depotCounter.js` is the one predicate, and the page,
+its one control and the nav rail all ask it — a rail offering an item that
+redirects is worse than no item.
+
+There was a **Meister's Terminal** tag for about a day and it is gone. The
+terminal is a thing on a desk, so reaching the desk is the permission. The door's
+keys are read off the Room's own `accessTagSlugs` (`meisters-key` or
+`barons-key` today) rather than named in code, so re-keying the office in
+`docs/zones.yaml` moves the gate with it.
+
+**It comes and goes as its holder walks in and out of the Keep**, which is the
+cost of that decision and the one thing nothing else in this app does —
+`/lifeweb` and `/depot` gate on a tag and check standing inside their actions
+instead. A superadmin reads it (host access, not game permission) but does not
+get the dial; `web/app/(app)/treasury/actions.js` re-checks the real gate.
 
 It shows every account — fingerprint, holder, role, class, balance — the Vault's
 coin against the sum of the TREASURY claims, and what is staged to sell. The one
@@ -545,9 +568,9 @@ whether anything you are about to do works, whichever tab you are on.
 No paragraph of explanation, no tooltips: a control whose name does not say what
 it does is the bug, not the missing tooltip.
 
-There is no ⬢/¢ toggle and no need for one: an obol is one ⬢, so every price
-column reads the same number in either unit. Prices print in ¢ throughout,
-whole, with no decimals anywhere.
+Prices print in ¢ throughout, whole, with no decimals anywhere. There is no
+⬢/¢ toggle and there should not be one: a price is coin now (§0), and parity is
+not a reason to offer the other glyph.
 
 **The ATM, the drop box and the gun are not on this page.** They are fixtures on
 walls — `db/lib/placeAffordances.js` — so each is a button on a Room's starter
@@ -574,7 +597,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 | Page | `/depot` (`web/app/(app)/depot/page.js`) — open to everyone, read-only unless you are standing there |
 | Location | `depot` — the berth at the cave mouth, one plain hop east of `customs`, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading works anywhere; trading needs you standing there. |
 | Rooms | `depot-storefront` (the ATM and the drop box), `depot-railyard` (the train and the crates, behind a keycard), `depot-merchants-office` (the gun), `depot-cargo-bay` |
-| Gates | the manifests (§0e), plus `depot-keycard` for the Railyard and `meisters-terminal` for `/treasury` |
+| Gates | the manifests (§0e), plus `depot-keycard` for a sealed crate. `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
 | Audit kinds | `request_depot_order`, `request_depot_drop`, `request_depot_atm`, `request_depot_credit`, `request_depot_account_open`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`, `train_ran` |
 | Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/depotManifests.js` |
 
@@ -593,9 +616,9 @@ a role check would quietly break the trade.
 
 There is no GM half to this page, and it needs none: `/depot` opens for a GM the
 same way it opens for a player, and `/gm/dev` already does everything a GM would
-want beyond that. A superadmin reads `/treasury` without the Meister's Terminal
-— host access rather than game permission, the way `/lifeweb` works — but does
-not get the tax dial.
+want beyond that. A superadmin reads `/treasury` without walking to the Keep —
+host access rather than game permission, the way `/lifeweb` works — but does not
+get the tax dial.
 
 ## 3. Buying
 
@@ -606,7 +629,7 @@ one made offworld. That is the point of the seat; what changed is that ⬢ and
 Ration Boxes are on the general shelf, and the drink and drug shelf is one chip
 away (§0e).
 
-**⬢ themselves are a ware, at 2 ⬢ each in and 1 ⬢ each out.** They are the
+**⬢ themselves are a ware, at 2 ¢ each in and 1 ¢ each out.** They are the
 one line on either table the order path handles by hand — `RESOURCE_WARE_ID` is
 the `resources` tag's own slug rather than a cuid, so it can never collide with
 a real ware's id, and `depotOrderImpl` splits it out before anything reaches a
@@ -619,15 +642,15 @@ sell price, no amount of round-tripping prints an obol — the same invariant
 since there is no row to check.
 
 **Paper undercuts everything, and the station sells it by the ream.** A
-`stack-of-paper` is 3 ⬢ and consumes into twenty sheets, so writing costs a
+`stack-of-paper` is 3 ¢ and consumes into twenty sheets, so writing costs a
 scribe almost nothing — which it has to, or nobody writes and the whole of
 `PAPERWORK.md` is a menu people look at once. Loose `paper` is no longer on the
-shelf: a weightless 1 ⬢ line was a thing every order padded itself out with,
+shelf: a weightless 1 ¢ line was a thing every order padded itself out with,
 and the ream is the same paper at a fifth the price. It is also the only ware
 with no sell-back price at all: a resale market in blank paper is not a thing
 anybody needs.
 
-**Sell-back is 60% of the buy price**, rounded, with a floor of 1 ⬢. The
+**Sell-back is 60% of the buy price**, rounded, with a floor of 1 ¢. The
 station still takes 40%, which is margin enough that round-tripping a rifle
 for its own sake is a slow way to lose money.
 
@@ -653,10 +676,10 @@ Six are also creation picks, marked in the Notes column: `jewelry` (2 pt),
 `purchasableAfterStart: false`, so there is still no mid-game second source —
 you bought one on day one or you buy one off him. The Poison Snooper is the
 deliberate addition of the six: knowing which cup is poisoned, over and over,
-is worth three-quarters of a starting budget, and its ⬢ price stays steep so
+is worth three-quarters of a starting budget, and its price stays steep so
 buying one mid-game is still a real decision.
 
-| Ware | ⬢ | Sells back | Notes |
+| Ware | ¢ | Sells back | Notes |
 |---|---|---|---|
 | `coffee` | 2 | 1 | Consumes into `caffeinated` (2t) |
 | `tea` | 2 | 1 | +15 mood (`MOOD.md` §5), the same as Maggot Milk |
@@ -755,8 +778,8 @@ the difference between that and the column below is his margin. Nothing in code
 sets what he pays a player; that is his negotiation.
 
 **⬢ sell back at 1 ¢ each**, through the drop box like any other ware. This is
-the only way Resources become money, and it costs half their face value, since
-the station charges 2 ⬢ for the same ⬢ coming down (§3). Anybody may do it
+the only way material becomes money, and it costs half its face value, since the
+station charges 2 ¢ for the same ⬢ coming down (§3). Anybody may do it
 now, which is the point: a labourer with a cart of material and no buyer has a
 counter to walk it to.
 
@@ -771,13 +794,13 @@ Four bands, about 106 tags in total:
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
 | Body parts | low, on purpose | `eye` 8, `heart` 8, `hand` 5, `foot` 4, `stomach` 4, `tongue` 3 |
 
-**The station buys body parts now** (`CORPSES.md`, `TORTURE.md` §6). It is a ⬢
+**The station buys body parts now** (`CORPSES.md`, `TORTURE.md` §6). It is a coin
 faucet hanging off a free action — Mutilate costs nothing and every death mints
 a body — so the number that matters is the whole LADDER, not one part:
 `db/lib/mutilate.js` takes nine pieces off one subject, which at these prices is
-**49 ⬢ a body**, against 30–42 ⬢ for a specialised day's labour. Price the
+**49 ¢ a body**, against 30–42 ⬢ of material for a specialised day's labour. Price the
 ladder, never the piece; the first pass priced the piece and a corpse came to
-94 ⬢. The eye and the heart are dearer than the rest because the rites eat those
+94 ¢. The eye and the heart are dearer than the rest because the rites eat those
 two (`THANATI.md` §9), so a cultist and the Merchant now want the same organs.
 
 **The Thanati's own shelf is not this depot** (`THANATI.md` §3). It is a code
@@ -790,15 +813,17 @@ clear of a Graga Sac's 8, without standing level with a whole day of industry
 (it is the only ingredient in the catalog that has to be talked out of being a
 person first). `dreamers-draught` is 60, above its own ingredient, because the
 point of that recipe is that the brain is the cheap part. `painting` is 41 —
-over its 4 turns that is ~10 ⬢/turn, still the best rate a craftable pays.
+over its 4 turns that is ~10 ¢/turn, still the best rate a craftable pays.
 
 **`human-flesh` is deliberately not sellable at all.** Butchering is free and
-every death mints a corpse, so a price on it would be a code-enforced ⬢ faucet
+every death mints a corpse, so a price on it would be a code-enforced coin faucet
 hanging off a free action. It stays `tradeable`, so the market for it is other
 players.
 
 **Smithed gear's markup is `resourceCost + round(rate(skill) × turnsCost^1.3)`, per item —
-not a flat multiplier of the tier.** A flat "+1/3 of the tier" markup makes
+not a flat multiplier of the tier.** It adds a ⬢ cost to a ¢ wage and lands on a ¢
+price, which is legal because an obol is one ⬢ (§0) — the material a smith buys and
+the coin he is paid are the same size, they are just not the same thing. A flat "+1/3 of the tier" markup makes
 Exceptional (3 turns, `smithing-skilled`) pay out *worse* per turn than Moderate or High
 Quality (1–2 turns, the same skill gate), and makes Dead Simple's turn-free 4-a-turn cap
 look like a strictly better business than ever touching the higher rungs. Two things must
@@ -810,30 +835,30 @@ behind:
 
 | Skill gate | Cumulative pt | Rate | Why |
 |---|---|---|---|
-| `crafting` / `smithing` | 5 | 2 ⬢/turn | Dead Simple and Simple both sit here. Crafting and `smithing` gate the same Dead Simple rung, so both read the same 5-pt rate — it should not pay two different wages |
-| `smithing-skilled` | 10 | 5 ⬢/turn | Moderate, High Quality, Exceptional |
-| `smithing-gunpowder` | 19 | 9 ⬢/turn | Gunpowder — nearly double the skill investment, so nearly double the rate |
+| `crafting` / `smithing` | 5 | 2 ¢/turn | Dead Simple and Simple both sit here. Crafting and `smithing` gate the same Dead Simple rung, so both read the same 5-pt rate — it should not pay two different wages |
+| `smithing-skilled` | 10 | 5 ¢/turn | Moderate, High Quality, Exceptional |
+| `smithing-gunpowder` | 19 | 9 ¢/turn | Gunpowder — nearly double the skill investment, so nearly double the rate |
 
 The `turnsCost^1.3` exponent makes rate-per-turn climb *inside* a skill bracket
 too, not just jump between brackets — a deliberate, mild superlinear curve so tying up
 more turns in one item is rewarded a little more than proportionally. The formula's raw
-rates read 2 → 5 → 6 → 7 → 11 ⬢/turn; the shipped prices sit above it, a deliberately
+rates read 2 → 5 → 6 → 7 → 11 ¢/turn; the shipped prices sit above it, a deliberately
 wider smith's margin (see `SMITHING.md` §2 for `resourceCost`). What
 must hold is the SHAPE: never falling. The shipped per-turn profits are
 
 | rung | 0.25-turn | Simple | Moderate | High Quality | Gunpowder |
 |---|---|---|---|---|---|
-| ⬢/turn | 8 | 10 | 16 | 18 | 22.5 |
+| ¢/turn | 8 | 10 | 16 | 18 | 22.5 |
 
-with Dead Simple's 4 sitting under the curve for the reason below. The curve is
+with Dead Simple's 12 sitting outside the curve for the reason below. The curve is
 deliberately flat — nearly two and a half fold bottom to top, not the five-fold spread a
 naive multiplier gives — because a smith could not otherwise make a living against a
 Merchant who sets his own buy price, and the low rungs paid worst of all.
 
-**Set these by the WAGE, not by a multiplier on the price.** A quarter off a 9 ⬢ sword
-is most of its 3 ⬢ profit; a quarter off a 59 ⬢ musketoon is half again of its 30. The
+**Set these by the WAGE, not by a multiplier on the price.** A quarter off a 9 ¢ sword
+is most of its 3 ¢ profit; a quarter off a 59 ¢ musketoon is half again of its 30. The
 margin is a small difference of two larger numbers, so a percentage on the price lands
-as a wildly uneven percentage on the wage. Pick the ⬢/turn you
+as a wildly uneven percentage on the wage. Pick the ¢/turn you
 want, multiply by the turns, add the `resourceCost`. Then read the table above and check
 nothing overtook the rung above it. 1.3 is a judgment
 call, not a derived constant: high enough to feel like a real reward for committing
@@ -852,17 +877,20 @@ A quarter and not a tenth because the Move budget is exact rational arithmetic
 in quarters (`db/lib/tagShapes.js` refuses anything finer, and a cost the budget
 cannot hold exactly is work somebody did not pay for).
 
-Its flat markup came down with it, **+3 ⬢ to +1 ⬢**. Four a day at +1 is
-4 ⬢/turn, comfortably under the Simple rung's quarter-pieces at 8. The bottom
-rung pays least, which is the shape this whole section asks for.
+**Its flat markup stays +3 ¢**, and briefly did not. It was cut to +1 in the
+same pass that added the turn cost, which was nerfing the rung twice for one
+problem — the free ration was the problem, and the quarter-Move cost fixes it on
+its own. Four a day at +3 is 12 ¢/turn, which is above the Simple rung; that is
+the same wart §4's own table has always had, and the reason given there still
+holds. A price cut is not the tool for it.
 
 The shared pool is **gone** and does not come back — `web/lib/tagRequests.js`
 carries the note. A recipe's own `perTurn` ration still works; there is simply no
 pool behind it.
 
 **It is still the number worth watching, for a smaller reason now.** Four a day
-means one ⬢ on the price is four on the wage, so the smallest change available at
-this rung is ±4 ⬢/turn. What it no longer does is stack on top of an untouched
+means one ¢ on the price is four on the wage, so the smallest change available at
+this rung is ±4 ¢/turn. What it no longer does is stack on top of an untouched
 labour day — that was the whole problem, and the quarter-Move cost is the fix.
 
 The Dead Simple rung spans two skills — `crafting` gates the cloth and wood half,
@@ -873,9 +901,9 @@ rate. A padded cap and a work knife are one rung and pay one wage.
 The four 0.25-turn Simple pieces (Spear, Dagger, Silver Knife, Phrygian Spear —
 `SMITHING.md` §2) get the same treatment for the same reason: `2 × 0.25^1.3` is 0.33 and
 rounds to 0, so they carry a flat markup instead and sell at **8**. Four a turn is
-8 ⬢/turn, against the rung's full-turn 10 — quick work is paid about the rung's rate,
+8 ¢/turn, against the rung's full-turn 10 — quick work is paid about the rung's rate,
 never a better one. They were thirds at 9 until costs became decimals in 9/2026, which
-came to the same 9 ⬢/turn; the quarter buys a fourth unit, so the price came down to
+came to the same 9 ¢/turn; the quarter buys a fourth unit, so the price came down to
 keep the day's pay under the rung above. Round the quick pieces DOWN when they will not
 land clean on an integer, never up, or the rung above them is overtaken.
 
@@ -885,7 +913,7 @@ against 74 — same relative gap as the tier.
 
 `ravenheart-red` is the top of the ordinary brews on purpose. It costs 4 ⬢ and
 needs no ingredient at all, so a Skilled brewer with nothing else going on can
-make 10 ⬢ a turn off it — and it is the one thing on this planet an offworlder
+make 10 ¢ a turn off it — and it is the one thing on this planet an offworlder
 actually wants. The tag's own description has called it "Ravenheart's only
 export" since long before any of this was wired up.
 
@@ -894,8 +922,8 @@ to brew and 40 and 12 to import. That is not an error and it is not a loophole:
 the import price is what you pay for having no brewer, and the gap is exactly
 the market a brewer sells into.
 
-A buy price at or below a sell price would let anyone with a licence print ⬢ in
-a loop. `db/lib/syncTags.js` warns on every sync if that ever inverts.
+A buy price at or below a sell price would let anyone with a licence print coin
+in a loop. `db/lib/syncTags.js` warns on every sync if that ever inverts.
 
 ### The two open holes in this — both closed
 
@@ -903,7 +931,7 @@ This used to be real. Before the Request table was dropped (2026-09-11,
 `REQUESTS.md`), `ADD_TAG` trusted a client-supplied `resourcesSpent` with no
 server-side charge and no per-turn cap, so a Merchant who also took Brewing
 (Skilled) could file it for `ravenheart-red` declaring 0 ⬢ spent, sell the
-brew here for a code-enforced 14 ⬢, and repeat — unbounded within a single
+brew here for a code-enforced 14 ¢, and repeat — unbounded within a single
 turn.
 
 It closed as a side effect of that rework, not a dedicated fix aimed at this
@@ -919,7 +947,7 @@ numbers moved.** Selling used to be the Merchant's alone, which meant
 `sellablePrice` was a reference figure with no button behind it — so a free
 4-a-turn craft ration was a convenience rather than an income. Once anybody
 standing at the Depot can drop a thing in a box and be paid for it, the same
-ration is 12 ⬢ a day, free, on every sheet in the game. Dead Simple costs a
+ration is 12 ¢ a day, free, on every sheet in the game. Dead Simple costs a
 quarter of a Move now and pays +1 rather than +3 (§4), which closes it.
 
 **The third was the mint.** A smith could strike `obol` at Smithing (Skilled),

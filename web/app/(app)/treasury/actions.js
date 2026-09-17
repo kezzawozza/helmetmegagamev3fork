@@ -2,33 +2,31 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { prisma, MEISTERS_TERMINAL_SLUG } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
+import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 
-// The terminal's one control. A server action is a public endpoint, so the tag
-// is re-checked here and never taken from the page — a superadmin reads the
-// desk but does not get the dial, since that is game permission rather than
-// host access.
+// The terminal's one control. A server action is a public endpoint, so the gate
+// is re-checked here and never taken from the page — a superadmin reads the desk
+// but does not get the dial, since that is game permission rather than host
+// access.
 async function setSellTaxRateImpl({ rate: rawRate }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
-  const character = await prisma.character.findFirst({
-    where: {
-      discordUserId: session.discordUserId,
-      status: "ALIVE",
-      tags: { some: { tag: { slug: MEISTERS_TERMINAL_SLUG } } },
-    },
+  const gate = await canReadTreasury(prisma, session.discordUserId);
+  if (!gate.ok) throw new UserError(gate.error);
+
+  const character = await prisma.character.findUnique({
+    where: { id: gate.character.id },
     include: { tags: { include: { tag: true } } },
   });
-  if (!character) throw new UserError("That one wants the Meister's Terminal.");
-
   const blocker = blockerFor(character.tags, ACT);
-  if (blocker) throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
+  if (blocker) throw new UserError(`You can't act — you're ${blocker.name}.`);
 
   const rate = Number(rawRate);
   if (!Number.isInteger(rate) || rate < 0 || rate > 100) {

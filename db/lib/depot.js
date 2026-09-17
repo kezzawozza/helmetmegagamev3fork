@@ -14,11 +14,12 @@ function isMerchantRole(slug) {
   return slug === MERCHANT_ROLE_SLUG;
 }
 
-// The Meister's terminal over the town's accounts (/treasury). A TAG, not the
-// Meister ROLE — the same call the licence makes, and for the same reason: it is
-// tradeable, so handing it over really does hand over the books, and a role
-// check would quietly break that.
-const MEISTERS_TERMINAL_SLUG = "meisters-terminal";
+// The Meister's office, and the room whose key decides who reads /treasury.
+// A ROOM rather than a tag: the terminal is a thing on a desk, so the gate is
+// standing in the Keep and being able to get through that door — whichever key
+// docs/zones.yaml says opens it. See docs/systemdocs/DEPOT.md §0h.
+const MEISTERS_OFFICE_ROOM_SLUG = "keep-meisters-office";
+const KEEP_LOCATION_SLUG = "keep";
 
 // Where the counter is — a LOCATION slug (docs/zones.yaml), one hop east of Customs via
 // `connections:`. Buying and selling both require standing here, same as the Lifeweb requiring the Fortress.
@@ -47,7 +48,8 @@ function normalizeQuantity(raw) {
 
 module.exports = {
   MERCHANT_LICENSE_SLUG,
-  MEISTERS_TERMINAL_SLUG,
+  MEISTERS_OFFICE_ROOM_SLUG,
+  KEEP_LOCATION_SLUG,
   MERCHANT_ROLE_SLUG,
   isMerchantRole,
   DEPOT_LOCATION_SLUG,
