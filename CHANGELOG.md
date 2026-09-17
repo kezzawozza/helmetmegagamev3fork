@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · The game no longer touches anybody's Discord nickname
+
+✎ Metempsychosis used to rename your Discord account to the stranger you woke up as — it does not any more, and neither does anything else
+− Nickname syncing, and every place the game cleared a nickname: on death, on hiding a character from Discord, on deleting one, and on a Restart Game wipe
+✎ Whatever your server nickname says is yours to set; the GM panel still shows it
+
 ## 2026-09-17 · Fix a typo and cost on the Crucifix
 
 ✎ crucification is now crucifixion  
