@@ -557,11 +557,11 @@ async function FreshChat({ userId }) {
     // carrying one. photographRow() re-checks the sheet, so this is the
     // hint and never the lock.
     hasCamera,
-    // The ✉ beside the composer, and the hood next to it. `canConceal` is
-    // db/lib/conceal.js's own three refusals asked in advance: a forced name
-    // has nothing to hide, a bare face has nothing to toggle, and something
-    // that FORCES a hood does not come off by asking. toggleConceal re-asks
-    // all three.
+    // The ✉ beside the composer. The hood is no longer a button next to it —
+    // /conceal is the whole of it, and db/lib/conceal.js asks its own three
+    // refusals there (a forced name has nothing to hide, a bare face has
+    // nothing to toggle, something that FORCES a hood does not come off by
+    // asking), so nothing has to be resolved in advance here any more.
     letters: aside?.letters
       ? {
           canWrite: aside.letters.canWrite,
@@ -577,8 +577,9 @@ async function FreshChat({ userId }) {
     faction: factionView,
     dmNewestMs: newestDm?.createdAt?.getTime?.() ?? null,
     navItems: await navItemsPromise,
+    // Not a control any more — only what the composer CALLS itself while a
+    // hood is up.
     conceal: {
-      canConceal: Boolean(concealment) && !concealment.forced && !forcedName,
       concealed: Boolean(identity.concealed),
       alias: identity.alias ?? null,
     },

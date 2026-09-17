@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import DmThread from "@/app/components/DmThread";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import { FeedSkeleton } from "./Feed";
@@ -10,6 +10,7 @@ import EmptyState from "@/app/components/EmptyState";
 import IconButton from "@/app/components/IconButton";
 import { SendIcon } from "@/app/components/icons";
 import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
+import useComposerAutosize from "./useComposerAutosize";
 import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { gmThread, sendToGms } from "./actions";
 import { useDmState, seedDmRows, prependDmRows, addDmRow } from "./dmStore";
@@ -36,6 +37,8 @@ export default function DmPane({ self, drawers = null }) {
   const dm = useDmState();
   const [pending, setPending] = useState([]);
   const [draft, setDraft] = useState("");
+  const textareaRef = useRef(null);
+  useComposerAutosize(textareaRef, draft);
   const [error, setError] = useState(null);
   const [sending, startSending] = useTransition();
   // The first page failed to load — a network blip, or a character that
@@ -187,14 +190,34 @@ export default function DmPane({ self, drawers = null }) {
 
       <form className="chat-composer" onSubmit={send}>
         <div className="field chat-composer-box">
-          <textarea
-            aria-label="Write to Bascinet"
-            rows={narrow ? 1 : 2}
-            value={draft}
-            placeholder="Write to Bascinet…"
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={onKeyDown}
-          />
+          {/* One row, the way the scene's box is one row: the words and the
+              send inside the container rather than the send standing beside
+              it. The foot below stays a sibling of the row, so the error and
+              the counter still run the box's full width. */}
+          <div className="chat-composer-row">
+            <textarea
+              ref={textareaRef}
+              aria-label="Write to Bascinet"
+              rows={1}
+              value={draft}
+              placeholder="Write to Bascinet…"
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={onKeyDown}
+            />
+            {/* The same send the scene composer draws (./Feed.js): on a phone,
+                the 44px accent glyph, because this is the button a thumb aims
+                at on every line. It was a bare .icon-btn here — 26px and the
+                colour of a quiet control — which made writing to Bascinet the
+                fiddliest box in the app on the face most people write from. */}
+            <IconButton
+              icon={SendIcon}
+              label="Send"
+              type="submit"
+              className={narrow ? "icon-btn chat-send" : "icon-btn chat-composer-send"}
+              size={narrow ? "lg" : "sm"}
+              disabled={sending || !draft.trim() || over}
+            />
+          </div>
           {(nearLimit || footError) && (
             <div className="chat-composer-foot">
               {footError ? <span className="chat-composer-error">{footError}</span> : <span />}
@@ -206,19 +229,6 @@ export default function DmPane({ self, drawers = null }) {
             </div>
           )}
         </div>
-        {/* The same send the scene composer draws (./Feed.js): on a phone,
-            the 44px accent glyph, because this is the button a thumb aims at
-            on every line. It was a bare .icon-btn here — 26px and the colour
-            of a quiet control — which made writing to Bascinet the fiddliest
-            box in the app on the face most people write from. */}
-        <IconButton
-          icon={SendIcon}
-          label="Send"
-          type="submit"
-          className={narrow ? "icon-btn chat-send" : "icon-btn"}
-          size={narrow ? "lg" : "sm"}
-          disabled={sending || !draft.trim() || over}
-        />
       </form>
     </div>
   );

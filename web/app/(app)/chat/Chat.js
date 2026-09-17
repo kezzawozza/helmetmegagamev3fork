@@ -973,7 +973,6 @@ export default function Chat({
           ghost={ghost}
           hasCamera={hasCamera}
           letters={letters}
-          canConceal={Boolean(conceal?.canConceal)}
           concealed={Boolean(conceal?.concealed)}
           alias={conceal?.alias ?? null}
           jump={jump}

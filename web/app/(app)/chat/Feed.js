@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
@@ -9,13 +9,14 @@ import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
 import Select from "@/app/components/Select";
-import { CameraIcon, EditIcon, EyeIcon, HoodIcon, MoreIcon, NotesIcon, PlusIcon, QuillIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
+import useComposerAutosize from "./useComposerAutosize";
+import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, PlusIcon, QuillIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
 import LookReadout from "@/app/components/LookReadout";
 import useActionRunner from "@/app/components/useActionRunner";
-import { photographRow, starRow, lookAt, lookAtRow, loadTravel, placeMembers, toggleConceal, gmSpeakerNames, gmSystemPost } from "./actions";
+import { photographRow, starRow, lookAt, lookAtRow, loadTravel, placeMembers, gmSpeakerNames, gmSystemPost } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import useNarrow from "./useNarrow";
@@ -121,21 +122,6 @@ function timeLabel(iso) {
 // (`"shout-near"`, still fully audible on Discord too) draws at ordinary
 // size, and anything past that keeps no tag and falls through to the default
 // subtext — matching its muffled `-#` treatment on Discord.
-// The keys, said inside the box rather than beside it. It was its own element
-// in the composer row, which cost the row a whole readout to say one thing
-// about the box it sat next to — so it is ghost text in the box now, gone the
-// moment anybody types.
-//
-// NEVER under a coarse pointer: there Enter is a newline (Discord's app does
-// the same) and the button beside the box is the send, so the hint would be a
-// lie. Never in command mode either — the command's own placeholder is the
-// question being asked, and this would talk over it.
-const SEND_HINT = "Enter to send · Shift+Enter for a line";
-
-function withSendHint(placeholder, show) {
-  return show ? `${placeholder}  ·  ${SEND_HINT}` : placeholder;
-}
-
 const SystemRow = memo(function SystemRow({ row }) {
   const shout = row.channelKind === "shout";
   const shoutNear = row.channelKind === "shout-near";
@@ -675,11 +661,9 @@ export default function Feed({
   // birdSentToday }, all resolved server-side in web/lib/selfPools.js. Each
   // entry opens the SHEET's own dialog; the four actions re-check every gate.
   letters = null,
-  // The hood (PROXYING.md §5). `canConceal` is "something over your face that
-  // is not forced" — drawn only then, because a bare face has nothing to
-  // toggle. `alias` is what the room reads while it is on, which is what the
-  // composer says its name is.
-  canConceal = false,
+  // The hood (PROXYING.md §5). It is put up and taken off with `/conceal`;
+  // these two only say what the composer is CALLED while it is on. `alias` is
+  // what the room reads, which is what the box says its name is.
   concealed = false,
   alias = null,
 }) {
@@ -811,11 +795,9 @@ export default function Feed({
   // the server tells a 32-hex token from a cuid itself, so the browser never
   // learns which it sent (play/actions.js#lookAt).
   const [look, setLook] = useState(null);
-  // The ✉ menu beside the composer, and the hood's own in-flight state. Both
-  // are the composer's, not the scene's, so they live here.
+  // The ✉ menu beside the composer. The composer's, not the scene's, so it
+  // lives here.
   const [lettersOpen, setLettersOpen] = useState(false);
-  const [concealPending, startConceal] = useTransition();
-  const [concealError, setConcealError] = useState(null);
   const [refresh] = useRefresh();
   const {
     run: runCommand,
@@ -1194,8 +1176,13 @@ export default function Feed({
       travelTo: onTravelPick,
       converse: onConverse,
       lookAt: onLookUp,
+      // /conceal changes the name every row this composer writes will wear,
+      // and that name is a SERVER prop (page.js -> Chat.js -> here), so the
+      // page has to re-read it. The composer's own hood button used to be the
+      // one caller that did this; /conceal is the only way up or down now.
+      refresh,
     }),
-    [placeKey, onTravelPick, onConverse, onLookUp],
+    [placeKey, onTravelPick, onConverse, onLookUp, refresh],
   );
 
   // The word on the send button. A command DOES something, so it runs by
@@ -1203,6 +1190,103 @@ export default function Feed({
   // like a program was about to start rather than a line about to be said.
   // Each entry says so itself (commands.js), so this stays one lookup.
   const sendLabel = command ? (command.entry.verb ?? "Run") : "Send";
+
+  // Paperwork — Write, Seal, the bird. Not a place's affordance: these are
+  // things you do with your own hands wherever you are standing. Folded INSIDE
+  // the box when there is a box, which is Discord's shape and the whole point
+  // of this row; beside the sentence when there isn't one, because a ghost has
+  // no composer and still has hands.
+  //
+  // The hood used to sit here too. It is /conceal now and only /conceal.
+  const composerTools =
+    lettersMenu.length > 0 || (narrow && speechModes.length > 1) ? (
+      <span className={narrow ? "chat-composer-tools chat-composer-tools--folded" : "chat-composer-tools"}>
+        {narrow ? (
+          <span className="chat-tool-wrap">
+            <IconButton
+              icon={PlusIcon}
+              label="More"
+              size="lg"
+              aria-haspopup="menu"
+              aria-expanded={toolsOpen}
+              onClick={() => setToolsOpen((was) => !was)}
+            />
+            {toolsOpen && (
+              <div className="chat-menu chat-menu--left" role="menu" aria-label="More">
+                {/* The phone's Speak / Shout / OOC. Radios rather than
+                    buttons — they are three states of one thing, and one
+                    of them is always on — so the menu says which voice
+                    the box is currently in without a second control. */}
+                {speechModes.length > 1 &&
+                  speechModes.map((m) => (
+                    <button
+                      key={m.mode}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={speechMode === m.mode}
+                      className="menu-item"
+                      onClick={() => {
+                        setToolsOpen(false);
+                        pickSpeechMode(m.mode);
+                      }}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                {lettersMenu.map((entry) => (
+                  <button
+                    key={entry.mode}
+                    type="button"
+                    role="menuitem"
+                    className="menu-item"
+                    disabled={entry.disabled}
+                    onClick={() => {
+                      setToolsOpen(false);
+                      openAction?.(entry.mode);
+                    }}
+                  >
+                    {entry.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </span>
+        ) : (
+          <>
+            {lettersMenu.length > 0 && (
+              <span className="chat-tool-wrap">
+                <IconButton
+                  icon={QuillIcon}
+                  label="Letters"
+                  aria-haspopup="menu"
+                  aria-expanded={lettersOpen}
+                  onClick={() => setLettersOpen((was) => !was)}
+                />
+                {lettersOpen && (
+                  <div className="chat-menu" role="menu" aria-label="Letters">
+                    {lettersMenu.map((entry) => (
+                      <button
+                        key={entry.mode}
+                        type="button"
+                        role="menuitem"
+                        className="menu-item"
+                        disabled={entry.disabled}
+                        onClick={() => {
+                          setLettersOpen(false);
+                          openAction?.(entry.mode);
+                        }}
+                      >
+                        {entry.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </span>
+            )}
+          </>
+        )}
+      </span>
+    ) : null;
 
   // Enter, in command mode. Every gate here is a hint — each command's `run`
   // lands on a server action that re-resolves the actor and re-checks
@@ -1255,32 +1339,7 @@ export default function Feed({
     );
   }, [command, draft, runCommand, commandCtx, setCmdError]);
 
-  // The hood, from the composer's own button or the phone's + menu. The name
-  // every row this composer writes will wear is a server prop, so the page
-  // is what has to re-read it.
-  const toggleHood = useCallback(() => {
-    setConcealError(null);
-    startConceal(async () => {
-      try {
-        const res = await toggleConceal();
-        if (res?.ok) refresh();
-        else setConcealError(res?.error ?? "Something went wrong.");
-      } catch {
-        setConcealError("Could not reach the server. Nothing was changed.");
-      }
-    });
-  }, [refresh]);
-
-  // The box grows with what is in it, up to about six lines, and shrinks
-  // back. A DOM measurement after the value lands, so it is a layout effect
-  // and it sets no state — `rows` is only the floor.
-  useLayoutEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    const line = parseFloat(getComputedStyle(el).lineHeight) || 20;
-    el.style.height = `${Math.min(el.scrollHeight, Math.round(line * 6) + 12)}px`;
-  }, [draft, narrow, command]);
+  useComposerAutosize(textareaRef, draft, command);
 
   // What the count under the box says, or null for nothing at all. Three
   // states past silence: the plain count as they approach one message, then
@@ -2090,35 +2149,6 @@ export default function Feed({
         <div className="chat-composer">
           {place.canSpeak ? (
             <>
-              {/* Speak / Shout / OOC, inline at the head of the composer row —
-                  not a strip above the box, which was a whole extra band of
-                  chrome for a three-item choice. Desktop only: on a phone the
-                  same three sit under the + beside the box, where the rest of
-                  the composer's verbs already live.
-
-                  Hidden when there is only Speak to pick — a control with one
-                  option is decoration.
-
-                  The shared Select, never a bare <select>: it draws its own
-                  popup rather than OS chrome that ignores the theme, and it
-                  already puts `.control` on its trigger — the surface without
-                  .field's label column, which is exactly a control inline in a
-                  toolbar (DESIGN-SYSTEM.md §5). So the class here is only the
-                  width. */}
-              {!narrow && speechModes.length > 1 && (
-                <Select
-                  className="chat-mode-select"
-                  aria-label="How to talk"
-                  value={speechMode ?? "speak"}
-                  onChange={(e) => pickSpeechMode(e.target.value)}
-                >
-                  {speechModes.map((m) => (
-                    <option key={m.mode} value={m.mode}>
-                      {m.label}
-                    </option>
-                  ))}
-                </Select>
-              )}
               <div className="field chat-composer-box" data-command={command ? "true" : undefined}>
                 {/* COMMAND MODE reads as a strip across the top of the box —
                     what you are running, what it does, and a way out. It used
@@ -2141,98 +2171,153 @@ export default function Feed({
                     </button>
                   </div>
                 )}
-                <textarea
-                  id="chat-composer"
-                  ref={textareaRef}
-                  aria-label={
-                    concealed && alias ? `Say something as ${alias}` : `Say something in ${place.name}`
-                  }
-                  rows={narrow ? 1 : 2}
-                  value={draft}
-                  placeholder={
-                    command
-                      ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it")
-                      : withSendHint(
-                          concealed && alias
-                            ? `Say something as ${alias}…`
-                            : `Say something in ${place.name}…`,
-                          !coarse,
-                        )
-                  }
-                  onChange={onDraftChange}
-                  onKeyDown={(e) => {
-                    // The `/` list owns the keys while it is open, the same
-                    // way the @ list does below — and it is checked first,
-                    // because the two are never open at once and this one is
-                    // the more recently opened when they compete.
-                    if (slash && cmdMatches.length > 0) {
-                      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                        e.preventDefault();
-                        const step = e.key === "ArrowDown" ? 1 : cmdMatches.length - 1;
-                        setSlash((cur) => (cur ? { ...cur, active: (cur.active + step) % cmdMatches.length } : cur));
-                        return;
-                      }
-                      if (e.key === "Enter" || e.key === "Tab") {
-                        e.preventDefault();
-                        pickCommand(cmdMatches[slash.active] ?? cmdMatches[0]);
-                        return;
-                      }
-                      if (e.key === "Escape") {
-                        e.preventDefault();
-                        setSlash(null);
-                        return;
-                      }
+                {/* ONE row inside the box: what voice you are in, your hands,
+                    the words, and the send. All four used to be separate boxes
+                    standing in a line — a dropdown, a recess, and a solid
+                    orange slab as tall as both — which is three objects to read
+                    before you can type into one of them. */}
+                <div className="chat-composer-row">
+                  {/* Speak / Shout / OOC. Hidden when there is only Speak to
+                      pick — a control with one option is decoration. Desktop
+                      only: on a phone the same three sit under the + with the
+                      rest of the composer's verbs.
+
+                      The shared Select, never a bare <select>: it draws its own
+                      popup rather than OS chrome that ignores the theme. It
+                      already puts `.control` on its trigger, and inside this
+                      container that is a frame around a frame, so the CSS takes
+                      its surface and border off and leaves a label you press. */}
+                  {!narrow && speechModes.length > 1 && (
+                    <Select
+                      className="chat-mode-select"
+                      aria-label="How to talk"
+                      value={speechMode ?? "speak"}
+                      onChange={(e) => pickSpeechMode(e.target.value)}
+                    >
+                      {speechModes.map((m) => (
+                        <option key={m.mode} value={m.mode}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                  {composerTools}
+                  <textarea
+                    id="chat-composer"
+                    ref={textareaRef}
+                    aria-label={
+                      concealed && alias ? `Say something as ${alias}` : `Say something in ${place.name}`
                     }
-                    // In command mode the box belongs to the command. Escape
-                    // drops the chip; so does Backspace on an empty box, which
-                    // is how Discord's composer lets go of one.
-                    if (command) {
-                      if (e.key === "Escape") {
-                        e.preventDefault();
-                        exitCommand(`/${command.entry.name} `);
-                        return;
-                      }
-                      if (e.key === "Backspace" && draft.length === 0) {
-                        e.preventDefault();
-                        exitCommand(`/${command.entry.name}`);
-                        return;
-                      }
-                      if (!coarse && e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        runCurrent();
-                        return;
-                      }
-                      return;
+                    rows={1}
+                    value={draft}
+                    // Just where you are, the way Discord says just which
+                    // channel you are in. "Enter to send · Shift+Enter for a
+                    // line" used to ride along on the end of this: permanent
+                    // chrome, at full size, for something anybody learns on
+                    // their first message — and it was the longest thing in the
+                    // composer.
+                    placeholder={
+                      command
+                        ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it")
+                        : concealed && alias
+                          ? `Say something as ${alias}…`
+                          : `Say something in ${place.name}…`
                     }
-                    // The @ list owns the arrows and Enter while it is open —
-                    // it is the thing the keystroke is aimed at.
-                    if (mention && matches.length > 0) {
-                      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                        e.preventDefault();
-                        const step = e.key === "ArrowDown" ? 1 : matches.length - 1;
-                        setMention((m) => (m ? { ...m, active: (m.active + step) % matches.length } : m));
+                    onChange={onDraftChange}
+                    onKeyDown={(e) => {
+                      // The `/` list owns the keys while it is open, the same
+                      // way the @ list does below — and it is checked first,
+                      // because the two are never open at once and this one is
+                      // the more recently opened when they compete.
+                      if (slash && cmdMatches.length > 0) {
+                        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                          e.preventDefault();
+                          const step = e.key === "ArrowDown" ? 1 : cmdMatches.length - 1;
+                          setSlash((cur) => (cur ? { ...cur, active: (cur.active + step) % cmdMatches.length } : cur));
+                          return;
+                        }
+                        if (e.key === "Enter" || e.key === "Tab") {
+                          e.preventDefault();
+                          pickCommand(cmdMatches[slash.active] ?? cmdMatches[0]);
+                          return;
+                        }
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          setSlash(null);
+                          return;
+                        }
+                      }
+                      // In command mode the box belongs to the command. Escape
+                      // drops the chip; so does Backspace on an empty box, which
+                      // is how Discord's composer lets go of one.
+                      if (command) {
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          exitCommand(`/${command.entry.name} `);
+                          return;
+                        }
+                        if (e.key === "Backspace" && draft.length === 0) {
+                          e.preventDefault();
+                          exitCommand(`/${command.entry.name}`);
+                          return;
+                        }
+                        if (!coarse && e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          runCurrent();
+                          return;
+                        }
                         return;
                       }
-                      if (e.key === "Enter" || e.key === "Tab") {
-                        e.preventDefault();
-                        pickMention(matches[mention.active] ?? matches[0]);
-                        return;
+                      // The @ list owns the arrows and Enter while it is open —
+                      // it is the thing the keystroke is aimed at.
+                      if (mention && matches.length > 0) {
+                        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                          e.preventDefault();
+                          const step = e.key === "ArrowDown" ? 1 : matches.length - 1;
+                          setMention((m) => (m ? { ...m, active: (m.active + step) % matches.length } : m));
+                          return;
+                        }
+                        if (e.key === "Enter" || e.key === "Tab") {
+                          e.preventDefault();
+                          pickMention(matches[mention.active] ?? matches[0]);
+                          return;
+                        }
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          setMention(null);
+                          return;
+                        }
                       }
-                      if (e.key === "Escape") {
-                        e.preventDefault();
-                        setMention(null);
-                        return;
-                      }
+                      // A phone keyboard's Enter is a newline, as it is in
+                      // Discord's app; the button beside the box is the send
+                      // there. On a keyboard Enter sends and Shift+Enter breaks
+                      // the line.
+                      if (coarse || e.key !== "Enter" || e.shiftKey) return;
+                      e.preventDefault();
+                      submit();
+                    }}
+                  />
+                  {/* ONE send for both faces now. On a phone it is the 44px
+                      accent glyph a thumb aims at; on a desktop the same glyph,
+                      quiet, inside the box — it was a filled .btn stretched to
+                      the full height of the box beside it, which made the
+                      heaviest object on the page a control almost nobody
+                      presses, since Enter sends. The verb (/shout says "Send",
+                      most commands say "Run") rides in the label, which
+                      IconButton puts in both the aria-label and the tooltip. */}
+                  <IconButton
+                    icon={SendIcon}
+                    label={sendLabel}
+                    className={narrow ? "icon-btn chat-send" : "icon-btn chat-composer-send"}
+                    size={narrow ? "lg" : "sm"}
+                    onClick={command ? runCurrent : submit}
+                    disabled={
+                      command
+                        ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
+                        : !draft.trim() || waitSeconds > 0
                     }
-                    // A phone keyboard's Enter is a newline, as it is in
-                    // Discord's app; the button beside the box is the send
-                    // there. On a keyboard Enter sends and Shift+Enter breaks
-                    // the line.
-                    if (coarse || e.key !== "Enter" || e.shiftKey) return;
-                    e.preventDefault();
-                    submit();
-                  }}
-                />
+                  />
+                </div>
                 {mention && (
                   <MentionMenu
                     matches={matches}
@@ -2280,44 +2365,10 @@ export default function Feed({
                   {waitSeconds > 0 ? `${waitSeconds} s` : `${Math.round(slowmodeMs / 1000)} s`}
                 </span>
               )}
-              {/* On a phone Enter is a newline (Discord's app does the same),
-                  so this is the only way to run a command there. On a desktop
-                  it used to be absent ENTIRELY — a mouse had no submit
-                  affordance at all, and nothing on the page said Enter would
-                  send. It is drawn everywhere now, with the keys spelled out
-                  beside it where there is a keyboard to use them. */}
-              {narrow ? (
-                <IconButton
-                  icon={SendIcon}
-                  label={sendLabel}
-                  className="icon-btn chat-send"
-                  size="lg"
-                  onClick={command ? runCurrent : submit}
-                  disabled={
-                    command
-                      ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
-                      : !draft.trim() || waitSeconds > 0
-                  }
-                />
-              ) : (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={command ? runCurrent : submit}
-                  disabled={
-                    command
-                      ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
-                      : !draft.trim() || waitSeconds > 0
-                  }
-                >
-                  {sendLabel}
-                </button>
-              )}
               {/* The count, drawn only where a limit actually exists to run
-                  into — the refusal used to be the first mention of one. The
-                  keys hint used to sit here beside it; it is the box's own
-                  placeholder now (see SEND_HINT), which says the same thing in
-                  the place you are already looking and costs the row nothing. */}
+                  into — the refusal used to be the first mention of one. A
+                  keyboard hint used to sit here beside it, then inside the
+                  box's placeholder; it is gone entirely now. */}
               {command && textArgOf(command.entry)?.maxLength && (
                 <span
                   className="chat-composer-count mono"
@@ -2362,122 +2413,7 @@ export default function Feed({
             // left is somebody with no voice at all.
             <p className="chat-quiet">You&apos;re a ghost. You can&apos;t speak.</p>
           )}
-          {/* Paperwork and the hood, beside the send. Neither is a place's
-              affordance — they are things you do with your own hands wherever
-              you are standing — so they sit on the composer rather than in the
-              right column. On a phone the two fold behind one + at the left
-              edge of the box (Discord's), so the row is +, the box, and send. */}
-          {(lettersMenu.length > 0 || canConceal || (narrow && speechModes.length > 1)) && (
-            <span className={narrow ? "chat-composer-tools chat-composer-tools--folded" : "chat-composer-tools"}>
-              {narrow ? (
-                <span className="chat-tool-wrap">
-                  <IconButton
-                    icon={PlusIcon}
-                    label="More"
-                    size="lg"
-                    aria-haspopup="menu"
-                    aria-expanded={toolsOpen}
-                    onClick={() => setToolsOpen((was) => !was)}
-                  />
-                  {toolsOpen && (
-                    <div className="chat-menu chat-menu--left" role="menu" aria-label="More">
-                      {/* The phone's Speak / Shout / OOC. Radios rather than
-                          buttons — they are three states of one thing, and one
-                          of them is always on — so the menu says which voice
-                          the box is currently in without a second control. */}
-                      {speechModes.length > 1 &&
-                        speechModes.map((m) => (
-                          <button
-                            key={m.mode}
-                            type="button"
-                            role="menuitemradio"
-                            aria-checked={speechMode === m.mode}
-                            className="menu-item"
-                            onClick={() => {
-                              setToolsOpen(false);
-                              pickSpeechMode(m.mode);
-                            }}
-                          >
-                            {m.label}
-                          </button>
-                        ))}
-                      {lettersMenu.map((entry) => (
-                        <button
-                          key={entry.mode}
-                          type="button"
-                          role="menuitem"
-                          className="menu-item"
-                          disabled={entry.disabled}
-                          onClick={() => {
-                            setToolsOpen(false);
-                            openAction?.(entry.mode);
-                          }}
-                        >
-                          {entry.label}
-                        </button>
-                      ))}
-                      {canConceal && (
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="menu-item"
-                          disabled={concealPending}
-                          onClick={() => {
-                            setToolsOpen(false);
-                            toggleHood();
-                          }}
-                        >
-                          {concealed ? "Take the hood off" : "Put the hood up"}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </span>
-              ) : (
-                <>
-                  {lettersMenu.length > 0 && (
-                    <span className="chat-tool-wrap">
-                      <IconButton
-                        icon={QuillIcon}
-                        label="Letters"
-                        aria-haspopup="menu"
-                        aria-expanded={lettersOpen}
-                        onClick={() => setLettersOpen((was) => !was)}
-                      />
-                      {lettersOpen && (
-                        <div className="chat-menu" role="menu" aria-label="Letters">
-                          {lettersMenu.map((entry) => (
-                            <button
-                              key={entry.mode}
-                              type="button"
-                              role="menuitem"
-                              className="menu-item"
-                              disabled={entry.disabled}
-                              onClick={() => {
-                                setLettersOpen(false);
-                                openAction?.(entry.mode);
-                              }}
-                            >
-                              {entry.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </span>
-                  )}
-                  {canConceal && (
-                    <IconButton
-                      icon={HoodIcon}
-                      label={concealed ? "Take the hood off" : "Put the hood up"}
-                      aria-pressed={concealed}
-                      disabled={concealPending}
-                      onClick={toggleHood}
-                    />
-                  )}
-                </>
-              )}
-            </span>
-          )}
+          {!place.canSpeak && composerTools}
         </div>
       )}
 
@@ -2489,7 +2425,7 @@ export default function Feed({
           <ChatMarkdown content={cmdLine} />
         </div>
       )}
-      <FormError>{error ?? cmdError ?? concealError}</FormError>
+      <FormError>{error ?? cmdError}</FormError>
 
       {photo && <PhotoReadout state={photo} onClose={() => setPhoto(null)} />}
       {look && <LookReadout state={look} onClose={() => setLook(null)} />}
@@ -2506,6 +2442,8 @@ function GmSystemComposer({ placeKey, placeName }) {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
+  const textareaRef = useRef(null);
+  useComposerAutosize(textareaRef, draft);
 
   const submit = useCallback(async () => {
     const text = draft.trim();
@@ -2526,28 +2464,34 @@ function GmSystemComposer({ placeKey, placeName }) {
   return (
     <div className="chat-composer">
       <div className="field chat-composer-box">
-        <textarea
-          aria-label={placeName ? `Post as Bascinet in ${placeName}` : "Post as Bascinet"}
-          rows={2}
-          value={draft}
-          placeholder={placeName ? `Post as Bascinet in ${placeName}…` : "Post as Bascinet…"}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void submit();
-            }
-          }}
-          disabled={pending}
-        />
-        <IconButton
-          type="button"
-          aria-label="Send"
-          onClick={() => void submit()}
-          disabled={pending || !draft.trim()}
-        >
-          <SendIcon />
-        </IconButton>
+        <div className="chat-composer-row">
+          <textarea
+            ref={textareaRef}
+            aria-label={placeName ? `Post as Bascinet in ${placeName}` : "Post as Bascinet"}
+            rows={1}
+            value={draft}
+            placeholder={placeName ? `Post as Bascinet in ${placeName}…` : "Post as Bascinet…"}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void submit();
+              }
+            }}
+            disabled={pending}
+          />
+          {/* `icon`, not a child. IconButton renders `<Icon />` from the prop
+              and ignores children, so passing <SendIcon /> between the tags
+              left Icon undefined and threw "Element type is invalid" the
+              moment a GM opened a place they cannot speak in. */}
+          <IconButton
+            icon={SendIcon}
+            label="Send"
+            className="icon-btn chat-composer-send"
+            onClick={() => void submit()}
+            disabled={pending || !draft.trim()}
+          />
+        </div>
       </div>
       <FormError>{error}</FormError>
     </div>

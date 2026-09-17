@@ -7347,43 +7347,70 @@ label.chip {
   white-space: nowrap;
 }
 
+/* The bar the box floats in. No border-top any more: the container below
+   draws its own edge, and a rule across the window on top of it framed the
+   composer twice. */
 .chat-composer {
   display: flex;
   align-items: flex-end;
   gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-4);
-  border-top: 1px solid var(--border);
+  padding: var(--sp-2) var(--sp-4) var(--sp-3);
   flex-shrink: 0;
 }
 
-/* Speak / Shout / OOC, inline at the head of the row. As narrow as its longest
-   label and no narrower — it must not take room from the box, which is the
-   thing anybody is actually aiming at. */
-.chat-mode-select {
+/* Speak / Shout / OOC, folded INSIDE the box. As narrow as its longest label
+   and no narrower — it must not take room from the words, which are the thing
+   anybody is actually aiming at.
+
+   The trigger is a `.control`, so it draws its own recessed surface and border.
+   Inside the container that is a frame around a frame, so it drops both and
+   reads as a label you can press. It keeps the app's focus ring: the global
+   :focus-visible rule is untouched, and must stay that way — the caret
+   argument that lets the textarea go without one does not apply to a
+   dropdown. */
+.chat-composer-box .chat-mode-select {
   flex: 0 0 auto;
   width: auto;
   min-width: 0;
   font-size: var(--fs-xs);
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
 }
 
-/* The desktop send stands as tall as the box beside it. It used to be a
-   button's own height next to a two-line textarea, which read as a control
-   that had come loose from the thing it sends.
-
-   Capped, because the box grows to about six lines (Feed.js sizes it off
-   scrollHeight) and a send that grew with it would become the largest object
-   on the page for a long message. Three lines is where it stops looking like
-   a button. */
-.chat-composer > .btn {
-  align-self: stretch;
-  max-height: 5.5rem;
+.chat-composer-box .chat-mode-select:hover {
+  color: var(--text);
 }
 
-/* The box grows with its text (Feed.js sets the height off scrollHeight, up
-   to about six lines), so nothing here may pin it. */
+/* Bare inside the container — the box draws the surface, the border and the
+   radius, so drawing them again here is the double-framed look this replaced.
+   The box grows with its text (useComposerAutosize sets the height off
+   scrollHeight, up to about six lines), so nothing here may pin it. */
 .chat-composer textarea {
   resize: none;
   overflow-y: auto;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: var(--sp-1) 0;
+}
+
+.chat-composer textarea::placeholder {
+  color: var(--muted);
+}
+
+/* Discord shows nothing on focus and lets the caret say where you are. Ours
+   drew `outline: 2px solid var(--accent-text)` with a 2px gap, so a focused
+   box read as two frames with a light leak between them.
+
+   Scoped HARD, and deliberately: the global :focus-visible rule at the top of
+   this file is untouched, and the picker, the ✉, the tools and the send inside
+   this same box all keep their ring. Only the textarea has a caret to stand in
+   for one. */
+.chat-composer .chat-composer-box textarea:focus-visible {
+  outline: none;
 }
 
 /* The phone's send: the same glyph button the Bascinet pane uses, drawn in
@@ -7404,7 +7431,7 @@ label.chip {
 /* The + on the phone's composer: the ✉ and the hood, folded behind one
    button at the LEFT edge of the box (Discord's), so it sits first in the
    row and its menu opens to the right rather than off the screen. */
-.chat-composer-tools--folded {
+.chat-composer > .chat-composer-tools--folded {
   order: -1;
 }
 
@@ -8150,20 +8177,26 @@ label.chip {
     position: static;
   }
 
-  /* One-line box, and 16px so iOS does not zoom the page on focus. */
+  /* One-line box, and 16px so iOS does not zoom the page on focus. The 44
+     floor lives on the textarea and on `.chat-shell .icon-btn` in the
+     coarse-pointer block below, so the container is 44 plus its own border and
+     nothing else — the same height this row has always been here, in one frame
+     instead of three. */
   .chat-composer {
     padding-top: var(--sp-2);
     padding-bottom: calc(var(--sp-2) + env(safe-area-inset-bottom, 0px));
     gap: var(--sp-1);
   }
 
-  .chat-composer textarea {
-    font-size: max(16px, var(--fs-sm));
-    min-height: 44px;
+  .chat-composer-box {
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
-  .chat-countdown {
-    padding-bottom: 0;
+  .chat-composer textarea {
+    font-size: max(16px, var(--fs-sm));
+    min-height: var(--tap);
+    padding: var(--sp-2) var(--sp-1);
   }
 }
 
@@ -8280,10 +8313,71 @@ label.chip {
   box-shadow: 0 6px 20px var(--shadow-color);
 }
 
+/* ONE container, the way Discord's composer is one container: the Speak
+   picker, the ✉, the words and the send all live inside it. The row used to be
+   three bordered rectangles standing in a line — a dropdown, a recess, and a
+   solid orange slab as tall as both — which is three objects to read before
+   you can type into one of them.
+
+   --surface, not --field-bg. Every other input in the app is a recess cut into
+   a panel and should be; a composer is not a hole in the page, it is the place
+   you type, so it sits one step ABOVE the feed's --bg rather than below it.
+   That also puts it on the exact surface audit-contrast.js measures --text,
+   --muted and --accent-text against, which the old --field-bg recess never was.
+
+   NEVER give this `overflow: hidden`. The / and @ menus and the ✉ menu are
+   absolutely positioned against it and hang off the top. */
 .chat-composer-box {
   position: relative;
   min-width: 0;
   flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-1) var(--sp-2);
+}
+
+/* The quiet half of a focus indicator. The textarea's own ring is dropped —
+   the caret is what says where you are — but "nothing at all" is not what this
+   box should do when focus lands in it, so the edge it already has answers,
+   instead of a 2px accent halo held 2px off the frame. */
+.chat-composer-box:focus-within {
+  border-color: var(--accent);
+}
+
+/* The one row inside: what voice you are in, your hands, the words, the send.
+   flex-end so the controls stay level with the LAST line as the box grows to
+   six. */
+.chat-composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+/* The desktop send, inside the box and at a button's own size. Frameless at
+   rest like the ⋯ on a feed row; the frame comes back under the pointer and
+   the ring under the keyboard. */
+.chat-composer-row .chat-composer-tools .icon-btn,
+.chat-composer-send {
+  border-color: transparent;
+  background: transparent;
+}
+
+/* Restated rather than left to .icon-btn:hover — the selectors above are more
+   specific than it, so they would win at hover too and the frame would never
+   come back. */
+.chat-composer-row .chat-composer-tools .icon-btn:hover,
+.chat-composer-send:hover {
+  color: var(--text);
+  background: var(--row-hover);
+  border-color: var(--accent-text);
+}
+
+/* There is something to send. A glyph, not a fill: the fill is the phone's
+   (.chat-send), where it is the thing a thumb aims at. */
+.chat-composer-send:not(:disabled) {
+  color: var(--accent-text);
 }
 
 /* The Bascinet pane's composer foot: a send that failed, and the counter
@@ -8362,8 +8456,6 @@ label.chip {
   color: var(--text);
 }
 
-/* The keys, spelled out once beside the send. Nothing on the page said Enter
-   would send, and a desktop had no send button at all until 2026-09-09. */
 /* Only drawn where a command actually caps its text. The refusal used to be
    the first anybody heard of a limit. */
 .chat-composer-count {
@@ -8465,7 +8557,7 @@ label.chip {
   font-size: var(--fs-2xs);
   color: var(--muted);
   white-space: nowrap;
-  padding-bottom: var(--sp-2);
+  align-self: center;
   flex-shrink: 0;
 }
 

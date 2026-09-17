@@ -518,22 +518,46 @@ like everything else.
   lazily-filled ref of the seq the place painted with — a ref rather than
   state, since `react-hooks/set-state-in-effect` is an error here — and sets
   `data-live` above it.
-- **The composer shows a Send button under a coarse (touch) pointer.** The
-  slowmode clock shows before it bites, and a character count is drawn where
-  a command actually caps its text. On desktop Send stands as tall as the box
-  beside it, capped at about three lines so a six-line message does not turn it
-  into the largest object on the page.
-- **"Enter to send · Shift+Enter for a line" is the box's own placeholder**, not
-  a readout beside it — it says one thing about the box, so it belongs in the
-  box, and it costs the row nothing. Never under a coarse pointer, where Enter
-  IS a newline and the hint would be a lie, and never in command mode, where the
-  command's own placeholder is the question being asked.
+- **The composer is ONE container, the way Discord's is.** The Speak picker,
+  the ✉, the words and the send all sit inside a single rounded box
+  (`.chat-composer-box`, holding one `.chat-composer-row`), on `--surface` —
+  *above* the feed's `--bg` rather than recessed below it in `--field-bg`,
+  because a composer is the place you type, not a hole in the page. The
+  slowmode clock and the character count stay outside it, to its right.
+
+  It was three bordered rectangles standing in a line — a dropdown, a
+  two-line recess, and a solid `--accent-solid` slab stretched to the box's
+  full height — which is three objects to read before you can type into one of
+  them, with the heaviest thing on the page being a button almost nobody
+  presses. **The send is a quiet glyph on both faces now**, `.chat-composer-send`
+  on a desktop and the 44px accent `.chat-send` under a coarse pointer, where
+  it really is the thing a thumb aims at.
+- **The box is one line at rest and grows to about six.** `rows={1}` is only
+  the floor; `useComposerAutosize` sets the height off `scrollHeight`. All
+  three composers share that hook — the scene's, Bascinet's pane and the GM's
+  system box — because a one-line box with no autosize scrolls a long message
+  inside a single line instead of growing to hold it.
+- **The textarea shows no focus ring, and the container shows the focus
+  instead.** It drew `outline: 2px solid var(--accent-text)` at a 2px offset,
+  so a focused box read as two frames with a light leak between them.
+  `.chat-composer-box:focus-within` turns its own border `--accent` instead.
+  The override is scoped hard to the composer's textarea: the global
+  `:focus-visible` rule is untouched, and the picker, the ✉ and the send inside
+  the same box all keep their ring. Only the textarea has a caret to stand in
+  for one — do not extend this to anything that hasn't.
+- **The placeholder says where you are and nothing else** — "Say something in
+  {place}…", or "Say something as {alias}…" under a hood. "Enter to send ·
+  Shift+Enter for a line" used to ride along on the end of it: permanent
+  chrome, at full size, for something anybody learns on their first message,
+  and the longest thing in the composer. It is gone; the send button's tooltip
+  is what is left, which is why the send stays a labelled `IconButton`.
 - **Speak / Shout / OOC is an inline dropdown at the head of the composer row**
-  on desktop, and folds into the `+` beside the box on a phone, where the ✉ and
-  the hood already live. It was a `.segmented` strip ACROSS THE TOP of the box
-  for a day, which cost the composer a whole band of chrome for a three-item
-  choice — the row is one line now: dropdown, box, send. It stores **no state
-  of its own**: each of the two that
+  on desktop — inside the box now, at the left of `.chat-composer-row`, with
+  its `.control` surface and border taken off so it reads as a label you press
+  rather than a frame inside a frame. On a phone it folds into the `+` beside
+  the words, where the ✉ already lives. It was a `.segmented` strip ACROSS THE
+  TOP of the box for a day, which cost the composer a whole band of chrome for
+  a three-item choice. It stores **no state of its own**: each of the two that
   is not plain speech is already a command in `./commands.js`, so the control
   enters command mode and `runCurrent()` does the sending, the clearing, the
   length cap and the hand-back-on-refusal. Which mode you are in is *derived*
@@ -726,10 +750,12 @@ a 48px head and a one-line composer:
   the crumb is dropped, the name is one line, and the description shows only
   once the name has been tapped.
 - **The box is one line and grows** as you type, to about six lines
-  (`Feed.js` sets the height off `scrollHeight` — on a desktop too, where two
-  rows is the floor). Send is the ➤ glyph, and the ✉ and the hood fold behind
-  one ⊕ at the left edge (Discord's +). The textarea is 16px there, or iOS
-  zooms the page on focus. ⊕, the box and ➤ are all 44.
+  (`useComposerAutosize` sets the height off `scrollHeight` — on a desktop too,
+  where one row is the floor on both faces now). Send is the ➤ glyph, and the ✉
+  folds behind one ⊕ at the left edge (Discord's +); the hood is not a button
+  any more, it is `/conceal`. All three sit INSIDE the one container, as they
+  do on a desktop. The textarea is 16px there, or iOS zooms the page on focus.
+  ⊕, the words and ➤ are all 44.
 - **Nothing else takes height.** The typing line sits OVER the last line of
   the scene rather than in a row of its own; the noticeboard scrolls away
   with the feed rather than pinning; the members row of a conversation folds
@@ -1083,8 +1109,10 @@ a 48px head and a one-line composer:
   do either (`/shout` is `["room", "conv"]` now, and `shoutHere` refuses a
   `loc` place key server-side). With nothing left to run in it, the box went:
   what stands there is one grey italic line, *"Go into a room, the zone summary
-  channel, or a conversation to speak."*, and the quill and the hood beside it,
-  which are things you do with your own hands anywhere.
+  channel, or a conversation to speak."*, and the quill beside it, which is a
+  thing you do with your own hands anywhere. (With no box to fold them into,
+  the tools stand beside the sentence — `composerTools` is rendered in one of
+  two places for exactly that reason.)
 
   Three of these are the first web twins of commands that were **Discord-only**
   — `/conceal`, `/shout` and `/roll` — which is to say a character never
@@ -1386,7 +1414,7 @@ a 48px head and a one-line composer:
   The card and the waiting list share **one** 60-second interval (`myMove()`
   and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`
   console shows up here without a reload.
-- **The composer's two hand controls**, beside the send (behind one ⊕ on a
+- **The composer's one hand control**, inside the box (behind one ⊕ on a
   phone).
   A ✉ (`QuillIcon`) opens a small menu of **Write**, **Seal** and **Send
   by bird** — each shown only where the sheet would show it, each opening
@@ -1395,12 +1423,24 @@ a 48px head and a one-line composer:
   in that menu; a blank book is an ordinary craft recipe now and Write is what
   fills one (`PAPERWORK.md` §4a). The bird is
   the one that greys rather than hides: with one already gone today it reads
-  **Sent today**. Beside it, a hood (`HoodIcon`, `aria-pressed`) calls
-  `toggleConceal()` — drawn only where `db/lib/conceal.js` would not refuse
-  outright, and while it is up the composer's placeholder and label read
-  *Say something as {alias}…*, which is the name every row it writes will
-  wear. A toggle ends in `router.refresh()`, because that name is a server
-  prop.
+  **Sent today**.
+
+  **There were two. The hood was the other, and it is gone** — `/conceal` is
+  the whole of it now, on both faces. It was a toggle whose own label read
+  *Take the hood off*, sitting in the row for a thing done a handful of times
+  a game, and `db/lib/conceal.js` refuses from the command exactly as it did
+  from the button.
+
+  **`toggleConceal()` revalidates nothing**, which is the trap that removal
+  left behind. The composer's placeholder and `aria-label` read *Say something
+  as {alias}…* while a hood is up, and the optimistic row wears the alias
+  through `self.aliased` — all of them **server props**. The deleted button was
+  the one caller that called `refresh()` afterwards, so `/conceal` was already
+  toggling the hood with nothing on the page changing until the next
+  navigation. `commandCtx` carries `refresh` now and the `/conceal` entry in
+  `commands.js` calls it on a successful toggle. Anything else that changes a
+  server prop from a command has to do the same — the ctx callback, not a
+  `revalidatePath` nobody in `actions.js` uses.
 - **The place card's two doors** (`PlaceCard.js`). A **Depot ›** link when
   this character is standing at the Depot AND holds the merchant licence or
   the keycard — offered only where it would open, since `/depot` bounces

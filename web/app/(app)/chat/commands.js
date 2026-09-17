@@ -54,7 +54,15 @@ export const COMMANDS = [
     description: "Conceal yourself.",
     where: EVERYWHERE,
     args: [],
-    run: () => toggleConceal(),
+    // The hood goes up and comes off here and nowhere else — the composer's
+    // own button is gone. toggleConceal() revalidates nothing, so the refresh
+    // is this call site's to make, or the box goes on calling itself by the
+    // name it just stopped wearing.
+    run: async (_values, ctx) => {
+      const res = await toggleConceal();
+      if (res?.ok) ctx.refresh?.();
+      return res;
+    },
   },
   {
     name: "shout",
