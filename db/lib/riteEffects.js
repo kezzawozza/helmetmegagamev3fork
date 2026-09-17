@@ -14,6 +14,7 @@ const { applyDeathToRow } = require("./characterDeath");
 const { applyDeathTeardown } = require("./deathTeardown");
 const { deleteCorpseFor } = require("./corpseMint");
 const { pickRandomPublicRoom } = require("./roomStash");
+const { record, BURN } = require("./economyLedger");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
 const { formatBareName } = require("./characterName");
 const { STUPID_SLUG } = require("./babble");
@@ -28,7 +29,14 @@ const { normalizeChant, containsPhrase } = require("./rites");
 const { closeDeadchatTo } = require("./deadchat");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
 const { broadcastToZones } = require("./worldBroadcast");
-const { addRoomResources, readRoomResources, takeRoomResources } = require("./resourceStack");
+const { readRoomResources, takeRoomResources } = require("./resourceStack");
+// roomStash's addRoomResources, NOT resourceStack's. The bare stack writer moves
+// the ⬢ and books nothing; this one records the ledger row and the CLAMP
+// shortfall. A rite minting ⬢ onto a floor or a Famine eating a silo is real
+// money appearing and disappearing, and /gm/economy reconciles every account
+// against its ledger sum — unbooked, a Famine reads as every faction silo
+// drifting by up to 100 ⬢.
+const { addRoomResources } = require("./roomStash");
 const {
   THANATI_SLUG,
   THANATI_LEADER_SLUG,
@@ -155,7 +163,7 @@ async function spawnRemains(db, room, { flesh = true, resources = true } = {}) {
       const n = rand(2, 5);
       // ⬢ on the floor are a stack like the parts and the Flesh beside them,
       // so this is the same kind of write as the addToRoomStack calls above.
-      await addRoomResources(tx, room.id, n);
+      await addRoomResources(tx, room.id, n, { reason: "RITE_GRANT" });
       spawned.resources = n;
     }
   });
@@ -368,7 +376,20 @@ const EFFECTS = {
         const held = await readRoomResources(tx, f.siloRoom.id);
         const take = Math.min(100, held);
         if (take <= 0) continue;
-        if (await takeRoomResources(tx, f.siloRoom.id, take)) blighted[f.name] = take;
+        if (await takeRoomResources(tx, f.siloRoom.id, take)) {
+          blighted[f.name] = take;
+          // Booked by hand rather than through roomStash's clamped writer,
+          // because the strict take above is the guard this wants and the
+          // clamped one would give up that race safety. Same bargain
+          // thanatiActions.js strikes: you bypassed the booking primitive, so
+          // write the row yourself. A Famine eats real money, and unbooked it
+          // reads as every silo drifting on /gm/economy.
+          await record(
+            tx,
+            { from: { kind: "room", id: f.siloRoom.id, name: f.name }, to: BURN, form: "BALANCE", amount: take },
+            { reason: "RITE_COST" },
+          );
+        }
       }
     });
     await roomLine(db, room, INGREDIENTS_CONSUMED);
@@ -447,7 +468,7 @@ const EFFECTS = {
       });
       if (count === 0) return;
       if (granted > 0) {
-        await addRoomResources(tx, room.id, granted);
+        await addRoomResources(tx, room.id, granted, { reason: "RITE_GRANT" });
       }
       claimed = true;
     });

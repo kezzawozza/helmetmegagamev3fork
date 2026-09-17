@@ -5,7 +5,7 @@ import { MOTION_SICKNESS_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
 import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
 // Submodule path, not the @lifeweb/db barrel — this is a client component and
 // the barrel drags PrismaClient into the browser bundle (ARCHITECTURE.md §2).
-import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
+import { resourcesOf, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import BioForm from "./BioForm";
 import CharacterPoller from "./CharacterPoller";
 import EquipBoard from "./EquipBoard";
@@ -415,7 +415,14 @@ export default function CharacterSheet({
 
           <div className="ledger-col ledger-rail" data-col="tags">
             <TagRail
-              characterTags={character.tags}
+              // Without the ⬢ stack: the band above already shows the figure,
+              // and the rail is the busier of the two surfaces to see it
+              // doubled on. It also keeps ⬢ off the row's verb strip —
+              // `items` is a destroyable category, so the rail was offering a
+              // one-click Destroy on a character's entire savings, which is a
+              // road to burning money that nothing else in the game has.
+              // Chat's Things drawer does the same (chat/thingRows.js).
+              characterTags={withoutResources(character.tags)}
               isSelf={isSelf}
               selfId={character.id}
               identity={identity}

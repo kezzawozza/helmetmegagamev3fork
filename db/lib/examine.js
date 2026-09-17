@@ -23,7 +23,7 @@ const {
 } = require("./presentedIdentity");
 const { turnsLeft, formatTurnsLeft } = require("./turnFormat");
 const { revealedTags } = require("./torture");
-const { resourcesOf } = require("./resourceStack");
+const { resourcesOf, withoutResources, isResourcesRow } = require("./resourceStack");
 
 // TAG half split out for db/lib/examineSnapshot.js — name/armour/requirement are RULES, read live even for an old look.
 const EXAMINE_TAG_SELECT = {
@@ -100,7 +100,12 @@ function concealedReadout(identity, subject) {
     line: concealedLine(identity.alias),
     appearance: null,
     ailments: seen.filter(isHealth).map((ct) => ct.tag.name),
-    equipment: seen.filter((ct) => !isHealth(ct)).map((ct) => ct.tag.name),
+    // ⬢ are left out: how much somebody is carrying is the officer-gated
+    // `resources` line below, and a bare "Resources" chip here would announce
+    // to any passer-by that there is a balance to take at all — which is the
+    // thing that gate exists to withhold. The sibling money tag, `obol`, is
+    // `visible: false` for the same reason.
+    equipment: withoutResources(seen.filter((ct) => !isHealth(ct))).map((ct) => ct.tag.name),
     tags: [],
     desire: null,
     roleTitle: null,
@@ -145,9 +150,12 @@ function examineReadout({
     ailments: [],
     equipment: [],
     tags: [
-      ...medicallyVisibleTags(subject.tags, satisfied, identityVisible).map((entry) =>
-        describeTag(entry, openTurnNumber),
-      ),
+      // Same rule as the bystander readout above, and here it also stops the
+      // officer seeing "Resources" in the chip row AND "Resources: 12 ⬢" two
+      // lines under it, as if they were two different things.
+      ...medicallyVisibleTags(subject.tags, satisfied, identityVisible)
+        .filter((entry) => !isResourcesRow(entry.characterTag))
+        .map((entry) => describeTag(entry, openTurnNumber)),
       ...(viewerIsThanati ? thanatiLines(subject.tags) : []),
     ],
     // ABSENT, never "hidden" — a viewer without sight and nothing-to-read look the same.

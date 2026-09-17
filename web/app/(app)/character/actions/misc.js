@@ -2881,6 +2881,14 @@ export async function packageItemsRequestImpl({
     // A crate of crates would nest a consumesInto chain arbitrarily deep, and
     // halving twice is a free carry exploit besides.
     if (isCrate(row.tag)) throw new UserError("You can't crate a crate.");
+    // ⬢ are tradeable, so they pass the check above — and a crate weighs HALF
+    // its contents (db/lib/depotCrates.js), which would make a hand-packed
+    // crate a flat 2× carry multiplier on bulk wealth and undo the whole point
+    // of ⬢ having a weight. The picker already leaves them out
+    // (web/lib/tagRequests.js#packableTags); this is the lock behind that hint.
+    // The DEPOT still crates ⬢ as freight on the shuttle — that is
+    // splitIntoCrates, a different path, and it is not affected.
+    if (isResourcesRow(row)) throw new UserError("⬢ are already bulk — they don't go in a crate.");
     // A mount is not cargo, and the MOUNT slot is weightless on purpose, so a
     // crate of one came out at crateWeight's floor of 1 lb. The Depot still
     // ships a horse crated (DEPOT.md §0e) — this refusal is the hand-packed
