@@ -4,9 +4,8 @@
    Design tokens — "Ravenheart Underground"
 
    Ravenheart is underground (docs/lore.md: humans "forced into the caves").
-   So neither phase is a daylight theme: Dusk and Dawn differ by lamplight
-   temperature and lift, not by sun. Limestone is a light theme kept as a
-   comparison backup — see [data-theme="limestone"] below.
+   So neither phase is a daylight theme: Dusk and Dawn are one rust palette,
+   differing in lamplight temperature and lift only, not by sun.
 
    Every colour pair here was solved against WCAG AA. Two rules carry the
    whole system and are easy to undo by accident:
@@ -29,25 +28,38 @@
    ========================================================================== */
 
 :root {
-  /* Type scale — modular ~1.2, anchored at a real 15px body. Before this the
-     app had ten sizes all between 0.6 and 0.9rem and no mid-tier at all. */
-  --fs-2xs: 0.6875rem; /* 11px — rail labels, micro-captions */
-  --fs-xs: 0.75rem; /* 12px — table headers, chips, field labels */
+  /* Type scale — the tool half of the look (REDESIGN.md §3): a plain system
+     face at 13px, 12px in tables and chips, headings the same face barely
+     larger. The old 15px-anchored modular scale is gone; the names stay so
+     the ~200 call sites and the Tailwind bridge below keep working. */
+  --fs-2xs: 0.6875rem; /* 11px — micro-captions */
+  --fs-xs: 0.75rem; /* 12px — tables, chips, field labels, buttons */
   --fs-sm: 0.8125rem; /* 13px — dense table body */
-  --fs-base: 0.9375rem; /* 15px — BODY */
-  --fs-md: 1.0625rem; /* 17px — lead paragraphs */
-  --fs-lg: 1.25rem; /* 20px — h3 / panel titles */
-  --fs-xl: 1.5rem; /* 24px — h2 */
-  --fs-2xl: 1.875rem; /* 30px — h1 */
-  --fs-3xl: 2.5rem; /* 40px — wordmark */
+  --fs-base: 0.8125rem; /* 13px — BODY */
+  --fs-md: 0.875rem; /* 14px — lead paragraphs */
+  --fs-lg: 0.9375rem; /* 15px — h3 / panel titles */
+  --fs-xl: 1rem; /* 16px — h2 */
+  --fs-2xl: 1.125rem; /* 18px — h1 */
+  --fs-3xl: 1.75rem; /* 28px — blackletter moments */
 
   /* Two letter-spacings, down from six ad-hoc values. */
   --ls-tight: 0.02em; /* display faces */
   --ls-wide: 0.06em; /* uppercase micro-labels */
 
-  --lh-heading: 1.25;
-  --lh-body: 1.55;
-  --lh-table: 1.4;
+  --lh-heading: 1.2;
+  --lh-body: 1.3;
+  --lh-table: 1.25;
+
+  /* Fonts. next/font now loads exactly one face, the blackletter, which
+     arrives on <html> as --font-display (web/app/layout.js). The other three
+     are plain system stacks declared here. Unlayered :root, so these outrank
+     Tailwind v4's own --font-sans / --font-mono theme defaults, which live in
+     @layer theme. --font-serif is deliberately the SAME face as --font-sans:
+     headings are body-face bold now, and keeping the name means the ~12
+     `var(--font-serif)` call sites below need no sweep. */
+  --font-sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: var(--font-sans);
+  --font-mono: "Courier New", Courier, ui-monospace, monospace;
 
   /* 4px spacing scale, replacing 14 ad-hoc padding values. */
   --sp-1: 4px;
@@ -59,12 +71,16 @@
   --sp-7: 48px;
   --sp-8: 64px;
 
-  /* Radius ladder, replacing the single --radius: 4px. */
-  --r-sm: 3px; /* chips, inputs, icon buttons */
-  --r-md: 6px; /* panels, cards */
-  --r-lg: 10px; /* modals */
-  --r-full: 999px; /* pills */
-  --radius: var(--r-md); /* legacy alias — pre-existing call sites */
+  /* Radius. The ladder collapsed to one token at 0 (REDESIGN.md §3). The four
+     old names survive as aliases so the 110 call sites — 55 of them
+     var(--r-sm) — do not need touching; do not re-introduce a non-zero value
+     under any of them. */
+  --r: 0;
+  --r-sm: var(--r);
+  --r-md: var(--r);
+  --r-lg: var(--r);
+  --r-full: var(--r);
+  --radius: var(--r);
 
   /* Every long list — tables, the notes board, a DM thread — is the same
      height. One knob, because this used to be four unrelated ones (70vh,
@@ -90,50 +106,92 @@
   --e-3: 0 12px 32px var(--shadow-color);
 }
 
-/* Dusk — banked coals. Deep, cool, near-black with a green-teal cast. */
+/* Phones (REDESIGN.md §2, Phones): the same look, scaled up. Body to 14px;
+   the 44px tap floor is untouched and stays where it already is. */
+@media (max-width: 720px) {
+  :root {
+    --fs-base: 0.875rem; /* 14px */
+    --fs-sm: 0.875rem;
+  }
+
+  /* iOS zooms a focused control under 16px. The chat composer already does
+     this; every other control needs it now that the body face is 13px. */
+  .field input,
+  .field textarea,
+  .field select,
+  .control {
+    font-size: max(16px, var(--fs-base));
+  }
+}
+
+/* Dusk — the lamps banked. The warmer, lower of the two looks on the one rust
+   ground (REDESIGN.md §3). Warm black, iron, dried blood; no teal, no orange.
+   The surfaces sit higher than the chat mockup's #0d0b08/#171310/#211b16
+   because the 1.20-per-rung ladder makes those impossible — #171310 on ANY
+   ground measures at most 1.18 — and because Bascinet's 10% correction asks
+   for dark rather than black. bg -> surface is 1.21, surface -> raised 1.23. */
 [data-theme="dusk"] {
   color-scheme: dark;
-  --bg: #111e1b;
-  --surface: #1e352f;
-  --surface-raised: #27443e;
-  --field-bg: rgba(0, 0, 0, 0.22); /* recessed BELOW the surface, not another panel */
-  --border: rgba(168, 198, 194, 0.31);
-  --text: #efe7d6;
+  --bg: #0e0c09;
+  --surface: #26201a;
+  --surface-raised: #363028;
+  --field-bg: rgba(0, 0, 0, 0.32); /* recessed BELOW the surface, not another panel */
+  --border: #5b4f40;
+
+  /* The bevel pair (REDESIGN.md §3, Shape). --border-hi is the lit top-left
+     edge of a .btn, --border-lo the shadowed bottom-right and the hard dark
+     edge inside a .field. Both are drawn as explicit per-side borders rather
+     than with the `outset`/`inset` keywords, which compute their own light
+     and dark from border-color and land differently per browser. */
+  --border-hi: #6b5d4c;
+  --border-lo: #0b0907;
+
+  --text: #b3ada2;
 
   /* Quoted speech in a Chat row (CHAT.md §5). A warm lift of --text, not a
-     second accent: the tint says "these are the words somebody actually
-     said", and a hue that competed with --accent would read as a link.
-     Gated at AA against --surface by audit-contrast.js like every other
-     text token. */
-  --speech: #efd3a4;
-  --muted: #9daca6;
-  --accent: #c8542a;
-  --accent-text: #e8814f;
-  --accent-solid: #a8431a;
-  --on-accent: #efe7d6;
-  --positive: #7fb27a;
-  --warning: #d9973f;
-  --danger: #ee7f6b;
+     second accent. Gated at AA against --surface like every other text token. */
+  --speech: #eeb086;
+  --muted: #9f9789;
+
+  /* Dried blood, desaturated a little from the mockup's #7a2a24/#d8806a per
+     the 10% correction. --accent is a FILL and a RULE only; --accent-text is
+     what text and outlines take. */
+  --accent: #74302a;
+  --accent-text: #d18a78;
+  --accent-solid: #5e241e;
+  --on-accent: #e8ddd4;
+
+  /* Lamplight and moss carry more of the interface than the blood does. */
+  --positive: #83a26d;
+  --warning: #c9a24a;
+  --danger: #f0685f;
+
+  /* The blackletter (a zone heading, a decree, the name on the sheet), always
+     at >= 24px and always with text-shadow: 0 2px 3px #000 at the call site.
+     Lifeweb's own #744 and REDESIGN.md's #9a5a5a both measure under 3.0 on
+     this ground (2.94), so this is lifted to 3.65 — the large-text floor, the
+     same deviation the zone code's Fortress carries. Never set it on body text. */
+  --blackletter: #a86666;
+
   --row-hover: rgba(255, 255, 255, 0.05);
-  --shadow-color: rgba(0, 0, 0, 0.45);
+  --shadow-color: rgba(0, 0, 0, 0.5);
 
-  /* The zone code. Colour-picked from the Plate map
-     (public/assets/Map_Basic.png) so every zone wears the palette the map
-     already drew it in: the castle's red roofs, the town's thatch, the olive
-     scrub of the woodland, the blue-grey, grey-green and mauve of the Black
-     Hills, Marshes and Depths, mountain rock for the Caves.
+  /* The name palette (REDESIGN.md §3): six muted hues, one per character,
+     assigned stably and used as BOLD TEXT on a log line — so unlike the zone
+     and tag codes these owe full AA, and audit-contrast.js gates them at 4.5.
+     Both looks share one set, like the tag code. Worst case 6.16. */
+  --name-1: #a8b4c8;
+  --name-2: #9fb58f;
+  --name-3: #c8ab74;
+  --name-4: #c79c9c;
+  --name-5: #8fb2b0;
+  --name-6: #b79cc0;
 
-     These are FILLS ONLY -- the 3px rule on a .zone-chip, never a text
-     colour -- so audit-contrast.js gates them at 3.0 against --surface
-     rather than AA 4.5. None of them would ever clear 4.5; do not spend one
-     on a label.
-
-     Fortress deviates from the map here: the roof terracotta #9c4132
-     measures 2.00 against this surface, so it is lifted in L with hue and
-     saturation held. Do not "fix" it back to the map value.
-
-     There is no --zone-underground: that zone is a category and a GM seat,
-     never a place, so nothing ever renders a chip for it. */
+  /* The zone code — unchanged from before the redesign. Colour-picked from the
+     Plate map, FILLS ONLY (the 3px rule on a .zone-chip, never a text colour),
+     gated at 3.0 against --surface rather than AA. Fortress stays lifted off
+     the map's #9c4132; do not "fix" it back. There is no --zone-underground:
+     that zone is a category and a GM seat, never a place. */
   --zone-fortress: #c7604f;
   --zone-town: #998d6b;
   --zone-forest: #7f8c64;
@@ -142,22 +200,10 @@
   --zone-caves: #939d9e;
   --zone-depths: #8f7f9c;
 
-  /* The tag code -- one token per Tag.category, the 3px rule on a .chip.
-     Colour answers a single question here ("what KIND of thing is this"),
-     and the group icon answers the finer one; before this, colour came from
-     TagGroup.color, a freeform hex per group, so a sheet was 34 stripes with
-     no key and the same hue could mean two different things.
-
-     Hues are inherited from the old per-group palette (General blue, Skills
-     green, Status amber, Health red, Items teal, Assets stone, Demoness
-     magenta), but SATURATION is cut hard -- roughly 50% down to 20-35% -- so
-     a full sheet reads as one object rather than as confetti. Mute by
-     desaturating, never by darkening: the 3.0 floor below is a LUMINANCE
-     rule, so chroma is the part that is free to spend.
-
-     FILLS ONLY, like the zone code above, and gated the same way by
-     audit-contrast.js at 3.0 against --surface rather than AA 4.5. Do not
-     set one on a label. */
+  /* The tag code — one token per Tag.category, the 3px rule on a .chip, a
+     sheet row or an item card. Unchanged: every value clears the 3.0 floor on
+     the new ground with room to spare (worst case 5.95). Fills only. Mute by
+     spending chroma, never luminance. */
   --tag-general: #96a3bd;
   --tag-skills: #9ab494;
   --tag-status: #bfac84;
@@ -166,28 +212,18 @@
   --tag-assets: #aeaaa2;
   --tag-demoness: #b892ae;
 
-  /* The river on the /map plate. The drawn plate is flat Playscii art with
-     exactly one accent in it -- #57a9bc, the water -- picked in the drawing
-     program, so it followed no theme and sat wrong against the palette in all
-     three. Rather than ship a tinted copy of the art per theme, the water is
-     cut to an alpha mask (docs/assets/make-map-river.py -> map-river.png) and
-     painted through it with this token, so it follows the theme like every
-     other surface and a fourth theme would get a river for free.
+  /* The river on the /map plate, painted through map-river.png's alpha mask.
+     Re-solved off the old teal, which the rust palette does not admit: a cool
+     slate that still reads as water. A fill, not a text colour — read against
+     the plate's own ground (#0c1013, 4.02) and land (#c1c4c2, 2.70), not
+     against --surface, since the art does not change with the theme. */
+  --map-river: #52788c;
 
-     A FILL, not a text colour: nothing is ever set on it, so it is gated like
-     the zone code rather than at AA. Read against the plate's own ground
-     (#0c1013) and land (#c1c4c2), not against --surface -- the art does not
-     change with the theme, only this does. */
-  --map-river: #4f9d94;
-
-  /* Chart categorical series (web/app/components/charts/). Eight hues, fixed
-     order, validated with the dataviz skill's validate_palette.js against
-     this theme's --surface (#1e352f): all six checks pass; three slots land
-     in the sub-3:1 relief band, so every chart that uses them also ships a
-     legend/direct label or a table view rather than colour alone. Dusk and
-     dawn share one dark-mode set (both dark surfaces, same validated run);
-     limestone gets its own light-mode set below. Never reassign a slot's
-     hue -- the order is the CVD-safety mechanism, not decoration. */
+  /* Chart categorical series (web/app/components/charts/). Unchanged, and
+     deliberately so: the eight hues were validated as a set with the dataviz
+     skill, the order is the CVD-safety mechanism, and both new surfaces are
+     DARKER than the ones they were validated on, so every slot only gains
+     relief. Re-validating them is chart work, not this phase. */
   --chart-series-1: #3987e5;
   --chart-series-2: #d95926;
   --chart-series-3: #199e70;
@@ -196,44 +232,48 @@
   --chart-series-6: #008300;
   --chart-series-7: #9085e9;
   --chart-series-8: #e66767;
-  /* Diverging pair (minted vs burned, above/below a baseline): blue<->red,
-     the same poles as --chart-series-1/8, gray midpoint at --border. */
   --chart-pos: var(--chart-series-1);
   --chart-neg: var(--chart-series-8);
   --chart-grid: var(--border);
   --chart-axis: var(--muted);
 }
 
-/* Dawn — lamps up. Not daylight: a warmer, lifted dark with brighter ember. */
+/* Dawn — the lamps up. The same rust ground, a little cooler and a little
+   lifted; that lift is the ONLY difference between the two looks
+   (REDESIGN.md §4). bg -> surface 1.25, surface -> raised 1.24. */
 [data-theme="dawn"] {
   color-scheme: dark;
-  --bg: #1b1512;
-  --surface: #362a24;
-  --surface-raised: #46372d;
-  --field-bg: rgba(0, 0, 0, 0.2);
-  --border: rgba(224, 203, 172, 0.28);
-  --text: #f3eada;
+  --bg: #12100e;
+  --surface: #2a2521;
+  --surface-raised: #3a3430;
+  --field-bg: rgba(0, 0, 0, 0.28);
+  --border: #605448;
+  --border-hi: #706253;
+  --border-lo: #0d0b09;
+  --text: #bdb7ab;
+  --speech: #ecb694;
+  --muted: #a59d8b;
+  --accent: #7c3a31;
+  --accent-text: #d59182;
+  --accent-solid: #6a2d24;
+  --on-accent: #efe6dc;
+  --positive: #8aa878;
+  --warning: #cfa955;
+  --danger: #f2736a;
+  --blackletter: #ae6f6c; /* 3.82 — see the dusk block for why this is not #9a5a5a */
+  --row-hover: rgba(255, 255, 255, 0.055);
+  --shadow-color: rgba(0, 0, 0, 0.45);
 
-  /* Quoted speech in a Chat row (CHAT.md §5). A warm lift of --text, not a
-     second accent: the tint says "these are the words somebody actually
-     said", and a hue that competed with --accent would read as a link.
-     Gated at AA against --surface by audit-contrast.js like every other
-     text token. */
-  --speech: #f2cf9c;
-  --muted: #b3a390;
-  --accent: #d2691e;
-  --accent-text: #ee9a5c;
-  --accent-solid: #a8431a;
-  --on-accent: #f3eada;
-  --positive: #8cb77f;
-  --warning: #e0a34a;
-  --danger: #e87a62;
-  --row-hover: rgba(255, 255, 255, 0.05);
-  --shadow-color: rgba(0, 0, 0, 0.4);
+  /* The name palette — see the dusk block. One set for both looks. */
+  --name-1: #a8b4c8;
+  --name-2: #9fb58f;
+  --name-3: #c8ab74;
+  --name-4: #c79c9c;
+  --name-5: #8fb2b0;
+  --name-6: #b79cc0;
 
-  /* Zone code -- see the dusk block for what these are and why they are not
-     gated at AA. Fortress is lifted again (#9c4132 measures 2.12 on this
-     surface); the others ship the map hex untouched. */
+  /* Zone code — see the dusk block. Fortress is lifted a shade further here
+     because this surface is lighter; the rest ship the map hex untouched. */
   --zone-fortress: #c45947;
   --zone-town: #998d6b;
   --zone-forest: #7f8c64;
@@ -242,10 +282,7 @@
   --zone-caves: #939d9e;
   --zone-depths: #8f7f9c;
 
-  /* Tag code -- see the dusk block. Both dark themes share one set: the two
-     surfaces are close enough in luminance that every token clears 3.0 on
-     each (worst case 5.13), and a second set would be two things to keep in
-     step for no visible gain. */
+  /* Tag code — see the dusk block. Both looks share one set. */
   --tag-general: #96a3bd;
   --tag-skills: #9ab494;
   --tag-status: #bfac84;
@@ -254,13 +291,10 @@
   --tag-assets: #aeaaa2;
   --tag-demoness: #b892ae;
 
-  /* The /map river -- see the dusk block. Sunrise on the water, warm, since
-     dawn is the one theme whose whole ember runs orange. */
-  --map-river: #c07a3c;
+  /* The /map river — see the dusk block. Dawn's is the lifted one; the old
+     #c07a3c sunrise orange is gone with the ember palette. */
+  --map-river: #6c8598;
 
-  /* Chart categorical series -- see the dusk block. Same validated dark-mode
-     set (re-checked against this theme's --surface, #362a24: all six checks
-     pass, same relief slots). */
   --chart-series-1: #3987e5;
   --chart-series-2: #d95926;
   --chart-series-3: #199e70;
@@ -275,90 +309,6 @@
   --chart-axis: var(--muted);
 }
 
-/* Limestone — the light-theme backup, kept for comparison rather than wired
-   in by phase. It is never what themeForPhase() returns; reach it by setting
-   BASCINET_THEME=limestone (see web/app/layout.js). Worth keeping around
-   because its ground->surface separation (1.53) beats either dark theme —
-   light themes simply have more luminance headroom to spend.
-
-   One deliberate exception to the ladder rule at the top of this file: the
-   surface here is already near-white, so there is no headroom left above it
-   and --surface-raised cannot separate by luminance (white over #FBFAF7 is
-   1.04). In a light theme that tier is carried by SHADOW instead — --e-3 on
-   .modal-panel and .tag-tooltip — which is how light UIs conventionally lift
-   a modal off a card. Do not "fix" this by darkening --surface: that turns
-   crisp paper into muddy grey and costs the 1.53 ground separation. */
-[data-theme="limestone"] {
-  color-scheme: light;
-  --bg: #d2ccc0;
-  --surface: #fbfaf7;
-  --surface-raised: #ffffff;
-  --field-bg: rgba(0, 0, 0, 0.05);
-  --border: rgba(74, 66, 56, 0.39);
-  --text: #22201c;
-
-  /* Quoted speech in a Chat row (CHAT.md §5). A warm lift of --text, not a
-     second accent: the tint says "these are the words somebody actually
-     said", and a hue that competed with --accent would read as a link.
-     Gated at AA against --surface by audit-contrast.js like every other
-     text token. */
-  --speech: #6b3a12;
-  --muted: #5f5952;
-  --accent: #a8431a;
-  --accent-text: #8f3814;
-  --accent-solid: #a8431a;
-  --on-accent: #ffffff;
-  --positive: #3f5c38;
-  --warning: #7a4a0f;
-  --danger: #9b3324;
-  --row-hover: rgba(0, 0, 0, 0.035);
-  --shadow-color: rgba(40, 34, 28, 0.18);
-
-  /* Zone code -- see the dusk block. On a near-white surface the deviation
-     inverts: Fortress ships the map hex at full strength (6.26), and it is
-     the pale ones that have to darken — Caves' stone grey #939d9e measures
-     2.66 here, and the Black Hills, Marshes and Depths sit in the same band. */
-  --zone-fortress: #9c4132;
-  --zone-town: #998d6b;
-  --zone-forest: #7f8c64;
-  --zone-hills: #6c7c8e;
-  --zone-marshes: #7f8677;
-  --zone-caves: #838e90;
-  --zone-depths: #82728f;
-
-  /* Tag code -- see the dusk block. The dark set inverts here the way the
-     zone code does: on a near-white surface a pale muted hue has no contrast
-     left, so each token is taken down in L with its hue and its low chroma
-     held. Muted still means desaturated, not merely dark. */
-  --tag-general: #5c6880;
-  --tag-skills: #5c7358;
-  --tag-status: #786541;
-  --tag-health: #8d5757;
-  --tag-items: #48706d;
-  --tag-assets: #6e6a62;
-  --tag-demoness: #7d5672;
-
-  /* The /map river -- see the dusk block. Limestone was not named when this
-     was chosen; it takes dusk's teal a shade deeper, and is the one of the
-     three to revisit if the water reads wrong in daylight. */
-  --map-river: #3f8b90;
-
-  /* Chart categorical series -- see the dusk block. Light-mode set, validated
-     against this theme's --surface (#fbfaf7): all six checks pass, with
-     aqua/yellow/magenta in the sub-3:1 relief band (legend + labels cover it). */
-  --chart-series-1: #2a78d6;
-  --chart-series-2: #eb6834;
-  --chart-series-3: #1baf7a;
-  --chart-series-4: #eda100;
-  --chart-series-5: #e87ba4;
-  --chart-series-6: #008300;
-  --chart-series-7: #4a3aa7;
-  --chart-series-8: #e34948;
-  --chart-pos: var(--chart-series-1);
-  --chart-neg: var(--chart-series-8);
-  --chart-grid: var(--border);
-  --chart-axis: var(--muted);
-}
 
 /* Bridge the tokens into Tailwind. Without this the app runs two disconnected
    systems — colours in CSS vars (reached via inline style objects) and sizes
@@ -418,23 +368,22 @@ body {
 body {
   margin: 0;
   color: var(--text);
-  /* Source Sans 3, not the mono. Mono as body text was wallpaper: it made
-     every dense GM table wider and harder to read, and left the mono itself
-     with no meaning. It now signifies "machine record" — see .mono below. */
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  /* The plain system stack, set on :root. The tool half of the look: this
+     should read like output, not like a brand (REDESIGN.md §1). */
+  font-family: var(--font-sans);
   font-size: var(--fs-base);
   line-height: var(--lh-body);
   background: var(--bg);
 }
 
-/* Headings read in the serif. Source Serif 4 and Source Sans 3 are a designed
-   superfamily, so they share metrics and vertical rhythm for free. h3 is
-   included now that a real --fs-lg exists for panel titles to sit at. */
+/* Headings are the body face, bold, barely larger than body (REDESIGN.md §3).
+   --font-serif is an alias of --font-sans now; the name and this rule stay so
+   no call site has to change and no heading ever hand-applies a font class. */
 h1,
 h2,
 h3 {
-  font-family: var(--font-serif), Georgia, serif;
-  font-optical-sizing: auto;
+  font-family: var(--font-serif);
+  font-weight: 700;
   line-height: var(--lh-heading);
   letter-spacing: var(--ls-tight);
 }
@@ -443,7 +392,7 @@ h3 {
    dice, IDs, timestamps, audit rows — anything a human reads as data rather
    than as prose. Applied by .data-table's numeric columns and by hand. */
 .mono {
-  font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -468,28 +417,35 @@ h3 {
   background: var(--accent);
 }
 
-/* Atmosphere. The old .scanlines lived here — a 1px repeating-linear-gradient
-   at 0.06 opacity, i.e. not actually visible, paying a compositing cost for
-   nothing. These two read as material rather than as a filter.
+/* Atmosphere, two fixed pointer-events:none layers that composite once and
+   never animate (REDESIGN.md §9: no backdrop-filter, no per-frame animation).
+   .grain is the ground now: one Lifeweb tile under every page, held back so it
+   reads as texture and not as a subject.
 
-   Guardrails, both deliberate: no backdrop-filter anywhere, and no animation.
-   Each is one fixed pointer-events:none layer that composites a single time. */
+   z-index: -1, not 0. A fixed positioned layer at z-index 0 paints ABOVE the
+   in-flow content below it, which was harmless at the old 0.025 turbulence and
+   would put a visible film over every page at 0.25. Negative pulls both layers
+   behind the content and above the canvas. Panels are opaque --surface, so the
+   texture shows in the gutters, exactly as the mockup draws it. */
 .grain,
 .vignette {
   position: fixed;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
 }
 
-/* Inline SVG turbulence as a data URI — no network request, no image asset. */
+/* The ground. 0.25 app-wide (REDESIGN.md §3); the chat log takes it stronger,
+   and that is phase 4's job, not this rule's. The tile is 512x512 and is drawn
+   at 1:1 — sprites scale at integer multiples only. */
 .grain {
-  opacity: 0.025;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.25;
+  background-image: url("/assets/chrome/chatbg.png");
+  background-repeat: repeat;
+  background-size: 512px 512px;
+  image-rendering: pixelated;
 }
 
-/* Sells "underground" by darkening the edges, without touching legibility in
-   the centre where content actually sits. */
 .vignette {
   background: radial-gradient(ellipse at center, transparent 55%, var(--shadow-color) 100%);
   opacity: 0.55;
@@ -513,20 +469,45 @@ h3 {
 .panel {
   border: 1px solid var(--border);
   background: var(--surface);
-  border-radius: var(--r-md);
+  border-radius: var(--r);
 }
 
-/* A proper section header, replacing the bare `h2.mb-3.font-bold` that had six
-   different ad-hoc treatments across 28 call sites — 22 of which carried no
-   size at all and so inherited body size. */
+/* A section header, and the one piece of sprite chrome that goes app-wide:
+   bg2.png as a 32x16 strip repeated along the foot (REDESIGN.md §2, Panel
+   chrome). The strip IS the rule, so the old border-bottom is gone — two
+   lines under one heading reads as a mistake.
+
+   Drawn as ::after rather than as the element's own background so the 16px
+   sprite sits BELOW the words instead of behind them, and so it is never
+   squashed: integer multiples only.
+
+   flex: 1 1 auto because Panel.js puts this h2 in a flex row beside its
+   actions; without it the strip stops at the end of the title. Outside a flex
+   row it is ignored and the header spans the panel as before. */
 .panel-header {
+  position: relative;
   display: block;
-  margin: 0 0 var(--sp-3);
-  padding-bottom: var(--sp-2);
-  border-bottom: 1px solid var(--border);
-  font-family: var(--font-serif), Georgia, serif;
+  flex: 1 1 auto;
+  margin: 0 0 var(--sp-2);
+  padding-bottom: 20px;
+  font-family: var(--font-serif);
   font-size: var(--fs-lg);
+  font-weight: 700;
   line-height: var(--lh-heading);
+  color: var(--text);
+}
+
+.panel-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 16px;
+  background-image: url("/assets/chrome/bg2.png");
+  background-repeat: repeat-x;
+  background-size: 32px 16px;
+  image-rendering: pixelated;
 }
 
 .panel-header--with-icon {
@@ -552,7 +533,7 @@ h3 {
 
 .markdown-content code {
   background: rgba(127, 127, 127, 0.25);
-  border-radius: 3px;
+  border-radius: 0;
   padding: 0.05em 0.3em;
   font-size: 0.9em;
 }
@@ -668,20 +649,24 @@ input[type="radio"]:focus-visible,
   outline-offset: 2px;
 }
 
-/* Primary action: a real solid fill. This is the biggest single visual change
-   in the redesign and it lands on all 73 .btn call sites at once.
-   --accent-solid + --on-accent is 4.90 (dusk) / 5.05 (dawn) / 6.03 (limestone).
-   The old outline .btn used --accent as its TEXT colour at 3.86, which meant
-   every button in the app failed AA. */
+/* Primary action. A 2px bevel on a flat fill, pressed on :active — the
+   fixture half of the look (REDESIGN.md §3). The edges are explicit per-side
+   borders, not the `outset` keyword: `outset` computes its own light and dark
+   from border-color and lands differently in every browser. */
 .btn {
   all: unset;
   cursor: pointer;
-  border: 1px solid var(--accent-solid);
+  box-sizing: border-box;
+  border-top: 2px solid var(--border-hi);
+  border-left: 2px solid var(--border-hi);
+  border-right: 2px solid var(--border-lo);
+  border-bottom: 2px solid var(--border-lo);
   background: var(--accent-solid);
   color: var(--on-accent);
-  padding: 7px 14px;
-  border-radius: var(--r-sm);
+  padding: 4px 10px;
+  border-radius: var(--r);
   font-size: var(--fs-xs);
+  font-weight: 700;
   letter-spacing: var(--ls-wide);
   text-align: center;
   display: inline-flex;
@@ -690,7 +675,14 @@ input[type="radio"]:focus-visible,
 }
 
 .btn:hover {
-  filter: brightness(1.12);
+  background: var(--accent);
+}
+
+.btn:active {
+  border-top-color: var(--border-lo);
+  border-left-color: var(--border-lo);
+  border-right-color: var(--border-hi);
+  border-bottom-color: var(--border-hi);
 }
 
 .btn:disabled {
@@ -699,19 +691,23 @@ input[type="radio"]:focus-visible,
 }
 
 .btn:disabled:hover {
-  filter: none;
+  background: var(--accent-solid);
 }
 
-/* The old outline look, kept for secondary actions — but drawn in
-   --accent-text so it passes AA where the original did not. */
+/* The everyday verb. A raised grey bevel, not an outline: the outline was the
+   ember look's, and every action strip on the sheet is a row of these. */
 .btn-secondary {
   all: unset;
   cursor: pointer;
-  border: 1px solid var(--accent-text);
-  color: var(--accent-text);
-  background: transparent;
-  padding: 7px 14px;
-  border-radius: var(--r-sm);
+  box-sizing: border-box;
+  border-top: 2px solid var(--border-hi);
+  border-left: 2px solid var(--border-hi);
+  border-right: 2px solid var(--border-lo);
+  border-bottom: 2px solid var(--border-lo);
+  background: var(--surface-raised);
+  color: var(--text);
+  padding: 4px 10px;
+  border-radius: var(--r);
   font-size: var(--fs-xs);
   letter-spacing: var(--ls-wide);
   text-align: center;
@@ -721,7 +717,23 @@ input[type="radio"]:focus-visible,
 }
 
 .btn-secondary:hover {
-  background: color-mix(in srgb, var(--accent-text) 14%, transparent);
+  background: color-mix(in srgb, var(--text) 8%, var(--surface-raised));
+}
+
+.btn-secondary:active {
+  border-top-color: var(--border-lo);
+  border-left-color: var(--border-lo);
+  border-right-color: var(--border-hi);
+  border-bottom-color: var(--border-hi);
+}
+
+/* A gated verb: dashed, and it does not press. */
+.btn-secondary[aria-disabled="true"],
+.btn-secondary:disabled {
+  border: 2px dashed var(--border);
+  background: var(--field-bg);
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .btn-secondary:disabled,
@@ -737,17 +749,20 @@ input[type="radio"]:focus-visible,
   background: none;
 }
 
-/* Destructive actions — Reject, Kill, Restart Game — which until now reused
-   --accent and so looked identical to a primary action. */
 .btn-danger {
   all: unset;
   cursor: pointer;
-  border: 1px solid var(--danger);
+  box-sizing: border-box;
+  border-top: 2px solid color-mix(in srgb, var(--danger) 45%, var(--surface));
+  border-left: 2px solid color-mix(in srgb, var(--danger) 45%, var(--surface));
+  border-right: 2px solid var(--border-lo);
+  border-bottom: 2px solid var(--border-lo);
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
   color: var(--danger);
-  background: transparent;
-  padding: 7px 14px;
-  border-radius: var(--r-sm);
+  padding: 4px 10px;
+  border-radius: var(--r);
   font-size: var(--fs-xs);
+  font-weight: 700;
   letter-spacing: var(--ls-wide);
   text-align: center;
   display: inline-flex;
@@ -756,7 +771,14 @@ input[type="radio"]:focus-visible,
 }
 
 .btn-danger:hover {
-  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  background: color-mix(in srgb, var(--danger) 20%, var(--surface));
+}
+
+.btn-danger:active {
+  border-top-color: var(--border-lo);
+  border-left-color: var(--border-lo);
+  border-right-color: color-mix(in srgb, var(--danger) 45%, var(--surface));
+  border-bottom-color: color-mix(in srgb, var(--danger) 45%, var(--surface));
 }
 
 .btn-quiet {
@@ -764,7 +786,25 @@ input[type="radio"]:focus-visible,
   cursor: pointer;
   color: var(--muted);
   font-size: var(--fs-xs);
-  padding: 4px 0;
+  padding: 3px 4px;
+  text-decoration: underline;
+}
+
+.btn-quiet:hover {
+  color: var(--text);
+}
+
+/* REDESIGN.md §9: the 44px floor stays. The desktop buttons are deliberately
+   small now, so on a touch pointer they grow to a thumb. */
+@media (pointer: coarse) {
+  .btn,
+  .btn-secondary,
+  .btn-danger,
+  .modal-actions .btn-quiet,
+  .chat-buttons .btn-quiet {
+    min-height: var(--tap);
+    touch-action: manipulation;
+  }
 }
 
 /* A dialog's footer. .btn-quiet is a flush text link at its other 56 call
@@ -789,7 +829,7 @@ input[type="radio"]:focus-visible,
   box-sizing: border-box;
   border: 1px solid transparent;
   border-radius: var(--r-sm);
-  padding: 7px 14px;
+  padding: 4px 10px;
 }
 
 /* A long dialog's own sections — the staging composer chief among it, which
@@ -937,6 +977,7 @@ input[type="radio"]:focus-visible,
 .field-label {
   color: var(--muted);
   font-size: var(--fs-xs);
+  font-weight: 700;
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
 }
@@ -955,8 +996,7 @@ input[type="radio"]:focus-visible,
    specific argument's specificity and start beating the :disabled rule,
    silently un-greying the read-only GM title on /character.
 
-   The 8px 10px is deliberately off the --sp-* scale: the 1px border eats into
-   it, and 12px reads loose beside .btn's 14px. */
+   3px 6px matches the mockup's inputs and the table cell's 2px 6px. */
 .field input:not(:where([type="checkbox"], [type="radio"], [type="hidden"],
                         [type="range"], [type="color"], [type="button"],
                         [type="submit"], [type="reset"], [type="image"])),
@@ -969,10 +1009,17 @@ input[type="radio"]:focus-visible,
    name promised it was for text, so nobody reached for it. */
 .control {
   background: var(--field-bg);
-  border: 1px solid var(--border);
+  /* Inset: a hard dark edge top and left, the ordinary hairline bottom and
+     right, so a control reads as cut into the panel (REDESIGN.md §3). Explicit
+     sides rather than the `inset` keyword, for the same reason .btn does not
+     use `outset`. */
+  border-top: 1px solid var(--border-lo);
+  border-left: 1px solid var(--border-lo);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
   color: var(--text);
-  padding: 8px 10px;
-  border-radius: var(--r-sm);
+  padding: 3px 6px;
+  border-radius: var(--r);
   font-family: inherit;
   font-size: var(--fs-base);
 }
@@ -1824,19 +1871,18 @@ input[type="radio"]:disabled {
   color: var(--muted);
 }
 
-/* A state, wearing what it means rather than a colour a call site picked. The
-   tones are the whole vocabulary — a status cannot reach for a colour the
-   themes have not solved, which is how "bad" ended up drawn with --accent in
-   some tables and --danger in others.
-
-   Quiet by design: it borrows .chip's shape but not its border, because most
-   rows in a long table are in the ordinary state and a table where every row
-   shouts reads as noise. Only the tones that MEAN something take a colour. */
+/* A state, wearing what it means. Bold coloured text, no background and no
+   border (REDESIGN.md §3) — the fill was the pill look's. The tones are the
+   whole vocabulary; only the ones that MEAN something take a colour. */
 .status-pill {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
+  background: none;
+  border: 0;
+  padding: 0;
   font-size: var(--fs-xs);
+  font-weight: 700;
   letter-spacing: var(--ls-tight);
   color: var(--text);
   white-space: nowrap;
@@ -1862,14 +1908,16 @@ input[type="radio"]:disabled {
      name ("Paralyzed· 2t"). The gap is what separates them. */
   gap: 4px;
   border: 1px solid var(--border);
-  background: var(--field-bg);
+  /* The 3px category rule, on every chip (REDESIGN.md §3). Width and colour
+     are set here, never the `border-left` SHORTHAND — see the note under
+     [data-tag-category] below for why the shorthand is what broke this once. */
+  border-left-width: 3px;
+  border-left-color: var(--tag-rule, var(--border));
+  background: var(--surface-raised);
   color: var(--text);
-  padding: 3px 9px;
-  border-radius: var(--r-full);
+  padding: 1px 5px;
+  border-radius: var(--r);
   font-size: var(--fs-xs);
-  /* Pinned, not inherited. Without this a chip took the body's line-height
-     while any chip carrying Tailwind's text-xs took 1rem, so the two rendered
-     2px apart — which is why the desk headers' chips never lined up. */
   line-height: 1.25;
   letter-spacing: var(--ls-tight);
 }
@@ -1888,7 +1936,7 @@ input[type="radio"]:disabled {
    below, since these sit inside table cells and prose that may hand down a
    serif face or bold weight. */
 .chip-mono {
-  font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
+  font-family: var(--font-mono);
   font-weight: normal;
   text-transform: none;
   letter-spacing: normal;
@@ -1918,7 +1966,7 @@ input[type="radio"]:disabled {
    print as a backtick. Discord strings still use plain backticks, because
    Discord does render them. */
 .cmd-chip {
-  font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
+  font-family: var(--font-mono);
   font-size: 0.92em;
   font-weight: normal;
   font-style: normal;
@@ -2053,7 +2101,7 @@ input[type="radio"]:disabled {
   position: relative;
   display: inline-flex;
   outline: none;
-  font-family: var(--font-mono), ui-monospace, "SFMono-Regular", monospace;
+  font-family: var(--font-mono);
   font-weight: normal;
   text-transform: none;
   letter-spacing: normal;
@@ -2092,7 +2140,7 @@ input[type="radio"]:disabled {
   background: var(--surface-raised);
   border-radius: var(--r-md);
   padding: 8px 10px;
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-weight: normal;
   font-size: var(--fs-xs);
   line-height: var(--lh-table);
@@ -2648,15 +2696,12 @@ input[type="radio"]:disabled {
   z-index: 1;
 }
 
-/* Same serif and size as .panel-header, deliberately without the hairline
-   rule. Use it wherever the heading is a flex child sitting beside something
-   else — a modal title next to its close button, a status band next to its
-   value — because there a border-bottom underlines the title text instead of
-   spanning the container, which reads as an underline, not a divider. */
+/* Same face and size as `.panel-header`, deliberately without the strip. */
 .section-title {
   margin: 0;
-  font-family: var(--font-serif), Georgia, serif;
+  font-family: var(--font-serif);
   font-size: var(--fs-lg);
+  font-weight: 700;
   line-height: var(--lh-heading);
 }
 
@@ -2753,23 +2798,24 @@ input[type="radio"]:disabled {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   line-height: var(--lh-table);
 }
 
 /* Numeric columns keep the mono, so figures line up and read as data. Mark
    the cells with class="mono" (or wrap the value) — it is no longer the
-   default now that the body face is Source Sans. */
+   default now that the body face is the plain system stack. */
 .data-table .mono {
   font-variant-numeric: tabular-nums;
 }
 
 .data-table th {
   text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
   color: var(--muted);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   font-size: var(--fs-xs);
   letter-spacing: var(--ls-wide);
@@ -2777,8 +2823,8 @@ input[type="radio"]:disabled {
 }
 
 .data-table td {
-  padding: var(--sp-2) var(--sp-3);
-  border-bottom: 1px solid var(--border);
+  padding: 2px 6px;
+  border: 1px solid var(--border);
   vertical-align: top;
 }
 
@@ -3402,7 +3448,7 @@ input[type="radio"]:disabled {
    rest of the app's chrome — squarer corners, a warmer surface, a serif
    body — so a document reads as a physical handout rather than another
    panel. Everything still resolves through the theme tokens, so it tracks
-   dusk/dawn/limestone like everything else. */
+   dusk and dawn like everything else. */
 .doc-board {
   display: grid;
   gap: var(--sp-4);
@@ -3437,8 +3483,7 @@ input[type="radio"]:disabled {
    color-mix rather than a new token: the tint is this one card's, not a tier
    of the surface ladder, and inventing a --surface-pinned would imply
    otherwise. 8% is deliberately weak — it has to lift off --surface-raised in
-   dusk and dawn without turning into a block of colour in limestone, where
-   the surface is nearly white. */
+   dusk and dawn without turning into a block of colour. */
 .doc-card--pinned {
   border-color: var(--accent-text);
   background: color-mix(in srgb, var(--accent-text) 8%, var(--surface-raised));
@@ -3459,7 +3504,7 @@ input[type="radio"]:disabled {
    put this paper in your folder. Alt colour on purpose: it is metadata
    about the document, not part of it. */
 .doc-card-source {
-  font-family: var(--font-mono), ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: var(--fs-2xs);
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
@@ -3467,7 +3512,7 @@ input[type="radio"]:disabled {
 }
 
 .doc-card-title {
-  font-family: var(--font-serif), Georgia, serif;
+  font-family: var(--font-serif);
   font-size: var(--fs-lg);
   line-height: var(--lh-heading);
   color: var(--text);
@@ -3479,7 +3524,7 @@ input[type="radio"]:disabled {
 .doc-card-body {
   flex: 1;
   min-height: 0;
-  font-family: var(--font-serif), Georgia, serif;
+  font-family: var(--font-serif);
   font-size: var(--fs-sm);
   line-height: var(--lh-body);
   color: var(--muted);
@@ -3525,7 +3570,7 @@ input[type="radio"]:disabled {
    spacing between paragraphs/lists/tables comes from .markdown-content
    below, not from preserving raw source whitespace. */
 .doc-sheet-body {
-  font-family: var(--font-serif), Georgia, serif;
+  font-family: var(--font-serif);
   font-size: var(--fs-base);
   line-height: var(--lh-body);
   color: var(--text);
@@ -3536,7 +3581,7 @@ input[type="radio"]:disabled {
    it read as a thing in the hand rather than a paragraph of UI. `plain` is
    the server's line ABOUT the paper — a refusal, a seal — drawn flat. */
 .paper-sheet {
-  font-family: var(--font-serif), Georgia, serif;
+  font-family: var(--font-serif);
   font-size: var(--fs-base);
   line-height: 1.6;
   color: var(--text);
@@ -4098,7 +4143,7 @@ input[type="radio"]:disabled {
 .desk-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: 0;
   padding: 1rem;
   /* No max-width. This used to cap at 52rem and centre itself, which was a
      reading measure for a full-page column — but the desks' middle column is
@@ -4116,7 +4161,7 @@ input[type="radio"]:disabled {
   background: var(--surface-raised);
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
-  border-radius: 0.375rem;
+  border-radius: 0;
   padding: 0.75rem;
 }
 
@@ -4147,7 +4192,7 @@ input[type="radio"]:disabled {
 }
 
 .desk-move-text {
-  font-family: var(--font-serif), Georgia, serif;
+  font-family: var(--font-serif);
   font-size: 0.95rem;
   padding-left: 0.75rem;
   border-left: 2px solid var(--border);
@@ -4179,7 +4224,7 @@ input[type="radio"]:disabled {
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
-  border-radius: 0.375rem;
+  border-radius: 0;
   background: var(--field-bg);
 }
 
@@ -4852,7 +4897,7 @@ label.chip {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  border-radius: 0.25rem;
+  border-radius: 0;
 }
 
 .desk-archive-row:hover {
@@ -4862,7 +4907,7 @@ label.chip {
 /* The anchor row inside the "in context" popup — the line the GM clicked. */
 .desk-archive-anchor {
   outline: 1px solid var(--accent);
-  border-radius: 0.375rem;
+  border-radius: 0;
   background: var(--field-bg);
   padding: 0.375rem 0.5rem;
 }
@@ -5581,7 +5626,7 @@ label.chip {
 }
 
 .dm-letter-name {
-  font-family: var(--font-serif), Georgia, serif;
+  font-family: var(--font-serif);
   color: var(--text);
 }
 
@@ -5607,7 +5652,7 @@ label.chip {
 
 .dm-letter-text {
   margin-top: 0.35rem;
-  font-family: var(--font-serif), Georgia, serif;
+  font-family: var(--font-serif);
   color: var(--text);
   /* A letter keeps the line breaks whoever wrote it put in. */
   white-space: pre-wrap;
@@ -7151,7 +7196,7 @@ label.chip {
   width: var(--chat-face);
   height: var(--chat-face);
   flex-shrink: 0;
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--row-hover);
 }
 
@@ -9116,7 +9161,7 @@ label.chip {
    (--font-mono is for data) and takes its colour from a tone rather than a
    token picked at the call site — the .status-pill rule, same four names. */
 .ledger-tile-value[data-word="true"] {
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .ledger-tile-value[data-tone="muted"] {
@@ -9166,7 +9211,7 @@ label.chip {
 .combat-band {
   font-size: var(--fs-lg);
   line-height: 1.2;
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* Eight steps from red through grey to green, mixed from the theme's own
@@ -9383,7 +9428,7 @@ label.chip {
   cursor: pointer;
   /* Pinned, not inherited: the .tag-hover wrapper the tooltip brings with it
      hands down the mono face, and these are labels, not data. */
-  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;

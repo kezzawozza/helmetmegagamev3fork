@@ -210,12 +210,9 @@ at 3.0 contrast rather than 4.5, because none of them would clear AA and
 forcing them to would mean abandoning the map's palette. Never spend one on
 text.
 
-Two sibling themes ship alongside this one. **Dawn** is the same system with the
+A sibling theme ships alongside this one. **Dawn** is the same system with the
 lamps up — warmer browns (`#1b1512` ground, `#362a24` surface) and a brighter
 ember (`#d2691e`) — and swaps in automatically with the game's turn phase.
-**Limestone** is a light backup (`#d2ccc0` ground, `#fbfaf7` surface) kept for
-comparison; because its surface is already near-white it has no luminance
-headroom left, so its raised tier is carried by shadow instead of colour.
 
 ## Typography
 

@@ -169,9 +169,8 @@ nothing ever renders a chip for it.
 A few of the values deviate from the map, and the comments in
 `globals.css` say why: Fortress's terracotta measures **2.00** on dusk's
 surface and **2.12** on dawn's, so it is lifted in lightness with hue and
-saturation held; Caves' stone grey measures **2.66** on limestone, so it
-darkens there. The other nine ship the map hex untouched. Do not "fix" the
-three back.
+saturation held. The other nine ship the map hex untouched. Do not "fix" the
+two back.
 
 **These are fills only — the rule down the side of a chip, never a text
 colour.** They are gated at **3.0** against `--surface` (the large-graphic

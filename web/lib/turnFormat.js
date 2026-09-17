@@ -26,7 +26,7 @@ export function describeTurn(turn) {
   return { day, phase: turn.phase, label: `DAY ${day} · ${turn.phase}` };
 }
 
-export const THEMES = ["dusk", "dawn", "limestone"];
+export const THEMES = ["dusk", "dawn"];
 
 export function themeForPhase(phase) {
   return phase === "DUSK" ? "dusk" : "dawn";

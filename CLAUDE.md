@@ -939,7 +939,7 @@ it before writing any UI. Four rules apply everywhere:
   everything else. A bare `<select>` outside `.field` visibly breaks the
   theme.
 - **`--font-mono` is for data only** (numbers, IDs, timestamps), applied with
-  `.mono`. Headings get their serif automatically from the tag — never
+  `.mono`. Headings get their face automatically from the tag — never
   hand-apply a font class. `--font-display` (blackletter) is for a handful of
   thematic moments.
 - **`react-hooks/set-state-in-effect`, `react-hooks/immutability` and

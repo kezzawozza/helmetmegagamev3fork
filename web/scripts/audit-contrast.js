@@ -2,27 +2,31 @@
 // audit:contrast --workspace=web`). Parses token values straight out of the
 // stylesheet so it can never drift. Two rules people break by accident: the
 // surface ladder (--bg -> --surface -> --surface-raised must keep ~1.20
-// contrast per step, except a near-white --surface which is shadow-carried
-// instead — see the limestone block), and --accent vs --accent-text (text
-// and outlines must use --accent-text; --accent is a fill only). The zone
-// code (--zone-*) is fills only too, gated at 3.0 against --surface, not AA.
+// contrast per step), and --accent vs --accent-text (text and outlines must
+// use --accent-text; --accent is a fill only). The zone code (--zone-*) is
+// fills only too, gated at 3.0 against --surface, not AA.
 
 const fs = require("fs");
 const path = require("path");
 
 const CSS_PATH = path.join(__dirname, "..", "app", "globals.css");
-const THEMES = ["dusk", "dawn", "limestone"];
+const THEMES = ["dusk", "dawn"];
 
 const AA = 4.5; // WCAG AA, normal-size text
 const LADDER_MIN = 1.2; // per-step surface separation
 const BORDER_MIN = 1.9; // hairline vs the surface it sits on
-const NEAR_WHITE = 0.85; // relative luminance above which raised is shadow-carried
 const ZONE_MARK_MIN = 3.0; // large-graphic floor, not AA — none of the map-picked hues would clear 4.5
 const ZONE_KEYS = ["fortress", "town", "forest", "hills", "marshes", "caves", "depths"];
 // The tag code (--tag-*), one per Tag.category. Fills only, same 3.0 floor as
 // the zone code: these are deliberately desaturated, and muting spends chroma
 // rather than luminance precisely so this gate keeps holding.
 const TAG_KEYS = ["general", "skills", "status", "health", "items", "assets", "demoness"];
+// The name palette (REDESIGN.md §3), one hue per character. Unlike the zone
+// and tag codes these are TEXT — a bold name on a log line — so they owe full
+// AA, not the 3.0 graphic floor.
+const NAME_KEYS = ["1", "2", "3", "4", "5", "6"];
+// Large-display floor for the blackletter, which is only ever drawn at >= 24px.
+const DISPLAY_MIN = 3.0;
 
 function parseColor(value) {
   if (value.startsWith("#")) {
@@ -141,13 +145,7 @@ function main() {
 
     gate("bg -> surface", contrast(bg, surface), LADDER_MIN);
 
-    if (luminance(surface) > NEAR_WHITE) {
-      results.push(
-        `  n/a   ${"surface -> surface-raised".padEnd(31)}${contrast(surface, raised).toFixed(2)}  (shadow-carried: surface is near-white)`,
-      );
-    } else {
-      gate("surface -> surface-raised", contrast(surface, raised), LADDER_MIN);
-    }
+    gate("surface -> surface-raised", contrast(surface, raised), LADDER_MIN);
 
     gate("border vs surface", contrast(composite(parseColor(t["--border"]), surface), surface), BORDER_MIN);
 
@@ -183,6 +181,12 @@ function main() {
         ZONE_MARK_MIN,
       );
     }
+
+    for (const key of NAME_KEYS) {
+      gate(`--name-${key} on surface`, contrast(parseColor(t[`--name-${key}`]).rgb, surface), AA);
+    }
+
+    gate("--blackletter on surface", contrast(parseColor(t["--blackletter"]).rgb, surface), DISPLAY_MIN);
 
     console.log(`\n=== ${theme} ===`);
     console.log(results.join("\n"));

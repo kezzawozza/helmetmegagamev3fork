@@ -1,4 +1,4 @@
-import { IBM_Plex_Mono, Source_Sans_3, Source_Serif_4, UnifrakturMaguntia } from "next/font/google";
+import { UnifrakturMaguntia } from "next/font/google";
 import "./globals.css";
 import { getOpenTurn, getMoveWindow } from "@/lib/turn";
 import { resolveTheme } from "@/lib/turnFormat";
@@ -17,26 +17,9 @@ import ConfirmProvider from "./components/ConfirmProvider";
 import NoticeProvider from "./components/NoticeProvider";
 import { RefreshProvider } from "./components/useRefresh";
 
-// Body/UI face. Pairs with Source Serif 4 as a designed superfamily.
-const sans = Source_Sans_3({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
-
-// Data only now (numbers, dice, IDs, audit rows), not body text — so 700 is
-// dropped: nothing sets bold mono, and each weight is another font payload.
-const mono = IBM_Plex_Mono({
-  variable: "--font-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-});
-
-const serif = Source_Serif_4({
-  variable: "--font-serif",
-  subsets: ["latin"],
-  style: ["normal", "italic"],
-});
-
+// The one download (REDESIGN.md §3). Body, headings and mono are plain system
+// stacks declared on :root in globals.css; Source Sans 3, Source Serif 4 and
+// IBM Plex Mono are gone.
 const display = UnifrakturMaguntia({
   variable: "--font-display",
   subsets: ["latin"],
@@ -81,16 +64,15 @@ export default async function RootLayout({ children }) {
   const moveWindowPromise = getMoveWindow().catch(() => null);
 
   const turn = await getOpenTurn();
-  // BASCINET_THEME pins the whole environment to one theme, which is the only
-  // way to see "limestone" — no turn phase maps to it. Leave it unset in
-  // production so the theme keeps tracking dawn/dusk.
+  // BASCINET_THEME pins the whole environment to one look regardless of the
+  // turn's phase — "dusk" or "dawn". Leave it unset in production.
   const theme = resolveTheme(turn?.phase, process.env.BASCINET_THEME);
 
   return (
     <html
       lang="en"
       data-theme={theme}
-      className={`${sans.variable} ${mono.variable} ${serif.variable} ${display.variable} h-full`}
+      className={`${display.variable} h-full`}
     >
       <body className="h-full">
         {/* Two fixed, non-interactive atmosphere layers behind everything.
