@@ -13,6 +13,7 @@
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { adapt } = require("../../lib/economyAdapter");
+const { resourcesByCharacterIds, resourcesByRoomIds } = require("../../lib/resourceStack");
 
 const BATCH = 500;
 
@@ -130,14 +131,21 @@ async function writePlugs(gameId) {
   const booked = new Map(legs.map((r) => [`${r.kind}:${r.id}`, Number(r.delta) || 0]));
 
   const [chars, rooms] = await Promise.all([
-    prisma.character.findMany({ select: { id: true, name: true, resources: true } }),
-    prisma.room.findMany({ select: { id: true, name: true, resources: true } }),
+    prisma.character.findMany({ select: { id: true, name: true } }),
+    prisma.room.findMany({ select: { id: true, name: true } }),
+  ]);
+  // ⬢ live in a CharacterTag/RoomTag stack row now (db/lib/resourceStack.js),
+  // not a `resources` column — one batch read apiece instead of a select.
+  const [charBalances, roomBalances] = await Promise.all([
+    resourcesByCharacterIds(prisma, chars.map((c) => c.id)),
+    resourcesByRoomIds(prisma, rooms.map((r) => r.id)),
   ]);
 
   const rows = [];
-  for (const [kind, list] of [["character", chars], ["room", rooms]]) {
+  for (const [kind, list, balances] of [["character", chars, charBalances], ["room", rooms, roomBalances]]) {
     for (const row of list) {
-      const drift = row.resources - (booked.get(`${kind}:${row.id}`) ?? 0);
+      const live = balances.get(row.id) ?? 0;
+      const drift = live - (booked.get(`${kind}:${row.id}`) ?? 0);
       if (!drift) continue;
       const party = { kind, id: row.id, name: row.name };
       rows.push({

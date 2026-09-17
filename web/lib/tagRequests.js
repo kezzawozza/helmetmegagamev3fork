@@ -3,6 +3,7 @@
 
 import { holdsRequirement } from "./characterCreation";
 import { isTradeable } from "@lifeweb/db/lib/tradeable";
+import { RESOURCES_SLUG } from "@lifeweb/db/lib/resourceStack";
 
 // Lifted into db/lib so Search can ask the same question from the other side of
 // the monorepo (SEARCH.md), and re-exported here so TAGS.md §5's "single reader"
@@ -135,9 +136,26 @@ export function moveFamilyOf(tag) {
   return craftFamily(tag);
 }
 
+// ⬢ are a tradeable item since 9/2026, and they must STAY tradeable —
+// db/lib/tagWeight.js zeroes an untradeable tag's weight, so un-flagging them
+// would make a fortune weightless again. What they must not do is show up in a
+// picker that already has a ⬢ field of its own. Transfer, Loot, a room stash
+// and a Depot crate each take an ⬢ AMOUNT beside their item list; listing the
+// stack as an item too would offer two ways to move the same ⬢ in one dialog,
+// and only one of them is the singly-booked ledger path
+// (db/lib/resourceTransfer.js#applyTransfer writes ONE row for a transfer,
+// which is the invariant ECONOMY.md §3 exists to protect).
+//
+// Pickpocket is the deliberate exception and is NOT filtered here: it has no
+// ⬢ field, and lifting a sack of raw material out of somebody's pack against
+// the weight budget is exactly the thing ⬢ becoming an object was for.
+function notResources(ct) {
+  return (ct?.tag?.slug ?? ct?.slug) !== RESOURCES_SLUG;
+}
+
 export function transferableTags(characterTags = []) {
   return characterTags
-    .filter((ct) => isTradeable(ct.tag))
+    .filter((ct) => isTradeable(ct.tag) && notResources(ct))
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1, poisonMarker: Boolean(ct.poisonMarker) }));
 }
 
@@ -153,7 +171,7 @@ export function isMount(tag) {
 
 export function packableTags(characterTags = []) {
   return characterTags
-    .filter((ct) => isTradeable(ct.tag) && !isCrate(ct.tag) && !isMount(ct.tag))
+    .filter((ct) => isTradeable(ct.tag) && !isCrate(ct.tag) && !isMount(ct.tag) && notResources(ct))
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 

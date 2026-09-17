@@ -111,10 +111,12 @@ those rows is gone; neither is dead code while one exists.
 
 ## 4. Silos are rooms
 
-`Faction.siloRoomId` points at a `Room`. The room's own `Room.resources` and
-`RoomTag` stacks **are** the silo — there is no faction-level balance, and the
-`Silo` model removed in 9/2026 is not coming back. That is also why a silo
-stores tags: a room always did (`CARRY.md`).
+`Faction.siloRoomId` points at a `Room`. The room's own `RoomTag` stacks **are**
+the silo — there is no faction-level balance, and the `Silo` model removed in
+9/2026 is not coming back. That is also why a silo stores tags: a room always
+did (`CARRY.md`). ⬢ are one of those stacks: `Room.resources` was a separate
+Int column until 9/2026, and a silo's ⬢ are now a `resources` stack row in the
+room like any other holding (`db/lib/resourceStack.js`, `TAGS.md`).
 
 Two factions may share a room. The Church and the Order both sit in the
 Cathedral. A silo must be **in the faction's own zone** — deposits are

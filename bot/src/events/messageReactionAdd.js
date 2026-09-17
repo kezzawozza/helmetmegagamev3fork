@@ -29,6 +29,8 @@ const { buildEditPrompt, stashEdit } = require("../lib/editModal");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const { tagDisplayName } = require("@lifeweb/db/lib/tagDisplayName");
 const { ghostCharacterFor } = require("@lifeweb/db/lib/ghost");
+// The dossier loads the whole tag set, and ⬢ are one of those rows now.
+const { resourcesOf } = require("@lifeweb/db/lib/resourceStack");
 
 const DELETE_EMOJI = "❌";
 const EDIT_EMOJIS = ["✏️", "📝"];
@@ -138,7 +140,7 @@ async function handleDossierReaction(reaction, proxy, user) {
       value: [
         where,
         character.faction?.name ?? "Unaffiliated",
-        `${character.resources} ⬢`,
+        `${resourcesOf(character)} ⬢`,
         proxy.concealed ? `concealed as ${proxy.alias ?? "Unknown"}` : null,
       ]
         .filter(Boolean)

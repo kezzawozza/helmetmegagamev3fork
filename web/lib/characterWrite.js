@@ -16,6 +16,7 @@ import {
   applyTagOpsInTx as applyTagOpsInTxDb,
 } from "@lifeweb/db/lib/tagOps";
 import { clampMood } from "@lifeweb/db/lib/mood";
+import { readCharacterResources, setCharacterResources } from "@lifeweb/db/lib/resourceStack";
 import { UserError } from "@/lib/actionResult";
 import { dynastyLastName } from "@/lib/dynasty";
 
@@ -34,6 +35,8 @@ export const EDITABLE_FIELDS = [
   "locationId",
   "isLeader",
   "isTreasurer",
+  // Still posted and still honoured, but it is no longer a column — see the
+  // `resources` branch in normalizeCoreEdits below.
   "resources",
   "tagPoints",
   "mood",
@@ -60,7 +63,14 @@ function bool(value) {
   return value === true || value === "true" || value === "on";
 }
 
-// Turns the raw posted `core` object into exactly the columns to write; async for two lookups (role dynasty-lock, living Baron's name).
+// Turns the raw posted `core` object into exactly the columns to write; async for two lookups (role dynasty-lock, living Baron's name) and, when the GM moved the ⬢ figure, the stack read behind it.
+//
+// Returns `{ data, role, leader, resources }`. `resources` is null when the GM
+// left the field alone, and `{ from, to }` when they did not — it is a stack
+// row rather than a column since 9/2026, so it cannot ride along in `data`.
+// The before-value is read here, outside the transaction, so a caller can fold
+// it into its diff the same way every other field is diffed and still decide
+// "nothing changed" before opening one. Write it with applyResourcesInTx.
 export async function normalizeCoreEdits({ prisma, existing, core }) {
   const picked = {};
   for (const key of EDITABLE_FIELDS) {
@@ -143,7 +153,13 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
     }
   }
 
-  if ("resources" in picked) data.resources = intOrNull(picked.resources) ?? 0;
+  // An absolute set, so the GM types the balance they want rather than a
+  // delta. Clamped at 0: ⬢ are an item now, and nobody carries -3 of a thing.
+  let resources = null;
+  if ("resources" in picked) {
+    const to = Math.max(0, intOrNull(picked.resources) ?? 0);
+    resources = { from: await readCharacterResources(prisma, existing.id), to };
+  }
   // The mood dial's own clamp (MOOD.md), so the rounding rule lives in one place.
   if ("mood" in picked) data.mood = clampMood(Number(picked.mood));
   // tagPoints is allowed to go negative on purpose (CHARACTERS.md) — clamping at 0 would let a broke player take a drawback's points for free.
@@ -155,7 +171,15 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   // isLeader is handled separately by setLeaderInTx — writing the boolean bare is how a faction ends up with two leaders.
   const leader = "isLeader" in picked ? bool(picked.isLeader) : null;
 
-  return { data, role, leader };
+  return { data, role, leader, resources };
+}
+
+// The ⬢ half of an Apply, run inside the caller's transaction beside the
+// character.update. Pass the `resources` normalizeCoreEdits handed back, or
+// null to do nothing.
+export async function applyResourcesInTx(tx, characterId, resources) {
+  if (!resources || resources.from === resources.to) return null;
+  return setCharacterResources(tx, characterId, resources.to);
 }
 
 // Key-by-key {from, to} over only the keys actually written. Drives the audit row and the Discord effect plan.

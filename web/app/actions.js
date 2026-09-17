@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto";
 import { signIn, signOut } from "@/lib/auth";
 import { isLocalMode } from "@lifeweb/db/lib/localMode";
-import { prisma } from "@lifeweb/db";
+import { prisma, addCharacterResources } from "@lifeweb/db";
 import { randomCharacterName } from "@lifeweb/db/lib/nameCorpus";
 import { formatCharacterName, GENDERS } from "@/lib/characterName";
 
@@ -45,7 +45,7 @@ export async function startAsLocalPlayer() {
   const gender = GENDERS[Math.floor(Math.random() * GENDERS.length)];
   const { firstName, lastName } = randomCharacterName({ gender });
 
-  await prisma.character.create({
+  const character = await prisma.character.create({
     data: {
       discordUserId,
       firstName,
@@ -60,9 +60,11 @@ export async function startAsLocalPlayer() {
       // together (ARCHITECTURE.md §6).
       locationId: role.startingLocationId ?? null,
       zoneId: role.startingLocation?.zoneId ?? null,
-      resources: role.startingResources,
     },
   });
+  // Starting ⬢ is a stack now, not a column on the create — grant it once the
+  // row exists (db/lib/resourceStack.js).
+  await addCharacterResources(prisma, character.id, role.startingResources);
 
   await signIn("local", { playerId: discordUserId, redirectTo: "/character" });
 }

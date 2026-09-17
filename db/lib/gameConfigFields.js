@@ -71,10 +71,9 @@ const FIELDS = [
     key: "carryWeightLbs", type: "int", group: "carry", default: 71, min: 1, max: 2000,
     label: "Carry cap: lb",
   },
-  {
-    key: "carryResourceCap", type: "int", group: "carry", default: 25, min: 1, max: 1000,
-    label: "Carry cap: ⬢",
-  },
+  // No second cap for ⬢ any more: they are a one-pound item, so they push
+  // against the pound cap above beside the gear and the column is gone from the
+  // schema. A dead entry here would fail db:check-config, not just sit unread.
   {
     key: "freeZoneMovesPerTurn", type: "int", group: "carry", default: 1, min: 0, max: 5,
     label: "Free zone moves",

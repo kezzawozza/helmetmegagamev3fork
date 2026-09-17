@@ -11,12 +11,30 @@ in, and forms are what `EconomyEntry.form` names:
 
 | Form | Where it lives | What is special about it |
 |---|---|---|
-| `BALANCE` | `Character.resources`, `Room.resources` | Abstract and weightless. The common case |
-| `COIN` | physical `obol` tags | Has weight, can be looted, is the Merchant's actual purse |
+| `BALANCE` | `resources` tag stacks, on a character or a Room | Raw material. A pound a unit, so a fortune is freight. The common case |
+| `COIN` | physical `obol` tags | Weightless, can be looted, is the Merchant's actual purse |
 | `ACCOUNT` | `Depot.accountObols` | The station's float. Opens at 20 ¢ |
 | `DEBT` | `Depot.debtObols` | Negative money, capped at `creditCapObols` (75) |
 | `MANIFEST` | `Depot.manifest` | Paid for, not yet landed. Real money, in transit |
 | `GOODS` | any tag with `sellablePrice` or `depotPrice` | Valued at its catalog price. A tag with no price is not money |
+
+**`BALANCE` stopped being abstract in 9/2026.** It named two Int columns,
+`Character.resources` and `Room.resources` — a number on a sheet nobody could
+pick your pocket for. ⬢ are a Tag now (`resources`, one pound, beside `obol` in
+`docs/tags.yaml`), held in the same `CharacterTag` / `RoomTag` stacks as every
+other item, and read and written only through `db/lib/resourceStack.js`. The
+form kept its name because the distinction it draws — raw material against
+coin — is still the distinction the panel needs; what changed is that both
+sides of it are now objects.
+
+So both money tags carry a price in the catalog and neither is priced by it:
+`db/lib/pricedTags.js` flags them `isObol` / `isResources`, and
+`recordTagMoney` books them at **par**, one unit one ⬢, as `COIN` and `BALANCE`
+rather than `GOODS`. Resources have a `depotPrice` of 2 and a `sellablePrice`
+of 1 so the Depot's counter can trade them like any ware (`DEPOT.md`); that
+spread is the Merchant's margin, not the value of a ⬢. **A ware priced on both
+sides must never be counted as goods AND as balance** —
+`goodsValueInWorld()` excludes both slugs for exactly that reason.
 
 **Never sum the Depot's account and the Merchant's purse.** They are two pots
 and the ATM is the only door between them (`DEPOT.md` §0g). A panel that adds
@@ -61,7 +79,7 @@ Each takes an optional trailing context; absent, the entry is recorded as
 
 | Hook | File | Covers |
 |---|---|---|
-| `moveParty` | `db/lib/resourceTransfer.js` | every `BALANCE` move |
+| `moveParty` | `db/lib/resourceTransfer.js` | every `BALANCE` move — over `db/lib/resourceStack.js`'s stack writes, not a column |
 | `applyTransfer` | `db/lib/resourceTransfer.js` | a two-legged transfer, as ONE row |
 | `bumpAccount` | `db/lib/depotState.js` | `ACCOUNT` and `DEBT` |
 | `addToStack` / `dropCharacterTag` / `addToRoomStack` / `dropRoomTag` | `db/lib/tagWrites.js` | `COIN` and `GOODS` |
@@ -89,9 +107,10 @@ a tag write costs no extra query. An unpriced tag — a wound, a skill, a corpse
 
 - **The Spillway.** `Room.destroysContents` silently dropped whatever was put
   into it. It now writes a `SPILLWAY` burn.
-- **The overdraw clamp.** `addResources` floors at zero with
-  `GREATEST(0, ...)`, so a debit larger than a balance destroyed the shortfall.
-  It now writes a `CLAMP` burn for the difference.
+- **The overdraw clamp.** `addResources` floors at zero — raw SQL with a
+  `GREATEST(0, ...)` once, `resourceStack.js`'s clamped write now — so a debit
+  larger than a balance destroyed the shortfall. It writes a `CLAMP` burn for
+  the difference.
 
 Neither left any trace anywhere in the game before the ledger. Both are real
 money destruction and both are now on the Sinks section.
@@ -133,8 +152,9 @@ The adapter (`db/lib/economyAdapter.js`) is built against
 `web/lib/auditNarrative.js`, which is the only file that already knows which
 call site named its number `resourcesSpent` and which called it `total`.
 
-**What cannot be recovered**: the per-character passes (hunger, upkeep, tax,
-carry each wrote one summary row per pass), the Spillway, and the clamp. So
+**What cannot be recovered**: the per-character passes (upkeep, tax and carry
+each wrote one summary row per pass — hunger did too, until it stopped moving
+⬢ at all), the Spillway, and the clamp. So
 after a backfill each account gets one `PLUG` row sized to the gap between its
 reconstructed sum and its live balance. The books then close at the seam, and
 **a plug's size is a diagnostic, not history** — Health reports them for
@@ -212,8 +232,10 @@ Two numbers the desk deliberately does not compute:
 ## 9. Things not to do
 
 - **Don't make the ledger a source of truth for a balance.** Balances stay on
-  `Character` / `Room` / `Depot`. The ledger exists to be compared against
-  them. Two writable copies of one number is how this goes wrong.
+  the holdings — a ⬢ balance IS its stack row, the Depot's are its own
+  columns. The ledger exists to be compared against them. Two writable copies
+  of one number is how this goes wrong, and it is why ⬢ becoming a tag meant
+  DELETING the columns rather than keeping them in step with the stacks.
 - **Don't write a ledger row outside the caller's transaction.** A row
   recording a write that rolled back is worse than no row.
 - **Don't let a ledger failure fail a money move.** A try/catch is NOT enough:

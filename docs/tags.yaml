@@ -319,7 +319,7 @@ tags:
     catalog: gm
     name: Hungerless
     category: meta
-    description: "Never flagged hungry, even with insufficient Resources."
+    description: "Never goes hungry, fed or not."
     pointCost: 0
     purchasable: false
 
@@ -1465,15 +1465,30 @@ tags:
   # keepSlug: renamed from "Fast Metabolism" 2026-09-05, but the slug is
   # hardcoded in db/lib/constants.js and read by db/lib/hungerPass.js, so it
   # stays what it is.
+  # INERT, AND WORTH −6 POINTS — read this before the next balance pass.
+  # Its whole mechanic was doubling the Hunger pass's per-turn ⬢ charge from 1
+  # to 2. That charge was removed in 9/2026: eating is a meal on the sheet now,
+  # not a debit (db/lib/hungerPass.js). So this currently does NOTHING, while
+  # still paying its holder 6 points for the drawback.
+  #
+  # Left in the catalog rather than retired on purpose — the foodstuff-items
+  # work has an obvious home for it (needing two meals a turn rather than one),
+  # and retiring it would only have to be undone. The description below is
+  # written for what it is going to mean; until that lands it is unenforced.
+  # Either give it teeth or drop it to 0 points before anybody buys one.
   fast-metabolism:
     catalog: all
     name: Big Appetite
     keepSlug: true
     category: general
     group: general-traits
-    description: "You consume 2 ⬢ per turn."
+    description: "You need twice as much food as anybody else."
     pointCost: -6
-    purchasable: true
+    # OFF the creation menu until it means something. It is a drawback worth 6
+    # points, and while it is unenforced those are 6 free points for accepting
+    # nothing — the one thing that must not be true of a negative-cost tag.
+    # Turn this back on in the same change that gives it teeth.
+    purchasable: false
     purchasableAfterStart: false
 
   # Sign flip 2026-08-31 (Desires rework): was a -2 drawback, now a +2
@@ -3357,7 +3372,7 @@ tags:
     name: Ate Meal
     category: status
     group: status-food
-    description: "You don't consume any Resources today, because you ate a proper meal. Sheds 1 turn of Hunger."
+    description: "You have eaten today. You are fed for the turn, and it sheds 1 turn of Hunger."
     pointCost: 0
     purchasable: false
 

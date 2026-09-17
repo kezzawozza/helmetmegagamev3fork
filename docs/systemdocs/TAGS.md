@@ -540,8 +540,12 @@ Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
 the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
 at 3** — between the 2 and 5 bands, the same kind of deliberate outlier as
 Pack Mule. **Fast Metabolism is a fourth, at −6** — between the −5 and −7
-bands; it is the only tag that changes the *size* of the per-turn upkeep
-rather than exempting somebody from it (`TURN-ENGINE.md` §2 step 8). **Leper
+bands. It was priced there as the only tag that changed the *size* of the
+per-turn food upkeep rather than exempting somebody from it. **There is no food
+upkeep any more** (9/2026, `TURN-ENGINE.md` §5), so the tag currently does
+nothing at all and the price is holding a seat rather than buying a drawback.
+It is kept rather than retired because the foodstuff-item work will give it a
+mechanic again; until it does, expect the number to be revisited with it. **Leper
 is a fifth, at −1** — below the −2 band, and the reason is arithmetic rather
 than taste: it is the `requiredTag` on the Leper's Hood, which costs 0, so at
 −2 the pair would have *paid* a player to take a free hood. **Depressed is a
@@ -962,7 +966,7 @@ has since been deleted outright along with the channel it opened.
   turn — Hunger, the wound progression, Exhausted, a stack rerolling its
   clock, the staged push — grants for the turn about to open, so it passes
   `turn.number + 1` to `expiryFrom`. Note the ordering it implies: `resolveNeeds()` sweeps *before*
-  the Hunger pass grants, so a still-broke character's Hunger is cleared and
+  the Hunger pass grants, so a still-hungry character's Hunger is cleared and
   re-granted rather than colliding with `@@unique([characterId, tagId])`. See
   `REQUESTS.md` §4.
 
@@ -1177,9 +1181,11 @@ of a two-turn tag lose one every two turns.
 
 `consumable` marks a tag a player can **use up** from their own character
 sheet, and `consumesInto` (a list of tag *slugs*) is what it turns into. A
-meal is `consumable` with `consumesInto: [ate-meal]`; `ate-meal` carries
-`durationTurns: 1` and the Hunger pass consumes it — so the whole chain falls
-out of machinery that already existed. Nothing here is meal-specific: the one
+meal is `consumable` with `consumesInto: [ate-meal]`; `ate-meal` carries no
+`durationTurns` at all and the Hunger pass consumes it explicitly — so the
+whole chain falls out of machinery that already existed. That chain is now the *whole* of being
+fed: since 9/2026 the Hunger pass takes no ⬢ from anyone and asks only whether
+`ate-meal` is on the sheet (`TURN-ENGINE.md` §5, `COOKING.md`). Nothing here is meal-specific: the one
 rule that *is* about meals (a Fine Meal cheers everyone but a noble) is
 expressed as catalog data in `docs/tags.yaml`, not as code.
 
@@ -2363,9 +2369,33 @@ SELECT id FROM "Character" ... FOR UPDATE
 which serializes equips per character. Without it, a burst of 8 concurrent
 equips all land against a cap of 6 (verified).
 
-## Depot tags: obols, crates and sealed shipping
+## Money in the catalog: ⬢, obols, crates and sealed shipping
 
-Three things the Depot rework added to the catalog.
+The two currencies are both ordinary tags now, and they sit side by side in
+`docs/tags.yaml`.
+
+**`resources`** — Resources themselves, the ⬢. Stackable, tradeable,
+`visible: true`, and **1 lb each**. Until 9/2026 this was not a tag at all: it
+was `Character.resources` and `Room.resources`, two Int columns holding a
+weightless number — the one piece of wealth in the game that was not an
+object, and so the one nobody could stash, hand over, pickpocket, loot off a
+corpse or set down when their pack was full. It is an object now, and all of
+that comes free, through exactly the same stack machinery every other item
+uses. Nothing special-cases it; `db/lib/resourceStack.js` is the only module
+that knows a ⬢ balance is a `CharacterTag`/`RoomTag` row.
+
+The pound is not a new number. `db/lib/depotCrates.js` has always weighed a
+**crated** ⬢ at a pound, and loose ⬢ weighing nothing was the inconsistency
+— freight and the sheet finally agree. The consequence is that there is no
+second carry cap any more: ⬢ push against `GameConfig.carryWeightLbs` beside
+the gear, so a fortune in raw material is a cart's worth of work to move
+(`CARRY.md`).
+
+It is priced on **both** sides so the Depot trades it as an ordinary ware —
+`depotPrice: 2`, `sellablePrice: 1`, the losing round trip the Depot has always
+described. The economy ledger still books it as form `BALANCE` rather than
+`GOODS`, which is what keeps ⬢ and obols apart on `/gm/economy`
+(`ECONOMY.md` §1). No `pointCost`, not purchasable at creation.
 
 **`obol`** — the Merchant's currency. Stackable, tradeable, `weight: 0`,
 `visible: false`. One obol is worth exactly one ⬢ — it is that same value made

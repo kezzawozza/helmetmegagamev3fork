@@ -28,6 +28,7 @@ const { normalizeChant, containsPhrase } = require("./rites");
 const { closeDeadchatTo } = require("./deadchat");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
 const { broadcastToZones } = require("./worldBroadcast");
+const { addRoomResources, readRoomResources, takeRoomResources } = require("./resourceStack");
 const {
   THANATI_SLUG,
   THANATI_LEADER_SLUG,
@@ -152,7 +153,9 @@ async function spawnRemains(db, room, { flesh = true, resources = true } = {}) {
     }
     if (resources) {
       const n = rand(2, 5);
-      await tx.room.update({ where: { id: room.id }, data: { resources: { increment: n } } });
+      // ⬢ on the floor are a stack like the parts and the Flesh beside them,
+      // so this is the same kind of write as the addToRoomStack calls above.
+      await addRoomResources(tx, room.id, n);
       spawned.resources = n;
     }
   });
@@ -353,16 +356,19 @@ const EFFECTS = {
   async famine({ db, room }) {
     const factions = await db.faction.findMany({
       where: { siloRoomId: { not: null } },
-      select: { name: true, siloRoom: { select: { id: true, resources: true } } },
+      select: { name: true, siloRoom: { select: { id: true } } },
     });
     const blighted = {};
     await db.$transaction(async (tx) => {
       for (const f of factions) {
         if (!f.siloRoom) continue;
-        const take = Math.min(100, f.siloRoom.resources);
+        // Read inside the transaction now — the balance is a stack row, and
+        // takeRoomResources is the guarded decrement the old `gte` where-clause
+        // was: it takes the whole 100 (or whatever is there) or nothing.
+        const held = await readRoomResources(tx, f.siloRoom.id);
+        const take = Math.min(100, held);
         if (take <= 0) continue;
-        await tx.room.updateMany({ where: { id: f.siloRoom.id, resources: { gte: take } }, data: { resources: { decrement: take } } });
-        blighted[f.name] = take;
+        if (await takeRoomResources(tx, f.siloRoom.id, take)) blighted[f.name] = take;
       }
     });
     await roomLine(db, room, INGREDIENTS_CONSUMED);
@@ -441,7 +447,7 @@ const EFFECTS = {
       });
       if (count === 0) return;
       if (granted > 0) {
-        await tx.room.update({ where: { id: room.id }, data: { resources: { increment: granted } } });
+        await addRoomResources(tx, room.id, granted);
       }
       claimed = true;
     });

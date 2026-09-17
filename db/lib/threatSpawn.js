@@ -24,6 +24,7 @@ const {
   SHUTTLE_ARRIVAL_SLUGS,
 } = require("./threats");
 const { ambientEverywhere } = require("./worldBroadcast");
+const { addCharacterResources } = require("./resourceStack");
 
 // The two buttons on an offer DM. Raw component JSON rather than discord.js builders, since the web sends this one and only the bot has the library.
 function spawnOfferComponents(spawnId) {
@@ -163,7 +164,6 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
           factionId: spawn.role.factionId,
           locationId: location?.id ?? null,
           zoneId: location?.zoneId ?? null,
-          resources: threat.spawn.resources ?? spawn.role.startingResources,
           tagPoints: threat.spawn.tagPoints ?? 0,
           isLeader: spawn.role.grantsLeader,
           isTreasurer: spawn.role.grantsTreasurer,
@@ -175,6 +175,10 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
           data: tagRows.map((row) => ({ characterId: character.id, ...row })),
         });
       }
+
+      // Starting ⬢ are granted AFTER the row exists: they are a stack now, not
+      // a column, so there is nothing to set on the create.
+      await addCharacterResources(tx, character.id, threat.spawn.resources ?? spawn.role.startingResources ?? 0);
 
       await tx.threatSpawn.update({
         where: { id: spawn.id },

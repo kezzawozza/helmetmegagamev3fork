@@ -14,11 +14,15 @@ export async function GET() {
 
   const me = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    select: { id: true, locationId: true, zoneId: true, resources: true, status: true, tagPoints: true },
+    select: { id: true, locationId: true, zoneId: true, status: true, tagPoints: true },
   });
   if (!me) return new Response("No living character.", { status: 403 });
 
-  const [tags, roomTags, roomResources, openTurn, state, offers] = await Promise.all([
+  // ⬢ is a CharacterTag/RoomTag stack now, not a column, so it needs no fingerprint
+  // component of its own: `tags` below already carries the character's own ⬢ row
+  // (it is not filtered out), and `roomTags` already sums every RoomTag in the
+  // location, ⬢ included — a raw `resources` aggregate would just be counting it twice.
+  const [tags, roomTags, openTurn, state, offers] = await Promise.all([
     prisma.characterTag.findMany({
       where: { characterId: me.id },
       select: { tagId: true, quantity: true, equipped: true, equippedQuantity: true, expiresTurn: true },
@@ -32,9 +36,6 @@ export async function GET() {
           _max: { updatedAt: true },
         })
       : null,
-    me.locationId
-      ? prisma.room.aggregate({ where: { locationId: me.locationId }, _sum: { resources: true } })
-      : null,
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } }),
     prisma.gameState.findUnique({ where: { id: 1 }, select: { phase: true, nukeArmedTurn: true } }),
     prisma.offer.count({
@@ -45,7 +46,6 @@ export async function GET() {
   const fp = [
     me.locationId ?? "",
     me.zoneId ?? "",
-    me.resources,
     me.tagPoints,
     tags
       .map((t) => `${t.tagId}:${t.quantity}:${t.equipped ? 1 : 0}:${t.equippedQuantity}:${t.expiresTurn ?? ""}`)
@@ -53,7 +53,6 @@ export async function GET() {
     roomTags?._count?._all ?? 0,
     roomTags?._sum?.quantity ?? 0,
     roomTags?._max?.updatedAt?.getTime() ?? 0,
-    roomResources?._sum?.resources ?? 0,
     openTurn?.id ?? "",
     openTurn?.number ?? "",
     state?.phase ?? "",

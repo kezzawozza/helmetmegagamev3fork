@@ -5,6 +5,7 @@ import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
 import { getGuildMember } from "@/lib/discordGuild";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { isSuperadmin } from "@/lib/superadmin";
 import { isHealable } from "@/lib/healRequests";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
@@ -333,7 +334,12 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
   // The band's Carrying tile: the same carryStatus() LedgerBand.js's own
   // "Carrying" tile calls, fed the nested shape it needs — not the flattened
   // `held` below, which drops the columns carryStatus reads.
-  const carry = carryStatus({ tags: heldTagsComposed, resources: character.resources }, config);
+  // ⬢ are one of these rows now, so there is nothing to pass beside the tags.
+  const carry = carryStatus({ tags: heldTagsComposed }, config);
+
+  // The band's ⬢ figure, read off the stack the same way every other surface
+  // reads it.
+  const resources = resourcesOf({ tags: heldTags });
 
   return {
     character: {
@@ -359,7 +365,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       status: character.status,
       isLeader: character.isLeader,
       isTreasurer: character.isTreasurer,
-      resources: character.resources,
+      resources,
       tagPoints: character.tagPoints,
       // The dial itself, so the Mood box shows what it actually is
       // (docs/systemdocs/MOOD.md). It was missing while this was `fear`, so

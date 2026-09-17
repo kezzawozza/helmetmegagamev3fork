@@ -19,6 +19,7 @@ const { GENDERS } = require("./titles");
 const { isDynastyMember, DYNASTY_HEAD_SLUG } = require("./dynasty");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { sendDm } = require("./dm");
+const { addCharacterResources } = require("./resourceStack");
 
 // Half the default `startingTagPoints` of 8, not a second full budget: a
 // second life, not a better one.
@@ -162,7 +163,6 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
         // Denormalization contract: every locationId writer also writes zoneId.
         locationId: role.startingLocationId ?? null,
         zoneId: role.startingLocation?.zoneId ?? null,
-        resources: role.startingResources,
         // Unspent, on purpose — see the bonus note above.
         tagPoints: budget,
         isLeader: role.grantsLeader,
@@ -186,6 +186,10 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
         },
       });
     }
+
+    // Starting ⬢ come after the row, not on it: they are a stack now, so there
+    // is no column left to set on the create.
+    await addCharacterResources(tx, character.id, role.startingResources ?? 0);
     return character;
   };
 

@@ -15,6 +15,7 @@ import { loadMentionDirectory } from "@/lib/mentionDirectory";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { speakerDirectory } from "@/lib/gmSpeakers";
@@ -206,7 +207,8 @@ async function FreshChat({ userId }) {
           prisma.character.findUnique({
             where: { id: viewer.character.id },
             select: {
-              resources: true,
+              // No `resources` field any more — ⬢ is a stack in `tags` below
+              // now, read back out with `resourcesOf(sheet)`.
               // `id` is the CharacterTag row, which is what an equip toggle
               // acts on; the Things drawer is the only thing here that needs
               // one (./thingRows.js). `equippedQuantity` alongside `equipped`
@@ -315,6 +317,10 @@ async function FreshChat({ userId }) {
         });
         const clientSheet = {
           ...sheet,
+          // A plain number again on the client shape, same key as before the
+          // column moved — ⬢ is read off the tag stack now, not a field
+          // Prisma hands back for free.
+          resources: resourcesOf(sheet),
           tags: (sheet?.tags ?? []).map((ct) => {
             const { poisonedCount, poisonPayload, ...ctRest } = ct;
             const cut = cookedTasteOnly(ctRest.tag);

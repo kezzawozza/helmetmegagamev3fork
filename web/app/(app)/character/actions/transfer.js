@@ -249,14 +249,15 @@ export async function transferRequestImpl(
   if (to.kind === "character") {
     const recipient = await prisma.character.findUnique({
       where: { id: to.id },
+      // The tags ARE the whole load now, ⬢ included — they weigh a pound each
+      // like anything else, so there is no second balance to select.
       select: {
-        resources: true,
         tags: { select: { quantity: true, equipped: true, tag: true } },
       },
     });
     const config = await prisma.gameConfig.findUnique({
       where: { id: 1 },
-      select: { carryWeightLbs: true, carryResourceCap: true },
+      select: { carryWeightLbs: true },
     });
     const addedLbs = moves.reduce(
       (sum, m) => sum + rowWeight({ ...m.held, quantity: m.quantity }),

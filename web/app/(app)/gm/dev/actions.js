@@ -43,6 +43,7 @@ import { roomLine, locationLine, zoneLine } from "@lifeweb/db/lib/placeLine";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { inactiveCharacters } from "@lifeweb/db/lib/inactivity";
 import { grantTagSlugs, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
+import { addCharacterResources, resourcesByCharacterIds } from "@lifeweb/db/lib/resourceStack";
 import { getFactionAncestorIds } from "@/lib/factionPermissions";
 import { mintLetterFor, sealWithMark } from "@lifeweb/db/lib/paperMint";
 import { dmAction, DM_ACTION } from "@lifeweb/db/lib/dmActions";
@@ -403,7 +404,9 @@ export async function wipeGameData(formData) {
       // below, or the FK from NoticePost.tagId blocks it.
       prisma.noticePost.deleteMany({}),
       // Room stashes (CARRY.md): the rows cascade from nothing the wipe
-      // deletes, so they go explicitly and the ⬢ column is zeroed.
+      // deletes, so they go explicitly. This takes the ⬢ with them — a room's
+      // Resources are one of these stack rows now, so there is no column left
+      // to zero afterwards.
       prisma.roomTag.deleteMany({}),
       // Runtime-minted tags: crates, headstones, written paper, sealed
       // letters. GAME state that happened to be stored in the catalog, and it
@@ -419,7 +422,6 @@ export async function wipeGameData(formData) {
       // /gm/dev/tags is custom too and must SURVIVE a restart. Runs after the
       // holdings above so nothing references these rows.
       prisma.tag.deleteMany({ where: { ephemeral: true } }),
-      prisma.room.updateMany({ data: { resources: 0 } }),
       // Factions are live game state now (FACTIONS.md), so a restart has to
       // undo the parts players wrote. Handshakes go with the characters they
       // named; every silo is un-pointed so db:sync-roles' null-fill floor can
@@ -992,7 +994,6 @@ export async function applyBulkAction(input) {
       discordUserId: true,
       locationId: true,
       zoneId: true,
-      resources: true,
     },
   });
   if (characters.length === 0) return { ok: false, error: "No living characters matched." };
@@ -1115,16 +1116,24 @@ async function bulkResources(session, characters, input) {
   const set = input?.mode === "set";
   if (set && amount < 0) return { ok: false, error: "A total cannot be negative." };
 
-  const changes = characters.map((c) => ({
-    ...c,
-    to: Math.max(0, set ? amount : c.resources + amount),
-  }));
+  // One batch read for the whole selection — ⬢ are a stack row now, and a
+  // findUnique per character is a query per row on a picker that can hold the
+  // entire roster.
+  const held = await resourcesByCharacterIds(prisma, characters.map((c) => c.id));
+  const changes = characters.map((c) => {
+    const resources = held.get(c.id) ?? 0;
+    return { ...c, resources, to: Math.max(0, set ? amount : resources + amount) };
+  });
 
-  await prisma.$transaction(
-    changes.map((c) =>
-      prisma.character.update({ where: { id: c.id }, data: { resources: c.to } }),
-    ),
-  );
+  // Still one transaction, so a selection either all moves or none of it does.
+  // The writes go through the stack helpers rather than a column update: they
+  // are the one place that knows an empty stack is a deleted row, not a 0.
+  await prisma.$transaction(async (tx) => {
+    for (const c of changes) {
+      if (c.to === c.resources) continue;
+      await addCharacterResources(tx, c.id, c.to - c.resources);
+    }
+  });
 
   await prisma.auditLog.create({
     data: {

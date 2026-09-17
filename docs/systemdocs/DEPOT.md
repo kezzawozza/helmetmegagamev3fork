@@ -29,9 +29,12 @@ reverses.
   `sellablePrice` are what a thing is *worth*, and that has to keep meaning the
   same number whether the Merchant is buying it or a player is haggling over
   it — so every authored price is already a whole number of obols too. An
-  obol makes value **physical**: a weightless stackable tag holding the same
-  amount as the number on a sheet, but one you can carry, hand over, stash
-  and have stolen.
+  obol makes value **portable**: a weightless stackable tag holding the same
+  amount as a sack of ⬢, but one a fortune of which still fits in a pocket.
+  ⬢ are a tag too now, and a one-pound one (`TAGS.md`), so the difference
+  between the two currencies is no longer physical-versus-not — it is weight,
+  and where the money is good. ⬢ are raw material anybody will take anywhere;
+  an obol is paper the Merchant honours and nobody else has to.
 - **The money belongs to the station, not the Merchant.** It lives on
   `Depot.accountObols`. The licence is tradeable, so handing it over hands over
   the balance too, and that is what makes the card worth stealing.
@@ -148,7 +151,11 @@ The cycle:
    it**, priced off the live catalog — otherwise returning a shipment would
    silently annihilate it. **Loose ⬢ in the stash go up too**, at 1 ¢ each
    (`RESOURCE_EXPORT_PRICE`). That is the only door out of ⬢ and into coin, and
-   it costs half their face value to walk through.
+   it costs half their face value to walk through. The pad's ⬢ are an
+   ordinary stack row in the room now rather than a number on the Room
+   (`db/lib/resourceStack.js`), so the send deliberately lifts them **out** of
+   the goods loop before it runs — left in, they would be sold once as ⬢ at
+   the export price and again as a ware at their `sellablePrice`.
 4. Or **it leaves on its own** after `shuttleMaxTurns` (6). A timed departure
    takes nothing with it — the crates stay on the pad. Selling is a deliberate
    act and an unattended shuttle should not empty the room.
@@ -203,12 +210,17 @@ land on the crate row as `consumesIntoResources` — the field the ordinary
 consume path already grants — so the Resources half of a shipment needs no
 special case at all past the packing.
 
-**A crated ⬢ weighs a pound** (`RESOURCE_UNIT_LBS`). That is the whole reason
-⬢ need no cap of their own: they pack against the same 150 lb rule as
-everything else and ride in a crate alongside other goods, so 150 ⬢ fill one
-crate and it weighs 75 lb. A **loose** ⬢ still weighs nothing and counts
-against `carryResourceCap` instead (`CARRY.md` §1) — this is freight, and the
-two axes never count the same ⬢ twice.
+**A crated ⬢ weighs a pound** (`RESOURCE_UNIT_LBS`), so ⬢ pack against the
+same 150 lb rule as everything else and ride in a crate alongside other goods:
+150 ⬢ fill one crate and it weighs 75 lb.
+
+This side of it never changed. What changed is the other side. A **loose** ⬢
+used to weigh nothing and count against a separate cap of its own, so the same
+⬢ was a pound on the landing pad and weightless in a pocket — freight and the
+sheet flatly disagreed about the same sack of material. Since 9/2026 a loose ⬢
+is a one-pound item like the crated one (`docs/tags.yaml` `resources`), the
+second cap is gone, and there is one rule for a ⬢'s weight wherever it is
+standing (`CARRY.md`).
 
 The manifest is printed on the crate, in exactly this format:
 

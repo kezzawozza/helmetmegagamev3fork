@@ -20,6 +20,7 @@ import { notifyCharacter as notifyCharacterShared } from "@/lib/notifyCharacter"
 import { propagateDynastyLastName } from "@/lib/dynasty";
 import {
   normalizeCoreEdits,
+  applyResourcesInTx,
   diffCore,
   setLeaderInTx,
   validateTagOps,
@@ -28,6 +29,7 @@ import {
 } from "@/lib/characterWrite";
 import { deleteCorpseFor } from "@lifeweb/db/lib/corpseMint";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
+import { readCharacterResources } from "@lifeweb/db/lib/resourceStack";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { cancelWatchOnMove } from "@lifeweb/db/lib/intercept";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
@@ -125,8 +127,12 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   // leaves nothing half-written and the GM sees the first real problem rather
   // than a rollback.
   validateTagOps(ops, tagsById, heldIds);
-  const { data, role, leader } = await normalizeCoreEdits({ prisma, existing, core });
+  const { data, role, leader, resources } = await normalizeCoreEdits({ prisma, existing, core });
   const diff = diffCore(existing, data);
+  // ⬢ are a stack row rather than a column, so they never ride in `data` and
+  // diffCore cannot see them. Fold the before/after in by hand, or the audit
+  // row and the "your sheet was edited" DM both lose the change.
+  if (resources && resources.from !== resources.to) diff.resources = resources;
 
   if (!Object.keys(diff).length && !ops.length && leader === null) {
     return { name: existing.name, applied: {}, tags: [] };
@@ -153,6 +159,8 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
     if (Object.keys(data).length) {
       await tx.character.update({ where: { id: characterId }, data });
     }
+
+    await applyResourcesInTx(tx, characterId, resources);
 
     // Keyed on the POST-edit faction: promoting someone who is also changing
     // faction must demote the NEW faction's leader, not the old one.
@@ -576,7 +584,9 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
         discordUserId: character.discordUserId,
         roleTitle: character.roleTitle,
         factionId: character.factionId,
-        resources: character.resources,
+        // Read on its own rather than off the row: ⬢ are a stack row now, and
+        // loadCharacter deliberately doesn't pull the tag set.
+        resources: await readCharacterResources(prisma, characterId),
       },
     },
   });

@@ -46,8 +46,10 @@ each arrived at by getting them wrong first.
    cheaper failure than a losing racer double-charging everyone's upkeep.
 2. **Auto-labor pass** (`db/lib/autoLaborPass.js`) — files a Labor for anyone
    who didn't act and can work. **First**, because a day's labor *earns*
-   resources and the Hunger pass below spends them; the other order makes a
-   player whose work buys them a meal go hungry anyway. See `LABORING.md` §8.
+   resources and the upkeep passes below spend them; the other order makes a
+   player whose work should have fed their horse come up short anyway. (Hunger
+   was the headline reason until 9/2026, when eating stopped costing ⬢ — the
+   rule outlived it, since the horse still eats.) See `LABORING.md` §8.
 2b. **Offer expiry pass** (`db/lib/offerExpiryPass.js`, still keyed `"lessons"`
    in `TURN_PASSES`). Every still-PENDING offer on the closing turn expires
    here, **whatever its kind** — lesson, bind, confession, kiss, escort or
@@ -114,8 +116,9 @@ each arrived at by getting them wrong first.
    (whose rows arrive already stamped, so this one skips them), **before**
    the progression/sweep (a staged "remove Infected" must beat the
    progression, and a staged fresh grant carries `expiresTurn > N` so the
-   sweep can't eat it), and **before** Hunger (deferred income lands before
-   upkeep — the same income-before-upkeep rule as step 2). Every row is
+   sweep can't eat it), and **before** the upkeep passes (deferred income lands
+   before anything spends it — the same income-before-upkeep rule as step 2).
+   Every row is
    claimed with a conditional write (`appliedAt`, or `appliedEffects` DbNull
    → `{}`), so the resume path can never apply one twice. The staged DMs and
    the public post are handed back for the thunk, not sent here.
@@ -242,10 +245,12 @@ each arrived at by getting them wrong first.
    marker for the same reason. DMs ride back on `notices` for the thunk.
 7d. **Horse upkeep pass** (`db/lib/horseUpkeepPass.js`, `"horseUpkeep"` in
    `TURN_PASSES`) — the horse's feed, 1 ⬢ off everyone holding one. Slotted
-   **immediately before Hunger**, and the order is the rule: auto-labor has
-   already paid the day's income (§2 step 2), and the animal eats before the
-   rider does, so a character down to their last ⬢ feeds the horse and goes
-   Hungry. See §5b.
+   **immediately before Hunger**, which was load-bearing when a rider's own
+   dinner was also billed in ⬢: the animal ate first, so a character down to
+   their last ⬢ fed the horse and went Hungry. Hunger stopped costing money in
+   9/2026 (§5), so the two passes no longer compete for the same purse and the
+   slot is merely tidy. Auto-labor still has to come first, since that is where
+   the day's income lands (§2 step 2). See §5b.
 8. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
    before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
    number, so the sweep clears it a moment before a fresh one may be granted.
@@ -325,9 +330,12 @@ each arrived at by getting them wrong first.
 8b. **Carry pass** (`db/lib/carryPass.js`) — **after** hunger, so it sees the
    final sheet: Labor payouts, staged pushes, the sweep and the ⬢ upkeep all
    happen earlier in the close and none of them may settle in place.
-   `settleCarry` for every ALIVE character holding a tradeable tag,
-   Overburdened, or more ⬢ than the base cap — one transaction each — and the
-   overflow drops ride back for the thunk (`CARRY.md` §3).
+   `settleCarry` for every ALIVE character holding a tradeable tag or
+   Overburdened — one transaction each — and the overflow drops ride back for
+   the thunk (`CARRY.md` §3). There used to be a third clause, asking for
+   anybody over the separate ⬢ cap. Both that cap and its column are gone: ⬢
+   are a tradeable one-pound item now, so a character sitting on a sack of them
+   is already caught by the first clause, exactly like one carrying a sword.
 8c. **Mood pass** (`db/lib/moodPass.js`, `"mood"` in `TURN_PASSES`) — the
    nightly settle for the mood dial (`MOOD.md`). Slotted after hunger,
    so it sees the final Hunger streak, and after carry, so it sees the final
@@ -486,8 +494,9 @@ The thunk performs, in narrative order:
    into the REST breaker's tally), then access revoke, role delete, and one
    combined `#leave` post naming everyone who died this turn.
 4. Hunger DMs — one per player who starved, or who ate and still carries some
-   of the streak, or who just cleared the last of it. A quiet −1 ⬢, or a fed
-   character whose streak was already 0, sends nothing.
+   of the streak, or who just cleared the last of it. A fed character whose
+   streak was already 0 sends nothing: there is nothing to report, since eating
+   costs them no ⬢ and moves no number they can see.
 5. **The staged deliveries** — every unsent `StagedMessage` for the closing
    turn. PRIVATE rows fan out one DM per recipient (per-recipient try/catch,
    failures collected onto the row's `deliveryFailures` and into one
@@ -626,31 +635,44 @@ streak, or Dying via this path — no request type, no picker entry.
 A character born mid-close — Metempsychosis, or any death this same
 `resolveNeeds()` run reincarnated (`stagedPush`/`dyingDeath`/`ascension`/
 `nukeExplosion`/`catatonicDeath`/`xom` all route through `applyDeathToRow`,
-which can trigger a rebirth) — is excluded from this turn's bill: `db/index.js`
+which can trigger a rebirth) — is excluded from this turn's pass: `db/index.js`
 passes a `bornBefore` cutoff, taken before any pass runs, and the pass never
-sees a character created after it. They start paying upkeep the turn after
-the one they woke up in.
+sees a character created after it. They were not alive for the turn that is
+closing, so marking the body hungry for a day it never had would be a lie.
+Their first hungry turn is the one after they woke up.
+
+**Nobody is charged anything to eat.** The pass asks one question — is there
+an `ate-meal` tag on the sheet when the turn closes? — and food is the only
+thing that puts one there (`COOKING.md`).
 
 Per character, at the close of every turn:
 
 | State | Outcome |
 |---|---|
 | Holds `hungerless` | Skipped entirely; streak resets to 0 (immunity, not eating — a full reset). |
-| Holds `fast-metabolism` | Owes **2 ⬢** instead of 1. Everything else below reads against that cost. |
-| Holds `ate-meal` | **Shielded**, tag consumed, **owes nothing**, streak drops by **one tick** — the meal was already paid for when it was cooked (2 ⬢ Fine, 3 ⬢ Lavish), so billing upkeep on top made eating strictly worse than the 1 ⬢ it saves. |
-| Short of the cost | Goes Hungry, owes **nothing**, streak **+1**. A fast metabolism holding 1 ⬢ keeps it rather than half-eating. |
-| Can cover the cost | Pays it, stays fed, streak drops by **one tick**. |
+| Holds `ate-meal` | **Fed.** The tag is consumed, streak drops by **one tick**. |
+| Anything else | Goes Hungry, streak **+1**. |
 
-So **the upkeep always buys a fed turn** — 1 ⬢, or 2 with a Big Appetite —
-and `Character.resources` can never go
-negative without a `Math.max` — the clamp is a `resources: { gte: n }` on the
-decrement's own `where`, so the check and the payment are one statement. That
-pairing is why the two costs are two separate `updateMany` batches (`toPay1` /
-`toPay2`) rather than one: an `updateMany` carries a single decrement, and a
-guard that didn't match its own decrement would be the hole the clamp exists
-to close. They
-used to be two, with the whole pass between them, and anyone who spent their
-last ⬢ in that window went to −1.
+That is the whole table, and it used to be five rows long. Until 9/2026 the
+pass **billed** a character 1 ⬢ a turn (2 with Fast Metabolism) to feed
+themselves, and you went hungry only if you could not cover it. ⬢ in a pocket
+bought dinner out of thin air, which meant two things that both read badly: a
+cooked meal was a second bill for the same dinner — it already cost ⬢ to make
+— so eating well was strictly worse than paying the 1 ⬢, and everyone who
+never cooked paid a silent tax for existing. Eating is an act now, not a
+direct debit. Raw material is not dinner.
+
+**`fast-metabolism` does nothing at all right now.** Its entire mechanic was
+doubling a charge that no longer exists, so a holder is fed by one meal like
+anybody else. It is left in the catalog rather than retired on purpose: the
+foodstuff-item work that is coming needs something to hang off, and "needs two
+meals a turn" is the obvious shape for it. Until that lands, treat the tag as
+inert — it is not quietly costing anyone anything.
+
+Everything downstream of the table is **unchanged**, because none of it was
+ever keyed to the money. The streak still climbs, `hungry` still costs
+Gambits, six straight turns still ends in Dying, and the mood pass still reads
+the streak. Only the till is gone.
 
 A single fed turn only clears **one tick** of the streak, not the whole thing
 — a character six turns deep in Hunger needs six fed turns to climb back to
@@ -667,8 +689,8 @@ computed in the pass off the value it already read, not off a DB
 `increment`/`decrement` return (neither hands back the new total in time to
 decide who crosses the cap, or who still carries Hunger after eating, this
 turn). Only starving ever pushes it up; eating only ever brings it down, one
-tick per turn, floored at 0 the same structural way the resource decrement is
-floored — a `hungerStreak: { gt: 0 }` where-guard, not a `Math.max`. It keeps
+tick per turn, floored at 0 structurally rather than by arithmetic — a
+`hungerStreak: { gt: 0 }` where-guard, not a `Math.max`. It keeps
 counting past 6 if nobody intervenes; the penalty just stays floored there,
 and re-granting `dying` on a later starved turn is a harmless `skipDuplicates`
 no-op.
@@ -694,18 +716,30 @@ everyone learns about a bad night — the word in the Mood box on their sheet.
 ### 5b. The horse's feed
 
 A Horse costs **1 ⬢ every turn it is in your inventory**
-(`db/lib/horseUpkeepPass.js`). Two things about it are the opposite of how the
-rest of the horse works, and both are deliberate:
+(`db/lib/horseUpkeepPass.js`), and this pass is **not** affected by the hunger
+rework — animals still eat ⬢, people no longer do. Three things about it are
+the opposite of how the rest of the horse works, and all three are deliberate:
 
 - **Held, not equipped.** Everything else a horse does is gated on
   `CharacterTag.equipped` (`db/lib/mounts.js`), and an indoors Location parks
   the animal at the door. The feed ignores all of it. A horse in your pocket
   still eats, so stowing it is not a way to skip the bill.
 - **Short of the cost, nothing happens.** A character at 0 ⬢ is charged nothing
-  and keeps the horse — no starving marker, no runaway, no streak. Same shape
-  as the Hunger table's "short of the cost" row, which is why the whole charge
-  fits in one `updateMany` whose `resources: { gte: 1 }` guard matches its own
-  decrement.
+  and keeps the horse — no starving marker, no runaway, no streak. Hunger used
+  to have a row of exactly this shape and no longer does (§5, 9/2026), so this
+  is now the only place in the close where being broke is answered by silence.
+- **Each species bills separately.** A Horse and an Arelitz Warbeast together
+  eat 2 ⬢, not 1 — the pass walks `UPKEEP_SLUGS` and charges once per slug
+  held.
+
+The charge is a **stack write per payer**, not one bulk `updateMany`. It used
+to be the latter, with a `resources: { gte: 1 }` guard that doubled as the
+clamp, but ⬢ live in a `CharacterTag` row now (`db/lib/resourceStack.js`) and
+there is no column left to decrement across a hundred characters at once.
+`takeCharacterResources` keeps the same floor a different way: it is strict and
+conditional, so either the whole cost comes off or nothing does, and nobody
+goes negative. The query that finds holders is only a cheap pre-filter — the
+write is the real check.
 
 Nobody is DM'd about it. A "your horse ate" line every turn would sit on top of
 the hunger notice one pass later, and the tag description says where the ⬢
@@ -911,7 +945,8 @@ markers for the desk's labels.
 | `db/lib/autoLaborPass.js` | The auto-labor pass |
 | `db/lib/laborYield.js` | Location yield drift, and the quality words |
 | `db/lib/horseUpkeepPass.js` | The horse's feed (§5b) |
-| `db/lib/hungerPass.js` | The Hunger pass |
+| `db/lib/resourceStack.js` | ⬢ as a stack row — the only reader and writer of a ⬢ balance (`CARRY.md`, `ECONOMY.md`) |
+| `db/lib/hungerPass.js` | The Hunger pass (§5) |
 | `db/lib/catatonicPass.js` | The Catatonic (AFK) flagging pass |
 | `db/lib/catatonicDeathPass.js` | The Catatonic death pass (§2 7b) |
 | `db/lib/dyingDeathPass.js` | The Dying death pass (§2 4b) |

@@ -12,6 +12,7 @@ import {
   canOpenCrate,
 } from "@lifeweb/db";
 import { heldReasonFor } from "@lifeweb/db/lib/intercept";
+import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { cleanCustomText, CUSTOM_DESCRIPTION_MAX } from "@/lib/customCraft";
 import { mintCustomCraft, unmintCustomCraft } from "./crafting.js";
@@ -1325,8 +1326,9 @@ export async function lootCharacterRequestImpl({
     });
   }
 
-  if (amount > target.resources)
-    throw new UserError(`${target.name} only has ${target.resources} ⬢.`);
+  const targetResources = resourcesOf(target);
+  if (amount > targetResources)
+    throw new UserError(`${target.name} only has ${targetResources} ⬢.`);
 
   const openTurn = await getOpenTurn();
 
@@ -1357,17 +1359,11 @@ export async function lootCharacterRequestImpl({
         throw new UserError(`Someone already took that.`);
       }
     }
-    let freshResources = target.resources;
-    if (amount > 0) {
-      const freshTarget = await tx.character.findUnique({
-        where: { id: target.id },
-        select: { resources: true },
-      });
-      freshResources = freshTarget?.resources ?? 0;
-      if (freshResources < amount) {
-        throw new UserError(`${target.name} only has ${freshResources} ⬢ left.`);
-      }
-    }
+    // The ⬢ used to get the same treatment one line down — re-read under the
+    // lock, compared, then moved — because the check above was priced against
+    // a read taken before it. There is nothing left to re-read: moveResources
+    // takes ⬢ with a conditional write that IS the balance check, so a body
+    // someone else emptied in between refuses the whole loot here instead.
 
     for (const t of takenTags) {
       // Same poison hand-off as Transfer (M4): a body's held stack draws its

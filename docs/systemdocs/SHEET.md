@@ -87,7 +87,7 @@ Who this is, where they stand, and:
   tiles, so it keeps them. On the sheet the strip takes `onPick`, and a
   clicked chip opens the tag's `TagDetails` under it. The rail has no Status
   card for that reason.
-- **Five tiles, one row** — free moves, ⬢ against the cap, carrying with its
+- **Five tiles, one row** — free moves, the ⬢ balance, carrying with its
   meter, the **Mood box** (`MOOD.md` §4) and the Gambit modifier
   (`db/lib/gambitModifier.js`, the same call the bot makes). `.ledger-tiles`'
   `max-width` fits exactly five: a sixth needs 856px, so anything else goes on
@@ -107,7 +107,10 @@ Who this is, where they stand, and:
 - **Nearly all of them press**, and that is what fixed the one that did not.
   Free moves (why it is 0), Carrying (what holds the cap up), Combat, Mood and
   the Gambit die (which modifiers, by name) all have something to say; only ⬢
-  does not. The Carrying breakdown had come off precisely because *one*
+  does not — it is a plain number with no cap of its own to explain, since ⬢
+  became a one-pound item and started counting against the carry cap beside
+  the gear (`CARRY.md`). There used to be a second cap, and the tile still did
+  not press then either. The Carrying breakdown had come off precisely because *one*
   pressable tile in a row of read-only ones read as a bug —
   `db/lib/carry.js#carryBreakdown` has said "for the hover breakdown on
   /character" the whole time — and that reason is gone.
@@ -148,10 +151,21 @@ Who this is, where they stand, and:
   turn card beside it. Past three items the rest fold behind a `+N more`,
   decided by counting them and never by measuring the box (`ExpandableText.js`
   explains why). It reads: tags on their last turn and what they become (`expiresInto`),
-  crafts and builds that finish, the road's end, and dinner (the
-  `hungerPass.js` rule: Hungerless owes nothing, a meal covers it, otherwise
-  1 ⬢, 2 with Fast Metabolism, and short of that you go Hungry). Renders
-  nothing on a quiet turn.
+  crafts and builds that finish, the road's end, dinner, and the animals'
+  feed. Renders nothing on a quiet turn.
+
+  **Dinner is one clause with no number in it**, because there is no longer an
+  amount to afford: the forecast mirrors `hungerPass.js`, which since 9/2026
+  charges nobody for food. Hungerless or already holding `ate-meal` and it says
+  nothing at all; otherwise it says **"You'll go hungry"**. It used to forecast
+  a cost — 1 ⬢, 2 with Fast Metabolism, and a different line if you could not
+  cover it — and that half is gone with the charge behind it.
+
+  **The animals' feed is the half that still costs ⬢**, and it is a separate
+  pass (`horseUpkeepPass.js`, `TURN-ENGINE.md` §5b). The line counts how many
+  of `UPKEEP_SLUGS` the character holds — read off the same list the real pass
+  walks, so an animal added later shows up here with no second edit — and says
+  either what they will consume or that you cannot feed them.
 - **The verb strip** — `ActionGrid variant="strip"`: every action in
   `actionRegistry.js` as one wrapping row of small labelled buttons, sections
   split by a hairline. **Every button hovers**, the same tooltip the verb wears

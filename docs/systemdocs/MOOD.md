@@ -398,6 +398,13 @@ Hungerless and Dying nobles are exempt. "Ate one this turn" is the hidden
 `ate-meal`. It has **no `durationTurns`** — a 1-turn grant would be swept at
 position 10 of `TURN_PASSES`, nine passes before the mood pass reads it — so
 the mood pass deletes it itself, exactly as the hunger pass eats `ate-meal`.
+That simile still holds: `ate-meal` carries no duration either, and the hunger
+pass deletes it by hand for the same reason. What it no longer implies is a
+shared bill. **`dined` and `ate-meal` are two separate markers answering two
+separate questions** — `ate-meal` is the whole of whether the hunger pass
+counts you fed (`TURN-ENGINE.md` §5, and since 9/2026 no ⬢ changes hands over
+it), `dined` is only whether a noble ate *well*. Nothing here changed with the
+hunger rework, and the −10 below is still a mood harm rather than a charge.
 The marker is hidden and the sheet shows no Dinner row for it — the old
 Disappointed tracker went with the track, on Bascinet's call. The Merchant now
 starts with Nobility too, and therefore with its 1-point Desire lock.

@@ -51,6 +51,7 @@ import {
 import { extractToolFor, extractedToday } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { resourcesOf, readRoomResources } from "@lifeweb/db/lib/resourceStack";
 import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import {
@@ -490,7 +491,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // Rooms somebody let this character into by hand — the reason this page and the Transfer gate agree.
   const guestRoomIds = await roomGuestIds(prisma, character.id);
   const questRoomIds = await questAllowedRoomIds(prisma, character.id);
-  const roomsHere = character.locationId
+  const roomRowsHere = character.locationId
     ? await prisma.room.findMany({
         where: { locationId: character.locationId },
         orderBy: { sortOrder: "asc" },
@@ -499,16 +500,17 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           name: true,
           kind: true,
           accessTagSlugs: true,
-          resources: true,
           tags: {
             where: { quantity: { gt: 0 } },
             select: {
               tagId: true,
               quantity: true,
-              // weightLbs/category ride along for Transfer's load projection
+              // weightLbs/category ride along for Transfer's load projection;
+              // slug is what resourcesOf picks the ⬢ stack out by, below.
               tag: {
                 select: {
                   name: true,
+                  slug: true,
                   stackable: true,
                   weightLbs: true,
                   category: true,
@@ -519,6 +521,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         },
       })
     : [];
+  // A room's ⬢ ride in its tags now, like every other item it holds. The
+  // number is still handed down as `resources` because that is what the
+  // Transfer dialog reads — the storage moved, the prop didn't.
+  const roomsHere = roomRowsHere.map((r) => ({ ...r, resources: resourcesOf(r) }));
   // The Transfer dialog's far side, from the shared helper — /chat builds
   // the identical list off it. `roomsHere` above stays this page's own, since corpsesInReach needs the ROWS, not the shape.
   const rooms = await loadStashRooms(character);
@@ -816,7 +822,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       }))
     : [];
   // Purchase Gear's shelf and the four purses it draws on — an obol is one ⬢ (DEPOT.md), the shelf spends both together.
-  const [thanatiWares, hideoutObols, myObols] = atHideout
+  const [thanatiWares, hideoutObols, myObols, hideoutResources] = atHideout
     ? await Promise.all([
         prisma.tag
           .findMany({
@@ -837,12 +843,15 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           where: { characterId: character.id, tag: { slug: OBOL_SLUG } },
           select: { quantity: true },
         }),
+        // The hideout's ⬢, read here rather than off the room row — a ⬢
+        // balance is a stack row now, and hideoutRoom() doesn't load tags.
+        readRoomResources(prisma, hideout.id),
       ])
-    : [[], null, null];
+    : [[], null, null, 0];
   const hideoutStock = atHideout
     ? {
-        room: { resources: hideout.resources, obols: hideoutObols?.quantity ?? 0 },
-        self: { resources: character.resources ?? 0, obols: myObols?.quantity ?? 0 },
+        room: { resources: hideoutResources, obols: hideoutObols?.quantity ?? 0 },
+        self: { resources: resourcesOf(character), obols: myObols?.quantity ?? 0 },
       }
     : null;
   // The bomb's two halves — both read off your own sheet. nukeActions.js re-checks both.

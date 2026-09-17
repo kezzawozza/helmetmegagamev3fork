@@ -11,17 +11,17 @@ const { OVERBURDENED_SLUG } = require("./constants");
 const { settleCarry } = require("./carry");
 const { alivePassCharacters } = require("./aliveCharacters");
 
+// Two clauses, where there used to be three. The third asked for anybody over
+// the old ⬢ cap, read off GameConfig.carryResourceCap — and both that column
+// and the cap behind it are gone: ⬢ are a tradeable one-pound item now, so a
+// character holding a sack of them is already picked up by the first clause,
+// same as one holding a sword. Nothing to port, so it went.
 async function runCarryPass(prisma, turn) {
-  const config = await prisma.gameConfig.findUnique({
-    where: { id: 1 },
-    select: { carryResourceCap: true },
-  });
   const candidates = await alivePassCharacters(prisma, {
     where: {
       OR: [
         { tags: { some: { tag: { tradeable: true } } } },
         { tags: { some: { tag: { slug: OVERBURDENED_SLUG } } } },
-        { resources: { gt: config?.carryResourceCap ?? 25 } },
       ],
     },
     select: { id: true },

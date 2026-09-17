@@ -224,9 +224,10 @@ Three notes on deliberate choices:
   teardown already rely on. A corpse whose player hasn't come back yet still
   gets the DM as before.
 - **Consume has no resource field and no quantity field.** A meal already
-  cost ⬢ to make and the Hunger pass charges its own upkeep, so a third
-  charge here would be the same meal paid for three times; and taking one
-  unit at a time is the point of a stack. See `TAGS.md` §5b.
+  cost ⬢ to make, so charging again to eat it would be the same dinner paid
+  for twice; and taking one unit at a time is the point of a stack. (There was
+  a third charge until 9/2026, when the Hunger pass stopped billing upkeep at
+  all — §4.) See `TAGS.md` §5b.
 - **Transfer Tag and Loot both filter on `tradeable`.** Not on `category`,
   which is what they used to do and which was wrong in both directions — it
   let a corpse be stripped of its Drone, and it ignored the
@@ -308,38 +309,38 @@ what it leads to — there is no request type, no picker entry, no
 `tagEffects.js` case. `db/lib/hungerPass.js#runHungerPass` is the only
 writer of all three, called from `resolveNeeds()` at the close of every turn:
 
-1. Holds `hungerless` → **skipped entirely**. No resource taken, no Hunger,
-   streak reset to 0 — this is immunity, not eating, so it's still a full
-   reset rather than the one-tick rule below.
-2. Holds `ate-meal` → **shielded** from Hunger, the tag is consumed whether or
-   not they were broke, **no ⬢ is taken**, and the streak drops by **one
-   tick**. The meal was already paid for when it was cooked (2 ⬢ a Fine, 3 ⬢ a
-   Lavish), so charging the upkeep on top of that made eating strictly worse
-   than the 1 ⬢ it saves. Eating *settles* the turn's upkeep; the streak it
-   took several starved turns to climb takes that many fed turns to climb back
-   down.
-3. **Check first, then pay**: short of the turn's cost you go Hungry, owe
-   nothing, and the streak **increments**; able to cover it, you pay, stay
-   fed, and the streak drops by **one tick**. The cost is 1 ⬢ for everyone
-   except a holder of `fast-metabolism`, who owes **2** — and at 1 ⬢ that
-   holder keeps their coin and starves rather than half-eating.
+1. Holds `hungerless` → **skipped entirely**. No Hunger, streak reset to 0 —
+   this is immunity, not eating, so it's still a full reset rather than the
+   one-tick rule below.
+2. Holds `ate-meal` → **fed**. The tag is consumed and the streak drops by
+   **one tick**. The streak it took several starved turns to climb takes that
+   many fed turns to climb back down.
+3. **Anything else** → Hungry, streak **+1**.
 
-So the upkeep always buys a fed turn, and `Character.resources` can never go
-negative — the clamp is structural, not a `Math.max`, and it lives on step 3,
-the only branch that still pays. Structural means the check and the payment
-are the *same statement*: the decrement carries `resources: { gte: n }` in its
-own `where`, which is why the 1 ⬢ and 2 ⬢ payers are charged in two separate
-batches. Read the balance in one query and decrement in another and a
-player who spends in between goes to −1, which is what used to happen, and
-turn rollover is exactly when players are most active.
+**Eating costs nothing at the close, because it is not a payment.** Until
+9/2026 this pass billed 1 ⬢ a turn — 2 for a holder of `fast-metabolism` — and
+step 3 was a "check first, then pay" branch where being broke was what made you
+Hungry. Two things were wrong with it. A cooked meal already costs ⬢ to make
+(2 ⬢ a Fine, 3 ⬢ a Lavish), so the upkeep billed the same dinner twice and made
+eating well strictly worse than paying the flat 1 ⬢; and everyone who never
+cooked at all paid a silent tax simply for being alive. So the till went, and
+the only question left is whether a meal is on the sheet when the turn closes.
+`ate-meal` no longer *shields* you from a charge — it **is** what being fed
+means, which is why `COOKING.md` matters more now than it did, not less.
+
+**`fast-metabolism` is inert.** Its whole mechanic was doubling that charge,
+and there is no charge left to double, so a holder eats one meal like everybody
+else. It stays in the catalog rather than being retired so the foodstuff work
+coming later has something to hang off — "needs two meals a turn" is the
+obvious shape — but as it stands the tag does nothing.
 
 A single fed turn only sheds **one tick**, not the whole streak — a character
 six turns deep needs six fed turns to reach 0, the same as it took six starved
 turns to get there. So the `hungry` tag no longer means "starved this turn";
 it's re-granted for as long as the streak is above 0 after eating, meaning
-"still carrying hunger damage." The floor is the same structural posture as
-the resources clamp above: `hungerStreak: { gt: 0 }` in the decrement's own
-`where`, not a `Math.max` on a value read moments earlier.
+"still carrying hunger damage." The floor is structural rather than
+arithmetic: `hungerStreak: { gt: 0 }` in the decrement's own `where`, not a
+`Math.max` on a value read moments earlier.
 
 **The streak and the cap.** Each consecutive hungry turn is worth an
 additional −1 to the die, floored at **−6** (`HUNGER_STREAK_CAP`). Reaching the
@@ -347,7 +348,7 @@ cap grants `dying`, the same terminal tag every untreated-wound chain lands on
 (see `TURN-ENGINE.md` §3's "NOTHING HERE KILLS ANYONE"). The pass itself still
 kills nobody; `dying` carries a one-turn clock, and the Dying death pass
 (`TURN-ENGINE.md` §2 4b) is what ends it at the next close. The streak is computed in the pass off the value it
-already read for the resource check, not off a database `increment`/
+already loaded with the character, not off a database `increment`/
 `decrement`'s return value, because neither would hand back the new total in
 time to decide who just crossed the cap this turn, who still carries Hunger
 after eating, or what to put in their DM. Only starving pushes it up; eating
@@ -367,7 +368,7 @@ on a later starved turn is a harmless `skipDuplicates` no-op, not an error.
 Exactly one turn of bite, and it is the *next* turn. Eating on turn N decides
 whether the tag is re-granted for N+1 at all — and if the streak was more than
 1, it's re-granted one tick lower than it was, not cleared. Run the pass
-*before* the sweep instead and a still-broke character's re-grant collides with
+*before* the sweep instead and a still-hungry character's re-grant collides with
 `@@unique([characterId, tagId])` and is silently dropped, leaving them holding
 a tag that expires immediately.
 
@@ -380,7 +381,8 @@ Dying on their sheet already knows why. Eating sends its own DM too, unless
 the streak was already 0: one naming the smaller-but-still-there penalty
 (`» You ate, but you're still weak from hunger. −4 to Gambits.`) while any
 streak remains, or a short "back to full strength" line the turn it finally
-clears. A quiet −1 ⬢ sends nothing.
+clears. A fed character whose streak was already 0 sends nothing — eating
+moves no number they could be told about.
 
 `runHungerPass` does not send any of these DMs itself. It returns
 `hungerNotices` on its summary — one entry per character who starved or whose
@@ -1035,8 +1037,8 @@ over the URL, so a filtered view stays linkable.
 
 ## The Depot's kinds
 
-All obol-denominated, all moving `Depot.accountObols` rather than anyone's
-`Character.resources`. They are audit `actionType`s now
+All obol-denominated, all moving `Depot.accountObols` rather than anyone's own
+⬢ stack. They are audit `actionType`s now
 (`request_depot_order`, `request_depot_atm`, `request_depot_credit`,
 `request_depot_crate_open`, `request_depot_refuel`,
 `request_depot_shuttle_call` / `_send`), and the

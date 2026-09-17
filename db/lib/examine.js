@@ -23,6 +23,7 @@ const {
 } = require("./presentedIdentity");
 const { turnsLeft, formatTurnsLeft } = require("./turnFormat");
 const { revealedTags } = require("./torture");
+const { resourcesOf } = require("./resourceStack");
 
 // TAG half split out for db/lib/examineSnapshot.js — name/armour/requirement are RULES, read live even for an old look.
 const EXAMINE_TAG_SELECT = {
@@ -50,12 +51,15 @@ const EXAMINE_SUBJECT_SELECT = {
   gender: true,
   updatedAt: true,
   roleTitle: true,
-  resources: true,
   factionId: true,
   faction: { select: { name: true, slug: true } },
   tags: {
     select: {
       equipped: true,
+      // ⬢ are one of these rows now, not a column on the character, so the
+      // officer's line below counts them off the tag set — which needs the
+      // quantity.
+      quantity: true,
       tag: { select: EXAMINE_TAG_SELECT },
       expiresTurn: true,
     },
@@ -151,7 +155,7 @@ function examineReadout({
     // Same-faction knowledge, not officer authority (FACTIONS.md §4a).
     roleTitle: inRealFaction(subject) && viewerFactionId === subject.factionId ? (subject.roleTitle ?? null) : null,
     // Leader/Treasurer of the subject's OWN faction sees their ⬢; caller resolves the seat (this file holds no prisma).
-    resources: inRealFaction(subject) && viewerIsOfficer ? subject.resources : null,
+    resources: inRealFaction(subject) && viewerIsOfficer ? resourcesOf(subject) : null,
   };
 }
 

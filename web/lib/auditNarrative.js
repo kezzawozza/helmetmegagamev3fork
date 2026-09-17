@@ -278,7 +278,11 @@ const R = {
   ],
   turn_resume: () => [t("A half-finished turn advance was resumed")],
   turn_pass_failed: (d) => [t("A turn pass FAILED"), ...(d.pass ? [t("—"), em(d.pass)] : [])],
-  hunger_resolved: () => [t("Hunger was charged for the turn")],
+  // Hunger bills nobody now — the pass only asks who ate (db/lib/hungerPass.js).
+  hunger_resolved: (d) => [
+    t("Everyone was checked for whether they ate"),
+    ...((d.starved ?? 0) > 0 ? [t("—"), em(`${d.starved} went hungry`)] : []),
+  ],
   auto_labor_resolved: (d) => [
     t("A day's labor was filed for everyone who did not act"),
     ...((d.filed ?? 0) > 0 ? [t("—"), em(`${d.filed} worked`)] : []),

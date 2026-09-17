@@ -5,6 +5,7 @@ import {
 } from "@/lib/tagRequests";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { canonicalCategory } from "@/lib/sheetCards";
+import { RESOURCES_SLUG } from "@lifeweb/db/lib/resourceStack";
 // The one weight rule, shared with the server (db/lib/tagWeight.js). Display
 // only here; the cap is still settled server-side.
 import { tagWeightLbs } from "@/lib/formatTagWeight";
@@ -46,7 +47,9 @@ export function thingGroups(characterTags = [], composeTag = (tag) => tag) {
   const canSmellPoison = canDetectPoison(characterTags);
 
   const rows = characterTags
-    .filter((ct) => GROUPS.includes(canonicalCategory(ct.tag?.category)))
+    // ⬢ has its own chip in StatusStrip.js — it doesn't belong in the Things
+    // drawer too, now that it is a stack sitting in this same tag list.
+    .filter((ct) => ct.tag?.slug !== RESOURCES_SLUG && GROUPS.includes(canonicalCategory(ct.tag?.category)))
     .map((ct) => ({
       // characterTagId is what an equip toggle acts on; tagId preselects dialogs.
       characterTagId: ct.id ?? null,

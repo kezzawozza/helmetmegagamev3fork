@@ -1,5 +1,6 @@
 // SERVER ONLY: imports the Prisma barrel via referenceData.js. Client-safe helpers go in their own import-free file (stagingReach.js).
 import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
+import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { statusWord, WORKING_STATUSES } from "@lifeweb/db/lib/structures";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
@@ -161,7 +162,8 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     zoneId: a.character.zone?.id ?? null,
     // Per-structure "Standing here" line, bulk-loaded by the caller and keyed by locationId.
     standingHere: standingHereLines(structuresByLocationId?.get(a.character.locationId ?? "")),
-    resources: a.character.resources,
+    // Off the tag rows MOVE_INCLUDE already loads — ⬢ are a stack, not a column.
+    resources: resourcesOf(a.character),
     tags: a.character.tags.map((ct) => ({
       tagId: ct.tagId,
       quantity: ct.quantity,

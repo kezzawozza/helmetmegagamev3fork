@@ -20,6 +20,7 @@ import {
   RESOURCE_IMPORT_PRICE,
   RESOURCE_EXPORT_PRICE,
   RESOURCE_WARE_ID,
+  resourcesOf,
   CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
   presentedIdentity,
@@ -113,7 +114,6 @@ async function FreshDepot() {
       id: true,
       name: true,
       concealed: true,
-      resources: true,
       location: { select: { slug: true } },
       tags: {
         select: {
@@ -145,7 +145,11 @@ async function FreshDepot() {
   const openTurn = await getOpenTurn();
 
   const [wareTags, pricedTags, pad, obolTag, ledgerRows] = await Promise.all([
-    prisma.tag.findMany({ where: { depotPrice: { not: null } }, ...TAG_SELECT }),
+    // `resources` itself carries a depotPrice now (it's priced on both sides
+    // same as any other ware, docs/tags.yaml), so it is excluded here — the
+    // hand-built `resourceWare` row above is its one listing, not a second
+    // one drawn off the catalog.
+    prisma.tag.findMany({ where: { depotPrice: { not: null }, slug: { not: RESOURCE_WARE_ID } }, ...TAG_SELECT }),
     // The reference book: anything with a price in either direction. CATALOG
     // rows only — a minted runtime row (a player's custom painting keeps its
     // base's sellablePrice) must never become a public line in the price
@@ -154,6 +158,7 @@ async function FreshDepot() {
     prisma.tag.findMany({
       where: {
         ephemeral: false,
+        slug: { not: RESOURCE_WARE_ID },
         OR: [{ depotPrice: { not: null } }, { sellable: true, sellablePrice: { not: null } }],
       },
       ...TAG_SELECT,
@@ -209,10 +214,12 @@ async function FreshDepot() {
     tag,
   });
 
-  // ⬢ are a ware on the shuttle now, and they are not a Tag — so the row is
-  // built by hand and carries a sentinel id the order action splits back out.
-  // `synthetic` is what tells the two tables to print a name instead of a
-  // TagChip, since there is no Tag row to hover.
+  // ⬢ are a ware on the shuttle, drawn as a hand-built row rather than off
+  // `wareTags` below — the id is the `resources` tag's own slug now (it is a
+  // Tag, same as everything else on the shuttle; db/lib/depot.js says so),
+  // still not a cuid so it never collides with a real ware's id. `synthetic`
+  // is what tells the two tables to print a name instead of a TagChip, since
+  // this row carries no Tag to hover.
   const resourceWare = {
     id: RESOURCE_WARE_ID,
     name: "Resources",
@@ -221,7 +228,7 @@ async function FreshDepot() {
     price: RESOURCE_IMPORT_PRICE,
     sellPrice: RESOURCE_EXPORT_PRICE,
     margin: RESOURCE_EXPORT_PRICE - RESOURCE_IMPORT_PRICE,
-    held: character?.resources ?? 0,
+    held: resourcesOf(character),
     stackable: true,
     sealed: false,
     synthetic: true,
@@ -305,13 +312,16 @@ async function FreshDepot() {
         priceList: priceList,
         manifest: Array.isArray(depot.manifest) ? depot.manifest : [],
         pad: {
-          resources: pad?.resources ?? 0,
-          rows: (pad?.tags ?? []).map((rt) => ({
-            id: rt.id,
-            quantity: rt.quantity,
-            sellPrice: rt.tag.sellablePrice,
-            tag: rt.tag,
-          })),
+          resources: resourcesOf(pad),
+          // ⬢ prints as `pad.resources` above, not as a row here too.
+          rows: (pad?.tags ?? [])
+            .filter((rt) => rt.tag.slug !== RESOURCE_WARE_ID)
+            .map((rt) => ({
+              id: rt.id,
+              quantity: rt.quantity,
+              sellPrice: rt.tag.sellablePrice,
+              tag: rt.tag,
+            })),
         },
         heldObols: obolTag ? (heldByTagId.get(obolTag.id) ?? 0) : 0,
         resourceExportPrice: RESOURCE_EXPORT_PRICE,

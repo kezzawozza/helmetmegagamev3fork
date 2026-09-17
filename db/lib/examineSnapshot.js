@@ -8,6 +8,7 @@
 // out under their real name. Prisma-free except loadPresentedState, which takes `prisma` (db/lib/dm.js
 // convention).
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
+const { RESOURCES_SLUG, resourcesOf } = require("./resourceStack");
 
 const SNAPSHOT_VERSION = 1;
 
@@ -16,7 +17,6 @@ const PRESENTED_STATE_SELECT = {
   name: true,
   appearance: true,
   roleTitle: true,
-  resources: true,
   factionId: true,
   concealed: true,
   tags: {
@@ -24,7 +24,10 @@ const PRESENTED_STATE_SELECT = {
       tagId: true,
       equipped: true,
       expiresTurn: true,
-      tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } },
+      // `quantity` and `slug` are here for the ⬢ count alone: it is a stack row
+      // now rather than a column, and `s` below still has to freeze a number.
+      quantity: true,
+      tag: { select: { slug: true, forcedName: true, ...CONCEALMENT_TAG_FIELDS } },
     },
   },
 };
@@ -37,7 +40,7 @@ function presentedStateFrom(character) {
     n: character.name ?? null,
     a: character.appearance ?? null,
     r: character.roleTitle ?? null,
-    s: character.resources ?? null,
+    s: resourcesOf(character),
     f: character.factionId ?? null,
     c: Boolean(character.concealed),
     t: (character.tags ?? [])
@@ -85,7 +88,6 @@ function rehydrateSubject({ live, state, tags = [], faction = null }) {
     name: state.name ?? live?.name ?? null,
     appearance: state.appearance,
     roleTitle: state.roleTitle,
-    resources: state.resources,
     factionId: state.factionId,
     faction,
     concealed: state.concealed,
@@ -95,7 +97,13 @@ function rehydrateSubject({ live, state, tags = [], faction = null }) {
         if (!tag) return null;
         // Drop the id — EXAMINE_TAG_SELECT doesn't carry one.
         const { id, ...rest } = tag;
-        return { equipped: row.equipped, expiresTurn: row.expiresTurn, tag: rest };
+        // The ⬢ row gets the frozen count put back on it, since `t` carries no
+        // quantities: db/lib/examine.js reads the officer's ⬢ line off the tag
+        // set, so the number has to come back the way it left. A line frozen
+        // before ⬢ became a stack has no row to land on and simply reads as
+        // none.
+        const quantity = rest.slug === RESOURCES_SLUG ? (state.resources ?? 0) : 1;
+        return { equipped: row.equipped, expiresTurn: row.expiresTurn, quantity, tag: rest };
       })
       .filter(Boolean),
   };

@@ -3,6 +3,7 @@
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
+import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { UserError } from "@/lib/actionResult";
@@ -446,7 +447,7 @@ export async function engraveHeadstoneRequestImpl({
 
   // The friendly refusal. The real check is the conditional debit below, which
   // is what actually stops the balance going negative.
-  if (character.resources < ENGRAVE_RESOURCE_COST) {
+  if (resourcesOf(character) < ENGRAVE_RESOURCE_COST) {
     throw new UserError(`Engraving costs ${ENGRAVE_RESOURCE_COST} ⬢.`);
   }
 

@@ -23,7 +23,14 @@ const { addRoomResources } = require("../lib/roomStash");
 
 const ROOM_ID = "room-1";
 
-function makeTx({ rooms = [{ id: ROOM_ID, resources: 0, destroysContents: false }], roomTags = [], tags = [] } = {}) {
+// ⬢ are the `resources` tag now (db/lib/resourceStack.js), a RoomTag row like
+// any other stack — there is no `Room.resources` column left to fake a raw
+// UPDATE against. addRoomResources reaches it through the same
+// tag.findUnique / roomTag.findUnique+create/update path as everything else
+// below, so it needs no fake of its own beyond that tag existing.
+const RESOURCES_TAG_ID = "t-resources";
+
+function makeTx({ rooms = [{ id: ROOM_ID, destroysContents: false }], roomTags = [], tags = [] } = {}) {
   const store = { rooms, roomTags, tags };
   let nextId = 1;
 
@@ -34,22 +41,16 @@ function makeTx({ rooms = [{ id: ROOM_ID, resources: 0, destroysContents: false 
 
   return {
     store,
-    // lockRoom's SELECT ... FOR UPDATE, and addRoomResources' clamped update.
-    // Tagged-template call: (strings, ...values).
+    // lockRoom's SELECT ... FOR UPDATE (db/lib/tagWrites.js). Tagged-template
+    // call: (strings, ...values).
     $queryRaw(strings, ...values) {
-      const sql = strings.join("?");
-      if (sql.includes('UPDATE "Room"')) {
-        const [roomId, amount] = [values[0], values[1]];
-        const room = store.rooms.find((r) => r.id === roomId);
-        if (!room) return Promise.resolve([]);
-        const before = room.resources;
-        room.resources = Math.max(0, before + amount);
-        return Promise.resolve([{ before, after: room.resources }]);
-      }
       return Promise.resolve([{ id: values[0] }]);
     },
     room: {
-      findUnique: ({ where }) => Promise.resolve(store.rooms.find((r) => r.id === where.id) ?? null),
+      findUnique: ({ where }) => {
+        const room = store.rooms.find((r) => r.id === where.id) ?? null;
+        return Promise.resolve(room && { ...room, location: { zoneId: null } });
+      },
     },
     roomTag: {
       findUnique: ({ where }) => Promise.resolve(findRoomTag(where)),
@@ -65,6 +66,14 @@ function makeTx({ rooms = [{ id: ROOM_ID, resources: 0, destroysContents: false 
           else row[key] = value;
         }
         return Promise.resolve(row);
+      },
+      // A stack row taken to zero is deleted rather than kept at 0
+      // (resourceStack.js#bumpStack, same rule as tagWrites.js) — a burn
+      // clamped from below can delete by id directly.
+      delete: ({ where }) => {
+        const before = store.roomTags.length;
+        store.roomTags = store.roomTags.filter((rt) => rt.id !== where.id);
+        return Promise.resolve({ deleted: before - store.roomTags.length });
       },
       updateMany: ({ where, data }) => {
         const hit = store.roomTags.filter(
@@ -107,7 +116,10 @@ function makeTx({ rooms = [{ id: ROOM_ID, resources: 0, destroysContents: false 
     // push actually runs. None of the tags here carry a price, so the hook
     // correctly records nothing; what is being kept honest is that it gets
     // that far.
-    tag: { findMany: () => Promise.resolve([]) },
+    tag: {
+      findMany: () => Promise.resolve([]),
+      findUnique: ({ where }) => Promise.resolve(where.slug === "resources" ? { id: RESOURCES_TAG_ID } : null),
+    },
     gameState: { findUnique: () => Promise.resolve({ gameId: "game-test" }), findFirst: () => Promise.resolve({ gameId: "game-test" }) },
     economyEntry: { create: ({ data }) => Promise.resolve({ id: "econ-1", ...data }) },
   };
@@ -223,21 +235,30 @@ test("a remove with no quantity takes the whole stack", async () => {
 // ---- the room's own ⬢ -------------------------------------------------------
 
 test("a burn clamps at 0 and reports what actually moved", async () => {
-  const tx = makeTx({ rooms: [{ id: ROOM_ID, resources: 2, destroysContents: false }] });
+  const tx = makeTx({
+    rooms: [{ id: ROOM_ID, destroysContents: false }],
+    roomTags: [{ id: "rt-res", roomId: ROOM_ID, tagId: RESOURCES_TAG_ID, quantity: 2, poisonedCount: 0, poisonPayload: null, expiresTurn: null }],
+  });
   assert.equal(await addRoomResources(tx, ROOM_ID, -5), -2);
-  assert.equal(tx.store.rooms[0].resources, 0);
+  assert.equal(stackOf(tx, RESOURCES_TAG_ID), null, "the stack is deleted, not left at 0");
 });
 
 test("a mint into the Spillway goes nowhere, but a burn out of it still works", async () => {
-  const tx = makeTx({ rooms: [{ id: ROOM_ID, resources: 4, destroysContents: true }] });
+  const tx = makeTx({
+    rooms: [{ id: ROOM_ID, destroysContents: true }],
+    roomTags: [{ id: "rt-res", roomId: ROOM_ID, tagId: RESOURCES_TAG_ID, quantity: 4, poisonedCount: 0, poisonPayload: null, expiresTurn: null }],
+  });
   assert.equal(await addRoomResources(tx, ROOM_ID, 10), 0);
-  assert.equal(tx.store.rooms[0].resources, 4);
+  assert.equal(stackOf(tx, RESOURCES_TAG_ID).quantity, 4);
   assert.equal(await addRoomResources(tx, ROOM_ID, -1), -1);
-  assert.equal(tx.store.rooms[0].resources, 3);
+  assert.equal(stackOf(tx, RESOURCES_TAG_ID).quantity, 3);
 });
 
 test("a zero delta writes nothing at all", async () => {
-  const tx = makeTx({ rooms: [{ id: ROOM_ID, resources: 4, destroysContents: false }] });
+  const tx = makeTx({
+    rooms: [{ id: ROOM_ID, destroysContents: false }],
+    roomTags: [{ id: "rt-res", roomId: ROOM_ID, tagId: RESOURCES_TAG_ID, quantity: 4, poisonedCount: 0, poisonPayload: null, expiresTurn: null }],
+  });
   assert.equal(await addRoomResources(tx, ROOM_ID, 0), 0);
-  assert.equal(tx.store.rooms[0].resources, 4);
+  assert.equal(stackOf(tx, RESOURCES_TAG_ID).quantity, 4);
 });

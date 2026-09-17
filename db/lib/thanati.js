@@ -79,6 +79,7 @@ async function hideoutRoom(db) {
   return db.room.findUnique({
     where: { id: state.thanatiHideoutRoomId },
     // `kind`/`accessTagSlugs` ride along for accessibleRooms: Purchase Gear checks the BUYER's key against this room, not just their Location.
+    // No ⬢ here: the hideout's balance is a stack row now, so a caller that needs it asks db/lib/resourceStack.js#readRoomResources.
     select: {
       id: true,
       name: true,
@@ -87,7 +88,6 @@ async function hideoutRoom(db) {
       accessTagSlugs: true,
       locationId: true,
       discordThreadId: true,
-      resources: true,
     },
   });
 }

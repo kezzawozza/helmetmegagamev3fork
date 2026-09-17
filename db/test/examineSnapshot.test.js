@@ -44,21 +44,27 @@ const ROBES = catalogTag({
 });
 const KIT = catalogTag({ id: "t-kit", name: "Disguise Kit", slug: "disguise-kit", forcedName: "Tomas Vell" });
 
+// ⬢ are a CharacterTag stack now (db/lib/resourceStack.js), not a `resources`
+// column — presentedStateFrom reads the frozen count off this row
+// (resourcesOf), so a speaking character's held tags need one alongside
+// whatever else they are carrying.
+const RESOURCES_TAG = catalogTag({ id: "t-resources", name: "Resources", slug: "resources" });
+
+const held = (tag, { equipped = false, expiresTurn = null, quantity } = {}) => ({
+  tagId: tag.id,
+  equipped,
+  expiresTurn,
+  quantity,
+  tag: { slug: tag.slug, forcedName: tag.forcedName, name: tag.name, concealsIdentity: tag.concealsIdentity, concealSprite: tag.concealSprite, forcesConceal: false, equipLayer: tag.equipLayer },
+});
+
 const speaker = (tags) => ({
   name: "Semyun Varyutskaya",
   appearance: "Tall, with a burn along one jaw.",
   roleTitle: null,
-  resources: 4,
   factionId: null,
   concealed: false,
-  tags,
-});
-
-const held = (tag, { equipped = false, expiresTurn = null } = {}) => ({
-  tagId: tag.id,
-  equipped,
-  expiresTurn,
-  tag: { forcedName: tag.forcedName, name: tag.name, concealsIdentity: tag.concealsIdentity, concealSprite: tag.concealSprite, forcesConceal: false, equipLayer: tag.equipLayer },
+  tags: [held(RESOURCES_TAG, { quantity: 4 }), ...tags],
 });
 
 const live = { id: "c1", name: "Semyun Varyutskaya", age: 30, gender: "WOMAN", updatedAt: new Date(0) };

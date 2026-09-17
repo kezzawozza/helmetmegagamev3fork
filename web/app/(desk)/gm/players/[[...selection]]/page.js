@@ -6,6 +6,7 @@ import RosterView from "../RosterView";
 import Loading from "../Skeleton";
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { cursedUserIds } from "@lifeweb/db/lib/curse";
+import { RESOURCES_SLUG } from "@lifeweb/db/lib/resourceStack";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
@@ -74,7 +75,9 @@ async function FreshPlayerRoster({ searchParams, userId }) {
           .then((rows) => new Set(rows.map((r) => r.characterId)))
       : Promise.resolve(new Set()),
     // Ids, not a count: fuzzy search matches tag NAMES now, and the count falls out of the same rows for free.
-    prisma.characterTag.findMany({ select: { characterId: true, tagId: true } }),
+    // `quantity` rides along so ⬢ — a stack row like any other item since
+    // 9/2026 — costs this page no second query.
+    prisma.characterTag.findMany({ select: { characterId: true, tagId: true, quantity: true } }),
   ]);
 
   const tagNameById = new Map(tags.map((t) => [t.id, t.name]));
@@ -90,6 +93,10 @@ async function FreshPlayerRoster({ searchParams, userId }) {
   const catatonicTagId = tags.find((t) => t.slug === CATATONIC_SLUG)?.id ?? null;
   const catatonicCharacterIds = new Set(
     heldTags.filter((ct) => ct.tagId === catatonicTagId).map((ct) => ct.characterId),
+  );
+  const resourcesTagId = tags.find((t) => t.slug === RESOURCES_SLUG)?.id ?? null;
+  const resourcesByCharacter = new Map(
+    heldTags.filter((ct) => ct.tagId === resourcesTagId).map((ct) => [ct.characterId, ct.quantity ?? 0]),
   );
   const cursed = cursedUserIds(characters); // a database question now (db/lib/curse.js), not a Discord role
   const memberById = new Map(members.map((m) => [m.id, m])); // same map PlayerRail builds, so the table finds a Discord handle without a second query
@@ -113,7 +120,7 @@ async function FreshPlayerRoster({ searchParams, userId }) {
           status: c.status,
           username: memberById.get(c.discordUserId)?.username ?? "",
           globalName: memberById.get(c.discordUserId)?.globalName ?? "",
-          resources: c.resources,
+          resources: resourcesByCharacter.get(c.id) ?? 0,
           cursed: cursed.has(c.discordUserId),
           catatonic: catatonicCharacterIds.has(c.id),
           tagCount: (tagNamesByCharacter.get(c.id) ?? []).length,

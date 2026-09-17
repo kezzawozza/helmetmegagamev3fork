@@ -14,8 +14,9 @@ async function handleRoomStorage(interaction, roomId) {
     where: { id: roomId },
     select: {
       locationId: true,
-      resources: true,
-      tags: { where: { quantity: { gt: 0 } }, select: { quantity: true, tag: { select: { name: true } } } },
+      // ⬢ are one of these stacks now, not a column beside them — formatStashLine
+      // picks them out by slug, so the slug has to be here.
+      tags: { where: { quantity: { gt: 0 } }, select: { quantity: true, tag: { select: { name: true, slug: true } } } },
     },
   });
   if (!room) return respond(interaction, { content: "That room is gone." });

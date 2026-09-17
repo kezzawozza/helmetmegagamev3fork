@@ -54,7 +54,6 @@ const FAILED_DM = (who) => `${who} tried to pickpocket you, but failed!`;
 // silently pins to 1.
 const PICKPOCKET_SELECT = {
   ...IDENTITY_SELECT,
-  resources: true,
   tags: {
     where: { quantity: { gt: 0 } },
     select: {
@@ -298,13 +297,11 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
   // succeeded.
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
-    select: { carryWeightLbs: true, carryResourceCap: true },
+    select: { carryWeightLbs: true },
   });
-  const verdict = carryAdmits(
-    { resources: character.resources, tags: character.tags },
-    config,
-    { weightLbs: takenLbs, resources: 0 },
-  );
+  const verdict = carryAdmits({ tags: character.tags }, config, {
+    weightLbs: takenLbs,
+  });
   if (!verdict.ok) throw new UserError(verdict.reason);
 
   await prisma.$transaction(async (tx) => {

@@ -226,8 +226,8 @@ function applyDrops(characterTags, taken) {
 
 // Recomputes one character's load against their caps and makes the sheet agree with
 // it: grants or clears `overburdened`, and — past the HARD cap (1.5×, carryAdmits above) — sets the excess down in a random public room at their Location.
-// The drop is acquisition-driven, never capacity-driven — Character.carryWeightSeen /
-// carryResourcesSeen are what tell the two apart: a load that hasn't GROWN since the last settle sheds nothing, however far the cap has fallen beneath it, so unequipping a cart at an inn door or a GM lowering the base cap makes people Overburdened and no more. Only goods that arrived without asking (a Labor payout, Caving loot, a GM grant) can push someone past the ceiling, and only those get set down — deliberate acquisitions are refused by carryAdmits() before they land.
+// The drop is acquisition-driven, never capacity-driven — Character.carryWeightSeen
+// is what tells the two apart: a load that hasn't GROWN since the last settle sheds nothing, however far the cap has fallen beneath it, so unequipping a cart at an inn door or a GM lowering the base cap makes people Overburdened and no more. Only goods that arrived without asking (a Labor payout, Caving loot, a GM grant) can push someone past the ceiling, and only those get set down — deliberate acquisitions are refused by carryAdmits() before they land.
 // Returns null when there was nothing to do; otherwise { characterId, over, granted,
 // removed, drop } where `drop` carries the Discord work for deliverCarryDrop(). Nothing here talks to Discord: web callers deliver in after(), the turn pass hands the drops to runSideEffects.
 // With nowhere to put anything down (unplaced, or a Location with no public room) the

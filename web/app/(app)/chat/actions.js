@@ -119,6 +119,7 @@ import { photoCaption } from "@lifeweb/db/lib/photo";
 import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
+import { RESOURCES_SLUG, resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import {
   CHIP_ROW_SELECT,
   CHIP_VIEWER_SELECT,
@@ -400,7 +401,6 @@ export async function readStash(roomId) {
       slug: true,
       kind: true,
       accessTagSlugs: true,
-      resources: true,
       tags: {
         where: { quantity: { gt: 0 } },
         orderBy: { tag: { name: "asc" } },
@@ -416,8 +416,11 @@ export async function readStash(roomId) {
   return {
     ok: true,
     name: room.name,
-    resources: room.resources ?? 0,
-    items: (room.tags ?? []).filter((rt) => (rt.quantity ?? 0) > 0).map((rt) => toChipRow(rt, ctx)),
+    resources: resourcesOf(room),
+    // ⬢ is drawn as its own chip (RoomPanel.js), not as a pickable stack.
+    items: (room.tags ?? [])
+      .filter((rt) => (rt.quantity ?? 0) > 0 && rt.tag?.slug !== RESOURCES_SLUG)
+      .map((rt) => toChipRow(rt, ctx)),
   };
 }
 
@@ -1175,7 +1178,6 @@ export async function gmPlaceView(placeKey) {
         slug: true,
         kind: true,
         accessTagSlugs: true,
-        resources: true,
         tags: {
           where: { quantity: { gt: 0 } },
           orderBy: { tag: { name: "asc" } },
@@ -1235,8 +1237,9 @@ export async function gmPlaceView(placeKey) {
       name: room.name,
       private: room.kind === "PRIVATE",
       keys: room.accessTagSlugs ?? [],
-      resources: room.resources ?? 0,
-      things: room.tags.map((t) => toChipRow(t, GM_CHIP_CTX)),
+      resources: resourcesOf(room),
+      // ⬢ is drawn as its own chip (GmAside.js's Things()), not among the things.
+      things: room.tags.filter((t) => t.tag?.slug !== RESOURCES_SLUG).map((t) => toChipRow(t, GM_CHIP_CTX)),
     })),
     openRoom: openRoom
       ? {
@@ -1244,8 +1247,8 @@ export async function gmPlaceView(placeKey) {
           name: openRoom.name,
           private: openRoom.kind === "PRIVATE",
           keys: openRoom.accessTagSlugs ?? [],
-          resources: openRoom.resources ?? 0,
-          things: openRoom.tags.map((t) => toChipRow(t, GM_CHIP_CTX)),
+          resources: resourcesOf(openRoom),
+          things: openRoom.tags.filter((t) => t.tag?.slug !== RESOURCES_SLUG).map((t) => toChipRow(t, GM_CHIP_CTX)),
           fixtures: roomAffordances(openRoom).map((entry) => ({
             id: entry.id,
             label: entry.label,

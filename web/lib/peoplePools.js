@@ -5,6 +5,7 @@ import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapaci
 import { kissBlock } from "@lifeweb/db/lib/kiss";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
+import { RESOURCES_SELECT, RESOURCES_SLUG, resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { peopleHere } from "@/lib/peopleHere";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { rosterName } from "@lifeweb/db/lib/presentedIdentity";
@@ -58,7 +59,10 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
       select: {
         id: true,
         name: true,
-        // No `resources` — a balance is nobody else's business.
+        // No `quantity` on the tag rows below, so nothing here can tell you
+        // how much of anything somebody has — their ⬢ included. A balance is
+        // nobody else's business; these rows are only asked what a medic or a
+        // teacher needs to know.
         tags: {
           select: {
             tagId: true,
@@ -105,7 +109,8 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
         id: true,
         name: true,
         status: true,
-        resources: true,
+        // No ⬢ column to select — the whole tag set below carries the stack,
+        // and resourcesOf() reads it straight off the loaded row.
         tags: {
           select: {
             tagId: true,
@@ -402,9 +407,13 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     name: rosterName(c),
     status: c.status,
     condition: conditionOf(c),
-    resources: c.resources,
+    resources: resourcesOf(c),
+    // ⬢ are a tradeable item now, so they would otherwise show up twice — once
+    // as the number the dialog has always had, once as an ordinary "Resources"
+    // row. Pull the stack out and keep the number, the way a room stash does
+    // it (db/lib/roomStash.js#formatStashLine).
     tags: c.tags
-      .filter((ct) => isTradeable(ct.tag))
+      .filter((ct) => ct.tag.slug !== RESOURCES_SLUG && isTradeable(ct.tag))
       .map((ct) => ({
         tagId: ct.tagId,
         tagName: ct.tag.name,
@@ -574,7 +583,9 @@ export async function loadStashRooms(character, { scope = "location", chipCtx = 
           name: true,
           kind: true,
           accessTagSlugs: true,
-          resources: true,
+          // Taxman wants the ⬢ and nothing else, so this is the one-row
+          // filtered select rather than the whole stash.
+          ...RESOURCES_SELECT,
           location: { select: { id: true, name: true } },
         },
       }),
@@ -583,7 +594,7 @@ export async function loadStashRooms(character, { scope = "location", chipCtx = 
     return accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).map((room) => ({
       id: room.id,
       name: room.name,
-      resources: room.resources,
+      resources: resourcesOf(room),
       locationId: room.location.id,
       locationName: room.location.name,
     }));
@@ -605,7 +616,6 @@ export async function loadStashRooms(character, { scope = "location", chipCtx = 
         slug: true,
         kind: true,
         accessTagSlugs: true,
-        resources: true,
         tags: {
           where: { quantity: { gt: 0 } },
           select: {
@@ -628,8 +638,10 @@ export async function loadStashRooms(character, { scope = "location", chipCtx = 
   return accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).map((room) => ({
     id: room.id,
     name: room.name,
-    resources: room.resources,
-    tags: room.tags.map((rt) => ({
+    // The ⬢ stack is one of the stash rows now, so it is read off the rows and
+    // then kept out of them — the dialog has its own ⬢ field.
+    resources: resourcesOf(room),
+    tags: room.tags.filter((rt) => rt.tag.slug !== RESOURCES_SLUG).map((rt) => ({
       tagId: rt.tagId,
       name: rt.tag.name,
       quantity: rt.quantity,

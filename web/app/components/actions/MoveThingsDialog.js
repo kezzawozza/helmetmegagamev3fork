@@ -182,14 +182,15 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
   // Projection: what YOUR load looks like after this moves. Only meaningful
   // when one end is you, and not for what comes off a body (Loot never
   // charged the carry cap for that, CARRY.md §2).
-  const lbs = lines.reduce((n, l) => n + (rows.find((r) => r.id === l.tagId)?.weightLbs ?? 0) * l.quantity, 0);
+  // ⬢ weigh a pound each and count against the one weight cap alongside the
+  // gear (CARRY.md) — there is no second cap to check any more.
+  const lbs = lines.reduce((n, l) => n + (rows.find((r) => r.id === l.tagId)?.weightLbs ?? 0) * l.quantity, 0) + moved;
   const round = (n) => Math.round(n * 100) / 100;
   let projected = null;
   if (carry && fromSelf) projected = { weight: round(carry.weightUsed - lbs), resources: carry.resources - moved };
   else if (carry && toSelf && !fromPerson) projected = { weight: round(carry.weightUsed + lbs), resources: carry.resources + moved };
-  const overAfter = projected && (projected.weight > carry.weightCap || projected.resources > carry.resourcesCap);
-  const refusedAfter =
-    projected && (projected.weight > carry.weightHardCap || projected.resources > carry.resourcesHardCap);
+  const overAfter = projected && projected.weight > carry.weightCap;
+  const refusedAfter = projected && projected.weight > carry.weightHardCap;
   const note =
     toSilo && !toSilo.canOpen
       ? `${toSilo.name} is locked to you. This will go in, and you won't be able to take it back out.`
@@ -311,8 +312,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
 
       {projected && (
         <p className={`text-xs ${overAfter || refusedAfter ? "text-accent" : "text-muted"}`}>
-          After this you&apos;ll carry {projected.weight} / {carry.weightCap} lb and {projected.resources} /{" "}
-          {carry.resourcesCap} ⬢.
+          After this you&apos;ll carry {projected.weight} / {carry.weightCap} lb, including {projected.resources} ⬢.
           {refusedAfter
             ? " That's more than you could hold even overburdened, so it won't go through."
             : overAfter

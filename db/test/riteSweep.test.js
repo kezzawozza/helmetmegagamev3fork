@@ -140,8 +140,10 @@ const ROOM = {
   locationId: "loc1",
   accessTagSlugs: [],
   discordThreadId: null,
-  resources: 0,
-  // floorHas selects the room's stacks alongside its ⬢.
+  // floorHas selects the room's stacks alongside its ⬢ — ⬢ are the
+  // `resources` tag now (db/lib/resourceStack.js), a stack like any other,
+  // so a fixture wanting a floor balance adds one of these rather than a
+  // bare `resources: N`.
   tags: [],
   location: { id: "loc1", name: "Underquarter", slug: "underquarter", zoneId: "z1", discordChannelId: null },
 };
@@ -259,7 +261,7 @@ test("a rearm cannot touch a rite another sweep already fired", async () => {
   const attempt = readyAttempt({ riteKey: "scrying", status: "FIRED", result: { yielded: "scrying-eye" } });
   const db = makeDb({
     attempt,
-    rooms: [{ ...ROOM, resources: 0 }], // the floor is gone: sweep 1 ate it
+    rooms: [{ ...ROOM, tags: [] }], // the floor is gone: sweep 1 ate it
     characters: [CHANTER, { id: "c2", name: "Bell", discordUserId: null, status: "ALIVE" }],
     chants: [
       { id: "ch1", attemptId: "a1", characterId: "c1", characterName: "Ash" },
@@ -280,7 +282,7 @@ test("a READY rite whose floor has gone is rearmed, and says what was missing", 
   const attempt = readyAttempt({ riteKey: "scrying" });
   const db = makeDb({
     attempt,
-    rooms: [{ ...ROOM, resources: 0 }], // Scrying wants 15
+    rooms: [{ ...ROOM, tags: [] }], // Scrying wants 15
     characters: [CHANTER, { id: "c2", name: "Bell", discordUserId: null, status: "ALIVE" }],
     chants: [
       { id: "ch1", attemptId: "a1", characterId: "c1", characterName: "Ash" },
@@ -303,7 +305,7 @@ test("a dead chanter does not count toward the minimum", async () => {
   const attempt = readyAttempt({ riteKey: "scrying" });
   const db = makeDb({
     attempt,
-    rooms: [{ ...ROOM, resources: 100 }],
+    rooms: [{ ...ROOM, tags: [{ quantity: 100, tag: { slug: "resources" } }] }],
     characters: [CHANTER, { id: "c2", name: "Bell", discordUserId: null, status: "DEAD" }],
     chants: [
       { id: "ch1", attemptId: "a1", characterId: "c1", characterName: "Ash" },
