@@ -227,7 +227,9 @@ now (CRAFTING.md §2, Chris 2026-09-06). A brew that comes out in a batch
 authors its WORK as a decimal — `turnsCost: 0.25` — and the arithmetic does
 the rest: four Alcohol fill one Routine, one Alcohol leaves 0.75 of it for
 other brewing work. A hard RATION — `perTurn`, 0-turn recipes only — caps a
-Dead Simple brew below the shared pool of 4.
+0-turn brew at its own number, and only its own: there is no shared pool
+behind any `turnsCost: 0` recipe any more, on the smithing/crafting Dead
+Simple rung or here (`SMITHING.md` §2).
 
 They shared a column as well as a table until 9/2026: a fractional cost was
 stored as its denominator in `requirementPerTurn`, the same column the ration
@@ -250,8 +252,8 @@ lives in. Costs are decimals now and that column is a ration and nothing else.
 | `bone-mask` | 0 | 1 |
 
 `bone-mask` is not a brew, but it is the other recipe the ration exists for: 0
-turns and a `butcher` gate put it outside the Dead Simple pool, so one corpse
-would have minted masks forever. Its skill derives a `butcher` family now
+turns and a `butcher` gate mean it needs its own `perTurn` or one corpse
+would mint masks forever. Its skill derives a `butcher` family now
 like any other (CRAFTING.md §2a), so a mask past the ration spills into the
 Move instead of walling.
 
@@ -350,9 +352,9 @@ Two details that are easy to get wrong:
   would read it as the generic `craft` and quietly stop doubling.
 - **The audit row's `quantity` stays the RECIPE RUNS**, not the units granted.
   The per-turn rations in `web/lib/requests.js` count that field, so billing
-  the doubled output would halve a Distilling brewer's own Dead Simple
-  allowance. What actually landed is recorded beside it as `granted` when the
-  two differ.
+  the doubled output would halve a Distilling brewer's own `perTurn`
+  allowance on a 0-turn recipe. What actually landed is recorded beside it as
+  `granted` when the two differ.
 
 A non-stackable brew is unaffected: `addToStack` pins one to quantity 1 however
 many times it is granted.

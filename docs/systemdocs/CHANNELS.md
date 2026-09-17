@@ -1113,17 +1113,21 @@ zero bugs. To observe the gating, test from a non-owner account, or read the
 raw overwrites over REST. `npm run db:doctor -- --full` is the faster answer:
 it diffs the live overwrites against the spec for you.
 
-## The landing pad
+## The Railyard
 
-`landing-pad`, a PRIVATE thread under the Depot Location's channel, authored in
-`docs/zones.yaml` with `access: [depot-keycard]`. Membership is exactly "holds
-the keycard", handled by `db/lib/roomAccess.js` and reconciled by the channel
-doctor's room-membership check — the Depot feature adds **no access code of its
-own**.
+`depot-railyard`, a PRIVATE thread under the Depot Location's channel,
+authored in `docs/zones.yaml` with `access: [depot-keycard]`. It replaced the
+Landing Pad — same shape, new slug. Membership is exactly "holds the
+keycard", handled by `db/lib/roomAccess.js` and reconciled by the channel
+doctor's room-membership check — the Depot feature adds **no access code of
+its own**.
 
-Its starter description is static and sync-owned like every other room's. The
-shuttle arriving and leaving is announced as ambient lines into the Depot's
-Location channel instead, because a hash-reconciled starter message is the
-wrong place for live state.
+Its starter description is static and sync-owned like every other room's,
+but says whether the train is at the platform through `live: train` in
+`docs/zones.yaml` (rendered by `db/lib/roomLive.js`, repainted by
+`refreshLiveRooms` every close) rather than a hash-reconciled line — a
+generic live-room mechanism, not a Depot special case. There is no shuttle
+any more; the train runs on turn parity alone, nobody calls it
+(`DEPOT.md` §0c).
 
-See `docs/systemdocs/DEPOT.md` §0d.
+See `docs/systemdocs/DEPOT.md` §0c.

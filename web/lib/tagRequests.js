@@ -12,17 +12,27 @@ import { isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 // one of the readers.
 export { isTradeable };
 
-const DEAD_SIMPLE_SKILL_SLUGS = (slug) => slug === "crafting" || slug.startsWith("smithing");
-
-// Dead Simple is recognised by its recipe (0-turn cost + this skill gate).
-// `tag.requirementSkills` must be loaded ({ slug }) or this reads false.
-export function isDeadSimple(tag) {
-  if (tag?.requirementTurns !== 0) return false;
-  return (tag.requirementSkills ?? []).some((skill) => DEAD_SIMPLE_SKILL_SLUGS(skill.slug));
-}
-
-// Capped on UNITS summed across ADD_TAG requests this turn, not requests.
-export const DEAD_SIMPLE_PER_TURN = 4;
+// THE DEAD SIMPLE POOL IS GONE, and do not put it back.
+//
+// It was a shared ration of 4 units a turn over every 0-turn crafting and
+// smithing recipe, and being 0-turn meant those units cost no Move at all — so
+// four saleable things a turn rode on top of an untouched labour day, free,
+// for anybody with `crafting`. Once the Depot's counter opened to everybody
+// that stopped being a convenience and became an income on every sheet.
+//
+// The rung costs a QUARTER of a Move now (docs/tags.yaml), so four is a full
+// day's work rather than a free bonus on top of one — the same four units the
+// ration used to hand out, now paid for. A quarter and not a tenth because the
+// Move budget is exact rational arithmetic in quarters (db/lib/tagShapes.js
+// refuses anything finer, and a cost the budget cannot hold exactly is work
+// somebody did not pay for).
+//
+// Its flat markup came down with it, +3 ⬢ to +1: four a day at +1 is 4 ⬢/turn,
+// comfortably under the Simple rung's quarter-pieces at 8. The bottom rung
+// pays least, which is the shape SMITHING.md §2 and DEPOT.md §4 ask for.
+//
+// A recipe's OWN `perTurn` ration still exists and still works; it just has no
+// shared pool behind it any more.
 
 export function craftableTags(tags, heldTagIds = [], knownRecipeIds = null) {
   const held = new Set(heldTagIds);
@@ -127,9 +137,11 @@ export function craftFamily(tag) {
   return [...set].filter(Boolean).sort()[0] ?? "craft";
 }
 
-// Obol is real smith work but minting a coin isn't forging — it must not
-// eat a smith's Routine the way a Move spill would (CRAFTING.md §2a).
-const NEVER_SPILLS_MOVE_SLUGS = new Set(["obol"]);
+// Empty since the obol stopped being craftable at all (docs/tags.yaml). The
+// list is kept rather than the branch deleted: "this recipe is rationed and the
+// ration is a WALL, not a spill" is a shape the catalog will want again, and
+// rediscovering it costs more than one empty Set.
+const NEVER_SPILLS_MOVE_SLUGS = new Set();
 
 export function moveFamilyOf(tag) {
   if (NEVER_SPILLS_MOVE_SLUGS.has(tag?.slug)) return null;

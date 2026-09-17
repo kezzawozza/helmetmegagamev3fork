@@ -7,7 +7,6 @@ import {
   logAudit,
   craftAllowance,
   unitsOfTagThisTurn,
-  deadSimpleUnitsThisTurn,
   MEDICAL_SIMPLE_PER_TURN,
 } from "@/lib/requests";
 import { craftMoveCost } from "@/lib/craftBudget";

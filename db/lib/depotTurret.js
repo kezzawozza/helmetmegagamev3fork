@@ -42,8 +42,11 @@ function armorOdds(protection) {
   return p / (1 - p);
 }
 
-// The shipped table, always — not GM-editable. `Depot.turretTable` is an orphan column; nothing reads
-// it. Argument kept so every caller and the Gatehouse turret's `null` still work unchanged.
+// The shipped table, always — not GM-editable, and there is no column behind it
+// either (`Depot.turretTable` never existed; the old comment here said it was an
+// orphan column, which was wrong in a way that read as though one could be
+// written). Argument kept so every caller and the Gatehouse turret's `null`
+// still work unchanged.
 function turretTable(_depot) {
   return DEFAULT_TURRET_TABLE;
 }

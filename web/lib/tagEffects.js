@@ -1,4 +1,4 @@
-import { bumpBlood, bumpAccount, OBOL_SLUG } from "@lifeweb/db";
+import { bumpBlood } from "@lifeweb/db";
 import { addToStack, dropCharacterTag, grantTagSlugs, addToRoomStack, dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import { moveParty, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
 import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";

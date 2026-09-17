@@ -14,8 +14,14 @@ function isMerchantRole(slug) {
   return slug === MERCHANT_ROLE_SLUG;
 }
 
-// Where the shuttle is parked — a LOCATION slug (docs/zones.yaml), one hop east of Customs via
-// `connections:`. Buying/selling both require standing here, same as the Lifeweb requiring the Fortress.
+// The Meister's terminal over the town's accounts (/treasury). A TAG, not the
+// Meister ROLE — the same call the licence makes, and for the same reason: it is
+// tradeable, so handing it over really does hand over the books, and a role
+// check would quietly break that.
+const MEISTERS_TERMINAL_SLUG = "meisters-terminal";
+
+// Where the counter is — a LOCATION slug (docs/zones.yaml), one hop east of Customs via
+// `connections:`. Buying and selling both require standing here, same as the Lifeweb requiring the Fortress.
 const DEPOT_LOCATION_SLUG = "depot";
 
 // The station imports ⬢ at RESOURCE_IMPORT_PRICE and pays RESOURCE_EXPORT_PRICE for them back, so the
@@ -41,6 +47,7 @@ function normalizeQuantity(raw) {
 
 module.exports = {
   MERCHANT_LICENSE_SLUG,
+  MEISTERS_TERMINAL_SLUG,
   MERCHANT_ROLE_SLUG,
   isMerchantRole,
   DEPOT_LOCATION_SLUG,

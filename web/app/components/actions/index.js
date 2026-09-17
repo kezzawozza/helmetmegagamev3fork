@@ -30,7 +30,6 @@ import LessonDialog from "./LessonDialog";
 import KissDialog from "./KissDialog";
 import SearchDialog from "./SearchDialog";
 import PickpocketDialog from "./PickpocketDialog";
-import TaxDialog from "./TaxDialog";
 import WriteDialog from "./WriteDialog";
 import SealDialog from "./SealDialog";
 import BirdDialog from "./BirdDialog";
@@ -127,7 +126,6 @@ export const DIALOGS = {
   kiss: KissDialog,
   search: SearchDialog,
   pickpocket: PickpocketDialog,
-  tax: TaxDialog,
   write: WriteDialog,
   seal: SealDialog,
   bird: BirdDialog,

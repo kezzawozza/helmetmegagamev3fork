@@ -19,9 +19,6 @@ const DM_ACTION = Object.freeze({
   // Same odd shape as INTERCEPT_HOLD: initiator answers, replacing that
   // button on an ambusher's DM since breaking off now unpicks BOTH holds (ATTACK.md).
   ATTACK_HOLD: "ATTACK_HOLD",
-  // A tax filed against you (docs/tags.yaml's `taxman`, db/lib/tax.js). Only one answer exists —
-  // doing nothing IS the accept.
-  PENDING_TAX: "PENDING_TAX",
   // Draws NO generic button row (BIRD.md): answering a letter is a picker,
   // not an Accept, so the web draws its own Reply on the letter card
   // (DmThread.js#LetterBody). Still a descriptor: the row records it ASKS
@@ -31,6 +28,8 @@ const DM_ACTION = Object.freeze({
 });
 
 // Every family reads as one of these even where Discord labels differ (escort "Cancel", keyed way "No").
+// PARTIAL is unwritten since the tax button was removed; kept because the third
+// slot is the shape a "pay some of it" answer takes and the next one will want it.
 const DM_CHOICE = Object.freeze({ ACCEPT: "accept", DECLINE: "decline", PARTIAL: "partial" });
 
 // What the web draws, matching the Discord row builders (offerRow.js, threatSpawn.js, lobby.js,
@@ -51,8 +50,6 @@ const DM_ACTION_LABELS = Object.freeze({
   // One button, and it is the accept — the LOBBY_SEAT shape, the other way up.
   [DM_ACTION.INTERCEPT_HOLD]: { accept: "Release", decline: null },
   [DM_ACTION.ATTACK_HOLD]: { accept: "Cancel attack", decline: null },
-  // `partial` asks for a number — only a tax has one (db/lib/tax.js#payPartialTax).
-  [DM_ACTION.PENDING_TAX]: { accept: null, decline: "Refuse", partial: "Partial" },
   // No entry for BIRD_REPLY, and that is deliberate — see the kind above.
 });
 

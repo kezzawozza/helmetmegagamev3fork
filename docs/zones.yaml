@@ -108,8 +108,8 @@
 #   zones); a typo is a room nobody can enter, reported by the channel doctor.
 # - live (rooms only): a key from the registry in db/lib/roomLive.js. The
 #   room's starter message gets one more line, read off live state and
-#   re-rendered whenever that state moves — the Landing Pad saying whether the
-#   shuttle is sitting on it. A Room's starter is otherwise written once and
+#   re-rendered whenever that state moves — the Railyard saying whether the
+#   train is at the platform. A Room's starter is otherwise written once and
 #   never touched, so without this a live fact could only live on Examine, one
 #   channel up from the room it is about. A key the registry does not know is a
 #   sync PROBLEM, the same as an unknown attribute.
@@ -924,7 +924,11 @@ zones:
             stash:
               resources: 14
               items:
-                obol: 15
+                # The town's money. Every Treasury bank account is a claim on
+                # this pile and nothing else, so a withdrawal takes real coin
+                # out of this room and an empty Vault means nobody gets paid.
+                # See docs/systemdocs/DEPOT.md §0g.
+                obol: 350
                 painting: 1
                 nuclear-device: 1
       road:
@@ -1934,14 +1938,14 @@ zones:
               depot-storefront:
                 name: Storefront
                 description: >-
-                  An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the shuttle landing pad.
+                  An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
                 stash: [tea, sweets]
-              depot-landing-pad:
-                name: Landing Pad
+              depot-railyard:
+                name: Railyard
                 access: [depot-keycard]
-                live: shuttle
+                live: train
                 description: >-
-                  A grated steel bay. The roof automatically opens and closes.
+                  Rusted overhangs, overgrown with wilted, sunthirsted vines, occlude the cargo hub. A deep railway bisects the platforms. Every other turn, a cargo train rolls in.
               depot-merchants-office:
                 name: Merchant's Office
                 access: [merchants-license]

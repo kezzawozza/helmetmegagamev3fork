@@ -233,10 +233,10 @@ function joinWithOr(names) {
   return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
 }
 
-// requirement.turnsCost carries the WORK one unit takes, as a decimal number of Moves in QUARTERS: 0 is Dead Simple, 0.25 / 0.5 / 0.75 are shares of one Routine, 1 is the whole of it, 2+ is a multi-turn project. Quantity is limited by that arithmetic, never by a separate cap.
+// requirement.turnsCost carries the WORK one unit takes, as a decimal number of Moves in QUARTERS: 0 is free, 0.25 / 0.5 / 0.75 are shares of one Routine, 1 is the whole of it, 2+ is a multi-turn project. Quantity is limited by that arithmetic, never by a separate cap. The Dead Simple rung is 0.25 now — four a day, paid for, rather than four a day free.
 // It was a `1/N` fraction until 9/2026, stored as requirementTurns: 1 with N in requirementPerTurn as a denominator — which made that column mean two things at once and let a wound's severity be read off its cure price. Both are untangled: work is the number below, and requirementPerTurn is a ration and nothing else.
 // A quarter is the floor because the Move budget is exact rational arithmetic (web/lib/craftBudget.js — "nothing rounds"), and a cost it cannot hold exactly would let a character squeeze in work they had not paid for. 0.33 is refused for that reason, not to be awkward.
-// `perTurn:` is ONLY legal on a 0-turn recipe, where it is a RATION (a hard daily cap below the Dead Simple pool's 4); on a recipe that costs a Move it is refused.
+// `perTurn:` is ONLY legal on a 0-turn recipe, where it is a RATION — a hard daily cap on a recipe that costs no Move at all; on a recipe that costs a Move it is refused. The shared Dead Simple pool that used to sit behind it is gone (web/lib/tagRequests.js says why), so a 0-turn recipe with no `perTurn` is now unrationed, which is exactly why almost nothing is 0-turn any more.
 function normalizeTurnsCost(requirement, { slug, healable = false }, label = "docs/tags.yaml") {
   const raw = requirement?.turnsCost;
   // A healable tag's turnsCost must be authored explicitly: countsAgainstHealCap (web/lib/healRequests.js) reads a MISSING turnsCost as 0, craftMoveCost (web/lib/craftBudget.js) reads it as 1 — an unauthored healable tag would silently split what the Heal dialog shows from what the server bills. validateHealableRequirement below is the same rule for the GM form's door.
@@ -278,7 +278,7 @@ function normalizeTurnsCost(requirement, { slug, healable = false }, label = "do
     }
     if ((turns ?? 1) !== 0) {
       throw new Error(
-        `${label}: tag "${slug}" sets perTurn on a recipe that costs a Move — perTurn is a daily ration on a Dead Simple recipe, not a way to write work. Work is turnsCost: put the cost of one unit there (0.25 for four a Routine) and drop perTurn`,
+        `${label}: tag "${slug}" sets perTurn on a recipe that costs a Move — perTurn is a daily ration on a recipe that costs no Move at all, not a way to write work. Work is turnsCost: put the cost of one unit there (0.25 for four a Routine) and drop perTurn`,
       );
     }
   }

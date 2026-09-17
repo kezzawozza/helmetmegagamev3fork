@@ -12,17 +12,24 @@
 // The line is BOLD rather than `-#` subtext: the paragraph above it is
 // already italic.
 
-const { loadDepot } = require("./depotState");
+const { isArrivalTurn } = require("./train");
 
 // key -> { load(prisma) -> state, describe(state) -> string|null }
 const LIVE = {
-  // The Landing Pad: whether the shuttle is docked.
-  shuttle: {
+  // The Railyard: whether the train is at the platform. Read off the open
+  // turn's parity rather than a column, because that IS the train's state —
+  // there is nothing to keep in step (db/lib/train.js).
+  train: {
     load: async (prisma) => {
-      const depot = await loadDepot(prisma);
-      return { docked: depot?.shuttleState === "DOCKED" };
+      const turn = await prisma.turn.findFirst({
+        where: { closedAt: null },
+        orderBy: { number: "desc" },
+        select: { number: true },
+      });
+      return { here: isArrivalTurn(turn?.number ?? 0) };
     },
-    describe: (state) => (state?.docked ? "**The shuttle is here.**" : "**It's empty.**"),
+    describe: (state) =>
+      state?.here ? "**The train is at the platform.**" : "**The rails are empty.**",
   },
 };
 

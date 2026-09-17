@@ -6,6 +6,23 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · The Depot is everybody's now, and a train brings the goods
+
+✎ /depot opens for every player, always. It is read-only unless you are standing in the Depot, and anyone standing there can buy and sell.  
+✚ Everybody with a town seat has a bank account at the Depot, stamped with their own fingerprint. The Tribunal and the Brigands start without one and can open one at the counter.  
+✚ Most accounts are claims on real coin in the Keep's Vault, which now holds 350 obols. Take money out and it comes physically out of that room — so an empty Vault means nobody can withdraw, however healthy their balance looks. The Merchant's and his Dockers' are held offshore and are not.  
+✚ An ATM on the Depot's counter, on Discord and on the web both, for taking coin out and putting it back.  
+✚ A drop box beside it. Put a thing in and it is gone; you are paid when the train next leaves. You choose whether it pays you, the Treasury, or the Merchant — that last one wants his licence or a keycard, which is the Docker's job.  
+− The shuttle and the landing pad. A cargo train rolls into the new Railyard every other day instead, and nobody calls it. On the first day of a game it is away, and it arrives the next day with whatever was ordered.  
+− The Depot's generator. One person's empty fuel tank could close the whole market for a day.  
+✚ Manifests: what you are offered at the counter depends on what you carry. Everybody sees bulk material and ration boxes. A Silver Chip — a new item, a metallic poker chip — opens the drink and drug shelf. The Merchant's Licence opens everything, sealed goods included.  
+✚ A crate now says who ordered it, by name and fingerprint. You can pay to keep your name off it.  
+− The Tax button, and the Taxman tag with it.  
+✚ The Meister has a terminal instead: every account in Ravenheart, what the Vault actually holds against them, and a sell tax he sets. The tax comes off every sale at the counter before the seller is paid, and lands in the Vault as coin.  
+✎ The Depot's turret is switched from a red button on the Merchant's Office wall now, the same way the Censor's works — stand there, type the word. It is off the web console.  
+✎ Dead Simple crafting costs a quarter of a day's work instead of nothing. Four a day, the same as before, but they now come out of your day rather than free on top of it. They sell for a little less, too.  
+− A smith can no longer strike obols. Coin comes from the station and nowhere else.
+
 ## 2026-09-17 · The composer's row actually sits on one line now
 
 ✎ The Speak picker, the text and the send button were each at a slightly different height inside the message box. They are all on one line now, on a desktop, a tablet and a phone.  

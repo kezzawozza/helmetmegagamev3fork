@@ -33,6 +33,8 @@ const { runMoodPass } = require("./lib/moodPass");
 const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runXomPass } = require("./lib/xomPass");
 const { runDepotPass } = require("./lib/depotPass");
+const { runTrainArrivalPass } = require("./lib/trainArrivalPass");
+const { runTrainDeparturePass } = require("./lib/trainDeparturePass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
 const { getGameState, readGameState } = require("./lib/gameState");
 const { runCatatonicPass } = require("./lib/catatonicPass");
@@ -47,7 +49,6 @@ const { runHorseUpkeepPass } = require("./lib/horseUpkeepPass");
 const { runAutoLaborPass } = require("./lib/autoLaborPass");
 const { runLaborYieldPass } = require("./lib/laborYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
-const { runTaxPass } = require("./lib/taxPass");
 const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runOfferExpiryPass } = require("./lib/offerExpiryPass");
 const { runResearchPass } = require("./lib/researchPass");
@@ -230,12 +231,6 @@ const TURN_PASSES = [
   "research",
   "confessions",
   "stagedPush",
-  // What a filed tax collects (db/lib/taxPass.js). Right after stagedPush
-  // (a GM's own adjudication outranks a player verb) and before
-  // horseUpkeep/hunger — a tax is the same kind of levy, and can push
-  // someone into Hunger, matching horseUpkeepPass.js's own "the animal eats
-  // before the rider does."
-  "tax",
   "tagExpiry",
   // Counts Damaged Vision stacks and turns 5 of them into Blind. After
   // tagExpiry so a stack that grew this turn is counted, before the sweep so
@@ -307,6 +302,25 @@ const TURN_PASSES = [
   // six-turn clock runs out, and the turret sweeps whoever is standing in the
   // room. Last, so the turret fires on the sheet everything else left behind —
   // in particular the armour the carry pass may have made someone drop.
+  // The train, on its every-other-turn cycle (db/lib/train.js). Departure
+  // first, so that if the cycle is ever retuned to run both halves on one
+  // close, selling can never sweep crates that landed the same close.
+  //
+  // Both sit after `carry`, for the reason carry's own comment gives: crates
+  // land in a Room stash, and nothing may put things on a floor before the
+  // overburdened shed has finished putting things there. And both sit before
+  // `depot`, so the last thing that happens at the Depot is the gun firing on
+  // whoever came to meet the train.
+  //
+  // They deliberately do NOT go up with the income passes. A settled sale
+  // credits an ACCOUNT, and no upkeep pass can spend an account — only ⬢ and
+  // coin — so the income-before-upkeep rule does not reach here.
+  "trainDeparture",
+  "trainArrival",
+  // The key stays "depot" although the pass is only the turret now: it is
+  // written into Turn.resolvedPasses, and renaming it makes every
+  // half-resolved turn look like it still owes the pass. Same precedent as
+  // "lessons" (TURN-ENGINE.md §2b).
   "depot",
   // The Gatehouse gun, for the same reason and in the same breath. Separate
   // from "depot" so a failed Depot pass cannot swallow it, and so a resume
@@ -508,29 +522,6 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Staged push audit log failed:", err));
-  }
-
-  // What a filed tax collects (db/lib/taxPass.js). See TURN_PASSES's own
-  // comment on "tax" above for why it sits exactly here.
-  if (!done.has("tax")) {
-    const taxed = await runTaxPass(prisma, turn).catch(async (err) => {
-      await passFailed("Tax", err);
-      return null;
-    });
-    if (taxed) {
-      await markDone("tax");
-      if (taxed.applied > 0 || taxed.skipped > 0) {
-        await prisma.auditLog
-          .create({
-            data: {
-              actorDiscordUserId: "system",
-              actionType: "taxes_collected",
-              details: taxed,
-            },
-          })
-          .catch((err) => console.error("Tax audit log failed:", err));
-      }
-    }
   }
 
   // The caving release (db/lib/cavingPass.js). Directly after the staged push,
@@ -1240,6 +1231,43 @@ async function resolveNeeds(turn, config) {
     }
   }
 
+  // The train. Each pass checks the turn's parity itself and returns
+  // `ran: false` on the half that is not its turn, so both are entered every
+  // close and exactly one of them does anything.
+  let trainOut = null;
+  let trainIn = null;
+  if (!done.has("trainDeparture")) {
+    trainOut = await runTrainDeparturePass(prisma, turn).catch(async (err) => {
+      await passFailed("Train departure", err);
+      return null;
+    });
+    if (trainOut) await markDone("trainDeparture");
+  }
+  if (!done.has("trainArrival")) {
+    trainIn = await runTrainArrivalPass(prisma, turn).catch(async (err) => {
+      await passFailed("Train arrival", err);
+      return null;
+    });
+    if (trainIn) await markDone("trainArrival");
+  }
+  if (trainOut?.settled || trainIn?.delivered) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "train_ran",
+          details: {
+            settled: trainOut?.settled ?? 0,
+            paid: trainOut?.paid ?? 0,
+            taxed: trainOut?.taxed ?? 0,
+            delivered: trainIn?.delivered ?? 0,
+            crates: trainIn?.crates ?? 0,
+          },
+        },
+      })
+      .catch((err) => console.error("Train audit log failed:", err));
+  }
+
   // The Depot's hardware. Returns the ambient lines and DMs it owes rather
   // than speaking them — see TURN-ENGINE.md §3.
   let depot = null;
@@ -1275,19 +1303,13 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Gatehouse turret audit log failed:", err));
   }
 
-  if (
-    depot &&
-    (depot.turretShots || depot.generatorDied || depot.shuttleDeparted)
-  ) {
+  if (depot?.turretShots) {
     await prisma.auditLog
       .create({
         data: {
           actorDiscordUserId: "system",
           actionType: "depot_resolved",
           details: {
-            fuelBurned: depot.fuelBurned,
-            generatorDied: depot.generatorDied,
-            shuttleDeparted: depot.shuttleDeparted,
             turretShots: depot.turretShots,
             turretOutcomes: depot.turretOutcomes,
           },
@@ -1345,7 +1367,7 @@ async function resolveNeeds(turn, config) {
     xomShouts,
     routineNotices,
     gambitRollNotices,
-    depotLines: depot?.lines ?? [],
+    depotLines: [...(trainOut?.lines ?? []), ...(trainIn?.lines ?? []), ...(depot?.lines ?? [])],
     // Both guns' DMs, delivered by one loop. It was `depotDms` when there was
     // only the one turret.
     turretDms: [...(depot?.dms ?? []), ...(gatehouse?.dms ?? [])],
@@ -1854,6 +1876,9 @@ module.exports = {
   ...require("./lib/depotTurret"),
   ...require("./lib/turretBurst"),
   ...require("./lib/depotCrates"),
+  ...require("./lib/depotManifests"),
+  ...require("./lib/train"),
+  ...require("./lib/bankAccounts"),
   ...require("./lib/startingTags"),
   ...require("./lib/locationAttributes"),
   ...require("./lib/formatTagRequirement"),

@@ -41,9 +41,7 @@ import {
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   GUILT_RIDDEN_SLUG,
-  TAXMAN_SLUG,
 } from "@lifeweb/db/lib/constants";
-import { getMyFactionRole } from "@/lib/factionPermissions";
 import {
   hasAttribute,
   GODFLESH_ATTRIBUTE,
@@ -804,13 +802,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const isThanatiLeader = heldSlugs.has(THANATI_LEADER_SLUG);
   const isCerberon = heldSlugs.has(CERBERON_SLUG); // cerberonActions.js re-checks both
   const canWarrant = WARRANT_BADGE_SLUGS.some((slug) => heldSlugs.has(slug));
-  // The Tax button (docs/tags.yaml's `taxman`) — taxRequestImpl re-checks every fact.
-  const canTax = Boolean(
-    heldSlugs.has(TAXMAN_SLUG) &&
-      !character.concealed &&
-      character.factionId &&
-      (await getMyFactionRole(session.discordUserId, character.factionId)).isOfficer,
-  );
   const hideout = isThanati ? await hideoutRoom(prisma) : null;
   const atHideout = Boolean(hideout && hideout.locationId === character.locationId);
   // Set Hideout's picker: rooms at this Location the leader can get into.
@@ -1160,7 +1151,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       isThanati: isThanati,
       isThanatiLeader: isThanatiLeader,
       isCerberon: isCerberon,
-      canTax: canTax,
       canWarrant: canWarrant,
       atHideout: atHideout,
       hideoutRooms: hideoutRooms,

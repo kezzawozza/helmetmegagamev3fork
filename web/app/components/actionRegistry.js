@@ -60,7 +60,6 @@ import {
   SearchPersonIcon,
   StealIcon,
   PickpocketIcon,
-  ResourcesIcon,
   BrandIcon,
   BreakRestraintsIcon,
 } from "./icons";
@@ -184,11 +183,6 @@ export const ACTION_SECTIONS = [
       // time the page loaded — the metagaming rule at the top of this file.
       // The dialog's own empty state is the answer.
       { mode: "steal", icon: StealIcon, label: "Steal" },
-      // HIDDEN rather than greyed, the poison/disguise reasoning: holding the
-      // Taxman tag and being a faction officer are both facts about your own
-      // sheet, and a permanently dead Tax icon on everybody else's grid would
-      // teach nothing except that the button exists.
-      { mode: "tax", icon: ResourcesIcon, label: "Tax", show: "canTax" },
       // HIDDEN rather than greyed, the same reasoning Crucify and the Factory
       // verbs give: whether YOU are carrying a disguise kit is a fact about
       // your own sheet, and a dead Disguise icon on everybody else's would

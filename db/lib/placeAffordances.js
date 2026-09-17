@@ -12,6 +12,11 @@
 const { hasNoticeboard } = require("./noticeboard");
 const { QUEST_INTERACT_PREFIX } = require("./questText");
 const { INTERCOM_ROOM_SLUG } = require("./intercom");
+const {
+  STOREFRONT_ROOM_SLUG,
+  MERCHANTS_OFFICE_ROOM_SLUG,
+  RAILYARD_ROOM_SLUG,
+} = require("./train");
 const { BELL_ROOM_SLUG } = require("./bell");
 const { XOM_SHRINE_ROOM_SLUG } = require("./xom");
 const { linksFor, gateOperable, endpoints, isHeldOpen } = require("./locationGraph");
@@ -45,6 +50,9 @@ const ROOM_INTERCOM_PREFIX = "room:intercom:";
 const ROOM_TURRET_PREFIX = "room:turret:";
 const ROOM_BELL_PREFIX = "room:bell:";
 const ROOM_PRAY_PREFIX = "room:pray:";
+const ROOM_ATM_PREFIX = "room:atm:";
+const ROOM_DROPBOX_PREFIX = "room:dropbox:";
+const ROOM_DEPOT_TURRET_PREFIX = "room:depotturret:";
 
 // `tone` is what the affordance MEANS, never a colour — each face maps it to its own look.
 const GO = "go";
@@ -98,6 +106,42 @@ const ROOM_AFFORDANCES = [
     tone: PLAIN,
     prefix: ROOM_BELL_PREFIX,
     when: (room) => room?.slug === BELL_ROOM_SLUG,
+  },
+  // The counter's cash machine. A fixture rather than a page because it is a
+  // machine bolted to a wall: you have to be standing at it, and both faces
+  // should be able to say so. Most accounts draw on the Keep's Vault through
+  // it (db/lib/bankAccounts.js); the Merchant's and the Docker's do not.
+  {
+    id: "atm",
+    label: "ATM",
+    tone: PLAIN,
+    prefix: ROOM_ATM_PREFIX,
+    when: (room) => room?.slug === STOREFRONT_ROOM_SLUG,
+  },
+  // The one-way door out of an inventory and into the Depot's books. What goes
+  // in is gone at once and settles when the train next leaves.
+  //
+  // On the STOREFRONT and not in the Railyard, and that is load-bearing: the
+  // Railyard is behind a Depot Keycard, so a box in there would be a box only
+  // Dockers could reach — and selling is the half of this counter that had to
+  // open to everybody. The crates stay in the Railyard; the box is at the
+  // counter, which is also where a customer would look for it.
+  {
+    id: "dropbox",
+    label: "Drop Box",
+    tone: PLAIN,
+    prefix: ROOM_DROPBOX_PREFIX,
+    when: (room) => room?.slug === STOREFRONT_ROOM_SLUG,
+  },
+  // The Merchant's gun, on the wall the Merchant's Office description has
+  // called a big red button since before anything could press one. The second
+  // red button in the game, and it works exactly like the Censor's.
+  {
+    id: "depotTurret",
+    label: "Toggle Turret",
+    tone: DANGER,
+    prefix: ROOM_DEPOT_TURRET_PREFIX,
+    when: (room) => room?.slug === MERCHANTS_OFFICE_ROOM_SLUG,
   },
   // The Shrine of an Old Man: the only button that hands you a permanent tag that can kill you, with no way back off it.
   {
@@ -231,6 +275,9 @@ module.exports = {
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
   ROOM_PRAY_PREFIX,
+  ROOM_ATM_PREFIX,
+  ROOM_DROPBOX_PREFIX,
+  ROOM_DEPOT_TURRET_PREFIX,
   QUEST_INTERACT_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
   WATCHTOWER_ROOM_SLUGS,

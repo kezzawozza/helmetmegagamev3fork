@@ -7,6 +7,7 @@
 const { settleCarry } = require("./carry");
 const { RESOURCES_SLUG, RESOURCES_WEIGHT_LBS } = require("./resourceStack");
 const { WOUND_TAG_GROUPS } = require("./constants");
+const { isManifestId, MANIFEST_IDS } = require("./depotManifests");
 // The rungs docs/systemdocs/TAGS.md §5c actually defines, half rungs included
 // (the named exceptions the ladder documents). A typo'd 2.5 is a silent wrong
 // mood hit, so the set is closed.
@@ -641,6 +642,19 @@ async function syncTagsFromYaml(prisma) {
     if (t.sealedShipping && t.depotPrice == null) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sealedShipping but has no depotPrice — the Depot does not stock it, so it can never ship`);
     }
+    // A manifest is a shelf, and the shelves are a closed list — a typo here
+    // would quietly hide a ware from everybody rather than showing it to the
+    // wrong people, which is the harder bug to notice.
+    if (t.manifest != null && !isManifestId(t.manifest)) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" names manifest "${t.manifest}", which is not one of ${MANIFEST_IDS.join(", ")}`,
+      );
+    }
+    // A shelf with nothing on it: naming a manifest on a ware the station does
+    // not stock says nothing and reads as a rule.
+    if (t.manifest != null && t.depotPrice == null) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" names a manifest but has no depotPrice — nothing to put on the shelf`);
+    }
     // depotPrice is the buy side; carrying a price is what puts it on the shelf.
     if (t.depotPrice != null && !(Number.isInteger(t.depotPrice) && t.depotPrice > 0)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has a depotPrice that is not a positive integer`);
@@ -936,6 +950,9 @@ async function syncTagsFromYaml(prisma) {
       sellablePrice: entry.sellablePrice ?? null,
       depotPrice: entry.depotPrice ?? null,
       sealedShipping: entry.sealedShipping ?? false,
+      // Null is the Merchant's own manifest (db/lib/depotManifests.js), so a newly
+      // priced ware is his to stock until the catalog says wider.
+      manifest: entry.manifest ?? null,
       defaultDurationTurns: entry.durationTurns ?? null,
       removable: DESTROYABLE_CATEGORIES.has(entry.category) && entry.removable !== false,
       craftable: entry.craftable ?? false,

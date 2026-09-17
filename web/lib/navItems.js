@@ -1,4 +1,4 @@
-import { prisma, MORTUS_SLUG, MERCHANT_LICENSE_SLUG } from "@lifeweb/db";
+import { prisma, MORTUS_SLUG, MEISTERS_TERMINAL_SLUG } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { railKindSql } from "@/lib/dmThread";
@@ -31,9 +31,14 @@ export const GM_NAV = [
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
 const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "player" };
-// Not extended to every GM (no counter to trade at, /depot redirects them); a superadmin is the
-// one exception, /depot answers them with a read-only price list. See docs/systemdocs/DEPOT.md §2.
+// On every player's rail, always. The Depot is a public market now and the page
+// is a shop window — read-only unless you are standing in it, which is the page's
+// own business, not the rail's. See docs/systemdocs/DEPOT.md §2.
 const DEPOT_NAV_ITEM = { href: "/depot", label: "Depot", icon: "store", section: "player" };
+// The Meister's terminal over the town's accounts. Follows the TAG, never the
+// role — the terminal is tradeable and a role check would quietly break that,
+// the same call /depot's own licence gate makes. See docs/systemdocs/DEPOT.md §8.
+const TREASURY_NAV_ITEM = { href: "/treasury", label: "Treasury", icon: "store", section: "player" };
 
 // Streamed separately (Suspense boundary in AppRail) — the live Discord role check and the
 // Mortus-tag lookup never block a navigation's paint.
@@ -53,13 +58,13 @@ async function loadUnreadConversationCount(discordUserId) {
 }
 
 export async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, hasMortusTag, hasLicenceTag, config, gameConfig, pastGames] = await Promise.all([
+  const [{ isGm: gm }, hasMortusTag, hasTerminalTag, config, gameConfig, pastGames] = await Promise.all([
     getGmSession(),
     prisma.characterTag.findFirst({
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
     }),
     prisma.characterTag.findFirst({
-      where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MERCHANT_LICENSE_SLUG } },
+      where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MEISTERS_TERMINAL_SLUG } },
     }),
     prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
     // Chat switch (CHAT.md §5). Presentation here; /chat enforces it.
@@ -83,8 +88,9 @@ export async function loadNavItems(discordUserId) {
   const withLifeweb = hasMortus ? [...baseNav, LIFEWEB_NAV_ITEM] : baseNav;
   const withArchive =
     gm || config?.archiveVisible || pastGames > 0 ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
-  const withDepot = hasLicenceTag || superadmin ? [...withArchive, DEPOT_NAV_ITEM] : withArchive;
-  if (!superadmin) return withDepot;
-  const lastGm = withDepot.findLastIndex((item) => item.section === "gm");
-  return [...withDepot.slice(0, lastGm + 1), DEV_NAV_ITEM, ...withDepot.slice(lastGm + 1)];
+  const withDepot = [...withArchive, DEPOT_NAV_ITEM];
+  const withTreasury = hasTerminalTag || superadmin ? [...withDepot, TREASURY_NAV_ITEM] : withDepot;
+  if (!superadmin) return withTreasury;
+  const lastGm = withTreasury.findLastIndex((item) => item.section === "gm");
+  return [...withTreasury.slice(0, lastGm + 1), DEV_NAV_ITEM, ...withTreasury.slice(lastGm + 1)];
 }

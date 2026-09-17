@@ -5,6 +5,7 @@ import { visibleZoneIds as loadVisibleZoneIds } from "@lifeweb/db/lib/gmZoneView
 import { reasonLabel, reasonFlow, FLOW, REASONS } from "@lifeweb/db/lib/economyReasons";
 import { sankeyFromFlows, arcWebFromEdges } from "@lifeweb/db/lib/economyFlows";
 import { RESOURCES_SELECT, resourcesOf } from "@lifeweb/db/lib/resourceStack";
+import { isArrivalTurn } from "@lifeweb/db/lib/train";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
@@ -514,16 +515,8 @@ async function FreshEconomy({ section, searchParams, userId }) {
     }
 
     case "depot": {
-      const [books, depotRow, flowRows] = await Promise.all([
-        depotBooks(),
-        // depotBooks() reports the account/credit/manifest side; the
-        // generator and shuttle aren't part of that DTO, so they're read
-        // straight off the row here.
-        prisma.depot.findFirst({
-          select: { generatorOn: true, generatorFuel: true, fuelMax: true, shuttleState: true },
-        }),
-        flowsByTurn({ gameId }),
-      ]);
+      const openTurn = await getOpenTurn();
+      const [books, flowRows] = await Promise.all([depotBooks(), flowsByTurn({ gameId })]);
 
       // Balance of trade from the Depot's own side: an order pays obols IN,
       // a sale pays obols OUT. DivergingBars wants both magnitudes
@@ -546,10 +539,8 @@ async function FreshEconomy({ section, searchParams, userId }) {
       data = {
         ...data,
         books,
-        generatorOn: depotRow?.generatorOn ?? false,
-        generatorFuel: depotRow?.generatorFuel ?? 0,
-        fuelMax: depotRow?.fuelMax ?? 0,
-        shuttleState: depotRow?.shuttleState ?? null,
+        // The train runs on turn parity and nothing else (db/lib/train.js).
+        trainHere: isArrivalTurn(openTurn?.number ?? 0),
         tradePoints,
       };
       break;

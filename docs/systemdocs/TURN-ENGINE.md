@@ -684,9 +684,13 @@ entirely "is there an `ate-meal` tag on the sheet at close", and the only four
 things that grant one are a meal you cooked (Cooking, 5 points), a Depot ware,
 a GM hand-out, and a labor drop. None of those is reliably available:
 
-- **The Depot is not a shop.** An order spends `Depot.accountObols`, the
-  station's shared float, at a Landing Pad, on a shuttle cycle
-  (`DEPOT.md`). A player cannot walk up and buy lunch with their own ⬢.
+- **The Depot is a shop now, and it is still not lunch.** Since the counter
+  opened to everybody (`DEPOT.md`), anybody standing there can order a Ration
+  Box off the general manifest out of their own account — which is a real
+  improvement on this hole and not a fix for it. It needs obols, an account with
+  something in it, and a walk to the bottom of the Caves; the train then takes
+  up to two turns to bring the box down. A character on basic labour in Town
+  still cannot buy lunch today.
 - **The food drops hang off three pools only** — fishing, farming and
   prospecting (`docs/labordrops.yaml`). Basic and skilled labour turn up no
   food at all.
@@ -997,24 +1001,62 @@ markers for the desk's labels.
 | `db/lib/moveConfirm.js` | Confirming a filed Move — both faces call it, and a Move that never reaches it stays `PENDING_TYPE` and is skipped by the staged push (`bot/src/lib/moveConfirm.js` is a shim that binds `prisma`) |
 | `web/app/(app)/gm/dev/actions.js` | `forceAdvanceTurn`, the GM caller |
 
+## The train passes
+
+`db/lib/trainDeparturePass.js` and `db/lib/trainArrivalPass.js`, registered in
+`TURN_PASSES` as `"trainDeparture"` and `"trainArrival"`, between `arelitzLay`
+and `depot`.
+
+They sit **after `carry`** for the reason carry's own entry gives: crates land
+in a Room stash, and nothing may put things on a floor before the overburdened
+shed has finished putting things there. They sit **before `depot`**, so the last
+thing that happens at the Depot is the gun firing on whoever came to meet the
+train. Departure is before arrival, which on the shipped cycle is a safety
+property rather than a live dependency — exactly one of them does anything on
+any given turn — but if the cycle is ever retuned to run both halves on one
+close, selling must not be able to sweep crates that landed that same close.
+
+They deliberately do **not** go up with the income passes. A settled sale credits
+an ACCOUNT, and no upkeep pass can spend an account — only ⬢ and coin — so the
+income-before-upkeep rule does not reach here. Say so in the comment or somebody
+will "fix" it.
+
+**Parity decides which half RUNS; rows decide what MOVES.** Each pass opens with
+a `turn.number % 2` check and returns `ran: false` on the half that is not its
+turn, so both are entered every close and exactly one does anything. What
+actually moves is decided entirely by `deliveredAt: null` / `settledAt: null`,
+each row claimed with a conditional `updateMany` before it is touched. A failed
+advance that is resumed, a GM force-advance, or a game that starts on an even
+turn therefore costs a turn of flavour and never a shipment. Turn 1 needs no
+special case at all: it is a departure with an empty drop box, and turn 2's
+arrival finds whatever was ordered on turn 1. `db/test/train.test.js` holds
+that.
+
+- **Departure** settles every unsettled `DepotSale` at the price frozen when it
+  was dropped, takes `Depot.sellTaxRate` off the top as coin into the Keep's
+  Vault, and credits the net to whichever account the row named. Crediting a
+  TREASURY account puts the backing coin in the Vault in the **same
+  transaction** — a claim this pass mints has to be worth something at the ATM.
+- **Arrival** turns every undelivered `DepotOrder` into crates in the Railyard,
+  stamped with the buyer's fingerprint unless they ordered anonymously.
+
+One bad row never strands the rest of the train: the claim rolls back with it
+and it rides the next run.
+
 ## The Depot pass
 
 `db/lib/depotPass.js`, registered in `TURN_PASSES` as `"depot"` and run **last**
 — after `lifewebDecay` — so the turret fires on the sheet every other pass left
 behind, in particular the armour the carry pass may have made somebody drop.
 
-It does three things:
+It does **one** thing now: the **turret sweep**. Everyone standing in the Depot
+whose presented name is not `Depot.merchantFace` takes a roll, and armed is the
+only condition — there is no generator left for it to depend on.
 
-- **Generator burn.** `Depot.fuelBurnPerTurn` off `Depot.generatorFuel` while it
-  is running. Reaching zero switches `generatorOn` off, so the Merchant has to
-  deliberately restart it after refuelling rather than having it come back on
-  its own.
-- **Shuttle clock.** A `DOCKED` shuttle leaves on its own after
-  `Depot.shuttleMaxTurns`. A timed departure takes **nothing** with it — the
-  crates stay on the pad. Selling is a deliberate act.
-- **Turret sweep.** Everyone standing in the Depot whose presented name is not
-  `Depot.merchantFace` takes a roll. Only when the generator is running and the
-  turret is armed.
+It used to burn generator fuel and run the shuttle's clock as well. Both are
+gone (`DEPOT.md`). **The key stays `"depot"`** although the pass shrank: it is
+written into `Turn.resolvedPasses`, and renaming it makes every half-resolved
+turn look like it still owes the pass. Same precedent as `"lessons"`.
 
 Like every other pass it returns its side effects — `lines` (ambient lines the
 caller speaks into the Depot channel), `dms`, and `deaths` — rather than making

@@ -1,8 +1,9 @@
 # The Depot
 
-The Merchant's station: a hangar door in the roof of the caves, a shuttle that
-comes through it, a generator that has to be fed, a turret in the ceiling, and
-a bank. This file is the source of truth for all of it.
+The station at the bottom of the caves: a counter anybody may walk up to, a
+railway that brings goods down every other turn, a bank the whole town keeps its
+money in, and a turret in the ceiling. This file is the source of truth for all
+of it.
 
 Everything the Depot buys and sells has a real price. Price a new ware off the
 tables below, not by feel. If you change a number here, change the tag's
@@ -17,10 +18,10 @@ are the ladder — there is nothing above them to derive a price from.
 
 Unlike a brewing recipe, these numbers **are** enforced. `depotPrice` and
 `sellablePrice` are read off the catalog row server-side by
-`web/app/(app)/depot/actions.js` — never taken from the client — and a GM does
-not adjudicate a purchase. The price is then snapshotted into `Request.effect`,
-so re-tuning a number here never changes what an Undo of an older trade
-reverses.
+`web/app/(app)/depot/actions.js` and `db/lib/depotCounter.js` — never taken from
+the client — and a GM does not adjudicate a purchase. The price is then
+snapshotted onto the `DepotOrder` or `DepotSale` row, so re-tuning a number here
+never changes what an older trade says it was worth.
 
 ## 0. The system
 
@@ -31,17 +32,21 @@ reverses.
   it — so every authored price is already a whole number of obols too. An
   obol makes value **portable**: a weightless stackable tag holding the same
   amount as a sack of ⬢, but one a fortune of which still fits in a pocket.
-  ⬢ are a tag too now, and a one-pound one (`TAGS.md`), so the difference
-  between the two currencies is no longer physical-versus-not — it is weight,
-  and where the money is good. ⬢ are raw material anybody will take anywhere;
-  an obol is paper the Merchant honours and nobody else has to.
-- **The money belongs to the station, not the Merchant.** It lives on
-  `Depot.accountObols`. The licence is tradeable, so handing it over hands over
-  the balance too, and that is what makes the card worth stealing.
-- **Goods arrive physically.** An order is paid for now and delivered later, as
-  crates on a landing pad that anyone with a keycard can walk into.
-- **The lights can go out.** A generator burns fuel every turn and takes the
-  whole Depot down with it when the tank empties.
+  ⬢ are a tag too, and a one-pound one (`TAGS.md`), so the difference
+  between the two currencies is weight, and where the money is good. ⬢ are raw
+  material anybody will take anywhere; an obol is paper the station honours.
+- **Everybody has an account, and most of them are claims on the Keep.** A
+  `BankAccount` is fingerprinted to one character. A TREASURY account — nearly
+  everyone's — is backed by real `obol` tags in the Vault under the Keep, and a
+  withdrawal the Vault cannot cover is refused. An OFFSHORE account, the
+  Merchant's and his Dockers', is money the Company holds off-world and has no
+  vault behind it at all.
+- **Goods arrive physically, on a train nobody calls.** An order is paid for now
+  and delivered at the next arrival, as crates in the Railyard, stamped with the
+  buyer's name unless they paid to keep it off.
+- **Selling is a box, not a negotiation.** Drop a thing in the box on the
+  counter and it is gone; the money lands when the train next leaves, minus the
+  Meister's cut.
 - **The room can kill you.** A turret, off by default, that reads faces. It
   fires on **arrival**, so walking *through* the Depot on the way somewhere else
   is an arrival like any other — a multi-hop walk across the zone (`MAP.md` §3c)
@@ -49,142 +54,118 @@ reverses.
   passing. A walk the turret kills stops there rather than delivering a body to
   the destination.
 
-`Character.depotDebt` is gone; the line lives on `Depot.debtObols`.
+### What this replaced, and why none of it comes back
+
+The Depot used to be one man's console. `/depot` opened for the Merchant's
+Licence and bounced everybody else; goods came down on a shuttle he called by
+hand; the money was `Depot.accountObols`, a single float; taxation was a button
+on a Leader's sheet. Four things went, and each for its own reason:
+
+- **The shuttle.** It was a button, so goods sat paid-for and undelivered until
+  the Merchant woke up. One turn is one real day, so "he will do it later" was a
+  day of nothing moving. A train on a fixed cycle cannot be forgotten.
+- **The generator.** Fuel ran out and took ordering, the bank, the shuttle and
+  the gun down with it. That was survivable when the Depot was a shop. It is a
+  market now, and one person's empty tank should not be able to close it.
+- **The station's float.** It was a second pot to explain, sitting beside the
+  Merchant's own purse with the ATM between them. His OFFSHORE account is that
+  pot now, and there is one kind of account in the game rather than two.
+- **The tax button.** It filed a levy per person per turn, DM'd each target, and
+  could be refused or part-paid. The sell tax is quieter and far harder to
+  dodge: a percentage off every sale at the counter, before anybody is paid.
 
 ## 0a. The moving parts
 
 | Piece | Where it lives | Notes |
 |---|---|---|
 | Station state and tuning | `Depot` singleton, `id = 1` | `db/lib/depotState.js` — every mover is a locked clamp, per `lifeweb.js#bumpBlood` |
+| Accounts and the Vault | `db/lib/bankAccounts.js` | `BankAccount`, `bumpBankAccount`, the hard backing |
+| The counter's three fixtures | `db/lib/depotCounter.js` | The ATM, the drop box and the gun — shared by both faces |
+| The manifests | `db/lib/depotManifests.js` | Which shelf a ware is on, and what opens it |
+| The train | `db/lib/train.js` + the two passes | `trainArrivalPass.js`, `trainDeparturePass.js` |
 | The turret | `db/lib/depotTurret.js` | Weighted severity table, bent by the target's `Tag.ballisticArmor` |
 | Crates | `db/lib/depotCrates.js` | Runtime `Tag` rows with `custom: true` |
-| Per-turn upkeep | `db/lib/depotPass.js` | Fuel burn, shuttle clock, turret sweep |
-| The console | `web/app/(app)/depot/`, `web/app/components/Depot*.js` | Cockpit strip + six tabs |
+| Per-turn upkeep | `db/lib/depotPass.js` | The turret sweep, and nothing else any more |
+| The counter | `web/app/(app)/depot/`, `web/app/components/Depot*.js` | Status strip + six tabs |
+| The Meister's terminal | `web/app/(app)/treasury/` | Every account, the backing, the tax rate |
 | GM tuning | `/gm/dev?s=depot` | `updateDepot` in `web/app/(app)/gm/dev/actions.js` |
 
 ## 0b. Who may do what
 
-Three doors, deliberately different:
+**`/depot` opens for everyone, always.** It is a shop window: read-only unless
+you are standing in the Depot, and the page says so. Nothing redirects anybody
+any more.
+
+What your tags decide is the **shelf**, and one seat's paperwork:
 
 | Holder | Can |
 |---|---|
-| **Merchant's Licence** | Everything below, plus the money and the gun: order, the ATM, the credit line, arming and disarming the turret, and shutting the generator down. |
-| **Depot Keycard** | Enter the landing pad. Open crates, including sealed ones. Call the shuttle down, load it and send it back up. Feed the generator and fire it up. Spends nothing. |
-| **Superadmin** | Read the console. |
-| Anyone else | Bounced off `/depot`. |
+| **Anyone, standing there** | Order off the general manifest, use the ATM at the counter, put things in the drop box beside it, open an account. |
+| **Silver Chip** | …plus the black market: drink, smoke and worse. |
+| **Depot Keycard** | Enter the Railyard, where the crates land. Open one, sealed or not. Sell into the Merchant's account rather than their own. Spends nothing of its own. |
+| **Merchant's Licence** | …plus the whole manifest, sealed goods included, the Company's credit line, the gun on the office wall, and the sight of everybody's staged selling. |
+| **Meister's Terminal** | `/treasury`: every account, the Vault's backing, and the sell tax rate. |
 
 The licence is checked, never the Merchant **role** — the licence is tradeable
-and a role check would quietly break that. The keycard is checked the same way
-and for the same reason.
+and a role check would quietly break that. The keycard and the terminal are
+checked the same way and for the same reason.
 
-Everything except reading needs you **standing at the Depot**, and everything
-except the fuel hatch and the two generator switches needs the generator
-**running**.
+**The split is between a shelf and a job.** A keycard does the work — the
+Railyard, the crates, selling into his books — and buys nothing extra and
+spends nothing. The licence is the business.
 
-**Reading really does mean from anywhere.** The console opens for a licence or a
-keycard wherever its holder is standing, with every control greyed and the
-banner reading "You're not at the depot." Somebody carrying neither the
-licence nor a keycard is bounced off the page entirely.
+The gates live in `web/app/(app)/depot/actions.js` and `db/lib/depotCounter.js`:
+`requireDepotStanding` does the standing and the ACT check, `counterActor` is
+its twin for the fixtures, and `requireLicensedMerchant` / `requireAccount` sit
+on top.
 
-**The split is between labour and money.** A keycard does the work — three
-server actions plus the crate one, all of them either free or paid for out of
-the Docker's own pocket — and cannot spend an obol, draw on the credit line,
-or point the gun at anybody.
+## 0c. The Railyard, and the train
 
-Two edges of that are deliberate rather than accidental:
+The Railyard is a **real room** — a thread under the Depot channel, authored in
+`docs/zones.yaml` as `depot-railyard`, behind the keycard. It replaced the
+Landing Pad. Its starter message says whether the train is at the platform —
+`live: train` in `docs/zones.yaml`, rendered by `db/lib/roomLive.js` and
+repainted by `refreshLiveRooms` every close.
 
-- **Sending the shuttle up is the sharp one.** A keycard can sell everything
-  standing on the pad. That is the real cost of the change, and it is the same
-  exposure the pad has always had — the room is a stash anyone with a card can
-  walk into and carry off, so a card that can *load* the shuttle is not a new
-  door, only a faster one. The payout lands in the station's account either
-  way, so it moves goods, never money out of the Depot, and the ledger names
-  whoever pressed it.
-- **The generator is split by direction.** A keycard may start it, because a
-  dead generator otherwise takes the whole station down for a day. Only the
-  licence may shut it down, because the lights going out take the **turret**
-  with them, and handing a keycard the off switch would hand it the security
-  system.
-
-The gates live in `web/app/(app)/depot/actions.js`:
-`requireDepotStanding` does the standing, the ACT check and the power, and
-`requireLicensedMerchant` / `requireDepotHand` sit on top of it.
-
-## 0c. The generator
-
-`Depot.generatorFuel` burns `fuelBurnPerTurn` every turn it runs and switches
-itself off at zero. With it off, **nothing at the Depot works** — no ordering,
-no shuttle, no ATM, no turret. The one exception is the power switch itself,
-for the obvious reason.
-
-Coal is the proper fuel (`coalFuel`, 50 by default); saltpeter is the fallback
-and deliberately worse (`saltpeterFuel`, 15). At the shipped defaults a full
-tank is five turns and one coal is two and a half, so the Merchant refuels
-roughly every five turns and has to stay profitable to afford it. Overfilling
-wastes the surplus rather than banking it.
-
-`depotPowered(depot)` is the single predicate for "on". Fuel at zero is off
-even if the switch says otherwise.
-
-## 0d. The shuttle and the landing pad
-
-The landing pad is a **real room** — a thread under the Depot channel,
-authored in `docs/zones.yaml`. The lock sits on the Cargo Bay next door rather
-than on the pad, which is only a hole in the roof; where a room IS gated,
-membership is handled entirely by `db/lib/roomAccess.js` and reconciled by the
-channel doctor, and the feature adds no access code of its own.
-
-Its starter message says whether the shuttle is on it — `live: shuttle` in
-`docs/zones.yaml`, rendered by `db/lib/roomLive.js` and repainted by
-`refreshLiveRooms` on every move of the state. That is the general mechanism,
-not a special case: any room may name a live key.
+**The train runs on turn parity and nothing else.** Even turns are arrivals, odd
+turns are departures (`db/lib/train.js`). So turn 1 is a departure with an empty
+drop box and the train nowhere, and turn 2 brings down whatever was ordered on
+turn 1 — which is the behaviour Bascinet asked for, falling out of the parity
+rather than needing a first-turn special case.
 
 The cycle:
 
-1. **Order** into a manifest. Obols leave the account now; the goods do not
-   exist yet. That gap is the risk of the business.
-2. **Call it down.** The manifest becomes crates in the landing pad's stash,
-   and the shuttle is `DOCKED`. An empty manifest still brings it — he needs it
-   down to load anything going up.
-3. **Load and send it back.** The goods on the pad go up and come back as
-   obols at their `sellablePrice`. An **unopened crate is worth what is inside
-   it**, priced off the live catalog — otherwise returning a shipment would
-   silently annihilate it. **Loose ⬢ in the stash go up too**, at 1 ¢ each
-   (`RESOURCE_EXPORT_PRICE`). That is the only door out of ⬢ and into coin, and
-   it costs half their face value to walk through. The pad's ⬢ are an
-   ordinary stack row in the room now rather than a number on the Room
-   (`db/lib/resourceStack.js`), so the send deliberately lifts them **out** of
-   the goods loop before it runs — left in, they would be sold once as ⬢ at
-   the export price and again as a ware at their `sellablePrice`.
-4. Or **it leaves on its own** after `shuttleMaxTurns` (6). A timed departure
-   takes nothing with it — the crates stay on the pad. Selling is a deliberate
-   act and an unattended shuttle should not empty the room.
+1. **Order** off a manifest. Obols leave your account now; the goods do not
+   exist yet. That gap is the risk of buying.
+2. **It arrives.** Every undelivered `DepotOrder` becomes crates in the
+   Railyard, one stack of crates per order.
+3. **It leaves.** Every unsettled `DepotSale` settles at the price frozen when
+   it was dropped, the Meister's cut goes to the Vault as coin, and the net
+   credits whichever account the row named.
 
-`shuttleCooldown` is the gap between landing and being able to send it back —
-a *departure* gate, not an arrival one. (`ShuttleState.INBOUND` is declared and
-never written; calling it down lands it immediately.)
+**Parity decides which half RUNS; rows decide what MOVES.** Each pass opens with
+a parity check and then works entirely off `deliveredAt: null` / `settledAt:
+null`, claiming each row with a conditional `updateMany` before touching it. A
+doubled or resumed turn advance therefore costs a turn of flavour and never a
+shipment. `db/test/train.test.js` holds the parity half of that.
 
-`shuttleTurn` is **never null** — it floors to 0. A null clock reads as
-"landed this turn" forever, wedging both timers permanently.
-
-## 0e. Crates
+## 0d. Crates
 
 A shipment does not arrive as a tidy pile of tags. It arrives packed, in
 crates, and somebody has to open them. That makes unloading a job worth paying
 a Docker for, puts a delay between buying a pistol and holding one, and means a
-crate left on the pad can be stolen.
+crate left in the Railyard can be stolen.
 
 **A crate is packed by weight.** It fills to `PACKAGE_MAX_LBS` — 150 lb of
 contents — and then a new one opens. That is the same constant the player-facing
 Package button enforces (`FACTORY.md` §5), so a Depot shipment and a
-hand-packed crate now agree on the ceiling as well as on the halving. What
-comes out is a box with a volume rather than a counter: 99 tea in one crate, an
-anvil most of the way through another.
+hand-packed crate agree on the ceiling as well as on the halving. What comes out
+is a box with a volume rather than a counter: 99 tea in one crate, an anvil most
+of the way through another.
 
 Units are mixed before they are packed, so a crate holds a random handful
 rather than one tidy line item. `MAX_CRATES` (12) caps the count, past which a
-huge order simply means fuller crates rather than a landing pad buried in tag
-rows.
+huge order simply means fuller crates rather than a Railyard buried in tag rows.
 
 There is a second cap, on **count** rather than weight: `PACKAGE_MAX_UNITS`
 (200). The weight cap does not bound the weightless, and seven Depot wares
@@ -193,59 +174,53 @@ without it a weightless order packs into one crate however large it is.
 
 **A crate is a `Tag` row created at runtime** with `custom: true`, so
 `db:prune-tags` skips it (`db/lib/pruneTags.js`). Being a tag means crates get
-carry weight (half what went in, §5 of `FACTORY.md`), transfers, room stashes and theft for free. The row is
-deleted once nothing references it.
+carry weight (half what went in, §5 of `FACTORY.md`), transfers, room stashes
+and theft for free. The row is deleted once nothing references it.
 
 **A crate is opened by consuming it**, from `/character` or the Things drawer,
-wherever the crate happens to be — not from a button on `/depot`, since a
-crate can walk off the landing pad in somebody's arms. `crateTagData` sets
+wherever the crate happens to be — not from a button on `/depot`, since a crate
+can walk out of the Railyard in somebody's arms. `crateTagData` sets
 `consumable: true`, and `consumeTagRequestImpl` takes a third road out to
-`openCrateRequestImpl` — beside the two that already existed for a sealed
-letter and the Instant Camera, and for the same reason: what falls out of a
-crate is a list of runtime tag IDs, which no catalog slug in `consumesInto`
-can name. The keycard gate (`canOpenCrate`) is re-checked in there.
+`openCrateRequestImpl` — beside the two that already existed for a sealed letter
+and the Instant Camera, and for the same reason: what falls out of a crate is a
+list of runtime tag IDs, which no catalog slug in `consumesInto` can name. The
+keycard gate (`canOpenCrate`) is re-checked in there.
 
-**A crate can hold ⬢.** They ride the manifest as a line with no `tagId` and
-land on the crate row as `consumesIntoResources` — the field the ordinary
-consume path already grants — so the Resources half of a shipment needs no
-special case at all past the packing.
+**A crate can hold ⬢.** They ride the order as a line with no `tagId` and land
+on the crate row as `consumesIntoResources` — the field the ordinary consume
+path already grants — so the Resources half of a shipment needs no special case
+at all past the packing.
 
 **A crated ⬢ weighs a pound** (`RESOURCE_UNIT_LBS`), so ⬢ pack against the
-same 150 lb rule as everything else and ride in a crate alongside other goods:
-150 ⬢ fill one crate and it weighs 75 lb.
+same 150 lb rule as everything else: 150 ⬢ fill one crate and it weighs 75 lb.
 
-This side of it never changed. What changed is the other side. A **loose** ⬢
-used to weigh nothing and count against a separate cap of its own, so the same
-⬢ was a pound on the landing pad and weightless in a pocket — freight and the
-sheet flatly disagreed about the same sack of material. Since 9/2026 a loose ⬢
-is a one-pound item like the crated one (`docs/tags.yaml` `resources`), the
-second cap is gone, and there is one rule for a ⬢'s weight wherever it is
-standing (`CARRY.md`).
-
-The manifest is printed on the crate, in exactly this format:
+**A crate says whose it is.** The manifest is printed on the side with the
+buyer's stamp in front of it:
 
 ```
-[SHIPMENT ID RV-4471-K]: Coal x 4 | Bandage x 6 | ML-23
+[SHIPMENT ID RV-4471-K] · ADA VOSS · AV-2017: Coal x 4 | Bandage x 6 | ML-23
 ```
+
+Ordering **anonymously** is a tick at the counter, and replaces the stamp with
+`ANONYMOUS`. Only the `DepotOrder` row then remembers whose it was.
 
 Unless something in it ships sealed, in which case the whole crate reads:
 
 ```
-[SHIPMENT ID RV-4471-K]: SEALED
+[SHIPMENT ID RV-4471-K] · ADA VOSS · AV-2017: SEALED
 ```
 
 ...and only a Depot Keycard opens it. **One sealed line item seals the crate it
-lands in**, so nobody knows *which* crate the dangerous thing is in — only that
-one of them is worse news than the others.
+lands in**, so nobody knows *which* crate the dangerous thing is in. The seal
+hides *what* is in the box; whose box it is stays printed, because those are two
+different secrets.
 
 **A non-stackable ware can only be ordered one at a time.** `CharacterTag` is
 unique on character+tag, so a crate reading `ML-23 x 2` could only ever hand
 over one pistol; the order is refused rather than silently clamped. Opening a
-crate never loses a non-stackable ware you already hold (or a second copy of
-one in the same crate): the spare is set down in a public room of your
-Location, where Transfer can pick it up or hand it on, and the notice says so.
-With no public room there, the crate refuses to open. The audit row lists
-these under `dropped`. (They used to be `skipped` and deleted with the crate.)
+crate never loses a non-stackable ware you already hold: the spare is set down
+in a public room of your Location, where Transfer can pick it up, and the notice
+says so. With no public room there, the crate refuses to open.
 
 A ware ships sealed by setting `sealedShipping: true` in `docs/tags.yaml`. The
 sync refuses it on a tag with no `depotPrice`, since the station cannot ship
@@ -253,7 +228,128 @@ what it does not stock. Currently sealed: the two firearms, the flamethrower,
 Light Infantry Armour, Soporific, Phrygian Tears, the Amoeba Vial, the
 Homunculus.
 
-## 0f. The turret
+## 0e. The manifests
+
+A manifest is a **shelf**, and the thing that opens it. It is the answer to
+"what may THIS person order", which used to have one answer because there was
+one buyer.
+
+| Manifest | Opened by | Holds |
+|---|---|---|
+| `general` | nothing — anyone standing at the counter | ⬢ and Ration Boxes |
+| `black-market` | **Silver Chip** | the drink and drug shelf |
+| `merchant` | **Merchant's Licence** | everything priced, sealed goods included |
+
+The catalog is `db/lib/depotManifests.js` — zero requires, like `dmKinds.js`,
+because the Buying tab is a client component. A ware names its shelf with
+`manifest:` in `docs/tags.yaml`; **absent means `merchant`**, which is the
+strictest default on purpose: a newly priced ware is his to stock until the
+catalog says wider. `db/lib/syncTags.js` refuses a manifest id that is not in
+the catalog, and refuses one on a ware with no `depotPrice` — a shelf with
+nothing on it says nothing and reads as a rule.
+
+Adding a manifest is one entry in that file plus a `manifest:` line per ware.
+Nothing else has to change.
+
+**The Silver Chip** (`silver-chip`) is a metallic poker chip, weightless,
+tradeable, and does nothing whatsoever except open that shelf. Not craftable:
+a forge that could mint them would mint the market open for everybody.
+
+## 0f. The drop box, and the sell tax
+
+Selling used to be the Merchant sending a shuttle up with whatever was standing
+on the pad, paid into the station's float. It is a box on the Storefront counter
+now.
+
+**On the Storefront and not in the Railyard**, and that is load-bearing: the
+Railyard is behind a Depot Keycard, so a box in there would be a box only
+Dockers could reach — and selling is the half of this counter that had to open
+to everybody. The crates stay in the Railyard; the box is where a customer would
+look for it.
+
+- **What goes in is deleted at once.** That is what makes it a one-way door:
+  nothing sits in a stash waiting to be stolen back out, and the seller has
+  committed. What is left is a `DepotSale` row.
+- **The price is frozen at the drop**, so re-tuning `docs/tags.yaml` between the
+  drop and the departure cannot restate what was sold.
+- **It is fingerprinted.** The row carries the account, the fingerprint and the
+  holder's name as a snapshot.
+- **The destination is per-row**, one of SELF / TREASURY / MERCHANT, and can be
+  re-pointed from the Selling tab until the train takes it. MERCHANT needs the
+  Licence or a Depot Keycard — that is the Docker's seat: selling into his books
+  instead of their own. It is their default; everyone else's is SELF.
+- **A licence sees everybody's staged selling.** Settled rows stay each seller's
+  own business.
+
+**The sell tax** is `Depot.sellTaxRate`, whole percent, set from the Meister's
+terminal (§0h). It comes off every settled sale before the seller is paid and
+lands in the Vault **as coin** — so the Keep's stash grows by exactly what the
+sellers were docked, which is what keeps the backing honest while the rate is
+above zero.
+
+## 0g. The bank
+
+**An account is a claim, and a TREASURY claim is hard-backed.**
+
+- `BankAccount.balanceObols` is the claim. `Depot.accountObols` is gone.
+- The **Vault** is `undercroft-vault`, a real room behind the Baron's key,
+  seeded with **350 obols** in `docs/zones.yaml`. Every TREASURY account draws
+  on that pile and nothing else.
+- **The ATM** moves obols between an account and physical `obol` tags. For a
+  TREASURY account the coin comes physically out of the Vault, and a withdrawal
+  the Vault cannot cover is **refused, never clamped** — a clamp would hand
+  somebody less than they asked for and say nothing.
+- An **OFFSHORE** account skips all of that. There is no pile behind it.
+- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 75) is
+  drawn and repaid in obols, and credits the Merchant's own account. The cap is
+  **refused** rather than clamped. Nothing in code punishes a standing balance —
+  the Company is not code.
+
+**The Vault can be robbed, and that is the point.** It is a room with a stash in
+it. Emptying it does not zero anybody's balance; it makes every balance
+unwithdrawable, which is a far more interesting thing to do to a town.
+
+**An account opens EMPTY.** A starting purse is physical obols from
+`docs/roles.yaml`, because a seeded balance on day one would be a claim with
+nothing behind it — exactly what the backing exists to prevent. Purses are
+granted with a `Name xN` suffix (`Obol x25`), parsed by `db/lib/startingTags.js`.
+
+**Who gets one at creation** is `bank_account:` in `docs/roles.yaml`:
+`treasury` for nearly every seat, `offshore` for the Merchant and his Dockers,
+and **absent for the Black Hills** — the Tribunal and the Brigands arrive
+without one. Anyone else (a spawned antagonist, a threat handed a body
+mid-game) opens one at the counter with a **Create an account** button: one
+click, no cost, opens empty.
+
+**THE ORDERING RULE, and it is the only one: room lock first, then the
+account.** `db/lib/tagWrites.js#dropRoomTag` takes the room lock first, so a
+deposit and a withdrawal that took them the other way round would deadlock.
+
+**Debtor** is a separate faucet, off the drawback catalog rather than
+`docs/roles.yaml`: taking the tag grants 20 obols in the creation transaction
+(`DEBTOR_STARTING_OBOLS`, `db/lib/wantedPoster.js`), and the character owes
+40 back. That debt is only ever paper — three notices go up ("DEBTOR:
+{name}. Owes: 40 obols. Send the dockers."), a loose sheet each in the
+Merchant's Office and the Storefront, and one pinned to the Depot
+noticeboard. Nothing collects it automatically.
+
+## 0h. The Meister's terminal
+
+`/treasury`, gated on the **Meister's Terminal** tag the way `/lifeweb` is gated
+on Mortus. A superadmin reads it (host access, not game permission) but does not
+get the dial; `web/app/(app)/treasury/actions.js` re-checks the tag.
+
+It shows every account — fingerprint, holder, role, class, balance — the Vault's
+coin against the sum of the TREASURY claims, and what is staged to sell. The one
+control is the **sell tax rate**, 0–100%, written to `Depot.sellTaxRate` with an
+audit row.
+
+The number worth reading first is the **backing**. Under the line, somebody is
+going to walk up to the ATM and be told no through no fault of their own. Set
+the rate too high and people stop selling; set it too low and the Vault drains
+and the town's money stops working.
+
+## 0i. The turret
 
 The first automated harm mechanic in Bascinet. Nothing else in this codebase
 rolls damage — injuries have always been GM-adjudicated (`HARM_CHARACTER`) or a
@@ -261,13 +357,26 @@ narrative Gambit outcome — so there was no armour model to extend. What it
 borrows instead is the *shape* of `db/lib/cavingLoot.js`: a weighted draw whose
 columns must sum to 1.
 
-**There are two turrets now.** This one, and the gun on the rotor in the
-Gatehouse yard (`db/lib/gatehouseTurret.js`, §0g below). They share everything
-except where they stand, what turns them on and who they spare, so the sweep,
-the arrival roll and what a bullet does to a sheet live once in
+**The switch is a physical thing in a room now.** A red *Toggle Turret* button
+on the Merchant's Office starter post (`db/lib/placeAffordances.js`), which is
+what that room's description — "a desk, filing cabinets, and a big red button" —
+has promised since before anything could press one. It works exactly like the
+Censor's, and for the same reasons: you have to be standing in the office,
+re-checked at *submit* rather than at open, and you have to type `ARM` or
+`DISARM`. Discord has no confirm dialog and a misclick on a red button should
+not be able to shoot the shop. The state is re-read at submit, so two people in
+the office at once cannot both flip it the same way. It also wants the Licence,
+which the Censor's does not: the gun is the business's, not the room's.
+
+It used to be a control on `/depot`'s Station tab. A switch that kills people
+should be a thing you walk to.
+
+**There are two turrets.** This one, and the gun on the rotor in the Gatehouse
+yard (`db/lib/gatehouseTurret.js`, §0j below). They share everything except
+where they stand, what turns them on and who they spare, so the sweep, the
+arrival roll and what a bullet does to a sheet live once in
 `db/lib/turretPass.js`. The ballistics — the severity ladder, the armour curve,
-the weighted draw — stay in `db/lib/depotTurret.js`, which is the file
-both of them roll against.
+the weighted draw — stay in `db/lib/depotTurret.js`.
 
 **It reads faces, not papers.** The turret spares exactly one thing: a
 character whose **presented** name matches `Depot.merchantFace`. Not the
@@ -285,8 +394,7 @@ licence, not the keycard, not the role. So:
 the `merchant` role calls `setMerchantFace` with that character's own name
 (`web/app/(app)/character/createActions.js`, in the best-effort side-effect
 block; the writer is in `db/lib/depotState.js`). There is no field for it on
-`/gm/dev` — the face is the Merchant's, written at creation, and nothing else
-sets it.
+`/gm/dev` — the face is the Merchant's, written at creation.
 
 It is set **once and never resynced**, because a face does not change when the
 papers do. Two consequences worth knowing, both deliberate:
@@ -299,8 +407,8 @@ papers do. Two consequences worth knowing, both deliberate:
 
 It fires **on entry** (`db/lib/locationMove.js`, before the Discord guard —
 being shot is a database fact) and **again at the end of every turn**
-(`db/lib/depotPass.js`), the way Caving rolls do. It only fires when the
-generator is running.
+(`db/lib/depotPass.js`), the way Caving rolls do. **Armed is now the only
+condition**: there is no generator left for it to depend on.
 
 **Being shot is very bad.** This is what a burst does to somebody wearing
 nothing — the shipped table, `DEFAULT_TURRET_TABLE` in `db/lib/depotTurret.js`:
@@ -341,7 +449,7 @@ number could fix.
 The best kit in the game still buries about one wearer in twenty.
 
 Armour is read off `Tag.ballisticArmor` directly, so it can never fall behind
-the catalog. See §TAGS.md for the two columns and the word scale players
+the catalog. See `TAGS.md` for the two columns and the word scale players
 actually see.
 
 No single piece forged in Ravenheart reaches Overkill on its own any more —
@@ -350,13 +458,13 @@ about the place holds: "nothing forged in Ravenheart stops a bullet".
 The turret is where that line finally means something mechanical, and it is why
 nothing forged sits above 0.3 ballistic.
 
-A GM retunes the unarmoured table from `/gm/dev?s=depot`. **The save is
-refused** if it does not sum to 1 — a broken die is a typo, not a preference,
-and silently normalising it would hide the mistake behind subtly wrong odds for
-a month. A table that somehow reaches the database invalid (a hand-edited row, a
-restored backup) is ignored at roll time in favour of the shipped one. Note that
-tuning here moves *every* outcome at once, armoured included; a single piece of
-gear is retuned on its own tag.
+**The table is not tunable, from the Dev Panel or anywhere else.**
+`turretTable()` in `db/lib/depotTurret.js` returns `DEFAULT_TURRET_TABLE` and
+ignores its argument, so both guns roll the shipped odds and always have. The
+Dev Panel used to carry a JSON editor for it and the code a column comment
+saying one existed; neither was true. Retuning means editing that constant.
+A single piece of gear is still retuned on its own tag, which is the knob that
+does work.
 
 **The gun makes a noise, and it is heard past the room.**
 `db/lib/turretBurst.js` posts `RRATATAT!` full-size into the Location the gun
@@ -378,7 +486,7 @@ A `dead` result goes through `db/lib/characterDeath.js#applyDeathToRow`, so it
 gets a corpse, an archive line and the Discord role owed back like any other
 death.
 
-## 0g. The other turret, in the Gatehouse
+## 0j. The other turret, in the Gatehouse
 
 The triple-barrelled gun on the rotor in the fortress yard, which the Baron's
 charter has described as "off" since before anything could switch it on.
@@ -394,161 +502,106 @@ It carries no tunable table and no Dev Panel section. `rollTurret(tags, source)`
 reads only `source.turretTable`, so passing `null` gets the shipped table for
 free — that is the whole reason a second gun needed no new config.
 
-Its entire state is `GameConfig.gatehouseTurretArmed`, off by default.
-
-**The switch is a physical thing in a room.** A red *Toggle Turret* button on
-the Censor's Office starter post (`db/lib/roomStarterRow.js`), answered by
-`handleTurretOpen` / `handleTurretSubmit` in the bot. It is the only red button
-in the game, on purpose. Two guards, and neither is a permission check:
-
-- You have to be **standing in the Censor's Office**, re-checked at *submit*,
-  never at open — an ephemeral modal outlives somebody walking out of the
-  Garrison. Reaching the wall is the safeguard.
-- You have to **type `ARM` or `DISARM`** into the modal. Discord has no confirm
-  dialog and a misclick on a red button should not be able to shoot the Keep.
-  Case and stray spaces are forgiven; it is a speed bump, not a password. The
-  state is re-read at submit, so two people in the office at once cannot both
-  flip it the same way.
-
-Flipping it speaks one `-#` line into the Gatehouse through
-`db/lib/ambientLine.js` — the machine spinning up is the only warning anybody in
-the yard gets — and writes one `gatehouse_turret_toggled` audit row naming the
-character who pressed it.
+Its entire state is `GameConfig.gatehouseTurretArmed`, off by default. Its
+switch is the same shape as the Merchant's: a red button on the Censor's Office
+starter post, a typed word, re-checked at submit. Flipping it speaks one `-#`
+line into the Gatehouse through `db/lib/ambientLine.js` and writes one
+`gatehouse_turret_toggled` audit row naming the character who pressed it.
 
 It fires on the same two triggers as the Merchant's: on entry
-(`db/lib/locationMove.js`, which now asks both guns; each checks the destination
+(`db/lib/locationMove.js`, which asks both guns; each checks the destination
 slug first and costs one indexed read to say no) and at the end of every turn,
 as its own `gatehouseTurret` pass. Separate from `depot` in `TURN_PASSES` so a
 failed Depot pass cannot swallow it and a resume re-runs only the one that did
 not finish.
 
-## 0g. The bank
+## 0k. The counter
 
-The Merchant is the only faucet of currency in the game.
+`/depot`. A status strip that never scrolls away — greeting, your balance, and
+where the train is — over six tabs: **ATMs**, **Selling**, **Buying**,
+**Manifests**, **Price list**, **Ledger**.
 
-- **The ATM** moves obols between `Depot.accountObols` and physical `obol`
-  tags. It is the only door coins enter and leave the world through, which is
-  what makes lending something only he can do.
-- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 75)
-  is drawn and repaid in obols. Drawing puts money in the account. The cap is
-  **refused** rather than clamped, so he is told he hit the ceiling. Nothing in
-  code punishes a standing balance — the Company is not code.
-**There is no ⬢ counter.** ⬢ are a **ware on the shuttle** instead (§3, §4)
-— the only place they change form, and never for nothing.
+The strip is down to two things because those are the two facts that decide
+whether anything you are about to do works, whichever tab you are on.
 
-**There are two pots, and they are not the same money.** The station's account
-is `Depot.accountObols`; the Merchant's purse is physical `obol` tags on his
-sheet. Spending one never touches the other, and the ATM is the only door
-between them — which is the point, because the licence is tradeable and handing
-it over hands over the account but not his pockets.
+| Tab | What it is |
+|---|---|
+| **ATMs** | Your account, its class, the Vault's coin if it backs you, Withdraw / Deposit, the credit line if you hold the licence, and your own transactions. **Create an account** if you have none. |
+| **Selling** | Your staged and settled sales, a destination dropdown per staged row, a **Default destination** that seeds the next drop, the drop box itself, and — with a licence — everybody's staged selling. |
+| **Buying** | One section per manifest your tags open, a cart, an **Order anonymously** tick, and when the crates land. |
+| **Manifests** | What each shelf holds and what opens it, the shut ones included. |
+| **Price list** | The reference book: anything priced in either direction. |
+| **Ledger** | Your own `DEPOT_*` audit rows. |
 
-The **station opens with 20 ¢**, and the only place that number lives is the
-`accountObols` default in `db/prisma/schema.prisma`. Restart Game deletes the
-Depot row and recreates it bare, so a new game picks the default up on its own
-and nothing has to remember to seed it.
+No paragraph of explanation, no tooltips: a control whose name does not say what
+it does is the bug, not the missing tooltip.
 
-**Purses** are granted through `docs/roles.yaml` using a `Name xN` suffix
-(`Obol x25`), parsed by `db/lib/startingTags.js`. Baron 25, Merchant 20, Hand
-10, Esculap 10, Baroness / Heir / Meister 5 each, Arbiter 4, Censor 2,
-Cerberus 1 — 87 ¢ across ten roles.
+There is no ⬢/¢ toggle and no need for one: an obol is one ⬢, so every price
+column reads the same number in either unit. Prices print in ¢ throughout,
+whole, with no decimals anywhere.
 
-His float is deliberately thin, and thinner than the rest of the cast's scaled
-with it: the Company's line, 75 ¢, is nearly four times the station's opening
-balance, and it is where most of his first order has to come from. It has to be
-paid back.
-
-**Debtor** is a separate faucet, off the drawback catalog rather than
-`docs/roles.yaml`: taking the tag grants 20 obols in the creation transaction
-(`DEBTOR_STARTING_OBOLS`, `db/lib/wantedPoster.js`), and the character owes
-40 back. That debt is only ever paper — three notices go up ("DEBTOR:
-{name}. Owes: 40 obols. Send the dockers."), a loose sheet each in the
-Merchant's Office and the Storefront, and one pinned to the Depot
-noticeboard. It shares the Wanted poster machinery (`NOTICE_SPECS.DEBTOR`),
-just with different rooms and no zone name, since the debt is the debt
-wherever the debtor is standing. Nothing collects it automatically — the
-notices are a standing invitation to a GM or another player, not a clock.
-
-## 0h. The console
-
-`/depot`. A cockpit strip that never scrolls away — greeting, balance,
-generator gauge, shuttle state, turret lamp — over six tabs: **Order**,
-**Price List**, **Hold**, **Bank**, **Station**, **Ledger**.
-
-The **Bank** is the ATM and Credit, and nothing else. The **Hold** is the
-landing pad, and nothing else. No paragraph of explanation, no tooltips: a
-control whose name does not say what it does is the bug, not the missing
-tooltip.
-
-There is no ⬢/¢ toggle any more, and no need for one: an obol is one ⬢, so
-every price column reads the same number in either unit. Prices print in ¢
-throughout, whole, with no decimals anywhere — the row figure, the cart total,
-the Hold payout, the account and the credit line are all the same kind of
-number now.
-
-The strip is pinned because all four of those facts matter whichever job you
-are doing; hiding the generator behind a tab is how you order three hundred
-obols of coal onto a dead one.
-
-The **Ledger** reads existing `Request` rows of the eight `DEPOT_*` types
-rather than a ledger table of its own — those rows already snapshot what moved,
-already appear on the GM desk, and already undo.
-
-`DEPOT_CRATE_OPEN` is still the ledger kind, but the row is filed from
-`/character` now that opening a crate is a Consume (§0e). The Ledger reads it
-the same way.
-
-`DEPOT_SHIP` and `DEPOT_CRATE_OPEN` have **no undo handler**, deliberately.
-A shuttle that went up cannot be recalled and its cargo no longer exists; an
-opened crate has scattered its contents into an inventory that has moved on.
-The rows stay visible and a GM corrects by hand.
+**The ATM, the drop box and the gun are not on this page.** They are fixtures on
+walls — `db/lib/placeAffordances.js` — so each is a button on a Room's starter
+post on Discord and a dialog in Chat's place panel on the web, and `/depot`
+carries the tab you compare numbers on. The rules behind all three live once in
+`db/lib/depotCounter.js` so both faces answer the same way; the Discord half is
+deliberately thinner, because it is for the moment you are standing at the
+machine with your phone out.
 
 ## 1. What it is
 
-A shuttle parked at the Depot, in the Caves, tethered to an orbital station the
-Merchant's sponsors own. It is the only route in or out of Ravenheart for
-anything manufactured, and it is not a public shop: **only the Merchant trades
-with it.** He buys imports into his own inventory at the station's price, then
-sells them on to Ravenheart at whatever he can get.
+A railway terminus in the Caves, tethered to an orbital station the Merchant's
+sponsors own. It is the only route in or out of Ravenheart for anything
+manufactured, and since the rework it is **a public market**: anybody standing
+there trades with it, off whatever shelf their tags open. The Merchant's seat is
+still the best one — the whole manifest, the credit line, the gun — but it is a
+seat at a counter other people also use.
 
 Stock is infinite. Price is the only limiter, and it is meant to be
 prohibitive — a working person saves for a Boombox and never sees a pistol.
 
 | | |
 |---|---|
-| Page | `/depot` (`web/app/(app)/depot/page.js`) |
-| Location | `depot` — the merchant's berth at the cave mouth, one plain hop east of `customs`, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading the list works anywhere; trading needs him standing there. |
-| Gate | the `merchants-license` tag, **not** the Merchant role |
-| Requests | `DEPOT_BUY`, `DEPOT_SELL`, `DEPOT_CREDIT` — auto-applied, GM-reviewed, undoable |
-| Constants | `db/lib/depot.js` |
+| Page | `/depot` (`web/app/(app)/depot/page.js`) — open to everyone, read-only unless you are standing there |
+| Location | `depot` — the berth at the cave mouth, one plain hop east of `customs`, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading works anywhere; trading needs you standing there. |
+| Rooms | `depot-storefront` (the ATM and the drop box), `depot-railyard` (the train and the crates, behind a keycard), `depot-merchants-office` (the gun), `depot-cargo-bay` |
+| Gates | the manifests (§0e), plus `depot-keycard` for the Railyard and `meisters-terminal` for `/treasury` |
+| Audit kinds | `request_depot_order`, `request_depot_drop`, `request_depot_atm`, `request_depot_credit`, `request_depot_account_open`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`, `train_ran` |
+| Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/depotManifests.js` |
 
 ## 2. The Licence
 
-`merchants-license` is the whole permission model. Holding it opens `/depot`,
-puts the Depot on the nav rail, and is re-checked inside every server action.
-The Merchant starts with it.
+`merchants-license` is no longer the door to the page — nothing is. What it is
+now is the **widest shelf** plus the business: the whole manifest including
+sealed goods, the Company's credit line, the gun on the office wall, and the
+sight of everybody's staged selling. It is re-checked inside every server action
+that depends on it. The Merchant starts with it.
 
 It is `tradeable: true` on purpose. Handing it over really does hand over the
-Depot — and, per its own text, the escape route and the turret's goodwill. That
-is a decision worth being able to make, and it is why the gate is the tag and
-never the role: a role check would quietly break the trade.
+business — and, per its own text, the turret's goodwill. That is a decision
+worth being able to make, and it is why the gate is the tag and never the role:
+a role check would quietly break the trade.
 
-There is no GM half to this page. A GM with no licensed character is redirected
-like anyone else; `/gm/dev` already does everything they would want here. The
-one exception is a **superadmin**: they get the page read-only — the live
-price lists, no held counts, no credit line, every control disabled — and the
-Depot rail item so they can reach it. Every trade action still re-checks the
-licence server-side, so the view grants nothing.
+There is no GM half to this page, and it needs none: `/depot` opens for a GM the
+same way it opens for a player, and `/gm/dev` already does everything a GM would
+want beyond that. A superadmin reads `/treasury` without the Meister's Terminal
+— host access rather than game permission, the way `/lifeweb` works — but does
+not get the tax dial.
 
 ## 3. Buying
 
-What the station charges him, per unit. Almost every ware is
-`purchasable: false` — **for those, the Merchant is the only source in the
-game**, which is the whole point of the seat.
+What the station charges, per unit. Almost every ware is `purchasable: false` —
+not buyable at character creation — and almost every ware sits on the
+**merchant** manifest, so for those the Licence really is the only way to get
+one made offworld. That is the point of the seat; what changed is that ⬢ and
+Ration Boxes are on the general shelf, and the drink and drug shelf is one chip
+away (§0e).
 
 **⬢ themselves are a ware, at 2 ⬢ each in and 1 ⬢ each out.** They are the
-one line on either table that is not a tag — `RESOURCE_WARE_ID` stands in for a
-catalog row that does not exist, and `depotOrderImpl` splits it out before
-anything reaches a `Tag` lookup. The 2:1 spread is doing real work. It means
+one line on either table the order path handles by hand — `RESOURCE_WARE_ID` is
+the `resources` tag's own slug rather than a cuid, so it can never collide with
+a real ware's id, and `depotOrderImpl` splits it out before anything reaches a
+`Tag` lookup. It is on the general manifest, so anybody may order it. The 2:1 spread is doing real work. It means
 importing food is a losing trade, which is the whole reason it exists: the
 Merchant should be shipping things Ravenheart cannot make, not undercutting its
 farmers with cheaper grain. And because the buy price is strictly above the
@@ -607,7 +660,7 @@ buying one mid-game is still a real decision.
 | `alcohol` | 5 | 4 | He stocks the local brew too |
 | `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source, and it is priced below real gear on purpose: a paper-thin disguise shouldn't compete with it. |
 | `cigarette` | 5 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
-| `coal` | 7 | 4 | The generator's own fuel (§2) |
+| `coal` | 7 | 4 | Smelts into `steel` (`SMITHING.md`). It used to be the generator's fuel; there is no generator. |
 | `silver` | 8 | 5 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source cheaper (`LABORDROPS.md` §2b); this is the fallback. |
 | `boombox` | 11 | 7 | |
 | `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
@@ -692,10 +745,11 @@ players make things, he buys them for whatever he can talk them down to, and
 the difference between that and the column below is his margin. Nothing in code
 sets what he pays a player; that is his negotiation.
 
-**⬢ sell back at 1 ¢ each**, off the pad's stash rather than off anybody's
-sheet — put them in the landing pad and send the shuttle up. This is the only
-way Resources become money, and it costs half their face value, since the
-station charges 2 ⬢ for the same ⬢ coming down (§3).
+**⬢ sell back at 1 ¢ each**, through the drop box like any other ware. This is
+the only way Resources become money, and it costs half their face value, since
+the station charges 2 ⬢ for the same ⬢ coming down (§3). Anybody may do it
+now, which is the point: a labourer with a cart of material and no buyer has a
+counter to walk it to.
 
 Four bands, about 106 tags in total:
 
@@ -762,7 +816,7 @@ must hold is the SHAPE: never falling. The shipped per-turn profits are
 |---|---|---|---|---|---|
 | ⬢/turn | 8 | 10 | 16 | 18 | 22.5 |
 
-with Dead Simple's 12 sitting outside the curve for the reason below. The curve is
+with Dead Simple's 4 sitting under the curve for the reason below. The curve is
 deliberately flat — nearly two and a half fold bottom to top, not the five-fold spread a
 naive multiplier gives — because a smith could not otherwise make a living against a
 Merchant who sets his own buy price, and the low rungs paid worst of all.
@@ -778,18 +832,29 @@ turns, low enough that Exceptional doesn't dwarf Moderate the way a steeper expo
 would. Re-tune it here first if a tier ever needs adjusting, rather than hand-editing
 one item's `sellablePrice`.
 
-**Dead Simple is the one exception, kept outside the formula on purpose.** It costs 0
-turns, so `rate × 0^1.3` would price it at raw material cost with no margin at all.
-Instead it keeps a flat token markup — **+3 ⬢** — and its rationing stays the 4-unit/turn
-cap (`SMITHING.md` §2) rather than a turn cost. It was never meant to compete turn-for-turn
-with the ladder above it, so it does not have to clear the same per-turn bar.
+**Dead Simple is the one exception, kept outside the formula on purpose**, and it
+changed in 9/2026. It used to cost **0** turns with a shared 4-unit/turn ration,
+which meant four saleable things a day riding FREE on top of an untouched labour
+day — fine while only the Merchant could sell, and an income on every sheet the
+moment the counter opened to everybody. It costs **0.25 of a Move** now: the
+same four a day, paid for out of the day.
 
-**It cannot be tuned finely, and it is the number worth watching.** The 4-unit
-ration means one ⬢ on the price is four on the wage, so the smallest change available at
-this rung is ±4 ⬢/turn — which is why it reads 12, above the two rungs over it, with
-no intermediate setting to reach for. And it costs no turn, so it stacks on top of an
-untouched labor day: the same shape that made the `fishing-rod`'s 60% floor a problem
-further up this section.
+A quarter and not a tenth because the Move budget is exact rational arithmetic
+in quarters (`db/lib/tagShapes.js` refuses anything finer, and a cost the budget
+cannot hold exactly is work somebody did not pay for).
+
+Its flat markup came down with it, **+3 ⬢ to +1 ⬢**. Four a day at +1 is
+4 ⬢/turn, comfortably under the Simple rung's quarter-pieces at 8. The bottom
+rung pays least, which is the shape this whole section asks for.
+
+The shared pool is **gone** and does not come back — `web/lib/tagRequests.js`
+carries the note. A recipe's own `perTurn` ration still works; there is simply no
+pool behind it.
+
+**It is still the number worth watching, for a smaller reason now.** Four a day
+means one ⬢ on the price is four on the wage, so the smallest change available at
+this rung is ±4 ⬢/turn. What it no longer does is stack on top of an untouched
+labour day — that was the whole problem, and the quarter-Move cost is the fix.
 
 The Dead Simple rung spans two skills — `crafting` gates the cloth and wood half,
 `smithing` the metal — and **both halves take the same markup**, for the same
@@ -823,7 +888,7 @@ the market a brewer sells into.
 A buy price at or below a sell price would let anyone with a licence print ⬢ in
 a loop. `db/lib/syncTags.js` warns on every sync if that ever inverts.
 
-### The open hole in this — closed
+### The two open holes in this — both closed
 
 This used to be real. Before the Request table was dropped (2026-09-11,
 `REQUESTS.md`), `ADD_TAG` trusted a client-supplied `resourcesSpent` with no
@@ -840,41 +905,48 @@ re-checked inside the transaction's lock rather than trusted from the
 fast-fail read, if `cost > payer.balance`. There is no path left where a
 craft is charged for less than the recipe says.
 
-The other half of the loop was never automated to begin with, which is worth
-knowing before "reopening" this page over a new payment method (a Smithing
-recipe's cost can now take held Obols mixed with the usual ⬢ payer, 2026-09-13
-— `resolveObolSpend` in `requestActions.js`, undocumented in `CRAFTING.md` or
-`SMITHING.md` as of this writing). There is no coded per-item sell anywhere
-in this app: `sellablePrice` is a reference figure on the price list
-(`DepotOrderTab.js`, no button behind it). Real money moves only through the
-Landing Pad and `depotSendShuttleImpl` (§0d), and that pays
-`Depot.accountObols` — the station's own float — not whoever put the goods
-there. Getting it into a physical purse needs the Merchant's Licence and the
-ATM (§0g), and paying a crafter for their work out of that is still his
-negotiation, same as §4 above says of every other sale — never a scripted
-payout a craft-and-repeat loop could reach.
+**The second hole opened the day the counter did, and it is the reason two
+numbers moved.** Selling used to be the Merchant's alone, which meant
+`sellablePrice` was a reference figure with no button behind it — so a free
+4-a-turn craft ration was a convenience rather than an income. Once anybody
+standing at the Depot can drop a thing in a box and be paid for it, the same
+ration is 12 ⬢ a day, free, on every sheet in the game. Dead Simple costs a
+quarter of a Move now and pays +1 rather than +3 (§4), which closes it.
+
+**The third was the mint.** A smith could strike `obol` at Smithing (Skilled),
+1 ⬢ in and 1 obol out, ten a turn, for no Move at all. At par that looks like no
+margin — but an obol is weightless and a ⬢ is a pound, so it turned a cart of
+raw material into something that fits in a pocket, free, forever. The recipe is
+gone from `docs/tags.yaml` and does not come back. Coin enters the world through
+the station and nowhere else, which is what makes a purse worth exactly as much
+as your ability to reach a counter. Paying a recipe's cost *with* held obols
+still works (`resolveObolSpend` in `requestActions.js`); that half was never the
+problem.
 
 ## 5. The credit line
 
-**Superseded by §0g.** The line is now denominated in obols and lives on
-`Depot.debtObols`, capped by `Depot.creditCapObols`. `Character.depotDebt` was
-dropped in the rework — the licence is tradeable, so the debt travels with the
-station rather than with whoever is holding the card.
+**Superseded by §0g.** The line is denominated in obols, lives on
+`Depot.debtObols`, is capped by `Depot.creditCapObols`, and now credits the
+Merchant's own account rather than a station float. `Character.depotDebt` was
+dropped long ago — the licence is tradeable, so the debt travels with the
+business rather than with whoever is holding the card.
 
-Everything else about it is unchanged: draw puts money in the account, repay
-takes it back out, the cap is refused rather than clamped, and nothing in code
-punishes a standing balance. It is visible to GMs, and that is the enforcement.
+Everything else is unchanged: draw puts money in the account, repay takes it
+back out, the cap is refused rather than clamped, and nothing in code punishes a
+standing balance. It is visible to GMs, and that is the enforcement.
 
 ## 6. Retail
 
-Selling to a player is **not** on this page. It is the existing `TRANSFER_TAG`
-and `TRANSFER_RESOURCES` pair on `/character`, which requires both parties in
-the same zone (`FACTIONS.md` §3b).
+Selling to another **player** is still not on this page. It is the existing
+`TRANSFER_TAG` and `TRANSFER_RESOURCES` pair on `/character`, which requires
+both parties in the same zone (`FACTIONS.md` §3b).
 
-That friction is the design. He sits at the Depot at the bottom of the Caves, so
-either the buyer comes down to him or a Docker carries the goods up — which is
-the entire reason the Docker seat exists. If it ever proves too much in play,
-the fix is a courier request, not loosening reach.
+What changed is that selling to the **station** is no longer the Merchant's
+alone: the drop box (§0f) takes anything from anybody. That does not make him
+redundant, it moves what he sells — he is the only shelf with the good things on
+it, and the trip down to the Caves is still a trip. The Docker seat is if
+anything sharper for it: a keycard sells into his books rather than its own,
+which is a job you can hire somebody for.
 
 ## 7. Where a player reads this
 
@@ -883,3 +955,8 @@ price bands and how the counter works, and goes to the Merchant and his Dockers.
 The role charter in `docs/roles.yaml` carries the pitch. What a ware *does*
 lives in the tag's own description and shows on hover, the same way a brew's
 effect does — don't restate it in the document, it is already two places.
+
+Since the counter opened to everybody, the parts that are no longer his alone —
+that there is an account with your name on it, that the box in the Railyard buys
+things, that the train runs every other day — belong in the **handbook**
+(`docs/handbook.md`) rather than in a document only two people are handed.

@@ -114,22 +114,14 @@ function gateLines(gates) {
     });
 }
 
-// caller-loaded — must match what the web console tells the Merchant (an unseen turret is a trap, not a threat).
+// caller-loaded — must match what the web console says (an unseen turret is a trap, not a threat).
 function depotLines(ctx = {}) {
   const depot = ctx.depot;
   if (!depot) return [];
 
   const lines = [];
-  if (!depot.powered) {
-    lines.push("**Generator**: it's off, so nothing in here works.");
-  } else if (depot.fuelTurnsLeft == null) {
-    lines.push("**Generator**: it's running.");
-  } else {
-    const days = depot.fuelTurnsLeft;
-    lines.push(`**Generator**: ${days} day${days === 1 ? "" : "s"} of coal left.`);
-  }
-  lines.push(depot.shuttleDocked ? "**Shuttle**: it's here." : "**Shuttle**: it's not here.");
-  if (depot.turretArmed && depot.powered) {
+  lines.push(depot.trainHere ? "**Train**: it's at the platform." : "**Train**: the rails are empty.");
+  if (depot.turretArmed) {
     lines.push("**Turret**: it's armed.");
   }
   return lines;

@@ -17,7 +17,6 @@ import {
   kissRequestImpl,
   searchRequestImpl,
 } from "./actions/offers.js";
-import { taxRequestImpl } from "./actions/tax.js";
 import { transferRequestImpl } from "./actions/transfer.js";
 import { stealRequestImpl } from "./actions/steal.js";
 import { pickpocketRequestImpl, pickpocketTakeImpl } from "./actions/pickpocket.js";
@@ -106,10 +105,6 @@ export async function kissRequest(input) {
 
 export async function searchRequest(input) {
   return guarded(() => searchRequestImpl(input));
-}
-
-export async function taxRequest(input) {
-  return guarded(() => taxRequestImpl(input));
 }
 
 export async function transferRequest(input) {

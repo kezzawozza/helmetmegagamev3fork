@@ -69,6 +69,9 @@ APPLY_ONLY_SCRIPTS = {
     # Settles lessons stranded by the move to instant resolution: with --apply it
     # grants skills on live characters. Bare, it only says what it would settle.
     "db:resolve-inflight-lessons": "db/scripts/ops/resolve-inflight-lessons.js",
+    # Opens a bank account per living character and writes the ledger row that
+    # closes the retired Depot float out. Bare, it only lists who would get one.
+    "db:open-bank-accounts": "db/scripts/ops/open-bank-accounts.js",
 }
 
 CONFIRM_TOKEN = "CONFIRMED=1"

@@ -249,6 +249,12 @@ Names are rolled from a per-gender list in `db/lib/threats.js`. They are
 plain: a name is written to `Character.name` and the personal role title,
 worn as identity rather than read as prose.
 
+A spawned character opens with no `BankAccount` at all — `bank_account:` in
+`docs/roles.yaml` only fires at ordinary creation. Whoever plays the seat
+opens one at the Depot's counter with its **Create an account** button, the
+same as any other body handed a threat mid-game (`CHARACTERS.md`,
+`DEPOT.md` §0g).
+
 ## 5. The two GM sections
 
 Both live on `/gm/dev` under the **Threats** nav group. Unlike most of

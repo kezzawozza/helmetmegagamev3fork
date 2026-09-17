@@ -46,21 +46,25 @@ of it:
   **yourself, a Room stash here, or a person standing here** (payer select;
   a person is DM'd "*X paid N ⬢ from your purse toward Y*").
 - `turnsCost` — the WORK one unit takes, in Moves, as a **decimal on a
-  quarter**. **0** is Dead Simple: no Move, rationed to
-  `DEAD_SIMPLE_PER_TURN` units a turn (SMITHING.md §2). **0.25**, **0.5**
-  and **0.75** are shares of the Routine — four of the first fill it, two of
-  the second, one of the third with a quarter left over for more work of the
-  same family. An Alcohol is `0.25`, so four fill a Routine. **1** is this
-  turn's whole Routine — one per turn, by arithmetic. **2+** is a project
-  (§3), one unit per project, whole turns only. Quantity is limited by this
-  arithmetic alone (Chris 2026-09-06). Anything off a quarter is refused by
-  the sync, because the Move budget is exact rational arithmetic and a cost
-  it cannot hold exactly would let a character do work they never paid for.
-  It was a `1/N` fraction until 9/2026, stored as `requirementTurns: 1` +
-  `requirementPerTurn: N`; the decimal sits in `requirementTurns` itself now,
-  and the thirds went with the old encoding (§2a).
+  quarter**. **0** is free of the Move entirely, rationed only by a recipe's
+  own `perTurn` if it has one (bliss at 2, bone-mask at 1) — Dead Simple used
+  to live here too, off a shared 4-a-turn pool, but that rung costs `0.25`
+  now (`SMITHING.md` §2, `DEPOT.md` §4), so `0` is rarer than it was.
+  **0.25**, **0.5** and **0.75** are shares of the Routine — four of the
+  first fill it, two of the second, one of the third with a quarter left
+  over for more work of the same family. An Alcohol is `0.25`, so four fill
+  a Routine. **1** is this turn's whole Routine — one per turn, by
+  arithmetic. **2+** is a project (§3), one unit per project, whole turns
+  only. Quantity is limited by this arithmetic alone (Chris 2026-09-06).
+  Anything off a quarter is refused by the sync, because the Move budget is
+  exact rational arithmetic and a cost it cannot hold exactly would let a
+  character do work they never paid for. It was a `1/N` fraction until
+  9/2026, stored as `requirementTurns: 1` + `requirementPerTurn: N`; the
+  decimal sits in `requirementTurns` itself now, and the thirds went with
+  the old encoding (§2a).
 - `perTurn` — a RATION, and **only legal at `turnsCost: 0`**: a hard daily
-  cap below the Dead Simple pool (bliss at 2, bone-mask at 1). It is never a
+  cap, and now the only free allowance a 0-turn recipe gets — there is no
+  shared pool behind it any more (bliss at 2, bone-mask at 1). It is never a
   work cost — the sync refuses it on anything that costs a Move, because
   for a while it did double duty as the denominator of a `1/N` cost and the
   two meanings drifted (one Routine held 99 Broadswords). Work is
@@ -112,17 +116,20 @@ can be split across any mix of families in the same turn, not just one.
 
 | Recipe | Cost of the Move |
 |---|---|
-| `turnsCost: 0`, inside its free allowance | nothing — a free action, as before |
-| `turnsCost: 0`, past the allowance | `1/allowance` per extra unit (a fifth Dead Simple item is 0.25 of a Move) |
+| `turnsCost: 0`, inside its own `perTurn` allowance | nothing — a free action, as before |
+| `turnsCost: 0`, past that allowance | `1/perTurn` per extra unit (a fourth bone-mask is a third of a Move) |
 | `turnsCost: 0.25`, `0.5` or `0.75` | `quantity × turnsCost` — each unit is that much of a turn's work |
 | `turnsCost: 1` | one is a turn's work |
 | `turnsCost: 2+` — a project start or continue | the whole Move, every turn it runs — and ONE unit per project, its turns being per piece |
 
-The allowance is the recipe's own `perTurn`, or the shared Dead Simple pool of
-4. Going past it used to be refused outright; the ruling (2026-09-05) is that
-the allowance stays free and the units after it come out of the Move. So 4
-work knives are still free, the fifth costs 0.25 of a Routine, and the ninth is
-impossible because the Routine is gone.
+The allowance is the recipe's own `perTurn`, and only that — there is no
+shared pool behind it any more (`SMITHING.md` §2, `web/lib/requests.js`).
+Going past it used to be refused outright; the ruling (2026-09-05) is that
+the allowance stays free and the units after it come out of the Move. So a
+recipe with its own `perTurn: 1` still crafts one free, and the second costs
+the whole Move. Dead Simple no longer has an allowance to overflow past at
+all — it prices at `turnsCost: 0.25` from the first unit, so four of them
+fill the Routine outright and a fifth simply has no Move left to spend.
 
 **Decimals on the page, exact rationals underneath.** A cost is authored as a
 decimal on a quarter (§2) and a player reads it as one — "0.25 turns", "0.5
@@ -138,16 +145,20 @@ the thirds are what this argument finally cost.
 
 **A spill denominator is still whatever the ration is.** The quarter rule
 binds what a recipe may be *authored* as; it does not bind what the ledger can
-hold. A Dead Simple recipe past its allowance bills `1/allowance` per extra
-unit, and an allowance is any whole number — so Flesh of Tzchernobog, rationed
-3 a turn, bills a third of a Move for the fourth. The arithmetic stays exact,
-because the ledger is rational either way; only the display rounds, and that
-one prints as `0.33`.
+hold. A `turnsCost: 0` recipe past its own `perTurn` bills `1/perTurn` per
+extra unit, and an allowance is any whole number — so Flesh of Tzchernobog,
+rationed 3 a turn, bills a third of a Move for the fourth. The arithmetic
+stays exact, because the ledger is rational either way; only the display
+rounds, and that one prints as `0.33`.
 
-That fifth knife has a second price worth knowing: spilling files an Action,
-and the auto-labor pass pays only characters with **no** Action
-(`autoLaborPass.js`, `LABORING.md`). Four free knives leave the day's labor
-untouched; the fifth costs it.
+That fourth Flesh of Tzchernobog has a second price worth knowing: spilling
+files an Action, and the auto-labor pass pays only characters with **no**
+Action (`autoLaborPass.js`, `LABORING.md`). Three free ones leave the day's
+labor untouched; the fourth costs it. Dead Simple no longer gets the free
+half of that trade at all: at `turnsCost: 0.25` from the first unit
+(`SMITHING.md` §2), even one Work Knife files the `auto:craft` Action and
+closes out that day's auto-labor pay, the same as any other Move-costing
+craft.
 
 **The family.** `craftFamily()` (`web/lib/tagRequests.js`) takes the first of
 `brewing`, `cooking`, `smithing`, `builder`, `crafting` that any of the

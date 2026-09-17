@@ -37,6 +37,8 @@
     "db:doctor": "node db/scripts/ops/doctor.js",
     "db:mirror": "node db/scripts/ops/mirror.js",
     "db:backfill-economy": "node db/scripts/ops/backfill-economy.js",
+    "db:open-bank-accounts": "node db/scripts/ops/open-bank-accounts.js",
+    "db:audit-vault-backing": "node db/scripts/ops/audit-vault-backing.js",
     "db:backfill-party-members": "node db/scripts/ops/backfill-party-members.js",
     "db:prune-tags": "node db/scripts/ops/prune-tags.js",
     "db:convert-lecturers": "node db/scripts/ops/convert-lecturers.js",

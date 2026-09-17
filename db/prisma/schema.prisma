@@ -778,61 +778,178 @@ model GameState {
   fulfillmentFiredAt DateTime?
 }
 
-/// Where the shuttle is. AWAY is the resting state — it lives at the orbital
-/// station and the landing pad is an empty scorch mark. INBOUND is the gap
-/// between calling it down and it arriving, which is what the cooldown buys.
-/// DOCKED means it is sitting on the pad with its hold open, and the clock in
-/// Depot.shuttleTurn is counting toward the automatic departure.
-enum ShuttleState {
-  AWAY
-  INBOUND
-  DOCKED
+/// Which door a bank account has, and it is the CLASS that decides, never the
+/// role — the Merchant's Licence is tradeable and a role check would break
+/// that the same way it would break the /depot gate.
+///
+/// TREASURY is hard-backed: a withdrawal takes real `obol` tags out of the
+/// Keep's Vault room and is REFUSED, never clamped, when the stash is short.
+/// A claim is only worth what is behind it, and the Vault can be robbed.
+///
+/// OFFSHORE is the Merchant's and the Docker's: money the Company holds
+/// off-world. No stash to check, no Vault logic — the coins ride the train.
+enum BankAccountClass {
+  TREASURY
+  OFFSHORE
 }
 
-/// The Merchant's Depot as a machine rather than a shop: one generator, one
-/// shuttle, one turret, one bank account. A singleton on id = 1, reached the
-/// same way GameConfig is (`upsert({ where: { id: 1 } })`).
+/// Where a staged sale's obols land when the train departs. TREASURY pays the
+/// Keep's Vault room directly: a treasury is a Room in this codebase
+/// (docs/systemdocs/ECONOMY.md §2), so it needs no account of its own.
+enum DepotSaleDestination {
+  SELF
+  TREASURY
+  MERCHANT
+}
+
+/// One fingerprinted bank account per character.
 ///
-/// It is its own model rather than eighteen more columns on GameConfig for two
-/// reasons. GameConfig is game-wide switchboard; this is one location's
-/// hardware, and mixing them makes both harder to read. And the Dev Panel's
-/// Depot section wants to render exactly these fields — a model boundary is
-/// also a form boundary.
+/// Opened at creation for every role carrying `bank_account:` in
+/// docs/roles.yaml — which is everything except the Black Hills seats. Anyone
+/// else (a spawned antagonist, a threat handed a body mid-game) opens one by
+/// hand at the Depot's counter, which costs nothing and takes one click.
 ///
-/// Every number here moves through db/lib/depotState.js, never a bare update:
-/// the account and the fuel both clamp inside a single locked statement, the
-/// way lifeweb.js#bumpBlood does, so two people spending at once cannot stomp
-/// each other. See docs/systemdocs/DEPOT.md.
+/// Every write goes through db/lib/bankAccounts.js, never a bare update: the
+/// balance clamps inside one locked statement the way db/lib/depotState.js
+/// does the Depot's own columns, so two spenders cannot stomp each other.
+model BankAccount {
+  id String @id @default(cuid())
+
+  // The holder. Unique — one account per character, for good. Cascade,
+  // because an account with no holder is not an account; the ledger keeps
+  // whatever history it had.
+  characterId String    @unique
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  class BankAccountClass @default(TREASURY)
+
+  // It opens EMPTY. Starting purses stay physical `obol` tags granted by
+  // docs/roles.yaml, because a seeded balance on day one would be a claim
+  // with nothing behind it in the Vault — which is exactly what the hard
+  // backing above exists to prevent.
+  balanceObols Int @default(0)
+
+  // The stamp. `fingerprint` is the short code printed on a crate and on a
+  // sale row; `holderName` is the name it was opened under and is a SNAPSHOT,
+  // the same posture as Depot.merchantFace — a crate ordered last week still
+  // reads what it read when the money left, whoever is holding the sheet now.
+  fingerprint String @unique
+  holderName  String
+
+  openedTurn Int?
+
+  orders DepotOrder[]
+  sales  DepotSale[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// One order, by one character, off one manifest.
+///
+/// This replaces `Depot.manifest`, which was a single JSON blob because there
+/// was a single buyer. Anybody standing at the Depot orders now, off whichever
+/// manifests their tags open, paid out of their OWN account at order time.
+/// Nothing is called down by hand any more: every queued row rides the next
+/// arrival.
+model DepotOrder {
+  id String @id @default(cuid())
+
+  accountId String
+  account   BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  // Snapshots, for the reason every log table in this schema snapshots: the
+  // crate is stamped with what was true when the money left. `anonymous` is
+  // the orderer's own choice at the counter — the crate then reads ANONYMOUS
+  // instead of the name, and only this row remembers whose it was.
+  fingerprint String
+  holderName  String
+  anonymous   Boolean @default(false)
+
+  // `[{ tagId, name, quantity, unitPrice, sealed }]` — the old Depot.manifest
+  // shape, unchanged, so db/lib/depotCrates.js and the sealed-shipping rule
+  // are reused verbatim rather than re-derived.
+  lines      Json
+  totalObols Int
+  manifestId String
+
+  placedTurn Int
+
+  // The arrival pass's claim, the shape StagedEffect.appliedAt already uses:
+  // the claim IS the check, so a resumed turn advance can never deliver twice.
+  deliveredAt   DateTime?
+  deliveredTurn Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([deliveredAt])
+  @@index([accountId])
+}
+
+/// An item put in the Railyard's drop box.
+///
+/// The item is DELETED at the drop — this row is what is left of it — and
+/// settles when the train next departs, at the price frozen here minus
+/// Depot.sellTaxRate. Deleting on the drop rather than holding the tag is what
+/// makes the box a one-way door: nothing sits in a stash waiting to be stolen
+/// back out, and the seller has committed.
+model DepotSale {
+  id String @id @default(cuid())
+
+  // Null only for a sale a GM staged against no account.
+  accountId String?
+  account   BankAccount? @relation(fields: [accountId], references: [id])
+
+  fingerprint String
+  holderName  String
+  destination DepotSaleDestination @default(SELF)
+
+  tagId    String?
+  tagName  String
+  quantity Int
+
+  // Frozen at the drop and never re-read at settlement: re-tuning
+  // docs/tags.yaml between a drop and a departure must not restate what was
+  // sold, the same rule an order's `lines` follows.
+  unitPrice Int
+
+  droppedTurn Int
+
+  settledAt   DateTime?
+  settledTurn Int?
+  grossObols  Int?
+  taxObols    Int?
+  netObols    Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([settledAt])
+  @@index([accountId])
+}
+
+/// The Merchant's Depot as a machine rather than a shop: one turret, one
+/// credit line, one tax rate. A singleton on id = 1, reached the same way
+/// GameConfig is (`upsert({ where: { id: 1 } })`).
+///
+/// It used to carry a generator, a shuttle and the station's own bank balance.
+/// The generator and the shuttle are gone — a train on a fixed cycle nobody
+/// calls replaced the one, and the other was a switch that could take the
+/// whole market down for a day. The balance moved to the Merchant's own
+/// BankAccount above, so the two pots the ATM used to sit between are one pot
+/// and one purse now.
+///
+/// Every number here still moves through db/lib/depotState.js rather than a
+/// bare update. See docs/systemdocs/DEPOT.md.
 model Depot {
   id Int @id @default(1)
 
   // ─── Live state ───
 
-  // The account. One balance for the whole station, in obols — and an obol is
-  // one ⬢, so this compares directly against any price in the catalog. It is
-  // NOT on the Merchant's character on purpose: the licence is tradeable, so
-  // handing it over hands over the money too, which is what makes the card
-  // worth stealing.
-  //
-  // The default is the station's OPENING FLOAT, and it is the only place that
-  // number lives: Restart Game deletes this row and recreates it bare
-  // (web/app/(app)/gm/dev/actions.js), so every new game starts here. It is
-  // deliberately separate from the Merchant's own purse, which is 20 ¢ of
-  // physical obol tags granted by docs/roles.yaml — the station having a
-  // float of its own does not mean he does, and spending one never touches
-  // the other.
-  accountObols Int @default(20)
-
   // Drawn against the Company's line, in obols. Repaying frees the room back
-  // up immediately. Kept separate from accountObols so a Merchant deep in debt
-  // still reads as having cash on hand — because he does, it just isn't his.
+  // up immediately. Drawing credits the Merchant's own account; the line is on
+  // the station rather than on him because the licence is tradeable, so the
+  // debt travels with the business.
   debtObols Int @default(0)
-
-  // The generator. With it off, nothing at the Depot works: no ordering, no
-  // shuttle, no ATM, no turret. Fuel burns down every turn it is running, and
-  // hitting zero switches it off rather than going negative.
-  generatorOn   Boolean @default(false)
-  generatorFuel Int     @default(0)
 
   // The indoor turret. It shoots everyone whose PRESENTED name is not
   // merchantFace — so a concealed Merchant is shot by his own gun, and anyone
@@ -842,32 +959,21 @@ model Depot {
   // merchantFace is written when a character is created on the Merchant role,
   // and a GM can override it from /gm/dev. It is set once and never resynced,
   // because a face does not change when the papers do.
+  //
+  // The switch is a button on the Merchant's Office starter post now, not a
+  // control on /depot — the office's own description has promised a big red
+  // button since before anything could press one.
   turretArmed  Boolean @default(false)
   merchantFace String  @default("")
 
-  // The shuttle, and the turn its current state began. shuttleTurn is what
-  // both clocks read: the cooldown before it can be sent back, and the
-  // automatic departure at shuttleMaxTurns.
-  shuttleState ShuttleState @default(AWAY)
-  shuttleTurn  Int?
-
-  // What has been ordered but not yet flown down. A JSON array of
-  // `{ tagId, quantity, unitPrice }`, paid for at order time and turned into
-  // crates when the shuttle lands. Not a table because it is short-lived, is
-  // only ever read whole, and belongs to exactly one row.
-  manifest Json @default("[]")
-
-  // ─── Tunables, all editable from the Dev Panel's Depot section ───
-
-  fuelMax         Int @default(100)
-  fuelBurnPerTurn Int @default(20)
-  coalFuel        Int @default(50)
-  saltpeterFuel   Int @default(15)
-
-  shuttleMaxTurns Int @default(6)
-  shuttleCooldown Int @default(1)
+  // ─── Tunables ───
 
   creditCapObols Int @default(75)
+
+  // The Meister's cut of every settled sale, in whole percent, 0-100, set from
+  // his terminal. It is paid in coin into the Keep's Vault and never into an
+  // account, so the Vault grows by exactly what the sellers were docked.
+  sellTaxRate Int @default(0)
 
   updatedAt DateTime @updatedAt
 }
@@ -2411,8 +2517,10 @@ model Character {
   // Taxes this character filed as a faction officer, and taxes filed against
   // them (the Taxman tag). Two relations to the same table, so both ends are
   // named.
-  taxesFiled PendingTax[] @relation("TaxesFiled")
-  taxesOwed  PendingTax[] @relation("TaxesOwed")
+  // The fingerprinted bank account, if this character has one. Optional:
+  // the Black Hills seats start without one and a spawned antagonist opens
+  // one at the counter or never does.
+  bankAccount BankAccount?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2792,6 +2900,14 @@ model Tag {
   // catalog is where those live. One sealed line item seals the whole crate it
   // lands in. See docs/systemdocs/DEPOT.md §5.
   sealedShipping Boolean @default(false)
+
+  // Which manifest this ware sits on — which is to say who can see it at the
+  // Depot's counter at all. Null means the Merchant's own manifest, so the
+  // default is the old world: he stocks it and nobody else is offered it.
+  // The catalog of manifests and what opens each one is db/lib/depotManifests.js,
+  // and db/lib/syncTags.js refuses a value that is not in it. See
+  // docs/systemdocs/DEPOT.md §3a.
+  manifest String?
 
   // What falls out of a crate when it is opened, as
   // `[{ tagId, name, quantity }]`. Set only on the runtime crate tags
@@ -3532,6 +3648,14 @@ model Role {
   grantsTreasurer     Boolean  @default(false)
   docElements         String[] @default([])
 
+  // Which kind of bank account this seat opens with at the Depot, declared as
+  // `bank_account:` in docs/roles.yaml. Null means none — the Black Hills seats
+  // arrive without one and open one at the counter if they ever want one. The
+  // account opens EMPTY; a starting purse is physical obols in `starting_tags`.
+  // Same posture as grantsLeader/grantsTreasurer above: a new seat needs no
+  // code. See docs/systemdocs/DEPOT.md §0g.
+  bankAccountClass BankAccountClass?
+
   // Whether picking this role needs the @Leader Whitelist Discord role. This
   // used to ride on grantsLeader, which conflated two unrelated things: the
   // Baron HAS to lead the Court, but "who may claim this seat" is a hosting
@@ -3793,7 +3917,6 @@ model Turn {
   cavingRolls    CavingRoll[]
   offers         Offer[]
   oraclePages    OracleSynopsis[]
-  pendingTaxes   PendingTax[]
 }
 
 model Action {
@@ -4414,67 +4537,6 @@ model Offer {
   @@index([teacherActionId])
 }
 
-// Which stack a PendingTax row moves. An obol is one ⬢ (DEPOT.md), but it is
-// a physical Tag stack rather than a balance column, so taxPass.js has to
-// take it off a CharacterTag row instead of running it through
-// resourceTransfer.js's applyTransfer.
-enum PendingTaxKind {
-  RESOURCES
-  OBOL
-}
-
-// A tax filed by a faction's Leader or Treasurer against a member standing in
-// their zone (docs/systemdocs/TAGS.md, the Taxman tag). OPT-OUT, which is why
-// this is not an Offer: an Offer does nothing until ACCEPTED, this moves ⬢
-// unless REFUSED. Resolves at the close of the turn it was filed in
-// (db/lib/taxPass.js) — the same "filed now, resolves at turn close" shape
-// every other turn-pass mechanic uses, not a multi-turn delay.
-model PendingTax {
-  id     String @id @default(cuid())
-  turnId String
-  turn   Turn   @relation(fields: [turnId], references: [id])
-
-  taxerId String
-  taxer   Character @relation("TaxesFiled", fields: [taxerId], references: [id], onDelete: Cascade)
-
-  targetId String
-  target   Character @relation("TaxesOwed", fields: [targetId], references: [id], onDelete: Cascade)
-
-  // Snapshots — what the DM said when it was pressed. The seat can change
-  // before the close; the words already went out.
-  factionId String
-  taxerRole String
-  amount    Int
-  // Which stack `amount` (and paidAmount/appliedAmount) counts against —
-  // Resources or physical Obols. A row is always single-currency: taxing
-  // both off one target files two rows, same as everywhere else two things
-  // move together (FACTIONS.md, resourceTransfer.js's own ⬢-only shape).
-  // Defaulted for the rows filed before Obols were taxable.
-  kind      PendingTaxKind @default(RESOURCES)
-
-  // Set by the Refuse button (db/lib/tax.js#refuseTax). The pass's own claim
-  // re-checks this, so a refusal landing between the read and the close still
-  // wins.
-  declinedAt DateTime?
-  // Set by the Partial button (db/lib/tax.js#payPartialTax): what the target
-  // chose to pay instead, 1..amount. Null means the full amount. A 0 is never
-  // written here — it is a refusal and sets declinedAt instead.
-  paidAmount Int?
-
-  // The pass's claim (double-apply guard, stagedPush.js's shape) and what it
-  // actually moved once clamped to the target's balance at close.
-  appliedAt     DateTime?
-  appliedAmount Int?
-  // "declined" | "gone" | "broke" | null — why nothing moved, when nothing did.
-  skippedReason String?
-
-  createdAt DateTime @default(now())
-
-  @@index([turnId, appliedAt])
-  @@index([targetId, turnId])
-  @@index([taxerId, turnId])
-}
-
 // LAYING IN WAIT (docs/systemdocs/INTERCEPT.md). A standing order: stop these
 // people when they walk in where I am standing, and hand them this line.
 //
@@ -5081,8 +5143,9 @@ model EconomyEntry {
 // One obol is one ⬢ (DEPOT.md) — there is a single unit of account here, and
 // these are its forms, not separate currencies. BALANCE is abstract ⬢ on a
 // sheet or in a stash; COIN is physical `obol` tags, which have weight and can
-// be looted; ACCOUNT and DEBT are the Depot's two books; MANIFEST is an order
-// paid for but still in flight; GOODS is any priced tag at its catalog value.
+// be looted; ACCOUNT is a BankAccount balance and DEBT the Company's line;
+// MANIFEST is an order paid for or a sale staged but still in flight; GOODS is
+// any priced tag at its catalog value.
 enum EconomyForm {
   BALANCE
   COIN

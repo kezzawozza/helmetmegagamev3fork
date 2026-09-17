@@ -943,6 +943,13 @@ has since been deleted outright along with the channel it opened.
   `syncTags.js` only checks it is positive, and warns without throwing if it
   is at or under the same tag's `sellablePrice`, since buying and selling one
   thing in a loop would print ⬢.
+- `manifest` — which Depot shelf a priced ware sits on: `general` (open to
+  anyone standing there), `black-market` (needs the **Silver Chip**) or
+  `merchant` (needs the Merchant's Licence). Absent means `merchant` — the
+  strictest default, so a newly priced ware is his to stock until the catalog
+  says wider. `syncTags.js` refuses a manifest id the catalog
+  (`db/lib/depotManifests.js`) doesn't know, and refuses one on a tag with no
+  `depotPrice`. See `DEPOT.md` §0e.
 - `stackable` — whether a character can hold more than one at a time. Live
   code reads this; see §5a.
 - `defaultDurationTurns` (spelled `durationTurns` in the YAML) — catalog-level "how many turns does this last once

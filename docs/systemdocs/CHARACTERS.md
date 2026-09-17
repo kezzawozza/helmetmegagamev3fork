@@ -527,6 +527,15 @@ Picking a role decides almost everything:
   `Character`, not Tags (`TAGS.md` §6).
 - `starting_tags` — granted free, as `CharacterTag` rows with source
   `GM_GRANT`, on top of anything bought.
+- `bank_account` — opens a `BankAccount` fingerprinted to the new character:
+  `treasury` for nearly every seat (hard-backed by the real `obol` tags in
+  the Keep's Vault), `offshore` for the Merchant and his Dockers (no vault
+  behind it). Absent for the Black Hills — the Tribunal and the Brigands
+  arrive with no account at all, and open one later at the counter's
+  **Create an account** button, the same as any spawned antagonist. The
+  account itself opens EMPTY; a starting purse is physical `Obol xN` tags
+  from `starting_tags` instead, because a seeded balance on day one would be
+  a claim with nothing behind it. See `DEPOT.md` §0g.
 
 The sync **throws** on a `starting_tags` name that isn't in the catalog or a
 `starting_zone` slug that isn't a standable zone, rather than half-applying. A
