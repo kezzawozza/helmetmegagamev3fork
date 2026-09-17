@@ -949,7 +949,27 @@ it before writing any UI. Four rules apply everywhere:
   clean, and threw only when someone opened the page. That's why the rule is
   on.
 
-## Game state: the live data is real — ask before anything destructive
+## Game state
+
+### v3 has not launched yet, so none of the below is load-bearing right now
+
+**This repo is pre-launch.** There is no live game, no real characters, no
+turns anybody played and nothing in the database that belongs to a person. So
+the caution below — ask before a wipe, back up first, never reset — is about
+protecting players, and there are no players yet. Rebuild from the YAML
+masters, wipe, reset, re-migrate, break the schema on purpose. Nothing is
+lost, because there is nothing there to lose.
+
+Two things are still worth keeping even now, because neither is about the
+data: don't reach for the live database when a local one would answer the
+question ([`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md)), and prefer a
+migration `migrate deploy` can apply, because that habit is much harder to
+re-learn on launch day than to keep.
+
+**Put this section back in force the day v3 opens** — delete this subsection,
+and everything below becomes true again exactly as written.
+
+### Once it is live: the live data is real — ask before anything destructive
 
 **There is a single live production site, and the characters, turns and
 messages in it are real.** Do not treat production as a sandbox you can

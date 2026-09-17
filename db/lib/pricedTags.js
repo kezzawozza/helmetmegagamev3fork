@@ -1,6 +1,7 @@
-// A cache of tags the economy ledger cares about: priced tags plus the obol tag, worth exactly 1 ⬢ by definition (db/lib/depotState.js). tagWrites.js calls `pricedTag` on ~135 hot-path write call sites, so this is a lazily-loaded, process-memory Map with a TTL short enough to pick up a `db:sync-tags` run without a restart.
+// A cache of tags the economy ledger cares about: priced tags, plus the two that are money rather than goods — the obol tag and the Resources tag, each worth exactly 1 ⬢ by definition (db/lib/depotState.js). tagWrites.js calls `pricedTag` on ~135 hot-path write call sites, so this is a lazily-loaded, process-memory Map with a TTL short enough to pick up a `db:sync-tags` run without a restart.
 // Takes `tx`/`prisma` as a parameter rather than requiring db/index.js back — the db/lib/dm.js convention, since requiring the barrel from inside db/lib/ resolves to a partial exports object.
 const { OBOL_SLUG } = require("./depotState");
+const { RESOURCES_SLUG } = require("./resourceStack");
 
 const TTL_MS = 5 * 60 * 1000;
 
@@ -15,7 +16,7 @@ function isFresh() {
 async function loadCache(tx) {
   const rows = await tx.tag.findMany({
     where: {
-      OR: [{ sellablePrice: { not: null } }, { depotPrice: { not: null } }, { slug: OBOL_SLUG }],
+      OR: [{ sellablePrice: { not: null } }, { depotPrice: { not: null } }, { slug: OBOL_SLUG }, { slug: RESOURCES_SLUG }],
     },
     select: { id: true, slug: true, sellablePrice: true, depotPrice: true, stackable: true },
   });
@@ -27,6 +28,13 @@ async function loadCache(tx) {
       depotPrice: row.depotPrice ?? null,
       stackable: row.stackable,
       isObol: row.slug === OBOL_SLUG,
+      // Resources carry a depotPrice and a sellablePrice like any ware, so
+      // without this they would book as GOODS at their buy-back price. They
+      // are not goods, they are the unit of account: one ⬢ is one obol is
+      // one ⬢ of value, and /gm/economy tells ⬢ and coin apart by FORM
+      // (docs/systemdocs/ECONOMY.md §1). The prices are for the Depot's
+      // counter; the ledger books the stack at par.
+      isResources: row.slug === RESOURCES_SLUG,
     });
   }
   cache = map;

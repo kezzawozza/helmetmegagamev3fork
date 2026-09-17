@@ -5,6 +5,7 @@
 // other by slug, and some fields can only resolve once every Tag row
 // exists. Each pass only writes when something actually changed.
 const { settleCarry } = require("./carry");
+const { RESOURCES_SLUG, RESOURCES_WEIGHT_LBS } = require("./resourceStack");
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath, repoPath } = require("./repoPaths");
@@ -538,6 +539,18 @@ async function syncTagsFromYaml(prisma) {
     }
     if (typeof t.weight === "number" && !(t.weight >= 0)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has a negative weight`);
+    }
+
+    // Resources are the one tag whose weight is also written down in code:
+    // db/lib/carry.js#carryAdmits has to answer "what would N more ⬢ weigh"
+    // before the units exist, so it multiplies by RESOURCES_WEIGHT_LBS. The
+    // catalog stays the source of truth and this keeps the copy honest —
+    // re-pricing ⬢ here without moving the constant would let a character
+    // accept a load the cap should have refused.
+    if (t.slug === RESOURCES_SLUG && t.weight !== RESOURCES_WEIGHT_LBS) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" weighs ${t.weight}, but db/lib/resourceStack.js says RESOURCES_WEIGHT_LBS is ${RESOURCES_WEIGHT_LBS} — move them together`,
+      );
     }
 
     // Armour values: a fraction of a blow turned aside, so 0..1 and nothing

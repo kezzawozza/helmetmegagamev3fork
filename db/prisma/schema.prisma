@@ -452,13 +452,17 @@ model GameConfig {
   equipSlots Int @default(10)
 
   // Carry caps: how many POUNDS of tradeable tags and how many ⬢ a character
-  // can hold before they are Overburdened (docs/systemdocs/CARRY.md). Base
-  // values, raised or lowered by the sum of every ACTIVE Tag.carryBonus. Going over is
+  // can hold before they are Overburdened (docs/systemdocs/CARRY.md). A base
+  // value, raised or lowered by the sum of every ACTIVE Tag.carryBonus. Going over is
   // allowed up to 1.5× (carry.js HARD_CAP_RATIO); past that the goods cannot
   // enter the sheet at all. Assets — a horse, a cart, a house — are exempt
   // from the weight load entirely. Live on /gm/dev.
+  //
+  // There was a second cap here, carryResourceCap, counting ⬢ separately at 25
+  // a head. It died in 9/2026 with the ⬢ columns: Resources are a one-pound
+  // item now, so they push against THIS cap beside everything else and a
+  // character choosing between a fortune and their armour is the point.
   carryWeightLbs   Int @default(71)
-  carryResourceCap Int @default(25)
 
   // Free zone crossings per character per turn, before a crossing starts
   // spending the Move (docs/systemdocs/CARRY.md §2). An equipped mount adds
@@ -880,8 +884,8 @@ model Faction {
   slug String @unique
   name String
 
-  // Where this faction banks: a Room, whose own `resources` and RoomTag
-  // stacks ARE the silo (CARRY.md, FACTIONS.md). There is no faction-level
+  // Where this faction banks: a Room, whose RoomTag stacks ARE the silo, ⬢
+  // included (CARRY.md, FACTIONS.md). There is no faction-level
   // balance -- a Silo model existed until 9/2026 and is not coming back.
   // Seeded create-only from roles.yaml's `silo:`, then owned by the faction's
   // officers. SetNull, so pruning a room in db:sync-zones unpoints the silo
@@ -1556,9 +1560,9 @@ model Room {
 
   // A room that eats what is put into it. Set from `destroys: true` in
   // docs/zones.yaml; the Godard Factory's Spillway is the only one. A
-  // Transfer whose destination carries this never writes a RoomTag or touches
-  // Room.resources — the lines are recorded on the request's effect instead,
-  // so a GM can still Undo. See docs/systemdocs/CARRY.md.
+  // Transfer whose destination carries this never writes a RoomTag at all —
+  // the lines are recorded on the request's effect instead, so a GM can still
+  // Undo. See docs/systemdocs/CARRY.md.
   destroysContents Boolean @default(false)
 
   // The walls hold a shout in. Set from `soundproof: true` in
@@ -1587,12 +1591,14 @@ model Room {
   starterMessageId String?
   postHash         String?
 
-  // The stash. ⬢ left lying in this room, moved only through
-  // db/lib/resourceTransfer.js#moveParty with a `room:` party, and the tag
-  // stacks below. Unlimited on purpose — a room is where you put what you
-  // can't carry (docs/systemdocs/CARRY.md).
-  resources Int       @default(0)
-  tags      RoomTag[]
+  // The stash. Everything left lying in this room, ⬢ included: Resources are
+  // an ordinary one-pound item (docs/tags.yaml `resources`) held in a RoomTag
+  // row like anything else, read and written through
+  // db/lib/resourceStack.js. There was an Int column here until 9/2026 and a
+  // ⬢-shaped special case in every writer with it.
+  // Unlimited on purpose — a room is where you put what you can't carry
+  // (docs/systemdocs/CARRY.md).
+  tags RoomTag[]
 
   // Which stash slugs this room has EVER been seeded with, from
   // docs/zones.yaml's `stash:`. seedRoomStash writes a slug only while it is
@@ -2028,7 +2034,10 @@ model Character {
   isLeader    Boolean         @default(false)
   isTreasurer Boolean         @default(false)
   status      CharacterStatus @default(ALIVE)
-  resources   Int             @default(0)
+
+  // No `resources` column. ⬢ are a one-pound item held in the `tags` stack
+  // below (docs/tags.yaml `resources`), read and written only through
+  // db/lib/resourceStack.js — see docs/systemdocs/ECONOMY.md §1.
 
   // When this body went into the ground, set by a BURY_CHARACTER request.
   // Nullable, so the column is both the flag and the record of when. A buried
@@ -2068,8 +2077,9 @@ model Character {
   // The LOAD is stored, never the derived cap, for the same reason the old
   // multiplier watermark stored the multiplier: a cap is a thing the GM moves,
   // and moving it must not read as "you just picked something up".
-  carryWeightSeen    Float @default(0)
-  carryResourcesSeen Int   @default(0)
+  // Only the pounds now: the ⬢ watermark beside it went when ⬢ became a
+  // weighed item and started counting in carryWeightSeen like everything else.
+  carryWeightSeen Float @default(0)
 
   // The free zone crossings this character has already spent, and the turn
   // they were spent in (docs/systemdocs/CARRY.md §2). Everyone gets
@@ -4943,8 +4953,10 @@ model AuditLog {
 // gets a row, written inside the same transaction as the balance write it
 // records (db/lib/economyLedger.js). /gm/economy reads nothing else.
 //
-// This is a RECORD, never a source of truth for a balance. Character.resources
-// and Room.resources stay authoritative; the ledger's worth is that its sum
+// This is a RECORD, never a source of truth for a balance. The holdings stay
+// authoritative — a ⬢ balance is a CharacterTag/RoomTag stack
+// (db/lib/resourceStack.js), the Depot's columns are its own; the ledger's
+// worth is that its sum
 // per account can be compared against them, and a mismatch means something
 // wrote money without saying so. See docs/systemdocs/ECONOMY.md.
 //

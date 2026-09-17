@@ -1864,6 +1864,7 @@ module.exports = {
   ...require("./lib/lifeweb"),
   ...require("./lib/gambitModifier"),
   ...require("./lib/moveEffects"),
+  ...require("./lib/resourceStack"),
   ...require("./lib/resourceDelta"),
   ...require("./lib/laborAccess"),
   ...require("./lib/laborYield"),

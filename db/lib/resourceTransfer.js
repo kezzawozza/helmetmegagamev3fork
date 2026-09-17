@@ -4,8 +4,17 @@
 //
 // Prisma runs READ COMMITTED, so the balance check must be the write itself
 // (a conditional updateMany), not a separate read-then-decrement, or two
-// concurrent requests can both pass and both subtract.
+// concurrent requests can both pass and both subtract. That check lives in
+// db/lib/resourceStack.js#takeCharacterResources now, against the stack row
+// that replaced the Character.resources column in 9/2026 — same shape, one
+// table over.
 const { record, recordDelta, BURN } = require("./economyLedger");
+const {
+  addCharacterResources,
+  addRoomResources,
+  takeCharacterResources,
+  takeRoomResources,
+} = require("./resourceStack");
 
 class InsufficientResourcesError extends Error {
   constructor(party, amount) {
@@ -15,12 +24,19 @@ class InsufficientResourcesError extends Error {
   }
 }
 
-// Which model and column hold each party kind's balance. A table rather
-// than a branch so applyTransfer's (kind, id) lock ordering keeps working
-// unchanged as kinds are added.
+// How each party kind's ⬢ are added to and taken from. A table rather than a
+// branch so applyTransfer's (kind, id) lock ordering keeps working unchanged as
+// kinds are added.
+//
+// These used to be a model name and a column name — ["character", "resources"]
+// — read straight into a Prisma update. There is no such column since ⬢ became
+// a one-pound item, so each kind names its pair of stack writers from
+// db/lib/resourceStack.js instead. `take` is the STRICT one: it takes the whole
+// amount or reports that it could not, which is what the overdraw throw below
+// needs.
 const BALANCE = {
-  character: ["character", "resources"],
-  room: ["room", "resources"],
+  character: { add: addCharacterResources, take: takeCharacterResources },
+  room: { add: addRoomResources, take: takeRoomResources },
 };
 
 async function moveParty(tx, party, delta, ctx) {
@@ -41,21 +57,14 @@ async function moveParty(tx, party, delta, ctx) {
     return;
   }
 
-  const [modelName, field] = spec;
-  const model = tx[modelName];
-
   if (delta > 0) {
-    await model.update({ where: { id: party.id }, data: { [field]: { increment: delta } } });
+    await spec.add(tx, party.id, delta);
     if (!ctx?.__suppress) await recordDelta(tx, party, delta, ctx);
     return;
   }
 
   const amount = -delta;
-  const { count } = await model.updateMany({
-    where: { id: party.id, [field]: { gte: amount } },
-    data: { [field]: { decrement: amount } },
-  });
-  if (count) {
+  if (await spec.take(tx, party.id, amount)) {
     if (!ctx?.__suppress) await recordDelta(tx, party, delta, ctx);
     return;
   }

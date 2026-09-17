@@ -1,15 +1,28 @@
-// Per-turn Hunger upkeep, run from db/index.js#resolveNeeds() so the bot's
-// cron advance and the Dev Panel's "End turn" button behave identically.
+// Per-turn Hunger, run from db/index.js#resolveNeeds() so the bot's cron
+// advance and the Dev Panel's "End turn" button behave identically.
 // See TURN-ENGINE.md for the full ordering.
 //
+// This pass used to BILL a character 1 ⬢ a turn (2 with Fast Metabolism) to
+// feed themselves, and go hungry only if they could not cover it. That is
+// gone as of 9/2026: eating is an act, not a direct debit. The only question
+// now is whether they ate — whether an `ate-meal` tag is on the sheet when
+// the turn closes — and food is what puts it there (docs/systemdocs/COOKING.md).
+// A meal already costs ⬢ to cook, so the old charge was a second bill for the
+// same dinner; the players who never cooked simply paid a silent tax for
+// existing.
+//
+// Everything downstream is unchanged, because none of it was ever keyed to the
+// money: the streak still climbs, `hungry` still costs Gambits
+// (db/lib/gambitModifier.js), six straight turns still ends in Dying, and the
+// mood pass still reads the streak. Only the till is gone.
+//
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
-const {
-  HUNGER_SLUG,
-  HUNGERLESS_SLUG,
-  FAST_METABOLISM_SLUG,
-  ATE_MEAL_SLUG,
-  DYING_SLUG,
-} = require("./constants");
+// FAST_METABOLISM_SLUG is deliberately NOT here any more. Its whole mechanic
+// was doubling this pass's ⬢ charge to 2, and there is no charge to double —
+// the tag is inert until the foodstuff work gives it something to mean (say,
+// needing two meals a turn). It is left in the catalog rather than retired so
+// that work has something to hang off; see docs/systemdocs/TURN-ENGINE.md §5.
+const { HUNGER_SLUG, HUNGERLESS_SLUG, ATE_MEAL_SLUG, DYING_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 const { applyMood } = require("./mood");
 const { alivePassCharacters } = require("./aliveCharacters");
@@ -35,13 +48,7 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   const tags = await prisma.tag.findMany({
     where: {
       slug: {
-        in: [
-          HUNGER_SLUG,
-          HUNGERLESS_SLUG,
-          FAST_METABOLISM_SLUG,
-          ATE_MEAL_SLUG,
-          DYING_SLUG,
-        ],
+        in: [HUNGER_SLUG, HUNGERLESS_SLUG, ATE_MEAL_SLUG, DYING_SLUG],
       },
     },
     select: { id: true, slug: true, defaultDurationTurns: true },
@@ -53,14 +60,6 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
     return null;
   }
   const hungerlessId = tags.find((t) => t.slug === HUNGERLESS_SLUG)?.id ?? null;
-  // Missing is non-fatal, unlike Hunger itself: nobody holds it, so everyone
-  // just pays the ordinary 1 ⬢.
-  const fastMetabolismId = tags.find((t) => t.slug === FAST_METABOLISM_SLUG)?.id ?? null;
-  if (!fastMetabolismId) {
-    console.error(
-      `Hunger pass: no "${FAST_METABOLISM_SLUG}" tag — run npm run db:sync-tags. Everyone pays the flat 1 ⬢.`,
-    );
-  }
   const ateMealId = tags.find((t) => t.slug === ATE_MEAL_SLUG)?.id ?? null;
   const dyingId = tags.find((t) => t.slug === DYING_SLUG)?.id ?? null;
   if (!dyingId) {
@@ -69,16 +68,15 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
 
   // A noble's dinner is no longer this pass's business: skipping it costs
   // a mood hit at the mood pass instead (db/lib/moodPass.js, the `dined` marker).
-  const gateIds = [hungerlessId, fastMetabolismId, ateMealId].filter(Boolean);
-  // A character born mid-close (see db/index.js#resolveNeeds) wasn't alive
-  // for the turn that's closing — exclude them from this run's bill rather
-  // than charge a body for a day it never had.
+  const gateIds = [hungerlessId, ateMealId].filter(Boolean);
+  // A character born mid-close (see db/index.js#resolveNeeds) wasn't alive for
+  // the turn that's closing — exclude them rather than mark a body hungry for
+  // a day it never had.
   const characters = await alivePassCharacters(prisma, {
     where: bornBefore ? { createdAt: { lt: bornBefore } } : undefined,
     select: {
       id: true,
       discordUserId: true,
-      resources: true,
       hungerStreak: true,
       // Only the gating tags, not the whole tag set — keeps this cheap at
       // 100+ characters.
@@ -86,13 +84,10 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
     },
   });
 
-  // Split by what they owe, because one updateMany carries one decrement.
-  const toPay1 = [];
-  const toPay2 = []; // Fast Metabolism
   const toStarve = [];
   const shieldedIds = [];
   const toZeroIds = []; // hungerless only: streak -> 0
-  const fed = []; // ate-meal or paid: streak drops by ONE tick
+  const fed = []; // ate a meal: streak drops by ONE tick
   let skipped = 0;
 
   for (const character of characters) {
@@ -110,16 +105,9 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
       continue;
     }
 
-    // Under the full cost the character pays NOTHING and goes hungry, keeping
-    // what they have — the same rule a 0 ⬢ character has always had, just with
-    // a higher bar. A fast metabolism holding 1 ⬢ does not half-eat.
-    const cost = fastMetabolismId && held.has(fastMetabolismId) ? 2 : 1;
-    if (character.resources >= cost) {
-      (cost === 2 ? toPay2 : toPay1).push(character.id);
-      fed.push(character);
-    } else {
-      toStarve.push(character);
-    }
+    // Nothing else feeds anybody. No meal on the sheet is a hungry turn, and
+    // ⬢ in a pocket buy nothing here any more — raw material is not dinner.
+    toStarve.push(character);
   }
 
   const expiresTurn = expiryFrom(turn.number + 1, hungerTag.defaultDurationTurns ?? 1);
@@ -154,19 +142,9 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
     ? toStarve.filter((character) => character.hungerStreak + 1 >= HUNGER_STREAK_CAP).map((character) => character.id)
     : [];
 
-  // One transaction so a character can't be charged without Ate Meal being
-  // consumed, or land at the streak cap without Dying landing with it.
-  const [charged1, charged2] = await prisma.$transaction([
-    prisma.character.updateMany({
-      where: { id: { in: toPay1 }, resources: { gte: 1 } },
-      data: { resources: { decrement: 1 } },
-    }),
-    // Same structural clamp, one rung up: the where-guard matches its own
-    // decrement, so resources can never go negative without a Math.max.
-    prisma.character.updateMany({
-      where: { id: { in: toPay2 }, resources: { gte: 2 } },
-      data: { resources: { decrement: 2 } },
-    }),
+  // One transaction so a character can't have their Ate Meal eaten without the
+  // streak moving with it, or land at the streak cap without Dying landing too.
+  await prisma.$transaction([
     prisma.characterTag.deleteMany({
       where: { characterId: { in: shieldedIds }, tagId: ateMealId ?? "" },
     }),
@@ -183,8 +161,8 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
       where: { id: { in: toZeroIds } },
       data: { hungerStreak: 0 },
     }),
-    // Floor is structural, not a Math.max on an earlier read: the `gt: 0`
-    // where-guard matches the resources decrement's `gte: 1` above.
+    // Floor is structural rather than a Math.max on an earlier read — the
+    // `gt: 0` where-guard is its own clamp.
     prisma.character.updateMany({
       where: { id: { in: toDecrementIds }, hungerStreak: { gt: 0 } },
       data: { hungerStreak: { decrement: 1 } },
@@ -227,8 +205,6 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   // already flushed.
   return {
     turnNumber: turn.number,
-    paid: charged1.count + charged2.count,
-    intendedToPay: toPay1.length + toPay2.length,
     starved: toStarve.length,
     shielded: shieldedIds.length,
     skipped,

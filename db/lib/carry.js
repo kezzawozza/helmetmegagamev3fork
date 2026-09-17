@@ -1,15 +1,17 @@
 // Carry caps, the Overburdened status and the overflow drop (CARRY.md).
-// A character carries two loads against two caps: POUNDS of gear against
-// GameConfig.carryWeightLbs, and ⬢ against carryResourceCap. Both are moved by the SUM of every carryBonus they hold. Over a cap is allowed and grants `overburdened`; over 1.5× it is not allowed at all, and whatever pushed them there is set down where they stand.
+// A character carries ONE load against ONE cap: POUNDS against
+// GameConfig.carryWeightLbs, moved by the SUM of every carryBonus they hold. Over the cap is allowed and grants `overburdened`; over 1.5× it is not allowed at all, and whatever pushed them there is set down where they stand.
+//
+// There were two of each until 9/2026 — a second cap counting ⬢ at 25 a head, with its own watermark, its own hard ceiling and its own spill branch in settleCarry. ⬢ are a one-pound item now (docs/tags.yaml `resources`), so they weigh in beside the gear, shed through the same drawDrops draw as a sword, and the entire parallel track was deleted rather than ported.
 // NOT client-importable, despite the pure-looking maths at the top: the requires below reach Prisma (./tagWrites) and Discord (./dm, ./roomAnnounce), so any path into this file drags the barrel into the browser bundle (ARCHITECTURE.md §2). A client component wanting a weight reads db/lib/tagWeight.js, which is zero-require for exactly this reason. settleCarry below is the stateful half: pull-based and post-commit, same posture as roomAccess.js#syncCharacterRoomAccess, since the writers that change what a character holds are many and scattered (ten bypass tagWrites.js with raw deleteMany) and a push from any one would miss the rest.
 // Takes `prisma` as a parameter and stays OFF the @lifeweb/db barrel — db/index.js's turn engine imports this, so requiring the barrel back would resolve to a partial exports object. Require it by path.
 const { OVERBURDENED_SLUG } = require("./constants");
 const { addToStack, dropCharacterTag, addToRoomStack } = require("./tagWrites");
-const { moveParty } = require("./resourceTransfer");
 const { pickRandomPublicRoom, formatManifest } = require("./roomStash");
 const { announceInRoom } = require("./roomAnnounce");
 const { sendDm } = require("./dm");
 const { rowWeight, round2 } = require("./tagWeight");
+const { RESOURCES_WEIGHT_LBS } = require("./resourceStack");
 
 // The combined bonus is carried ×1000 as an integer so the sum of several
 // two-decimal bonuses stays exact, never a float epsilon.
@@ -57,62 +59,44 @@ function carryWeight(characterTags = []) {
 
 function carryCaps(config, milli = MULT_SCALE) {
   const weightCap = config?.carryWeightLbs ?? 71;
-  const resourceCap = config?.carryResourceCap ?? 25;
-  return {
-    weight: Math.floor((weightCap * milli) / MULT_SCALE),
-    resources: Math.floor((resourceCap * milli) / MULT_SCALE),
-  };
+  return { weight: Math.floor((weightCap * milli) / MULT_SCALE) };
 }
 
 // The ceiling nothing may cross, derived rather than stored so a GM raising the base cap moves both lines together.
 function carryHardCaps(caps) {
-  return {
-    weight: Math.floor(caps.weight * HARD_CAP_RATIO),
-    resources: Math.floor(caps.resources * HARD_CAP_RATIO),
-  };
+  return { weight: Math.floor(caps.weight * HARD_CAP_RATIO) };
 }
 
-// The readout a sheet shows. `character` needs { tags, resources }.
+// The readout a sheet shows. `character` needs { tags } — the ⬢ are in there, so there is nothing else to pass.
 function carryStatus(character, config) {
   const milli = carryMultiplier(character?.tags);
   const caps = carryCaps(config, milli);
   const hard = carryHardCaps(caps);
   const weightUsed = carryWeight(character?.tags);
-  const resources = character?.resources ?? 0;
   return {
     weightUsed,
     weightCap: caps.weight,
     weightHardCap: hard.weight,
-    resources,
-    resourcesCap: caps.resources,
-    resourcesHardCap: hard.resources,
     multiplier: milli / MULT_SCALE,
     breakdown: carryBreakdown(character?.tags),
     baseWeightCap: config?.carryWeightLbs ?? 71,
-    over: weightUsed > caps.weight || resources > caps.resources,
+    over: weightUsed > caps.weight,
   };
 }
 
 // The one guard every DELIBERATE acquisition asks before it writes — Transfer, Craft,
 // /store, the Depot, Loot, pulling out of a room stash. An involuntary gain (a Labor payout, Caving loot, a GM grant) does NOT ask — it lands, and settleCarry sets down whatever won't fit. Returns { ok } or { ok: false, reason }, so a caller can hand the sentence straight to the player.
+// `resources` is still its own option rather than folded into `weightLbs` by the caller, because it reads at the call site as what it is — "and N ⬢ with it" — and this is the one place that has to know a ⬢ weighs a pound.
 function carryAdmits(character, config, { weightLbs = 0, resources = 0 } = {}) {
   const caps = carryCaps(config, carryMultiplier(character?.tags));
   const hard = carryHardCaps(caps);
-  if (weightLbs > 0) {
-    const after = carryWeight(character?.tags) + weightLbs;
+  const added = (weightLbs > 0 ? weightLbs : 0) + (resources > 0 ? resources * RESOURCES_WEIGHT_LBS : 0);
+  if (added > 0) {
+    const after = carryWeight(character?.tags) + added;
     if (after > hard.weight) {
       return {
         ok: false,
         reason: `That would put you at ${Math.round(after)} lb, past the ${hard.weight} lb you could carry even overburdened. Put something down first.`,
-      };
-    }
-  }
-  if (resources > 0) {
-    const after = (character?.resources ?? 0) + resources;
-    if (after > hard.resources) {
-      return {
-        ok: false,
-        reason: `That would put you at ${after} ⬢, past the ${hard.resources} ⬢ you could carry even overburdened. Put something down first.`,
       };
     }
   }
@@ -125,11 +109,8 @@ function carryBonusLine(config, bonus) {
   const base = carryCaps(config, MULT_SCALE);
   const moved = carryCaps(config, Math.round((1 + (bonus ?? 0)) * MULT_SCALE));
   const lbs = moved.weight - base.weight;
-  const resources = moved.resources - base.resources;
-  if (lbs < 0 || resources < 0) {
-    return `You can carry ${Math.abs(lbs)} lb less, and ${Math.abs(resources)} ⬢ less.`;
-  }
-  return `You can carry ${lbs} more lb, and ${resources} ⬢.`;
+  if (lbs < 0) return `You can carry ${Math.abs(lbs)} lb less.`;
+  return `You can carry ${lbs} more lb.`;
 }
 
 // --- Settlement ----------------------------------------------------------
@@ -140,9 +121,7 @@ const CHARACTER_SELECT = {
   status: true,
   discordUserId: true,
   locationId: true,
-  resources: true,
   carryWeightSeen: true,
-  carryResourcesSeen: true,
   age: true,
   gender: true,
   tags: {
@@ -221,6 +200,8 @@ function drawDrops(characterTags, excessLbs) {
   for (const ct of chosen) {
     const entry = taken.get(ct.tagId) ?? {
       tagId: ct.tagId,
+      // Carried so formatManifest can print a shed ⬢ stack as "12 ⬢" rather than "Resources ×12" (CLAUDE.md's Resources rule: the glyph replaces the word).
+      tagSlug: ct.tag.slug,
       tagName: ct.tag.name,
       quantity: 0,
       expiresTurn: ct.expiresTurn,
@@ -258,26 +239,23 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
     if (!character || character.status !== "ALIVE") return null;
     const config = await tx.gameConfig.findUnique({
       where: { id: 1 },
-      select: { carryWeightLbs: true, carryResourceCap: true },
+      select: { carryWeightLbs: true },
     });
 
     const caps = carryCaps(config, carryMultiplier(character.tags));
     const hard = carryHardCaps(caps);
     let load = carryWeight(character.tags);
-    let resources = character.resources;
-    let over = load > caps.weight || resources > caps.resources;
+    let over = load > caps.weight;
 
     // The watermark is the whole of what distinguishes an ACQUISITION from a capacity
     // SHRINK. A load that hasn't grown since the last settle sheds nothing, however far over the ceiling the cap has fallen — this is what lets a cart be parked at an inn door without emptying it.
     const seenWeight = character.carryWeightSeen ?? 0;
-    const seenResources = character.carryResourcesSeen ?? 0;
     const weightGrew = load > seenWeight;
-    const resourcesGrew = resources > seenResources;
 
     let dropResult = null;
     let deferred = false;
 
-    if (drop && ((load > hard.weight && weightGrew) || (resources > hard.resources && resourcesGrew))) {
+    if (drop && load > hard.weight && weightGrew) {
       const room = await pickRandomPublicRoom(tx, character.locationId);
       if (!room) {
         // Nowhere to put it down — unplaced, or a Location with no public room. Hold the
@@ -288,12 +266,13 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
             actorDiscordUserId: "system",
             actionType: "carry_drop_deferred",
             targetCharacterId: character.id,
-            details: { load, resources, caps, hard, seenWeight, seenResources, locationId: character.locationId },
+            details: { load, caps, hard, seenWeight, locationId: character.locationId },
           },
         });
       } else {
         // Shed back to the ORDINARY cap, not the ceiling — landing a character exactly on 1.5× would leave them one letter from spilling again, re-dropping every turn.
-        const tags = load > hard.weight && weightGrew ? drawDrops(character.tags, load - caps.weight) : [];
+        // ⬢ are in this draw like anything else now — a one-pound stack, tradeable, no carryBonus — so a character over the ceiling on raw material sheds sacks of it by the same rule that sheds a spare sword. There used to be a separate branch below moving ⬢ through moveParty; there is nothing left for it to do.
+        const tags = drawDrops(character.tags, load - caps.weight);
         for (const t of tags) {
           // LAUNDERING CLASS (fix round, M4): the spill is an ordinary stack move, same
           // Transfer pattern as everywhere else a stack changes hands — thread dropCharacterTag's poison draw straight into the room, or the Overburdened shed would bleach a poisoned stack clean on its way to the ground.
@@ -305,29 +284,21 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
           });
         }
         if (tags.length) load = carryWeight(applyDrops(character.tags, tags));
+        over = load > caps.weight;
 
-        const spill = resources > hard.resources && resourcesGrew ? resources - caps.resources : 0;
-        if (spill > 0) {
-          await moveParty(tx, { kind: "character", id: character.id, name: character.name }, -spill);
-          await moveParty(tx, { kind: "room", id: room.id, name: room.name }, spill);
-          resources -= spill;
-        }
-        over = load > caps.weight || resources > caps.resources;
-
-        const manifest = tags.map(({ tagId, tagName, quantity }) => ({ tagId, tagName, quantity }));
-        if (manifest.length || spill > 0) {
+        const manifest = tags.map(({ tagId, tagSlug, tagName, quantity }) => ({ tagId, tagSlug, tagName, quantity }));
+        if (manifest.length) {
           await tx.auditLog.create({
             data: {
               actorDiscordUserId: "system",
               actionType: "carry_overflow_dropped",
               targetCharacterId: character.id,
-              details: { roomId: room.id, roomName: room.name, tags: manifest, resources: spill },
+              details: { roomId: room.id, roomName: room.name, tags: manifest },
             },
           });
           dropResult = {
             room,
             tags: manifest,
-            resources: spill,
             character: {
               id: character.id,
               name: character.name,
@@ -342,10 +313,10 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
 
     // Advance the watermark to what they're actually carrying now — after any shed, so a
     // shed load is what the next settle compares against. The conditional WHERE is the claim: two settles racing on the same growth must not both shed, the loser sees no growth next time.
-    if (!deferred && (load !== seenWeight || resources !== seenResources)) {
+    if (!deferred && load !== seenWeight) {
       await tx.character.updateMany({
-        where: { id: character.id, carryWeightSeen: seenWeight, carryResourcesSeen: seenResources },
-        data: { carryWeightSeen: load, carryResourcesSeen: resources },
+        where: { id: character.id, carryWeightSeen: seenWeight },
+        data: { carryWeightSeen: load },
       });
     }
 
@@ -376,7 +347,7 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
 async function deliverCarryDrop(prisma, result) {
   const drop = result?.drop;
   if (!drop) return;
-  const goods = formatManifest(drop.tags, drop.resources);
+  const goods = formatManifest(drop.tags);
   if (drop.character.discordUserId) {
     await sendDm(
       prisma,

@@ -7246,6 +7246,42 @@ tags:
     sellable: true
     sellablePrice: 35
 
+  # Resources themselves. Until 9/2026 this was a number on a sheet
+  # (Character.resources / Room.resources) that weighed nothing and could not
+  # be picked up, dropped, stolen or looted — the one piece of wealth in the
+  # game that was not an object. It is an object now, and everything that
+  # follows from that comes free: a sack of material is stashed in a room,
+  # handed over, pickpocketed, looted off a corpse and set down when you are
+  # carrying too much, through exactly the same stack machinery every other
+  # item uses. Nothing special-cases it.
+  #
+  # A pound each, which is not a new number: db/lib/depotCrates.js has always
+  # priced a CRATED ⬢ at a pound, and loose ⬢ weighing nothing was the
+  # inconsistency. That means there is no second carry cap any more — ⬢ push
+  # against GameConfig.carryWeightLbs beside the gear, and a fortune in raw
+  # material is a cart's worth of work to move (docs/systemdocs/CARRY.md).
+  #
+  # Priced on BOTH sides so the Depot trades it as an ordinary ware: bought at
+  # depotPrice 2, bought back at sellablePrice 1, the losing round trip
+  # db/lib/depot.js has always described. The economy ledger still books it as
+  # form BALANCE rather than GOODS, so /gm/economy goes on telling ⬢ and obols
+  # apart (docs/systemdocs/ECONOMY.md §1).
+  resources:
+    catalog: all
+    name: Resources
+    category: items
+    group: items-gear
+    description: "Bulk material for crafting, smithing, or healing people."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    depotPrice: 2
+    sellable: true
+    sellablePrice: 1
+
   # The Depot's currency, and worth exactly one ⬢. It does not compress value,
   # it makes value PHYSICAL: ⬢ are a number on a sheet that nobody can pick
   # your pocket for, and these are the same amount as an object you can carry,
