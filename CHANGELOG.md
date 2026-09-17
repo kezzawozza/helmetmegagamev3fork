@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Oracle: lift the per-page token cap
+
+✎ The 1800/1400 caps were tuned for gpt-class models; nano-gpt's deepseek runs long and every page came back truncated. Raised to 200000 so the model's own context is the ceiling.
+
 ## 2026-09-17 · Fix /chat crash for a GM whose selected place goes away
 
 ✎ The 'Post as Bascinet' composer added an inverted null-guard: when place is undefined, the ordinary composer branch entered and dereferenced place.canSpeak, throwing before the page could render. A GM whose selected place stopped existing between the SSR pass and hydration (party removed, zone deselected, room access lost) hit it every time. One-line fix: guard on 'place &&' before reading place.canSpeak.

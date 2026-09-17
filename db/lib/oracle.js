@@ -24,8 +24,8 @@ function seatZones(prisma) {
 
 // The last N turns of pages for one scope, oldest first, as context. Reads `body`, the EDITED text when a GM has rewritten it — the entire correction mechanism, since there is no regenerate.
 // Ceilings on length, not targets, sitting at roughly three times the prompts' ask so an ordinary page never comes near them. Deliberately generous: a cap too high costs nothing, a cap too low cuts a page off mid-sentence (the editor suffers most, since its THREADS block is at the END). A page hitting either is now an error, not a silent short page — treat one in the log as a prompt problem.
-const CORRESPONDENT_MAX_TOKENS = 1800;
-const EDITOR_MAX_TOKENS = 1400;
+const CORRESPONDENT_MAX_TOKENS = 200000;
+const EDITOR_MAX_TOKENS = 200000;
 
 // `kind` defaults from `zoneId` for the two shapes that predate it (a real zone always has one, the front page never does) — only Threats, which also has no zoneId, needs to pass it explicitly.
 function pageKind(zoneId, kind) {
