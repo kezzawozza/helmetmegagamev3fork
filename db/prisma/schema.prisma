@@ -559,6 +559,11 @@ model GameConfig {
   // post — a notice nobody took down is a notice nobody wanted.
   // See docs/systemdocs/PAPERWORK.md.
   noticeExpiryTurns Int @default(10)
+
+  // The most crops one Farm action may sow in a single plan
+  // (db/lib/soilery.js#validatePlan, FARM_MAX_CROPS is the fallback
+  // default). Edited on /gm/dev. See SOILERY.md.
+  farmMaxCrops Int @default(50)
 }
 
 /// Where a game is in its life. The turn cron and the force-advance button

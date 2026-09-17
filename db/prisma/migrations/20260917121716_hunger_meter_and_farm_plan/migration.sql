@@ -22,7 +22,8 @@ ALTER TABLE "Character" ADD COLUMN     "hungerValue" INTEGER NOT NULL DEFAULT 10
 ADD COLUMN     "starvingSinceTurn" INTEGER;
 
 -- AlterTable
-ALTER TABLE "GameConfig" ALTER COLUMN "locationMoveCooldownSeconds" SET DEFAULT 3;
+ALTER TABLE "GameConfig" ALTER COLUMN "locationMoveCooldownSeconds" SET DEFAULT 3,
+ADD COLUMN     "farmMaxCrops" INTEGER NOT NULL DEFAULT 50;
 
 -- AlterTable
 ALTER TABLE "Tag" ADD COLUMN     "mealHunger" INTEGER;

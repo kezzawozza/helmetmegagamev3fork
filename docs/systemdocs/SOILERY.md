@@ -2,8 +2,10 @@
 
 A design-doc-driven farming verb: a character with the Farming labor skill,
 standing on `soilery`-attributed ground, spends a seed bag's licence and sows
-up to 50 crops in one Move. The crops and a fatigue lockout land when the
-turn is pushed, not when the button is pressed.
+up to a GM-tunable cap of crops (`GameConfig.farmMaxCrops`, 50 out of the
+box, editable on `/gm/dev` mid-round with no deploy) in one Move. The crops
+and a fatigue lockout land when the turn is pushed, not when the button is
+pressed.
 
 Read this before touching `db/lib/soilery.js`, `db/lib/locationAttributes.js`'s
 `soilery` attribute, the `farmed` entry in `db/lib/moveEffects.js`,
@@ -23,10 +25,10 @@ half of this same body of work; its full mechanics live there, not here, see
 ## 1. Why it exists
 
 `E:\bascinet\v3\Soilery.docx` specs a farming system: characters with the
-farming skill, standing on farmland, consume seed bags and sow up to 50 crops
-in one action; the crops (with a 1-in-6 per-unit wither chance) and a fatigue
-lockout land when the turn is pushed. Cooking (the doc's page 2) needed no new
-code at all — see §6.
+farming skill, standing on farmland, consume seed bags and sow up to a
+GM-tunable cap of crops (50 by default) in one action; the crops (with a
+1-in-6 per-unit wither chance) and a fatigue lockout land when the turn is
+pushed. Cooking (the doc's page 2) needed no new code at all — see §6.
 
 Farming pays **no ⬢**. That is the one thing that separates it from
 `laboring-farming`'s other life as a paying Labor tier (`LABORING.md` §2,
@@ -83,8 +85,9 @@ The Farm dialog and the server action both read which crops a character may
 sow the same way: `db/lib/soilery.js#sowableCrops(characterTags)` filters its
 `CROPS` table (the canonical sowing-slug/crop-slug pairing) down to whichever
 sowing tags the character currently holds. **One bag licenses any amount of
-that crop up to the turn's cap of 50** — the doc caps the sowing, not the
-seed. Seed bags are Merchant-stocked (`depotPrice: 4`); as of this writing no
+that crop up to the cap** (`GameConfig.farmMaxCrops`, 50 by default, editable
+on `/gm/dev` mid-round) — the doc caps the sowing, not the seed. Seed bags
+are Merchant-stocked (`depotPrice: 4`); as of this writing no
 starting stash of them has been added to `farms-fields`'s `stash.items`
 (which still only stashes `work-knife: 1`) — a possible follow-up, not
 something this pass shipped.
@@ -118,10 +121,12 @@ that commits now and resolves its dice at push.
    on no open turn, the Move-lock window, or an existing `Action` row this
    turn via `@@unique([characterId, turnId])`. This is the "not already
    submitted an action" rule.
-5. `sowableCrops(character.tags)` → `validatePlan(lines, licensed)` — full
-   server-side re-validation (the client's plan is advisory only): rejects an
-   unlicensed crop, a non-integer or non-positive count, a total of 0, or a
-   total over `FARM_MAX_CROPS` (50).
+5. `sowableCrops(character.tags)` → `validatePlan(lines, licensed, maxCrops)`
+   — full server-side re-validation (the client's plan is advisory only):
+   rejects an unlicensed crop, a non-integer or non-positive count, a total
+   of 0, or a total over `maxCrops` (read from `GameConfig.farmMaxCrops`,
+   falling back to `FARM_MAX_CROPS` (50) if unset — editable on `/gm/dev`
+   with no deploy).
 
 **Inside one `$transaction`**: `lockCharacter`, then the sowing licences are
 **re-checked under the lock** (so two tabs can't both spend one bag's one
@@ -351,3 +356,4 @@ opt-in fields on the same block Cooking already parsed.
 | The sheet-side Farm gate (`canSeeFarm`/`farmBlocked`/`canFarm`) | `web/app/(app)/character/page.js` |
 | The Farm verb strip entry | `web/app/components/actionRegistry.js` (`mode: "farm"`) |
 | The Farm dialog itself | `web/app/components/actions/FarmDialog.js`, registered in `web/app/components/actions/index.js` |
+| The GM-tunable sow cap (`GameConfig.farmMaxCrops`, default 50, `FARM_MAX_CROPS` is the code fallback) | `db/prisma/schema.prisma`, `db/lib/gameConfigFields.js` (`/gm/dev?s=config`, "Economy" group) |

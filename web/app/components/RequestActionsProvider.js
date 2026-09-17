@@ -186,6 +186,7 @@ export default function RequestActionsProvider({
   canSeeFarm = false,
   canFarm = false,
   farmBlocked = null,
+  farmMaxCrops,
   canSeePackage = false,
   // Crucify: you hold `fundamentalist` and a COMPLETE Cross stands where you
   // are. Both facts about YOUR sheet and YOUR ground, resolved in
@@ -315,6 +316,7 @@ export default function RequestActionsProvider({
     canRead,
     resources,
     carry,
+    farmMaxCrops,
     transferParties,
     transferSilo,
     lootTargets,

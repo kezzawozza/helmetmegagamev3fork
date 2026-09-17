@@ -9,7 +9,7 @@ import { UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { hasAttribute, SOILERY_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
-import { sowableCrops, validatePlan, farmRefusalFor } from "@lifeweb/db/lib/soilery";
+import { sowableCrops, validatePlan, farmRefusalFor, FARM_MAX_CROPS } from "@lifeweb/db/lib/soilery";
 import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
 import { logAudit } from "@/lib/requests";
 import { dropCharacterTag } from "@/lib/tagEffects";
@@ -47,8 +47,19 @@ export async function farmRequestImpl({ lines }) {
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
 
+  // Read once and reuse for both checks below — a GM's cap edit landing a
+  // moment after this request started is no different from any other
+  // GameConfig edit taking effect "on the next request" (no cache anywhere
+  // in this system), so there's no correctness reason to re-read it inside
+  // the transaction.
+  const gameConfig = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { farmMaxCrops: true },
+  });
+  const maxCrops = gameConfig?.farmMaxCrops ?? FARM_MAX_CROPS;
+
   const licensed = sowableCrops(character.tags);
-  const { ok, error } = validatePlan(lines, licensed);
+  const { ok, error } = validatePlan(lines, licensed, maxCrops);
   if (!ok) throw new UserError(error);
 
   const cropSlugs = [...new Set((lines ?? []).map((row) => row?.crop))];
@@ -86,7 +97,7 @@ export async function farmRequestImpl({ lines }) {
     });
     const heldAsCharacterTags = held.map((row) => ({ tag: { slug: row.tag.slug } }));
     const stillLicensed = sowableCrops(heldAsCharacterTags);
-    const recheck = validatePlan(lines, stillLicensed);
+    const recheck = validatePlan(lines, stillLicensed, maxCrops);
     if (!recheck.ok) throw new UserError(recheck.error);
 
     // One bag licenses any amount of that crop — spend the ticket once per crop USED, not once

@@ -10937,7 +10937,8 @@ tags:
   # match it exactly (the bag slugs themselves aren't referenced anywhere
   # else, so they follow the normal "slug is the name, slugified" rule
   # instead of the plan's literal `seed-bag-<crop>` draft naming).
-  # One bag licenses any amount of that crop up to the turn's cap of 50.
+  # One bag licenses any amount of that crop up to the sowing cap
+  # (GameConfig.farmMaxCrops, 50 by default, GM-tunable on /gm/dev).
   wheat-seed-bag:
     catalog: all
     name: Wheat Seed Bag

@@ -32,6 +32,10 @@ function cropName(slug) {
 
 export default function FarmDialog({ onDone, onClose }) {
   const pools = useActionPools();
+  // GM-tunable on /gm/dev (GameConfig.farmMaxCrops), resolved server-side in
+  // character/page.js. FARM_MAX_CROPS is only the client-side fallback if
+  // that prop is somehow absent, same posture as db/lib/carry.js's `?? 71`.
+  const maxCrops = pools.farmMaxCrops ?? FARM_MAX_CROPS;
   // Fresh pockets rather than the page's own snapshot, the same posture every
   // sibling dialog takes (PackageDialog.js, ConsumeDialog.js, ...): the seed
   // paints instantly, the request re-reads the moment the dialog opens.
@@ -46,14 +50,14 @@ export default function FarmDialog({ onDone, onClose }) {
     // `held: 1` keeps StackRow's ×N suffix off the name — there is no "how
     // many you're holding" here, only the per-crop sowing cap.
     held: 1,
-    max: FARM_MAX_CROPS,
+    max: maxCrops,
   }));
 
   const lines = Object.entries(picks)
     .map(([crop, value]) => ({ crop, planted: Number(value) || 0 }))
     .filter((line) => line.planted > 0);
   const total = lines.reduce((sum, line) => sum + line.planted, 0);
-  const overCap = total > FARM_MAX_CROPS;
+  const overCap = total > maxCrops;
 
   return (
     <ActionDialog
@@ -75,8 +79,8 @@ export default function FarmDialog({ onDone, onClose }) {
       <span className="field-label">What do you sow?</span>
       <StackPicker rows={rows} picks={picks} onChange={setPicks} />
       <p className={overCap ? "text-sm text-accent" : "text-xs text-muted"}>
-        {`${total} / ${FARM_MAX_CROPS} seeds. `}
-        {overCap ? "A farm holds at most 50 crops at once." : null}
+        {`${total} / ${maxCrops} seeds. `}
+        {overCap ? `A farm holds at most ${maxCrops} crops at once.` : null}
       </p>
       <p className="text-xs text-muted">
         Sowing takes the whole day, and the crop comes in when the day turns.

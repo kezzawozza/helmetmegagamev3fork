@@ -36,7 +36,7 @@ function sowableCrops(characterTags = []) {
 // `plan` is what a player submits: [{ crop, planted }, ...]. Never throws —
 // always answers { ok: false, error } or { ok: true }, since this is meant
 // to gate a form submission, not crash a request handler.
-function validatePlan(plan, licensed) {
+function validatePlan(plan, licensed, maxCrops = FARM_MAX_CROPS) {
   if (!Array.isArray(plan) || plan.length === 0) {
     return { ok: false, error: "Nothing to sow." };
   }
@@ -60,8 +60,8 @@ function validatePlan(plan, licensed) {
   if (total === 0) {
     return { ok: false, error: "Nothing to sow." };
   }
-  if (total > FARM_MAX_CROPS) {
-    return { ok: false, error: `A farm holds at most ${FARM_MAX_CROPS} crops at once.` };
+  if (total > maxCrops) {
+    return { ok: false, error: `A farm holds at most ${maxCrops} crops at once.` };
   }
 
   return { ok: true };

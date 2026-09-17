@@ -68,6 +68,7 @@ test("validatePlan: rejects a total over FARM_MAX_CROPS, even split across crops
 });
 
 test("validatePlan: accepts exactly FARM_MAX_CROPS split across multiple crops", () => {
+  // 20 + 20 + 10 must sum to FARM_MAX_CROPS.
   const result = validatePlan(
     [
       { crop: "wheat", planted: 20 },
@@ -81,6 +82,12 @@ test("validatePlan: accepts exactly FARM_MAX_CROPS split across multiple crops",
 
 test("validatePlan: accepts a single crop under the cap", () => {
   assert.equal(validatePlan([{ crop: "wheat", planted: 1 }], licensedWheatOnly).ok, true);
+});
+
+test("validatePlan: an explicit maxCrops parameter overrides FARM_MAX_CROPS", () => {
+  const result = validatePlan([{ crop: "wheat", planted: 5 }], licensedWheatOnly, 4);
+  assert.equal(result.ok, false);
+  assert.match(result.error, /4/);
 });
 
 test("reap: a rng that never rolls the wither slot never loses a plant", () => {
