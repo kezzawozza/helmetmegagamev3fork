@@ -158,7 +158,7 @@ async function handleDropBoxPick(interaction) {
     buildAmountModal({
       customId: `${DROP_MODAL_PREFIX}${tagId}`,
       field: DROP_AMOUNT_FIELD,
-      title: "Into the box",
+      title: "Dropbox",
       label: "How many",
     }),
   );

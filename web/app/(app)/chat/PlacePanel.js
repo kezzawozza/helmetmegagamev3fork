@@ -671,21 +671,21 @@ function DropBoxDialog({ onClose, onDone }) {
 
   if (!state) {
     return (
-      <Modal open title="The drop box" onClose={onClose}>
+      <Modal open title="Dropbox" onClose={onClose}>
         <p className="text-sm text-muted">Looking in…</p>
       </Modal>
     );
   }
   if (!state.ok) {
     return (
-      <Modal open title="The drop box" onClose={onClose}>
+      <Modal open title="Dropbox" onClose={onClose}>
         <FormError>{state.error}</FormError>
       </Modal>
     );
   }
   if (!state.sellable.length) {
     return (
-      <Modal open title="The drop box" onClose={onClose}>
+      <Modal open title="Dropbox" onClose={onClose}>
         <EmptyState>Nothing on you the depot buys.</EmptyState>
       </Modal>
     );
@@ -695,7 +695,7 @@ function DropBoxDialog({ onClose, onDone }) {
   const dest = destination ?? state.defaultDestination;
 
   return (
-    <Modal open title="The drop box" onClose={onClose}>
+    <Modal open title="Dropbox" onClose={onClose}>
       <p className="text-sm text-muted">
         The next time the train leaves, anything you put in the dropbox will be automatically sold and credited to
         your chosen account.

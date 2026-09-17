@@ -69,7 +69,7 @@ function ledgerRow(entry) {
       return { detail: (e.lines ?? []).map((l) => `${l.name} ×${l.quantity}`).join(", "), delta: -(e.total ?? 0) };
     case "DEPOT_DROP":
       return {
-        detail: `${e.tagName ?? "Something"} ×${e.quantity ?? 1} into the drop box${e.destination && e.destination !== "SELF" ? ` — to the ${e.destination === "TREASURY" ? "Treasury" : "Merchant"}` : ""}`,
+        detail: `${e.tagName ?? "Something"} ×${e.quantity ?? 1} into the dropbox${e.destination && e.destination !== "SELF" ? ` — to the ${e.destination === "TREASURY" ? "Treasury" : "Merchant"}` : ""}`,
         delta: 0,
       };
     case "DEPOT_ATM":
