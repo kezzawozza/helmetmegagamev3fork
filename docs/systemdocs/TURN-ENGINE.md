@@ -481,7 +481,7 @@ The thunk performs, in narrative order:
    so the two arrive in severity order.
 3b. The Catatonic DMs and role renames, then the death pass's work: the
    eve-of-death warning DMs, and per death the Discord teardown — membership
-   check first (Cursed grant, nickname clear and death DM go only to a
+   check first (the Cursed grant and the death DM go only to a
    player **still in the guild**; for a departed one each would just 403
    into the REST breaker's tally), then access revoke, role delete, and one
    combined `#leave` post naming everyone who died this turn.
@@ -956,7 +956,7 @@ a network call.
 
 **A turret kill owes the same Discord teardown every other death gets**, and
 for a long time it got none of it: the sheet said `DEAD` while the character
-kept their personal role, every channel overwrite and their nickname, and never
+kept their personal role and every channel overwrite, and never
 received the ghost seat. Both guns now hand their kills up as `deaths`, which
 the thunk folds into `turnDeaths` alongside the catatonic, Dying and blast
 ones. The walk itself lives in `db/lib/deathTeardown.js` so the four callers

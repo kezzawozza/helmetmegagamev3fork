@@ -25,7 +25,7 @@
 // deliberately NOT on the @lifeweb/db barrel; require it by path.
 
 const { revokeAllCharacterAccess } = require("./accessSweep");
-const { removeThreadMember, setGuildNickname } = require("./discordRest");
+const { removeThreadMember } = require("./discordRest");
 const { materializeDiscordPresence } = require("./locationMove");
 const { conversationsFor } = require("./conversations");
 const { notifyPresence } = require("./presenceNotify");
@@ -140,10 +140,6 @@ async function setDiscordMirrored(prisma, character, on, { bypassCooldown = fals
       } else {
         // keepGuests: a RoomGuest row is game state, not Discord state — the web feed still reads it to show them the room.
         await revokeAllCharacterAccess(prisma, row, { keepGuests: true });
-        // The nickname is the loudest leak of all — cleared, not merely no longer synced (bot/src/lib/nickname.js skips them from now on).
-        await setGuildNickname(row.discordUserId, null).catch((err) =>
-          console.error(`discord mirror: couldn't clear the nickname for ${row.discordUserId}:`, err.message ?? err),
-        );
         await shedThreads(prisma, row);
       }
     } catch (err) {

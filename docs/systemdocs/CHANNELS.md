@@ -420,9 +420,8 @@ empty, so the diff evicts rather than adds), the invite replay
 (`db/lib/threadInvites.js` writes the membership row and skips the Discord add,
 keeping the invite for the day the switch comes on), the three Conversation
 thread-adds (`/add`, a mention, Converse — the row yes, the account no), the
-guest add in a private Room, the rejoin restore in
-`bot/src/lib/locationTravel.js#restoreStandingRoles`, and nickname sync on both
-faces. Miss one and an overnight mirror or doctor pass quietly un-hides
+guest add in a private Room, and the rejoin restore in
+`bot/src/lib/locationTravel.js#restoreStandingRoles`. Miss one and an overnight mirror or doctor pass quietly un-hides
 somebody who believes they are hidden.
 
 ## 4. Anchors, rooms and conversations

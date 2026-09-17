@@ -1350,8 +1350,8 @@ async function resolveNeeds(turn, config) {
     // only the one turret.
     turretDms: [...(depot?.dms ?? []), ...(gatehouse?.dms ?? [])],
     // Both guns' kills, for the same teardown every other death gets. Until
-    // this was carried up, a turret-killed character kept their personal role,
-    // every channel overwrite and their nickname, and never got the ghost seat.
+    // this was carried up, a turret-killed character kept their personal role
+    // and every channel overwrite, and never got the ghost seat.
     turretDeaths: [...(depot?.deaths ?? []), ...(gatehouse?.deaths ?? [])],
     depotLocationId: depot?.locationId ?? null,
     // Where each gun fired, if either did. Two entries rather than one, because

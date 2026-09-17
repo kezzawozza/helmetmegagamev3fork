@@ -1,11 +1,6 @@
 // Caches every guild member's Discord handle, so a GM can search "peace.lock"
 // instead of a snowflake. The rule and the writes live in
 // db/lib/discordAccounts.js — this is only the gateway half.
-//
-// Deliberately NOT folded into nickname.js, which shares the members.fetch():
-// that sync returns early when GameConfig.nicknameSyncEnabled is off, and
-// handles would then silently stop being captured for a reason that has nothing
-// to do with them. Two concerns, two passes, one cheap fetch each.
 const { prisma } = require("@lifeweb/db");
 const { accountRowsFromMembers, syncDiscordAccounts } = require("@lifeweb/db/lib/discordAccounts");
 

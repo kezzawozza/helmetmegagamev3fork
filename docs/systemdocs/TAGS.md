@@ -1008,7 +1008,8 @@ panel as a `1t` meaning *turns remaining*.
 
 Both formatters are hand-duplicated as `db/lib/turnFormat.js` and
 `db/lib/formatTagRequirement.js` for the bot's 🔍 inspect embed, the same
-convention as `buildNickname`. Change both copies together; don't collapse them
+twin convention the rest of the Discord layer uses. Change both copies
+together; don't collapse them
 (the web copies must stay dependency-free so client components can import
 them).
 - `removable` — whether a player can strip this tag off themselves mid-game
@@ -2308,9 +2309,10 @@ What it does, all resolved at **read time** by `db/lib/presentedIdentity.js`
 
 What it deliberately does **not** touch: the `Character` row (no rename, so two
 Beasts never collide on `Character.name`, and every GM table still says who it
-is), the personal @-mention role, and the server nickname — both keep the real
-bare name, by decision. The `/add` picker naming the character is intended, not
-a leak.
+is) and the personal @-mention role, which keeps the real bare name by
+decision. The server nickname is not touched either, because nothing in the
+game touches one (`PROXYING.md` §8). The `/add` picker naming the character is
+intended, not a leak.
 
 One consequence of the precedence worth knowing: a character who had their hood
 **up** when the tag landed stops being concealed. Their 🔍 embed goes back to

@@ -97,7 +97,6 @@ import {
 } from "@/lib/consumeGrants";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
-  syncCharacterNickname,
   ensureCharacterRole,
   sendDm,
   killCharacter,
@@ -212,7 +211,6 @@ import {
 import {
   NAME_LIMITS,
   formatCharacterName,
-  formatBareName,
 } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 import {
@@ -2666,13 +2664,9 @@ export async function changeNameRequestImpl({
   });
 
   // Best-effort Discord fan-out, outside the transaction (ARCHITECTURE.md §5
-  // — no network call inside one). The role and the nickname wear the REAL
-  // bare name on purpose, disguise or not (PROXYING.md §6, §8).
+  // — no network call inside one). The role wears the REAL bare name on
+  // purpose, disguise or not (PROXYING.md §6).
   await ensureCharacterRole(updated).catch(() => {});
-  await syncCharacterNickname(
-    session.discordUserId,
-    formatBareName(updated),
-  ).catch(() => {});
   await afterInventoryChange(character.id);
   if (
     isDynastyHead(character.role?.slug) &&

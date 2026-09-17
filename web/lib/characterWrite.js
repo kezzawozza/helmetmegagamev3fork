@@ -221,7 +221,6 @@ export function planDiscordEffects({ existing, diff, finalStatus, role, tagsTouc
     formatBareName(existing) !== formatBareName({ ...existing, ...unwrap(diff) });
 
   if (nameChanged || bareChanged || !existing.discordRoleId) steps.push("role");
-  if (nameChanged) steps.push("nickname");
   if (diff.lastName && role) steps.push("dynasty");
   if (diff.locationId) steps.push("location");
   // A location change already reconciles narrowcast access in the shared fan-out; only a bare tag change needs this step.

@@ -7,7 +7,6 @@ const {
   postMessage,
   deleteGuildRole,
   getGuildMember,
-  setGuildNickname,
 } = require("../../discordRest");
 
 async function handleDeaths({ prisma, p, list, step, eachDm }) {
@@ -102,9 +101,6 @@ async function handleDeaths({ prisma, p, list, step, eachDm }) {
             `Failed to open Deadchat for ${death.discordUserId}:`,
             err.message,
           ),
-        );
-        await setGuildNickname(death.discordUserId, null).catch((err) =>
-          console.error(`Failed to clear ${death.name}'s nickname:`, err.message),
         );
         // A turret says it better than this loop can, and already has — its
         // own DM went out with the burst, in the second person and in the

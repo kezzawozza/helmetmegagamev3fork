@@ -48,15 +48,6 @@ async function getGuildMember(userId) {
   return discordRequest(`/guilds/${guildId}/members/${userId}`, { allow404: true });
 }
 
-async function setGuildNickname(userId, nick) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  return discordRequest(`/guilds/${guildId}/members/${userId}`, {
-    method: "PATCH",
-    body: { nick },
-    allow404: true,
-  });
-}
-
 // Paginates the full member list (1000/page). Each entry carries
 // { user: { id, ... }, roles: [...] }, what the channel doctor diffs.
 async function listGuildMembers() {
@@ -80,6 +71,5 @@ module.exports = {
   addMemberRole,
   removeMemberRole,
   getGuildMember,
-  setGuildNickname,
   listGuildMembers,
 };

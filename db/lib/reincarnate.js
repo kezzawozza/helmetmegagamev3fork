@@ -12,8 +12,7 @@ const { parseStartingTag } = require("./startingTags");
 const { expiryForGrant } = require("./grantExpiry");
 const { seedMemories } = require("./locationVisits");
 const { startingMemorySlugs } = require("./startingMemories");
-const { formatCharacterName, formatBareName, AGE_MIN } = require("./characterName");
-const { setGuildNickname } = require("./discordRest");
+const { formatCharacterName, AGE_MIN } = require("./characterName");
 const { closeDeadchatTo } = require("./deadchat");
 const { randomCharacterName } = require("./nameCorpus");
 const { GENDERS } = require("./titles");
@@ -226,13 +225,11 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
     startingMemorySlugs(role.slug, new Set(startingTags.map((t) => t.slug))),
   ).catch((err) => console.error(`Reincarnation memories failed for ${created.id}:`, err.message ?? err));
 
-  // Alive again: ghost seat off, guild sees the new name — same two steps
-  // db/lib/threatSpawn.js takes for a spawned character. Belt to
+  // Alive again, so the ghost seat comes off. Belt to
   // db/lib/deathTeardown.js#stillAlive's brace, since the web's killCharacter
   // revokes access BEFORE writing the death row. The curse itself needs no
   // write — db/lib/curse.js derives it from this character being ALIVE.
   await closeDeadchatTo(prisma, discordUserId).catch(() => {});
-  await setGuildNickname(discordUserId, formatBareName(created)).catch(() => {});
 
   // Plain, not `-#`: sendDm's `»` prefix (CLAUDE.md) makes a `» -#` line render as neither.
   await sendDm(

@@ -34,7 +34,6 @@ import { requireDev } from "@/lib/devAccess";
 import {
   deleteCharacterRole,
   revokeAccessForCharacters,
-  updateGuildNickname,
   setTurnPingRole,
   sendDm,
 } from "@/lib/discordGuild";
@@ -607,9 +606,6 @@ async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds,
     if (c.discordRoleId) {
       await step(`character role ${c.discordRoleId}`, () => deleteCharacterRole(c.discordRoleId));
     }
-    await step(`nickname ${c.discordUserId}`, () => updateGuildNickname(c.discordUserId, null), {
-      retries: 0,
-    });
     if (c.turnPingOptIn) {
       await step(`turn-ping ${c.discordUserId}`, () => setTurnPingRole(c.discordUserId, false));
     }

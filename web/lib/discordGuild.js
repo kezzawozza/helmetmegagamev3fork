@@ -17,7 +17,6 @@ import {
 import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
 import { openDeadchatTo } from "@lifeweb/db/lib/deadchat";
 import { applyDmPrefix, dmLogRow } from "@lifeweb/db/lib/dmPolicy";
-import { buildNickname } from "@lifeweb/db/lib/nicknameFormat";
 import {
   revokeAllCharacterAccess as revokeAllCharacterAccessShared,
   revokeAccessForCharacters as revokeAccessForCharactersShared,
@@ -346,45 +345,6 @@ export async function deleteMessage(channelId, messageId) {
   });
 }
 
-export { buildNickname };
-
-export async function updateGuildNickname(discordUserId, nickname) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  const token = process.env.DISCORD_TOKEN;
-  if (!guildId || !token) return;
-
-  try {
-    await discordRequest(`/guilds/${guildId}/members/${discordUserId}`, {
-      method: "PATCH",
-      body: { nick: nickname },
-      allow404: true,
-    });
-  } catch (err) {
-    console.error(`Failed to set nickname for ${discordUserId}:`, err);
-  }
-}
-
-// `characterName` is always the BARE name (formatBareName). The 32-char cap
-// is shared between the two halves, so a title never appears here.
-export async function syncCharacterNickname(discordUserId, characterName) {
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  if (!config?.nicknameSyncEnabled) return;
-  // Not being mirrored to Discord exists so that nothing on Discord says
-  // which character this account is, and a nickname is the loudest thing
-  // that could (docs/systemdocs/CHAT.md §6).
-  const notMirrored = await prisma.character.findFirst({
-    where: { discordUserId, status: "ALIVE", discordMirrored: false },
-    select: { id: true },
-  });
-  if (notMirrored) return;
-
-  const member = await getGuildMember(discordUserId);
-  if (!member) return;
-
-  const base = member.user.global_name || member.user.username;
-  await updateGuildNickname(discordUserId, buildNickname(base, characterName));
-}
-
 export async function setTurnPingRole(discordUserId, optIn) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
@@ -528,8 +488,6 @@ export async function killCharacter(character, reason = null) {
   if (character.discordRoleId) {
     await deleteCharacterRole(character.discordRoleId).catch(() => {});
   }
-
-  await updateGuildNickname(character.discordUserId, null).catch(() => {});
 
   // Shared with the turn engine's catatonic death pass so the two death
   // paths can't drift.

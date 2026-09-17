@@ -261,7 +261,7 @@ Three notes on deliberate choices:
   call may run inside a `$transaction` (`ARCHITECTURE.md` §5) — so undoing
   `ADD_TAG`/`REMOVE_TAG`/`CONSUME_TAG` leaves `#cerberon` access
   stale until the next Move reconciles it, and undoing `CHANGE_NAME` leaves
-  the personal Discord role/nickname stale until the player's next Bio save
+  the personal Discord role stale until the player's next Bio save
   (`ensureCharacterRole` always re-PATCHes off the live DB name, so that save
   self-heals it). Accepted rather than fixed: the forward path already pays
   for the Discord call outside the transaction, and a bespoke undo path for

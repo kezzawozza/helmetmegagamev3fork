@@ -125,7 +125,7 @@ async function reviveByRite(db, dead, { location, turnNumber }) {
     log(`role for ${dead.name}`)(err);
   }
   await closeDeadchatTo(db, dead.discordUserId).catch(() => {});
-  // No nickname write here: the bot's nickname sync owns that.
+  // No nickname write here: the game never touches a member's Discord nickname.
   await applyLocationMoveSideEffects(db, { characterId: dead.id, fromLocationId: null, toLocationId: location.id }).catch(
     log(`placement for ${dead.name}`),
   );

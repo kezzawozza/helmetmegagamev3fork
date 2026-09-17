@@ -66,7 +66,6 @@ module.exports = {
   addMemberRole: roles.addMemberRole,
   removeMemberRole: roles.removeMemberRole,
   getGuildMember: roles.getGuildMember,
-  setGuildNickname: roles.setGuildNickname,
   listGuildMembers: roles.listGuildMembers,
   messageTimestamp: messages.messageTimestamp,
   putChannelOverwrite: channels.putChannelOverwrite,

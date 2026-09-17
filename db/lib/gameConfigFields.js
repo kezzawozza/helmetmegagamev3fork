@@ -135,16 +135,14 @@ const FIELDS = [
     key: "tupperAutocorrectEnabled", type: "bool", group: "discord", default: true,
     label: "Tupper autocorrect",
   },
-  {
-    key: "nicknameSyncEnabled", type: "bool", group: "discord", default: false,
-    label: "Nickname sync",
-  },
 ];
 
 // Real columns that are not knobs. The check script exempts these; the form
 // never shows them.
 const INTERNAL_KEYS = [
   "id",
+  // Retired: nothing writes a Discord nickname any more. Column kept, knob gone.
+  "nicknameSyncEnabled",
   "turnsConsoleChannelId",
   "turnsConsoleMessageId",
   "restInvalidCount",

@@ -169,7 +169,7 @@ can't disagree about what an affliction is.
 
   **Two buttons were removed earlier.** The eye linked to `/character`, the
   signed-in GM's own sheet rather than this character's. **Re-push Discord**
-  re-sent the role, the nickname and the channel overwrites a character
+  re-sent the role and the channel overwrites a character
   should already have, which is what `db:mirror` and the channel doctor do on
   every bot start anyway — so it could only ever confirm that nothing was
   wrong.

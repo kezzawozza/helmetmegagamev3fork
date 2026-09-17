@@ -10,17 +10,14 @@ import { isSuperadmin } from "@/lib/superadmin";
 import {
   getGmSession,
   ensureCharacterRole,
-  syncCharacterNickname,
   syncCharacterNarrowcastAccess,
   revokeAllCharacterAccess,
   deleteCharacterRole,
-  updateGuildNickname,
   killCharacter,
   sendDm,
 } from "@/lib/discordGuild";
 import { notifyCharacter as notifyCharacterShared } from "@/lib/notifyCharacter";
 import { propagateDynastyLastName } from "@/lib/dynasty";
-import { formatBareName } from "@/lib/characterName";
 import {
   normalizeCoreEdits,
   diffCore,
@@ -208,9 +205,6 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
       for (const step of steps) {
         try {
           if (step === "role") await ensureCharacterRole(updated);
-          if (step === "nickname") {
-            await syncCharacterNickname(updated.discordUserId, formatBareName(updated));
-          }
           if (step === "dynasty" && isDynastyHead((role ?? existing.role)?.slug)) {
             await propagateDynastyLastName(updated.lastName);
           }
@@ -260,7 +254,7 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
 // Microactions: each a verb, idempotency-checked against live state.
 
 // killCharacter revokes every channel overwrite, deletes the personal
-// Discord role, clears the nickname, grants Cursed, writes DEATH.
+// Discord role, grants Cursed, writes DEATH.
 async function killCharacterNowImpl({ characterId, reason }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -317,7 +311,6 @@ async function reviveCharacterImpl({ characterId }) {
     try {
       await closeDeadchatTo(prisma, updated.discordUserId);
       await ensureCharacterRole(updated);
-      await syncCharacterNickname(updated.discordUserId, formatBareName(updated));
       // fromLocationId null: kill already stripped every grant, so this is a
       // restore, and the shared fan-out re-grants both roles plus rooms.
       await applyLocationMoveSideEffects(prisma, {
@@ -604,8 +597,6 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
   if (character.discordRoleId) {
     await deleteCharacterRole(character.discordRoleId).catch(() => {});
   }
-  await updateGuildNickname(character.discordUserId, null).catch(() => {});
-
   await deleteCharacterRow(prisma, characterId);
 
   revalidatePath("/gm/players", "layout");

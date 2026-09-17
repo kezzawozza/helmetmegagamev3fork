@@ -1,7 +1,6 @@
 const { prisma } = require("@lifeweb/db");
 const { PLAYER_ROLE_ID } = require("@lifeweb/db/lib/roleIds");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("@lifeweb/db/lib/constants");
-const { syncMemberNickname } = require("../lib/nickname");
 const { restoreStandingRoles } = require("../lib/locationTravel");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
 const { syncCharacterRoomAccess } = require("@lifeweb/db/lib/roomAccess");
@@ -19,8 +18,6 @@ module.exports = {
         },
       })
       .catch((err) => console.error(`Failed to log member_joined for ${member.id}:`, err));
-
-    await syncMemberNickname(member).catch(() => {}); // covers rejoins where a character already exists
 
     // A rejoining player whose character is still standing — Catatonic on a death countdown since
     // they left (playerDeparture.js). Clearing leftGuildAt lets the catatonic pass's clear branch

@@ -31,7 +31,6 @@ import {
 import { addToStack } from "@lifeweb/db/lib/tagWrites";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
 import {
-  syncCharacterNickname,
   ensureCharacterRole,
   syncCharacterNarrowcastAccess,
   getGuildMember,
@@ -72,7 +71,6 @@ import {
   AGE_MAX,
   NAME_LIMITS,
   formatCharacterName,
-  formatBareName,
   normalizeEarnedHonorific,
   GENDERS,
 } from "@/lib/characterName";
@@ -450,7 +448,6 @@ export async function createCharacter(formData) {
     { ...created, tags: heldTagRows },
     startingMemorySlugs(role.slug, heldSlugs),
   ).catch(() => {});
-  await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
 
   // Somebody who arrives already Wanted has three posters go up in the same breath (db/lib/wantedPoster.js). Best-effort.
   if (isWanted(heldSlugs)) {

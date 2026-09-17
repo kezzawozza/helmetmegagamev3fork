@@ -1903,7 +1903,7 @@ every call is a pure grant.
 { keepGuests: true })` strips the zone role and every per-member overwrite
 (the Location channel, the zone channels, the narrowcast channels), then the
 Room threads named in `Character.roomThreadRoomIds` and every Conversation in
-`PlayerThreadMember` are left, and the nickname is cleared. The `keepGuests`
+`PlayerThreadMember` are left. The `keepGuests`
 option is the whole difference from a death sweep: a `RoomGuest` row is
 **game state, not Discord state** — somebody let them into that room and
 they are still standing in it. `PlayerThreadMember` rows survive for the
