@@ -15,7 +15,7 @@ import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
 import LookReadout from "@/app/components/LookReadout";
 import useActionRunner from "@/app/components/useActionRunner";
-import { photographRow, starRow, lookAt, lookAtRow, loadTravel, placeMembers, toggleConceal, gmSpeakerNames } from "./actions";
+import { photographRow, starRow, lookAt, lookAtRow, loadTravel, placeMembers, toggleConceal, gmSpeakerNames, gmSystemPost } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import useNarrow from "./useNarrow";
@@ -2084,7 +2084,11 @@ export default function Feed({
       )}
       </div>
 
-      {!readOnly && (
+      {!readOnly && gm && place && !place.canSpeak && place.kind !== "dead" ? (
+        <GmSystemComposer key={placeKey} placeKey={placeKey} placeName={place.name} />
+      ) : null}
+
+      {!readOnly && !(gm && place && !place.canSpeak) && (
         <div className="chat-composer">
           {place.canSpeak ? (
             <>
@@ -2491,6 +2495,63 @@ export default function Feed({
 
       {photo && <PhotoReadout state={photo} onClose={() => setPhoto(null)} />}
       {look && <LookReadout state={look} onClose={() => setLook(null)} />}
+    </div>
+  );
+}
+
+// A GM in GM view posts a system line into whatever place they can see —
+// the web twin of Discord's /gm command. Deliberately minimal: no character
+// picker, hood, autocorrect, slash commands, reactions, slowmode or
+// pending queue. The row comes back over the SSE hub like any other, so
+// the composer just clears on success.
+function GmSystemComposer({ placeKey, placeName }) {
+  const [draft, setDraft] = useState("");
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState(null);
+
+  const submit = useCallback(async () => {
+    const text = draft.trim();
+    if (!text || pending) return;
+    setPending(true);
+    setError(null);
+    try {
+      const result = await gmSystemPost({ placeKey, content: text });
+      if (result?.ok) setDraft("");
+      else setError(result?.error ?? "Couldn't send that.");
+    } catch (err) {
+      setError(err?.message ?? "Couldn't send that.");
+    } finally {
+      setPending(false);
+    }
+  }, [draft, placeKey, pending]);
+
+  return (
+    <div className="chat-composer">
+      <div className="field chat-composer-box">
+        <textarea
+          aria-label={placeName ? `Post as Bascinet in ${placeName}` : "Post as Bascinet"}
+          rows={2}
+          value={draft}
+          placeholder={placeName ? `Post as Bascinet in ${placeName}…` : "Post as Bascinet…"}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void submit();
+            }
+          }}
+          disabled={pending}
+        />
+        <IconButton
+          type="button"
+          aria-label="Send"
+          onClick={() => void submit()}
+          disabled={pending || !draft.trim()}
+        >
+          <SendIcon />
+        </IconButton>
+      </div>
+      <FormError>{error}</FormError>
     </div>
   );
 }

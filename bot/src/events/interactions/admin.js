@@ -16,6 +16,8 @@ const { addRoomGuest, removeRoomGuest } = require("@lifeweb/db/lib/roomGuests");
 const { notifyPresence } = require("@lifeweb/db/lib/presenceNotify");
 const { addThreadMember } = require("@lifeweb/db/lib/discordRest");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
+const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
+const { sceneLine } = require("@lifeweb/db/lib/scene");
 const { ack, respond, scheduleDismiss } = require("../../lib/respond");
 
 const ZONE_VIEW_ID = "zoneview:pick";
@@ -110,6 +112,21 @@ async function handleGmCommand(interaction) {
     console.error("Failed to send /gm message:", err);
     await respond(interaction, "That didn't send. Check the bot can post here, and try again.");
     return;
+  }
+
+  // Also write it to the archive so /chat readers of this place see it. The
+  // command posted straight through interaction.channel.send, which never
+  // touches feedOutbox, so without this the line was Discord-only. SYSTEM
+  // source keeps feedOutbox from mirroring it back into the same channel.
+  const channel = interaction.channel;
+  const parentId = channel?.isThread?.() ? (channel.parentId ?? null) : null;
+  const placeKey = await placeKeyForChannel(prisma, { channelId: interaction.channelId, parentId })
+    .catch(() => null);
+  if (placeKey) {
+    const body = attachment ? `${content}\n${attachment.url}` : content;
+    await sceneLine(prisma, { placeKey, text: body }).catch((err) =>
+      console.error("Failed to archive /gm message:", err.message ?? err),
+    );
   }
 
   // The message wears the bot's name, so without this line /gm/audit can't answer "who said that".

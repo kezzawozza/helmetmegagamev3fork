@@ -93,7 +93,8 @@ import { presentedNameOf, resolveMemberToken } from "@lifeweb/db/lib/presentedMe
 import { notifyPresence } from "@lifeweb/db/lib/presenceNotify";
 import { sceneLine } from "@lifeweb/db/lib/scene";
 import { playInstrument } from "@lifeweb/db/lib/instrumentPlay";
-import { parsePlaceKey, isScenePlaceKey, isOocPlaceKey } from "@lifeweb/db/lib/placeKey";
+import { parsePlaceKey, isScenePlaceKey, isOocPlaceKey, discordTargetForPlaceKey } from "@lifeweb/db/lib/placeKey";
+import { findPlace as findPlaceInFeed } from "@lifeweb/db/lib/feedAccess";
 import { removeThreadMember } from "@lifeweb/db/lib/discordRest";
 import { BELL_ROOM_SLUG, RING_WORD, bellWordMatches, bellCooldown, broadcastBell } from "@lifeweb/db/lib/bell";
 import {
@@ -2747,4 +2748,56 @@ export async function gmSpeakerNames() {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
   return { ok: true, speakers: await speakerDirectory(prisma) };
+}
+
+// A GM in GM view posting a system line into any place they can see — the web
+// twin of /gm on Discord. Writes an archive row (source: SYSTEM, drawn as
+// `.chat-subtext`) and posts to the corresponding Discord target if the place
+// has one. `sceneLine` is what /ambient and /intercom already use, and
+// feedOutbox skips SYSTEM rows so this can't be mirrored back to Discord —
+// the Discord post here is deliberate, alongside the archive write, matching
+// intercom.js's shape.
+const GM_SYSTEM_POST_MAX = 1800;
+
+export async function gmSystemPost({ placeKey, content } = {}) {
+  const { session, isGm } = await getGmSession();
+  if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
+
+  const text = String(content ?? "").trim();
+  if (!text) return { ok: false, error: "Say something." };
+  if (text.length > GM_SYSTEM_POST_MAX) return { ok: false, error: "That's too long." };
+  const key = String(placeKey ?? "").trim();
+  if (!key) return { ok: false, error: "No place to post into." };
+
+  // Same visibility rule the reader already uses — a GM can only post into a
+  // place gmPlacesFor currently returns for them (GmZoneView applied).
+  const place = await findPlaceInFeed(prisma, null, key, {
+    gm: true,
+    ghost: false,
+    discordUserId: session.discordUserId,
+  });
+  if (!place) return { ok: false, error: "You can't reach that place." };
+
+  await sceneLine(prisma, { placeKey: key, text });
+
+  // Best-effort: a dead channel is one audience short rather than a refusal.
+  const target = await discordTargetForPlaceKey(prisma, key).catch(() => null);
+  if (target?.channelId) {
+    const channelId = target.threadId ?? target.channelId;
+    await postMessage(channelId, text).catch((err) =>
+      console.error("gmSystemPost: Discord post failed:", err.message ?? err),
+    );
+  }
+
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "gm_channel_message",
+        details: { placeKey: key, message: text, via: "chat_web" },
+      },
+    })
+    .catch((err) => console.error("gmSystemPost: audit log failed:", err.message ?? err));
+
+  return { ok: true };
 }
