@@ -142,7 +142,7 @@ exactly that reason.
 
 **Hunger is no longer one of these passes.** The hunger rework
 (`db/lib/hunger.js`) replaced the old ⬢-upkeep-and-streak system with a
-0-30 meter that costs no ⬢ at all — `HUNGER` stays in `economyReasons.js`
+0-100 meter that costs no ⬢ at all — `HUNGER` stays in `economyReasons.js`
 only because historic `EconomyEntry` rows still name it, and the sentence
 above describes that history, not anything Hunger charges today.
 

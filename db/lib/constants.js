@@ -1,8 +1,8 @@
 const HUNGER_SLUG = "hungry";
-// The deeper band of the 0-30 hunger meter (db/lib/hunger.js) — <= 0 hunger.
+// The deeper band of the 0-100 hunger meter (db/lib/hunger.js) — <= 0 hunger.
 const STARVING_SLUG = "starving";
 const HUNGERLESS_SLUG = "hungerless";
-// Doubles the meter's decay to 6/turn (db/lib/hunger.js), hardcoded by slug — no generic upkeep field on Tag.
+// Doubles the meter's decay to 20/turn (db/lib/hunger.js), hardcoded by slug — no generic upkeep field on Tag.
 const FAST_METABOLISM_SLUG = "fast-metabolism";
 const DYING_SLUG = "dying";
 // Vaporised outright (Thanati rites, the bomb — db/lib/characterDeath.js `gib`). No corpse minted.

@@ -16,7 +16,7 @@ pure module and turn-push resolution), [`CARRY.md`](CARRY.md) (what a full
 harvest weighs), [`COOKING.md`](COOKING.md) §3 (`cooked.hunger`/`tasteForm`,
 which the new crop and foodstuff tags carry), [`TAGS.md`](TAGS.md) (the
 `items-seeds` group, and the tag catalog rules these tags follow), and
-[`TURN-ENGINE.md`](TURN-ENGINE.md) §5/§5a (the 0-30 hunger meter — the other
+[`TURN-ENGINE.md`](TURN-ENGINE.md) §5/§5a (the 0-100 hunger meter — the other
 half of this same body of work; its full mechanics live there, not here, see
 §7 below).
 
@@ -224,12 +224,12 @@ All verified directly against the current `docs/tags.yaml`.
 
 | slug | taste | mood | hunger | note |
 |---|---|---|---|---|
-| `wheat` | crunchy | −5 | 2 | raw is Nauseous — `consumesInto: [nauseous]`, `cooked.into: []`, same raw/cooked split as `blind-fish` |
-| `potato` | earthy | 2 | 4 | |
-| `tomato` | acidic | 3 | 4 | |
-| `carrot` | earthy | 3 | 4 | |
-| `onion` | acrid (edited in place — was `mood: 8`, no `hunger`) | 2 | 4 | |
-| `plump-helmet` | earthy | 1 | 3 | |
+| `wheat` | crunchy | −5 | 6 | raw is Nauseous — `consumesInto: [nauseous]`, `cooked.into: []`, same raw/cooked split as `blind-fish` |
+| `potato` | earthy | 2 | 12 | |
+| `tomato` | acidic | 3 | 12 | |
+| `carrot` | earthy | 3 | 12 | |
+| `onion` | acrid (edited in place — was `mood: 8`, no `hunger`) | 2 | 12 | |
+| `plump-helmet` | earthy | 1 | 9 | |
 
 **One non-foodstuff crop**, sown the same way but not a meal: `pigtails`
 (`category: items`, `group: items-gear`, no `cooked:` block, not
@@ -240,16 +240,16 @@ a later page and out of scope here.
 
 | slug | taste | mood | hunger | note |
 |---|---|---|---|---|
-| `meat` | meaty | 5 | 4 | |
-| `rations` | acrid | −5 | 4 | raw/cooked split, `consumesInto: [nauseous]` |
-| `dead-rat` | meaty | −10 | 3 | raw/cooked split, `consumesInto: [nauseous]` |
-| `sugar` | sweet | 20 | 4 | |
-| `cheese` | cheesy | 15 | 4 | deliberate near-duplicate of `hard-cheese`, not a rename |
-| `rendered-fat` | creamy | 10 | 4 | renamed from the doc's "Fat" — that slug is taken by an unrelated general trait |
-| `eel` | fishy | 7 | 5 | deliberate near-duplicate of `river-eel`, not a rename |
-| `dustfish` | acidic | −15 | 5 | raw/cooked split, `consumesInto: [nauseous]` |
-| `haggar` | fishy | 5 | 5 | |
-| `tunnel-trout` | fishy | 5 | 5 | |
+| `meat` | meaty | 5 | 12 | |
+| `rations` | acrid | −5 | 12 | raw/cooked split, `consumesInto: [nauseous]` |
+| `dead-rat` | meaty | −10 | 9 | raw/cooked split, `consumesInto: [nauseous]` |
+| `sugar` | sweet | 20 | 12 | |
+| `cheese` | cheesy | 15 | 12 | deliberate near-duplicate of `hard-cheese`, not a rename |
+| `rendered-fat` | creamy | 10 | 12 | renamed from the doc's "Fat" — that slug is taken by an unrelated general trait |
+| `eel` | fishy | 7 | 15 | deliberate near-duplicate of `river-eel`, not a rename |
+| `dustfish` | acidic | −15 | 15 | raw/cooked split, `consumesInto: [nauseous]` |
+| `haggar` | fishy | 5 | 15 | |
+| `tunnel-trout` | fishy | 5 | 15 | |
 
 **Existing foodstuff tags edited in place** to carry `hunger` (and, for
 `onion`, a retuned `mood` and `tasteForm`): `onion`, `arelitz-egg`,
@@ -265,7 +265,7 @@ status-buffs`, `durationTurns: 1`). §3 above.
 **Two new `cooked:` block fields**, validated in
 `db/lib/tagShapes.js#normalizeCooked`:
 
-- **`hunger`** — a whole number from 0 to 30 (`HUNGER_MAX`), how much this
+- **`hunger`** — a whole number from 0 to 100 (`HUNGER_MAX`), how much this
   ingredient restores on the hunger meter. Stored only when present, same
   opt-in posture as `cures`. Absent means "not really food" — it still grants
   `ate-meal` if tagged for that, but restores nothing.
@@ -278,14 +278,11 @@ status-buffs`, `durationTurns: 1`). §3 above.
 **`Tag.mealHunger`**, a new schema column beside `mealMood`, copied onto a
 minted `custom-craft-…` dish by `db/lib/customCraftMint.js` (miss that step
 and every minted dish restores zero hunger — verified still wired correctly)
-and synced from `docs/tags.yaml` by `db/lib/syncTags.js`. **As of this
-writing, neither `fine-meal` nor `lavish-meal` actually sets a `mealHunger`
-value in `docs/tags.yaml`** — only `mealMood` (5 / 8) is set on either. The
-plan called for giving them 4 / 6 respectively so a cooked plate outhungers
-its raw ingredient; that step appears not to have landed. Absent a
-`mealHunger`, both dishes fall back to `DEFAULT_FOOD_HUNGER` (`db/lib/hunger.js`)
-via the "still grants `ate-meal`" rule, same as any unpriced meal — worth a
-follow-up if the doc's intent matters here.
+and synced from `docs/tags.yaml` by `db/lib/syncTags.js`. `fine-meal` and
+`lavish-meal` carry `mealHunger: 12` / `18` (alongside their existing
+`mealMood` 5 / 8) so a cooked plate outhungers its raw ingredient — scaled
+×3 with every other inferred hunger number when the meter moved to 0-100
+(Context §6).
 
 **New tag group**: `items-seeds` (`docs/taggroups.yaml`, category `items`),
 with a `Sprout` icon glyph wired in `web/lib/tagIcons.js`.
@@ -294,7 +291,7 @@ with a `Sprout` icon glyph wired in `web/lib/tagIcons.js`.
 
 The Soilery design doc's other half (pages 1 and the hunger section) is a
 full rebuild of Hunger: the old ⬢-upkeep/streak/Gambit-penalty system is torn
-out and replaced by a 0-30 meter (`Character.hungerValue`, `db/lib/hunger.js`)
+out and replaced by a 0-100 meter (`Character.hungerValue`, `db/lib/hunger.js`)
 that decays every turn and is raised only by eating — Consume reads the
 `cooked.hunger`/`mealHunger` fields §6 introduces. This is thoroughly
 documented already and **is not repeated here** to avoid drift between two

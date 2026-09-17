@@ -42,7 +42,7 @@ const TABS = [
 export default function CharacterSheet({
   character,
   mode,
-  // The 0-30 hunger meter's ONLY client-visible trace (db/lib/hunger.js):
+  // The 0-100 hunger meter's ONLY client-visible trace (db/lib/hunger.js):
   // "hungry" | "starving" | null, resolved server-side in character/page.js
   // so the raw hungerValue never crosses into the flight payload at all.
   hungerWarning = null,

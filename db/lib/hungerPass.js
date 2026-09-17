@@ -2,7 +2,7 @@
 // cron advance and the Dev Panel's "End turn" button behave identically.
 // See TURN-ENGINE.md for the full ordering.
 //
-// The 0-30 meter itself (thresholds, decay, banding) lives in the
+// The 0-100 meter itself (thresholds, decay, banding) lives in the
 // Prisma-free db/lib/hunger.js — this file is the Prisma-in-tx half: reading
 // every ALIVE character's hungerValue, writing the decay, and granting/
 // dropping the hungry/starving tags and the eventual dying tag off it.
@@ -19,6 +19,9 @@ const { expiryFrom } = require("./turnFormat");
 const { applyMood } = require("./mood");
 const { alivePassCharacters } = require("./aliveCharacters");
 const {
+  HUNGER_MAX,
+  HUNGER_DECAY_PER_TURN,
+  HUNGER_DECAY_FAST_METABOLISM,
   HUNGRY_THRESHOLD,
   STARVING_THRESHOLD,
   STARVING_DEATH_TURNS,
@@ -175,11 +178,11 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   await prisma.$transaction([
     prisma.character.updateMany({
       where: { id: { in: hungerlessIds } },
-      data: { hungerValue: 30, starvingSinceTurn: null },
+      data: { hungerValue: HUNGER_MAX, starvingSinceTurn: null },
     }),
     prisma.character.updateMany({
       where: { id: { in: normalDecayIds } },
-      data: { hungerValue: { decrement: 3 } },
+      data: { hungerValue: { decrement: HUNGER_DECAY_PER_TURN } },
     }),
     prisma.character.updateMany({
       where: { id: { in: normalFloorIds } },
@@ -187,7 +190,7 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
     }),
     prisma.character.updateMany({
       where: { id: { in: fastDecayIds } },
-      data: { hungerValue: { decrement: 6 } },
+      data: { hungerValue: { decrement: HUNGER_DECAY_FAST_METABOLISM } },
     }),
     prisma.character.updateMany({
       where: { id: { in: fastFloorIds } },

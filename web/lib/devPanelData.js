@@ -305,7 +305,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       // (docs/systemdocs/MOOD.md). It was missing while this was `fear`, so
       // that box read 0 for everybody however frightened they were.
       mood: character.mood,
-      // The 0-30 hunger meter (db/lib/hunger.js). Never shown as a number on
+      // The 0-100 hunger meter (db/lib/hunger.js). Never shown as a number on
       // the player's own sheet, but this is a GM-only debugging surface
       // (superadmin-gated), so the raw figure is fine here the way `mood`
       // above already is.

@@ -1,4 +1,4 @@
-// The 0-30 hunger meter (the Soilery doc, pages 1-2; docs/systemdocs/COOKING.md
+// The 0-100 hunger meter (the Soilery doc, pages 1-2; docs/systemdocs/COOKING.md
 // §3 for the `cooked.hunger` field this reads). Replaces the old
 // ⬢-upkeep/streak/Gambit-penalty system outright — see the plan's Context §1.
 // No Prisma import here, same posture as db/lib/gambitModifier.js/godflesh.js,
@@ -6,16 +6,16 @@
 // generated Prisma client.
 const { HUNGERLESS_SLUG, FAST_METABOLISM_SLUG, ATE_MEAL_SLUG } = require("./constants");
 
-const HUNGER_MAX = 30;
+const HUNGER_MAX = 100;
 const HUNGER_MIN = 0;
-const HUNGER_DECAY_PER_TURN = 3;
-const HUNGER_DECAY_FAST_METABOLISM = 6;
+const HUNGER_DECAY_PER_TURN = 10;
+const HUNGER_DECAY_FAST_METABOLISM = 20;
 
 // <= is Hungry, <= is Starving. Starving sits INSIDE the Hungry range on
 // purpose — a character at or below 0 is both hungry and starving at once
 // (both tags may be held together); it is only the Gambit modifier
 // (db/lib/gambitModifier.js) that picks one and never sums them.
-const HUNGRY_THRESHOLD = 10;
+const HUNGRY_THRESHOLD = 30;
 const STARVING_THRESHOLD = 0;
 
 // One-time mood hit, charged only on the turn a character crosses DOWN into
@@ -33,8 +33,9 @@ const STARVING_DEATH_TURNS = 3;
 // INFERRED — this plan's own number, not the design doc's (Context §6). A
 // fallback so the ~32 existing unpriced `items-food` tags (anything that
 // still grants `ate-meal` but carries no `cooked.hunger`/`mealHunger`) don't
-// become inedible under the new meter. Easy to retune post-merge.
-const DEFAULT_FOOD_HUNGER = 4;
+// become inedible under the new meter. Easy to retune post-merge. Scaled
+// ×3 alongside every doc-given hunger value when the meter moved to 0-100.
+const DEFAULT_FOOD_HUNGER = 12;
 
 function clampHunger(value) {
   const n = Number.isFinite(value) ? value : 0;

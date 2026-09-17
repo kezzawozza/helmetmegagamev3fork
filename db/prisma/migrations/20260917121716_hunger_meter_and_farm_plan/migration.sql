@@ -18,7 +18,7 @@ ALTER TABLE "Action" DROP COLUMN "opposed",
 ADD COLUMN     "farmPlan" JSONB;
 
 -- AlterTable
-ALTER TABLE "Character" ADD COLUMN     "hungerValue" INTEGER NOT NULL DEFAULT 30,
+ALTER TABLE "Character" ADD COLUMN     "hungerValue" INTEGER NOT NULL DEFAULT 100,
 ADD COLUMN     "starvingSinceTurn" INTEGER;
 
 -- AlterTable

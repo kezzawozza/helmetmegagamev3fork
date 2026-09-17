@@ -80,7 +80,7 @@ no Offer or CraftProject pins.
       taste: acidic
       tasteForm: adjective    # OPTIONAL — see below
       mood: 3
-      hunger: 4               # OPTIONAL — see below
+      hunger: 12              # OPTIONAL — see below
 ```
 
 **The presence of this block is the only thing that makes a tag cookable.**
@@ -97,8 +97,8 @@ YAML entry and a `db:sync-tags`.
 - **`mood`** is signed, on the `MOOD.md` scale.
 - **`into`** is what it grants the eater, in the same shapes `consumesInto`
   takes (`oneOf` included).
-- **`hunger`** is optional — a whole number from 0 to 30, how much this
-  ingredient restores on the 0-30 hunger meter (`foodHungerFor`,
+- **`hunger`** is optional — a whole number from 0 to 100, how much this
+  ingredient restores on the 0-100 hunger meter (`foodHungerFor`,
   `db/lib/hunger.js`). Absent means "not really food" — eating it still grants
   `ate-meal` if it's tagged for that, but restores nothing.
 - **`tasteForm`** is optional and only ever `"adjective"`. By default

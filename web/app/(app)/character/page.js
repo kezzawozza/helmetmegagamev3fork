@@ -904,7 +904,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // holder (canDetectPoison), computed ONCE for the viewer's OWN sheet.
   const canSmellPoison = canDetectPoison(character.tags);
 
-  // The 0-30 hunger meter (db/lib/hunger.js): same posture as poisonedCount
+  // The 0-100 hunger meter (db/lib/hunger.js): same posture as poisonedCount
   // above — hungerValue must NEVER reach the client raw (the doc's own rule:
   // no number, ever, on the sheet), so it is read here, used to derive a
   // plain word, and dropped from `sheetCharacter` below rather than trusted

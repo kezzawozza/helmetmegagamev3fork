@@ -616,9 +616,9 @@ exit — taking the announcement, the console text and the button row with it.
 
 ## 5. Hunger
 
-A 0-30 meter, `Character.hungerValue` (`db/lib/hunger.js`), decaying by
-`HUNGER_DECAY_PER_TURN` (3, doubled to 6 by `fast-metabolism`) at the close of
-every turn. `hungerless` pins the meter at `HUNGER_MAX` (30), clears
+A 0-100 meter, `Character.hungerValue` (`db/lib/hunger.js`), decaying by
+`HUNGER_DECAY_PER_TURN` (10, doubled to 20 by `fast-metabolism`) at the close of
+every turn. `hungerless` pins the meter at `HUNGER_MAX` (100), clears
 `starvingSinceTurn`, and is skipped entirely. **Hunger costs no ⬢ at all any
 more** — the old upkeep (pay 1 ⬢, or 2 with a Big Appetite, or go Hungry) is
 gone outright, and with it `Character.hungerStreak`'s old escalating −1-per-turn
@@ -627,7 +627,7 @@ Gambit penalty and `HUNGER_STREAK_CAP`. `hungerStreak` is an orphan column now
 below.
 
 Two thresholds carve the meter into bands, not one escalating streak:
-**Hungry** at `HUNGRY_THRESHOLD` (10) or below, **Starving** at
+**Hungry** at `HUNGRY_THRESHOLD` (30) or below, **Starving** at
 `STARVING_THRESHOLD` (0) or below — nested, not exclusive, since Starving sits
 *inside* the Hungry range (`db/lib/hunger.js#bandOf`/`#crossings`). A
 character at or under 0 holds both tags at once; only the Gambit modifier
@@ -677,8 +677,8 @@ Per character, at the close of every turn:
 | State | Outcome |
 |---|---|
 | Holds `hungerless` | Pinned at `HUNGER_MAX`; `starvingSinceTurn` cleared; skipped entirely. |
-| Holds `fast-metabolism` | Decays **6** instead of 3. |
-| Otherwise | Decays **3**. |
+| Holds `fast-metabolism` | Decays **20** instead of 10. |
+| Otherwise | Decays **10**. |
 
 Every decay is floored at 0 — `Character.hungerValue` can never go negative
 without a `Math.max`, the same structural-clamp discipline the old resource
@@ -918,7 +918,7 @@ markers for the desk's labels.
 | `db/lib/autoLaborPass.js` | The auto-labor pass |
 | `db/lib/laborYield.js` | Location yield drift, and the quality words |
 | `db/lib/horseUpkeepPass.js` | The horse's feed (§5b) |
-| `db/lib/hunger.js` | The 0-30 hunger meter itself — thresholds, decay, banding (§5) |
+| `db/lib/hunger.js` | The 0-100 hunger meter itself — thresholds, decay, banding (§5) |
 | `db/lib/hungerPass.js` | The Hunger pass |
 | `db/lib/hungerBands.js` | Clearing Hungry/Starving the instant eating clears the threshold (§5) |
 | `db/lib/catatonicPass.js` | The Catatonic (AFK) flagging pass |

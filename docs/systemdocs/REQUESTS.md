@@ -274,9 +274,9 @@ Three notes on deliberate choices:
 Hunger is the Needs layer, and one of two things that modify a Gambit die
 (the other is mood).
 
-It is now a 0-30 meter, `Character.hungerValue` (`db/lib/hunger.js`), not a
+It is now a 0-100 meter, `Character.hungerValue` (`db/lib/hunger.js`), not a
 streak. Two Status tags read off it — `hungry` (`docs/tags.yaml`,
-`durationTurns: 1`, granted at `HUNGRY_THRESHOLD` (10) or below) and
+`durationTurns: 1`, granted at `HUNGRY_THRESHOLD` (30) or below) and
 `starving` (granted at `STARVING_THRESHOLD` (0) or below) — neither
 `purchasable`, neither destroyable (Status never is).
 
@@ -313,11 +313,11 @@ picker entry, no `tagEffects.js` case for any of the three.
 `hungerValue`, `starvingSinceTurn`, and the two band tags, called from
 `resolveNeeds()` at the close of every turn:
 
-1. Holds `hungerless` → **skipped entirely**. Pinned at `HUNGER_MAX` (30),
+1. Holds `hungerless` → **skipped entirely**. Pinned at `HUNGER_MAX` (100),
    `starvingSinceTurn` cleared — this is immunity, not eating, so it is
    always a full reset rather than the ordinary decay below.
-2. Holds `fast-metabolism` → decays **6** instead of the flat 3.
-3. Everyone else → decays **3**, floored at 0.
+2. Holds `fast-metabolism` → decays **20** instead of the flat 10.
+3. Everyone else → decays **10**, floored at 0.
 
 **Hunger costs no ⬢ at all.** The old upkeep — pay 1 ⬢ (2 with Fast
 Metabolism) or go Hungry — and the escalating streak penalty it drove are

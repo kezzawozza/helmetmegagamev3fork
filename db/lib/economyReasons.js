@@ -26,7 +26,7 @@ const REASONS = {
   OPENING: { flow: FLOW.FAUCET, label: "Opening balance" },
 
   // --- sinks ---
-  // Dead since the hunger rework (db/lib/hunger.js): Hunger is a 0-30 meter
+  // Dead since the hunger rework (db/lib/hunger.js): Hunger is a 0-100 meter
   // now, with no ⬢ cost at all. Kept here, unwritten, because historic
   // EconomyEntry rows still name this reason and the reconciliation math over
   // them must keep resolving it to a label.

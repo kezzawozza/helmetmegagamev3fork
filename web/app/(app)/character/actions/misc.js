@@ -867,7 +867,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // EVERYTHING ELSE takes the largest single figure, never a sum — Bliss is
   // one drink, and Sweets is a treat rather than a treat plus a meal.
   const isDish = ingredientTags.length > 0 || held.tag.mealMood != null;
-  // The 0-30 hunger meter (db/lib/hunger.js): a dish sums its own mealHunger
+  // The 0-100 hunger meter (db/lib/hunger.js): a dish sums its own mealHunger
   // plus every ingredient's; anything else is whatever foodHungerFor makes of
   // the single tag being eaten (0 for anything that isn't food at all).
   const hungerRestored = isDish

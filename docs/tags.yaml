@@ -5499,7 +5499,7 @@ tags:
       taste: "creamy"
       tasteForm: "adjective"
       mood: 10
-      hunger: 4
+      hunger: 12
     sellable: true
     sellablePrice: 10
 
@@ -7497,7 +7497,7 @@ tags:
     cooked:
       taste: "milk"
       mood: 7
-      hunger: 3
+      hunger: 9
 
   supply-kit:
     catalog: gm
@@ -10560,7 +10560,7 @@ tags:
       taste: "acrid"
       tasteForm: "adjective"
       mood: 2
-      hunger: 4
+      hunger: 12
     sellable: true
     sellablePrice: 2
 
@@ -10588,7 +10588,7 @@ tags:
       taste: "crunchy"
       tasteForm: "adjective"
       mood: -5
-      hunger: 2
+      hunger: 6
       into: []
     sellable: true
     sellablePrice: 1
@@ -10611,7 +10611,7 @@ tags:
       taste: "earthy"
       tasteForm: "adjective"
       mood: 2
-      hunger: 4
+      hunger: 12
     sellable: true
     sellablePrice: 2
 
@@ -10633,7 +10633,7 @@ tags:
       taste: "acidic"
       tasteForm: "adjective"
       mood: 3
-      hunger: 4
+      hunger: 12
     sellable: true
     sellablePrice: 2
 
@@ -10655,7 +10655,7 @@ tags:
       taste: "earthy"
       tasteForm: "adjective"
       mood: 3
-      hunger: 4
+      hunger: 12
     sellable: true
     sellablePrice: 2
 
@@ -10677,7 +10677,7 @@ tags:
       taste: "earthy"
       tasteForm: "adjective"
       mood: 1
-      hunger: 3
+      hunger: 9
     sellable: true
     sellablePrice: 2
 
@@ -10719,7 +10719,7 @@ tags:
       taste: "meaty"
       tasteForm: "adjective"
       mood: 5
-      hunger: 4
+      hunger: 12
     sellable: true
     sellablePrice: 2
 
@@ -10741,7 +10741,7 @@ tags:
       taste: "acrid"
       tasteForm: "adjective"
       mood: -5
-      hunger: 4
+      hunger: 12
       into: []
     sellable: true
     sellablePrice: 2
@@ -10764,7 +10764,7 @@ tags:
       taste: "meaty"
       tasteForm: "adjective"
       mood: -10
-      hunger: 3
+      hunger: 9
       into: []
     sellable: true
     sellablePrice: 2
@@ -10787,7 +10787,7 @@ tags:
       taste: "sweet"
       tasteForm: "adjective"
       mood: 20
-      hunger: 4
+      hunger: 12
     sellable: true
     sellablePrice: 2
 
@@ -10811,7 +10811,7 @@ tags:
       taste: "cheesy"
       tasteForm: "adjective"
       mood: 15
-      hunger: 4
+      hunger: 12
     sellable: true
     sellablePrice: 2
 
@@ -10836,7 +10836,7 @@ tags:
       taste: "creamy"
       tasteForm: "adjective"
       mood: 10
-      hunger: 4
+      hunger: 12
     sellable: true
     sellablePrice: 2
 
@@ -10860,7 +10860,7 @@ tags:
       taste: "fishy"
       tasteForm: "adjective"
       mood: 7
-      hunger: 5
+      hunger: 15
     sellable: true
     sellablePrice: 2
 
@@ -10882,7 +10882,7 @@ tags:
       taste: "acidic"
       tasteForm: "adjective"
       mood: -15
-      hunger: 5
+      hunger: 15
       into: []
     sellable: true
     sellablePrice: 2
@@ -10905,7 +10905,7 @@ tags:
       taste: "fishy"
       tasteForm: "adjective"
       mood: 5
-      hunger: 5
+      hunger: 15
     sellable: true
     sellablePrice: 2
 
@@ -10927,7 +10927,7 @@ tags:
       taste: "fishy"
       tasteForm: "adjective"
       mood: 5
-      hunger: 5
+      hunger: 15
     sellable: true
     sellablePrice: 2
 
@@ -11293,7 +11293,7 @@ tags:
     cooked:
       taste: "crayfish"   # Bascinet has not written this one.
       mood: 12
-      hunger: 5
+      hunger: 15
     sellable: true
     sellablePrice: 3
 
@@ -11410,7 +11410,7 @@ tags:
     cooked:
       taste: "butter"   # Bascinet has not written this one.
       mood: 15
-      hunger: 4
+      hunger: 12
     sellable: true
     sellablePrice: 6
 
@@ -11453,7 +11453,7 @@ tags:
     mealMood: 5
     # A cooked plate beats its raw ingredients (db/lib/hunger.js#foodHungerFor
     # sums this with each ingredient's own cooked.hunger) — SOILERY.md §6.
-    mealHunger: 4
+    mealHunger: 12
     consumable: true
     consumesInto:
       - ate-meal
@@ -11490,7 +11490,7 @@ tags:
     # the game and left the ingredient nothing to say. See MOOD.md §6.
     mealMood: 8
     # See fine-meal's mealHunger comment above — the Lavish rung is worth more.
-    mealHunger: 6
+    mealHunger: 18
     consumable: true
     consumesInto:
       - ate-meal
@@ -13451,7 +13451,7 @@ tags:
     cooked:
       taste: "little crunchies"
       mood: 28
-      hunger: 4
+      hunger: 12
 
   honey:
     catalog: gm
@@ -13474,7 +13474,7 @@ tags:
     cooked:
       taste: "honey"
       mood: 20
-      hunger: 4
+      hunger: 12
 
   sky-lantern:
     catalog: gm

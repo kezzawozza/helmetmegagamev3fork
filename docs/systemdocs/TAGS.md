@@ -1920,7 +1920,7 @@ handed renders inert rather than either vanishing or leaking.
 automatic game logic rather than by a player, a GM, or a starting package —
 `db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
 is the reader that turns them into a Gambit penalty (`db/lib/hunger.js` is
-the pure module both depend on for the 0-30 meter's thresholds and decay).
+the pure module both depend on for the 0-100 meter's thresholds and decay).
 `db/lib/constants.js` holds the slugs so no file hardcodes a string.
 `hungerless` and `fast-metabolism` are traits instead — held from creation
 or a GM grant, never written by the pass itself, only read by it to gate the

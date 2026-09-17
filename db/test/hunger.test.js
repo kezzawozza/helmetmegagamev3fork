@@ -7,6 +7,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   HUNGER_MAX,
+  HUNGER_DECAY_PER_TURN,
+  HUNGER_DECAY_FAST_METABOLISM,
   HUNGRY_THRESHOLD,
   STARVING_THRESHOLD,
   DEFAULT_FOOD_HUNGER,
@@ -20,16 +22,16 @@ const {
   hungerDm,
 } = require("../lib/hunger");
 
-test("clampHunger holds the meter inside 0-30", () => {
+test("clampHunger holds the meter inside 0-100", () => {
   assert.equal(clampHunger(-5), 0);
   assert.equal(clampHunger(0), 0);
-  assert.equal(clampHunger(30), 30);
-  assert.equal(clampHunger(33), HUNGER_MAX);
-  assert.equal(clampHunger(28.4), 28);
+  assert.equal(clampHunger(HUNGER_MAX), HUNGER_MAX);
+  assert.equal(clampHunger(HUNGER_MAX + 3), HUNGER_MAX);
+  assert.equal(clampHunger(94.4), 94);
 });
 
 test("bandOf reads the two thresholds, Starving first", () => {
-  assert.equal(bandOf(30), "fed");
+  assert.equal(bandOf(HUNGER_MAX), "fed");
   assert.equal(bandOf(HUNGRY_THRESHOLD + 1), "fed");
   assert.equal(bandOf(HUNGRY_THRESHOLD), "hungry");
   assert.equal(bandOf(1), "hungry");
@@ -38,22 +40,22 @@ test("bandOf reads the two thresholds, Starving first", () => {
 });
 
 test("decayFor: hungerless never decays, Fast Metabolism doubles it, hungerless wins if both held", () => {
-  assert.equal(decayFor([]), 3);
-  assert.equal(decayFor(["fast-metabolism"]), 6);
+  assert.equal(decayFor([]), HUNGER_DECAY_PER_TURN);
+  assert.equal(decayFor(["fast-metabolism"]), HUNGER_DECAY_FAST_METABOLISM);
   assert.equal(decayFor(["hungerless"]), 0);
   assert.equal(decayFor(["hungerless", "fast-metabolism"]), 0);
-  assert.equal(decayFor(new Set(["fast-metabolism"])), 6);
+  assert.equal(decayFor(new Set(["fast-metabolism"])), HUNGER_DECAY_FAST_METABOLISM);
 });
 
 test("crossings: entering a band only fires on the turn that actually crosses it", () => {
-  assert.deepEqual(crossings(13, 10), {
+  assert.deepEqual(crossings(HUNGRY_THRESHOLD + 3, HUNGRY_THRESHOLD), {
     enteredHungry: true,
     enteredStarving: false,
     leftHungry: false,
     leftStarving: false,
   });
   // Still hungry, nothing new.
-  assert.deepEqual(crossings(10, 7), {
+  assert.deepEqual(crossings(HUNGRY_THRESHOLD, HUNGRY_THRESHOLD - 3), {
     enteredHungry: false,
     enteredStarving: false,
     leftHungry: false,
@@ -68,7 +70,7 @@ test("crossings: entering a band only fires on the turn that actually crosses it
 });
 
 test("crossings: a single turn's decay crossing BOTH bands fires BOTH, not a double charge for one", () => {
-  const c = crossings(13, -2);
+  const c = crossings(HUNGRY_THRESHOLD + 3, -2);
   assert.equal(c.enteredHungry, true);
   assert.equal(c.enteredStarving, true);
   // The caller (hungerPass.js) charges one onset hit per true flag here — two
@@ -77,7 +79,7 @@ test("crossings: a single turn's decay crossing BOTH bands fires BOTH, not a dou
 });
 
 test("crossings: leaving a band on eating", () => {
-  assert.deepEqual(crossings(0, 12), {
+  assert.deepEqual(crossings(0, HUNGRY_THRESHOLD + 10), {
     enteredHungry: false,
     enteredStarving: false,
     leftHungry: true,
@@ -86,11 +88,11 @@ test("crossings: leaving a band on eating", () => {
 });
 
 test("foodHungerFor: mealHunger wins outright over cooked.hunger", () => {
-  assert.equal(foodHungerFor({ mealHunger: 6, cooked: { hunger: 2 } }), 6);
+  assert.equal(foodHungerFor({ mealHunger: 18, cooked: { hunger: 6 } }), 18);
 });
 
 test("foodHungerFor: falls back to cooked.hunger when there's no mealHunger", () => {
-  assert.equal(foodHungerFor({ cooked: { hunger: 4 } }), 4);
+  assert.equal(foodHungerFor({ cooked: { hunger: 12 } }), 12);
 });
 
 test("foodHungerFor: falls back to DEFAULT_FOOD_HUNGER for an unpriced tag that still grants ate-meal", () => {

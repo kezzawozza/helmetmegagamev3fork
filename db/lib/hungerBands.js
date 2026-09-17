@@ -1,4 +1,4 @@
-// Shared "eating enough clears the band right now" clean-up for the 0-30
+// Shared "eating enough clears the band right now" clean-up for the 0-100
 // hunger meter (db/lib/hunger.js). The doc's literal rule: when a character
 // eats, the hungry/starving CharacterTag rows come off the instant the meter
 // crosses back over their threshold, rather than waiting for the next turn

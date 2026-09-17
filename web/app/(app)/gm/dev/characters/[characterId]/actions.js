@@ -366,7 +366,7 @@ async function setCurseOverrideImpl({ characterId, override }) {
   return { cursed, override };
 }
 
-// "Fed them" — the Dev Panel's Feed button. Sets the 0-30 hunger meter
+// "Fed them" — the Dev Panel's Feed button. Sets the 0-100 hunger meter
 // (db/lib/hunger.js) straight to full and clears whatever band tags it left
 // behind, in one microaction: no tag-op pair to hand-roll any more (the old
 // drop-Hungry/grant-Ate-Meal gesture, from before hungerValue existed).

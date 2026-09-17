@@ -627,12 +627,13 @@ function normalizeCooked(cooked, { slug, normalizeInto, label = "docs/tags.yaml"
     );
   }
   const cures = cooked.cures === true;
-  // Opt-in, stored only when present — how much this ingredient restores on the 0-30 hunger meter (db/lib/hunger.js). Absent means "not a meaningful food" (foodHungerFor falls back to DEFAULT_FOOD_HUNGER for anything that still grants ate-meal).
+  // Opt-in, stored only when present — how much this ingredient restores on the hunger meter (db/lib/hunger.js). Absent means "not a meaningful food" (foodHungerFor falls back to DEFAULT_FOOD_HUNGER for anything that still grants ate-meal). Required lazily so hunger.js does not require this file (no cycle) — same reasoning as the mood import above.
+  const { HUNGER_MAX, HUNGER_MIN } = require("./hunger");
   const hunger = cooked.hunger ?? null;
-  if (hunger != null && (!Number.isInteger(hunger) || hunger < 0 || hunger > 30)) {
+  if (hunger != null && (!Number.isInteger(hunger) || hunger < HUNGER_MIN || hunger > HUNGER_MAX)) {
     throw new Error(
-      `${label}: tag "${slug}" cooked.hunger must be a whole number from 0 to 30`,
-    ); // 30 == HUNGER_MAX, db/lib/hunger.js
+      `${label}: tag "${slug}" cooked.hunger must be a whole number from ${HUNGER_MIN} to ${HUNGER_MAX}`,
+    );
   }
   // Opt-in flag: renders the taste as a bare adjective ("It tastes acidic.") instead of the default noun form ("It tastes like X."). Existing tags leave this unset and keep rendering exactly as before — see web/lib/cooking.js.
   if (cooked.tasteForm != null && cooked.tasteForm !== "adjective") {

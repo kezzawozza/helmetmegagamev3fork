@@ -85,7 +85,7 @@ export default function TurnForecast({
   const heldUpkeepCount = UPKEEP_SLUGS.filter((slug) => held.has(slug)).length;
   const horseCost = heldUpkeepCount * HORSE_UPKEEP_COST;
 
-  // The 0-30 hunger meter (db/lib/hunger.js): no ⬢ cost any more, and never a
+  // The 0-100 hunger meter (db/lib/hunger.js): no ⬢ cost any more, and never a
   // number — just a one-time warning on the turn decay would newly cross a
   // threshold. Staying in a band already entered says nothing new (the doc's
   // rule; hungerWarning is only ever non-null on the crossing turn itself).
