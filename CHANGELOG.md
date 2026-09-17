@@ -8,6 +8,13 @@ Entries below predate this format and list files instead.
 
 ## 2026-09-17 · Gambits roll at submit so GMs can start adjudicating early
 
+✎ A Gambit's die is now thrown the moment the Move is sent, not three hours before the turn closes, so a GM can work the desk all day instead of waiting for Moves to lock. Players are told nothing until the turn closes, exactly as before.  
+✎ The die belongs to the character and the day, not to the Move. Rewrite your Move, take it back and send a different one, or have a GM change its kind — it is the same die every time. That is what lets it be rolled early without becoming a re-roll button to fish with.  
+✎ Taking a Move back does not give Inspired back. The die it bought is still the die you will get.  
+✎ Hunger and mood are still read at lock-in, so the die says what you rolled and the modifier says how you were when the day ended. Until then the desk says "modifiers at lock-in" beside the number, so nobody rules against a total that is still going to move.  
+✎ Typing /ooc or /shout on the web now offers to Send, not to Run  
+✎ The family headings in the Claim a Desire list no longer get sliced by the rows scrolling under them
+
 
 ## 2026-09-17 · The GM pages stopped loading, and why
 
