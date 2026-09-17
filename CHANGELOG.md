@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · The GM pages stopped loading, and why
+
+✎ A private-room invite Discord keeps refusing is now remembered and left alone for ten minutes instead of being retried on every single request — the retries were eating the whole Discord budget  
+✎ Guild lookups on a page load give up in about a second now, rather than sitting through a minute and a half of rate-limit waits and holding the page open until the browser gave up  
+✎ A lookup that just failed is not immediately tried again, so one bad minute no longer feeds itself
+
 ## 2026-09-17 · Oracle: dial the token cap back to 10000
 
 ✎ 200000 was reckless; 10000 is still well above any observed page and keeps a runaway model from burning the budget.
