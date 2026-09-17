@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Fix a typo and cost on the Crucifix
+
+✎ crucification is now crucifixion  
+✎ resourceCost down from 6 to 3  
+− -
+
 ## 2026-09-17 · Chat feed stops nudging toward the archive at a turn wipe
 
 ✎ The floored backlog edge now says nothing instead of pointing at /archive  

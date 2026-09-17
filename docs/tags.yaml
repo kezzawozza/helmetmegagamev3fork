@@ -6008,7 +6008,7 @@ tags:
     name: Crucifix
     category: assets
     group: assets-structures
-    description: "Two beams and a footrest. It allows crucification."
+    description: "Two beams and a footrest. It allows crucifixion."
     pointCost: 0
     visible: false
     tradeable: false
@@ -6017,7 +6017,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 3
       gambit: false
     placement:
       fieldwork: true
