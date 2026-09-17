@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Block one character's avatar uploads
+
+✎ A GM toggle on the character dev panel refuses new uploads from that person only. The current picture stays; the portrait maker still works; the global switch is unaffected.
+
+## 2026-09-17 · GMs can post as Bascinet on /chat, and /gm reaches the web
+
+✎ In GM view on /chat every place a GM can see grows a small "Post as Bascinet" composer, which drops a system line into that place — a Room, a Location, a zone summary, a radio net, even a private conversation. The line posts to Discord too, so nobody is one audience short.  
+✎ /gm on Discord now also writes the same system row into the archive, so /chat readers of that channel see it. It was Discord-only before; a GM who typed /gm into a Room's thread watched the players in the room read it while the web feed of the same room said nothing. /ooc already reached the web via its own path.
+
 ## 2026-09-17 · docs/tags: mark pickpocket's slug rename deliberate
 
 ✎ The 2026-09-16 rename to Pickpocketing (Basic) kept the slug on purpose (the comment above it says so), but forgot the keepSlug: true marker. Pre-Deploy's sync-tags refused every deploy after until this landed.

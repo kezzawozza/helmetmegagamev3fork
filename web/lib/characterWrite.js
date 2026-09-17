@@ -38,6 +38,7 @@ export const EDITABLE_FIELDS = [
   "tagPoints",
   "mood",
   "turnPingOptIn",
+  "avatarUploadBlocked",
 ];
 
 // `status` is deliberately NOT editable here — Kill and Revive are their own microactions.
@@ -149,6 +150,7 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   if ("tagPoints" in picked) data.tagPoints = intOrNull(picked.tagPoints) ?? 0;
   if ("isTreasurer" in picked) data.isTreasurer = bool(picked.isTreasurer);
   if ("turnPingOptIn" in picked) data.turnPingOptIn = bool(picked.turnPingOptIn);
+  if ("avatarUploadBlocked" in picked) data.avatarUploadBlocked = bool(picked.avatarUploadBlocked);
 
   // isLeader is handled separately by setLeaderInTx — writing the boolean bare is how a faction ends up with two leaders.
   const leader = "isLeader" in picked ? bool(picked.isLeader) : null;

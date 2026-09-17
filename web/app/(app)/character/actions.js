@@ -82,6 +82,9 @@ export async function updateCharacterProfile(_prevState, formData) {
     select: { avatarUploadsEnabled: true, playPanelEnabled: true },
   });
   if (gameConfig?.avatarUploadsEnabled && avatar && avatar.size > 0) {
+    if (character.avatarUploadBlocked) {
+      return { error: "A GM has paused avatar uploads for this character." };
+    }
     if (avatar.size > MAX_AVATAR_UPLOAD_BYTES) {
       return { error: avatarTooBigMessage(avatar.size) };
     }

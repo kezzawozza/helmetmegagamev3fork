@@ -2250,6 +2250,13 @@ model Character {
   avatarSetAt      DateTime?
   avatarReviewedAt DateTime?
 
+  // Per-character brake on the upload branch of updateCharacterProfile, for
+  // when one player is spamming the review queue. Refuses new uploads only —
+  // the current avatar stays, and the portrait maker still works.
+  // GameConfig.avatarUploadsEnabled is still the global kill switch; both
+  // gate together.
+  avatarUploadBlocked Boolean @default(false)
+
   // The portrait maker's selection as JSON — part indices and palette indices,
   // never pixels. avatarData holds the render; this holds what it was built
   // from, so reopening the modal resumes where the player left off instead of
