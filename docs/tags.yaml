@@ -12165,7 +12165,7 @@ tags:
     category: items
     group: items-food
     sprite: sosjerky
-    description: "Hardtack, dried meat, and whatever else keeps. It weighs next to nothing and tastes like the bottom of a pack, but it is a meal that'll keep you going."
+    description: "Stale bread and dried meat."
     pointCost: 0
     weight: 0.5
     stackable: true
