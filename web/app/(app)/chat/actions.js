@@ -20,6 +20,7 @@ import { whosHere, whosHereGm, resolveHoodToken } from "@lifeweb/db/lib/whosHere
 import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
+import { maybeSendGmAutoReply } from "@lifeweb/db/lib/gmAutoReply";
 import { travelOptions, linksFor, endpoints, isHeldOpen, linkBetween, routesWithinZone } from "@lifeweb/db/lib/locationGraph";
 import { knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { walkWithinZone } from "@lifeweb/db/lib/locationWalk";
@@ -51,6 +52,7 @@ import {
   acceptEscort,
   escortReason,
 } from "@lifeweb/db/lib/escort";
+import { syncPartyMembership } from "@lifeweb/db/lib/partyChat";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { dismountedMessage } from "@lifeweb/db/lib/indoors";
@@ -66,6 +68,8 @@ import { paperDescription, paperView, paperViewGm, TITLE_MAX, WRITE_MAX } from "
 import { mintUnownedPaper } from "@lifeweb/db/lib/paperMint";
 import { cleanCustomText } from "@lifeweb/db/lib/customText";
 import { getGmSession } from "@/lib/discordGuild";
+import { writeChatViewAs } from "@/lib/viewAs";
+import { speakerDirectory } from "@/lib/gmSpeakers";
 import { readBlock } from "@lifeweb/db/lib/reading";
 import { addToStack, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
@@ -80,6 +84,7 @@ import {
 } from "@lifeweb/db/lib/conversations";
 import { toggleConceal as concealRule } from "@lifeweb/db/lib/conceal";
 import { shout, deliverShout } from "@lifeweb/db/lib/shout";
+import { ooc, deliverOoc } from "@lifeweb/db/lib/ooc";
 import { XOM_SHRINE_ROOM_SLUG, grantXom } from "@lifeweb/db/lib/xom";
 import { openConversationThread } from "@lifeweb/db/lib/conversationOpen";
 import { castDie } from "@lifeweb/db/lib/roll";
@@ -88,7 +93,8 @@ import { presentedNameOf, resolveMemberToken } from "@lifeweb/db/lib/presentedMe
 import { notifyPresence } from "@lifeweb/db/lib/presenceNotify";
 import { sceneLine } from "@lifeweb/db/lib/scene";
 import { playInstrument } from "@lifeweb/db/lib/instrumentPlay";
-import { parsePlaceKey, isScenePlaceKey } from "@lifeweb/db/lib/placeKey";
+import { parsePlaceKey, isScenePlaceKey, isOocPlaceKey, discordTargetForPlaceKey } from "@lifeweb/db/lib/placeKey";
+import { findPlace as findPlaceInFeed } from "@lifeweb/db/lib/feedAccess";
 import { removeThreadMember } from "@lifeweb/db/lib/discordRest";
 import { BELL_ROOM_SLUG, RING_WORD, bellWordMatches, bellCooldown, broadcastBell } from "@lifeweb/db/lib/bell";
 import {
@@ -113,6 +119,7 @@ import { photoCaption } from "@lifeweb/db/lib/photo";
 import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
+import { resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import {
   CHIP_ROW_SELECT,
   CHIP_VIEWER_SELECT,
@@ -394,7 +401,6 @@ export async function readStash(roomId) {
       slug: true,
       kind: true,
       accessTagSlugs: true,
-      resources: true,
       tags: {
         where: { quantity: { gt: 0 } },
         orderBy: { tag: { name: "asc" } },
@@ -410,8 +416,11 @@ export async function readStash(roomId) {
   return {
     ok: true,
     name: room.name,
-    resources: room.resources ?? 0,
-    items: (room.tags ?? []).filter((rt) => (rt.quantity ?? 0) > 0).map((rt) => toChipRow(rt, ctx)),
+    resources: resourcesOf(room),
+    // ⬢ is drawn as its own chip (RoomPanel.js), not as a pickable stack.
+    items: (room.tags ?? [])
+      .filter((rt) => (rt.quantity ?? 0) > 0 && !isResourcesRow(rt))
+      .map((rt) => toChipRow(rt, ctx)),
   };
 }
 
@@ -625,6 +634,7 @@ export async function bringAlong(targetId) {
   if (!(await attach(prisma, me.character.id, target.id, { takeover: verdict === "FORCED" }))) {
     return { ok: false, error: "Somebody else has them." };
   }
+  await syncPartyMembership(prisma, me.character.id).catch(() => {});
   return { ok: true, line: `${target.name} is with you.` };
 }
 
@@ -638,6 +648,7 @@ export async function putDown(targetId) {
   });
   if (!target) return { ok: false, error: "They aren't with you." };
   await detach(prisma, target.id);
+  await syncPartyMembership(prisma, me.character.id).catch(() => {});
   return { ok: true, line: `You let ${target.name} go.` };
 }
 
@@ -655,6 +666,9 @@ export async function answerEscort({ offerId, accept } = {}) {
     : await declineOffer(prisma, offer, me.character);
   for (const dm of result.dms ?? []) {
     await sendDm(dm.discordUserId, dm.content).catch(() => {});
+  }
+  if (accept && result.ok) {
+    await syncPartyMembership(prisma, offer.initiatorId).catch(() => {});
   }
   return result.ok ? { ok: true, line: result.line } : { ok: false, error: result.reason };
 }
@@ -1164,7 +1178,6 @@ export async function gmPlaceView(placeKey) {
         slug: true,
         kind: true,
         accessTagSlugs: true,
-        resources: true,
         tags: {
           where: { quantity: { gt: 0 } },
           orderBy: { tag: { name: "asc" } },
@@ -1224,8 +1237,9 @@ export async function gmPlaceView(placeKey) {
       name: room.name,
       private: room.kind === "PRIVATE",
       keys: room.accessTagSlugs ?? [],
-      resources: room.resources ?? 0,
-      things: room.tags.map((t) => toChipRow(t, GM_CHIP_CTX)),
+      resources: resourcesOf(room),
+      // ⬢ is drawn as its own chip (GmAside.js's Things()), not among the things.
+      things: withoutResources(room.tags).map((t) => toChipRow(t, GM_CHIP_CTX)),
     })),
     openRoom: openRoom
       ? {
@@ -1233,8 +1247,8 @@ export async function gmPlaceView(placeKey) {
           name: openRoom.name,
           private: openRoom.kind === "PRIVATE",
           keys: openRoom.accessTagSlugs ?? [],
-          resources: openRoom.resources ?? 0,
-          things: openRoom.tags.map((t) => toChipRow(t, GM_CHIP_CTX)),
+          resources: resourcesOf(openRoom),
+          things: withoutResources(openRoom.tags).map((t) => toChipRow(t, GM_CHIP_CTX)),
           fixtures: roomAffordances(openRoom).map((entry) => ({
             id: entry.id,
             label: entry.label,
@@ -1712,9 +1726,12 @@ export async function myMove() {
         playerFiled: true,
         moveReviewStatus: true,
         lockExpiresAt: true,
-        // moveIsEditable's first and hardest guard. Omit it and `undefined != null` is
-        // false, so a rolled Gambit would quietly read as still editable.
-        diceRoll: true,
+        // moveIsEditable's backstop guard for a turn with no cutoff to read. Omit it and
+        // `undefined != null` is false, so a settled Gambit would quietly read as still editable.
+        // NOT `diceRoll` — this payload is fetched by the player's own action, and while nothing
+        // here ever returned the number, a die sitting in it is a loaded gun. The die is the
+        // player's at turn close and not a minute before (db/lib/stagedPush.js).
+        diceModifier: true,
       },
     }),
   ]);
@@ -1952,6 +1969,10 @@ export async function sendToGms(content, clientNonce) {
     },
     select: PLAYER_DM_SELECT,
   });
+  // The same quiet line a DM typed on Discord gets (db/lib/gmAutoReply.js), on the same 10-minute
+  // clock — the window is the log row, so writing here and then DMing the bot is still one reply.
+  // It goes to Discord rather than into this pane: QUIET is drawn on neither face.
+  maybeSendGmAutoReply(prisma, me.discordUserId);
   return { ok: true, row: playerDmRow(row) };
 }
 
@@ -2244,6 +2265,54 @@ export async function shoutHere(text, placeKey = null) {
   await deliverShout(prisma, { placeKey, here: result.here, heard: result.heard });
 
   return { ok: true, line: result.line };
+}
+
+// /ooc. The player talking, not the character — so none of shout's reach and
+// none of speech's voice tags apply. db/lib/ooc.js does the deciding and both
+// halves of delivery; this is the web sequencing around it.
+export async function oocHere(text, placeKey = null) {
+  const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
+  if (me.error) return { ok: false, error: me.error };
+
+  // WHERE, then WHETHER, both before ooc() — which claims the rate-limit row,
+  // so asking afterwards would spend a send on a place the player can't post
+  // in. Same order and the same two gates as shoutHere above, and for the same
+  // reason: a server action is a public endpoint and the selector is a hint,
+  // not a lock.
+  // isOocPlaceKey, wider than the scene gate the three above take: a summary
+  // and a radio net are places a player can be read in, and an OOC line is the
+  // player (db/lib/placeKey.js#isOocPlaceKey).
+  if (!isOocPlaceKey(placeKey)) {
+    return { ok: false, error: "You can't say that here." };
+  }
+
+  const mine = await mayWritePlace(prisma, me.character, placeKey, {
+    gm: false,
+    discordUserId: me.discordUserId,
+  });
+  if (!mine) return { ok: false, error: "You can't speak in here." };
+
+  const result = await ooc(
+    prisma,
+    { ...me.character, discordUserId: me.discordUserId },
+    text,
+    { placeKey, source: "WEB" },
+  );
+  if (!result.ok) {
+    return { ok: false, error: result.error, retryAfter: result.retryAfter ?? null };
+  }
+
+  // Never throws — the send is already claimed, so a dead channel is one
+  // audience short rather than a failed send (db/lib/ooc.js).
+  await deliverOoc(prisma, {
+    placeKey,
+    text: result.text,
+    rowContent: result.rowContent,
+    name: result.name,
+    auditId: result.auditId,
+  });
+
+  return { ok: true };
 }
 
 // /roll. One d6, in the place that is open — and the place is re-checked
@@ -2650,4 +2719,91 @@ export async function removeMember(placeKey, ref) {
 
   await notifyPresence(prisma, result.target.id).catch(() => {});
   return { ok: true, line: result.line };
+}
+
+// ------------------------------------------------------- the GM's two seats
+
+// Which seat this gamemaster reads /chat from — their own character's scene,
+// or the watcher's view of every zone they hold. The switch at the foot of the
+// places column (./PlacesColumn.js) calls this and then reloads the page.
+//
+// Takes no target: a server action is a public endpoint, and the only person
+// anyone may re-seat is themselves. The gate is `isGm` and nothing else —
+// there is no seat here for a player to reach, and the places a GM seat lists
+// are still GmZoneView's (db/lib/feedAccess.js#gmPlacesFor), so this hands
+// nobody anything they did not already hold.
+export async function setChatViewAs(mode) {
+  const { session, isGm } = await getGmSession();
+  if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
+
+  await writeChatViewAs(mode === "gm" ? "gm" : null);
+  return { ok: true, mode: mode === "gm" ? "gm" : "player" };
+}
+
+// speakerKey -> real name, for a GM reading a scene. A hooded row carries no
+// characterId — db/lib/archive.js#feedRowShape withholds it per ROW, because
+// web/lib/feedHub.js shapes one row and fans it to every watcher of a place,
+// so there is no per-reader decision to be made down there. What a hooded row
+// DOES carry is `speakerKey`, the stable HMAC db/lib/hoodToken.js mints, so
+// one small directory resolves every row source at once — first paint, the
+// live stream, the history page and search — and it only ever reaches a GM.
+//
+// Refreshed by ./Feed.js when it meets a key it does not know: somebody born
+// since the page loaded.
+export async function gmSpeakerNames() {
+  const { session, isGm } = await getGmSession();
+  if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
+  return { ok: true, speakers: await speakerDirectory(prisma) };
+}
+
+// A GM in GM view posting a system line into any place they can see — the web
+// twin of /gm on Discord. Writes an archive row (source: SYSTEM, drawn as
+// `.chat-subtext`) and posts to the corresponding Discord target if the place
+// has one. `sceneLine` is what /ambient and /intercom already use, and
+// feedOutbox skips SYSTEM rows so this can't be mirrored back to Discord —
+// the Discord post here is deliberate, alongside the archive write, matching
+// intercom.js's shape.
+const GM_SYSTEM_POST_MAX = 1800;
+
+export async function gmSystemPost({ placeKey, content } = {}) {
+  const { session, isGm } = await getGmSession();
+  if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
+
+  const text = String(content ?? "").trim();
+  if (!text) return { ok: false, error: "Say something." };
+  if (text.length > GM_SYSTEM_POST_MAX) return { ok: false, error: "That's too long." };
+  const key = String(placeKey ?? "").trim();
+  if (!key) return { ok: false, error: "No place to post into." };
+
+  // Same visibility rule the reader already uses — a GM can only post into a
+  // place gmPlacesFor currently returns for them (GmZoneView applied).
+  const place = await findPlaceInFeed(prisma, null, key, {
+    gm: true,
+    ghost: false,
+    discordUserId: session.discordUserId,
+  });
+  if (!place) return { ok: false, error: "You can't reach that place." };
+
+  await sceneLine(prisma, { placeKey: key, text });
+
+  // Best-effort: a dead channel is one audience short rather than a refusal.
+  const target = await discordTargetForPlaceKey(prisma, key).catch(() => null);
+  if (target?.channelId) {
+    const channelId = target.threadId ?? target.channelId;
+    await postMessage(channelId, text).catch((err) =>
+      console.error("gmSystemPost: Discord post failed:", err.message ?? err),
+    );
+  }
+
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "gm_channel_message",
+        details: { placeKey: key, message: text, via: "chat_web" },
+      },
+    })
+    .catch((err) => console.error("gmSystemPost: audit log failed:", err.message ?? err));
+
+  return { ok: true };
 }

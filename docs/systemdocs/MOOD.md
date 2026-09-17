@@ -190,33 +190,44 @@ client-side — but nothing renders the figure. Only `bandOf()`'s label.
 
 ## 5. Wounds read the cure ladder
 
-A wound's rung on the cure ladder (`TAGS.md` §5c) decides how much it costs,
-read off its requirement block by `woundRungOf`. `woundMoodFor` returns it
-**signed**:
+A wound's rung on the cure ladder (`TAGS.md` §5c) decides how much it costs.
+The wound **says which rung it is on** — `cureRung:` in `docs/tags.yaml` — and
+`woundRungOf` reads that field. `woundMoodFor` returns it **signed**:
 
-| Rung | Derivation | Mood |
+| Rung | What sits there | Mood |
 |---|---|---|
-| 0 | no requirement block at all | 0 |
+| 0 | untreatable, no requirement block at all | 0 |
 | ½ | 0 ⬢ (minor-bleeding, dislocated-shoulder) | −4 |
 | 1 | 1 ⬢ | −8 |
-| 2 | 2 ⬢, 1/4 Move (burned, frostbite, choking...) or a legacy/GM-authored 0-turn 2 ⬢ wound | −15 |
-| 3 | 2 ⬢, 1/3 Move (deep-wound, broken-bone...) | −30 |
+| 2 | Simple — 2 ⬢ (burned, frostbite, choking…) | −15 |
+| 3 | Moderate — 2 ⬢ (deep-wound, broken-bone…) | −30 |
 | 3½ | 3 ⬢ (severe-bleeding, arterial-bleed, parasites) | −35 |
-| 4 | 4–5 ⬢ | −40 |
+| 4 | Severe — 4–5 ⬢ | −40 |
 | 5 | 6–7 ⬢ | −45 |
-| 6 | 8+ ⬢ (14 ⬢ today), no Gambit | −55 |
-| 7 | `requirementGambit` (14 ⬢ today) | −65 |
+| 6 | 8+ ⬢ (13 ⬢ today), no Gambit | −55 |
+| 7 | `requirementGambit` (13 ⬢ today) | −65 |
 
-Rung 2 and rung 3 now share the same ⬢ (2) and the same `requirementTurns`
-(both bill a fraction of a Move, not a flat turn any more) — `woundRungOf`
-tells them apart by `requirementPerTurn` instead: 4 (a 1/4 Move, the Simple
-rung) reads as rung 2, anything else nonzero (a 1/3 Move, the Moderately
-Severe rung) reads as rung 3.
+**The rung is authored because the price stopped being able to say it.** Rungs
+2, 3 and 4 all cost a quarter of a Move since costs became decimals in 9/2026,
+and 2 and 3 are both 2 ⬢ besides — there is nothing left in a cure's price to
+tell a Simple wound from a Moderate one. `woundRungOf` used to infer it from
+the cure's work denominator, 4 against 3, and that denominator no longer
+exists.
+
+The gain is worth more than the bookkeeping: **a wound's severity and its cure
+price are separate dials now.** Making a cure cheaper used to quietly make the
+wound less frightening. It does not any more.
+
+A tag that never came through the catalog — one a GM wrote in the Dev Panel,
+or a runtime clone — has no rung, and `woundRungOf` falls back to reading the
+price the old way. The one case that reading cannot answer, an unauthored 2 ⬢
+wound, lands on rung 2 rather than inventing a severity for it.
 
 Illness, mind, minor and recovery tags cost nothing — a cold is not a wound. A
 tier-0 wound (no block) is real, untreatable and too small to matter. So the
-ladder is now read three ways — the bill, the Heal picker, and the mood — and a
-rung priced carelessly is wrong three ways.
+ladder is read three ways — the bill, the Heal picker, and the mood — but they
+no longer move together: a careless **price** is wrong on the first two, and a
+careless **`cureRung`** is wrong on the third.
 
 **Four writers create wound rows, and all four call `applyWoundMood`:**
 `tagWrites.js#addToStack` and `#grantTagSlugs` (their `!existing` branches only:
@@ -249,25 +260,25 @@ something. Now it does — a drink, a feast, music, a fulfilled Desire — and a
 buys only the right not to be miserable.
 
 Recovery is deliberately untouched. At −50 a Haven night still lands its full
-+16; only *crossing* 0 is blocked, so nobody climbs out of a hole any slower than
++18; only *crossing* 0 is blocked, so nobody climbs out of a hole any slower than
 they did before.
 
 | Event | Base | Where |
 |---|---|---|
-| End the turn OPEN (a settled place, outdoors) | +4 **to Fine only** | mood pass |
-| End the turn INDOORS | +6 **to Fine only** | mood pass |
-| End the turn in a HAVEN | +12 **to Fine only** | mood pass |
-| Consume anything that lands you tipsy / wasted / unconscious / blind-drunk / high / euphoric | +30 | `consumeTagRequestImpl` |
-| Consume `tea`, `maggot-milk`, or anything granting `caffeinated` (Coffee) | +15 | same |
+| End the turn OPEN (a settled place, outdoors) | +5 **to Fine only** | mood pass |
+| End the turn INDOORS | +7 **to Fine only** | mood pass |
+| End the turn in a HAVEN | +14 **to Fine only** | mood pass |
+| Consume anything that lands you tipsy / wasted / unconscious / blind-drunk / high / euphoric | +35 | `consumeTagRequestImpl` |
+| Consume `tea`, `maggot-milk`, or anything granting `caffeinated` (Coffee) | +17 | same |
 | Eat a **cooked dish** | its own small figure plus its ingredients', §6a | `dishMoodTerms` |
-| Consume a treat — `sweets`, `honey`, `honeyed-cakes`, `fish-roe`, `pumpkin` | +8 | same |
-| Consume a `cigarette`, a `sky-lantern` or a `firecracker` | +8 | same |
-| Consume anything at all that grants `ate-meal` | +5 | same |
-| Fulfil a Desire (player claim or GM award) | +10 per point | both award sites |
-| A confession the die absolved | +15 | `confessionPass.js` |
-| A **Musician's** `/play` with an instrument, once per listener per turn (Musician (Pythagorean): ×4, +40) | +10 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
-| A **Musician's** `/play` with no instrument — sung — same ration (Musician (Pythagorean): ×4, +32) | +8 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
-| Walk into the Cathedral, once per turn | +10 **to Fine only** | `applyArrivalMood` |
+| Consume a treat — `sweets`, `honey`, `honeyed-cakes`, `fish-roe`, `pumpkin` | +9 | same |
+| Consume a `cigarette`, a `sky-lantern` or a `firecracker` | +9 | same |
+| Consume anything at all that grants `ate-meal` | +6 | same |
+| Fulfil a Desire (player claim or GM award) | +12 per point | both award sites |
+| A confession the die absolved | +17 | `confessionPass.js` |
+| A **Musician's** `/play` with an instrument, once per listener per turn (Musician (Pythagorean): ×4, +48) | +12 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
+| A **Musician's** `/play` with no instrument — sung — same ration (Musician (Pythagorean): ×4, +36) | +9 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
+| Walk into the Cathedral, once per turn | +12 **to Fine only** | `applyArrivalMood` |
 | Be healed of a wound | +½ what it took | `healCharacterRequestImpl` |
 
 The food rules are keyed on the *status* a consume grants where there is a
@@ -400,7 +411,13 @@ Hungerless and Dying nobles are exempt. "Ate one this turn" is the hidden
 `dined` status tag that `fine-meal` and `lavish-meal` consume into beside
 `ate-meal`. It has **no `durationTurns`** — a 1-turn grant would be swept at
 position 10 of `TURN_PASSES`, nine passes before the mood pass reads it — so
-the mood pass deletes it itself.
+the mood pass deletes it itself. Unlike `dined`, `ate-meal` now carries
+`durationTurns: 1` and expires through the ordinary turn-expiry sweep — the
+hunger rework's own correction, `SOILERY.md` §7 — so the two markers are no
+longer cleared the same way, even though they still answer two separate
+questions: `ate-meal` is the whole of whether the hunger pass counts you fed
+(`TURN-ENGINE.md` §5, no ⬢ changes hands over it), `dined` is only whether a
+noble ate *well*, and the −10 below is a mood harm, never a charge.
 The marker is hidden and the sheet shows no Dinner row for it — the old
 Disappointed tracker went with the track, on Bascinet's call. The Merchant now
 starts with Nobility too, and therefore with its 1-point Desire lock.
@@ -443,7 +460,7 @@ The designer's checks, all asserted in `db/test/mood.test.js`:
 - Seven wilderness moves are −14: **Uncomfortable** from the walk alone. A
   wilderness night on top (−10 + 4) lands at −20, still Uncomfortable.
 - A moderately severe wound (rung 3, −30) on top of that is −50: **Anxious**.
-- At −20, two nights indoors (+6 +4 each) clear the dial; one night in a Haven
+- At −20, two nights indoors (+7 +4 each) clear the dial; one night in a Haven
   reaches Fine on its own. Both run through the cap in the test rather than
   adding the constants up, because a plain sum would agree no matter what the
   cap did.
@@ -451,7 +468,7 @@ The designer's checks, all asserted in `db/test/mood.test.js`:
   Fine leave the dial at 0, not at +82. That was the one real hole Ecstatic
   opened — +12 a night against a −4 drift, netting +8 forever — and §6's
   `capAtFine` rule is what closed it. The test walks all thirty nights.
-- A Haven night from −50 still lands its full +16. The cap must never be
+- A Haven night from −50 still lands its full +18. The cap must never be
   mistakable for slower recovery; it only ever blocks *crossing* 0.
 
 The dial is clamped in the database (`LEAST/GREATEST` in the UPDATE), so two

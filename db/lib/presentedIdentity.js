@@ -95,6 +95,42 @@ async function loadConcealment(prisma, characterId) {
   return concealmentFrom(held);
 }
 
+// The columns presentedIdentity() reads, plus the tags it resolves against. Modelled on db/lib/whosHere.js#PRESENT_SELECT minus Role/Faction — hearing somebody yell tells you their name, not who they answer to.
+const PRESENTED_IDENTITY_SELECT = {
+  id: true,
+  name: true,
+  age: true,
+  gender: true,
+  concealed: true,
+  updatedAt: true,
+  tags: {
+    where: {
+      OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
+    },
+    select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
+  },
+};
+
+// The subject's own row, RE-READ here rather than trusted from the caller — the web's actor() and the bot's selects carry neither age/gender/concealed nor the tags, and growing every call site is exactly what CONCEALMENT_TAG_FIELDS warns against. /ooc learned this the expensive way: it called presentedIdentity() correctly but handed it a four-column row, so the conceal branch never fired and a hooded player's OOC line printed their real name.
+// Returns { row, identity } — the row too, because a caller that needs a different SPELLING of the same identity (db/lib/shout.js wants aliasSubject's "a young man", not the Title Case webhook username) would otherwise load it twice. Any failure returns nulls and logs, matching every other identity load: the words still go out, under the plain shape.
+async function loadPresentedIdentity(prisma, characterId) {
+  try {
+    const row = await prisma.character.findUnique({
+      where: { id: characterId },
+      select: PRESENTED_IDENTITY_SELECT,
+    });
+    if (!row) return { row: null, identity: null };
+    const identity = presentedIdentity(row, {
+      forcedName: forcedNameFrom(row.tags),
+      concealment: concealmentFrom(row.tags),
+    });
+    return { row, identity };
+  } catch (err) {
+    console.error("Presented identity load failed:", err?.message ?? err);
+    return { row: null, identity: null };
+  }
+}
+
 // The letters/ tile for a name: its upper-cased first letter, or blank plaque.
 function letterPlaqueFile(name) {
   const initial = (name?.trim()?.[0] ?? "").toUpperCase();
@@ -114,7 +150,18 @@ function presentedIdentity(character, { forcedName = null, concealment = undefin
   }
   // Fall back to the column alone — errs toward hiding, never toward exposing.
   const piece = concealment === undefined ? (character.concealed ? UNSLOTTED : null) : concealment;
-  if (piece && (piece.forced || character.concealed)) {
+  // Same rule one step further out. `concealed` UNDEFINED means the caller
+  // loaded a row without the column, not that the hood is down — and answering
+  // that with the real name is how /ooc spent a while outing hooded players
+  // (db/lib/ooc.js). Undefined specifically, never falsy: `false` is a real
+  // answer, a hood owned and not pulled up, and must stay the real name.
+  const unknown = character?.concealed === undefined;
+  if (piece && unknown) {
+    console.error(
+      `presentedIdentity: character ${character?.id ?? "?"} loaded without \`concealed\`; concealing to be safe`,
+    );
+  }
+  if (piece && (piece.forced || character.concealed || unknown)) {
     const alias = concealedAlias(character);
     return {
       name: alias,
@@ -148,6 +195,8 @@ function wasHooded(row, { forcedName = null } = {}) {
 
 module.exports = {
   CONCEALMENT_TAG_FIELDS,
+  PRESENTED_IDENTITY_SELECT,
+  loadPresentedIdentity,
   wasHooded,
   forcedNameFrom,
   rosterName,

@@ -5,7 +5,7 @@ import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import NotesView from "./NotesView";
 import Loading from "./Skeleton";
 import { prisma } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import { loadMentionDirectory, loadOfferableMentions } from "@/lib/mentionDirectory";
 
@@ -18,7 +18,7 @@ import { loadMentionDirectory, loadOfferableMentions } from "@/lib/mentionDirect
 // mounts the shell, and streams FreshNotes in behind it. A browser that has
 // been here before paints its last data in the first frame.
 export default async function NotesPage() {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   return (
     <SnapshotPage scope="notes" userId={session.discordUserId} render={NotesView} fallback={<Loading />}>
@@ -30,7 +30,7 @@ export default async function NotesPage() {
 }
 
 async function FreshNotes() {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
   const [notes, journalEntries, roster, directory, openTurn] = await Promise.all([

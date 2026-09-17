@@ -11,6 +11,7 @@ const { applyMood } = require("./mood");
 const { CATATONIC_SLUG, GIBBED_SLUG, METEMPSYCHOSIS_SLUG } = require("./constants");
 const { NOT_A_FIGHT } = require("./intercept");
 const { closeFightsFor } = require("./attack");
+const { teardownPartyThread } = require("./partyChat");
 
 // Marks one character DEAD. Returns { claimed } — false when no longer ALIVE,
 // in which case NOTHING else is written: the update's `status: "ALIVE"`
@@ -104,6 +105,12 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
       data: { escortedById: null },
     })
     .catch((err) => console.error(`Failed to release the party on death for ${character.id}:`, err));
+
+  // The party chat (db/lib/partyChat.js) is keyed on this character as its
+  // creator. Death dissolves the party, so the thread and the row go with it.
+  await teardownPartyThread(prisma, character.id).catch((err) =>
+    console.error(`Failed to tear down party thread on death for ${character.id}:`, err),
+  );
 
   // A dead man holds nobody (INTERCEPT.md). Their OWN heldUntil is left alone — costs a corpse
   // nothing and lapses on its own. A FIGHT comes off first, through the row not heldById

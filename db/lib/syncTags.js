@@ -5,6 +5,12 @@
 // other by slug, and some fields can only resolve once every Tag row
 // exists. Each pass only writes when something actually changed.
 const { settleCarry } = require("./carry");
+const { RESOURCES_SLUG, RESOURCES_WEIGHT_LBS } = require("./resourceStack");
+const { WOUND_TAG_GROUPS } = require("./constants");
+// The rungs docs/systemdocs/TAGS.md §5c actually defines, half rungs included
+// (the named exceptions the ladder documents). A typo'd 2.5 is a silent wrong
+// mood hit, so the set is closed.
+const CURE_RUNGS = new Set([0, 0.5, 1, 2, 3, 3.5, 4, 5, 6, 7]);
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath, repoPath } = require("./repoPaths");
@@ -540,6 +546,41 @@ async function syncTagsFromYaml(prisma) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has a negative weight`);
     }
 
+    // Resources are the one tag whose weight is also written down in code:
+    // db/lib/carry.js#carryAdmits has to answer "what would N more ⬢ weigh"
+    // before the units exist, so it multiplies by RESOURCES_WEIGHT_LBS. The
+    // catalog stays the source of truth and this keeps the copy honest —
+    // re-pricing ⬢ here without moving the constant would let a character
+    // accept a load the cap should have refused.
+    if (t.slug === RESOURCES_SLUG && t.weight !== RESOURCES_WEIGHT_LBS) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" weighs ${t.weight}, but db/lib/resourceStack.js says RESOURCES_WEIGHT_LBS is ${RESOURCES_WEIGHT_LBS} — move them together`,
+      );
+    }
+
+    // The cure ladder's rung (TAGS.md §5c), authored since 9/2026 rather than
+    // worked out from the cure's price. Two rules, both about the thing that
+    // goes wrong quietly: a wound with no rung falls through to
+    // db/lib/mood.js#woundRungOf's fallback and may land on the wrong mood hit
+    // without anyone noticing, and a rung on a tag that is not a wound is
+    // config nothing will ever read.
+    if (t.cureRung != null) {
+      if (!WOUND_TAG_GROUPS.includes(t.group)) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets cureRung but its group "${t.group}" is not a wound group — only ${WOUND_TAG_GROUPS.join(", ")} carry a rung`,
+        );
+      }
+      if (!CURE_RUNGS.has(t.cureRung)) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" has cureRung ${t.cureRung} — the ladder's rungs are ${[...CURE_RUNGS].join(", ")}`,
+        );
+      }
+    } else if (WOUND_TAG_GROUPS.includes(t.group)) {
+      throw new Error(
+        `docs/tags.yaml: tag "${t.slug}" is in "${t.group}" but sets no cureRung — every wound says which rung of the cure ladder it is on (TAGS.md §5c), 0 for untreatable`,
+      );
+    }
+
     // Armour values: a fraction of a blow turned aside, so 0..1 and nothing
     // else. Rejected on a tag nobody can wear for the same reason a laborBonus
     // is — armour that never gets equipped is dead config, and combineArmor
@@ -915,12 +956,15 @@ async function syncTagsFromYaml(prisma) {
       administerSkill: entry.administerSkill ?? null,
       poison: entry.poison ?? false,
       resists: normalizeResists(entry.resists),
-      // turnsCost "1/N" lands as requirementTurns 1 + requirementPerTurn N
-      // (the work fraction); an authored perTurn survives only on a 0-turn
-      // ration — normalizeTurnsCost refuses every other pairing. `healable`
-      // rides along so a healable tag with no turnsCost at all is refused
-      // too (review fix, round 3).
+      // turnsCost is a decimal number of Moves on a quarter; an authored
+      // perTurn survives only on a 0-turn ration — normalizeTurnsCost refuses
+      // every other pairing. `healable` rides along so a healable tag with no
+      // turnsCost at all is refused too (review fix, round 3).
       ...normalizeTurnsCost(entry.requirement, { slug: entry.slug, healable: entry.healable ?? false }),
+      // Which rung of the cure ladder a wound is on (TAGS.md §5c), authored
+      // rather than read back out of the cure's price — see the comment on
+      // db/lib/mood.js#woundRungOf for what that reading could no longer do.
+      cureRung: entry.cureRung ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),

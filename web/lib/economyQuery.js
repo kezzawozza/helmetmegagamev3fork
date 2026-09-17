@@ -1,6 +1,13 @@
 import { prisma } from "@lifeweb/db";
 import { reasonFlow, reasonLabel, FLOW } from "@lifeweb/db/lib/economyReasons";
 import { creditAvailableObols } from "@lifeweb/db/lib/depotState";
+import {
+  RESOURCES_SLUG,
+  resourcesByCharacterIds,
+  resourcesByRoomIds,
+  sumCharacterResources,
+  sumRoomResources,
+} from "@lifeweb/db/lib/resourceStack";
 
 // The read side of the economy ledger — everything /gm/economy asks the
 // database. Nothing here writes. Aggregates stay whole (zone scoping hides
@@ -16,14 +23,14 @@ export const HOLDING_STATUSES = ["ALIVE", "DEAD", "CURSED"];
 // The money supply, right now, by form — read from balances themselves,
 // since this is the number the ledger gets checked AGAINST.
 export async function liveSupply() {
-  const [chars, rooms, depot, coin, goods] = await Promise.all([
-    prisma.character.aggregate({ _sum: { resources: true }, where: { status: { in: HOLDING_STATUSES } } }),
-    prisma.room.aggregate({ _sum: { resources: true } }),
+  const [heldBalance, stashedBalance, depot, coin, goods] = await Promise.all([
+    sumCharacterResources(prisma, { status: { in: HOLDING_STATUSES } }),
+    sumRoomResources(prisma),
     prisma.depot.findFirst({ select: { accountObols: true, debtObols: true, manifest: true } }),
     coinInWorld(),
     goodsValueInWorld(),
   ]);
-  const balance = (chars._sum.resources ?? 0) + (rooms._sum.resources ?? 0);
+  const balance = heldBalance + stashedBalance;
   const account = depot?.accountObols ?? 0;
   const debt = depot?.debtObols ?? 0;
   const manifest = manifestValue(depot?.manifest);
@@ -48,10 +55,16 @@ async function coinInWorld() {
   return (held._sum.quantity ?? 0) + (stashed._sum.quantity ?? 0);
 }
 
-// Every priced tag at catalog value. Excludes obol (counted as COIN above).
+// The two priced tags that are MONEY, not goods, and so never count here:
+// obol is the COIN bucket, and ⬢ — a stack row since 9/2026, priced on both
+// sides so the Depot trades it — is the BALANCE bucket. Counting either as
+// goods would report the same wealth twice.
+const MONEY_SLUGS = ["obol", RESOURCES_SLUG];
+
+// Every priced tag at catalog value, money excluded.
 async function goodsValueInWorld() {
   const priced = await prisma.tag.findMany({
-    where: { OR: [{ sellablePrice: { not: null } }, { depotPrice: { not: null } }], slug: { not: "obol" } },
+    where: { OR: [{ sellablePrice: { not: null } }, { depotPrice: { not: null } }], slug: { notIn: MONEY_SLUGS } },
     select: { id: true, sellablePrice: true, depotPrice: true },
   });
   if (!priced.length) return 0;
@@ -89,19 +102,27 @@ export async function reconcile(gameId, { limit = 50 } = {}) {
          WHERE "gameId" = ${gameId} AND "form" = 'BALANCE' AND "toKind" IN ('character','room')
          GROUP BY 1, 2
       ) legs GROUP BY kind, id`,
-    prisma.character.findMany({ where: { status: { in: HOLDING_STATUSES } }, select: { id: true, name: true, resources: true } }),
-    prisma.room.findMany({ select: { id: true, name: true, resources: true } }),
+    prisma.character.findMany({ where: { status: { in: HOLDING_STATUSES } }, select: { id: true, name: true } }),
+    prisma.room.findMany({ select: { id: true, name: true } }),
     prisma.economyEntry.count({ where: { gameId } }),
   ]);
   const backfilled = booked > 0;
 
+  // Two batch reads rather than a ⬢ query per account — this walks every
+  // holding character and every room in the game.
+  const [charBalances, roomBalances] = await Promise.all([
+    resourcesByCharacterIds(prisma, chars.map((c) => c.id)),
+    resourcesByRoomIds(prisma, rooms.map((r) => r.id)),
+  ]);
+
   const ledger = new Map(legs.map((r) => [`${r.kind}:${r.id}`, Number(r.delta) || 0]));
   const rows = [];
-  for (const [kind, list] of [["character", chars], ["room", rooms]]) {
+  for (const [kind, list, balances] of [["character", chars, charBalances], ["room", rooms, roomBalances]]) {
     for (const row of list) {
       const booked = ledger.get(`${kind}:${row.id}`) ?? 0;
-      const drift = row.resources - booked;
-      if (drift !== 0) rows.push({ kind, id: row.id, name: row.name, live: row.resources, booked, drift });
+      const live = balances.get(row.id) ?? 0;
+      const drift = live - booked;
+      if (drift !== 0) rows.push({ kind, id: row.id, name: row.name, live, booked, drift });
     }
   }
   rows.sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift));
@@ -250,11 +271,13 @@ export async function counterpartyEdges({ gameId, fromTurn = null, toTurn = null
 }
 
 // Every priced tag: how much exists, and how much has moved through the ledger.
+// Money is left out for the reason MONEY_SLUGS gives — the Goods table sits
+// beside the coin and balance buckets, not over them.
 export async function goodsCatalog() {
   const tags = await prisma.tag.findMany({
     where: {
       OR: [{ sellablePrice: { not: null } }, { depotPrice: { not: null } }],
-      slug: { not: "obol" },
+      slug: { notIn: MONEY_SLUGS },
     },
     select: { id: true, slug: true, name: true, depotPrice: true, sellablePrice: true },
   });
@@ -326,20 +349,22 @@ export async function factionTreasuries() {
         select: {
           id: true,
           name: true,
-          resources: true,
           location: { select: { zone: { select: { name: true } } } },
         },
       },
       _count: { select: { characters: true } },
     },
   });
+  const balances = await resourcesByRoomIds(prisma, factions.map((f) => f.siloRoom?.id));
   return factions.map((f) => ({
     id: f.id,
     name: f.name,
     zoneName: f.zone?.name ?? f.siloRoom?.location?.zone?.name ?? "",
     siloRoomId: f.siloRoom?.id ?? null,
     siloRoomName: f.siloRoom?.name ?? null,
-    balance: f.siloRoom ? f.siloRoom.resources : null,
+    // null, not 0, when a faction has no silo Room at all — "nowhere to bank"
+    // is not the same as "banked nothing".
+    balance: f.siloRoom ? balances.get(f.siloRoom.id) ?? 0 : null,
     memberCount: f._count.characters,
   }));
 }

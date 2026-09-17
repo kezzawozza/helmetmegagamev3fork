@@ -53,6 +53,7 @@ import { extractToolFor, extractedToday } from "@lifeweb/db/lib/godflesh";
 import { farmRefusalFor } from "@lifeweb/db/lib/soilery";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { resourcesOf, readRoomResources } from "@lifeweb/db/lib/resourceStack";
 import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { clampHunger, decayFor, crossings } from "@lifeweb/db/lib/hunger";
@@ -65,7 +66,6 @@ import { groupRoles } from "@lifeweb/db/lib/roleGroups";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen, readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { deployVersion } from "@/lib/deployVersion";
-import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
 import { myMove } from "../chat/actions";
@@ -73,6 +73,7 @@ import { loadDesireView, loadLettersView } from "@/lib/selfPools";
 import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
+  getGmSession,
   getGuildMember,
   isGm,
   isLeaderWhitelisted,
@@ -234,7 +235,7 @@ async function loadCreationData(discordUserId) {
 // Snapshotted (web/lib/snapshot, CHAT.md §5c): reads the session, mounts the
 // shell, streams FreshCharacter in behind it.
 export default async function CharacterPage({ searchParams }) {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   return (
     <SnapshotPage scope="character" userId={session.discordUserId} render={CharacterView} fallback={<Loading />}>
@@ -472,6 +473,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     healsLeft,
     hasSurgicalSite,
     surgicalSitePenalty,
+    canMiracle,
+    miracleTargets,
+    miraclesLeft,
     lootTargets,
     consumeTargets,
     bindTargets,
@@ -491,7 +495,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // Rooms somebody let this character into by hand — the reason this page and the Transfer gate agree.
   const guestRoomIds = await roomGuestIds(prisma, character.id);
   const questRoomIds = await questAllowedRoomIds(prisma, character.id);
-  const roomsHere = character.locationId
+  const roomRowsHere = character.locationId
     ? await prisma.room.findMany({
         where: { locationId: character.locationId },
         orderBy: { sortOrder: "asc" },
@@ -500,16 +504,17 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           name: true,
           kind: true,
           accessTagSlugs: true,
-          resources: true,
           tags: {
             where: { quantity: { gt: 0 } },
             select: {
               tagId: true,
               quantity: true,
-              // weightLbs/category ride along for Transfer's load projection
+              // weightLbs/category ride along for Transfer's load projection;
+              // slug is what resourcesOf picks the ⬢ stack out by, below.
               tag: {
                 select: {
                   name: true,
+                  slug: true,
                   stackable: true,
                   weightLbs: true,
                   category: true,
@@ -520,6 +525,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         },
       })
     : [];
+  // A room's ⬢ ride in its tags now, like every other item it holds. The
+  // number is still handed down as `resources` because that is what the
+  // Transfer dialog reads — the storage moved, the prop didn't.
+  const roomsHere = roomRowsHere.map((r) => ({ ...r, resources: resourcesOf(r) }));
   // The Transfer dialog's far side, from the shared helper — /chat builds
   // the identical list off it. `roomsHere` above stays this page's own, since corpsesInReach needs the ROWS, not the shape.
   const rooms = await loadStashRooms(character);
@@ -791,6 +800,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     heldSlugs.has("fundamentalist") &&
     sitesHere.some((s) => s.typeSlug === "crucifix" && s.status === "COMPLETE");
   const canDisguise = heldSlugs.has("disguise-kit"); // disguiseSelfRequest re-checks; hidden button is a hint, not a lock
+  // pickpocketRequest re-checks the tag; a greyed button is a hint, not a lock.
+  // GATE rather than SHOW (the Heal posture, not the Torture one): the tag is
+  // purchasable by anybody now, so a dead icon points at something a player can
+  // go and buy rather than teaching them a secret.
+  const canPickpocket = heldSlugs.has("pickpocket") || heldSlugs.has("pickpocketing-skilled");
   const canTorture = heldSlugs.has("torturer"); // tortureCharacterRequest re-checks the tag and that the target is Bound
   const canMutilate = MUTILATE_GATE_SLUGS.some((slug) => heldSlugs.has(slug)); // Cruel, Torturer or Thanati
   const canBrand = heldSlugs.has("branding-iron"); // brandCharacterRequest re-checks tag and target's incapacitation
@@ -823,7 +837,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       }))
     : [];
   // Purchase Gear's shelf and the four purses it draws on — an obol is one ⬢ (DEPOT.md), the shelf spends both together.
-  const [thanatiWares, hideoutObols, myObols] = atHideout
+  const [thanatiWares, hideoutObols, myObols, hideoutResources] = atHideout
     ? await Promise.all([
         prisma.tag
           .findMany({
@@ -844,12 +858,15 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           where: { characterId: character.id, tag: { slug: OBOL_SLUG } },
           select: { quantity: true },
         }),
+        // The hideout's ⬢, read here rather than off the room row — a ⬢
+        // balance is a stack row now, and hideoutRoom() doesn't load tags.
+        readRoomResources(prisma, hideout.id),
       ])
-    : [[], null, null];
+    : [[], null, null, 0];
   const hideoutStock = atHideout
     ? {
-        room: { resources: hideout.resources, obols: hideoutObols?.quantity ?? 0 },
-        self: { resources: character.resources ?? 0, obols: myObols?.quantity ?? 0 },
+        room: { resources: hideoutResources, obols: hideoutObols?.quantity ?? 0 },
+        self: { resources: resourcesOf(character), obols: myObols?.quantity ?? 0 },
       }
     : null;
   // The bomb's two halves — both read off your own sheet. nukeActions.js re-checks both.
@@ -1119,6 +1136,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       healsLeft: healsLeft,
       hasSurgicalSite: hasSurgicalSite,
       surgicalSitePenalty: surgicalSitePenalty,
+      canMiracle: canMiracle,
+      miracleTargets: miracleTargets,
+      miraclesLeft: miraclesLeft,
       hasMoved: Boolean(currentAction),
       holdsResearch: holdsResearch,
       atCathedral: atCathedral,
@@ -1166,6 +1186,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canCrucify: canCrucify,
       canShackle: canShackle,
       canDisguise: canDisguise,
+      canPickpocket: canPickpocket,
       canTorture: canTorture,
       canMutilate: canMutilate,
       canBrand: canBrand,

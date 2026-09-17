@@ -2,6 +2,7 @@
 
 const { chunkMessage } = require("../chunkText");
 const { presentedIdentity } = require("../presentedIdentity");
+const { concealDiscriminator } = require("../concealedDiscriminator");
 const { discordRequest } = require("./core");
 
 const WEBHOOK_NAME = "Bascinet Tupper";
@@ -82,42 +83,53 @@ async function deleteWebhookMessage({ id, token }, messageId, threadId = null) {
 // composed and frozen at send time ("Solomon Baker (Pub Fries)") and must not be re-derived here —
 // re-deriving would drop the account half and re-apply a hood the corpse is still wearing. The
 // avatar still resolves off the character, which is how a ghost keeps the face they had in game.
-async function postAsCharacter(channelId, character, content, { forcedName = null, concealment = null, threadId = null, displayName = null } = {}) {
+//
+// `turnNumber`/`placeKey` scope the invisible discriminator that keeps two hooded characters
+// sharing an alias from collapsing into one Discord block (db/lib/concealedDiscriminator.js).
+// Applied only on a concealed send; the archive keeps the plain alias.
+async function postAsCharacter(channelId, character, content, { forcedName = null, concealment = null, threadId = null, displayName = null, turnNumber = null, placeKey = null } = {}) {
   const chunks = chunkMessage(String(content ?? ""));
-  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content, forcedName, concealment, threadId, displayName);
+  const opts = { forcedName, concealment, threadId, displayName, turnNumber, placeKey };
+  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content, opts);
 
   let first = null;
   for (const chunk of chunks) {
-    const sent = await postAsCharacterChunk(channelId, character, chunk, forcedName, concealment, threadId, displayName);
+    const sent = await postAsCharacterChunk(channelId, character, chunk, opts);
     if (!first) first = sent;
   }
   return first;
 }
 
-async function postAsCharacterChunk(channelId, character, content, forcedName, concealment, threadId = null, displayName = null) {
+async function postAsCharacterChunk(channelId, character, content, opts) {
   try {
-    return await postAsCharacterOnce(channelId, content, character, forcedName, concealment, threadId, displayName);
+    return await postAsCharacterOnce(channelId, content, character, opts);
   } catch (err) {
     // Keyed on the error CODE, never message text — a 429 shouldn't rebuild.
     if (err.discordCode === UNKNOWN_WEBHOOK || err.status === 404) {
       forgetChannelWebhook(channelId);
-      return postAsCharacterOnce(channelId, content, character, forcedName, concealment, threadId, displayName);
+      return postAsCharacterOnce(channelId, content, character, opts);
     }
     throw err;
   }
 }
 
 // Discord caps a webhook username at 80 characters. Both halves of a composed Deadchat name are
-// user-controlled, so it is truncated here rather than trusted to be short.
+// user-controlled, so it is truncated here rather than trusted to be short. Truncation runs BEFORE
+// the discriminator so a very long Deadchat name never eats the zero-width suffix.
 const USERNAME_LIMIT = 80;
 
-async function postAsCharacterOnce(channelId, content, character, forcedName, concealment = null, threadId = null, displayName = null) {
+async function postAsCharacterOnce(channelId, content, character, opts) {
+  const { forcedName, concealment, threadId, displayName, turnNumber, placeKey } = opts;
   const webhook = await ensureChannelWebhook(channelId);
   const base = process.env.WEB_BASE_URL;
   const identity = presentedIdentity(character, { forcedName, concealment });
+  const displayed = (displayName ?? identity.name).slice(0, USERNAME_LIMIT);
+  const username = identity.concealed
+    ? `${displayed}${concealDiscriminator({ characterId: character.id, turnNumber, placeKey })}`
+    : displayed;
   return executeWebhook(webhook, {
     content,
-    username: (displayName ?? identity.name).slice(0, USERNAME_LIMIT),
+    username,
     avatarUrl: base ? `${base}${identity.avatarPath}` : undefined,
     threadId,
   });

@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { MOTION_SICKNESS_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
 import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
+// Submodule path, not the @lifeweb/db barrel — this is a client component and
+// the barrel drags PrismaClient into the browser bundle (ARCHITECTURE.md §2).
+import { resourcesOf, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import BioForm from "./BioForm";
 import CharacterPoller from "./CharacterPoller";
 import EquipBoard from "./EquipBoard";
@@ -62,6 +65,7 @@ export default function CharacterSheet({
   canCrucify = false,
   canShackle = false,
   canDisguise = false,
+  canPickpocket = false,
   canTorture = false,
   canMutilate = false,
   canBrand = false,
@@ -90,7 +94,7 @@ export default function CharacterSheet({
   hasWorkshop = false,
   tagCatalog,
   desireSlots = 2,
-  desireSlotLockTurns = 1,
+  desireSlotLockTurns = 2,
   desireSlotStates = [],
   desireCatalog = [],
   desireFamilies = [],
@@ -99,6 +103,9 @@ export default function CharacterSheet({
   desireAddiction = null,
   canHeal = false,
   healsLeft = null,
+  canMiracle = false,
+  miracleTargets = [],
+  miraclesLeft = null,
   // Surgery's site (the medical pass, M3, reworked M6b): whether one is in
   // reach at all, and whether the only thing standing in for it is a
   // Portable Surgical Pack, which the Gambit takes a −1 for.
@@ -220,13 +227,20 @@ export default function CharacterSheet({
         selfName={character.name}
         catalog={tagCatalog ?? []}
         characterTags={character.tags}
-        resources={character.resources}
+        // Off the tag rows, not a column — ⬢ are a stack now. This is what the
+        // Transfer dialog reads to cap how many ⬢ you may hand over, so a
+        // missing number here does not read as an error, it silently pins the
+        // cap at 0 and the verb quietly stops working.
+        resources={resourcesOf(character)}
         transferParties={transferParties}
         transferSilo={transferSilo}
         carry={carry}
         hasWorkshop={hasWorkshop}
         canHeal={canHeal}
         healsLeft={healsLeft}
+        canMiracle={canMiracle}
+        miracleTargets={miracleTargets}
+        miraclesLeft={miraclesLeft}
         hasSurgicalSite={hasSurgicalSite}
         surgicalSitePenalty={surgicalSitePenalty}
         hasMoved={hasMoved}
@@ -284,6 +298,7 @@ export default function CharacterSheet({
         canCrucify={canCrucify}
         canShackle={canShackle}
         canDisguise={canDisguise}
+        canPickpocket={canPickpocket}
         canTorture={canTorture}
         canMutilate={canMutilate}
         canBrand={canBrand}
@@ -413,7 +428,14 @@ export default function CharacterSheet({
 
           <div className="ledger-col ledger-rail" data-col="tags">
             <TagRail
-              characterTags={character.tags}
+              // Without the ⬢ stack: the band above already shows the figure,
+              // and the rail is the busier of the two surfaces to see it
+              // doubled on. It also keeps ⬢ off the row's verb strip —
+              // `items` is a destroyable category, so the rail was offering a
+              // one-click Destroy on a character's entire savings, which is a
+              // road to burning money that nothing else in the game has.
+              // Chat's Things drawer does the same (chat/thingRows.js).
+              characterTags={withoutResources(character.tags)}
               isSelf={isSelf}
               selfId={character.id}
               identity={identity}

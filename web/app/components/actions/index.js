@@ -6,7 +6,7 @@ import { recallComrades, recoverEquipment } from "@/app/(app)/character/thanatiA
 import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
 import { checkWanted } from "@/app/(app)/character/cerberonActions";
 import { extractGodfleshRequest, healCharacterRequest, readPointerDevice, breakRestraintsRequest } from "@/app/(app)/character/requestActions";
-import { formatMoveFraction } from "@/lib/craftBudget";
+import { formatMoveAmount } from "@/lib/craftBudget";
 import BindDialog, { BIND_VERBS } from "./BindDialog";
 import HarmDialog from "./HarmDialog";
 import MutilateDialog from "./MutilateDialog";
@@ -26,9 +26,11 @@ import PackageDialog from "./PackageDialog";
 import FarmDialog from "./FarmDialog";
 import PurchaseDialog from "./PurchaseDialog";
 import HealDialog from "./HealDialog";
+import MiracleDialog from "./MiracleDialog";
 import LessonDialog from "./LessonDialog";
 import KissDialog from "./KissDialog";
 import SearchDialog from "./SearchDialog";
+import PickpocketDialog from "./PickpocketDialog";
 import TaxDialog from "./TaxDialog";
 import WriteDialog from "./WriteDialog";
 import SealDialog from "./SealDialog";
@@ -113,16 +115,20 @@ export const DIALOGS = {
   hideout: HideoutDialog,
   transfer: MoveThingsDialog,
   loot: MoveThingsDialog,
+  // Steal is the same dialog with both ends decided (THEFT.md §1).
+  steal: MoveThingsDialog,
   destroy: DestroyDialog,
   package: PackageDialog,
   farm: FarmDialog,
   purchase: PurchaseDialog,
   heal: HealDialog,
+  miracle: MiracleDialog,
   learn: LessonDialog,
   teach: LessonDialog,
   confess: LessonDialog,
   kiss: KissDialog,
   search: SearchDialog,
+  pickpocket: PickpocketDialog,
   tax: TaxDialog,
   write: WriteDialog,
   seal: SealDialog,
@@ -180,7 +186,7 @@ export const FAST_PATHS = {
           affliction.gambit
             ? " This is a Gambit."
             : billed
-              ? ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", past this turn's free first aid" : ""}.`
+              ? ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveAmount(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", past this turn's free first aid" : ""}.`
               : ` First aid doesn't cost a Move — ${bag.healsLeft === 1 ? "1 free treatment" : `${bag.healsLeft ?? "a few"} free treatments`} left this turn.`
         }`,
         confirmLabel: "Treat",

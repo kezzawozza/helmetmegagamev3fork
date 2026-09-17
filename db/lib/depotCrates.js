@@ -3,10 +3,10 @@
 const { DEPOT_KEYCARD_SLUG } = require("./depotState");
 const { PACKAGE_MAX_LBS, PACKAGE_MAX_UNITS, TAG_CATEGORY } = require("./constants");
 
-// A crated ⬢ weighs a pound, so ⬢ pack against the same weight rule as everything else and ride in a crate with other goods. Loose on a sheet they weigh nothing and count against carryResourceCap instead (docs/systemdocs/CARRY.md §1) — freight and sheet never double-count the same ⬢.
+// A crated ⬢ weighs a pound, so ⬢ pack against the same weight rule as everything else and ride in a crate with other goods. This used to be the ONE place a ⬢ had a weight, since loose on a sheet they weighed nothing and counted against a cap of their own. That cap is gone: a loose ⬢ weighs this same pound off its Tag row now (docs/systemdocs/CARRY.md), and this constant is only here because a Depot manifest line for ⬢ carries no tagId to look one up with.
 const RESOURCE_UNIT_LBS = 1;
 
-// A crate weighs HALF what's in it — the same rule the player-facing Package button applies (docs/systemdocs/FACTORY.md), so a Depot shipment and a Banneret's wagon load obey one arithmetic. Rounded UP, never below 1: an empty-ish crate of weightless things is still a wooden box. See docs/systemdocs/CARRY.md for the ladder this sits on. `resources` defaults to 0 because the player-facing Package button calls this too (packageItemsRequestImpl), and a player crate can never hold ⬢.
+// A crate weighs HALF what's in it — the same rule the player-facing Package button applies (docs/systemdocs/FACTORY.md), so a Depot shipment and a Banneret's wagon load obey one arithmetic. Rounded UP, never below 1: an empty-ish crate of weightless things is still a wooden box. See docs/systemdocs/CARRY.md for the ladder this sits on. `resources` defaults to 0 because the player-facing Package button calls this too (packageItemsRequestImpl): a player packs ⬢ as an ordinary item line like anything else they hold, so only the Depot's own manifest uses this argument.
 function crateWeight(contents, weightByTagId, resources = 0) {
   const inner =
     (contents ?? []).reduce(
@@ -100,7 +100,10 @@ function crateDescription(shipment, crate) {
   const parts = (crate?.contents ?? []).map((c) =>
     c.quantity > 1 ? `${c.name} x ${c.quantity}` : c.name,
   );
-  if (crate?.resources > 0) parts.push(`Resources x ${crate.resources}`);
+  // "12 ⬢", not "Resources x 12" — the glyph replaces the word wherever a
+  // quantity is shown (CLAUDE.md). The `x` form above is the manifest's own
+  // voice for a named ware and stays.
+  if (crate?.resources > 0) parts.push(`${crate.resources} ⬢`);
   return `[SHIPMENT ID ${shipment}]: ${parts.join(" | ")}`;
 }
 

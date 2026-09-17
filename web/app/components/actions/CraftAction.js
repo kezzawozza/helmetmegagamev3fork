@@ -15,7 +15,7 @@ import {
   WHOLE_MOVE,
   craftMoveCost,
   fitsInRemaining,
-  formatMoveFraction,
+  formatMoveAmount,
   unitsAffordable,
 } from "@/lib/craftBudget";
 import { heldSlugsOf } from "@/lib/consumeGrants";
@@ -346,7 +346,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
       const move = craftCost;
       const share =
         move && move.num < move.den
-          ? `${formatMoveFraction(move.num, move.den)} of your Move`
+          ? `${formatMoveAmount(move.num, move.den)} of your Move`
           : "your whole Move for the turn";
       let moveLine = null;
       if (move && move.kind !== "free" && move.kind !== "capped") {

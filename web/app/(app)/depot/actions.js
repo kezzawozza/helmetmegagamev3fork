@@ -39,6 +39,7 @@ import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { SHUTTLE_LANDED_LINE, SHUTTLE_DEPARTED_LINE } from "@lifeweb/db/lib/depotPass";
 import { COMPANY, DEPOT_ACCOUNT, DEPOT_DEBT, characterParty, record, turnStamp } from "@lifeweb/db/lib/economyLedger";
 import { refreshLiveRooms } from "@lifeweb/db/lib/syncZones";
+import { resourcesOf, takeRoomResources, withoutResources } from "@lifeweb/db/lib/resourceStack";
 
 // The Merchant's station. Same contract as every other player Request
 // (docs/systemdocs/REQUESTS.md): authenticate, re-validate everything the
@@ -199,7 +200,10 @@ async function depotOrderImpl({ items: rawItems }) {
     wanted.set(item?.tagId ?? "", (wanted.get(item?.tagId ?? "") ?? 0) + quantity);
   }
 
-  // ⬢ are a ware but not a Tag, so the sentinel row comes out before the catalog is touched.
+  // ⬢ is priced and packed by hand here rather than through the catalog
+  // query below — RESOURCE_WARE_ID is the `resources` tag's own slug, not a
+  // cuid, so it can never collide with a real ware's id, and pulling it out
+  // first keeps the loop below from having to special-case one row.
   const resourceUnits = wanted.get(RESOURCE_WARE_ID) ?? 0;
   wanted.delete(RESOURCE_WARE_ID);
 
@@ -383,9 +387,14 @@ async function depotSendShuttleImpl() {
   let goodsResources = 0;
   const soldTags = [];
 
+  // ⬢ sitting in the room is its own stack now (room.resources below), not a
+  // ware among the others — pulled out here so the goods loop never resells
+  // it a second time at the ordinary sellablePrice.
+  const goodsTags = withoutResources(room.tags);
+
   // A crate has no sellablePrice of its own — it's a box. Sending one back
   // unopened pays for what is INSIDE it, priced off the live catalog (the crate only stores names and counts).
-  const crateInner = room.tags.filter((rt) => Array.isArray(rt.tag.crateContents));
+  const crateInner = goodsTags.filter((rt) => Array.isArray(rt.tag.crateContents));
   const innerIds = [...new Set(crateInner.flatMap((rt) => rt.tag.crateContents.map((c) => c.tagId)))];
   const innerPrice = new Map(
     innerIds.length
@@ -398,7 +407,7 @@ async function depotSendShuttleImpl() {
       : [],
   );
 
-  for (const rt of room.tags) {
+  for (const rt of goodsTags) {
     const contents = Array.isArray(rt.tag.crateContents) ? rt.tag.crateContents : null;
     const unit = contents
       ? contents.reduce((sum, c) => sum + (innerPrice.get(c.tagId) ?? 0) * c.quantity, 0) +
@@ -415,11 +424,11 @@ async function depotSendShuttleImpl() {
     });
   }
   // Loose ⬢ in the stash go up with the goods, at the station's export price — one rate, one place: the shuttle.
-  const resourcesSpent = room.resources ?? 0;
+  const resourcesSpent = resourcesOf(room);
   const payout = goodsResources + resourcesSpent * RESOURCE_EXPORT_PRICE;
 
   await prisma.$transaction(async (tx) => {
-    for (const rt of room.tags) {
+    for (const rt of goodsTags) {
       // The `{ ok, poisonedTaken, poisonPayload }` return is deliberately
       // ignored: pure destroy, quantity null, no recipient to carry poison
       // state onward. Don't thread poison through a payout that's about to vanish.
@@ -436,11 +445,8 @@ async function depotSendShuttleImpl() {
     }
     if (resourcesSpent > 0) {
       // A conditional decrement, so a concurrent withdrawal can't be paid for twice.
-      const cleared = await tx.room.updateMany({
-        where: { id: room.id, resources: { gte: resourcesSpent } },
-        data: { resources: { decrement: resourcesSpent } },
-      });
-      if (cleared.count === 0) {
+      const cleared = await takeRoomResources(tx, room.id, resourcesSpent);
+      if (!cleared) {
         throw new UserError("The stash moved while you were loading. Try again.");
       }
       // Booked by hand since this conditional decrement isn't a moveParty call — without it the stash silently drifts.

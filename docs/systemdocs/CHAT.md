@@ -95,6 +95,29 @@ line renders in (`shoutChannelKind`/`renderShout` in `shout.js`: full text at
 `"scene"` and fall through to `.chat-subtext`, same as any other bit of
 scenery.
 
+**An OOC line is spelled TWICE, and it has to be.** `[OOC]: hi` at the start of
+a block is a Markdown **link reference definition** — label `OOC`, destination
+`hi` — and a definition renders as nothing, so the line was invisible on /play
+while showing perfectly on Discord, whose parser has no such syntax. It bit
+exactly the messages people send: a single word is a valid link destination, so
+"hi", "brb", "yes?" and any URL all vanished, while "hello there" survived
+because the space makes the destination invalid and it falls back to a
+paragraph. That is why it got through review — the line you try by hand works.
+
+So `db/lib/ooc.js` keeps two: `oocBody()` for Discord, plain, and
+`oocRowBody()` for the archive row, with the brackets escaped
+(`\[OOC\]: …`), which renders as the literal `[OOC]: …` the format promises.
+`deliverOoc` builds both itself rather than taking them as arguments, so no
+caller can hand the escaped one to Discord or the plain one to the archive.
+`db/test/ooc.test.js` pins it.
+
+**The line is `channelKind: "ooc"`** (`db/lib/ooc.js`),
+drawn `.chat-ooc` — subtext-sized like the scenery, because none of it is
+happening in the room either, but with a rule down its left edge so a GM or a
+player can tell it from a smell at a glance. The body already carries its own
+`[OOC]:` tag, so the styling never has to say it twice. It wears no face for the
+same reason every other SYSTEM row does not: nobody's character said it.
+
 Beside, never instead: the poster still posts. And never through the outbox,
 which handles `WEB` rows only — a SYSTEM row can no more be re-posted into the
 channel it came from than a proxied one can.
@@ -180,7 +203,7 @@ DM, and a box to write back into.
 **It is not an archive place.** The whole feed pipeline — `placesFor`, the
 stream's catch-up, `history`, `say`, `feedStore`, the wipe floors — is keyed
 on `ArchiveEntry.seq`. A DM has no seq, must never appear in `/archive` or a
-GM's Scene tab, and must never be wiped by the turn. So Bascinet is a
+GM's transcript views, and must never be wiped by the turn. So Bascinet is a
 **pseudo-place**, the shape the faction banner already had: it is in the
 column and it round-trips through the hash (`#gm`, `DM_PLACE_KEY`), and what
 its row opens is a panel of its own, `DmPane.js`, rather than `Feed`.
@@ -394,10 +417,11 @@ selection.
 `GET /api/feed/places` answers the same list on its own, for a client that has
 reason to think it moved and no stream open to be told.
 
-**`?place=`** narrows a stream to one place. The GM desk's Scene tab (§8) is
-what asks: a GM's place list is every place in every zone they may see, and
-subscribing to hundreds of them to watch one room is silly. It narrows the
-subscription and nothing else — the place still has to be in `placesFor`.
+**`?place=`** narrows a stream to one place. The GM desk's Scene tab asked for
+it — a GM's place list is every place in every zone they may see, and
+subscribing to hundreds of them to watch one room is silly. That tab is gone
+(§8) and nothing asks today, but the narrowing still works and still proves
+nothing: the place has to be in `placesFor` either way.
 
 **Typing.** A third channel, `bascinet_typing`
 (`db/lib/typingNotify.js#notifyTyping`), carrying `{ placeKey, characterId }`
@@ -477,8 +501,7 @@ tab), ⌘K stops offering places and people, and the "Play on Discord too" switc
 is neither drawn nor honoured — except for a character not yet mirrored, who
 keeps it so they can still switch on if Discord is all that's left, and is
 otherwise **not** flipped: check `/gm/players` for who is still off Discord
-before turning Chat off. `/api/feed/*` stays up for the
-Scene tab. Since phase 2 it has **left PageShell**: Chat owns
+before turning Chat off. Since phase 2 it has **left PageShell**: Chat owns
 its whole screen the way the `(desk)` workspaces do, as the `.chat-*` family in
 `globals.css` — a `100dvh` column whose regions scroll inside it, because a
 chat that scrolled the document would drag the header off the top every time
@@ -495,9 +518,86 @@ like everything else.
   lazily-filled ref of the seq the place painted with — a ref rather than
   state, since `react-hooks/set-state-in-effect` is an error here — and sets
   `data-live` above it.
-- **The composer shows a Send button under a coarse (touch) pointer.** The
-  slowmode clock shows before it bites, and a character count is drawn where
-  a command actually caps its text.
+- **The composer is ONE container, the way Discord's is.** The Speak picker,
+  the ✉, the words and the send all sit inside a single rounded box
+  (`.chat-composer-box`, holding one `.chat-composer-row`), on `--surface` —
+  *above* the feed's `--bg` rather than recessed below it in `--field-bg`,
+  because a composer is the place you type, not a hole in the page. The
+  slowmode clock and the character count stay outside it, to its right.
+
+  It was three bordered rectangles standing in a line — a dropdown, a
+  two-line recess, and a solid `--accent-solid` slab stretched to the box's
+  full height — which is three objects to read before you can type into one of
+  them, with the heaviest thing on the page being a button almost nobody
+  presses. **The send is a quiet glyph on both faces now**, `.chat-composer-send`
+  on a desktop and the 44px accent `.chat-send` under a coarse pointer, where
+  it really is the thing a thumb aims at.
+
+  **Every child of `.chat-composer-row` is the same height**, and that is what
+  makes the row read as one line: 26px under a fine pointer, `--tap` under a
+  coarse one. The row is `align-items: flex-end`, so the controls stay level
+  with the LAST line as the box grows — which only looks right if they all
+  start equal. Two need saying so explicitly: the Speak picker, because
+  `.control` brings its own `padding: 8px 10px` and a border, and the textarea,
+  which is `box-sizing: border-box` here so a height means what it means on the
+  buttons beside it (a textarea's `scrollHeight` already includes its padding,
+  so a content-box height counted it twice). The coarse-pointer floor for both
+  lives in the `.chat-shell` touch block rather than the 720px one, or a tablet
+  in landscape draws a 34px box between two 44px buttons.
+- **The box is one line at rest and grows to about six.** `rows={1}` is only
+  the floor; `useComposerAutosize` sets the height off `scrollHeight` — but
+  **only once something is typed**. An empty box clears the inline height and
+  lets CSS own it, because `scrollHeight` counts the PLACEHOLDER: on a narrow
+  screen a wrapping placeholder made an empty box measure 54px against a 44px
+  line and draw itself two lines tall before anybody had touched it. All
+  three composers share that hook — the scene's, Bascinet's pane and the GM's
+  system box — because a one-line box with no autosize scrolls a long message
+  inside a single line instead of growing to hold it.
+- **The textarea shows no focus ring, and the container shows the focus
+  instead.** It drew `outline: 2px solid var(--accent-text)` at a 2px offset,
+  so a focused box read as two frames with a light leak between them.
+  `.chat-composer-box:focus-within` turns its own border `--accent` instead.
+  The override is scoped hard to the composer's textarea: the global
+  `:focus-visible` rule is untouched, and the picker, the ✉ and the send inside
+  the same box all keep their ring. Only the textarea has a caret to stand in
+  for one — do not extend this to anything that hasn't.
+- **The placeholder is "Say something…" and nothing else** — no place name. It
+  said "Say something in {place}…", which wraps to two lines on a phone, and a
+  textarea cannot ellipsis a placeholder, so the second line was cut off. The
+  head names the place directly above the scene on both faces, so the box was
+  repeating it. Two things it still says: **"Say something as {alias}…"** under
+  a hood, which is a warning about the name every row will wear rather than a
+  label for where you are, and the **`aria-label`**, which keeps the place name
+  because words cost a screen reader no pixels.
+
+  "Enter to send · Shift+Enter for a line" used to ride along on the end of it
+  too: permanent chrome, at full size, for something anybody learns on their
+  first message, and the longest thing in the composer. It is gone; the send
+  button's tooltip is what is left, which is why the send stays a labelled
+  `IconButton`.
+- **Speak / Shout / OOC is an inline dropdown at the head of the composer row**
+  on desktop — inside the box now, at the left of `.chat-composer-row`, with
+  its `.control` surface and border taken off so it reads as a label you press
+  rather than a frame inside a frame. On a phone it folds into the `+` beside
+  the words, where the ✉ already lives. It was a `.segmented` strip ACROSS THE
+  TOP of the box for a day, which cost the composer a whole band of chrome for
+  a three-item choice. It stores **no state of its own**: each of the two that
+  is not plain speech is already a command in `./commands.js`, so the control
+  enters command mode and `runCurrent()` does the sending, the clearing, the
+  length cap and the hand-back-on-refusal. Which mode you are in is *derived*
+  from `command` — two copies of "which voice is this" could disagree, and the
+  one in `command` is the one that actually sends. Picking a mode keeps whatever
+  is already typed: it is a change of voice, not a change of subject.
+
+  Which modes appear comes off the same `where` gate the slash list takes, so a
+  place that cannot be shouted in never offers Shout. The server actions
+  re-check it anyway — a server action is a public endpoint and the selector is
+  a hint, not a lock.
+- **A message that looks out of character is refused outright.** A `(`, a `[`,
+  or the bare word "ooc" (`db/lib/oocGuard.js`, gated inside `prepareSpeech`)
+  means nothing is posted and nothing is recorded; the player gets their own
+  text back in a DM pointing them at `/ooc`. Deadchat is exempt — it is out of
+  character by design.
 - **Speech over one message SPLITS.** The count under the box is silent below
   `COUNT_FROM` (1500), then reads `1742/2000`, then `sends as 2 messages`,
   then refuses. `db/lib/say.js#sayInPieces` splits the send with
@@ -568,7 +668,7 @@ they stayed.
 │               │                                            │──────────────────────│
 │               │ · Alexandra is typing…                     │ THIS ROOM            │
 │               │────────────────────────────────────────────│ Storage · 2 loaves,  │
-│ 🔔  web-only  │ [ Say something in Council Room…         ] │ a key                │
+│ 🔔            │ [ Say something in Council Room…         ] │ a key                │
 │               │                                            │ [Drop][Take][Transfer]│
 │               │                                  4 s       │ [Intercom]           │
 │               │                                            │──────────────────────│
@@ -674,10 +774,12 @@ a 48px head and a one-line composer:
   the crumb is dropped, the name is one line, and the description shows only
   once the name has been tapped.
 - **The box is one line and grows** as you type, to about six lines
-  (`Feed.js` sets the height off `scrollHeight` — on a desktop too, where two
-  rows is the floor). Send is the ➤ glyph, and the ✉ and the hood fold behind
-  one ⊕ at the left edge (Discord's +). The textarea is 16px there, or iOS
-  zooms the page on focus. ⊕, the box and ➤ are all 44.
+  (`useComposerAutosize` sets the height off `scrollHeight` — on a desktop too,
+  where one row is the floor on both faces now). Send is the ➤ glyph, and the ✉
+  folds behind one ⊕ at the left edge (Discord's +); the hood is not a button
+  any more, it is `/conceal`. All three sit INSIDE the one container, as they
+  do on a desktop. The textarea is 16px there, or iOS zooms the page on focus.
+  ⊕, the words and ➤ are all 44.
 - **Nothing else takes height.** The typing line sits OVER the last line of
   the scene rather than in a row of its own; the noticeboard scrolls away
   with the feed rather than pinning; the members row of a conversation folds
@@ -872,10 +974,12 @@ a 48px head and a one-line composer:
   `AuditLog` row — `photo_taken`, with the seq in `details`. No `turnId`: that
   column is for the per-turn rations, and this ration is per line.
 
-  **GM remove** is the same route the player's Delete uses. It pays for the
-  `isGm` REST check only when there is no living character to be, writes a
-  `gm_feed_remove` audit row after the removal, and a GM who DOES have a living
-  character takes the player path — the rule `loadFeedViewer` already applies.
+  **GM remove** is the same route the player's Delete uses. It writes a
+  `gm_feed_remove` audit row after the removal, and which of its two callers
+  anybody is comes from `loadFeedViewer` and nowhere else — the seat, not the
+  body (§9a). It used to answer that itself with `character ? false : isGm`, to
+  save a REST call, which is exactly the second copy of the rule §9a says not
+  to keep.
 - **The words themselves go through `ChatMarkdown.js`**, not
   `MarkdownContent.js`, which is still the DM renderer. It is `react-markdown`
   + `remark-gfm` + `remarkTokens` + **`remarkChat.js`**, which adds the three
@@ -1029,8 +1133,10 @@ a 48px head and a one-line composer:
   do either (`/shout` is `["room", "conv"]` now, and `shoutHere` refuses a
   `loc` place key server-side). With nothing left to run in it, the box went:
   what stands there is one grey italic line, *"Go into a room, the zone summary
-  channel, or a conversation to speak."*, and the quill and the hood beside it,
-  which are things you do with your own hands anywhere.
+  channel, or a conversation to speak."*, and the quill beside it, which is a
+  thing you do with your own hands anywhere. (With no box to fold them into,
+  the tools stand beside the sentence — `composerTools` is rendered in one of
+  two places for exactly that reason.)
 
   Three of these are the first web twins of commands that were **Discord-only**
   — `/conceal`, `/shout` and `/roll` — which is to say a character never
@@ -1332,7 +1438,7 @@ a 48px head and a one-line composer:
   The card and the waiting list share **one** 60-second interval (`myMove()`
   and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`
   console shows up here without a reload.
-- **The composer's two hand controls**, beside the send (behind one ⊕ on a
+- **The composer's one hand control**, inside the box (behind one ⊕ on a
   phone).
   A ✉ (`QuillIcon`) opens a small menu of **Write**, **Seal** and **Send
   by bird** — each shown only where the sheet would show it, each opening
@@ -1341,12 +1447,24 @@ a 48px head and a one-line composer:
   in that menu; a blank book is an ordinary craft recipe now and Write is what
   fills one (`PAPERWORK.md` §4a). The bird is
   the one that greys rather than hides: with one already gone today it reads
-  **Sent today**. Beside it, a hood (`HoodIcon`, `aria-pressed`) calls
-  `toggleConceal()` — drawn only where `db/lib/conceal.js` would not refuse
-  outright, and while it is up the composer's placeholder and label read
-  *Say something as {alias}…*, which is the name every row it writes will
-  wear. A toggle ends in `router.refresh()`, because that name is a server
-  prop.
+  **Sent today**.
+
+  **There were two. The hood was the other, and it is gone** — `/conceal` is
+  the whole of it now, on both faces. It was a toggle whose own label read
+  *Take the hood off*, sitting in the row for a thing done a handful of times
+  a game, and `db/lib/conceal.js` refuses from the command exactly as it did
+  from the button.
+
+  **`toggleConceal()` revalidates nothing**, which is the trap that removal
+  left behind. The composer's placeholder and `aria-label` read *Say something
+  as {alias}…* while a hood is up, and the optimistic row wears the alias
+  through `self.aliased` — all of them **server props**. The deleted button was
+  the one caller that called `refresh()` afterwards, so `/conceal` was already
+  toggling the hood with nothing on the page changing until the next
+  navigation. `commandCtx` carries `refresh` now and the `/conceal` entry in
+  `commands.js` calls it on a successful toggle. Anything else that changes a
+  server prop from a command has to do the same — the ctx callback, not a
+  `revalidatePath` nobody in `actions.js` uses.
 - **The place card's two doors** (`PlaceCard.js`). A **Depot ›** link when
   this character is standing at the Depot AND holds the merchant licence or
   the keycard — offered only where it would open, since `/depot` bounces
@@ -1537,8 +1655,9 @@ Four things are read-only:
   does. The Scrying Eye stays where it was too: it is for the room you are
   standing in.
 
-- **A GM speaks nowhere.** A GM with no living character gets a read-only Chat
-  over every place inside `visibleZoneIds(prisma, discordUserId)`
+- **A GM speaks nowhere.** A GM in the GM seat — no living character, or one
+  who picked GM from the View as switch (§9a) — gets a read-only Chat over
+  every place inside `visibleZoneIds(prisma, discordUserId)`
   (`db/lib/gmZoneView.js`; no rows means every zone). Watching is not standing
   there — a GM who wants to say something says it as a GM.
 - **A ghost speaks in exactly one place.** A dead player
@@ -1600,6 +1719,10 @@ The kind carries its own weight and almost nothing else changed:
 
 It is **not** a scene: `isScenePlaceKey` excludes it, so `/shout`, `/play` and
 `/roll` are not offered. You cannot shout across a frequency.
+
+`/ooc` **is** offered, and that is why it has a predicate of its own
+(`isOocPlaceKey`). The three above are things a character does; an OOC line is
+the player, so a frequency is as good a place to ask a question as a room is.
 
 A GM reads both nets and speaks on neither, flat and last in `gmPlacesFor` —
 `GmZoneView` has nothing to say about a channel that is in no zone, and
@@ -1844,7 +1967,7 @@ every call is a pure grant.
 { keepGuests: true })` strips the zone role and every per-member overwrite
 (the Location channel, the zone channels, the narrowcast channels), then the
 Room threads named in `Character.roomThreadRoomIds` and every Conversation in
-`PlayerThreadMember` are left, and the nickname is cleared. The `keepGuests`
+`PlayerThreadMember` are left. The `keepGuests`
 option is the whole difference from a death sweep: a `RoomGuest` row is
 **game state, not Discord state** — somebody let them into that room and
 they are still standing in it. `PlayerThreadMember` rows survive for the
@@ -1865,10 +1988,14 @@ switched N minutes ago. You can switch again at HH:MM."* and **leaves the
 rest of the save standing** — the appearance somebody just typed is not thrown
 away because a cooldown had two minutes left on it.
 
-**What survives either way:** DMs, the OOC report channel (opened by the Player
-role, not per character), guest rows, conversation membership, and the fiction —
-they still stand there and still appear in Who's here?. While off Discord, the
-places column shows one quiet `.chip`, **Playing from the web**.
+**What survives either way:** DMs, guest rows, conversation membership, and the
+fiction —
+they still stand there and still appear in Who's here?.
+
+The places column used to carry one quiet `.chip` reading **Playing from the
+web** while the switch was off. It is gone: it named a state the player had
+chosen on purpose, told them nothing they could act on, and took up the one
+row of the column that has a job.
 
 **The turn-ping role only comes with the switch.** The ping is a
 `<@&DISCORD_TURN_PING_ROLE_ID>` inside the `#turns` console
@@ -1984,40 +2111,65 @@ a dot is "the newest seq here against the newest seq this browser saw here" and
 after a wipe there is no newest seq here until somebody speaks. No second pass,
 no `localStorage` to clear.
 
-## 8. The GM's Scene tab
+## 8. The GM's Scene tab (removed)
 
-The player desk's inspector (`PLAYER-DESK.md` §6) gains a **Scene** tab: what
-is being said where the inspected character is standing, live.
+There was a **Scene** tab on the player desk's inspector: Chat's own `Feed`,
+read-only, narrowed to wherever the inspected character was standing. It was
+deleted along with `SceneTab.js` and the `getCharacterScene` action behind it.
 
-It renders Chat's own `Feed`, not a GM-flavoured copy of it —
-`(desk)/gm/players/SceneTab.js` is a place picker, a stream and that component.
-The runs, the faces, the subtext, the tinted speech and the typing line all
-come out identically, which is the point: a GM reading a scene should be
-reading the player's page, not a transcript of it.
-
-Read-only twice over. `Feed`'s `readOnly` drops the composer, and the GM place
-list carries `canSpeak: false` on every entry anyway (§5a).
-
-`getCharacterScene({ characterId })` builds the list by asking
-`placesFor(prisma, null, { gm: true, discordUserId })` for the GM's **own**
-list and keeping the entries belonging to that character's Location — its
-Rooms and Conversations included. So a zone a GM's `GmZoneView` does not open
-has no scene in it, and the gate is the same one every request re-applies.
-
-It is the first thing to use `InspectorColumn`'s `extraTabs` — a whole tab
-rather than a `tabPreludes` section, because a prelude sits above a base tab's
-own body and this has no base tab to sit above, and because it is a live stream
-that must not take a slot in the shared per-(character, tab) fetch cache.
+`?place=` on the stream (§4) was built for it and is now unused. It is left in
+place — it is a working narrowing on a live endpoint, and removing it is a
+separate change from dropping the one caller.
 
 ## 9. The GM's right column
 
 A GM used to get two controls in the right column: a Noticeboard button on a
 Location that had a board, and the zone rail. Everything else in `ChatAside` is
-built from `viewer.character` in `page.js`, and GM mode is the *absence* of one
-(`web/lib/feedAccess.js#loadFeedViewer` — a GM who is also playing gets the
-ordinary player column). So the one person reading every scene in the game had
-the least on the page: no idea who was standing in the room they were reading,
-what was stashed in it, or which way out was shut.
+built from `viewer.character` in `page.js`, and the GM seat is the *absence* of
+one. So the one person reading every scene in the game had the least on the
+page: no idea who was standing in the room they were reading, what was stashed
+in it, or which way out was shut.
+
+### 9a. Two seats, and the switch between them
+
+A GM has two ways to read `/chat`, and which one they are in used to be decided
+for them: `gm = isGm && !character`. A GM who rolled a character lost the
+watcher's view of every zone the same day they gained a body, which is the
+wrong way round — the view is most useful to somebody who is *also* in the
+game.
+
+So the foot of the places column carries a **View as: GM / Player** switch
+(`PlacesColumn.js`), drawn only for a GM who has a living character. Nobody
+else has two seats: a player has one, and a GM with no character is in the GM
+seat with nothing to switch to.
+
+**The seat is a cookie** (`web/lib/viewAs.js`), not a column. It is a view
+preference — per browser, carrying no game state, changing no Discord role, and
+granting nothing: the GM seat lists the places `GmZoneView` already allows
+(`gmPlacesFor` → `visibleZoneIds`), which is the same gate the GM desks use.
+That is also why it meshes with the Zones I see picker rather than replacing
+it: the picker is right there in `GmAside`, deciding what the GM seat contains.
+
+**One decision, one place.** `loadFeedViewer` reads the cookie and then hands
+back `character: null` in the GM seat. That single line is what carries the
+switch through `/chat`'s render, the SSE stream, `/api/feed/history`,
+`/api/feed/places` and `/api/feed/search` at once — `placesFor` ignores the
+character entirely once `gm` is set, so every one of them takes the watcher's
+path with no edit of its own, and `page.js` stops building a right column and
+starts computing `gmZones`. Two things ride alongside it: `playing`, the real
+character, for the handful of places that belong to the ACCOUNT rather than the
+body (the Bascinet DM thread, on both faces of §2b), and `canViewAsGm`, which
+is what draws the switch.
+
+Anything that answers the seat question *itself* is a second copy of the rule
+and will fall out of step. `/api/feed/delete` had one — `character ? false :
+isGm` — so a GM who flipped seats got the Remove button and a refusal from the
+route behind it. It goes through `loadFeedViewer` now.
+
+**Flipping seats reloads the page.** Not `router.refresh()`: the open SSE
+connection resolved its viewer when it connected and never re-gates itself, and
+the places, feed and seen stores are all keyed to the list about to be replaced
+whole.
 
 `GmAside.js` is that column, and it is deliberately the SAME SHAPE as
 `ChatAside` — the same tab strip, the same `.chat-aside-tabs` /
@@ -2063,9 +2215,34 @@ not have offered would make the action the way around the zone view.
 
 `db/lib/whosHere.js#whosHereGm` and `db/lib/presentedMembers.js`'s `gm` option.
 Both answer with the real name, and both add `presentedAs` — the alias the
-people in the room actually see. "Cersei Hristov, showing as a hooded figure"
-is the thing a GM reading a scene needs and the one thing the player's own list
-can never tell them.
+people in the room actually see. That is the thing a GM reading a scene needs
+and the one thing the player's own list can never tell them.
+
+**It reads as `a hooded figure (Cersei Hristov)`** — what the room sees, with
+the name behind it in brackets. Both in the column's Here list and on a line in
+the scene beside it, and it is the form `/archive` has always used. It used to
+be the real name with `showing as a hooded figure` on a second quiet line
+underneath, which read as two people until you looked twice. There is no
+tooltip and nothing to hover: a host either sees through a hood or does not.
+
+**The scene's half is resolved on the CLIENT, and that is not laziness.** A
+hooded row reaches the browser with its `characterId` withheld and a
+`speakerKey` in its place, and `db/lib/archive.js#feedRowShape` withholds it per
+ROW rather than per reader — `web/lib/feedHub.js` shapes one row and fans it to
+every watcher of a place, so there is no per-reader decision to be made down
+there without making it for whoever happened to subscribe first.
+
+So the GM is handed the key ring instead of a different scene:
+`web/lib/gmSpeakers.js#speakerDirectory` is `speakerKey` → real name, built off
+`db/lib/hoodToken.js`'s HMAC, which is stable for as long as `AUTH_SECRET` is.
+One map resolves every row the page will ever hold — the first paint, the live
+stream, the history fetch and search alike — and it only ever goes to a GM.
+`page.js` seeds it when `viewer.gm`; `chat/actions.js#gmSpeakerNames` re-serves
+it, throttled, when `Feed.js` meets a key it does not know, which is somebody
+born since the page painted.
+
+A forced name (Apex Form's "Beast") reads the same way. It is the same case:
+the room is not hearing the speaker's own name.
 
 `whosHereGm` is a sibling of `whosHere` rather than a flag on it, because the
 answer is a different SHAPE and not the same shape with something withheld:

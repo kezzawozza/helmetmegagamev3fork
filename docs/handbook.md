@@ -20,7 +20,6 @@
     - [Reactions](#reactions)  
 7. [Resources & Hunger](#resources--hunger)  
     - [Transferring Resources](#transferring-resources)  
-    - [Upkeep](#upkeep)  
     - [Hunger](#hunger)  
 8. [Submitting A Move](#submitting-a-move)  
     - [Routine, Gambit, or Labor](#routine-gambit-or-labor)  
@@ -260,7 +259,9 @@ You can interact with messages posted in roleplay channels by adding a Reaction.
 
 ## Resources & Hunger
 
-Resources in Bascinet are shown with the ⬢ symbol. They represent your access to food, coin, and bulk goods.
+Resources in Bascinet are shown with the ⬢ symbol. They are bulk material — the stuff a smith forges with, a cook cooks with and a doctor patches you up with.
+
+**⬢ are a thing you carry, not a number on your sheet.** Each one weighs a pound, they sit in your pack beside everything else you own, and they can be put down in a room, handed over, stolen, pickpocketed and looted off your body exactly like any other item. A large fortune is a genuinely heavy load, and somewhere to keep it is a real problem.
 
 ### Transferring & Storage
 
@@ -270,17 +271,13 @@ Transfer is give-only, both ways — you can never take ⬢ or an item from anot
 
 The **Storage** button on a room's first post lists what's there.
 
-### Upkeep
-
-Each turn your character spends 1 ⬢ on upkeep to feed yourself. You never need to account for this in your Move — it happens automatically. If you don't have at least 1 ⬢ to spend, your character becomes {tag:hungry}.
-
-A character with {tag:fast-metabolism} eats 2 ⬢ a turn instead of 1. If they don't have 2 ⬢, nothing is taken and they become {tag:hungry}.
-
-If your character has the {tag:ate-meal} tag or the {tag:hungerless} tag, you stay fed without paying the upkeep.
-
 ### Hunger
 
+**You have to actually eat.** At the end of every turn the game asks one question: did you have a meal today? If you did — you ate something, and it left you with the {tag:ate-meal} tag — you are fed. If you didn't, you go {tag:hungry}. Holding ⬢ does not feed you; raw material is not dinner.
+
 Hunger gives a penalty to Gambit rolls. The first turn you spend hungry causes a −1 penalty, worsening by 1 every turn you remain hungry.
+
+A character with {tag:hungerless} never goes hungry at all.
 
 Eating removes **one turn's worth** of Hunger, not all of it. If you've gone several turns without eating, one meal only brings the penalty down by 1 — you need to eat every turn to fully recover, the same number of turns it took you to build the penalty up.
 
@@ -392,7 +389,7 @@ Tags are gained, used, and removed via options on your [Character](https://raven
 
 **Stacks:** Some tags can stack, such as meals or ammunition. A stacked chip will show the count, such as `×4`.
 
-**Carrying:** Everything you own has a weight, and you can carry 71 lb of it to start, plus 25 ⬢. Skills and wounds weigh nothing, and neither do your **Assets** — a horse carries itself, and a house doesn't move. Being **Strong**, being a **Pack Mule**, or pulling an equipped **Cart** raises both caps.
+**Carrying:** Everything you own has a weight, and you can carry 71 lb of it to start. That includes your ⬢, at a pound each — there is one cap, and your savings compete with your armour for room in it. Skills and wounds weigh nothing, and neither do your **Assets** — a horse carries itself, and a house doesn't move. Being **Strong**, being a **Pack Mule**, or pulling an equipped **Cart** raises the cap.
 
 You can go over. Past the cap you're **Overburdened**, which costs you your free Zone moves — you can still travel, you just spend your Move to do it. Past *half again* the cap, though, it simply can't be yours: someone handing it to you is refused, and anything that arrives on its own (a day's harvest, a cave's loot) lands on the floor of a random public room where you stand.
 
@@ -442,7 +439,7 @@ When you 🔍 a character you will see tags marked as visible, such as clearly w
 
 ### Health Tags
 
-Health tags are your wounds, illnesses, and other ailments. A doctor treats them with Heal, based on how severe the tag is and their own Medical skill. The most trivial injuries are free, up to 4 a turn for any doctor; anything else always costs at least a quarter of their Move, and the gravest surgeries take a whole Move and 14 ⬢ — the very worst of them on a roll of the dice.
+Health tags are your wounds, illnesses, and other ailments. A doctor treats them with Heal, based on how severe the tag is and their own Medical skill. The most trivial injuries are free, up to 4 a turn for any doctor; anything else always costs at least 0.25 of their Move, and the gravest surgeries take a whole Move and 13 ⬢ — the very worst of them on a roll of the dice.
 
 Some items cure a specific ailment outright the moment you Consume them, no doctor needed — a tonic, a dressing, a prosthetic fitted onto a lost limb. A few of those still need someone medically trained to apply, even to their own body.
 
@@ -455,7 +452,7 @@ Even if a doctor doesn't possess the skills needed to heal an injury or ailment,
 
 ## Crafting
 
-Press **Craft** on your [Character](https://ravenheart.quest/character) page, pick a recipe you already hold the skills for, and it pays its ⬢ cost right away — from your own purse, a room stash you're in, or someone standing with you who agrees to pay. It files as your Routine for the turn. A **Dead Simple** recipe needs no Move at all, just a cap of 4 a turn; anything past that becomes a real Move, and a long recipe becomes a multi-turn **project** you keep working at from the same button turn after turn — or cancel outright, with no refund for what's already gone in.
+Press **Craft** on your [Character](https://ravenheart.quest/character) page, pick a recipe you already hold the skills for, and it pays its ⬢ cost right away — from your own purse, a room stash you're in, or someone standing with you who agrees to pay. It files as your Routine for the turn. A **Dead Simple** recipe needs no Move at all, just a cap of 4 a turn; anything past that becomes a real Move. Quick work costs only part of one — a recipe listed at 0.25 turns is a quarter of your Move, so you can make 4 of them in a day, and the Craft window tells you how much of your Move is left before you commit. A long recipe becomes a multi-turn **project** you keep working at from the same button turn after turn — or cancel outright, with no refund for what's already gone in.
 
 **What you can make depends on your skills.** A handful of skill families gate crafting, each opening a different slice of the world's recipes:
 
@@ -496,7 +493,7 @@ Your [Character](https://ravenheart.quest/character) page contains your characte
 | Row | Meaning |
 |---|---|
 | **Location** | The Location you're standing in, and its Zone. |
-| **Resources** | Your personally held ⬢. |
+| **Resources** | The ⬢ you are carrying. A pound each, counted against your weight cap. |
 | **Gambit** | The modifier for your Gambit die. |
 | **Tag Points** | Points available to spend on new tags. |
 | **This turn** | Displays whether you've submitted a Move for this turn. If not, you'll Labor instead — if you can. |

@@ -12,40 +12,45 @@ const { parseStartingTag } = require("./startingTags");
 const { expiryForGrant } = require("./grantExpiry");
 const { seedMemories } = require("./locationVisits");
 const { startingMemorySlugs } = require("./startingMemories");
-const { formatCharacterName, formatBareName, AGE_MIN } = require("./characterName");
-const { setGuildNickname } = require("./discordRest");
+const { formatCharacterName, AGE_MIN } = require("./characterName");
 const { closeDeadchatTo } = require("./deadchat");
 const { randomCharacterName } = require("./nameCorpus");
 const { GENDERS } = require("./titles");
 const { isDynastyMember, DYNASTY_HEAD_SLUG } = require("./dynasty");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { sendDm } = require("./dm");
+const { addCharacterResources } = require("./resourceStack");
 
-// Half the default `startingTagPoints` of 12, not a second full budget: a
+// Half the default `startingTagPoints` of 8, not a second full budget: a
 // second life, not a better one.
-const REINCARNATION_BONUS_POINTS = 6;
+const REINCARNATION_BONUS_POINTS = 4;
 
 // Short of the catalog's own AGE_MAX of 90 on purpose: a uniform 18-90 roll
 // averages 54, and db/lib/concealedIdentity.js reads 55+ as "Old", so half of
-// all reincarnations would wake up elderly. 18-65 averages 41, landing most
-// souls in the middle band with no age adjective.
-const REINCARNATION_AGE_MAX = 65;
+// all reincarnations would wake up elderly. 18-49 averages 33 and stays a
+// comfortable margin below "Old", landing every soul in the middle band with
+// no age adjective.
+const REINCARNATION_AGE_MAX = 49;
 
 // Points arrive UNSPENT on Character.tagPoints — no wizard menu to spend
 // them in, but /store already spends this column mid-game.
 
 // Who the new body turns out to be: a transmigrated soul wakes up as somebody
-// ELSE, nothing inherited from the corpse. Same three rolls
-// web/app/actions.js#startAsLocalPlayer makes: uniform gender, then a name
-// from db/lib/nameCorpus.js (NEUTRAL draws from both pools). No name-collision
-// check — Character.name is a denormalized display mirror, not a key.
+// ELSE, nothing inherited from the corpse. A coin flip between MAN and WOMAN —
+// a reincarnated soul lands in a body that reads as one or the other, never
+// the third pool NEUTRAL draws from. Then a name from db/lib/nameCorpus.js
+// gendered off that roll. No name-collision check — Character.name is a
+// denormalized display mirror, not a key.
 // Two things are NOT rolled: `role.lockedGender` wins (Baroness/Heir/Successor
 // set it; rolling over it would style a male Baroness off the wrong word), and
 // the dynasty surname is FETCHED from the living Baron (db/lib/dynasty.js),
 // never rolled — no living Baron means no last name at all
 // (web/lib/dynasty.js#dynastyLastName answers the same way).
+const REINCARNATION_GENDERS = GENDERS.filter((g) => g !== "NEUTRAL");
 async function rollIdentity(prisma, role) {
-  const gender = role.lockedGender ?? GENDERS[Math.floor(Math.random() * GENDERS.length)];
+  const gender =
+    role.lockedGender ??
+    REINCARNATION_GENDERS[Math.floor(Math.random() * REINCARNATION_GENDERS.length)];
   const lastNameLocked = isDynastyMember(role.slug);
   const { firstName, lastName } = randomCharacterName({ gender, lastNameLocked });
 
@@ -119,7 +124,7 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
   // Seat's own bonus counts (web/lib/characterCreation.js#computeBudget); the
   // Cursed penalty does NOT apply since the soul found a body.
   const budget =
-    (config?.startingTagPoints ?? 12) + (role.extraStartingPoints ?? 0) + REINCARNATION_BONUS_POINTS;
+    (config?.startingTagPoints ?? 8) + (role.extraStartingPoints ?? 0) + REINCARNATION_BONUS_POINTS;
 
   // Role's own kit, resolved like the wizard: entries may carry a count ("obol x5"), summed not repeated.
   const wanted = new Map();
@@ -158,7 +163,6 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
         // Denormalization contract: every locationId writer also writes zoneId.
         locationId: role.startingLocationId ?? null,
         zoneId: role.startingLocation?.zoneId ?? null,
-        resources: role.startingResources,
         // Unspent, on purpose — see the bonus note above.
         tagPoints: budget,
         isLeader: role.grantsLeader,
@@ -182,6 +186,10 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
         },
       });
     }
+
+    // Starting ⬢ come after the row, not on it: they are a stack now, so there
+    // is no column left to set on the create.
+    await addCharacterResources(tx, character.id, role.startingResources ?? 0);
     return character;
   };
 
@@ -221,13 +229,11 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
     startingMemorySlugs(role.slug, new Set(startingTags.map((t) => t.slug))),
   ).catch((err) => console.error(`Reincarnation memories failed for ${created.id}:`, err.message ?? err));
 
-  // Alive again: ghost seat off, guild sees the new name — same two steps
-  // db/lib/threatSpawn.js takes for a spawned character. Belt to
+  // Alive again, so the ghost seat comes off. Belt to
   // db/lib/deathTeardown.js#stillAlive's brace, since the web's killCharacter
   // revokes access BEFORE writing the death row. The curse itself needs no
   // write — db/lib/curse.js derives it from this character being ALIVE.
   await closeDeadchatTo(prisma, discordUserId).catch(() => {});
-  await setGuildNickname(discordUserId, formatBareName(created)).catch(() => {});
 
   // Plain, not `-#`: sendDm's `»` prefix (CLAUDE.md) makes a `» -#` line render as neither.
   await sendDm(

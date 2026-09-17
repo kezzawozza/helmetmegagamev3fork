@@ -31,7 +31,10 @@ import {
   healCost,
   isGambitHeal,
   isHealable,
+  isMiracleable,
+  MIRACLE_PER_TURN,
   needsSurgicalSite,
+  SAINT_SLUG,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
 import {
@@ -183,7 +186,10 @@ export async function healCharacterRequestImpl({
       const already = await routineHealsThisTurn(db, session.discordUserId, openTurn.id);
       if (already < MEDICAL_SIMPLE_PER_TURN) return null;
       return craftMoveCost(
-        { requirementTurns: 1, requirementPerTurn: MEDICAL_SIMPLE_PER_TURN },
+        // A quarter of a Move, the Simple rung's own cost — what a cure past
+        // the medic's free pool bills. MEDICAL_SIMPLE_PER_TURN is the SIZE of
+        // that pool; the two happen to agree at four a turn.
+        { requirementTurns: 1 / MEDICAL_SIMPLE_PER_TURN },
         { quantity: 1, family: "medical" },
       );
     }
@@ -413,3 +419,94 @@ export async function healCharacterRequestImpl({
   };
 }
 
+// --- Perform Miracle -------------------------------------------------
+// Saint's free instant cure (docs/tags.yaml `saint:`): twice a turn, on
+// somebody else's Moderate-or-lesser wound. No ⬢, no Move, no Medical
+// training. Own AuditLog count — never touches MEDICAL_SIMPLE_PER_TURN.
+
+async function miraclesThisTurn(db, discordUserId, turnId) {
+  if (!turnId || !discordUserId) return 0;
+  return db.auditLog.count({
+    where: {
+      actorDiscordUserId: discordUserId,
+      actionType: "request_perform_miracle",
+      turnId,
+    },
+  });
+}
+
+export async function performMiracleRequestImpl({ targetCharacterId, tagId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
+  if (!heldSlugs.has(SAINT_SLUG)) {
+    throw new UserError("Only a Saint may perform a miracle.");
+  }
+  if (targetCharacterId === character.id) {
+    throw new UserError("A Saint doesn't perform miracles on themselves.");
+  }
+  if (!character.locationId) {
+    throw new UserError("You aren't anywhere you could touch anyone.");
+  }
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    include: { tags: { include: { tag: true } } },
+  });
+  if (!target || !isHere(character, target)) throw new UserError(notHereMessage(target));
+
+  const held = target.tags.find((ct) => ct.tagId === tagId);
+  if (!held || !isMiracleable(held.tag)) {
+    throw new UserError("That isn't a wound a miracle could touch.");
+  }
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open.");
+
+  // Fast fail before the transaction — the row-locked re-count below is what
+  // actually holds under a race.
+  if ((await miraclesThisTurn(prisma, session.discordUserId, openTurn.id)) >= MIRACLE_PER_TURN) {
+    throw new UserError("You've used both miracles this turn.");
+  }
+
+  const effect = {
+    targetCharacterId: target.id,
+    targetName: target.name,
+    tagId: held.tagId,
+    tagSlug: held.tag.slug,
+    tagName: held.tag.name,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    // Sorted-id lock — same deadlock avoidance the heal action uses when two
+    // Saints in one Room miracle each other's neighbours.
+    const lockIds = [character.id, target.id].sort();
+    for (const id of lockIds) await lockCharacter(tx, id);
+
+    if ((await miraclesThisTurn(tx, session.discordUserId, openTurn.id)) >= MIRACLE_PER_TURN) {
+      throw new UserError("You've used both miracles this turn.");
+    }
+
+    const heldNow = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId: target.id, tagId: held.tagId } },
+    });
+    if (!heldNow) {
+      throw new UserError(`${target.name} no longer has that.`);
+    }
+
+    await dropCharacterTag(tx, target.id, held.tagId);
+
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_perform_miracle",
+      targetCharacterId: target.id,
+      turnId: openTurn.id,
+      details: effect,
+    });
+  });
+
+  await afterInventoryChange([target.id]);
+  notifyCharacter(target, `${character.name} healed your ${held.tag.name} with a miracle.`);
+  revalidateAll();
+  return { targetName: target.name, tagName: held.tag.name, name: target.name };
+}

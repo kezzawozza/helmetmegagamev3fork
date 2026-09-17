@@ -26,8 +26,9 @@ export default function StatusStrip({
 }) {
   const worn = tags.filter((ct) => SHOWN_CATEGORIES.has(ct.tag?.category));
   // Sheet's own arithmetic: floor of 1 under the cap, so a capless character can't divide by zero.
+  // ⬢ no longer carries its own cap — it is a one-pound item now, weighed in
+  // beside the gear (db/lib/carry.js), so the single weight cap covers it.
   const over = Boolean(carry && carry.weightUsed > carry.weightCap);
-  const overResources = Boolean(carry && carry.resources > carry.resourcesCap);
   const loadPct = carry
     ? Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))
     : 0;
@@ -35,9 +36,10 @@ export default function StatusStrip({
   return (
     <>
       <div className="chat-chips">
-        {/* Each chip reddens for its OWN cap, not the ORed `carry.over`. */}
+        {/* The ⬢ chip has no cap to redden for — ⬢ weigh a pound each and
+            count on the Carrying chip beside it, which is the one that warns. */}
         {numbers && (
-          <span className="chip chip-mono" data-tone={overResources ? "danger" : undefined}>
+          <span className="chip chip-mono">
             {resources} ⬢
           </span>
         )}

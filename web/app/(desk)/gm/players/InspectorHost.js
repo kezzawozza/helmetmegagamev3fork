@@ -8,7 +8,7 @@ import DevPanelModal from "@/app/components/DevPanelModal";
 import usePins from "@/app/components/usePins";
 import BulkComposer from "./BulkComposer";
 import CanonTab from "./CanonTab";
-import SceneTab from "./SceneTab";
+import AdminNotes from "@/app/components/AdminNotes";
 import GmZoneRail from "@/app/components/GmZoneRail";
 
 // The player desk's half of the shared inspector (the other is
@@ -150,14 +150,18 @@ export default function InspectorHost({
     [segment],
   );
 
-  // The one tab this desk adds outright rather than as a prelude: the live
-  // scene where this character is standing (CHAT.md §8). It is a stream, not a
-  // snapshot, so it has nothing to sit above and nothing to put in the shared
-  // fetch cache. Keyed on the character, so switching people remounts it and
-  // its stream moves with them.
+  // The one tab this desk adds outright rather than as a prelude. It has no
+  // base tab to sit above, and it must NOT take a slot in the shared
+  // per-(character, tab) cache: notes are keyed on the PLAYER, so two
+  // characters on one account share one list, and a cache keyed on the
+  // character would hold two entries for it that could silently disagree. An
+  // extra tab is skipped by that cache, so this is the right seam as well as
+  // the only one. Keyed on the player for the same reason.
   const extraTabs = useMemo(
     () => ({
-      "Scene": ({ inspected: who }) => <SceneTab key={who.characterId} characterId={who.characterId} />,
+      "Notes": ({ inspected: who }) => (
+        <AdminNotes key={who.discordUserId} discordUserId={who.discordUserId} />
+      ),
     }),
     [],
   );

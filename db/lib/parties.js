@@ -1,6 +1,8 @@
 // A "party" is either a character or a Room stash, resolved to one uniform shape so a transfer never has to branch on which side of it it's looking at. The turn-end push (db/lib/stagedPush.js) and every GM transfer surface resolve the same key the player-facing TRANSFER_RESOURCES request does.
 // Takes `prisma` as the first parameter, same reason as db/lib/dm.js: db/index.js is the one importing this module, so requiring it back would resolve to a partial (prisma-less) exports object.
 
+const { RESOURCES_SELECT, resourcesOf } = require("./resourceStack");
+
 // "character:<id>" / "room:<id>". Prisma DELETES an undefined field from a where clause rather than matching nothing, so a malformed key with no id would quietly match "any living character" — `?? ""` matches nobody instead.
 async function resolveParty(prisma, key, { allowDead = false } = {}) {
   const [kind, id] = (key ?? "").split(":");
@@ -13,7 +15,7 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
       select: {
         id: true,
         name: true,
-        resources: true,
+        ...RESOURCES_SELECT,
         zoneId: true,
         locationId: true,
         status: true,
@@ -27,7 +29,7 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
           kind,
           id: c.id,
           name: c.name,
-          balance: c.resources,
+          balance: resourcesOf(c),
           zoneId: c.zoneId,
           locationId: c.locationId,
           status: c.status,
@@ -45,7 +47,7 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
         id: true,
         name: true,
         kind: true,
-        resources: true,
+        ...RESOURCES_SELECT,
         locationId: true,
         accessTagSlugs: true,
         destroysContents: true,
@@ -58,7 +60,7 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
           kind,
           id: r.id,
           name: r.name,
-          balance: r.resources,
+          balance: resourcesOf(r),
           zoneId: r.location.zoneId,
           locationId: r.locationId,
           locationName: r.location.name,

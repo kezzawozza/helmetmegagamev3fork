@@ -3,7 +3,6 @@ import Link from "next/link";
 import { prisma, CATATONIC_SLUG, OBOL_SLUG } from "@lifeweb/db";
 import { roomAccessKeys, accessibleRooms } from "@lifeweb/db/lib/roomAccess";
 import { knownRooms } from "@lifeweb/db/lib/locationVisits";
-import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole } from "@/lib/factionPermissions";
 import { loadFaction } from "@/lib/factionView";
@@ -309,25 +308,22 @@ async function buildPlayerProps(session, me) {
 }
 
 export default async function FactionPage({ searchParams }) {
-  const session = await auth();
+  const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
-  const [{ isGm: gm }, myCharacter] = await Promise.all([
-    getGmSession(),
-    prisma.character.findFirst({
-      where: { discordUserId: session.discordUserId, status: "ALIVE" },
-      select: {
-        id: true,
-        factionId: true,
-        zoneId: true,
-        // Both only for the silo ledger's reading gate (db/lib/reading.js):
-        // the held tags answer literacy and eyes, and indoors is half of what
-        // Sun Sensitivity needs.
-        location: { select: { indoors: true } },
-        tags: { select: { equipped: true, tag: { select: { slug: true } } } },
-      },
-    }),
-  ]);
+  const myCharacter = await prisma.character.findFirst({
+    where: { discordUserId: session.discordUserId, status: "ALIVE" },
+    select: {
+      id: true,
+      factionId: true,
+      zoneId: true,
+      // Both only for the silo ledger's reading gate (db/lib/reading.js):
+      // the held tags answer literacy and eyes, and indoors is half of what
+      // Sun Sensitivity needs.
+      location: { select: { indoors: true } },
+      tags: { select: { equipped: true, tag: { select: { slug: true } } } },
+    },
+  });
 
   const params = await searchParams;
   const requestedFactionId = params?.factionId?.toString() || "";

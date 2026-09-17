@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
@@ -20,7 +19,7 @@ import { statusWord } from "@lifeweb/db/lib/structures";
 // mounts the shell, and streams FreshStructures in behind it. A browser that has
 // been here before paints its last data in the first frame.
 export default async function StructuresPage() {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   return (
     <SnapshotPage scope="gm-structures" userId={session.discordUserId} render={StructuresView} fallback={<Loading />}>

@@ -198,16 +198,27 @@
 #                     One shared block covers whichever direction applies to
 #                     a given tag - e.g. crafting a sword only cares about the
 #                     cost to add it, curing Arthritis only about removing it.
-#     turnsCost     - the WORK one unit takes, in Moves. For a craft, 0 means
-#                     Dead Simple (no Move, rationed per turn), 1 means this
-#                     turn's whole Routine, more means a multi-turn project
-#                     (one unit per project). A FRACTION `1/N` means a unit
-#                     is 1/N of a turn's work, so N of them fill a Routine
-#                     and a spare half-turn takes more work of the same
-#                     family. Quantity is limited by this arithmetic alone -
-#                     never by a separate cap (Chris 2026-09-06).
+#     turnsCost     - the WORK one unit takes, in Moves, as a DECIMAL on a
+#                     quarter. 0 means Dead Simple (no Move, rationed per
+#                     turn); 0.25, 0.5 and 0.75 are shares of a Routine, so
+#                     four / two / one of them fill it and a spare part-turn
+#                     takes more work of the same family; 1 means this turn's
+#                     whole Routine; more means a multi-turn project (one unit
+#                     per project, whole turns only). Quantity is limited by
+#                     this arithmetic alone - never by a separate cap (Chris
+#                     2026-09-06).
+#                     Quarters, and the sync refuses anything else: the Move
+#                     budget is exact rational arithmetic, and a cost it cannot
+#                     hold exactly lets a character do work they never paid for.
+#                     It was a `1/N` fraction until 9/2026.
 #     resourceCost  - ⬢, charged up front by Craft, per unit
 #     skills        - list of skill tag slugs required; multiple accepted
+#     cureRung      - wounds only, and REQUIRED on them: which rung of the
+#                     cure ladder above this sits on, 0 to 7 (half rungs 0.5
+#                     and 3.5 exist for the named exceptions). It is what the
+#                     mood dial reads - see db/lib/mood.js#woundRungOf - and
+#                     it is authored rather than worked out from the price,
+#                     so severity and cost can be tuned apart.
 #     gambit        - cures only: whether the medic rolls a Gambit. Crafting
 #                     is always a Routine and ignores this. A cure ABOVE the
 #                     medic's own tier is a Gambit whatever this says; this
@@ -217,9 +228,11 @@
 #                     in a turn. ONLY legal at turnsCost: 0, where it caps a
 #                     Dead Simple recipe below the shared pool (bliss at 2).
 #                     Omit it and a Dead Simple recipe falls back to
-#                     DEAD_SIMPLE_PER_TURN (4). It is never a work cost -
-#                     write work as turnsCost: 1/N; the sync refuses perTurn
-#                     on anything that costs a Move.
+#                     DEAD_SIMPLE_PER_TURN (4). It is never a work cost - work
+#                     is turnsCost, and 0.25 is how you say "four a Routine".
+#                     The sync refuses perTurn on anything that costs a Move.
+#                     (It used to double as the denominator of a `1/N` cost,
+#                     which is why the column once meant two things.)
 #   expiresInto     - what this tag turns INTO when its durationTurns runs
 #                     out, instead of simply being swept away. This is the
 #                     untreated-wound chain: Infected festers, Festering goes
@@ -264,13 +277,19 @@
 # docs/systemdocs/TAGS.md §5c.
 #
 #   Tier 0  untreatable            no requirement block at all
-#   Tier 1  very minor, first aid  1 ⬢,  0 turns, medical-basic
-#   Tier 2  minor                  2 ⬢,  1/4 turn, medical-basic
-#   Tier 3  moderately severe      2 ⬢,  1/3 turn, medical-skilled
-#   Tier 4  severe                 4 ⬢,  1/3 turn, medical-skilled
-#   Tier 5  very minor surgery     7 ⬢,  1/2 turn, medical-skilled
-#   Tier 6  severe surgery         14 ⬢, 1 turn,   medical-expert
-#   Tier 7  complex surgery        14 ⬢, 1 turn,   medical-expert, gambit
+#   Tier 1  very minor, first aid  1 ⬢,  0 turns,    medical-basic
+#   Tier 2  minor                  2 ⬢,  0.25 turns, medical-basic
+#   Tier 3  moderately severe      2 ⬢,  0.25 turns, medical-skilled
+#   Tier 4  severe                 4 ⬢,  0.25 turns, medical-skilled
+#   Tier 5  very minor surgery     7 ⬢,  0.5 turns,  medical-skilled
+#   Tier 6  severe surgery         14 ⬢, 1 turn,     medical-expert
+#   Tier 7  complex surgery        14 ⬢, 1 turn,     medical-expert, gambit
+#
+# Pick the rung, copy the block, AND SET `cureRung:` to match — the mood dial
+# reads that field, not the price (db/lib/mood.js). It used to work the rung
+# out from the ⬢ and the turns, which is why tiers 2 and 3 had different turn
+# costs; costs are decimals now and those two tiers cost the same, so the rung
+# is written down. The sync refuses a wound that does not carry one.
 #
 # The top three rungs are the surgical ones, and they are where the ladder
 # does its real work. A Serpent closes an arterial bleed and cuts away dead
@@ -925,7 +944,7 @@ tags:
     category: general
     group: general-traits
     description: "A reflection of your soul, with your choice of name. It can appear and disappear at will, and punch things hard and fast. Beware! Any damage it takes is reflected onto you."
-    fighting: { situational: true }
+    fighting: { tree: melee, tiers: 2.5 }
     pointCost: 0
     visible: false
     purchasable: false
@@ -1469,6 +1488,17 @@ tags:
   # keepSlug: renamed from "Fast Metabolism" 2026-09-05, but the slug is
   # hardcoded in db/lib/constants.js and read by db/lib/hungerPass.js, so it
   # stays what it is.
+  # INERT, AND WORTH −6 POINTS — read this before the next balance pass.
+  # Its whole mechanic was doubling the Hunger pass's per-turn ⬢ charge from 1
+  # to 2. That charge was removed in 9/2026: eating is a meal on the sheet now,
+  # not a debit (db/lib/hungerPass.js). So this currently does NOTHING, while
+  # still paying its holder 6 points for the drawback.
+  #
+  # Left in the catalog rather than retired on purpose — the foodstuff-items
+  # work has an obvious home for it (needing two meals a turn rather than one),
+  # and retiring it would only have to be undone. The description below is
+  # written for what it is going to mean; until that lands it is unenforced.
+  # Either give it teeth or drop it to 0 points before anybody buys one.
   fast-metabolism:
     catalog: all
     name: Big Appetite
@@ -1477,7 +1507,11 @@ tags:
     group: general-traits
     description: "You get hungry twice as fast as anyone else."
     pointCost: -6
-    purchasable: true
+    # OFF the creation menu until it means something. It is a drawback worth 6
+    # points, and while it is unenforced those are 6 free points for accepting
+    # nothing — the one thing that must not be true of a negative-cost tag.
+    # Turn this back on in the same change that gives it teeth.
+    purchasable: false
     purchasableAfterStart: false
 
   # Sign flip 2026-08-31 (Desires rework): was a -2 drawback, now a +2
@@ -1935,7 +1969,7 @@ tags:
     name: Subtle
     category: general
     group: general-traits
-    description: "You are talented at whispering and saying things quietly. The room never notices you doing it."
+    description: "Your whispers can't be heard by others."
     pointCost: 2
     visible: false
     purchasable: true
@@ -2166,7 +2200,7 @@ tags:
     name: Saint
     category: general
     group: general-beliefs
-    description: "You are at peace. Once per day, you can instantly cure a Moderately Severe or lesser wound (refer to the Medical document). You cannot fight anyone, not even in self-defense. You'd rather let yourself be killed."
+    description: "You are at peace. Twice a turn, you can instantly cure someone else's Moderate or lesser wound (refer to the Medical document). You cannot fight anyone, not even in self-defense. You'd rather let yourself be killed."
     fighting: { situational: true }
     pointCost: 14
     visible: true
@@ -2410,7 +2444,9 @@ tags:
   # Two Brigand-group entries that are skills in everything but their category.
   # The Brigand gate is a GROUP gate (taggroups.yaml `general-brigand`), and a
   # group's category has to match its tags', so a brigand-only competence has
-  # to be filed under `general` — same reason Forger and Pickpocket already are.
+  # to be filed under `general` — same reason Forger and Pickpocketing (Skilled)
+  # already are. (Pickpocketing (Basic) used to be a third; it left the group on
+  # 2026-09-16 and is open to everyone now.)
   biter:
     catalog: gm
     name: Biter
@@ -2444,13 +2480,42 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # Out of the Brigand group on 2026-09-16, when the Pickpocket button was
+  # built and the tag stopped being decorative. The slug stays `pickpocket` on
+  # purpose: db:sync-tags is upsert-only, so renaming in place keeps every
+  # Brigand who already bought it. general-traits carries no requiredTag, which
+  # is the whole of "anyone may learn this now" — the gate was never on the tag,
+  # it was on the group (taggroups.yaml `general-brigand`).
   pickpocket:
-    catalog: gm
-    name: Pickpocket
+    catalog: all
+    name: Pickpocketing (Basic)
+    # See comment above: slug stays `pickpocket` on purpose, so the rename
+    # keeps every Brigand who already bought it. keepSlug: true tells the
+    # syncer this drift is deliberate.
+    keepSlug: true
     category: general
-    group: general-brigand
+    group: general-traits
     description: "Your hands lighten burdened pockets. Your thefts are very hard to detect."
     pointCost: 3
+    purchasable: true
+    purchasableAfterStart: true
+
+  # requiredTag, not parentTag: a prerequisite that does NOT replace, so a
+  # master holds both rungs and pays 5 in total. parentTag would delete Basic on
+  # purchase and leave every gate in db/lib/pickpocket.js having to accept
+  # either tag to mean the same thing.
+  #
+  # Still in general-brigand, so the Basic rung is open to everyone and the
+  # second one is not.
+  pickpocketing-skilled:
+    catalog: all
+    name: Pickpocketing (Skilled)
+    category: general
+    group: general-brigand
+    description: "Your pickpocketing almost always succeeds."
+    pointCost: 2
+    requiredTag: pickpocket
+    visible: false
     purchasable: true
     purchasableAfterStart: true
 
@@ -3982,6 +4047,7 @@ tags:
     name: Infected
     category: health
     group: health-infection
+    cureRung: 2
     description: "Your wound is hot and draining pus. You could amputate it."
     fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
@@ -3992,7 +4058,7 @@ tags:
     expiresInto: [festering]
     healable: true
     requirement:
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-basic]
 
@@ -4001,6 +4067,7 @@ tags:
     name: Festering
     category: health
     group: health-infection
+    cureRung: 4
     description: "The flesh around your wound has gone soft and gives off an odor. You could amputate it."
     fighting: { tree: both, tiers: -1 }
     pointCost: 0
@@ -4012,7 +4079,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4021,6 +4088,7 @@ tags:
     name: Feverish
     category: health
     group: health-infection
+    cureRung: 5
     description: "You're burning up. The infection is in your blood…"
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
@@ -4032,7 +4100,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 7
       skills: [medical-skilled]
 
@@ -4041,6 +4109,7 @@ tags:
     name: Necrosis
     category: health
     group: health-infection
+    cureRung: 5
     description: "It's gone."
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
@@ -4053,7 +4122,7 @@ tags:
     removesInto: [cauterized]
     healable: true
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 7
       skills: [medical-skilled]
 
@@ -4063,6 +4132,7 @@ tags:
     name: Sepsis
     category: health
     group: health-infection
+    cureRung: 7
     description: "Your body is shutting down. You're not lucid."
     fighting: { tree: both, tiers: -2 }
     pointCost: 0
@@ -4084,6 +4154,7 @@ tags:
     name: Dying
     category: health
     group: health-infection
+    cureRung: 7
     description: "You're on death's door."
     fighting: { tree: both, cap: pitiful }
     pointCost: 0
@@ -4113,6 +4184,7 @@ tags:
     name: Gibbed
     category: health
     group: health-infection
+    cureRung: 0
     description: "Vaporized."
     pointCost: 0
     visible: true
@@ -4126,6 +4198,7 @@ tags:
     name: Bruised
     category: health
     group: health-wounds
+    cureRung: 1
     description: "Your wound is tender and purple, but it'll heal."
     fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
@@ -4144,6 +4217,7 @@ tags:
     name: Sprained Ankle
     category: health
     group: health-wounds
+    cureRung: 2
     description: "You can walk, but it's a struggle. Wrapping your wound with a splint would help."
     fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
@@ -4155,7 +4229,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-basic]
 
@@ -4164,6 +4238,7 @@ tags:
     name: Burned
     category: health
     group: health-wounds
+    cureRung: 2
     description: "Your skin is bubbling from a burn."
     fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
@@ -4176,7 +4251,7 @@ tags:
     removesInto: [bandaged]
     healable: true
     requirement:
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-basic]
 
@@ -4185,6 +4260,7 @@ tags:
     name: Severe Burns
     category: health
     group: health-wounds
+    cureRung: 4
     description: "Your skin is destroyed and will scar if healed."
     fighting: { tree: both, tiers: -1 }
     pointCost: 0
@@ -4197,7 +4273,7 @@ tags:
     removesInto: [bandaged, scarred]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4206,6 +4282,7 @@ tags:
     name: Minor Bleeding
     category: health
     group: health-wounds
+    cureRung: 0.5
     description: "Your wound is nothing a bandage can't stop."
     fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
@@ -4225,6 +4302,7 @@ tags:
     name: Deep Wound
     category: health
     group: health-wounds
+    cureRung: 3
     description: "You can see bone or deep tissue."
     fighting: { tree: both, tiers: -1 }
     pointCost: 0
@@ -4237,7 +4315,7 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4246,6 +4324,7 @@ tags:
     name: Severe Bleeding
     category: health
     group: health-wounds
+    cureRung: 3.5
     description: "You're bleeding fast. You need medical attention to stop the flow."
     fighting: { tree: both, tiers: -1.8 }
     pointCost: 0
@@ -4257,7 +4336,7 @@ tags:
     removesInto: [stitched-up, drained]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -4267,6 +4346,7 @@ tags:
     name: Arterial Bleed
     category: health
     group: health-wounds
+    cureRung: 3.5
     description: "Your blood is spurting three feet out. You need immediate medical attention to survive."
     fighting: { tree: both, tiers: -2 }
     pointCost: 0
@@ -4278,7 +4358,7 @@ tags:
     removesInto: [stitched-up, drained]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -4287,6 +4367,7 @@ tags:
     name: Broken Bone
     category: health
     group: health-wounds
+    cureRung: 3
     description: "Your bone is fractured. You need medical attention or your body will heal crooked."
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
@@ -4297,7 +4378,7 @@ tags:
     removesInto: [splinted]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4306,6 +4387,7 @@ tags:
     name: Cracked Ribs
     category: health
     group: health-wounds
+    cureRung: 3
     description: "Your breathing hurts. Hopefully there's nothing else under the surface."
     fighting: { tree: both, tiers: -1 }
     pointCost: 0
@@ -4315,7 +4397,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4324,6 +4406,7 @@ tags:
     name: Blunt Force Trauma
     category: health
     group: health-wounds
+    cureRung: 3
     description: "You're badly beat and in pain."
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
@@ -4335,7 +4418,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4344,6 +4427,7 @@ tags:
     name: Dislocated Shoulder
     category: health
     group: health-wounds
+    cureRung: 0.5
     description: "Your arm is hanging out. Someone with experience can push it back in."
     fighting: { tree: melee, tiers: -1 }
     pointCost: 0
@@ -4362,6 +4446,7 @@ tags:
     name: Frostbite
     category: health
     group: health-wounds
+    cureRung: 2
     description: "Your fingers and toes have turned pale and cold. They'll fall off without proper care."
     fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
@@ -4374,7 +4459,7 @@ tags:
     removesInto: [bandaged]
     healable: true
     requirement:
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4384,6 +4469,7 @@ tags:
     name: Punctured Lung
     category: health
     group: health-wounds
+    cureRung: 6
     description: "Something broke past your ribs. Your breathing is shallow and labored. You will die without expert medical attention."
     fighting: { tree: both, tiers: -2 }
     pointCost: 0
@@ -4406,6 +4492,7 @@ tags:
     name: Gut Wound
     category: health
     group: health-wounds
+    cureRung: 6
     description: "Your intestines aren't currently completely inside you. You need expert medical attention or you will get sepsis."
     fighting: { tree: both, tiers: -2 }
     pointCost: 0
@@ -4427,6 +4514,7 @@ tags:
     name: Broken Jaw
     category: health
     group: health-wounds
+    cureRung: 4
     description: "The swelling makes it hard to eat or speak."
     fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
@@ -4436,7 +4524,7 @@ tags:
     removesInto: [wired-jaw]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4445,6 +4533,7 @@ tags:
     name: Mangled Hand
     category: health
     group: health-wounds
+    cureRung: 4
     description: "Your fingers are pointing in random directions."
     fighting: { tree: both, tiers: -1.5 }
     handsLost: 1
@@ -4458,7 +4547,7 @@ tags:
     removesInto: [splinted]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4496,7 +4585,7 @@ tags:
     removesInto: [persistent-cough]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4515,7 +4604,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -4533,7 +4622,7 @@ tags:
     durationTurns: 2
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4573,7 +4662,7 @@ tags:
     removesInto: [scarred]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4626,7 +4715,7 @@ tags:
     expiresInto: [dying]
     healable: true
     requirement:
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
 
   heatstroke:
@@ -4645,7 +4734,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4696,7 +4785,7 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 7
       skills: [medical-skilled]
 
@@ -4851,6 +4940,7 @@ tags:
     name: Missing Leg
     category: health
     group: health-maiming
+    cureRung: 0
     description: "Your leg ends above the knee."
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
@@ -4864,6 +4954,7 @@ tags:
     name: Missing Arm
     category: health
     group: health-maiming
+    cureRung: 0
     description: "Your arm is gone at the shoulder."
     fighting: { tree: both, tiers: -1.8 }
     handsLost: 2
@@ -4878,6 +4969,7 @@ tags:
     name: Peg Leg
     category: health
     group: health-maiming
+    cureRung: 0
     description: "You have a wooden leg."
     fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
@@ -4893,6 +4985,7 @@ tags:
     name: Disfigured
     category: health
     group: health-maiming
+    cureRung: 6
     description: "Your face scares children."
     pointCost: -2
     conflictsWith: [pretty, beautiful]
@@ -4912,6 +5005,7 @@ tags:
     name: Missing Fingers
     category: health
     group: health-maiming
+    cureRung: 0
     description: "One of your hands is missing several fingers."
     fighting: { tree: both, tiers: -0.5 }
     handsLost: 1
@@ -4930,6 +5024,7 @@ tags:
     name: Hook Hand
     category: health
     group: health-maiming
+    cureRung: 0
     description: "You have a fitted iron hook."
     pointCost: 0
     visible: true
@@ -4943,6 +5038,7 @@ tags:
     name: Prosthetic Hand (Worn)
     category: health
     group: health-maiming
+    cureRung: 0
     description: "A carved hand where fingers used to be missing."
     pointCost: 0
     visible: true
@@ -4954,6 +5050,7 @@ tags:
     name: Crippled Leg
     category: health
     group: health-maiming
+    cureRung: 7
     description: "Your leg is in constant pain: you can hardly walk on it. Expert medical attention could fix it. Or they could just put on a wooden leg — a lot easier."
     fighting: { tree: both, tiers: -1 }
     pointCost: -7
@@ -4974,6 +5071,7 @@ tags:
     name: Limp
     category: health
     group: health-maiming
+    cureRung: 0
     description: "An old injury never healed quite right. You can walk okay, but people know you're coming."
     fighting: { tree: both, tiers: -0.3 }
     pointCost: -2
@@ -4990,6 +5088,7 @@ tags:
     name: Cripple
     category: health
     group: health-maiming
+    cureRung: 0
     description: "The legs were cruelly removed. You go nowhere without help."
     fighting: { tree: both, tiers: -2 }
     pointCost: 0
@@ -5004,6 +5103,7 @@ tags:
     name: Missing Stomach
     category: health
     group: health-maiming
+    cureRung: 0
     description: "The stomach was cruelly ripped out."
     fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
@@ -5016,6 +5116,7 @@ tags:
     name: Missing Heart
     category: health
     group: health-maiming
+    cureRung: 0
     description: "The heart was cruelly ripped out."
     pointCost: 0
     visible: true
@@ -5027,6 +5128,7 @@ tags:
     name: Missing Eye
     category: health
     group: health-maiming
+    cureRung: 0
     description: "You've lost all depth perception."
     fighting: { tree: ranged, tiers: -0.7 }
     pointCost: -5
@@ -5043,6 +5145,7 @@ tags:
     name: Glass Eye (Worn)
     category: health
     group: health-maiming
+    cureRung: 0
     description: "A painted glass eye."
     pointCost: 0
     visible: true
@@ -5072,6 +5175,7 @@ tags:
     name: Scarred
     category: health
     group: health-maiming
+    cureRung: 0
     description: "You are badly scarred. Off-putting to some, attractive to others."
     pointCost: 0
     visible: true
@@ -5088,6 +5192,7 @@ tags:
     name: Brand
     category: health
     group: health-maiming
+    cureRung: 0
     description: "A permanent brand."
     pointCost: 0
     visible: true
@@ -5175,7 +5280,7 @@ tags:
     durationTurns: 1
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -5195,7 +5300,7 @@ tags:
     expiresInto: [dying]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 4
       gambit: false
 
@@ -5495,13 +5600,12 @@ tags:
     consumable: true
     consumesInto: []
     consumesIntoResources: 5
-    cooked:
-      taste: "creamy"
-      tasteForm: "adjective"
-      mood: 10
-      hunger: 12
     sellable: true
     sellablePrice: 10
+    cooked:
+      taste: "eggs"
+      mood: 30
+      hunger: 12
 
   bird:
     catalog: all
@@ -6007,7 +6111,7 @@ tags:
     name: Crucifix
     category: assets
     group: assets-structures
-    description: "Two beams and a footrest. It allows crucification."
+    description: "Two beams and a footrest. It allows crucifixion."
     pointCost: 0
     visible: false
     tradeable: false
@@ -6016,7 +6120,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 3
       gambit: false
     placement:
       fieldwork: true
@@ -6218,8 +6322,8 @@ tags:
   # Skilled — smelting ore is basic forge work, it's shaping it into
   # {tag:katana}/{tag:rapier}/{tag:brigandine}/{tag:plate-armor} that needs
   # the higher skill. It runs under the Simple rung's Turns column at
-  # `turnsCost: 1/3` for the same reason the Spear and the Silver Knife do
-  # (SMITHING.md §1) — an ingot is not a day at the anvil, and three fit in
+  # `turnsCost: 0.25` for the same reason the Spear and the Silver Knife do
+  # (SMITHING.md §1) — an ingot is not a day at the anvil, and four fit in
   # one Routine. Each of those four recipes subtracts 8 ⬢ (2026-09-10):
   # steel's own sellablePrice, the "value" DEPOT.md §3-§4 says an ingredient
   # comes off at. Numbers are drafted, not signed off.
@@ -6237,7 +6341,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 4
       skills: [smithing]
       gambit: false
@@ -7160,7 +7264,7 @@ tags:
     craftable: true
     customizable: true
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 1
       skills: [artist]
       gambit: false
@@ -7245,13 +7349,64 @@ tags:
     sellable: true
     sellablePrice: 35
 
-  # The Depot's currency, and worth exactly one ⬢. It does not compress value,
-  # it makes value PHYSICAL: ⬢ are a number on a sheet that nobody can pick
-  # your pocket for, and these are the same amount as an object you can carry,
-  # hand over, stash and lose. Weightless, so a fortune still fits in a pocket.
-  # Only the Merchant issues them and only he redeems them, so a purse of these
-  # is worth exactly as much as your ability to reach the Depot.
-  # See docs/systemdocs/DEPOT.md.
+  # Resources themselves. Until 9/2026 this was a number on a sheet
+  # (Character.resources / Room.resources) that weighed nothing and could not
+  # be picked up, dropped, stolen or looted — the one piece of wealth in the
+  # game that was not an object. It is an object now, and everything that
+  # follows from that comes free: a sack of material is stashed in a room,
+  # handed over, pickpocketed, looted off a corpse and set down when you are
+  # carrying too much, through exactly the same stack machinery every other
+  # item uses. Nothing special-cases it.
+  #
+  # A pound each, which is not a new number: db/lib/depotCrates.js has always
+  # priced a CRATED ⬢ at a pound, and loose ⬢ weighing nothing was the
+  # inconsistency. That means there is no second carry cap any more — ⬢ push
+  # against GameConfig.carryWeightLbs beside the gear, and a fortune in raw
+  # material is a cart's worth of work to move (docs/systemdocs/CARRY.md).
+  #
+  # Priced on BOTH sides so the Depot trades it as an ordinary ware: bought at
+  # depotPrice 2, bought back at sellablePrice 1, the losing round trip
+  # db/lib/depot.js has always described. The economy ledger still books it as
+  # form BALANCE rather than GOODS, so /gm/economy goes on telling ⬢ and obols
+  # apart (docs/systemdocs/ECONOMY.md §1).
+  #
+  # HIDDEN, exactly like `obol`, and for the same two reasons. A visible stack
+  # put a bare "Resources" line in every bystander's Examine, which announced
+  # that there was a balance worth taking — the one fact the officer-only
+  # ⬢ line is written to withhold. And `hideableFromSearch` only covers HIDDEN
+  # and WORN (db/lib/medicalVision.js), so a visible stack could never be
+  # palmed: obols were safe from a search and the ⬢ beside them never were,
+  # which made converting at the Depot strictly correct rather than a trade.
+  resources:
+    catalog: all
+    name: Resources
+    category: items
+    group: items-gear
+    description: "Bulk material for crafting, smithing, or healing people."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    depotPrice: 2
+    sellable: true
+    sellablePrice: 1
+
+  # The Depot's currency, and worth exactly one ⬢.
+  #
+  # What it buys you is WEIGHT, and that reading is the other way up since
+  # 9/2026. It used to make value physical: ⬢ were a number on a sheet nobody
+  # could pick your pocket for, and an obol was the same value as an object you
+  # could carry, hand over, stash and lose. ⬢ are all of those things now, and
+  # they weigh a pound each — so the obol is the money that does NOT weigh
+  # anything, and a fortune in coin still fits in a pocket while the same
+  # fortune in raw material is a cart's worth of work.
+  #
+  # That is the trade the Depot sells: walk your ⬢ to the counter and carry
+  # the value home weightless. Only the Merchant issues them and only he
+  # redeems them, so a purse of these is worth exactly as much as your ability
+  # to reach the Depot. See docs/systemdocs/DEPOT.md.
   obol:
     catalog: all
     name: Obol
@@ -8552,7 +8707,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8572,7 +8727,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8592,7 +8747,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8612,7 +8767,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8647,7 +8802,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8676,7 +8831,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8713,7 +8868,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8735,7 +8890,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8757,7 +8912,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8779,7 +8934,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8801,7 +8956,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8823,7 +8978,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8845,7 +9000,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8867,7 +9022,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8889,7 +9044,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8911,7 +9066,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8933,7 +9088,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8955,7 +9110,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8977,7 +9132,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -8999,7 +9154,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -9021,7 +9176,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -9043,7 +9198,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -9065,7 +9220,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -9087,7 +9242,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -9109,7 +9264,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -9189,11 +9344,16 @@ tags:
   # wood-and-sinew is still wood-and-sinew even at High Quality.
   #
   # Four small pieces of metalwork — spear, dagger, silver-knife,
-  # phrygian-spear — run under the Simple rung's turn: turnsCost 1/3, three
+  # phrygian-spear — run under the Simple rung's turn: turnsCost 0.25, four
   # to a Routine, a spearhead or a knife not being a day at the anvil (Chris
-  # 2026-09-07). They sell at 7, not the tier's 9: the markup formula rounds
-  # to 0 at 1/3 turn, so they keep Dead Simple's flat +1 instead — see
-  # DEPOT.md §4. Everything else (6 ⬢, pt, skill, forge) is the tier's.
+  # 2026-09-07). The markup formula still rounds to 0 at a quarter turn
+  # (2 × 0.25^1.3 = 0.33), so they keep Dead Simple's flat +1 rather than the
+  # tier's — see DEPOT.md §4. They sell at 8: four a Routine pays 8 ⬢ a turn,
+  # under the Simple rung's own 10, and §4's rule is that quick work is never
+  # paid better than the rung above it. (Thirds selling at 9 until costs became
+  # decimals in 9/2026 — the price came down with the extra unit.) Everything
+  # else (6 ⬢, pt, skill, forge) is the tier's. The silver-knife is the odd one
+  # out and always was: 1 ⬢ in, 9 out.
   #
   # ─── Dead Simple ───────────────────────────────────────────────────────────
 
@@ -9588,12 +9748,12 @@ tags:
     customizable: true
     customizableSkill: smithing-skilled
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 8
 
   dagger:
     catalog: all
@@ -9615,12 +9775,12 @@ tags:
     customizable: true
     customizableSkill: smithing-skilled
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 8
 
   silver-knife:
     catalog: all
@@ -9640,7 +9800,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 1
       skills: [smithing]
       gambit: false
@@ -9696,12 +9856,12 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 6
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 8
 
   javelin:
     catalog: all
@@ -11463,7 +11623,7 @@ tags:
       # Written out for the reason Bliss's was: an absent turnsCost read as 1
       # by accident, and this recipe's own paper says "up to 4 Fine meals in
       # one Routine Move" — which is a 1-turn batch, now enforced.
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       skills: [cooking-basic]
       gambit: false
@@ -11499,7 +11659,7 @@ tags:
     requirement:
       # Written out rather than left to the `?? 1` fallback — an absent
       # turnsCost is how Bliss quietly cost a Move it wasn't meant to.
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 3
       # Its own copy has always said "up to 3 per Routine"; now the catalog
       # says it too.
@@ -11538,7 +11698,7 @@ tags:
     consumesInto:
       - ate-meal
     requirement:
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       skills: [cooking-basic]
       gambit: false
@@ -11563,7 +11723,7 @@ tags:
     consumesInto:
       - ate-meal
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 3
       skills: [cooking-skilled]
       gambit: false
@@ -12088,7 +12248,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -13999,7 +14159,7 @@ tags:
     consumesInto:
       - tipsy
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
@@ -14109,7 +14269,7 @@ tags:
     consumesInto:
       - tipsy
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 4
       # The paper has always said "yields up to 2 per turn"; every sibling's
       # yield was written out and enforced in the ingredient pass, and this
@@ -14215,7 +14375,7 @@ tags:
     consumable: true
     cures: [infected]
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
@@ -14268,7 +14428,7 @@ tags:
     consumesInto:
       - opium-high
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
@@ -14563,7 +14723,7 @@ tags:
     consumesInto:
       - increased-recovery
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 3
       skills: [brewing-skilled]
       gambit: false
@@ -14850,7 +15010,7 @@ tags:
     consumable: true
     cures: [poisoned, envenomated]
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
@@ -14873,7 +15033,7 @@ tags:
     consumable: true
     cures: [feverish, heatstroke, cave-fever]
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 3
       skills: [brewing-skilled]
       gambit: false
@@ -14897,7 +15057,7 @@ tags:
     consumable: true
     cures: [burned, severe-burns]
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
@@ -14992,7 +15152,7 @@ tags:
 
   # --- Medical pass: prosthetics (M5) ----------------------------------
   # All five are `consumable: true` with `administerSkill: medical-expert`
-  # (fitting is surgery — the Expert's own 1/2 Move billing, M1/M2
+  # (fitting is surgery — the Expert's own 0.5 Move billing, M1/M2
   # machinery — there is no separate fitting fee). Each cures a maiming into
   # its own cosmetic aftermath via `curesInto`, never the tag's own
   # `removesInto` (none of the four maimings below has one).
@@ -15198,6 +15358,7 @@ tags:
     name: Lockjaw
     category: health
     group: health-infection
+    cureRung: 4
     description: "Your jaw is seizing shut. You can't breathe."
     pointCost: 0
     visible: true
@@ -15208,7 +15369,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 4
       skills: [medical-skilled]
       gambit: false
@@ -15228,7 +15389,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1/3
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-skilled]
       gambit: false
@@ -15238,6 +15399,7 @@ tags:
     name: Crush Injury
     category: health
     group: health-wounds
+    cureRung: 5
     description: "The tissue is steadily dying."
     pointCost: 0
     carryBonus: -0.1
@@ -15249,7 +15411,7 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 7
       skills: [medical-skilled]
       gambit: false
@@ -16480,6 +16642,7 @@ tags:
     name: Grievous Wound
     category: health
     group: health-wounds
+    cureRung: 5
     description: "No… It can't be— A dangerous injury that will turn {tag:infected} without treatment."
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
@@ -16492,7 +16655,7 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1/2
+      turnsCost: 0.5
       resourceCost: 7
       skills: [medical-skilled]
       gambit: false
@@ -16504,6 +16667,7 @@ tags:
     name: Minor Wound
     category: health
     group: health-wounds
+    cureRung: 2
     description: "It hurts, but it wouldn't be hard to treat. Left alone it may turn {tag:infected}."
     fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
@@ -16515,7 +16679,7 @@ tags:
       - oneOf: [infected, recovering]
     healable: true
     requirement:
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       skills: [medical-basic]
 
@@ -16628,7 +16792,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -16650,7 +16814,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:
@@ -16672,7 +16836,7 @@ tags:
     craftable: true
     requirement:
       skills: [smithing-skilled]
-      turnsCost: 1/4
+      turnsCost: 0.25
       resourceCost: 2
       gambit: false
       items:

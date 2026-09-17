@@ -9,7 +9,7 @@ import useSubmit from "./useSubmit";
 import { noticeLine } from "./noticeLines";
 import { useActionPools } from "./poolsContext";
 import { consumableTags } from "@/lib/tagRequests";
-import { fitsInRemaining, formatMoveFraction } from "@/lib/craftBudget";
+import { fitsInRemaining, formatMoveAmount } from "@/lib/craftBudget";
 import { healCharacterRequest } from "@/app/(app)/character/requestActions";
 
 // Heal: a patient standing here (you included), one of their afflictions, and
@@ -171,7 +171,7 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
               ? " This is beyond your routine capabilities. It will be a Gambit."
               : affliction.moveCost?.kind === "free"
                 ? ` First aid doesn't cost a Move — ${pools.healsLeft === 1 ? "1 free treatment" : `${pools.healsLeft ?? "a few"} free treatments`} left this turn.`
-                : ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", over the free first aid" : ""}.`}
+                : ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveAmount(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", over the free first aid" : ""}.`}
           </p>
           {/* Quiet, same weight as a Discord -# line: a billed cure files
               today's Move (review fix, round 3). */}

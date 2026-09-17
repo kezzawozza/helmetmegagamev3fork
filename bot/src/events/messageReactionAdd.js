@@ -29,6 +29,8 @@ const { buildEditPrompt, stashEdit } = require("../lib/editModal");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const { tagDisplayName } = require("@lifeweb/db/lib/tagDisplayName");
 const { ghostCharacterFor } = require("@lifeweb/db/lib/ghost");
+// The dossier loads the whole tag set, and ⬢ are one of those rows now.
+const { resourcesOf, withoutResources } = require("@lifeweb/db/lib/resourceStack");
 
 const DELETE_EMOJI = "❌";
 const EDIT_EMOJIS = ["✏️", "📝"];
@@ -138,7 +140,7 @@ async function handleDossierReaction(reaction, proxy, user) {
       value: [
         where,
         character.faction?.name ?? "Unaffiliated",
-        `${character.resources} ⬢`,
+        `${resourcesOf(character)} ⬢`,
         proxy.concealed ? `concealed as ${proxy.alias ?? "Unknown"}` : null,
       ]
         .filter(Boolean)
@@ -148,8 +150,12 @@ async function handleDossierReaction(reaction, proxy, user) {
     embed.addFields({ name: "Presents as ", value: identity.name, inline: true });
   }
 
-  if (character.tags.length > 0) { // fitField trims to Discord's 1024-char embed field cap
-    const rendered = character.tags.map((ct) => {
+  // The ⬢ stack is left out: the Standing line above already gives the figure,
+  // and listing it here too would show a GM "12 ⬢" and then "Resources x12"
+  // as if they were two different things.
+  const listedTags = withoutResources(character.tags);
+  if (listedTags.length > 0) { // fitField trims to Discord's 1024-char embed field cap
+    const rendered = listedTags.map((ct) => {
       const bits = [
         formatTagRequirement(ct.tag),
         formatTagArmor(ct.tag),

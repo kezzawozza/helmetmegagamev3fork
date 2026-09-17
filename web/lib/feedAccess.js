@@ -5,6 +5,7 @@ import { placesFor as placesForCharacter, findPlace, mayReadPlace, mayWritePlace
 import { feedWipeFloors, placeSeqWhere } from "@lifeweb/db/lib/feedWipe";
 import { isPlayerGhost } from "@lifeweb/db/lib/ghost";
 import { getGmSession } from "@/lib/discordGuild";
+import { readChatViewAs } from "@/lib/viewAs";
 
 // The web's half of the feed gate; rules live in db/lib/feedAccess.js. What's left: the viewer load — the session says who is asking, never a posted character id.
 
@@ -110,8 +111,11 @@ export async function loadFeedCharacter(discordUserId) {
 
 // Who is looking, and on what terms. A GM with no living character still gets
 // a Chat — a read-only one over the zones their GmZoneView allows — and a GM
-// who DOES have a living character plays it as that character, because the
-// alternative is a GM who cannot use their own sheet. A dead player whose body
+// who DOES have a living character CHOOSES, from the View as switch at the
+// foot of the places column: their own scene by default, because the
+// alternative is a GM who cannot use their own sheet, or the watcher's view of
+// every zone they hold. That choice is a cookie (web/lib/viewAs.js) rather
+// than a column, and it is read here and nowhere else. A dead player whose body
 // still lies in the world is a GHOST: a read-only Chat over every zone, the
 // seat their Discord role already gives them (CHANNELS.md §5).
 //
@@ -131,17 +135,41 @@ export async function loadFeedCharacter(discordUserId) {
 // but there is no reason for a page to run it twice in a request.
 export const loadFeedViewer = cache(async () => {
   const { session, isGm } = await getGmSession();
-  if (!session?.discordUserId) return { discordUserId: null, character: null, gm: false, ghost: false, options: null };
+  if (!session?.discordUserId) {
+    return { discordUserId: null, character: null, playing: null, canViewAsGm: false, gm: false, ghost: false, options: null };
+  }
 
-  const character = await loadFeedCharacter(session.discordUserId);
-  const gm = Boolean(isGm) && !character;
+  const playing = await loadFeedCharacter(session.discordUserId);
   // Independent of `gm`: a GM whose own character died is a ghost too. They
   // keep the GM's view of the world and gain the one thing a ghost has that a
   // GM does not, a voice in Deadchat (db/lib/feedAccess.js#gmPlacesFor).
-  const ghost = !character && (await isPlayerGhost(prisma, session.discordUserId));
+  //
+  // Asked of the REAL character, above the switch below — a GM who has chosen
+  // the GM seat has a living character and is not a ghost, and reading this
+  // off the nulled one would have seated them in the dead room.
+  const ghost = !playing && (await isPlayerGhost(prisma, session.discordUserId));
+
+  // A GM with no character is in GM mode and has nothing to switch to. A GM
+  // who IS playing somebody chooses, and the choice is a cookie
+  // (web/lib/viewAs.js). `canViewAsGm` is what draws the switch at the foot of
+  // the places column; nobody else is offered one.
+  const canViewAsGm = Boolean(isGm) && Boolean(playing);
+  const gm = Boolean(isGm) && (!playing || (await readChatViewAs()) === "gm");
+
+  // THE ONE LINE that makes the switch reach everywhere. Every feed surface
+  // reads `viewer.character` and `viewer.options` — /chat's render, the SSE
+  // stream, history, places, search — and placesFor ignores the character
+  // entirely once `gm` is set (db/lib/feedAccess.js). Handing them null in the
+  // GM seat is what makes all of them take the watcher's path with no edit of
+  // their own: page.js builds no right column and computes `gmZones`, Feed.js
+  // draws no composer. `playing` rides alongside for anyone who needs to know
+  // there is a body behind the seat.
+  const character = gm ? null : playing;
   return {
     discordUserId: session.discordUserId,
     character,
+    playing,
+    canViewAsGm,
     gm,
     ghost,
     options: { gm, ghost, discordUserId: session.discordUserId },

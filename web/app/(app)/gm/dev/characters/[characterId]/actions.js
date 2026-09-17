@@ -10,19 +10,17 @@ import { isSuperadmin } from "@/lib/superadmin";
 import {
   getGmSession,
   ensureCharacterRole,
-  syncCharacterNickname,
   syncCharacterNarrowcastAccess,
   revokeAllCharacterAccess,
   deleteCharacterRole,
-  updateGuildNickname,
   killCharacter,
   sendDm,
 } from "@/lib/discordGuild";
 import { notifyCharacter as notifyCharacterShared } from "@/lib/notifyCharacter";
 import { propagateDynastyLastName } from "@/lib/dynasty";
-import { formatBareName } from "@/lib/characterName";
 import {
   normalizeCoreEdits,
+  applyResourcesInTx,
   diffCore,
   setLeaderInTx,
   validateTagOps,
@@ -31,8 +29,8 @@ import {
 } from "@/lib/characterWrite";
 import { deleteCorpseFor } from "@lifeweb/db/lib/corpseMint";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
+import { readCharacterResources } from "@lifeweb/db/lib/resourceStack";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-import { setDiscordMirrored } from "@lifeweb/db/lib/discordMirroring";
 import { cancelWatchOnMove } from "@lifeweb/db/lib/intercept";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
@@ -131,8 +129,12 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   // leaves nothing half-written and the GM sees the first real problem rather
   // than a rollback.
   validateTagOps(ops, tagsById, heldIds);
-  const { data, role, leader } = await normalizeCoreEdits({ prisma, existing, core });
+  const { data, role, leader, resources } = await normalizeCoreEdits({ prisma, existing, core });
   const diff = diffCore(existing, data);
+  // ⬢ are a stack row rather than a column, so they never ride in `data` and
+  // diffCore cannot see them. Fold the before/after in by hand, or the audit
+  // row and the "your sheet was edited" DM both lose the change.
+  if (resources && resources.from !== resources.to) diff.resources = resources;
 
   if (!Object.keys(diff).length && !ops.length && leader === null) {
     return { name: existing.name, applied: {}, tags: [] };
@@ -159,6 +161,8 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
     if (Object.keys(data).length) {
       await tx.character.update({ where: { id: characterId }, data });
     }
+
+    await applyResourcesInTx(tx, characterId, resources);
 
     // Keyed on the POST-edit faction: promoting someone who is also changing
     // faction must demote the NEW faction's leader, not the old one.
@@ -211,9 +215,6 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
       for (const step of steps) {
         try {
           if (step === "role") await ensureCharacterRole(updated);
-          if (step === "nickname") {
-            await syncCharacterNickname(updated.discordUserId, formatBareName(updated));
-          }
           if (step === "dynasty" && isDynastyHead((role ?? existing.role)?.slug)) {
             await propagateDynastyLastName(updated.lastName);
           }
@@ -263,7 +264,7 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
 // Microactions: each a verb, idempotency-checked against live state.
 
 // killCharacter revokes every channel overwrite, deletes the personal
-// Discord role, clears the nickname, grants Cursed, writes DEATH.
+// Discord role, grants Cursed, writes DEATH.
 async function killCharacterNowImpl({ characterId, reason }) {
   const session = await requireGm();
   const character = await loadCharacter(characterId);
@@ -320,7 +321,6 @@ async function reviveCharacterImpl({ characterId }) {
     try {
       await closeDeadchatTo(prisma, updated.discordUserId);
       await ensureCharacterRole(updated);
-      await syncCharacterNickname(updated.discordUserId, formatBareName(updated));
       // fromLocationId null: kill already stripped every grant, so this is a
       // restore, and the shared fan-out re-grants both roles plus rooms.
       await applyLocationMoveSideEffects(prisma, {
@@ -522,30 +522,6 @@ async function messageCharacterImpl({ characterId, message }) {
   return {};
 }
 
-// The GM remedy for "Play on Discord too" 's own cooldown
-// (db/lib/discordMirroring.js): a player stuck off Discord for up to two
-// hours with no way to flip it back themselves. Bypasses ONLY that
-// cooldown — the same conditional claim still guards the flip. ON re-mints
-// the personal role the flip skipped (ensureCharacterRole no-ops for an
-// unmirrored character), matching what the player's own flip does at
-// web/app/(app)/character/actions.js.
-async function setCharacterMirroringImpl({ characterId, on }) {
-  const session = await requireGm();
-  const character = await loadCharacter(characterId);
-  const want = Boolean(on);
-
-  const flip = await setDiscordMirrored(prisma, character, want, { bypassCooldown: true });
-  if (!flip.ok) throw new UserError(flip.error ?? "Couldn't change that.");
-
-  if (want) {
-    await ensureCharacterRole({ ...character, discordMirrored: true }).catch(() => {});
-  }
-
-  await audit(session, "gm_character_discord_mirror_set", characterId, { name: character.name, on: want });
-  repaint(characterId);
-  return { discordMirrored: want };
-}
-
 // A raw relocation like Bulk Move's: no Move cost, no Action, no adjacency
 // check, and no cooldown stamp. Immediate, not staged, since it only touches
 // where the character stands.
@@ -648,7 +624,9 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
         discordUserId: character.discordUserId,
         roleTitle: character.roleTitle,
         factionId: character.factionId,
-        resources: character.resources,
+        // Read on its own rather than off the row: ⬢ are a stack row now, and
+        // loadCharacter deliberately doesn't pull the tag set.
+        resources: await readCharacterResources(prisma, characterId),
       },
     },
   });
@@ -669,8 +647,6 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
   if (character.discordRoleId) {
     await deleteCharacterRole(character.discordRoleId).catch(() => {});
   }
-  await updateGuildNickname(character.discordUserId, null).catch(() => {});
-
   await deleteCharacterRow(prisma, characterId);
 
   revalidatePath("/gm/players", "layout");
@@ -814,9 +790,6 @@ export async function transferResources(input) {
 }
 export async function messageCharacter(input) {
   return guarded(() => messageCharacterImpl(input));
-}
-export async function setCharacterMirroring(input) {
-  return guarded(() => setCharacterMirroringImpl(input));
 }
 export async function teleportCharacter(input) {
   return guarded(() => teleportCharacterImpl(input));

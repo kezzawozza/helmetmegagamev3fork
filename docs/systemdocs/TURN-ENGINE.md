@@ -48,7 +48,8 @@ each arrived at by getting them wrong first.
    who didn't act and can work. **First**, because a day's labor *earns*
    resources before the horse upkeep pass below spends them (§5b) — the other
    order charges the horse's feed against a wage that hasn't landed yet.
-   Hunger itself charges no ⬢ any more (§5). See `LABORING.md` §8.
+   (Hunger was the headline reason until 9/2026, when eating stopped costing
+   ⬢ — the rule outlived it, since the horse still eats.) See `LABORING.md` §8.
 2b. **Offer expiry pass** (`db/lib/offerExpiryPass.js`, still keyed `"lessons"`
    in `TURN_PASSES`). Every still-PENDING offer on the closing turn expires
    here, **whatever its kind** — lesson, bind, confession, kiss, escort or
@@ -100,13 +101,17 @@ each arrived at by getting them wrong first.
    on it targets them, in which case the summary stands alone. The only Routine
    skipped outright is one whose `gmNotes` carry an `auto:` marker, meaning
    another pass is already DMing them about it. Every Gambit gets its own DM
-   regardless: the d6 is rolled and
-   stored at submit (`db/lib/moveConfirm.js`) and shown to the player
-   nowhere else, so this is where they find out how it fell. `/character`
+   regardless: the d6 is rolled and stored at submit
+   (`db/lib/moveConfirm.js` → `db/lib/gambitDie.js`) so the GM desk has it
+   immediately, and shown to the player nowhere else, so this is where they
+   find out how it fell. `/character`
    used to reveal it at Moves lock — three hours early
    (`MOVE_LOCK_HOURS`, `db/lib/turnClock.js`) — which handed players a bare
    number with no outcome attached; it now strips the die unconditionally
-   (`web/app/(app)/character/page.js`).
+   (`web/app/(app)/character/page.js`). The gap between the throw and the
+   telling is wider than it used to be, so that strip carries more weight:
+   the number exists from the moment a Move is filed, and belongs to the
+   player only here.
    Its slot is load-bearing three ways: **after** the auto-labor pass
    (whose rows arrive already stamped, so this one skips them), **before**
    the progression/sweep (a staged "remove Infected" must beat the
@@ -241,11 +246,12 @@ each arrived at by getting them wrong first.
    marker for the same reason. DMs ride back on `notices` for the thunk.
 7d. **Horse upkeep pass** (`db/lib/horseUpkeepPass.js`, `"horseUpkeep"` in
    `TURN_PASSES`) — the horse's feed, 1 ⬢ off everyone holding one. Slotted
-   **immediately before Hunger**, so auto-labor's income (§2 step 2) pays the
-   day's ⬢ before either bill is read against it. Hunger itself charges no ⬢
-   any more (§5) — the ordering is about the animal's feed landing before
-   anything else touches the same balance, not about which one goes short
-   first. See §5b.
+   **immediately before Hunger**, which was load-bearing when a rider's own
+   dinner was also billed in ⬢: the animal ate first, so a character down to
+   their last ⬢ fed the horse and went Hungry. Hunger stopped costing money in
+   9/2026 (§5), so the two passes no longer compete for the same purse and the
+   slot is merely tidy. Auto-labor still has to come first, since that is where
+   the day's income lands (§2 step 2). See §5b.
 8. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
    before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
    number, so the sweep clears it a moment before a fresh one may be granted.
@@ -325,9 +331,12 @@ each arrived at by getting them wrong first.
 8b. **Carry pass** (`db/lib/carryPass.js`) — **after** hunger, so it sees the
    final sheet: Labor payouts, staged pushes, the sweep and the horse's feed
    all happen earlier in the close and none of them may settle in place.
-   `settleCarry` for every ALIVE character holding a tradeable tag,
-   Overburdened, or more ⬢ than the base cap — one transaction each — and the
-   overflow drops ride back for the thunk (`CARRY.md` §3).
+   `settleCarry` for every ALIVE character holding a tradeable tag or
+   Overburdened — one transaction each — and the overflow drops ride back for
+   the thunk (`CARRY.md` §3). There used to be a third clause, asking for
+   anybody over the separate ⬢ cap. Both that cap and its column are gone: ⬢
+   are a tradeable one-pound item now, so a character sitting on a sack of them
+   is already caught by the first clause, exactly like one carrying a sword.
 8c. **Mood pass** (`db/lib/moodPass.js`, `"mood"` in `TURN_PASSES`) — the
    nightly settle for the mood dial (`MOOD.md`). Slotted after hunger,
    so it sees the final hunger band, and after carry, so it sees the final
@@ -481,7 +490,7 @@ The thunk performs, in narrative order:
    so the two arrive in severity order.
 3b. The Catatonic DMs and role renames, then the death pass's work: the
    eve-of-death warning DMs, and per death the Discord teardown — membership
-   check first (Cursed grant, nickname clear and death DM go only to a
+   check first (the Cursed grant and the death DM go only to a
    player **still in the guild**; for a departed one each would just 403
    into the REST breaker's tally), then access revoke, role delete, and one
    combined `#leave` post naming everyone who died this turn.
@@ -667,7 +676,7 @@ turn-pass writer of `hungerValue`, `starvingSinceTurn`, and the two band tags.
 A character born mid-close — Metempsychosis, or any death this same
 `resolveNeeds()` run reincarnated (`stagedPush`/`dyingDeath`/`ascension`/
 `nukeExplosion`/`catatonicDeath`/`xom` all route through `applyDeathToRow`,
-which can trigger a rebirth) — is excluded from this turn's bill: `db/index.js`
+which can trigger a rebirth) — is excluded from this turn's pass: `db/index.js`
 passes a `bornBefore` cutoff, taken before any pass runs, and the pass never
 sees a character created after it. They start decaying the turn after the one
 they woke up in.
@@ -688,6 +697,22 @@ one turn out, `createMany({ skipDuplicates: true })`) and charges the one-time
 mood hit; crossing back up over a threshold drops it. A character who stays
 exactly where they were — still Hungry, still above 0 — hears nothing: the DM
 only fires on a fresh crossing, never once per turn spent in a band.
+
+### There is no starvation brake here, on purpose
+
+An earlier revision of this pass shipped with `HUNGER_CAN_KILL = false`: the
+⬢ charge had come out, but no foodstuff existed yet for a character with no
+Cooking to eat, so letting Starving reach `dying` unconditionally would have
+killed every such character on schedule with no action that could have saved
+them. The brake's own comment named its exact condition for going away: "flip
+it to `true` in the same change that ships foodstuff items, and not before."
+
+**This is that change.** Soilery ships the foodstuff catalog the brake was
+waiting on — six growable crops, ten more foodstuffs, and the seed-bag/Farming
+chain that gets a character to them without Cooking at all — on top of the
+Depot wares and labor drops that already existed. `STARVING_DEATH_TURNS`
+(above, this same section) is therefore unconditional, with no flag gating
+it: the prerequisite and the follow-up landed in the same rework.
 
 One summary `hunger_resolved` audit row per turn, not one per character: at
 100+ players the latter would drown `/gm/audit`.
@@ -710,18 +735,30 @@ everyone learns about a bad night — the word in the Mood box on their sheet.
 ### 5b. The horse's feed
 
 A Horse costs **1 ⬢ every turn it is in your inventory**
-(`db/lib/horseUpkeepPass.js`). Two things about it are the opposite of how the
-rest of the horse works, and both are deliberate:
+(`db/lib/horseUpkeepPass.js`), and this pass is **not** affected by the hunger
+rework — animals still eat ⬢, people no longer do. Three things about it are
+the opposite of how the rest of the horse works, and all three are deliberate:
 
 - **Held, not equipped.** Everything else a horse does is gated on
   `CharacterTag.equipped` (`db/lib/mounts.js`), and an indoors Location parks
   the animal at the door. The feed ignores all of it. A horse in your pocket
   still eats, so stowing it is not a way to skip the bill.
 - **Short of the cost, nothing happens.** A character at 0 ⬢ is charged nothing
-  and keeps the horse — no starving marker, no runaway. The whole charge fits
-  in one `updateMany` whose `resources: { gte: 1 }` guard matches its own
-  decrement, the same structural-clamp shape every resource decrement in this
-  file uses.
+  and keeps the horse — no starving marker, no runaway. Hunger used to have a
+  row of exactly this shape and no longer does (§5, 9/2026), so this is now the
+  only place in the close where being broke is answered by silence.
+- **Each species bills separately.** A Horse and an Arelitz Warbeast together
+  eat 2 ⬢, not 1 — the pass walks `UPKEEP_SLUGS` and charges once per slug
+  held.
+
+The charge is a **stack write per payer**, not one bulk `updateMany`. It used
+to be the latter, with a `resources: { gte: 1 }` guard that doubled as the
+clamp, but ⬢ live in a `CharacterTag` row now (`db/lib/resourceStack.js`) and
+there is no column left to decrement across a hundred characters at once.
+`takeCharacterResources` keeps the same floor a different way: it is strict and
+conditional, so either the whole cost comes off or nothing does, and nobody
+goes negative. The query that finds holders is only a cheap pre-filter — the
+write is the real check.
 
 Nobody is DM'd about it. A "your horse ate" line every turn would sit on top of
 the hunger notice one pass later, and the tag description says where the ⬢
@@ -818,11 +855,20 @@ otherwise lock the whole turn the moment it opened. `locked` is true only
 *between* the cutoff and the end, so a turn that outlives its derived end (a
 missed cron) reopens rather than staying shut forever.
 
-**One thing now fires on the cutoff itself.** The Oracle drafts the turn's
+**Two things fire on the cutoff itself.** The Oracle drafts the turn's
 chronicle a couple of minutes after the lock, off the bot's minute cron
 (`db/lib/oracleCutoff.js`), so a GM has it in front of them for the whole
 adjudication window rather than after the push. It used to run at turn close.
 See `ORACLE.md` §2.
+
+The other is the **Gambit settle pass** (`db/lib/gambitCutoff.js`), on the same
+minute cron and sharing `cutoffReached` with it. The die itself is thrown back
+at submit now; what lands here is `Action.diceModifier`, the Hunger and mood
+reading, so the die answers what you rolled and the modifier answers how the
+character was when the day closed. It is also what finally shuts the edit
+window on a turn where `hasLock` is false — a settled `diceModifier` is the
+mark `moveIsEditable` reads when there is no cutoff to compare against. The
+staged push runs it again as the backstop. See `ADJUDICATION.md`.
 
 Enforced in the bot at both `move:open` (the `#turns` button and `/move`) and
 on modal submit — a modal can sit open on screen across the cutoff — with an
@@ -918,6 +964,7 @@ markers for the desk's labels.
 | `db/lib/autoLaborPass.js` | The auto-labor pass |
 | `db/lib/laborYield.js` | Location yield drift, and the quality words |
 | `db/lib/horseUpkeepPass.js` | The horse's feed (§5b) |
+| `db/lib/resourceStack.js` | ⬢ as a stack row — the only reader and writer of a ⬢ balance (`CARRY.md`, `ECONOMY.md`) |
 | `db/lib/hunger.js` | The 0-100 hunger meter itself — thresholds, decay, banding (§5) |
 | `db/lib/hungerPass.js` | The Hunger pass |
 | `db/lib/hungerBands.js` | Clearing Hungry/Starving the instant eating clears the threshold (§5) |
@@ -965,7 +1012,7 @@ a network call.
 
 **A turret kill owes the same Discord teardown every other death gets**, and
 for a long time it got none of it: the sheet said `DEAD` while the character
-kept their personal role, every channel overwrite and their nickname, and never
+kept their personal role and every channel overwrite, and never
 received the ghost seat. Both guns now hand their kills up as `deaths`, which
 the thunk folds into `turnDeaths` alongside the catatonic, Dying and blast
 ones. The walk itself lives in `db/lib/deathTeardown.js` so the four callers

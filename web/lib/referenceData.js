@@ -92,7 +92,9 @@ export async function getProductionRates() {
 // Pre-formatted per tag from the live caps so the client never imports @lifeweb/db.
 export async function getCarryReference() {
   const [config, tags] = await Promise.all([
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { carryWeightLbs: true, carryResourceCap: true } }),
+    // One cap now. The ⬢ cap was deleted with the columns behind it — ⬢ weigh
+    // a pound each and push against the pound cap beside the gear (CARRY.md).
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { carryWeightLbs: true } }),
     prisma.tag.findMany({
       where: { carryBonus: { not: null } },
       select: { slug: true, carryBonus: true },

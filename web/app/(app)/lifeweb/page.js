@@ -6,7 +6,7 @@ import {
   LIFEWEB_SPUTTER_THRESHOLD,
   DONATE_BLOOD_BY_TAG,
 } from "@lifeweb/db";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import LifewebDonateBloodPanel from "../../components/LifewebDonateBloodPanel";
 import LifewebFeedPersonButton from "../../components/LifewebFeedPersonButton";
@@ -25,7 +25,7 @@ function bloodBand(blood) {
 const BLOOD_TIER_SLUGS = DONATE_BLOOD_BY_TAG.map((t) => t.slug);
 
 export default async function LifewebPage() {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
   // Superadmin, not GM. This page is a Mortus surface: how much Blood is in

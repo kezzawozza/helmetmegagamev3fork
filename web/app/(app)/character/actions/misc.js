@@ -12,6 +12,7 @@ import {
   canOpenCrate,
 } from "@lifeweb/db";
 import { heldReasonFor } from "@lifeweb/db/lib/intercept";
+import { resourcesOf, isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { cleanCustomText, CUSTOM_DESCRIPTION_MAX } from "@/lib/customCraft";
 import { mintCustomCraft, unmintCustomCraft } from "./crafting.js";
@@ -97,7 +98,6 @@ import {
 } from "@/lib/consumeGrants";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
-  syncCharacterNickname,
   ensureCharacterRole,
   sendDm,
   killCharacter,
@@ -218,7 +218,6 @@ import { clearHungerBands } from "@lifeweb/db/lib/hungerBands";
 import {
   NAME_LIMITS,
   formatCharacterName,
-  formatBareName,
 } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
 import {
@@ -810,7 +809,9 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         }
       }
       administerMoveCost = craftMoveCost(
-        { requirementTurns: 1, requirementPerTurn: 2 },
+        // Half a Move, flat, and deliberately unrelated to what the item cost
+        // to make (MEDICAL.md §2).
+        { requirementTurns: 0.5 },
         { quantity: 1, family: "medical" },
       );
       await resolveCraftMove(character, openTurn, administerMoveCost);
@@ -1334,6 +1335,16 @@ export async function lootCharacterRequestImpl({
     if (!held || !isTradeable(held.tag)) {
       throw new UserError("That isn't something you can take off a body.");
     }
+    // ⬢ are a tradeable stack row, so they pass the check above — and this
+    // verb already has its own ⬢ field, which is the ledgered path
+    // (moveResources -> moveParty writes the row; a tag pick writes none). The
+    // picker filters them out (web/lib/peoplePools.js), but a picker is a hint
+    // and not a lock (CLAUDE.md), so refuse them here too. Without this a
+    // crafted post moves a body's whole purse with nothing in the book, and
+    // /gm/economy reads both parties as permanently drifted.
+    if (isResourcesRow(held)) {
+      throw new UserError("Take ⬢ with the Resources field, not as an item.");
+    }
     const quantity = held.tag.stackable
       ? (parseCount(pick.quantity, { min: 1, max: held.quantity }) ?? null)
       : held.quantity;
@@ -1349,8 +1360,9 @@ export async function lootCharacterRequestImpl({
     });
   }
 
-  if (amount > target.resources)
-    throw new UserError(`${target.name} only has ${target.resources} ⬢.`);
+  const targetResources = resourcesOf(target);
+  if (amount > targetResources)
+    throw new UserError(`${target.name} only has ${targetResources} ⬢.`);
 
   const openTurn = await getOpenTurn();
 
@@ -1381,17 +1393,11 @@ export async function lootCharacterRequestImpl({
         throw new UserError(`Someone already took that.`);
       }
     }
-    let freshResources = target.resources;
-    if (amount > 0) {
-      const freshTarget = await tx.character.findUnique({
-        where: { id: target.id },
-        select: { resources: true },
-      });
-      freshResources = freshTarget?.resources ?? 0;
-      if (freshResources < amount) {
-        throw new UserError(`${target.name} only has ${freshResources} ⬢ left.`);
-      }
-    }
+    // The ⬢ used to get the same treatment one line down — re-read under the
+    // lock, compared, then moved — because the check above was priced against
+    // a read taken before it. There is nothing left to re-read: moveResources
+    // takes ⬢ with a conditional write that IS the balance check, so a body
+    // someone else emptied in between refuses the whole loot here instead.
 
     for (const t of takenTags) {
       // Same poison hand-off as Transfer (M4): a body's held stack draws its
@@ -2430,7 +2436,7 @@ export async function claimDesireImpl({
     },
   });
   const desireSlots = config?.desireSlots ?? 2;
-  const lockTurns = config?.desireSlotLockTurns ?? 1;
+  const lockTurns = config?.desireSlotLockTurns ?? 2;
 
   const slotIndex = parseCount(rawSlotIndex, { min: 0, max: desireSlots - 1 });
   if (slotIndex == null) throw new UserError("That Desire slot doesn't exist.");
@@ -2685,13 +2691,9 @@ export async function changeNameRequestImpl({
   });
 
   // Best-effort Discord fan-out, outside the transaction (ARCHITECTURE.md §5
-  // — no network call inside one). The role and the nickname wear the REAL
-  // bare name on purpose, disguise or not (PROXYING.md §6, §8).
+  // — no network call inside one). The role wears the REAL bare name on
+  // purpose, disguise or not (PROXYING.md §6).
   await ensureCharacterRole(updated).catch(() => {});
-  await syncCharacterNickname(
-    session.discordUserId,
-    formatBareName(updated),
-  ).catch(() => {});
   await afterInventoryChange(character.id);
   if (
     isDynastyHead(character.role?.slug) &&
@@ -2900,6 +2902,14 @@ export async function packageItemsRequestImpl({
     // A crate of crates would nest a consumesInto chain arbitrarily deep, and
     // halving twice is a free carry exploit besides.
     if (isCrate(row.tag)) throw new UserError("You can't crate a crate.");
+    // ⬢ are tradeable, so they pass the check above — and a crate weighs HALF
+    // its contents (db/lib/depotCrates.js), which would make a hand-packed
+    // crate a flat 2× carry multiplier on bulk wealth and undo the whole point
+    // of ⬢ having a weight. The picker already leaves them out
+    // (web/lib/tagRequests.js#packableTags); this is the lock behind that hint.
+    // The DEPOT still crates ⬢ as freight on the shuttle — that is
+    // splitIntoCrates, a different path, and it is not affected.
+    if (isResourcesRow(row)) throw new UserError("⬢ are already bulk — they don't go in a crate.");
     // A mount is not cargo, and the MOUNT slot is weightless on purpose, so a
     // crate of one came out at crateWeight's floor of 1 lb. The Depot still
     // ships a horse crated (DEPOT.md §0e) — this refusal is the hand-packed

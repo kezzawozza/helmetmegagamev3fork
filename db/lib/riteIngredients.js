@@ -7,6 +7,7 @@
 const { floorIngredients } = require("./rites");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
+const { resourcesOf } = require("./resourceStack");
 
 const BOUND_SLUG = "bound";
 // A shackled person is a bound-person ingredient too (db/lib/bind.js#RESTRAINT_SLUGS).
@@ -33,12 +34,15 @@ async function floorHas(db, rite, roomId) {
   if (needs.length === 0) return true;
   const room = await db.room.findUnique({
     where: { id: roomId },
-    select: { resources: true, tags: { select: { quantity: true, tag: { select: { slug: true } } } } },
+    select: { tags: { select: { quantity: true, tag: { select: { slug: true } } } } },
   });
   if (!room) return false;
   const stacks = new Map(room.tags.map((t) => [t.tag.slug, t.quantity]));
+  // ⬢ on the floor are one of those stacks now, so the whole tag set already
+  // holds them — resourcesOf reads that shape.
+  const resources = resourcesOf(room);
   for (const need of needs) {
-    if (need.resources && room.resources < need.resources) return false;
+    if (need.resources && resources < need.resources) return false;
     if (need.tag && (stacks.get(need.tag) ?? 0) < (need.count ?? 1)) return false;
   }
   return true;

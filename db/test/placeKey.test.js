@@ -11,6 +11,7 @@ const {
   placeKeyForZone,
   parsePlaceKey,
   isScenePlaceKey,
+  isOocPlaceKey,
 } = require("../lib/placeKey");
 const { SPECIAL_CHANNELS } = require("../lib/specialChannels");
 
@@ -40,4 +41,17 @@ test("the four older kinds still parse, and a bogus kind still does not", () => 
 test("a radio net is not a scene", () => {
   assert.equal(isScenePlaceKey(placeKeyForNet("27.065")), false);
   assert.equal(isScenePlaceKey(placeKeyForZone("abc123")), false);
+});
+
+// The whole point of the second predicate: the two places a shout cannot reach
+// are places an OOC line can, because an OOC line is not the character talking.
+test("a net and a summary take an OOC line even though they take no shout", () => {
+  assert.equal(isOocPlaceKey(placeKeyForNet("27.065")), true);
+  assert.equal(isOocPlaceKey(placeKeyForZone("abc123")), true);
+  assert.equal(isOocPlaceKey("room:abc"), true);
+  assert.equal(isOocPlaceKey("conv:abc"), true);
+  // No composer in either, so nothing to type one into.
+  assert.equal(isOocPlaceKey("loc:abc"), false);
+  assert.equal(isOocPlaceKey("dead:main"), false);
+  assert.equal(isOocPlaceKey(null), false);
 });

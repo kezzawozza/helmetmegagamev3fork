@@ -43,7 +43,7 @@ const DM_BAND_KEYS = new Set(["afraid", "panicking", "ecstatic"]);
 
 // What a night somewhere is worth, on top of the drift. Exactly one applies,
 // chosen by placeClassOf. Harm is negative, comfort positive.
-const PLACE_TERMS = Object.freeze({ CAVE: -14, WILDERNESS: -10, OPEN: 4, INDOORS: 6, HAVEN: 12 });
+const PLACE_TERMS = Object.freeze({ CAVE: -14, WILDERNESS: -10, OPEN: 5, INDOORS: 7, HAVEN: 14 });
 
 // Overnight slide toward Fine from both sides, never overshooting 0: fear
 // wears off slowly (drift up small), a good evening is mostly gone by morning.
@@ -85,13 +85,13 @@ const EVENTS = Object.freeze({
   STARVING_ONSET: -30,
   NOBLE_MEAL: -10,
   ROBBED: -10,
-  CONFESSION: 15,
-  KISS: 15,
-  MUSIC: 10,
-  CATHEDRAL: 10,
+  CONFESSION: 17,
+  KISS: 17,
+  MUSIC: 12,
+  CATHEDRAL: 12,
 });
-const DESIRE_RELIEF_PER_POINT = 10;
-const DRINK_RELIEF = 30;
+const DESIRE_RELIEF_PER_POINT = 12;
+const DRINK_RELIEF = 35;
 
 // What one consume is worth, by the STATUS it lands you in (a drink or a drug
 // — keyed this way so a brew added to the catalog later is soothing the day it
@@ -115,22 +115,22 @@ const CONSUME_RELIEF = Object.freeze({
   high: DRINK_RELIEF,
   euphoric: DRINK_RELIEF,
   // A hot drink. Keyed on the status rather than the bean, same as the drinks.
-  tea: 15,
-  caffeinated: 15,
+  tea: 17,
+  caffeinated: 17,
   // Maggot Milk is deliberately NOT here any more (the hunger meter rework):
   // it carries its own `cooked.mood: 7` now and is priced by the new
   // raw-food rule (db/lib/hunger.js#rawFoodMoodTerms), same as Honey and
   // Fish Roe below — a row here would silently win over that.
   // The treats. Sugar does not grow in Ravenheart.
-  sweets: 8,
-  "honeyed-cakes": 8,
-  pumpkin: 8,
+  sweets: 9,
+  "honeyed-cakes": 9,
+  pumpkin: 9,
   // Celebrations. Neither grants a status, so both key by the item.
-  "sky-lantern": 8,
-  firecracker: 8,
-  cigarette: 8,
+  "sky-lantern": 9,
+  firecracker: 9,
+  cigarette: 9,
   // Any proper meal at all, and the floor under every food above.
-  "ate-meal": 5,
+  "ate-meal": 6,
   // The Ration Box's bad draws (all `consumesInto: [ate-meal]` too, which is
   // exactly why consumeReliefFor above has to let the item's own negative
   // entry win outright rather than being maxed against ate-meal's floor).
@@ -319,13 +319,24 @@ function arrivalTermFor(location) {
   return null;
 }
 
-// The cure-ladder rung a wound sits on, read off its requirement block the
-// way a doctor reads the bill — or null for anything that is not a wound at
-// all. A wound with no requirement block is tier 0: real, untreatable, and
-// too small to trouble anyone (a scrape, a hangover-shaped thing).
+// The cure-ladder rung a wound sits on (TAGS.md §5c), or null for anything
+// that is not a wound at all.
+//
+// AUTHORED now: `cureRung` in docs/tags.yaml. Everything below it is a
+// FALLBACK for a tag that never came through the catalog — one a GM wrote in
+// the Dev Panel, or a runtime clone — and it works the way this whole function
+// used to, by reading the rung back out of the cure's price.
+//
+// That reading is why the rung is authored now. It told a Simple wound from a
+// Moderate one at 2 ⬢ by whether the cure's work denominator was 4 or 3, and
+// when costs became decimals in 9/2026 that denominator stopped existing. The
+// fallback keeps the shape it can still see and lands the case it cannot on
+// the gentler rung — an unauthored 2-⬢ wound reads as Simple rather than
+// inventing a severity for it.
 function woundRungOf(tag) {
   const group = tag?.group?.slug ?? tag?.groupSlug ?? null;
   if (!group || !WOUND_GROUPS.has(group)) return null;
+  if (typeof tag.cureRung === "number") return tag.cureRung;
   const resources = tag.requirementResources;
   const turns = tag.requirementTurns ?? 0;
   const gambit = Boolean(tag.requirementGambit);
@@ -336,19 +347,10 @@ function woundRungOf(tag) {
   if (r >= 6) return 5;
   if (r >= 4) return 4;
   if (r === 3) return 3.5;
-  // 2-⬢ wounds split three ways since M2a (turnsCost repricing put Simple
-  // and Moderate on the same requirementResources: 2/requirementTurns: 1
-  // shape, differing only in requirementPerTurn): a legacy/GM-authored
-  // zero-turn wound (or unset, coalesced the same way as before this
-  // milestone) and the new Simple (perTurn 4, i.e. turnsCost 1/4) both stay
-  // at rung 2; anything else with a nonzero turn cost (a Moderate wound's
-  // turnsCost 1/3, or a GM-authored whole turn with no fraction at all — the
-  // Dev Panel form cannot author one) is rung 3.
-  if (r === 2) {
-    if (turns === 0) return 2;
-    if (tag.requirementPerTurn === 4) return 2;
-    return 3;
-  }
+  // The one the price can no longer answer: Simple and Moderate are both 2 ⬢,
+  // and both cost a quarter of a Move now. A catalog wound says which it is;
+  // anything else gets the benefit of the doubt.
+  if (r === 2) return turns <= 0.25 ? 2 : 3;
   if (r === 1) return 1;
   return 0.5;
 }

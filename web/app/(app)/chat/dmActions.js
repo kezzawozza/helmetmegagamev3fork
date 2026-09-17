@@ -18,8 +18,7 @@ import { hideableFor, setHiddenItems } from "@lifeweb/db/lib/search";
 import { applySpawnSideEffects } from "@lifeweb/db/lib/threatSpawn";
 import { deliverCarryDrop } from "@lifeweb/db/lib/carry";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
-import { sendDm, syncCharacterNickname } from "@/lib/discordGuild";
-import { formatBareName } from "@lifeweb/db/lib/characterName";
+import { sendDm } from "@/lib/discordGuild";
 
 // Everything the router handed back that has to reach Discord. Runs inside
 // after(): a pending server action blocks client-side navigation, and none of
@@ -39,23 +38,6 @@ async function applySideEffects({ dms, sideEffects }) {
     await applySpawnSideEffects(prisma, sideEffects.spawn).catch((err) =>
       console.error("Spawn side effects failed:", err),
     );
-  }
-
-  // The web's twin of the bot's syncMemberNickname. This one is the better of
-  // the two to be on: it honours the discordMirrored gate, so accepting a seat from the
-  // web cannot be the thing that tells Discord who you are.
-  if (sideEffects.nicknameSyncDiscordUserId) {
-    try {
-      const character = await prisma.character.findFirst({
-        where: { discordUserId: sideEffects.nicknameSyncDiscordUserId, status: "ALIVE" },
-        select: { firstName: true, lastName: true },
-      });
-      if (character) {
-        await syncCharacterNickname(sideEffects.nicknameSyncDiscordUserId, formatBareName(character));
-      }
-    } catch (err) {
-      console.error("Spawn nickname sync failed:", err);
-    }
   }
 
   // The twin of the bot's post-bind block. web/lib/afterInventoryChange.js runs

@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { auth } from "@/lib/auth";
 import { prisma } from "@lifeweb/db";
 import { visibleZoneIds as loadVisibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { reasonLabel, reasonFlow, FLOW, REASONS } from "@lifeweb/db/lib/economyReasons";
 import { sankeyFromFlows, arcWebFromEdges } from "@lifeweb/db/lib/economyFlows";
+import { RESOURCES_SELECT, resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
@@ -47,7 +47,7 @@ async function currentGameId() {
 }
 
 export default async function EconomyPage({ searchParams }) {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
   const rawSearch = await searchParams;
@@ -113,7 +113,10 @@ async function FreshEconomy({ section, searchParams, userId }) {
       const [supply, flowRows, aliveResources, reconciliation] = await Promise.all([
         liveSupply(),
         flowsByTurn({ gameId }),
-        prisma.character.findMany({ where: { status: "ALIVE" }, select: { resources: true } }),
+        // Every ALIVE character, zeros included — a purse nobody holds is a
+        // real data point for a Gini coefficient, and a ⬢ stack that hit zero
+        // was deleted rather than kept as a 0 row.
+        prisma.character.findMany({ where: { status: "ALIVE" }, select: { id: true, ...RESOURCES_SELECT } }),
         reconcile(gameId),
       ]);
       const series = supplySeries(flowRows);
@@ -152,7 +155,7 @@ async function FreshEconomy({ section, searchParams, userId }) {
         .sort((a, b) => Math.abs(b.net) - Math.abs(a.net))
         .slice(0, 10);
 
-      const { gini: giniValue, lorenz } = gini(aliveResources.map((c) => c.resources));
+      const { gini: giniValue, lorenz } = gini(aliveResources.map((c) => resourcesOf(c)));
 
       data = {
         ...data,
@@ -257,7 +260,7 @@ async function FreshEconomy({ section, searchParams, userId }) {
             id: true,
             name: true,
             status: true,
-            resources: true,
+            ...RESOURCES_SELECT,
             faction: { select: { zone: { select: { name: true } } } },
             zone: { select: { name: true } },
           },
@@ -266,7 +269,7 @@ async function FreshEconomy({ section, searchParams, userId }) {
           select: {
             id: true,
             name: true,
-            resources: true,
+            ...RESOURCES_SELECT,
             location: { select: { zone: { select: { name: true } } } },
           },
         }),
@@ -303,7 +306,7 @@ async function FreshEconomy({ section, searchParams, userId }) {
             name: c.name,
             status: c.status,
             zoneName: c.faction?.zone?.name || c.zone?.name || "",
-            balance: c.resources,
+            balance: resourcesOf(c),
             inflow: flow.inflow,
             outflow: flow.outflow,
           };
@@ -316,7 +319,7 @@ async function FreshEconomy({ section, searchParams, userId }) {
             name: r.name,
             status: null,
             zoneName: r.location?.zone?.name || "",
-            balance: r.resources,
+            balance: resourcesOf(r),
             inflow: flow.inflow,
             outflow: flow.outflow,
           };

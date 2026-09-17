@@ -29,9 +29,9 @@ import {
   DEBTOR_STARTING_OBOLS,
 } from "@lifeweb/db/lib/wantedPoster";
 import { addToStack } from "@lifeweb/db/lib/tagWrites";
+import { addCharacterResources } from "@lifeweb/db/lib/resourceStack";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
 import {
-  syncCharacterNickname,
   ensureCharacterRole,
   syncCharacterNarrowcastAccess,
   getGuildMember,
@@ -72,7 +72,6 @@ import {
   AGE_MAX,
   NAME_LIMITS,
   formatCharacterName,
-  formatBareName,
   normalizeEarnedHonorific,
   GENDERS,
 } from "@/lib/characterName";
@@ -381,7 +380,6 @@ export async function createCharacter(formData) {
           // location.zoneId in the same statement.
           locationId: role.startingLocationId ?? null,
           zoneId: role.startingLocation?.zoneId ?? null,
-          resources: role.startingResources,
           tagPoints: budget - spent,
           isLeader: role.grantsLeader,
           isTreasurer: role.grantsTreasurer,
@@ -398,6 +396,11 @@ export async function createCharacter(formData) {
           quantity: quantity ?? 1,
         })),
       });
+
+      // The starting ⬢. They can't ride along on the create any more — a ⬢
+      // balance is a stack row, so it needs the character to exist first.
+      // Same shape as db/lib/reincarnate.js.
+      await addCharacterResources(tx, character.id, role.startingResources ?? 0);
 
       // Any assigned seat this player held is spent by this character (db/lib/lobby.js#settleLobbyEntry).
       await settleLobbyEntry(tx, discordUserId, character.id);
@@ -450,7 +453,6 @@ export async function createCharacter(formData) {
     { ...created, tags: heldTagRows },
     startingMemorySlugs(role.slug, heldSlugs),
   ).catch(() => {});
-  await syncCharacterNickname(discordUserId, formatBareName({ firstName, lastName })).catch(() => {});
 
   // Somebody who arrives already Wanted has three posters go up in the same breath (db/lib/wantedPoster.js). Best-effort.
   if (isWanted(heldSlugs)) {

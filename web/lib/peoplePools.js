@@ -5,6 +5,7 @@ import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapaci
 import { kissBlock } from "@lifeweb/db/lib/kiss";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
+import { RESOURCES_SELECT, resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import { peopleHere } from "@/lib/peopleHere";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { rosterName } from "@lifeweb/db/lib/presentedIdentity";
@@ -23,9 +24,12 @@ import {
   isHealable,
   isInflictable,
   isGambitHeal,
+  isMiracleable,
+  MIRACLE_PER_TURN,
   needsSurgicalSite,
   countsAgainstHealCap,
   healCapFor,
+  SAINT_SLUG,
   satisfiedSkillIds,
   HEAL_SKILL_SELECT,
 } from "@/lib/healRequests";
@@ -55,7 +59,10 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
       select: {
         id: true,
         name: true,
-        // No `resources` — a balance is nobody else's business.
+        // No `quantity` on the tag rows below, so nothing here can tell you
+        // how much of anything somebody has — their ⬢ included. A balance is
+        // nobody else's business; these rows are only asked what a medic or a
+        // teacher needs to know.
         tags: {
           select: {
             tagId: true,
@@ -102,7 +109,8 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
         id: true,
         name: true,
         status: true,
-        resources: true,
+        // No ⬢ column to select — the whole tag set below carries the stack,
+        // and resourcesOf() reads it straight off the loaded row.
         tags: {
           select: {
             tagId: true,
@@ -350,6 +358,43 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     }))
     .filter((t) => t.healable.length > 0);
 
+  // Saint's Perform Miracle (docs/tags.yaml `saint:`): a Saint may instantly
+  // cure someone else's Moderate-or-lesser wound, twice a turn, no ⬢ and no
+  // Move. Own AuditLog counter — never draws on the medic's
+  // MEDICAL_SIMPLE_PER_TURN pool, and no Medical tag needed.
+  const isSaint = heldSlugSet.has(SAINT_SLUG);
+  const miraclesThisTurn =
+    isSaint && openTurn && discordUserId
+      ? await prisma.auditLog.count({
+          where: {
+            actorDiscordUserId: discordUserId,
+            actionType: "request_perform_miracle",
+            turnId: openTurn.id,
+          },
+        })
+      : 0;
+  const miraclesLeft = isSaint
+    ? Math.max(0, MIRACLE_PER_TURN - miraclesThisTurn)
+    : 0;
+  // Others only — a Saint doesn't miracle themselves (plan §1).
+  const miracleTargets = isSaint
+    ? here
+        .map((t) => ({
+          id: t.id,
+          name: rosterName(t),
+          miraculable: t.tags
+            .map((ct) => ct.tag)
+            .filter(isMiracleable)
+            .map((tag) => ({
+              tagId: tag.id,
+              tagName: tag.name,
+              slug: tag.slug,
+            })),
+        }))
+        .filter((t) => t.miraculable.length > 0)
+    : [];
+  const canMiracle = isSaint;
+
   // The catalog name of whichever incapacitating tag they hold.
   function conditionOf(c) {
     return c.tags.find((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug))?.tag.name ?? null;
@@ -362,9 +407,13 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     name: rosterName(c),
     status: c.status,
     condition: conditionOf(c),
-    resources: c.resources,
+    resources: resourcesOf(c),
+    // ⬢ are a tradeable item now, so they would otherwise show up twice — once
+    // as the number the dialog has always had, once as an ordinary "Resources"
+    // row. Pull the stack out and keep the number, the way a room stash does
+    // it (db/lib/roomStash.js#formatStashLine).
     tags: c.tags
-      .filter((ct) => isTradeable(ct.tag))
+      .filter((ct) => !isResourcesRow(ct) && isTradeable(ct.tag))
       .map((ct) => ({
         tagId: ct.tagId,
         tagName: ct.tag.name,
@@ -495,6 +544,9 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     healsLeft,
     hasSurgicalSite,
     surgicalSitePenalty,
+    canMiracle,
+    miracleTargets,
+    miraclesLeft,
     lootTargets,
     consumeTargets,
     bindTargets,
@@ -531,7 +583,9 @@ export async function loadStashRooms(character, { scope = "location", chipCtx = 
           name: true,
           kind: true,
           accessTagSlugs: true,
-          resources: true,
+          // Taxman wants the ⬢ and nothing else, so this is the one-row
+          // filtered select rather than the whole stash.
+          ...RESOURCES_SELECT,
           location: { select: { id: true, name: true } },
         },
       }),
@@ -540,7 +594,7 @@ export async function loadStashRooms(character, { scope = "location", chipCtx = 
     return accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).map((room) => ({
       id: room.id,
       name: room.name,
-      resources: room.resources,
+      resources: resourcesOf(room),
       locationId: room.location.id,
       locationName: room.location.name,
     }));
@@ -562,7 +616,6 @@ export async function loadStashRooms(character, { scope = "location", chipCtx = 
         slug: true,
         kind: true,
         accessTagSlugs: true,
-        resources: true,
         tags: {
           where: { quantity: { gt: 0 } },
           select: {
@@ -585,8 +638,10 @@ export async function loadStashRooms(character, { scope = "location", chipCtx = 
   return accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).map((room) => ({
     id: room.id,
     name: room.name,
-    resources: room.resources,
-    tags: room.tags.map((rt) => ({
+    // The ⬢ stack is one of the stash rows now, so it is read off the rows and
+    // then kept out of them — the dialog has its own ⬢ field.
+    resources: resourcesOf(room),
+    tags: withoutResources(room.tags).map((rt) => ({
       tagId: rt.tagId,
       name: rt.tag.name,
       quantity: rt.quantity,

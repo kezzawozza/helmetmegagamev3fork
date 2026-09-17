@@ -1,5 +1,6 @@
 // SERVER ONLY: imports the Prisma barrel via referenceData.js. Client-safe helpers go in their own import-free file (stagingReach.js).
 import { CATATONIC_SLUG } from "@lifeweb/db/lib/constants";
+import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { statusWord, WORKING_STATUSES } from "@lifeweb/db/lib/structures";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
@@ -138,14 +139,18 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     description: a.description,
     kindLabel: moveKindLabel(a.moveKind, a.gmNotes),
     moveKind: a.moveKind ?? "ROUTINE",
-    // Only a CONFIRMED Gambit is ever thrown a die (db/lib/gambitCutoff.js filters on it), so
-    // this is what lets the desk say "rolls at lock-in" without promising one to a row that
+    // Only a CONFIRMED Gambit is ever thrown a die (confirming is what throws it —
+    // db/lib/moveConfirm.js), so this is what keeps the desk from promising one to a row that
     // can never get it — an abandoned PENDING_TYPE draft, or a quest Interact, which files
     // through fileMove and is never confirmed.
     confirmed: a.status === "CONFIRMED",
     isTravel: isTravelMove(a.gmNotes),
     gmNotes: a.gmNotes ?? "",
     rollLabel: rollLabel(a),
+    // The die lands at submit, the Hunger/mood modifier only at the lock (db/lib/gambitCutoff.js),
+    // so between the two the desk is showing a number whose TOTAL will still move. Say so rather
+    // than let it change under a GM mid-adjudication.
+    modifierPending: a.diceRoll != null && a.diceModifier == null,
     statusLabel: moveStatusLabel(a, now),
     // The enum itself, alongside the label — clients branch on this, not the string (MoveDesk.js).
     reviewStatus: a.moveReviewStatus,
@@ -157,7 +162,8 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     zoneId: a.character.zone?.id ?? null,
     // Per-structure "Standing here" line, bulk-loaded by the caller and keyed by locationId.
     standingHere: standingHereLines(structuresByLocationId?.get(a.character.locationId ?? "")),
-    resources: a.character.resources,
+    // Off the tag rows MOVE_INCLUDE already loads — ⬢ are a stack, not a column.
+    resources: resourcesOf(a.character),
     tags: a.character.tags.map((ct) => ({
       tagId: ct.tagId,
       quantity: ct.quantity,
@@ -326,6 +332,62 @@ export function desireClaimRow(d, { usernameById, catatonicIds } = {}) {
     statusLabel: reviewed ? "Reviewed" : "Waiting",
     searchText: `${c.name} ${d.text}`,
     createdAtMs: d.createdAt.getTime(),
+  };
+}
+
+// An out-of-character line somebody said this turn (db/lib/ooc.js). The row a
+// GM reads on the OOC lens IS the AuditLog row the rate limit already writes —
+// there is no OOC table, and adding one would mean two records of the same
+// sentence that could disagree.
+//
+// `details.text` is the frozen copy of what was said, and `location`/`room` are
+// the real columns rather than a name off `details`, so a GM can filter by place
+// the same way /gm/audit does.
+export const OOC_INCLUDE = {
+  targetCharacter: {
+    select: {
+      id: true,
+      name: true,
+      updatedAt: true,
+      zoneId: true,
+      zone: { select: { name: true } },
+      discordUserId: true,
+    },
+  },
+  location: { select: { name: true } },
+  room: { select: { name: true } },
+};
+
+export function oocRow(a, { usernameById, catatonicIds, mutedUntilByUser } = {}) {
+  const c = a.targetCharacter;
+  const text = typeof a.details?.text === "string" ? a.details.text : "";
+  // A Room is the more precise of the two and the one a GM recognises; the
+  // Location is the fallback for a conversation held on the open street.
+  const where = a.room?.name ?? a.location?.name ?? "";
+  const account = c?.discordUserId ?? null;
+  return {
+    id: a.id,
+    characterId: c?.id ?? null,
+    characterName: c?.name ?? "Somebody",
+    // The ACCOUNT, because both of the desk's verbs are about the player: the
+    // DM goes to them, and an OOC mute is keyed on them (schema.prisma, OocMute).
+    discordUserId: account,
+    // Written back onto the audit row by db/lib/ooc.js#deliverOoc, and what
+    // the desk hands getArchiveContext. Null on any line said before that
+    // backlink existed, or whose scene row failed to write.
+    archiveEntryId: typeof a.details?.archiveEntryId === "string" ? a.details.archiveEntryId : null,
+    // Only ever a LIVE mute — the caller drops lapsed rows, so the desk can
+    // treat "not null" as "muted" without asking the clock during render.
+    mutedUntil: (account && mutedUntilByUser?.get?.(account)) ?? null,
+    avatarVersion: c?.updatedAt?.getTime?.() ?? null,
+    catatonic: c ? (catatonicIds?.has(c.id) ?? false) : false,
+    discordUsername: usernameById?.get?.(c?.discordUserId) ?? "",
+    zoneId: c?.zoneId ?? null,
+    zoneName: c?.zone?.name ?? "",
+    placeName: where,
+    text,
+    searchText: `${c?.name ?? ""} ${text} ${where}`,
+    createdAtMs: a.createdAt.getTime(),
   };
 }
 

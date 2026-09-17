@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
@@ -22,12 +22,14 @@ import {
   CAVING_ROLL_INCLUDE,
   AVATAR_REVIEW_SELECT,
   DESIRE_CLAIM_INCLUDE,
+  OOC_INCLUDE,
   moveRow,
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
   avatarReviewRow,
   desireClaimRow,
+  oocRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
 import { deskRowContext, structuresByLocation } from "@/lib/deskRows";
@@ -62,7 +64,10 @@ function parseSelection(sel) {
   if (typeof sel !== "string") return null;
   const [type, id, ...rest] = sel.split("/");
   if (rest.length || !id) return null;
-  if (!["move", "caving", "history"].includes(type)) return null;
+  // "desire" and "ooc" open a desk in Workspace.js the same way the first
+  // three do; "desire" was simply missed when its lens landed, so a
+  // ?sel=desire/<id> link resolved to nothing.
+  if (!["move", "caving", "history", "desire", "ooc"].includes(type)) return null;
   return { type, id };
 }
 
@@ -74,7 +79,7 @@ function legacyPathSelection(segments) {
 // Snapshotted (web/lib/snapshot, CHAT.md §5c): reads the session, mounts the
 // shell, streams FreshTurnsWorkspace in behind it.
 export default async function TurnsWorkspacePage({ params, searchParams }) {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   const { selection } = await params;
   // An old path-shaped deep link — one hop onto the query form.
@@ -108,6 +113,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     interceptHits,
     avatarsToReview,
     desireClaims,
+    oocLines,
     stagedEffects,
     stagedMessages,
     roster,
@@ -170,6 +176,22 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       take: 50,
       include: DESIRE_CLAIM_INCLUDE,
     }),
+    // The OOC lens — every out-of-character line said this turn (db/lib/ooc.js).
+    // Scoped to the open turn like the Moves and Caving lenses, because unlike
+    // a portrait or a Desire claim this IS a thing that happened this turn and
+    // stops being interesting when the turn does.
+    //
+    // The AuditLog row the rate limit writes is the only record there is, so
+    // this reads it rather than a table of its own. Capped: a turn's chatter
+    // has no ceiling and the rail is not a transcript.
+    openTurn
+      ? prisma.auditLog.findMany({
+          where: { actionType: "ooc", turnId: openTurn.id },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+          include: OOC_INCLUDE,
+        })
+      : [],
     // Open-turn staging plus every unapplied stray from earlier turns —
     // the strays feed the missed-push banner.
     prisma.stagedEffect.findMany({
@@ -295,6 +317,22 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   const desireCtx = { usernameById, catatonicIds };
   const desireRows = desireClaims.map((d) => desireClaimRow(d, desireCtx));
 
+  // The OOC lens. Live mutes for exactly the accounts on this lens, so the
+  // desk's button can say Unmute without a second round trip — `until` in the
+  // past is not a mute, and the row lapses on its own (schema.prisma, OocMute),
+  // so the filter here IS the expiry.
+  const oocAccounts = [
+    ...new Set(oocLines.map((a) => a.targetCharacter?.discordUserId).filter(Boolean)),
+  ];
+  const oocMutes = oocAccounts.length
+    ? await prisma.oocMute.findMany({
+        where: { discordUserId: { in: oocAccounts }, until: { gt: new Date() } },
+        select: { discordUserId: true, until: true },
+      })
+    : [];
+  const mutedUntilByUser = new Map(oocMutes.map((m) => [m.discordUserId, m.until.toISOString()]));
+  const oocRows = oocLines.map((a) => oocRow(a, { usernameById, catatonicIds, mutedUntilByUser }));
+
   const effectCtx = { usernameById, locationNameById, openTurn };
   const messageCtx = { usernameById, openTurn };
   const effects = stagedEffects.map((e) => stagedEffectRow(e, effectCtx));
@@ -414,6 +452,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         cavingRolls: cavingRows,
         otherRows: otherRows,
         desireRows: desireRows,
+        oocRows: oocRows,
         stagedEffects: effects,
         stagedMessages: messages,
         gmProfiles: gmProfilesById,

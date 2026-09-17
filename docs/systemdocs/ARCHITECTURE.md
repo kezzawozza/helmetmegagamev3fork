@@ -114,7 +114,6 @@ kept in sync by hand:
 |---|---|---|
 | Send a logged DM | `bot/src/lib/dm.js` | `web/lib/discordGuild.js`, `db/lib/dm.js` |
 | Is this a tupper/summary channel | `bot/src/lib/channels.js` | `web/lib/discordGuild.js` |
-| Build a nickname | `bot/src/lib/nickname.js#buildNickname` | `web/lib/discordGuild.js#buildNickname` |
 | Post as a character | `bot/src/lib/proxy.js#postAsCharacterTo` (`sendAsCharacter` wraps it) | `db/lib/discordRest.js#postAsCharacter` |
 | Zone access | `bot/src/lib/zoneTravel.js#swapZoneRole` | `web/lib/discordGuild.js#syncCharacterZoneRole` |
 | Special-channel access | `bot/src/lib/zoneTravel.js#syncCharacterNarrowcastAccess` | `web/lib/discordGuild.js` (same name) |

@@ -107,6 +107,14 @@ export async function GET(request) {
     {
       discordUserId,
       label: character?.name ?? username ?? discordUserId,
+      // The account behind the character, shipped BESIDE the label rather than
+      // folded into it: ConversationPane also hands `label` to CharacterAvatar
+      // as the alt name, where "Aleksei Ivanov (@forgeybot)" would be wrong.
+      // Thrown away here until now — once a character existed the handle never
+      // reached the desk at all, so a GM reading a thread could not tell which
+      // account they were answering. Same source the rail's @handle already
+      // uses (listGuildMembers), so the two can't disagree.
+      username: username ?? null,
       characterId: aliveCharacter?.id ?? character?.id ?? null,
       avatarVersion: (aliveCharacter ?? character)?.updatedAt.getTime() ?? null,
       zoneName: aliveCharacter?.zone?.name ?? null,

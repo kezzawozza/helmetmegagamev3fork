@@ -1,6 +1,7 @@
 "use server";
 
 import { after } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma, setVisibleZones } from "@lifeweb/db";
 import { syncGmZoneRoles } from "@lifeweb/db/lib/gmZoneRoles";
 import { getGmSession } from "@/lib/discordGuild";
@@ -30,7 +31,12 @@ export async function setVisibleZonesAction(zoneIds) {
     );
   });
 
-  // No revalidatePath — desks re-filter from client state
-  // (GmZoneViewProvider.js) off these names. Null, not [], means "every zone" — see inVisibleZones.
+  // The desks re-filter from client state (GmZoneViewProvider.js) off these
+  // names, so they need no revalidation. /chat is different: its left column
+  // is server-rendered from placesFor (db/lib/feedAccess.js#gmPlacesFor) and
+  // has no client-side zone filter, so without this the SSR'd list stayed
+  // full until a hard reload. Null, not [], means "every zone" — see
+  // inVisibleZones.
+  revalidatePath("/chat");
   return { ok: true, zoneNames: zones.length > 0 ? zones.map((z) => z.name) : null };
 }

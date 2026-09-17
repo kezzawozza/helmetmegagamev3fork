@@ -1,5 +1,6 @@
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { cursedUserIds } from "@lifeweb/db/lib/curse";
+import { resourcesByCharacterIds } from "@lifeweb/db/lib/resourceStack";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
@@ -99,7 +100,7 @@ export default async function PlayerDeskLayout({ children }) {
   const clock = await prisma.$queryRaw`SELECT (EXTRACT(EPOCH FROM now()) * 1000)::double precision AS "nowMs"`;
   const rowsAsOfMs = Number(clock[0].nowMs);
 
-  const [latestMessages, unreadRows, everDmedUserIds, claims, reads] = await Promise.all([
+  const [latestMessages, unreadRows, everDmedUserIds, claims, reads, mutes] = await Promise.all([
     prisma.$queryRaw`
       SELECT DISTINCT ON ("discordUserId")
         "discordUserId", "id", "direction", "content", "authorDiscordUserId", "source", "createdAt"
@@ -129,7 +130,6 @@ export default async function PlayerDeskLayout({ children }) {
         OR: [
           { claimedByDiscordUserId: { not: null } },
           { handledAt: { not: null } },
-          { mutedAt: { not: null } },
         ],
       },
     }),
@@ -140,13 +140,19 @@ export default async function PlayerDeskLayout({ children }) {
       where: { gmDiscordUserId: session.discordUserId },
       select: { playerDiscordUserId: true, lastReadAt: true },
     }),
+    // This GM's own mutes — a mute is per-GM by design, so muting a
+    // conversation removes it only from the muting GM's rail.
+    prisma.conversationMute.findMany({
+      where: { gmDiscordUserId: session.discordUserId },
+      select: { playerDiscordUserId: true },
+    }),
   ]);
 
   const latestByUser = new Map(latestMessages.map((m) => [m.discordUserId, m]));
   const unreadByUser = new Map(unreadRows.map((r) => [r.discordUserId, r.unreadCount]));
   const claimByUser = new Map(claims.map((c) => [c.playerDiscordUserId, c.claimedByDiscordUserId]));
   const lastReadByUser = new Map(reads.map((r) => [r.playerDiscordUserId, r.lastReadAt.getTime()]));
-  const mutedUserIds = new Set(claims.filter((c) => c.mutedAt).map((c) => c.playerDiscordUserId));
+  const mutedUserIds = new Set(mutes.map((m) => m.playerDiscordUserId));
   const handledAtByUser = new Map(
     claims.filter((c) => c.handledAt).map((c) => [c.playerDiscordUserId, c.handledAt.getTime()]),
   );
@@ -172,6 +178,11 @@ export default async function PlayerDeskLayout({ children }) {
   const catatonicCharacterIds = new Set(
     characterTags.filter((ct) => ct.tagId === catatonicTagId).map((ct) => ct.characterId),
   );
+
+  // ⬢ per character, in one batch query rather than one per row — this rail
+  // lists everyone. Every status, not just ALIVE: a dead character's purse is
+  // still shown here, so the tag rows above (ALIVE only) can't answer it.
+  const resourcesByCharacter = await resourcesByCharacterIds(prisma, characters.map((c) => c.id));
 
   // Held-tag names per character, for the rail's fuzzy `tag` field.
   const tagNameById = new Map(allTags.map((t) => [t.id, t.name]));
@@ -224,7 +235,7 @@ export default async function PlayerDeskLayout({ children }) {
       factionZoneName: c?.faction?.zone?.name ?? "",
       zoneName: c?.zone?.name ?? "",
       status: c?.status ?? null,
-      resources: c?.resources ?? 0,
+      resources: c ? resourcesByCharacter.get(c.id) ?? 0 : 0,
       cursed: cursed.has(discordUserId),
       catatonic: c ? catatonicCharacterIds.has(c.id) : false,
       username,

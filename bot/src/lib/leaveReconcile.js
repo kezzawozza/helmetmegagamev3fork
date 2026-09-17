@@ -2,8 +2,8 @@
 // guildMemberRemove handler only fires while the gateway is connected. This
 // pass diffs the living roster against actual guild membership on every
 // ready and runs the shared departure path (db/lib/playerDeparture.js) for
-// anyone missed. Called from ready.js AFTER the channel doctor and the
-// nickname sync. Idempotent via the `leftGuildAt: null` filter.
+// anyone missed. Called from ready.js AFTER the channel doctor. Idempotent
+// via the `leftGuildAt: null` filter.
 const { prisma } = require("@lifeweb/db");
 const { markPlayerDeparted } = require("@lifeweb/db/lib/playerDeparture");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("@lifeweb/db/lib/constants");

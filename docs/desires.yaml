@@ -49,10 +49,10 @@
 #   1. The per-slot lock already shuts a slot for the turn a Desire ends, so
 #      the soonest anything can be re-fulfilled is the turn after.
 #      `cooldownTurns: 1` therefore does NOTHING — it is dominated by a gate
-#      that was going to fire anyway. 2 is the smallest value that has any
-#      effect at all. Don't write 1.
-#      (This tracked desireSlotLockTurns, which was 2 until 2026-09-07 and is
-#      now 1. At a lock of 2 it was `1` and `2` that were inert.)
+#      that was going to fire anyway. Don't write 1.
+#      (This tracks desireSlotLockTurns, which was 2 until 2026-09-07, 1 until
+#      2026-09-16, and is 2 again now. At a lock of 2 it is `1` AND `2` that
+#      are inert, and 3 is the smallest value with any effect at all.)
 #   2. A gate is not a throttle. `requires` decides WHO may take a goal, never
 #      how often; a tag or role you hold permanently costs nothing on the
 #      second repetition. What actually throttles a Desire is a per-attempt
@@ -407,9 +407,15 @@ desires:
     cooldownTurns: 3
 
   kill-someone-you-hate:
-    name: Kill someone you hate
-    tier: 4
+    name: Contribute to killing someone you hate
+    tier: 2
     families: [violence]
+
+  murder-rival:
+    name: Individually murder your rival
+    tier: 4
+    families: [feud, violence]
+    oncePerLife: true
 
   # Gambling ladder (2026-09-02): a bet, then stakes that climb, then the
   # once-ever big win. win-3-gambling was retired by this pass.
@@ -551,7 +557,7 @@ desires:
 
   obtain-vengeance:
     name: Obtain vengeance
-    tier: 3
+    tier: 1
     families: [feud, violence]
 
   be-crowned-baron:
@@ -2430,7 +2436,10 @@ desires:
   # cooldownTurns is 2, not the tier's own 2 by accident: it is written down so
   # nobody "tidies" it up the free-social ladder to 4. This is the character's
   # ONLY goal, and a 4-turn cooldown benches them three turns in four — the
-  # exact failure the `stupidity` family exists to prevent.
+  # exact failure the `stupidity` family exists to prevent. At the current slot
+  # lock of 2 this entry is dominated by the lock and does nothing on its own.
+  # Leave it: it is the written-down intent of "as fast as the game allows",
+  # and it bites again the moment the lock comes back down.
   cause-chaos:
     name: Cause Chaos
     tier: 2

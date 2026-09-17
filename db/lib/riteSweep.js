@@ -17,15 +17,15 @@ const { distinctChanters, ROOM_SELECT } = require("./riteChant");
 const { resolveIngredients } = require("./riteIngredients");
 const { EFFECTS } = require("./riteEffects");
 const { dropRoomTag } = require("./tagWrites");
+const { takeRoomResources } = require("./resourceStack");
 
 async function consumeFloor(tx, rite, roomId) {
   for (const need of floorIngredients(rite)) {
     if (need.resources) {
-      const { count } = await tx.room.updateMany({
-        where: { id: roomId, resources: { gte: need.resources } },
-        data: { resources: { decrement: need.resources } },
-      });
-      if (count === 0) return false;
+      // STRICT, like the dropRoomTag below it: the whole amount comes off the
+      // floor or the rite does not fire. That is what the guarded `gte`
+      // updateMany was before ⬢ became a stack.
+      if (!(await takeRoomResources(tx, roomId, need.resources))) return false;
     }
     if (need.tag) {
       const tag = await tx.tag.findUnique({ where: { slug: need.tag }, select: { id: true } });

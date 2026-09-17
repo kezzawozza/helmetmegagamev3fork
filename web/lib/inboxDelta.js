@@ -92,7 +92,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
              l."authorDiscordUserId" AS "lastAuthor",
              COALESCE(u."unreadCount", 0) AS "unreadCount",
              (EXTRACT(EPOCH FROM cm."handledAt") * 1000)::double precision AS "handledAtMs",
-             (cm."mutedAt" IS NOT NULL) AS "muted",
+             (cmu."id" IS NOT NULL) AS "muted",
              cm."claimedByDiscordUserId",
              -- This GM's read cursor, shipped so the client can tell whether
              -- its own optimistic "I have read this" has been overtaken by
@@ -103,6 +103,9 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
         LEFT JOIN latest l ON l."discordUserId" = t."discordUserId"
         LEFT JOIN unread u ON u."discordUserId" = t."discordUserId"
         LEFT JOIN "ConversationMeta" cm ON cm."playerDiscordUserId" = t."discordUserId"
+        LEFT JOIN "ConversationMute" cmu
+          ON cmu."playerDiscordUserId" = t."discordUserId"
+         AND cmu."gmDiscordUserId" = ${gmDiscordUserId}
         LEFT JOIN "ConversationRead" cr
           ON cr."playerDiscordUserId" = t."discordUserId"
          AND cr."gmDiscordUserId" = ${gmDiscordUserId}

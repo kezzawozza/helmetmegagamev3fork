@@ -9,7 +9,7 @@ import useRoster from "./useRoster";
 import useSubmit from "./useSubmit";
 import { useActionPools } from "./poolsContext";
 import { transferableTags } from "@/lib/tagRequests";
-import { transferRequest, lootCharacterRequest } from "@/app/(app)/character/requestActions";
+import { transferRequest, lootCharacterRequest, stealRequest } from "@/app/(app)/character/requestActions";
 
 // Moving things: one dialog for Transfer, Loot, Take, Drop and Give.
 //
@@ -55,6 +55,12 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
   const selfId = pools.selfId;
   const selfKey = selfId ? `character:${selfId}` : "";
   const loot = mode === "loot";
+  // Steal (docs/systemdocs/THEFT.md §1) is this dialog with both ends decided:
+  // out of a stash, into your own hands. It is the same act Take already
+  // performs, which is why it is a mode here rather than a dialog of its own —
+  // the only difference is which server action carries it and whether the room
+  // is told.
+  const steal = mode === "steal";
 
   const { roster, loading } = useRoster(["people", "rooms", "self"], {
     seed: {
@@ -70,8 +76,8 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
   const carry = roster?.self?.carry ?? pools.carry ?? null;
   const mine = useMemo(() => transferableTags(roster?.self?.characterTags ?? []), [roster]);
 
-  const [fromKey, setFromKey] = useState(presets?.fromKey ?? (loot ? "" : selfKey));
-  const [toKey, setToKey] = useState(presets?.toKey ?? (loot ? selfKey : ""));
+  const [fromKey, setFromKey] = useState(presets?.fromKey ?? (loot || steal ? "" : selfKey));
+  const [toKey, setToKey] = useState(presets?.toKey ?? (loot || steal ? selfKey : ""));
   const [picks, setPicks] = useState(() => {
     const seed = presets?.picks ?? {};
     return Object.fromEntries(Object.entries(seed).map(([k, v]) => [k, String(v)]));
@@ -89,19 +95,24 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
 
   // Sources: you, the rooms you can get into, and anybody who can't stop
   // you. Loot opens with you left out — the point is what you are taking.
-  const sources = [
-    ...(loot ? [] : [{ id: selfKey, label: "You" }]),
-    ...rooms.map((r) => ({ id: `room:${r.id}`, label: r.name, note: "room" })),
-    ...lootable.map((c) => ({
-      id: `character:${c.id}`,
-      label: c.name,
-      note: c.status === "DEAD" ? "dead" : (c.condition ?? "helpless").toLowerCase(),
-    })),
-  ];
+  const sources = steal
+    ? rooms.map((r) => ({ id: `room:${r.id}`, label: r.name, note: "room" }))
+    : [
+        ...(loot ? [] : [{ id: selfKey, label: "You" }]),
+        ...rooms.map((r) => ({ id: `room:${r.id}`, label: r.name, note: "room" })),
+        ...lootable.map((c) => ({
+          id: `character:${c.id}`,
+          label: c.name,
+          note: c.status === "DEAD" ? "dead" : (c.condition ?? "helpless").toLowerCase(),
+        })),
+      ];
   // What comes off a person goes in YOUR hands — there is no verb for going
   // through somebody's pockets straight into a cupboard, and the server
   // refuses it.
-  const destinations = fromPerson
+  // Stealing goes in YOUR hands and nowhere else. There is no verb for lifting
+  // something off a shelf straight into somebody else's pocket, and the server
+  // forces the destination regardless of what is posted.
+  const destinations = fromPerson || steal
     ? [{ id: selfKey, label: "You" }]
     : [
         ...(fromSelf ? [] : [{ id: selfKey, label: "You" }]),
@@ -161,7 +172,9 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
       .filter(Boolean)
       .join(" · ") || null,
   }));
-  const balance = fromSelf ? (carry?.resources ?? pools.resources ?? 0) : fromRoom ? fromRoom.resources : fromPerson ? fromPerson.resources : null;
+  // `carry` carries no ⬢ figure any more (carryStatus is weight-only since the
+  // second cap went), so the self case reads the sheet's own count.
+  const balance = fromSelf ? (pools.resources ?? 0) : fromRoom ? fromRoom.resources : fromPerson ? fromPerson.resources : null;
 
   const lines = pickedLines(picks).filter((l) => rows.some((r) => r.id === l.tagId));
   const moved = Number(amount) || 0;
@@ -171,14 +184,18 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
   // Projection: what YOUR load looks like after this moves. Only meaningful
   // when one end is you, and not for what comes off a body (Loot never
   // charged the carry cap for that, CARRY.md §2).
-  const lbs = lines.reduce((n, l) => n + (rows.find((r) => r.id === l.tagId)?.weightLbs ?? 0) * l.quantity, 0);
+  // ⬢ weigh a pound each and count against the one weight cap alongside the
+  // gear (CARRY.md) — there is no second cap to check any more.
+  const lbs = lines.reduce((n, l) => n + (rows.find((r) => r.id === l.tagId)?.weightLbs ?? 0) * l.quantity, 0) + moved;
   const round = (n) => Math.round(n * 100) / 100;
   let projected = null;
-  if (carry && fromSelf) projected = { weight: round(carry.weightUsed - lbs), resources: carry.resources - moved };
-  else if (carry && toSelf && !fromPerson) projected = { weight: round(carry.weightUsed + lbs), resources: carry.resources + moved };
-  const overAfter = projected && (projected.weight > carry.weightCap || projected.resources > carry.resourcesCap);
-  const refusedAfter =
-    projected && (projected.weight > carry.weightHardCap || projected.resources > carry.resourcesHardCap);
+  // Weight only. `lbs` above already includes the ⬢ being moved, at a pound
+  // each, so a separate ⬢ term would be the same units counted twice — and
+  // carryStatus stopped returning a ⬢ balance when the second cap went.
+  if (carry && fromSelf) projected = { weight: round(carry.weightUsed - lbs) };
+  else if (carry && toSelf && !fromPerson) projected = { weight: round(carry.weightUsed + lbs) };
+  const overAfter = projected && projected.weight > carry.weightCap;
+  const refusedAfter = projected && projected.weight > carry.weightHardCap;
   const note =
     toSilo && !toSilo.canOpen
       ? `${toSilo.name} is locked to you. This will go in, and you won't be able to take it back out.`
@@ -204,7 +221,12 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
 
   function onSubmit() {
     const what = whatMoved();
-    const line = fromPerson
+    // Deliberately outcome-BLIND for a steal. The server never returns the die
+    // and this line never varies, so nothing here can be read backwards into
+    // whether the room saw you — the room's own thread is what tells you that.
+    const line = steal
+      ? `Took ${what} from ${nameOf(fromKey)}.`
+      : fromPerson
       ? `Took ${what} off ${nameOf(fromKey)}.`
       : fromSelf
         ? toKey.startsWith("room:")
@@ -216,24 +238,26 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
     const tags = lines.map((l) => ({ tagId: l.tagId, quantity: String(l.quantity) }));
     submit(
       () =>
-        fromPerson
-          ? lootCharacterRequest({ targetCharacterId: fromPerson.id, tagPicks: tags, amount })
-          : transferRequest({ fromKey, toKey, tags, amount }),
+        steal
+          ? stealRequest({ fromKey, tags })
+          : fromPerson
+            ? lootCharacterRequest({ targetCharacterId: fromPerson.id, tagPicks: tags, amount })
+            : transferRequest({ fromKey, toKey, tags, amount }),
       () => onDone(line),
     );
   }
 
-  const nothingToTake = loot && !loading && sources.length === 0;
+  const nothingToTake = (loot || steal) && !loading && sources.length === 0;
 
   return (
     <ActionDialog
-      title={loot ? "Loot" : "Transfer"}
-      submitLabel={loot ? "Take" : "Move it"}
+      title={steal ? "Steal" : loot ? "Loot" : "Transfer"}
+      submitLabel={steal ? "Take it" : loot ? "Take" : "Move it"}
       width="wide"
       busy={busy}
       error={error}
       loading={loading && sources.length === 0}
-      empty={nothingToTake ? "Nothing here to search." : null}
+      empty={nothingToTake ? (steal ? "There's no stash here you can get into." : "Nothing here to search.") : null}
       canSubmit={Boolean(fromKey && toKey && !sameParty && taking && !refusedAfter)}
       onClose={onClose}
       onSubmit={onSubmit}
@@ -278,6 +302,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
                   : "You're carrying nothing you could hand over."
             }
           />
+          {!steal && (
           <QuantityField
             inline={false}
             label={`Resources${balance != null ? ` (of ${balance})` : ""}`}
@@ -286,13 +311,13 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
             value={amount}
             onChange={setAmount}
           />
+          )}
         </div>
       )}
 
       {projected && (
         <p className={`text-xs ${overAfter || refusedAfter ? "text-accent" : "text-muted"}`}>
-          After this you&apos;ll carry {projected.weight} / {carry.weightCap} lb and {projected.resources} /{" "}
-          {carry.resourcesCap} ⬢.
+          After this you&apos;ll carry {projected.weight} / {carry.weightCap} lb.
           {refusedAfter
             ? " That's more than you could hold even overburdened, so it won't go through."
             : overAfter

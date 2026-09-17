@@ -207,34 +207,48 @@ test("normalizeTurnsCost accepts a whole-number turnsCost, and null when unset",
   });
 });
 
-test("normalizeTurnsCost parses the 1/N fraction into requirementTurns 1 + requirementPerTurn N", () => {
-  assert.deepEqual(normalizeTurnsCost({ turnsCost: "1/3" }, { slug: "deep-wound" }), {
-    requirementTurns: 1,
-    requirementPerTurn: 3,
-  });
-  assert.deepEqual(normalizeTurnsCost({ turnsCost: "1/2" }, { slug: "feverish" }), {
-    requirementTurns: 1,
-    requirementPerTurn: 2,
-  });
-  assert.deepEqual(normalizeTurnsCost({ turnsCost: "1/8" }, { slug: "x" }), {
-    requirementTurns: 1,
-    requirementPerTurn: 8,
-  });
-  // Whitespace-tolerant, same as every other YAML scalar this sync reads.
-  assert.deepEqual(normalizeTurnsCost({ turnsCost: " 1/4 " }, { slug: "x" }), {
-    requirementTurns: 1,
-    requirementPerTurn: 4,
-  });
+// A part-turn cost is the number itself now; nothing is folded into
+// requirementPerTurn, which is a ration again and nothing else.
+test("normalizeTurnsCost takes a decimal number of Moves and leaves perTurn alone", () => {
+  for (const turnsCost of [0.25, 0.5, 0.75, 1, 2, 6]) {
+    assert.deepEqual(normalizeTurnsCost({ turnsCost }, { slug: "x" }), {
+      requirementTurns: turnsCost,
+      requirementPerTurn: null,
+    });
+  }
 });
 
-test("normalizeTurnsCost refuses a garbage turnsCost and a 1/1 or 1/0-shaped fraction", () => {
-  assert.throws(
-    () => normalizeTurnsCost({ turnsCost: "half" }, { slug: "x" }),
-    /turnsCost must be a whole number of Moves or a "1\/N" fraction/,
-  );
-  assert.throws(() => normalizeTurnsCost({ turnsCost: "1/1" }, { slug: "x" }), /turnsCost must be/);
-  assert.throws(() => normalizeTurnsCost({ turnsCost: "1/0" }, { slug: "x" }), /turnsCost must be/);
-  assert.throws(() => normalizeTurnsCost({ turnsCost: -1 }, { slug: "x" }), /turnsCost must be/);
+// The quarter is not fussiness: the Move budget is exact rational arithmetic
+// (web/lib/craftBudget.js), and a cost it cannot hold exactly would let a
+// character do work they never paid for.
+test("normalizeTurnsCost refuses a cost that is not on a quarter", () => {
+  for (const turnsCost of [0.1, 0.33, 0.125, 0.3, -0.25, -1]) {
+    assert.throws(
+      () => normalizeTurnsCost({ turnsCost }, { slug: "x" }),
+      /turnsCost must be a number of Moves on a quarter/,
+      `expected ${turnsCost} to be refused`,
+    );
+  }
+});
+
+// Past one Move a recipe is a project, and a project takes whole turns.
+test("normalizeTurnsCost refuses a fractional project", () => {
+  assert.throws(() => normalizeTurnsCost({ turnsCost: 1.5 }, { slug: "x" }), /a project and takes whole turns/);
+  assert.throws(() => normalizeTurnsCost({ turnsCost: 2.25 }, { slug: "x" }), /a project and takes whole turns/);
+});
+
+// Every one of these was a real authored value before 9/2026, so the refusal
+// names the replacement rather than just saying no.
+test("normalizeTurnsCost refuses the old 1/N fraction, and says what to write instead", () => {
+  for (const turnsCost of ["1/3", "1/2", "1/4", " 1/4 ", "1/8"]) {
+    assert.throws(
+      () => normalizeTurnsCost({ turnsCost }, { slug: "x" }),
+      /is a fraction .* those are gone; write it as a decimal/,
+      `expected ${turnsCost} to be refused`,
+    );
+  }
+  // Any other string is refused by the same door.
+  assert.throws(() => normalizeTurnsCost({ turnsCost: "half" }, { slug: "x" }), /is a fraction/);
 });
 
 test("normalizeTurnsCost's perTurn is a 0-turn ration only — pairing it with a Move cost is refused", () => {
@@ -267,7 +281,7 @@ test("normalizeTurnsCost refuses a healable tag with no turnsCost at all, and pa
   assert.doesNotThrow(() => normalizeTurnsCost({}, { slug: "sword" }));
   // Explicit 0 satisfies the guard just as well as a real cost.
   assert.doesNotThrow(() => normalizeTurnsCost({ turnsCost: 0 }, { slug: "new-wound", healable: true }));
-  assert.doesNotThrow(() => normalizeTurnsCost({ turnsCost: "1/3" }, { slug: "new-wound", healable: true }));
+  assert.doesNotThrow(() => normalizeTurnsCost({ turnsCost: 0.25 }, { slug: "new-wound", healable: true }));
 });
 
 test("validateHealableRequirement mirrors normalizeTurnsCost's guard for the GM form's already-parsed requirementTurns", () => {

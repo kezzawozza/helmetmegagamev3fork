@@ -3,8 +3,14 @@
 // how long a Gambit stays the player's own.
 //
 // They are two halves of one rule and are tested together on purpose: a Move stops
-// being editable at exactly the moment its die is thrown, and if these two ever
-// disagree a player either edits a rolled Gambit or loses one that never rolled.
+// being editable at exactly the cutoff, and if these two ever disagree a player either
+// edits a locked Gambit or loses one the window was still open on.
+//
+// NOT at the moment the die is thrown, which is what this suite used to say. The die
+// lands at SUBMIT now (db/lib/gambitDie.js) so a GM can adjudicate early, and it is bound
+// to the character and turn, so an edit cannot change it. What closes the window is the
+// cutoff, and `diceModifier` is the mark the settle pass leaves behind
+// (db/lib/gambitCutoff.js) for a turn that has no cutoff to read.
 const test = require("node:test");
 const assert = require("node:assert");
 
@@ -35,7 +41,7 @@ function gambit(over = {}) {
     moveKind: "GAMBIT",
     moveReviewStatus: "OPEN",
     lockExpiresAt: null,
-    diceRoll: null,
+    diceModifier: null,
     ...over,
   };
 }
@@ -119,12 +125,34 @@ test("no turn is a refusal, not a throw", () => {
   assert.deepEqual(cutoffReached(null), { at: false, reason: "no open turn" });
 });
 
-test("a rolled Gambit can never be touched, whatever the clock says", () => {
-  // The guard that actually matters. Withdrawing a rolled Gambit and filing another
-  // would hand back a fresh die, which is the whole prize this design removes.
-  const { editable, reason } = moveIsEditable(gambit({ diceRoll: 4 }), TURN, { now: OPEN_AT });
+test("a Gambit that already has its die is STILL editable before the cutoff", () => {
+  // The inversion that early rolling turns on. A die on the row used to be the hardest
+  // refusal in the predicate; now every Gambit carries one from the moment it is
+  // confirmed, so reading it here would shut the edit window at submit and take back the
+  // whole point of letting a player rewrite their day.
+  const { editable } = moveIsEditable(gambit({ diceRoll: 4 }), TURN, { now: OPEN_AT });
+  assert.equal(editable, true);
+});
+
+test("a settled Gambit can never be touched, whatever the clock says", () => {
+  // What replaced the die guard, and it has to hold for the same reason: `hasLock` is
+  // false under a frozen clock and on a turn shorter than MOVE_LOCK_HOURS, so without
+  // this the staged push could settle a Move that was still open to editing.
+  const { editable, reason } = moveIsEditable(gambit({ diceRoll: 4, diceModifier: -1 }), TURN, { now: OPEN_AT });
   assert.equal(editable, false);
-  assert.match(reason, /die is already thrown/);
+  assert.match(reason, /locked/);
+});
+
+test("the refusal never names the die — the number is not the player's until the close", () => {
+  // These strings reach the player through editMove/withdrawMove, which return
+  // result.error verbatim. A refusal reading "the die is already thrown" told them one
+  // had been, hours before the reveal DM.
+  for (const over of [{}, { diceRoll: 4 }, { diceRoll: 4, diceModifier: -1 }]) {
+    for (const now of [OPEN_AT, AFTER_CUTOFF, OVERDUE]) {
+      const { reason } = moveIsEditable(gambit(over), TURN, { now, clockFrozen: false });
+      assert.doesNotMatch(reason, /\bdie\b|\brolled?\b|\bthrown\b/i, `leaked in "${reason}"`);
+    }
+  }
 });
 
 test("one minute past the cutoff, the Move is no longer yours", () => {
@@ -157,15 +185,15 @@ test("an OVERDUE turn does not reopen editing — the regression that made a re-
   assert.equal(editable, false, "an overdue turn must not reopen editing");
   assert.match(reason, /locked/);
 
-  // Belt and braces: a row that actually carries a die refuses for its own reason too.
+  // Belt and braces: a row the settle pass already stamped refuses on its own too.
   assert.equal(
-    moveIsEditable(gambit({ diceRoll: 6 }), TURN, { now: OVERDUE, clockFrozen: false }).editable,
+    moveIsEditable(gambit({ diceRoll: 6, diceModifier: 0 }), TURN, { now: OVERDUE, clockFrozen: false }).editable,
     false,
   );
   assert.ok(CUTOFF_AT < OVERDUE);
 });
 
-test("a Move stays editable for exactly as long as the die is unthrown", () => {
+test("a Move stays editable for exactly as long as the cutoff is unreached", () => {
   // The invariant tying the two predicates together: walk a turn minute by minute, well
   // past its end, and assert editing is never open once the cutoff has passed.
   const start = TURN.startedAt.getTime();
@@ -174,7 +202,7 @@ test("a Move stays editable for exactly as long as the die is unthrown", () => {
     const now = new Date(start + minutes * 60_000);
     const { at } = cutoffReached(TURN, { now, clockFrozen: false });
     const { editable } = moveIsEditable(gambit(), TURN, { now, clockFrozen: false });
-    // The die is thrown at or after the cutoff; editing is open only strictly before it.
+    // The window shuts at the cutoff; editing is open only strictly before it.
     assert.equal(at && editable, false, `both true at +${minutes}m`);
     if (now >= CUTOFF_AT) {
       assert.equal(editable, false, `editable past the cutoff at +${minutes}m`);

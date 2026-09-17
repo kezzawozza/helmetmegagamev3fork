@@ -17,23 +17,79 @@ const assert = require("node:assert/strict");
 const { record, recordDelta, MINT, BURN, characterParty } = require("../lib/economyLedger");
 const { moveParty, applyTransfer, InsufficientResourcesError } = require("../lib/resourceTransfer");
 
+// ⬢ are a stack tag now (db/lib/resourceStack.js), held in a CharacterTag or
+// RoomTag row rather than a `resources` column. resourceTransfer.js's
+// moveParty/applyTransfer call through resourceStack.js, which itself calls
+// tx.tag.findUnique (for the tag id) and tx.characterTag / tx.roomTag
+// (findUnique/create/update/updateMany/deleteMany). This fake models those
+// calls instead of a bare `resources` column — `bal` still gives every test
+// below the same plain "current balance" view it always had, kept in sync as
+// a side effect of the row writes underneath it.
+const RESOURCES_TAG_ID = "tag_resources";
+
 function fakeTx(balances = {}) {
   const bal = new Map(Object.entries(balances));
+
+  // One party-tag store per model, keyed by the owning id — a CharacterTag or
+  // RoomTag row for the `resources` tag specifically, since that's the only
+  // tag either module ever touches here.
+  function tagStore(idField) {
+    const rows = new Map(); // ownerId -> { id, [idField]: ownerId, tagId, quantity }
+    let seq = 0;
+    for (const [ownerId, quantity] of bal) {
+      if (quantity > 0) rows.set(ownerId, { id: `${idField}${++seq}`, [idField]: ownerId, tagId: RESOURCES_TAG_ID, quantity });
+    }
+    return {
+      async findUnique({ where }) {
+        const key = where[`${idField}_tagId`];
+        if (!key) return null;
+        const row = rows.get(key[idField]);
+        if (!row || row.tagId !== key.tagId) return null;
+        return { id: row.id, quantity: row.quantity };
+      },
+      async create({ data }) {
+        const row = { id: `${idField}${++seq}`, [idField]: data[idField], tagId: data.tagId, quantity: data.quantity };
+        rows.set(data[idField], row);
+        bal.set(data[idField], row.quantity);
+        return row;
+      },
+      async update({ where, data }) {
+        const row = [...rows.values()].find((r) => r.id === where.id);
+        if (!row) throw new Error("no such row");
+        if (typeof data.quantity === "object" && data.quantity.increment != null) row.quantity += data.quantity.increment;
+        else row.quantity = data.quantity;
+        bal.set(row[idField], row.quantity);
+        return row;
+      },
+      async updateMany({ where, data }) {
+        const ownerId = where[idField];
+        const row = rows.get(ownerId);
+        if (!row || row.tagId !== where.tagId) return { count: 0 };
+        const need = where.quantity?.gte ?? 0;
+        if (row.quantity < need) return { count: 0 };
+        row.quantity -= data.quantity.decrement ?? 0;
+        bal.set(ownerId, row.quantity);
+        return { count: 1 };
+      },
+      async delete({ where }) {
+        const row = [...rows.values()].find((r) => r.id === where.id);
+        if (row) {
+          rows.delete(row[idField]);
+          bal.set(row[idField], 0);
+        }
+      },
+      async deleteMany({ where }) {
+        const ownerId = where[idField];
+        const row = rows.get(ownerId);
+        if (row && row.quantity <= (where.quantity?.lte ?? 0)) {
+          rows.delete(ownerId);
+          bal.set(ownerId, 0);
+        }
+      },
+    };
+  }
+
   const entries = [];
-  const model = () => ({
-    async update({ where, data }) {
-      const cur = bal.get(where.id) ?? 0;
-      const f = data.resources;
-      bal.set(where.id, cur + (f.increment ?? -(f.decrement ?? 0)));
-    },
-    async updateMany({ where, data }) {
-      const cur = bal.get(where.id) ?? 0;
-      const need = where.resources?.gte ?? 0;
-      if (cur < need) return { count: 0 };
-      bal.set(where.id, cur - (data.resources.decrement ?? 0));
-      return { count: 1 };
-    },
-  });
   const sql = [];
   const lookups = { count: 0 };
   return {
@@ -41,8 +97,12 @@ function fakeTx(balances = {}) {
     entries,
     sql,
     lookups,
-    character: model(),
-    room: model(),
+    // Always resolves the one `resources` tag — resourceStack.js caches this
+    // id at module scope, so the exact id string only has to be stable, not
+    // fresh per transaction.
+    tag: { async findUnique() { return { id: RESOURCES_TAG_ID }; } },
+    characterTag: tagStore("characterId"),
+    roomTag: tagStore("roomId"),
     // findUnique, because the ledger reads the singleton through
     // db/lib/gameState.js#readGameState like every other module does.
     gameState: {

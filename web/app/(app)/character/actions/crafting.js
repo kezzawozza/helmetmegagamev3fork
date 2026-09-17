@@ -16,7 +16,7 @@ import {
   craftFamilyLabel,
   craftMoveCost,
   fitsInRemaining,
-  formatMoveFraction,
+  formatMoveAmount,
   ledgerRemaining,
   ledgerUsed,
 } from "@/lib/craftBudget";
@@ -720,7 +720,7 @@ export async function craftRequestImpl({
     return { made: craftLabel(grant?.tag ?? tag, quantity) };
   }
 
-  // Real work: this turn's Move, and a project if it takes more than one. Quantity is limited by WORK ARITHMETIC and nothing else: a unit costs its `turnsCost` of the Move (a whole turn, or the 1/N a fractional recipe authors), so a brewer's Routine holds three ⅓-turn Alcohol and a smith's holds ONE broadsword, and a spare half-turn takes more same-family work or none. A project takes the Move whole every turn it runs, so it can never share one, and makes ONE unit — wanting two means starting it twice.
+  // Real work: this turn's Move, and a project if it takes more than one. Quantity is limited by WORK ARITHMETIC and nothing else: a unit costs its `turnsCost` of the Move (a whole turn, or the decimal share a part-turn recipe authors), so a brewer's Routine holds four 0.25-turn Alcohol and a smith's holds ONE broadsword, and a spare part-turn takes more same-family work or none. A project takes the Move whole every turn it runs, so it can never share one, and makes ONE unit — wanting two means starting it twice.
   if (turns > 1 && quantity > 1) {
     throw new UserError(
       `That's ${turns} turns of work apiece — make them one at a time.`,

@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+// Zero-require and so safe from a client component, the same way
+// web/lib/tagRequests.js imports ./tradeable — importing the @lifeweb/db
+// barrel here would drag PrismaClient into the browser bundle.
+import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { formatGambitModifiers, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import { bandOf } from "@lifeweb/db/lib/mood";
 import StatusStrip from "@/app/(app)/chat/StatusStrip";
@@ -51,6 +55,12 @@ export default function LedgerBand({
         .map((b) => `${b.name} ${b.bonus > 0 ? "+" : "−"}${Math.abs(Math.round(b.bonus * 100))}%`)
         .join(" · ")
     : "Nothing you hold changes what you can carry.";
+  // ⬢ are a stack row on the sheet like anything else, so the tile reads them
+  // off the tags already loaded rather than taking a number as a prop. There
+  // is no cap beside it any more — a ⬢ weighs a pound and pushes against the
+  // Carrying tile's cap instead (docs/systemdocs/CARRY.md §1).
+  const heldResources = resourcesOf(character);
+
   const gambitParts = gambitModifiers(character.tags, { mood: character.mood });
   // Summed from the parts: two calls to the same module is two chances for the number and its explanation to disagree.
   const gambit = gambitParts.reduce((sum, m) => sum + m.value, 0);
@@ -130,11 +140,7 @@ export default function LedgerBand({
             open={tileOpen === "moves"}
             onOpen={(want) => setTileOpen(want ? "moves" : null)}
           />
-          <DetailTile
-            label="Resources"
-            value={carry ? `${carry.resources} / ${carry.resourcesCap} ⬢` : `${character.resources} ⬢`}
-            over={Boolean(carry && carry.resources > carry.resourcesCap)}
-          />
+          <DetailTile label="Resources" value={`${heldResources} ⬢`} />
           <DetailTile
             label="Carrying"
             value={carrying ? `${carrying} lb` : "—"}
@@ -195,7 +201,7 @@ export default function LedgerBand({
           openTurnNumber={openTurn?.number ?? null}
           craftProjects={craftProjects}
           sitesHere={sitesHere}
-          resources={character.resources}
+          resources={heldResources}
           // Never on someone else's sheet — a hunger meter is a private fact
           // (db/lib/hunger.js), same reasoning the Combat tile above uses.
           hungerWarning={isSelf ? hungerWarning : null}

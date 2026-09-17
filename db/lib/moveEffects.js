@@ -3,38 +3,24 @@
 // `Action.appliedEffects`, and revert reads ONLY that snapshot. Same rule as Request.payload vs Request.effect (docs/systemdocs/REQUESTS.md §2).
 // `appliedEffects` is JSON rather than a column per pushable thing so this can grow at one entry in MOVE_EFFECTS; revert skips keys it doesn't know.
 
-// A Move can't drive a character's balance negative; anything that would is clamped, matching db/lib/hungerPass.js. RETURNS THE ACTUAL MOVEMENT,
+// A Move can't drive a character's balance negative; anything that would is clamped. RETURNS THE ACTUAL MOVEMENT,
 // since the clamp means the nominal and applied deltas differ — snapshotting the nominal and crediting it back on Unsolve would mint ⬢ from nothing.
 async function addResources(tx, characterId, amount, ctx) {
   if (!amount) return 0;
-  // One atomic statement, not read-then-write — a Labor confirm could race a transfer or the auto-labor pass. GREATEST is the clamp Prisma's
-  // `increment` can't express, which is why this is raw. FOR UPDATE so a concurrent write can't land between the `before`/`after` reported.
-  const rows = await tx.$queryRaw`
-    WITH prev AS (
-      SELECT "resources" AS before FROM "Character" WHERE "id" = ${characterId} FOR UPDATE
-    )
-    UPDATE "Character" c
-    SET "resources" = GREATEST(0, prev.before + ${amount})
-    FROM prev
-    WHERE c."id" = ${characterId}
-    RETURNING prev.before AS before, c."resources" AS after
-  `;
-  const before = rows[0]?.before ?? 0;
-  const after = rows[0]?.after ?? before;
-  const moved = after - before;
+  // The clamp and the atomicity both live in db/lib/resourceStack.js now — this used to be raw SQL with a GREATEST(0, ...) against
+  // Character.resources, and there is no such column since ⬢ became a stack.
+  const { moved, clamped } = await addCharacterResources(tx, characterId, amount);
   const party = characterParty({ id: characterId });
-  if (party) await recordDelta(tx, party, moved, ctx);
-  // The GREATEST(0, ...) floor is the other silent burn: a debit larger than the balance destroys the shortfall instead of going negative.
-  if (amount < 0 && party) {
-    const shortfall = amount - moved; // both negative or zero; e.g. -5 - (-2) = -3
-    if (shortfall < 0) {
-      await record(tx, { from: party, to: BURN, form: "BALANCE", amount: -shortfall }, { ...ctx, reason: "CLAMP" });
-    }
+  if (moved && party) await recordDelta(tx, party, moved, ctx);
+  // The floor is the other silent burn: a debit larger than the balance destroys the shortfall instead of going negative.
+  if (party && clamped > 0) {
+    await record(tx, { from: party, to: BURN, form: "BALANCE", amount: clamped }, { ...ctx, reason: "CLAMP" });
   }
   return moved;
 }
 
 const { characterParty, recordDelta, record, BURN } = require("./economyLedger");
+const { addCharacterResources } = require("./resourceStack");
 const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
 const { rollWithAdvantage } = require("./advantage");

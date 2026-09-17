@@ -6,17 +6,19 @@ import Modal from "@/app/components/Modal";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ActionBar from "./ActionBar";
 import DevBand from "./DevBand";
+import HeldTagsBody from "./HeldTagsBody";
 import IdentityTab from "./IdentityTab";
 import TagEditor from "./TagEditor";
 import TurnTab from "./TurnTab";
 import GoalsTab from "./GoalsTab";
 import RecordTab from "./RecordTab";
+import AdminNotes from "@/app/components/AdminNotes";
 import { applyCharacterEdits } from "./actions";
 import { getDevPanelRecord } from "@/app/components/devPanelActions";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 
-const TABS = ["Identity", "Tags", "Turn", "Goals", "Record"];
+const TABS = ["Identity", "Tags", "Turn", "Goals", "Record", "Notes"];
 
 // The Dev Character Panel's shell: it owns the staged edit state, the tab, and
 // the Apply/Cancel footer. Everything else is a presentational tab.
@@ -52,8 +54,11 @@ export default function DevPanel({
   roles,
   tags,
   held,
-  maxDrawbackTags,
-  maxDrawbackPoints,
+  characterTags,
+  carry,
+  goalsSummary,
+  lastActivity,
+  adminNotesCount,
   openTurn,
   gambitModifier,
   gambitParts,
@@ -225,18 +230,20 @@ export default function DevPanel({
         discord={discord}
         curse={curse}
         held={held}
-        maxDrawbackTags={maxDrawbackTags}
-        maxDrawbackPoints={maxDrawbackPoints}
+        carry={carry}
+        goalsSummary={goalsSummary}
+        lastActivity={lastActivity}
         gambitModifier={gambitModifier}
         gambitParts={gambitParts}
         openTurn={openTurn}
-        hasActed={Boolean(openTurnAction)}
+        openTurnAction={openTurnAction}
         stagedForPush={stagedForPush}
       />
 
       <ActionBar
         character={character}
         canDelete={canDelete}
+        curse={curse}
         hasActed={Boolean(openTurnAction)}
         openTurn={openTurn}
         locations={locations}
@@ -247,6 +254,16 @@ export default function DevPanel({
         onApplyTags={applyTagOps}
         refresh={refresh}
         onDeleted={onDeleted}
+      />
+
+      {/* Always visible, not gated behind the Tags tab — grouped and
+          separated the way the player's own sheet is (HeldTagsBody.js). The
+          Tags tab below is add-only now. */}
+      <HeldTagsBody
+        characterName={character.name}
+        characterTags={characterTags}
+        openTurn={openTurn}
+        onApplyOps={applyTagOps}
       />
 
       <div className="tab-bar" role="tablist">
@@ -260,7 +277,11 @@ export default function DevPanel({
             className="tab-item"
             onClick={() => openTab(t)}
           >
-            {t}
+            {/* A GM's own reason to click Notes at all: an empty pile says
+                just "Notes", same as every other tab, but a non-empty one
+                says how many are waiting, right on the tab bar rather than
+                behind a click. */}
+            {t === "Notes" && adminNotesCount > 0 ? `Notes (${adminNotesCount})` : t}
           </button>
         ))}
       </div>
@@ -283,7 +304,6 @@ export default function DevPanel({
           characterName={character.name}
           tags={tags}
           held={held}
-          openTurn={openTurn}
           onApplyOps={applyTagOps}
         />
       )}
@@ -315,6 +335,14 @@ export default function DevPanel({
           discordUserId={character.discordUserId}
         />
       )}
+
+      {/* Keyed on the PLAYER, so this is the same list under every character
+          that player has. Deliberately NOT part of the staged-edit form: it is
+          not in EDITABLE_FIELDS, so a note never joins the Apply bar's diff and
+          Cancel cannot discard one — notes commit immediately, like a
+          microaction. It needs none of loadRecord's machinery either, because
+          the mount IS the fetch. */}
+      {tab === "Notes" && <AdminNotes discordUserId={character.discordUserId} />}
 
       {/* The footer appears only when there is something to commit, so the
           panel reads as a viewer until the moment it isn't one. */}

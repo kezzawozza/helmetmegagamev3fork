@@ -1,8 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { deleteSpeech } from "@lifeweb/db/lib/say";
-import { auth } from "@/lib/auth";
-import { getGmSession } from "@/lib/discordGuild";
-import { loadFeedCharacter } from "@/lib/feedAccess";
+import { loadFeedViewer } from "@/lib/feedAccess";
 
 // POST /api/feed/delete { seq } — take back something you said, inside the
 // five-minute window. Soft: the row stays with a `deletedAt` so a browser
@@ -15,8 +13,12 @@ import { loadFeedCharacter } from "@/lib/feedAccess";
 // `{ gm: true }` — the same flag the ✏️/❌ reactions pass on Discord — and
 // leaves a row in AuditLog, because a line vanishing from a scene is exactly
 // the kind of thing somebody later has to be able to ask "who did that?"
-// about. A GM who DOES have a living character plays the game as that
-// character and takes the player path, the same rule loadFeedViewer applies.
+// about. WHICH of the two a GM is depends on the seat they are reading from,
+// and loadFeedViewer is the only thing that decides it — their own character's
+// scene, or the watcher's view of every zone (web/lib/viewAs.js). This route
+// used to answer that question itself, with `character ? false : isGm`, so a
+// GM who flipped to the GM seat got the Remove button and then a refusal from
+// here. One decision, one place.
 export const dynamic = "force-dynamic";
 
 function jsonResponse(body, status = 200) {
@@ -24,14 +26,8 @@ function jsonResponse(body, status = 200) {
 }
 
 export async function POST(request) {
-  const session = await auth();
-  if (!session?.discordUserId) return jsonResponse({ error: "Sign in first." }, 401);
-
-  const character = await loadFeedCharacter(session.discordUserId);
-  // The GM check is only paid for when there is no character to be — it is a
-  // Discord REST call (web/lib/discordGuild.js), and a player's take-back is
-  // the common case by a mile.
-  const gm = character ? false : (await getGmSession()).isGm;
+  const { discordUserId, character, gm } = await loadFeedViewer();
+  if (!discordUserId) return jsonResponse({ error: "Sign in first." }, 401);
   if (!character && !gm) return jsonResponse({ error: "You have no living character." }, 403);
 
   let body;
@@ -52,7 +48,7 @@ export async function POST(request) {
     await prisma.auditLog
       .create({
         data: {
-          actorDiscordUserId: session.discordUserId,
+          actorDiscordUserId: discordUserId,
           actionType: "gm_feed_remove",
           targetCharacterId: result.row.characterId ?? null,
           details: { seq: String(result.row.seq), placeKey: result.row.placeKey ?? null },

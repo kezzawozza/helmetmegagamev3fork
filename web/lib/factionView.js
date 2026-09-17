@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma, CATATONIC_SLUG, OBOL_SLUG } from "@lifeweb/db";
+import { RESOURCES_SLUG, resourcesOf, withoutResources } from "@lifeweb/db/lib/resourceStack";
 
 // The faction query, lifted out of web/app/(app)/faction/page.js so a second
 // surface can ask the same question. Chat's Faction panel
@@ -11,7 +12,7 @@ import { prisma, CATATONIC_SLUG, OBOL_SLUG } from "@lifeweb/db";
 // where it was and be shared. Nothing about the shape changed except
 // `updatedAt`, which Chat needs for the avatar `?v=`.
 export async function loadFaction(factionId) {
-  return prisma.faction.findUnique({
+  const faction = await prisma.faction.findUnique({
     where: { id: factionId },
     include: {
       parentFaction: { select: { id: true, name: true } },
@@ -22,7 +23,6 @@ export async function loadFaction(factionId) {
           id: true,
           name: true,
           kind: true,
-          resources: true,
           accessTagSlugs: true,
           location: { select: { name: true, zoneId: true, zone: { select: { name: true } } } },
           // Full enough for a TagChip hover (FactionConsole.js's silo table) —
@@ -72,20 +72,42 @@ export async function loadFaction(factionId) {
           // an immutable Cache-Control, so a roster without it draws faces
           // from before the last portrait change (PORTRAITS.md).
           updatedAt: true,
-          // Only ever rendered behind the officer gate — a plain member never
-          // sees the column.
-          resources: true,
-          // Two things riding the same relation, both filtered down to a
-          // fixed pair of slugs rather than the whole sheet: the AFK marker
-          // (a bare row means catatonic — `tags.some()` reads it below) and
-          // an officer's Obols column, which needs the actual quantity
-          // (obols are a physical Tag stack, not a balance column — DEPOT.md).
+          // Three things riding the same relation, all filtered down to a
+          // fixed set of slugs rather than the whole sheet: the AFK marker
+          // (a bare row means catatonic — `tags.some()` reads it below), an
+          // officer's Obols column, and their ⬢ — every one of them a
+          // physical Tag stack now rather than a balance column (DEPOT.md,
+          // and docs/systemdocs/ECONOMY.md for the ⬢). The ⬢ row is lifted
+          // out into `resources` below and does not stay in this list.
           tags: {
-            where: { tag: { slug: { in: [CATATONIC_SLUG, OBOL_SLUG] } } },
+            where: { tag: { slug: { in: [CATATONIC_SLUG, OBOL_SLUG, RESOURCES_SLUG] } } },
             select: { quantity: true, tag: { select: { slug: true } } },
           },
         },
       },
     },
   });
+  if (!faction) return null;
+
+  // ⬢ are a stack row now, so the number every caller still reads as
+  // `.resources` is lifted off the tags rather than selected as a column —
+  // and then taken back out of the lists, since the silo table and the
+  // officer's roster both show it in their own ⬢ field and would otherwise
+  // print it twice.
+  const silo = faction.siloRoom;
+  return {
+    ...faction,
+    siloRoom: silo
+      ? {
+          ...silo,
+          resources: resourcesOf(silo),
+          tags: withoutResources(silo.tags),
+        }
+      : silo,
+    characters: faction.characters.map((c) => ({
+      ...c,
+      resources: resourcesOf(c),
+      tags: withoutResources(c.tags),
+    })),
+  };
 }

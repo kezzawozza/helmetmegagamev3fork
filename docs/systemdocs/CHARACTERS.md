@@ -3,7 +3,7 @@
 How a player gets a character, what the point-buy economy is, and what
 happens when that character dies — plus the four-field name and the two locks
 on creation. Companion to `TAGS.md` (the tag catalog), `CHANNELS.md` (the
-Discord channel/permission layout) and `PROXYING.md` (nicknames and personal
+Discord channel/permission layout) and `PROXYING.md` (personal
 roles).
 
 ## 1. The shape of it
@@ -185,7 +185,7 @@ The potion is brewable (`brewing-skilled`, 2 turns, 8 ⬢) and stocked at the
 Depot, so it is a thing a player can actually get. It re-validates the same cap
 and dynasty-lock rules every other writer of `Character.name` enforces, and runs the same
 lightweight Discord fan-out `updateCharacterProfile` used to
-(`ensureCharacterRole`, `syncCharacterNickname`, and
+(`ensureCharacterRole`, and
 `propagateDynastyLastName` if the renamer is the Baron) right after the
 transaction commits — best-effort and outside it, same posture as every other
 request that touches Discord. `REQUESTS.md` §3 has the one gap worth knowing:
@@ -351,15 +351,15 @@ simply has no last name until he rolls up; and propagation runs only after a
 Baron *write*, never on his death, so a widowed house keeps the name it was
 given until a new Baron overwrites it.
 
-`propagateDynastyLastName` fires `ensureCharacterRole` + `syncCharacterNickname`
-per renamed character, since the bare name feeds both. **No `AuditLog` row** —
+`propagateDynastyLastName` fires `ensureCharacterRole` per renamed character,
+since the bare name feeds the role. **No `AuditLog` row** —
 the rename is a consequence of the Baron's own edit, which is already logged.
 
 ### Bare names, and sorting
 
-Two surfaces deliberately use the **bare** name (`formatBareName`, first +
-last): the personal Discord role's name and colour seed, and the Discord
-nickname (`PROXYING.md` §8). The role is an `@`-mentionable access-control
+One surface deliberately uses the **bare** name (`formatBareName`, first +
+last): the personal Discord role's name and colour seed. The role is an
+`@`-mentionable access-control
 primitive rather than an RP surface, and seeding the colour off the bare name
 means granting or changing a title never renames or recolours anyone.
 
@@ -551,7 +551,7 @@ Two things arrive on top of the YAML package, both in `createCharacter`:
 ## 3. The point economy
 
 ```
-budget = GameConfig.startingTagPoints      (default 12, live on /gm/dev)
+budget = GameConfig.startingTagPoints      (default 8, live on /gm/dev)
        + role.extra_starting_points        (Outsider +4; no other role sets it)
        - 6 if the player is Cursed
 ```
@@ -569,10 +569,9 @@ a drawback you could buy mid-game would be a point farm.
 Drawbacks face **two** ceilings, and a build stops at whichever it reaches
 first: at most `GameConfig.maxDrawbackTags` of them may be bought (**6** by
 default), claiming back at most `GameConfig.maxDrawbackPoints` points in total
-(**13** by default). The point cap sits one **above** `startingTagPoints` on
-purpose, not equal to it — so the most a maxed-out build can net from
-drawbacks is one point more than it started with, rather than the old exact
-symmetry. Both are live on `/gm/dev`. Either alone leaves a
+(**8** by default). The point cap matches `startingTagPoints` exactly: you can
+never claim back more than you started with. Both dropped together on
+2026-09-16, from 13 and 12. Both are live on `/gm/dev`. Either alone leaves a
 hole: a count cap spends the same slot on a −1 as on a −11, and a point cap
 alone never stops a pile of small ones. The role's own starting tags land as
 `GM_GRANT` and never pass through the purchase path, so the Meister's free
@@ -729,12 +728,9 @@ Discord role afterward. `web/lib/discordGuild.js#killCharacter`, called from
 2. Deletes the personal Discord role.
 3. Nulls `discordRoleId` — it's `@unique`, and a dangling id would have
    `ensureCharacterRole` PATCHing a deleted role forever.
-4. Clears the Discord nickname. Unconditional — note the asymmetry:
-   *setting* a nickname is gated behind `GameConfig.nicknameSyncEnabled`
-   (off by default), but clearing a dead character's is not.
-5. Grants the Ghost role — the seat, not the curse (§4).
-6. Writes a `DEATH` row to the transcript (`ARCHIVE.md`).
-7. Clears `CharacterTag.equipped` on every held tag. A corpse doesn't wield
+4. Grants the Ghost role — the seat, not the curse (§4).
+5. Writes a `DEATH` row to the transcript (`ARCHIVE.md`).
+6. Clears `CharacterTag.equipped` on every held tag. A corpse doesn't wield
    things, and a Revive later shouldn't walk back in with gear locked to
    slots that may have moved. It also keeps the loot panel (below) from
    rendering an item as if it's still worn.
@@ -802,7 +798,7 @@ role, no channel access, and the Ghost role still on the account. Removing
 status transition at all: it reads the live value from the database.
 
 **Revive** is the inverse §5 never had: `removeCursedRole`, then
-`ensureCharacterRole`, then the nickname, then
+`ensureCharacterRole`, then
 `syncCharacterZoneRole(uid, null, zoneId)` — the old zone is `null` because
 `killCharacter` already stripped every zone role, so this is a pure re-grant
 with nothing to move away from — then `syncCharacterNarrowcastAccess`.
@@ -880,7 +876,7 @@ See `docs/systemdocs/DEPOT.md` §0g.
 
 A `mastery` tag (`TAGS.md` §4a). A character holding it who dies is rolled
 straight into a new one instead of going back through the wizard as a Cursed
-re-roll: **a random role with a free seat, `startingTagPoints + 6`, and no
+re-roll: **a random role with a free seat, `startingTagPoints + 4`, and no
 Curse.** `db/lib/reincarnate.js`.
 
 It hangs off `db/lib/characterDeath.js#applyDeathToRow` rather than off the
@@ -915,8 +911,10 @@ Four things worth knowing before changing it:
 - **The player is not ghosted by their own corpse.** Both death teardowns key on
   `discordUserId`, so they reach the *person*; both now skip somebody who is
   alive again (`db/lib/deathTeardown.js#stillAlive`), and reincarnation lifts
-  the ghost role and sets the nickname itself, the way `db/lib/threatSpawn.js`
-  does when a spawn brings a dead player back.
+  the ghost role itself, the way `db/lib/threatSpawn.js` does when a spawn
+  brings a dead player back. It does **not** touch the Discord nickname —
+  nothing in the game does any more (`PROXYING.md` §8). Renaming the account to
+  the stranger the player woke up as is exactly what that removal fixed.
 - **The points arrive unspent**, on `Character.tagPoints`. Skipping the wizard
   means there is no menu in which to spend them, and `/store` is that menu
   mid-game — it already spends exactly this column. No new surface.

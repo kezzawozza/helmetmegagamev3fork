@@ -64,6 +64,24 @@ function optionalCount(raw, label) {
   return n;
 }
 
+// A Move cost out of a form field: a decimal on a quarter, an empty box
+// meaning "not set". Same rule the YAML sync enforces
+// (db/lib/tagShapes.js#normalizeTurnsCost), because the two are doors onto the
+// same column and a GM should not be able to author a cost the catalog would
+// refuse. parseInt would read 0.25 as 0 and silently make a cure free, which
+// is why this cannot be optionalCount.
+function optionalQuarterTurns(raw, label) {
+  if (raw === "" || raw == null) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n * 4)) {
+    throw new UserError(`${label} must be a number of Moves on a quarter — 0, 0.25, 0.5, 0.75, 1, 2… — or blank.`);
+  }
+  if (n > 1 && !Number.isInteger(n)) {
+    throw new UserError(`${label} past one Move is a project, and a project takes whole turns.`);
+  }
+  return n;
+}
+
 // A nullable armour value out of a form field: 0 to 1, decimals allowed, an
 // empty box meaning "turns nothing aside". Separate from optionalCount because
 // this is the only fractional field on the form, and parseInt would silently
@@ -194,7 +212,7 @@ function scalarsFrom(input) {
     // one exception that makes it worth authoring: HEAL_CHARACTER enforces
     // requirementResources and requirementSkills on a Status tag (TAGS.md
     // §5c), so a custom affliction without them is curable for free.
-    requirementTurns: optionalCount(input.requirementTurns, "Requirement turns"),
+    requirementTurns: optionalQuarterTurns(input.requirementTurns, "Requirement turns"),
     requirementResources: optionalCount(input.requirementResources, "Requirement resources"),
     requirementGambit: Boolean(input.requirementGambit),
     // Armour, as a fraction of a blow turned aside. Players never see these

@@ -4,12 +4,12 @@ import { revalidatePath } from "next/cache";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { after } from "next/server";
 import { prisma, Prisma, revertMoveEffects } from "@lifeweb/db";
-import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
-import { consumeInspiredIfUsed } from "@lifeweb/db/lib/tagWrites";
+import { ensureGambitDie } from "@lifeweb/db/lib/gambitDie";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { validateRoomTagOps } from "@lifeweb/db/lib/roomTagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
+import { resourcesOf, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import { getVisibleZones } from "@/lib/gmZoneView";
 // By path, not off the barrel — the db/lib/dm.js convention this module follows.
 import {
@@ -26,6 +26,7 @@ import { getGmProfiles } from "@/lib/gmProfiles";
 import { turnAt } from "@/lib/auditQuery";
 import { dropCharacterTag } from "@/lib/tagEffects";
 import { UserError, guarded } from "@/lib/actionResult";
+import { muteDurationLabel, oocMuteFor } from "@lifeweb/db/lib/ooc";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH, MAX_REASON_LENGTH } from "@/lib/constants";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
@@ -947,15 +948,18 @@ async function releaseMoveLockImpl({ actionId }) {
   return { patch: await deskPatchFor({ moveIds: [actionId] }) };
 }
 
-// A Gambit always carries a fresh roll, a Routine never does, so switching
-// kind rewrites the dice rather than leaving a stale number.
+// A Gambit carries a die and a Routine never does, so switching kind rewrites
+// the dice rather than leaving a stale number.
 //
-// Returns { data, advantageSource } rather than consuming Inspired itself —
-// this stays a pure function; the caller (inside its own transaction) calls
-// consumeInspiredIfUsed with the source.
-function normalizeEdits(action, edits, characterTags, mood) {
+// Takes `tx` and is async because the die is not this function's to invent:
+// ensureGambitDie owns every throw, and flipping a Gambit to Routine and back
+// must hand the character THE SAME die rather than a new one. That closes a
+// GM-side re-roll loop the old design left open — the comment below already
+// claimed to roll "the same die the player's own submit path would have", and
+// now it does. It also means Inspired is spent by the helper, inside this same
+// transaction, so the caller owes no consume.
+async function normalizeEdits(tx, action, edits, characterTags, mood) {
   const data = {};
-  let advantageSource = null;
 
   const kind = ["GAMBIT", "ROUTINE", "LABOR"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
   // A player's LABOR is paid at confirm now and arrives here with appliedEffects stamped
@@ -976,19 +980,21 @@ function normalizeEdits(action, edits, characterTags, mood) {
       data.diceRoll = null;
       data.diceModifier = null;
     } else {
-      // Rolled from the character's current tags/mood, not whatever was true
-      // when the player submitted. That includes Lucky or Inspired: a GM
-      // switching a Routine to a Gambit must roll the same die the player's
-      // own submit path would have (db/lib/advantage.js).
-      const advantage = rollWithAdvantage(characterTags, 6, { gambitOnly: true });
-      data.diceRoll = advantage.die;
+      // The character's die for this turn — theirs if they already threw one, a
+      // new one if this is the first Gambit they have carried today. Flipping to
+      // ROUTINE above nulls the columns but leaves the GambitDie row standing,
+      // which is exactly what makes flipping back give the number back.
+      const gambit = await ensureGambitDie(tx, { turnId: action.turnId, character: { id: action.characterId, tags: characterTags } });
+      data.diceRoll = gambit.die;
+      // The modifier IS recomputed from the character's state right now, not
+      // carried — it is a reading of how they are, and unlike the die there is
+      // nothing random in it to fish for.
       data.diceModifier = gambitModifierTotal(characterTags, { mood });
-      advantageSource = advantage.source;
     }
   }
 
   data.resultMessage = edits.resultMessage?.toString().trim() || null;
-  return { data, advantageSource, revertPayout };
+  return { data, revertPayout };
 }
 
 // mode: "save" keeps edits and leaves it open; "solve" marks SOLVED (nothing
@@ -1027,7 +1033,8 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
       return { status: "OPEN", note: "Reopened." };
     }
 
-    const { data, advantageSource, revertPayout } = normalizeEdits(
+    const { data, revertPayout } = await normalizeEdits(
+      tx,
       action,
       edits,
       action.character.tags,
@@ -1036,7 +1043,6 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
     // Before the update below clears appliedEffects: revertMoveEffects reads it off the row
     // it is handed, so it has to see the payout it is undoing.
     if (revertPayout) await revertMoveEffects(tx, action);
-    await consumeInspiredIfUsed(tx, action.character.id, advantageSource);
 
     if (mode === "save") {
       // Save keeps the edits and leaves status wherever it was.
@@ -1249,7 +1255,9 @@ async function getCharacterInspectorImpl({ characterId }) {
     locationLabel: character.location?.name
       ? `${character.zone?.name ?? "?"} · ${character.location.name}`
       : character.zone?.name || "Unassigned",
-    resources: character.resources,
+    // The whole tag set is loaded above with `tag.slug`, so the ⬢ stack is
+    // already in hand — no second query for a balance.
+    resources: resourcesOf(character),
     tagPoints: character.tagPoints,
     gambitModifier: gambitModifierTotal(character.tags, { mood: character.mood }),
     acted,
@@ -1265,47 +1273,6 @@ async function getCharacterInspectorImpl({ characterId }) {
       // row here is a blank paper hover on all three desks.
       tag: composeChipTag(ct.tag, GM_CHIP_CTX),
     })),
-  };
-}
-
-const ARCHIVE_SLICE = 30;
-
-// Keyset-paged, same shape as getDmThreadPage: newest-first cursor, reversed
-// to reading order. ArchiveView's "Load older" bumps beforeMs/beforeId back.
-async function getArchiveSliceImpl({ characterId, beforeMs, beforeId }) {
-  await requireGm();
-  const where = { characterId: characterId ?? "" };
-  if (beforeMs) {
-    const beforeDate = new Date(Number(beforeMs));
-    where.OR = [
-      { sentAt: { lt: beforeDate } },
-      beforeId ? { sentAt: beforeDate, id: { lt: String(beforeId) } } : undefined,
-    ].filter(Boolean);
-  }
-  const rows = await prisma.archiveEntry.findMany({
-    where,
-    orderBy: [{ sentAt: "desc" }, { id: "desc" }],
-    take: ARCHIVE_SLICE + 1,
-  });
-  const hasMore = rows.length > ARCHIVE_SLICE;
-  // Wrapped in an object: guarded() spreads the payload, so a bare array
-  // would come back as indices.
-  return {
-    entries: rows
-      .slice(0, ARCHIVE_SLICE)
-      .reverse()
-      .map((e) => ({
-        id: e.id,
-        kind: e.kind,
-        content: e.content,
-        characterName: e.characterName,
-        concealedAlias: e.concealedAlias,
-        zoneName: e.zoneName,
-        turnNumber: e.turnNumber,
-        turnPhase: e.turnPhase,
-        sentAt: e.sentAt.toISOString(),
-      })),
-    hasMore,
   };
 }
 
@@ -1468,7 +1435,7 @@ async function getCharacterMoveHistoryImpl({ characterId }) {
     },
   });
 
-  // See getArchiveSliceImpl: guarded() spreads the payload.
+  // guarded() spreads the payload, so a bare array would come back as indices.
   return {
     rows: actions.map((a) => ({
       id: a.id,
@@ -1515,18 +1482,21 @@ async function getRoomStashImpl({ roomId }) {
   const room = await prisma.room.findUnique({
     where: { id: roomId ?? "" },
     select: {
-      resources: true,
       tags: {
         where: { quantity: { gt: 0 } },
-        select: { tagId: true, quantity: true, tag: { select: { name: true, stackable: true } } },
+        select: { tagId: true, quantity: true, tag: { select: { slug: true, name: true, stackable: true } } },
         orderBy: { tag: { name: "asc" } },
       },
     },
   });
   if (!room) throw new UserError("That room no longer exists.");
   return {
-    resources: room.resources,
-    tags: room.tags.map((r) => ({ tagId: r.tagId, name: r.tag.name, quantity: r.quantity, stackable: r.tag.stackable })),
+    resources: resourcesOf(room),
+    // ⬢ are a stack row now, so they come back out of the tag list: the
+    // composer already draws them on their own line above it, and staging
+    // them as a tag op would be a second, unledgered way to move money.
+    tags: withoutResources(room.tags)
+      .map((r) => ({ tagId: r.tagId, name: r.tag.name, quantity: r.quantity, stackable: r.tag.stackable })),
   };
 }
 
@@ -1940,9 +1910,6 @@ export async function undoCavingFind(input) {
 export async function getCharacterInspector(input) {
   return guarded(() => getCharacterInspectorImpl(input));
 }
-export async function getArchiveSlice(input) {
-  return guarded(() => getArchiveSliceImpl(input));
-}
 export async function getHeldTags(input) {
   return guarded(() => getHeldTagsImpl(input));
 }
@@ -1973,4 +1940,84 @@ export async function rejectDesireClaim(input) {
 }
 export async function getCharacterAuditSlice(input) {
   return guarded(() => getCharacterAuditSliceImpl(input));
+}
+
+// ---- OOC mutes (db/lib/ooc.js, OocMute) -------------------------------------
+//
+// A GM stopping one player talking out of character for a while, from the OOC
+// lens. It stops `/ooc` and the composer's OOC mode and nothing else: speech
+// and shouting belong to the character, and this is about the person.
+//
+// Keyed on the ACCOUNT, so it follows the player across characters. `until` is
+// the whole mechanism — the row lapses on its own, nothing sweeps it.
+async function muteOocImpl({ discordUserId, minutes } = {}) {
+  const session = await requireGm();
+  const account = String(discordUserId ?? "").trim();
+  if (!account) throw new UserError("No player to mute.");
+
+  // The label IS the validation: a duration the menu does not offer has no
+  // name, and an unnamed duration could not be put in the DM anyway.
+  const label = muteDurationLabel(minutes);
+  if (!label) throw new UserError("Pick how long.");
+
+  const until = new Date(Date.now() + Number(minutes) * 60_000);
+  await prisma.oocMute.upsert({
+    where: { discordUserId: account },
+    update: { until, byDiscordUserId: session.discordUserId },
+    create: { discordUserId: account, until, byDiscordUserId: session.discordUserId },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_ooc_muted",
+      details: { discordUserId: account, minutes: Number(minutes), until: until.toISOString() },
+    },
+  });
+
+  // Told, not left to find out by being refused. Never allowed to fail the
+  // mute: the row is already written, and a closed DM is not a reason to
+  // pretend it isn't.
+  await sendDm(account, `Your OOC was muted for ${label}`).catch((err) =>
+    console.error("OOC mute DM failed:", err?.message ?? err),
+  );
+
+  return { ok: true, mutedUntil: until.toISOString() };
+}
+
+async function unmuteOocImpl({ discordUserId } = {}) {
+  const session = await requireGm();
+  const account = String(discordUserId ?? "").trim();
+  if (!account) throw new UserError("No player to unmute.");
+
+  // deleteMany, not delete: lifting a mute that has already lapsed on its own
+  // is the ordinary case, not a missing row to throw about.
+  await prisma.oocMute.deleteMany({ where: { discordUserId: account } });
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_ooc_unmuted",
+      details: { discordUserId: account },
+    },
+  });
+  // No DM. Being told you were muted is the part that needed saying.
+  return { ok: true, mutedUntil: null };
+}
+
+// Read-back for the desk, so a button that says Unmute is saying something
+// true rather than something the page was rendered with.
+async function getOocMuteImpl({ discordUserId } = {}) {
+  await requireGm();
+  const row = await oocMuteFor(prisma, String(discordUserId ?? "").trim());
+  return { ok: true, mutedUntil: row ? row.until.toISOString() : null };
+}
+
+export async function muteOoc(input) {
+  return guarded(() => muteOocImpl(input));
+}
+export async function unmuteOoc(input) {
+  return guarded(() => unmuteOocImpl(input));
+}
+export async function getOocMute(input) {
+  return guarded(() => getOocMuteImpl(input));
 }

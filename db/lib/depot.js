@@ -24,7 +24,9 @@ const DEPOT_LOCATION_SLUG = "depot";
 const RESOURCE_IMPORT_PRICE = 2;
 const RESOURCE_EXPORT_PRICE = 1;
 
-// Sentinel id the ⬢ row carries on Order/Price List tables — Resources aren't a Tag. Never collides with a cuid.
+// The id the ⬢ row carries on the Order and Price List tables. It was a sentinel when Resources weren't
+// a Tag; they are one now, and this is that tag's slug — still not a cuid, so it never collides with a
+// real ware's id, and a caller holding it has the slug it needs to find the stack.
 const RESOURCE_WARE_ID = "resources";
 
 // Sanity bound on a single line item — a fat-fingered quantity can't file for ten thousand vials.

@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import AppRail from "../components/AppRail";
 import { GM_NAV } from "@/lib/navItems";
@@ -10,9 +9,11 @@ import { GM_NAV } from "@/lib/navItems";
 // both. Gated GM-only here so pages don't repeat the redirect; actions still
 // re-check the gate themselves — a layout gate is presentation only.
 export default async function DeskLayout({ children }) {
-  const session = await auth();
+  // One call for both answers. It used to await auth() first and then
+  // getGmSession(), which wraps the same auth() — a second headers() read for
+  // a session it already had.
+  const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
-  const { isGm } = await getGmSession();
   if (!isGm) redirect("/character");
 
   return (

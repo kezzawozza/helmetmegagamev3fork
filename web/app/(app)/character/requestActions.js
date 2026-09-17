@@ -19,11 +19,13 @@ import {
 } from "./actions/offers.js";
 import { taxRequestImpl } from "./actions/tax.js";
 import { transferRequestImpl } from "./actions/transfer.js";
+import { stealRequestImpl } from "./actions/steal.js";
+import { pickpocketRequestImpl, pickpocketTakeImpl } from "./actions/pickpocket.js";
 import {
   poisonItemRequestImpl,
   poisonCharacterRequestImpl,
 } from "./actions/poison.js";
-import { healCharacterRequestImpl } from "./actions/medical.js";
+import { healCharacterRequestImpl, performMiracleRequestImpl } from "./actions/medical.js";
 import {
   buryCharacterRequestImpl,
   butcherCorpseRequestImpl,
@@ -117,6 +119,21 @@ export async function transferRequest(input) {
   return guarded(() => transferRequestImpl(input));
 }
 
+// Steal and Pickpocket (docs/systemdocs/THEFT.md). Note that `input` is handed
+// straight through, which is why transferRequestImpl takes its announce switch
+// as a SECOND argument rather than a field on this object.
+export async function stealRequest(input) {
+  return guarded(() => stealRequestImpl(input));
+}
+
+export async function pickpocketRequest(input) {
+  return guarded(() => pickpocketRequestImpl(input));
+}
+
+export async function pickpocketTakeRequest(input) {
+  return guarded(() => pickpocketTakeImpl(input));
+}
+
 export async function consumeTagRequest(input) {
   return guarded(() => consumeTagRequestImpl(input));
 }
@@ -131,6 +148,9 @@ export async function poisonCharacterRequest(input) {
 
 export async function healCharacterRequest(input) {
   return guarded(() => healCharacterRequestImpl(input));
+}
+export async function performMiracleRequest(input) {
+  return guarded(() => performMiracleRequestImpl(input));
 }
 export async function researchRequest(input) {
   return guarded(() => researchRequestImpl(input));

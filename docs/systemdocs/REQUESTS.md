@@ -99,7 +99,7 @@ reason.
 | Type | What the player does | GM can edit | Undo |
 |---|---|---|---|
 | `TRANSFER_RESOURCES` | Moves ⬢ from you or a Room stash at your Location to a person at your Location or a Room stash there (`CARRY.md`). Nothing is ever pulled off a living person — Loot is the only way to take from someone. `direction: "LOOT"` pulls ⬢ off a corpse in the same room | — | Reverses the movement |
-| `ADD_TAG` | Craft: makes a tag whose `requirement.skills` you hold, charging its `resourceCost` up front to a payer — yourself, a Room stash here, or a person here (`CRAFTING.md`). `turnsCost` 0 is Dead Simple (no Move, rationed per turn); 1 is this turn's Routine; 2+ opens a `CraftProject`, continued from the same dialog. Stackable tags take a quantity and stay on the menu once held. Desk label: **Craft** | cost; remove what this request added | Drops what it added, refunds the cost, marks any project CANCELLED |
+| `ADD_TAG` | Craft: makes a tag whose `requirement.skills` you hold, charging its `resourceCost` up front to a payer — yourself, a Room stash here, or a person here (`CRAFTING.md`). `turnsCost` is a decimal number of Moves: 0 is Dead Simple (no Move, rationed per turn); 0.25 / 0.5 / 0.75 are shares of this turn's Routine; 1 is the whole of it; 2+ opens a `CraftProject`, continued from the same dialog. Stackable tags take a quantity and stay on the menu once held. Desk label: **Craft** | cost; remove what this request added | Drops what it added, refunds the cost, marks any project CANCELLED |
 | `BUY_TAGS` | Checks out a whole `/store` cart with Tag Points — one request per cart, `effect.items` listing every tag | — | Returns every tag in the cart, refunds the points |
 | `REMOVE_TAG` | Destroy: drops one of their own items, no ⬢ field and nothing refunded, in a quantity if it stacks. `Tag.removable` is derived from the category — Items and Assets only (`CRAFTING.md` §5) — so a Health tag is healed rather than thrown away, and a Belief cannot be dropped at all. A tag with `removesInto` leaves its treated form behind (`TAGS.md` §5c). Desk label: **Destroy** | — | Restores the tag and its count, takes back the aftermath it granted |
 | `CONSUME_TAG` | Uses up one of their own `consumable` tags — always exactly one, even from a stack — and gains whatever it `consumesInto` | — | Restores the one unit with its original expiry, takes back what it granted |
@@ -261,7 +261,7 @@ Three notes on deliberate choices:
   call may run inside a `$transaction` (`ARCHITECTURE.md` §5) — so undoing
   `ADD_TAG`/`REMOVE_TAG`/`CONSUME_TAG` leaves `#cerberon` access
   stale until the next Move reconciles it, and undoing `CHANGE_NAME` leaves
-  the personal Discord role/nickname stale until the player's next Bio save
+  the personal Discord role stale until the player's next Bio save
   (`ensureCharacterRole` always re-PATCHes off the live DB name, so that save
   self-heals it). Accepted rather than fixed: the forward path already pays
   for the Discord call outside the transaction, and a bespoke undo path for
@@ -501,7 +501,7 @@ rule applied to the blood pool. Reversing the nominal 40 would mint 30 blood
 out of nothing.
 
 **Feed Person kills, on the click.** It used to stop short — fill the pool,
-raise a `☠` in the audit line, and wait for a GM's Kill on the Dev Panel — on the
+raise a mark in the audit line, and wait for a GM's Kill on the Dev Panel — on the
 argument that a player must not end another player's game from a dropdown.
 What that bought in practice was a character everyone had watched be fed to
 the Tower still walking around until someone worked the queue.
@@ -643,8 +643,8 @@ must be satisfied —
 a Deep Wound names Medical (Skilled), so a character with only the Basic tier
 sees it in the menu labelled "— Gambit" and may still attempt it — it files a
 GAMBIT Move rather than curing anything, and the GM resolves the roll
-(TAGS.md §5c). A cure costing any fraction of a turn — including the 2 ⬢
-Simple rung, which now always bills 1/4 rather than drawing on the pool —
+(TAGS.md §5c). A cure costing any part of a turn — including the 2 ⬢
+Simple rung, which now always bills 0.25 rather than drawing on the pool —
 bills the medical family's Move directly instead of any ration; only a
 0-turn cure draws on a shared daily pool of 4 first-aids a medic — of any
 tier — instead (`MEDICAL_SIMPLE_PER_TURN`, `MEDICAL.md` §3), replacing the
@@ -1026,8 +1026,8 @@ over the URL, so a filtered view stays linkable.
 
 ## The Depot's kinds
 
-All obol-denominated, all moving `Depot.accountObols` rather than anyone's
-`Character.resources`. They are audit `actionType`s now
+All obol-denominated, all moving `Depot.accountObols` rather than anyone's own
+⬢ stack. They are audit `actionType`s now
 (`request_depot_order`, `request_depot_atm`, `request_depot_credit`,
 `request_depot_crate_open`, `request_depot_refuel`,
 `request_depot_shuttle_call` / `_send`), and the

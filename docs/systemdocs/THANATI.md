@@ -114,7 +114,8 @@ whole mechanism:
    the live `RiteAttempt` for that rite in that room (OPEN or READY, opened
    inside twelve hours) or opens one, writes a `RiteChant`, and re-judges.
 3. **READY.** Distinct chanters ≥ `minChanters` and the floor ingredients
-   present (`floorHas`: `RoomTag` stacks and `Room.resources`; the
+   present (`floorHas`: `RoomTag` stacks, ⬢ among them since they are a stack
+   row like anything else now — `db/lib/resourceStack.js`; the
    person/corpse/photograph/weapon kinds are the scripted rite's to judge and
    count as present until then) → `status: READY`, `firesAt = now + 2 min`,
    and the room hears, once, as `-#` subtext: *You feel tense... Anyone else

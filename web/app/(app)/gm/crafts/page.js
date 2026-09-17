@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
@@ -19,7 +18,7 @@ import { getGmSession } from "@/lib/discordGuild";
 // mounts the shell, and streams FreshCrafts in behind it. A browser that has
 // been here before paints its last data in the first frame.
 export default async function CraftsPage() {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   return (
     <SnapshotPage scope="gm-crafts" userId={session.discordUserId} render={CraftsView} fallback={<Loading />}>

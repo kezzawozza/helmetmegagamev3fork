@@ -87,7 +87,7 @@ Who this is, where they stand, and:
   tiles, so it keeps them. On the sheet the strip takes `onPick`, and a
   clicked chip opens the tag's `TagDetails` under it. The rail has no Status
   card for that reason.
-- **Five tiles, one row** — free moves, ⬢ against the cap, carrying with its
+- **Five tiles, one row** — free moves, the ⬢ balance, carrying with its
   meter, the **Mood box** (`MOOD.md` §4) and the Gambit modifier
   (`db/lib/gambitModifier.js`, the same call the bot makes). `.ledger-tiles`'
   `max-width` fits exactly five: a sixth needs 856px, so anything else goes on
@@ -107,7 +107,10 @@ Who this is, where they stand, and:
 - **Nearly all of them press**, and that is what fixed the one that did not.
   Free moves (why it is 0), Carrying (what holds the cap up), Combat, Mood and
   the Gambit die (which modifiers, by name) all have something to say; only ⬢
-  does not. The Carrying breakdown had come off precisely because *one*
+  does not — it is a plain number with no cap of its own to explain, since ⬢
+  became a one-pound item and started counting against the carry cap beside
+  the gear (`CARRY.md`). There used to be a second cap, and the tile still did
+  not press then either. The Carrying breakdown had come off precisely because *one*
   pressable tile in a row of read-only ones read as a bug —
   `db/lib/carry.js#carryBreakdown` has said "for the hover breakdown on
   /character" the whole time — and that reason is gone.
@@ -148,18 +151,39 @@ Who this is, where they stand, and:
   turn card beside it. Past three items the rest fold behind a `+N more`,
   decided by counting them and never by measuring the box (`ExpandableText.js`
   explains why). It reads: tags on their last turn and what they become (`expiresInto`),
-  crafts and builds that finish, the road's end, and a hunger warning —
+  crafts and builds that finish, the road's end, a hunger warning, and the
+  animals' feed. Renders nothing on a quiet turn.
+
+  **The hunger warning is one clause with no number in it** —
   "You'll go hungry" / "You'll start starving" on the turn the meter's decay
   would first cross that threshold (`db/lib/hunger.js`), computed server-side
   in `character/page.js` so the raw `hungerValue` never reaches the client;
-  never a number, and never said again once a band is already held. Renders
-  nothing on a quiet turn.
+  never said again once a band is already held.
+
+  **The animals' feed is the half that still costs ⬢**, and it is a separate
+  pass (`horseUpkeepPass.js`, `TURN-ENGINE.md` §5b). The line counts how many
+  of `UPKEEP_SLUGS` the character holds — read off the same list the real pass
+  walks, so an animal added later shows up here with no second edit — and says
+  either what they will consume or that you cannot feed them.
 - **The verb strip** — `ActionGrid variant="strip"`: every action in
   `actionRegistry.js` as one wrapping row of small labelled buttons, sections
   split by a hairline. **Every button hovers**, the same tooltip the verb wears
   everywhere else: its name, the sentence saying what it does, and — when it is
   greyed — the pool's `gateReason`. A gated verb is dashed and does not press.
   The Trumpet joins the row when held.
+- **On a touch screen that tooltip IS the button** (`ActionButton.js`). It could
+  not be read at all before: every variant passed `pinnable={false}`, which is
+  what switches off the one tap path `HoverCard` has, so a tap fell straight
+  through to the verb. For the instant verbs that ask nothing first
+  (`components/actions/index.js`) that tap *was* the action — and Break
+  restraints justifies skipping its confirm on the grounds that "the tooltip
+  already says what pressing it does", which on a phone had never once been
+  true. Now the first tap pins the panel and the panel carries a real button at
+  its foot. A greyed verb takes `aria-disabled` rather than `disabled` there,
+  because a disabled button dispatches no click and the reason it is greyed is
+  the thing a touch player most needs to reach. Two verbs carry no help sentence
+  and both open a dialog rather than committing, so they keep the plain path;
+  so does `variant="menu"`, which is already the inside of a menu.
 
 ## 3. The rail (`TagRail.js`)
 
@@ -216,7 +240,22 @@ Use, Equip/Unequip, Give, Destroy, Heal. The predicates are Chat's
 handlers are the sheet's own dialogs through `RequestActionsProvider.open`
 with the tag preselected, or `equipActions.js#toggleEquip`. Heal opens the
 Heal dialog on yourself and that wound. Hidden until hover or focus on a
-pointer device, always drawn on a touch one.
+pointer device.
+
+**On a touch screen they are not beside the row at all — they are at the foot
+of the details it opens.** They used to be drawn permanently there, because the
+hide-until-hover rule is inside an `@media (hover: hover)` block and a phone
+simply falls through it. That put Use and Destroy a thumb's width from the face
+you tap to read the row, and Use is the one verb on this surface with no dialog
+behind it: `TagRail.js#consume` goes straight to the server. A player reported
+exactly what that shape predicts — reaching to read something and eating it
+instead. `TagRow.js` and `ItemCard.js` read `useIsCoarsePointer()` and render
+`{verbs}` in one place or the other, never both: two copies hidden by CSS would
+put every verb in the accessibility tree twice.
+
+So on a phone **tapping a row means "what is this?" and nothing else.** Acting
+is a second tap, from inside what the first one opened — the rule
+[`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) §9 now states for the whole app.
 
 The header holds **Spend Tag Points** (the store modal) and the filter box:
 name, description or group; a card with nothing left hides while a query is

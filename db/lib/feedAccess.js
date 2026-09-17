@@ -11,6 +11,7 @@ const {
   placeKeyForConversation,
   placeKeyForZone,
   placeKeyForNet,
+  placeKeyForParty,
   parsePlaceKey,
   DEADCHAT_PLACE_KEY,
 } = require("./placeKey");
@@ -112,7 +113,6 @@ function deadchatPlace({ canSpeak }) {
     placeKey: DEADCHAT_PLACE_KEY,
     kind: "dead",
     name: "Deadchat",
-    description: "The dead talk among themselves. Nobody living can hear this.",
     canSpeak,
   });
 }
@@ -141,6 +141,43 @@ async function netPlacesFor(prisma, characterId) {
   return out;
 }
 
+// The party thread this character belongs to (as leader or as passenger), if
+// any. One row per character at most: PartyThread.creatorCharacterId is unique
+// so a character only ever leads one, and escortedById is a one-to-one column
+// so a character only ever rides in one.
+async function partyPlacesFor(prisma, characterId) {
+  if (!characterId) return [];
+  // Leader case: I opened it, keyed on me.
+  const led = await prisma.partyThread.findUnique({
+    where: { creatorCharacterId: characterId },
+    select: { id: true, name: true },
+  });
+  if (led) {
+    return [
+      place({
+        placeKey: placeKeyForParty(led.id),
+        kind: "party",
+        name: led.name,
+        canSpeak: true,
+      }),
+    ];
+  }
+  // Passenger case: my leader opened one.
+  const member = await prisma.partyThreadMember.findFirst({
+    where: { characterId },
+    select: { partyThread: { select: { id: true, name: true } } },
+  });
+  if (!member?.partyThread) return [];
+  return [
+    place({
+      placeKey: placeKeyForParty(member.partyThread.id),
+      kind: "party",
+      name: member.partyThread.name,
+      canSpeak: true,
+    }),
+  ];
+}
+
 // The places one living character may read, in the order the left column
 // draws them: where you are, the rooms off it, the conversations you are in,
 // then the zone's summary — and the radio nets, which are nowhere.
@@ -155,7 +192,8 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
   if (!character?.id) return [];
   // A radio works even with no Location, so the column isn't empty.
   const nets = await netPlacesFor(prisma, character.id);
-  if (!character.locationId) return nets;
+  const parties = await partyPlacesFor(prisma, character.id);
+  if (!character.locationId) return [...parties, ...nets];
 
   const location = await prisma.location.findUnique({
     where: { id: character.locationId },
@@ -267,6 +305,7 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
     );
   }
 
+  list.push(...parties);
   list.push(...nets);
 
   return list;

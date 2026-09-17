@@ -142,27 +142,21 @@ test("wound rungs read the cure ladder, and a wound is signed negative", () => {
   assert.equal(woundRungOf(wound({ requirementResources: 0 })), 0.5);
   assert.equal(woundRungOf(wound({ requirementResources: 1 })), 1);
   assert.equal(woundRungOf(wound({ requirementResources: 2 })), 2);
-  // The four 2-⬢ shapes since M2a (turnsCost repricing put Simple and
-  // Moderate on the same requirementResources: 2/requirementTurns: 1 shape,
-  // differing only in requirementPerTurn — db/lib/mood.js's woundRungOf):
-  // legacy zero-turn, the new Simple (1/4), the new Moderate (1/3), and a
-  // GM-authored whole turn (the Dev Panel form cannot author a fraction, so
-  // it lands with a null denominator). Only the new Simple may stay at rung
-  // 2 alongside the legacy zero-turn case; everything else with a nonzero
-  // turn cost stays rung 3, exactly as it did before this milestone.
+  // A wound says its own rung now (`cureRung` in docs/tags.yaml), so the
+  // authored value wins outright — which is the whole reason it exists. Simple
+  // and Moderate are both 2 ⬢ and both cost 0.25 of a Move since costs became
+  // decimals, so there is nothing left in the price to tell them apart.
+  assert.equal(woundRungOf(wound({ requirementResources: 2, cureRung: 2 })), 2);
+  assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 0.25, cureRung: 3 })), 3);
+  // An authored rung beats the price even when the two disagree — a 13-⬢
+  // Gambit cure that says it is rung 1 is rung 1.
+  assert.equal(woundRungOf(wound({ requirementResources: 13, requirementGambit: true, cureRung: 1 })), 1);
+
+  // Unauthored, so the fallback reads the price: a GM-written or runtime tag.
+  // The 2-⬢ case it cannot answer takes the gentler rung.
   assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 0 })), 2);
-  assert.equal(
-    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: 4 })),
-    2,
-  );
-  assert.equal(
-    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: 3 })),
-    3,
-  );
-  assert.equal(
-    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: null })),
-    3,
-  );
+  assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 0.25 })), 2);
+  assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 0.5 })), 3);
   assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 1 })), 3);
   assert.equal(woundRungOf(wound({ requirementResources: 3 })), 3.5);
   assert.equal(woundRungOf(wound({ requirementResources: 5 })), 4);
@@ -243,11 +237,11 @@ test("two nights indoors clear a −20, and one in a Haven does better", () => {
   for (let i = 0; i < 2; i += 1) mood = night(mood, "INDOORS");
   assert.equal(mood, 0);
   assert.equal(bandOf(mood).label, "Fine");
-  assert.equal(PLACE_TERMS.INDOORS + MOOD_DRIFT_UP, 10);
+  assert.equal(PLACE_TERMS.INDOORS + MOOD_DRIFT_UP, 11);
 
   // A haven does it in one: −20 is Uncomfortable, and one night there is not.
   const haven = night(-20, "HAVEN");
-  assert.equal(haven, -4);
+  assert.equal(haven, -2);
   assert.equal(bandOf(haven).label, "Fine");
 });
 
@@ -284,8 +278,8 @@ test("a bed never makes anybody happy, however many nights they sleep in one", (
   assert.equal(night(60), 20);
   assert.equal(night(4), 0);
 
-  // Recovery from a bad mood is untouched — the full +16 still lands.
-  assert.equal(night(-50), -34);
+  // Recovery from a bad mood is untouched — the full +18 still lands.
+  assert.equal(night(-50), -32);
 });
 
 test("a good bed absorbs the night's hunger and lands exactly on Fine", () => {
@@ -343,14 +337,14 @@ test("only the three bands that move a Gambit say anything, and only on the way 
 
 test("a consume is worth its largest single figure, never a sum", () => {
   // Bliss lands two statuses and is one drink.
-  assert.equal(consumeReliefFor("bliss", ["euphoric", "high"]), 30);
+  assert.equal(consumeReliefFor("bliss", ["euphoric", "high"]), 35);
   // A treat is a treat, not a treat plus a meal.
-  assert.equal(consumeReliefFor("sweets", ["ate-meal"]), 8);
-  assert.equal(consumeReliefFor("honeyed-cakes", ["ate-meal"]), 8);
-  assert.equal(consumeReliefFor("coffee", ["caffeinated"]), 15);
-  assert.equal(consumeReliefFor("sky-lantern", []), 8);
+  assert.equal(consumeReliefFor("sweets", ["ate-meal"]), 9);
+  assert.equal(consumeReliefFor("honeyed-cakes", ["ate-meal"]), 9);
+  assert.equal(consumeReliefFor("coffee", ["caffeinated"]), 17);
+  assert.equal(consumeReliefFor("sky-lantern", []), 9);
   // Any proper meal at all is the floor under the food.
-  assert.equal(consumeReliefFor("trail-ration", ["ate-meal"]), 5);
+  assert.equal(consumeReliefFor("trail-ration", ["ate-meal"]), 6);
   // And a plain thing is worth nothing.
   assert.equal(consumeReliefFor("stepstone", []), 0);
 });
@@ -359,8 +353,8 @@ test("a cooked meal is priced by dishMoodTerms, not by this table", () => {
   // The two rows that used to sit here are gone: a dish is a minted row, so
   // its slug never matches a table keyed by slug (COOKING.md). Both fall
   // through to the ate-meal floor if anything ever asks.
-  assert.equal(consumeReliefFor("fine-meal", ["ate-meal", "dined"]), 5);
-  assert.equal(consumeReliefFor("lavish-meal", ["ate-meal", "dined"]), 5);
+  assert.equal(consumeReliefFor("fine-meal", ["ate-meal", "dined"]), 6);
+  assert.equal(consumeReliefFor("lavish-meal", ["ate-meal", "dined"]), 6);
 });
 
 test("a bad Ration Box draw lands negative, not swallowed by ate-meal's +5 floor", () => {

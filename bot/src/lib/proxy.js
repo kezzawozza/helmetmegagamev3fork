@@ -5,6 +5,7 @@ const { archiveRowForMessage, retractArchiveRow } = require("@lifeweb/db/lib/arc
 const { touchCharacterActivity, touchLastSeen } = require("@lifeweb/db/lib/characterActivity");
 const { prepareSpeech, recordSpeech, loadVoiceState: loadVoiceStateFor } = require("@lifeweb/db/lib/say");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
+const { concealDiscriminator } = require("@lifeweb/db/lib/concealedDiscriminator");
 const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
@@ -102,12 +103,21 @@ function loadVoiceState(characterId) {
 // `identity` is the resolved presentedIdentity(character, ...) — forced >
 // concealed > own name (db/lib/presentedIdentity.js). A caller that passes
 // none gets the plain one rather than a crash on the hottest path in the bot.
-async function postAsCharacterTo(channel, character, { content, files = [], identity = presentedIdentity(character) }) {
+//
+// `turnNumber`/`placeKey` scope the invisible discriminator that keeps two
+// hooded characters sharing the same alias from collapsing into one Discord
+// block (db/lib/concealedDiscriminator.js). Only applied on a concealed send;
+// nothing about it reaches the archive or the web.
+async function postAsCharacterTo(channel, character, { content, files = [], identity = presentedIdentity(character), turnNumber = null, placeKey = null }) {
   const threadId = channel.isThread() ? channel.id : undefined;
+
+  const username = identity.concealed
+    ? `${identity.name}${concealDiscriminator({ characterId: character.id, turnNumber, placeKey })}`
+    : identity.name;
 
   const payload = {
     content,
-    username: identity.name,
+    username,
     avatarURL: process.env.WEB_BASE_URL ? `${process.env.WEB_BASE_URL}${identity.avatarPath}` : undefined,
     files,
     threadId,
@@ -354,6 +364,11 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
       content: prepared.content,
       files: [...message.attachments.values()].map((a) => a.url),
       identity: prepared.identity,
+      // The archive already resolved the open turn to write `row.turnNumber`;
+      // hand that same number to the discriminator so a concealed line's
+      // suffix rolls over with the turn (db/lib/concealedDiscriminator.js).
+      turnNumber: row?.turnNumber ?? null,
+      placeKey: prepared.placeKey,
     }));
   } catch (err) {
     console.error("Failed to proxy message, returning it to its author:", err);

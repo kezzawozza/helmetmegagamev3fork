@@ -8,25 +8,39 @@ Transfer dialog and the Storage button. Related: `REQUESTS.md` (the two transfer
 types), `CHANNELS.md` §4 (Rooms), `MAP.md` §3 (the travel gate),
 `TURN-ENGINE.md` (the carry pass), `TAGS.md` §5 (`carryBonus`).
 
-## 1. The caps
+## 1. The cap
 
-A character carries two loads against two caps, both live on `/gm/dev`:
+A character carries one load against one cap, live on `/gm/dev`:
 
 | Load | Counts | Base cap |
 |---|---|---|
 | Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Two things weigh nothing: **Assets** (a horse carries itself, a house does not move), and everything that was never cargo — skills, injuries, statuses, beliefs. Every item weighs something, since every item is tradeable (`TAGS.md` §5). The one exception is a runtime mint that is not cargo — a Disguise you are wearing. | `GameConfig.carryWeightLbs`, default 71 |
-| ⬢ | `Character.resources` | `GameConfig.carryResourceCap`, default 25 |
 
-**⬢ have one weight, and it is inside a crate.** Loose on a sheet a ⬢ weighs
-nothing and counts on the row above instead; packed into a Depot crate it
-weighs a pound (`RESOURCE_UNIT_LBS`, `DEPOT.md` §0e) so that it packs against
-the crate's weight cap like any other freight. The two axes never count the
-same ⬢ twice — once it is in the crate it is not on anybody's sheet.
+**⬢ are on that row, because ⬢ are an item.** One pound each, stacked in an
+ordinary `CharacterTag` row like a sword or a loaf (`docs/tags.yaml`
+`resources`), so a fortune in raw material is a cart's worth of work to move and
+a character choosing between their savings and their armour is the point.
 
-Both caps are moved by the **sum** of every **active** `Tag.carryBonus`, which
+There were **two** caps here until 9/2026: a second one counting ⬢ at 25 a
+head, with its own watermark, its own 1.5× ceiling and its own spill branch in
+`settleCarry`. It existed because ⬢ were a number on a sheet rather than a
+thing — weightless, so the weight cap had no opinion about them, so they needed
+a cap of their own. The moment ⬢ got a weight the second track had nothing left
+to do, and it was deleted rather than ported. A character over the ceiling on
+raw material now sheds sacks of it by exactly the rule that sheds a spare sword.
+
+The pound is not a new number, either. A **crated** ⬢ has always weighed one
+(`RESOURCE_UNIT_LBS`, `DEPOT.md` §0e); loose ⬢ weighing nothing was the
+inconsistency, and freight and sheet agreeing is one fewer rule to hold.
+
+The cap is moved by the **sum** of every **active** `Tag.carryBonus`, which
 is a signed distance from ×1: Cart `+4`, Giant `+0.75`, Pack Mule `+0.5`, Strong
 `+0.1`, Frail `−0.1`. The cap is `base × (1 + sum)`, floored. Nothing carrying a
 bonus is stackable, so the sum is per row.
+
+A carry tag's description says what it does in pounds and nothing else now —
+`carryBonusLine` used to end "and 12 ⬢" beside the pounds, naming the cap that
+no longer exists.
 
 **Additive, not multiplicative** — changed 2026-09-03, when bodies started
 carrying penalties. Multiplied, Frail ×0.9 took 60 lb off a character pulling a
@@ -371,8 +385,8 @@ off a sheet because a cap SHRANK. Unequipping a cart at an inn door, handing
 one over, a GM lowering the base cap — all of those make a character
 Overburdened and no more.
 
-**`Character.carryWeightSeen` / `carryResourcesSeen` are what tell the two
-apart.** They hold the load at the last settle, and the shed fires only when
+**`Character.carryWeightSeen` is what tells the two apart.** It holds the load
+at the last settle, and the shed fires only when
 the load has **grown** past the ceiling — never when the cap fell beneath a
 load that did not move. Without that comparison the settle cannot distinguish
 "you picked something up" from "you put your cart down", and since §3 parks a
@@ -412,9 +426,10 @@ next settle, on arrival or at turn close, retries for free. Audit:
 
 ## 6. Room stashes
 
-Every Room, public or private, holds unlimited ⬢ (`Room.resources`) and
-unlimited tag stacks (`RoomTag`, one row per tag, `@@unique([roomId, tagId])`).
-A room is where you put what you can't carry.
+Every Room, public or private, holds unlimited tag stacks (`RoomTag`, one row
+per tag, `@@unique([roomId, tagId])`), and ⬢ are one of them — a `resources`
+row like any other. A room is where you put what you can't carry, which since
+⬢ started weighing a pound each is most of a fortune.
 
 **Two rooms hold nothing at all.** `Room.destroysContents` — the Godard
 Factory's Spillway and the Servant Wing's Latrines — makes both writers into a room
@@ -486,8 +501,8 @@ through. Private rooms leak nothing to anyone their key — or their host — ha
 admitted.
 
 The stash survives the message wipe (it lives in the database, not the thread),
-is cleared by a Restart Game wipe (`wipeGameData` deletes `RoomTag` and zeroes
-`Room.resources`), and cascades away with its Room if a superadmin hard-deletes
+is cleared by a Restart Game wipe (`wipeGameData` deletes `RoomTag`, ⬢
+included now that they are a stack), and cascades away with its Room if a superadmin hard-deletes
 it from `/gm/dev/zones` (retiring one leaves the stash in place). Deleting a
 Tag from the catalog cascades its **room** stacks
 (`RoomTag.tagId` cascades) but not the copies people carry
@@ -550,6 +565,14 @@ thread** (`db/lib/roomAnnounce.js`): "*Ada leaves Graga Sac ×3 and 12 ⬢
 here.*" The room is told the presented name, the same one a shout uses — your
 own, a forced name, or "*A young man takes a Lantern.*" if you are concealed.
 
+**Steal is the one exception, and it is worth knowing before you trust a room
+thread as a record.** The Steal verb ([`THEFT.md`](THEFT.md) §1) moves things
+out of a stash on this same path and suppresses that line on a good d6 — so a
+stack going missing with nothing said about it is ordinary now, and the audit
+log is the only complete account of what a stash held. The switch is
+`transferRequestImpl`'s SECOND parameter rather than a field on its input, for
+the reason THEFT.md §1d gives.
+
 **You can hand something to a stranger in a hood** — the one action that
 reaches a concealed person. The row reads "a young man" and its value is
 `hood:<token>` rather than `character:<id>`; `PROXYING.md` §5 has the rule and
@@ -610,7 +633,8 @@ it out for a while, which made every stash in the game a one-way drop.
 | Storage button | `db/lib/roomStarterRow.js`, `db/lib/syncZones.js`, `bot/src/lib/roomStorage.js` |
 | Caps on `/gm/dev` | `web/app/(desk)/gm/dev/page.js`, `web/app/(app)/gm/dev/actions.js` |
 | Constants | `OVERBURDENED_SLUG` in `db/lib/constants.js` |
-| Load watermark | `Character.carryWeightSeen` / `carryResourcesSeen` |
+| Load watermark | `Character.carryWeightSeen` |
+| ⬢ as a stack | `db/lib/resourceStack.js`; `resources` in `docs/tags.yaml` |
 | Weight bands | `weight:` in `docs/tags.yaml`; `Tag.weightLbs` |
 
 ## Crates

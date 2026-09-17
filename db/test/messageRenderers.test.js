@@ -73,7 +73,10 @@ const BODY_RENDERERS = [
   "web/app/(app)/archive/ArchiveTranscript.js",
   "web/app/components/DmThread.js",
   "web/app/components/InspectorColumn.js",
-  "web/app/components/ArchiveContextModal.js",
+  // The "in context" slice. The body lives in ArchiveContext.js; the modal is
+  // only the frame around it now, and draws no body of its own — the OOC lens
+  // on /gm/turns renders the same component in the middle of the desk.
+  "web/app/components/ArchiveContext.js",
 ];
 
 test("no message body is drawn raw, or by the full catalog resolver", () => {

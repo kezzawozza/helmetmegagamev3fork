@@ -10,6 +10,10 @@ import Tooltip from "./Tooltip";
 // `tooltip` is the optional rich version for sighted hover (ActionGrid.js
 // passes the action's name plus a sentence on what it does); without one the
 // tooltip is just the label, which is what every older call site wants.
+// `pinnable` is passed through to the tooltip: off by default, because a button
+// is already a control and a pin would fight its click. ActionButton.js turns it
+// ON for a touch screen, where the pin is the only way the panel can be read at
+// all — see the header there.
 // `size` names the DESKTOP size — `sm` (15, default) or `lg` (20) — written to `data-size` for `.icon-btn[data-size]` to read. A coarse
 // pointer inside /chat floors every one of these at 44px regardless (CSS);
 // `size` only decides what a fine pointer sees.
@@ -21,12 +25,13 @@ export default function IconButton({
   tooltip = null,
   onClick,
   disabled = false,
+  pinnable = false,
   size = "sm",
   ...rest
 }) {
   const glyph = GLYPH_SIZE[size] ?? GLYPH_SIZE.sm;
   return (
-    <Tooltip text={tooltip ?? label} pinnable={false}>
+    <Tooltip text={tooltip ?? label} pinnable={pinnable}>
       <button
         type="button"
         className="icon-btn"

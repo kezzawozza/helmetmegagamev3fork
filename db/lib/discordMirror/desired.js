@@ -24,7 +24,6 @@ const { CATEGORY_NAME: RADIO_CATEGORY_NAME } = require("../syncSpecialChannels")
 const {
   CHANNEL_NAME: DEADCHAT_CHANNEL_NAME,
   CATEGORY_NAME: DEADCHAT_CATEGORY_NAME,
-  CHANNEL_TOPIC: DEADCHAT_CHANNEL_TOPIC,
   GM_ALLOW: DEADCHAT_GM_ALLOW,
   GM_DENY: DEADCHAT_GM_DENY,
 } = require("../deadchat");
@@ -345,8 +344,8 @@ function buildDesired({
     parentKey: "category:deadchat",
     parentId: config.deadchatCategoryId ?? null,
     order: ORDER.LOCATION_CHANNEL,
-    spec: { name: DEADCHAT_CHANNEL_NAME, type: CHANNEL_TYPE_TEXT, topic: DEADCHAT_CHANNEL_TOPIC },
-    properties: { name: DEADCHAT_CHANNEL_NAME, topic: DEADCHAT_CHANNEL_TOPIC },
+    spec: { name: DEADCHAT_CHANNEL_NAME, type: CHANNEL_TYPE_TEXT },
+    properties: { name: DEADCHAT_CHANNEL_NAME },
     overwrites: outsideZoneOverwrites(guildId, {
       gmAllow: DEADCHAT_GM_ALLOW,
       gmDeny: DEADCHAT_GM_DENY,
@@ -354,6 +353,51 @@ function buildDesired({
     }),
     currentId: config.deadchatChannelId ?? null,
     idColumn: { model: "gameConfig", id: 1, field: "deadchatChannelId" },
+  });
+
+  // --- Party chat -------------------------------------------------------
+  //
+  // The parent channel each party's private thread hangs off, under the
+  // Gameplay category. The threads themselves are opened live by the escort
+  // flow (db/lib/partyChat.js); the mirror only manages the parent.
+  //
+  // Deliberately NO spectator overwrite — the party thread names give away who
+  // is with whom in a way #general does not.
+  targets.push({
+    targetType: "channel",
+    kind: "party-category",
+    key: "category:gameplay",
+    subject: { type: "party", id: "category" },
+    label: "Gameplay",
+    name: "gameplay",
+    discordType: CHANNEL_TYPE_CATEGORY,
+    parentKey: null,
+    order: ORDER.CATEGORY,
+    spec: { name: "Gameplay", type: CHANNEL_TYPE_CATEGORY },
+    overwrites: [],
+    currentId: config.gameplayCategoryId ?? null,
+    idColumn: { model: "gameConfig", id: 1, field: "gameplayCategoryId" },
+  });
+  targets.push({
+    targetType: "channel",
+    kind: "party-channel",
+    key: "channel:party",
+    subject: { type: "party", id: "channel" },
+    label: "#party",
+    name: "party",
+    discordType: CHANNEL_TYPE_TEXT,
+    parentKey: "category:gameplay",
+    parentId: config.gameplayCategoryId ?? null,
+    order: ORDER.LOCATION_CHANNEL,
+    spec: { name: "party", type: CHANNEL_TYPE_TEXT },
+    properties: { name: "party" },
+    overwrites: outsideZoneOverwrites(guildId, {
+      gmAllow: PERM_VIEW_CHANNEL,
+      gmDeny: PERM_SEND_MESSAGES | PERM_ATTACH_FILES,
+      spectators: undefined,
+    }),
+    currentId: config.partyChannelId ?? null,
+    idColumn: { model: "gameConfig", id: 1, field: "partyChannelId" },
   });
 
   // --- Room threads -----------------------------------------------------

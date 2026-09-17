@@ -29,9 +29,12 @@ reverses.
   `sellablePrice` are what a thing is *worth*, and that has to keep meaning the
   same number whether the Merchant is buying it or a player is haggling over
   it — so every authored price is already a whole number of obols too. An
-  obol makes value **physical**: a weightless stackable tag holding the same
-  amount as the number on a sheet, but one you can carry, hand over, stash
-  and have stolen.
+  obol makes value **portable**: a weightless stackable tag holding the same
+  amount as a sack of ⬢, but one a fortune of which still fits in a pocket.
+  ⬢ are a tag too now, and a one-pound one (`TAGS.md`), so the difference
+  between the two currencies is no longer physical-versus-not — it is weight,
+  and where the money is good. ⬢ are raw material anybody will take anywhere;
+  an obol is paper the Merchant honours and nobody else has to.
 - **The money belongs to the station, not the Merchant.** It lives on
   `Depot.accountObols`. The licence is tradeable, so handing it over hands over
   the balance too, and that is what makes the card worth stealing.
@@ -148,7 +151,11 @@ The cycle:
    it**, priced off the live catalog — otherwise returning a shipment would
    silently annihilate it. **Loose ⬢ in the stash go up too**, at 1 ¢ each
    (`RESOURCE_EXPORT_PRICE`). That is the only door out of ⬢ and into coin, and
-   it costs half their face value to walk through.
+   it costs half their face value to walk through. The pad's ⬢ are an
+   ordinary stack row in the room now rather than a number on the Room
+   (`db/lib/resourceStack.js`), so the send deliberately lifts them **out** of
+   the goods loop before it runs — left in, they would be sold once as ⬢ at
+   the export price and again as a ware at their `sellablePrice`.
 4. Or **it leaves on its own** after `shuttleMaxTurns` (6). A timed departure
    takes nothing with it — the crates stay on the pad. Selling is a deliberate
    act and an unattended shuttle should not empty the room.
@@ -203,12 +210,17 @@ land on the crate row as `consumesIntoResources` — the field the ordinary
 consume path already grants — so the Resources half of a shipment needs no
 special case at all past the packing.
 
-**A crated ⬢ weighs a pound** (`RESOURCE_UNIT_LBS`). That is the whole reason
-⬢ need no cap of their own: they pack against the same 150 lb rule as
-everything else and ride in a crate alongside other goods, so 150 ⬢ fill one
-crate and it weighs 75 lb. A **loose** ⬢ still weighs nothing and counts
-against `carryResourceCap` instead (`CARRY.md` §1) — this is freight, and the
-two axes never count the same ⬢ twice.
+**A crated ⬢ weighs a pound** (`RESOURCE_UNIT_LBS`), so ⬢ pack against the
+same 150 lb rule as everything else and ride in a crate alongside other goods:
+150 ⬢ fill one crate and it weighs 75 lb.
+
+This side of it never changed. What changed is the other side. A **loose** ⬢
+used to weigh nothing and count against a separate cap of its own, so the same
+⬢ was a pound on the landing pad and weightless in a pocket — freight and the
+sheet flatly disagreed about the same sack of material. Since 9/2026 a loose ⬢
+is a one-pound item like the crated one (`docs/tags.yaml` `resources`), the
+second cap is gone, and there is one rule for a ⬢'s weight wherever it is
+standing (`CARRY.md`).
 
 The manifest is printed on the crate, in exactly this format:
 
@@ -690,7 +702,7 @@ Four bands, about 106 tags in total:
 | Band | Priced at | Examples |
 |---|---|---|
 | Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3, `dreamers-draught` **60** |
-| Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9 (its four 1/3-turn pieces 7), Moderate 21, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
+| Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9 (its four 0.25-turn pieces 8), Moderate 21, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
 | Factory goods | a day's output at ~3× a good farming day | `squeeze` 7 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
@@ -746,9 +758,9 @@ rates read 2 → 5 → 6 → 7 → 11 ⬢/turn; the shipped prices sit above it,
 wider smith's margin (see `SMITHING.md` §2 for `resourceCost`). What
 must hold is the SHAPE: never falling. The shipped per-turn profits are
 
-| rung | ⅓-turn | Simple | Moderate | High Quality | Gunpowder |
+| rung | 0.25-turn | Simple | Moderate | High Quality | Gunpowder |
 |---|---|---|---|---|---|
-| ⬢/turn | 9 | 10 | 16 | 18 | 22.5 |
+| ⬢/turn | 8 | 10 | 16 | 18 | 22.5 |
 
 with Dead Simple's 12 sitting outside the curve for the reason below. The curve is
 deliberately flat — nearly two and a half fold bottom to top, not the five-fold spread a
@@ -784,12 +796,14 @@ The Dead Simple rung spans two skills — `crafting` gates the cloth and wood ha
 reasoning the rate table above gives for pricing `crafting` at the `smithing`
 rate. A padded cap and a work knife are one rung and pay one wage.
 
-The four 1/3-turn Simple pieces (Spear, Dagger, Silver Knife, Phrygian Spear —
-`SMITHING.md` §2) get the same treatment for the same reason: `2 × (1/3)^1.3` rounds to
-0, so they carry a flat markup instead and sell at **9**. Three a turn is 9 ⬢/turn,
-against the rung's full-turn 10 — quick work is paid about the rung's rate, never a
-better one. Round the quick pieces DOWN when they will not land clean on an integer,
-never up, or the rung above them is overtaken.
+The four 0.25-turn Simple pieces (Spear, Dagger, Silver Knife, Phrygian Spear —
+`SMITHING.md` §2) get the same treatment for the same reason: `2 × 0.25^1.3` is 0.33 and
+rounds to 0, so they carry a flat markup instead and sell at **8**. Four a turn is
+8 ⬢/turn, against the rung's full-turn 10 — quick work is paid about the rung's rate,
+never a better one. They were thirds at 9 until costs became decimals in 9/2026, which
+came to the same 9 ⬢/turn; the quarter buys a fourth unit, so the price came down to
+keep the day's pay under the rung above. Round the quick pieces DOWN when they will not
+land clean on an integer, never up, or the rung above them is overtaken.
 
 Two items break from their tier's baseline `resourceCost` and price accordingly: Bore
 Pistol (18 ⬢ to make, cheaper than Musketoon/Bomb's 28) still prices under them, at 56

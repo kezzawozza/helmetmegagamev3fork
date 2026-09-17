@@ -12,6 +12,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import {
   SkullIcon,
   AnkhIcon,
+  UncurseIcon,
   RestoreIcon,
   SkipIcon,
   MessageIcon,
@@ -25,6 +26,7 @@ import {
 import {
   killCharacterNow,
   reviveCharacter,
+  setCurseOverride,
   restoreTurn,
   spendTurn,
   messageCharacter,
@@ -49,6 +51,7 @@ import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 export default function ActionBar({
   character,
   canDelete,
+  curse,
   hasActed,
   openTurn,
   locations,
@@ -233,7 +236,7 @@ export default function ActionBar({
                 confirmThenRun(
                   {
                     title: `Kill ${character.name}?`,
-                    message: "They are dead now. Their role, nickname and channel access go, and they get the Cursed seat.",
+                    message: "They are dead now. Their role and channel access go, and they get the Cursed seat.",
                     confirmLabel: "Kill them",
                   },
                   () => killCharacterNow({ characterId: character.id }),
@@ -250,10 +253,28 @@ export default function ActionBar({
                   {
                     title: `Revive ${character.name}?`,
                     message:
-                      "Restores their personal Discord role, nickname and channel access, and takes back the ghost seat.",
+                      "Restores their personal Discord role and channel access, and takes back the ghost seat.",
                     confirmLabel: "Revive",
                   },
                   () => reviveCharacter({ characterId: character.id }),
+                )
+              }
+            />
+          )}
+          {curse?.cursed && (
+            <IconButton
+              icon={UncurseIcon}
+              label={`Lift the curse on ${character.name}`}
+              disabled={pending}
+              onClick={() =>
+                confirmThenRun(
+                  {
+                    title: `Lift the curse on ${character.name}?`,
+                    message:
+                      "Their next character may take any role, at full points. It stays lifted until a gamemaster puts it back.",
+                    confirmLabel: "Lift it",
+                  },
+                  () => setCurseOverride({ characterId: character.id, override: false }),
                 )
               }
             />
@@ -351,7 +372,7 @@ export default function ActionBar({
         </div>
 
         {/* Two buttons used to live here beside Delete, and both are gone.
-            Re-push Discord re-sent the role, the nickname and the channel
+            Re-push Discord re-sent the role and the channel
             overwrites a character should already have — which is what
             db:mirror and the channel doctor do on every bot start anyway, so
             it could only ever confirm that nothing was wrong. The eye linked

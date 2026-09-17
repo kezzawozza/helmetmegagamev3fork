@@ -24,6 +24,7 @@ const {
   SHUTTLE_ARRIVAL_SLUGS,
 } = require("./threats");
 const { ambientEverywhere } = require("./worldBroadcast");
+const { addCharacterResources } = require("./resourceStack");
 
 // The two buttons on an offer DM. Raw component JSON rather than discord.js builders, since the web sends this one and only the bot has the library.
 function spawnOfferComponents(spawnId) {
@@ -122,8 +123,8 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
         ? await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } })
         : null;
 
-  const { gender, firstName, honorific } = rollSpawnIdentity(threat.spawn);
-  const name = formatCharacterName({ honorific, firstName, title: null, lastName: null });
+  const { gender, firstName, lastName, honorific } = rollSpawnIdentity(threat.spawn);
+  const name = formatCharacterName({ honorific, firstName, title: null, lastName });
 
   // Stamped before the transaction: a tag with a catalog duration must arrive already carrying expiresTurn, since nothing backfills it later.
   const tagRows = [];
@@ -154,7 +155,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
           honorific,
           firstName,
           title: null,
-          lastName: null,
+          lastName,
           name,
           gender,
           age: null,
@@ -163,7 +164,6 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
           factionId: spawn.role.factionId,
           locationId: location?.id ?? null,
           zoneId: location?.zoneId ?? null,
-          resources: threat.spawn.resources ?? spawn.role.startingResources,
           tagPoints: threat.spawn.tagPoints ?? 0,
           isLeader: spawn.role.grantsLeader,
           isTreasurer: spawn.role.grantsTreasurer,
@@ -175,6 +175,10 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
           data: tagRows.map((row) => ({ characterId: character.id, ...row })),
         });
       }
+
+      // Starting ⬢ are granted AFTER the row exists: they are a stack now, not
+      // a column, so there is nothing to set on the create.
+      await addCharacterResources(tx, character.id, threat.spawn.resources ?? spawn.role.startingResources ?? 0);
 
       await tx.threatSpawn.update({
         where: { id: spawn.id },

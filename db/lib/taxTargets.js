@@ -3,6 +3,7 @@
 const { isUnaffiliated } = require("./factionConstants");
 const { CATATONIC_SLUG } = require("./constants");
 const { OBOL_SLUG } = require("./depotState");
+const { resourcesByCharacterIds } = require("./resourceStack");
 
 // One turn of quiet after a refusal (desireGates.js's `lockTurns` shape, lockTurns = 1): a refusal in turn 5 blocks retargeting through the close of turn 6.
 function isLockedOut(refusedTurnNumber, openTurnNumber) {
@@ -28,7 +29,6 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
         id: true,
         name: true,
         roleTitle: true,
-        resources: true,
         zoneId: true,
         isLeader: true,
         isTreasurer: true,
@@ -38,7 +38,7 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
   ]);
 
   const memberIds = members.map((m) => m.id);
-  const [catatonicIds, obolCounts, refusals] = await Promise.all([
+  const [catatonicIds, obolCounts, resourceCounts, refusals] = await Promise.all([
     catatonicTag && memberIds.length
       ? prisma.characterTag
           .findMany({
@@ -56,6 +56,8 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
           })
           .then((rows) => new Map(rows.map((r) => [r.characterId, r.quantity])))
       : Promise.resolve(new Map()),
+    // ⬢ are a stack too now, and read in one batch for the same reason the obols are — a query per member is a query per member at 100+ characters.
+    resourcesByCharacterIds(prisma, memberIds),
     memberIds.length
       ? prisma.auditLog.findMany({
           where: { actionType: "tax_refused", targetCharacterId: { in: memberIds } },
@@ -87,7 +89,7 @@ async function taxRoster(prisma, taxer, { openTurnNumber = null } = {}) {
     id: m.id,
     name: m.name,
     roleTitle: m.roleTitle,
-    resources: m.resources,
+    resources: resourceCounts.get(m.id) ?? 0,
     obols: obolCounts.get(m.id) ?? 0,
     isLeader: m.isLeader,
     isTreasurer: m.isTreasurer,

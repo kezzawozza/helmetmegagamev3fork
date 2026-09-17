@@ -28,7 +28,7 @@ const PLAY_SOOTHE_AUDIT_ACTION = "mood_soothed_play";
 
 // A voice carries less than an instrument does. Same ×4 Pythagorean mastery
 // on top (EVENTS.MUSIC is the instrument's own base — see sootheListeners).
-const SING_BASE = 8;
+const SING_BASE = 9;
 
 // Three glyphs, repeats allowed — so ♩♩♪ is a legal result.
 function noteFlourish() {
@@ -40,7 +40,7 @@ function held(character, slug) {
 }
 
 // `base` mood to every living character at the musician's Location, musician included — EVENTS.MUSIC
-// (10) for an instrument, SING_BASE (8) a cappella. Rationed by an AuditLog row per listener with
+// (12) for an instrument, SING_BASE (9) a cappella. Rationed by an AuditLog row per listener with
 // turnId set (REQUESTS.md §1a).
 async function sootheListeners(prisma, musician, { base = EVENTS.MUSIC, quadruple = false } = {}) {
   if (!musician.locationId) return;

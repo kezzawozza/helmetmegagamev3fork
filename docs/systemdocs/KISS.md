@@ -17,7 +17,7 @@ touch the copy: the wording in `db/lib/kiss.js` is settled.
 
 - Anyone picks somebody standing where they stand and presses **Kiss**. They
   get a DM with Accept / Decline; **nothing happens until they press one.**
-- On Accept **both** dials move **+15** — the same figure a confession is
+- On Accept **both** dials move **+17** — the same figure a confession is
   worth (`MOOD.md`). **Nobody else is told** (§5).
 - **It costs no Move**, files no `Action`, rolls nothing, and no turn pass
   touches it.
@@ -108,7 +108,7 @@ the only thing that lets a ration ever count them.
 
 ## 4. Why the rations are AuditLog rows and not columns
 
-At +15 against a 15-a-turn ceiling, a magnitude cap and a once-a-turn gate are
+At +17 against a 17-a-turn ceiling, a magnitude cap and a once-a-turn gate are
 the same arithmetic — so this takes the cheap one. `applyKissMood` counts a
 `mood_kissed` row the way the Cathedral's relief counts `mood_cathedral`, and
 the whole feature's migration is **one enum value**.

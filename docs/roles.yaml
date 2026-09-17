@@ -1393,10 +1393,8 @@ zones:
               - Broadsword
               - Dagger
               - Heavy Infantry Armor
-              - Energy Shield
               - Ordinator Insignia
               - Nuclear Datacard
-              - Elevator Key
               - Fragmentation Grenade
               - Motorcycle
               - Supply Kit
@@ -1410,6 +1408,7 @@ zones:
               - Rough Camper
               - Outsider
               - Brave
+              - Literate
               - Radio (243.000)
             doc_elements:
               - godking
@@ -1452,6 +1451,7 @@ zones:
               - Tough
               - Rough Camper
               - Outsider
+              - Literate
               - Radio (243.000)
             doc_elements:
               - godking

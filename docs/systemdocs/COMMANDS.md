@@ -44,6 +44,7 @@ Each command declares its contexts:
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
 | `/play` | — | Living character (an Instrument plays; without one, sings) | Guild | `handlePlayCommand` |
 | `/shout` | `message` | Living character | Guild | `handleShoutCommand` — carries across the Location graph (§2d) |
+| `/ooc` | `message` | Living character | Guild | `handleOocCommand` — out of character, one place only (§2f) |
 | `/roll` | — | Anyone | Guild | `handleRollCommand` |
 | `/add` | `character` (role) | Conversation or private-Room member, or GM | Guild | `handleThreadMemberCommand` |
 | `/remove` | `character` (role) | Conversation or private-Room member, or GM | Guild | `handleThreadMemberCommand` |
@@ -91,6 +92,9 @@ Notes:
   typing indicator in a channel — filling in a slash-command option shows none
   either, so the protection is already there and the extra click buys nothing.
   See §2d.
+- `/ooc` takes a string option for the same reason, and its own cap: 2000
+  rather than `/shout`'s 300, because it reaches one channel rather than a
+  couple of dozen. See §2f.
 - `/labor` is retired — laboring is now the **Labor checkbox** on the Move
   modal (`LABORING.md` §4).
 - `/persistent` is retired too — Bascinet 2 dropped forum topics, private
@@ -267,7 +271,7 @@ the stricter of the two. See `db/lib/shout.js`.
 the *whole* delivery: the parent Location channel and every Location in earshot
 get nothing, the BFS is skipped entirely, and the line everyone in the room
 sees gains `, but it's muffled.` — as does the shouter's own acknowledgement.
-It is not a refusal, so it still costs the five-minute cooldown; a hostage who
+It is not a refusal, so it still costs a send from the bucket; a hostage who
 has spent their throat on a room nobody can hear has spent it.
 
 Fifteen rooms carry it, and they are the places you would tie somebody up in:
@@ -307,11 +311,24 @@ posting itself twice.
 **Rate limits.** One shout is up to a couple of dozen REST posts, so the posting
 loop is sequential with every post individually caught, the discipline
 `bot/src/lib/deathSmell.js` documents — never `Promise.all`. On top of that
-there is a 5-minute per-character cooldown — an `AuditLog` row, not an in-memory
-Map, so it survives a bot restart and the two faces share one throat — and it is
-**claimed before the loop rather than after**: the loop takes real seconds,
-which is exactly long enough for a second `/shout` to slip past a cooldown
-stamped at the end.
+there is a per-character limit, shared with `/ooc`:
+`db/lib/speechRateLimit.js`, a **leaky bucket** rather than the flat five-minute
+cooldown it replaced. Three shouts at once, then one back every five minutes —
+the same long-run rate as before, with room to yell twice while something is
+actually happening. `/ooc` takes the same limiter with its own numbers: ten at
+once, then one back every thirty seconds.
+
+There is still no state column. The bucket is replayed from the `AuditLog` rows
+the action already writes, so it survives a bot restart and the two faces share
+one throat, and it is **claimed before the loop rather than after**: the loop
+takes real seconds, which is exactly long enough for a second `/shout` to slip
+past a limit stamped at the end.
+
+The off-by-one in that bucket is worth knowing, because it is the one that
+matters: after ten sends the level sits a hair *under* ten, since a moment of
+drip has already happened. So the test is "is there room for one more"
+(`hasRoom`), not "is the level under capacity" — the second waves the eleventh
+of ten through.
 
 ### 2d-bis. Pray, at the Shrine of an Old Man
 
@@ -340,6 +357,69 @@ converted: dropping `{tag:thanati}` would quietly pull them out of their
 objectives, rites and hideout with nothing said to anybody, so the cult simply
 got there first. Every other Belief comes off (all of them — Fundamentalist
 stacks on Post-Christian, so two is a legitimate state).
+
+### 2f. `/ooc` in detail
+
+The other half of the same change, and the opposite of `/shout` in almost every
+way. `db/lib/ooc.js`.
+
+**It is not the character talking, it is the player.** Nothing in the fiction is
+happening, so nothing in the fiction applies to it: no sound range, no
+muffling, no distance, and **no voice tag**. A gag, a bound pair of hands and a
+Mute are things done to a *character*, and the person behind one can still ask
+whether Mountaineering is the skill they need. It reaches the Room or
+Conversation it was typed in and nowhere else — the channel, not where the
+character stands, because an OOC line is addressed to the people reading the
+same place you are reading.
+
+**One format, written once.** Every `/ooc` on both faces comes out as
+
+```
+-# [OOC (Young Man): {message}]
+```
+
+through `db/lib/ambientLine.js` on Discord and a `channelKind: "ooc"` scene row
+on the web (`.chat-ooc`, subtext with a rule down its left edge). The web
+spelling escapes the outer brackets and Discord's does not, for a Markdown
+reason `db/lib/ooc.js` explains at length. Who said it *also* lives in the
+`AuditLog` row, which is what the GM's OOC lens reads (`ADJUDICATION.md` §3) —
+that row names the account, so it answers past the hood below.
+
+**The name in the bracket is the PRESENTED one.** Forced > concealed > own, the
+same ladder `/speak` and a shout use, decided in one place
+(`db/lib/presentedIdentity.js`). A hooded player reads as "Young Man" in OOC
+exactly as they do in the scene, and somebody wearing a forced name reads as
+that name. This is not optional politeness: OOC is the one line a player types
+as themselves, so a hood that held everywhere else and dropped here would out
+them for asking a rules question.
+
+`db/lib/ooc.js` **re-reads the character row** to get it, rather than trusting
+the row its callers pass — both of them select four columns, none of which is
+`concealed`, and for a while that is exactly how the name leaked. The shared
+loader is `loadPresentedIdentity()`; `db/lib/shout.js` uses the same one.
+
+**A GM can mute it.** `OocMute` (`schema.prisma`) is one row per ACCOUNT with
+an `until`, set from the OOC lens on `/gm/turns` (`ADJUDICATION.md` §3). It
+refuses `/ooc` and the composer's OOC mode with "Your OOC is muted." and stops
+nothing else — a muted player still speaks and still shouts, because those
+belong to their character. Checked ahead of the rate limit, so a refused send
+costs no token. The row lapses on its own; nothing sweeps it.
+
+**Speech is refused if it looks like OOC.** A `(`, a `[`, or the bare word
+"ooc" in a message sent through the ordinary composer refuses the whole thing
+— `db/lib/oocGuard.js`, checked inside `prepareSpeech` — and the player gets
+their text back in a DM telling them to use `/ooc`. `\booc\b` is the whole
+subtlety: there is no word boundary inside a letter run, so "poockie" and
+"Moocher" go through untouched.
+
+Two exemptions. **Deadchat is never filtered** — it is out of character by
+design (`CLAUDE.md`), so filtering it would be backwards. And `sayInPieces`
+checks the *whole* text before splitting it, or a marker in the third piece
+would leave the first two standing in the room.
+
+On the Discord proxy path nothing extra was needed: a refused message already
+gets deleted and handed back with its refusal, which is exactly the behaviour
+this wants.
 
 ### 2e. The bell and the trumpet
 
@@ -802,6 +882,14 @@ anybody stands in, so a die cast into one has no audience to see it thrown. A
 (`CHANNELS.md` §3), and what happens on it happens through the anchor's
 buttons — so a voice in one is a voice in a room the game says nobody is
 talking in.
+
+**`/ooc` is not one of the three.** It reaches a zone summary and a radio net
+as well, on `db/lib/placeKey.js#isOocPlaceKey` — `room`, `conv`, `zone` and
+`net` all true, `loc` and `dead` false. The two rulings above are about a
+CHARACTER: you cannot throw a die into a broadcast or shout down the street.
+An OOC line is the player asking the people reading the same place a question,
+and none of it happens in the world, so the only places left out are the ones
+with no composer to type it into.
 
 Before this the two faces disagreed and neither was right. The bot asked
 `resolveChannelContext` for `channelKind === "location"`, which resolves the

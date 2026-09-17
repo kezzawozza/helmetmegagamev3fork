@@ -3,6 +3,7 @@
 
 import { holdsRequirement } from "./characterCreation";
 import { isTradeable } from "@lifeweb/db/lib/tradeable";
+import { isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 
 // Lifted into db/lib so Search can ask the same question from the other side of
 // the monorepo (SEARCH.md), and re-exported here so TAGS.md §5's "single reader"
@@ -57,12 +58,20 @@ export function computeKnownRecipeIds(
       return characterTags.some((ct) => slugs.includes(ct.tag.slug));
     });
   }
+  // A non-public skill (arelitz-breeding, catalog:gm) is itself the anti-spam
+  // gate; holding it should reveal the whole ladder, greyed for missing
+  // ingredients, rather than hiding rungs behind the pantry check.
+  function skillsAreAllNonPublic(tag) {
+    const skills = tag.requirementSkills ?? [];
+    if (skills.length === 0) return false;
+    return skills.every((s) => s.catalogVisibility && s.catalogVisibility !== "ALL");
+  }
   return tagCatalog
     .filter(
       (t) =>
         t.craftable &&
         (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)) &&
-        (!isNonPublicRecipe(t) || satisfiesIngredientsAtQuantityOne(t)),
+        (!isNonPublicRecipe(t) || skillsAreAllNonPublic(t) || satisfiesIngredientsAtQuantityOne(t)),
     )
     .map((t) => t.id);
 }
@@ -127,9 +136,12 @@ export function moveFamilyOf(tag) {
   return craftFamily(tag);
 }
 
+// Pickpocket is the deliberate exception and is NOT filtered here: it has no
+// ⬢ field, and lifting a sack of raw material out of somebody's pack against
+// the weight budget is exactly the thing ⬢ becoming an object was for.
 export function transferableTags(characterTags = []) {
   return characterTags
-    .filter((ct) => isTradeable(ct.tag))
+    .filter((ct) => isTradeable(ct.tag) && !isResourcesRow(ct))
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1, poisonMarker: Boolean(ct.poisonMarker) }));
 }
 
@@ -145,7 +157,7 @@ export function isMount(tag) {
 
 export function packableTags(characterTags = []) {
   return characterTags
-    .filter((ct) => isTradeable(ct.tag) && !isCrate(ct.tag) && !isMount(ct.tag))
+    .filter((ct) => isTradeable(ct.tag) && !isCrate(ct.tag) && !isMount(ct.tag) && !isResourcesRow(ct))
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 

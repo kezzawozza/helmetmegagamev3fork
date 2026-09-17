@@ -388,7 +388,7 @@ Before this, the sign was catalog-style while the colour was pool-style, so
 Frail read as "`-3`, in green" — two conventions disagreeing on one line.
 
 A character's budget is
-`GameConfig.startingTagPoints` (default 12) `+ role.extra_starting_points`
+`GameConfig.startingTagPoints` (default 8) `+ role.extra_starting_points`
 `- 6 if the player is Cursed`, computed by
 `web/lib/characterCreation.js#computeBudget`. Anything unspent is kept on
 `Character.tagPoints`.
@@ -542,8 +542,12 @@ Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
 the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
 at 3** — between the 2 and 5 bands, the same kind of deliberate outlier as
 Pack Mule. **Fast Metabolism is a fourth, at −6** — between the −5 and −7
-bands; it is the only tag that changes the *size* of the per-turn upkeep
-rather than exempting somebody from it (`TURN-ENGINE.md` §2 step 8). **Leper
+bands. It was priced there as the only tag that changed the *size* of the
+per-turn food upkeep rather than exempting somebody from it. **There is no food
+upkeep any more** (9/2026, `TURN-ENGINE.md` §5), so the tag currently does
+nothing at all and the price is holding a seat rather than buying a drawback.
+It is kept rather than retired because the foodstuff-item work will give it a
+mechanic again; until it does, expect the number to be revisited with it. **Leper
 is a fifth, at −1** — below the −2 band, and the reason is arithmetic rather
 than taste: it is the `requiredTag` on the Leper's Hood, which costs 0, so at
 −2 the pair would have *paid* a player to take a free hood. **Depressed is a
@@ -578,7 +582,8 @@ deliberate call rather than a new scale:**
 | Dense | −3 | alongside Tremor, same magnitude of nuisance |
 | Motion Sickness, Insomniac, Lazy, Hemophobia, Agoraphobia | −4 | between −2 and −5 |
 | Pyrophobia, Teratophobia | −2 | on-scale |
-| Adventurer, Dagger, Death Wish, Knuckle Duster, Pickpocket, Skeleton Wedge, Nine Lives | 3 | between 2 and 5 |
+| Adventurer, Dagger, Death Wish, Knuckle Duster, Pickpocketing (Basic), Skeleton Wedge, Nine Lives | 3 | between 2 and 5 |
+| Pickpocketing (Skilled) | 2 | on-scale, and a second rung rather than a first: `requiredTag: pickpocket`, so a master pays 5 in total (`THEFT.md` §2) |
 | Escape Artist, Esoteric, Lockpicking, Pavise | 4 | between 2 and 5 |
 | Brave | 5 | on-scale (repriced for its ×0.5 on every mood harm, `MOOD.md`) |
 | Ranged (Throwing Weapons) | 4 | vs. a nominal sidegrade price of 10 |
@@ -612,10 +617,10 @@ at whichever it reaches first:**
   **6** by default (widened from 5 on 2026-09-05, to make room for the new
   phobia and habit drawbacks).
 - **`GameConfig.maxDrawbackPoints`** — how many points those drawbacks may
-  claim back in total, stored as a **positive magnitude**. **13** by default
-  (widened from 12 the same day) — one point *above* `startingTagPoints`,
-  deliberately: a build carrying six real problems can now buy one point's
-  worth more than the starting budget, rather than the old exact symmetry.
+  claim back in total, stored as a **positive magnitude**. **8** by default
+  (down from 13 on 2026-09-16, when the starting budget dropped too) — it
+  matches `startingTagPoints`, so a build can never claim back more than it
+  started with.
 
 Both are live on `/gm/dev`, and `0` is a real setting on either: no drawbacks
 at all.
@@ -1009,7 +1014,8 @@ panel as a `1t` meaning *turns remaining*.
 
 Both formatters are hand-duplicated as `db/lib/turnFormat.js` and
 `db/lib/formatTagRequirement.js` for the bot's 🔍 inspect embed, the same
-convention as `buildNickname`. Change both copies together; don't collapse them
+twin convention the rest of the Discord layer uses. Change both copies
+together; don't collapse them
 (the web copies must stay dependency-free so client components can import
 them).
 - `removable` — whether a player can strip this tag off themselves mid-game
@@ -1177,15 +1183,16 @@ of a two-turn tag lose one every two turns.
 
 `consumable` marks a tag a player can **use up** from their own character
 sheet, and `consumesInto` (a list of tag *slugs*) is what it turns into. A
-meal is `consumable` with `consumesInto: [ate-meal]`; `ate-meal` is a plain
-Status marker now, with no `durationTurns` and nothing that sweeps it — since
-the hunger rework it is read, not consumed: `db/lib/hunger.js#foodHungerFor`'s
-fallback treats "grants `ate-meal`" as the signal that an unpriced item still
-counts as food, and Nobility's own marker (`dined`, granted alongside it by
-`fine-meal`/`lavish-meal`) is what the mood pass actually clears each close
-(`MOOD.md`). Nothing here is meal-specific: the one rule that *is* about
-meals (a Fine Meal cheers everyone but a noble) is expressed as catalog data
-in `docs/tags.yaml`, not as code.
+meal is `consumable` with `consumesInto: [ate-meal]`; `ate-meal` carries
+`durationTurns: 1` and expires through the ordinary turn-expiry sweep, the
+same as `hungry`/`starving`/`tired` — since the hunger rework it is read, not
+consumed by hand: `db/lib/hunger.js#foodHungerFor`'s fallback treats "grants
+`ate-meal`" as the signal that an unpriced item still counts as food, and
+Nobility's own marker (`dined`, granted alongside it by
+`fine-meal`/`lavish-meal`, no `durationTurns` at all) is what the mood pass
+actually clears each close (`MOOD.md`). Nothing here is meal-specific: the
+one rule that *is* about meals (a Fine Meal cheers everyone but a noble) is
+expressed as catalog data in `docs/tags.yaml`, not as code.
 
 Five rules carry it:
 
@@ -1245,10 +1252,9 @@ Five rules carry it:
   `{ "<slug>": N }`, null for almost every tag), resolved by the same
   `resolveConsumeGrants()` and applied by `grantTagSlugs()`, which prefers the
   override and falls back to the tag's own duration. An override on a target
-  that has no duration of its own is legal and simply gives it one — but
-  `ate-meal` carries no duration and nothing sweeps it (see §5b above), so
-  pointing an override at it would just hand a standing marker an expiry
-  nothing currently expects.
+  that has no duration of its own is legal and simply gives it one — `dined`
+  (Nobility's marker, §5b above) is the tag that claim actually describes:
+  no `durationTurns`, cleared by hand by the mood pass instead of the sweep.
 
 Consuming applies and writes one `AuditLog` row in the same transaction —
 there is no approval step, no reason, and **no Undo** any more (`REQUESTS.md`
@@ -1310,32 +1316,62 @@ Every Health tag is priced off one of eight rungs. **Pick a rung and copy its
 block. Do not invent numbers.** The whole point of a ladder is that a player
 learns it once and can then read any affliction they meet.
 
-**The `turns` column is a Move fraction now (the medical pass, M2), not a
-literal turn count.** `craftMoveCost` (`web/lib/craftBudget.js`, `CRAFTING.md`
-§2a) is what actually bills it — a rung's `turnsCost: 0` never touches a
-Move at all (it draws on the shared free pool below instead), `1/3`/`1/2`
-spend that fraction of the medic's one Routine, and `1` spends the whole
-thing. See "The Move economy" below for how that bills and what it replaced.
+**The `turns` column is a share of a Move, not a literal turn count**, and it
+is a **decimal** since 9/2026 — it was a `1/N` fraction before that.
+`craftMoveCost` (`web/lib/craftBudget.js`, `CRAFTING.md` §2a) is what actually
+bills it: a rung's `turnsCost: 0` never touches a Move at all (it draws on the
+shared free pool below instead), `0.25` and `0.5` spend that much of the
+medic's one Routine, and `1` spends the whole thing. See "The Move economy"
+below for how that bills and what it replaced.
 
-| Tier | Reads as | ⬢ | turns (Move) | skill | Gambit |
-|---|---|---|---|---|---|
-| 0 | Untreatable | — | — | — | — |
-| 1 | Dead Simple | 1 | 0 | Basic | no |
-| 2 | Simple | 2 | 1/4 | Basic | no |
-| 3 | Moderate | 2 | 1/3 | Skilled | no |
-| 4 | Severe | 4 | 1/3 | Skilled | no |
-| 5 | Very minor surgery | 7 | 1/2 | Skilled | no |
-| 6 | Severe surgery | 13 | 1 | Expert | no |
-| 7 | Complex surgery | 13 | 1 | Expert | yes |
+Costs land on a **quarter** and the sync refuses anything else. That is not
+tidiness: the Move budget is exact rational arithmetic, and a cost it cannot
+hold exactly would let a medic do work they never paid for.
+
+| Tier | Reads as | ⬢ | turns (Move) | `cureRung` | skill | Gambit |
+|---|---|---|---|---|---|---|
+| 0 | Untreatable | — | — | 0 | — | — |
+| 1 | Dead Simple | 1 | 0 | 1 | Basic | no |
+| 2 | Simple | 2 | 0.25 | 2 | Basic | no |
+| 3 | Moderate | 2 | 0.25 | 3 | Skilled | no |
+| 4 | Severe | 4 | 0.25 | 4 | Skilled | no |
+| 5 | Very minor surgery | 7 | 0.5 | 5 | Skilled | no |
+| 6 | Severe surgery | 13 | 1 | 6 | Expert | no |
+| 7 | Complex surgery | 13 | 1 | 7 | Expert | yes |
+
+**Tiers 2, 3 and 4 all cost 0.25 now**, so the turns column no longer separates
+them — the ⬢ and the skill do. That is the price of losing thirds, and it is
+why the rung has its own column.
+
+### `cureRung` says which rung, and the price no longer does
+
+**Every wound authors its rung** — `cureRung:` in `docs/tags.yaml`, on every
+tag in `health-wounds`, `health-maiming` or `health-infection`. The sync
+refuses one that does not. `db/lib/mood.js#woundRungOf` reads that field.
+
+It used to work the rung out from the price, and at 2 ⬢ the only thing telling
+a Simple wound from a Moderate one was whether the cure's work denominator was
+4 or 3. Decimals took that away: tiers 2 and 3 are both 2 ⬢ and both cost 0.25,
+and nothing in the price can separate them. So the ladder is written down
+instead of inferred.
+
+That is a real improvement rather than a workaround. **Severity and cost can be
+tuned apart now** — making a cure cheaper no longer quietly moves the mood dial,
+which it always did before. The old price-reading survives in `woundRungOf`
+purely as a fallback for a tag that never came through the catalog (one a GM
+wrote in the Dev Panel, or a runtime clone), and it lands the case it cannot
+answer on the gentler rung.
 
 Tiers 5–7 were repriced by the medical pass (M2 — 6→7, 8→9, 8→14) precisely
 because a whole Move stopped being what any of them actually cost once the
-lower rungs moved onto fractions; the ⬢ went up with the tier's now-relative
+lower rungs moved onto shares; the ⬢ went up with the tier's now-relative
 weight rather than staying pinned to the old flat 6/8/8. Tier 6 has since
-been repriced again, 9→14 and 1/2→1 Move, so it now costs exactly what tier
-7 does — see below. Tiers 1 and 3–4 kept their ⬢ and their Move billing
-exactly; tier 2 kept its ⬢ but lost its free ride — it now bills a flat 1/4
-Move like tiers 3–4's fractions, never touching the pool below.
+been repriced again, 9→14 and half a Move to a whole one, so it now costs
+exactly what tier 7 does — see below. Tiers 1 and 3–4 kept their ⬢; tier 2
+kept its ⬢ but lost its free ride, and bills a flat 0.25 Move without ever
+touching the pool below. Tiers 3 and 4 went from a third of a Move to a
+quarter when thirds were dropped, so a Moderate or Severe cure is four a
+Routine where it was three.
 
 The ladder now runs in both directions. `HARM_CHARACTER` (`REQUESTS.md` §5b)
 puts a Health tag **on** somebody — offered from `isInflictable()`'s curated
@@ -1348,9 +1384,9 @@ carelessly can still be wrong twice, on both surfaces — just remember they're
 two different flags now, not one inference.
 
 The ladder is read a third time by the mood dial: a new wound's rung decides
-how much it costs the character who takes it, `db/lib/mood.js` reading the
-same rungs as the table above (MOOD.md). Pricing a rung carelessly is now
-wrong three ways, not two.
+how much it costs the character who takes it (MOOD.md). That read is off
+`cureRung` now, not the price — so a careless **rung** is wrong three ways,
+while a careless **price** is wrong twice and leaves the mood alone.
 
 **Remove/Destroy no longer cures anything.** Before `healable` existed, the
 old Remove Tag door doubled as a rough cure for some conditions — stripping a
@@ -1418,13 +1454,13 @@ replaced the old per-tier daily ration (2 a turn on Basic, 3 on Skilled, 4
 on Expert, `MEDICAL_TIER_CAPS` — deleted); the Expert's edge is now what
 they can afford on the turns-costing rungs, not a bigger free allowance.
 Past the 4th, each additional 0-turn cure spills into the medical family's
-Move at **1/4** rather than refusing outright, the same "allowance free,
+Move at **0.25** rather than refusing outright, the same "allowance free,
 past it costs the Move" rule Dead Simple crafting uses.
 
 **Everything at tier 2+ bills the Move directly and never touches that
 pool** — tier 2 (and its named-exception siblings `frostbite`, `choking`,
-`hypothermia`) is a flat 1/4 now rather than drawing on the pool at all, a
-1/3 or 1/2 rung spends that fraction of the medic's Routine, and tier 6 or
+`hypothermia`) is a flat 0.25 now rather than drawing on the pool at all, a
+0.5 rung spends half the medic's Routine, and tier 6 or
 7 (a full Move, tier 7 always a Gambit) spends the whole thing. The family is hardcoded
 `"medical"` on every caller that bills one of these, never derived from
 `craftFamily(tag)`'s guess — a skill-less cure like Choking would otherwise
@@ -1482,7 +1518,7 @@ not the cured tag: the skill required to apply that item to **anyone,
 including the actor's own self** (a prosthetic fitting is surgery even on
 your own leg). It is the one exception to §5f's "self-consume is never
 ACT-gated" — see §5f. `MEDICAL.md` §2 has the full mechanism, including the
-flat 1/2 Move fee it bills through the same medical family as above.
+flat 0.5 Move fee it bills through the same medical family as above.
 
 ### Named exceptions
 
@@ -1494,16 +1530,16 @@ rungs; don't copy their numbers onto anything else.
 - **`minor-bleeding`, `dislocated-shoulder`** — 0 ⬢, 0 turns, Medical
   (Basic). Below tier 1: a bandage or a shoulder pop is real medical
   knowledge, but it costs the doctor nothing to do.
-- **`severe-bleeding`, `arterial-bleed`, `parasites`** — 3 ⬢, 1/3 Move,
+- **`severe-bleeding`, `arterial-bleed`, `parasites`** — 3 ⬢, 0.25 Move,
   Medical (Skilled). Sits between tiers 3 and 4: stopping blood loss is
   urgent but simpler than the rest of what "Severe" covers.
-- **`choking`, `hypothermia`** — 2 ⬢, 1/4 Move, no skill. A Heimlich (or
+- **`choking`, `hypothermia`** — 2 ⬢, 0.25 Move, no skill. A Heimlich (or
   warming somebody back up) needs no training at all — the ⬢ buys the
   doctor's time, not their expertise. Choking was repriced onto this shape
   by M2 (it used to cost a whole turn); Hypothermia was untreatable at all
-  until M6 gave it the identical shape; both now bill the same flat 1/4 Move
+  until M6 gave it the identical shape; both now bill the same flat 0.25 Move
   every other rung-2 tag does, never the free pool.
-- **`frostbite`** — 2 ⬢, 1/4 Move, Medical (Skilled). Also gained
+- **`frostbite`** — 2 ⬢, 0.25 Move, Medical (Skilled). Also gained
   `expiresInto: [necrosis]` — it now progresses like an untreated wound
   instead of sitting inert.
 
@@ -2323,9 +2359,10 @@ What it does, all resolved at **read time** by `db/lib/presentedIdentity.js`
 
 What it deliberately does **not** touch: the `Character` row (no rename, so two
 Beasts never collide on `Character.name`, and every GM table still says who it
-is), the personal @-mention role, and the server nickname — both keep the real
-bare name, by decision. The `/add` picker naming the character is intended, not
-a leak.
+is) and the personal @-mention role, which keeps the real bare name by
+decision. The server nickname is not touched either, because nothing in the
+game touches one (`PROXYING.md` §8). The `/add` picker naming the character is
+intended, not a leak.
 
 One consequence of the precedence worth knowing: a character who had their hood
 **up** when the tag landed stops being concealed. Their 🔍 embed goes back to
@@ -2376,9 +2413,33 @@ SELECT id FROM "Character" ... FOR UPDATE
 which serializes equips per character. Without it, a burst of 8 concurrent
 equips all land against a cap of 6 (verified).
 
-## Depot tags: obols, crates and sealed shipping
+## Money in the catalog: ⬢, obols, crates and sealed shipping
 
-Three things the Depot rework added to the catalog.
+The two currencies are both ordinary tags now, and they sit side by side in
+`docs/tags.yaml`.
+
+**`resources`** — Resources themselves, the ⬢. Stackable, tradeable,
+`visible: true`, and **1 lb each**. Until 9/2026 this was not a tag at all: it
+was `Character.resources` and `Room.resources`, two Int columns holding a
+weightless number — the one piece of wealth in the game that was not an
+object, and so the one nobody could stash, hand over, pickpocket, loot off a
+corpse or set down when their pack was full. It is an object now, and all of
+that comes free, through exactly the same stack machinery every other item
+uses. Nothing special-cases it; `db/lib/resourceStack.js` is the only module
+that knows a ⬢ balance is a `CharacterTag`/`RoomTag` row.
+
+The pound is not a new number. `db/lib/depotCrates.js` has always weighed a
+**crated** ⬢ at a pound, and loose ⬢ weighing nothing was the inconsistency
+— freight and the sheet finally agree. The consequence is that there is no
+second carry cap any more: ⬢ push against `GameConfig.carryWeightLbs` beside
+the gear, so a fortune in raw material is a cart's worth of work to move
+(`CARRY.md`).
+
+It is priced on **both** sides so the Depot trades it as an ordinary ware —
+`depotPrice: 2`, `sellablePrice: 1`, the losing round trip the Depot has always
+described. The economy ledger still books it as form `BALANCE` rather than
+`GOODS`, which is what keeps ⬢ and obols apart on `/gm/economy`
+(`ECONOMY.md` §1). No `pointCost`, not purchasable at creation.
 
 **`obol`** — the Merchant's currency. Stackable, tradeable, `weight: 0`,
 `visible: false`. One obol is worth exactly one ⬢ — it is that same value made

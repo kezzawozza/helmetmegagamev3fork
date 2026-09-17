@@ -2,8 +2,7 @@
 
 Every word a character says in Discord is a webhook repost of something a
 player typed. This doc covers that pipeline end to end — proxying, avatars,
-the reactions that act on a proxied message, concealment, mentions, and the
-nickname that ties a Discord account to a character.
+the reactions that act on a proxied message, concealment, and mentions.
 
 Companion to `CHANNELS.md` (which channels opt in) and `ARCHIVE.md` (where
 the transcript is written).
@@ -146,7 +145,7 @@ Nothing proxies it, because `messageCreate` never fires. That fails three ways
 at once, and the first is the one that matters:
 
 1. **The mask leaks.** The raw message stays in the channel under the player's
-   real Discord account and nickname — the exact thing §2 exists to prevent.
+   real Discord account — the exact thing §2 exists to prevent.
 2. **The web never sees it.** `/chat` and `/archive` render `ArchiveEntry` rows
    and never read Discord, so with no row it is invisible on the site forever.
 3. **The turn wipe deletes it**, so it disappears having never been recorded.
@@ -613,8 +612,8 @@ While a forced name is held, `/conceal` refuses and the switch on `/character`
 renders disabled; `updateCharacterProfile` writes `concealed: false` whatever
 the form posted, and drops any upload.
 
-**The @-mention role follows the forced name; the nickname does not.** This
-used to say both kept the real bare name on purpose, and the Disguise Kit is
+**The @-mention role follows the forced name.** This
+used to say the role kept the real bare name on purpose, and the Disguise Kit is
 what changed the answer: a disguise's whole job is to put somebody behind a
 false name, and a scene where the false name is in the prose and the real one
 is in the `@`-token beside it is not a disguise. So the role is titled after
@@ -631,11 +630,11 @@ unmentionable in practice, and concealment is already answered by the rule that
 a concealed message relays nothing at all (§6). Only a forced *name* moves the
 role.
 
-**The nickname still says who they really are** (§8), and that is a real hole
-rather than a subtlety: anyone who can see the member sidebar can pair
-`Rowan | Sir Alder` against `@John` and undo the disguise. What this buys is
-the token that appears *inline in scene text*, which is where a false name
-actually does any work. Closing the rest means taking the nickname too.
+**The member sidebar no longer undoes it.** This used to read as a known hole:
+the nickname sync wrote `Rowan | Sir Alder`, so anybody could pair that against
+`@John` and see through the disguise. The game stopped writing nicknames
+entirely (§8), so there is nothing left there to pair against — whatever a
+member's nickname says is something they chose themselves.
 
 There is a **grant path** now, where there used to be none, and it is a
 reconcile rather than a hook: `db/lib/characterRoleNames.js` asks Discord what
@@ -1016,49 +1015,35 @@ portrait. A mention of a character outside the roster (buried, or simply
 invented) draws the neutral chip, the token pipeline's behaviour for any
 unresolvable reference.
 
-## 8. Nickname sync
+## 8. Nicknames are the player's own
 
-Every `ALIVE` named character's Discord server nickname is kept as
-`{base} | {characterName}`, where `characterName` is the **bare** name (first +
-last, via `formatBareName`) and `base` is the player's own Discord display name.
-Truncated to fit Discord's 32-char cap — **both halves shrink proportionally**,
-not just one.
+**The game never writes a Discord nickname.** Not on character creation, not on
+a rename, not on death, not on a wipe — in neither direction, set or cleared.
+Whatever a member's nickname says is something they typed themselves, and
+nothing here touches it.
 
-There is deliberately **no override** for either half. The character half is the
-character's name and the base is who the player is on Discord; a hand-typed
-preference for the base (`Character.preferredNickname`, removed) was a second
-source of truth for the same 32 characters and nothing else.
+It used to. An `ALIVE` character's member was kept at `{base} | {characterName}`
+by a pair of syncs, gated behind `GameConfig.nicknameSyncEnabled` — which was
+off by default and never turned on. The clears were not gated, which is the
+asymmetry that made this worth removing rather than leaving dormant: a switch
+nobody had ever flipped on still had death, mirror-off and the launch wipe
+writing `nick: null` over whatever a player had chosen for themselves.
 
-Gated behind `GameConfig.nicknameSyncEnabled` (off by default). Clearing a dead
-character's nickname is **not** gated (`CHARACTERS.md` §5).
+Removed with it: `bot/src/lib/nickname.js`, `db/lib/nicknameFormat.js`,
+`web/lib/discordGuild.js#syncCharacterNickname`, `setGuildNickname` /
+`updateGuildNickname`, the `userUpdate` event that existed only to re-sync, and
+the `nicknameSyncDiscordUserId` side effect. `GameConfig.nicknameSyncEnabled`
+is kept as a column and listed as an orphan in `CLAUDE.md`, the same as
+`TagGroup.color`.
 
-**A disguise does not reach here.** The `@`-mention role follows a held
-`Tag.forcedName` now (§5), and the nickname deliberately still carries the real
-bare name — which means the two disagree while a disguise is on, and anybody
-reading the member sidebar can pair `Rowan | Sir Alder` against `@John` and
-undo it. That is a known hole, not a subtlety: what the role rename buys is the
-token that appears inline in scene text, and closing the rest means taking the
-nickname with it. Written down so the next person does not assume the omission
-was an oversight, or extend the rename to a hood by symmetry.
+The one that made this urgent was **Metempsychosis** (`CHARACTERS.md`), which
+called `setGuildNickname` directly and so honoured neither the config gate nor
+`discordMirrored`: dying with the tag renamed your Discord account to the
+stranger you woke up as.
 
-**The nickname is the one surface where a title deliberately does not appear.**
-The 32-char cap is shared between the two halves — roughly 14 each — and
-`Sir Jorren "the Blind" Vask` is 27 characters on its own, so titling here
-would truncate essentially every nickname in the guild to garbage. Both copies
-of `buildNickname` are fed the bare name by their callers; neither slices a
-title off itself.
-
-**Nothing polls.** It is event-driven like everything else in the bot:
-
-| Trigger | Caller |
-|---|---|
-| Discord username/display name changes | `bot/src/events/userUpdate.js` |
-| Rejoin | `bot/src/events/guildMemberAdd.js` |
-| Character created, saved on `/character`, or renamed by a GM | `web/lib/discordGuild.js#syncCharacterNickname` (REST) |
-| Bot process START | `bot/src/events/ready.js` → `syncNicknamesForGuild`, a one-time catch-up bulk pass, not a recurring tick. **Not** every reconnect: `ready` is `once: true`, so a gateway resume or re-identify does not re-run it |
-
-`buildNickname()` is hand-duplicated between `bot/src/lib/nickname.js` and
-`web/lib/discordGuild.js` — the same twin convention as `isTupperChannel`.
+Nicknames are still **read** — `/gm/players` and the dev panel's band show a
+member's `nick`, which is useful to a GM precisely because it is the player's
+own choice.
 
 ## 9. Where the code lives
 
@@ -1077,7 +1062,6 @@ title off itself.
 | Mentions, `/add`, `/remove` | `bot/src/lib/mentions.js`, `bot/src/lib/commands.js` |
 | Inspect gates | `db/lib/inspectVision.js` |
 | Doctor's eye on inspect | `db/lib/medicalVision.js` (`TAGS.md` §5c) |
-| Nickname | `bot/src/lib/nickname.js`, `web/lib/discordGuild.js` |
 | Avatar route | `web/app/api/avatar/[characterId]/route.js` |
 | Plaque generator | `web/scripts/generate-letters.js` |
 | Notes UI (Starred + Journal) | `web/app/(app)/notes/` |

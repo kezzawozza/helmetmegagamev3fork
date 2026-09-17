@@ -13,9 +13,10 @@ async function recordTagMoney(tx, holder, tagId, signedQuantity, econ = {}) {
     const priced = await pricedTag(tx, tagId);
     if (!priced) return; // no price on this tag: not money, nothing to record
     econ = econ ?? {};
-    let form = "COIN";
+    // Three kinds of money wearing three coats (docs/systemdocs/ECONOMY.md §1). The obol tag is COIN and Resources are BALANCE, both at par — one unit is one ⬢, whatever the Depot's counter charges for it. Everything else priced is GOODS at its catalog price.
+    let form = priced.isResources ? "BALANCE" : "COIN";
     let unitValue = 1;
-    if (!priced.isObol) {
+    if (!priced.isObol && !priced.isResources) {
       unitValue = priced.sellablePrice ?? priced.depotPrice ?? null;
       if (!unitValue) return; // no price on this tag: not money, nothing to record
       form = "GOODS";

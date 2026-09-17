@@ -482,9 +482,15 @@ export default function TagFieldset({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="field">
                 <span className="field-label">Turns</span>
+                {/* Quarters: 0.25 is four a Routine, 0.5 two, 1 the whole
+                    Move, 2+ a project. The step is what lets this form author
+                    a part-turn cost at all — it could only write whole
+                    numbers while costs were fractions in the YAML. */}
                 <input
                   type="number"
                   min="0"
+                  step="0.25"
+                  inputMode="decimal"
                   value={values.requirementTurns ?? ""}
                   onChange={(e) => set("requirementTurns", e.target.value)}
                 />

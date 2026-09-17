@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
 import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
@@ -38,7 +37,7 @@ import {
 // mounts the shell, and streams FreshAudit in behind it. A browser that has
 // been here before paints its last data in the first frame.
 export default async function AuditPage({ params, searchParams }) {
-  const session = await auth();
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   const routeParams = await params;
   const selectedId = routeParams?.entryId?.[0] ?? null;

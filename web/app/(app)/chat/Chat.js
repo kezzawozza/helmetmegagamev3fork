@@ -22,7 +22,7 @@ import { useDmState, seedNewestOutbound, addDmRow, noteDmReconnect } from "./dmS
 import NoticeCards from "./NoticeCards";
 import GmAside from "./GmAside";
 import { ConverseDialog } from "./PlacePanel";
-import { addMember } from "./actions";
+import { addMember, setChatViewAs } from "./actions";
 import { mentionsCharacter } from "@/app/components/richTokens";
 import { playChime, chimedRecently } from "@/app/components/chime";
 import useChatChimeMuted, { chatChimeMuted } from "@/app/components/useChatChimeMuted";
@@ -80,7 +80,11 @@ export default function Chat({
   self,
   aside,
   autocorrect = false,
-  discordMirrored = false,
+  // A gamemaster who is also playing somebody, as `{ mode }` — which seat
+  // they are reading this page from. Null for everybody else. The switch at
+  // the foot of the places column writes the cookie behind it
+  // (web/lib/viewAs.js) and reloads.
+  viewAs = null,
   // The people standing here, for the composer's @ list. The page hands the
   // same list to CharacterMentionsProvider, so what can be typed and what can
   // be rendered are one roster.
@@ -89,6 +93,10 @@ export default function Chat({
   // carrying an instant camera. Both only decide which controls a feed row
   // draws; the server re-decides every one of them when it is pressed.
   gm = false,
+  // speakerKey -> real name, for the GM seat only (web/lib/gmSpeakers.js).
+  // It is what lets a hooded line read as "A young man (Greeblus)" without
+  // the row itself ever carrying the name.
+  gmSpeakers = null,
   // A dead player reading with no living character. Their list is every zone,
   // like a GM's, which is the one thing this component needs to know.
   ghost = false,
@@ -96,12 +104,12 @@ export default function Chat({
   // than the places list because it is a control, not a place — and because
   // that column is where the same picker sits on every GM desk.
   //
-  // Only ever set in GM MODE, which is a GM with no living character
-  // (web/lib/feedAccess.js#loadFeedViewer: `gm = isGm && !character`). A GM
-  // who is playing somebody reads this page as that somebody, off the places
-  // they are standing in — GmZoneView decides nothing there, so a picker
-  // would be a control that changed nothing on the page carrying it. So this
-  // is never handed to <ChatAside>: `aside` and `gmZones` cannot both exist.
+  // Only ever set in the GM SEAT — a GM with no living character, or one who
+  // picked GM from the View as switch (web/lib/feedAccess.js#loadFeedViewer).
+  // In the player seat the places are the ones that character is standing in,
+  // GmZoneView decides nothing, and a picker would be a control that changed
+  // nothing on the page carrying it. So this is never handed to <ChatAside>:
+  // `aside` and `gmZones` cannot both exist.
   gmZones = null,
   hasCamera = false,
   // The composer's own two: the paperwork gates (web/lib/selfPools.js) and
@@ -787,6 +795,28 @@ export default function Chat({
       ? { placeKey: selected.placeKey, name: selected.name }
       : null;
 
+  // Flipping seats is a FULL RELOAD, not a router.refresh(). The mode lives in
+  // a cookie read on the server (web/lib/viewAs.js), and half of what this
+  // page is holding would not follow a re-render: the open SSE connection
+  // resolved its viewer when it connected and will not re-gate itself, and the
+  // places, feed and seen stores are all keyed to the list that is about to be
+  // replaced whole. A stale hash is harmless — a place key the new column does
+  // not hold falls back to the first place in it (`selectedKey` above).
+  //
+  // Above the early return below, where every other hook on this page is —
+  // rules-of-hooks does not care that the switch is null for most readers.
+  const onChangeViewAs = useCallback(
+    (mode) => {
+      if (!viewAs || mode === viewAs.mode) return;
+      setChatViewAs(mode)
+        .then((res) => {
+          if (res?.ok) window.location.reload();
+        })
+        .catch(() => {});
+    },
+    [viewAs],
+  );
+
   // Nowhere to stand is only a dead end if there is also nothing to read. A
   // dead character still has Bascinet's column.
   if (places.length === 0 && !dmKey) {
@@ -844,7 +874,7 @@ export default function Chat({
       seen={seen}
       newest={newest}
       onSelect={narrow ? onSelectFromDrawer : onSelect}
-      discordMirrored={discordMirrored}
+      viewAs={viewAs ? { mode: viewAs.mode, onChange: onChangeViewAs } : null}
       chimeMuted={chimeMuted}
       onToggleChime={setChimeMuted}
       push={push.supported ? { on: push.on, busy: push.busy, onToggle: togglePush } : null}
@@ -939,10 +969,10 @@ export default function Chat({
           onConverse={onConverse}
           placesVersion={placesVersion}
           gm={gm}
+          gmSpeakers={gmSpeakers}
           ghost={ghost}
           hasCamera={hasCamera}
           letters={letters}
-          canConceal={Boolean(conceal?.canConceal)}
           concealed={Boolean(conceal?.concealed)}
           alias={conceal?.alias ?? null}
           jump={jump}

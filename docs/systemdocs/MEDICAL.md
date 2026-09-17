@@ -90,19 +90,18 @@ separate questions, checked separately:
   needed ACT for its own reason (§1); this is the one case where the SELF
   branch needs it too, and only because of the Move it's about to spend.
 
-**The fee is always 1/2 Move from the `medical` family**, flat, regardless of
-what the item's own craft `requirementTurns` cost to make — fitting is a
+**The fee is always 0.5 of a Move from the `medical` family**, flat, regardless
+of what the item's own craft `requirementTurns` cost to make — fitting is a
 separate job from crafting, and the Expert's scarce Move is the fee that
 replaces any per-item fitting charge. Priced through a synthetic tag
-(`{ requirementTurns: 1, requirementPerTurn: 2 }`, family `"medical"`) rather
-than the item's own requirement block, so a craft recipe repricing the ITEM
-never accidentally reprices the FITTING. Spent inside the transaction under
-the same row lock and re-checked against the Move window (`moveWindow`),
+(`{ requirementTurns: 0.5 }`, family `"medical"`) rather than the item's own
+requirement block, so a craft recipe repricing the ITEM never accidentally
+reprices the FITTING. Spent inside the transaction under the same row lock and re-checked against the Move window (`moveWindow`),
 exactly like every other budget-consuming action in the game.
 
 ## 3. The Move economy a routine cure spends
 
-`CRAFTING.md` §2a owns the Move-budget arithmetic itself (fractions,
+`CRAFTING.md` §2a owns the Move-budget arithmetic itself (the decimal costs,
 `craftMoveCost`, the ledger). This is the medical-specific wiring on top of
 it — everything here is `healCharacterRequestImpl`'s own reading of that
 shared machine, never a second copy of it.
@@ -114,7 +113,7 @@ generic `craft` family — so both `craftMoveCost` and `spendCraftMove`/the
 ledger copy take an explicit `family: "medical"` override from every caller
 that bills a heal or an administer fee. As of 2026-09-15 a Routine's Move can
 hold any mix of families in one turn, so a Choking cure and a Broadsword can
-land in the same turn's Routine now, as long as the two fractions together
+land in the same turn's Routine now, as long as the two costs together
 still fit in one Move — `family` labels what an entry was, it no longer
 gates what else the turn may hold.
 
@@ -129,19 +128,24 @@ turn-costing rungs (below), not a bigger free allowance. Counted by
 this medic (`actorDiscordUserId`, **not** the patient — a medic treating four
 different people is rationed once, not per patient), filtered to
 `!gambit && requirement.turns === 0`. Past the 4th, each additional 0-turn
-cure spills into the medical family's Move at **1/4** — the same "allowance
-free, past it costs the Move" rule Dead Simple crafting uses. **The predicate
-is counted in three places that all have to change together** if this pool's
-shape ever does: `routineHealsThisTurn` here, `peoplePools.js` (whose own
+cure spills into the medical family's Move at **0.25** — the same "allowance
+free, past it costs the Move" rule Dead Simple crafting uses. That 0.25 is the
+Simple rung's own cost, not `1/MEDICAL_SIMPLE_PER_TURN`; the two happen to
+agree at four a turn. **The predicate is counted in three places that all have
+to change together** if this pool's shape ever does: `routineHealsThisTurn` here, `peoplePools.js` (whose own
 comment demands an exact match — it's what tells auto-labor a character
 still has a free Move today), and `countsAgainstHealCap`/`healCapFor`
 (`web/lib/healRequests.js`, which also feeds the Heal dialog's own quoted
 cost).
 
 **Everything past 0 turns bills the Move directly and never touches the
-pool** — a `turnsCost: 1/3` or `1/2` cure is a fraction of the Move
+pool** — a `turnsCost: 0.25` or `0.5` cure is a share of the Move
 (`craftMoveCost`'s `share` case), and a `turnsCost: 1` cure is the whole
-thing. A whole Move is NOT the same as a Gambit: since M2b the top of the
+thing. Costs are decimals since 9/2026 and thirds are gone with the fractions
+they were written as, so **a Moderate or Severe cure is 0.25 and a medic makes
+four of them a Routine** — it was `1/3` and three. Simple was already a
+quarter and has not moved; rung 5 is 0.5, two a Routine; rungs 6 and 7 are the
+whole thing. A whole Move is NOT the same as a Gambit: since M2b the top of the
 ladder holds both, at the same 13 ⬢ — tier 6 (`appendicitis`, `disfigured`,
 `envenomated`, `gut-wound`, `punctured-lung`) spends the whole Move as
 routine work, and tier 7 carries `requirementGambit` on top of it, which is

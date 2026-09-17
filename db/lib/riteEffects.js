@@ -14,6 +14,7 @@ const { applyDeathToRow } = require("./characterDeath");
 const { applyDeathTeardown } = require("./deathTeardown");
 const { deleteCorpseFor } = require("./corpseMint");
 const { pickRandomPublicRoom } = require("./roomStash");
+const { record, BURN } = require("./economyLedger");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
 const { formatBareName } = require("./characterName");
 const { STUPID_SLUG } = require("./babble");
@@ -28,6 +29,14 @@ const { normalizeChant, containsPhrase } = require("./rites");
 const { closeDeadchatTo } = require("./deadchat");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
 const { broadcastToZones } = require("./worldBroadcast");
+const { readRoomResources, takeRoomResources } = require("./resourceStack");
+// roomStash's addRoomResources, NOT resourceStack's. The bare stack writer moves
+// the ⬢ and books nothing; this one records the ledger row and the CLAMP
+// shortfall. A rite minting ⬢ onto a floor or a Famine eating a silo is real
+// money appearing and disappearing, and /gm/economy reconciles every account
+// against its ledger sum — unbooked, a Famine reads as every faction silo
+// drifting by up to 100 ⬢.
+const { addRoomResources } = require("./roomStash");
 const {
   THANATI_SLUG,
   THANATI_LEADER_SLUG,
@@ -125,7 +134,7 @@ async function reviveByRite(db, dead, { location, turnNumber }) {
     log(`role for ${dead.name}`)(err);
   }
   await closeDeadchatTo(db, dead.discordUserId).catch(() => {});
-  // No nickname write here: the bot's nickname sync owns that.
+  // No nickname write here: the game never touches a member's Discord nickname.
   await applyLocationMoveSideEffects(db, { characterId: dead.id, fromLocationId: null, toLocationId: location.id }).catch(
     log(`placement for ${dead.name}`),
   );
@@ -152,7 +161,9 @@ async function spawnRemains(db, room, { flesh = true, resources = true } = {}) {
     }
     if (resources) {
       const n = rand(2, 5);
-      await tx.room.update({ where: { id: room.id }, data: { resources: { increment: n } } });
+      // ⬢ on the floor are a stack like the parts and the Flesh beside them,
+      // so this is the same kind of write as the addToRoomStack calls above.
+      await addRoomResources(tx, room.id, n, { reason: "RITE_GRANT" });
       spawned.resources = n;
     }
   });
@@ -353,16 +364,32 @@ const EFFECTS = {
   async famine({ db, room }) {
     const factions = await db.faction.findMany({
       where: { siloRoomId: { not: null } },
-      select: { name: true, siloRoom: { select: { id: true, resources: true } } },
+      select: { name: true, siloRoom: { select: { id: true } } },
     });
     const blighted = {};
     await db.$transaction(async (tx) => {
       for (const f of factions) {
         if (!f.siloRoom) continue;
-        const take = Math.min(100, f.siloRoom.resources);
+        // Read inside the transaction now — the balance is a stack row, and
+        // takeRoomResources is the guarded decrement the old `gte` where-clause
+        // was: it takes the whole 100 (or whatever is there) or nothing.
+        const held = await readRoomResources(tx, f.siloRoom.id);
+        const take = Math.min(100, held);
         if (take <= 0) continue;
-        await tx.room.updateMany({ where: { id: f.siloRoom.id, resources: { gte: take } }, data: { resources: { decrement: take } } });
-        blighted[f.name] = take;
+        if (await takeRoomResources(tx, f.siloRoom.id, take)) {
+          blighted[f.name] = take;
+          // Booked by hand rather than through roomStash's clamped writer,
+          // because the strict take above is the guard this wants and the
+          // clamped one would give up that race safety. Same bargain
+          // thanatiActions.js strikes: you bypassed the booking primitive, so
+          // write the row yourself. A Famine eats real money, and unbooked it
+          // reads as every silo drifting on /gm/economy.
+          await record(
+            tx,
+            { from: { kind: "room", id: f.siloRoom.id, name: f.name }, to: BURN, form: "BALANCE", amount: take },
+            { reason: "RITE_COST" },
+          );
+        }
       }
     });
     await roomLine(db, room, INGREDIENTS_CONSUMED);
@@ -441,7 +468,7 @@ const EFFECTS = {
       });
       if (count === 0) return;
       if (granted > 0) {
-        await tx.room.update({ where: { id: room.id }, data: { resources: { increment: granted } } });
+        await addRoomResources(tx, room.id, granted, { reason: "RITE_GRANT" });
       }
       claimed = true;
     });

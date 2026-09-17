@@ -6,11 +6,9 @@ const {
   loadBreakerState,
   recordInvalidResponse,
 } = require("@lifeweb/db/lib/discordRest");
-const { syncNicknamesForGuild } = require("../lib/nickname");
 const { syncDiscordAccountsForGuild } = require("../lib/discordAccountSync");
 const { advanceTurn } = require("../lib/turnEngine");
 const { ensureTurnsConsole } = require("../lib/turnsConsole");
-const { ensureReportAnchor } = require("../lib/reportChannel");
 const { refreshLocationChannels } = require("../lib/channels");
 const { startFeedOutbox } = require("../lib/feedOutbox");
 const { runWhisperPoll } = require("../lib/whisperPoll");
@@ -161,10 +159,7 @@ module.exports = {
     }
 
     for (const guild of client.guilds.cache.values()) {
-      // Before the nickname sync, which is gated on its own GameConfig switch: a handle
-      // cache should not stop filling because nickname syncing was turned off.
       await syncDiscordAccountsForGuild(guild);
-      await syncNicknamesForGuild(guild).catch((err) => console.error("Failed to sync nicknames:", err));
       // guildMemberRemove only fires while the gateway is up, so this diff against live membership
       // is the only thing that catches a player who left during a restart. See leaveReconcile.js
       // for the mass-flag safety rail.
@@ -175,7 +170,6 @@ module.exports = {
         );
       }
       await ensureTurnsConsole(guild).catch((err) => console.error("Failed to ensure turns console:", err));
-      await ensureReportAnchor(guild).catch((err) => console.error("Failed to ensure report anchor:", err));
       // Warms client.channels.cache with every active thread, private ones included — GUILD_CREATE
       // only ships threads the bot already belongs to, so without this a reaction on one never
       // fires messageReactionAdd. A thread created after boot still needs its per-reaction fallback.
@@ -267,18 +261,20 @@ module.exports = {
         });
     });
 
-    // Every pending Gambit throws its d6 the moment Moves lock (db/lib/gambitCutoff.js). Every
-    // minute for the same reason as the Oracle above: the cutoff derives from the turn's own
-    // startedAt, and ticking makes it self-healing if the bot was down when the window shut. The
-    // roll is what makes a Gambit final, so until this fires a player may still rewrite or withdraw
-    // one. Cheap on every tick but one a day, and the staged push rolls anything this missed.
+    // Every player Gambit gets its Hunger/mood modifier the moment Moves lock
+    // (db/lib/gambitCutoff.js) — the die itself was thrown back at submit. Every minute for the same
+    // reason as the Oracle above: the cutoff derives from the turn's own startedAt, and ticking makes
+    // it self-healing if the bot was down when the window shut. Settling is what makes a Gambit
+    // final, so until this fires a player may still rewrite or withdraw one — which costs them
+    // nothing and gains them nothing, since the die does not change. Cheap on every tick but one a
+    // day, and the staged push settles anything this missed.
     let gambitCutoffRunning = false;
     cron.schedule("* * * * *", () => {
       if (gambitCutoffRunning) return;
       gambitCutoffRunning = true;
       runGambitCutoff(prisma)
-        .then(({ ran, rolled, turnNumber }) => {
-          if (ran && rolled) console.log(`Gambit cutoff: threw ${rolled} dice for turn #${turnNumber}.`);
+        .then(({ ran, settled, turnNumber }) => {
+          if (ran && settled) console.log(`Gambit cutoff: settled ${settled} Moves for turn #${turnNumber}.`);
         })
         .catch((err) => console.error("Gambit cutoff check failed:", err))
         .finally(() => {

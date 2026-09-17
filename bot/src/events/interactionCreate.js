@@ -62,7 +62,6 @@ const {
   CONVERSE_NAME_FIELD,
 } = require("../lib/converseModal");
 const { ack, respond, scheduleDismiss } = require("../lib/respond");
-const { handleReportOpen, handleReportClose } = require("../lib/reportChannel");
 const { BIRD_REPLY_PREFIX, BIRD_REPLY_PICK_PREFIX } = require("@lifeweb/db/lib/bird");
 const { handleBirdReplyOpen, handleBirdReplyPick } = require("../lib/birdReply");
 const { NOTICEBOARD_PREFIX } = require("@lifeweb/db/lib/locationAnchorRow");
@@ -109,7 +108,6 @@ const {
   handleEditOpen,
   handleEditSubmit,
 } = require("../lib/editModal");
-const { OPEN_BUTTON_ID: REPORT_OPEN_ID, CLOSE_BUTTON_ID: REPORT_CLOSE_ID } = require("@lifeweb/db/lib/reportChannelAccess");
 const { handleRoomStorage } = require("../lib/roomStorage");
 const {
   ZONE_VIEW_ID,
@@ -164,6 +162,7 @@ const {
   handleRollCommand,
   handlePlayCommand,
   handleShoutCommand,
+  handleOocCommand,
 } = require("./interactions/actions");
 
 module.exports = {
@@ -186,6 +185,7 @@ module.exports = {
         if (interaction.commandName === "roll") return void (await handleRollCommand(interaction));
         if (interaction.commandName === "play") return void (await handlePlayCommand(interaction));
         if (interaction.commandName === "shout") return void (await handleShoutCommand(interaction));
+        if (interaction.commandName === "ooc") return void (await handleOocCommand(interaction));
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleTravelOpen(interaction));
         if (interaction.customId === CANCEL_ID) return void (await handleTravelCancel(interaction));
@@ -326,8 +326,6 @@ module.exports = {
         if (interaction.customId.startsWith(NOTICE_POST_PREFIX)) {
           return void (await handleNoticePost(interaction, interaction.customId.slice(NOTICE_POST_PREFIX.length)));
         }
-        if (interaction.customId === REPORT_OPEN_ID) return void (await handleReportOpen(interaction));
-        if (interaction.customId === REPORT_CLOSE_ID) return void (await handleReportClose(interaction));
         // Arrives in a DM; must NOT be acked first since it opens a modal.
         if (interaction.customId.startsWith(EDIT_OPEN_PREFIX)) return void (await handleEditOpen(interaction));
       } else if (interaction.isStringSelectMenu()) {

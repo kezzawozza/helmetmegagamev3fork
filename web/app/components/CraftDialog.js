@@ -3,7 +3,7 @@
 import PartySelect from "./PartySelect";
 import Select from "./Select";
 import { needsWorkshop, craftFamily } from "@/lib/tagRequests";
-import { formatMoveFraction } from "@/lib/craftBudget";
+import { formatMoveAmount } from "@/lib/craftBudget";
 import {
   CUSTOM_NAME_MAX,
   CUSTOM_DESCRIPTION_MAX,
@@ -261,7 +261,7 @@ export default function CraftDialog({
           {budget && (
             <p className="text-xs text-accent">
               {budget.remainingNum > 0
-                ? `${formatMoveFraction(budget.remainingNum, budget.remainingDen)} of your Move is left this turn.`
+                ? `${formatMoveAmount(budget.remainingNum, budget.remainingDen)} of your Move is left this turn.`
                 : "Your Move is spent for this turn."}
             </p>
           )}
@@ -412,9 +412,12 @@ export default function CraftDialog({
                         // said here, or the number reads as a per-recipe cap.
                         `No Move needed for the first ${allowance.per} simple things a turn — shared across all of them — and ${allowance.left} of those are left today.`
                     : "No Move needed."
-                  : turns === 1
+                  : turns <= 1
                     ? moveCost?.kind === "share" && moveCost.allowance > 1
-                      ? `${formatMoveFraction(1, moveCost.allowance)} of a turn's work each — ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move for this order, up to ${moveCost.allowance} a turn.`
+                      ? // Per unit off the cost itself, never 1/allowance — the
+                        // allowance is how many FIT in a Routine, floored, so at
+                        // 0.75 a turn it is 1 and would read as a whole Move.
+                        `${formatMoveAmount(moveCost.num, moveCost.den * (moveCost.billedQty || 1))} of a turn's work each — ${formatMoveAmount(moveCost.num, moveCost.den)} of your Move for this order, up to ${moveCost.allowance} a turn.`
                       : // A plain one-turn craft says nothing here: "this is
                         // your Move for the turn" is the rule for every craft
                         // on the board, so saying it on this one recipe read
@@ -437,7 +440,7 @@ export default function CraftDialog({
                     the overflow to the Move; one without (a butcher's mask)
                     simply cannot go past it. */}
                 {moveCost?.kind === "spill"
-                  ? ` The ${moveCost.billedQty} past that ${moveCost.billedQty === 1 ? "spends" : "spend"} ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move.`
+                  ? ` The ${moveCost.billedQty} past that ${moveCost.billedQty === 1 ? "spends" : "spend"} ${formatMoveAmount(moveCost.num, moveCost.den)} of your Move.`
                   : ""}
                 {moveCost?.kind === "capped"
                   ? ` You can't make more than ${moveCost.allowance} in a turn.`

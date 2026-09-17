@@ -112,6 +112,16 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
     });
   }
 
+  // Same seeding as Take, different verb: out of the stash, into your hands,
+  // and a die decides whether the room hears about it (THEFT.md §1).
+  function steal(item = null) {
+    actions?.open?.("steal", null, {
+      fromKey: roomKey,
+      toKey: selfKey,
+      ...(item ? { picks: { [item.tagId]: 1 } } : {}),
+    });
+  }
+
   function transfer() {
     actions?.open?.("transfer");
   }
@@ -149,6 +159,9 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
           </button>
           <button type="button" className="btn-quiet" onClick={() => take()}>
             Take
+          </button>
+          <button type="button" className="btn-quiet" onClick={() => steal()}>
+            Steal
           </button>
           <button type="button" className="btn-quiet" onClick={transfer}>
             Transfer

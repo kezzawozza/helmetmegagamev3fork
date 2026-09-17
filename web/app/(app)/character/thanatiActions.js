@@ -13,6 +13,12 @@ import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { grantTagSlugs, addToRoomStack, dropRoomTag, clampEquippedQuantity } from "@lifeweb/db/lib/tagWrites";
 import { record, BURN, turnStamp } from "@lifeweb/db/lib/economyLedger";
+import {
+  readCharacterResources,
+  readRoomResources,
+  takeCharacterResources,
+  takeRoomResources,
+} from "@lifeweb/db/lib/resourceStack";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import {
   THANATI_SLUG,
@@ -249,9 +255,9 @@ async function purchaseGearImpl({ items, currency, purse }) {
   const draw = {};
   const openTurn = await getOpenTurn();
   await prisma.$transaction(async (tx) => {
-    const [buyer, roomNow, roomObols, myObols] = await Promise.all([
-      tx.character.findUnique({ where: { id: me.id }, select: { resources: true } }),
-      tx.room.findUnique({ where: { id: hideout.id }, select: { resources: true } }),
+    const [myResources, roomResources, roomObols, myObols] = await Promise.all([
+      readCharacterResources(tx, me.id),
+      readRoomResources(tx, hideout.id),
       obolTag
         ? tx.roomTag.findFirst({ where: { roomId: hideout.id, tagId: obolTag.id }, select: { quantity: true } })
         : null,
@@ -263,9 +269,9 @@ async function purchaseGearImpl({ items, currency, purse }) {
         : null,
     ]);
     const pools = {
-      "room:resources": roomNow?.resources ?? 0,
+      "room:resources": roomResources,
       "room:obols": roomObols?.quantity ?? 0,
-      "self:resources": buyer?.resources ?? 0,
+      "self:resources": myResources,
       "self:obols": myObols?.quantity ?? 0,
     };
     let owed = total;
@@ -294,18 +300,13 @@ async function purchaseGearImpl({ items, currency, purse }) {
 
     for (const [key, amount] of Object.entries(draw)) {
       if (key === "room:resources") {
-        const { count } = await tx.room.updateMany({
-          where: { id: hideout.id, resources: { gte: amount } },
-          data: { resources: { decrement: amount } },
-        });
-        if (count === 0) throw new UserError("Not enough there.");
+        // Strict, not clamped: takeRoomResources takes the whole amount or
+        // nothing and says which, which is the same conditional-write check
+        // the old `where: { resources: { gte: amount } }` was.
+        if (!(await takeRoomResources(tx, hideout.id, amount))) throw new UserError("Not enough there.");
         await record(tx, { from: roomParty, to: BURN, form: "BALANCE", amount }, econ);
       } else if (key === "self:resources") {
-        const { count } = await tx.character.updateMany({
-          where: { id: me.id, resources: { gte: amount } },
-          data: { resources: { decrement: amount } },
-        });
-        if (count === 0) throw new UserError("Not enough there.");
+        if (!(await takeCharacterResources(tx, me.id, amount))) throw new UserError("Not enough there.");
         await record(tx, { from: selfParty, to: BURN, form: "BALANCE", amount }, econ);
       } else if (key === "room:obols") {
         // `.ok` — dropRoomTag returns an object, so testing the call is always truthy.

@@ -233,29 +233,43 @@ function joinWithOr(names) {
   return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
 }
 
-// requirement.turnsCost carries the WORK one unit takes: an integer number of Moves, or a `1/N` fraction (`turnsCost: 1/3` means three fill a Routine); quantity is limited by work, never a separate cap. Stores internally as requirementTurns: 1 + requirementPerTurn: N, the engine's existing share encoding.
+// requirement.turnsCost carries the WORK one unit takes, as a decimal number of Moves in QUARTERS: 0 is Dead Simple, 0.25 / 0.5 / 0.75 are shares of one Routine, 1 is the whole of it, 2+ is a multi-turn project. Quantity is limited by that arithmetic, never by a separate cap.
+// It was a `1/N` fraction until 9/2026, stored as requirementTurns: 1 with N in requirementPerTurn as a denominator — which made that column mean two things at once and let a wound's severity be read off its cure price. Both are untangled: work is the number below, and requirementPerTurn is a ration and nothing else.
+// A quarter is the floor because the Move budget is exact rational arithmetic (web/lib/craftBudget.js — "nothing rounds"), and a cost it cannot hold exactly would let a character squeeze in work they had not paid for. 0.33 is refused for that reason, not to be awkward.
 // `perTurn:` is ONLY legal on a 0-turn recipe, where it is a RATION (a hard daily cap below the Dead Simple pool's 4); on a recipe that costs a Move it is refused.
 function normalizeTurnsCost(requirement, { slug, healable = false }, label = "docs/tags.yaml") {
   const raw = requirement?.turnsCost;
   // A healable tag's turnsCost must be authored explicitly: countsAgainstHealCap (web/lib/healRequests.js) reads a MISSING turnsCost as 0, craftMoveCost (web/lib/craftBudget.js) reads it as 1 — an unauthored healable tag would silently split what the Heal dialog shows from what the server bills. validateHealableRequirement below is the same rule for the GM form's door.
   if (raw == null && healable) {
     throw new Error(
-      `${label}: tag "${slug}" is healable but requirement.turnsCost is missing — author it explicitly (0, a whole number, or "1/N", TAGS.md §5c)`,
+      `${label}: tag "${slug}" is healable but requirement.turnsCost is missing — author it explicitly (0, or a decimal number of Moves like 0.25, TAGS.md §5c)`,
     );
   }
   const perTurn = requirement?.perTurn ?? null;
   let turns = null;
-  let workDen = null;
   if (raw == null) {
     turns = null;
-  } else if (Number.isInteger(raw) && raw >= 0) {
+  } else if (typeof raw === "string") {
+    // Named rather than lumped in with the generic refusal below: every one of
+    // these was a real authored value before 9/2026, so an unconverted tag
+    // should say what to write instead of just "no".
+    throw new Error(
+      `${label}: tag "${slug}" requirement.turnsCost is a fraction (${JSON.stringify(raw)}) — those are gone; write it as a decimal number of Moves (1/4 and 1/3 are both 0.25, 1/2 is 0.5)`,
+    );
+  } else if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0 && Number.isInteger(raw * 4)) {
     turns = raw;
-  } else if (typeof raw === "string" && /^1\/[2-9][0-9]*$/.test(raw.trim())) {
-    turns = 1;
-    workDen = Number(raw.trim().slice(2));
   } else {
     throw new Error(
-      `${label}: tag "${slug}" requirement.turnsCost must be a whole number of Moves or a "1/N" fraction — got ${JSON.stringify(raw)}`,
+      `${label}: tag "${slug}" requirement.turnsCost must be a number of Moves on a quarter — 0, 0.25, 0.5, 0.75, 1, 2… — got ${JSON.stringify(raw)}`,
+    );
+  }
+  // A project is "one unit, and it takes the whole Move every turn until it is
+  // done" (web/lib/craftBudget.js). Half a project turn has no meaning, so
+  // refuse it rather than let it price as a whole Move and confuse whoever
+  // authored it.
+  if (turns != null && turns > 1 && !Number.isInteger(turns)) {
+    throw new Error(
+      `${label}: tag "${slug}" requirement.turnsCost is ${turns} — past one Move a recipe is a project and takes whole turns; use ${Math.floor(turns)} or ${Math.ceil(turns)}`,
     );
   }
   if (perTurn != null) {
@@ -264,13 +278,13 @@ function normalizeTurnsCost(requirement, { slug, healable = false }, label = "do
     }
     if ((turns ?? 1) !== 0) {
       throw new Error(
-        `${label}: tag "${slug}" sets perTurn on a recipe that costs a Move — perTurn is a 0-turn ration; write the work as turnsCost: 1/${perTurn} instead`,
+        `${label}: tag "${slug}" sets perTurn on a recipe that costs a Move — perTurn is a daily ration on a Dead Simple recipe, not a way to write work. Work is turnsCost: put the cost of one unit there (0.25 for four a Routine) and drop perTurn`,
       );
     }
   }
   return {
     requirementTurns: turns,
-    requirementPerTurn: workDen ?? perTurn,
+    requirementPerTurn: perTurn,
   };
 }
 

@@ -34,7 +34,11 @@ function Things({ things, resources }) {
 // The player's HereList is not reused on purpose: its menu is request dialogs
 // (heal, loot, bind) a GM has no body to do. A name opens the Dev Panel instead.
 // Every row is real — a hood hides somebody from the room, not the host, so
-// `presentedAs` says what the room sees instead.
+// a hooded person reads as what the room sees with the name behind it in
+// brackets: "a young man (Greeblus)". Same form the scene beside this column
+// prints on a hooded line (Feed.js), and the one /archive has always used.
+// It used to be the real name with "showing as a young man" on a second quiet
+// line under it, which read as two people until you looked twice.
 function GmHereList({ people, onOpen }) {
   if (!people?.length) return <EmptyState>Nobody is standing here.</EmptyState>;
   return (
@@ -55,7 +59,7 @@ function GmHereList({ people, onOpen }) {
                 version={person.avatarVersion}
                 online={person.online}
               />
-              {person.name}
+              {person.presentedAs ? `${person.presentedAs} (${person.name})` : person.name}
               {person.online ? <span className="chat-quiet-line"> · online</span> : null}
             </span>
             {(person.roleTitle || person.factionName) && (
@@ -63,7 +67,6 @@ function GmHereList({ people, onOpen }) {
                 {[person.roleTitle, person.factionName].filter(Boolean).join(" · ")}
               </span>
             )}
-            {person.presentedAs && <span className="chat-quiet-line">showing as {person.presentedAs}</span>}
           </button>
         </div>
       ))}

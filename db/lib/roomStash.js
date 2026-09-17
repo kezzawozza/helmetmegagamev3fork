@@ -1,5 +1,6 @@
 // A Room's stash — the ⬢ and tag stacks lying in it (docs/systemdocs/CARRY.md). Takes `prisma` (or a tx), stays off the @lifeweb/db barrel.
 const { record, recordDelta, BURN } = require("./economyLedger");
+const { addRoomResources: bumpRoomStack, resourcesOf, RESOURCES_SLUG, withoutResources } = require("./resourceStack");
 
 // findMany + a JS pick rather than ORDER BY random(): a Location has a handful of rooms at most. A room that eats what is put into it
 // (Room.destroysContents — the Godard Factory's Spillway) is NEVER eligible — tipping into the trough must stay on purpose (docs/systemdocs/FACTORY.md §9).
@@ -13,7 +14,7 @@ async function pickRandomPublicRoom(db, locationId) {
   return rooms[Math.floor(Math.random() * rooms.length)];
 }
 
-// Mints or burns a room's own ⬢, clamped at 0 — a direct copy of moveEffects.js#addResources's shape (atomic, GREATEST for the clamp, FOR UPDATE).
+// Mints or burns a room's own ⬢, clamped at 0 — the same shape as moveEffects.js#addResources, over db/lib/resourceStack.js's stack write.
 // Deliberately NOT resourceTransfer.js#moveParty (throws on overdraw) — a GM adjustment has no other end to balance against, so clamping is right.
 // A destroysContents room takes no credit for ⬢ going in; arrival and destruction are both booked so /gm/economy's reconciliation nets correctly.
 // Writes to the economy ledger: `ctx` carries the reason, and a write with none is UNATTRIBUTED rather than dropped.
@@ -33,24 +34,11 @@ async function addRoomResources(tx, roomId, amount, ctx = {}) {
     return 0;
   }
 
-  const rows = await tx.$queryRaw`
-    WITH prev AS (
-      SELECT "resources" AS before FROM "Room" WHERE "id" = ${roomId} FOR UPDATE
-    )
-    UPDATE "Room" r
-    SET "resources" = GREATEST(0, prev.before + ${amount})
-    FROM prev
-    WHERE r."id" = ${roomId}
-    RETURNING prev.before AS before, r."resources" AS after
-  `;
-  const before = rows[0]?.before ?? 0;
-  const after = rows[0]?.after ?? before;
-  const moved = after - before;
+  const { moved, clamped } = await bumpRoomStack(tx, roomId, amount);
   if (moved) await recordDelta(tx, party, moved, ctx);
-  // The shortfall the GREATEST(0, ...) floor destroyed, booked under CLAMP — without it an over-large GM burn leaves no trace.
-  const clamped = amount - moved;
-  if (clamped < 0) {
-    await record(tx, { from: party, to: BURN, form: "BALANCE", amount: -clamped }, { ...ctx, reason: "CLAMP" });
+  // The shortfall the floor destroyed, booked under CLAMP — without it an over-large GM burn leaves no trace.
+  if (clamped > 0) {
+    await record(tx, { from: party, to: BURN, form: "BALANCE", amount: clamped }, { ...ctx, reason: "CLAMP" });
   }
   return moved;
 }
@@ -65,17 +53,25 @@ function joinList(items) {
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
+// A ⬢ stack prints as "12 ⬢", not "Resources ×12" — the glyph replaces the word wherever a quantity is shown (CLAUDE.md). Callers that know a stack's slug pass it; the `resources` argument is the older shape, for the a few callers still holding a loose count.
 function formatManifest(tags = [], resources = 0) {
-  const parts = tags.map((t) => formatStack(t.tagName ?? t.name, t.quantity));
+  const parts = tags.map((t) =>
+    (t.tagSlug ?? t.slug) === RESOURCES_SLUG
+      ? `${t.quantity ?? 1} ⬢`
+      : formatStack(t.tagName ?? t.name, t.quantity),
+  );
   if (resources > 0) parts.push(`${resources} ⬢`);
   return joinList(parts);
 }
 
+// ⬢ are one of the stacks now, so they are pulled out of `tags` rather than read off a column beside it.
 function formatStashLine(room) {
   const tags = (room.tags ?? []).filter((rt) => rt.quantity > 0);
-  if (tags.length === 0 && !(room.resources > 0)) return "-# Nothing is stored here.";
-  const names = tags.map((rt) => formatStack(rt.tag.name, rt.quantity)).join(", ");
-  return `-# ${room.resources ?? 0} ⬢ | **Tags**: ${names || "none"}`;
+  const resources = resourcesOf(room);
+  const goods = withoutResources(tags);
+  if (goods.length === 0 && !(resources > 0)) return "-# Nothing is stored here.";
+  const names = goods.map((rt) => formatStack(rt.tag.name, rt.quantity)).join(", ");
+  return `-# ${resources} ⬢ | **Tags**: ${names || "none"}`;
 }
 
 module.exports = { pickRandomPublicRoom, addRoomResources, formatStack, joinList, formatManifest, formatStashLine };

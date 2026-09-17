@@ -13,6 +13,14 @@ which can grant a tag or a bonus. That system is its own doc,
 [`LABORDROPS.md`](LABORDROPS.md); this page only owns what a Labor is worth,
 not what else it might find.
 
+**A day's pay has weight.** ⬢ stopped being a number on a sheet in 9/2026 and
+became a one-pound item (`TAGS.md`, `CARRY.md`), so a payout is a stack landing
+in somebody's hands like any other. A Labor is an *involuntary* gain, so it is
+never refused for want of room — it lands, and the carry pass sets down
+whatever will not fit at the turn close. A hoarder who works a rich seam every
+day and never spends will eventually be Overburdened by their own wages, which
+is the intended answer rather than a bug.
+
 ## 1. The shape of it
 
 Three things changed at once, and they only make sense together:

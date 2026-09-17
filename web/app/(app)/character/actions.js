@@ -10,8 +10,8 @@ import {
   MAX_AVATAR_UPLOAD_BYTES,
   avatarTooBigMessage,
 } from "@/lib/constants";
-import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
-import { syncCharacterNickname, setTurnPingRole, ensureCharacterRole } from "@/lib/discordGuild";
+import { AGE_MIN, AGE_MAX } from "@/lib/characterName";
+import { setTurnPingRole, ensureCharacterRole } from "@/lib/discordGuild";
 import { setDiscordMirrored } from "@lifeweb/db/lib/discordMirroring";
 import { clockLabel } from "@/lib/dmTime";
 import { normalizeSelection } from "@/lib/portrait/catalog";
@@ -82,6 +82,9 @@ export async function updateCharacterProfile(_prevState, formData) {
     select: { avatarUploadsEnabled: true, playPanelEnabled: true },
   });
   if (gameConfig?.avatarUploadsEnabled && avatar && avatar.size > 0) {
+    if (character.avatarUploadBlocked) {
+      return { error: "A GM has paused avatar uploads for this character." };
+    }
     if (avatar.size > MAX_AVATAR_UPLOAD_BYTES) {
       return { error: avatarTooBigMessage(avatar.size) };
     }
@@ -128,7 +131,6 @@ export async function updateCharacterProfile(_prevState, formData) {
     }
   }
 
-  await syncCharacterNickname(session.discordUserId, formatBareName(updated)).catch(() => {});
   // A player not mirrored to Discord holds no turn-ping role
   // (db/lib/discordMirroring.js). NOT read off `updated` — written before the
   // flip above; a refused flip leaves them where they were.

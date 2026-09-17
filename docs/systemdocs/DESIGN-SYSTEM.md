@@ -571,6 +571,21 @@ scrolls inside its own container:
   width below `sm:`. An intrinsically-sized control there — a `<select>` is as
   wide as its longest option — must still carry its own `max-width: 100%`.
 
+**A tap reveals; a second tap commits.** There is no hover on a phone, so the
+first touch is the click — and anywhere the app explained a control by hovering
+it, a touch player had to fire the control to find out what it did. That is not
+a tooltip bug, it is a whole class of them: hover-only help sitting on the same
+element as a committing action. Where one turns up, move the action rather than
+adding a confirm dialog in front of it. The first tap opens something — a panel,
+a row's details, a menu — and the action lives inside what opened. `/chat`'s
+Things drawer and `TagChip` have always worked this way; `SHEET.md` §2 and §3
+are the two surfaces that were brought into line, both keyed on
+`(pointer: coarse)` through `components/useIsCoarsePointer.js` so a mouse keeps
+the faster path. One thing to watch when you do it: **a disabled button
+dispatches no click**, so a greyed control needs `aria-disabled` instead, or its
+panel can never be opened — and a greyed control's reason is exactly what a
+touch player is reaching for.
+
 **44px is the touch minimum.** `.btn`, `.btn-secondary`, `.btn-danger`,
 `.tab-item` and `.menu-item` all get `min-height: 44px` under 720px, in one
 block in `globals.css`. They are not 44px on desktop on purpose: at `--fs-xs`

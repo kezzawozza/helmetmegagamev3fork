@@ -26,6 +26,29 @@ Now the ingredient is the point:
 - Every dish has a **taste**, and eating one says so.
 - Naming your work is free.
 
+### 1a. A meal is now the only way to be fed
+
+Eating grants `ate-meal`, and since 9/2026 that tag **is** the whole of being
+fed. The Hunger pass asks one question at the close of every turn — is
+`ate-meal` on the sheet? — and consumes it if it is (`TURN-ENGINE.md` §5). A
+character with none goes Hungry.
+
+That is a bigger job than the tag used to have. Until then the pass **billed**
+everyone 1 ⬢ a turn for food and you went hungry only if you could not cover
+it, so `ate-meal` was a *shield*: it saved you the 1 ⬢ and dropped a tick of
+the streak. Cooking was therefore a losing move on the arithmetic alone — a
+Fine Meal costs 2 ⬢ to make and a Lavish 3 ⬢, to spare you a charge of 1 ⬢
+— and anybody who never cooked was quietly taxed for existing anyway. The
+charge is gone. Nobody pays to eat, and the only way to not be Hungry is for
+somebody to have cooked.
+
+So this file matters more than it did, not less. It does **not** mean every
+dish must come from this recipe family: anything whose `consumesInto` reaches
+`ate-meal` feeds a character, which today includes raw Human Flesh (§4).
+Foodstuff items that grant it more ordinarily are the work coming next, and
+`ate-meal` is the seam they plug into — nothing about the pass needs to change
+to accept them.
+
 ## 2. A dish is a minted row
 
 Every meal with words or ingredients on it is a **minted `Tag`** — the fifth

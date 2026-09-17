@@ -146,6 +146,10 @@ const ROW_SELECT = {
   characterName: true,
   content: true,
   source: true,
+  // Scopes the concealed discriminator so two hooded speakers stop grouping in Discord
+  // (db/lib/concealedDiscriminator.js). Frozen on the row at write time, so an edited
+  // hooded line keeps its original suffix and stays in the same block as siblings.
+  turnNumber: true,
   discordMessageId: true,
   editedAt: true,
   deletedAt: true,
@@ -200,6 +204,11 @@ async function pushRow(row) {
     concealment,
     threadId: target.threadId,
     displayName: deadchat ? row.characterName : null,
+    // Same (turn, place) scope as the gateway proxy — a web-typed hooded line
+    // groups with the same speaker's other lines and reads as one speaker,
+    // separate from a second hood in the room.
+    turnNumber: row.turnNumber ?? null,
+    placeKey: row.placeKey,
   });
   if (!posted?.id) return false;
 

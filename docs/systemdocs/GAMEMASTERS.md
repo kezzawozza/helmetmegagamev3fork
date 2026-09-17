@@ -334,7 +334,7 @@ There are **two** GM Discord roles, and they grant exactly the same thing:
 Gamemaster (`DISCORD_GM_ROLE_ID`) and **Trial Gamemaster**
 (`TRIAL_GM_ROLE_ID`, hardcoded in `db/lib/roleIds.js`). A trial GM opens every
 `/gm` page, holds the same standing overwrites on every zone, Location,
-`#turns`, narrowcast and report channel, and runs `/gm` and `/dm` in Discord.
+`#turns` and narrowcast channel, and runs `/gm` and `/dm` in Discord.
 Nothing is withheld.
 
 `db/lib/roleIds.js#gmRoleIds()` is the **only** list of the two, and nothing

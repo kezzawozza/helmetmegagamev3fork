@@ -53,21 +53,21 @@ medicines below that used to be a Medical crafter's work (§3a).
 ## 2. Brewing (Basic)
 
 Every ingredient below is **spent** unless the row says *kept*. The Turns
-column is the recipe's own `turnsCost` — a `1/N` is a fraction of a turn's
-work, so three ⅓-turn Alcohol fill one Routine and a spare third takes more
-brewing; a *max N/turn* on a 0-turn row is a `perTurn` ration, the hard cap
-kind (CRAFTING.md §2).
+column is the recipe's own `turnsCost`, a decimal share of a turn's work — so
+four 0.25 Alcohol fill one Routine and a spare quarter takes more brewing; a
+*max N/turn* on a 0-turn row is a `perTurn` ration, the hard cap kind
+(CRAFTING.md §2).
 
 | Brew | ⬢ | Turns | Ingredient | Consumes into |
 |---|---|---|---|---|
 | `bliss` | 0 | 0 (max 2/turn) | `cave-fungus` | `euphoric`, `high` (3t) |
 | `feces` | 0 | 0 (max 2/turn) | — | — |
-| `alcohol` | 2 | 1/3 | — | `tipsy` (and up the ladder — §5a) |
+| `alcohol` | 2 | 0.25 | — | `tipsy` (and up the ladder — §5a) |
 | `moonshine` | **0** | 1 | `godflesh` | `tipsy` (ladder, §5a), `blind-drunk` (2t), `damaged-vision` |
 | `miasma` | 2 | 1 | **a corpse** — *kept* | — |
-| `poppy` | 2 | 1/2 | `poppy-pods` | `opium-high` |
+| `poppy` | 2 | 0.5 | `poppy-pods` | `opium-high` |
 | `molotov-cocktail` | 2 | 0 (max 2/turn) | `alcohol` | — |
-| `cleaning-powder` | 2 | 1/2 | — | — |
+| `cleaning-powder` | 2 | 0.5 | — | — |
 | `cat` | 3 | 1 | `alcohol` | `night-vision` (1t) |
 | `nightshade` | 3 | 1 | `nightshade-herb` | — |
 
@@ -78,11 +78,11 @@ kind (CRAFTING.md §2).
 | `pure-luck` | 0 | 1 | `aberrant-heart` | `aberrant-luck` |
 | `graga-sweat` | 2 | 1 | `graga-sac` | `brutish-strength` |
 | `deadeye-drops` | 2 | 1 | `cave-fungus` | `increased-accuracy` |
-| `mercy` | 2 | 1/2 | `cave-fungus` | `increased-recovery` |
+| `mercy` | 2 | 0.5 | `cave-fungus` | `increased-recovery` |
 | `mindbreaker-toxin` | 2 | 1 | `cave-fungus` | `hallucinating` |
 | `invisibility-potion` | 2 | 1 | `graga-sac` | `invisible` |
 | `raven-draught` | 2 | 1 | `ravens-eye` | — |
-| `ravenheart-red` | 4 | 1/2 | `alcohol` | `tipsy` (and up the ladder — §5a) |
+| `ravenheart-red` | 4 | 0.5 | `alcohol` | `tipsy` (and up the ladder — §5a) |
 | `distilled-coca` | 4 | 1 | `coca-leaves` | `stimulant-high` |
 | `advanced-poppy` | 4 | 1 | `poppy` | `pain-immunity` |
 | `phrygian-tears` | 4 | 2 | `nightshade` + `cave-fungus` | — |
@@ -145,9 +145,9 @@ instead.
 
 | Brew (Skilled) | ⬢ | Turns | Cures |
 |---|---|---|---|
-| `antidote` | 4 | 1/2 | poisoned, envenomated |
-| `fever-draught` | 3 | 1/2 | feverish, heatstroke, cave-fever |
-| `burn-dressing` | 4 | 1/2 | burned, severe-burns |
+| `antidote` | 4 | 0.5 | poisoned, envenomated |
+| `fever-draught` | 3 | 0.5 | feverish, heatstroke, cave-fever |
+| `burn-dressing` | 4 | 0.5 | burned, severe-burns |
 
 | Brew (Expert) | ⬢ | Turns | Ingredient | Cures |
 |---|---|---|---|---|
@@ -224,22 +224,26 @@ whether somebody's fishing trip counted.
 
 Two different numbers used to share one field here; they are two concepts
 now (CRAFTING.md §2, Chris 2026-09-06). A brew that comes out in a batch
-authors its WORK as a fraction — `turnsCost: 1/3` — and the arithmetic does
-the rest: three Alcohol fill one Routine, one Alcohol leaves two thirds of
-it for other brewing work. A hard RATION — `perTurn`, 0-turn recipes only —
-caps a Dead Simple brew below the shared pool of 4.
+authors its WORK as a decimal — `turnsCost: 0.25` — and the arithmetic does
+the rest: four Alcohol fill one Routine, one Alcohol leaves 0.75 of it for
+other brewing work. A hard RATION — `perTurn`, 0-turn recipes only — caps a
+Dead Simple brew below the shared pool of 4.
+
+They shared a column as well as a table until 9/2026: a fractional cost was
+stored as its denominator in `requirementPerTurn`, the same column the ration
+lives in. Costs are decimals now and that column is a ration and nothing else.
 
 | Brew | turnsCost (work each) | perTurn (ration) |
 |---|---|---|
-| `alcohol` | 1/3 | — |
-| `lavish-meal` | 1/3 | — |
-| `honeyed-cakes` | 1/3 | — |
-| `fine-meal` | 1/4 | — |
-| `trail-ration` | 1/4 | — |
-| `poppy` | 1/2 | — |
-| `cleaning-powder` | 1/2 | — |
-| `mercy` | 1/2 | — |
-| `ravenheart-red` | 1/2 | — |
+| `alcohol` | 0.25 | — |
+| `lavish-meal` | 0.25 | — |
+| `honeyed-cakes` | 0.25 | — |
+| `fine-meal` | 0.25 | — |
+| `trail-ration` | 0.25 | — |
+| `poppy` | 0.5 | — |
+| `cleaning-powder` | 0.5 | — |
+| `mercy` | 0.5 | — |
+| `ravenheart-red` | 0.5 | — |
 | `bliss` | 0 | 2 |
 | `feces` | 0 | 2 |
 | `molotov-cocktail` | 0 | 2 |

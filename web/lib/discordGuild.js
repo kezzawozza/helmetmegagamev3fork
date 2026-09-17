@@ -17,7 +17,6 @@ import {
 import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
 import { openDeadchatTo } from "@lifeweb/db/lib/deadchat";
 import { applyDmPrefix, dmLogRow } from "@lifeweb/db/lib/dmPolicy";
-import { buildNickname } from "@lifeweb/db/lib/nicknameFormat";
 import {
   revokeAllCharacterAccess as revokeAllCharacterAccessShared,
   revokeAccessForCharacters as revokeAccessForCharactersShared,
@@ -80,6 +79,36 @@ function ttlCache(ttlMs) {
 const memberCache = ttlCache(5 * 60_000);
 const memberListCache = ttlCache(5 * 60_000);
 
+// How long a FAILED lookup is remembered, so the next page load doesn't spend
+// the whole retry budget again on a guild that is already refusing us. Only
+// the failure is remembered, never a value: a hit here answers exactly as the
+// failure path already answers (stale if there is one, null if not), it just
+// answers immediately.
+//
+// Short on purpose. A rate-limited GM already reads as "not a GM" — see the
+// failure paths below — and this must not hold that wrong answer for long.
+const FAILURE_MEMORY_MS = 20_000;
+const failedUntil = new Map();
+
+function recentlyFailed(key) {
+  const until = failedUntil.get(key);
+  if (until === undefined) return false;
+  if (until > Date.now()) return true;
+  failedUntil.delete(key);
+  return false;
+}
+
+function noteLookupFailure(key) {
+  failedUntil.set(key, Date.now() + FAILURE_MEMORY_MS);
+}
+
+// A page render is an interactive path: it cannot sit through the 30s default
+// cap three times over. Discord's own retry_after decides the wait, and past
+// this the call fails in one round trip and the caller serves stale or
+// degrades — which beats holding the response stream open until Next closes
+// it under us (digest 3632024602, 2026-09-17).
+const INTERACTIVE_MAX_RETRY_AFTER_MS = 2_000;
+
 // In-flight dedup: at turn open ~120 players arrive within seconds with cold
 // keys, so sharing the promise collapses concurrent misses into one call.
 const inFlight = new Map();
@@ -100,7 +129,33 @@ async function fetchGuildMember(discordUserId) {
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return null;
 
-  return discordRequest(`/guilds/${guildId}/members/${discordUserId}`, { allow404: true });
+  return discordRequest(`/guilds/${guildId}/members/${discordUserId}`, {
+    allow404: true,
+    maxRetryAfterMs: INTERACTIVE_MAX_RETRY_AFTER_MS,
+  });
+}
+
+// One roster read answers every member for as long as it is cached; a
+// per-member GET answers one. At 100+ players browsing, the per-member route's
+// bucket is exhausted within seconds and then EVERY lookup 429s — which is not
+// a cosmetic failure, because a rate-limited member reads as "not in the
+// guild" and a GM is quietly demoted. So the roster is the primary source and
+// the per-member GET is the fallback, not the other way round.
+//
+// A roster row carries `roles`, which is the only field any caller of this
+// reads (the gates in character/, isGm, isLeaderWhitelisted), plus the name
+// and avatar fields gmProfiles.js already takes off the same list.
+const ROSTER_PAGE_LIMIT = 1000;
+
+// Null means "this roster cannot answer", and the caller reads Discord itself.
+// Two rosters cannot: an EMPTY one, which is what the failure path and a
+// missing token both hand back, and a FULL one, where Discord paged us at the
+// limit and simply never listed the rest. Anything in between can say "no".
+function rosterAnswers(members, discordUserId) {
+  if (!Array.isArray(members) || members.length === 0) return null;
+  const found = members.find((m) => m.id === discordUserId);
+  if (found) return { member: found };
+  return members.length < ROSTER_PAGE_LIMIT ? { member: null } : null;
 }
 
 // maxAgeMs: accept a cached member only this fresh. A number rather than an
@@ -109,31 +164,64 @@ export const getGuildMember = cache(async (discordUserId, maxAgeMs) => {
   const cached = memberCache.get(discordUserId, maxAgeMs);
   if (cached !== undefined) return cached;
 
+  // The last attempt failed moments ago. Answer the way that attempt did
+  // rather than queueing another one behind it — a caller passing maxAgeMs: 0
+  // included, since a fresh read is not on offer either way.
+  const key = `member:${discordUserId}`;
+  if (recentlyFailed(key)) return memberCache.getStale(discordUserId) ?? staleRosterMember(discordUserId);
+
+  // The roster: held if it is fresh enough for this caller, fetched if not.
+  // A roster fetched NOW satisfies any maxAgeMs, so only 0 falls through — a
+  // gate asking for a role handed out a moment ago is asking for a real read,
+  // and gets the per-member GET below. listGuildMembers never throws (it
+  // answers stale or empty), so a miss just falls through too.
+  if (maxAgeMs !== 0) {
+    const fromRoster = rosterAnswers(await listGuildMembers(maxAgeMs), discordUserId);
+    if (fromRoster) return fromRoster.member;
+  }
+
   try {
-    const value = await dedupe(`member:${discordUserId}`, () => fetchGuildMember(discordUserId));
+    const value = await dedupe(key, () => fetchGuildMember(discordUserId));
     memberCache.set(discordUserId, value);
     return value;
   } catch (err) {
+    noteLookupFailure(key);
     const stale = memberCache.getStale(discordUserId);
     if (stale !== undefined) {
       console.error(`Guild member lookup failed for ${discordUserId}, serving stale: ${err.message}`);
       return stale;
+    }
+    const fromRoster = staleRosterMember(discordUserId);
+    if (fromRoster !== null) {
+      console.error(`Guild member lookup failed for ${discordUserId}, serving the cached roster: ${err.message}`);
+      return fromRoster;
     }
     console.error(`Guild member lookup failed for ${discordUserId}, no cached value: ${err.message}`);
     return null;
   }
 });
 
+// The failure path's last resort: any roster we still hold, however old. A
+// stale row beats a silent demotion, the same reasoning as getStale above.
+function staleRosterMember(discordUserId) {
+  return rosterAnswers(memberListCache.getStale("all"), discordUserId)?.member ?? null;
+}
+
 async function fetchGuildMembers() {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return [];
 
-  const members = await discordRequest(`/guilds/${guildId}/members?limit=1000`);
+  const members = await discordRequest(`/guilds/${guildId}/members?limit=1000`, {
+    maxRetryAfterMs: INTERACTIVE_MAX_RETRY_AFTER_MS,
+  });
   return members.map((m) => ({
     id: m.user.id,
     username: m.user.username,
     globalName: m.user.global_name ?? null,
+    // Their per-guild nickname. Carried so a roster row can stand in for a
+    // per-member GET wherever getGuildMember's result is read (devPanelData.js).
+    nick: m.nick ?? null,
     avatar: m.user.avatar ?? null,
     // Server-specific avatar (`m.avatar`), a different picture from
     // `m.user.avatar`, carried so gmProfiles.js can reuse this list.
@@ -150,15 +238,25 @@ export function isGuildRosterKnown() {
   return memberListReachable;
 }
 
-export const listGuildMembers = cache(async () => {
-  const cached = memberListCache.get("all");
+// maxAgeMs: accept a cached roster only this fresh, the same knob
+// getGuildMember takes — a caller that has to see a role handed out a moment
+// ago passes one, and the roster is re-read rather than served from cache.
+// Everyone else omits it and shares the five-minute cache.
+export const listGuildMembers = cache(async (maxAgeMs) => {
+  const cached = memberListCache.get("all", maxAgeMs);
   if (cached !== undefined) return cached;
+  if (recentlyFailed("memberList")) {
+    const stale = memberListCache.getStale("all");
+    memberListReachable = stale !== undefined;
+    return stale ?? [];
+  }
   try {
     const value = await dedupe("memberList", fetchGuildMembers);
     memberListCache.set("all", value);
     memberListReachable = true;
     return value;
   } catch (err) {
+    noteLookupFailure("memberList");
     const stale = memberListCache.getStale("all");
     console.error(`Guild member list failed${stale ? ", serving stale" : ""}: ${err.message}`);
     memberListReachable = stale !== undefined;
@@ -245,45 +343,6 @@ export async function deleteMessage(channelId, messageId) {
     method: "DELETE",
     allow404: true,
   });
-}
-
-export { buildNickname };
-
-export async function updateGuildNickname(discordUserId, nickname) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  const token = process.env.DISCORD_TOKEN;
-  if (!guildId || !token) return;
-
-  try {
-    await discordRequest(`/guilds/${guildId}/members/${discordUserId}`, {
-      method: "PATCH",
-      body: { nick: nickname },
-      allow404: true,
-    });
-  } catch (err) {
-    console.error(`Failed to set nickname for ${discordUserId}:`, err);
-  }
-}
-
-// `characterName` is always the BARE name (formatBareName). The 32-char cap
-// is shared between the two halves, so a title never appears here.
-export async function syncCharacterNickname(discordUserId, characterName) {
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  if (!config?.nicknameSyncEnabled) return;
-  // Not being mirrored to Discord exists so that nothing on Discord says
-  // which character this account is, and a nickname is the loudest thing
-  // that could (docs/systemdocs/CHAT.md §6).
-  const notMirrored = await prisma.character.findFirst({
-    where: { discordUserId, status: "ALIVE", discordMirrored: false },
-    select: { id: true },
-  });
-  if (notMirrored) return;
-
-  const member = await getGuildMember(discordUserId);
-  if (!member) return;
-
-  const base = member.user.global_name || member.user.username;
-  await updateGuildNickname(discordUserId, buildNickname(base, characterName));
 }
 
 export async function setTurnPingRole(discordUserId, optIn) {
@@ -429,8 +488,6 @@ export async function killCharacter(character, reason = null) {
   if (character.discordRoleId) {
     await deleteCharacterRole(character.discordRoleId).catch(() => {});
   }
-
-  await updateGuildNickname(character.discordUserId, null).catch(() => {});
 
   // Shared with the turn engine's catatonic death pass so the two death
   // paths can't drift.

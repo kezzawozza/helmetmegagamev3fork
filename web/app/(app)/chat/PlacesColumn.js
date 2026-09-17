@@ -122,7 +122,11 @@ export default function PlacesColumn({
   seen,
   newest,
   onSelect,
-  discordMirrored = false,
+  // A gamemaster who is also playing somebody: `{ mode, onChange }`, where
+  // mode is "gm" or "player". Null for everybody else — a plain player has no
+  // second seat, and a GM with no character is in the GM seat with nothing to
+  // switch to (web/lib/feedAccess.js#loadFeedViewer).
+  viewAs = null,
   chimeMuted = false,
   onToggleChime = null,
   // Null on a browser with no PushManager or no VAPID keys set (CHAT.md §5a).
@@ -139,7 +143,11 @@ export default function PlacesColumn({
   // Its own section rather than folded under Radio: a net is something you carry and Deadchat is
   // somewhere you ended up, and for a ghost it is the only row in the whole column they can answer.
   const deadchat = places.filter((p) => p.kind === "dead");
+  // Radio section: standing nets, plus the party chat (which is nowhere for the
+  // same reason a net is — it travels with the leader, not a Location).
   const nets = places.filter((p) => p.kind === "net");
+  const parties = places.filter((p) => p.kind === "party");
+  const radio = [...nets, ...parties];
   const faction = places.filter((p) => p.kind === "faction");
 
   // Everything else, bucketed by zone in the order the server sent it — which
@@ -151,7 +159,13 @@ export default function PlacesColumn({
     const byZone = new Map();
     const loose = [];
     for (const place of places) {
-      if (place.kind === "dm" || place.kind === "net" || place.kind === "faction" || place.kind === "dead") continue;
+      if (
+        place.kind === "dm" ||
+        place.kind === "net" ||
+        place.kind === "party" ||
+        place.kind === "faction" ||
+        place.kind === "dead"
+      ) continue;
       if (!place.zoneId) {
         loose.push(place);
         continue;
@@ -176,7 +190,7 @@ export default function PlacesColumn({
     <nav className="chat-places" aria-label="Places">
       <Section title="Messages" places={messages} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Deadchat" places={deadchat} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Radio" places={nets} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Radio" places={radio} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Faction" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       {groups.map((group) => {
         // Elsewhere is cut FIRST and the other three exclude it, so a fogged
@@ -247,10 +261,31 @@ export default function PlacesColumn({
           </div>
         );
       })}
-      {/* Foot: chime pref (useChatChimeMuted.js) and the not-mirrored reminder
-          (CHAT.md §6). Tail: pinned to the bottom, never below the fold of a
-          GM's every-room list. */}
+      {/* Foot: the seat switch, then the chime pref (useChatChimeMuted.js).
+          Tail: pinned to the bottom, never below the fold of a GM's
+          every-room list. */}
       <div className="chat-places-tail">
+        {viewAs && (
+          <div className="chat-view-as">
+            <span>View as</span>
+            <div className="segmented">
+              <button
+                type="button"
+                aria-pressed={viewAs.mode === "gm"}
+                onClick={() => viewAs.onChange("gm")}
+              >
+                GM
+              </button>
+              <button
+                type="button"
+                aria-pressed={viewAs.mode === "player"}
+                onClick={() => viewAs.onChange("player")}
+              >
+                Player
+              </button>
+            </div>
+          </div>
+        )}
       <div className="chat-places-foot">
         {onToggleChime && (
           <IconButton
@@ -275,7 +310,6 @@ export default function PlacesColumn({
             <CheckIcon width="15" height="15" />
           </button>
         )}
-        {!discordMirrored && <span className="chip chat-webonly">Playing from the web</span>}
       </div>
       {foot}
       </div>

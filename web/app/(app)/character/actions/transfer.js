@@ -11,6 +11,7 @@ import {
 } from "@lifeweb/db/lib/resourceTransfer";
 import { getOpenTurn } from "@/lib/turn";
 import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
+import { isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 import {
   presentedIdentity,
   forcedNameFrom,
@@ -80,12 +81,22 @@ async function hoodedKey(character, key) {
   return id ? `character:${id}` : "";
 }
 
-export async function transferRequestImpl({
-  fromKey,
-  toKey,
-  tags: rawTags,
-  amount: rawAmount,
-}) {
+// `options` is a SECOND parameter, and it has to stay one. requestActions.js
+// calls this as `guarded(() => transferRequestImpl(input))` and hands the
+// client's whole input object straight through, so anything read off `input`
+// is settable by whoever is typing in the browser — an `announceTake: false`
+// posted from a console would let any player empty every stash in the game in
+// silence. As a second argument it is unreachable from the browser, and
+// actions/steal.js is the only caller that passes it.
+export async function transferRequestImpl(
+  {
+    fromKey,
+    toKey,
+    tags: rawTags,
+    amount: rawAmount,
+  },
+  { announceTake = true } = {},
+) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
   const amount =
@@ -220,6 +231,12 @@ export async function transferRequestImpl({
     }
     if (!isTradeable(held.tag))
       throw new UserError("That isn't something that can change hands.");
+    // ⬢ are a tradeable stack row and would pass the line above, but this
+    // dialog has its own ⬢ field and THAT is the ledgered path — applyTransfer
+    // books one row for the movement, a tag pick books none. The picker leaves
+    // them out (web/lib/tagRequests.js), and a picker is a hint, not a lock.
+    if (isResourcesRow(held))
+      throw new UserError("Move ⬢ with the Resources field, not as an item.");
     let max = held.quantity;
     if (!held.tag.stackable && to.kind === "character") {
       if (recipientHeld.has(line.tagId))
@@ -239,14 +256,15 @@ export async function transferRequestImpl({
   if (to.kind === "character") {
     const recipient = await prisma.character.findUnique({
       where: { id: to.id },
+      // The tags ARE the whole load now, ⬢ included — they weigh a pound each
+      // like anything else, so there is no second balance to select.
       select: {
-        resources: true,
         tags: { select: { quantity: true, equipped: true, tag: true } },
       },
     });
     const config = await prisma.gameConfig.findUnique({
       where: { id: 1 },
-      select: { carryWeightLbs: true, carryResourceCap: true },
+      select: { carryWeightLbs: true },
     });
     const addedLbs = moves.reduce(
       (sum, m) => sum + rowWeight({ ...m.held, quantity: m.quantity }),
@@ -432,7 +450,9 @@ export async function transferRequestImpl({
       ),
     );
   }
-  if (from.kind === "room")
+  // Steal is the one taker that suppresses this (docs/systemdocs/THEFT.md §1):
+  // it posts its own line, and only when the roll went badly.
+  if (from.kind === "room" && announceTake)
     after(() => announceInRoom(from, character, `takes ${goods}.`));
 
   revalidateAll();

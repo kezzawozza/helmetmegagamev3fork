@@ -255,6 +255,15 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
         >
           Wants the turn-advance ping
         </Switch>
+        <Switch
+          checked={Boolean(staged.avatarUploadBlocked)}
+          onChange={(e) => onField("avatarUploadBlocked", e.target.checked)}
+        >
+          Block avatar uploads
+        </Switch>
+        <p className="text-sm opacity-70 -mt-1">
+          Refuses new uploads from this character. Their current avatar stays, and the portrait maker still works.
+        </p>
       </section>
     </>
   );

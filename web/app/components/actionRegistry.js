@@ -58,6 +58,8 @@ import {
   AttackIcon,
   KissIcon,
   SearchPersonIcon,
+  StealIcon,
+  PickpocketIcon,
   ResourcesIcon,
   BrandIcon,
   BreakRestraintsIcon,
@@ -93,6 +95,10 @@ export const ACTION_HELP = {
   bind: "Tie someone up. Bound people can be looted or forcefully moved.",
   kiss: "Ask somebody for a kiss.",
   search: "Request to search a person's inventory.",
+  steal:
+    "Steal items from a room so it doesn't show that you did it. You can do this multiple times per turn, and certain tags increase your success.",
+  pickpocket:
+    "Pickpocket someone, allowing you to stealthily see their inventory and take whatever you want.",
   crucify:
     "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
   shackle: "Shackle a bound person, binding them with no chance of escape.",
@@ -175,6 +181,11 @@ export const ACTION_SECTIONS = [
       { mode: "poison", icon: SkullIcon, label: "Poison", show: "canPoison" },
       // No gate: you can always move ⬢ or put something down.
       { mode: "transfer", icon: HandOffIcon, label: "Transfer" },
+      // NO gate and NO show. Whether there is a stash here worth anything is a
+      // fact about the ROOM, and greying on it would be free scouting every
+      // time the page loaded — the metagaming rule at the top of this file.
+      // The dialog's own empty state is the answer.
+      { mode: "steal", icon: StealIcon, label: "Steal" },
       // HIDDEN rather than greyed, the poison/disguise reasoning: holding the
       // Taxman tag and being a faction officer are both facts about your own
       // sheet, and a permanently dead Tax icon on everybody else's grid would
@@ -376,6 +387,18 @@ export const ACTION_SECTIONS = [
         gate: "canHeal",
         gateReason: "You have no Medical training.",
       },
+      // Saint's Perform Miracle (docs/tags.yaml `saint:`). HIDDEN for anyone
+      // who isn't a Saint — a permanently dead icon would only teach that this
+      // exists and you can't have it. When the count is spent the button greys
+      // via the gate rather than disappearing, so a Saint reads a reason.
+      {
+        mode: "miracle",
+        icon: BandageIcon,
+        label: "Perform Miracle",
+        show: "canMiracle",
+        gate: "canMiracleNow",
+        gateReason: "You've used both miracles this turn.",
+      },
       { mode: "loot", icon: LootIcon, label: "Loot" },
       { mode: "bind", icon: ShackleIcon, label: "Bind" },
       // Greys on YOUR OWN mouth and nothing else — a broken jaw, a hood you
@@ -400,6 +423,19 @@ export const ACTION_SECTIONS = [
       // no capability of its own and no covered-face rule, because a hood
       // hides who you are and not what is in your pockets (SEARCH.md §2).
       { mode: "search", icon: SearchPersonIcon, label: "Search" },
+      // GATED rather than hidden, and that is the one place this differs from
+      // Torture two rows down. Holding the skill is a fact about your own
+      // sheet, which the rule at the top of this file allows — and since the
+      // tag left the Brigand group it is something anybody can go and buy, so a
+      // greyed icon points at a purchase rather than teaching a secret. Nothing
+      // here greys on who is standing near you.
+      {
+        mode: "pickpocket",
+        icon: PickpocketIcon,
+        label: "Pickpocket",
+        gate: "canPickpocket",
+        gateReason: "You don't know how to pick a pocket.",
+      },
       { mode: "free", icon: KeyIcon, label: "Free" },
       // NO gate and NO show. Laying in wait needs nothing and says nothing
       // about who is near you — the metagaming rule at the top of this file

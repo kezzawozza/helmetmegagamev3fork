@@ -32,8 +32,7 @@ third column of the shell**, not of the person view (§6): it is there on the
 roster too, and it does not get thrown away and rebuilt every time you open a
 different conversation. Its tabs are the five base ones —
 `Sheet · Tags · Moves · Archive · DMs`, same list as `/gm/turns` — plus this
-desk's own **Scene**, the live feed where that character is standing (§6,
-`CHAT.md` §8). Canon is not a sixth tab any more: it is folded into **Moves**
+desk's own **Notes** (§7). Canon is not a sixth tab any more: it is folded into **Moves**
 as the "This turn" section above that person's past turns (§6).
 
 Under the shared `.desk-*` mobile breakpoint (720px, `DESIGN-SYSTEM.md` §8),
@@ -304,6 +303,24 @@ client, not a support inbox.
   (`turn result`, `broadcast`) are the only other furniture. Times come from
   `web/lib/dmTime.js` and tick with `useNowTick`, so "Today" flips at
   midnight.
+- **A player's name here carries their account**: `Aleksei Ivanov (@forgeybot)`,
+  in the thread header and above every inbound run. This desk is the one place
+  it belongs — on `/play` a character is a character and the account behind them
+  is nobody's business, but a GM answering a question needs to know which player
+  they are answering. The rail has shown the handle beside the name for a while
+  (`PlayerRail.js`); this is the same fact in the two places that were still
+  missing it. Composed once in `web/lib/deskSpeaker.js`, which has **no
+  imports** because both callers are client components.
+
+  Two traps. The handle is shipped **beside** the label rather than folded into
+  it (`/api/gm/thread`), because `ConversationPane` also hands `label` to
+  `CharacterAvatar` as its alt name, where the parenthesis would be wrong — and
+  `DmThread`'s `Row` keeps the bare `name` for the avatar for the same reason.
+  And it is **GM-perspective only**: `DmThread` is shared with the player's own
+  Bascinet pane, where the reader *is* the account and telling them their own
+  handle says nothing. A missing handle is ordinary — `listGuildMembers()` does
+  not know a player who has left the guild — so it falls back to the bare name
+  rather than leaving empty parentheses behind.
 - **An inbound image renders inline** (`DmThread.js#AttachedImages`,
   `db/lib/dmAttachments.js`), reusing the raw Discord CDN url a player's
   attachment carried — no re-hosting, no click-to-reveal gate. Discord's
@@ -446,6 +463,33 @@ client, not a support inbox.
   within seconds, and re-running the whole layout for it was the desk's most
   frequent full re-render.
 
+### The line the game says back
+
+A player writing to the GMs — a DM to the bot, or the composer on `/chat` — gets
+one automatic reply setting the expectation:
+
+> -# GMs are only available to solve unintended bugs and deal with OOC disputes.
+> If you have questions about the game, please use [#questions](…). Your message
+> may not be answered.
+
+`db/lib/gmAutoReply.js#maybeSendGmAutoReply` sends it, and three things about it
+matter:
+
+- **`QUIET`**, so it is logged and drawn on neither face. The desk shows the
+  player's words with nothing of ours underneath them.
+- **Once per player per 10 minutes.** The cooldown state is the last OUTBOUND
+  row carrying `source: "gm_auto_reply"` rather than a column — there is no
+  character behind a raw Discord account, and keying on the row makes the window
+  hold across both entry points, so writing in Chat and then DMing the bot is
+  still one reply.
+- **Best-effort.** A player with closed DMs, or a Discord hiccup, must never stop
+  their own message being filed, so neither call site awaits it.
+
+The `#questions` link is a masked Markdown link built from a hardcoded channel id
+(the `db/lib/roleIds.js` reasoning), not a `<#id>` mention — the web deliberately
+renders a channel mention as a bare "somewhere", and an id-built link survives the
+channel being renamed.
+
 ## 5a. Opening somebody is not a navigation
 
 Clicking a name in the rail used to be a real Next navigation into a
@@ -526,9 +570,10 @@ GM clicked.
 
 ## 6. The inspector
 
-`Sheet · Tags · Moves · Archive · DMs · Scene`, the first five fetched on
-demand and memoized per
-`${characterId}:${tab}` for the life of the page view. **Moves** is that
+`Sheet · Tags · Moves · Archive · DMs`, plus this desk's **Notes**. Sheet,
+Tags, Moves and DMs are fetched on demand and memoized per
+`${characterId}:${tab}` for the life of the page view; **Archive** and
+**Notes** fetch for themselves and take no slot in it. **Moves** is that
 person's turns: this desk's **Canon** section on top ("This turn"), then that
 person's past turns underneath ("Past turns", ADJUDICATION.md §3). One
 question, one tab — Canon used to be a sixth tab pointing at Moves with a
@@ -540,7 +585,7 @@ players threw it away and rebuilt it. It is the adjudication desk's inspector
 now, literally: one component, `web/app/components/InspectorColumn.js`, mounted
 by both desks. There the character is context for a Move, here the Move is
 context for a character, but it is the same five base tabs over the same
-`getCharacterInspector` / `getArchiveSlice` fetchers, the same staged quick
+`getCharacterInspector` fetcher, the same staged quick
 edits (✕ a tag to stage its removal, click Resources or Tag points to stage a
 ± delta — which is why the player desk's `layout.js` loads this turn's
 unapplied `StagedEffect`s too), the same DM composer, the same
@@ -560,16 +605,47 @@ section can't fork the tab list or the tab-bar layout the way an extra tab
 could. The adjudication desk passes none.
 
 **`extraTabs` came back for exactly one thing, and it is not a regression of
-that argument.** `Scene` (`SceneTab.js`) is the live feed where the inspected
-character is standing — Chat's own `Feed` component, read-only, over that
-Location, its Rooms and its Conversations, on the same `/api/feed` stream and
-the same GM gate (`CHAT.md` §8). It is not a section above anything: there is
-no base tab it belongs over, it fetches nothing the shared fetchers know about,
-and it must NOT take a slot in the per-`(character, tab)` cache, because a
-stream cached for the life of the page view is a stream pointed at wherever
-somebody used to be. `extraTabs` is `{ [tabKey]: (ctx) => node }` like
-`tabPreludes`, appended after the base five, with `useInspectorData` skipped
-for it entirely.
+that argument.** `Notes` (§7) is not a section above anything: there is no base
+tab it belongs over, it fetches nothing the shared fetchers know about, and it
+must NOT take a slot in the per-`(character, tab)` cache, because it is keyed
+on the PLAYER — two characters on one account share one list, and a cache keyed
+on the character would hold two entries for it. `extraTabs` is
+`{ [tabKey]: (ctx) => node }` like `tabPreludes`, appended after the base five,
+with `useInspectorData` skipped for it entirely.
+
+`Scene` was the other one — Chat's `Feed`, read-only, over wherever the
+inspected character was standing. It was deleted along with `SceneTab.js` and
+`getCharacterScene` (`CHAT.md` §8).
+
+### 6a. The Archive tab reads /api/archive
+
+It used to have a server action of its own, `getArchiveSlice`: thirty rows,
+oldest at the top, a **Load older** button, and no way to sort or narrow. That
+was a worse copy of the `/archive` page sitting one directory over, so it was
+deleted and the tab became a client of the real thing.
+
+`web/lib/archiveQuery.js` already spoke `character`, `zone`, `day`, `q`, `show`
+and `order`, and `GET /api/archive` already paged them by keyset cursor — so
+the tab now builds a query with `archiveParamsToQuery` and scrolls it with
+`useArchiveScroll`, the IntersectionObserver hook lifted out of the `/archive`
+page so both surfaces scroll the same transcript through the same code.
+
+**A GM is never gated out of that route.** `web/lib/archiveAccess.js` shuts the
+current game's transcript until `GameState.archiveVisible`, but tests `!gm`
+first, so mid-game the tab works and the public page does not.
+
+Its defaults differ from the page's on purpose: **newest first** (`order=desc`,
+against the page's `asc`) because a GM opening somebody's transcript wants what
+just happened, and **Everything** (`show=all`, against the page's `speech`)
+because that is what this tab always showed.
+
+Filters are component state rather than the URL — a transcript view is worth
+linking to, an inspector tab is a lens over whoever is selected and has no
+shareable identity. The row list is **keyed on the query string**, so narrowing
+remounts it instead of appending new rows onto the old ones.
+
+One deliberate behaviour change: `archiveWhere` carries `deletedAt: null`, so
+a soft-deleted line no longer shows here. The old action had no such filter.
 
 **The caching story is the whole reason a prelude is not a tab.** A prelude
 owns its own fetching and its own freshness and takes **no** slot in the
@@ -603,11 +679,46 @@ the inspector is a column of the shell now, so it writes the draft's
 `localStorage` key directly (`players/dmDraft.js`) and the composer — whose
 value *is* that store, read through `useSyncExternalStore` — picks it up.
 
-## 7. GM notes (removed)
+## 7. Admin notes
 
-There is no GM-notes tab. `GmCharacterNote` still exists in the schema —
-nothing reads or writes it — and stays orphaned on purpose; dropping it is a
-separate, deliberate migration.
+A **Notes** tab on the inspector, keyed on `discordUserId` rather than
+`characterId` — the same key the rest of this desk uses, and the reason the
+predecessor was the wrong shape: a note about somebody's conduct does not stop
+applying when they roll a new character, and a player with two characters had
+two disconnected piles. `GmCharacterNote` was dropped unused
+(`20260913030000_drop_gm_character_note`, verified empty first); `AdminNote`
+replaces it and shares no code with it.
+
+It arrives through `extraTabs`, not `tabPreludes`, for two reasons (§6): there
+is no base tab it belongs above, and it must not take a slot in the
+per-`(character, tab)` cache — a cache keyed on the character would hold two
+entries for one player's one list, which could silently disagree. One
+component, `web/app/components/AdminNotes.js`, is also mounted as a tab of the
+Dev Character Panel (`DEV-PANEL.md`); it takes `discordUserId` and nothing
+else, so it cannot be handed a character by mistake.
+
+**It is the second deliberate exception to §9's revalidation rule.** Nothing in
+either route's server render reads a note, so `revalidatePath` would invalidate
+the whole desk layout to refresh a list the server never sent. The actions
+return the fresh list and the component sets it.
+
+Append-only, and every GM may read and write. Any GM may delete any note, and a
+delete writes an `admin_note_deleted` audit row carrying the body — a note that
+could be erased leaving no trace of what it said is the failure the append-only
+shape exists to prevent.
+
+The only prose on the surface is the heading and one line under it. Severity is
+monochromatic on purpose: High/Medium/Low is one scale, where good/warn/bad is
+three kinds, and a Low note drawn in green would read as "fine". It rides the
+`--text` → `--muted` ladder, with `subdued` as the middle rung.
+
+**Known limit:** the inspector renders nothing for somebody with no character
+(`InspectorHost.js` nulls `inspected` without a `characterId`), so a
+conversation-only player's notes are not reachable from this desk yet — even
+though the key they are stored under is the one that person does have. The data
+is fine; it is the inspector that is character-gated. Widening it means teaching
+every base tab a character-less state, which is a rework of a shared component
+rather than a note feature.
 
 ## 8. Getting between the desks
 
@@ -634,7 +745,11 @@ below it**. So every `revalidatePath("/gm/players")` is
 `revalidatePath("/gm/players", "layout")` — without it a GM sitting in a
 conversation never sees the list move. There are a dozen call sites across
 `faction/`, `gm/`, `gm/dev/`, `lifeweb/`, `gamemasters/` and the adjudication
-desk's own actions. `markConversationRead` is the deliberate exception (§5).
+desk's own actions. There are two deliberate exceptions:
+`markConversationRead` (§5) and the Admin notes actions (§7), neither of which
+revalidates at all — in both cases the server render never held the thing that
+changed, so invalidating the layout would cost the whole desk to refresh
+something it never sent.
 
 ## 9a. The live inbox
 
@@ -796,7 +911,6 @@ navigation. That hazard belongs to `router.refresh()`, which is
 | `conversation/ConversationPane.js` | Thread + composer, optimistic send |
 | `InspectorHost.js` | The shared inspector's player-desk half: derived selection, pins, the Canon prelude |
 | `components/InspectorColumn.js` | The shared inspector itself (ADJUDICATION.md §3) |
-| `SceneTab.js` | The **Scene** tab — Chat's `Feed`, read-only, on one place at a time through `/api/feed?place=` (CHAT.md §8) |
 | `CanonTab.js` | The "This turn" section — current Move, staged messages/effects, stage-a-DM box — rendered as the Moves tab's `tabPreludes` entry, refetched per mount |
 | `dmDraft.js` | The composer draft's `localStorage` key, shared with Canon |
 | `BulkComposer.js` / `BulkMessageButton.js` | The broadcast modal and its header door |

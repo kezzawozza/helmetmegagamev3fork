@@ -17,7 +17,7 @@ function formatCharacterName({ honorific, firstName, title, lastName } = {}) {
     .join(" ");
 }
 
-// Discord-facing form; bare so a title never recolours a role or eats the 32-char nickname budget.
+// Discord-facing form; bare so a title never renames or recolours a role.
 function formatBareName({ firstName, lastName } = {}) {
   return [firstName, lastName]
     .map((part) => (typeof part === "string" ? part.trim() : ""))

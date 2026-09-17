@@ -2,22 +2,31 @@
 
 // The composer's slash commands: the web twins of bot/src/lib/commands.js. THE REGISTRY IS DATA, deliberately — a list, not a keydown branch, so ⌘K can offer it too.
 // Entry shape: name, description, where (place kinds — "loc"|"room"|"conv"|"zone"), args ([{name, kind, placeholder, optional}], only ONE text arg, always last), run(values, ctx) → { ok, line, error } or null.
-// This file is imported by a "use client" component, so it must never reach for @lifeweb/db. Everything it calls is a server action from ./actions.
+// Plus optional `verb`: the word on the composer's send button while this command is being typed. It defaults to "Run", which is right for a command that DOES something — conceal, roll, look. A command that just puts words in the room is sending, not running, so /ooc and /shout say "Send" instead.
+// This file is imported by a "use client" component, so it must never reach for @lifeweb/db — barring the zero-require modules written for exactly that (db/lib/sayLimits.js). Everything it calls is a server action from ./actions.
 
 import {
   submitMove,
   toggleConceal,
   shoutHere,
+  oocHere,
   rollHere,
   playHere,
   addMember,
   removeMember,
 } from "./actions";
+// The one exception to the rule above: db/lib/sayLimits.js has zero requires by
+// design precisely so a client component may hold it (Feed.js does too).
+import { MESSAGE_LIMIT } from "@lifeweb/db/lib/sayLimits";
 
 // Same cap as the Discord option — this posts into a couple of dozen channels.
 const SHOUT_LIMIT = 300;
 
-const EVERYWHERE = ["loc", "room", "conv", "zone", "net"];
+// An OOC line reaches one place, so it takes ordinary speech's cap rather than
+// the shout's.
+const OOC_LIMIT = MESSAGE_LIMIT;
+
+const EVERYWHERE = ["loc", "room", "conv", "zone", "net", "party"];
 
 export const COMMANDS = [
   {
@@ -45,14 +54,34 @@ export const COMMANDS = [
     description: "Conceal yourself.",
     where: EVERYWHERE,
     args: [],
-    run: () => toggleConceal(),
+    // The hood goes up and comes off here and nowhere else — the composer's
+    // own button is gone. toggleConceal() revalidates nothing, so the refresh
+    // is this call site's to make, or the box goes on calling itself by the
+    // name it just stopped wearing.
+    run: async (_values, ctx) => {
+      const res = await toggleConceal();
+      if (res?.ok) ctx.refresh?.();
+      return res;
+    },
   },
   {
     name: "shout",
     description: "Yell. You'll be heard nearby.",
+    verb: "Send",
     where: ["room", "conv"],
     args: [{ name: "message", kind: "text", placeholder: "What you yell…", maxLength: SHOUT_LIMIT }],
     run: ({ message }, ctx) => shoutHere(message, ctx.placeKey),
+  },
+  {
+    name: "ooc",
+    description: "Say something out of character.",
+    verb: "Send",
+    // Wider than the three around it: a summary and a radio net take an OOC
+    // line, because none of it is the character talking. See
+    // db/lib/placeKey.js#isOocPlaceKey, which oocHere re-checks.
+    where: ["room", "conv", "zone", "net", "party"],
+    args: [{ name: "message", kind: "text", placeholder: "Out of character…", maxLength: OOC_LIMIT }],
+    run: ({ message }, ctx) => oocHere(message, ctx.placeKey),
   },
   {
     name: "roll",

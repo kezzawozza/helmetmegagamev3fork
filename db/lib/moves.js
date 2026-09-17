@@ -1,7 +1,7 @@
 // Filing a Move, on either face — the Action row and every gate in front of it: the open turn, the move window, the one-Move-a-turn rule, the incapacitation block and Labor's rate.
 // Writes no Discord and composes no confirmation: the bot's `confirmMove` still writes the DM's lines, and the web renders its own. Returns the Action plus the labor rate when there is one.
 // A Gambit stays yours until lock-in: `editMove` rewrites it, `withdrawMove` takes it back and hands the turn over. Everything else a player files is a RECEIPT for something that already happened, and is final the moment it lands.
-// That is safe only because the d6 moved off submit and onto the cutoff (db/lib/gambitCutoff.js). While the die was rolled here, an uncapped edit was a re-roll button — flip Gambit → Routine → Gambit and fish for a better one. Nothing to fish for now: the roll happens once, after the window shuts, and no edit can reach it.
+// That is safe because the d6 belongs to the CHARACTER AND TURN rather than to the Move row (db/lib/gambitDie.js). While the die lived on the row, an uncapped edit was a re-roll button — flip Gambit → Routine → Gambit and fish for a better one. Nothing to fish for now: the die is thrown once at submit and every edit, withdraw and re-file reads the same number back.
 const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
 const { blockerFor, gambitBlockerFor, ACT } = require("./incapacitation");
@@ -104,14 +104,9 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
 }
 
 // Pure, so every branch is testable without a database or a clock — the same shape db/lib/oracleCutoff.js uses, and for the same reason: all but one branch is a refusal, and a refusal the player can't read is a bug report.
-// `action` needs { playerFiled, moveKind, moveReviewStatus, lockExpiresAt, diceRoll }. A null action means nothing is filed, which is not an error anywhere — the caller decides whether that's "file one" or "nothing to withdraw".
+// `action` needs { playerFiled, moveKind, moveReviewStatus, lockExpiresAt, diceModifier }. A null action means nothing is filed, which is not an error anywhere — the caller decides whether that's "file one" or "nothing to withdraw".
 function moveIsEditable(action, openTurn, { now = new Date(), clockFrozen = false } = {}) {
   if (!action) return { editable: false, reason: "no Move was declared" };
-  // THE die guard, and it is the one that actually has to hold. Everything below is about
-  // when the window shuts; this is about the thing the window protects. A thrown die must
-  // never be thrown twice — withdrawing a rolled Gambit and filing another would hand back
-  // a fresh one, which is the exact prize this whole design removes.
-  if (action.diceRoll != null) return { editable: false, reason: "the die is already thrown" };
   // A receipt. Bury, craft, torture, travel, a lesson, the labor you already got paid for — the thing happened, so there is nothing left to take back.
   if (!action.playerFiled) return { editable: false, reason: "the game declared this one for you" };
   // Labor pays the moment it's filed, so by the time it exists it is a receipt too. Withdraw is a Gambit's alone.
@@ -129,6 +124,12 @@ function moveIsEditable(action, openTurn, { now = new Date(), clockFrozen = fals
   if (hasLock && now.getTime() >= cutoffAt.getTime()) {
     return { editable: false, reason: "Moves for this turn are locked" };
   }
+  // And the same answer for a turn that has no cutoff to read. `hasLock` is false under a frozen
+  // clock and on a turn shorter than MOVE_LOCK_HOURS, so the line above never fires there and the
+  // staged push is what actually closes the window — a settled modifier is the mark it left
+  // (db/lib/gambitCutoff.js). Says nothing about a die on purpose: this string reaches the player
+  // through editMove/withdrawMove, and the number is not theirs until the turn closes.
+  if (action.diceModifier != null) return { editable: false, reason: "Moves for this turn are locked" };
   return { editable: true, reason: "yours until the lock" };
 }
 

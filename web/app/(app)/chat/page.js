@@ -4,7 +4,7 @@ import { withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { feedWipeFloors, floorForPlace, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 import { Suspense } from "react";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import ChatView from "./ChatView";
@@ -15,8 +15,10 @@ import { loadMentionDirectory } from "@/lib/mentionDirectory";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
+import { speakerDirectory } from "@/lib/gmSpeakers";
 import { loadNavItems } from "@/lib/navItems";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
@@ -56,7 +58,12 @@ export const dynamic = "force-dynamic";
 const HISTORY_ROWS = 100;
 
 export default async function PlayPage() {
-  const session = await auth();
+  // getGmSession() rather than auth(): it is React-cached and the layout above
+  // has already made the call, so this costs nothing and — the point — issues no
+  // second headers() read. A bare auth() does, and a slow render that outlives
+  // its own response then reads request data in Next's `after` phase, which is
+  // refused outright (next/dist/server/request/utils.js). The page died with it.
+  const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   return (
     <SnapshotPage
@@ -130,6 +137,12 @@ async function FreshChat({ userId }) {
       })()
     : null;
 
+  // The key ring that lets a GM read a hood (web/lib/gmSpeakers.js). Loaded
+  // here because `viewer.gm` is the gate and this is where it is already
+  // answered; ./actions.js#gmSpeakerNames re-serves it for anybody born after
+  // the page painted.
+  const gmSpeakers = viewer.gm ? await speakerDirectory(prisma) : null;
+
   if (!first) {
     return <SnapshotFresh scope="play" userId={userId} data={{ kind: "nowhere" }} />;
   }
@@ -194,7 +207,8 @@ async function FreshChat({ userId }) {
           prisma.character.findUnique({
             where: { id: viewer.character.id },
             select: {
-              resources: true,
+              // No `resources` field any more — ⬢ is a stack in `tags` below
+              // now, read back out with `resourcesOf(sheet)`.
               // `id` is the CharacterTag row, which is what an equip toggle
               // acts on; the Things drawer is the only thing here that needs
               // one (./thingRows.js). `equippedQuantity` alongside `equipped`
@@ -303,6 +317,10 @@ async function FreshChat({ userId }) {
         });
         const clientSheet = {
           ...sheet,
+          // A plain number again on the client shape, same key as before the
+          // column moved — ⬢ is read off the tag stack now, not a field
+          // Prisma hands back for free.
+          resources: resourcesOf(sheet),
           tags: (sheet?.tags ?? []).map((ct) => {
             const { poisonedCount, poisonPayload, ...ctRest } = ct;
             const cut = cookedTasteOnly(ctRest.tag);
@@ -453,7 +471,11 @@ async function FreshChat({ userId }) {
   // unread dot before the pane has ever been opened (./DmPane.js, CHAT.md
   // §2b). Through the player chair's noise filter, so a mention relay lights
   // the dot the way any other word from Bascinet does.
-  const newestDm = viewer.character || viewer.ghost
+  //
+  // `playing` as well as `character`: the thread belongs to the ACCOUNT, not
+  // the body (Chat.js draws the row off `self.discordUserId`), so a GM sitting
+  // in the GM seat still has their own mail and still wants the dot on it.
+  const newestDm = viewer.character || viewer.playing || viewer.ghost
     ? await prisma.directMessage.findFirst({
         where: withoutDmNoise(
           { discordUserId: viewer.discordUserId, direction: "OUTBOUND" },
@@ -521,11 +543,18 @@ async function FreshChat({ userId }) {
     // composer draws in the same frame says what the confirmed one will say
     // (db/lib/say.js#transformSpeech).
     autocorrect: Boolean(gameConfig?.tupperAutocorrectEnabled),
-    discordMirrored: Boolean(viewer.character?.discordMirrored),
     roster: mentionRoster,
-    // A GM with no living character reads every zone they may see and may
-    // take a line down (web/app/api/feed/delete/route.js).
+    // A GM reads every zone they may see and may take a line down
+    // (web/app/api/feed/delete/route.js). Either they have no living character
+    // or they chose this seat from the switch below.
     gm: Boolean(viewer.gm),
+    // The View as switch at the foot of the places column, for a GM who is
+    // also playing somebody. Null for everybody else — nobody else has a
+    // second seat (web/lib/feedAccess.js#loadFeedViewer).
+    viewAs: viewer.canViewAsGm ? { mode: viewer.gm ? "gm" : "player" } : null,
+    // speakerKey -> real name, so a GM reads "A young man (Greeblus)" rather
+    // than the alias alone. GM-only, and empty for everybody else.
+    gmSpeakers,
     // A dead player with no living character reads every zone, and speaks
     // nowhere (db/lib/feedAccess.js#ghostPlacesFor).
     ghost: Boolean(viewer.ghost),
@@ -534,11 +563,11 @@ async function FreshChat({ userId }) {
     // carrying one. photographRow() re-checks the sheet, so this is the
     // hint and never the lock.
     hasCamera,
-    // The ✉ beside the composer, and the hood next to it. `canConceal` is
-    // db/lib/conceal.js's own three refusals asked in advance: a forced name
-    // has nothing to hide, a bare face has nothing to toggle, and something
-    // that FORCES a hood does not come off by asking. toggleConceal re-asks
-    // all three.
+    // The ✉ beside the composer. The hood is no longer a button next to it —
+    // /conceal is the whole of it, and db/lib/conceal.js asks its own three
+    // refusals there (a forced name has nothing to hide, a bare face has
+    // nothing to toggle, something that FORCES a hood does not come off by
+    // asking), so nothing has to be resolved in advance here any more.
     letters: aside?.letters
       ? {
           canWrite: aside.letters.canWrite,
@@ -554,8 +583,9 @@ async function FreshChat({ userId }) {
     faction: factionView,
     dmNewestMs: newestDm?.createdAt?.getTime?.() ?? null,
     navItems: await navItemsPromise,
+    // Not a control any more — only what the composer CALLS itself while a
+    // hood is up.
     conceal: {
-      canConceal: Boolean(concealment) && !concealment.forced && !forcedName,
       concealed: Boolean(identity.concealed),
       alias: identity.alias ?? null,
     },
@@ -576,6 +606,9 @@ async function FreshChat({ userId }) {
         examineBlocked: aside.pools.examineBlocked,
         canHeal: aside.pools.canHeal,
         healsLeft: aside.pools.healsLeft,
+        canMiracle: aside.pools.canMiracle,
+        miracleTargets: aside.pools.miracleTargets,
+        miraclesLeft: aside.pools.miraclesLeft,
         hasSurgicalSite: aside.pools.hasSurgicalSite,
         surgicalSitePenalty: aside.pools.surgicalSitePenalty,
         healTargets: aside.pools.healTargets,

@@ -21,10 +21,13 @@ import useInspectorOverlay from "./useInspectorOverlay";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import {
   getCharacterInspector,
-  getArchiveSlice,
   getCharacterMoveHistory,
   createStagedEffects,
 } from "@/app/(desk)/gm/turns/actions";
+import Select from "./Select";
+import useArchiveScroll from "./useArchiveScroll";
+import { archiveParamsToQuery } from "@/lib/archiveQuery";
+import { useVisibleZoneNames } from "./GmZoneViewProvider";
 import { getDmThreadPage, sendGmDm } from "@/app/(desk)/gm/players/actions";
 import { scoreMatch } from "@/lib/fuzzySearch";
 
@@ -53,13 +56,11 @@ function useInspectorData(characterId, tab, cache, setCache, skip = false) {
     let cancelled = false;
     (async () => {
       const fetcher =
-        tab === "Archive"
-          ? getArchiveSlice
-          : tab === "DMs"
-            ? getDmThreadPage
-            : tab === "Moves"
-              ? getCharacterMoveHistory
-              : getCharacterInspector;
+        tab === "DMs"
+          ? getDmThreadPage
+          : tab === "Moves"
+            ? getCharacterMoveHistory
+            : getCharacterInspector;
       const res = await fetcher({ characterId });
       if (cancelled) return;
       const value = res?.ok ? { data: res } : { error: res?.error ?? "Couldn't load that." };
@@ -92,7 +93,6 @@ function StagedDeltaFact({ display, pendingSuffix, onStage, disabled }) {
       <button
         type="button"
         className="desk-fact-editable mono text-sm"
-        title="Stages a change for the turn-end push"
         disabled={disabled}
         onClick={() => {
           setValue("");
@@ -421,61 +421,153 @@ function MovesView({ data }) {
   );
 }
 
-function ArchiveView({ data, onOpenContext, characterId, cacheKey, setCache }) {
-  const [pending, startTransition] = useTransition();
+// The transcript, for one character, with the filters the /archive page
+// already defines and the scroll it already runs (useArchiveScroll).
+//
+// It reads GET /api/archive rather than an action of its own. Everything it
+// needs was already there — archiveQuery.js speaks `character`, `zone`, `day`,
+// `q`, `show` and `order`, and the route already pages them by keyset cursor —
+// so the tab used to be a worse, unfilterable copy of a thing one directory
+// over. A GM is never shut out of that route: archiveAccess.js closes the
+// current game's transcript to PLAYERS until archiveVisible, and tests
+// `!gm` before it does.
+//
+// Filters are component state, not the URL. The page puts them in the URL
+// because a transcript view is worth linking to; an inspector tab is a lens
+// over whoever happens to be selected and has no shareable identity of its own.
+function ArchiveView({ onOpenContext, characterId }) {
+  const visibleZones = useVisibleZoneNames(null);
+  const [filters, setFilters] = useState({ q: "", zone: "", day: "", show: "all", order: "desc" });
+  // The draft is separate from the applied `q`: every keystroke would be a new
+  // query string, which — since the row list is KEYED on that string — would
+  // remount and refetch the transcript on each letter.
+  const [draft, setDraft] = useState("");
 
-  function loadOlder() {
-    const oldest = data.entries[0];
-    if (!oldest) return;
-    startTransition(async () => {
-      const res = await getArchiveSlice({
-        characterId,
-        beforeMs: new Date(oldest.sentAt).getTime(),
-        beforeId: oldest.id,
-      });
-      if (res?.ok) {
-        setCache((prev) =>
-          new Map(prev).set(cacheKey, {
-            data: { entries: [...res.entries, ...data.entries], hasMore: res.hasMore },
-          }),
-        );
-      }
-    });
+  function set(patch) {
+    setFilters((f) => ({ ...f, ...patch }));
   }
 
-  if (!data.entries.length) return <p className="p-3 text-sm text-muted">Nothing in the transcript.</p>;
+  // `show: "all"` and `order: "desc"` are this tab's defaults rather than the
+  // page's ("speech"/"asc"), so both always appear in the query — which is
+  // what archiveParamsToQuery omitting its own defaults would otherwise hide.
+  const query = archiveParamsToQuery({ ...filters, character: characterId, game: "" });
+
+  return (
+    <div className="desk-archive">
+      <div className="desk-archive-filters">
+        <form
+          className="field"
+          onSubmit={(e) => {
+            e.preventDefault();
+            set({ q: draft.trim() });
+          }}
+        >
+          <input
+            value={draft}
+            aria-label="Search the transcript"
+            placeholder="anything said…"
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={() => set({ q: draft.trim() })}
+          />
+        </form>
+
+        <div className="desk-archive-filter-line">
+          <label className="field min-w-0" style={{ flex: "1 1 7rem" }}>
+            <span className="field-label">Zone</span>
+            <Select value={filters.zone} onChange={(e) => set({ zone: e.target.value })}>
+              <option value="">Anywhere</option>
+              {(visibleZones ?? []).map((z) => (
+                <option key={z} value={z}>
+                  {z}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="field min-w-0" style={{ flex: "0 1 5rem" }}>
+            <span className="field-label">Day</span>
+            <input
+              type="number"
+              min="1"
+              placeholder="any"
+              defaultValue={filters.day}
+              onBlur={(e) => set({ day: e.target.value.trim() })}
+            />
+          </label>
+        </div>
+
+        <div className="desk-archive-filter-line">
+          <div className="segmented" role="group" aria-label="What to show">
+            <button type="button" aria-pressed={filters.show === "speech"} onClick={() => set({ show: "speech" })}>
+              Speech
+            </button>
+            <button type="button" aria-pressed={filters.show === "all"} onClick={() => set({ show: "all" })}>
+              Everything
+            </button>
+          </div>
+          <div className="segmented" role="group" aria-label="Order">
+            <button type="button" aria-pressed={filters.order === "desc"} onClick={() => set({ order: "desc" })}>
+              Newest
+            </button>
+            <button type="button" aria-pressed={filters.order === "asc"} onClick={() => set({ order: "asc" })}>
+              Oldest
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Keyed on the query, so narrowing REMOUNTS the list instead of
+          appending the new rows onto the old ones. */}
+      <ArchiveRows key={query} query={query} onOpenContext={onOpenContext} />
+    </div>
+  );
+}
+
+function ArchiveRows({ query, onOpenContext }) {
+  const { rows, done, failed, loaded, more, sentinel } = useArchiveScroll({ query });
+
+  if (!loaded) return <p className="p-3 text-sm text-muted">Loading…</p>;
+  if (!rows.length && !failed) return <p className="p-3 text-sm text-muted">Nothing in the transcript.</p>;
+
   return (
     <div className="flex flex-col gap-3 p-3">
-      {data.hasMore && (
-        <button type="button" className="btn-quiet self-center" disabled={pending} onClick={loadOlder}>
-          {pending ? "Loading…" : "Load older"}
-        </button>
-      )}
-      {data.entries.map((e) => {
+      {rows.map((r) => {
+        // The API shapes rows through feedRowShape, which withholds the id
+        // behind a hood: `name` is the alias when there is one, and `realName`
+        // is who it actually was. The archive names them both — that is what
+        // it is for — so this reads `alias (Real Name)`.
         const row = (
           <>
             <p className="text-xs text-muted">
-              {e.concealedAlias ? `${e.concealedAlias} (${e.characterName})` : e.characterName}
-              {e.zoneName ? ` · ${e.zoneName}` : ""}
-              {e.turnNumber != null ? ` · turn ${e.turnNumber}` : ""}
+              {r.alias ? `${r.alias} (${r.realName})` : r.realName}
+              {r.zoneName ? ` · ${r.zoneName}` : ""}
+              {r.turnNumber != null ? ` · turn ${r.turnNumber}` : ""}
             </p>
             <div className="text-sm">
-              <MarkdownContent content={e.content} />
+              <MarkdownContent content={r.content} />
             </div>
           </>
         );
-        if (e.kind !== "MESSAGE") return <div key={e.id}>{row}</div>;
+        if (r.kind !== "MESSAGE") return <div key={r.id}>{row}</div>;
         return (
           <button
-            key={e.id}
+            key={r.id}
             type="button"
             className="desk-archive-row"
-            onClick={() => onOpenContext(e.id)}
+            onClick={() => onOpenContext(r.id)}
           >
             {row}
           </button>
         );
       })}
+      <div className="desk-archive-more" ref={done ? undefined : sentinel}>
+        {failed ? (
+          <button type="button" className="btn-quiet" onClick={more}>
+            That didn&apos;t load. Try again
+          </button>
+        ) : done ? null : (
+          <span className="text-xs text-muted">Loading…</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -554,10 +646,10 @@ function DmsView({ data, characterId, cacheKey, setCache }) {
         />
         <FormError>{error}</FormError>
         <div className="mt-1 flex items-center justify-between gap-2">
-          <span className={draftOver ? "text-xs text-danger" : "text-xs text-muted"}>
-            {draftOver
-              ? `${draft.length} / ${GM_MESSAGE_MAX_LENGTH} — too long to send.`
-              : "Sends now, » prefixed — not staged."}
+          {/* Only the refusal. The line that used to sit here the rest of the
+              time explained that this composer sends rather than stages. */}
+          <span className="text-xs text-danger">
+            {draftOver ? `${draft.length} / ${GM_MESSAGE_MAX_LENGTH} — too long to send.` : ""}
           </span>
           <button type="button" className="btn" disabled={pending || !draft.trim() || draftOver} onClick={send}>
             {pending ? "Sending…" : "Send"}
@@ -707,18 +799,22 @@ export default function InspectorColumn({
   const [contextEntry, setContextEntry] = useState(null);
   const extraKeys = Object.keys(extraTabs);
   const isExtra = extraKeys.includes(tab);
+  // Archive fetches for itself now, the same way an extra tab does — it pages
+  // /api/archive under its own filters, and a cache keyed on the character
+  // could not hold a filtered view anyway. Without this it would still pull
+  // the Sheet payload it no longer reads.
+  const selfFetching = isExtra || tab === "Archive";
   const { data, error, loading } = useInspectorData(
     inspected?.characterId ?? null,
     tab,
     cache,
     setCache,
-    isExtra,
+    selfFetching,
   );
 
   const isPinned = pinned.some((p) => p.characterId === inspected?.characterId);
   const pending = pendingByCharacter?.get(inspected?.characterId);
   const cacheKey = inspected ? `${inspected.characterId}:DMs` : null;
-  const archiveCacheKey = inspected ? `${inspected.characterId}:Archive` : null;
   const inspectedRoster = roster?.find((c) => c.id === inspected?.characterId);
   const inspectedUsername = inspectedRoster?.username;
   const inspectedRole = inspectedRoster?.roleTitle;
@@ -769,10 +865,7 @@ export default function InspectorColumn({
               ))}
             </dl>
           ) : null}
-          <p className="text-sm text-muted">
-            {emptyHint ??
-              "Click any character name — in the queue, on the desk, in the tray — to look them up here without leaving the workspace."}
-          </p>
+          {emptyHint ? <p className="text-sm text-muted">{emptyHint}</p> : null}
         </div>
       ) : (
         <>
@@ -837,14 +930,8 @@ export default function InspectorColumn({
               />
             )}
             {data && tab === "Moves" && <MovesView data={data} />}
-            {data && tab === "Archive" && (
-              <ArchiveView
-                data={data}
-                onOpenContext={setContextEntry}
-                characterId={inspected.characterId}
-                cacheKey={archiveCacheKey}
-                setCache={setCache}
-              />
+            {tab === "Archive" && (
+              <ArchiveView onOpenContext={setContextEntry} characterId={inspected.characterId} />
             )}
             {data && tab === "DMs" && (
               <DmsView data={data} characterId={inspected.characterId} cacheKey={cacheKey} setCache={setCache} />

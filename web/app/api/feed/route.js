@@ -272,10 +272,16 @@ export async function GET(request) {
       // The fifth event: a DirectMessage for this account, already shaped for
       // the player and already past the desk's noise filter (feedHub.js). No
       // cursor and no catch-up — the pane refetches its page on open and on a
-      // reconnect (CHAT.md §2b). A GM with no character has a desk for this;
-      // a ghost has nothing else, and it is where the word that they have
-      // been buried, or brought back, arrives.
-      const unsubscribeDm = viewer.character || viewer.options?.ghost
+      // reconnect (CHAT.md §2b). A GM with no character at all has a desk for
+      // this; a ghost has nothing else, and it is where the word that they
+      // have been buried, or brought back, arrives.
+      //
+      // `playing` and not just `character`: a GM reading from the GM seat has
+      // their character withheld here on purpose (loadFeedViewer), but the DM
+      // thread belongs to the ACCOUNT rather than the body — the same rule
+      // Chat.js draws the Messages row by — so taking the watcher's chair must
+      // not cost them their own mail.
+      const unsubscribeDm = viewer.character || viewer.playing || viewer.options?.ghost
         ? subscribeToDm(viewer.discordUserId, (row) => {
             write(`event: dm\ndata: ${JSON.stringify(row)}\n\n`);
           })

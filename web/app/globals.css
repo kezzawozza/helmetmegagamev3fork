@@ -1845,6 +1845,12 @@ input[type="radio"]:disabled {
 .status-pill[data-tone="muted"] { color: var(--muted); }
 .status-pill[data-tone="good"] { color: var(--positive); }
 .status-pill[data-tone="warn"] { color: var(--warning); }
+/* Between neutral (--text) and muted: the middle rung of a WEIGHT ladder, not
+   a colour. AdminNote severity is the first user — High/Medium/Low is one
+   scale, where good/warn/bad is three kinds, so a Low note must read as quiet
+   rather than as "fine". Mixed between --text and --muted, so it cannot fail a
+   contrast gate that --muted does not already fail. */
+.status-pill[data-tone="subdued"] { color: color-mix(in oklab, var(--text) 55%, var(--muted)); }
 .status-pill[data-tone="bad"] { color: var(--danger); }
 .status-pill[data-tone="accent"] { color: var(--accent-text); }
 
@@ -2123,6 +2129,17 @@ input[type="radio"]:disabled {
   color: var(--text);
 }
 
+/* The verb itself, at the foot of a pinned panel on a touch screen
+   (ActionButton.js). Full width and separated by a rule, so the panel reads as
+   a description with one thing to do at the bottom rather than as a paragraph
+   somebody dropped a button into. */
+.tag-tooltip-do {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+}
+
 .tag-tooltip strong {
   display: block;
   margin-bottom: 2px;
@@ -2243,8 +2260,11 @@ input[type="radio"]:disabled {
 
 .modal-overlay {
   /* The pinned .modal-header's own height, declared where every descendant
-     inherits it — .modal-substick offsets against it. */
-  --modal-head-h: 3.5rem;
+     inherits it — .modal-substick offsets against it. DERIVED, not measured:
+     .modal-header is --sp-4 of padding top and bottom around a .section-title,
+     and the hand-written 3.5rem that used to sit here was 1px short of that,
+     so every substick bar slid a pixel under the header. */
+  --modal-head-h: calc(var(--sp-4) * 2 + var(--fs-lg) * var(--lh-heading));
   position: fixed;
   inset: 0;
   z-index: 100;
@@ -2949,7 +2969,11 @@ input[type="radio"]:disabled {
   border-color: var(--accent-text);
 }
 
-.action-tile:disabled {
+/* aria-disabled rides alongside :disabled because a touch screen cannot use the
+   real attribute here: a disabled button dispatches no click, and the tap is how
+   the panel that explains WHY it is greyed gets opened at all (ActionButton.js). */
+.action-tile:disabled,
+.action-tile[aria-disabled="true"] {
   cursor: not-allowed;
   opacity: 0.45;
 }
@@ -2995,7 +3019,8 @@ input[type="radio"]:disabled {
   border-color: var(--accent-text);
 }
 
-.icon-btn:disabled {
+.icon-btn:disabled,
+.icon-btn[aria-disabled="true"] {
   cursor: default;
   opacity: 0.4;
 }
@@ -3626,11 +3651,6 @@ input[type="radio"]:disabled {
   gap: 1rem 1.5rem;
 }
 
-/* The three switches under the band: Play on Discord too, Concealed, Curse.
-   Not tiles — a tile opens on hover to say one thing, and these carry live
-   controls, which cannot live inside a <button> that is itself the control.
-   So they get their own row: state and verb on one line, the sentence that
-   explains them underneath, always visible. */
 /* The identity line: face, then name and where they stand. Not
    .ledger-identity — that one carries `flex: 1 1 22rem` for the sheet's band,
    where it sits in a flex ROW beside the tiles. Here the band is a column, so
@@ -3651,29 +3671,6 @@ input[type="radio"]:disabled {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
   gap: var(--sp-2);
-}
-
-.dev-switches {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: var(--sp-2);
-}
-
-.dev-switch {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  background: var(--field-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  padding: var(--sp-2) var(--sp-3);
-  min-width: 0;
-}
-
-.dev-switch-note {
-  font-size: var(--fs-2xs);
-  line-height: 1.45;
-  color: var(--muted);
 }
 
 /* The action bar's clusters — Life, Body, Admin. A named group each, because
@@ -3745,6 +3742,45 @@ input[type="radio"]:disabled {
 }
 
 
+/* ── Admin notes (PLAYER-DESK.md §7, DEV-PANEL.md §3) ────────────────────── */
+
+/* One component, two mounts: a tab of the shared inspector on /gm/players and
+   a tab of the Dev Character Panel. Keyed on the PLAYER, so the same list sits
+   under every character they have ever had. Sits between the two sections for
+   the two surfaces that mount it. */
+.admin-note-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Severity, author and date on one quiet line above the note itself, with the
+   delete pushed to the end of it rather than given a row of its own. */
+.admin-note-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.admin-note-meta .admin-note-delete {
+  margin-left: auto;
+}
+
+/* The body is the content, and it keeps the line breaks a GM typed. */
+.admin-note-body {
+  white-space: pre-wrap;
+  font-size: var(--fs-sm);
+}
+
 /* ── Adjudication workspace (docs/systemdocs/ADJUDICATION.md) ───────────── */
 
 /* A full-viewport workspace — no PageShell, no centred max-width
@@ -3799,7 +3835,13 @@ input[type="radio"]:disabled {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 19rem minmax(0, 1fr) 22rem;
+  /* 23rem, not 19: /gm/turns' lens strip carries six tabs and their counts,
+     and at 19 the labels ran over each other (see .desk-rail-lens button).
+     /gm/players shares this rule on purpose — the two are sibling desks and a
+     rail that changed width when you switched between them would read as the
+     page moving under you. The literal is repeated in the 1024px block below;
+     both have to move together. */
+  grid-template-columns: 23rem minmax(0, 1fr) 22rem;
 }
 
 .desk-rail,
@@ -3820,17 +3862,48 @@ input[type="radio"]:disabled {
    left leaves a gap that reads as a missing third tab. Adjudication-only: the
    player rail has no lenses (one queue, not several), so this class belongs
    to /gm/turns' QueueRail alone. */
+/* THREE ACROSS, TWO DEEP — not one row of six.
+   Measured, because the arithmetic was wrong twice: at the rail's width the
+   six labels want about 415px of text and one row gives them 341px, so every
+   tab was clipping its own name. Three columns give each one ~113px against a
+   92px worst case ("Desires (14)"), with room to spare.
+   A count never leaves its label this way, which was the complaint about the
+   first attempt, and no label is cut, which was the complaint about the
+   second. The strip costs one more line of rail height; six unreadable tabs
+   cost more than that.
+   Still .segmented, so the joined-pill look has to survive becoming a block:
+   the rules below put the seams back. */
 .desk-rail-lens {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   /* No bottom margin: .desk-rail-filters sits directly under this and brings
      its own 0.75rem of top padding, so a margin here would stack into a
      1.5rem trench that only /gm/turns has. */
   margin: 0.75rem 0.75rem 0;
 }
+/* .segmented draws a border-left on every button but the first, which is the
+   right seam for one row and the wrong one for a grid: it wants no left edge
+   at the START OF EACH ROW, and a top edge on the second row. */
+.desk-rail-lens button:nth-child(3n + 1) {
+  border-left: none;
+}
+.desk-rail-lens button:nth-child(n + 4) {
+  border-top: 1px solid var(--border);
+}
 .desk-rail-lens button {
-  flex: 1;
-  /* Four lenses (Moves/Requests/Caving/History) share 19rem minus margins;
-     .segmented's default padding and tracking fit three, not four. */
+  /* `nowrap` keeps a label and its count on one line — "Moves" sitting above
+     "(4)" reads as two broken rows rather than one tab. `overflow: hidden` is
+     the backstop that stops that same nowrap running OVER the next tab if a
+     count ever gets long enough to beat the grid's ~113px; shrinking a box
+     without clipping its text is exactly how `Moves (13)` ended up printed
+     across `Caving`. `min-width: 0` lets a grid track shrink below its own
+     content at all, which is what makes the clip possible rather than the
+     overflow.
+     Tighter tracking than .segmented's default, which is set for three
+     comfortable tabs rather than six. */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
   padding-inline: 6px;
   letter-spacing: 0.02em;
 }
@@ -4727,6 +4800,48 @@ label.chip {
 
 /* A transcript row that opens ArchiveContextModal — full-width so the whole
    line is a click target, styled to disappear back into the row it wraps. */
+/* The Archive tab's own chrome. The tab pages /api/archive under these
+   filters (InspectorColumn.js), so the controls sit above a list that
+   remounts whenever one of them moves. Three short lines rather than one
+   row, because this column is 22rem and a segmented control does not
+   scroll the way .tab-bar does. */
+.desk-archive {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+/* Sticky against .desk-inspector-body, the scroll port: an endless list whose
+   filters scroll away leaves a GM ten screens down with no way to narrow
+   without going back up. Needs its own background or rows show through. */
+.desk-archive-filters {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.desk-archive-filter-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-2);
+}
+
+/* The scroll sentinel. It needs real height, or an empty element at the end
+   of the list can never intersect and the next screen is never asked for. */
+.desk-archive-more {
+  display: flex;
+  justify-content: center;
+  min-height: var(--sp-5);
+  align-items: center;
+}
+
 .desk-archive-row {
   display: block;
   width: 100%;
@@ -5631,7 +5746,7 @@ label.chip {
 @media (max-width: 1024px) {
   .desk-body--turns,
   .desk-body--players {
-    grid-template-columns: 19rem minmax(0, 1fr);
+    grid-template-columns: 23rem minmax(0, 1fr);
   }
 
   .desk-inspector-toggle {
@@ -6341,7 +6456,12 @@ label.chip {
      alternative is pull-to-refresh, or the page behind a drawer moving. */
   overscroll-behavior: contain;
   border-right: 1px solid var(--border);
-  padding: var(--sp-3) 0;
+  /* NO bottom padding, and that is load-bearing: the tail below is sticky, and
+     a sticky box cannot leave its containing block — which ends at this
+     column's CONTENT box. Bottom padding here parked the foot that far above
+     the window's edge and you read the scene through the strip underneath it.
+     The tail supplies its own bottom padding instead. */
+  padding: var(--sp-3) 0 0;
 }
 
 .chat-aside {
@@ -6411,12 +6531,6 @@ label.chip {
 .chat-aside-tabs > .desk-inspector-zones {
   padding-inline: 0;
   margin-top: auto;
-}
-
-/* The "Playing from the web" chip, in the foot beside the chime toggle. The
-   foot is a flex row and carries the padding now, so the chip carries none. */
-.chat-webonly {
-  margin: 0;
 }
 
 /* The centre is itself a column: the phone's tab strip, then the scene. */
@@ -7191,6 +7305,22 @@ label.chip {
   padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
+/* Out of character (db/lib/ooc.js) — the PLAYER talking, not the character and
+   not the world. Subtext-sized like the scenery, because none of it is
+   happening in the room either, but its own rule so it can be told from a
+   smell or a gate crossing at a glance: the accent border is the whole tell.
+   The body already carries its `[OOC]:` tag, so nothing here needs to say it
+   twice. Wears no face, like every other SYSTEM row, so it keeps the same
+   face-gutter indent. */
+.chat-ooc {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  margin-top: var(--sp-2);
+  margin-left: calc(var(--chat-face) + var(--sp-3));
+  padding-left: var(--sp-2);
+  border-left: 2px solid var(--border);
+}
+
 /* The scroller and the jump-to-bottom pill. The wrapper exists only to give
    the pill something to be positioned against. */
 .chat-feed-wrap {
@@ -7217,20 +7347,82 @@ label.chip {
   white-space: nowrap;
 }
 
+/* The bar the box floats in. No border-top any more: the container below
+   draws its own edge, and a rule across the window on top of it framed the
+   composer twice. */
 .chat-composer {
   display: flex;
   align-items: flex-end;
   gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-4);
-  border-top: 1px solid var(--border);
+  padding: var(--sp-2) var(--sp-4) var(--sp-3);
   flex-shrink: 0;
 }
 
-/* The box grows with its text (Feed.js sets the height off scrollHeight, up
-   to about six lines), so nothing here may pin it. */
+/* Speak / Shout / OOC, folded INSIDE the box. As narrow as its longest label
+   and no narrower — it must not take room from the words, which are the thing
+   anybody is actually aiming at.
+
+   The trigger is a `.control`, so it draws its own recessed surface and border.
+   Inside the container that is a frame around a frame, so it drops both and
+   reads as a label you can press. It keeps the app's focus ring: the global
+   :focus-visible rule is untouched, and must stay that way — the caret
+   argument that lets the textarea go without one does not apply to a
+   dropdown. */
+.chat-composer-box .chat-mode-select {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  /* Same height as everything else on the row. `.control` brings `padding: 8px
+     10px` and a 1px border, which made this 32px next to a 26px send — and the
+     row is align-items: flex-end, so three heights meant three different text
+     positions. The trigger is already a centred flex box, so a height is all it
+     takes; no padding maths, and it survives a font-size change. */
+  height: 26px;
+  padding: 0 var(--sp-1);
+}
+
+.chat-composer-box .chat-mode-select:hover {
+  color: var(--text);
+}
+
+/* Bare inside the container — the box draws the surface, the border and the
+   radius, so drawing them again here is the double-framed look this replaced.
+   The box grows with its text (useComposerAutosize sets the height off
+   scrollHeight, up to about six lines), so nothing here may pin it. */
 .chat-composer textarea {
   resize: none;
   overflow-y: auto;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: var(--sp-1) 0;
+  /* border-box so a height here means what it means on the buttons beside it.
+     A textarea's scrollHeight ALREADY includes its padding, so assigning it to
+     a content-box height added that padding a second time and drew the box 8px
+     taller than its own text. */
+  box-sizing: border-box;
+}
+
+.chat-composer textarea::placeholder {
+  color: var(--muted);
+}
+
+/* Discord shows nothing on focus and lets the caret say where you are. Ours
+   drew `outline: 2px solid var(--accent-text)` with a 2px gap, so a focused
+   box read as two frames with a light leak between them.
+
+   Scoped HARD, and deliberately: the global :focus-visible rule at the top of
+   this file is untouched, and the picker, the ✉, the tools and the send inside
+   this same box all keep their ring. Only the textarea has a caret to stand in
+   for one. */
+.chat-composer .chat-composer-box textarea:focus-visible {
+  outline: none;
 }
 
 /* The phone's send: the same glyph button the Bascinet pane uses, drawn in
@@ -7251,7 +7443,7 @@ label.chip {
 /* The + on the phone's composer: the ✉ and the hood, folded behind one
    button at the LEFT edge of the box (Discord's), so it sits first in the
    row and its menu opens to the right rather than off the screen. */
-.chat-composer-tools--folded {
+.chat-composer > .chat-composer-tools--folded {
   order: -1;
 }
 
@@ -7997,21 +8189,26 @@ label.chip {
     position: static;
   }
 
-  /* One-line box, and 16px so iOS does not zoom the page on focus. */
+  /* One-line box, and 16px so iOS does not zoom the page on focus. The 44
+     floor lives on the textarea and on `.chat-shell .icon-btn` in the
+     coarse-pointer block below, so the container is 44 plus its own border and
+     nothing else — the same height this row has always been here, in one frame
+     instead of three. */
   .chat-composer {
     padding-top: var(--sp-2);
     padding-bottom: calc(var(--sp-2) + env(safe-area-inset-bottom, 0px));
     gap: var(--sp-1);
   }
 
-  .chat-composer textarea {
-    font-size: max(16px, var(--fs-sm));
-    min-height: 44px;
+  .chat-composer-box {
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
-  .chat-composer-keys,
-  .chat-countdown {
-    padding-bottom: 0;
+  .chat-composer textarea {
+    font-size: max(16px, var(--fs-sm));
+    min-height: var(--tap);
+    padding: var(--sp-2) var(--sp-1);
   }
 }
 
@@ -8128,10 +8325,71 @@ label.chip {
   box-shadow: 0 6px 20px var(--shadow-color);
 }
 
+/* ONE container, the way Discord's composer is one container: the Speak
+   picker, the ✉, the words and the send all live inside it. The row used to be
+   three bordered rectangles standing in a line — a dropdown, a recess, and a
+   solid orange slab as tall as both — which is three objects to read before
+   you can type into one of them.
+
+   --surface, not --field-bg. Every other input in the app is a recess cut into
+   a panel and should be; a composer is not a hole in the page, it is the place
+   you type, so it sits one step ABOVE the feed's --bg rather than below it.
+   That also puts it on the exact surface audit-contrast.js measures --text,
+   --muted and --accent-text against, which the old --field-bg recess never was.
+
+   NEVER give this `overflow: hidden`. The / and @ menus and the ✉ menu are
+   absolutely positioned against it and hang off the top. */
 .chat-composer-box {
   position: relative;
   min-width: 0;
   flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-1) var(--sp-2);
+}
+
+/* The quiet half of a focus indicator. The textarea's own ring is dropped —
+   the caret is what says where you are — but "nothing at all" is not what this
+   box should do when focus lands in it, so the edge it already has answers,
+   instead of a 2px accent halo held 2px off the frame. */
+.chat-composer-box:focus-within {
+  border-color: var(--accent);
+}
+
+/* The one row inside: what voice you are in, your hands, the words, the send.
+   flex-end so the controls stay level with the LAST line as the box grows to
+   six. */
+.chat-composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+/* The desktop send, inside the box and at a button's own size. Frameless at
+   rest like the ⋯ on a feed row; the frame comes back under the pointer and
+   the ring under the keyboard. */
+.chat-composer-row .chat-composer-tools .icon-btn,
+.chat-composer-send {
+  border-color: transparent;
+  background: transparent;
+}
+
+/* Restated rather than left to .icon-btn:hover — the selectors above are more
+   specific than it, so they would win at hover too and the frame would never
+   come back. */
+.chat-composer-row .chat-composer-tools .icon-btn:hover,
+.chat-composer-send:hover {
+  color: var(--text);
+  background: var(--row-hover);
+  border-color: var(--accent-text);
+}
+
+/* There is something to send. A glyph, not a fill: the fill is the phone's
+   (.chat-send), where it is the thing a thumb aims at. */
+.chat-composer-send:not(:disabled) {
+  color: var(--accent-text);
 }
 
 /* The Bascinet pane's composer foot: a send that failed, and the counter
@@ -8208,15 +8466,6 @@ label.chip {
 
 .chat-cmd-strip-out:hover {
   color: var(--text);
-}
-
-/* The keys, spelled out once beside the send. Nothing on the page said Enter
-   would send, and a desktop had no send button at all until 2026-09-09. */
-.chat-composer-keys {
-  font-size: var(--fs-2xs);
-  color: var(--muted);
-  align-self: center;
-  white-space: nowrap;
 }
 
 /* Only drawn where a command actually caps its text. The refusal used to be
@@ -8320,7 +8569,7 @@ label.chip {
   font-size: var(--fs-2xs);
   color: var(--muted);
   white-space: nowrap;
-  padding-bottom: var(--sp-2);
+  align-self: center;
   flex-shrink: 0;
 }
 
@@ -8404,13 +8653,32 @@ label.chip {
   margin-top: auto;
 }
 
+/* View as: GM / Player, the first row of the tail. Only a gamemaster who is
+   also playing somebody gets one — everybody else has nothing to switch to.
+   The label is a label, not an explanation: there is no tooltip here. */
+.chat-view-as {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-3) 0;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+
+.chat-view-as .segmented {
+  margin-left: auto;
+}
+
+.chat-view-as .segmented button {
+  padding: var(--sp-1) var(--sp-2);
+}
+
 .chat-places-foot {
-  padding-bottom: var(--sp-2);
   display: flex;
   align-items: center;
   gap: var(--sp-2);
   flex-wrap: wrap;
-  padding: var(--sp-3) var(--sp-3) 0;
+  padding: var(--sp-3) var(--sp-3) var(--sp-2);
   font-size: var(--fs-2xs);
 }
 
@@ -8470,6 +8738,18 @@ label.chip {
   /* A square stays a square: the floor is a width as well as a height. */
   .chat-shell .icon-btn {
     min-width: var(--tap);
+  }
+  /* The composer's other two, so the row stays ONE line on a touch screen.
+     The icon buttons above are floored at any width, but the textarea's own 44
+     lives in the 720px block — so a tablet in landscape (coarse pointer, wide
+     viewport) drew a 34px box between two 44px buttons. That is the tablet case
+     this block is keyed on the pointer for in the first place. */
+  .chat-shell .chat-composer textarea {
+    min-height: var(--tap);
+  }
+
+  .chat-shell .chat-composer-box .chat-mode-select {
+    height: var(--tap);
   }
   /* 36 is for a label you may also press, inside prose. */
   .chat-shell .chip,
@@ -9126,6 +9406,7 @@ label.chip {
   outline-offset: 2px;
 }
 
+.action-strip-item[aria-disabled="true"],
 .action-strip-item[data-muted="true"] {
   color: var(--muted);
   border-style: dashed;
@@ -9315,7 +9596,10 @@ label.chip {
 }
 
 /* The verbs: hidden until the row is hovered or holds focus on a pointer
-   device, always drawn on a touch one — there is nothing to hover there.
+   device. On a touch one they are not in this box at all — TagRow.js and
+   ItemCard.js render them inside the opened details instead, so this block
+   only ever governs a mouse. They used to be drawn permanently here, which
+   put Use and Destroy beside the face a finger taps to read the row.
 
    EVERY box that renders RowVerbs has to be named in the reveal below, or its
    verbs are hidden with no way to bring them back. The item card learned that
@@ -9352,6 +9636,22 @@ label.chip {
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   font-size: var(--fs-xs);
+}
+
+/* On a touch screen the verbs are not on the line at all — TagRow.js and
+   ItemCard.js put them at the foot of the opened details instead, because a
+   finger has no hover and the block above only ever hid them from a mouse.
+   Here they are a row of actions under the description rather than a stray
+   inline run, so the rule above them is doing the same job the rule over a
+   dialog's footer does. */
+.sheet-row-details .sheet-row-verbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-sm);
 }
 
 /* ── The rig (EquipBoard.js) ──
@@ -9588,8 +9888,11 @@ button.equip-cell-face:focus-visible {
   width: 100%;
   height: 100%;
   /* The board pans, so the page must not: a two-finger drag over the map is
-     for the map. */
+     for the map. And a drag on a map is a pan, never a text selection — without
+     this, sweeping across the plate highlights every place name it passes and
+     leaves them blue until you click elsewhere. */
   touch-action: none;
+  user-select: none;
   cursor: grab;
 }
 
@@ -9753,6 +10056,16 @@ button.equip-cell-face:focus-visible {
    a phone, in the 640px block at the foot of this section. */
 .map-hud {
   display: contents;
+}
+
+/* The two floating boxes over the board. Neither is anything to read out of:
+   they are a switch, four buttons and a count, and a pan that ends on one
+   should not leave "12 of 56" highlighted behind it. Set on the boxes rather
+   than on .map-hud, which is display: contents on a desktop and so draws
+   nothing of its own. */
+.map-layers,
+.map-controls {
+  user-select: none;
 }
 
 .map-layers {
@@ -9987,12 +10300,79 @@ button.equip-cell-face:focus-visible {
     inset: auto 0 0 0;
     z-index: 1;
     width: auto;
-    max-height: 32dvh;
+    /* Shut: the caption bar and nothing else. `fit-content` rather than a
+       number, because the bar is one line of text and pinning a dvh figure to
+       it would only be a guess at the font. */
+    max-height: fit-content;
+    padding: var(--sp-2);
     border-radius: var(--r-md) var(--r-md) 0 0;
   }
 
+  .map-card[data-open],
   .map-card[data-picked] {
     max-height: 62dvh;
+    padding: var(--sp-3);
+    overflow-y: auto;
+  }
+
+  /* The bar itself: where you stand, and a chevron that lifts the sheet. It is
+     a whole-width tap target on purpose — it is the one control on the board
+     that is always there, and a phone player reaches for it more than for
+     anything else on the page. */
+  .map-peek {
+    all: unset;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    width: 100%;
+    min-height: var(--tap);
+    padding: 0 var(--sp-2);
+    cursor: pointer;
+    color: var(--text);
+    font-size: var(--fs-sm);
+  }
+
+  .map-peek:disabled {
+    cursor: default;
+    color: var(--muted);
+  }
+
+  .map-peek-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Points the way the sheet is about to go. */
+  .map-peek svg {
+    flex-shrink: 0;
+    color: var(--muted);
+    transition: transform 120ms ease;
+  }
+
+  .map-peek[aria-expanded="true"] svg {
+    transform: rotate(180deg);
+  }
+
+  /* The way out of a picked card. Cancel cannot do this job: it is gated
+     behind !isHere, so the place you are standing in has none (MapBoard.js). */
+  .map-card-close {
+    all: unset;
+    position: absolute;
+    top: var(--sp-1);
+    right: var(--sp-2);
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--tap);
+    height: var(--tap);
+    cursor: pointer;
+    color: var(--muted);
+    font-size: var(--fs-sm);
   }
 
   /* Gone on a phone. Pinch is the zoom here, and the bar sat over the top-left

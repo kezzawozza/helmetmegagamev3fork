@@ -7,6 +7,7 @@ import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { cookedTasteOnly } from "@/lib/referenceData";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
@@ -62,6 +63,9 @@ export async function loadActionRoster({ need = [] } = {}) {
       canHeal: people.canHeal,
       healsLeft: people.healsLeft,
       healTargets: people.healTargets,
+      canMiracle: people.canMiracle,
+      miraclesLeft: people.miraclesLeft,
+      miracleTargets: people.miracleTargets,
       peopleParties: people.peopleParties,
       transferParties: people.transferParties,
       lootTargets: people.lootTargets,
@@ -94,7 +98,7 @@ export async function loadActionRoster({ need = [] } = {}) {
         const tag = cookedTasteOnly(ct.tag);
         return tag === ct.tag ? ct : { ...ct, tag };
       }),
-      resources: character.resources,
+      resources: resourcesOf(character),
       carry: carryStatus(character, gameConfig),
     };
   }

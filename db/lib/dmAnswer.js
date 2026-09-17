@@ -4,7 +4,7 @@
 // awaits it inline, web defers to after() (awaiting Discord in a server
 // action freezes the app). Stays per-face and cannot be lifted: DM button
 // removal, Discord User fetch/send (gateway vs. REST, ARCHITECTURE.md §3),
-// the nickname sync, and room access/carry drop (web/lib/afterInventoryChange.js
+// and room access/carry drop (web/lib/afterInventoryChange.js
 // runs them inside after()). Takes `prisma`, NOT on the @lifeweb/db barrel — require by path.
 const { DM_ACTION, DM_CHOICE } = require("./dmActions");
 const { acceptLesson, declineOffer } = require("./lessons");
@@ -13,6 +13,7 @@ const { acceptConfession } = require("./confession");
 const { acceptKiss } = require("./kiss");
 const { acceptSearch } = require("./search");
 const { acceptEscort } = require("./escort");
+const { syncPartyMembership } = require("./partyChat");
 const { acceptThreatSpawn, declineThreatSpawn } = require("./threatSpawn");
 const { declineAssignment } = require("./lobby");
 const { holdKeyedOpen } = require("./gates");
@@ -26,7 +27,7 @@ const GONE = "That offer's gone.";
 const NOT_YOURS = "That's not yours to answer.";
 
 function empty(extra = {}) {
-  return { dms: [], sideEffects: { spawn: null, nicknameSyncDiscordUserId: null, roomSyncCharacterIds: [], carryDrop: null, boundNotification: null, ...extra } };
+  return { dms: [], sideEffects: { spawn: null, roomSyncCharacterIds: [], carryDrop: null, boundNotification: null, ...extra } };
 }
 
 // Lifted from bot/src/lib/offers.js so the web can share it instead of reinventing it.
@@ -89,6 +90,9 @@ async function answerOffer(prisma, { id, discordUserId, choice }) {
   const base = empty();
   base.dms = result.dms ?? [];
   if (result.ok && result.boundId) Object.assign(base.sideEffects, await afterBind(prisma, result.boundId));
+  if (result.ok && accepting && offer.kind === "ESCORT") {
+    await syncPartyMembership(prisma, offer.initiatorId).catch(() => {});
+  }
   return { ok: result.ok, line: result.ok ? result.line : result.reason, ...base };
 }
 
@@ -101,7 +105,7 @@ async function answerThreatSpawn(prisma, { id, discordUserId, choice }) {
   const result = await acceptThreatSpawn(prisma, id, discordUserId);
   if (!result.ok) return { ok: false, line: result.reason, ...empty() };
 
-  const out = empty({ spawn: result.sideEffects, nicknameSyncDiscordUserId: discordUserId });
+  const out = empty({ spawn: result.sideEffects });
 
   // A seat with a `brief` (the Thanati — db/lib/threats.js) says what it is only NOW, to somebody who accepted; a decline never reads the doctrine.
   if (result.threat.brief?.length) {

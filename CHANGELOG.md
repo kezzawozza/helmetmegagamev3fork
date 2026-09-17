@@ -6,6 +6,190 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · The composer's row actually sits on one line now
+
+✎ The Speak picker, the text and the send button were each at a slightly different height inside the message box. They are all on one line now, on a desktop, a tablet and a phone.  
+✎ The box says "Say something…" instead of "Say something in {place}…". The long version wrapped onto a second line on a phone and got cut off, and the place is named right above the box anyway. A hood still says "Say something as {alias}…", since that one is about the name you are wearing.  
+✚ On a tablet held in landscape the box was drawn shorter than the two buttons beside it. Fixed.  
+✚ An empty box on a phone drew itself two lines tall before anybody had typed, because it was sizing itself to fit the wrapped placeholder. It is one line until you write something.
+
+## 2026-09-17 · Mood gains from drinks, meals, music, kisses and confessions are all up about 15%
+
+✎ Shelter, the Cathedral, every drink and treat, a fulfilled Desire, Confession, Kiss and Music all lift the mood dial a bit more than before
+
+## 2026-09-17 · The composer is one box now, and the hood button is gone
+
+✎ The message box on /chat is one rounded container, the way Discord's is: the Speak picker, the ✉ and the send all sit inside it. It was three separate bordered boxes standing in a line, with a solid orange Send slab stretched to the full height of the middle one.  
+✎ The box is one line at rest instead of two, and still grows to about six as you type. Bascinet's reply box and the GM's system box match it.  
+✎ Clicking into the box no longer wraps it in an orange halo — the box's own edge lights up instead.  
+− "Enter to send · Shift+Enter for a line" is gone from the box. It was the longest thing in the composer, at full size, for something you learn on your first message.  
+− The hood button beside the send. /conceal puts a hood up and takes it off, on the web the same as on Discord.  
+✚ /conceal now actually updates the page. It never did: the deleted button was the only thing that refreshed afterwards, so running the command toggled the hood and left the box still calling you by your own name until you navigated away.  
+✚ The GM's system box could not draw at all — its send button was built wrong and threw, so a GM opening a place they cannot speak in hit a broken page. Fixed.
+
+## 2026-09-17 · The game no longer touches anybody's Discord nickname
+
+✎ Metempsychosis used to rename your Discord account to the stranger you woke up as — it does not any more, and neither does anything else
+− Nickname syncing, and every place the game cleared a nickname: on death, on hiding a character from Discord, on deleting one, and on a Restart Game wipe
+✎ Whatever your server nickname says is yours to set; the GM panel still shows it
+
+## 2026-09-17 · Fix a typo and cost on the Crucifix
+
+✎ crucification is now crucifixion  
+✎ resourceCost down from 6 to 3  
+− -
+
+## 2026-09-17 · Chat feed stops nudging toward the archive at a turn wipe
+
+✎ The floored backlog edge now says nothing instead of pointing at /archive  
+− -
+
+## 2026-09-17 · Pages stopped loading when the site got busy
+
+✎ Chat, the sheet and the GM desks could all fail with "That page didn't load" while the server was under load — worst on the Messages pane, since that is what people open Chat for  
+✎ The cause was the page asking who you are a second time, late, after the browser had already given up waiting; every page now reuses the answer the site already had
+
+## 2026-09-17 · Remove stray skull glyphs
+
+✎ Drop the death emoji from the staged-effect label and the skull from Feed Person and REQUESTS.md
+
+## 2026-09-17 · The who's-here menu now checks your own sheet
+
+✎ Perform Miracle no longer appears on the person menu for anyone who isn't a Saint — it was the one surface that ignored the button's own rules, so every player saw it  
+✎ Heal and Kiss now grey out there too, with the same reason the sheet gives, instead of opening a dialog that refuses
+
+## 2026-09-17 · Read the whole roster once instead of one member at a time
+
+✎ The web app reads Discord's member list once instead of asking about each player separately, which is what was rate-limiting everyone
+
+## 2026-09-17 · Gambits roll at submit so GMs can start adjudicating early
+
+✎ A Gambit's die is now thrown the moment the Move is sent, not three hours before the turn closes, so a GM can work the desk all day instead of waiting for Moves to lock. Players are told nothing until the turn closes, exactly as before.  
+✎ The die belongs to the character and the day, not to the Move. Rewrite your Move, take it back and send a different one, or have a GM change its kind — it is the same die every time. That is what lets it be rolled early without becoming a re-roll button to fish with.  
+✎ Taking a Move back does not give Inspired back. The die it bought is still the die you will get.  
+✎ Hunger and mood are still read at lock-in, so the die says what you rolled and the modifier says how you were when the day ended. Until then the desk says "modifiers at lock-in" beside the number, so nobody rules against a total that is still going to move.  
+✎ Typing /ooc or /shout on the web now offers to Send, not to Run  
+✎ The family headings in the Claim a Desire list no longer get sliced by the rows scrolling under them
+
+
+## 2026-09-17 · The GM pages stopped loading, and why
+
+✎ A private-room invite Discord keeps refusing is now remembered and left alone for ten minutes instead of being retried on every single request — the retries were eating the whole Discord budget  
+✎ Guild lookups on a page load give up in about a second now, rather than sitting through a minute and a half of rate-limit waits and holding the page open until the browser gave up  
+✎ A lookup that just failed is not immediately tried again, so one bad minute no longer feeds itself
+
+## 2026-09-17 · Oracle: dial the token cap back to 10000
+
+✎ 200000 was reckless; 10000 is still well above any observed page and keeps a runaway model from burning the budget.
+
+## 2026-09-17 · Oracle: lift the per-page token cap
+
+✎ The 1800/1400 caps were tuned for gpt-class models; nano-gpt's deepseek runs long and every page came back truncated. Raised to 200000 so the model's own context is the ceiling.
+
+## 2026-09-17 · Fix /chat crash for a GM whose selected place goes away
+
+✎ The 'Post as Bascinet' composer added an inverted null-guard: when place is undefined, the ordinary composer branch entered and dereferenced place.canSpeak, throwing before the page could render. A GM whose selected place stopped existing between the SSR pass and hydration (party removed, zone deselected, room access lost) hit it every time. One-line fix: guard on 'place &&' before reading place.canSpeak.
+
+## 2026-09-17 · Craft picker shows the whole ladder once you hold a rare skill
+
+✎ A player who bought Arelitz Breeding could only see Ovum and Thoroughbred; the Warbeast recipe was hidden because its ingredient (Graga Sac) is GM-catalog.  
+✎ A recipe whose required skills are ALL non-public now bypasses the missing-ingredient hide and is greyed with the usual 'You don't have the X it uses.' hint instead.  
+✎ Common skills (Crafting/Smithing/Cooking/Brewing) keep their anti-spam gate.
+
+## 2026-09-17 · Party backfill: sync each leader instead of just reconciling existing threads
+
+✎ The first pass assumed a live PartyThread existed and only stamped overwrites. In reality no thread had ever been opened — the escort chains predated the deploy. Backfill now calls syncPartyMembership per leader, which opens the thread, stamps overwrites, adds mirrored members. Two live parties reconciled.
+
+## 2026-09-17 · Party auto-add: open #party per member before inviting to the thread
+
+✚ A per-member overwrite on #party is stamped before addThreadMember, so private-thread invites don't 403 for lack of parent view. Cleared when a member leaves the party or the thread is torn down. Deadchat's shape.  
+✚ Every catch in partyChat now logs — the 403s were silent, which is how the bug shipped.  
+✚ db:backfill-party-members reconciles the two live party threads whose members were dropped by the same 403.
+
+## 2026-09-17 · Block one character's avatar uploads
+
+✎ A GM toggle on the character dev panel refuses new uploads from that person only. The current picture stays; the portrait maker still works; the global switch is unaffected.
+
+## 2026-09-17 · GMs can post as Bascinet on /chat, and /gm reaches the web
+
+✎ In GM view on /chat every place a GM can see grows a small "Post as Bascinet" composer, which drops a system line into that place — a Room, a Location, a zone summary, a radio net, even a private conversation. The line posts to Discord too, so nobody is one audience short.  
+✎ /gm on Discord now also writes the same system row into the archive, so /chat readers of that channel see it. It was Discord-only before; a GM who typed /gm into a Room's thread watched the players in the room read it while the web feed of the same room said nothing. /ooc already reached the web via its own path.
+
+## 2026-09-17 · docs/tags: mark pickpocket's slug rename deliberate
+
+✎ The 2026-09-16 rename to Pickpocketing (Basic) kept the slug on purpose (the comment above it says so), but forgot the keepSlug: true marker. Pre-Deploy's sync-tags refused every deploy after until this landed.
+
+## 2026-09-17 · Party chat, and Deadchat loses its subtitle
+
+✚ A party is now a chat: each party gets its own channel under Radio on the web, and a private thread under #gameplay on Discord. Members added and dropped as parties form, travel and split.  
+✚ Party talk bleeds — like a whisper — to a random public room in the party's location. Same fragment on Discord and in Chat.  
+− The Deadchat description under its name is gone; the name is enough.
+
+## 2026-09-16 · Two new ways to take something that isn't yours
+
+✚ Steal, on any stash you can reach. The goods always move — a die only decides whether the room is told you did it  
+✚ Pickpocket, on anybody standing near you. You get 15 lb, or 30 as a master, and on a poor roll they feel your hand  
+✎ Pickpocketing is a skill anyone can buy now, 3 points, instead of a Brigand-only tag  
+✚ Pickpocketing (Skilled), 2 points, Brigands only — almost never fails, and carries twice as much  
+✎ Stealth, Clumsy and how drunk you are all move the Steal die
+
+## 2026-09-16 · A reincarnation lands on man or woman, never the third pool
+
+✎ A soul coming back through Metempsychosis rolls between Man and Woman now, not the three-way flip that could seat them as gender-neutral. Locked roles (Baroness/Heir/Successor) still win as before.
+
+## 2026-09-16 · Saint's Perform Miracle button
+
+✚ A Saint gets a Perform Miracle button — two free instant cures a turn on somebody else's Moderate or lesser wound. Own pool, no Medical training needed  
+✎ Saint's description is rewritten from "once per day, Moderately Severe or lesser" to "twice a turn, Moderate or lesser"
+
+## 2026-09-16 · Two hoods in a room stop reading as one speaker
+
+✎ Two Young Men in one scene render as two speakers on Discord, not one collapsed block.
+
+## 2026-09-16 · OOC lines name the speaker, and mentions ping
+
+✎ The line reads [OOC (Alice): hi] now — the presented identity, so a hooded speaker stays hooded ("A young man") and a forced name still forces. Same rule /speak already uses.  
+✎ @somebody in an OOC line pings them on Discord. @everyone/@here and role mentions still don't.
+
+## 2026-09-16 · The GM desk loads again
+
+✎ It stopped loading for every GM this morning right after OOC shipped — a client component reached a helper that drags Prisma into the browser bundle, so the workspace crashed on hydration.
+
+## 2026-09-16 · OOC works on the radio and in a zone summary
+
+✚ You can now use /ooc on a radio net and in a zone summary, not just in a room or a conversation  
+✎ Shout, Play and Roll are unchanged — those are things your character does, so they still only work in a room or a conversation
+
+## 2026-09-16 · Reincarnations are younger
+
+✎ A reincarnated soul rolls a random age from 18 to 49 now, down from 18 to 65 — no more elderly reincarnations
+
+## 2026-09-16 · Drawbacks can claim back 8 again, and OOC lines link to their scene
+
+✎ The drawback point cap drops to 8, matching the new starting budget  
+✎ Fixed the OOC backlink, which had been failing silently — a GM's OOC lens can open the surrounding scene again
+
+## 2026-09-16 · Fewer points at creation, and a smaller second life
+
+✎ Characters now start with 8 points to spend instead of 12  
+✎ A reincarnated soul gets 4 bonus points instead of 6
+
+## 2026-09-16 · Dragging the map no longer highlights its text
+
+✎ A drag across the map is a pan, not a text selection — the place names and the zoom bar no longer light up blue when you sweep past them
+
+## 2026-09-16 · A View as switch on /chat, and the name behind a hood
+
+✚ View as: GM / Player at the foot of the places column, for a gamemaster who is also playing a character  
+✚ While viewing as a GM, a concealed speaker reads as "Young Man (Greeblus)" in the scene and in the Here list, instead of the alias alone  
+− The "Playing from the web" chip  
+✎ The foot of the places column no longer leaves a strip of the scene showing underneath it
+
+## 2026-09-16 · Subtle says what it does
+
+✎ The Subtle tag now reads "Your whispers can't be heard by others." It used to claim the room never notices you doing it, which read as a general sneaking bonus the tag has never had
+
+
 ## 2026-09-16 · A mask hides your name, not your body
 
 ✚ You can attack, bind, torture, crucify, shackle, harm, mutilate and brand somebody whose face is covered — they show in the picker as the room sees them  

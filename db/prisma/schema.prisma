@@ -384,7 +384,7 @@ model GameConfig {
   // role's own `extra_starting_points` and the Cursed penalty are applied
   // (see web/lib/characterCreation.js#computeBudget). Editable live from
   // the Dev Panel so it can be tuned right up to launch.
-  startingTagPoints Int @default(12)
+  startingTagPoints Int @default(8)
 
   // Whether a role that grants a faction Leader seat still requires the
   // @Leader Whitelist Discord role (db/lib/roleIds.js). Off means every player
@@ -452,13 +452,17 @@ model GameConfig {
   equipSlots Int @default(10)
 
   // Carry caps: how many POUNDS of tradeable tags and how many ⬢ a character
-  // can hold before they are Overburdened (docs/systemdocs/CARRY.md). Base
-  // values, raised or lowered by the sum of every ACTIVE Tag.carryBonus. Going over is
+  // can hold before they are Overburdened (docs/systemdocs/CARRY.md). A base
+  // value, raised or lowered by the sum of every ACTIVE Tag.carryBonus. Going over is
   // allowed up to 1.5× (carry.js HARD_CAP_RATIO); past that the goods cannot
   // enter the sheet at all. Assets — a horse, a cart, a house — are exempt
   // from the weight load entirely. Live on /gm/dev.
+  //
+  // There was a second cap here, carryResourceCap, counting ⬢ separately at 25
+  // a head. It died in 9/2026 with the ⬢ columns: Resources are a one-pound
+  // item now, so they push against THIS cap beside everything else and a
+  // character choosing between a fortune and their armour is the point.
   carryWeightLbs   Int @default(71)
-  carryResourceCap Int @default(25)
 
   // Free zone crossings per character per turn, before a crossing starts
   // spending the Move (docs/systemdocs/CARRY.md §2). An equipped mount adds
@@ -489,7 +493,7 @@ model GameConfig {
   // every drawback carries a negative pointCost, so nothing has to do a sign
   // dance to compare against it. It matches startingTagPoints on purpose:
   // you can never claim back more than you started with.
-  maxDrawbackPoints Int @default(13)
+  maxDrawbackPoints Int @default(8)
 
   // How many Desire slots a character has, each of which can be claimed into
   // once every desireSlotLockTurns turns. Same live-editable posture as
@@ -498,8 +502,11 @@ model GameConfig {
 
   // Whole turns a Desire slot stays shut after a Desire is claimed into it.
   // A claim on turn N leaves the slot shut on N and open again on
-  // N + desireSlotLockTurns + 1 (db/lib/desireGates.js#slotStates).
-  desireSlotLockTurns Int @default(1)
+  // N + desireSlotLockTurns + 1 (db/lib/desireGates.js#slotStates). At 2, a
+  // claim on turn N reopens the slot on N + 3. This is the throttle on Desire
+  // INCOME — it was 1 from 2026-09-07 until 2026-09-16, which turned out to
+  // pay Tag Points faster than the economy wanted.
+  desireSlotLockTurns Int @default(2)
 
   // Expected total number of players, the denominator for every role's seat
   // cap: a role with `weight: 6` in docs/roles.yaml gets
@@ -538,6 +545,12 @@ model GameConfig {
   // who can open this one is already dead.
   deadchatCategoryId String?
   deadchatChannelId  String?
+
+  // PARTY CHAT (db/lib/partyChat.js): one private thread per party, hung off a
+  // parent channel under the Gameplay category. Provisioned by the mirror; the
+  // per-party threads are opened live by the escort flow.
+  gameplayCategoryId String?
+  partyChannelId     String?
 
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
@@ -876,8 +889,8 @@ model Faction {
   slug String @unique
   name String
 
-  // Where this faction banks: a Room, whose own `resources` and RoomTag
-  // stacks ARE the silo (CARRY.md, FACTIONS.md). There is no faction-level
+  // Where this faction banks: a Room, whose RoomTag stacks ARE the silo, ⬢
+  // included (CARRY.md, FACTIONS.md). There is no faction-level
   // balance -- a Silo model existed until 9/2026 and is not coming back.
   // Seeded create-only from roles.yaml's `silo:`, then owned by the faction's
   // officers. SetNull, so pruning a room in db:sync-zones unpoints the silo
@@ -1334,6 +1347,7 @@ model Location {
   quests           Quest[]
   characters       Character[]
   playerThreads    PlayerThread[]
+  partyThreads     PartyThread[]
   startingForRoles Role[]          @relation("RoleStartingLocation")
   yields           LocationYield[]
   noticePosts      NoticePost[]
@@ -1551,9 +1565,9 @@ model Room {
 
   // A room that eats what is put into it. Set from `destroys: true` in
   // docs/zones.yaml; the Godard Factory's Spillway is the only one. A
-  // Transfer whose destination carries this never writes a RoomTag or touches
-  // Room.resources — the lines are recorded on the request's effect instead,
-  // so a GM can still Undo. See docs/systemdocs/CARRY.md.
+  // Transfer whose destination carries this never writes a RoomTag at all —
+  // the lines are recorded on the request's effect instead, so a GM can still
+  // Undo. See docs/systemdocs/CARRY.md.
   destroysContents Boolean @default(false)
 
   // The walls hold a shout in. Set from `soundproof: true` in
@@ -1582,12 +1596,14 @@ model Room {
   starterMessageId String?
   postHash         String?
 
-  // The stash. ⬢ left lying in this room, moved only through
-  // db/lib/resourceTransfer.js#moveParty with a `room:` party, and the tag
-  // stacks below. Unlimited on purpose — a room is where you put what you
-  // can't carry (docs/systemdocs/CARRY.md).
-  resources Int       @default(0)
-  tags      RoomTag[]
+  // The stash. Everything left lying in this room, ⬢ included: Resources are
+  // an ordinary one-pound item (docs/tags.yaml `resources`) held in a RoomTag
+  // row like anything else, read and written through
+  // db/lib/resourceStack.js. There was an Int column here until 9/2026 and a
+  // ⬢-shaped special case in every writer with it.
+  // Unlimited on purpose — a room is where you put what you can't carry
+  // (docs/systemdocs/CARRY.md).
+  tags RoomTag[]
 
   // Which stash slugs this room has EVER been seeded with, from
   // docs/zones.yaml's `stash:`. seedRoomStash writes a slug only while it is
@@ -1773,6 +1789,51 @@ model PlayerThreadMember {
 /// threadId deliberately carries no FK to PlayerThread so the doctor can
 /// clean the two independently; characterId is a plain id for the same
 /// reason.
+/// PARTY CHAT (db/lib/partyChat.js). One private thread per party — the leader
+/// bringing anyone along opens it; the last passenger put down tears it down.
+/// Keyed on the ORIGINAL CREATOR's character (`creatorCharacterId @unique`),
+/// so a leader has at most one party thread at a time and the name stays
+/// frozen even if leadership shifts. Hung off the parent channel named by
+/// `GameConfig.partyChannelId`, under the Gameplay category — not a Location
+/// channel, because a party moves with the leader.
+///
+/// characterId inside PartyThreadMember carries no FK, matching
+/// PlayerThreadMember: the row is keyed to the PartyThread and cascades with
+/// it, and a wiped character takes its rows through the game wipe rather than
+/// through a constraint here.
+model PartyThread {
+  id       String @id @default(cuid())
+  threadId String @unique
+  name     String
+
+  creatorCharacterId String @unique
+
+  currentLocationId String?
+  currentLocation   Location? @relation(fields: [currentLocationId], references: [id], onDelete: SetNull)
+
+  lastActivityTurn Int?
+  lastActivityAt   DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members PartyThreadMember[]
+
+  @@index([currentLocationId])
+}
+
+model PartyThreadMember {
+  partyThreadId String
+  partyThread   PartyThread @relation(fields: [partyThreadId], references: [id], onDelete: Cascade)
+
+  characterId String
+
+  createdAt DateTime @default(now())
+
+  @@id([partyThreadId, characterId])
+  @@index([characterId])
+}
+
 model PlayerThreadInvite {
   threadId    String
   characterId String
@@ -1978,7 +2039,10 @@ model Character {
   isLeader    Boolean         @default(false)
   isTreasurer Boolean         @default(false)
   status      CharacterStatus @default(ALIVE)
-  resources   Int             @default(0)
+
+  // No `resources` column. ⬢ are a one-pound item held in the `tags` stack
+  // below (docs/tags.yaml `resources`), read and written only through
+  // db/lib/resourceStack.js — see docs/systemdocs/ECONOMY.md §1.
 
   // When this body went into the ground, set by a BURY_CHARACTER request.
   // Nullable, so the column is both the flag and the record of when. A buried
@@ -2018,8 +2082,9 @@ model Character {
   // The LOAD is stored, never the derived cap, for the same reason the old
   // multiplier watermark stored the multiplier: a cap is a thing the GM moves,
   // and moving it must not read as "you just picked something up".
-  carryWeightSeen    Float @default(0)
-  carryResourcesSeen Int   @default(0)
+  // Only the pounds now: the ⬢ watermark beside it went when ⬢ became a
+  // weighed item and started counting in carryWeightSeen like everything else.
+  carryWeightSeen Float @default(0)
 
   // The free zone crossings this character has already spent, and the turn
   // they were spent in (docs/systemdocs/CARRY.md §2). Everyone gets
@@ -2205,6 +2270,13 @@ model Character {
   avatarSetAt      DateTime?
   avatarReviewedAt DateTime?
 
+  // Per-character brake on the upload branch of updateCharacterProfile, for
+  // when one player is spamming the review queue. Refuses new uploads only —
+  // the current avatar stays, and the portrait maker still works.
+  // GameConfig.avatarUploadsEnabled is still the global kill switch; both
+  // gate together.
+  avatarUploadBlocked Boolean @default(false)
+
   // The portrait maker's selection as JSON — part indices and palette indices,
   // never pixels. avatarData holds the render; this holds what it was built
   // from, so reopening the modal resumes where the player left off instead of
@@ -2333,6 +2405,12 @@ model Character {
   // (docs/systemdocs/SEARCH.md §4). Same two-ended shape as the catches above.
   searchesOfThem   SearchAttempt[] @relation("SearchTarget")
   searchesTheyMade SearchAttempt[] @relation("SearchSearcher")
+  pocketsPicked    PickpocketAttempt[] @relation("PickpocketThief")
+  pocketsOfTheirs  PickpocketAttempt[] @relation("PickpocketTarget")
+
+  // One thrown d6 per turn, whatever this character does with their Move
+  // (docs/systemdocs/ADJUDICATION.md). See GambitDie below.
+  gambitDice GambitDie[]
 
   // Fights this character started, and fights started on them
   // (docs/systemdocs/ATTACK.md). Two relations to the same table, so both
@@ -3014,6 +3092,23 @@ model Tag {
   // requirement block below, and the medic must hold requirementSkills.
   healable Boolean @default(false)
 
+  // Which rung of the cure ladder this wound sits on (TAGS.md §5c): 0 for
+  // untreatable, up to 7 for the complex surgery even an Expert rolls for.
+  // Float because the ladder has half rungs (0.5 and 3.5).
+  //
+  // AUTHORED, as of 9/2026, rather than worked out from the price. It used to
+  // be reverse-engineered in db/lib/mood.js#woundRungOf, which at 2 ⬢ could
+  // only tell a Simple wound from a Moderate one by whether the cure's work
+  // denominator was 4 or 3. Costs are decimals now and that denominator is
+  // gone, so the ladder is written down instead of inferred — which also
+  // means a wound's severity and its price can be tuned separately, and the
+  // mood dial no longer moves when somebody reprices a cure.
+  //
+  // Null on everything that is not a wound, and on a GM- or runtime-minted
+  // tag that never went through the catalog; woundRungOf falls back to the
+  // old price reading for those.
+  cureRung Float?
+
   // teachable: Learn / Teach can move it between characters
   // (docs/systemdocs/LESSONS.md).
   teachable Boolean @default(false)
@@ -3036,23 +3131,31 @@ model Tag {
   // requirementResources and needs requirementSkills held by the medic;
   // Craft (docs/systemdocs/CRAFTING.md) needs requirementSkills held by the
   // crafter, charges requirementResources up front, and spends
-  // requirementTurns Moves of work per unit (0 = Dead Simple, no Move; the
-  // YAML's fractional `turnsCost: 1/N` stores as 1 here with N in
-  // requirementPerTurn below). requirementGambit is a cure-only flag:
-  // crafting is always a Routine.
-  requirementTurns     Int?
+  // requirementTurns Moves of work per unit. requirementGambit is a cure-only
+  // flag: crafting is always a Routine.
+  //
+  // Moves, in QUARTERS: 0 is Dead Simple (no Move at all, rationed instead),
+  // 0.25 / 0.5 / 0.75 are shares of one Routine, 1 is the whole of it, and 2+
+  // is a multi-turn project. Authored as a decimal in docs/tags.yaml and
+  // refused by db/lib/tagShapes.js#normalizeTurnsCost unless it lands on a
+  // quarter. It was an Int until 9/2026, with a fractional `turnsCost: 1/N`
+  // folded into requirementPerTurn below as its denominator — which is why
+  // that column meant two things, and why a wound's severity used to be
+  // readable off its price.
+  requirementTurns     Float?
   requirementResources Int?
   requirementGambit    Boolean @default(false)
 
-  // Two authoring concepts share this column, told apart by requirementTurns
-  // (CRAFTING.md §2). At 0 turns it is a RATION — the YAML's `perTurn:`, a
-  // hard daily cap below the Dead Simple pool; null falls back to
-  // DEAD_SIMPLE_PER_TURN (web/lib/tagRequests.js). At 1 turn it is the WORK
-  // DENOMINATOR the sync derives from `turnsCost: 1/N` — each unit is 1/N
-  // of a turn's work (web/lib/craftBudget.js), and null means a whole turn:
-  // one per Routine by arithmetic. Never authored directly on a Move-costing
-  // recipe (normalizeTurnsCost refuses it). A project (2+ turns) makes one
-  // unit, full stop.
+  // A RATION, and ONLY a ration since 9/2026: the YAML's `perTurn:`, a hard
+  // daily cap on how many of a Dead Simple recipe one character may make,
+  // below the shared pool. Null falls back to DEAD_SIMPLE_PER_TURN
+  // (web/lib/tagRequests.js). Only meaningful at requirementTurns 0, and
+  // normalizeTurnsCost refuses it anywhere else.
+  //
+  // It used to carry the work denominator of a `turnsCost: 1/N` recipe as
+  // well, told apart by requirementTurns. Work is a decimal on
+  // requirementTurns now, so the overload is gone — do not put a second
+  // meaning back in here.
   requirementPerTurn Int?
   requirementSkills  Tag[] @relation("TagRequirementSkill")
   requiredForSkillOf Tag[] @relation("TagRequirementSkill")
@@ -4178,12 +4281,24 @@ model ConversationMeta {
   // as handled while it is at or after the conversation's last message, so the
   // next inbound DM puts the row back in the awaiting pile with no cleanup.
   handledAt              DateTime?
-  // When a GM muted this conversation. Desk-side only — nothing about the
-  // bot's behaviour toward the player changes, and their DMs still arrive.
-  // A muted row leaves the rail (behind a "Show muted" toggle), renders
-  // greyed when shown, and stops counting toward unread/awaiting. Unlike
-  // handledAt above this does NOT expire: it holds until a GM unmutes.
-  mutedAt                DateTime?
+}
+
+// A GM's personal mute on a player's conversation. Per-GM by design (unlike
+// the shared claim/handled marks on ConversationMeta) — a mute is one GM's
+// "I don't need to see this one" FYI, not a decision the whole desk shares.
+// Nothing about the bot's behaviour toward the player changes; their DMs
+// still arrive. The muted row leaves that GM's rail (behind a "Show muted"
+// toggle), renders greyed when shown, and stops counting toward that GM's
+// unread/awaiting. Snapshot ids, no relations/FKs — same log-table
+// convention as ConversationRead. A mute does not expire; unmute deletes.
+model ConversationMute {
+  id                  String   @id @default(cuid())
+  gmDiscordUserId     String
+  playerDiscordUserId String
+  mutedAt             DateTime @default(now())
+
+  @@unique([gmDiscordUserId, playerDiscordUserId])
+  @@index([playerDiscordUserId])
 }
 
 // A player's personal note on a message in a Location channel — created by
@@ -4514,6 +4629,99 @@ model SearchAttempt {
   @@index([targetCharacterId])
 }
 
+// A hand in somebody's pocket (docs/systemdocs/THEFT.md §2). One row per thief
+// per target per turn, and this one row does TWO jobs on purpose.
+//
+// It is the RATION — the insert is the claim, the SearchAttempt discipline
+// (SEARCH.md §3). Pickpocket has no cooldown behind it, so a count-then-create
+// would not be race-proof, and the claim has to survive a failed roll or
+// failing would be a free retry.
+//
+// And it is the AUTHORIZATION for the second half. Pickpocket is two acts —
+// roll, then pick what to take — and the take re-reads this row to learn
+// whether it may happen at all and how many pounds are left. That is why the
+// die and the budget are columns rather than something handed to the browser:
+// an authorization that travelled through a client is not one.
+//
+// Deliberately NOT an Offer. Every Offer in the game is a consent handshake —
+// it DMs buttons, it expires in offerExpiryPass.js, it is voided by death, and
+// it shows up in the responder's waiting-on-you list in /chat. A pickpocket
+// target is never asked anything and on a good roll is never told, so the one
+// surface an Offer would light up is exactly the one that must stay dark.
+model PickpocketAttempt {
+  id String @id @default(cuid())
+
+  thiefId String
+  thief   Character @relation("PickpocketThief", fields: [thiefId], references: [id], onDelete: Cascade)
+
+  targetCharacterId String
+  targetCharacter   Character @relation("PickpocketTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+
+  // Not a foreign key, the InterceptHit/SearchAttempt reasoning: a claim token,
+  // and deleting a turn must never cascade into somebody's spent ration. It is
+  // also what expires this row for free — the take looks it up by the CURRENTLY
+  // open turn, so a turn boundary invalidates the authorization with no sweep.
+  turnId String
+
+  die     Int
+  bonus   Int    @default(0)
+  // "clean" | "noticed" | "failed" (db/lib/pickpocket.js). The die is shown to
+  // nobody; this is the only record of which band it landed in.
+  outcome String
+
+  // What the roll bought, and how much of it is gone. spentLbs is claimed by a
+  // conditional updateMany whose WHERE is the check, so two tabs cannot both
+  // spend the last pound.
+  budgetLbs Float
+  spentLbs  Float @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@unique([thiefId, targetCharacterId, turnId])
+  @@index([targetCharacterId])
+}
+
+// The d6 a character's Gambit rides on, thrown ONCE per turn and bound to the
+// character rather than to their Move (docs/systemdocs/ADJUDICATION.md).
+//
+// It exists as its own row for one reason: withdrawing a Move DELETES the
+// Action (db/lib/moveEconomy.js#deleteActionRestoringTurn), so a die kept on
+// that row would vanish with it and a re-file would roll a fresh one. That is
+// the exact re-roll button this design exists to remove — the die is thrown at
+// submit so a GM can start adjudicating hours before the lock, and a player who
+// could withdraw their way to a better one would be fishing all afternoon.
+// Editing, withdrawing and re-filing, and a GM's kind flip, all read this row
+// back. There is nothing to shop for.
+//
+// The unique index IS the rule — the insert is the claim, the same shape as
+// PickpocketAttempt above. turnId is deliberately NOT a foreign key, for the
+// same reason it is not one there: a claim token, and deleting a turn must not
+// cascade into a die somebody already paid Inspired for.
+model GambitDie {
+  id String @id @default(cuid())
+
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  turnId String
+
+  // The die that was KEPT. Lucky throws twice (db/lib/advantage.js), so `rolls`
+  // holds both — the desk and the audit want to see the pair, not just the
+  // winner.
+  die   Int
+  rolls Int[]
+
+  // "lucky" | "inspired" | null. Load-bearing rather than decoration: it is the
+  // record that Inspired was already burned for this turn, so a re-file reading
+  // this row back can never burn it a second time.
+  advantageSource String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([characterId, turnId])
+  @@index([turnId])
+}
+
 // A fight somebody started (docs/systemdocs/ATTACK.md). One row per attacker
 // per target per turn, and the unique below IS the "attacking is permanent for
 // the turn" rule — the same shape as InterceptHit above, and for the same
@@ -4793,8 +5001,10 @@ model AuditLog {
 // gets a row, written inside the same transaction as the balance write it
 // records (db/lib/economyLedger.js). /gm/economy reads nothing else.
 //
-// This is a RECORD, never a source of truth for a balance. Character.resources
-// and Room.resources stay authoritative; the ledger's worth is that its sum
+// This is a RECORD, never a source of truth for a balance. The holdings stay
+// authoritative — a ⬢ balance is a CharacterTag/RoomTag stack
+// (db/lib/resourceStack.js), the Depot's columns are its own; the ledger's
+// worth is that its sum
 // per account can be compared against them, and a mismatch means something
 // wrote money without saying so. See docs/systemdocs/ECONOMY.md.
 //
@@ -5417,7 +5627,8 @@ enum OracleSynopsisKind {
   THREATS
 }
 
-// A GM's own notes about a player, on the player desk's dossier.
+// A GM's note about a PLAYER — moderation history, on the player desk's
+// inspector and the dev panel. Both surfaces mount one component.
 //
 // NOT to be confused with Note above, which is a PLAYER's personal list of
 // messages they starred with a reaction in a location channel. That one is
@@ -5426,13 +5637,38 @@ enum OracleSynopsisKind {
 //
 // Append-only short notes with attribution rather than one shared editable
 // field, because five GMs editing a single textarea race each other and the
-// loser's paragraph vanishes with no trace of who ate it. A GM may delete
-// their own.
+// loser's paragraph vanishes with no trace of who ate it.
 //
-// A real relation with a cascade, unlike the log tables (DirectMessage,
-// AuditLog) that store snapshot columns on purpose: a note is live data ABOUT
-// a character rather than a record of something that happened, and it has no
-// meaning once the character is gone.
+// Keyed on discordUserId, NOT characterId, and snapshot columns rather than a
+// relation — the log-table convention DirectMessage and AuditLog follow. This
+// is a record about an ACCOUNT. GmCharacterNote tried the other shape (a real
+// relation to Character, cascading) and that was the bug: a moderation note
+// that dies with the character is useless, since the character dies and the
+// player stays. It was dropped unused in 20260913030000_drop_gm_character_note.
+enum AdminNoteSeverity {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model AdminNote {
+  id String @id @default(cuid())
+
+  // The player the note is ABOUT.
+  discordUserId       String
+  // The GM who wrote it. A handle is resolved through DiscordAccount at read
+  // time rather than snapshotted, since a GM renaming themselves should not
+  // leave their old name on every note they ever wrote.
+  authorDiscordUserId String
+
+  body     String
+  severity AdminNoteSeverity @default(LOW)
+
+  createdAt DateTime @default(now())
+
+  @@index([discordUserId, createdAt])
+}
+
 // A threat seat offered to somebody who has no character yet: the GM presses
 // SPAWN on /gm/dev?s=assignments, this row is written, and the target gets a
 // DM carrying Accept / Decline. Accepting creates the character
@@ -5764,4 +6000,32 @@ model DiscordAccount {
 
   /// What a GM actually searches by.
   @@index([username])
+}
+
+/// A player stopped from talking out of character for a while (db/lib/ooc.js).
+/// A GM sets it from the OOC lens on /gm/turns; it stops `/ooc` and the
+/// composer's OOC mode, and NOTHING else — speech and shouting are a
+/// character's, and this is about the person.
+///
+/// Keyed on the ACCOUNT, not a character, for DiscordAccount's reason above:
+/// OOC is the player talking, so a player with two characters is one mute, and
+/// per-character copies could disagree with each other.
+///
+/// `until` is a DateTime rather than a flag plus a sweep — the keyed-way
+/// pattern Character.heldUntil already names (MAP.md §2b). It lapses on its
+/// own: no cron, no pass, no row to clean up, and one comparison against now()
+/// is the whole check. A row left behind past its time is simply not a mute.
+model OocMute {
+  /// The snowflake, as the key: one live mute per account by construction, so
+  /// setting one twice is an upsert rather than a second row to reconcile.
+  discordUserId String @id
+
+  /// When it lifts. Past this the row means nothing.
+  until DateTime
+
+  /// The GM who set it, for /gm/audit to read back beside the AuditLog row.
+  byDiscordUserId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

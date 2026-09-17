@@ -28,6 +28,7 @@ const LINES = {
   engrave: (res) => (res.headstone ? `The name is cut into the stone.` : `No stone took the name.`),
   disguise: (res, ctx) => `You go by ${named(ctx, res.name)} now.`,
   heal: (res, ctx) => `${named(ctx, "They")} ${ctx?.self ? "are" : "is"} treated.`,
+  miracle: (res, ctx) => `${named(ctx, "They")} is healed by a miracle.`,
   learn: (res, ctx) => `Offer sent — the lesson happens if they accept.`,
   teach: (res, ctx) => `Offer sent — the lesson happens if they accept.`,
   confess: () => `Offer sent — they hear you if they accept.`,

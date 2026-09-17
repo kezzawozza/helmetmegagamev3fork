@@ -8,6 +8,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { describeTurn } from "@/lib/turnFormat";
 import { listGuildMembers, listGmMembers, getGmSession } from "@/lib/discordGuild";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
+import { RESOURCES_SELECT, resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { inactiveCharacters, inactiveRows } from "@lifeweb/db/lib/inactivity";
 import { mirrorQueueStatus } from "@lifeweb/db/lib/discordMirror/queue";
 import { TRIAL_GM_ROLE_ID } from "@lifeweb/db/lib/roleIds";
@@ -540,7 +541,9 @@ export default async function DevPanelPage({ searchParams }) {
       devCharacters = (
         await prisma.character.findMany({
           orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-          include: { faction: true, zone: true },
+          // RESOURCES_SELECT rides along inside the include — ⬢ are a stack
+          // row now, so the count comes off the tag rather than a column.
+          include: { faction: true, zone: true, ...RESOURCES_SELECT },
           // Safety net against unbounded growth, not a real limit — far above
           // any realistic roster size for this game (100+ players).
           take: 1000,
@@ -555,7 +558,7 @@ export default async function DevPanelPage({ searchParams }) {
         factionName: c.faction?.name ?? "-",
         zoneName: c.zone?.name ?? "-",
         status: c.status,
-        resources: c.resources,
+        resources: resourcesOf(c),
       }));
       break;
     case "factions": {
@@ -816,7 +819,7 @@ export default async function DevPanelPage({ searchParams }) {
                 name: true,
                 discordUserId: true,
                 status: true,
-                resources: true,
+                ...RESOURCES_SELECT,
                 tagPoints: true,
                 location: { select: { name: true } },
                 zone: { select: { name: true } },
@@ -865,7 +868,7 @@ export default async function DevPanelPage({ searchParams }) {
             status: row.character.status,
             locationName: row.character.location?.name ?? null,
             zoneName: row.character.zone?.name ?? "",
-            resources: row.character.resources,
+            resources: resourcesOf(row.character),
             tagPoints: row.character.tagPoints,
             acquiredAt: row.acquiredAt.toISOString().slice(0, 10),
           };

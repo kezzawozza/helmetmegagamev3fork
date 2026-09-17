@@ -61,7 +61,19 @@ function fakePrisma({ counts = {}, rows = {} } = {}) {
     roomGuest: model("roomGuest"),
     playerThread: model("playerThread"),
     faction: model("faction"),
-    roomTag: model("roomTag"),
+    // ⬢ are a RoomTag row now (db/lib/resourceStack.js), not a `Room.resources`
+    // column — hardDeleteBlockers' readRoomResources looks up the `resources`
+    // tag's id, then that room's stack row by the compound key. `rows.roomTag`
+    // seeds those stack rows; `counts.roomTag` still answers the separate
+    // item-stack `.count` (which excludes the resources tag itself).
+    tag: { findUnique: async ({ where }) => (where.slug === "resources" ? { id: "tag-resources" } : null) },
+    roomTag: {
+      count: countFor("roomTag"),
+      findUnique: async ({ where }) => {
+        const key = where.roomId_tagId;
+        return rows.roomTag?.find((r) => r.roomId === key.roomId && r.tagId === key.tagId) ?? null;
+      },
+    },
   };
 }
 
@@ -91,7 +103,7 @@ test("retiring an already-retired place is a no-op success", async () => {
 test("hardDeleteBlockers lists every reference to a room", async () => {
   const prisma = fakePrisma({
     counts: { roomGuest: 2, playerThread: 1, faction: 1, roomTag: 0 },
-    rows: { room: [{ id: "r1", resources: 30, questId: null }] },
+    rows: { room: [{ id: "r1", questId: null }], roomTag: [{ roomId: "r1", tagId: "tag-resources", quantity: 30 }] },
   });
   const blockers = await hardDeleteBlockers(prisma, "room", "r1");
   assert.equal(blockers.length, 4); // guests, conversation, faction, and the 30 ⬢ stash — not roomTag (0)
@@ -99,7 +111,7 @@ test("hardDeleteBlockers lists every reference to a room", async () => {
 
 test("hardDeleteBlockers reports a nonzero stash and a minting quest too", async () => {
   const prisma = fakePrisma({
-    rows: { room: [{ id: "r1", resources: 30, questId: "q1" }] },
+    rows: { room: [{ id: "r1", questId: "q1" }], roomTag: [{ roomId: "r1", tagId: "tag-resources", quantity: 30 }] },
   });
   const blockers = await hardDeleteBlockers(prisma, "room", "r1");
   assert.ok(blockers.some((b) => b.includes("30 ⬢")));
@@ -120,7 +132,7 @@ test("hardDeletePlace refuses when blockers exist, and touches nothing", async (
 });
 
 test("hardDeletePlace on a clean room deletes the row and best-effort tears down its thread", async () => {
-  const prisma = fakePrisma({ rows: { room: [{ id: "r1", discordThreadId: "thread-1", resources: 0, questId: null }] } });
+  const prisma = fakePrisma({ rows: { room: [{ id: "r1", discordThreadId: "thread-1", questId: null }] } });
   const { calls, restore } = stubDiscord();
   try {
     const result = await hardDeletePlace(prisma, "room", "r1");
@@ -133,7 +145,7 @@ test("hardDeletePlace on a clean room deletes the row and best-effort tears down
 });
 
 test("hardDeletePlace never calls Discord for a room with no thread yet", async () => {
-  const prisma = fakePrisma({ rows: { room: [{ id: "r1", discordThreadId: null, resources: 0, questId: null }] } });
+  const prisma = fakePrisma({ rows: { room: [{ id: "r1", discordThreadId: null, questId: null }] } });
   const { calls, restore } = stubDiscord();
   try {
     await hardDeletePlace(prisma, "room", "r1");

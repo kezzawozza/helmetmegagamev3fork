@@ -189,15 +189,41 @@ tray as "unattached" for the GM to keep or drop.
   Move the *game* filed (a craft, a burial, a torture, a travel stub, a
   lesson) is a receipt for something that already happened. `Action.playerFiled`
   is what tells those apart, and it defaults false so it fails closed.
-- **The Gambit's die is thrown at the cutoff, not at submit.** `db/lib/
-  gambitCutoff.js`, a per-minute poll in the bot sharing `turnClock.js`'s
-  `cutoffReached` with the Oracle's own cutoff run, with a backstop at the
-  head of the staged push for a frozen clock or a bot that was down. This is
-  what makes the edit window safe rather than exploitable: while the die was
-  rolled at submit, an uncapped edit was a re-roll button. There is nothing to
-  fish for until the window shuts, and once it has shut nobody can touch their
-  Move. **A GM opening the desk before the lock sees "rolls at lock-in"
-  rather than a die** — working the desk after the lock is the intended order.
+- **The Gambit's die is thrown at submit, and it belongs to the character and
+  the turn rather than to the Move.** `db/lib/gambitDie.js`, called from
+  `moveConfirm.js` inside the confirming transaction. One row per character per
+  turn, and the unique index is the claim, so two submits racing can neither
+  throw twice nor spend Inspired twice. **A GM sees the die the moment it is
+  filed and can start adjudicating hours before the lock**, which is the whole
+  reason it moved.
+  The edit window survives that, and the binding is why. The die used to be
+  thrown at the cutoff precisely because rolling at submit made an uncapped edit
+  a re-roll button — flip Gambit → Routine → Gambit and fish all afternoon.
+  Delaying the roll removed the prize; so does binding it. An edit, a withdraw
+  and re-file, and a GM's kind flip on the desk all read the same number back,
+  so there is nothing to fish for. That matters most for **withdraw, which
+  deletes the Action row outright** (`moveEconomy.js#deleteActionRestoringTurn`)
+  — a die kept on that row would go with it.
+  **Withdrawing does not hand Inspired back.** The row is the spend, it outlives
+  the Action, and re-filing returns the same boosted die.
+- **What still happens at the cutoff is the MODIFIER.** `db/lib/gambitCutoff.js`,
+  a per-minute poll in the bot sharing `turnClock.js`'s `cutoffReached` with the
+  Oracle's own cutoff run, with a backstop at the head of the staged push for a
+  frozen clock or a bot that was down. Hunger and mood are read there, so the
+  die answers *what you rolled* and the modifier answers *how you were when the
+  day closed*. There is no randomness in a modifier, so nothing to fish for on
+  that side either. It also still throws a die for any row that somehow reached
+  the lock without one.
+  The pass picks its rows on **`playerFiled: true` and `diceModifier: null`**.
+  Not `diceRoll: null`, which is what it used to use — a player's Gambit carries
+  a die from submit now, so that no longer tells it apart from Research, the
+  forge's Trinket, an above-skill heal, a lesson or a confession, all of which
+  file their own Gambits pre-rolled. And not `diceModifier: null` alone, because
+  the Trinket deliberately leaves the modifier null and must not be stamped with
+  a Hunger penalty.
+  **Between submit and the lock the desk says `rolled 4 · modifiers at
+  lock-in`**, because the total on screen is still going to move and a GM should
+  not write a ruling against a number that changes under them.
 - **Reject is still the GM-side escape hatch**, and still the only way to
   return a Move that is not a pending Gambit: deletes the Action, frees the
   turn, DMs the player "Your Move
@@ -234,7 +260,8 @@ tray as "unattached" for the GM to keep or drop.
   See `TURN-ENGINE.md` for where in the push it fires.
 - **A Gambit's die is revealed by the push, and only by the push.** The d6 is
   rolled and stored at submit so the desk has it immediately, but the player
-  reads it in one DM at the turn close (`formatGambitRollDm`,
+  reads it in one DM at the turn close and not a minute before — not at the
+  lock, which is three hours earlier (`formatGambitRollDm`,
   `db/lib/stagedPush.js`) — landing beside the staged private messages that
   say what it actually did. Nothing else shows a player their own roll: not
   the confirm DM, not `/character`. Every confirmed Gambit gets the DM
@@ -504,7 +531,8 @@ instance is a change to the hub, not a slider.
   is open right now — Zone stays derived from what's actually loaded. The
   whole view survives a reload, split across three `sessionStorage` keys by
   write frequency (`web/app/components/useSessionState.js`): `gm-turns-rail`
-  (filters per lens, the two travel toggles, the active lens — subscribed,
+  (filters per lens — `moves`, `caving`, `other`, `desires`, `ooc`, `history`,
+  `history-caving` — the two travel toggles, the active lens — subscribed,
   click-frequency), `gm-turns-desk` (tray open/expanded, the inspected
   character, the History turn — Workspace.js's half), and `gm-turns-view`
   (search text and queue scroll position per lens — unsubscribed
@@ -527,6 +555,40 @@ instance is a change to the hub, not a slider.
   one a GM scrolls past. So a row still has **no desk**: clicking it, or `⏎`,
   opens the inspector on the person being held, and so does clicking any name
   in the strip. Each live pairing carries a ✕ that calls that one fight off.
+- **OOC lens** — every out-of-character line said this turn (`db/lib/ooc.js`),
+  newest first, with the speaker, the words and the place. It shipped read-only
+  and with no desk, on the argument that there is nothing a GM *does* to a
+  sentence already said. Reading it turned out to be the thing they do: a line
+  on its own ("is Mountaineering the skill for the Road by the Keep?") says
+  nothing about what prompted it. **So a row opens a desk now** — the
+  surrounding transcript with that line marked (`OocDesk.js`), which is
+  `ArchiveContext`, the same component the inspector's Archive tab opens in a
+  modal. One renderer, one fetch, one anchor rule between the two.
+
+  The desk carries the two verbs a GM actually has. **Message player** is
+  `onInspect(characterId, name, "DMs")` and nothing else — `inspect()` has
+  taken a tab argument all along, and "DMs" is already one of the inspector's
+  base tabs. **Mute OOC** takes a duration from a menu and stops `/ooc` and the
+  composer's OOC mode for that long, and nothing else: speech and shouting are
+  the character's, and a mute is about the person. It is keyed on the ACCOUNT
+  (`OocMute`, `schema.prisma`), so it follows a player across characters, and
+  `until` is the whole mechanism — the row lapses on its own, nothing sweeps
+  it. The player is told in a DM; lifting it early says nothing.
+
+  A row needs `details.archiveEntryId` to show its scene, stapled on by
+  `deliverOoc` at delivery — `getArchiveContext` takes an `ArchiveEntry` id and
+  the audit row is written before the scene row exists. A line said before that
+  backlink existed has none, and the desk says so rather than drawing an empty
+  scene.
+
+  The rows **are** the `AuditLog` rows the OOC rate limit already writes
+  (`actionType: "ooc"`) — there is no OOC table, and adding one would mean two
+  records of the same sentence that could disagree. Scoped to the open turn like
+  Moves and Caving, because unlike a portrait or a Desire claim this *is* a thing
+  that happened this turn, and capped at 200: a turn's chatter has no ceiling and
+  the rail is not a transcript. Sorted by recency alone, since no row is waiting
+  on anybody. Search covers the words themselves, which is what a GM chasing
+  "who said that" actually has.
 - **History lens** — the same rail over any turn, the open one included.
   Its two parameters sit on **one line of selects** above the filters —
   **Showing** (Moves or Caving) and **Turn** (the open turn first, marked
@@ -833,7 +895,10 @@ adjudicable the moment the Ram is a ruin.
 | `web/app/(desk)/layout.js` | The full-viewport route group's GM gate |
 | `web/app/(desk)/gm/turns/page.js` | RSC: queue, staged rows, catalog, roster — all DTOs |
 | `.../Workspace.js` | Client shell: selection, inspector context + cache, layout |
-| `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue |
+| `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue. **There is no tab registry** — the six lenses are a `LENSES` whitelist in `Workspace.js`, a hand-written button each in the `.desk-rail-lens` strip, and a branch each in one ternary. Adding a seventh means touching all three, plus `parseSelection` in `page.js` if it takes a deep link |
+| `.desk-rail-lens` (globals.css) | **Three across, two deep — measured, not guessed.** Six labels want about 415px of text and one row of a 23rem rail gives them 341, so every tab clipped its own name; the arithmetic was wrong twice before anybody put a browser on it. Three columns give each ~113px against a 92px worst case. `.segmented` draws one seam per row, so the grid puts the borders back by `nth-child`. The rail itself went 19rem → 23rem in `.desk-body`, and the literal is repeated in the 1024px block — both have to move together |
+| `.../OocDesk.js` | One OOC line in its scene, plus Message player and Mute OOC |
+| `web/app/components/ArchiveContext.js` | The "in context" slice itself — shared by that desk and `ArchiveContextModal.js`, which is only the frame now |
 | `web/lib/moveRows.js` | The Move / staged-effect / staged-message DTO mappers, shared by `page.js` and the History fetchers so they can't drift |
 | `.../deskStore.js` | The desk's client-owned rows: seed, patch, the newer-wins reconciliation rule |
 | `.../deskDraft.js` | What a GM has typed and not saved — the Result boxes and the Kind switch, keyed by row, mirrored to `localStorage`. Also the desk's record of WHICH rows are dirty, which is what `DeskStream.js` buffers against |

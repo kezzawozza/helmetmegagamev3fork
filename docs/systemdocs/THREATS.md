@@ -234,9 +234,8 @@ only code that had ever written a `Character` row:
 Everything Discord-side runs **after** the answer is written, best-effort, via
 `applySpawnSideEffects()`: the personal role (a mentionable name token held by
 nobody — access rides the zone role and the Location overwrite), placement
-through `applyLocationMoveSideEffects`, and the Ghost role dropped. The
-nickname sync stays on the bot, because `buildNickname` is duplicated per face
-on purpose and a third copy in `db/lib` would be a third thing to keep in step.
+through `applyLocationMoveSideEffects`, and the Ghost role dropped. Nothing
+here writes a Discord nickname — nothing in the game does (`PROXYING.md` §8).
 
 ### The spawn kit
 
@@ -247,8 +246,8 @@ display **names** despite the column's name, so the two are looked up
 separately and merged.
 
 Names are rolled from a per-gender list in `db/lib/threats.js`. They are
-plain: a name is written to `Character.name`, the Discord nickname and the
-personal role title, all worn as identity rather than read as prose.
+plain: a name is written to `Character.name` and the personal role title,
+worn as identity rather than read as prose.
 
 ## 5. The two GM sections
 

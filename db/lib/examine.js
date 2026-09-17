@@ -23,6 +23,7 @@ const {
 } = require("./presentedIdentity");
 const { turnsLeft, formatTurnsLeft } = require("./turnFormat");
 const { revealedTags } = require("./torture");
+const { resourcesOf, withoutResources, isResourcesRow } = require("./resourceStack");
 
 // TAG half split out for db/lib/examineSnapshot.js — name/armour/requirement are RULES, read live even for an old look.
 const EXAMINE_TAG_SELECT = {
@@ -50,12 +51,15 @@ const EXAMINE_SUBJECT_SELECT = {
   gender: true,
   updatedAt: true,
   roleTitle: true,
-  resources: true,
   factionId: true,
   faction: { select: { name: true, slug: true } },
   tags: {
     select: {
       equipped: true,
+      // ⬢ are one of these rows now, not a column on the character, so the
+      // officer's line below counts them off the tag set — which needs the
+      // quantity.
+      quantity: true,
       tag: { select: EXAMINE_TAG_SELECT },
       expiresTurn: true,
     },
@@ -96,7 +100,13 @@ function concealedReadout(identity, subject) {
     line: concealedLine(identity.alias),
     appearance: null,
     ailments: seen.filter(isHealth).map((ct) => ct.tag.name),
-    equipment: seen.filter((ct) => !isHealth(ct)).map((ct) => ct.tag.name),
+    // ⬢ are left out. The catalog already hides them (`visible: false` on
+    // `resources`, same as `obol`), so nothing reaches here today — this is
+    // the belt to that flag's braces, and it is worth keeping because the
+    // rule is not really about visibility: how much somebody holds is the
+    // officer-gated `resources` line below, and a bare "Resources" chip would
+    // announce to any passer-by that there is a balance worth taking.
+    equipment: withoutResources(seen.filter((ct) => !isHealth(ct))).map((ct) => ct.tag.name),
     tags: [],
     desire: null,
     roleTitle: null,
@@ -141,9 +151,14 @@ function examineReadout({
     ailments: [],
     equipment: [],
     tags: [
-      ...medicallyVisibleTags(subject.tags, satisfied, identityVisible).map((entry) =>
-        describeTag(entry, openTurnNumber),
-      ),
+      // Same rule as the bystander readout above, and likewise a no-op while
+      // the catalog hides ⬢. It stays because it is what stops an officer
+      // seeing "Resources" in the chip row AND "Resources: 12 ⬢" two lines
+      // under it, as if they were two different things, the day somebody makes
+      // the stack visible again.
+      ...medicallyVisibleTags(subject.tags, satisfied, identityVisible)
+        .filter((entry) => !isResourcesRow(entry.characterTag))
+        .map((entry) => describeTag(entry, openTurnNumber)),
       ...(viewerIsThanati ? thanatiLines(subject.tags) : []),
     ],
     // ABSENT, never "hidden" — a viewer without sight and nothing-to-read look the same.
@@ -151,7 +166,7 @@ function examineReadout({
     // Same-faction knowledge, not officer authority (FACTIONS.md §4a).
     roleTitle: inRealFaction(subject) && viewerFactionId === subject.factionId ? (subject.roleTitle ?? null) : null,
     // Leader/Treasurer of the subject's OWN faction sees their ⬢; caller resolves the seat (this file holds no prisma).
-    resources: inRealFaction(subject) && viewerIsOfficer ? subject.resources : null,
+    resources: inRealFaction(subject) && viewerIsOfficer ? resourcesOf(subject) : null,
   };
 }
 

@@ -52,7 +52,6 @@ function subject(tags, { concealed = false } = {}) {
     age: 40,
     gender: "MAN",
     roleTitle: "Brigand",
-    resources: 0,
     factionId: null,
     faction: null,
     tags,

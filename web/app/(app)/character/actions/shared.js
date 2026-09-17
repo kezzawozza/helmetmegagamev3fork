@@ -10,7 +10,7 @@ import {
   WHOLE_MOVE,
   addFractions,
   fitsInRemaining,
-  formatMoveFraction,
+  formatMoveAmount,
   ledgerRemaining,
   ledgerUsed,
 } from "@/lib/craftBudget";
@@ -127,10 +127,10 @@ export function checkCraftMove(action, need) {
     const asks =
       need.num >= need.den
         ? "a whole Move"
-        : `${formatMoveFraction(need.num, need.den)} of a Move`;
+        : `${formatMoveAmount(need.num, need.den)} of a Move`;
     throw new UserError(
       left.num > 0
-        ? `That takes ${asks}, and you have ${formatMoveFraction(left.num, left.den)} of this turn's Move left.`
+        ? `That takes ${asks}, and you have ${formatMoveAmount(left.num, left.den)} of this turn's Move left.`
         : `That takes ${asks}, and this turn's Move is spent.`,
     );
   }

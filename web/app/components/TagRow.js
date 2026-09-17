@@ -3,6 +3,7 @@
 import TagDetails from "./TagDetails";
 import TagMarks from "./TagMarks";
 import TagIcon from "./TagIcon";
+import { useIsCoarsePointer } from "./useIsCoarsePointer";
 
 // One tag as a line in the rail: the category's colour rule on the left, the
 // group's icon, the name, a stack count, and a right-aligned value the card
@@ -12,7 +13,16 @@ import TagIcon from "./TagIcon";
 // cure …"). Clicking the row opens the tag's full details inline beneath it,
 // the same block TagChip shows on hover elsewhere. No hover, no tooltip.
 //
-// `verbs` renders beside the value: RowVerbs, or nothing.
+// `verbs` renders beside the value: RowVerbs, or nothing — EXCEPT on a touch
+// screen, where they move down into the details block instead. A finger has no
+// hover, so on a phone the verbs were drawn permanently (globals.css keys the
+// hide on `hover: hover`), which put Use and Destroy a thumb's width from the
+// face you tap to read the row — and Use goes straight to the server with no
+// dialog behind it. A tap should mean "what is this?"; acting is a second tap,
+// from inside what the first one opened. Same shape as /chat's Things drawer.
+//
+// One render site rather than two hidden by CSS: the verbs would otherwise be
+// in the accessibility tree twice.
 export default function TagRow({
   ct,
   value = null,
@@ -27,6 +37,7 @@ export default function TagRow({
   const tag = ct.tag;
   const stack = (ct.quantity ?? 1) > 1 ? ct.quantity : null;
   const category = tag.category ? String(tag.category).toLowerCase() : null;
+  const coarse = useIsCoarsePointer();
 
   return (
     <li className="sheet-row" data-open={open ? "true" : undefined}>
@@ -48,7 +59,7 @@ export default function TagRow({
           </span>
           {note && <span className="sheet-row-note">{note}</span>}
         </button>
-        {verbs}
+        {!coarse && verbs}
         {value && (
           <span className="sheet-row-value mono" data-tone={value.tone ?? undefined}>
             {value.text}
@@ -72,6 +83,7 @@ export default function TagRow({
             // the time it reaches here (character/page.js).
             poisonMarker={Boolean(ct.poisonMarker)}
           />
+          {coarse && verbs}
         </div>
       )}
     </li>

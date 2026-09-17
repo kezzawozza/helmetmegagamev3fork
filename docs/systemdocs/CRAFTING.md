@@ -45,19 +45,26 @@ of it:
   refunded on cancel or on undo-by-GM of a mid-project turn. Paid by
   **yourself, a Room stash here, or a person standing here** (payer select;
   a person is DM'd "*X paid N ⬢ from your purse toward Y*").
-- `turnsCost` — the WORK one unit takes, in Moves. **0** is Dead Simple: no
-  Move, rationed to `DEAD_SIMPLE_PER_TURN` units a turn (SMITHING.md §2).
-  **1** is this turn's whole Routine — one per turn, by arithmetic. **`1/N`**
-  is a fraction of it: an Alcohol is `1/3`, so three fill a Routine and a
-  spare third takes more same-family work. **2+** is a project (§3), one
-  unit per project. Quantity is limited by this arithmetic alone (Chris
-  2026-09-06); the sync stores `1/N` as `requirementTurns: 1` +
-  `requirementPerTurn: N`, the engine's share encoding.
+- `turnsCost` — the WORK one unit takes, in Moves, as a **decimal on a
+  quarter**. **0** is Dead Simple: no Move, rationed to
+  `DEAD_SIMPLE_PER_TURN` units a turn (SMITHING.md §2). **0.25**, **0.5**
+  and **0.75** are shares of the Routine — four of the first fill it, two of
+  the second, one of the third with a quarter left over for more work of the
+  same family. An Alcohol is `0.25`, so four fill a Routine. **1** is this
+  turn's whole Routine — one per turn, by arithmetic. **2+** is a project
+  (§3), one unit per project, whole turns only. Quantity is limited by this
+  arithmetic alone (Chris 2026-09-06). Anything off a quarter is refused by
+  the sync, because the Move budget is exact rational arithmetic and a cost
+  it cannot hold exactly would let a character do work they never paid for.
+  It was a `1/N` fraction until 9/2026, stored as `requirementTurns: 1` +
+  `requirementPerTurn: N`; the decimal sits in `requirementTurns` itself now,
+  and the thirds went with the old encoding (§2a).
 - `perTurn` — a RATION, and **only legal at `turnsCost: 0`**: a hard daily
   cap below the Dead Simple pool (bliss at 2, bone-mask at 1). It is never a
   work cost — the sync refuses it on anything that costs a Move, because
-  for a while it did double duty as the work fraction and the two meanings
-  drifted (one Routine held 99 Broadswords). Work is `turnsCost`; the cap is
+  for a while it did double duty as the denominator of a `1/N` cost and the
+  two meanings drifted (one Routine held 99 Broadswords). Work is
+  `turnsCost`, and `0.25` is how you say "four a Routine"; the cap is
   `perTurn`.
 - `items` — the ingredients (`CORPSES.md` §8). **Spent by default**,
   `quantity` units per craft, taken off the crafter's own sheet **when the
@@ -97,7 +104,7 @@ stamped by `expiryForGrant`, the tiers below it replaced.
 
 ## 2a. The Move budget
 
-A Routine is one Move, and crafting can now spend it in **fractions**. The
+A Routine is one Move, and crafting can now spend it a **part at a time**. The
 rule is one Move's worth of work per turn — and, as of 2026-09-15, that Move
 can be split across any mix of families in the same turn, not just one.
 
@@ -106,16 +113,36 @@ can be split across any mix of families in the same turn, not just one.
 | Recipe | Cost of the Move |
 |---|---|
 | `turnsCost: 0`, inside its free allowance | nothing — a free action, as before |
-| `turnsCost: 0`, past the allowance | `1/allowance` per extra unit (a fifth Dead Simple item is ¼ of a Move) |
-| `turnsCost: 1/N` | `quantity/N` — each unit is 1/N of a turn's work |
-| `turnsCost: 1` | `quantity/1` — one is a turn's work |
+| `turnsCost: 0`, past the allowance | `1/allowance` per extra unit (a fifth Dead Simple item is 0.25 of a Move) |
+| `turnsCost: 0.25`, `0.5` or `0.75` | `quantity × turnsCost` — each unit is that much of a turn's work |
+| `turnsCost: 1` | one is a turn's work |
 | `turnsCost: 2+` — a project start or continue | the whole Move, every turn it runs — and ONE unit per project, its turns being per piece |
 
 The allowance is the recipe's own `perTurn`, or the shared Dead Simple pool of
 4. Going past it used to be refused outright; the ruling (2026-09-05) is that
 the allowance stays free and the units after it come out of the Move. So 4
-work knives are still free, the fifth costs ¼ of a Routine, and the ninth is
+work knives are still free, the fifth costs 0.25 of a Routine, and the ninth is
 impossible because the Routine is gone.
+
+**Decimals on the page, exact rationals underneath.** A cost is authored as a
+decimal on a quarter (§2) and a player reads it as one — "0.25 turns", "0.5
+of your Move". The budget does not hold it that way: `craftMoveCost`
+(`web/lib/craftBudget.js`) turns the decimal into a num/den pair once and
+exactly, and everything past that is integer arithmetic — added by
+`addFractions`, compared by cross-multiplication in `fitsInRemaining`, never by
+a float. That is the reason the quarter rule exists at all: a turn's Move has
+to close exactly, and a cost the ledger could only approximate would leave a
+sliver behind or come up short, which is a character doing work they never paid
+for. Costs were authored as `1/N` fractions until 9/2026, thirds among them;
+the thirds are what this argument finally cost.
+
+**A spill denominator is still whatever the ration is.** The quarter rule
+binds what a recipe may be *authored* as; it does not bind what the ledger can
+hold. A Dead Simple recipe past its allowance bills `1/allowance` per extra
+unit, and an allowance is any whole number — so Flesh of Tzchernobog, rationed
+3 a turn, bills a third of a Move for the fourth. The arithmetic stays exact,
+because the ledger is rational either way; only the display rounds, and that
+one prints as `0.33`.
 
 That fifth knife has a second price worth knowing: spilling files an Action,
 and the auto-labor pass pays only characters with **no** Action
@@ -170,17 +197,17 @@ the two fractions together still fit in it.
 **The ledger.** `Action.craftBudget` on the `auto:craft` Action:
 
 ```json
-{ "usedNum": 5, "usedDen": 6,
+{ "usedNum": 3, "usedDen": 4,
   "entries": [{ "tagId": "…", "name": "Choking", "family": "medical",
-                "qty": 1, "num": 1, "den": 2 },
+                "qty": 1, "num": 1, "den": 4 },
               { "tagId": "…", "name": "Alcohol", "family": "brewing",
-                "qty": 2, "num": 2, "den": 3 }] }
+                "qty": 2, "num": 1, "den": 2 }] }
 ```
 
 `usedNum/usedDen` is the running total in lowest terms; each entry carries its
-own family and fraction (a straddling order's free half is `qty` minus the
-billed `num`). All of it is integer arithmetic
-(`web/lib/craftBudget.js`) — three thirds have to be exactly one Move.
+own family and fraction, in lowest terms (a straddling order's free half is
+`qty` minus the billed `num`). All of it is integer arithmetic
+(`web/lib/craftBudget.js`) — four quarters have to be exactly one Move.
 
 Nothing is derived and nothing is cached: **the row is the record.** Every
 budget-consuming craft takes the Character `FOR UPDATE` row lock, re-reads the

@@ -3,12 +3,11 @@
 // db/lib/threatSpawn.js. Same shape as bot/src/lib/offers.js — this file only
 // routes. The brief, audit row and archive entry live in db/lib/dmAnswer.js
 // (shared with the web's db/lib/dmActions.js); this keeps only what's
-// gateway-only: editing the message, and fetching a GuildMember for nickname sync.
+// gateway-only: editing the message.
 const { prisma } = require("@lifeweb/db");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
 const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { applySpawnSideEffects } = require("@lifeweb/db/lib/threatSpawn");
-const { syncMemberNickname } = require("./nickname");
 const { sendDm } = require("./dm");
 
 async function settle(interaction, line) {
@@ -38,16 +37,6 @@ async function handleSpawn(interaction, spawnId, choice) {
     await applySpawnSideEffects(prisma, result.sideEffects.spawn).catch((err) =>
       console.error("Threat spawn side effects failed:", err),
     );
-  }
-
-  if (result.sideEffects.nicknameSyncDiscordUserId) { // needs a guild member, which a DM interaction lacks
-    try {
-      const guild = await interaction.client.guilds.fetch(process.env.DISCORD_GUILD_ID);
-      const member = await guild.members.fetch(result.sideEffects.nicknameSyncDiscordUserId);
-      await syncMemberNickname(member);
-    } catch (err) {
-      console.error("Threat spawn nickname sync failed:", err);
-    }
   }
 }
 

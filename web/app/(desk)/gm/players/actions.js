@@ -5,12 +5,6 @@ import { TURNS_PATH } from "@/lib/routes";
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
-import { placesFor } from "@lifeweb/db/lib/feedAccess";
-import {
-  placeKeyForLocation,
-  placeKeyForRoom,
-  placeKeyForConversation,
-} from "@lifeweb/db/lib/placeKey";
 import { getGmSession, sendDm } from "@/lib/discordGuild";
 import { UserError, guarded } from "@/lib/actionResult";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -280,25 +274,35 @@ export async function setConversationHandled({ playerDiscordUserId, handled }) {
   });
 }
 
-// The desk-side mute. Purely a view on this desk: the player is not blocked,
-// silenced or told anything, and their DMs still arrive and still read
-// normally. A muted conversation leaves the rail (behind its "Show muted"
-// toggle), renders greyed when shown, and stops counting toward unread and
-// awaiting. Unlike setConversationHandled above this does not expire — a
-// mute is a standing decision, so it holds until a GM lifts it.
+// The per-GM mute. Purely a view for the acting GM: the player is not
+// blocked, silenced or told anything, their DMs still arrive, and no other
+// GM's rail changes. A muted conversation leaves this GM's rail (behind its
+// "Show muted" toggle), renders greyed when shown, and stops counting toward
+// their unread and awaiting. Unlike setConversationHandled above this does
+// not expire — a mute is a standing decision, so it holds until this GM
+// lifts it.
 export async function setConversationMuted({ playerDiscordUserId, muted }) {
   return guarded(async () => {
-    await requireGm();
+    const session = await requireGm();
     const id = playerDiscordUserId?.toString().trim();
     if (!id) throw new UserError("No conversation specified.");
 
-    const mutedAt = muted ? new Date() : null;
-
-    await prisma.conversationMeta.upsert({
-      where: { playerDiscordUserId: id },
-      update: { mutedAt },
-      create: { playerDiscordUserId: id, mutedAt },
-    });
+    if (muted) {
+      await prisma.conversationMute.upsert({
+        where: {
+          gmDiscordUserId_playerDiscordUserId: {
+            gmDiscordUserId: session.discordUserId,
+            playerDiscordUserId: id,
+          },
+        },
+        update: {},
+        create: { gmDiscordUserId: session.discordUserId, playerDiscordUserId: id },
+      });
+    } else {
+      await prisma.conversationMute.deleteMany({
+        where: { gmDiscordUserId: session.discordUserId, playerDiscordUserId: id },
+      });
+    }
 
     revalidatePath("/gm/players", "layout");
   });
@@ -561,46 +565,5 @@ export async function sendGmBroadcast({ characterIds, message }) {
     );
 
     return { recipientCount: recipients.length };
-  });
-}
-
-// The Scene tab: where this character is standing, as a place list Chat's
-// Feed can draw (docs/systemdocs/CHAT.md §8, PLAYER-DESK.md).
-//
-// Deliberately NOT a second place-list builder. It asks
-// db/lib/feedAccess.js#placesFor for the GM's OWN list — every place inside
-// the zones their GmZoneView allows, read-only by construction — and then
-// keeps the ones belonging to this character's Location. So a GM who cannot
-// see a zone cannot see a scene in it, and the gate is the same one the SSE
-// stream and /api/feed/history apply per request; nothing here is trusted
-// later.
-export async function getCharacterScene({ characterId }) {
-  return guarded(async () => {
-    const session = await requireGm();
-    const id = String(characterId ?? "").trim();
-    if (!id) throw new UserError("No character specified.");
-
-    const character = await prisma.character.findUnique({
-      where: { id },
-      select: { id: true, locationId: true, location: { select: { id: true, name: true } } },
-    });
-    if (!character?.locationId) return { places: [], locationName: null };
-
-    const [rooms, conversations, all] = await Promise.all([
-      prisma.room.findMany({ where: { locationId: character.locationId }, select: { id: true } }),
-      prisma.playerThread.findMany({ where: { locationId: character.locationId }, select: { id: true } }),
-      placesFor(prisma, null, { gm: true, discordUserId: session.discordUserId }),
-    ]);
-
-    const wanted = new Set([
-      placeKeyForLocation(character.locationId),
-      ...rooms.map((room) => placeKeyForRoom(room.id)),
-      ...conversations.map((conversation) => placeKeyForConversation(conversation.id)),
-    ]);
-
-    return {
-      places: all.filter((place) => wanted.has(place.placeKey)),
-      locationName: character.location?.name ?? null,
-    };
   });
 }

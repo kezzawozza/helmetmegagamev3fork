@@ -27,7 +27,7 @@ const GROUPS = [
 const FIELDS = [
   // --- Character creation --------------------------------------------------
   {
-    key: "startingTagPoints", type: "int", group: "creation", default: 12, min: 0, max: 100,
+    key: "startingTagPoints", type: "int", group: "creation", default: 8, min: 0, max: 100,
     label: "Starting Tag Points",
   },
   {
@@ -35,7 +35,7 @@ const FIELDS = [
     label: "Max drawback tags",
   },
   {
-    key: "maxDrawbackPoints", type: "int", group: "creation", default: 13, min: 0, max: 60,
+    key: "maxDrawbackPoints", type: "int", group: "creation", default: 8, min: 0, max: 60,
     label: "Max drawback points",
   },
   {
@@ -76,10 +76,9 @@ const FIELDS = [
     key: "carryWeightLbs", type: "int", group: "carry", default: 71, min: 1, max: 2000,
     label: "Carry cap: lb",
   },
-  {
-    key: "carryResourceCap", type: "int", group: "carry", default: 25, min: 1, max: 1000,
-    label: "Carry cap: ⬢",
-  },
+  // No second cap for ⬢ any more: they are a one-pound item, so they push
+  // against the pound cap above beside the gear and the column is gone from the
+  // schema. A dead entry here would fail db:check-config, not just sit unread.
   {
     key: "freeZoneMovesPerTurn", type: "int", group: "carry", default: 1, min: 0, max: 5,
     label: "Free zone moves",
@@ -101,7 +100,7 @@ const FIELDS = [
     label: "Desire slots",
   },
   {
-    key: "desireSlotLockTurns", type: "int", group: "desires", default: 1, min: 0, max: 20,
+    key: "desireSlotLockTurns", type: "int", group: "desires", default: 2, min: 0, max: 20,
     label: "Desire slot lock",
   },
 
@@ -140,16 +139,14 @@ const FIELDS = [
     key: "tupperAutocorrectEnabled", type: "bool", group: "discord", default: true,
     label: "Tupper autocorrect",
   },
-  {
-    key: "nicknameSyncEnabled", type: "bool", group: "discord", default: false,
-    label: "Nickname sync",
-  },
 ];
 
 // Real columns that are not knobs. The check script exempts these; the form
 // never shows them.
 const INTERNAL_KEYS = [
   "id",
+  // Retired: nothing writes a Discord nickname any more. Column kept, knob gone.
+  "nicknameSyncEnabled",
   "turnsConsoleChannelId",
   "turnsConsoleMessageId",
   "restInvalidCount",
@@ -170,6 +167,10 @@ const INTERNAL_KEYS = [
   // ids above, it is here so the registry check does not read it as drift.
   "deadchatCategoryId",
   "deadchatChannelId",
+  // Party chat (db/lib/partyChat.js): the parent channel each party's private
+  // thread hangs off, under the Gameplay category. Provisioned by the mirror.
+  "gameplayCategoryId",
+  "partyChannelId",
   // Retired 2026-09-13: the per-slot rules in db/lib/equipSlots.js are the
   // whole equipment limit. The column stays, unread, so nothing drops a value.
   "equipSlots",

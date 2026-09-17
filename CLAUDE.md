@@ -203,7 +203,7 @@ you pick the right doc — they are never enough to change code with.
 | [`ATTACK.md`](docs/systemdocs/ATTACK.md) | You're touching the Attack verb — the band gate that refuses a hopeless fight, the hold it puts on **both** sides, Break off, or the **Other** lens on `/gm/turns` |
 | [`QUESTS.md`](docs/systemdocs/QUESTS.md) | You're touching Quests — the `/gm/dev?s=quests` panel, a GM-staged room and its **Interact** button, the quest gates, the noticeboard manager or the zone broadcaster — or **anything that touches a Room's `questId`**, which marks a room a GM minted at runtime rather than one `docs/zones.yaml` named |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
-| [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
+| [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, notes |
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, **which zones a GM can see** (`GmZoneView`, the `GM: <Zone>` roles, `/zone`), or who can see the audit log |
 | [`LABORING.md`](docs/systemdocs/LABORING.md) | You're touching Laboring — the tag ladder, a Location's `yield:` coefficients and their drift, the tools (`laborBonus`), the auto-labor pass, or the Examine button |
@@ -217,6 +217,7 @@ you pick the right doc — they are never enough to change code with.
 | [`THANATI.md`](docs/systemdocs/THANATI.md) | You're touching the cult — the THANATI buttons, Recall Comrades, the hideout and Purchase Gear, Flesh / Dark Inspiration / Black Robes / the Grimoire, or the **rites** (no button: robed, Inspired, ingredients on the floor, say the word), the word roll, the chant hook in `say.js` or the minute sweep. Placeholder until a human doc replaces it |
 | [`LESSONS.md`](docs/systemdocs/LESSONS.md) | You're touching Learn Skill / Teach Skill, the Teaching tags, the Offer handshake (Bind's consent too), the lesson turn pass, or Break Restraints |
 | [`SEARCH.md`](docs/systemdocs/SEARCH.md) | You're touching the Search verb — the consent handshake and its third **Hide items** button, what a search may turn up (`hideableFromSearch`), the reveal die nobody is shown, the once-a-turn ration, or Intercept's **automatically search?** box |
+| [`THEFT.md`](docs/systemdocs/THEFT.md) | You're touching Steal or Pickpocket — the steal die and its closed modifier table, the rule that the goods move whether or not the room notices, the pickpocket bands and their weight budget, the `PickpocketAttempt` ration, or the two Pickpocketing tags |
 | [`KISS.md`](docs/systemdocs/KISS.md) | You're touching the Kiss verb — the consent handshake, the `KISS` capability and what blocks it, the +15 both sides take, its two rations, or the rule that nobody else is told |
 | [`CONFESSION.md`](docs/systemdocs/CONFESSION.md) | You're touching Confess, the `psychological` tag flag, who may hear a confession, or the rule that a chaplain is never shown the sin |
 | [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
@@ -483,7 +484,7 @@ writes a `member_joined` `AuditLog` entry.
 
 **`ready` is `once: true`, so that burst is once per PROCESS, not once per
 connect.** A gateway drop the process survives re-runs none of it — which is
-fine for the passes that only reconcile drift (a stale nickname stays stale
+fine for the passes that only reconcile drift (a stale handle stays stale
 until the next deploy), and was not fine for messages, because a message the
 bot never saw is lost for good. So `bot/src/lib/messageCatchUp.js` is the one
 pass that also hangs off `shardReady`: it re-proxies anything typed while the
@@ -495,8 +496,8 @@ Two **privileged intents** must be turned on for the bot in the Discord
 Developer Portal (Bot → Privileged Gateway Intents). Without them, the bot
 either fails to log in or silently sees nothing:
 
-- **Server Members** (`GuildMembers`) — needed for nickname sync and member
-  events.
+- **Server Members** (`GuildMembers`) — needed for member events, the handle
+  cache and the per-member role work.
 - **Message Content** (`MESSAGE_CONTENT`) — needed for the whole proxy
   pipeline.
 
@@ -949,7 +950,27 @@ it before writing any UI. Four rules apply everywhere:
   clean, and threw only when someone opened the page. That's why the rule is
   on.
 
-## Game state: the live data is real — ask before anything destructive
+## Game state
+
+### v3 has not launched yet, so none of the below is load-bearing right now
+
+**This repo is pre-launch.** There is no live game, no real characters, no
+turns anybody played and nothing in the database that belongs to a person. So
+the caution below — ask before a wipe, back up first, never reset — is about
+protecting players, and there are no players yet. Rebuild from the YAML
+masters, wipe, reset, re-migrate, break the schema on purpose. Nothing is
+lost, because there is nothing there to lose.
+
+Two things are still worth keeping even now, because neither is about the
+data: don't reach for the live database when a local one would answer the
+question ([`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md)), and prefer a
+migration `migrate deploy` can apply, because that habit is much harder to
+re-learn on launch day than to keep.
+
+**Put this section back in force the day v3 opens** — delete this subsection,
+and everything below becomes true again exactly as written.
+
+### Once it is live: the live data is real — ask before anything destructive
 
 **There is a single live production site, and the characters, turns and
 messages in it are real.** Do not treat production as a sandbox you can
@@ -1365,7 +1386,11 @@ global CLIs. To make one able to build, run, and deploy:
   joined it the same way when the fear dial replaced the Disappointed track
   (`MOOD.md`). `TagSource.CONDITION` became the newest of them when the mood
   rework stopped projecting the dial onto a tag at all. `Character.autoMount`
-  joined them when the "Automatically ride my mount" switch was removed.
+  joined them when the "Automatically ride my mount" switch was removed, and
+  `GameConfig.nicknameSyncEnabled` when nickname writing was taken out of the
+  game entirely (`PROXYING.md` §8) — the column stays, but it is listed in
+  `INTERNAL_KEYS` rather than as a knob, so `/gm/dev` no longer offers a switch
+  for something nothing reads. Do not wire a nickname write back up.
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning
