@@ -2,6 +2,50 @@
 
 Guidance for Claude Code (claude.ai/code) when working in this repository.
 
+## This checkout is v3, the prototype — not the live game
+
+**Read this before anything else in this file.** Most of what follows was
+written for the live game and carried over wholesale. A lot of it still
+applies; some of it actively does not, and the parts that do not are the
+dangerous ones, because they read as though they do.
+
+Check which checkout you are in before you touch git or a database:
+
+```
+git remote -v
+```
+
+- `origin` → `peace-lock/helmetmegagamev3` — **this repo.** The prototype for
+  the next game. No players, no live Discord guild, no Railway services.
+- `origin` → `peace-lock/helmetmegagame` — the live game. Everything below
+  applies as written.
+
+What is different here:
+
+- **Nothing deploys.** `npm run deploy` and `./migrate.sh` drive Railway
+  services this project does not have. Do not run them.
+- **`npm run push` is wrong here too.** It writes `CHANGELOG.md` and posts the
+  entry to a channel id hardcoded in `scripts/changelog/log.js` — the LIVE
+  game's Discord. Push with plain `git push origin master`.
+- **Contributors open PRs against this repo**, not against `helmetmegagame`.
+  A PR merged here ships nothing to anybody; it lands in the prototype.
+
+And the one that is sharper here than on the live game:
+
+- **`echo $DATABASE_URL` before anything that writes, and do not assume a
+  prototype has a harmless database.** There is no `.env` in this checkout, so
+  nothing overrides whatever the shell already exports — and a session working
+  here has been observed carrying a **Railway** connection string
+  (`*.proxy.rlwy.net`) inherited from the live game's project. `dotenv.config()`
+  does not override an exported variable, so a script run from this directory
+  can reach a real database and say nothing about it. "This is only the
+  prototype" is a statement about the repo, never about the connection string.
+- **A migration file is inert until something runs it**, but it is still a
+  loaded gun for whoever eventually does. Author them here with the same care
+  as on the live game — see the `migrate diff` note under **Notes for future
+  work** for the drops Prisma proposes on every run, and that every migration
+  here has had to decline by hand.
+
 ## The double-dagger convention is retired
 
 Every piece of prose Claude wrote used to end in a double dagger (U+2021), so
@@ -1392,6 +1436,11 @@ global CLIs. To make one able to build, run, and deploy:
   game entirely (`PROXYING.md` §8) — the column stays, but it is listed in
   `INTERNAL_KEYS` rather than as a knob, so `/gm/dev` no longer offers a switch
   for something nothing reads. Do not wire a nickname write back up.
+  `Character.hungerStreak` is the newest of them, orphaned when the 0–100
+  hunger meter replaced the streak it counted (`SOILERY.md`). Hunger is
+  `Character.hungerValue` now, and the Gambit penalty comes off the
+  `hungry`/`starving` tags rather than off a streak — nothing reads the column,
+  and nothing should start.
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning
