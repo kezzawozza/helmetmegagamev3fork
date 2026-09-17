@@ -80,6 +80,36 @@ function ttlCache(ttlMs) {
 const memberCache = ttlCache(5 * 60_000);
 const memberListCache = ttlCache(5 * 60_000);
 
+// How long a FAILED lookup is remembered, so the next page load doesn't spend
+// the whole retry budget again on a guild that is already refusing us. Only
+// the failure is remembered, never a value: a hit here answers exactly as the
+// failure path already answers (stale if there is one, null if not), it just
+// answers immediately.
+//
+// Short on purpose. A rate-limited GM already reads as "not a GM" — see the
+// failure paths below — and this must not hold that wrong answer for long.
+const FAILURE_MEMORY_MS = 20_000;
+const failedUntil = new Map();
+
+function recentlyFailed(key) {
+  const until = failedUntil.get(key);
+  if (until === undefined) return false;
+  if (until > Date.now()) return true;
+  failedUntil.delete(key);
+  return false;
+}
+
+function noteLookupFailure(key) {
+  failedUntil.set(key, Date.now() + FAILURE_MEMORY_MS);
+}
+
+// A page render is an interactive path: it cannot sit through the 30s default
+// cap three times over. Discord's own retry_after decides the wait, and past
+// this the call fails in one round trip and the caller serves stale or
+// degrades — which beats holding the response stream open until Next closes
+// it under us (digest 3632024602, 2026-09-17).
+const INTERACTIVE_MAX_RETRY_AFTER_MS = 2_000;
+
 // In-flight dedup: at turn open ~120 players arrive within seconds with cold
 // keys, so sharing the promise collapses concurrent misses into one call.
 const inFlight = new Map();
@@ -100,7 +130,10 @@ async function fetchGuildMember(discordUserId) {
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return null;
 
-  return discordRequest(`/guilds/${guildId}/members/${discordUserId}`, { allow404: true });
+  return discordRequest(`/guilds/${guildId}/members/${discordUserId}`, {
+    allow404: true,
+    maxRetryAfterMs: INTERACTIVE_MAX_RETRY_AFTER_MS,
+  });
 }
 
 // maxAgeMs: accept a cached member only this fresh. A number rather than an
@@ -109,11 +142,18 @@ export const getGuildMember = cache(async (discordUserId, maxAgeMs) => {
   const cached = memberCache.get(discordUserId, maxAgeMs);
   if (cached !== undefined) return cached;
 
+  // The last attempt failed moments ago. Answer the way that attempt did
+  // rather than queueing another one behind it — a caller passing maxAgeMs: 0
+  // included, since a fresh read is not on offer either way.
+  const key = `member:${discordUserId}`;
+  if (recentlyFailed(key)) return memberCache.getStale(discordUserId) ?? null;
+
   try {
-    const value = await dedupe(`member:${discordUserId}`, () => fetchGuildMember(discordUserId));
+    const value = await dedupe(key, () => fetchGuildMember(discordUserId));
     memberCache.set(discordUserId, value);
     return value;
   } catch (err) {
+    noteLookupFailure(key);
     const stale = memberCache.getStale(discordUserId);
     if (stale !== undefined) {
       console.error(`Guild member lookup failed for ${discordUserId}, serving stale: ${err.message}`);
@@ -129,7 +169,9 @@ async function fetchGuildMembers() {
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return [];
 
-  const members = await discordRequest(`/guilds/${guildId}/members?limit=1000`);
+  const members = await discordRequest(`/guilds/${guildId}/members?limit=1000`, {
+    maxRetryAfterMs: INTERACTIVE_MAX_RETRY_AFTER_MS,
+  });
   return members.map((m) => ({
     id: m.user.id,
     username: m.user.username,
@@ -153,12 +195,18 @@ export function isGuildRosterKnown() {
 export const listGuildMembers = cache(async () => {
   const cached = memberListCache.get("all");
   if (cached !== undefined) return cached;
+  if (recentlyFailed("memberList")) {
+    const stale = memberListCache.getStale("all");
+    memberListReachable = stale !== undefined;
+    return stale ?? [];
+  }
   try {
     const value = await dedupe("memberList", fetchGuildMembers);
     memberListCache.set("all", value);
     memberListReachable = true;
     return value;
   } catch (err) {
+    noteLookupFailure("memberList");
     const stale = memberListCache.getStale("all");
     console.error(`Guild member list failed${stale ? ", serving stale" : ""}: ${err.message}`);
     memberListReachable = stale !== undefined;

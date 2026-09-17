@@ -8,6 +8,50 @@
 const { addThreadMember, removeThreadMember } = require("./discordRest");
 const { notifyPresence } = require("./presenceNotify");
 
+// Some pushes can never succeed, and the diff below cannot tell: it only
+// records a membership Discord ACCEPTED, so a refusal is retried on the next
+// run — which is every equip, every meal, every move. That is the right
+// answer for a 429 or a blip and the wrong one for "Missing Access", which
+// is permanent until something outside this module changes. Discord gates a
+// thread on VIEW_CHANNEL of its parent Location channel, and a character
+// holding a key to a room in a Location they are not standing in has no
+// overwrite there, so the add is refused every single time.
+//
+// On 2026-09-17 two characters in that position burned three doomed calls
+// apiece on every request that reached here. Each 403 counts toward the
+// breaker in discordRest/core.js, which starved ordinary guild-member
+// lookups into 429s, which held GM page renders open long enough for Next to
+// close the stream under them — an outage two systems away from its cause.
+//
+// So a refusal is remembered and skipped for a while. Per process and
+// deliberately short: nothing here is authoritative, and the next window
+// retries in case the character has since moved.
+const REFUSAL_TTL_MS = 10 * 60_000;
+const refusedUntil = new Map();
+
+function refusalKey(characterId, roomId) {
+  return `${characterId}:${roomId}`;
+}
+
+function isRefused(characterId, roomId) {
+  const until = refusedUntil.get(refusalKey(characterId, roomId));
+  if (until === undefined) return false;
+  if (until > Date.now()) return true;
+  refusedUntil.delete(refusalKey(characterId, roomId));
+  return false;
+}
+
+// Only a permanent refusal. A 429 or a 5xx is exactly what the retry is for.
+function noteFailure(characterId, roomId, err) {
+  const permanent = err?.status === 403 || err?.discordCode === 50001;
+  if (permanent) refusedUntil.set(refusalKey(characterId, roomId), Date.now() + REFUSAL_TTL_MS);
+  return permanent;
+}
+
+function clearRefusal(characterId, roomId) {
+  refusedUntil.delete(refusalKey(characterId, roomId));
+}
+
 // Rooms this character may enter. `guestRoomIds` defaults empty for a keys-only caller, but
 // anything deciding what a PERSON can reach must pass it. `allowedRoomIds` is Quests' door (docs/systemdocs/QUESTS.md).
 function accessibleRooms(rooms, heldSlugs, guestRoomIds = new Set(), allowedRoomIds = new Set()) {
@@ -101,7 +145,9 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
   // not mirrored to Discord (docs/systemdocs/CHAT.md §6): cleared rather than never computed, so the diff below REMOVES whatever they still stand in.
   if (!record?.discordMirrored) entitled.clear();
 
-  const targets = rooms.filter((room) => entitled.has(room.id) !== stored.has(room.id));
+  const targets = rooms
+    .filter((room) => entitled.has(room.id) !== stored.has(room.id))
+    .filter((room) => !isRefused(character.id, room.id));
   if (targets.length === 0) return result;
 
   // Wake their tabs before the Discord calls, the slow part (docs CHAT.md §3).
@@ -119,9 +165,15 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
         next.delete(room.id);
         result.removed += 1;
       }
+      clearRefusal(character.id, room.id);
     } catch (err) {
       // Left OUT of `next` on failure, so the next run retries rather than recording a membership Discord never accepted.
-      console.error(`Room access sync failed for ${character.id} in "${room.name}":`, err.message ?? err);
+      const permanent = noteFailure(character.id, room.id, err);
+      console.error(
+        `Room access sync failed for ${character.id} in "${room.name}"` +
+          `${permanent ? `, not retrying for ${REFUSAL_TTL_MS / 60_000}m` : ""}:`,
+        err.message ?? err,
+      );
     }
   }
 
