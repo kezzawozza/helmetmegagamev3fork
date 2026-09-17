@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Craft picker shows the whole ladder once you hold a rare skill
+
+✎ A player who bought Arelitz Breeding could only see Ovum and Thoroughbred; the Warbeast recipe was hidden because its ingredient (Graga Sac) is GM-catalog.  
+✎ A recipe whose required skills are ALL non-public now bypasses the missing-ingredient hide and is greyed with the usual 'You don't have the X it uses.' hint instead.  
+✎ Common skills (Crafting/Smithing/Cooking/Brewing) keep their anti-spam gate.
+
 ## 2026-09-17 · Party backfill: sync each leader instead of just reconciling existing threads
 
 ✎ The first pass assumed a live PartyThread existed and only stamped overwrites. In reality no thread had ever been opened — the escort chains predated the deploy. Backfill now calls syncPartyMembership per leader, which opens the thread, stamps overwrites, adds mirrored members. Two live parties reconciled.

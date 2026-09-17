@@ -57,12 +57,20 @@ export function computeKnownRecipeIds(
       return characterTags.some((ct) => slugs.includes(ct.tag.slug));
     });
   }
+  // A non-public skill (arelitz-breeding, catalog:gm) is itself the anti-spam
+  // gate; holding it should reveal the whole ladder, greyed for missing
+  // ingredients, rather than hiding rungs behind the pantry check.
+  function skillsAreAllNonPublic(tag) {
+    const skills = tag.requirementSkills ?? [];
+    if (skills.length === 0) return false;
+    return skills.every((s) => s.catalogVisibility && s.catalogVisibility !== "ALL");
+  }
   return tagCatalog
     .filter(
       (t) =>
         t.craftable &&
         (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)) &&
-        (!isNonPublicRecipe(t) || satisfiesIngredientsAtQuantityOne(t)),
+        (!isNonPublicRecipe(t) || skillsAreAllNonPublic(t) || satisfiesIngredientsAtQuantityOne(t)),
     )
     .map((t) => t.id);
 }
