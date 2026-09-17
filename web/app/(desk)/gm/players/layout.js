@@ -99,7 +99,7 @@ export default async function PlayerDeskLayout({ children }) {
   const clock = await prisma.$queryRaw`SELECT (EXTRACT(EPOCH FROM now()) * 1000)::double precision AS "nowMs"`;
   const rowsAsOfMs = Number(clock[0].nowMs);
 
-  const [latestMessages, unreadRows, everDmedUserIds, claims, reads] = await Promise.all([
+  const [latestMessages, unreadRows, everDmedUserIds, claims, reads, mutes] = await Promise.all([
     prisma.$queryRaw`
       SELECT DISTINCT ON ("discordUserId")
         "discordUserId", "id", "direction", "content", "authorDiscordUserId", "source", "createdAt"
@@ -129,7 +129,6 @@ export default async function PlayerDeskLayout({ children }) {
         OR: [
           { claimedByDiscordUserId: { not: null } },
           { handledAt: { not: null } },
-          { mutedAt: { not: null } },
         ],
       },
     }),
@@ -140,13 +139,19 @@ export default async function PlayerDeskLayout({ children }) {
       where: { gmDiscordUserId: session.discordUserId },
       select: { playerDiscordUserId: true, lastReadAt: true },
     }),
+    // This GM's own mutes — a mute is per-GM by design, so muting a
+    // conversation removes it only from the muting GM's rail.
+    prisma.conversationMute.findMany({
+      where: { gmDiscordUserId: session.discordUserId },
+      select: { playerDiscordUserId: true },
+    }),
   ]);
 
   const latestByUser = new Map(latestMessages.map((m) => [m.discordUserId, m]));
   const unreadByUser = new Map(unreadRows.map((r) => [r.discordUserId, r.unreadCount]));
   const claimByUser = new Map(claims.map((c) => [c.playerDiscordUserId, c.claimedByDiscordUserId]));
   const lastReadByUser = new Map(reads.map((r) => [r.playerDiscordUserId, r.lastReadAt.getTime()]));
-  const mutedUserIds = new Set(claims.filter((c) => c.mutedAt).map((c) => c.playerDiscordUserId));
+  const mutedUserIds = new Set(mutes.map((m) => m.playerDiscordUserId));
   const handledAtByUser = new Map(
     claims.filter((c) => c.handledAt).map((c) => [c.playerDiscordUserId, c.handledAt.getTime()]),
   );

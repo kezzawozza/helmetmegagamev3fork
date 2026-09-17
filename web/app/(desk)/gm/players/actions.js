@@ -274,25 +274,35 @@ export async function setConversationHandled({ playerDiscordUserId, handled }) {
   });
 }
 
-// The desk-side mute. Purely a view on this desk: the player is not blocked,
-// silenced or told anything, and their DMs still arrive and still read
-// normally. A muted conversation leaves the rail (behind its "Show muted"
-// toggle), renders greyed when shown, and stops counting toward unread and
-// awaiting. Unlike setConversationHandled above this does not expire — a
-// mute is a standing decision, so it holds until a GM lifts it.
+// The per-GM mute. Purely a view for the acting GM: the player is not
+// blocked, silenced or told anything, their DMs still arrive, and no other
+// GM's rail changes. A muted conversation leaves this GM's rail (behind its
+// "Show muted" toggle), renders greyed when shown, and stops counting toward
+// their unread and awaiting. Unlike setConversationHandled above this does
+// not expire — a mute is a standing decision, so it holds until this GM
+// lifts it.
 export async function setConversationMuted({ playerDiscordUserId, muted }) {
   return guarded(async () => {
-    await requireGm();
+    const session = await requireGm();
     const id = playerDiscordUserId?.toString().trim();
     if (!id) throw new UserError("No conversation specified.");
 
-    const mutedAt = muted ? new Date() : null;
-
-    await prisma.conversationMeta.upsert({
-      where: { playerDiscordUserId: id },
-      update: { mutedAt },
-      create: { playerDiscordUserId: id, mutedAt },
-    });
+    if (muted) {
+      await prisma.conversationMute.upsert({
+        where: {
+          gmDiscordUserId_playerDiscordUserId: {
+            gmDiscordUserId: session.discordUserId,
+            playerDiscordUserId: id,
+          },
+        },
+        update: {},
+        create: { gmDiscordUserId: session.discordUserId, playerDiscordUserId: id },
+      });
+    } else {
+      await prisma.conversationMute.deleteMany({
+        where: { gmDiscordUserId: session.discordUserId, playerDiscordUserId: id },
+      });
+    }
 
     revalidatePath("/gm/players", "layout");
   });

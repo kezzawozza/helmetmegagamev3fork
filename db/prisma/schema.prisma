@@ -4212,12 +4212,24 @@ model ConversationMeta {
   // as handled while it is at or after the conversation's last message, so the
   // next inbound DM puts the row back in the awaiting pile with no cleanup.
   handledAt              DateTime?
-  // When a GM muted this conversation. Desk-side only — nothing about the
-  // bot's behaviour toward the player changes, and their DMs still arrive.
-  // A muted row leaves the rail (behind a "Show muted" toggle), renders
-  // greyed when shown, and stops counting toward unread/awaiting. Unlike
-  // handledAt above this does NOT expire: it holds until a GM unmutes.
-  mutedAt                DateTime?
+}
+
+// A GM's personal mute on a player's conversation. Per-GM by design (unlike
+// the shared claim/handled marks on ConversationMeta) — a mute is one GM's
+// "I don't need to see this one" FYI, not a decision the whole desk shares.
+// Nothing about the bot's behaviour toward the player changes; their DMs
+// still arrive. The muted row leaves that GM's rail (behind a "Show muted"
+// toggle), renders greyed when shown, and stops counting toward that GM's
+// unread/awaiting. Snapshot ids, no relations/FKs — same log-table
+// convention as ConversationRead. A mute does not expire; unmute deletes.
+model ConversationMute {
+  id                  String   @id @default(cuid())
+  gmDiscordUserId     String
+  playerDiscordUserId String
+  mutedAt             DateTime @default(now())
+
+  @@unique([gmDiscordUserId, playerDiscordUserId])
+  @@index([playerDiscordUserId])
 }
 
 // A player's personal note on a message in a Location channel — created by
