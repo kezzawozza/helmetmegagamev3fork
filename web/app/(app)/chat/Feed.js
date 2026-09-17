@@ -2088,7 +2088,7 @@ export default function Feed({
         <GmSystemComposer key={placeKey} placeKey={placeKey} placeName={place.name} />
       ) : null}
 
-      {!readOnly && !(gm && place && !place.canSpeak) && (
+      {!readOnly && place && !(gm && !place.canSpeak) && (
         <div className="chat-composer">
           {place.canSpeak ? (
             <>

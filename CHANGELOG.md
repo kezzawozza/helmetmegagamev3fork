@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Fix /chat crash for a GM whose selected place goes away
+
+✎ The 'Post as Bascinet' composer added an inverted null-guard: when place is undefined, the ordinary composer branch entered and dereferenced place.canSpeak, throwing before the page could render. A GM whose selected place stopped existing between the SSR pass and hydration (party removed, zone deselected, room access lost) hit it every time. One-line fix: guard on 'place &&' before reading place.canSpeak.
+
 ## 2026-09-17 · Craft picker shows the whole ladder once you hold a rare skill
 
 ✎ A player who bought Arelitz Breeding could only see Ovum and Thoroughbred; the Warbeast recipe was hidden because its ingredient (Graga Sac) is GM-catalog.  
