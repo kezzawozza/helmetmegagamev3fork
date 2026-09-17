@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · The composer is one box now, and the hood button is gone
+
+✎ The message box on /chat is one rounded container, the way Discord's is: the Speak picker, the ✉ and the send all sit inside it. It was three separate bordered boxes standing in a line, with a solid orange Send slab stretched to the full height of the middle one.  
+✎ The box is one line at rest instead of two, and still grows to about six as you type. Bascinet's reply box and the GM's system box match it.  
+✎ Clicking into the box no longer wraps it in an orange halo — the box's own edge lights up instead.  
+− "Enter to send · Shift+Enter for a line" is gone from the box. It was the longest thing in the composer, at full size, for something you learn on your first message.  
+− The hood button beside the send. /conceal puts a hood up and takes it off, on the web the same as on Discord.  
+✚ /conceal now actually updates the page. It never did: the deleted button was the only thing that refreshed afterwards, so running the command toggled the hood and left the box still calling you by your own name until you navigated away.  
+✚ The GM's system box could not draw at all — its send button was built wrong and threw, so a GM opening a place they cannot speak in hit a broken page. Fixed.
+
 ## 2026-09-17 · The game no longer touches anybody's Discord nickname
 
 ✎ Metempsychosis used to rename your Discord account to the stranger you woke up as — it does not any more, and neither does anything else
