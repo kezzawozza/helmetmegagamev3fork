@@ -2571,7 +2571,7 @@ slug names the capabilities it removes:
 | `paralyzed` | ✗ | ✗ | ✗ | its description has promised this since the day it was written |
 | `seizure` | ✗ | ✗ | ✗ | you are on the floor (`FACTORY.md`) |
 | `bound` | ✗ | **✓** | **✓** | **a hostage can yell for help** |
-| `dying` | ✗ | ✓ | ✓ | last words are the tradition |
+| `dying` | ✗ | ✓ | ✓ | last words are the tradition, and there is now a button for them (`REQUESTS.md`, `request_last_words`) |
 | `crucified` | ✗ | ✓ | ✓ | the Crucify button's tag (`REQUESTS.md`); becomes Dying after a turn, and a public death with no last words would be half a spectacle |
 | `catatonic-afk` | ✗ | ✓ | ✓ | see the trap below |
 | `mute` | ✓ | **✓** | ✗ | a mute smith is still a smith — and now still a talker |

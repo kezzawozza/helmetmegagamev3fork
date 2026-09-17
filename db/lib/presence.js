@@ -1,8 +1,9 @@
-// "Here": the one co-presence rule both faces of the game judge by. A
-// character can act on someone at the same Location who hasn't hidden their
-// face, and — for body actions — an unburied corpse. A concealed character
-// is off every picker and gate since /conceal is "you don't know who this
-// is", and naming them would undo it.
+// "Here": the one co-presence rule both faces of the game judge by.
+//
+// hereWhere() is the NAMED half of a roster — everybody at this Location whose
+// face you can see, plus, for body actions, an unburied corpse. It is not the
+// whole roster and has not been for a while: web/lib/peopleHere.js#hoodsHere is
+// the other half, and web/lib/peoplePools.js composes both into every picker.
 //
 // web/lib/peopleHere.js binds these to prisma for the web app; the bot's
 // offer handlers (bot/src/lib/offers.js) and db/lib/lessons.js call them
@@ -18,16 +19,20 @@ const FORCING_HOOD = {
   tag: { concealsIdentity: true, forcesConceal: true, concealSprite: { not: null } },
 };
 
-// Always strict about hoods, no opt-out. The verbs that DO reach a concealed person do not come
-// through here at all — they ask db/lib/whosHere.js, which hands back a token instead of an id, and
-// post it back through db/lib/targetKey.js. That set is no longer just Transfer: Search joined it,
-// and then every verb that acts on a BODY rather than on a name (Attack, Bind, Free, Crucify,
-// Shackle, Torture, Harm, Mutilate, Brand), because a hood hides WHO somebody is and never THAT they
-// are standing there. Until that landed, `forcesConceal` being set on ordinary closed helmets meant
-// putting a Tribunal Helmet on made a man unattackable.
+// Always strict about hoods, no opt-out — that is what makes it the named half
+// rather than a bug. The people it leaves out are not unreachable; they come
+// back through db/lib/whosHere.js, which hands out a TOKEN instead of an id, and
+// go to the server through db/lib/targetKey.js.
 //
-// Loot and Heal are deliberately still outside it: their pickers carry the target's tag list, and an
-// inventory or a wound list identifies a person nearly as well as a name does.
+// That set used to be Transfer alone, then Search, then every verb acting on a
+// BODY rather than on a name. It is now all of them — Heal and Loot were the
+// last two held out, on the argument that a wound list or an inventory names
+// somebody nearly as well as a name does, and that argument lost: a man in a
+// closed helmet could not be treated, dosed, handed a cure, or gone through when
+// he went down dying. A hood made you immortal by neglect. Heal narrows a hooded
+// patient's wound list to what the reader could actually see instead
+// (db/lib/medicalVision.js), which is what the 🔍 embed already did.
+// See docs/systemdocs/PROXYING.md §5 for the whole of it.
 //
 // isHere() below takes `allowConcealed`, which every one of those verbs passes.
 function hereWhere(character, { includeDead = false } = {}) {

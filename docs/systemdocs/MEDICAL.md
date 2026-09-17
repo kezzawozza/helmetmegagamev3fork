@@ -38,8 +38,11 @@ what the target holds.
 Consuming from your own sheet has never needed ACT (TAGS.md §5f) — the whole
 point of first aid is that you can patch yourself up with no doctor and no
 Move. Administering to someone ELSE is an act done *to* them, and it costs
-what any other act-on-another does: the actor needs ACT, the target must be
-ALIVE, co-located (`isHere`), and not concealed. The item itself never leaves
+what any other act-on-another does: the actor needs ACT and the target must be
+ALIVE and co-located (`isHere`). **Not** unconcealed — a hood hides who
+somebody is, never that they are standing in front of you with their hand out,
+and refusing here meant a masked stranger could not be handed a cure
+(PROXYING.md §5). The item itself never leaves
 the actor's own inventory conceptually — `dropCharacterTag` still takes it off
 the actor's sheet — but every grant the consume makes (the cure, the
 aftermath, the fear relief) lands on the target.

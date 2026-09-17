@@ -173,3 +173,115 @@ test("a moment ago reads online", () => {
   const now = Date.now();
   assert.equal(isOnline(new Date(now - 1000), now), true);
 });
+
+// --- A body keeps its mask -----------------------------------------------
+//
+// Death unequips everything (db/lib/characterDeath.js), and concealment only
+// counts a WORN mask — so without Character.deathMaskTagId a masked man who
+// died was named in the room's Loot menu a moment later, and killing somebody
+// was the reliable way to learn who they were.
+//
+// Note what the rows below do NOT have: `equipped: true` on the mask. That is
+// the whole point — the body is not wearing it any more, it is only still
+// carrying it, and that is what the rule reads.
+
+// A prisma stand-in that actually honours presentRows' `where`, which the one
+// above deliberately does not. The living-only case cannot be told from the
+// includeDead case without it — both would hand back the same rows.
+function fakeDbWithWhere(rows) {
+  return {
+    character: {
+      findMany: async ({ where }) => {
+        const alive = where?.status === "ALIVE";
+        return rows.filter((row) =>
+          alive
+            ? row.status === "ALIVE"
+            : row.status === "ALIVE" || (row.status === "DEAD" && !row.buriedAt),
+        );
+      },
+    },
+  };
+}
+
+const corpseTag = (tagId, extra = {}) => ({
+  tagId,
+  equipped: false,
+  tag: {
+    id: tagId,
+    forcedName: null,
+    name: "Knight's Helmet",
+    concealsIdentity: true,
+    concealSprite: "helm",
+    forcesConceal: false,
+    equipLayer: 1,
+    ...extra,
+  },
+});
+
+const maskedBody = (id, name, { deathMaskTagId = "helm-tag", tags = [corpseTag("helm-tag")] } = {}) => ({
+  ...base,
+  status: "DEAD",
+  buriedAt: null,
+  id,
+  name,
+  concealed: false,
+  age: 20,
+  gender: "MAN",
+  deathMaskTagId,
+  tags,
+});
+
+test("the dead are not here at all unless a caller asks for them", async () => {
+  const prisma = fakeDbWithWhere([maskedBody("d1", "Sir Alder")]);
+
+  const shut = await whosHere(prisma, viewer, { withHoodIds: true });
+  assert.equal(shut.hoodIds.size, 0, "a body is nobody to a verb that takes no body");
+  assert.deepEqual(shut.named, []);
+
+  const open = await whosHere(prisma, viewer, { withHoodIds: true, includeDead: true });
+  assert.deepEqual([...open.hoodIds.values()], ["d1"]);
+  assert.equal(open.concealed[0].alias, "a young man");
+  assert.ok(!JSON.stringify(open.concealed).includes("Alder"));
+});
+
+test("a body that no longer holds the mask has a bare face again", async () => {
+  // Somebody looted the helmet: the id is still stamped, nothing answers to it.
+  const looted = maskedBody("d1", "Sir Alder", { tags: [] });
+  const { named, concealed } = await whosHere(fakeDbWithWhere([looted]), viewer, { includeDead: true });
+
+  assert.deepEqual(named.map((c) => c.name), ["Sir Alder"]);
+  assert.equal(concealed.length, 0);
+});
+
+test("a body that never wore one is named, stamp or no stamp", async () => {
+  const gibbed = maskedBody("d1", "Sir Alder", { deathMaskTagId: null, tags: [corpseTag("helm-tag")] });
+  const { named } = await whosHere(fakeDbWithWhere([gibbed]), viewer, { includeDead: true });
+
+  assert.deepEqual(named.map((c) => c.name), ["Sir Alder"]);
+});
+
+test("a stamp naming a tag that is not a concealing one reads as a bare face", async () => {
+  // A catalog prune, or a stamp gone stale: the safe direction is a face.
+  const odd = maskedBody("d1", "Sir Alder", {
+    tags: [corpseTag("helm-tag", { concealsIdentity: false, concealSprite: null })],
+  });
+  const { named, concealed } = await whosHere(fakeDbWithWhere([odd]), viewer, { includeDead: true });
+
+  assert.deepEqual(named.map((c) => c.name), ["Sir Alder"]);
+  assert.equal(concealed.length, 0);
+});
+
+test("resolveHoodToken agrees with the list about a body, and only when asked", async () => {
+  const prisma = fakeDbWithWhere([maskedBody("d1", "Sir Alder")]);
+  const token = hoodToken("d1");
+
+  // `sightings` supplied so the resolver does not go looking for a feed — the
+  // same shortcut db/test/targetKey.test.js takes.
+  const none = new Map();
+  assert.equal(
+    await resolveHoodToken(prisma, viewer, token, { sightings: none }),
+    null,
+    "a verb that takes no corpse gets nobody",
+  );
+  assert.equal(await resolveHoodToken(prisma, viewer, token, { sightings: none, includeDead: true }), "d1");
+});

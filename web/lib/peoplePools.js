@@ -37,19 +37,31 @@ import {
 } from "@/lib/healRequests";
 
 // Everything the PEOPLE dialogs need — Look at, Heal, Transfer's recipient
-// list, Loot, Bind, Free, Harm, Move Player — built once for whichever
-// surface is asking.
+// list, Loot, Bind, Free, Harm — built once for whichever surface is asking.
 //
 // It lived inside web/app/(app)/character/page.js until phase 3, which was
 // fine while the sheet was the only place you could act on somebody standing
 // near you. Chat's people column is the second, and a second copy of
 // "who is helpless" would have been a second answer.
 //
+// EVERY ROSTER HERE HAS TWO HALVES. `peopleHere` is the people whose faces you
+// can see and `hoodsHere` is the people in masks, and both go into every picker,
+// because a hood hides WHO somebody is and never THAT they are standing there
+// (PROXYING.md §5). A hood row carries an HMAC token instead of a Character.id
+// and its alias instead of its name — pickerName/pickerKey in
+// web/lib/peopleHere.js are the only two places that have to know which half a
+// row came from, and every server action re-checks the same predicate on
+// whatever key it is posted.
+//
+// Heal and Loot were the last two verbs without a hooded half, and the cost was
+// a man in a closed helmet nobody could treat or go through when he went down
+// dying. Heal answers the reason they were held back — a wound list names
+// somebody nearly as well as a name does — by narrowing a hooded patient's list
+// to what the reader could actually see, rather than by refusing outright.
+//
 // The metagaming rule the sheet's grid follows applies to what a CALLER does
-// with these, not to the lists themselves: every roster here is already
-// narrowed to who is standing at this Location and hasn't hidden their face
-// (web/lib/peopleHere.js), and every server action re-checks the same
-// predicate on the id it is posted.
+// with these, not to the lists themselves: every roster is already narrowed to
+// who is standing at this Location.
 
 // The two selects, named because BOTH halves of every roster are loaded with
 // them — the named people (peopleHere) and the people in masks (hoodsHere).

@@ -8,7 +8,8 @@
 // helmet is for. See db/lib/presence.js#hereWhere for the roster half of the same rule.
 //
 // Transfer and Search already reached a hood, each with its own inline copy of the token dance; both
-// now come through db/lib/targetKey.js, and so does this.
+// now come through db/lib/targetKey.js, and so does this. Heal and Loot were the last two outside it
+// — see db/lib/presence.js's header and PROXYING.md §5 for what that cost.
 import { prisma } from "@lifeweb/db";
 import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { isHere, notHereMessage } from "@lifeweb/db/lib/presence";

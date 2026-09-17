@@ -85,6 +85,34 @@ your body (§7), and a gib leaves no body to bury. That is the intended reading
 of being gone — but it is the only death in the game with no way out, so it is
 worth knowing before pricing anything against it.
 
+## 1b. A body keeps its mask
+
+A masked character who dies stays masked. The room sees "a young man" lying
+there, not a name, until somebody takes the helmet off the body.
+
+That needed a stored column, and it is the only part of concealment that is not
+derived from scratch. Concealment counts an **equipped** mask
+(`db/lib/presentedIdentity.js#concealmentFrom`) and death unequips everything
+(`db/lib/characterDeath.js`), so dying used to take your hood off: a man who
+went down in a Tribunal Helmet was named in the room's Loot menu a moment
+later, and killing a stranger was the reliable way to learn who they were.
+
+`Character.deathMaskTagId` is the memory of the piece. It is stamped in
+`applyDeathToRow` **before** the unequip, and only when the hood was actually in
+effect — the same `forced || concealed` rule the living are judged by, so a
+helmet worn with the toggle off stays what it was, a helmet.
+
+**The reading stays derived, and that is what makes looting mean something.** A
+body counts as hooded only while it still *holds* that tag, so the moment
+somebody takes the helmet the face comes back, with no second write and no
+catch-up pass. A dangling id — the catalog pruned the tag, the helmet walked off
+— reads as a bare face, which is the safe direction. A gib keeps nothing, since
+`vaporizeTags` deletes the rows. A revive clears the column.
+
+Two readers know about it: `presentRows` in `db/lib/whosHere.js` takes an
+`includeDead` option, and so does `resolveHoodToken` — so Loot, Engrave, Bury and
+Butcher can name a masked body and Heal cannot. See `PROXYING.md` §5.
+
 ## 2. Why the follow reconcile is pull-based
 
 The obvious design is to push from whatever moved the tag. It cannot work.

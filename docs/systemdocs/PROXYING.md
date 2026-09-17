@@ -390,39 +390,83 @@ them under that alias too (`CHANNELS.md` §4). The old per-message `/conceal`
 text prefix and the Speak modal's checkbox are gone: a player who wants to be
 unnamed is unnamed until they say otherwise.
 
-**A hood hides WHO you are, not THAT you are standing there.** That line is
-what decides which menus a concealed character appears in, and there are two
-answers rather than one.
+**A hood hides WHO you are, not THAT you are standing there. It costs you
+your name and nothing else.** That is the whole rule, and every people-picker
+in the game now follows it.
 
-Most people-pickers leave them out, and `hereWhere` in `db/lib/presence.js` is
-where that happens: Heal, Loot, Bind, Free, Harm, Kiss, Learn, Teach and
-Confess all act on an **identity**, and naming somebody to heal or teach them
-would undo the thing they put the helmet on for. The `@`-mention directory
-drops them for the same reason (`web/lib/mentionDirectory.js`).
+It did not always. `hereWhere` in `db/lib/presence.js` used to drop a concealed
+character from most rosters, on the reasoning that Heal, Loot, Bind, Free, Harm,
+Kiss, Learn, Teach and Confess act on an **identity** and that naming somebody
+to heal them would undo the thing they put the helmet on for. The verbs came off
+that rule one at a time — Attack, Bind and the rest of the body verbs, then
+Search — and Heal and Loot were the last two held back, with this reason written
+into `presence.js`:
 
-Three do offer them, because they are things you can plainly do to a stranger
-whose name you do not know:
+> their pickers carry the target's tag list, and an inventory or a wound list
+> identifies a person nearly as well as a name does
 
-| | Where |
-|---|---|
-| **Hand them something** | Transfer's recipient list — built whole from `whosHere()`; the server re-check is `hereWhere(..., { allowConcealed: true })`, the one caller of that flag |
-| **Take them aside** | Converse, from the hood's own row in the HERE column |
-| **Let them through a door** | `+ Add` and `/add` on a conversation or a private room (`CHAT.md` §2a) |
+Two players found the end of that argument the hard way: a man in a closed
+helmet could not be treated, could not be dosed, could not be handed a cure, and
+could not have his pockets gone through when he went down dying. **A hood made
+you immortal by neglect.** The reasoning had also been overtaken — §6a below
+already prints a hood's visible ailments and visible gear on the 🔍 embed, and
+`SEARCH.md` already lets you go through their pockets. Concealment hides the
+identity, not the inventory; that line was true on one surface and denied on two.
 
-All three hand the browser a **hood token** instead of a character id — an
+**So: one roster, in two halves.** `hereWhere` is the NAMED half and stays
+exactly as strict as it was. `hoodsHere` in `web/lib/peopleHere.js` is the other,
+and `web/lib/peoplePools.js` composes both into every picker on `/character` and
+`/chat` — Heal, Miracle, Loot, dosing, administering a cure, Bind, Free,
+Crucify, Shackle, Torture, Harm, Mutilate, Brand, Attack, Search, Transfer,
+Converse, Learn, Teach, Confess, Kiss, and letting somebody through a door.
+`pickerName` and `pickerKey` beside it are the only two places that have to know
+which half a row came from.
+
+Two of those deserve a note, because their answer is narrower than "yes":
+
+- **Heal and Miracle** show a hooded patient only the wounds the reader could
+  actually see — `medicallyVisibleTags(tags, satisfied, false)` in
+  `db/lib/medicalVision.js`, which is the same rule the 🔍 concealed embed
+  follows, so the two surfaces cannot disagree. Visible afflictions, plus
+  whatever this medic's own training lets them diagnose, and nothing else. A
+  Saint gets the bystander read alone: sainthood is not a medical training.
+  `healCharacterRequestImpl` re-checks it, because a picker is a hint.
+- **Kiss** goes in with everything else and comes straight back out, because
+  `kissBlock` refuses a covered face. That is deliberate rather than a special
+  case: one rule for the whole roster means the day a concealing item leaves the
+  mouth free, nothing has to change.
+
+**What still turns on a name, and must:** the `@`-mention directory
+(`web/lib/mentionDirectory.js`), the command palette, an arrest warrant
+(`db/lib/wanted.js`) and Intercept's `matchesArrival` (`db/lib/intercept.js`).
+Those **name** somebody rather than act on a body in front of you, and naming a
+hood is the unmasking. Both of those files say so in their own headers.
+
+Every picker hands the browser a **hood token** instead of a character id — an
 HMAC of the id under `AUTH_SECRET` (`db/lib/whosHere.js#hoodToken`), posted
 back as `hood:<token>` and resolved by `resolveHoodToken`, which re-queries who
 is actually standing at the caller's Location and re-derives concealment from
 their tags. So a token names somebody in the room you are in and nobody
 anywhere else, and a stale one resolves to nothing. The id never crosses the
 wire, because `/api/avatar/<id>` takes an id and answers with a face — shipping
-one IS the unmasking, whatever the page chooses to draw.
+one IS the unmasking, whatever the page chooses to draw. `hoodsHere` strips the
+id and the real name on the way out rather than never selecting them, so a pool
+cannot leak one by writing its `select` carelessly.
+
+**One resolver turns a key back into a person**, `db/lib/targetKey.js`:
+`character:<id>` for somebody in the open, `hood:<token>` for somebody in a
+mask, and `resolveTargetKey` is the one place it happens.
+`web/lib/hereTarget.js#resolveHereTarget` wraps it with the `isHere` re-check
+and — this matters — blanks the refusal for a hood key, so a "no" never prints
+the name the helmet was bought to hide. `resolveParty` in
+`character/actions/shared.js` knows both shapes too, which is what lets a masked
+stranger pay for a cure. `allowConcealed` is not "the one caller" of anything
+any more; it is on for every verb that acts on a body.
 
 `whosHere(..., { withHoodIds: true })` adds a server-only `hoodIds` map —
-token to character id — for the one caller that has to filter hoods by id
-before offering them (`placeMembers`, dropping anybody already in the place).
-A sibling key rather than an id on the rows, because those rows go straight to
-a browser.
+token to character id — for the callers that have to filter hoods by id before
+offering them. A sibling key rather than an id on the rows, because those rows
+go straight to a browser.
 
 **One function decides who is hidden**, `presentRows` in the same file, and
 `resolveHoodToken` reads it too. It did not, and that was a bug players could
@@ -448,10 +492,25 @@ the stored preference is left alone and comes back when the thing comes off.
 Being **Bound** blocks unequipping entirely (`TAGS.md`), which is what makes a
 sack worth tying on.
 
-Concealment is **derived at read time**, never written. Nothing has to happen
-when a mask is put on or taken off, no catch-up pass exists, and a row left
-`concealed: true` after the mask came off simply resolves back to the real face
-on its own. `concealmentFrom(tags)` in `db/lib/presentedIdentity.js` is the
+**A body keeps whatever was over its face when it died**, and that needed one
+stored column to work at all. Death unequips everything
+(`db/lib/characterDeath.js`), and concealment only ever counts an EQUIPPED
+mask — so dying used to take your hood off, and a masked man who went down was
+listed in the room's Loot menu under his real name a moment later. Killing
+somebody was the reliable way to learn who they were.
+`Character.deathMaskTagId` is the memory of the piece, stamped just before that
+unequip and only when the hood was actually in effect. The reading stays
+derived, though: a body counts as hooded **only while it also still holds that
+tag**, so looting the helmet off a corpse gives it a face back with no second
+write and no catch-up pass. A gib keeps nothing — the tags are vaporized. A
+revive clears it. `presentRows` takes `includeDead` for the verbs that may name
+a body, and `resolveHoodToken` takes it too, so Loot can reach one and Heal
+cannot.
+
+Concealment is otherwise **derived at read time**, never written. Nothing has to
+happen when a mask is put on or taken off, no catch-up pass exists, and a row
+left `concealed: true` after the mask came off simply resolves back to the real
+face on its own. `concealmentFrom(tags)` in `db/lib/presentedIdentity.js` is the
 whole of it, and `CONCEALMENT_TAG_FIELDS` beside it is the field list every
 call site selects — miss one and concealment silently stops working at that
 surface only.

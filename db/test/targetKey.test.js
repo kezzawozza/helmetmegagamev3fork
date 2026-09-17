@@ -49,3 +49,45 @@ test("an empty or missing key is nobody, never a lookup", async () => {
 test("a plain id is NOT run through the hood lookup — an unconcealed target still resolves", async () => {
   assert.equal(await resolveTargetKey(fakePrisma, viewer, "character:plain1"), "plain1");
 });
+
+// `allowDead` widens the HOOD arm only, and it has to be passed by the verb
+// rather than assumed: Loot may name a body, Heal may not. A masked corpse is
+// reachable exactly when the caller says a body is a legal target.
+const deadRows = [
+  {
+    ...base,
+    status: "DEAD",
+    buriedAt: null,
+    id: "body1",
+    name: "Oleg",
+    locationId: "loc1",
+    concealed: false,
+    age: 40,
+    gender: "MAN",
+    deathMaskTagId: "mask",
+    // NOT equipped — death takes everything out of its slot, which is why the
+    // stamp exists at all (db/lib/characterDeath.js).
+    tags: [{ tagId: "mask", equipped: false, tag: { ...hoodTag.tag, id: "mask" } }],
+  },
+];
+const fakeDeadPrisma = {
+  character: {
+    findMany: async ({ where }) =>
+      where?.status === "ALIVE" ? deadRows.filter((r) => r.status === "ALIVE") : deadRows,
+  },
+};
+
+test("a hood token over a body resolves only for a verb that allows one", async () => {
+  const key = `hood:${hoodToken("body1")}`;
+  const sightings = new Map();
+
+  assert.equal(await resolveTargetKey(fakeDeadPrisma, viewer, key, { sightings }), null);
+  assert.equal(
+    await resolveTargetKey(fakeDeadPrisma, viewer, key, { sightings, allowDead: true }),
+    "body1",
+  );
+});
+
+test("allowDead never widens a plain character key — that stays the caller's own isHere()", async () => {
+  assert.equal(await resolveTargetKey(fakeDeadPrisma, viewer, "character:body1", { allowDead: false }), "body1");
+});
