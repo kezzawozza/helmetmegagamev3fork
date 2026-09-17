@@ -413,10 +413,20 @@ already prints a hood's visible ailments and visible gear on the 🔍 embed, and
 `SEARCH.md` already lets you go through their pockets. Concealment hides the
 identity, not the inventory; that line was true on one surface and denied on two.
 
-**So: one roster, in two halves.** `hereWhere` is the NAMED half and stays
-exactly as strict as it was. `hoodsHere` in `web/lib/peopleHere.js` is the other,
-and `web/lib/peoplePools.js` composes both into every picker on `/character` and
-`/chat` — Heal, Miracle, Loot, dosing, administering a cure, Bind, Free,
+**So: one roster, in two halves — and ONE predicate splits it.**
+`rosterHere` in `web/lib/peopleHere.js` takes `presentRows`' answer and sorts the
+rows into named and hooded, and `web/lib/peoplePools.js` composes both into every
+picker on `/character` and `/chat`.
+
+The single predicate is the load-bearing part, not a tidiness point. The first
+version of this split with `hereWhere`'s SQL on one side and `presentRows` on the
+other, and those two disagree in both directions: a body that died in a helmet
+came back in the NAMED half under its real name and its real id (hereWhere's dead
+arm knows nothing about `deathMaskTagId`) *and* in the hooded half under its
+alias — the same inventory listed twice in one Loot dropdown, one row of it
+holding the id that `/api/avatar` answers with a face. Speaking hooded and then
+unconcealing put a living player in both halves the same way, alias beside real
+name; doing it the other way round dropped them out of both — Heal, Miracle, Loot, dosing, administering a cure, Bind, Free,
 Crucify, Shackle, Torture, Harm, Mutilate, Brand, Attack, Search, Transfer,
 Converse, Learn, Teach, Confess, Kiss, and letting somebody through a door.
 `pickerName` and `pickerKey` beside it are the only two places that have to know
@@ -449,7 +459,7 @@ is actually standing at the caller's Location and re-derives concealment from
 their tags. So a token names somebody in the room you are in and nobody
 anywhere else, and a stale one resolves to nothing. The id never crosses the
 wire, because `/api/avatar/<id>` takes an id and answers with a face — shipping
-one IS the unmasking, whatever the page chooses to draw. `hoodsHere` strips the
+one IS the unmasking, whatever the page chooses to draw. `rosterHere` strips the
 id and the real name on the way out rather than never selecting them, so a pool
 cannot leak one by writing its `select` carelessly.
 

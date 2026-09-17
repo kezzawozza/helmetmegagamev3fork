@@ -48,6 +48,7 @@ import {
   createEscortOffer,
   acceptEscort,
   escortReason,
+  escortView,
   escortName,
   escortKey,
   escortHidden,
@@ -554,21 +555,31 @@ export async function loadParty() {
   // A passenger cannot lead a party of their own (db/lib/escort.js
   // #escortAuthority), so the rack shows who THEY are being brought along
   // with instead of a picker to bring somebody of their own (MAP.md §3a).
+  // One view of who is hidden from THIS character, shared by every list below —
+  // built off presentRows, so it can never disagree with resolveHoodToken about
+  // who a token names (db/lib/escort.js#escortView).
+  const view = await escortView(prisma, character);
   let riding = null;
   if (character.escortedById) {
     const [leaderRow, companions] = await Promise.all([
       prisma.character.findUnique({ where: { id: character.escortedById }, select: { id: true, name: true } }),
       partyOf(prisma, character.escortedById),
     ]);
+    // The LEADER may be the one in the mask — a masked faction Leader can attach
+    // you FORCED — so their row goes through the same view, and their id does
+    // not travel at all. `leaderId` used to ship raw, which /api/avatar answers
+    // with a face.
     riding = {
-      leaderId: character.escortedById,
-      leaderName: leaderRow ? escortName(leaderRow) : "somebody",
+      // No `leaderId`. It used to ship the real one, which /api/avatar answers
+      // with a face, and the rack never read it — PartyRack.js draws the name
+      // and nothing else.
+      leaderName: leaderRow ? escortName(leaderRow, view) : "somebody",
       // escortName, never row.name: a party can carry somebody in a mask now,
       // and the rack is the one place that would publish the name they are
       // wearing it to hide (PROXYING.md §5). No id on a hood row either.
       companions: companions
         .filter((row) => row.id !== character.id)
-        .map((row) => ({ id: escortKey(row), name: escortName(row), status: row.status, hooded: escortHidden(row) })),
+        .map((row) => ({ id: escortKey(row, view), name: escortName(row, view), status: row.status })),
     };
   }
 
@@ -583,13 +594,16 @@ export async function loadParty() {
   ]);
 
   // Offer.initiatorId is a bare column, not a relation — resolve the name with its own lookup, like every other reader.
+  // Through the view like everything else: the person asking to take you along
+  // may be wearing a mask, and "Sir Alder wants to take you along" would be the
+  // unmasking. escortName answers "somebody" for anyone the view hides.
   const askerNames = new Map();
   if (incoming.length) {
     const askers = await prisma.character.findMany({
       where: { id: { in: [...new Set(incoming.map((o) => o.initiatorId))] } },
       select: { id: true, name: true },
     });
-    for (const asker of askers) askerNames.set(asker.id, asker.name);
+    for (const asker of askers) askerNames.set(asker.id, escortName(asker, view));
   }
 
   return {
@@ -599,13 +613,13 @@ export async function loadParty() {
     candidates,
     // Re-derived rather than read off `candidates`: a follower can be with you and no longer be a candidate.
     party: party.map((row) => ({
-      id: escortKey(row),
-      name: escortName(row),
+      id: escortKey(row, view),
+      name: escortName(row, view),
       status: row.status,
       // The avatar's own gate. A hood row is keyed by token, so /api/avatar
       // could not draw the face even if it tried — this is what makes it draw
       // the question-mark plate instead of nothing.
-      hooded: escortHidden(row),
+      hooded: escortHidden(row, view),
       reason: escortReason(row, escortAuthority(character, row, openTurn?.number ?? null)),
     })),
     incoming: incoming.map((offer) => ({ id: offer.id, from: askerNames.get(offer.initiatorId) ?? "Somebody" })),
@@ -633,7 +647,7 @@ export async function bringAlong(targetKey) {
     const offer = await createEscortOffer(prisma, { actor: me.character, target, turn: openTurn });
     if (!offer.ok) return { ok: false, error: offer.reason };
     await sendDm(offer.dm.discordUserId, offer.dm.content, { components: offer.dm.components, meta: offer.dm.meta }).catch(() => {});
-    return { ok: true, line: `You asked ${escortName(target)} to come with you.` };
+    return { ok: true, line: `You asked ${escortName(target, await escortView(prisma, me.character))} to come with you.` };
   }
 
   // A FORCED target is taken, not agreed with — escortAuthority already decided above; attach must not re-decide it.
@@ -641,7 +655,7 @@ export async function bringAlong(targetKey) {
     return { ok: false, error: "Somebody else has them." };
   }
   await syncPartyMembership(prisma, me.character.id).catch(() => {});
-  return { ok: true, line: `${escortName(target)} is with you.` };
+  return { ok: true, line: `${escortName(target, await escortView(prisma, me.character))} is with you.` };
 }
 
 // Put somebody down. Always allowed: letting go is never gated.
@@ -660,7 +674,7 @@ export async function putDown(targetKey) {
   if (!target) return { ok: false, error: "They aren't with you." };
   await detach(prisma, target.id);
   await syncPartyMembership(prisma, me.character.id).catch(() => {});
-  return { ok: true, line: `You let ${escortName(target)} go.` };
+  return { ok: true, line: `You let ${escortName(target, await escortView(prisma, me.character))} go.` };
 }
 
 // Answering an ask from the web. Same two functions the bot's buttons call, so the two faces can't drift.

@@ -137,7 +137,11 @@ async function acceptBind(prisma, offer, responder) {
   if (!turn || turn.id !== offer.turnId) return refuse("That offer was for a turn that's over.");
   if (!actor || actor.status !== "ALIVE") return refuse("They aren't around any more.");
   if (!target || target.status !== "ALIVE") return refuse("You aren't in a state to be bound.");
-  if (!isHere(actor, target)) return refuse(notHereMessage(target));
+  // allowConcealed, matching the ASK side and every other body verb: the offer
+  // that got here was made to somebody standing in front of the binder, and a
+  // mask does not stop a rope. Without it, a hood who SAID YES to being bound
+  // was refused at the accept, which is the one place consent was already given.
+  if (!isHere(actor, target, { allowConcealed: true })) return refuse(notHereMessage(target));
   if (isBound(target)) return refuse(`${target.name} is already bound.`);
 
   const claim = await prisma.offer.updateMany({

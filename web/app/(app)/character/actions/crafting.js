@@ -2,6 +2,7 @@
 // and the ingredient/payer resolution they share. See CRAFTING.md.
 
 import { after } from "next/server";
+import { splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { prisma } from "@lifeweb/db";
 import { getOpenTurn } from "@/lib/turn";
 import {
@@ -374,7 +375,7 @@ export async function resolveCraftPayer(character, payerKey, cost) {
   const payer = await resolveParty(key, { actor: character });
   if (!payer) throw new UserError("That payer isn't here any more — pick another.");
   if (!(await canReachParty(character, payer, { allowConcealed: true })))
-    throw new UserError(payer.concealed ? "They aren't here." : outOfReachMessage(payer));
+    throw new UserError(splitTargetKey(key).kind === "hood" ? "They aren't here." : outOfReachMessage(payer));
   if (cost > payer.balance)
     throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
   return payer;

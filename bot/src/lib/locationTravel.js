@@ -17,6 +17,7 @@ const {
   detach,
   partyOf,
   createEscortOffer,
+  escortView,
   escortName,
   escortKey,
 } = require("@lifeweb/db/lib/escort");
@@ -138,13 +139,16 @@ async function applyBring(mover, pickedKeys, turn) {
   // key, and escortName() is what any of these lines is allowed to say out loud.
   const picked = new Set(pickedKeys);
   const candidates = await escortCandidates(prisma, mover, turn?.number ?? null);
+  // The same view escortCandidates built its keys from, so a dropped follower is
+  // matched by the key the menu actually carried (db/lib/escort.js#escortView).
+  const view = await escortView(prisma, mover);
   const byKey = new Map(candidates.map((c) => [c.id, c]));
   const out = { attached: [], asked: [], dropped: [], dms: [] };
 
   for (const row of await partyOf(prisma, mover.id)) {
-    if (!picked.has(escortKey(row))) {
+    if (!picked.has(escortKey(row, view))) {
       await detach(prisma, row.id);
-      out.dropped.push(escortName(row));
+      out.dropped.push(escortName(row, view));
     }
   }
 
@@ -161,7 +165,7 @@ async function applyBring(mover, pickedKeys, turn) {
       if (!target || !escortAuthority(mover, target, turn.number)) continue;
       const offer = await createEscortOffer(prisma, { actor: mover, target, turn });
       if (offer.ok) {
-        out.asked.push(escortName(target));
+        out.asked.push(escortName(target, view));
         out.dms.push(offer.dm);
       }
       continue;

@@ -18,7 +18,12 @@ import { UserError } from "./actionResult";
 // A refusal must never be an unmasking. notHereMessage() prints target.name, which is the one thing a
 // hood is bought to hide — so a key that arrived as a hood is always refused in the blank form, even
 // when we did load a row. A named key keeps the specific sentence it has always had.
-function refusalFor(key, target) {
+//
+// Exported because resolveHereTarget is not the only gate: the verbs in
+// actions/misc.js load their rows with `include` rather than a `select` and so
+// resolve the key themselves, but the refusal is the same refusal and must not
+// be a second copy of it.
+export function refusalFor(key, target) {
   return splitTargetKey(key).kind === "hood" ? "They aren't here." : notHereMessage(target);
 }
 

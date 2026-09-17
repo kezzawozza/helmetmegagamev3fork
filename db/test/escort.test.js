@@ -130,38 +130,59 @@ test("a hood comes along like anybody else — the mask costs the name, not the 
   assert.equal(escortAuthority(leader(), person({ concealed: true, tags: [maskTag(), tag("bound", "Bound")] })), "FORCED");
 });
 
+// escortName/escortKey read a VIEW built by escortView off presentRows rather
+// than deciding for themselves — the lists and resolveHoodToken have to agree
+// about who is hidden. An earlier draft judged live here and reintroduced
+// exactly the bug PROXYING.md §5 records: a hood offered under a token that then
+// resolved to nobody, because the resolver honours your SIGHTING and the list
+// did not.
+const view = (entries) => new Map(entries);
+
 test("no list ever prints the name under the mask", () => {
-  const masked = person({ name: "Sir Alder", concealed: true, age: 20, gender: "MAN", tags: [maskTag()] });
-  assert.equal(escortHidden(masked), true);
-  assert.equal(escortName(masked), "a young man");
-  assert.ok(!escortKey(masked).includes("P"), "a hood is keyed by token, never by id");
+  const masked = person({ name: "Sir Alder" });
+  const hidden = view([["P", { hidden: true, name: "a young man", key: "hood:TOKEN" }]]);
+  assert.equal(escortHidden(masked, hidden), true);
+  assert.equal(escortName(masked, hidden), "a young man");
+  assert.equal(escortKey(masked, hidden), "hood:TOKEN");
+  assert.ok(!escortKey(masked, hidden).includes("P"), "a hood is keyed by token, never by id");
 
   const bare = person({ name: "Ann Vell" });
-  assert.equal(escortHidden(bare), false);
-  assert.equal(escortName(bare), "Ann Vell");
-  assert.equal(escortKey(bare), "character:P");
+  const open = view([["P", { hidden: false, name: "Ann Vell", key: "character:P" }]]);
+  assert.equal(escortHidden(bare, open), false);
+  assert.equal(escortName(bare, open), "Ann Vell");
+  assert.equal(escortKey(bare, open), "character:P");
 });
 
-// Death unequips, so a body's mask is REMEMBERED rather than worn
-// (Character.deathMaskTagId, CORPSES.md §1b). Note the rows below: not equipped.
-test("a body keeps its mask until somebody takes it", () => {
-  const stamped = (tags) =>
-    person({ name: "Sir Alder", status: "DEAD", age: 20, gender: "MAN", deathMaskTagId: "mask", tags });
-  const worn = { tagId: "mask", equipped: false, tag: { ...maskTag().tag, id: "mask" } };
-
-  assert.equal(escortName(stamped([worn])), "a young man");
-  assert.equal(escortName(stamped([])), "Sir Alder", "looted: the face comes back");
-  assert.equal(escortName(person({ name: "Ann Vell", status: "DEAD" })), "Ann Vell", "never wore one");
+// The safe direction when the view has no answer: say nothing, offer nothing.
+// Printing row.name here is the one mistake that cannot be taken back.
+test("somebody the view does not know is unnamed and unofferable", () => {
+  const stranger = person({ name: "Sir Alder" });
+  const empty = view([]);
+  assert.equal(escortName(stranger, empty), "somebody");
+  assert.equal(escortKey(stranger, empty), null);
+  assert.equal(escortHidden(stranger, empty), false);
 });
 
-test("a forced name is not a hood, however much is over the face", () => {
+// A body's mask is REMEMBERED rather than worn (Character.deathMaskTagId,
+// CORPSES.md §1b), and presentRows is what reads that — pinned in
+// db/test/whosHere.test.js, not here. What this file owns is that escort prints
+// whatever the view says and never reaches past it.
+test("a body is named by the view like anybody else", () => {
+  const body = person({ name: "Sir Alder", status: "DEAD" });
+  assert.equal(escortName(body, view([["P", { hidden: true, name: "a young man", key: "hood:T" }]])), "a young man");
+  assert.equal(escortName(body, view([["P", { hidden: false, name: "Sir Alder", key: "character:P" }]])), "Sir Alder");
+});
+
+test("with no view at all, a forced name still wins and nothing is keyed by token", () => {
+  // The viewless fallback — anything holding a row but no room. It must never
+  // invent a hood, and must honour a forced name.
   const beast = person({
     name: "Jorren Vask",
-    concealed: true,
-    tags: [maskTag(), { tagId: "apex", equipped: true, tag: { slug: "apex-form", name: "Apex Form", forcedName: "Beast" } }],
+    tags: [{ tagId: "apex", equipped: true, tag: { slug: "apex-form", name: "Apex Form", forcedName: "Beast" } }],
   });
-  assert.equal(escortHidden(beast), false);
   assert.equal(escortName(beast), "Beast");
+  assert.equal(escortKey(beast), "character:P");
+  assert.equal(escortHidden(beast), false);
 });
 
 test("the reason says why they follow, not why they cannot", () => {

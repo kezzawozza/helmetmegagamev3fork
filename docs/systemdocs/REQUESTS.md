@@ -1031,7 +1031,7 @@ over the URL, so a filtered view stays linkable.
 | Which held tags each menu offers | `web/lib/tagRequests.js` |
 | Who is standing in your zone (one roster, five menus) | `web/app/(app)/character/page.js` |
 | Co-presence at Location-grain (web / db) | `web/lib/peopleHere.js`, `db/lib/presence.js` |
-| The hooded half of every roster, and what a picker posts back | `web/lib/peopleHere.js#hoodsHere`, `db/lib/targetKey.js`, `web/lib/hereTarget.js` (`PROXYING.md` §5) |
+| Both halves of every roster, and what a picker posts back | `web/lib/peopleHere.js#rosterHere`, `db/lib/targetKey.js`, `web/lib/hereTarget.js` (`PROXYING.md` §5) |
 | Last Words | `web/app/(app)/character/actions/lastWords.js`, `web/lib/lastWords.js`, `web/app/components/actions/LastWordsDialog.js` |
 | Bind, both doors (instant vs. consent Offer) | `db/lib/bind.js` (`LESSONS.md` §3b) |
 | Action-grid rows and per-action entries | `web/app/components/actionRegistry.js` |

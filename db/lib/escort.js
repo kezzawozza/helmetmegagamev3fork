@@ -1,15 +1,13 @@
 // Escorting — the party you carry with you (docs/systemdocs/MAP.md §3a). The one module that knows what an escort is, the way db/lib/locationGraph.js is the one module that knows what an edge is: you attach somebody once and they come along until something breaks it. The four verdicts escortAuthority returns are the whole rule set — FORCED (a corpse or anyone helpless: attaches on the spot, no asking), CONSENTED (they already said yes to YOU and the window hasn't lapsed: attaches on the spot, the whole reason the window exists — picking the same person back up shouldn't re-ask), ASK (any other living character standing with you: files an ESCORT Offer and DMs Accept/Cancel), null (not standing with you, yourself, buried, or already following somebody else: not offered at all).
 // Co-presence is LOCATION grain, not zone — you walk to somebody to take them. Takes `prisma` as a parameter and is deliberately NOT on the @lifeweb/db barrel (db/lib/dm.js convention); require it by path.
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
-const { notHereMessage } = require("./presence");
 // One module owns the hold and every sentence about it (INTERCEPT.md); this
 // only reads it. Required by path rather than off the barrel, same as the rest.
 const { heldReasonFor } = require("./intercept");
 const { escortButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
-const { aliasRow } = require("./concealedIdentity");
-const { hoodToken } = require("./hoodToken");
+const { whosHere } = require("./whosHere");
 
 // How many turns an accepted escort keeps counting as consent. Two, so a party that walks apart and regroups inside the same day isn't asked twice.
 const CONSENT_TURNS = 2;
@@ -54,41 +52,63 @@ function isHelpless(target) {
   return Boolean(target.tags?.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug)));
 }
 
-// Is this row hidden, and what should a list call it? One answer for the picker
-// and for the party rack, because those two disagreeing is how carrying a hood
-// would have published their name the moment you picked them up.
+// WHAT A LIST MAY CALL SOMEBODY, and what a picker posts back for them.
 //
-// A corpse's mask is remembered rather than worn (Character.deathMaskTagId,
-// CORPSES.md §1b) — death unequips — so the dead arm reads the stamp and checks
-// the body still holds the tag, exactly as db/lib/whosHere.js does.
-function escortHidden(row) {
-  const forced = forcedNameFrom(row?.tags);
-  if (forced) return false; // a forced name is not hiding (PROXYING.md §5).
-  if (row?.status === "DEAD") {
-    if (!row.deathMaskTagId || !Array.isArray(row.tags)) return false;
-    const held = row.tags.find((ct) => ct.tagId === row.deathMaskTagId)?.tag;
-    return Boolean(held?.concealsIdentity && held?.concealSprite);
+// This does NOT decide who is hidden. `presentRows` in db/lib/whosHere.js does,
+// once, and this reads its answer — because the two disagreeing is a bug players
+// can reach, and PROXYING.md §5 records the last time it happened: the lists
+// judged by your SIGHTING (what you last heard somebody called) while the
+// resolver judged the LIVE row, so you would see "a young man" in a dropdown,
+// pick him, and be told he was not there.
+//
+// An earlier draft of this rolled its own live check here and reintroduced
+// exactly that: `resolveHoodToken` is sightings-aware, so a hood who spoke
+// bare-faced this turn was offered under a token that then resolved to nobody.
+//
+// `escortView(prisma, leader, { includeDead })` is one round trip that answers
+// it for everybody standing here at once. Hand its result to escortName/
+// escortKey; with no view they fall back to the hidden-safe answer rather than
+// guessing, because the one wrong answer here is printing a name.
+async function escortView(prisma, leader, { includeDead = true } = {}) {
+  const room = await whosHere(prisma, leader, {
+    includeSelf: false,
+    includeDead,
+    withSightings: true,
+    withHoodIds: true,
+  });
+  const view = new Map();
+  for (const row of room.named) {
+    view.set(row.characterId, { hidden: false, name: row.name, key: `character:${row.characterId}` });
   }
-  const piece = concealmentFrom(row?.tags);
-  return Boolean(piece && (piece.forced || row?.concealed));
+  const aliasByToken = new Map(room.concealed.filter((c) => c.token).map((c) => [c.token, c.alias]));
+  for (const [token, id] of room.hoodIds ?? []) {
+    view.set(id, { hidden: true, name: aliasByToken.get(token) ?? "somebody", key: `hood:${token}` });
+  }
+  return view;
 }
 
-// The name a list may print: their own, a forced one, or the alias a stranger
-// sees. NEVER row.name for somebody hidden.
-function escortName(row) {
+// The name a list may print. NEVER row.name for somebody the view calls hidden,
+// and never a real name for somebody the view has no answer about.
+function escortName(row, view = null) {
   if (!row) return "somebody";
-  if (escortHidden(row)) return aliasRow(row, null);
-  return forcedNameFrom(row.tags) ?? row.name;
+  const seen = view?.get(row.id);
+  if (seen) return seen.name;
+  return view ? "somebody" : (forcedNameFrom(row.tags) ?? row.name);
 }
 
 // The key a picker posts back (db/lib/targetKey.js): a token for a hood, so the
-// id never crosses the wire, an id for anybody else. Null when AUTH_SECRET is
-// unset, which is also when hoodToken() mints nothing — an untokened hood is
-// simply not offerable.
-function escortKey(row) {
-  if (!escortHidden(row)) return `character:${row.id}`;
-  const token = hoodToken(row.id);
-  return token ? `hood:${token}` : null;
+// id never crosses the wire, an id for anybody else. Null means unofferable —
+// either the view does not know them, or AUTH_SECRET is unset and hoodToken()
+// minted nothing.
+function escortKey(row, view = null) {
+  const seen = view?.get(row?.id);
+  if (seen) return seen.key;
+  return view ? null : `character:${row.id}`;
+}
+
+// Is this row hidden from the viewer the view was built for?
+function escortHidden(row, view = null) {
+  return Boolean(view?.get(row?.id)?.hidden);
 }
 
 // The verdict. Pure, so the panel, the bot picker and the server-side re-check all share one answer — a picker is a hint and this is the lock. `turnNumber` is the OPEN turn's number the consent window is measured in; a caller with no open turn passes null and simply never gets CONSENTED, the safe direction — they get asked again.
@@ -150,7 +170,7 @@ function escortRefusal(leader, target) {
   if (!target) return "They aren't here any more.";
   if (target.buriedAt) return "They're in the ground.";
   // The one wording every "they aren't here" refusal in the game shares (db/lib/presence.js), so this one doesn't invent a second.
-  if (!leader?.locationId || target.locationId !== leader.locationId) return notHereMessage(target);
+  if (!leader?.locationId || target.locationId !== leader.locationId) return `${handshakeName(target)} isn't here.`;
   if (leader.escortedById) return "You're being brought along yourself.";
   if (target.escortedById && target.escortedById !== leader.id) return "They're already with somebody.";
   // A hold is the one refusal here a player cannot see for themselves, and the
@@ -169,8 +189,9 @@ function escortRefusal(leader, target) {
 // Everyone standing here, each with its verdict. The panel draws the lot: nothing is filtered out for being ASK, since "you'd have to ask them" is the useful half of the answer.
 async function escortCandidates(prisma, leader, turnNumber = null) {
   if (!leader?.locationId) return [];
-  // presentWhere rather than hereWhere: everybody standing here, hoods included.
-  // escortAuthority below is the filter, and it no longer refuses a mask.
+  // NOT hereWhere: that is the named half and drops hoods (db/lib/presence.js).
+  // Everybody standing here, mask or no mask — escortAuthority below is the
+  // filter, and it no longer refuses one.
   const rows = await prisma.character.findMany({
     where: {
       locationId: leader.locationId,
@@ -180,19 +201,22 @@ async function escortCandidates(prisma, leader, turnNumber = null) {
     select: ESCORT_SELECT,
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   });
+  // One view for the whole room, built off presentRows so this list and
+  // resolveHoodToken can never disagree about who is hidden.
+  const view = await escortView(prisma, leader);
   const out = [];
   for (const row of rows) {
     const verdict = escortAuthority(leader, row, turnNumber);
     if (!verdict) continue;
     // A KEY, not an id — a hood's id never goes to a browser, because
-    // /api/avatar/<id> answers with a face. An untokened hood is unofferable.
-    const id = escortKey(row);
-    if (!id) continue;
+    // /api/avatar/<id> answers with a face. Null is unofferable: somebody the
+    // view has no answer about, or a hood with no token to mint one from.
+    const key = escortKey(row, view);
+    if (!key) continue;
     out.push({
-      id,
-      name: escortName(row),
+      id: key,
+      name: escortName(row, view),
       status: row.status,
-      hooded: escortHidden(row),
       verdict,
       attached: row.escortedById === leader.id,
       reason: escortReason(row, verdict),
@@ -245,9 +269,32 @@ async function releaseParty(prisma, leaderId, { tx = null } = {}) {
 // --- The consent handshake ------------------------------------------------
 // Modelled on db/lib/bind.js, which already does exactly this split: the helpless get no say, everybody else gets an Offer. The bot's generic accept/decline plumbing (bot/src/lib/offers.js) switches on offer.kind, so ESCORT rides the same two buttons and the same router branch.
 
+// What one side of a handshake may call the other, WITHOUT a room view to read.
+// createEscortOffer and acceptEscort both run from a DM button, where there is
+// no picker and no viewer's sightings to consult — so this is the fallback, and
+// it fails closed: a face under a mask is "somebody", never a name.
+//
+// It is a live concern now rather than a theoretical one. Before hoods could be
+// escorted at all, neither side of this handshake could be masked; now the ask
+// goes out to a hood, and "Sir Alder is with you." on their Accept would hand
+// over the name the helmet was bought to hide.
+function handshakeName(row) {
+  if (!row) return "somebody";
+  const forced = forcedNameFrom(row.tags);
+  if (forced) return forced; // a forced name is not hiding (PROXYING.md §5).
+  if (row.status === "DEAD") {
+    const held = Array.isArray(row.tags) && row.deathMaskTagId
+      ? row.tags.find((ct) => ct.tagId === row.deathMaskTagId)?.tag
+      : null;
+    return held?.concealsIdentity && held?.concealSprite ? "somebody" : row.name;
+  }
+  const piece = concealmentFrom(row.tags);
+  return piece && (piece.forced || row.concealed) ? "somebody" : row.name;
+}
+
 // Files the ask. Returns { ok, offer, dm } or { ok: false, reason }.
 async function createEscortOffer(prisma, { actor, target, turn }) {
-  if (!target.discordUserId) return { ok: false, reason: `${target.name} can't be reached.` };
+  if (!target.discordUserId) return { ok: false, reason: `${handshakeName(target)} can't be reached.` };
   const duplicate = await prisma.offer.findFirst({
     where: { kind: "ESCORT", status: "PENDING", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
     select: { id: true },
@@ -261,7 +308,7 @@ async function createEscortOffer(prisma, { actor, target, turn }) {
     offer,
     dm: {
       discordUserId: target.discordUserId,
-      content: `*${actor.name}* wants to take you along.`,
+      content: `*${handshakeName(actor)}* wants to take you along.`,
       components: escortButtonRow(offer.id),
       meta: dmAction(DM_ACTION.OFFER, offer.id, "ESCORT"),
     },
@@ -335,19 +382,19 @@ async function acceptEscort(prisma, offer, _responder) {
   return {
     ok: true,
     line: attaches
-      ? `You're with ${actor.name} now.`
+      ? `You're with ${handshakeName(actor)} now.`
       : together
-        ? `You agreed, but ${actor.name} can't bring you along right now.`
-        : `You agreed, but ${actor.name} isn't here any more.`,
+        ? `You agreed, but ${handshakeName(actor)} can't bring you along right now.`
+        : `You agreed, but ${handshakeName(actor)} isn't here any more.`,
     dms: actor.discordUserId
       ? [
           {
             discordUserId: actor.discordUserId,
             content: attaches
-              ? `${target.name} is with you.`
+              ? `${handshakeName(target)} is with you.`
               : together
-                ? `${target.name} agreed, but you can't bring them along right now.`
-                : `${target.name} agreed, but you've moved away.`,
+                ? `${handshakeName(target)} agreed, but you can't bring them along right now.`
+                : `${handshakeName(target)} agreed, but you've moved away.`,
           },
         ]
       : [],
@@ -361,6 +408,7 @@ module.exports = {
   escortReason,
   escortRefusal,
   escortCandidates,
+  escortView,
   escortName,
   escortKey,
   escortHidden,

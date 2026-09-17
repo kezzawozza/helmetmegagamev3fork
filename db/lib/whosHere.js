@@ -61,17 +61,10 @@ function deathMaskPiece(row) {
   const held = row.tags.find((ct) => ct.tagId === row.deathMaskTagId);
   const tag = held?.tag;
   if (!tag?.concealsIdentity || !tag?.concealSprite) return null;
-  // `forced` stays the tag's own forcesConceal, not a blanket true: it means "a
-  // sack you cannot take off", and a corpse's ability to take anything off is
-  // not what it is describing. Nothing downstream reads it for a dead row — the
-  // hidden decision below is the death mask's presence alone — but a field that
-  // lies is a field somebody trusts later.
-  return {
-    sprite: tag.concealSprite,
-    name: tag.name ?? null,
-    tagId: row.deathMaskTagId,
-    forced: Boolean(tag.forcesConceal),
-  };
+  // No `forced`: it means "a sack you cannot take off", and the dead branch
+  // below decides hidden on the death mask's presence alone, so nothing would
+  // read it. A field nothing reads is a field somebody trusts wrongly later.
+  return { sprite: tag.concealSprite, name: tag.name ?? null, tagId: row.deathMaskTagId };
 }
 
 // The one place "is this person hidden from this viewer" is decided; every

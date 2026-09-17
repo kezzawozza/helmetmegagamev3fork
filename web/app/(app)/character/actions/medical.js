@@ -43,6 +43,7 @@ import {
 import { concealedNow } from "@lifeweb/db/lib/presence";
 import { medicallyVisibleTags } from "@lifeweb/db/lib/medicalVision";
 import { resolveHereTarget } from "@/lib/hereTarget";
+import { splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import {
   SURGICAL_EQUIPMENT_SLUG,
@@ -243,7 +244,7 @@ export async function healCharacterRequestImpl({
   const payer = await resolveParty(payerKey, { actor: character });
   if (!payer) throw new UserError("Unknown payer.");
   if (!(await canReachParty(character, payer, { allowConcealed: true })))
-    throw new UserError(payer.concealed ? "They aren't here." : outOfReachMessage(payer));
+    throw new UserError(splitTargetKey(payerKey).kind === "hood" ? "They aren't here." : outOfReachMessage(payer));
 
   // Straight off the tag, never off the client.
   const cost = healCost(held.tag);

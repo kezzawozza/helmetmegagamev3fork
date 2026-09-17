@@ -502,11 +502,15 @@ one answer:
 plainest things you can do to somebody whose name you do not know, so
 `escortAuthority` no longer refuses a mask — it used to, which meant a masked
 friend bleeding out could not be carried to a surgeon by anyone
-(`PROXYING.md` §5). What a hood still costs is the **name**: `escortName(row)`
-is what every list prints, `escortKey(row)` is what a picker posts back — an
-HMAC token rather than an id, because `/api/avatar/<id>` answers with a face —
-and `hooded` on the row is what makes the party rack draw the question-mark
-plate instead of asking for one. A body still wearing its mask is named the
+(`PROXYING.md` §5). What a hood still costs is the **name**: `escortView(prisma, leader)`
+is one round trip that asks `presentRows` who is hidden from this leader, and
+`escortName(row, view)` / `escortKey(row, view)` read its answer — a name, or an
+alias and an HMAC token rather than an id, because `/api/avatar/<id>` answers
+with a face. Reading `presentRows` rather than deciding again is the load-bearing
+part: the resolver honours your **sighting** (`PROXYING.md` §5a), so a list that
+judged the live row instead would offer a hood under a token that then resolved
+to nobody. `hooded` on a party row is what makes the rack draw the
+question-mark plate instead of asking for a face. A body still wearing its mask is named the
 same way (`CORPSES.md` §1b).
 
 **A hold says so now.** Being attacked holds both sides until the turn ends

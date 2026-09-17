@@ -29,7 +29,7 @@ import {
 import { resourcesOf, isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { concealedNow } from "@lifeweb/db/lib/presence";
-import { resolveHereTarget } from "@/lib/hereTarget";
+import { resolveHereTarget, refusalFor } from "@/lib/hereTarget";
 import { cleanCustomText, CUSTOM_DESCRIPTION_MAX } from "@/lib/customCraft";
 import { mintCustomCraft, unmintCustomCraft } from "./crafting.js";
 import { applyHiddenCures } from "@lifeweb/db/lib/hiddenCures";
@@ -1388,7 +1388,9 @@ export async function lootCharacterRequestImpl({
       },
     },
   });
-  if (target.buriedAt) throw new UserError("They're already in the ground.");
+  // NOT a buriedAt check — resolveHereTarget's isHere(allowDead) already refuses
+  // a buried row, so this would be unreachable. The specific sentence is kept
+  // where it can still be said: db/lib/escort.js#escortRefusal.
 
   // A corpse needs no further excuse; a living target has to be helpless —
   // otherwise it's a Gambit for a GM to adjudicate.
@@ -1568,12 +1570,14 @@ export async function bindCharacterRequestImpl({
   if (targetId === character.id)
     throw new UserError("You can't bind yourself.");
 
-  const target = await prisma.character.findFirst({
-    where: { id: targetId ?? "", status: { in: ["ALIVE", "DEAD"] } },
+  // resolveHereTarget (web/lib/hereTarget.js) rather than a fourth copy of the
+  // same four lines: it also blanks the refusal for a hood key, so a target who
+  // walked off between the two queries is never refused BY NAME — which is the
+  // one thing a mask is bought to prevent.
+  const target = await resolveHereTarget(character, targetCharacterId, {
+    allowDead: true,
     select: BIND_SELECT,
   });
-  if (!target || !isHere(character, target, { allowDead: true, allowConcealed: true }))
-    throw new UserError(notHereMessage(target));
   if (isBoundTarget(target))
     throw new UserError(`${target.name} is already bound.`);
 
@@ -1647,7 +1651,9 @@ export async function freeCharacterRequestImpl({
     },
   });
   if (!target || !isHere(character, target, { allowConcealed: true }))
-    throw new UserError(notHereMessage(target));
+    // refusalFor, not notHereMessage: a hood key is refused in the blank form,
+    // because a refusal that prints the name is the unmasking itself.
+    throw new UserError(refusalFor(targetCharacterId, target));
 
   const held = target.tags[0];
   if (!held) throw new UserError(`${target.name} isn't bound.`);
@@ -1827,7 +1833,9 @@ export async function crucifyCharacterRequestImpl({
     },
   });
   if (!target || !isHere(character, target, { allowConcealed: true }))
-    throw new UserError(notHereMessage(target));
+    // refusalFor, not notHereMessage: a hood key is refused in the blank form,
+    // because a refusal that prints the name is the unmasking itself.
+    throw new UserError(refusalFor(targetCharacterId, target));
   if (target.tags.some((ct) => ct.tag.slug === CRUCIFIED_SLUG))
     throw new UserError(`${target.name} is already on the cross.`);
 
@@ -1924,7 +1932,9 @@ export async function shackleCharacterRequestImpl({
     },
   });
   if (!target || !isHere(character, target, { allowConcealed: true }))
-    throw new UserError(notHereMessage(target));
+    // refusalFor, not notHereMessage: a hood key is refused in the blank form,
+    // because a refusal that prints the name is the unmasking itself.
+    throw new UserError(refusalFor(targetCharacterId, target));
   if (target.tags.some((ct) => ct.tag.slug === SHACKLED_SLUG))
     throw new UserError(`${target.name} is already shackled.`);
   const boundRow = target.tags.find((ct) => ct.tag.slug === "bound");
@@ -2024,7 +2034,9 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
     },
   });
   if (!target || !isHere(character, target, { allowConcealed: true }))
-    throw new UserError(notHereMessage(target));
+    // refusalFor, not notHereMessage: a hood key is refused in the blank form,
+    // because a refusal that prints the name is the unmasking itself.
+    throw new UserError(refusalFor(targetCharacterId, target));
   if (!isBoundTarget(target))
     throw new UserError(`${target.name} isn't tied up.`);
   const openTurn = await getOpenTurn();
@@ -2289,7 +2301,9 @@ export async function harmCharacterRequestImpl({
     include: { tags: { include: { tag: { select: { slug: true } } } } },
   });
   if (!target || !isHere(character, target, { allowConcealed: true }))
-    throw new UserError(notHereMessage(target));
+    // refusalFor, not notHereMessage: a hood key is refused in the blank form,
+    // because a refusal that prints the name is the unmasking itself.
+    throw new UserError(refusalFor(targetCharacterId, target));
 
   const heldSlugs = new Set(target.tags.map((ct) => ct.tag.slug));
   if (![...heldSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
@@ -2418,7 +2432,9 @@ export async function brandCharacterRequestImpl({ targetCharacterId, description
     include: { tags: { include: { tag: { select: { slug: true } } } } },
   });
   if (!target || !isHere(character, target, { allowConcealed: true }))
-    throw new UserError(notHereMessage(target));
+    // refusalFor, not notHereMessage: a hood key is refused in the blank form,
+    // because a refusal that prints the name is the unmasking itself.
+    throw new UserError(refusalFor(targetCharacterId, target));
   const targetSlugs = target.tags.map((ct) => ct.tag.slug);
   if (!targetSlugs.some((slug) => INCAPACITATING_SLUGS.has(slug)))
     throw new UserError(`${target.name} could still stop you — that's not something you can just do to them.`);

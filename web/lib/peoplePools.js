@@ -7,8 +7,7 @@ import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { RESOURCES_SELECT, resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
-import { peopleHere, hoodsHere, pickerName, pickerKey } from "@/lib/peopleHere";
-import { whosHere } from "@lifeweb/db/lib/whosHere";
+import { rosterHere, pickerName, pickerKey } from "@/lib/peopleHere";
 import { rosterName } from "@lifeweb/db/lib/presentedIdentity";
 import { medicallyVisibleTags } from "@lifeweb/db/lib/medicalVision";
 import { isTradeable } from "@/lib/tagRequests";
@@ -45,7 +44,7 @@ import {
 // "who is helpless" would have been a second answer.
 //
 // EVERY ROSTER HERE HAS TWO HALVES. `peopleHere` is the people whose faces you
-// can see and `hoodsHere` is the people in masks, and both go into every picker,
+// can see and the other is the people in masks, and both go into every picker,
 // because a hood hides WHO somebody is and never THAT they are standing there
 // (PROXYING.md §5). A hood row carries an HMAC token instead of a Character.id
 // and its alias instead of its name — pickerName/pickerKey in
@@ -64,7 +63,7 @@ import {
 // who is standing at this Location.
 
 // The two selects, named because BOTH halves of every roster are loaded with
-// them — the named people (peopleHere) and the people in masks (hoodsHere).
+// them — the named people and the people in masks (rosterHere).
 // One literal each, so a hood row can never come back shaped differently from
 // the row beside it and quietly lose a field a picker reads.
 //
@@ -154,39 +153,32 @@ const ZONE_SELECT = {
 };
 
 export async function loadPeoplePools(character, { discordUserId, openTurn } = {}) {
-  // The people a sheet can act on: standing at this Location, alive and
-  // unconcealed. One roster for every picker, so the menus can't disagree —
-  // and the server re-checks the same predicate. `here` carries what Heal and
-  // Learn need; `zoneRoster` is the roster for the actions that also work on
-  // a corpse.
-  const [here, hereHoods, zoneRoster, zoneHoods, tierRows, roomNow] = await Promise.all([
-    // The NAMED half: standing at this Location, alive, face uncovered.
-    peopleHere(character, { select: HERE_SELECT }),
-    // The HOODED half of the same roster. A hood hides WHO somebody is, never
-    // THAT they are standing there, so it feeds every picker the named half
-    // feeds. Rows come back keyed "hood:<token>" and named by their alias —
-    // web/lib/peopleHere.js strips the id and the real name on the way out,
-    // because /api/avatar/<id> is ungated and shipping an id IS the unmasking.
-    hoodsHere(character, { select: HERE_SELECT }),
-    // ONE roster for every action on somebody standing here (Loot, Bind, Free,
-    // Harm, Dose), including the unburied dead.
-    peopleHere(character, { includeDead: true, select: ZONE_SELECT }),
-    hoodsHere(character, { includeDead: true, select: ZONE_SELECT }),
+  // TWO roster reads, not four. Each is one whosHere answer plus one row read,
+  // and BOTH halves of each come out of the same answer — which is the whole
+  // point: hereWhere's SQL and presentRows disagree about who is hidden, in both
+  // directions, and splitting on two predicates put a masked corpse in the Loot
+  // dropdown under its real name (web/lib/peopleHere.js says how).
+  //
+  // `here` carries what Heal, Miracle, Kiss and Learn read; `zone` is every
+  // action on a body standing here — Loot, Bind, Free, Harm, Dose, administer —
+  // and reaches the unburied dead.
+  const [hereRoster, zone, tierRows] = await Promise.all([
+    rosterHere(character, { select: HERE_SELECT }),
+    rosterHere(character, { includeDead: true, select: ZONE_SELECT }),
     prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
-    // TRANSFER'S and SEARCH'S recipient lists, both halves, as whosHere answers
-    // it: `withSightings` so the dropdown and the HERE column six inches above
-    // it call the same person the same thing — the name you HOLD, frozen at the
-    // last line you heard them say.
-    whosHere(prisma, character, { includeSelf: false, withSightings: true, withHoodIds: true }),
   ]);
+  const here = hereRoster.named;
+  const zoneRoster = zone.named;
+  // TRANSFER'S and SEARCH'S recipient lists come off the room answer the living
+  // roster already paid for — `withSightings`, so the dropdown and the HERE
+  // column six inches above it call the same person the same thing.
+  const roomNow = hereRoster.room ?? { named: [], concealed: [], hoodIds: new Map() };
 
-  // Every picker below reads the two halves together. A hood row already
-  // carries its alias in `name`, so rosterName() — which resolves a FORCED name
-  // off the tags — must not be run over one.
-  // pickerName / pickerKey (web/lib/peopleHere.js) are what tell the two halves
-  // apart everywhere: a hood row carries its alias and its whole key already.
-  const hereAll = [...here, ...hereHoods];
-  const zoneAll = [...zoneRoster, ...zoneHoods];
+  // Every picker below reads both halves. pickerName / pickerKey
+  // (web/lib/peopleHere.js) are what tell them apart: a hood row already carries
+  // its alias and its whole key.
+  const hereAll = [...here, ...hereRoster.hooded];
+  const zoneAll = [...zoneRoster, ...zone.hooded];
 
   // PartySelect builds its own value as `${kind ?? "character"}:${id}`, so every
   // row in the three lists below carries a BARE id and a hood carries its bare
@@ -199,8 +191,11 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // (character/actions/shared.js) knows how to turn a token back into them.
   const peopleParties = [
     selfEntry,
-    ...here.map((c) => ({ id: c.id, name: rosterName(c) })),
-    ...hereHoods.filter((c) => c.token).map(hoodParty),
+    // `c.name` is already the name this viewer HOLDS (forced names and sightings
+    // resolved by presentRows) — rosterName would re-derive it off the tags and
+    // could answer differently.
+    ...here.map((c) => ({ id: c.id, name: c.name })),
+    ...hereRoster.hooded.filter((c) => c.token).map(hoodParty),
   ];
   // TRANSFER'S list. `kind: "hood"` makes PartySelect write "hood:<token>"
   // instead of wrapping the value in "character:". A token is null when
@@ -560,16 +555,16 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     .map((p) => ({ id: pickerKey(p), name: pickerName(p) }));
 
   return {
-    // `here` and `zoneRoster` are the NAMED halves, still separate because two
-    // callers look somebody up by real id in them (character/page.js). `hereAll`
-    // and `zoneAll` are the same lists with the hooded half folded in, for
-    // anything that just needs a roster.
+    // `here` and `zoneRoster` are the NAMED halves, still separate because a
+    // caller looks somebody up by real id in them (character/page.js). `hereAll`
+    // is the same list with the hooded half folded in, for the lesson and
+    // confession rosters. `zoneAll` stays local — every pool built off it is
+    // already in this return, so nothing outside needs the raw list.
     here,
     hereAll,
     kissTargets,
     kissBlocked,
     zoneRoster,
-    zoneAll,
     peopleParties,
     transferParties,
     searchParties,

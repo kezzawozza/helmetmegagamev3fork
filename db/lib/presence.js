@@ -2,7 +2,7 @@
 //
 // hereWhere() is the NAMED half of a roster — everybody at this Location whose
 // face you can see, plus, for body actions, an unburied corpse. It is not the
-// whole roster and has not been for a while: web/lib/peopleHere.js#hoodsHere is
+// whole roster and has not been for a while: web/lib/peopleHere.js#rosterHere is
 // the other half, and web/lib/peoplePools.js composes both into every picker.
 //
 // web/lib/peopleHere.js binds these to prisma for the web app; the bot's

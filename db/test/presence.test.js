@@ -4,7 +4,7 @@
 // somebody is, never THAT they are standing there. Every verb that acts on a
 // BODY passes `allowConcealed` and reaches a person in a mask; `hereWhere` stays
 // strict because it is the NAMED half of the roster, and web/lib/peopleHere.js
-// #hoodsHere is the other half.
+// #rosterHere splits it into both halves off one predicate.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
