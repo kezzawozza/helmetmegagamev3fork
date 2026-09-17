@@ -213,10 +213,22 @@ documents:
       You can also harvest {tag:cave-fungus} in just about every location (by doing a Gambit, or just through the encounter roll). The caves hold many secrets, requiring certain character traits or knowledge to gain access to.
 
   # The Merchant Update filled this in — it was an empty stub for as long as
-  # the seat was unfinished. Reached by doc_element from both The Company
-  # roles, so the Dockers read it too: they are the ones hauling the goods.
-  # The canonical numbers are docs/systemdocs/DEPOT.md §3-4; this is the
-  # player-facing half and only carries the bands, never the full table.
+  # the seat was unfinished. Reached by both The Company roles, so the
+  # Dockers read it too: they are the ones hauling the goods. The canonical
+  # numbers are docs/systemdocs/DEPOT.md §3-4; this is the player-facing
+  # half and only carries the bands, never the full table.
+  merchant:
+    name: The Merchant's Depot
+    public: false
+    tags: []
+    description: |-
+      The Depot is a counter anybody may walk up to now, not yours alone — but your License is still what makes it a business rather than a shop window. It opens the whole manifest, sealed goods included, where everyone else gets a short shelf gated by whatever they're holding: the general shelf needs nothing at all, and the black market wants a Silver Chip.
+
+      Goods don't move the moment somebody pays for them. A cargo train runs every other day, on its own, and nobody calls it. An order placed today is paid for now and lands as crates in the Railyard at the end of today or the end of tomorrow, depending on where the train is — a Docker's job, or yours, to unload and haul on to whoever's name is stamped on the box. The Railyard wants a Keycard, so those crates sit behind a door most people can't open.
+
+      Selling isn't a negotiation any more either. Whoever's selling drops the thing in the box on your counter, and it's gone — the money lands when the train next leaves, into their own account or, with your License or a Depot Keycard, into yours instead. The Meister takes a cut off every sale before it settles, straight into the Vault.
+
+      Prices hold to bands rather than a whim: a brew sells for close to what it cost to make plus a fair margin, smithed gear pays better the more skill and turns went into it, cave loot and bulk goods hold their price, and body parts stay cheap on purpose. The full table lives on the price list at the counter — check that before you talk a number down, not your memory of it.
 
   charon:
     name: The Charon

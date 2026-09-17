@@ -20,11 +20,14 @@ const RAILYARD_ROOM_SLUG = "depot-railyard";
 const STOREFRONT_ROOM_SLUG = "depot-storefront";
 const MERCHANTS_OFFICE_ROOM_SLUG = "depot-merchants-office";
 
-// Turn parity. EVEN turns are arrivals, ODD turns are departures — so turn 1
-// is a departure with an empty drop box and the train is nowhere, and turn 2
-// brings down whatever was ordered on turn 1. That is the shape Bascinet
-// asked for, and it falls out of the parity rather than needing a first-turn
-// special case.
+// Turn parity, and it is about what happens at the turn's CLOSE, not about
+// where the train is standing while the turn is open. Closing an EVEN turn
+// rolls it in and unloads; closing an ODD turn loads it and pulls it out.
+//
+// So turn 1 is a departure close with an empty drop box and nothing to load,
+// and turn 2's close is the first arrival — which brings down whatever was
+// ordered on turn 1. That is the shape Bascinet asked for, and it falls out of
+// the parity rather than needing a first-turn special case in either pass.
 const ARRIVAL_PARITY = 0;
 
 function isArrivalTurn(turnNumber) {
@@ -35,13 +38,31 @@ function isDepartureTurn(turnNumber) {
   return !isArrivalTurn(turnNumber);
 }
 
+// Whether the train is STANDING THERE right now, which is a different question
+// from which half of the cycle this turn's close will run.
+//
+// It rolls in at the close of an even turn and pulls out at the close of the
+// odd turn after it, so it is at the platform for the length of an odd turn —
+// with turn 1 the one exception, because nothing has arrived yet. Get this
+// backwards and the Railyard's starter post tells everybody the train is in
+// on the very turn it demonstrably is not.
+function trainHere(turnNumber) {
+  const n = Math.trunc(turnNumber ?? 0);
+  return n > 1 && isDepartureTurn(n);
+}
+
 // What the console's little train icon says, and what the Railyard's starter
 // post says, so the two can never disagree. `turnNumber` is the OPEN turn.
 function trainState(turnNumber) {
   const n = Math.trunc(turnNumber ?? 0);
-  return isArrivalTurn(n)
-    ? { here: true, label: "at the platform", nextLabel: "leaves at the end of this turn" }
-    : { here: false, label: "somewhere down the line", nextLabel: "arrives at the end of this turn" };
+  if (trainHere(n)) {
+    return { here: true, label: "at the platform", nextLabel: "leaves at the end of this turn" };
+  }
+  if (isArrivalTurn(n)) {
+    return { here: false, label: "somewhere down the line", nextLabel: "arrives at the end of this turn" };
+  }
+  // Turn 1, and only turn 1: nothing has run yet.
+  return { here: false, label: "not in yet", nextLabel: "first arrives at the end of the next turn" };
 }
 
 module.exports = {
@@ -51,5 +72,6 @@ module.exports = {
   ARRIVAL_PARITY,
   isArrivalTurn,
   isDepartureTurn,
+  trainHere,
   trainState,
 };

@@ -9,7 +9,7 @@
 // thing that would otherwise be very expensive to find out in a live game.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { isArrivalTurn, isDepartureTurn, trainState } = require("../lib/train");
+const { isArrivalTurn, isDepartureTurn, trainHere, trainState } = require("../lib/train");
 const { stampFor } = require("../lib/trainArrivalPass");
 const { crateTagData, splitIntoCrates } = require("../lib/depotCrates");
 const {
@@ -24,12 +24,30 @@ const {
   isManifestId,
 } = require("../lib/depotManifests");
 
-test("turn 1 is a departure and the train is nowhere — turn 2 brings down what was ordered on turn 1", () => {
+test("turn 1 is a departure close with nothing to load — turn 2's close brings down what was ordered on turn 1", () => {
   assert.equal(isDepartureTurn(1), true);
   assert.equal(isArrivalTurn(1), false);
   assert.equal(isArrivalTurn(2), true);
+});
+
+test("the platform is EMPTY on an arrival turn, because the train comes in at the END of it", () => {
+  // The bug this pins: reading "at the platform" off isArrivalTurn told
+  // everybody the train was in on the one turn it demonstrably was not.
+  assert.equal(trainHere(2), false, "turn 2 is when it arrives, not when it is here");
+  assert.equal(trainHere(4), false);
+  assert.equal(trainState(2).here, false);
+});
+
+test("it stands at the platform for the length of the odd turn after it lands", () => {
+  assert.equal(trainHere(3), true);
+  assert.equal(trainHere(5), true);
+  assert.equal(trainState(3).here, true);
+});
+
+test("turn 1 is the one exception — nothing has arrived yet, so the rails are bare", () => {
+  assert.equal(trainHere(1), false);
   assert.equal(trainState(1).here, false);
-  assert.equal(trainState(2).here, true);
+  assert.match(trainState(1).nextLabel, /next turn/);
 });
 
 test("exactly one half of the cycle runs on any turn, for a long stretch of them", () => {

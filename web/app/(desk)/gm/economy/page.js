@@ -5,7 +5,7 @@ import { visibleZoneIds as loadVisibleZoneIds } from "@lifeweb/db/lib/gmZoneView
 import { reasonLabel, reasonFlow, FLOW, REASONS } from "@lifeweb/db/lib/economyReasons";
 import { sankeyFromFlows, arcWebFromEdges } from "@lifeweb/db/lib/economyFlows";
 import { RESOURCES_SELECT, resourcesOf } from "@lifeweb/db/lib/resourceStack";
-import { isArrivalTurn } from "@lifeweb/db/lib/train";
+import { trainHere } from "@lifeweb/db/lib/train";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
@@ -540,7 +540,7 @@ async function FreshEconomy({ section, searchParams, userId }) {
         ...data,
         books,
         // The train runs on turn parity and nothing else (db/lib/train.js).
-        trainHere: isArrivalTurn(openTurn?.number ?? 0),
+        trainHere: trainHere(openTurn?.number ?? 0),
         tradePoints,
       };
       break;

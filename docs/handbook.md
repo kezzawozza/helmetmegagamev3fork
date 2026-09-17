@@ -31,8 +31,9 @@
     - [Health Tags](#health-tags)  
 10. [Crafting](#crafting)  
 11. [Building](#building)  
-12. [Character Page](#character-page)  
-13. [Death](#death)  
+12. [The Depot](#the-depot)  
+13. [Character Page](#character-page)  
+14. [Death](#death)  
 
 
 ## About Bascinet
@@ -482,9 +483,15 @@ What stands can be damaged, burned, or torn down. Attacking a structure is a Gam
 
 A destroyed structure leaves a ruin standing until somebody clears it away.
 
-## Character Page
+## The Depot
 
-Your [Character](https://ravenheart.quest/character) page contains your character sheet and all mechanical options for modifying your character. The page is dense with features and information, all of which are listed below.
+The [Depot](https://ravenheart.quest/depot) page is a public market, open to anyone. Reading it — what's for sale, what things cost, your own balance — needs nothing at all; buying or selling needs you actually standing at the Depot, down in the Caves.
+
+You have an account there, opened for you when you were made. Most accounts are a claim on real coin sitting in a vault under the Keep — if that vault ever runs dry, withdrawing is refused outright rather than shorted, so a robbed vault is a whole town suddenly unable to touch its own money.
+
+Goods don't arrive the moment you pay for them. A cargo train runs every other turn, so an order you place today is crates waiting for you in the Railyard either at the end of today or at the end of tomorrow, depending on where the train is. The Depot page tells you which.
+
+What you're allowed to buy depends on your tags: everyone can buy Resources and a Ration Box, some things need you holding the right chit, and the good stuff is the Merchant's own shelf. Selling works the other way — drop what you're selling in the box on the Depot's counter, and you're paid out when the train next leaves, minus a cut the Meister takes off the top. Whatever goes in the box is gone the moment you drop it, so don't put anything in there you might want back.
 
 **Header:** Your name, title (if present), role, faction, and portrait.
 

@@ -10,7 +10,7 @@ const { qualityWord } = require("./laborYield");
 const { linksFor, endpoints } = require("./locationGraph");
 const { describeLocation, hasAttribute } = require("./locationAttributes");
 const { loadDepot } = require("./depotState");
-const { isArrivalTurn } = require("./train");
+const { trainHere } = require("./train");
 const { structuresAt } = require("./structures");
 
 // Fixed order, so the readout looks the same everywhere and a player can
@@ -64,7 +64,7 @@ async function examineLines(prisma, locationId) {
     ]);
     depot = {
       turretArmed: row.turretArmed,
-      trainHere: isArrivalTurn(openTurn?.number ?? 0),
+      trainHere: trainHere(openTurn?.number ?? 0),
     };
   }
   const structures = await structuresAt(prisma, locationId);

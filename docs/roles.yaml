@@ -1186,6 +1186,7 @@ zones:
               - godking
               - squeeze
               - townstarting
+              - merchant
           docker:
             name: Docker
             intro: >-

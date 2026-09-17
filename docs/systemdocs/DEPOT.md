@@ -127,11 +127,20 @@ Landing Pad. Its starter message says whether the train is at the platform —
 `live: train` in `docs/zones.yaml`, rendered by `db/lib/roomLive.js` and
 repainted by `refreshLiveRooms` every close.
 
-**The train runs on turn parity and nothing else.** Even turns are arrivals, odd
-turns are departures (`db/lib/train.js`). So turn 1 is a departure with an empty
-drop box and the train nowhere, and turn 2 brings down whatever was ordered on
-turn 1 — which is the behaviour Bascinet asked for, falling out of the parity
-rather than needing a first-turn special case.
+**The train runs on turn parity and nothing else.** The parity is about what
+happens at a turn's CLOSE, not about where the train is standing while the turn
+is open: closing an even turn rolls it in and unloads, closing an odd turn loads
+it and pulls it out (`db/lib/train.js`). So turn 1 is a departure close with an
+empty drop box and nothing to load, and turn 2's close is the first arrival —
+which brings down whatever was ordered on turn 1, exactly as Bascinet asked,
+with no first-turn special case in either pass.
+
+**Where the train IS is a different question, and `trainHere()` is the one that
+answers it.** It lands at the close of an even turn and leaves at the close of
+the odd turn after, so it stands at the platform for the length of an odd turn —
+turn 1 excepted, since nothing has arrived yet. Reading presence off
+`isArrivalTurn()` instead tells everybody the train is in on the one turn it
+demonstrably is not; `db/test/train.test.js` pins that.
 
 The cycle:
 
