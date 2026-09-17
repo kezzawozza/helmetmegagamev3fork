@@ -702,7 +702,7 @@ Four bands, about 106 tags in total:
 | Band | Priced at | Examples |
 |---|---|---|
 | Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3, `dreamers-draught` **60** |
-| Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9 (its four 1/3-turn pieces 7), Moderate 21, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
+| Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9 (its four 0.25-turn pieces 8), Moderate 21, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
 | Factory goods | a day's output at ~3× a good farming day | `squeeze` 7 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
@@ -758,9 +758,9 @@ rates read 2 → 5 → 6 → 7 → 11 ⬢/turn; the shipped prices sit above it,
 wider smith's margin (see `SMITHING.md` §2 for `resourceCost`). What
 must hold is the SHAPE: never falling. The shipped per-turn profits are
 
-| rung | ⅓-turn | Simple | Moderate | High Quality | Gunpowder |
+| rung | 0.25-turn | Simple | Moderate | High Quality | Gunpowder |
 |---|---|---|---|---|---|
-| ⬢/turn | 9 | 10 | 16 | 18 | 22.5 |
+| ⬢/turn | 8 | 10 | 16 | 18 | 22.5 |
 
 with Dead Simple's 12 sitting outside the curve for the reason below. The curve is
 deliberately flat — nearly two and a half fold bottom to top, not the five-fold spread a
@@ -796,12 +796,14 @@ The Dead Simple rung spans two skills — `crafting` gates the cloth and wood ha
 reasoning the rate table above gives for pricing `crafting` at the `smithing`
 rate. A padded cap and a work knife are one rung and pay one wage.
 
-The four 1/3-turn Simple pieces (Spear, Dagger, Silver Knife, Phrygian Spear —
-`SMITHING.md` §2) get the same treatment for the same reason: `2 × (1/3)^1.3` rounds to
-0, so they carry a flat markup instead and sell at **9**. Three a turn is 9 ⬢/turn,
-against the rung's full-turn 10 — quick work is paid about the rung's rate, never a
-better one. Round the quick pieces DOWN when they will not land clean on an integer,
-never up, or the rung above them is overtaken.
+The four 0.25-turn Simple pieces (Spear, Dagger, Silver Knife, Phrygian Spear —
+`SMITHING.md` §2) get the same treatment for the same reason: `2 × 0.25^1.3` is 0.33 and
+rounds to 0, so they carry a flat markup instead and sell at **8**. Four a turn is
+8 ⬢/turn, against the rung's full-turn 10 — quick work is paid about the rung's rate,
+never a better one. They were thirds at 9 until costs became decimals in 9/2026, which
+came to the same 9 ⬢/turn; the quarter buys a fourth unit, so the price came down to
+keep the day's pay under the rung above. Round the quick pieces DOWN when they will not
+land clean on an integer, never up, or the rung above them is overtaken.
 
 Two items break from their tier's baseline `resourceCost` and price accordingly: Bore
 Pistol (18 ⬢ to make, cheaper than Musketoon/Bomb's 28) still prices under them, at 56

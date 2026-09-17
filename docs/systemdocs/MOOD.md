@@ -201,8 +201,8 @@ The wound **says which rung it is on** — `cureRung:` in `docs/tags.yaml` — a
 | 3½ | 3 ⬢ (severe-bleeding, arterial-bleed, parasites) | −35 |
 | 4 | Severe — 4–5 ⬢ | −40 |
 | 5 | 6–7 ⬢ | −45 |
-| 6 | 8+ ⬢ (14 ⬢ today), no Gambit | −55 |
-| 7 | `requirementGambit` (14 ⬢ today) | −65 |
+| 6 | 8+ ⬢ (13 ⬢ today), no Gambit | −55 |
+| 7 | `requirementGambit` (13 ⬢ today) | −65 |
 
 **The rung is authored because the price stopped being able to say it.** Rungs
 2, 3 and 4 all cost a quarter of a Move since costs became decimals in 9/2026,

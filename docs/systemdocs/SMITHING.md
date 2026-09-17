@@ -48,13 +48,17 @@ Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
 
 **Four small pieces of metalwork run under the Simple rung's Turns column.**
-The Spear, Dagger, Silver Knife and Phrygian Spear are `turnsCost: 1/3` —
-a spearhead or a knife is not a day at the anvil — so three of them fit in
+The Spear, Dagger, Silver Knife and Phrygian Spear are `turnsCost: 0.25` —
+a spearhead or a knife is not a day at the anvil — so four of them fit in
 one Routine ([`CRAFTING.md`](CRAFTING.md) §2a). Everything else about the
 rung (6 ⬢, the pt, the skill gate, the forge) is unchanged, and they sell
-at 9 rather than the tier's 16 ([`DEPOT.md`](DEPOT.md) §4). The Gladius,
-Mace and Battle Axe stay a full turn — a sword blade or a flanged head is
-real forging.
+at 8 rather than the tier's 16 ([`DEPOT.md`](DEPOT.md) §4): four a Routine
+pays 8 ⬢ a turn, which stays under the Simple rung's own 10, and §4's rule
+is that quick work is never paid better than the rung above it. They were
+thirds selling at 9 until costs became decimals in 9/2026 — the price came
+down with the extra unit. The Silver Knife is the odd one out and always was:
+1 ⬢ in and a silver ingot, 9 out. The Gladius, Mace and Battle Axe stay a
+full turn — a sword blade or a flanged head is real forging.
 
 **The two gate columns mean different things and are enforced on different
 surfaces.** The Skill gate is what it takes to *make* the item; the Combat
@@ -118,10 +122,11 @@ recipes still need no Move at all, just the per-turn unit cap below
 A 0-turn recipe may also set **`requirement.perTurn`**, its own RATION,
 replacing the shared Dead Simple pool below as its free allowance (bone-mask
 at 1). Work is never written there: a recipe cheaper than a whole turn
-authors `turnsCost: 1/N`, and `quantity × work` against the Move is the only
-quantity limit a Move-costing recipe has ([`CRAFTING.md`](CRAFTING.md)
-§2–§2a). A plain `turnsCost: 1` rung — every tiered weapon but the four
-1/3-turn small pieces in §2 — makes one per Routine by that arithmetic.
+authors a decimal `turnsCost` on a quarter, and `quantity × work` against the
+Move is the only quantity limit a Move-costing recipe has
+([`CRAFTING.md`](CRAFTING.md) §2–§2a). A plain `turnsCost: 1` rung — every
+tiered weapon but the four 0.25-turn small pieces in §2 — makes one per
+Routine by that arithmetic.
 
 **Dead Simple gives you 4 free items per character per turn.** It is the only
 rung that costs 0 turns, so nothing else rations it. The allowance counts
@@ -141,7 +146,7 @@ weapon table below. See `TORTURE.md` §8 for what it does once crafted.
 
 **Over the cap, the work comes out of your Move.** This is the rule Milestone
 A deferred to here. Units past the allowance are not refused: each one costs
-**1/4 of the Routine** (1/`perTurn` for a recipe with its own ration), spent
+**0.25 of the Routine** (1/`perTurn` for a recipe with its own ration), spent
 against the ledger on the turn's Action and locking that Routine to the
 recipe's family of work — so a smith can make 4 knives free and 4 more on
 their Move, but not a knife, a sling and a Simple sword all in one day.
@@ -189,11 +194,11 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Quarterstaff | Dead Simple | `crafting` |
 | Pitchfork | Dead Simple | `smithing`. Carries the farming `laborBonus`, moved off the Hatchet. |
 | Shortbow | Dead Simple | `crafting` |
-| Spear | Simple | 1/3 turn — three to a Routine (§2) |
-| Dagger | Simple | 1/3 turn — three to a Routine (§2) |
-| Silver Knife | Simple | 1/3 turn — three to a Routine (§2). Spends one `silver` — its 6 ⬢ total is unchanged, the resourceCost is just 1 ⬢ of it now (2026-09-09). |
+| Spear | Simple | 0.25 turns — four to a Routine (§2) |
+| Dagger | Simple | 0.25 turns — four to a Routine (§2) |
+| Silver Knife | Simple | 0.25 turns — four to a Routine (§2). Spends one `silver` — its 6 ⬢ total is unchanged, the resourceCost is just 1 ⬢ of it now (2026-09-09). |
 | Gladius | Simple | |
-| Phrygian Spear | Simple | 1/3 turn — three to a Routine (§2) |
+| Phrygian Spear | Simple | 0.25 turns — four to a Routine (§2) |
 | Javelin | Simple | `ranged-basic` — it is thrown, not held. |
 | Longbow | Simple | `crafting` |
 | Mace | Simple | |
@@ -222,7 +227,7 @@ consumed like any brew's):
 |---|---|---|---|---|
 | `black-powder` | `smithing-gunpowder` | 3 | 1 | `saltpeter` (raw, mined) |
 | `gunpowder-grenade` (**Crude Grenade**) | `smithing-skilled` | 6 | 1 | `saltpeter` (raw, mined) |
-| `steel` | `smithing` | 4 | 1/3 | `coal` (Merchant stock or mined) |
+| `steel` | `smithing` | 4 | 0.25 | `coal` (Merchant stock or mined) |
 
 The grenade came over from Brewing (Skilled) on 2026-09-05 — a powder device
 out of a still was always odd — and its group moved to `items-weapons` with
@@ -243,13 +248,13 @@ basic forge work, and it's only the four recipes that SPEND it — `katana`,
 into something fine.
 
 It is the fifth recipe under the Simple rung's Turns column (§1): `turnsCost:
-1/3`, three ingots to a Routine, for the same reason the Spear and the Silver
+0.25`, four ingots to a Routine, for the same reason the Spear and the Silver
 Knife run there — an ingot is not a day at the anvil. Each of the four recipes
 that spend one gave up a full turn of its own (the smelting the smith no
 longer does inside them) and 8 ⬢, the ingot's value — so a smith who smelts
-his own pays the ladder's ⬢ exactly, and a third of a turn on top. **This
+his own pays the ladder's ⬢ exactly, and a quarter of a turn on top. **This
 undercuts the ladder's Turns column on purpose:** High Quality steel gear is
-a 1⅓-turn job now rather than 2, Plate 2⅓ rather than 3. See the Weapons and
+a 1.25-turn job now rather than 2, Plate 2.25 rather than 3. See the Weapons and
 Armor tables above. `{tag:silver}` got the same
 `Prospecting`-sourced treatment the same day, but stays a raw material with
 no recipe of its own — silver needs no smelting, so there was nothing to

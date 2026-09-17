@@ -439,7 +439,7 @@ When you 🔍 a character you will see tags marked as visible, such as clearly w
 
 ### Health Tags
 
-Health tags are your wounds, illnesses, and other ailments. A doctor treats them with Heal, based on how severe the tag is and their own Medical skill. The most trivial injuries are free, up to 4 a turn for any doctor; anything else always costs at least a quarter of their Move, and the gravest surgeries take a whole Move and 14 ⬢ — the very worst of them on a roll of the dice.
+Health tags are your wounds, illnesses, and other ailments. A doctor treats them with Heal, based on how severe the tag is and their own Medical skill. The most trivial injuries are free, up to 4 a turn for any doctor; anything else always costs at least 0.25 of their Move, and the gravest surgeries take a whole Move and 13 ⬢ — the very worst of them on a roll of the dice.
 
 Some items cure a specific ailment outright the moment you Consume them, no doctor needed — a tonic, a dressing, a prosthetic fitted onto a lost limb. A few of those still need someone medically trained to apply, even to their own body.
 
@@ -452,7 +452,7 @@ Even if a doctor doesn't possess the skills needed to heal an injury or ailment,
 
 ## Crafting
 
-Press **Craft** on your [Character](https://ravenheart.quest/character) page, pick a recipe you already hold the skills for, and it pays its ⬢ cost right away — from your own purse, a room stash you're in, or someone standing with you who agrees to pay. It files as your Routine for the turn. A **Dead Simple** recipe needs no Move at all, just a cap of 4 a turn; anything past that becomes a real Move, and a long recipe becomes a multi-turn **project** you keep working at from the same button turn after turn — or cancel outright, with no refund for what's already gone in.
+Press **Craft** on your [Character](https://ravenheart.quest/character) page, pick a recipe you already hold the skills for, and it pays its ⬢ cost right away — from your own purse, a room stash you're in, or someone standing with you who agrees to pay. It files as your Routine for the turn. A **Dead Simple** recipe needs no Move at all, just a cap of 4 a turn; anything past that becomes a real Move. Quick work costs only part of one — a recipe listed at 0.25 turns is a quarter of your Move, so you can make 4 of them in a day, and the Craft window tells you how much of your Move is left before you commit. A long recipe becomes a multi-turn **project** you keep working at from the same button turn after turn — or cancel outright, with no refund for what's already gone in.
 
 **What you can make depends on your skills.** A handful of skill families gate crafting, each opening a different slice of the world's recipes:
 
