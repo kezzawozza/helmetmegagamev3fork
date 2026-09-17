@@ -921,7 +921,7 @@ tags:
     category: general
     group: general-traits
     description: "A reflection of your soul, with your choice of name. It can appear and disappear at will, and punch things hard and fast. Beware! Any damage it takes is reflected onto you."
-    fighting: { situational: true }
+    fighting: { tree: melee, tiers: 2.5 }
     pointCost: 0
     visible: false
     purchasable: false
