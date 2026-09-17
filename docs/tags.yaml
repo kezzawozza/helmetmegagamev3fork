@@ -5500,6 +5500,9 @@ tags:
     consumesIntoResources: 5
     sellable: true
     sellablePrice: 10
+    cooked:
+      taste: "eggs"
+      mood: 30
 
   bird:
     catalog: all

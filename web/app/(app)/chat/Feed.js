@@ -163,21 +163,13 @@ const SystemRow = memo(function SystemRow({ row }) {
 // The top of the list, when there is more of the scene than one page of it.
 //
 // Deliberately not a button. Reading further back happens on the scroll (see
-// reachBack), so this only ever REPORTS — what is on the wire, or why the
-// road ended. And the two endings are different things worth saying
-// differently: a place can run out because it is young, or because a turn
-// wipe put the rest below the line (db/lib/feedWipe.js), and only the second
-// one has somewhere else to send the reader.
+// reachBack), so this only ever REPORTS what is on the wire. A place can run
+// out because it is young, or because a turn wipe put the rest below the line
+// (db/lib/feedWipe.js) — the floored case says nothing rather than nudge the
+// reader toward the archive.
 function BacklogEdge({ loading, exhausted, floored }) {
   if (loading) return <li className="chat-backlog-edge">Reading further back…</li>;
-  if (!exhausted) return null;
-  if (floored) {
-    return (
-      <li className="chat-backlog-edge">
-        Nothing from before this turn. <a href="/archive">The archive</a> keeps the rest.
-      </li>
-    );
-  }
+  if (!exhausted || floored) return null;
   return <li className="chat-backlog-edge">This is the beginning.</li>;
 }
 
