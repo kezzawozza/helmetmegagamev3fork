@@ -136,6 +136,29 @@ async function fetchGuildMember(discordUserId) {
   });
 }
 
+// One roster read answers every member for as long as it is cached; a
+// per-member GET answers one. At 100+ players browsing, the per-member route's
+// bucket is exhausted within seconds and then EVERY lookup 429s — which is not
+// a cosmetic failure, because a rate-limited member reads as "not in the
+// guild" and a GM is quietly demoted. So the roster is the primary source and
+// the per-member GET is the fallback, not the other way round.
+//
+// A roster row carries `roles`, which is the only field any caller of this
+// reads (the gates in character/, isGm, isLeaderWhitelisted), plus the name
+// and avatar fields gmProfiles.js already takes off the same list.
+const ROSTER_PAGE_LIMIT = 1000;
+
+// Null means "this roster cannot answer", and the caller reads Discord itself.
+// Two rosters cannot: an EMPTY one, which is what the failure path and a
+// missing token both hand back, and a FULL one, where Discord paged us at the
+// limit and simply never listed the rest. Anything in between can say "no".
+function rosterAnswers(members, discordUserId) {
+  if (!Array.isArray(members) || members.length === 0) return null;
+  const found = members.find((m) => m.id === discordUserId);
+  if (found) return { member: found };
+  return members.length < ROSTER_PAGE_LIMIT ? { member: null } : null;
+}
+
 // maxAgeMs: accept a cached member only this fresh. A number rather than an
 // options object so React's cache() still memoizes the call per request.
 export const getGuildMember = cache(async (discordUserId, maxAgeMs) => {
@@ -146,7 +169,17 @@ export const getGuildMember = cache(async (discordUserId, maxAgeMs) => {
   // rather than queueing another one behind it — a caller passing maxAgeMs: 0
   // included, since a fresh read is not on offer either way.
   const key = `member:${discordUserId}`;
-  if (recentlyFailed(key)) return memberCache.getStale(discordUserId) ?? null;
+  if (recentlyFailed(key)) return memberCache.getStale(discordUserId) ?? staleRosterMember(discordUserId);
+
+  // The roster: held if it is fresh enough for this caller, fetched if not.
+  // A roster fetched NOW satisfies any maxAgeMs, so only 0 falls through — a
+  // gate asking for a role handed out a moment ago is asking for a real read,
+  // and gets the per-member GET below. listGuildMembers never throws (it
+  // answers stale or empty), so a miss just falls through too.
+  if (maxAgeMs !== 0) {
+    const fromRoster = rosterAnswers(await listGuildMembers(maxAgeMs), discordUserId);
+    if (fromRoster) return fromRoster.member;
+  }
 
   try {
     const value = await dedupe(key, () => fetchGuildMember(discordUserId));
@@ -159,10 +192,21 @@ export const getGuildMember = cache(async (discordUserId, maxAgeMs) => {
       console.error(`Guild member lookup failed for ${discordUserId}, serving stale: ${err.message}`);
       return stale;
     }
+    const fromRoster = staleRosterMember(discordUserId);
+    if (fromRoster !== null) {
+      console.error(`Guild member lookup failed for ${discordUserId}, serving the cached roster: ${err.message}`);
+      return fromRoster;
+    }
     console.error(`Guild member lookup failed for ${discordUserId}, no cached value: ${err.message}`);
     return null;
   }
 });
+
+// The failure path's last resort: any roster we still hold, however old. A
+// stale row beats a silent demotion, the same reasoning as getStale above.
+function staleRosterMember(discordUserId) {
+  return rosterAnswers(memberListCache.getStale("all"), discordUserId)?.member ?? null;
+}
 
 async function fetchGuildMembers() {
   const guildId = process.env.DISCORD_GUILD_ID;
@@ -176,6 +220,9 @@ async function fetchGuildMembers() {
     id: m.user.id,
     username: m.user.username,
     globalName: m.user.global_name ?? null,
+    // Their per-guild nickname. Carried so a roster row can stand in for a
+    // per-member GET wherever getGuildMember's result is read (devPanelData.js).
+    nick: m.nick ?? null,
     avatar: m.user.avatar ?? null,
     // Server-specific avatar (`m.avatar`), a different picture from
     // `m.user.avatar`, carried so gmProfiles.js can reuse this list.
@@ -192,8 +239,12 @@ export function isGuildRosterKnown() {
   return memberListReachable;
 }
 
-export const listGuildMembers = cache(async () => {
-  const cached = memberListCache.get("all");
+// maxAgeMs: accept a cached roster only this fresh, the same knob
+// getGuildMember takes — a caller that has to see a role handed out a moment
+// ago passes one, and the roster is re-read rather than served from cache.
+// Everyone else omits it and shares the five-minute cache.
+export const listGuildMembers = cache(async (maxAgeMs) => {
+  const cached = memberListCache.get("all", maxAgeMs);
   if (cached !== undefined) return cached;
   if (recentlyFailed("memberList")) {
     const stale = memberListCache.getStale("all");

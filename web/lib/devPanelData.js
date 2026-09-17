@@ -383,7 +383,10 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       hasAvatar: Boolean(character.avatarMimeType),
     },
     discord: {
-      username: member?.user?.username ?? null,
+      // Two shapes: getGuildMember answers with Discord's raw member object
+      // when it read one, and with a flat roster row when it served the
+      // cached roster instead (discordGuild.js). Both carry the same two facts.
+      username: member?.user?.username ?? member?.username ?? null,
       nickname: member?.nick ?? null,
       present: Boolean(member),
     },
