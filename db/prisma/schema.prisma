@@ -3082,6 +3082,23 @@ model Tag {
   // requirement block below, and the medic must hold requirementSkills.
   healable Boolean @default(false)
 
+  // Which rung of the cure ladder this wound sits on (TAGS.md §5c): 0 for
+  // untreatable, up to 7 for the complex surgery even an Expert rolls for.
+  // Float because the ladder has half rungs (0.5 and 3.5).
+  //
+  // AUTHORED, as of 9/2026, rather than worked out from the price. It used to
+  // be reverse-engineered in db/lib/mood.js#woundRungOf, which at 2 ⬢ could
+  // only tell a Simple wound from a Moderate one by whether the cure's work
+  // denominator was 4 or 3. Costs are decimals now and that denominator is
+  // gone, so the ladder is written down instead of inferred — which also
+  // means a wound's severity and its price can be tuned separately, and the
+  // mood dial no longer moves when somebody reprices a cure.
+  //
+  // Null on everything that is not a wound, and on a GM- or runtime-minted
+  // tag that never went through the catalog; woundRungOf falls back to the
+  // old price reading for those.
+  cureRung Float?
+
   // teachable: Learn / Teach can move it between characters
   // (docs/systemdocs/LESSONS.md).
   teachable Boolean @default(false)
@@ -3104,23 +3121,31 @@ model Tag {
   // requirementResources and needs requirementSkills held by the medic;
   // Craft (docs/systemdocs/CRAFTING.md) needs requirementSkills held by the
   // crafter, charges requirementResources up front, and spends
-  // requirementTurns Moves of work per unit (0 = Dead Simple, no Move; the
-  // YAML's fractional `turnsCost: 1/N` stores as 1 here with N in
-  // requirementPerTurn below). requirementGambit is a cure-only flag:
-  // crafting is always a Routine.
-  requirementTurns     Int?
+  // requirementTurns Moves of work per unit. requirementGambit is a cure-only
+  // flag: crafting is always a Routine.
+  //
+  // Moves, in QUARTERS: 0 is Dead Simple (no Move at all, rationed instead),
+  // 0.25 / 0.5 / 0.75 are shares of one Routine, 1 is the whole of it, and 2+
+  // is a multi-turn project. Authored as a decimal in docs/tags.yaml and
+  // refused by db/lib/tagShapes.js#normalizeTurnsCost unless it lands on a
+  // quarter. It was an Int until 9/2026, with a fractional `turnsCost: 1/N`
+  // folded into requirementPerTurn below as its denominator — which is why
+  // that column meant two things, and why a wound's severity used to be
+  // readable off its price.
+  requirementTurns     Float?
   requirementResources Int?
   requirementGambit    Boolean @default(false)
 
-  // Two authoring concepts share this column, told apart by requirementTurns
-  // (CRAFTING.md §2). At 0 turns it is a RATION — the YAML's `perTurn:`, a
-  // hard daily cap below the Dead Simple pool; null falls back to
-  // DEAD_SIMPLE_PER_TURN (web/lib/tagRequests.js). At 1 turn it is the WORK
-  // DENOMINATOR the sync derives from `turnsCost: 1/N` — each unit is 1/N
-  // of a turn's work (web/lib/craftBudget.js), and null means a whole turn:
-  // one per Routine by arithmetic. Never authored directly on a Move-costing
-  // recipe (normalizeTurnsCost refuses it). A project (2+ turns) makes one
-  // unit, full stop.
+  // A RATION, and ONLY a ration since 9/2026: the YAML's `perTurn:`, a hard
+  // daily cap on how many of a Dead Simple recipe one character may make,
+  // below the shared pool. Null falls back to DEAD_SIMPLE_PER_TURN
+  // (web/lib/tagRequests.js). Only meaningful at requirementTurns 0, and
+  // normalizeTurnsCost refuses it anywhere else.
+  //
+  // It used to carry the work denominator of a `turnsCost: 1/N` recipe as
+  // well, told apart by requirementTurns. Work is a decimal on
+  // requirementTurns now, so the overload is gone — do not put a second
+  // meaning back in here.
   requirementPerTurn Int?
   requirementSkills  Tag[] @relation("TagRequirementSkill")
   requiredForSkillOf Tag[] @relation("TagRequirementSkill")

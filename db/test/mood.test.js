@@ -142,27 +142,21 @@ test("wound rungs read the cure ladder, and a wound is signed negative", () => {
   assert.equal(woundRungOf(wound({ requirementResources: 0 })), 0.5);
   assert.equal(woundRungOf(wound({ requirementResources: 1 })), 1);
   assert.equal(woundRungOf(wound({ requirementResources: 2 })), 2);
-  // The four 2-⬢ shapes since M2a (turnsCost repricing put Simple and
-  // Moderate on the same requirementResources: 2/requirementTurns: 1 shape,
-  // differing only in requirementPerTurn — db/lib/mood.js's woundRungOf):
-  // legacy zero-turn, the new Simple (1/4), the new Moderate (1/3), and a
-  // GM-authored whole turn (the Dev Panel form cannot author a fraction, so
-  // it lands with a null denominator). Only the new Simple may stay at rung
-  // 2 alongside the legacy zero-turn case; everything else with a nonzero
-  // turn cost stays rung 3, exactly as it did before this milestone.
+  // A wound says its own rung now (`cureRung` in docs/tags.yaml), so the
+  // authored value wins outright — which is the whole reason it exists. Simple
+  // and Moderate are both 2 ⬢ and both cost 0.25 of a Move since costs became
+  // decimals, so there is nothing left in the price to tell them apart.
+  assert.equal(woundRungOf(wound({ requirementResources: 2, cureRung: 2 })), 2);
+  assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 0.25, cureRung: 3 })), 3);
+  // An authored rung beats the price even when the two disagree — a 13-⬢
+  // Gambit cure that says it is rung 1 is rung 1.
+  assert.equal(woundRungOf(wound({ requirementResources: 13, requirementGambit: true, cureRung: 1 })), 1);
+
+  // Unauthored, so the fallback reads the price: a GM-written or runtime tag.
+  // The 2-⬢ case it cannot answer takes the gentler rung.
   assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 0 })), 2);
-  assert.equal(
-    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: 4 })),
-    2,
-  );
-  assert.equal(
-    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: 3 })),
-    3,
-  );
-  assert.equal(
-    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: null })),
-    3,
-  );
+  assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 0.25 })), 2);
+  assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 0.5 })), 3);
   assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 1 })), 3);
   assert.equal(woundRungOf(wound({ requirementResources: 3 })), 3.5);
   assert.equal(woundRungOf(wound({ requirementResources: 5 })), 4);

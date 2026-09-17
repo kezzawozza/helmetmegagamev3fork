@@ -803,7 +803,9 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         }
       }
       administerMoveCost = craftMoveCost(
-        { requirementTurns: 1, requirementPerTurn: 2 },
+        // Half a Move, flat, and deliberately unrelated to what the item cost
+        // to make (MEDICAL.md §2).
+        { requirementTurns: 0.5 },
         { quantity: 1, family: "medical" },
       );
       await resolveCraftMove(character, openTurn, administerMoveCost);

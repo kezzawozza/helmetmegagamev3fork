@@ -1,8 +1,16 @@
-// The craft Move budget: what one craft costs of a turn's Routine (docs/systemdocs/CRAFTING.md §2a). Costs are FRACTIONS with small denominators, num/den pairs compared by cross-multiplication.
+// The craft Move budget: what one craft costs of a turn's Routine (docs/systemdocs/CRAFTING.md §2a).
+//
+// Costs are AUTHORED as decimals (docs/tags.yaml `turnsCost: 0.25`) and carried
+// here as num/den pairs, compared by cross-multiplication. The rationals are
+// not legacy — they are the point. A turn's Move has to hold exactly, and a
+// float budget would let four 0.25 crafts leave a sliver behind or come up
+// short, which is a character doing work they did not pay for. The decimal
+// converts to a fraction once, exactly, at craftMoveCost below, and everything
+// past that is integer arithmetic.
 
 import { craftFamily } from "./tagRequests";
 // Deep path avoids the @lifeweb/db barrel (leaks node:fs into "use client" bundles); same shim as formatTagRequirement.js.
-import { formatMoveFraction } from "@lifeweb/db/lib/formatTagRequirement";
+import { formatMoveAmount } from "@lifeweb/db/lib/formatTagRequirement";
 
 const NO_MOVE = { num: 0, den: 1 };
 export const WHOLE_MOVE = { num: 1, den: 1 };
@@ -42,7 +50,7 @@ export function ledgerRemaining(ledger) {
 }
 
 // Lives in db/lib/formatTagRequirement.js (M2); re-exported so every existing caller keeps its import path.
-export { formatMoveFraction };
+export { formatMoveAmount };
 
 // The word for a family of work, as it reads in a sentence: "brewing work", "smith's work".
 const FAMILY_LABELS = {
@@ -95,17 +103,25 @@ export function craftMoveCost(
       allowance,
     };
   }
-  // Only a ONE-turn batch shares the Move; a project (turns ≥ 2) takes the whole Move every turn.
-  if (turns === 1 && family) {
-    const batch = perTurn > 0 ? perTurn : 1;
+  // A cost of one Move or less shares the Move; a project (turns ≥ 2, always a
+  // whole number) takes the whole Move every turn.
+  //
+  // `turns * 4` is exact: the sync refuses any cost that is not on a quarter
+  // (db/lib/tagShapes.js), and quarters are exactly representable in binary
+  // floating point, so this multiplication cannot drift. `allowance` is how
+  // many fit in a Routine — 4 at 0.25, 2 at 0.5, 1 at a whole Move — which is
+  // what the dialogs print as "up to N a turn". It used to be read off
+  // requirementPerTurn, which is a ration again now and nothing else.
+  if (turns > 0 && turns <= 1 && family) {
+    const cost = reduceFraction(Math.round(quantity * turns * 4), 4);
     return {
       kind: "share",
       family,
       freeQty: 0,
       billedQty: quantity,
-      num: quantity,
-      den: batch,
-      allowance: batch,
+      num: cost.num,
+      den: cost.den,
+      allowance: Math.floor(1 / turns),
     };
   }
   return {

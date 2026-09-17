@@ -1,5 +1,7 @@
 // Pure classification for the Research skill (Scholastic-only, docs/systemdocs/CRAFTING.md §2b). No prisma except loadResearchCatalog.
 
+const { formatMoveAmount } = require("./formatTagRequirement");
+
 const RESEARCH_TAG_SLUG = "research";
 const CATHEDRAL_LOCATION_SLUG = "cathedral";
 
@@ -87,7 +89,12 @@ function researchPaperText(recipe, nameOf = () => null) {
     .trim();
   const costLines = [];
   if (recipe.requirementTurns) {
-    costLines.push(`${recipe.requirementTurns} turn${recipe.requirementTurns === 1 ? "" : "s"}`);
+    // Through formatMoveAmount, so a part-turn recipe reads "0.25 turns". This
+    // printed the raw column before, which said "1 turn" for everything storing
+    // a fraction as 1 — a research paper quoting four times the real cost.
+    costLines.push(
+      `${formatMoveAmount(recipe.requirementTurns)} turn${recipe.requirementTurns === 1 ? "" : "s"}`,
+    );
   }
   if (recipe.requirementResources) costLines.push(`${recipe.requirementResources} ⬢`);
   for (const skill of recipe.requirementSkills ?? []) if (skill?.name) costLines.push(skill.name);

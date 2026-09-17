@@ -186,7 +186,10 @@ export async function healCharacterRequestImpl({
       const already = await routineHealsThisTurn(db, session.discordUserId, openTurn.id);
       if (already < MEDICAL_SIMPLE_PER_TURN) return null;
       return craftMoveCost(
-        { requirementTurns: 1, requirementPerTurn: MEDICAL_SIMPLE_PER_TURN },
+        // A quarter of a Move, the Simple rung's own cost — what a cure past
+        // the medic's free pool bills. MEDICAL_SIMPLE_PER_TURN is the SIZE of
+        // that pool; the two happen to agree at four a turn.
+        { requirementTurns: 1 / MEDICAL_SIMPLE_PER_TURN },
         { quantity: 1, family: "medical" },
       );
     }

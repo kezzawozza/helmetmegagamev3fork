@@ -312,13 +312,24 @@ function arrivalTermFor(location) {
   return null;
 }
 
-// The cure-ladder rung a wound sits on, read off its requirement block the
-// way a doctor reads the bill — or null for anything that is not a wound at
-// all. A wound with no requirement block is tier 0: real, untreatable, and
-// too small to trouble anyone (a scrape, a hangover-shaped thing).
+// The cure-ladder rung a wound sits on (TAGS.md §5c), or null for anything
+// that is not a wound at all.
+//
+// AUTHORED now: `cureRung` in docs/tags.yaml. Everything below it is a
+// FALLBACK for a tag that never came through the catalog — one a GM wrote in
+// the Dev Panel, or a runtime clone — and it works the way this whole function
+// used to, by reading the rung back out of the cure's price.
+//
+// That reading is why the rung is authored now. It told a Simple wound from a
+// Moderate one at 2 ⬢ by whether the cure's work denominator was 4 or 3, and
+// when costs became decimals in 9/2026 that denominator stopped existing. The
+// fallback keeps the shape it can still see and lands the case it cannot on
+// the gentler rung — an unauthored 2-⬢ wound reads as Simple rather than
+// inventing a severity for it.
 function woundRungOf(tag) {
   const group = tag?.group?.slug ?? tag?.groupSlug ?? null;
   if (!group || !WOUND_GROUPS.has(group)) return null;
+  if (typeof tag.cureRung === "number") return tag.cureRung;
   const resources = tag.requirementResources;
   const turns = tag.requirementTurns ?? 0;
   const gambit = Boolean(tag.requirementGambit);
@@ -329,19 +340,10 @@ function woundRungOf(tag) {
   if (r >= 6) return 5;
   if (r >= 4) return 4;
   if (r === 3) return 3.5;
-  // 2-⬢ wounds split three ways since M2a (turnsCost repricing put Simple
-  // and Moderate on the same requirementResources: 2/requirementTurns: 1
-  // shape, differing only in requirementPerTurn): a legacy/GM-authored
-  // zero-turn wound (or unset, coalesced the same way as before this
-  // milestone) and the new Simple (perTurn 4, i.e. turnsCost 1/4) both stay
-  // at rung 2; anything else with a nonzero turn cost (a Moderate wound's
-  // turnsCost 1/3, or a GM-authored whole turn with no fraction at all — the
-  // Dev Panel form cannot author one) is rung 3.
-  if (r === 2) {
-    if (turns === 0) return 2;
-    if (tag.requirementPerTurn === 4) return 2;
-    return 3;
-  }
+  // The one the price can no longer answer: Simple and Moderate are both 2 ⬢,
+  // and both cost a quarter of a Move now. A catalog wound says which it is;
+  // anything else gets the benefit of the doubt.
+  if (r === 2) return turns <= 0.25 ? 2 : 3;
   if (r === 1) return 1;
   return 0.5;
 }

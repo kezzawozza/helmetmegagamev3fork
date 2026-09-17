@@ -1,27 +1,22 @@
-// Move-fraction display, HOISTED down from web/lib/recipeCatalog.js's
-// workLabel (CRAFTING.md §2a): a `turnsCost: 1/N` recipe stores as
-// requirementTurns: 1 + requirementPerTurn: N (db/lib/tagShapes.js), and a
-// plain "1 turn" line would read as a whole Move where the true cost is a
-// fraction. Lives HERE because db/ cannot import web/ —
-// web/lib/craftBudget.js#formatMoveFraction re-exports this rather than
-// keeping its own copy.
-const FRACTION_GLYPHS = {
-  "1/2": "½",
-  "1/3": "⅓",
-  "2/3": "⅔",
-  "1/4": "¼",
-  "3/4": "¾",
-  // Mixed denominators land on sixths; twelfths have no glyphs and fall through to "n/m".
-  "1/6": "⅙",
-  "5/6": "⅚",
-  "1/8": "⅛", // kept for other fractional recipes even though the medical pool moved off it
-  "3/8": "⅜",
-  "5/8": "⅝",
-  "7/8": "⅞",
-};
-
-function formatMoveFraction(num, den) {
-  return FRACTION_GLYPHS[`${num}/${den}`] ?? `${num}/${den}`;
+// Move-amount display, HOISTED down from web/lib/recipeCatalog.js's workLabel
+// (CRAFTING.md §2a): a recipe costing part of a turn would otherwise read as a
+// whole Move. Lives HERE because db/ cannot import web/ —
+// web/lib/craftBudget.js#formatMoveAmount re-exports this rather than keeping
+// its own copy.
+//
+// Decimals, since 9/2026. This was a table of vulgar-fraction glyphs (¼, ⅓,
+// ⅔…) because costs were authored as `1/N`; they are decimals now and the
+// glyphs went with them.
+//
+// Takes a num/den pair because that is what the Move ledger holds
+// (web/lib/craftBudget.js keeps exact rationals so a turn adds up), and prints
+// the quotient: 0.25, 0.5, 1, 1.5. Trailing zeroes are trimmed, so a whole Move
+// reads "1" and not "1.00". Two decimal places is the cap, which only a spill
+// against an odd ration can reach — a ration of 3 bills a third of a Move and
+// prints 0.33.
+function formatMoveAmount(num, den = 1) {
+  const value = den ? num / den : 0;
+  return String(Number(value.toFixed(2)));
 }
 
 // Null when there's nothing to report (0 turns or no requirement block).
@@ -29,11 +24,11 @@ function formatMoveFraction(num, den) {
 // craft/heal engines do — a tag with no requirement block stays silent.
 function turnsLabel(tag) {
   if (!tag.requirementTurns) return null;
-  const per = tag.requirementPerTurn ?? null;
-  if (tag.requirementTurns === 1 && per > 1) {
-    return `${formatMoveFraction(1, per)} turn`;
-  }
-  return `${tag.requirementTurns} turn${tag.requirementTurns === 1 ? "" : "s"}`;
+  const turns = tag.requirementTurns;
+  // "1 turn", and everything else plural — including the part-turns, which read
+  // as "0.25 turns" rather than "0.25 of a turn" so the column stays scannable
+  // against the whole numbers beside it.
+  return `${formatMoveAmount(turns)} turn${turns === 1 ? "" : "s"}`;
 }
 
 // Minified "cost to add/remove this tag in play" summary, wherever a tag's
@@ -72,4 +67,4 @@ function formatTagRequirement(tag) {
   return parts.join(" · ");
 }
 
-module.exports = { formatTagRequirement, formatMoveFraction };
+module.exports = { formatTagRequirement, formatMoveAmount };

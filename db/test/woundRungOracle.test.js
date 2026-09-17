@@ -73,6 +73,13 @@ const EXPECTED_WOUND_RUNGS = {
 // Every priced health tag in the CURRENT catalog, built via the real
 // normalizeTurnsCost. Walked by `group:`, never file position — the health
 // groups are non-contiguous in docs/tags.yaml.
+//
+// `cureRung` rides along because it is the authored answer since 9/2026. That
+// changes what this oracle proves and it is worth being clear about: it used
+// to prove the price-reading in woundRungOf still derived the right rung, and
+// now it proves the rung somebody TYPED still matches the ladder the game
+// shipped with. A fat-fingered `cureRung: 2` on a Moderate wound is exactly
+// the kind of silent mood change it is here to catch.
 function loadCurrentWoundRungs() {
   const yamlPath = docsPath("tags.yaml");
   if (!yamlPath) throw new Error("Cannot find docs/tags.yaml — see db/lib/repoPaths.js");
@@ -88,6 +95,7 @@ function loadCurrentWoundRungs() {
     });
     const shape = {
       groupSlug: entry.group,
+      cureRung: entry.cureRung ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementTurns,
       requirementPerTurn,
@@ -137,4 +145,51 @@ test("rung 5 (the 6-7 ⬢ band) has a direct woundRungOf assertion, not just cat
   });
   assert.equal(woundRungOf(wound({ requirementResources: 6 })), 5);
   assert.equal(woundRungOf(wound({ requirementResources: 7 })), 5);
+});
+
+// The two shape guarantees the decimal rework depends on. Both are cheap and
+// both fail loudly if someone re-authors a cost the old way.
+test("every health cost is a decimal on a quarter, and no health tag carries a work denominator", () => {
+  const yamlPath = docsPath("tags.yaml");
+  const doc = yaml.load(fs.readFileSync(yamlPath, "utf8"));
+  const entries = entriesOf(doc?.tags, "slug").filter(
+    (entry) => typeof entry.group === "string" && entry.group.startsWith("health") && entry.requirement,
+  );
+  const offenders = [];
+  for (const entry of entries) {
+    const { requirementTurns, requirementPerTurn } = normalizeTurnsCost(entry.requirement, {
+      slug: entry.slug,
+      healable: entry.healable ?? false,
+    });
+    if (requirementTurns != null && !Number.isInteger(requirementTurns * 4)) {
+      offenders.push(`${entry.slug}: turnsCost ${requirementTurns} is not on a quarter`);
+    }
+    // requirementPerTurn is a ration and a ration only. A health tag holding
+    // one would mean the work denominator came back, and woundRungOf would be
+    // reading a column that no longer means what it used to.
+    if (requirementPerTurn != null) {
+      offenders.push(`${entry.slug}: carries requirementPerTurn ${requirementPerTurn}`);
+    }
+  }
+  assert.deepEqual(offenders, [], `health cost shapes drifted:\n${offenders.join("\n")}`);
+});
+
+// The case the price can no longer answer, pinned directly: with no authored
+// rung, an unknown 2-⬢ wound takes the gentler reading rather than inventing a
+// severity. Simple and Moderate are both 2 ⬢ and both cost 0.25 now.
+test("the fallback lands an unauthored 2-⬢ wound on rung 2, and a costlier one on rung 3", () => {
+  const wound = (extra = {}) => ({
+    groupSlug: "health-wounds",
+    cureRung: null,
+    requirementResources: 2,
+    requirementTurns: null,
+    requirementGambit: false,
+    ...extra,
+  });
+  assert.equal(woundRungOf(wound({ requirementTurns: 0 })), 2);
+  assert.equal(woundRungOf(wound({ requirementTurns: 0.25 })), 2);
+  assert.equal(woundRungOf(wound({ requirementTurns: 0.5 })), 3);
+  assert.equal(woundRungOf(wound({ requirementTurns: 1 })), 3);
+  // An authored rung always wins over the fallback.
+  assert.equal(woundRungOf(wound({ requirementTurns: 0.25, cureRung: 3 })), 3);
 });

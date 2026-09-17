@@ -5,7 +5,7 @@
 // the thing exists. A `group:` ingredient names no tag and hides nothing.
 
 import { DEAD_SIMPLE_PER_TURN, isDeadSimple } from "./tagRequests";
-import { formatMoveFraction } from "./craftBudget";
+import { formatMoveAmount } from "./craftBudget";
 
 function joinWithOr(names) {
   if (names.length <= 1) return names[0] ?? "";
@@ -69,36 +69,35 @@ export function recipeDiscipline(tag) {
   return skill.name.replace(/\s*\([^()]*\)\s*$/, "").trim() || skill.name;
 }
 
-// Null turns is ONE turn, not zero. `ration` mirrors the Move-budget rules
-// (CRAFTING.md §2a): perTurn's meaning depends on turns — at 0 it's a
-// RATION, at 1 it's the WORK DENOMINATOR from `turnsCost: 1/N`.
+// Null turns is ONE turn, not zero. `ration` is a daily cap and only exists on
+// a 0-turn recipe — requirementPerTurn stopped doubling as a work denominator
+// when costs became decimals (CRAFTING.md §2a), so there is no `workDen` any
+// more: the work IS `turns`.
 export function recipeWork(tag) {
   const turns = tag.requirementTurns ?? 1;
   const per = tag.requirementPerTurn ?? null;
   if (turns === 0 && per != null) {
-    return { turns, workDen: null, ration: per, shared: false };
+    return { turns, ration: per, shared: false };
   }
   if (turns === 0 && isDeadSimple(tag)) {
-    return { turns, workDen: null, ration: DEAD_SIMPLE_PER_TURN, shared: true };
+    return { turns, ration: DEAD_SIMPLE_PER_TURN, shared: true };
   }
-  if (turns === 1 && per > 1) {
-    return { turns, workDen: per, ration: null, shared: false };
-  }
-  return { turns, workDen: null, ration: null, shared: false };
+  return { turns, ration: null, shared: false };
 }
 
 // Shared with the Craft menu. NULL for a 0-turn recipe.
 export function workLabel(tag) {
-  const { turns, workDen } = recipeWork(tag);
+  const { turns } = recipeWork(tag);
   if (turns === 0) return null;
-  if (workDen) return `${formatMoveFraction(1, workDen)} turn`;
-  return turns === 1 ? "1 turn" : `${turns} turns`;
+  return turns === 1 ? "1 turn" : `${formatMoveAmount(turns)} turns`;
 }
 
 // No Move at all, this turn's Move, or a project you come back to (CRAFTING.md §3).
+// `<= 1` rather than `=== 1`: a 0.25 recipe is a share of one turn, not a
+// project, and an equality test dropped every decimal cost into "Project".
 export function workBand(turns) {
   if (turns === 0) return "Free";
-  return turns === 1 ? "One turn" : "Project";
+  return turns <= 1 ? "One turn" : "Project";
 }
 
 // `tag` rides along whole for TagChip/TagDetailSheet. A Structure still

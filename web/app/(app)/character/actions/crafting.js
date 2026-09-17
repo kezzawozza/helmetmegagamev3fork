@@ -16,7 +16,7 @@ import {
   craftFamilyLabel,
   craftMoveCost,
   fitsInRemaining,
-  formatMoveFraction,
+  formatMoveAmount,
   ledgerRemaining,
   ledgerUsed,
 } from "@/lib/craftBudget";
