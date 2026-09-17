@@ -187,33 +187,44 @@ client-side — but nothing renders the figure. Only `bandOf()`'s label.
 
 ## 5. Wounds read the cure ladder
 
-A wound's rung on the cure ladder (`TAGS.md` §5c) decides how much it costs,
-read off its requirement block by `woundRungOf`. `woundMoodFor` returns it
-**signed**:
+A wound's rung on the cure ladder (`TAGS.md` §5c) decides how much it costs.
+The wound **says which rung it is on** — `cureRung:` in `docs/tags.yaml` — and
+`woundRungOf` reads that field. `woundMoodFor` returns it **signed**:
 
-| Rung | Derivation | Mood |
+| Rung | What sits there | Mood |
 |---|---|---|
-| 0 | no requirement block at all | 0 |
+| 0 | untreatable, no requirement block at all | 0 |
 | ½ | 0 ⬢ (minor-bleeding, dislocated-shoulder) | −4 |
 | 1 | 1 ⬢ | −8 |
-| 2 | 2 ⬢, 1/4 Move (burned, frostbite, choking...) or a legacy/GM-authored 0-turn 2 ⬢ wound | −15 |
-| 3 | 2 ⬢, 1/3 Move (deep-wound, broken-bone...) | −30 |
+| 2 | Simple — 2 ⬢ (burned, frostbite, choking…) | −15 |
+| 3 | Moderate — 2 ⬢ (deep-wound, broken-bone…) | −30 |
 | 3½ | 3 ⬢ (severe-bleeding, arterial-bleed, parasites) | −35 |
-| 4 | 4–5 ⬢ | −40 |
+| 4 | Severe — 4–5 ⬢ | −40 |
 | 5 | 6–7 ⬢ | −45 |
 | 6 | 8+ ⬢ (14 ⬢ today), no Gambit | −55 |
 | 7 | `requirementGambit` (14 ⬢ today) | −65 |
 
-Rung 2 and rung 3 now share the same ⬢ (2) and the same `requirementTurns`
-(both bill a fraction of a Move, not a flat turn any more) — `woundRungOf`
-tells them apart by `requirementPerTurn` instead: 4 (a 1/4 Move, the Simple
-rung) reads as rung 2, anything else nonzero (a 1/3 Move, the Moderately
-Severe rung) reads as rung 3.
+**The rung is authored because the price stopped being able to say it.** Rungs
+2, 3 and 4 all cost a quarter of a Move since costs became decimals in 9/2026,
+and 2 and 3 are both 2 ⬢ besides — there is nothing left in a cure's price to
+tell a Simple wound from a Moderate one. `woundRungOf` used to infer it from
+the cure's work denominator, 4 against 3, and that denominator no longer
+exists.
+
+The gain is worth more than the bookkeeping: **a wound's severity and its cure
+price are separate dials now.** Making a cure cheaper used to quietly make the
+wound less frightening. It does not any more.
+
+A tag that never came through the catalog — one a GM wrote in the Dev Panel,
+or a runtime clone — has no rung, and `woundRungOf` falls back to reading the
+price the old way. The one case that reading cannot answer, an unauthored 2 ⬢
+wound, lands on rung 2 rather than inventing a severity for it.
 
 Illness, mind, minor and recovery tags cost nothing — a cold is not a wound. A
 tier-0 wound (no block) is real, untreatable and too small to matter. So the
-ladder is now read three ways — the bill, the Heal picker, and the mood — and a
-rung priced carelessly is wrong three ways.
+ladder is read three ways — the bill, the Heal picker, and the mood — but they
+no longer move together: a careless **price** is wrong on the first two, and a
+careless **`cureRung`** is wrong on the third.
 
 **Four writers create wound rows, and all four call `applyWoundMood`:**
 `tagWrites.js#addToStack` and `#grantTagSlugs` (their `!existing` branches only:

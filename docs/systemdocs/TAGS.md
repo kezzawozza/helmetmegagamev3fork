@@ -1311,32 +1311,62 @@ Every Health tag is priced off one of eight rungs. **Pick a rung and copy its
 block. Do not invent numbers.** The whole point of a ladder is that a player
 learns it once and can then read any affliction they meet.
 
-**The `turns` column is a Move fraction now (the medical pass, M2), not a
-literal turn count.** `craftMoveCost` (`web/lib/craftBudget.js`, `CRAFTING.md`
-§2a) is what actually bills it — a rung's `turnsCost: 0` never touches a
-Move at all (it draws on the shared free pool below instead), `1/3`/`1/2`
-spend that fraction of the medic's one Routine, and `1` spends the whole
-thing. See "The Move economy" below for how that bills and what it replaced.
+**The `turns` column is a share of a Move, not a literal turn count**, and it
+is a **decimal** since 9/2026 — it was a `1/N` fraction before that.
+`craftMoveCost` (`web/lib/craftBudget.js`, `CRAFTING.md` §2a) is what actually
+bills it: a rung's `turnsCost: 0` never touches a Move at all (it draws on the
+shared free pool below instead), `0.25` and `0.5` spend that much of the
+medic's one Routine, and `1` spends the whole thing. See "The Move economy"
+below for how that bills and what it replaced.
 
-| Tier | Reads as | ⬢ | turns (Move) | skill | Gambit |
-|---|---|---|---|---|---|
-| 0 | Untreatable | — | — | — | — |
-| 1 | Dead Simple | 1 | 0 | Basic | no |
-| 2 | Simple | 2 | 1/4 | Basic | no |
-| 3 | Moderate | 2 | 1/3 | Skilled | no |
-| 4 | Severe | 4 | 1/3 | Skilled | no |
-| 5 | Very minor surgery | 7 | 1/2 | Skilled | no |
-| 6 | Severe surgery | 13 | 1 | Expert | no |
-| 7 | Complex surgery | 13 | 1 | Expert | yes |
+Costs land on a **quarter** and the sync refuses anything else. That is not
+tidiness: the Move budget is exact rational arithmetic, and a cost it cannot
+hold exactly would let a medic do work they never paid for.
+
+| Tier | Reads as | ⬢ | turns (Move) | `cureRung` | skill | Gambit |
+|---|---|---|---|---|---|---|
+| 0 | Untreatable | — | — | 0 | — | — |
+| 1 | Dead Simple | 1 | 0 | 1 | Basic | no |
+| 2 | Simple | 2 | 0.25 | 2 | Basic | no |
+| 3 | Moderate | 2 | 0.25 | 3 | Skilled | no |
+| 4 | Severe | 4 | 0.25 | 4 | Skilled | no |
+| 5 | Very minor surgery | 7 | 0.5 | 5 | Skilled | no |
+| 6 | Severe surgery | 13 | 1 | 6 | Expert | no |
+| 7 | Complex surgery | 13 | 1 | 7 | Expert | yes |
+
+**Tiers 2, 3 and 4 all cost 0.25 now**, so the turns column no longer separates
+them — the ⬢ and the skill do. That is the price of losing thirds, and it is
+why the rung has its own column.
+
+### `cureRung` says which rung, and the price no longer does
+
+**Every wound authors its rung** — `cureRung:` in `docs/tags.yaml`, on every
+tag in `health-wounds`, `health-maiming` or `health-infection`. The sync
+refuses one that does not. `db/lib/mood.js#woundRungOf` reads that field.
+
+It used to work the rung out from the price, and at 2 ⬢ the only thing telling
+a Simple wound from a Moderate one was whether the cure's work denominator was
+4 or 3. Decimals took that away: tiers 2 and 3 are both 2 ⬢ and both cost 0.25,
+and nothing in the price can separate them. So the ladder is written down
+instead of inferred.
+
+That is a real improvement rather than a workaround. **Severity and cost can be
+tuned apart now** — making a cure cheaper no longer quietly moves the mood dial,
+which it always did before. The old price-reading survives in `woundRungOf`
+purely as a fallback for a tag that never came through the catalog (one a GM
+wrote in the Dev Panel, or a runtime clone), and it lands the case it cannot
+answer on the gentler rung.
 
 Tiers 5–7 were repriced by the medical pass (M2 — 6→7, 8→9, 8→14) precisely
 because a whole Move stopped being what any of them actually cost once the
-lower rungs moved onto fractions; the ⬢ went up with the tier's now-relative
+lower rungs moved onto shares; the ⬢ went up with the tier's now-relative
 weight rather than staying pinned to the old flat 6/8/8. Tier 6 has since
-been repriced again, 9→14 and 1/2→1 Move, so it now costs exactly what tier
-7 does — see below. Tiers 1 and 3–4 kept their ⬢ and their Move billing
-exactly; tier 2 kept its ⬢ but lost its free ride — it now bills a flat 1/4
-Move like tiers 3–4's fractions, never touching the pool below.
+been repriced again, 9→14 and half a Move to a whole one, so it now costs
+exactly what tier 7 does — see below. Tiers 1 and 3–4 kept their ⬢; tier 2
+kept its ⬢ but lost its free ride, and bills a flat 0.25 Move without ever
+touching the pool below. Tiers 3 and 4 went from a third of a Move to a
+quarter when thirds were dropped, so a Moderate or Severe cure is four a
+Routine where it was three.
 
 The ladder now runs in both directions. `HARM_CHARACTER` (`REQUESTS.md` §5b)
 puts a Health tag **on** somebody — offered from `isInflictable()`'s curated
@@ -1349,9 +1379,9 @@ carelessly can still be wrong twice, on both surfaces — just remember they're
 two different flags now, not one inference.
 
 The ladder is read a third time by the mood dial: a new wound's rung decides
-how much it costs the character who takes it, `db/lib/mood.js` reading the
-same rungs as the table above (MOOD.md). Pricing a rung carelessly is now
-wrong three ways, not two.
+how much it costs the character who takes it (MOOD.md). That read is off
+`cureRung` now, not the price — so a careless **rung** is wrong three ways,
+while a careless **price** is wrong twice and leaves the mood alone.
 
 **Remove/Destroy no longer cures anything.** Before `healable` existed, the
 old Remove Tag door doubled as a rough cure for some conditions — stripping a
@@ -1419,13 +1449,13 @@ replaced the old per-tier daily ration (2 a turn on Basic, 3 on Skilled, 4
 on Expert, `MEDICAL_TIER_CAPS` — deleted); the Expert's edge is now what
 they can afford on the turns-costing rungs, not a bigger free allowance.
 Past the 4th, each additional 0-turn cure spills into the medical family's
-Move at **1/4** rather than refusing outright, the same "allowance free,
+Move at **0.25** rather than refusing outright, the same "allowance free,
 past it costs the Move" rule Dead Simple crafting uses.
 
 **Everything at tier 2+ bills the Move directly and never touches that
 pool** — tier 2 (and its named-exception siblings `frostbite`, `choking`,
-`hypothermia`) is a flat 1/4 now rather than drawing on the pool at all, a
-1/3 or 1/2 rung spends that fraction of the medic's Routine, and tier 6 or
+`hypothermia`) is a flat 0.25 now rather than drawing on the pool at all, a
+0.5 rung spends half the medic's Routine, and tier 6 or
 7 (a full Move, tier 7 always a Gambit) spends the whole thing. The family is hardcoded
 `"medical"` on every caller that bills one of these, never derived from
 `craftFamily(tag)`'s guess — a skill-less cure like Choking would otherwise
@@ -1483,7 +1513,7 @@ not the cured tag: the skill required to apply that item to **anyone,
 including the actor's own self** (a prosthetic fitting is surgery even on
 your own leg). It is the one exception to §5f's "self-consume is never
 ACT-gated" — see §5f. `MEDICAL.md` §2 has the full mechanism, including the
-flat 1/2 Move fee it bills through the same medical family as above.
+flat 0.5 Move fee it bills through the same medical family as above.
 
 ### Named exceptions
 
@@ -1495,16 +1525,16 @@ rungs; don't copy their numbers onto anything else.
 - **`minor-bleeding`, `dislocated-shoulder`** — 0 ⬢, 0 turns, Medical
   (Basic). Below tier 1: a bandage or a shoulder pop is real medical
   knowledge, but it costs the doctor nothing to do.
-- **`severe-bleeding`, `arterial-bleed`, `parasites`** — 3 ⬢, 1/3 Move,
+- **`severe-bleeding`, `arterial-bleed`, `parasites`** — 3 ⬢, 0.25 Move,
   Medical (Skilled). Sits between tiers 3 and 4: stopping blood loss is
   urgent but simpler than the rest of what "Severe" covers.
-- **`choking`, `hypothermia`** — 2 ⬢, 1/4 Move, no skill. A Heimlich (or
+- **`choking`, `hypothermia`** — 2 ⬢, 0.25 Move, no skill. A Heimlich (or
   warming somebody back up) needs no training at all — the ⬢ buys the
   doctor's time, not their expertise. Choking was repriced onto this shape
   by M2 (it used to cost a whole turn); Hypothermia was untreatable at all
-  until M6 gave it the identical shape; both now bill the same flat 1/4 Move
+  until M6 gave it the identical shape; both now bill the same flat 0.25 Move
   every other rung-2 tag does, never the free pool.
-- **`frostbite`** — 2 ⬢, 1/4 Move, Medical (Skilled). Also gained
+- **`frostbite`** — 2 ⬢, 0.25 Move, Medical (Skilled). Also gained
   `expiresInto: [necrosis]` — it now progresses like an untreated wound
   instead of sitting inert.
 
