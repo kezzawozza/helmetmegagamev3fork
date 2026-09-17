@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { MOTION_SICKNESS_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
 import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
+// Submodule path, not the @lifeweb/db barrel — this is a client component and
+// the barrel drags PrismaClient into the browser bundle (ARCHITECTURE.md §2).
+import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import BioForm from "./BioForm";
 import CharacterPoller from "./CharacterPoller";
 import EquipBoard from "./EquipBoard";
@@ -216,7 +219,11 @@ export default function CharacterSheet({
         selfName={character.name}
         catalog={tagCatalog ?? []}
         characterTags={character.tags}
-        resources={character.resources}
+        // Off the tag rows, not a column — ⬢ are a stack now. This is what the
+        // Transfer dialog reads to cap how many ⬢ you may hand over, so a
+        // missing number here does not read as an error, it silently pins the
+        // cap at 0 and the verb quietly stops working.
+        resources={resourcesOf(character)}
         transferParties={transferParties}
         transferSilo={transferSilo}
         carry={carry}

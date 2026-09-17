@@ -172,7 +172,9 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
       .filter(Boolean)
       .join(" · ") || null,
   }));
-  const balance = fromSelf ? (carry?.resources ?? pools.resources ?? 0) : fromRoom ? fromRoom.resources : fromPerson ? fromPerson.resources : null;
+  // `carry` carries no ⬢ figure any more (carryStatus is weight-only since the
+  // second cap went), so the self case reads the sheet's own count.
+  const balance = fromSelf ? (pools.resources ?? 0) : fromRoom ? fromRoom.resources : fromPerson ? fromPerson.resources : null;
 
   const lines = pickedLines(picks).filter((l) => rows.some((r) => r.id === l.tagId));
   const moved = Number(amount) || 0;
