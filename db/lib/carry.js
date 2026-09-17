@@ -11,7 +11,7 @@ const { pickRandomPublicRoom, formatManifest } = require("./roomStash");
 const { announceInRoom } = require("./roomAnnounce");
 const { sendDm } = require("./dm");
 const { rowWeight, round2 } = require("./tagWeight");
-const { RESOURCES_WEIGHT_LBS } = require("./resourceStack");
+const { RESOURCES_WEIGHT_LBS, RESOURCES_SLUG } = require("./resourceStack");
 
 // The combined bonus is carried ×1000 as an integer so the sum of several
 // two-decimal bonuses stays exact, never a float epsilon.
@@ -188,7 +188,20 @@ function drawDrops(characterTags, excessLbs) {
   }
   // Every push above shares the same `ct` for one row, so this only ever
   // orders ROWS against each other — units off the same stack stay together.
-  units.sort((a, b) => (b.acquiredAt?.getTime?.() ?? 0) - (a.acquiredAt?.getTime?.() ?? 0));
+  //
+  // ⬢ go LAST, whatever their age. Newest-first is the right rule for goods
+  // (it is what stops Transfer being a griefing tool, above), but ⬢ became a
+  // one-pound item in 9/2026 and db/lib/resourceStack.js bumps `acquiredAt` on
+  // every top-up — so a stack somebody added to this turn is almost always the
+  // newest row on the sheet, and money would be the first thing shed every
+  // time. That is the worst possible draw: the shed is announced in the room
+  // (deliverCarryDrop), so an involuntary 1 ⬢ of Labor income could tip a rich
+  // character over and empty their whole purse onto a public floor in front of
+  // whoever was standing there. Gear first, savings last.
+  const moneyLast = (ct) => (ct.tag.slug === RESOURCES_SLUG ? 1 : 0);
+  units.sort(
+    (a, b) => moneyLast(a) - moneyLast(b) || (b.acquiredAt?.getTime?.() ?? 0) - (a.acquiredAt?.getTime?.() ?? 0),
+  );
   const chosen = [];
   let shed = 0;
   for (const ct of units) {

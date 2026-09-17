@@ -1,6 +1,6 @@
 // A Room's stash — the ⬢ and tag stacks lying in it (docs/systemdocs/CARRY.md). Takes `prisma` (or a tx), stays off the @lifeweb/db barrel.
 const { record, recordDelta, BURN } = require("./economyLedger");
-const { addRoomResources: bumpRoomStack, resourcesOf, RESOURCES_SLUG } = require("./resourceStack");
+const { addRoomResources: bumpRoomStack, resourcesOf, RESOURCES_SLUG, withoutResources } = require("./resourceStack");
 
 // findMany + a JS pick rather than ORDER BY random(): a Location has a handful of rooms at most. A room that eats what is put into it
 // (Room.destroysContents — the Godard Factory's Spillway) is NEVER eligible — tipping into the trough must stay on purpose (docs/systemdocs/FACTORY.md §9).
@@ -68,7 +68,7 @@ function formatManifest(tags = [], resources = 0) {
 function formatStashLine(room) {
   const tags = (room.tags ?? []).filter((rt) => rt.quantity > 0);
   const resources = resourcesOf(room);
-  const goods = tags.filter((rt) => rt.tag?.slug !== RESOURCES_SLUG);
+  const goods = withoutResources(tags);
   if (goods.length === 0 && !(resources > 0)) return "-# Nothing is stored here.";
   const names = goods.map((rt) => formatStack(rt.tag.name, rt.quantity)).join(", ");
   return `-# ${resources} ⬢ | **Tags**: ${names || "none"}`;

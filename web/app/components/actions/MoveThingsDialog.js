@@ -187,8 +187,11 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
   const lbs = lines.reduce((n, l) => n + (rows.find((r) => r.id === l.tagId)?.weightLbs ?? 0) * l.quantity, 0) + moved;
   const round = (n) => Math.round(n * 100) / 100;
   let projected = null;
-  if (carry && fromSelf) projected = { weight: round(carry.weightUsed - lbs), resources: carry.resources - moved };
-  else if (carry && toSelf && !fromPerson) projected = { weight: round(carry.weightUsed + lbs), resources: carry.resources + moved };
+  // Weight only. `lbs` above already includes the ⬢ being moved, at a pound
+  // each, so a separate ⬢ term would be the same units counted twice — and
+  // carryStatus stopped returning a ⬢ balance when the second cap went.
+  if (carry && fromSelf) projected = { weight: round(carry.weightUsed - lbs) };
+  else if (carry && toSelf && !fromPerson) projected = { weight: round(carry.weightUsed + lbs) };
   const overAfter = projected && projected.weight > carry.weightCap;
   const refusedAfter = projected && projected.weight > carry.weightHardCap;
   const note =
@@ -312,7 +315,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
 
       {projected && (
         <p className={`text-xs ${overAfter || refusedAfter ? "text-accent" : "text-muted"}`}>
-          After this you&apos;ll carry {projected.weight} / {carry.weightCap} lb, including {projected.resources} ⬢.
+          After this you&apos;ll carry {projected.weight} / {carry.weightCap} lb.
           {refusedAfter
             ? " That's more than you could hold even overburdened, so it won't go through."
             : overAfter

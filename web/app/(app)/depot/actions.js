@@ -39,7 +39,7 @@ import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { SHUTTLE_LANDED_LINE, SHUTTLE_DEPARTED_LINE } from "@lifeweb/db/lib/depotPass";
 import { COMPANY, DEPOT_ACCOUNT, DEPOT_DEBT, characterParty, record, turnStamp } from "@lifeweb/db/lib/economyLedger";
 import { refreshLiveRooms } from "@lifeweb/db/lib/syncZones";
-import { resourcesOf, takeRoomResources } from "@lifeweb/db/lib/resourceStack";
+import { resourcesOf, takeRoomResources, withoutResources } from "@lifeweb/db/lib/resourceStack";
 
 // The Merchant's station. Same contract as every other player Request
 // (docs/systemdocs/REQUESTS.md): authenticate, re-validate everything the
@@ -390,7 +390,7 @@ async function depotSendShuttleImpl() {
   // ⬢ sitting in the room is its own stack now (room.resources below), not a
   // ware among the others — pulled out here so the goods loop never resells
   // it a second time at the ordinary sellablePrice.
-  const goodsTags = room.tags.filter((rt) => rt.tag.slug !== RESOURCE_WARE_ID);
+  const goodsTags = withoutResources(room.tags);
 
   // A crate has no sellablePrice of its own — it's a box. Sending one back
   // unopened pays for what is INSIDE it, priced off the live catalog (the crate only stores names and counts).

@@ -9,7 +9,7 @@ import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { validateRoomTagOps } from "@lifeweb/db/lib/roomTagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
-import { RESOURCES_SLUG, resourcesOf } from "@lifeweb/db/lib/resourceStack";
+import { resourcesOf, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import { getVisibleZones } from "@/lib/gmZoneView";
 // By path, not off the barrel — the db/lib/dm.js convention this module follows.
 import {
@@ -1496,8 +1496,7 @@ async function getRoomStashImpl({ roomId }) {
     // ⬢ are a stack row now, so they come back out of the tag list: the
     // composer already draws them on their own line above it, and staging
     // them as a tag op would be a second, unledgered way to move money.
-    tags: room.tags
-      .filter((r) => r.tag.slug !== RESOURCES_SLUG)
+    tags: withoutResources(room.tags)
       .map((r) => ({ tagId: r.tagId, name: r.tag.name, quantity: r.quantity, stackable: r.tag.stackable })),
   };
 }

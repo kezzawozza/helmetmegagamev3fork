@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma, CATATONIC_SLUG, OBOL_SLUG } from "@lifeweb/db";
-import { RESOURCES_SLUG, resourcesOf } from "@lifeweb/db/lib/resourceStack";
+import { RESOURCES_SLUG, resourcesOf, withoutResources } from "@lifeweb/db/lib/resourceStack";
 
 // The faction query, lifted out of web/app/(app)/faction/page.js so a second
 // surface can ask the same question. Chat's Faction panel
@@ -101,13 +101,13 @@ export async function loadFaction(factionId) {
       ? {
           ...silo,
           resources: resourcesOf(silo),
-          tags: silo.tags.filter((rt) => rt.tag.slug !== RESOURCES_SLUG),
+          tags: withoutResources(silo.tags),
         }
       : silo,
     characters: faction.characters.map((c) => ({
       ...c,
       resources: resourcesOf(c),
-      tags: c.tags.filter((ct) => ct.tag.slug !== RESOURCES_SLUG),
+      tags: withoutResources(c.tags),
     })),
   };
 }

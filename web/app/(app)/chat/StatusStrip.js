@@ -36,7 +36,8 @@ export default function StatusStrip({
   return (
     <>
       <div className="chat-chips">
-        {/* Each chip reddens for its OWN cap, not the ORed `carry.over`. */}
+        {/* The ⬢ chip has no cap to redden for — ⬢ weigh a pound each and
+            count on the Carrying chip beside it, which is the one that warns. */}
         {numbers && (
           <span className="chip chip-mono">
             {resources} ⬢

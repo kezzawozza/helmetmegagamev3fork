@@ -671,8 +671,39 @@ inert — it is not quietly costing anyone anything.
 
 Everything downstream of the table is **unchanged**, because none of it was
 ever keyed to the money. The streak still climbs, `hungry` still costs
-Gambits, six straight turns still ends in Dying, and the mood pass still reads
-the streak. Only the till is gone.
+Gambits, and the mood pass still reads the streak. Only the till is gone —
+with one exception, immediately below.
+
+### The starvation brake
+
+**`HUNGER_CAN_KILL` in `db/lib/hungerPass.js` is `false`, and hunger does not
+reach Dying while it is.** This is temporary and it is deliberate.
+
+Taking the ⬢ charge out left a hole nobody can climb out of. Being fed is now
+entirely "is there an `ate-meal` tag on the sheet at close", and the only four
+things that grant one are a meal you cooked (Cooking, 5 points), a Depot ware,
+a GM hand-out, and a labor drop. None of those is reliably available:
+
+- **The Depot is not a shop.** An order spends `Depot.accountObols`, the
+  station's shared float, at a Landing Pad, on a shuttle cycle
+  (`DEPOT.md`). A player cannot walk up and buy lunch with their own ⬢.
+- **The food drops hang off three pools only** — fishing, farming and
+  prospecting (`docs/labordrops.yaml`). Basic and skilled labour turn up no
+  food at all.
+
+So a character on basic labour in Town who did not buy Cooking has **no food
+source in the game**. Left lethal, that is not a difficulty setting: it is
+every such character dead on turn 6, having had no action available that would
+have helped. Before the rework they ate automatically off the 1 ⬢ auto-labor
+pays them, so this player never starved at all.
+
+The brake keeps the mechanic honest without the body count. The streak still
+climbs, `hungry` still lands, the Gambit penalty still bites and the pass still
+reports who it spared — so the gap is visible on the audit row rather than
+hidden. It just stops short of granting Dying.
+
+**Flip it to `true` in the same change that ships foodstuff items, and not
+before.** That change is the prerequisite, not the follow-up.
 
 A single fed turn only clears **one tick** of the streak, not the whole thing
 — a character six turns deep in Hunger needs six fed turns to climb back to

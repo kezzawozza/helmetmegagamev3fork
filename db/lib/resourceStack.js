@@ -8,15 +8,20 @@
 // an overfull pack all stopped needing a ⬢-shaped special case the day the
 // columns died, because they are just stack moves now.
 //
-// This module is the ONE place that knows a ⬢ balance is a stack row. Nothing
-// else should reach for the tag by slug — the ledger's forms, the carry cap
-// and the turn passes all go through the helpers here, so the storage can move
-// again without another 500-site sweep.
+// This module is the ONE place that knows a ⬢ balance is a stack row. Read and
+// write a balance through the helpers here, and pick the ⬢ row out of a tag
+// list with `withoutResources` / `isResourcesRow` rather than comparing a slug
+// by hand — so the storage can move again without another 500-site sweep.
 //
-// Takes `tx`/`prisma` as a parameter and stays OFF the @lifeweb/db barrel:
-// db/index.js's turn engine imports this, so requiring the barrel back would
-// resolve to a partial exports object (the db/lib/dm.js convention). Require
-// it by path.
+// Zero requires, on purpose, like db/lib/dmKinds.js: this is reachable from a
+// client component (web/app/components/LedgerBand.js imports it for the sheet's
+// ⬢ tile), and one require of @lifeweb/db here would drag PrismaClient into
+// the browser bundle. Every function takes `tx`/`prisma` as a parameter instead.
+//
+// It IS on the @lifeweb/db barrel, so web code may import it either way. Inside
+// db/lib, require it by path — db/index.js's turn engine imports this, so
+// requiring the barrel back would resolve to a partial exports object
+// (the db/lib/dm.js convention).
 
 const RESOURCES_SLUG = "resources";
 
@@ -38,6 +43,12 @@ let cachedId = null;
 let loadedAt = 0;
 let warnedMissing = false;
 
+// Drops the memo. Nothing in the running game needs this — a tag id never
+// changes once it exists, and a MISSING tag is deliberately not cached, so a
+// first `db:sync-tags` is picked up on the very next call. It is here for
+// db/test/resourceStack.test.js, which shares one process across tests and
+// would otherwise carry a warm id into the case that checks what happens with
+// no catalog tag at all.
 function invalidateResourcesTag() {
   cachedId = null;
   loadedAt = 0;
@@ -69,9 +80,37 @@ async function resourcesTagId(tx) {
 // tags EXCEPT the ⬢ count. Spread it into a select and read the result with
 // `resourcesOf`. A caller already loading the whole tag set doesn't need this
 // — `resourcesOf` reads that shape too.
+// The slug rides along even though the `where` already filtered to it: it is
+// what lets `resourcesOf` answer from ONE rule instead of guessing which shape
+// it was handed. Without it, a caller selecting tags as { tagId, quantity } got
+// the first arbitrary row's quantity back as a ⬢ balance — silently, and
+// wrongly.
 const RESOURCES_SELECT = {
-  tags: { where: { tag: { slug: RESOURCES_SLUG } }, select: { quantity: true } },
+  tags: {
+    where: { tag: { slug: RESOURCES_SLUG } },
+    select: { quantity: true, tag: { select: { slug: true } } },
+  },
 };
+
+// Is this CharacterTag/RoomTag row the ⬢ stack?
+function isResourcesRow(row) {
+  return (row?.tag?.slug ?? row?.slug) === RESOURCES_SLUG;
+}
+
+// A tag list with the ⬢ row taken out.
+//
+// Worth knowing WHY so many callers want this. ⬢ are an ordinary stack row
+// now, so any surface that draws its own ⬢ figure AND lists what somebody
+// holds will show the same ⬢ twice — "12 ⬢" over "Resources ×12" — and read
+// as two separate things. Worse on a surface that can MOVE things: a picker
+// listing the stack offers a second, unledgered way to move money right beside
+// the ⬢ field that books it properly.
+//
+// So the rule is: filter where the surface has its own ⬢ field or a way to
+// act on ⬢, leave it where the list is a plain inventory readout.
+function withoutResources(rows = []) {
+  return (rows ?? []).filter((row) => !isResourcesRow(row));
+}
 
 // The ⬢ on an already-loaded character or room row. Accepts either shape: a
 // row selected with RESOURCES_SELECT (one filtered tag row), or a row that
@@ -79,14 +118,8 @@ const RESOURCES_SELECT = {
 // zero — an empty stack is deleted, never kept as a 0.
 function resourcesOf(row) {
   const tags = row?.tags;
-  if (!Array.isArray(tags) || !tags.length) return 0;
-  const named = tags.find((ct) => ct?.tag?.slug === RESOURCES_SLUG);
-  if (named) return named.quantity ?? 0;
-  // Nothing carries a `tag` at all, so this was selected with
-  // RESOURCES_SELECT — which filtered to the one row we want.
-  if (tags.every((ct) => ct?.tag === undefined)) return tags[0]?.quantity ?? 0;
-  // A full tag set that simply doesn't include Resources.
-  return 0;
+  if (!Array.isArray(tags)) return 0;
+  return tags.find(isResourcesRow)?.quantity ?? 0;
 }
 
 async function readCharacterResources(tx, characterId) {
@@ -273,13 +306,16 @@ async function setCharacterResources(tx, characterId, value) {
   return { before, after: target };
 }
 
+// `resourcesTagId` stays private: everything outside this file wants a balance
+// or a row test, not a tag id.
 module.exports = {
   RESOURCES_SLUG,
+  invalidateResourcesTag,
   RESOURCES_WEIGHT_LBS,
   RESOURCES_SELECT,
-  resourcesTagId,
-  invalidateResourcesTag,
   resourcesOf,
+  isResourcesRow,
+  withoutResources,
   readCharacterResources,
   readRoomResources,
   resourcesByCharacterIds,

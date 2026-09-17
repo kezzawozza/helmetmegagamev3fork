@@ -5,7 +5,7 @@ import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapaci
 import { kissBlock } from "@lifeweb/db/lib/kiss";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
-import { RESOURCES_SELECT, RESOURCES_SLUG, resourcesOf } from "@lifeweb/db/lib/resourceStack";
+import { RESOURCES_SELECT, resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import { peopleHere } from "@/lib/peopleHere";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { rosterName } from "@lifeweb/db/lib/presentedIdentity";
@@ -413,7 +413,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     // row. Pull the stack out and keep the number, the way a room stash does
     // it (db/lib/roomStash.js#formatStashLine).
     tags: c.tags
-      .filter((ct) => ct.tag.slug !== RESOURCES_SLUG && isTradeable(ct.tag))
+      .filter((ct) => !isResourcesRow(ct) && isTradeable(ct.tag))
       .map((ct) => ({
         tagId: ct.tagId,
         tagName: ct.tag.name,
@@ -641,7 +641,7 @@ export async function loadStashRooms(character, { scope = "location", chipCtx = 
     // The ⬢ stack is one of the stash rows now, so it is read off the rows and
     // then kept out of them — the dialog has its own ⬢ field.
     resources: resourcesOf(room),
-    tags: room.tags.filter((rt) => rt.tag.slug !== RESOURCES_SLUG).map((rt) => ({
+    tags: withoutResources(room.tags).map((rt) => ({
       tagId: rt.tagId,
       name: rt.tag.name,
       quantity: rt.quantity,

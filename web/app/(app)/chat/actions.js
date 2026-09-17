@@ -119,7 +119,7 @@ import { photoCaption } from "@lifeweb/db/lib/photo";
 import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
-import { RESOURCES_SLUG, resourcesOf } from "@lifeweb/db/lib/resourceStack";
+import { resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import {
   CHIP_ROW_SELECT,
   CHIP_VIEWER_SELECT,
@@ -419,7 +419,7 @@ export async function readStash(roomId) {
     resources: resourcesOf(room),
     // ⬢ is drawn as its own chip (RoomPanel.js), not as a pickable stack.
     items: (room.tags ?? [])
-      .filter((rt) => (rt.quantity ?? 0) > 0 && rt.tag?.slug !== RESOURCES_SLUG)
+      .filter((rt) => (rt.quantity ?? 0) > 0 && !isResourcesRow(rt))
       .map((rt) => toChipRow(rt, ctx)),
   };
 }
@@ -1239,7 +1239,7 @@ export async function gmPlaceView(placeKey) {
       keys: room.accessTagSlugs ?? [],
       resources: resourcesOf(room),
       // ⬢ is drawn as its own chip (GmAside.js's Things()), not among the things.
-      things: room.tags.filter((t) => t.tag?.slug !== RESOURCES_SLUG).map((t) => toChipRow(t, GM_CHIP_CTX)),
+      things: withoutResources(room.tags).map((t) => toChipRow(t, GM_CHIP_CTX)),
     })),
     openRoom: openRoom
       ? {
@@ -1248,7 +1248,7 @@ export async function gmPlaceView(placeKey) {
           private: openRoom.kind === "PRIVATE",
           keys: openRoom.accessTagSlugs ?? [],
           resources: resourcesOf(openRoom),
-          things: openRoom.tags.filter((t) => t.tag?.slug !== RESOURCES_SLUG).map((t) => toChipRow(t, GM_CHIP_CTX)),
+          things: withoutResources(openRoom.tags).map((t) => toChipRow(t, GM_CHIP_CTX)),
           fixtures: roomAffordances(openRoom).map((entry) => ({
             id: entry.id,
             label: entry.label,

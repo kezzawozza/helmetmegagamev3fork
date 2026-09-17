@@ -21,6 +21,7 @@ import {
   RESOURCE_EXPORT_PRICE,
   RESOURCE_WARE_ID,
   resourcesOf,
+  isResourcesRow,
   CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
   presentedIdentity,
@@ -315,7 +316,7 @@ async function FreshDepot() {
           resources: resourcesOf(pad),
           // ⬢ prints as `pad.resources` above, not as a row here too.
           rows: (pad?.tags ?? [])
-            .filter((rt) => rt.tag.slug !== RESOURCE_WARE_ID)
+            .filter((rt) => !isResourcesRow(rt))
             .map((rt) => ({
               id: rt.id,
               quantity: rt.quantity,

@@ -7297,13 +7297,20 @@ tags:
     sellable: true
     sellablePrice: 1
 
-  # The Depot's currency, and worth exactly one ⬢. It does not compress value,
-  # it makes value PHYSICAL: ⬢ are a number on a sheet that nobody can pick
-  # your pocket for, and these are the same amount as an object you can carry,
-  # hand over, stash and lose. Weightless, so a fortune still fits in a pocket.
-  # Only the Merchant issues them and only he redeems them, so a purse of these
-  # is worth exactly as much as your ability to reach the Depot.
-  # See docs/systemdocs/DEPOT.md.
+  # The Depot's currency, and worth exactly one ⬢.
+  #
+  # What it buys you is WEIGHT, and that reading is the other way up since
+  # 9/2026. It used to make value physical: ⬢ were a number on a sheet nobody
+  # could pick your pocket for, and an obol was the same value as an object you
+  # could carry, hand over, stash and lose. ⬢ are all of those things now, and
+  # they weigh a pound each — so the obol is the money that does NOT weigh
+  # anything, and a fortune in coin still fits in a pocket while the same
+  # fortune in raw material is a cart's worth of work.
+  #
+  # That is the trade the Depot sells: walk your ⬢ to the counter and carry
+  # the value home weightless. Only the Merchant issues them and only he
+  # redeems them, so a purse of these is worth exactly as much as your ability
+  # to reach the Depot. See docs/systemdocs/DEPOT.md.
   obol:
     catalog: all
     name: Obol
