@@ -2438,6 +2438,8 @@ tags:
   # adds one stack every time Metempsychosis fires, so quantity IS the number
   # of past lives. Not `mastery`: nobody buys this, so none of that band's
   # rules (store-only, no negative cost) have anything to say about it.
+  # Each stack also costs the new body 2 points of random drawbacks, granted
+  # GM_GRANT alongside it — the fraying is mechanical, not just cosmetic.
   heightened-psychosis:
     catalog: gm
     name: Heightened Psychosis

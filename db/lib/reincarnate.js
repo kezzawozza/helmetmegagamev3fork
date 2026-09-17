@@ -86,6 +86,107 @@ async function rollIdentity(prisma, role) {
   };
 }
 
+// A role's "starting package" is normally one fixed kit (docs/systemdocs/
+// CHARACTERS.md "The starting package"). Commoner is the one seat today that
+// offers a CHOICE of kit instead — three tags gated `onlyRoles: [commoner]`
+// that all `conflictsWith` each other (docs/tags.yaml). This finds any such
+// group generically, off the catalog rather than a hardcoded slug list, so it
+// covers Commoner today and whatever role gets a second one tomorrow with no
+// code change here.
+//
+// A lone `onlyRoleSlugs` tag with no conflicting sibling is a role-locked
+// PERK, not a package choice, and is left alone — there is nothing to pick
+// between, and the wizard doesn't force it on anyone either.
+async function pickPackageTags(prisma, roleSlug) {
+  const candidates = await prisma.tag.findMany({
+    where: { onlyRoleSlugs: { has: roleSlug } },
+    select: { id: true, slug: true, pointCost: true, conflictsWith: { select: { id: true } } },
+  });
+  const seen = new Set();
+  const picks = [];
+  for (const tag of candidates) {
+    if (seen.has(tag.id)) continue;
+    const conflictIds = new Set(tag.conflictsWith.map((c) => c.id));
+    const group = candidates.filter((t) => t.id === tag.id || conflictIds.has(t.id));
+    for (const t of group) seen.add(t.id);
+    if (group.length < 2) continue; // nothing to choose between
+    picks.push(group[Math.floor(Math.random() * group.length)]);
+  }
+  return picks;
+}
+
+// Heightened Psychosis's whole point (docs/tags.yaml): each stack costs the
+// new body 2 points of drawbacks, picked at random from whatever the catalog
+// allows for this role and doesn't clash with what it already holds. Granted
+// `GM_GRANT` like the rest of the kit, so — same lane TAGS.md 4a already
+// describes for the Meister's free Frail — it never touches the player's own
+// budget and is invisible to `maxDrawbackTags`/`maxDrawbackPoints`, which only
+// count `POINT_BUY` rows.
+//
+// One random pass, taking whatever still fits and is still compatible: a
+// single greedy pass can undershoot `targetPoints` when nothing left fits the
+// remainder, but it can never overshoot it, which mirrors how
+// `maxDrawbackPoints` itself treats the number — a ceiling, not a quota to
+// force. There is no precedent anywhere in this catalog for hunting down an
+// exact-sum combination, and inventing one here would be solving a harder
+// problem than the tag stops actually need.
+async function rollDrawbackTags(prisma, { roleSlug, grantedIds, targetPoints }) {
+  if (!(targetPoints > 0)) return [];
+
+  const candidates = await prisma.tag.findMany({
+    where: { pointCost: { lt: 0 }, purchasable: true },
+    select: {
+      id: true,
+      slug: true,
+      pointCost: true,
+      stackable: true,
+      exclusive: true,
+      groupId: true,
+      requiredTagId: true,
+      defaultDurationTurns: true,
+      onlyRoleSlugs: true,
+      excludedRoleSlugs: true,
+      conflictsWith: { select: { id: true } },
+    },
+  });
+
+  // Same two gates the wizard's own point-buy menu applies
+  // (web/lib/characterCreation.js#roleExcluded): onlyRoleSlugs is an
+  // allowlist when set, excludedRoleSlugs a blocklist, and a tag uses only one.
+  const roleOk = (t) =>
+    (t.onlyRoleSlugs.length === 0 || t.onlyRoleSlugs.includes(roleSlug)) &&
+    !t.excludedRoleSlugs.includes(roleSlug);
+
+  // Held grows as picks land, so a later candidate is checked against
+  // everything granted so far — the role kit, Metempsychosis, Heightened
+  // Psychosis, any package tag, AND every drawback already accepted this pass.
+  const held = new Set(grantedIds);
+  const exclusiveGroupsUsed = new Set();
+  const picked = [];
+  let remaining = targetPoints;
+
+  const shuffled = candidates.filter(roleOk).sort(() => Math.random() - 0.5);
+  for (const tag of shuffled) {
+    if (remaining <= 0) break;
+    const cost = Math.abs(tag.pointCost);
+    if (cost > remaining) continue;
+    if (held.has(tag.id)) continue; // already granted, or already picked this pass
+    if (tag.conflictsWith.some((c) => held.has(c.id))) continue;
+    if (tag.requiredTagId && !held.has(tag.requiredTagId)) continue;
+    // Same-group exclusivity (web/lib/characterCreation.js#exclusiveConflict),
+    // simplified: two exclusive tags in one group never coexist here, chained
+    // or not — a soul picking up a second vice mid-creation has no story
+    // explaining why the first one was an upgrade rather than a relapse.
+    if (tag.exclusive && tag.groupId && exclusiveGroupsUsed.has(tag.groupId)) continue;
+
+    picked.push(tag);
+    held.add(tag.id);
+    remaining -= cost;
+    if (tag.exclusive && tag.groupId) exclusiveGroupsUsed.add(tag.groupId);
+  }
+  return picked;
+}
+
 // Every role a soul could land in: whitelisted and spawn-only seats excluded,
 // same as the assignment roll.
 async function openRoles(prisma, config, state) {
@@ -135,8 +236,9 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
   const role = candidates[Math.floor(Math.random() * candidates.length)];
 
   // Seat's own bonus counts (web/lib/characterCreation.js#computeBudget), plus
-  // the tag's own 4 on top.
-  const budget =
+  // the tag's own 4 on top. `let`, because a randomly picked starting package
+  // is charged against it further down.
+  let budget =
     (config?.startingTagPoints ?? 8) + (role.extraStartingPoints ?? 0) + REINCARNATION_BONUS_POINTS;
 
   // Role's own kit, resolved like the wizard: entries may carry a count ("obol x5"), summed not repeated.
@@ -145,13 +247,36 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
     const { slug, quantity } = parseStartingTag(entry);
     wanted.set(slug, (wanted.get(slug) ?? 0) + quantity);
   }
+
+  // A role that offers a package CHOICE (Commoner's three trade kits today)
+  // gets one picked at random rather than left empty — the wizard's own
+  // fallback only ever covers Commoner specifically (CHARACTERS.md "The
+  // starting package"), and a random pick generalizes it to any future role
+  // shaped the same way. Its cost comes straight off the budget, same as a
+  // player spending on it themselves; only Commoner's kits are priced today
+  // (0/1/2), so `Math.max` is just a floor against a package ever costing
+  // more than the base budget, not a rule the current data can trigger.
+  const packageTags = await pickPackageTags(prisma, role.slug);
+  for (const tag of packageTags) wanted.set(tag.slug, (wanted.get(tag.slug) ?? 0) + 1);
+  budget = Math.max(0, budget - packageTags.reduce((sum, t) => sum + t.pointCost, 0));
+
   // The soul carries two things no role's kit ever lists, which is why these
   // overwrite rather than add: Metempsychosis renewing itself is what makes
   // the loop infinite, and Heightened Psychosis's count is the number of
   // lives spent, not a quantity any role kit gets a vote on.
+  const psychosisStacks = priorPsychosisCount + 1;
   wanted.set(METEMPSYCHOSIS_SLUG, 1);
-  wanted.set(HEIGHTENED_PSYCHOSIS_SLUG, priorPsychosisCount + 1);
-  const startingTags = await prisma.tag.findMany({ where: { slug: { in: [...wanted.keys()] } } });
+  wanted.set(HEIGHTENED_PSYCHOSIS_SLUG, psychosisStacks);
+
+  const baseTags = await prisma.tag.findMany({ where: { slug: { in: [...wanted.keys()] } } });
+
+  // 2 points of free drawbacks per stack (docs/tags.yaml `heightened-psychosis`).
+  const drawbackTags = await rollDrawbackTags(prisma, {
+    roleSlug: role.slug,
+    grantedIds: baseTags.map((t) => t.id),
+    targetPoints: 2 * psychosisStacks,
+  });
+  const startingTags = [...baseTags, ...drawbackTags];
 
   const identity = await rollIdentity(prisma, role);
 
@@ -263,4 +388,8 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
 module.exports = {
   reincarnate,
   REINCARNATION_AGE_MAX,
+  // Exported for db/test/reincarnateDrawbacks.test.js — both take `prisma` as
+  // their first argument, so a test doubles it with a bare `{ tag: { findMany } }`.
+  pickPackageTags,
+  rollDrawbackTags,
 };

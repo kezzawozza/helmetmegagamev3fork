@@ -968,6 +968,32 @@ same timing and the same reason it already reads the Metempsychosis holding
 itself, and hands the count into `reincarnate()` as `priorPsychosisCount` so a
 gib can never reset it to zero.
 
+**Each stack also buys the new body 2 points of random drawbacks.** Four
+stacks in, that's 8 points of whatever the catalog can find that's compatible
+— `db/lib/reincarnate.js#rollDrawbackTags` draws from every `purchasable`,
+negative-`pointCost` tag (58 of them today), filtered the same way the
+wizard's own point-buy menu would (`onlyRoleSlugs`/`excludedRoleSlugs` against
+the new role, `conflictsWith` and same-group `exclusive` against everything
+else already granted, `requiredTagId` prerequisites), in one random pass that
+takes whatever still fits without ever exceeding the target — a ceiling, like
+`maxDrawbackPoints`, not a quota it hunts an exact sum to hit. Granted
+`GM_GRANT`, so — same lane as the Meister's free Frail (`TAGS.md` §4a) — it
+never touches the new body's `tagPoints` budget and is invisible to
+`maxDrawbackTags`/`maxDrawbackPoints`, which only count `POINT_BUY` rows.
+
+**A role that offers a package CHOICE gets one picked at random, its cost
+adjusted for.** Commoner is the one seat today shaped that way: three tags
+(`commoner-farmer`/`-fisherman`/`-hunter`) gated `onlyRoles: [commoner]` that
+all `conflictsWith` each other (§"The starting package" above).
+`db/lib/reincarnate.js#pickPackageTags` finds any such mutually-conflicting
+clique off the catalog directly rather than a hardcoded slug list, so it
+covers Commoner today and whatever role is shaped the same way tomorrow with
+no code change here. The picked tag's `pointCost` comes straight off the
+budget before it is stamped onto `tagPoints`, the same as a player spending on
+it themselves would — a reincarnated Commoner does not get a free trade kit
+*and* a full untouched budget. A role-locked tag with no conflicting sibling
+is a perk, not a choice, and is left alone.
+
 It hangs off `db/lib/characterDeath.js#applyDeathToRow` rather than off the
 wizard, because **nine** callers kill people — the dying, catatonic,
 ascension, nuke and turret passes, the rites, the web's own `killCharacter`,
