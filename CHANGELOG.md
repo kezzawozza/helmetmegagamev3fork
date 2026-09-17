@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Read the whole roster once instead of one member at a time
+
+✎ The web app reads Discord's member list once instead of asking about each player separately, which is what was rate-limiting everyone
+
 ## 2026-09-17 · Gambits roll at submit so GMs can start adjudicating early
 
 ✎ A Gambit's die is now thrown the moment the Move is sent, not three hours before the turn closes, so a GM can work the desk all day instead of waiting for Moves to lock. Players are told nothing until the turn closes, exactly as before.  
