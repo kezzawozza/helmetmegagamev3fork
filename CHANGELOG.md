@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-17 · Remove stray skull glyphs
+
+✎ Drop the death emoji from the staged-effect label and the skull from Feed Person and REQUESTS.md
+
 ## 2026-09-17 · The who's-here menu now checks your own sheet
 
 ✎ Perform Miracle no longer appears on the person menu for anyone who isn't a Saint — it was the one surface that ignored the button's own rules, so every player saw it  

@@ -99,7 +99,7 @@ export default function LifewebRequestButtons({ characters, disabled = false }) 
           disabled={disabled}
           onClick={() => open("feed")}
         >
-          ☠ Feed Person
+          Feed Person
         </button>
       </div>
 

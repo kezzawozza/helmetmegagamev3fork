@@ -510,7 +510,7 @@ rule applied to the blood pool. Reversing the nominal 40 would mint 30 blood
 out of nothing.
 
 **Feed Person kills, on the click.** It used to stop short — fill the pool,
-raise a `☠` in the audit line, and wait for a GM's Kill on the Dev Panel — on the
+raise a mark in the audit line, and wait for a GM's Kill on the Dev Panel — on the
 argument that a player must not end another player's game from a dropdown.
 What that bought in practice was a character everyone had watched be fed to
 the Tower still walking around until someone worked the queue.

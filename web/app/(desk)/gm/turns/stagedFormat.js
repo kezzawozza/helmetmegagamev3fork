@@ -38,7 +38,7 @@ export function effectSegments(effect, tagsById) {
   if (effect.death) {
     segs.push({
       k: "text",
-      v: effect.death.gib ? `💀 Gibbed — ${effect.death.reason}` : `💀 Killed — ${effect.death.reason}`,
+      v: effect.death.gib ? `Gibbed — ${effect.death.reason}` : `Killed — ${effect.death.reason}`,
     });
     return segs;
   }
