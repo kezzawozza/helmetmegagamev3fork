@@ -50,10 +50,8 @@ export const COLLAR_VERBS = {
     question: "Whose collar are you setting off?",
     empty: "There's nobody here.",
     pool: "collarOthers",
-    note: "It kills them outright and leaves no body. Nothing about this can be taken back.",
     confirm: (name) => ({
       title: `Detonate ${name}'s collar?`,
-      message: "It kills them outright and leaves no body to bury, loot or carry.",
       confirmLabel: "Detonate",
     }),
     run: (id) => detonateCollarRequest({ targetCharacterId: id }),
