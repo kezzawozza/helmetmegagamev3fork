@@ -4,7 +4,6 @@
 // on purpose (unlike the turret's tag curve) — a general armour value would
 // misrepresent what stands between a chainsaw and your hand. Pure and Prisma-free. See docs/systemdocs/FACTORY.md.
 
-const { turnDay } = require("./turnFormat");
 
 const EXTRACT_TOOLS = ["chainsaw", "battle-axe", "hatchet"];
 const CHAINSAW_SLUG = "chainsaw";
@@ -95,16 +94,17 @@ function extractionDm(result, { locationName = null } = {}) {
   return lines.join("\n");
 }
 
-// Character.extractDayKey, the in-game DAY (FACTORY.md §3, BIRD.md) — a day
-// is TWO turns, so keying on the turn id would give two cuts a day.
-function extractDayKey(openTurn) {
-  return openTurn ? String(turnDay(openTurn)) : null;
+// Character.extractTurnKey (FACTORY.md §3, BIRD.md). This keyed on the in-game
+// DAY once — a day is TWO turns — back when the cut was once a day. Harvest
+// Godflesh is once a TURN now, so the turn id is the key.
+function extractTurnKey(openTurn) {
+  return openTurn ? String(openTurn.id) : null;
 }
 
 // Read-side only, for greying the button — the WRITE side (extractGodfleshRequest's conditional updateMany) is the real check; two tabs can both pass this.
-function extractedToday(character, openTurn) {
-  const key = extractDayKey(openTurn);
-  return Boolean(key && character?.extractDayKey === key);
+function extractedThisTurn(character, openTurn) {
+  const key = extractTurnKey(openTurn);
+  return Boolean(key && character?.extractTurnKey === key);
 }
 
 module.exports = {
@@ -112,6 +112,6 @@ module.exports = {
   extractToolFor,
   rollExtraction,
   extractionDm,
-  extractDayKey,
-  extractedToday,
+  extractTurnKey,
+  extractedThisTurn,
 };

@@ -359,10 +359,10 @@ export default function CraftAction({ presets, onDone, onClose }) {
               : `That takes ${share}`;
           // A spill is the one Move spend a player may not have planned as
           // their day's work, so it alone says what a filed Action always
-          // costs: the day's labor pay (CRAFTING.md §2a).
+          // costs: the day's pay (CRAFTING.md §2a).
           const labor =
             move.freeQty > 0 && !craftBudget
-              ? " That counts as your day's work — no labor pay today."
+              ? " That counts as your day's work."
               : "";
           moveLine = craftBudget
             ? `${takes}, on top of what you've already done this turn.`

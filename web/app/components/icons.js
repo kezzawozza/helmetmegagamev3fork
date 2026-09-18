@@ -47,6 +47,8 @@ import {
   Pin,
   Send,
   Pickaxe,
+  Axe,
+  Cog,
   Flame,
   Feather,
   Package,
@@ -200,8 +202,16 @@ export const ChevronDownIcon = lucide(ChevronDown, "ChevronDownIcon");
 // The Journal's "pin to top" toggle. Not a star: that page already uses ★ for starred/[★] unstar.
 export const PinIcon = lucide(Pin, "PinIcon");
 export const SendIcon = lucide(Send, "SendIcon");
-// Extract — a pick going into the ground, distinct from Craft's Hammer.
-export const ExtractIcon = lucide(Pickaxe, "ExtractIcon");
+// Mine — a pick going into the ground, distinct from Craft's Hammer. It was
+// Extract's icon until Extract became Harvest Godflesh, which is a cutting job
+// and now wears the axe below.
+export const MineIcon = lucide(Pickaxe, "MineIcon");
+// Harvest Godflesh — a blade, because that is literally the job: a hatchet, a
+// battle-axe or a chainsaw taken to the marsh.
+export const ExtractIcon = lucide(Axe, "ExtractIcon");
+// Refine — the Factory's machinery, distinct from Craft's Hammer: the floor
+// does the work, the worker feeds it.
+export const RefineIcon = lucide(Cog, "RefineIcon");
 // Torture — the brazier, distinct from Harm/Crucify's shared broken heart.
 export const TortureIcon = lucide(Flame, "TortureIcon");
 // A quill — the Write action. See docs/systemdocs/PAPERWORK.md.
@@ -210,7 +220,7 @@ export const QuillIcon = lucide(Feather, "QuillIcon");
 export const BrandIcon = lucide(Stamp, "BrandIcon");
 // Package — a banded crate.
 export const CrateIcon = lucide(Package, "CrateIcon");
-// Farm — a seedling, distinct from Extract's Pickaxe: sowing grows something rather than cutting it out.
+// Farm — a seedling, distinct from Mine's Pickaxe: sowing grows something rather than digging it out.
 export const FarmIcon = lucide(Sprout, "FarmIcon");
 
 // ── Hand-drawn: no Lucide equivalent — same 24×24 grid, currentColor, round caps/joins, 1.6 stroke.

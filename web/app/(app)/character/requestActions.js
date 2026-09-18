@@ -51,6 +51,8 @@ import {
   packageItemsRequestImpl,
 } from "./actions/misc.js";
 import { farmRequestImpl } from "./actions/soilery.js";
+import { refineRequestImpl } from "./actions/refine.js";
+import { mineRequestImpl } from "./actions/mine.js";
 import {
   birdMessageRequestImpl,
   birdReplyRequestImpl,
@@ -214,6 +216,14 @@ export async function extractGodfleshRequest(input) {
 
 export async function farmRequest(input) {
   return guarded(() => farmRequestImpl(input));
+}
+
+export async function refineRequest() {
+  return guarded(() => refineRequestImpl());
+}
+
+export async function mineRequest() {
+  return guarded(() => mineRequestImpl());
 }
 
 export async function packageItemsRequest(input) {

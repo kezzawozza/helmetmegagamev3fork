@@ -161,6 +161,12 @@ export default function CharacterSheet({
   canSeeExtract = false,
   canExtract = false,
   extractBlocked = null,
+  canSeeRefine = false,
+  canRefine = false,
+  refineBlocked = null,
+  canSeeMine = false,
+  canMine = false,
+  mineBlocked = null,
   canSeeFarm = false,
   canFarm = false,
   farmBlocked = null,
@@ -278,6 +284,12 @@ export default function CharacterSheet({
         canSeeExtract={canSeeExtract}
         canExtract={canExtract}
         extractBlocked={extractBlocked}
+        canSeeRefine={canSeeRefine}
+        canRefine={canRefine}
+        refineBlocked={refineBlocked}
+        canSeeMine={canSeeMine}
+        canMine={canMine}
+        mineBlocked={mineBlocked}
         canSeeFarm={canSeeFarm}
         canFarm={canFarm}
         farmBlocked={farmBlocked}

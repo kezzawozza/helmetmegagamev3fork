@@ -44,10 +44,10 @@ export function carryBonusLabel(bonus) {
   return `${pct > 0 ? "+" : "−"}${Math.abs(pct)}% carry`;
 }
 
-// (LABORING.md §5)
-function laborBonusLabel(laborBonus) {
-  if (!laborBonus?.kind || !laborBonus?.amount) return null;
-  return `+${laborBonus.amount} ${laborBonus.kind}`;
+// (MINING.md §5)
+function miningBonusLabel(miningBonus) {
+  if (!miningBonus?.amount) return null;
+  return `+${miningBonus.amount} mining`;
 }
 
 // { text, tone } — a clock beats a weight beats a stack count; tone "danger" on a tag's last turn.
@@ -62,8 +62,8 @@ export function rowValue(ct, currentTurn = null) {
   if (armor) return { text: armorWord(Math.max(tag.meleeArmor ?? 0, tag.ballisticArmor ?? 0)), tone: null };
   const carry = carryBonusLabel(tag.carryBonus);
   if (carry) return { text: carry, tone: null };
-  const labor = laborBonusLabel(tag.laborBonus);
-  if (labor) return { text: labor, tone: null };
+  const mining = miningBonusLabel(tag.miningBonus);
+  if (mining) return { text: mining, tone: null };
   if ((ct.quantity ?? 1) > 1) return { text: `×${ct.quantity}`, tone: null };
   return null;
 }
@@ -106,8 +106,8 @@ export function itemFacts(ct, currentTurn = null) {
   const carry = carryBonusLabel(tag.carryBonus);
   if (carry) facts.push({ key: "carry", text: carry, tone: null });
 
-  const labor = laborBonusLabel(tag.laborBonus);
-  if (labor) facts.push({ key: "labor", text: labor, tone: null });
+  const mining = miningBonusLabel(tag.miningBonus);
+  if (mining) facts.push({ key: "mining", text: mining, tone: null });
 
   return facts;
 }

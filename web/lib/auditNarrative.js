@@ -120,6 +120,19 @@ const R = {
       : [t("a field")]),
     ...(d.locationName ? [t("at"), zone(d.locationName)] : []),
   ],
+  // Mining (web/app/(app)/character/actions/mine.js): paid at the press, so unlike Farm and
+  // Refine below this row already knows what the day was worth.
+  request_mine: (d) => [
+    actor(), t("worked a seam"),
+    ...(d.value != null ? [t("for"), em(`${d.value} ⬢`)] : []),
+    ...(d.expression ? [t("out of"), em(d.expression)] : []),
+  ],
+  // Refining (web/app/(app)/character/actions/refine.js): the cubes land at the turn push
+  // (db/lib/moveEffects.js's `refined` entry), so this is the shift filed, not the outcome.
+  request_refine: (d) => [
+    actor(), t("spent the day refining Godflesh"),
+    ...(d.locationName ? [t("at"), zone(d.locationName)] : []),
+  ],
   request_buy_tags: (d) => [
     actor(), t("bought"), ...joinChips(d.tags ?? []),
     ...(d.totalPoints ? [t(`for ${d.totalPoints} point${d.totalPoints === 1 ? "" : "s"}`)] : []),
@@ -176,7 +189,7 @@ const R = {
   request_undone: (d) => [actor(), t("UNDID a"), em(typeWords(d.type)), t("request")],
 
   // ---- Moves ----
-  move_submitted: (d) => [actor(), t("submitted a Move"), ...(d.labor ? [t("—"), em(d.labor)] : [])],
+  move_submitted: () => [actor(), t("submitted a Move")],
   move_confirmed: (d) => [
     actor(), t("confirmed their Move"),
     ...(d.diceRoll != null ? [t("— rolled"), em(String(d.diceRoll)), ...(d.diceModifier ? [em(signed(d.diceModifier))] : [])] : []),
@@ -292,10 +305,6 @@ const R = {
   hunger_resolved: (d) => [
     t("Everyone was checked for whether they ate"),
     ...((d.starved ?? 0) > 0 ? [t("—"), em(`${d.starved} went hungry`)] : []),
-  ],
-  auto_labor_resolved: (d) => [
-    t("A day's labor was filed for everyone who did not act"),
-    ...((d.filed ?? 0) > 0 ? [t("—"), em(`${d.filed} worked`)] : []),
   ],
   mining_yields_drifted: (d) => [
     t("What the land is worth shifted"),

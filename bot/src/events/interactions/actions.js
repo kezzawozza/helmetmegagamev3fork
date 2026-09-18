@@ -100,7 +100,8 @@ async function handleMoveSubmit(interaction) {
   const result = await fileMove(prisma, {
     character,
     actorDiscordUserId: interaction.user.id,
-    moveKind: interaction.fields.getRadioGroup("move:kind"),
+    // No picker on the modal any more — a Move is a Gambit (bot/src/lib/moveModal.js).
+    moveKind: "GAMBIT",
     description: interaction.fields.getTextInputValue("move:body"),
   });
   if (!result.ok) {
@@ -113,7 +114,7 @@ async function handleMoveSubmit(interaction) {
     include: { character: { include: { tags: { include: { tag: true } } } } },
   });
 
-  const { lines } = await confirmMove(loaded, interaction.user.id, { laborRate: result.laborRate });
+  const { lines } = await confirmMove(loaded, interaction.user.id);
   await respond(interaction, lines.join("\n"));
 }
 

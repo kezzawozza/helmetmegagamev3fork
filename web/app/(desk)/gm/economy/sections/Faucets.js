@@ -27,7 +27,7 @@ export function Faucets({ series, categories, table, grandTotal, miningDropReali
       )}
 
       <div className="panel" style={{ padding: "0.75rem 1rem" }}>
-        <strong>{miningDropRealised} ⬢</strong> realised from Labor drop.
+        <strong>{miningDropRealised} ⬢</strong> realised from mining drops.
         <p className="text-xs text-muted" style={{ marginTop: "0.25rem" }}>
           {miningDropNote}
         </p>

@@ -18,13 +18,22 @@ export const MOVE_REVIEW_LABELS = {
 const MOVE_KIND_LABELS = {
   ROUTINE: "Routine",
   GAMBIT: "Gambit",
-  LABOR: "Labor",
 };
 
-const AUTO_LABOR = "auto:labor";
+// A day in the seam (web/app/(app)/character/actions/mine.js): paid at the press, so it
+// arrives already resolved.
+const AUTO_MINE = "auto:mine";
 
-function isAutoLabor(gmNotes) {
-  return typeof gmNotes === "string" && gmNotes.includes(AUTO_LABOR);
+function isAutoMine(gmNotes) {
+  return typeof gmNotes === "string" && gmNotes.includes(AUTO_MINE);
+}
+
+// A refining shift (web/app/(app)/character/actions/refine.js): commits at press, resolves
+// its cubes at push (db/lib/moveEffects.js's `refined` entry).
+const AUTO_REFINE = "auto:refine";
+
+function isAutoRefine(gmNotes) {
+  return typeof gmNotes === "string" && gmNotes.includes(AUTO_REFINE);
 }
 
 // A gmNotes marker a GM never types themselves (db/lib/locationTravel.js).
@@ -65,7 +74,8 @@ export const MOVE_REVIEW_TONES = {
 
 export function moveKindLabel(moveKind, gmNotes) {
   if (isTravelMove(gmNotes)) return "Travel";
-  if (isAutoLabor(gmNotes)) return "Labor (auto)";
+  if (isAutoMine(gmNotes)) return "Mining";
+  if (isAutoRefine(gmNotes)) return "Refining";
   if (isAutoLesson(gmNotes)) return "Lesson (auto)";
   if (isAutoFarm(gmNotes)) return "Farming";
   return MOVE_KIND_LABELS[moveKind] ?? "Move";

@@ -961,16 +961,18 @@ async function releaseMoveLockImpl({ actionId }) {
 async function normalizeEdits(tx, action, edits, characterTags, mood) {
   const data = {};
 
-  const kind = ["GAMBIT", "ROUTINE", "LABOR"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
-  // A player's LABOR is paid at confirm now and arrives here with appliedEffects stamped
-  // (db/lib/moveConfirm.js). Flipping it to something else has to hand the payout back, or
-  // the ⬢, the drop and the Tired all stay banked while the staged push goes on skipping
-  // the row for being already-applied — and the GM adjudicates a Gambit on top of a day's
-  // wages. Reject already reverts through deleteActionRestoringTurn; the kind flip did not.
+  const kind = ["GAMBIT", "ROUTINE"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
+  // A Mine is paid at the press and arrives here with appliedEffects stamped
+  // (web/app/(app)/character/actions/mine.js). Flipping it to something else has to hand the
+  // payout back, or the ⬢, the drop and the Tired all stay banked while the staged push goes
+  // on skipping the row for being already-applied — and the GM adjudicates a Gambit on top of
+  // a day's wages. Reject already reverts through deleteActionRestoringTurn; the kind flip
+  // did not. Keyed on appliedEffects rather than on a kind, because "already paid" is the
+  // fact that matters and every such row is a ROUTINE now.
   let revertPayout = false;
   if (kind !== action.moveKind) {
     data.moveKind = kind;
-    if (action.moveKind === "LABOR" && action.appliedEffects) {
+    if (action.appliedEffects) {
       revertPayout = true;
       data.appliedEffects = null;
       data.resourceRollValue = null;
@@ -1225,9 +1227,9 @@ async function getCharacterInspectorImpl({ characterId }) {
           // chipSelect() alone draws a CHIP. The inspector's Tags tab draws
           // the sheet's ROWS now, and sheetCards.js reads four columns a chip
           // never needed: without them every item row loses its verbs mark,
-          // its stack, and the carry/labor value on its right.
+          // its stack, and the carry/mining value on its right.
           tag: {
-            select: chipSelect({ equippable: true, stackable: true, carryBonus: true, laborBonus: true }),
+            select: chipSelect({ equippable: true, stackable: true, carryBonus: true, miningBonus: true }),
           },
         },
       },

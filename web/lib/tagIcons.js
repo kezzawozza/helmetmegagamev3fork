@@ -120,7 +120,7 @@ export const TAG_GROUP_ICONS = {
   "assets-structures": glyph(House, "StructureIcon"),
 
   // Skills — what somebody can do. Green.
-  "skills-labor": glyph(Pickaxe, "LaborIcon"),
+  "skills-labor": glyph(Pickaxe, "MiningIcon"),
   "skills-fighting": glyph(Sword, "FightingIcon"),
   "skills-crafting": glyph(Hammer, "CraftingIcon"),
   "skills-brewing": glyph(FlaskConical, "BrewingIcon"),

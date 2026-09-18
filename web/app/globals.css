@@ -970,51 +970,6 @@ input[type="radio"]:focus-visible,
   color: var(--danger);
 }
 
-/* The labor readout, between the help line and the box. Inset rather than
-   panelled: it is an answer about where you are standing, not a card. */
-.move-labor {
-  margin: var(--sp-3) 0;
-  padding: var(--sp-2) var(--sp-3);
-  border-left: 2px solid var(--border);
-  background: var(--surface-raised);
-  border-radius: var(--r-sm);
-}
-
-.move-labor-where {
-  margin: 0;
-  font-size: var(--fs-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.move-labor-best {
-  margin: var(--sp-1) 0 0;
-  font-size: var(--fs-sm);
-}
-
-.move-labor > .form-error {
-  margin-bottom: 0;
-}
-
-/* Hunting / Farming / Fishing on one line, wrapping to two on a phone. */
-.move-labor-yields {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1) var(--sp-4);
-  margin: var(--sp-2) 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--fs-sm);
-  color: var(--muted);
-}
-
-/* The word IS the value, so it reads as one — but it is a word, not a number,
-   so it never takes .mono. */
-.move-labor-word {
-  color: var(--text);
-}
-
 .btn-quiet:hover {
   color: var(--accent-text);
 }
@@ -4292,7 +4247,7 @@ input[type="radio"]:disabled {
 
 /* The Kind switch's consequence line, always rendered so switching Routine to
    Gambit does not shove the Result box down the screen mid-sentence. Two
-   lines' worth at this size — long enough for the Labor wording to wrap. */
+   lines' worth at this size — long enough for the wording to wrap. */
 .desk-kind-note {
   min-height: 2.2em;
   margin: 0;

@@ -29,7 +29,7 @@ import { withoutDmNoise } from "@/lib/dmThread";
 import { DM_PLACE_KEY } from "@/lib/dmSources";
 import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
-import { extractToolFor, extractedToday } from "@lifeweb/db/lib/godflesh";
+import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
 import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
 import { cookedTasteOnly, DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { chipContextFor, composeChipTag } from "@/lib/tagChipRows";
@@ -273,7 +273,7 @@ async function FreshChat({ userId }) {
               birdDaySends: true,
               // Which in-game DAY they last cut Godflesh. Extract costs no
               // Move, so this is its whole cooldown (FACTORY.md §3).
-              extractDayKey: true,
+              extractTurnKey: true,
             },
           }),
           prisma.turn.findFirst({
@@ -433,13 +433,13 @@ async function FreshChat({ userId }) {
           // reason to hide the button.
           canSeeExtract: hasAttribute(boardLocation, GODFLESH_ATTRIBUTE),
           canExtract:
-            Boolean(extractToolFor(sheet?.tags ?? [])) && !extractedToday(sheet, openTurn),
+            Boolean(extractToolFor(sheet?.tags ?? [])) && !extractedThisTurn(sheet, openTurn),
           // Two reasons the button can grey, and having already cut today is
           // the one that outranks the tool — telling somebody to go find a
           // hatchet they cannot use until tomorrow is the wrong sentence.
           extractBlocked: !hasAttribute(boardLocation, GODFLESH_ATTRIBUTE)
             ? null
-            : extractedToday(sheet, openTurn)
+            : extractedThisTurn(sheet, openTurn)
               ? "You already harvested Godflesh today."
               : !extractToolFor(sheet?.tags ?? [])
                 ? "You need a hatchet, a battle-axe or a chainsaw in your hands."

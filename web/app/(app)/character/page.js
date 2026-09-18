@@ -47,8 +47,10 @@ import {
   GODFLESH_ATTRIBUTE,
   SOILERY_ATTRIBUTE,
 } from "@lifeweb/db/lib/locationAttributes";
-import { extractToolFor, extractedToday } from "@lifeweb/db/lib/godflesh";
+import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
 import { farmRefusalFor } from "@lifeweb/db/lib/soilery";
+import { isRefinery, refineryInput } from "@lifeweb/db/lib/refinery";
+import { resolveMiningRate } from "@lifeweb/db/lib/mining";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { resourcesOf, readRoomResources } from "@lifeweb/db/lib/resourceStack";
@@ -259,7 +261,14 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       // The Location's own zone kind rides along so canBuildHere() can judge
       // this ground without a second round-trip (db/lib/structures.js) —
       // building is a fact about the ground, not the presence `zone`.
-      location: { include: { zone: { select: { kind: true } } } },
+      location: {
+        include: {
+          zone: { select: { kind: true } },
+          // The Mine button's gate: the row IS the gate (db/lib/mining.js), so its
+          // absence is what hides the button.
+          mining: { select: { current: true } },
+        },
+      },
       role: { select: { slug: true } },
       // requirementSkills must be named explicitly — `include` doesn't pull
       // unnamed relations. HEAL_SKILL_SELECT, not `name` alone: these rows
@@ -610,13 +619,13 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // place is wrong rather than greying, a fact about their own location.
   const canSeeExtract = hasAttribute(character.location, GODFLESH_ATTRIBUTE);
   const extractTool = canSeeExtract ? extractToolFor(character.tags) : null;
-  // Extract's cooldown is its own — once per in-game day (Character.extractDayKey, FACTORY.md §3). Greyed with the reason, not hidden.
-  const cutAlready = canSeeExtract && extractedToday(character, openTurn);
+  // Harvest Godflesh's cooldown is its own — once a turn (Character.extractTurnKey, FACTORY.md §3). Greyed with the reason, not hidden.
+  const cutAlready = canSeeExtract && extractedThisTurn(character, openTurn);
   const canExtract = Boolean(extractTool) && !cutAlready;
   const extractBlocked = !canSeeExtract
     ? null
     : cutAlready
-      ? "You already harvested Godflesh today."
+      ? "You already harvested Godflesh this turn."
       : !extractTool
         ? "You need a hatchet, a battle-axe or a chainsaw in your hands."
         : null;
@@ -631,6 +640,36 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     ? null
     : farmRefusalFor(character.tags, Boolean(currentAction));
   const canFarm = canSeeFarm && !farmBlocked;
+  // Refine (FACTORY.md): the Factory floor's other verb, and the one that
+  // spends the whole day. `refineryInput` is the SAME function the server
+  // action re-checks, so an empty floor greys the button and refuses a
+  // bypassed request with the same sentence.
+  const canSeeRefine = isRefinery(character.location);
+  const refineInput = canSeeRefine
+    ? await refineryInput(prisma, { id: character.id, locationId: character.locationId })
+    : null;
+  const refineBlocked = !canSeeRefine
+    ? null
+    : !refineInput
+      ? "There's no Godflesh here to refine."
+      : currentAction
+        ? "You already have an action this turn."
+        : null;
+  const canRefine = canSeeRefine && !refineBlocked;
+  // Mine (MINING.md). The LocationMining row is the gate, so a place with no
+  // seam shows no button at all; a seam drifted to 0 still does, because that
+  // is worth checking back on. The skill, the Exhausted lockout and the
+  // once-a-turn Move rule are the greys.
+  const canSeeMine = Boolean(character.location?.mining);
+  const mineRate = canSeeMine ? await resolveMiningRate(prisma, character.id) : null;
+  const mineBlocked = !canSeeMine
+    ? null
+    : !mineRate.ok
+      ? mineRate.reason
+      : currentAction
+        ? "You already have an action this turn."
+        : null;
+  const canMine = canSeeMine && !mineBlocked;
   const canSeePackage = await hasEquipmentInReach(
     prisma,
     character,
@@ -1166,6 +1205,12 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canSeeExtract: canSeeExtract,
       canExtract: canExtract,
       extractBlocked: extractBlocked,
+      canSeeRefine: canSeeRefine,
+      canRefine: canRefine,
+      refineBlocked: refineBlocked,
+      canSeeMine: canSeeMine,
+      canMine: canMine,
+      mineBlocked: mineBlocked,
       canSeeFarm: canSeeFarm,
       canFarm: canFarm,
       farmBlocked: farmBlocked,

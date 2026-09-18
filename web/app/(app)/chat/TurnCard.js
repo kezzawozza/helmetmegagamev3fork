@@ -74,7 +74,7 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
             {move.description}
           </button>
           {/* Only a Gambit still pending at the cutoff (chat/actions.js#myMove). A
-              Labor, or anything the game filed, has already happened. Polled, so
+              Anything the game filed has already happened. Polled, so
               it disappears on its own when Moves lock. */}
           {move.editable && onEdit && (
             <div className="chat-buttons">

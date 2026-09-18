@@ -185,6 +185,19 @@ export default function RequestActionsProvider({
   canSeeExtract = false,
   canExtract = false,
   extractBlocked = null,
+  // Refine, the Factory floor's other verb — and the one that spends the whole
+  // day. `refineBlocked` is the same sentence refineRequestImpl throws on a
+  // bypassed request.
+  canSeeRefine = false,
+  canRefine = false,
+  refineBlocked = null,
+  // Mine (db/lib/mining.js). The LocationMining row is what decides whether
+  // the button exists at all; `mineBlocked` carries the skill, the Exhausted
+  // lockout and the once-a-turn Move rule, all resolved by the same
+  // resolveMiningRate the action re-runs.
+  canSeeMine = false,
+  canMine = false,
+  mineBlocked = null,
   // The Farms placeholder (db/lib/soilery.js). Same posture as Extract just
   // above: whether this ground is a Soilery is a fact about where you're
   // standing, resolved server-side in character/page.js. `farmBlocked` is
@@ -488,6 +501,8 @@ export default function RequestActionsProvider({
       gateReason: {
         examine: examineBlocked,
         extract: extractBlocked,
+        refine: refineBlocked,
+        mine: mineBlocked,
         farm: farmBlocked,
         kiss: kissBlocked,
       },
@@ -564,6 +579,8 @@ export default function RequestActionsProvider({
       researchHint,
       examineBlocked,
       extractBlocked,
+      refineBlocked,
+      mineBlocked,
       farmBlocked,
       kissBlocked,
       kissTargets,

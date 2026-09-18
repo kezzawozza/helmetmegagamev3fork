@@ -490,9 +490,9 @@ async function FreshEconomy({ section, searchParams, userId }) {
 
       data = { ...data, series, categories, table, grandTotal };
 
-      // Faucets only: designed vs. realised for labor drops. summarize() from
+      // Faucets only: designed vs. realised for mining drops. summarize() from
       // miningdropsEv.js wants priced pool rows plus a roll-share table per
-      // zone/location/holds combination (see db/scripts/ops/audit-labor-
+      // zone/location/holds combination (see db/scripts/ops/audit-mining-
       // drops.js) — that is a YAML-parse-and-simulate job, not something this
       // page render can assemble cheaply per request. So only the realised
       // side is shown; the designed side stays a `npm run

@@ -2235,16 +2235,16 @@ model Character {
   // table's @@unique([characterId, turnId]); it costs no Move at all now, so
   // the cooldown had to become its own thing (docs/systemdocs/FACTORY.md §3).
   //
-  // Same claim token as birdTurnId just above, and named for what it actually
-  // holds rather than inheriting that column's turn-shaped name: a day is TWO
-  // turns, so this stores String(turnDay(openTurn)) and not a turn id. Written
-  // by a conditional updateMany whose WHERE is the check, so two tabs racing
-  // cannot both cut. Not a foreign key — deleting a turn must never cascade
-  // into a character row.
-  extractDayKey String?
+  // Same claim token as birdTurnId just above. It held an in-game DAY key
+  // once, because a day is TWO turns and the cut was once a day; Harvest
+  // Godflesh is once a TURN now, so it holds the turn id and is named for it.
+  // Written by a conditional updateMany whose WHERE is the check, so two tabs
+  // racing cannot both cut. Not a foreign key — deleting a turn must never
+  // cascade into a character row.
+  extractTurnKey String?
 
   // The Turn.number `bound` was freshly granted on — not a foreign key, the
-  // same reasoning extractDayKey gives: a turn can be deleted with no
+  // same reasoning extractTurnKey gives: a turn can be deleted with no
   // cascade into a character row. Stamped once, in db/lib/bind.js#applyBind,
   // only when the target wasn't already bound; cleared to null the moment
   // Break Restraints succeeds (db/lib/breakRestraints.js). Read back as

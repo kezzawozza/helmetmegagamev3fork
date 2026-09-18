@@ -49,6 +49,8 @@ import {
   DocumentsIcon,
   SpeakerIcon,
   ExtractIcon,
+  MineIcon,
+  RefineIcon,
   CrateIcon,
   QuillIcon,
   SealIcon,
@@ -124,7 +126,11 @@ export const ACTION_HELP = {
   disarm:
     "Take the datacard out and stop the countdown. Safe again, and you can arm it as many times as you like.",
   extract:
-    "Cut Godflesh out of the marsh. Once a day, and it costs you no turn. You need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves.",
+    "Harvest Godflesh, up to once a turn. It costs you no Move. You need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves.",
+  refine:
+    "Spend your turn refining Godflesh into Squeeze. There must be some on the floor nearby or in your inventory.",
+  mine:
+    "Spend your turn mining in the caves, yielding resources and a small chance of ore. What a seam is worth is a fact about the place — press Examine to see how it is running.",
   farm: "Sow the fields with seed you're licensed to plant. It takes your whole Move, and the harvest comes in when the turn closes.",
   package:
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
@@ -223,22 +229,49 @@ export const ACTION_SECTIONS = [
         gate: "canConfess",
         gateReason: "You have nothing to confess.",
       },
-      // The two Godard Factory verbs. Both HIDE rather than grey when the
-      // place is wrong, which is a different thing from the rule at the top of
+      // The four day-verbs, and all of them HIDE rather than grey when the
+      // place is wrong. That is a different thing from the rule at the top of
       // this file: that rule forbids leaking who is standing near you, and
-      // where YOU are standing is not somebody else's fact. An Extract button
+      // where YOU are standing is not somebody else's fact. A Mine button
       // greyed out in the Fortress would just be furniture.
+      //
+      // Only Harvest Godflesh is free. Refine, Mine and Farm each spend the
+      // whole Move — they are what filing a Labor used to be, before Laboring
+      // was removed and a day's work became a button you press where the work
+      // actually is.
       {
         mode: "extract",
         icon: ExtractIcon,
-        label: "Extract",
+        label: "Harvest Godflesh",
         show: "canSeeExtract",
         gate: "canExtract",
         gateReason: "You have nothing to cut with.",
         instant: true,
       },
+      {
+        mode: "refine",
+        icon: RefineIcon,
+        label: "Refine",
+        show: "canSeeRefine",
+        gate: "canRefine",
+        gateReason: "There's no Godflesh here to refine.",
+        instant: true,
+      },
+      // The gate is the LocationMining row itself (db/lib/mining.js): no row
+      // means you cannot dig here at all, so the button never appears. A row
+      // that has drifted to 0 still shows one — that is a seam worth checking
+      // back on, not a place that can never pay.
+      {
+        mode: "mine",
+        icon: MineIcon,
+        label: "Mine",
+        show: "canSeeMine",
+        gate: "canMine",
+        gateReason: "You're worn out.",
+        instant: true,
+      },
       // The Farms placeholder (db/lib/soilery.js). Same HIDE-when-wrong-ground
-      // posture as Extract just above, but a dialog rather than an instant
+      // posture as the three just above, but a dialog rather than an instant
       // verb — sowing is a whole plan of crops, not a single click. `canFarm`
       // folds in the skill, the Exhausted/Tired lockout and the once-a-turn
       // Move check (db/lib/soilery.js#farmRefusalFor); farmBlocked's own
@@ -252,7 +285,7 @@ export const ACTION_SECTIONS = [
         gate: "canFarm",
         gateReason: "You're worn out.",
       },
-      // HIDDEN, never greyed, the same rule Extract just above follows: being
+      // HIDDEN, never greyed, the same rule the four just above follow: being
       // Bound is a fact about YOUR OWN sheet, and a dead row on every other
       // sheet would only teach a bystander that struggling free is possible.
       {

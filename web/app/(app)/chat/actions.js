@@ -9,8 +9,6 @@ import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/li
 import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
-import { resolveLaborRate, REFINERY_NOTE } from "@lifeweb/db/lib/laborAccess";
-import { qualityWord } from "@lifeweb/db/lib/laborYield";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { loadDesireView } from "@/lib/selfPools";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
@@ -1684,18 +1682,12 @@ export async function submitMove({ moveKind, description } = {}) {
     where: { id: result.action.id },
     include: { character: { include: { tags: { include: { tag: true } } } } },
   });
-  const { roll } = await confirmMove(prisma, loaded, me.discordUserId, { laborRate: result.laborRate });
+  const { roll } = await confirmMove(prisma, loaded, me.discordUserId);
 
   // The bot answers in Discord markdown; this panel prints plain text, so the
   // same facts are said in words. The Gambit roll itself stays hidden until
   // the turn-end reveal, exactly as it does in Discord.
   const parts = [roll.gambit ? "Your move was declared." : "Done."];
-  if (roll.resourceValue != null) {
-    parts.push(`You labored, producing ${roll.resourceValue} ⬢.`);
-    if (roll.bonusNote) parts.push(roll.bonusNote);
-  }
-  // A labor drop, the Tired a long day leaves, a refining shift's Squeeze. Said here
-  // because a Labor pays at the press now and never reaches the turn-end DM.
   if (roll.applied) parts.push(`Also: ${roll.applied}.`);
   return { ok: true, line: parts.join(" ") };
 }
@@ -1794,65 +1786,6 @@ export async function withdrawMyMove({ actionId } = {}) {
 
   return { ok: true, line: "Your move was canceled." };
 }
-
-// What the Move dialog shows before a Labor is committed — resolveLaborRate
-// asked early, so a player doesn't learn they can't labor here only after filing.
-// WORDS, never numbers. `qualityWord` is the same function Examine prints
-// (db/lib/examineLocation.js) — the min/max is dropped, since Examine is the
-// only surface allowed to show a coefficient at all (docs/systemdocs/LABORING.md).
-const LABOR_TIER_LABELS = {
-  basic: "Laboring",
-  skilled: "Skilled Laboring",
-  hunting: "Hunting",
-  farming: "Farming",
-  fishing: "Fishing",
-  prospecting: "Prospecting",
-  refining: "Refining",
-  // No skill that pays here — the day still files, still earns nothing.
-  unskilled: "—",
-};
-
-// The same fixed order the bot's Examine uses.
-const LABOR_CONTEXT_KINDS = [
-  { kind: "HUNTING", label: "Hunting" },
-  { kind: "FARMING", label: "Farming" },
-  { kind: "FISHING", label: "Fishing" },
-  { kind: "PROSPECTING", label: "Prospecting" },
-];
-
-export async function moveContext() {
-  const me = await actor({ id: true, locationId: true });
-  if (me.error) return { ok: false, error: me.error };
-
-  const [location, rate] = await Promise.all([
-    me.character.locationId
-      ? prisma.location.findUnique({
-          where: { id: me.character.locationId },
-          select: { name: true, yields: { select: { kind: true, current: true } } },
-        })
-      : null,
-    resolveLaborRate(prisma, me.character.id),
-  ]);
-
-  const byKind = new Map((location?.yields ?? []).map((row) => [row.kind, row.current]));
-
-  return {
-    ok: true,
-    locationName: location?.name ?? null,
-    yields: LABOR_CONTEXT_KINDS.map(({ kind, label }) => ({
-      label,
-      word: qualityWord(byKind.get(kind) ?? null),
-    })),
-    // "you would work Fishing"; absent when the rate refuses.
-    tier: rate.ok ? (LABOR_TIER_LABELS[rate.tier] ?? null) : null,
-    // Named, not summed.
-    tools: rate.ok ? (rate.tools ?? []).map((tool) => tool.name).filter(Boolean) : [],
-    refusal: rate.ok ? null : (rate.reason ?? null),
-    // The Godard Factory floor, where a day pays in cubes (db/lib/refinery.js, FACTORY.md). Null elsewhere; the dialog branches on it.
-    refining: rate.ok && rate.refinery ? REFINERY_NOTE : null,
-  };
-}
-
 
 // The Bascinet conversation (CHAT.md §2b): the SAME rows the GM desk reads,
 // through the SAME noise filter (web/lib/dmThread.js). Row shape strips the

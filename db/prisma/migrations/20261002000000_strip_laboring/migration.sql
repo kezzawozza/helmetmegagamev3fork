@@ -86,3 +86,7 @@ ALTER TABLE "MiningDropOption" ADD CONSTRAINT "MiningDropOption_requiredTagId_fk
 -- A tag's tool bonus is a mining bonus now, and carries no `kind`.
 ALTER TABLE "Tag" RENAME COLUMN "laborBonus" TO "miningBonus";
 UPDATE "Tag" SET "miningBonus" = "miningBonus" - 'kind' WHERE "miningBonus" IS NOT NULL;
+
+-- Harvest Godflesh is once a TURN now, not once an in-game day (a day is two
+-- turns), so the claim token holds a turn id and is named for it.
+ALTER TABLE "Character" RENAME COLUMN "extractDayKey" TO "extractTurnKey";

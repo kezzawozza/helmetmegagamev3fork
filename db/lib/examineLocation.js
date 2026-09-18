@@ -63,7 +63,7 @@ async function examineLines(prisma, locationId) {
   return {
     ok: true,
     name: location.name,
-    // A place with no LocationYield rows at all (Town) has nothing to say
+    // A place with no LocationMining row at all (Town) has nothing to say
     // here — dropped rather than printed as an empty line, same as every
     // other part of this readout that has nothing to say.
     lines: [...(miningLine ? [miningLine] : []), ...describeLocation(location, { gates, depot, structures })],

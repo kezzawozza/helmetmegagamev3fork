@@ -60,7 +60,6 @@ import {
   slashQueryAt,
   textArgOf,
 } from "./commands";
-import { MOVE_KINDS } from "./MoveDialog";
 
 // One place's scene: what has been said here, and — where the place allows it
 // — the box to say something.
@@ -471,28 +470,6 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
 
   if (!arg) return null;
 
-  if (arg.kind === "moveKind") {
-    return (
-      <div className="chip-row" role="radiogroup" aria-label="What kind of Move">
-        {MOVE_KINDS.map((kind) => (
-          <button
-            key={kind.value}
-            type="button"
-            role="radio"
-            aria-checked={values[arg.name] === kind.value}
-            className="chip"
-            data-active={values[arg.name] === kind.value ? "true" : undefined}
-            // The textarea must not lose focus to a chip: the next thing the
-            // player types is the command's text argument.
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => onPick(arg.name, kind.value)}
-          >
-            {kind.label}
-          </button>
-        ))}
-      </div>
-    );
-  }
 
   if (arg.kind === "destination") {
     if (!destinations) return <p className="text-sm text-muted">Reading the road…</p>;

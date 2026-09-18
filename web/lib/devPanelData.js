@@ -128,13 +128,13 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     }),
     // chipSelect() + composeChipTag() is what any surface drawing the sheet's
     // own cards (web/lib/sheetCards.js) needs — TAG_CHIP_FIELDS alone misses
-    // carryBonus/laborBonus, which sheetCards.js#rowValue reads, and a raw
+    // carryBonus/miningBonus, which sheetCards.js#rowValue reads, and a raw
     // Tag row's `description`/`paper` are wrong for a paper tag until
     // composed. Same select the adjudication desk's inspector already uses
     // for the same reason (web/app/(desk)/gm/turns/actions.js).
     prisma.characterTag.findMany({
       where: { characterId },
-      include: { tag: { select: chipSelect({ equippable: true, stackable: true, carryBonus: true, laborBonus: true }) } },
+      include: { tag: { select: chipSelect({ equippable: true, stackable: true, carryBonus: true, miningBonus: true }) } },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),

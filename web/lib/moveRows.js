@@ -76,7 +76,7 @@ export function moveStatusLabel(a, now) {
   return MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open";
 }
 
-// "+3 ⬢" / "rolled 5–12 ⬢ → +8". "0-0" (a Labor that never paid ⬢, db/lib/laborAccess.js) falls through to null.
+// "+3 ⬢" / "rolled 5–12 ⬢ → +8". "0-0" (a day that never paid ⬢, db/lib/mining.js) falls through to null.
 export function declaredLabel(a) {
   // The range and the value must drop together or "→ 0 ⬢" is left standing alone.
   const unpaid = a.resourceRollExpression === "0-0";

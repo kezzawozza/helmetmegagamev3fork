@@ -33,11 +33,9 @@ export const COMMANDS = [
     name: "move",
     description: "Lock in your Move for this turn.",
     where: EVERYWHERE,
-    args: [
-      { name: "kind", kind: "moveKind" },
-      { name: "description", kind: "text", placeholder: "What you spend the day doing…" },
-    ],
-    run: ({ kind, description }) => submitMove({ moveKind: kind, description }),
+    // No kind argument any more: a Move IS a Gambit (web/app/(app)/chat/MoveDialog.js).
+    args: [{ name: "description", kind: "text", placeholder: "What you spend the day doing…" }],
+    run: ({ description }) => submitMove({ moveKind: "GAMBIT", description }),
   },
   {
     name: "travel",

@@ -1,7 +1,7 @@
 // docs/zones.yaml -> DB, one-shot and additive. `npm run db:import-zones`.
 //
 // This is the whole replacement for the old destructive zones sync: it
-// creates a Zone/Location/Room/LocationLink/LocationYield/Structure that the
+// creates a Zone/Location/Room/LocationLink/LocationMining/Structure that the
 // YAML names and the database doesn't have yet, by slug (a link by its
 // endpoint pair, a yield by location+kind, a structure by location+type).
 // Anything that already exists is left exactly alone — never updated, never
@@ -125,17 +125,20 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null } = {}) {
     locationsBySlug.set(entry.slug, location);
     report.created.locations.push(entry.slug);
 
-    // Yields, only what's actually missing — a location that already existed
-    // (skipped above) never has its yields touched here.
-    for (const [kind, base] of Object.entries(entry.yields ?? {})) {
+    // The mining coefficient, only if it's actually missing — a location that
+    // already existed (skipped above) never has its yield touched here.
+    if (entry.mining != null) {
       if (apply) {
-        const existing = await prisma.locationYield.findUnique({
-          where: { locationId_kind: { locationId: location.id, kind } },
-        }).catch(() => null);
-        if (existing) continue;
-        await prisma.locationYield.create({ data: { locationId: location.id, kind, base, current: base } });
+        const existing = await prisma.locationMining
+          .findUnique({ where: { locationId: location.id } })
+          .catch(() => null);
+        if (!existing) {
+          await prisma.locationMining.create({
+            data: { locationId: location.id, base: entry.mining, current: entry.mining },
+          });
+        }
       }
-      report.created.yields.push(`${entry.slug}/${kind}`);
+      report.created.yields.push(`${entry.slug}/mining`);
     }
 
     // Structures: seeded once, the same "nothing PRESENT of this type yet"
