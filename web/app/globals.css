@@ -26,10 +26,12 @@
    :root also names color-scheme. A handful of controls are drawn by the
    browser rather than by this file — the unchecked checkbox, the date
    picker's calendar glyph and its popup, the search field's clear button, the
-   <select> option list, the scrollbars — and they read that property and
-   nothing else. No rule here reaches them. The ground is dark, so declaring
-   it costs nothing, and it is what stops a native control from punching a
-   white hole in a panel.
+   <select> option list — and they read that property and nothing else. No
+   rule here reaches them. The ground is dark, so declaring it costs nothing,
+   and it is what stops a native control from punching a white hole in a
+   panel. Scrollbars used to be in this list; they're hidden outright now (the
+   universal rule right after the base reset below), so color-scheme has
+   nothing left to darken there.
    ========================================================================== */
 
 :root {
@@ -156,8 +158,14 @@
      edge of a .btn, --border-lo the shadowed bottom-right and the hard dark
      edge inside a .field. Both are drawn as explicit per-side borders rather
      than with the `outset`/`inset` keywords, which compute their own light
-     and dark from border-color and land differently per browser. */
-  --border-hi: #55493d;
+     and dark from border-color and land differently per browser.
+
+     The lit edge is a real highlight now, Bascinet's own value. It used to be
+     #55493d — a shade of the border rather than a light on it, so a button
+     read as outlined rather than lifted. This is the one place a colour is
+     meant to look like a lamp catching metal, so it sits well above the
+     surfaces it edges. It is a RULE, never a text colour. */
+  --border-hi: #c9a17f;
   --border-lo: #0b0907;
 
   /* The "well" — a slot with nothing in it. The mockup draws an empty cell
@@ -232,6 +240,16 @@
      much of the ground laid back over the tile. 0.40 of the ground leaves
      the tile reading at 0.60. */
   --feed-veil: rgba(14, 12, 9, 0.4);
+
+  /* The scroll-fade's shadow layer (below, "the fade cue that replaces the
+     scrollbar"). Plain black at any reasonable opacity does nothing on this
+     ground — --surface is #171310 and --bg is #0d0b08, both already close to
+     black, so a black vignette over either one is nearly invisible, which
+     defeats the whole point of a cue that has to "stay visible that content
+     continues". --border (a warm taupe, already lighter than every surface
+     it sits on) reads instead, softened toward transparent rather than used
+     flat. */
+  --fade-shadow: color-mix(in srgb, var(--border) 75%, transparent);
 
   /* The estate palette (REDESIGN.md §3): six muted hues, ONE PER ROLE GROUP
      (db/lib/roleGroups.js), used as BOLD TEXT on a log line — so unlike the
@@ -349,6 +367,27 @@
 html,
 body {
   height: 100%;
+}
+
+/* No scrollbar, anywhere, on purpose (Bascinet: "if an element can be
+   scrolled, cool, doesn't need a scrollbar"). `scrollbar-width` does not
+   inherit, so this has to be the universal selector rather than a rule on
+   `body` — a scroll container three components deep would otherwise draw its
+   platform bar right back. The Firefox and WebKit properties both have to be
+   set; neither alone covers every browser this app runs in. Losing the bar
+   loses its one real job — showing there is more to see — so every scroll
+   container that matters gets `.scroll-fade` below instead: a soft edge that
+   only appears once there is somewhere left to scroll. `.tab-bar` used to
+   carry its own private copy of this exact pair; it doesn't need one now that
+   the rule is global. */
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 body {
@@ -1020,14 +1059,15 @@ input[type="radio"]:focus-visible,
    crept in beside styled ones. */
 .control {
   background: var(--field-bg);
-  /* Inset: a hard dark edge top and left, the ordinary hairline bottom and
-     right, so a control reads as cut into the panel (REDESIGN.md §3). Explicit
+  /* Inset: a hard dark edge top and left, the lit lip bottom and right, so a
+     control reads as cut INTO the panel (REDESIGN.md §3) — the mirror of
+     .btn, which is raised and catches its light top-left instead. Explicit
      sides rather than the `inset` keyword, for the same reason .btn does not
      use `outset`. */
   border-top: 1px solid var(--border-lo);
   border-left: 1px solid var(--border-lo);
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border-hi);
+  border-bottom: 1px solid var(--border-hi);
   color: var(--text);
   padding: 2px 4px;
   border-radius: var(--r);
@@ -1216,7 +1256,15 @@ input[type="radio"] {
   flex: none;
   margin: 0;
   background: var(--field-bg);
-  border: 1px solid var(--border);
+  /* The same inset pair .control and .sheet-meter wear: a box let into the
+     panel reads as recessed, not merely outlined. `transition: border-color`
+     still animates cleanly with four different starting colours — each side
+     is its own longhand and transitions independently to :checked's single
+     uniform colour below, nothing here is ever unset mid-transition. */
+  border-top: 1px solid var(--border-lo);
+  border-left: 1px solid var(--border-lo);
+  border-right: 1px solid var(--border-hi);
+  border-bottom: 1px solid var(--border-hi);
   border-radius: var(--r-sm);
   cursor: pointer;
   display: inline-grid;
@@ -2729,18 +2777,14 @@ input[type="radio"]:disabled {
 
 /* Scrolls sideways rather than pushing the page: a flex item's default
    min-width is auto, so five tabs with counts cannot shrink below their text
-   and the strip drags the whole body with it at 375px. The scrollbar itself is
-   hidden — the tabs are already a visible affordance. */
+   and the strip drags the whole body with it at 375px. No scrollbar to hide
+   here any more (that's global, above) — the tabs were always their own
+   affordance, which is why .tab-bar carries no .scroll-fade either. */
 .tab-bar {
   display: flex;
   gap: 4px;
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.tab-bar::-webkit-scrollbar {
-  display: none;
 }
 
 /* A picked-from-a-grid thumbnail: portrait parts and colour swatches. This was
@@ -2939,17 +2983,127 @@ input[type="radio"]:disabled {
 }
 
 /* The same frame for a list that isn't a table — the /notes card board. Only
-   the vertical axis, since cards wrap rather than run wide. */
+   the vertical axis, since cards wrap rather than run wide. No `.scroll-fade`
+   here: a card board's rows are wide, low-count cards, and a half-visible one
+   is already the cue that the board continues — the same reason a `<select>`
+   popup or a tooltip goes without one. */
 .list-scroll {
   max-height: var(--list-h);
   overflow-y: auto;
 }
 
 /* A DM thread that stays put: fixed viewport, scrolls internally instead of
-   growing the page. */
+   growing the page. Also no `.scroll-fade` — a thread's own top and bottom
+   already carry real chrome (the head bar, the composer) that a fade would
+   compete with, and a short thread is the common case. */
 .message-list {
   max-height: var(--list-h);
   overflow-y: auto;
+}
+
+/* ── The fade cue that replaces the scrollbar ────────────────────────────────
+   The scrollbar is gone everywhere now (the universal rule near the top of
+   this file). Its one real job — showing there is more to see — falls to
+   this instead: a soft edge that appears only once there is somewhere left to
+   scroll, and only on that side.
+
+   No JS. Two layered gradients per edge, `background-image`'s classic
+   "scrollable shadow" recipe:
+     - a SHADOW, pinned to the box (`background-attachment: scroll`, the
+       default — it stays where the box is, however the content under it
+       moves);
+     - a COVER on top of it, the container's own ground colour fading to
+       transparent over the same distance, but `background-attachment: local`
+       — it scrolls WITH the content, the way a page of text would.
+   At rest, scrolled to that edge, the cover's opaque end sits exactly over
+   the shadow and hides it. Scroll away and the cover — tied to the content,
+   not the box — slides off with it, uncovering the shadow underneath. A box
+   that never overflows never uncovers anything: the cover is already exactly
+   as tall (or wide) as the box, so there is nothing behind it to reveal.
+
+   `--fade-bg` is the colour the cover fades FROM — it has to match the
+   container's own ground or the join shows, and that ground differs by
+   container (--bg, --surface, --surface-raised …), so it is a custom
+   property rather than baked in; the default below (--bg) covers most of the
+   containers that use this. `--fade-size` is how far the effect reaches.
+
+   Three variants, not one: `background-image` is a single property, so two
+   rules that both set it don't merge — the later one in the cascade wins
+   outright and the earlier one's layers are simply gone. `.scroll-fade-y` and
+   `.scroll-fade-x` are one axis each; `.scroll-fade-xy` (`.table-scroll`,
+   which scrolls both ways) carries all eight layers at once for exactly that
+   reason — it cannot be built by using both of the others together. */
+.scroll-fade-y,
+.desk-rail,
+.desk-main,
+.desk-inspector,
+.desk-queue,
+.modal-panel,
+.chat-places {
+  --fade-size: 28px;
+  background-image:
+    linear-gradient(var(--fade-bg, var(--bg)), transparent),
+    linear-gradient(transparent, var(--fade-bg, var(--bg))),
+    linear-gradient(var(--fade-shadow), transparent),
+    linear-gradient(transparent, var(--fade-shadow));
+  background-repeat: no-repeat;
+  background-size:
+    100% var(--fade-size), 100% var(--fade-size),
+    100% 12px, 100% 12px;
+  background-position: top, bottom, top, bottom;
+  background-attachment: local, local, scroll, scroll;
+}
+
+.scroll-fade-x,
+.markdown-content pre {
+  --fade-size: 28px;
+  /* The code block's own background is a translucent grey wash
+     (rgba(127,127,127,.25) — see above) over whatever panel it sits in, not a
+     flat colour, so the cover can only approximate it. --surface-raised is
+     right for almost every place `.markdown-content` renders (Documents, the
+     handbook, a desk modal); the one place it is off is the chat drawer's own
+     textured log, where a fenced code block is rare and the seam is minor. */
+  --fade-bg: color-mix(in srgb, gray 25%, var(--surface-raised));
+  background-image:
+    linear-gradient(to right, var(--fade-bg), transparent),
+    linear-gradient(to left, var(--fade-bg), transparent),
+    linear-gradient(to right, var(--fade-shadow), transparent),
+    linear-gradient(to left, var(--fade-shadow), transparent);
+  background-repeat: no-repeat;
+  background-size:
+    var(--fade-size) 100%, var(--fade-size) 100%,
+    12px 100%, 12px 100%;
+  background-position: left, right, left, right;
+  background-attachment: local, local, scroll, scroll;
+}
+
+.scroll-fade-xy,
+.table-scroll {
+  --fade-size: 28px;
+  --fade-bg: var(--surface);
+  background-image:
+    linear-gradient(var(--fade-bg), transparent),
+    linear-gradient(transparent, var(--fade-bg)),
+    linear-gradient(to right, var(--fade-bg), transparent),
+    linear-gradient(to left, var(--fade-bg), transparent),
+    linear-gradient(var(--fade-shadow), transparent),
+    linear-gradient(transparent, var(--fade-shadow)),
+    linear-gradient(to right, var(--fade-shadow), transparent),
+    linear-gradient(to left, var(--fade-shadow), transparent);
+  background-repeat: no-repeat;
+  background-size:
+    100% var(--fade-size), 100% var(--fade-size),
+    var(--fade-size) 100%, var(--fade-size) 100%,
+    100% 12px, 100% 12px,
+    12px 100%, 12px 100%;
+  background-position: top, bottom, left, right, top, bottom, left, right;
+  background-attachment: local, local, local, local, scroll, scroll, scroll, scroll;
+}
+
+/* .modal-panel's ground is a shade brighter than the desks' (--surface-raised,
+   not --bg) — override the shared default rather than fork the recipe. */
+.modal-panel {
+  --fade-bg: var(--surface-raised);
 }
 
 .table-scroll .data-table thead th {
@@ -3176,12 +3330,24 @@ input[type="radio"]:disabled {
      the element's own box is pinned there and does not scroll off with that
      content the way an absolutely-positioned child would. */
   background-color: var(--sunk-wash);
+  /* The fade at top and bottom (see `.scroll-fade-y` above) is written out
+     here rather than composed with that class, for the same reason
+     `.chat-feed` writes its own copy: `background-image` doesn't merge across
+     rules, and this element already owns two layers of its own. They go in
+     FRONT of the metal strip and its edge line (first in the list paints on
+     top) — the strip is only 6px wide at the rail's right edge, so a full-width
+     fade barely touches it, unlike `.chat-feed`'s full-bleed scene. */
   background-image:
+    linear-gradient(color-mix(in srgb, black 30%, var(--bg)), transparent),
+    linear-gradient(transparent, color-mix(in srgb, black 30%, var(--bg))),
+    linear-gradient(var(--fade-shadow), transparent),
+    linear-gradient(transparent, var(--fade-shadow)),
     url("/assets/chrome/bg.png"),
     linear-gradient(var(--border-lo), var(--border-lo));
-  background-repeat: repeat-y, repeat-y;
-  background-position: right top, right 6px top;
-  background-size: 6px auto, 1px 100%;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-y, repeat-y;
+  background-position: top, bottom, top, bottom, right top, right 6px top;
+  background-size: 100% 28px, 100% 28px, 100% 12px, 100% 12px, 6px auto, 1px 100%;
+  background-attachment: local, local, scroll, scroll, scroll, scroll;
   image-rendering: pixelated;
   position: sticky;
   top: 0;

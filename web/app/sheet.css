@@ -350,7 +350,13 @@
   display: block;
   height: 7px;
   margin-top: var(--sp-1);
-  border: 1px solid var(--border);
+  /* A groove cut into the panel, not a flat outline — the mockup's own
+     .meter is `border: 1px inset var(--border)`. Same inset pair .control
+     wears: dark top/left, lit bottom/right. */
+  border-top: 1px solid var(--border-lo);
+  border-left: 1px solid var(--border-lo);
+  border-right: 1px solid var(--border-hi);
+  border-bottom: 1px solid var(--border-hi);
   background: var(--field-bg);
 }
 

@@ -538,8 +538,18 @@
    512x512 and 181x278, integer scale by doing nothing — and `pixelated` INHERITS,
    so setting it on the scroller would pixelate every face in the scene.
 
-   scrollbar-color, not a sprite: the mockup's sprite scrollbar was cut
-   (REDESIGN.md §2). Flat, dark, and the same two tokens in all three scrollers. */
+   No scrollbar to paint any more either — that's hidden globally (globals.css)
+   now that the mockup's sprite scrollbar was cut for good (REDESIGN.md §2). In
+   its place, the same `.scroll-fade-y` cover-over-shadow pair globals.css uses
+   everywhere else — but written out by hand here rather than composed with
+   that class, because `background-image` is one property: a second rule
+   setting it doesn't layer on top of this one, it replaces it outright, and
+   this element already spends its three layers on the log's own ground
+   (REDESIGN.md §3). The two new layers go in FRONT of those three (first in
+   the list paints on top) so they read as a vignette over the scene rather
+   than a seam in it — an approximation of the true chatbg/veil colour at the
+   very edge, not a chase for an exact match, the same trade the code-block
+   fade in globals.css makes for the same reason. */
 .chat-feed {
   flex: 1;
   min-height: 0;
@@ -548,20 +558,18 @@
   padding: var(--sp-3) var(--sp-4);
   background-color: var(--bg);
   background-image:
+    linear-gradient(var(--bg), transparent),
+    linear-gradient(transparent, var(--bg)),
+    linear-gradient(var(--fade-shadow), transparent),
+    linear-gradient(transparent, var(--fade-shadow)),
     url("/assets/chrome/chatshadow.png"),
     linear-gradient(var(--feed-veil), var(--feed-veil)),
     url("/assets/chrome/chatbg.png");
-  background-repeat: repeat-x, repeat, repeat;
-  background-position: 0 0, 0 0, 0 0;
-  background-size: auto, auto, 512px 512px;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, repeat, repeat;
+  background-position: top, bottom, top, bottom, 0 0, 0 0, 0 0;
+  background-size: 100% 28px, 100% 28px, 100% 12px, 100% 12px, auto, auto, 512px 512px;
+  background-attachment: local, local, scroll, scroll, scroll, scroll, scroll;
   border-top: 1px solid var(--border-lo);
-}
-
-.chat-feed,
-.chat-places,
-.chat-aside-panel {
-  scrollbar-color: var(--border) var(--bg);
-  scrollbar-width: thin;
 }
 
 /* .chat-feed-inner carries no width of its own: the scene fills the column it

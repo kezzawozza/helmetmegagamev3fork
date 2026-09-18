@@ -152,8 +152,25 @@ Three things about the token set are load-bearing and easy to undo by accident:
 - **`:root` names `color-scheme`.** A handful of controls are drawn
   by the browser, not by `globals.css` — the unchecked checkbox, the date
   picker's calendar glyph and popup, the search field's clear button, the
-  `<select>` option list, the scrollbars. They read that property and nothing
-  else, so without it a native `<select>` popup opens white.
+  `<select>` option list. They read that property and nothing else, so
+  without it a native `<select>` popup opens white. Scrollbars used to be on
+  this list; they aren't drawn at all any more (below), so `color-scheme` has
+  nothing left to say about them.
+- **No scrollbar, anywhere.** `* { scrollbar-width: none }` plus the matching
+  `::-webkit-scrollbar` rule, near the top of `globals.css`, hides every
+  platform scrollbar in the app — Bascinet's call: "if an element can be
+  scrolled, cool, doesn't need a scrollbar." The cue that a box holds more
+  than it shows is `.scroll-fade-y` / `.scroll-fade-x` / `.scroll-fade-xy`
+  instead: a soft edge, built from two layered gradients (a shadow pinned to
+  the box, a cover of the box's own ground colour that scrolls away with the
+  content and uncovers it), so it only ever appears where there is
+  somewhere left to scroll. Applied to the containers where losing the
+  scrollbar actually mattered — `.table-scroll`, `.desk-rail` /
+  `.desk-main` / `.desk-inspector` / `.desk-queue`, `.modal-panel`,
+  `.chat-places`, `.markdown-content pre` — and hand-composed into
+  `.chat-feed` and `.app-rail`, which already paint their own background
+  layers and can't simply add the class. A short list, a dropdown, a tooltip
+  and the like go without one — they're not where the cue earns its keep.
 
 ## 3. Themes
 
