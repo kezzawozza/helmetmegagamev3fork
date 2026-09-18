@@ -2173,7 +2173,7 @@ whole.
 
 `GmAside.js` is that column, and it is deliberately the SAME SHAPE as
 `ChatAside` — the same tab strip, the same `.chat-aside-tabs` /
-`.chat-tabstrip` / `.chat-aside-panel`, the same remembered tab through
+the shared `.tab-bar` / `.chat-aside-panel`, the same remembered tab through
 `asideTabStore.js`, and `PlaceCard` is literally the player's own component.
 That is §8's posture one surface over: a GM reading a scene should be reading
 the player's page, not a GM-flavoured copy of it.

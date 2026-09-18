@@ -146,12 +146,13 @@ export default function DepotConsole(props) {
         <p className="depot-notice">You&apos;re at the depot.</p>
       )}
 
-      <nav className="depot-tabs" aria-label="Depot sections">
+      <nav className="tab-bar" aria-label="Depot sections">
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
-            className={t.key === tab ? "depot-tab depot-tab-on" : "depot-tab"}
+            className="tab-item"
+            data-active={t.key === tab ? "true" : undefined}
             aria-current={t.key === tab ? "page" : undefined}
             onClick={() => setTab(t.key)}
           >

@@ -2841,6 +2841,13 @@ input[type="radio"]:disabled {
   border-bottom-color: var(--accent-text);
 }
 
+/* A place in Chat's aside with something in it nobody has read. Under :hover
+   and [data-active] in the cascade on purpose, so hovering an unread tab and
+   opening one both still look like what they are. */
+.tab-item[data-unread="true"] {
+  color: var(--text);
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -6272,34 +6279,9 @@ label.chip {
   border-left-color: var(--danger);
 }
 
-.depot-tabs,
-.console-tabs {
-  display: flex;
-  gap: var(--sp-1);
-  flex-wrap: wrap;
-  border-bottom: 1px solid var(--border);
-}
-
-.depot-tab,
-.console-tab {
-  appearance: none;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: var(--sp-2) var(--sp-3);
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  cursor: pointer;
-}
-
-.depot-tab:hover,
-.console-tab:hover { color: var(--text); }
-
-.depot-tab-on,
-.console-tab-on {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
+/* The Depot's and the faction console's section strips are .tab-bar /
+   .tab-item now — they were the shared strip written out a third time, in a
+   slightly bigger font and with an -on class instead of data-active. */
 
 /* Two columns where there is room, stacked where there is not. The aside is
    the manifest/summary side and is always the narrower of the two. */
@@ -6494,37 +6476,14 @@ label.chip {
   min-height: 0;
 }
 
-.chat-tabstrip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1);
+/* The aside's strip is the shared .tab-bar / .tab-item now. Two things the
+   column still owns: it must not be squeezed by the panel under it, and it
+   stands off from that panel. The strip SCROLLS sideways rather than wrapping
+   to a second line here — that is .tab-bar's own behaviour and what keeps a
+   narrow aside one row tall. */
+.chat-aside-tabs > .tab-bar {
   flex-shrink: 0;
   margin-bottom: var(--sp-3);
-  border-bottom: 1px solid var(--border);
-}
-
-.chat-tab {
-  appearance: none;
-  background: none;
-  border: 0;
-  padding: var(--sp-2) var(--sp-2);
-  font: inherit;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  cursor: pointer;
-  /* The selected tab is marked by a rule that shares the strip's own border
-     line, so nothing moves by a pixel when the selection changes. */
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-}
-
-.chat-tab:hover {
-  color: var(--text);
-}
-
-.chat-tab[data-open="true"] {
-  color: var(--text);
-  border-bottom-color: var(--accent);
 }
 
 .chat-aside-panel {
@@ -6754,9 +6713,6 @@ label.chip {
   color: var(--text);
 }
 
-.tab-item[data-unread="true"] {
-  color: var(--text);
-}
 
 .chat-place:hover {
   color: var(--text);
@@ -8853,7 +8809,7 @@ label.chip {
    coarse .btn-quiet/.chip floor at :4748 keep owning every other page. */
 @media (pointer: coarse) {
   .chat-shell .icon-btn,
-  .chat-shell .chat-tab,
+  .chat-shell .tab-item,
   .chat-shell .chat-place,
   .chat-shell .chat-person,
   .chat-shell .chat-section-fold,

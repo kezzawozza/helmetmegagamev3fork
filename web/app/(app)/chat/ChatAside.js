@@ -97,17 +97,17 @@ export default function ChatAside({
 
   return (
     <div className="chat-aside-tabs">
-      <div className="chat-tabstrip" role="tablist" aria-label="This place">
+      <div className="tab-bar" role="tablist" aria-label="This place">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             role="tab"
-            id={`chat-tab-${tab.id}`}
+            id={`chat-aside-tab-${tab.id}`}
             aria-selected={openTab === tab.id}
             aria-controls={`chat-panel-${tab.id}`}
-            className="chat-tab"
-            data-open={openTab === tab.id ? "true" : undefined}
+            className="tab-item"
+            data-active={openTab === tab.id ? "true" : undefined}
             onClick={() => setOpenTab(tab.id)}
           >
             {tab.label}
@@ -121,7 +121,7 @@ export default function ChatAside({
         className="chat-aside-panel"
         role="tabpanel"
         id={`chat-panel-${openTab}`}
-        aria-labelledby={`chat-tab-${openTab}`}
+        aria-labelledby={`chat-aside-tab-${openTab}`}
       >
         {openTab === "place" && (
           <>
