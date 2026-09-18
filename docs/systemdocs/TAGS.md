@@ -121,7 +121,7 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
 - **`Tag.exclusive`** — not a relation at all, but the third rule the same
   callers enforce: a character may hold at most **one** tag carrying this
   flag **per tag group**. Set on the nine Beliefs (`general-beliefs`), which
-  are a single answer rather than a collection, on the five Addictions
+  are a single answer rather than a collection, on the six Addictions
   (`general-addictions`), and on the six courtier wax seals (`items-paper`,
   `PAPERWORK.md` §5) — so a character holds at most one belief, at most one
   Addiction and at most one personal seal, independently.
@@ -166,7 +166,7 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
 
   **It is not only for cross-group edges.** Depressed carries the catalog's
   largest conflict list, and almost all of it points *inside* its own
-  `general-personality` group, on top of the five Addictions that already point
+  `general-personality` group, on top of the six Addictions that already point
   at it from their side.
 
   **The rule is the Desire system, not the group.** Depressed locks the whole
@@ -699,8 +699,10 @@ has since been deleted outright along with the channel it opened.
   stopped closing a slice of the whole catalog and started closing exactly one
   thing: the **bottom Desire slot**, to everything outside its own family
   (`DESIRES.md` §3). The old −3…−6 spread priced how much of the catalog each
-  shut, and that variable no longer exists — all five now do the same amount of
-  damage, so they cost the same.
+  shut, and that variable no longer exists — those five do the same amount of
+  damage, so they cost the same. The sixth, Heroin Addict, is the exception
+  that proves it: it shuts the whole catalog rather than one slot, so it is
+  priced at −8.
 
   **A Personality tag may be negative AND open Desires.** That is the whole
   point of the 2026-09-01 merge that replaced `general-restrictions` and

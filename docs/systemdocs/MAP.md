@@ -412,7 +412,7 @@ Fatigue is granted at turn N+1 so it costs the whole next turn, the same clock
 a day's mining runs on — so a Tired walker reads 1 ankle, 2–5 Exhausted, 6
 Winded. Winded itself is granted at N and swept when this turn closes: it only
 marks that you pushed on today, with nothing to carry over. A few traits pull the die (`db/lib/advantage.js#rollWithEdge`): Lucky,
-Quick-Footed, Caffeinated and Stimulant High each vote to keep the better of
+Quick-Footed and Caffeinated each vote to keep the better of
 two dice, Fat and Old to keep the worse; the count decides and a tie rolls
 once (`EXERT_BETTER_SLUGS` / `EXERT_WORSE_SLUGS`). Refused while riding,
 boated on the water, lamed, too hurt to march (`EXERT_REFUSAL_SLUGS`: Arterial

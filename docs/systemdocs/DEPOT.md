@@ -256,7 +256,7 @@ one buyer.
 | Manifest | Opened by | Holds |
 |---|---|---|
 | `general` | nothing — anyone standing at the counter | ⬢ and Ration Boxes |
-| `black-market` | **Silver Chip** | the drink and drug shelf, the machete and the collar kit |
+| `black-market` | **Silver Chip** | the drink and drug shelf, the machete and the collar kit. **Buy-only, all of it** |
 | `merchant` | **Merchant's Licence** | everything priced, sealed goods included |
 
 The catalog is `db/lib/depotManifests.js` — zero requires, like `dmKinds.js`,
@@ -311,8 +311,19 @@ above zero.
 
 - `BankAccount.balanceObols` is the claim. `Depot.accountObols` is gone.
 - The **Vault** is `undercroft-vault`, a real room behind the Baron's key,
-  seeded with **350 obols** in `docs/zones.yaml`. Every TREASURY account draws
-  on that pile and nothing else.
+  carrying **480 obols** in `docs/zones.yaml`. Every TREASURY account draws on
+  that pile and nothing else.
+- **Nobody seeds that pile automatically, and this is the trap.**
+  `db:import-zones` never writes a stash — it prints a warning telling you to
+  seed it from `/gm/dev/zones` instead (`db/lib/importZones.js`). So the figure
+  in the YAML is the intended stock, not the live one. Stock the Vault by hand
+  before the game opens and run `npm run db:audit-vault-backing`, which exits 1
+  when the claims outrun the coin.
+- It matters more than it used to. Seats now open their accounts with money in
+  them (`starting_account:` in `docs/roles.yaml`), so an unstocked Vault is not
+  a quiet inconvenience — it is forty characters holding a balance the ATM will
+  refuse to pay. The purses come to about 310 ¢ at 100 players and 395 at 150,
+  which is where 480 comes from.
 - **The ATM** moves obols between an account and physical `obol` tags. For a
   TREASURY account the coin comes physically out of the Vault, and a withdrawal
   the Vault cannot cover is **refused, never clamped** — a clamp would hand
@@ -654,16 +665,26 @@ anybody needs.
 station still takes 40%, which is margin enough that round-tripping a rifle
 for its own sake is a slow way to lose money.
 
-Six wares carry a **wage floor** instead: `alcohol`, `distilled-coca`,
-`trapping-gear`, `phrygian-tears`, `gladiator-helmet` and
-`workshop-equipment`. Each is craftable or brewable, so its `sellablePrice` is
-what a *maker* earns under §4's bands, not what a reseller gets back. 60% is a
-raise for most of them and would have been a pay cut for `alcohol` (4) and
-`distilled-coca` (10), so those two keep the higher number. The rule is that
-the wage never goes down.
+Two wares carry a **wage floor** instead: `trapping-gear` and
+`gladiator-helmet`, plus `workshop-equipment`. Each is craftable, so its
+`sellablePrice` is what a *maker* earns under §4's bands, not what a reseller
+gets back — 60% would have been a pay cut.
 
 That rule bites on a rebalance, not just on the original pricing: re-price a
 rung and check this list before shipping, since a wage floor can never drop.
+
+**Three wares left that list by losing their sell-back entirely**, and it is
+worth saying so rather than quietly shortening the list. `alcohol` and
+`phrygian-tears` are on the Black Market, and the whole of that shelf is
+buy-only now (§0e) — a brewer can still make either and still sell either to
+another player, but the Depot will not take one back at any price.
+`distilled-coca` is simply gone from the game, along with the coca chain
+behind it.
+
+That is a real cut to a brewer's income and it was taken deliberately: a drug
+you can dump at the counter for coin is a wage, and a drug you have to find a
+buyer for is a trade. The wage-never-goes-down rule still holds for everything
+that still has a wage.
 
 **The floor never applies to a 0-turn recipe.** At `turnsCost: 0` the Dead
 Simple ration mints margin as a FREE action, so `fishing-rod` sells at the
@@ -681,41 +702,49 @@ buying one mid-game is still a real decision.
 
 | Ware | ¢ | Sells back | Notes |
 |---|---|---|---|
-| `coffee` | 5 | 1 | Consumes into `caffeinated` (2t) |
 | `tea` | 2 | 1 | +15 mood (`MOOD.md` §5), the same as Maggot Milk |
-| `art-supplies` | 3 | 2 | What a `painting` spends — the Artist's one running cost |
+| `changa` | 2 | — | Black Market. Three turns pinned at max mood, then an even roll between a Seizure and death |
+| `heroin` | 2 | — | Black Market. Puts the dial at the top and hands over a permanent Heroin Addict (`MOOD.md`, `DESIRES.md`) |
 | `stack-of-paper` | 2 | — | **The cheapest paper on the shelf**, deliberately. A ream: consumes into twenty blank sheets, and writing on one mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. Loose `paper` is not stocked. |
 | `firecracker` | 2 | 1 | |
+| `art-supplies` | 3 | 2 | What a `painting` spends — the Artist's one running cost |
+| `eth-lod` | 3 | — | Black Market. +20 mood, and it takes every pain tag off |
 | `honey` | 3 | 2 | Consumes into `ate-meal` |
 | `sky-lantern` | 3 | 2 | |
 | `sweets` | 3 | 2 | Consumes into `ate-meal` |
-| `alcohol` | 4 | 3 | He stocks the local brew too |
-| `collar-key` | 4 | 2 | Black Market. Turns a shut collar back into a loose one, into the UNLOCKER's hands (`COLLAR.md`) |
+| `alcohol` | 4 | — | He stocks the local brew too |
+| `kzozel-yantar` | 4 | — | Black Market. Consumes into `tipsy` |
+| `collar-key` | 4 | — | Black Market. Turns a shut collar back into a loose one, into the UNLOCKER's hands (`COLLAR.md`) |
+| `cigarette` | 4 | — | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
+| `coffee` | 5 | 1 | Consumes into `caffeinated` (2t) |
 | `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source, and it is priced below real gear on purpose: a paper-thin disguise shouldn't compete with it. |
-| `cigarette` | 4 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
-| `silver` | 14 | 10 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source (`MINING.md` §3b); this is the fallback. Repriced up from 8/5 on 2026-09-18 so an uncommon find is not worth less than an ingot smelted from ultracommon rock. |
+| `love-tablets` | 7 | — | Black Market. +80 on a kiss, to BOTH sides — the one appearance bonus that is not crossed (`KISS.md`) |
+| `black-market-autoinjector` | 8 | — | Black Market. The military autoinjector's whole cures list, and a stack of `damaged-vision` with it |
+| `gelabine` | 8 | — | Black Market. Also a Skilled brew (0.5t, one `cave-fungus`). Takes every addiction off and leaves you Aching |
+| `sake` | 9 | — | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
 | `boombox` | 10 | 7 | |
-| `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
-| `machete` | 11 | 7 | Black Market. Equippable, 0.3 tiers as a `sword` |
-| `sake` | 9 | 7 | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
 | `whip` | 10 | 7 | Equippable |
+| `machete` | 11 | — | Black Market. Equippable, 0.3 tiers as a `sword` |
 | `censer` | 13 | 8 | |
-| `jewelry` | 14 | 8 | Also a 2-pt creation pick |
 | `iron` | 13 | 8 | Craftable (`smithing`, spends `hematite` — `SMITHING.md`) — the fourth exception to "almost nothing here is craftable," below. It took `steel`'s numbers and its slot when steel and coal left the game on 2026-09-18. |
+| `silver` | 14 | 10 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source (`MINING.md` §3b); this is the fallback. Repriced up from 8/5 on 2026-09-18 so an uncommon find is not worth less than an ingot smelted from ultracommon rock. |
+| `jewelry` | 14 | 8 | Also a 2-pt creation pick |
 | `mining-helmet` | 15 | 9 | Caving loot he also imports. A Simple Helm's plates plus a lamp, so it prices level with one — the lamp is station work, not forge work |
-| `bomb-collar` | 15 | 9 | Black Market. The loose collar; Apply Collar spends one to write `bomb-collar-locked` (`COLLAR.md`) |
+| `bomb-collar` | 15 | — | Black Market. The loose collar; Apply Collar spends one to write `bomb-collar-locked` (`COLLAR.md`) |
+| `buffout` | 20 | — | Black Market. Also a Skilled brew (0.25t, `changa` + `cave-fungus`). +1.5 melee, none of Changa's risk |
 | `poison-snooper` | 22 | 13 | **The exception:** also buyable at creation, 9 pt |
-| `remote-detonator` | 23 | 14 | Black Market. Kills whoever wears a shut collar, and leaves no body |
+| `remote-detonator` | 23 | — | Black Market. Kills whoever wears a shut collar, and leaves no body |
 | `sword-cane` | 24 | 14 | Also a 7-pt creation pick |
 | `instant-camera` | 27 | 16 | Also a 2-pt creation pick |
 | `microscope` | 31 | 19 | |
+| `phrygian-tears` | 32 | — | Also a Skilled brew, at 4 ⬢ — see §4 |
 | `surgical-equipment` | 33 | 20 | Also a 9-pt creation pick |
 | `light-infantry-armour` | 37 | 22 | Stops a bullet. Nothing forged here does. |
-| `phrygian-tears` | 32 | 22 | Also a Skilled brew, at 4 ⬢ — see §4 |
 | `hound` | 40 | 24 | |
-| `soporific` | 41 | 27 | Inflicts `asleep` (1t) |
+| `soporific` | 41 | — | Inflicts `asleep` (1t) |
 | `amoeba-vial` | 55 | 33 | |
 | `bb-pistol` | 68 | 41 | Equippable |
+| `ambrosia` | 80 | — | Black Market. Also an Expert brew (1t, five `cave-fungus`). **+4 tag points**, the only item in the game that grants any |
 | `silencer` | 83 | 50 | Equippable. The Merchant starts holding one |
 | `homunculus` | 84 | 50 | |
 | `antibiotics` | 92 | 55 | Cures every stage of infection |
@@ -752,10 +781,12 @@ that it has no trouble getting either — it is Ravenheart that has trouble
 hauling one up out of the Caves.
 
 **Almost nothing here is `craftable`.** That is the point: if Ravenheart could
-make it, importing it would be pointless. The three exceptions are all brews —
-`alcohol`, `distilled-coca` and `phrygian-tears` — which he stocks for a
-Merchant who would rather not wait on a brewer. Each is priced well above what
-brewing one costs, and that gap is the market a brewer sells into (§4).
+make it, importing it would be pointless. The exceptions are brews and drugs —
+`alcohol` and `phrygian-tears` on the old shelf, `gelabine`, `buffout` and
+`ambrosia` on the new one — which he stocks for somebody who would rather not
+wait on a brewer. Each is priced well above what brewing one costs, and that
+gap is the market a brewer sells into (§4). None of them can be sold BACK, so
+that market is other players and not the counter.
 
 **`iron` is the fourth**, and the first that isn't a brew — a
 smith with no Prospector bringing up ore can buy the ingot outright instead
@@ -922,10 +953,10 @@ make 10 ¢ a turn off it — and it is the one thing on this planet an offworlde
 actually wants. The tag's own description has called it "Ravenheart's only
 export" since long before any of this was wired up.
 
-**Two brews are on both tables.** `phrygian-tears` and `distilled-coca` cost 4 ⬢
-to brew and 40 and 12 to import. That is not an error and it is not a loophole:
-the import price is what you pay for having no brewer, and the gap is exactly
-the market a brewer sells into.
+**One brew is on both tables.** `phrygian-tears` costs 4 ⬢ to brew and 32 ¢ to
+import. That is not an error and it is not a loophole: the import price is what
+you pay for having no brewer, and the gap is exactly the market a brewer sells
+into. `distilled-coca` was the other until the coca chain left the game.
 
 A buy price at or below a sell price would let anyone with a licence print coin
 in a loop. `db/lib/syncTags.js` warns on every sync if that ever inverts.

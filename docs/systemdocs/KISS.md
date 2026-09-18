@@ -55,6 +55,14 @@ The table is `KISS_APPEARANCE` in `db/lib/kiss.js`; `applyKissMood` only adds
 the number it is handed, so the mood tables stay the record of what an *event*
 is worth and nothing there has to know that Pretty exists.
 
+**`in-love` is the one bonus that does NOT cross**, and it is deliberately not
+in that table. A Love Tablet (`DEPOT.md` §3) is a fact about the evening
+rather than about a face, so it pays **+80 to both sides if either side holds
+it** — one tablet between two people is enough, and two tablets are worth no
+more than one. It lives in its own `inLoveBonus` helper for exactly that
+reason: a row in `KISS_APPEARANCE` would be crossed silently along with the
+rest, which is the bug that shape prevents.
+
 **Sizing.** `EVENTS.KISS` is 17, Ecstatic starts at 64 and the dial clamps at
 82 (`db/lib/mood.js`). So Seductive alone carries anyone at −22 or better
 straight into Ecstatic and its **+1 Gambit**. That is the Courtesan's seat

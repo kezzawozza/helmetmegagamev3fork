@@ -335,9 +335,15 @@ Routine. Don't "fix" this.
 
 **The nightly drift** replaced the old one-way decay. Every mood slides back
 toward Fine at every close, from *both* sides, never overshooting 0 — but not at
-the same speed. `MOOD_DRIFT_UP` is **4** and `MOOD_DRIFT_DOWN` is **40**: a
+the same speed. `MOOD_DRIFT_UP` is **4** and `MOOD_DRIFT_DOWN` is **32**: a
 fright wears off slowly, a good evening is mostly gone by morning. From the
 ceiling that is three nights to Fine against the floor's twenty-five.
+
+The down figure was 40 until the Silver Chip shelf landed (`DEPOT.md` §0e). A
+Buffout costs 20 obols and a high that is almost entirely gone by breakfast is
+not worth 20 obols, so happiness now decays about a fifth slower. The up figure
+did not move, because the asymmetry below is the design and not a side effect
+of the numbers.
 
 The asymmetry is the point. Fear and grief are the half of the dial a character
 has to live with; delight is the half they have to keep earning. A drink, a
@@ -347,12 +353,31 @@ than a thing they hold. It carries `noMultiplier: true`, so no tag scales it
 either way — Brave halving a happy person's decline would be nonsense, and so
 would it sparing them the climb.
 
+**Two tags PIN the dial instead of moving it**, and they are opposites.
+Imperturbable holds its wearer at exactly 0, Fine, whatever happens; Changa
+High holds them at `MOOD_MAX`, the top, for the three turns it lasts
+(`DEPOT.md` §3). Both are a direct write inside `applyMoodTerms`, not a
+multiplier row, because a multiplier is only ever consulted for a negative
+base and neither of these is about harm. Imperturbable wins a tie.
+
+Two traps, and the second one bit during the build. A pinning slug must be in
+`MULTIPLIER_SLUGS` or the nightly pass never SELECTs it and computes the night
+as though the holder were ordinary — the same miss that list exists to stop.
+And the pin's branch must be taken even when the dial is ALREADY at the pinned
+value, or the night's own drift term lands instead and the pin leaks a little
+every turn.
+
+Heroin and Changa also SET the dial at the moment they are swallowed, which is
+a different thing from the pin and lives in `consumeSetsMoodToMax`
+(`db/lib/mood.js`). "Instantly Ecstatic" cannot be a delta: a frightened
+character at −50 given +82 lands at +32, nowhere near the band.
+
 **How a capped term settles.** `restorativeRoom(before, otherDelta)` is the whole
 rule: a `capAtFine` term contributes at most the room left between the dial and
 0, measured **after** everything else the same write does. So a character at −5
 who goes hungry (−5) and sleeps in a Haven wakes at exactly **0** — the bed
 absorbs the hunger — while a character at +40 in that same Haven only drifts down
-to +36, because there is no room at all. Measuring against the other terms rather
+to +8, because there is no room at all. Measuring against the other terms rather
 than against `before` alone is what makes it order-independent, and that matters:
 the nightly pass hands place, drift, HUNGER, BOUND, CORPSE and NOBLE_MEAL to
 **one** `applyMoodTerms` call, so a rule that read term order would be deciding

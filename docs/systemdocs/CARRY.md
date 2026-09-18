@@ -216,7 +216,7 @@ crossing per *day*. Now:
   on a d6 — 1 Sprained Ankle, 2–3 Exhausted, 4–5 Tired, 6 Winded
   (`MAP.md` §3). Once a turn, never while riding, boated on the water, lamed,
   bleeding out, Exhausted or Overburdened. Already Tired, 2–5 is Exhausted.
-  Quick-Footed, Caffeinated, Stimulant High (and Lucky) keep the better of
+  Quick-Footed and Caffeinated (and Lucky) keep the better of
   two dice; Fat and Old keep the worse.
 - A **free** crossing lands at once. A **paid** one is a day's walk and only
   lands next turn (`MAP.md` §3) — the Move goes now, the traveller stands still

@@ -83,7 +83,6 @@ four 0.25 Alcohol fill one Routine and a spare quarter takes more brewing; a
 | `invisibility-potion` | 2 | 1 | `graga-sac` | `invisible` |
 | `raven-draught` | 2 | 1 | `ravens-eye` | — |
 | `ravenheart-red` | 4 | 0.5 | `alcohol` | `tipsy` (and up the ladder — §5a) |
-| `distilled-coca` | 4 | 1 | `coca-leaves` | `stimulant-high` |
 | `advanced-poppy` | 4 | 1 | `poppy` | `pain-immunity` |
 | `phrygian-tears` | 4 | 2 | `nightshade` + `cave-fungus` | — |
 | `white-honey` | **3** | 1 | `honey` + `trout-heart` | — |
@@ -157,6 +156,25 @@ instead.
 | `cybernetic-arm` | 15 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
 | `cybernetic-leg` | 15 | 3 (project) | `cybernetic-core` (secret) | missing-leg |
 
+## 3b. The Silver Chip shelf
+
+Three of the nine drugs the Depot imports can be brewed instead of bought
+(`DEPOT.md` §3). They are ordinary brews in every respect but one: **none of
+them can be sold back to the Depot at any price**, because the whole black
+market is buy-only. A brewer's market for these is other players, which is
+the point of the Pusher's seat.
+
+| Brew | ⬢ | Turns | Ingredient | Consumes into |
+|---|---|---|---|---|
+| `buffout` | 0 | 0.25 | `changa` + `cave-fungus` | `buffout-high` |
+| `gelabine` | 0 | 0.5 | `cave-fungus` | `aching`, and every addiction comes off |
+| `ambrosia` | 0 | 1 | five `cave-fungus` | — (**+4 tag points**) |
+
+`buffout` is the one recipe in the file that spends an imported drug rather
+than a forageable, so a brewer without a Silver Chip cannot start the chain at
+all. `ambrosia` is the only thing in the game that grants tag points outside a
+fulfilled Desire — five Cave Fungus and a day for what costs a courtier 80 ¢.
+
 `last-breath` and the two cybernetics are `catalog: secret` and hidden by
 conjunction — the Craft menu only shows them to a `brewing-expert` already
 holding the named ingredient (`MEDICAL.md` §6). `autoinjector` is `catalog:
@@ -183,7 +201,6 @@ either the brewer's sheet carries the thing, or the craft is refused.
 | `godflesh` | hauled out of the marshes (`FACTORY.md`) | spent |
 | `nightshade-herb` | forageable — the loot pass wires it | spent |
 | `poppy-pods` | forageable — the loot pass wires it | spent |
-| `coca-leaves` | forageable — the loot pass wires it | spent |
 | `aberrant-heart` | off a fallen Aberrant | spent |
 | `ravens-eye` | forageable — the loot pass wires it | spent |
 | `trout-heart` | forageable — the loot pass wires it (a fishing find) | spent |
@@ -214,8 +231,9 @@ heart and a raven's eye became `nightshade-herb`, `aberrant-heart` and
 hair are simply gone, with the ⬢ carrying the gate instead (§3). The rainbow
 trout's heart went the same way and then came back: it is `trout-heart` now, a
 loot-pass fishing find, spent beside the `honey` White Honey's gate had been
-re-hung on in the meantime. Poppy and Distilled Coca, which never had a prose
-ingredient at all, now spend `poppy-pods` and `coca-leaves`. The old argument for keeping them — that getting one should be a
+re-hung on in the meantime. Poppy, which never had a prose ingredient at all,
+now spends `poppy-pods`; Distilled Coca was given `coca-leaves` the same way
+and then left the game with them. The old argument for keeping them — that getting one should be a
 scene rather than a purchase — held for the social ones and never held for the
 huntable ones, where there was no player on the other side, just a GM ruling on
 whether somebody's fishing trip counted.

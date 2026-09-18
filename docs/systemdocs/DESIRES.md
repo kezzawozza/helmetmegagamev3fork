@@ -203,7 +203,7 @@ A clause may also carry `slot: bottom`, which narrows it to the character's
 accepted value: the rule is "your last slot", not "slot N", and `desireSlots`
 is live-editable, so the grammar deliberately can't name an index.
 
-That is what an Addiction is now (§5) — every one of the five reads:
+That is what an Addiction is now (§5) — five of the six read:
 
 ```yaml
 desires:
@@ -217,6 +217,26 @@ i.e. **everything** outside its own family, in the bottom slot only. Note the
 `tiers: [1, 2, 3, 4]` escape hatch is gone with it: an Addiction used to leave
 tiers 5 and 7 open as a pressure valve, which stopped being needed once it only
 costs one slot.
+
+**`heroin-addict` is the sixth, and the exception.** It carries no
+`slot: bottom`, so it shuts **every** slot rather than one, and the only thing
+its holder can still want is the next dose:
+
+```yaml
+desires:
+  locks:
+    - all: true
+      exceptFamilies: [heroin]
+```
+
+That makes it the harshest tag in the catalog outside Demoness, which is
+deliberate — at −8 it is also twice any other Addiction's drawback and the
+whole of a creation budget. Two things follow from the shape. It is not a
+`bottomSlotAddiction`, so the panel draws no boxed bottom slot and no
+`Addiction: …` caption for it; it reads as a plain total lock, which is what
+it is. And the `heroin` family exists solely to hold the one Desire it leaves
+standing — a lock reaches a FAMILY and never a single slug, so a Desire that
+has to stand alone needs a family to itself.
 
 Because the same template can be claimable in one slot and shut in another,
 this half does NOT collapse into a template's `state`. `evaluateDesireCatalog`
@@ -347,9 +367,16 @@ opens is narrow and what it forbids is not.
 **Addictions are flat −4 as of 2026-09-02**, down from a −3…−6 spread
 (Alcoholic −3, Drug Habit −4, Gambler −5, Vain −5, Glutton −6). The spread
 priced how much of the *whole catalog* each one closed, and that variable
-stopped existing when the lock moved to the bottom slot: all five now shut
+stopped existing when the lock moved to the bottom slot: those five shut
 exactly one slot to exactly one family's worth of exceptions, so they are worth
-the same thing. Glutton losing two points is the biggest single move here, and
+the same thing.
+
+**Heroin Addict, added later, is −8 and off that flat rate on purpose.** It is
+the one Addiction that never moved to the bottom slot — it shuts the whole
+catalog, so the variable the old spread priced is live again for exactly one
+tag. At −8 it is also the entire creation drawback budget
+(`GameConfig.maxDrawbackPoints`), which means a character who takes it at
+creation can take no other drawback at all. Glutton losing two points is the biggest single move here, and
 it is the right one — "food is the largest family" was compensation for closing
 tiers 5 and 7, which it no longer does.
 
