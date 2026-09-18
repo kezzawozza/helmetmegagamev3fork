@@ -433,26 +433,61 @@ independent way to hide a place with something unread in it.
 top-level page is:
 
 ```jsx
+<AppHeader title meta actions />
 <PageShell width>
-  <PageHeader title subtitle actions />
   …
 </PageShell>
 ```
 
-`width` is `narrow` / `default` / `wide` / `full`, and that's the whole menu —
-it replaced five ad-hoc `max-w-*` values chosen per page. `full` drops the
-centring for a page whose own grid is the width; it still keeps the shell's
-padding, which is what separates it from the desk exception below. (The
-character sheet used it once. It now draws its own full-width body under the
-shared `AppHeader` with no `PageShell` at all — still an ordinary scrolling
-page, just not a centred one: `SHEET.md` §1.)
+The container, the header and the foot are the ones from
+`docs/design/mockups/character/index.html` — Bascinet's call: "i prefer its
+layout MUCH over the stuff we have now, so if it conflicts with existing
+site css / html; that's fine, just replace elsewhere." Their rules live in a
+new stylesheet, **`web/app/shell.css`**, imported from `layout.js` right
+after `globals.css`/`chat.css`/`sheet.css` (order matters — it wins any name
+it shares with them). It exists as its own file rather than going into
+`globals.css` because two other rebuilds were inside `globals.css`,
+`chat.css` and `sheet.css` at the same time; a fourth stylesheet let this
+work land without touching any of the three.
 
-`PageHeader`'s `actions` slot takes anything belonging beside the title: a
-sub-nav, a lens switcher.
+**The container** is `.page` — one 1180px column, centred, `padding-inline:
+16px`, `padding-block: 10px 40px`. `width` is `narrow` / `default` / `wide` /
+`full`, and that's still the whole menu, but `default` and `wide` are now the
+same `.page` — the mockup only drew one width. `narrow` is `.page--narrow`
+(760px, /notes, /lifeweb). `full` is `.page--full`, which drops the max-width
+and the inline padding for a page whose own grid is the width (e.g. `/gm/dev`'s
+zone editors) — it still keeps the block padding and the foot.
+
+**The header** is `AppHeader.js`'s own markup now, not a wrapper around
+`DeskHeader.js`: a left `.crumbs` line (`<b>{title}</b> — {meta}`, muted with
+a bold lead) and a right `.app-header-controls` strip holding the page's
+`actions`, the turn/zone chip (`TurnMeta.js`), `LockChip` and
+`BascinetClock`, each an ordinary `.chip` rather than heavier chrome.
+`DeskHeader.js` itself is untouched — the six `(desk)` workspaces still
+render it directly, unaffected by anything in this section.
+
+**The foot** is `.foot`, added inside `PageShell` after `{children}`, on
+every page that goes through it: the setting line
+("Ravenheart · the year of our Lord God, 1210", from `docs/lore.md`) on the
+left, nothing on the right. `/chat`, `/map` and the `(desk)` workspaces never
+render `PageShell` at all, so they never get one.
+
+(The character sheet used `PageShell` once. It now draws its own full-width
+body under the shared `AppHeader` with no `PageShell` at all — still an
+ordinary scrolling page, just not a centred one, and with no `.foot`:
+`SHEET.md` §1.)
 
 **Don't hand-roll `mx-auto flex max-w-… p-6 sm:p-8` or a bare `<h1>`.** That
 was a documented convention for months and drifted anyway, which is why it is
 now a component.
+
+**The rail's active mark**, also `shell.css`, is the one piece of `NavRail.js`
+this pass touched: on desktop, `.rail-item[data-active="true"]::before` used
+to be a filled, right-rounded pill against the rail's inner edge. It is now a
+square 2px `var(--accent-text)` rule running the full height of the item,
+matching the artifact's "a rule, not a filled shape" chrome. Everything else
+about the rail — its width, item list, the mobile bottom bar, the overflow
+sheet, the sign-out form — is unchanged.
 
 The one sanctioned exception is the `(desk)` route group, which now holds
 four GM workspaces: `/gm/turns` (adjudication), `/gm/players` (the player

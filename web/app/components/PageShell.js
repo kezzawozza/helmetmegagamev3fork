@@ -1,18 +1,23 @@
 // The page chrome every top-level route sits in. No "use client": markup only, usable from the server components
-// every page here is.
-
-const WIDTHS = {
-  narrow: "max-w-3xl", // forms and reading-width pages
-  default: "max-w-5xl",
-  wide: "max-w-6xl", // long GM tables
-  // No centring — for a page whose own layout is the width, e.g. /ledger's three columns.
-  full: "max-w-none",
+// every page here is. The container itself is the one from
+// docs/design/mockups/character/index.html (see shell.css's ".page" rules) —
+// `default` and `wide` both mean that one 1180px column now, `narrow` is a
+// tighter reading width (/lifeweb, /notes), and `full` stays unconstrained
+// for a page whose own layout is the width, e.g. /gm/dev's zone editors.
+const WIDTH_CLASS = {
+  narrow: "page page--narrow",
+  default: "page",
+  wide: "page",
+  full: "page page--full",
 };
 
 export default function PageShell({ width = "default", children }) {
   return (
-    <div className={`mx-auto flex w-full ${WIDTHS[width] ?? WIDTHS.default} flex-col gap-6 p-6 sm:p-8`}>
+    <div className={`mx-auto flex w-full flex-col gap-6 ${WIDTH_CLASS[width] ?? WIDTH_CLASS.default}`}>
       {children}
+      <div className="foot">
+        <span>Ravenheart · the year of our Lord God, 1210</span>
+      </div>
     </div>
   );
 }
