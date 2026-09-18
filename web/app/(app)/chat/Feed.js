@@ -122,9 +122,36 @@ function timeLabel(iso) {
 // (`"shout-near"`, still fully audible on Discord too) draws at ordinary
 // size, and anything past that keeps no tag and falls through to the default
 // subtext — matching its muffled `-#` treatment on Discord.
-const SystemRow = memo(function SystemRow({ row }) {
-  // The five-way branch that used to live here is CSS now: channelKind goes
-  // straight onto data-kind and .tline--system keys off it.
+// Discord's copy of an intercom line opens with the words the PA is wearing as a
+// heading here, so the body would say it twice. Cut on the web only — the row
+// itself is untouched, and Discord still reads what it always read (REDESIGN.md
+// §9, "a web-only feature is presentation").
+const INTERCOM_PREFIX = /^you hear a voice from the intercom:\s*/i;
+
+// The two rows that are a NOTICE rather than a line: the PA and a decree. One
+// component, two heading faces (TranscriptLine's variant="block").
+const BLOCK_KINDS = new Set(["intercom", "decree"]);
+
+const SystemRow = memo(function SystemRow({ row, zone = null }) {
+  // The intercom and the decree draw as a bordered block across the log
+  // (REDESIGN.md §6): a heading, the words at reading size, a rule top and
+  // bottom. Everything else is one line, and its channelKind goes straight onto
+  // data-kind for the CSS to key off — the five-way branch that used to live here.
+  if (BLOCK_KINDS.has(row.channelKind)) {
+    const decree = row.channelKind === "decree";
+    const body = decree ? row.content : String(row.content ?? "").replace(INTERCOM_PREFIX, "");
+    return (
+      <TranscriptLine
+        variant="block"
+        channelKind={row.channelKind}
+        headingFace={decree ? "blackletter" : "caps"}
+        heading={decree ? (zone ?? "Ravenheart") : zone ? `Intercom · ${zone}` : "Intercom"}
+        seq={row.seq}
+      >
+        <ChatMarkdown content={body} />
+      </TranscriptLine>
+    );
+  }
   return (
     <TranscriptLine variant="system" channelKind={row.channelKind} seq={row.seq}>
       <ChatMarkdown content={row.content} />
@@ -2087,7 +2114,7 @@ export default function Feed({
                 return (
                   <Fragment key={key}>
                     {newLine && <NewLine />}
-                    <SystemRow row={row} />
+                    <SystemRow row={row} zone={crumb[0] ?? null} />
                   </Fragment>
                 );
               }

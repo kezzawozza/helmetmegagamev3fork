@@ -77,8 +77,22 @@ like every other archive write.
 
 **The intercom passes `channelKind: "intercom"` instead of the default
 `"scene"`**, and that is what SystemRow (`web/app/(app)/chat/Feed.js`) reads
-to draw it `.tline--system[data-kind="intercom"]` — bold, regular size, still no face — rather than
-`.chat-subtext`. It writes through `sceneLineAt` the same as every other
+to draw it as a **notice block** — `TranscriptLine`'s `variant="block"`: bordered,
+ruled top and bottom, a small-caps `Intercom · <zone>` heading, the words at
+reading size, scrolling with the log (REDESIGN.md §6). It was full-size bold text
+for a while, which read as somebody in the room shouting rather than as a notice
+on the wall.
+
+The **decree** is the same component with a blackletter heading, so a GM notice
+and a PA share one shape: a row written with `channelKind: "decree"` draws one,
+and that is all a future GM broadcast has to pass. **Nothing writes `"decree"`
+yet** — `broadcastToZones` (the nuke, the rites, the turn side effects) still
+writes plain scenery, and changing that is a call about those lines rather than
+about this component.
+
+The heading strips the `"You hear a voice from the intercom:"` the row carries,
+since the heading already says it; the ROW is untouched and Discord reads what it
+always read. It writes through `sceneLineAt` the same as every other
 ambient line, but it isn't one: CLAUDE.md's "Bot message style" calls it out
 as the deliberate exception to `-#`, a loudspeaker rather than scenery, full
 size on Discord too. Until 2026-09-15 the web side had no way to tell the two
@@ -1296,8 +1310,8 @@ a 48px head and a one-line composer:
   the web half of the `-#` those lines go out as on Discord
   (`db/lib/ambientLine.js`). Phase 4 is what actually writes them. **The
   intercom is the one `SYSTEM` row that isn't scenery** — `channelKind:
-  "intercom"` (§2) draws it `.tline--system[data-kind="intercom"]` instead: bold, regular size,
-  still no face. **A shout is three sizes**: `channelKind: "shout"` at
+  "intercom"` (§2) draws it as a bordered notice block instead (`variant="block"`,
+  which the decree shares). **A shout is three sizes**: `channelKind: "shout"` at
   distance 0 draws `[data-kind="shout"]` (bigger and bold), `"shout-near"` at distance
   1 draws `[data-kind="shout-near"]` (ordinary size), and distance 2+ keeps the
   default `"scene"` and stays `.chat-subtext`.

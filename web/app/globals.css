@@ -7263,14 +7263,66 @@ label.chip {
   padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
-/* The intercom (db/lib/intercom.js) — a loudspeaker, not scenery, so it does
-   NOT get the muted subtext treatment above. Full size and bold, same
-   weight-first idea as Discord's own @here: the loudest notice Discord has
-   should not render as the quietest text on the page. Still wears no face —
-   it's the PA, not a person — so it keeps the face-gutter indent. */
-.tline--system[data-kind="intercom"] {
-  font-size: var(--fs-base);
+/* THE NOTICE BLOCK (REDESIGN.md §6). A bordered, full-width interruption that
+   scrolls with the log rather than pinning anywhere: the intercom
+   (db/lib/intercom.js) and the GM's decree are ONE component with two heading
+   faces (TranscriptLine's variant="block"). A PA and a proclamation are both the
+   world cutting across the scene, and drawing them twice is how they drift apart.
+
+   Ruled top and bottom, the top rule heavier — the mockup's `.decree`. It sits
+   flush across the column with no face gutter, because neither of them is a
+   person. The intercom drew as full-size bold TEXT before this, which read as
+   somebody in the room shouting rather than as a notice on the wall.
+
+   No decree writer exists yet: any row written with `channelKind: "decree"`
+   draws one, and that is all a future GM broadcast has to pass. */
+.tline--block {
+  margin: var(--sp-4) 0 var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-top-width: 2px;
+  border-bottom-width: 2px;
+  background: var(--field-bg);
+}
+
+/* The PA's heading: a small micro-label in the uppercase vocabulary every other
+   section head in the app uses. A loudspeaker is a machine, so it gets the
+   machine's face, not the world's. */
+.tline-block-head {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-2xs);
   font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* A decree is the world speaking in its own voice, which is the one thing the
+   blackletter is for (REDESIGN.md §1). Always over 24px and always with the
+   shadow — --blackletter is solved for large text and nothing else. */
+.tline--block[data-face="blackletter"] .tline-block-head {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: var(--ls-tight);
+  text-transform: none;
+  color: var(--blackletter);
+  text-shadow: 0 2px 3px var(--shadow-color);
+}
+
+.tline-block-by {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The words themselves at READING size, not shouted. The border is what makes
+   this a notice; the body does not also have to be loud. */
+.tline-block-body {
+  font-size: var(--fs-base);
   color: var(--text);
 }
 

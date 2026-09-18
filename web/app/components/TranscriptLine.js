@@ -25,14 +25,26 @@
 // which a gutter/body shape cannot reproduce without breaking the grid — so
 // ArchiveTranscript keeps .archive-row.
 //
-// Phase 5 extends this file, not its callers: the speaker-name palette and the
-// intercom block both land as more `data-kind` values and more head parts.
+// Phase 5 added the two of those it promised: the speaker-name palette rides on
+// `hue`, and the intercom block is `variant="block"` — which the decree shares,
+// since a PA and a proclamation are the same shape with different heading faces.
 
 /**
  * @param {object} p
- * @param {"speech"|"system"} [p.variant="speech"]
- *   "speech" draws gutter + head + body. "system" draws one full-width block
- *   with no face and no head — the world talking, a shout, the PA, an OOC line.
+ * @param {"speech"|"system"|"block"} [p.variant="speech"]
+ *   "speech" draws gutter + head + body. "system" draws one full-width line with
+ *   no face and no head — the world talking, a shout, an OOC line. "block" draws
+ *   a bordered full-width NOTICE, ruled top and bottom, with a heading over it:
+ *   the intercom and the decree (REDESIGN.md §6). Both of those are one shape
+ *   with two heading faces, which is the whole point of the variant.
+ * @param {import("react").ReactNode} [p.heading=null]
+ *   variant="block" only: the line over the notice. "Intercom · Keep".
+ * @param {"caps"|"blackletter"} [p.headingFace="caps"]
+ *   variant="block" only. "caps" is the PA — a small-caps micro-label, because a
+ *   loudspeaker is a machine. "blackletter" is the world speaking in its own
+ *   voice, which is the one thing --font-display is for (REDESIGN.md §1).
+ * @param {import("react").ReactNode} [p.byline=null]
+ *   variant="block" only: a second, quieter line under the heading.
  * @param {string|null} [p.channelKind=null]
  *   The row's channelKind, verbatim off the data. Lands on data-kind and is the
  *   ONLY thing that decides how a system line looks: "shout", "shout-near",
@@ -77,6 +89,9 @@
  */
 export default function TranscriptLine({
   variant = "speech",
+  heading = null,
+  headingFace = "caps",
+  byline = null,
   channelKind = null,
   density = "feed",
   avatar = null,
@@ -103,6 +118,26 @@ export default function TranscriptLine({
   className = "",
 }) {
   const Tag = as;
+
+  // A bordered notice in the middle of the log, scrolling with it (REDESIGN.md
+  // §6). The intercom and the GM's decree are the SAME component with different
+  // heading faces — a PA and a proclamation are both "the world interrupting",
+  // and drawing them twice is how the two drift apart.
+  if (variant === "block") {
+    return (
+      <Tag
+        className={`tline tline--block${className ? ` ${className}` : ""}`}
+        data-kind={channelKind ?? undefined}
+        data-face={headingFace}
+        data-seq={seq ?? undefined}
+        id={id ?? undefined}
+      >
+        {heading != null ? <p className="tline-block-head">{heading}</p> : null}
+        {byline != null ? <p className="tline-block-by">{byline}</p> : null}
+        <div className="tline-block-body">{children}</div>
+      </Tag>
+    );
+  }
 
   if (variant === "system") {
     return (
