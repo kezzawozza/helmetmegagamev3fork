@@ -233,16 +233,16 @@ is the only writer.
 ways: the End Game button, the bomb, and the Rite of Ascension — the last two
 from inside `advanceTurn`, with the reveal queued after their broadcast.
 Whichever lands first keeps the ending; `endGameInDb` is a no-op on a state
-that is already ENDED. It writes GameState to ENDED with `archiveVisible`
-on, and onto the current **`Game`** row its end, closing note and
-**epilogue** — `db/lib/epilogue.js#buildEpilogue`: the note, a facts line
-(days, turns, characters, deaths, letters, archive rows), **the antagonists**
-— each party that had a seat holder, its members and its objectives scored
-Success or Failed (`THREATS.md` §6a) — and who was who: every character the
-game had, Discord handle as name and role, antagonist seats named from the
-seat tag, the dead marked with their turn. `formatEpilogue` is the `**Game
-Ended**` post to `#turns`; `/archive` renders the same object. Resume undoes
-the phase and leaves the archive open.
+that is already ENDED. It writes GameState to ENDED, and onto the current
+**`Game`** row its end, closing note and **epilogue** —
+`db/lib/epilogue.js#buildEpilogue`: the note, a facts line (days, turns,
+characters, deaths, letters, archive rows), **the antagonists** — each party
+that had a seat holder, its members and its objectives scored Success or
+Failed (`THREATS.md` §6a) — and who was who: every character the game had,
+Discord handle as name and role, antagonist seats named from the seat tag, the
+dead marked with their turn. `formatEpilogue` is the `**Game Ended**` post to
+`#turns`; `/archive` renders the same object, GM-only, exactly as it does
+mid-game. Resume undoes the phase.
 
 `Game` is one row per game (dates, note, epilogue). **A game is its id** —
 there was a creation ordinal beside it until 2026-09-09, and `ARCHIVE.md`

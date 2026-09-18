@@ -169,13 +169,12 @@ hardcoded array. It is deliberately **not** a strict field: a packet written
 before it existed imports fine and those rows simply read live, which is the
 behaviour they had anyway.
 
-**The gate.** A past game is any signed-in user's to read. The current game is
-`GameState.archiveVisible` — GMs always, players only when it's on, enforced
-in the page and mirrored in the nav (which also shows the link whenever a
-finished game exists). Ending the game flips it, and it is **effectively a
-one-way door**: the archive shows every zone regardless of where a character
-stood and names the character behind every `/conceal`, so opening it mid-game
-unmasks the lot.
+**The gate.** A GM tool, always — every game, current or past, requires a GM
+(`web/lib/archiveAccess.js`), enforced in the page and mirrored in the nav
+(which shows the link only to a GM). There is no toggle that opens it to
+players: the archive shows every zone regardless of where a character stood
+and names the character behind every `/conceal`, and a GM could already see
+through both of those everywhere else on the desk.
 
 ## 6. Packets: a finished game as one file
 

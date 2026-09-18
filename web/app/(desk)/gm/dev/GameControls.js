@@ -40,8 +40,7 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
     const formData = new FormData(e.target);
     const ok = await confirm({
       title: "End the game?",
-      message:
-        "The clock stops and the archive opens to every player.",
+      message: "The clock stops.",
       confirmLabel: "End game",
       cancelLabel: "Keep playing",
     });

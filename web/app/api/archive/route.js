@@ -23,11 +23,9 @@ export async function GET(request) {
   const params = new URL(request.url).searchParams;
   const access = await loadArchiveAccess(params.get("game") ?? "");
   if (!access.ok) {
-    // The same three answers the page gives, as status codes. Deliberately
-    // terse: which game exists and whether its archive is open is itself
-    // something the gate is keeping.
+    // The same three answers the page gives, as status codes.
     const message =
-      access.reason === "signin" ? "Sign in first." : access.reason === "no-game" ? "No such game." : "Not open yet.";
+      access.reason === "signin" ? "Sign in first." : access.reason === "no-game" ? "No such game." : "GM only.";
     return Response.json({ error: message }, { status: access.status });
   }
   // Nothing to scroll through: the rows are in a packet in the bucket.

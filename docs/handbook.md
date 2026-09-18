@@ -93,7 +93,6 @@ General questions can be asked in the `#general` channel or by creating a thread
 | **Faction** | Faction roster and leadership. |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
 | **Notes** | Your private Journal, plus messages saved with ⭐. Both are visible only to you. |
-| **Archive** | A full transcript of all roleplay channels. Hidden until after the game ends. |
 | **Handbook** | A full page version of this document. |
 
 ## The Game Clock
@@ -108,7 +107,7 @@ You can find information on the current turn in the `#turns` channel, in additio
 
 ### The Wipe
 
-At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn.
+At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, the Game Masters' record of the game. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn.
 
 The one exception is your Zone's Summary channel, which is only cleared at Dawn — so what is posted there has two days to be read.
 

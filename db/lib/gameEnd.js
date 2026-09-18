@@ -1,9 +1,9 @@
 // Ending a game, from either direction: the superadmin's End Game button or
 // the bomb (docs/systemdocs/LOBBY.md §7). One function so both write the same
-// things — GameState to ENDED with the archive open, the Game row's end,
-// note and epilogue — and both hand back the same Discord post for the
-// caller to send. Ended locks only the clock: late join and every other
-// action keep working until Restart Game.
+// things — GameState to ENDED, the Game row's end, note and epilogue — and
+// both hand back the same Discord post for the caller to send. Ended locks
+// only the clock: late join and every other action keep working until
+// Restart Game.
 
 const { Prisma } = require("@prisma/client");
 const { buildEpilogue, formatEpilogue } = require("./epilogue");
@@ -19,7 +19,7 @@ async function endGameInDb(db, { closingNote = null, reason = "gm", actorDiscord
 
   await db.gameState.update({
     where: { id: 1 },
-    data: { phase: "ENDED", endedAt, closingNote: note, archiveVisible: true },
+    data: { phase: "ENDED", endedAt, closingNote: note },
   });
   await db.game.update({
     where: { id: state.gameId },
@@ -40,8 +40,7 @@ async function endGameInDb(db, { closingNote = null, reason = "gm", actorDiscord
   return { ended: true, epilogue, post: formatEpilogue(epilogue) };
 }
 
-// The undo. The archive stays open — closing it again would re-hide what
-// every player has already seen.
+// The undo.
 //
 // The ENDING itself is withdrawn, though, and it did not used to be: the
 // epilogue and the closing note stayed on the Game row "until the next ending
