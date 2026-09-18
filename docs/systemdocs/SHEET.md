@@ -488,7 +488,7 @@ counts slots with no active lock.
   and skipped.
 - **The page ends in a `.foot` line** (`CharacterSheet.js`), the mockup's own
   shape — a hairline, then the setting, quiet and small: "Ravenheart · the
-  year of our Lord God, 1210" (`docs/lore.md`'s own words). The mockup's
+  year of our Lord God, 1098" (`docs/lore.md`'s own words). The mockup's
   right-hand span was its own "Mockup only — nothing here presses" placeholder
   and is dropped, not replaced.
 

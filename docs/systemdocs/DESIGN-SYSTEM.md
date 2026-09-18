@@ -468,7 +468,7 @@ render it directly, unaffected by anything in this section.
 
 **The foot** is `.foot`, added inside `PageShell` after `{children}`, on
 every page that goes through it: the setting line
-("Ravenheart · the year of our Lord God, 1210", from `docs/lore.md`) on the
+("Ravenheart · the year of our Lord God, 1098", from `docs/lore.md`) on the
 left, nothing on the right. `/chat`, `/map` and the `(desk)` workspaces never
 render `PageShell` at all, so they never get one.
 

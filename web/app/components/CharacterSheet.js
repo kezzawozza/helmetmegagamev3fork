@@ -444,10 +444,10 @@ export default function CharacterSheet({
 
         {/* The mockup's own line (docs/design/mockups/character/index.html),
             and Bascinet's own words in docs/lore.md: "Now it's the year of
-            our Lord God, 1210." The right-hand span was the mockup's own
+            our Lord God, 1098." The right-hand span was the mockup's own
             "nothing here presses" placeholder — dropped, per SHEET.md. */}
         <div className="foot">
-          <span>Ravenheart · the year of our Lord God, 1210</span>
+          <span>Ravenheart · the year of our Lord God, 1098</span>
         </div>
       </RequestActionsProvider>
     </div>

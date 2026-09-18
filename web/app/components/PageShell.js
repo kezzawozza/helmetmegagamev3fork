@@ -16,7 +16,7 @@ export default function PageShell({ width = "default", children }) {
     <div className={`mx-auto flex w-full flex-col gap-6 ${WIDTH_CLASS[width] ?? WIDTH_CLASS.default}`}>
       {children}
       <div className="foot">
-        <span>Ravenheart · the year of our Lord God, 1210</span>
+        <span>Ravenheart · the year of our Lord God, 1098</span>
       </div>
     </div>
   );
