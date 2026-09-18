@@ -592,14 +592,14 @@ export default function EquipBoard({
           `carry` object — nothing here derives a second opinion. */}
       {carry && (
         <div>
-          <div className="sheet-carry-line">
+          <div className="sheet-carry-line carry-line">
             <span className="field-label">Carrying</span>
             <span className="mono" data-over={carry.weightUsed > carry.weightCap ? "true" : undefined}>
               {carry.weightUsed} / {carry.weightCap} lb
             </span>
           </div>
           <span
-            className="sheet-meter"
+            className="sheet-meter meter"
             data-over={carry.weightUsed > carry.weightCap ? "true" : undefined}
             role="img"
             aria-label={`${carry.weightUsed} of ${carry.weightCap} pounds carried`}

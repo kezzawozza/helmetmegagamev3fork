@@ -110,7 +110,7 @@ export default function LedgerBand({
     <section className="sheet-band panel">
       <div className="ledger-band">
         <div className="ledger-identity">
-          <div className="ledger-face">
+          <div className="ledger-face face">
             {avatarSrc ? (
               // `avatarSrc` is already whatever presentedIdentity resolved for the person looking; the zoom never rebuilds a URL.
               <AvatarZoom src={avatarSrc} name={character.name}>
@@ -118,13 +118,15 @@ export default function LedgerBand({
                 <img src={avatarSrc} alt={character.name} />
               </AvatarZoom>
             ) : (
-              <div className="ledger-face-blank" aria-hidden="true" />
+              <div className="ledger-face-blank">no portrait</div>
             )}
           </div>
-          {/* The only place on the page that names the person. */}
-          <div className="ledger-who">
-            <h2 className="ledger-name">{character.name}</h2>
-            <p className="m-0 text-sm text-muted">
+          {/* The only place on the page that names the person. `ledger-who` is
+              shared with the GM's Dev Character Panel (DevBand.js) — untouched
+              — `identity-text` is the mockup's own name, added alongside it. */}
+          <div className="ledger-who identity-text">
+            <h2 className="ledger-name char-name">{character.name}</h2>
+            <p className="m-0 text-sm text-muted identity-line">
               {character.roleTitle ?? "No role"} ·{" "}
               <FactionLink
                 factionId={character.faction?.id ?? null}
@@ -135,7 +137,7 @@ export default function LedgerBand({
             {/* "Standing in Town — Tallow Row", the mockup's line: the zone and
                 the Location emphasised inside a sentence rather than sitting as
                 two bare nouns with a dot between them. */}
-            <p className="m-0 text-sm text-muted">
+            <p className="m-0 text-sm text-muted identity-line">
               Standing in <strong>{character.zone?.name ?? "Unassigned"}</strong> —{" "}
               <strong>{character.location?.name ?? "Nowhere"}</strong>
             </p>
@@ -189,7 +191,7 @@ export default function LedgerBand({
           >
             {carry && (
               <span
-                className="sheet-meter"
+                className="sheet-meter meter"
                 data-over={carry.weightUsed > carry.weightCap ? "true" : undefined}
                 role="img"
                 aria-label={`${carry.weightUsed} of ${carry.weightCap} pounds carried`}
@@ -231,10 +233,13 @@ export default function LedgerBand({
         </div>
       </div>
 
-      {/* This turn · Combat · Turn Effects, same build (.ledger-turn/.ledger-tile share background/border/radius/padding). Grid is auto-fit. */}
-      <div className="sheet-band-row">
+      {/* This turn · Combat · Turn Effects, same build — .band-box is the
+          mockup's own name for the three; .sheet-band-row is shared with the
+          GM's Dev Character Panel (DevBand.js) so it stays, with .band-row
+          added alongside it. Grid is auto-fit. */}
+      <div className="sheet-band-row band-row">
         {isSelf && (
-          <div className="ledger-turn">
+          <div className="ledger-turn band-box">
             <span className="field-label">This turn</span>
             <SheetTurn moveState={moveState} pendingOffers={pendingOffers} />
           </div>

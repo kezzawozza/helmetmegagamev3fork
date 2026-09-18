@@ -2,8 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import { tagWeightLbs } from "@/lib/formatTagWeight";
 import { chainTokens } from "@/lib/tagChains";
-import { buildCards, itemFacts, matchesQuery, nextRung, rowValue, INVENTORY_CARDS } from "@/lib/sheetCards";
+import { buildCards, matchesQuery, nextRung, rowValue, INVENTORY_CARDS } from "@/lib/sheetCards";
 import { thingVerbSets, thingVerbs } from "@/app/(app)/chat/thingRows";
 import { consumeTagRequest } from "@/app/(app)/character/requestActions";
 import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
@@ -13,12 +14,12 @@ import { RESEARCH_TAG_SLUG } from "@lifeweb/db/lib/research";
 import ChipText from "./ChipText";
 import FormError from "./FormError";
 import IdentityDialog from "./IdentityDialog";
+import ItemsTable from "./ItemsTable";
 import Modal from "./Modal";
 import RowVerbs from "./RowVerbs";
 import StorePanel from "./StorePanel";
 import TagPointsValue from "./TagPointsValue";
 import TagRow from "./TagRow";
-import ItemCard from "./ItemCard";
 import { useRequestActions } from "./RequestActionsProvider";
 import { useNotice } from "./NoticeProvider";
 
@@ -28,8 +29,9 @@ import { useNotice } from "./NoticeProvider";
 //
 // Two shapes since phase 4, as the mockup draws them. The plain rails — Skills,
 // Health, Status, General, Meta — are labelled runs of rows inside ONE Tags
-// card, with the filter over the lot. Items and Assets get a card each, because
-// an item row carries its own verbs and the card carries a weight total.
+// card, with the filter over the lot. Items and Assets are ONE data-table
+// under ONE Items heading, the way the mockup draws its inventory — a
+// character's whole property is one thing to skim, not two panels.
 //
 // Three things a row can do, all through machinery that already exists:
 // - click it and its details open inline (TagRow.js → TagDetails.js);
@@ -195,14 +197,25 @@ export default function TagRail({
 
   const filtering = query.trim().length > 0;
 
-  // Two shapes, as the mockup draws them. The plain rails — Skills, Health,
-  // Status, General, Meta — sit inside ONE Tags card as labelled runs of rows,
-  // with the filter over the lot of them; the two inventory cards get a card
-  // each, because an item row is a card with its own verbs and its own weight
-  // total in the header. Before this it was one panel per kind plus a separate
-  // header strip, which on a wide screen read as six unrelated boxes.
+  // The plain rails — Skills, Health, Status, General, Meta — sit inside ONE
+  // Tags card as labelled runs of rows, with the filter over the lot of them.
+  // Items and Assets are flattened into ONE list for the mockup's single
+  // data-table, heaviest first — buildCards() still keeps them as two cards
+  // (the GM's Sheet tab and Dev Character Panel want that split, ItemCard.js
+  // still draws it there), this is a sheet-only reshaping of the same rows.
   const railCards = cards.filter((card) => !INVENTORY_CARDS.has(card.key));
-  const inventoryCards = cards.filter((card) => INVENTORY_CARDS.has(card.key));
+  const inventoryRows = cards
+    .filter((card) => INVENTORY_CARDS.has(card.key))
+    .flatMap((card) => card.groups.flatMap((g) => g.rows))
+    .filter((ct) => matchesQuery(ct, query))
+    .sort(
+      (a, b) =>
+        tagWeightLbs(b.tag, b.quantity ?? 1) - tagWeightLbs(a.tag, a.quantity ?? 1) ||
+        a.tag.name.localeCompare(b.tag.name),
+    );
+  const inventoryWeight = Math.round(
+    inventoryRows.reduce((n, ct) => n + tagWeightLbs(ct.tag, ct.quantity ?? 1), 0) * 100,
+  ) / 100;
 
   // The filter applied, groups with nothing left dropped.
   function visibleGroups(card) {
@@ -211,9 +224,9 @@ export default function TagRail({
       .filter((g) => g.rows.length > 0);
   }
 
-  // One card's rows, however they are drawn. Shared by both shapes above so a
-  // row means the same thing in either — the category rule, the icon, the
-  // second line, the value on the right, the details opening inline.
+  // One rail card's rows — Skills, Health, Status, General, Meta. Items and
+  // Assets never reach here any more: they are flattened into ItemsTable
+  // above, the mockup's single data-table.
   function rowsFor(card, groups) {
     return groups.map((g) => (
       <div key={g.key} className="sheet-group">
@@ -228,21 +241,14 @@ export default function TagRail({
             const shared = {
               ct,
               note: noteFor(ct, card, rung),
-              verbs:
-                INVENTORY_CARDS.has(card.key) || card.key === "Health" || ct.tag.slug === RESEARCH_TAG_SLUG
-                  ? verbsFor(ct)
-                  : null,
+              verbs: card.key === "Health" || ct.tag.slug === RESEARCH_TAG_SLUG ? verbsFor(ct) : null,
               open: openId === id,
               onToggle: () => setOpenId((was) => (was === id ? null : id)),
               currentTurn,
               armedTurn: ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null,
               worn: Boolean(ct.equipped),
             };
-            // Items and Assets are an inventory, so they get the card that says
-            // everything; every other rail keeps the one-value row.
-            return INVENTORY_CARDS.has(card.key) ? (
-              <ItemCard key={id} {...shared} facts={itemFacts(ct, currentTurn)} />
-            ) : (
+            return (
               <TagRow key={id} {...shared} value={rowValue(ct, currentTurn)} />
             );
           })}
@@ -304,27 +310,17 @@ export default function TagRail({
         <IdentityDialog identity={identity} open onClose={() => setIdentityOpen(false)} />
       )}
 
-      {inventoryCards.map((card) => {
-        const groups = visibleGroups(card);
-        if (filtering && groups.length === 0) return null;
-        const shown = groups.reduce((n, g) => n + g.rows.length, 0);
-        return (
-          <section key={card.key} className="panel p-3 sheet-card" data-card={card.key.toLowerCase()}>
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 className="panel-header">{card.title}</h2>
-              <span className="mono text-sm text-muted">
-                {card.weight != null ? `${card.weight} lb · ` : ""}
-                {filtering ? `${shown} / ${card.count}` : card.count}
-              </span>
-            </div>
-            {groups.length === 0 ? (
-              <p className="text-sm text-muted">Nothing.</p>
-            ) : (
-              rowsFor(card, groups)
-            )}
-          </section>
-        );
-      })}
+      {!filtering || inventoryRows.length > 0 ? (
+        <ItemsTable
+          rows={inventoryRows}
+          verbsFor={verbsFor}
+          openId={openId}
+          onToggle={(id) => setOpenId((was) => (was === id ? null : id))}
+          currentTurn={currentTurn}
+          totalWeight={inventoryWeight > 0 ? inventoryWeight : null}
+          nukeArmedTurn={nukeArmedTurn}
+        />
+      ) : null}
     </>
   );
 }

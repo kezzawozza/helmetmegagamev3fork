@@ -215,14 +215,47 @@ Who this is, where they stand, and:
   and both open a dialog rather than committing, so they keep the plain path;
   so does `variant="menu"`, which is already the inside of a menu.
 
+**A handful of classes now carry the mockup's own name as well as their old
+one** — `.tile` beside `.ledger-tile`, `.band-box` beside `.ledger-turn`,
+`.meter` beside `.sheet-meter`, `.carry-line` beside `.sheet-carry-line`, on
+the same elements. This is deliberate, not incomplete: `DetailTile.js`,
+`CombatReadout.js` and the band's identity markup are shared with the GM's
+Dev Character Panel and inspector (`DevBand.js`, `InspectorColumn.js`), which
+still style off the old names, so those stay; the mockup's names are added
+alongside rather than replacing them, and `sheet.css`'s rules key off whichever
+name is present. Classes that are genuinely sheet-only — the rail rows, the
+rig's cells, the action strip, Mood's ladder, `ItemsTable.js`, `DesirePanel.js`
+— carry the mockup's names outright, with no old name left behind.
+
 ## 3. The rail (`TagRail.js`)
 
 Two shapes. The plain rails — **Skills, Health, Status, General, Meta** — are
 labelled runs of rows inside **one Tags card**, with the filter and the tag
-points over the lot of them. **Items and Assets get a card each**, because an
-item row carries its own verbs and the card carries a weight total. Before phase
-4 it was one panel per kind plus a separate header strip, which read as six
-unrelated boxes.
+points over the lot of them. **Items and Assets are ONE `.data-table`**
+(`ItemsTable.js`), under one Items heading — the mockup's own grammar
+(`docs/design/mockups/character/index.html`): Thing · Where · Each · Total,
+heaviest first, one row per held tag. This is the shard that dropped the
+two-card shape phase 4 shipped: a character's whole property reading as two
+separate panels was the one place the sheet still didn't look like the
+artifact. Before phase 4 it was one panel per kind plus a separate header
+strip, which read as six unrelated boxes; before this pass it was two cards
+that at least agreed with each other, which was still two panels for one
+inventory.
+
+`web/lib/itemWhere.js` is the new small helper the **Where** column reads: a
+tag actually worn or readied gets its equip slot's own words (`head`,
+`body, Over`, `held`, `ride`, `accessories`, off `equipSlots.js`'s own
+`SLOT_TITLES`/`LAYER_NAMES` rather than a second list), everything else reads
+`pack`.
+
+**This is a sheet-only reshaping of the same rows.** `web/lib/sheetCards.js`'s
+`buildCards()` still returns Items and Assets as two separate cards — the GM's
+Sheet tab and the Dev Character Panel (`InspectorColumn.js`, `HeldTagsBody.js`)
+still mount `ItemCard.js` and want that split, because a GM skimming a whole
+inventory wants every fact a card can carry (armour, `2 of 5 worn`, a carry
+bonus) rather than one table row's worth. `TagRail.js` flattens both cards'
+rows into one list for its own `ItemsTable.js`; nothing else about
+`buildCards()` or `ItemCard.js` changed.
 
 **Status is in the rail now** (`buildCards(…, { includeStatus: true })`), as well
 as a chip in the band. The two are not the same reading — a chip says "you are
@@ -240,8 +273,10 @@ or mining bonus, then a stack count.
 |---|---|---|
 | Health | soonest to run out first | `→ Festering · cure 2 ⬢ · Medical I` from `expiresInto` and the requirement block |
 | Skills | by family (TagGroup) | the next rung: the catalog tag whose `parentTagId` is this one, with its cost in **tag points** — the mockup writes `8 ⬢` there, but the store spends `Character.tagPoints`, so the row says `pts` |
-| Items, Assets | by kind, heaviest first; the header carries the total lb | an **item card** — see below |
 | General, Meta, Demoness | alphabetical | — |
+
+Items and Assets are not in this table any more — they never reach `TagRail.js`'s
+plain-row path, `ItemsTable.js` draws them (above).
 
 **A tag's two marks.** The 3px rule down the left is its **category**, from
 one of seven `--tag-*` tokens in `globals.css` (`DESIGN-SYSTEM.md`); the glyph
@@ -251,16 +286,22 @@ Until 2026-09-15 both jobs were done by one freeform hex per group in
 — technically meaningful, practically confetti. Do not give a group a colour
 again; give it an icon.
 
-**Items and Assets are item cards** (`ItemCard.js`), not rows. `rowValue()` is
-first-match-wins, which is right for one line and lossy by construction: a
-stack of five 2 lb rations reads `10 lb` and never that there are five, and an
-armoured coat never mentions its armour because it weighs something. An
-inventory is the one place that trade is wrong, so those two cards use
-`itemFacts()` instead and print all of it — weight each and total, `2 of 5
-worn`, the armour word, the carry bonus, where it sits. Assets gets the same
-treatment as Items now (sub-groups and a header total) rather than falling
-through to the plain alphabetical branch, which it did while still being
-granted Items' full verbs.
+**On the sheet, Items and Assets are one `.data-table`** (`ItemsTable.js`), not
+item cards. `rowValue()` is first-match-wins, which is right for one rail row
+and lossy by construction: a stack of five 2 lb rations reads `10 lb` and never
+that there are five. The table sidesteps that differently than the card did —
+it has an Each and a Total column instead of one collapsed value, so the
+weight math is never lossy even without `itemFacts()`'s full sentence. What the
+table does NOT carry over from the item card: `2 of 5 worn`, the fit note, and
+the carry/mining bonus text all lived in `itemFacts()`'s reading-order sentence,
+which the mockup's four columns have no slot for. That is still available —
+click the row to open `TagDetails.js`, the same block every other row on the
+sheet opens.
+
+**Off the sheet, Items and Assets are still item cards** (`ItemCard.js`) — the
+GM's Sheet tab and the Dev Character Panel keep the full `itemFacts()` sentence
+and the per-kind card split, because a GM skimming a whole inventory is asking
+a different question than a player is.
 
 **The state marks are one vocabulary** (`TagMarks.js`): worn, smells wrong,
 locked, drawn the same way on a chip, a row and a card — glyphs where it is
@@ -379,6 +420,30 @@ Drawing it from the table means the table keeps winning. The strip itself is
 
 Self sheet only, the same posture the Combat tile takes: somebody else's figure
 is not yours to read.
+
+**No narrative paragraph** (Bascinet, 2026-09-18: "Mood narrative: cut").
+`MoodPanel.js` used to print `MOOD_DETAIL` — Bascinet's own generic sentence on
+what moves a mood, the same words the band's Mood tile opens — as a paragraph
+under the ladder every time. Printing it there read as though it were this
+character's own reason, which nothing in the data actually records. That
+paragraph still exists and is still true; it lives one press away, on the
+band's Mood tile ("press for why", §2), which is a request rather than a
+default.
+
+## 4b. Desires (`DesirePanel.js`)
+
+One `.desire` block per slot — the mockup's own grammar
+(`docs/design/mockups/character/index.html`): a `.head` line (the slot number
+and a `.status-pill`), then plain prose underneath. This is the current
+retroactive-claim system (`DESIRES.md`) drawn under that grammar, not the
+pre-2026-09-02 shape the mockup was drawn against — a Desire is never
+"occupied" with a reward pending, only **open** (the pill reads `Open`, a
+`Claim a Desire` button underneath) or **cooling down** from its last claim
+(the pill reads `lockedSlotLabel(slot)`, e.g. "locked until turn 16"). A
+slot's last claim, when there is one, prints above the button as `Last: … — N
+Tag Points`. The bottom slot still draws its bordered box when an Addiction
+binds it (`data-bound="true"` on `.desire`). The panel header's `N open` note
+counts slots with no active lock.
 
 ## 5. What is not here
 

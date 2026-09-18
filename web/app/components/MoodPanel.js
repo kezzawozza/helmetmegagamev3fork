@@ -27,12 +27,14 @@ export const MOOD_DETAIL =
 // currently says ten (REDESIGN.md and the mockup both say nine; the table wins,
 // and drawing it from the table means it keeps winning).
 //
-// `detail` is the sentence, and it is passed in rather than written twice:
-// LedgerBand.js's Mood tile opens the same paragraph, which is Bascinet's own
-// words. There is no per-character mood explanation in the data — nothing
-// records why somebody's mood is where it is — so this is the closest real
-// thing to the mockup's written-out reason.
-export default function MoodPanel({ mood = 0, detail = null }) {
+// No narrative paragraph here (Bascinet, 2026-09-18: "Mood narrative: cut").
+// There is no per-character mood explanation in the data — nothing records
+// why somebody's mood is where it is — so printing Bascinet's own generic
+// paragraph here read as though it were the mockup's per-character reason.
+// That paragraph still exists, one press away, as the band's Mood tile's
+// on-demand detail ("press for why", LedgerBand.js) — a different affordance,
+// shown only when asked for — under the same MOOD_DETAIL export below.
+export default function MoodPanel({ mood = 0 }) {
   const here = bandOf(mood);
   const signed = `${mood > 0 ? "+" : mood < 0 ? "−" : "±"}${Math.abs(mood)}`;
 
@@ -69,8 +71,6 @@ export default function MoodPanel({ mood = 0, detail = null }) {
           </span>
         ))}
       </p>
-
-      {detail && <p className="text-muted m-0 mt-2 text-sm">{detail}</p>}
     </section>
   );
 }
