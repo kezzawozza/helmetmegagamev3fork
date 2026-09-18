@@ -2864,28 +2864,6 @@
   font-size: var(--fs-2xs);
 }
 
-/* Chat's feed inside somebody else's column: the GM desk's Scene tab.
-   Bounded rather than 100dvh, because it is a panel in a page here and not
-   the page itself. */
-.chat-embed {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  height: 26rem;
-}
-
-.chat-embed .chat-main {
-  min-height: 0;
-  height: 100%;
-}
-
-.chat-embed .chat-head,
-.chat-embed .chat-feed,
-.chat-embed .chat-typing {
-  padding-left: var(--sp-3);
-  padding-right: var(--sp-3);
-}
-
 /* ── Chat: one touch scale ───────────────────────────────────────────
    Under a coarse pointer every control in Chat is --tap or --tap-sm.
    Keyed on the pointer, not a width, for the tablet case §9 names.
@@ -3005,11 +2983,3 @@
   border-color: var(--border);
 }
 
-@media (max-width: 720px) {
-  /* A lone Move… (or any single .chat-buttons action) reads as a stray
-     outline box unless it takes the row it is standing in. */
-  .chat-you .chat-buttons > .btn,
-  .chat-you .chat-buttons > .btn-secondary {
-    flex: 1 1 100%;
-  }
-}

@@ -518,20 +518,6 @@
   line-clamp: 2;
 }
 
-.chat-move-mark {
-  color: var(--muted);
-  margin-right: var(--sp-1);
-}
-
-/* The Move's kind, as a word rather than a badge. It was a .chip in the turn
-   chip row until 2026-09-09 — filled, bordered and fully rounded, which read
-   as a control sitting on top of the player's own sentence. A quiet word in
-   front of the words is all it ever needed to be. */
-.chat-move-kind {
-  color: var(--muted);
-  margin-right: var(--sp-1);
-}
-
 /* The turn's effects read as one wrapping line separated by ·, not a list:
    four short clauses down a column made the box taller than the turn card
    beside it. `gap` does the spacing on both sides of every separator, so the
