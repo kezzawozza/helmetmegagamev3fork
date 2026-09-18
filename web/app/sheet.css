@@ -27,41 +27,6 @@
   margin-inline: auto;
 }
 
-/* Every panel ON THE SHEET, tightened to the mockup's own density (its
-   `.panel{padding:8px}`) — --sp-2 is the closest token to that 8px. Scoped to
-   `.sheet-body` rather than changed on `.panel` itself: that class is shared
-   by every desk and dialog in the app, and this compression is the mockup's
-   own reading of ITS page, not a house-wide repaint. */
-.sheet-body .panel {
-  padding: var(--sp-2);
-}
-
-/* The mockup's `.field-label` carries NO text-transform — "Free moves",
-   "This turn", "Melee" — sentence case, bold, small. `.field-label` is a
-   shared app-wide class (globals.css) that uppercases everywhere else, so
-   this is undone here rather than there. */
-.sheet-body .field-label {
-  text-transform: none;
-}
-
-/* The mockup's `.data-table th` is the same face, no text-transform either
-   ("Thing", not "THING"). Same reasoning as .field-label above: the shared
-   class shouts everywhere else in the app, and only the sheet's own table
-   reads the mockup's page. */
-.sheet-body .data-table th {
-  text-transform: none;
-}
-
-/* The tag rail's own group headings ("Health", "Skills") are drawn with the
-   shared `.section-title` class — a serif card heading used elsewhere in the
-   app for other things (a modal section, for one), so it is left alone
-   everywhere but here. The mockup's `.tag-group-label` is what these actually
-   are, and it IS uppercase — exactly the opposite direction from the two
-   overrides above. */
-.sheet-rail-run .section-title {
-  text-transform: uppercase;
-}
-
 .sheet-band {
   display: flex;
   flex-direction: column;
@@ -141,12 +106,9 @@
   text-shadow: 0 2px 3px #000;
 }
 
-/* 9rem square, up from the 64px it was. The number is not arbitrary: it is
-   what the column beside it comes out at — the name, the role, the place, and
-   the status chips under them — so the face fills the row instead
-   of sitting small at the top of it. It stays put when that column runs taller
-   (somebody wearing a lot of status tags); a face that grew with the chip
-   count would be a portrait that changes size as you get hungry.
+/* 84px square, matching the mockup's `.face` exactly (docs/design/mockups/
+   character/index.html) — it had drifted to 9rem (144px), nearly double, and
+   swelled the whole identity row past what the column beside it needed.
 
    `.avatar-zoom` is `all: unset`, so the size has to be said again through the
    zoom button rather than only on the <img> inside it.
@@ -155,14 +117,14 @@
    AvatarZoom renders its open Modal as a sibling of the button, INSIDE this
    div (Modal.js does not portal). A loose `.ledger-face img` therefore also
    caught `.avatar-zoom-full` and shrank the zoomed face from its stored 256
-   to 9rem — which is the one thing the zoom exists to avoid. */
+   to 84px — which is the one thing the zoom exists to avoid. */
 .ledger-face,
 .ledger-face > .avatar-zoom,
 .ledger-face > .avatar-zoom > img,
 .ledger-face > .ledger-face-blank {
   flex: 0 0 auto;
-  width: 9rem;
-  height: 9rem;
+  width: 84px;
+  height: 84px;
 }
 
 .ledger-face > .avatar-zoom > img,
@@ -1189,6 +1151,14 @@ tr[data-open="true"] .data-table-face .chip {
 
   .ledger-name {
     font-size: var(--fs-2xl);
+  }
+
+  .ledger-face,
+  .ledger-face > .avatar-zoom,
+  .ledger-face > .avatar-zoom > img,
+  .ledger-face > .ledger-face-blank {
+    width: 64px;
+    height: 64px;
   }
 
   .sheet-body {
