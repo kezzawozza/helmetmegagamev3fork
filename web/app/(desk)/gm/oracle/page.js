@@ -16,12 +16,17 @@ const THREATS_PAGE = "__threats__";
 export default async function OraclePage({ searchParams }) {
   const params = await searchParams;
 
+  // Hoisted out of the playtest branch below so it runs either way — the
+  // Regenerate button needs to know whether THIS reader is a superadmin
+  // regardless of whether playtest is on.
+  const { session } = await getGmSession();
+  const canRegenerate = isSuperadmin(session?.discordUserId);
+
   // The playtest switch, ENFORCED here, not merely hidden from the rail —
   // same posture as /chat's playPanelEnabled. Superadmin, not GM: the point is reviewing the Oracle first.
   const config = await prisma.gameConfig.findFirst({ select: { oraclePlaytest: true } });
-  if (config?.oraclePlaytest) {
-    const { session } = await getGmSession();
-    if (!isSuperadmin(session?.discordUserId)) redirect("/gm/players");
+  if (config?.oraclePlaytest && !canRegenerate) {
+    redirect("/gm/players");
   }
 
   // Newest first, and the OPEN turn is offered like any other — its page is
@@ -166,6 +171,7 @@ export default async function OraclePage({ searchParams }) {
         visibleZoneIds={visibleZones?.map((zone) => zone.id) ?? null}
         visibleZoneNames={visibleZones?.map((zone) => zone.name) ?? null}
         selectedKey={selectedKey}
+        canRegenerate={canRegenerate}
       />
     </GmZoneViewProvider>
   );

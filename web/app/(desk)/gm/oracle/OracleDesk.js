@@ -23,8 +23,9 @@ import DevPanelModal from "@/app/components/DevPanelModal";
 import GmZoneRail from "@/app/components/GmZoneRail";
 import usePins from "@/app/components/usePins";
 import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
+import { useConfirm } from "@/app/components/ConfirmProvider";
 import OracleMarkdown from "./OracleMarkdown";
-import { saveSynopsis } from "./actions";
+import { saveSynopsis, regenerateTurn } from "./actions";
 
 const FRONT_PAGE = "__front__";
 const THREATS_PAGE = "__threats__";
@@ -81,14 +82,18 @@ export default function OracleDesk({
   visibleZoneIds,
   visibleZoneNames,
   selectedKey,
+  canRegenerate,
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [edits, setEdits] = useState(() => new Map());
   const [editing, setEditing] = useState(false);
   const [cache, setCache] = useState(() => new Map());
   const [devPanel, setDevPanel] = useState(null);
   const [inspected, setInspected] = useState(null);
   const [tabRequest, setTabRequest] = useState(null);
+  const [regenerating, startRegenerate] = useTransition();
+  const [regenerateError, setRegenerateError] = useState(null);
 
   const zonesInView = useVisibleZoneNames(visibleZoneNames);
   const { pins, togglePin } = usePins({
@@ -160,6 +165,25 @@ export default function OracleDesk({
     router.replace(`/gm/oracle?turn=${turn.number}&page=${encodeURIComponent(key)}`, { scroll: false });
   }
 
+  async function onRegenerate() {
+    setRegenerateError(null);
+    const ok = await confirm({
+      title: `Regenerate turn ${turn.number}?`,
+      message:
+        "Every page a gamemaster has not rewritten is redrafted, then the front page. Pages with an edit are left alone. This takes a few minutes.",
+      confirmLabel: "Regenerate",
+    });
+    if (!ok) return;
+    startRegenerate(async () => {
+      const res = await regenerateTurn(turn.number);
+      if (res.ok) {
+        router.refresh();
+      } else {
+        setRegenerateError(res.error);
+      }
+    });
+  }
+
   return (
     // .desk-shell is what gives the three columns below a height to scroll
     // against — a 100dvh flex column, overflow hidden, the same wrapper turns,
@@ -191,6 +215,7 @@ export default function OracleDesk({
               "Not written yet"
             )}
           </span>
+          {regenerateError ? <span className="text-sm text-danger">{regenerateError}</span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="field">
@@ -210,6 +235,13 @@ export default function OracleDesk({
               ))}
             </select>
           </div>
+          {/* Superadmin like Run now on /gm/dev — replacing a whole turn's
+              chronicle is host access, not an ordinary GM correction. */}
+          {canRegenerate && (
+            <button type="button" className="btn-quiet" disabled={regenerating} onClick={onRegenerate}>
+              {regenerating ? "Regenerating…" : "Regenerate turn"}
+            </button>
+          )}
         </div>
       </div>
 

@@ -1,12 +1,15 @@
 "use server";
 
-// The Oracle desk's one write. See docs/systemdocs/ORACLE.md. Reading is done
-// server-side; a GM's only action is rewriting a page — no regenerate, so an edit has to stick.
+// The Oracle desk's writes. See docs/systemdocs/ORACLE.md. Reading is done
+// server-side. A GM's ordinary action is rewriting one page; Regenerate below
+// is the other one — redrafting the whole turn, superadmin-only.
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
+import { isSuperadmin } from "@/lib/superadmin";
+import { runOracle } from "@lifeweb/db/lib/oracle";
 
 const MAX_BODY = 20_000;
 
@@ -40,4 +43,33 @@ export async function saveSynopsis({ id, body }) {
 
   revalidatePath("/gm/oracle");
   return { ok: true, row: { ...row, editedAt: row.editedAt?.toISOString() ?? null } };
+}
+
+// Whole turn, every unedited page, then the front page. Superadmin like Run
+// now, not GM like Save above: rewriting one page is a GM's correction,
+// replacing the whole turn is host access. The desk is GM-tier and Save
+// above is GM-tier, so this is a deliberate second, narrower gate in the
+// same file. A server action is a public endpoint, so it is re-checked here
+// whatever the button on the page did.
+export async function regenerateTurn(turnNumber) {
+  const session = await requireGm();
+  if (!isSuperadmin(session.discordUserId)) return { ok: false, error: "Superadmin only." };
+
+  const turn = await prisma.turn.findUnique({
+    where: { number: Number(turnNumber) },
+    select: { id: true },
+  });
+  if (!turn) return { ok: false, error: "No such turn." };
+
+  // No ledger here — a failure is told to the waiting GM, not swallowed.
+  // Edited pages are skipped inside runOracle itself (isEdited), not here.
+  let result;
+  try {
+    result = await runOracle(prisma, { turnId: turn.id, step: (_key, fn) => fn(), phases: "both" });
+  } catch (err) {
+    return { ok: false, error: err?.message ?? String(err) };
+  }
+
+  revalidatePath("/gm/oracle");
+  return result.ran ? { ok: true, zones: result.zones } : { ok: false, error: result.reason };
 }
