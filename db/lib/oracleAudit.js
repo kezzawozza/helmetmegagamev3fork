@@ -50,6 +50,9 @@ const INCLUDED = new Set([
 
   // Said to a whole zone at once — a PA carries an @here, so it's an event, not scenery.
   "intercom_broadcast",
+  // A GM's proclamation, read into a zone as a notice rather than a remark
+  // (db/lib/decree.js). The loudest thing the game says out loud.
+  "decree_broadcast",
   "faction_leader_set",
   "faction_treasurer_assigned",
   "faction_treasurer_revoked",
@@ -102,6 +105,8 @@ const DETAIL_KEYS = [
   "mining",
   "text",
   "desireName",
+  // A decree's heading (db/lib/decree.js); "body" below carries its words.
+  "title",
   "untilTurn",
   "blood",
   "died",

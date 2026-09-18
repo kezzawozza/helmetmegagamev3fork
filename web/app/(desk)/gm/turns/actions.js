@@ -20,6 +20,9 @@ import {
   isRetryable,
 } from "@lifeweb/db/lib/stagedDelivery";
 import { publicPostTargets } from "@lifeweb/db/lib/publicPostTargets";
+// By path too, the db/lib/dm.js convention: neither is on the @lifeweb/db barrel.
+import { broadcastDecree } from "@lifeweb/db/lib/decree";
+import { DECREE_BODY_MAX, DECREE_TITLE_MAX } from "@lifeweb/db/lib/decreeText";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { DesireRevokeRefused, revokeDesireCore } from "@lifeweb/db/lib/desireReview";
 import { getGmProfiles } from "@/lib/gmProfiles";
@@ -205,6 +208,63 @@ async function deleteStagedMessageImpl({ stagedMessageId }) {
   });
 
   return { patch: await deskPatchFor({ removed: { stagedMessageIds: [existing.id] } }) };
+}
+
+// ------------------------------------------------------------------ decree
+
+// The Decree button in the desk header (DecreeComposer.js). NOT a staged row:
+// a decree goes out the moment it is sent, the way the intercom does, because a
+// proclamation held until midnight is a proclamation about yesterday. Nothing on
+// the desk changes, so there is no patch to hand back — only what happened, so
+// the composer can say which zones heard it.
+async function sendDecreeImpl({ title, body, zoneIds }) {
+  const session = await requireGm();
+
+  // Validated against Discord's OWN embed caps rather than the desk's
+  // GM_MESSAGE_MAX_LENGTH: this goes out as an embed, and 4097 characters is
+  // rejected by the API rather than split (db/lib/decreeText.js). Refused, never
+  // truncated — a GM must not find out a sentence went missing by reading it in
+  // the channel.
+  const head = String(title ?? "").replace(/\s+/g, " ").trim();
+  if (!head) throw new UserError("Give the decree a title.");
+  if (head.length > DECREE_TITLE_MAX) {
+    throw new UserError(`A decree's title caps at ${DECREE_TITLE_MAX} characters.`);
+  }
+  const text = String(body ?? "").trim();
+  if (!text) throw new UserError("Write the decree first.");
+  if (text.length > DECREE_BODY_MAX) {
+    throw new UserError(`A decree caps at ${DECREE_BODY_MAX} characters.`);
+  }
+
+  const ids = [...new Set((zoneIds ?? []).filter(Boolean))];
+  if (ids.length === 0) throw new UserError("Pick at least one zone.");
+  // PRESENCE zones only, the same rule the public-declaration picker follows:
+  // the abstract Caves group row is not a place anybody is standing in.
+  const zones = await prisma.zone.findMany({
+    where: { id: { in: ids }, kind: { not: "CAVE_GROUP" } },
+    select: { id: true },
+  });
+  if (zones.length !== ids.length) throw new UserError("One of those zones no longer exists.");
+
+  const result = await broadcastDecree(prisma, { title: head, body: text, zoneIds: zones.map((z) => z.id) });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "decree_broadcast",
+      details: {
+        title: head,
+        // The words, bounded — a full 4096-character decree in a details blob
+        // is a log row nobody can read past.
+        body: text.slice(0, 500),
+        zones: result.zones.map((z) => z.zoneName),
+        zonesReached: result.sent,
+        zonesFailed: result.failed,
+      },
+    },
+  });
+
+  return { zones: result.zones, sent: result.sent, posted: result.posted, failed: result.failed };
 }
 
 // Retries a sent-but-partially-failed staged message. PRIVATE re-sends only
@@ -1513,6 +1573,9 @@ export async function deleteStagedMessage(input) {
 }
 export async function resendStagedMessage(input) {
   return guarded(() => resendStagedMessageImpl(input));
+}
+export async function sendDecree(input) {
+  return guarded(() => sendDecreeImpl(input));
 }
 export async function createStagedEffects(input) {
   return guarded(() => createStagedEffectsImpl(input));

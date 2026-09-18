@@ -37,7 +37,7 @@ function dayLabel(row) {
 
 // channelKinds meaning "a place in the world", already covered by zoneName.
 // Anything else with no zone is a standing channel outside the zone system.
-const PLACED_KINDS = new Set(["summary", "location", "scene", "intercom"]);
+const PLACED_KINDS = new Set(["summary", "location", "scene", "intercom", "decree"]);
 
 // The KEY is placeKey where there is one, since the display string alone
 // merges two same-named rooms and splits a renamed one.
