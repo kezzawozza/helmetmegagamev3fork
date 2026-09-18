@@ -443,7 +443,7 @@ at any price.
 thirteen rooms across the Caves, the Depths, the Black Hills, the Mountain and
 the Headwaters (`docs/zones.yaml`), so the ground is a source and the die is a
 bonus. `purring-maggot` is the loot; **`maggot-milk` is not on the table at
-all** — it is what a holder of Brewing (Basic) makes of one maggot for 1 ⬢, and
+all** — it is what a holder of Brewing I makes of one maggot for 1 ⬢, and
 it calms exactly as much as tea does (`db/lib/mood.js` `CONSUME_RELIEF`) while
 the raw maggot only poisons.
 

@@ -14,8 +14,8 @@ Changing `Turns` here also changes what a merchant pays for the finished item �
 | Slug | Name | pt | Gate |
 |---|---|---|---|
 | `crafting` | Crafting | 2 | none |
-| `smithing` | Smithing | 5 | none |
-| `smithing-skilled` | Smithing (Skilled) | 5 | `parentTag: smithing` (cumulative, total 10) |
+| `smithing` | Smithing I | 5 | none |
+| `smithing-skilled` | Smithing II | 5 | `parentTag: smithing` (cumulative, total 10) |
 | `smithing-gunpowder` | Smithing (Gunpowder) | 9 | `requiredTag: smithing-skilled`, `mastery` |
 
 A full gunsmith is `smithing` + `smithing-skilled` + `smithing-gunpowder` =
@@ -64,12 +64,12 @@ full turn — a sword blade or a flanged head is real forging.
 surfaces.** The Skill gate is what it takes to *make* the item; the Combat
 gate is what it takes to *use* it. Character creation and `/store` enforce
 the Combat gate (`requiredTag`) — you can't buy a Crossbow at creation
-without Ranged (Basic). The **Craft menu enforces the Skill gate, not the
+without Ranged I. The **Craft menu enforces the Skill gate, not the
 Combat gate** (`db/lib/medicalVision.js#satisfiedSkillIds`,
 [`CRAFTING.md`](CRAFTING.md) §2, [`TAGS.md`](TAGS.md) §3b): the picker's "To
 make: …" line shows the Skill gate as a requirement, checked server-side, not
 just guidance. Nothing checks the Combat gate at craft time, so a smith with
-`Smithing (Skilled)` and no `Melee (Basic)` can still forge a sword they
+`Smithing II` and no `Melee I` can still forge a sword they
 can't swing; a fighter pulling a sword from their clan's armoury still files
 the same request with the fiction as their justification — that half of the
 honor system stands, it's just the Skill half that's now enforced.
@@ -174,7 +174,7 @@ Life) used to be the example; they're archived in
 Work Knife, Dagger, Spear, Gladius, Mace, Battle Axe, Halberd, Broadsword,
 War Hammer, Bastard Sword. +1 ⬢ lets the smith stamp their own name and
 words on the piece, the same door as the Badge and Hat (`CRAFTING.md` §4a),
-and it takes **Smithing (Skilled)** to open — whatever tier the piece itself
+and it takes **Smithing II** to open — whatever tier the piece itself
 is, so a basic smith forges a plain dagger and cannot sign it.
 
 Nothing else on this ladder carries the flag. The named and exotic pieces are
@@ -229,10 +229,10 @@ consumed like any brew's):
 | `gunpowder-grenade` (**Crude Grenade**) | `smithing-skilled` | 6 | 1 | `saltpeter` (raw, mined) |
 | `steel` | `smithing` | 4 | 0.25 | `coal` (Merchant stock or mined) |
 
-The grenade came over from Brewing (Skilled) on 2026-09-05 — a powder device
+The grenade came over from Brewing II on 2026-09-05 — a powder device
 out of a still was always odd — and its group moved to `items-weapons` with
 it, the Smithing-family group the Recipes tab renders by.
-Renamed **Crude Grenade** and dropped to Smithing (Skilled) on 2026-09-06
+Renamed **Crude Grenade** and dropped to Smithing II on 2026-09-06
 (Chris): it packs raw saltpeter, not powder, so the Gunpowder rung keeps only
 the true powder-work — `black-powder`, the Bomb, the guns. The slug stays
 `gunpowder-grenade`. `black-powder` is the refining step between mined
@@ -283,7 +283,7 @@ bonus in the game, because two tags and a smith stand behind it
 ## 4. Armor
 
 Every piece below is `customizable:` (2026-09-09) — the same +1 ⬢ and the
-same **Smithing (Skilled)** rung as the eleven weapons in §3, including the
+same **Smithing II** rung as the eleven weapons in §3, including the
 pieces that are `crafting` work to make. Armor is where a maker's mark is
 most worth having, so the whole table gets it rather than a chosen few.
 

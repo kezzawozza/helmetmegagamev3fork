@@ -82,7 +82,7 @@ separate questions, checked separately:
 - **Is the actor qualified?** `satisfiedSkillIds` (the same tier-ancestry walk
   Heal uses) must include the named skill or a higher tier of it, whether the
   actor is treating themselves or someone else. Missing it refuses outright
-  ("You need Medical (Expert) to use Wooden Leg.").
+  ("You need Medical III to use Wooden Leg.").
 - **Does filing the Move need ACT?** A gated consume **files a Move** (below),
   and a Bound or Paralyzed character cannot file one even for themselves — so
   a self-administer through an `administerSkill` item DOES need ACT, unlike

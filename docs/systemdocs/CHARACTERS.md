@@ -537,7 +537,7 @@ Two things arrive on top of the YAML package, both in `createCharacter`:
 - **A Commoner who picked no trade starts a farmer.** The three kits
   (`commoner-farmer` / `-fisherman` / `-hunter`) are ordinary point-buy tags
   gated by `onlyRoles: [commoner]`, and nothing forced a choice — so a player
-  who skipped the picker got Laboring (Skilled) and no specialisation at all,
+  who skipped the picker got Laboring II and no specialisation at all,
   able to labor but at no location's coefficient. The Farmer is the fallback
   because it costs 0 points, so granting it can never overrun a budget already
   spent. It lands as `GM_GRANT` and as the unopened crate: the player still

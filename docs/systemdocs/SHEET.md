@@ -196,7 +196,7 @@ or labor bonus, then a stack count.
 
 | Card | Order | Second line |
 |---|---|---|
-| Health | soonest to run out first | `→ Festering · cure 2 ⬢ · Medical (Basic)` from `expiresInto` and the requirement block |
+| Health | soonest to run out first | `→ Festering · cure 2 ⬢ · Medical I` from `expiresInto` and the requirement block |
 | Skills | by family (TagGroup) | the next rung: the catalog tag whose `parentTagId` is this one, with its cost |
 | Items, Assets | by kind, heaviest first; the header carries the total lb | an **item card** — see below |
 | General, Meta, Demoness | alphabetical | — |

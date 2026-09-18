@@ -1883,7 +1883,7 @@ tags:
 
   # requiredTag laboring-basic is the "Laboring OR Commoner" gate —
   # holdsRequirement walks the tier chain and Commoners start with Laboring
-  # (Skilled). psychological so a chaplain can confess it away. Scripted:
+  # II. psychological so a chaplain can confess it away. Scripted:
   # -25% on every labor payout after the roll, db/lib/autoLaborPass.js.
   lazy:
     catalog: all
@@ -2615,7 +2615,11 @@ tags:
 
   laboring-basic:
     catalog: all
-    name: Laboring (Basic)
+    name: Laboring I
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-labor
     teachable: true
@@ -2626,7 +2630,11 @@ tags:
 
   laboring-skilled:
     catalog: all
-    name: Laboring (Skilled)
+    name: Laboring II
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-labor
     teachable: true
@@ -2636,7 +2644,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # The four side-grades. Each needs Laboring (Skilled) behind it, each is
+  # The four side-grades. Each needs Laboring II behind it, each is
   # scaled by where you are standing (docs/zones.yaml's per-location `yield:`
   # block), and holding several is fine — a Labor pays the best one you
   # qualify for, so there is nothing to switch and nothing to forget.
@@ -2676,7 +2684,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # The two Laboring MASTERIES. Both need Laboring (Skilled) behind them and
+  # The two Laboring MASTERIES. Both need Laboring II behind them and
   # neither can be bought at creation — see TAGS.md 4a on the mastery band.
   # Neither is teachable: a capstone bought only after the game starts must not
   # be obtainable for the price of one Lesson Move.
@@ -2775,7 +2783,11 @@ tags:
   # resource table in SMITHING.md.
   smithing:
     catalog: all
-    name: Smithing
+    name: Smithing I
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-crafting
     teachable: true
@@ -2786,7 +2798,11 @@ tags:
 
   smithing-skilled:
     catalog: all
-    name: Smithing (Skilled)
+    name: Smithing II
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-crafting
     teachable: true
@@ -2888,7 +2904,11 @@ tags:
 
   melee-basic:
     catalog: all
-    name: Melee (Basic)
+    name: Melee I
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-fighting
     teachable: true
@@ -2901,7 +2921,11 @@ tags:
 
   melee-trained:
     catalog: all
-    name: Melee (Trained)
+    name: Melee II
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-fighting
     teachable: true
@@ -2915,7 +2939,11 @@ tags:
 
   melee-skilled:
     catalog: all
-    name: Melee (Skilled)
+    name: Melee III
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-fighting
     teachable: true
@@ -2929,7 +2957,11 @@ tags:
 
   melee-expert:
     catalog: all
-    name: Melee (Expert)
+    name: Melee IV
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-fighting
     teachable: true
@@ -2943,7 +2975,11 @@ tags:
 
   melee-legendary:
     catalog: gm
-    name: Melee (Legendary)
+    name: Melee V
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-fighting
     teachable: true
@@ -2957,7 +2993,11 @@ tags:
 
   ranged-basic:
     catalog: all
-    name: Ranged (Basic)
+    name: Ranged I
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-fighting
     teachable: true
@@ -2970,7 +3010,11 @@ tags:
 
   ranged-trained:
     catalog: all
-    name: Ranged (Trained)
+    name: Ranged II
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-fighting
     teachable: true
@@ -2984,7 +3028,11 @@ tags:
 
   ranged-skilled:
     catalog: all
-    name: Ranged (Skilled)
+    name: Ranged III
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-fighting
     teachable: true
@@ -2998,7 +3046,11 @@ tags:
 
   ranged-expert:
     catalog: all
-    name: Ranged (Expert)
+    name: Ranged IV
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-fighting
     teachable: true
@@ -3012,7 +3064,11 @@ tags:
 
   ranged-legendary:
     catalog: gm
-    name: Ranged (Legendary)
+    name: Ranged V
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-fighting
     teachable: true
@@ -3243,7 +3299,11 @@ tags:
   # Construction
   builder-skilled:
     catalog: all
-    name: Builder (Skilled)
+    name: Builder I
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-crafting
     teachable: true
@@ -3255,7 +3315,11 @@ tags:
 
   builder-expert:
     catalog: all
-    name: Builder (Expert)
+    name: Builder II
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-crafting
     teachable: true
@@ -3269,7 +3333,11 @@ tags:
   # Medical
   medical-basic:
     catalog: all
-    name: Medical (Basic)
+    name: Medical I
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-medical
     teachable: true
@@ -3281,7 +3349,11 @@ tags:
 
   medical-skilled:
     catalog: all
-    name: Medical (Skilled)
+    name: Medical II
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-medical
     teachable: true
@@ -3294,7 +3366,11 @@ tags:
 
   medical-expert:
     catalog: all
-    name: Medical (Expert)
+    name: Medical III
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-medical
     teachable: true
@@ -3308,7 +3384,11 @@ tags:
   #Brewing
   brewing-basic:
     catalog: all
-    name: Brewing (Basic)
+    name: Brewing I
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-brewing
     teachable: true
@@ -3320,7 +3400,11 @@ tags:
 
   brewing-skilled:
     catalog: all
-    name: Brewing (Skilled)
+    name: Brewing II
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-brewing
     teachable: true
@@ -3352,7 +3436,11 @@ tags:
 
   brewing-expert:
     catalog: all
-    name: Brewing (Expert)
+    name: Brewing III
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-brewing
     teachable: true
@@ -3366,7 +3454,11 @@ tags:
   #Cooking
   cooking-basic:
     catalog: all
-    name: Cooking (Basic)
+    name: Cooking I
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-cooking
     teachable: true
@@ -3378,7 +3470,11 @@ tags:
 
   cooking-skilled:
     catalog: all
-    name: Cooking (Skilled)
+    name: Cooking II
+    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
+    # so no character loses the tag and every parentTag/requiredTag
+    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
+    keepSlug: true
     category: skills
     group: skills-cooking
     teachable: true
@@ -8597,7 +8693,7 @@ tags:
       - instrument
       - appraisal
 
-  # Builder (Expert) alone, with no Builder (Skilled) beside it: parentTag is a
+  # Builder II alone, with no Builder I beside it: parentTag is a
   # replacing tier chain, so the top rung is the whole ladder.
   courtier-master-engineer:
     catalog: all
@@ -14291,7 +14387,7 @@ tags:
   #Needs resources and a special ingredient acquired through RP. GMs need to adjudicate the results,
   #as most of these are spent through Moves, not automatically.
 
-  # --- Basic tonics — Brewing (Basic) --------------------------------------
+  # --- Basic tonics — Brewing I --------------------------------------
   miasma:
     catalog: all
     name: Miasma
@@ -14496,7 +14592,7 @@ tags:
     sellable: true
     sellablePrice: 7
 
-  # --- Advanced tonics — Brewing (Skilled) ---------------------------------
+  # --- Advanced tonics — Brewing II ---------------------------------
   # Smith's work now, not a brew (Chris 2026-09-05): a powder device coming
   # out of a still was always odd, and Smithing (Gunpowder) is where every
   # other powder item lives. The group moved with the skill — items-weapons

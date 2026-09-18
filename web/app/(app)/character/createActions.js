@@ -302,7 +302,7 @@ export async function createCharacter(formData) {
   }
 
   // A Commoner who reached the end without picking a trade starts a farmer —
-  // left alone they'd hold Laboring (Skilled) at no location's coefficient,
+  // left alone they'd hold Laboring II at no location's coefficient,
   // the one build that can't feed itself. Lands in startingTags, not
   // selected: the GM_GRANT loop below stamps expiry and carries the slug
   // into heldSlugs. 0 points, budget untouched, crate arrives unopened.

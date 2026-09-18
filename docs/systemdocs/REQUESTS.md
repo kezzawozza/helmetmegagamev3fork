@@ -239,7 +239,7 @@ Three notes on deliberate choices:
   here as well as made. That was 155 tags, every one of them also priced in
   `/store`, and Add Tag costs nothing but a written reason. It was therefore
   strictly cheaper than paying Tag Points, and players used it that way:
-  Butcher, Horse, Stealth, Literate, Ranged (Basic), Workshop, Game Master.
+  Butcher, Horse, Stealth, Literate, Ranged I, Workshop, Game Master.
   The help text asking them not to was the tell that the option should never
   have been on the menu. The two economies are now split at the door —
   `/store` spends points against catalog prices, Add Tag (Craft) spends turns
@@ -640,7 +640,7 @@ owns rather than the player.
 character holding `medical-basic`; the patient must share the healer's
 Location and not be concealed; and the affliction's own `requirementSkills`
 must be satisfied —
-a Deep Wound names Medical (Skilled), so a character with only the Basic tier
+a Deep Wound names Medical II, so a character with only the Basic tier
 sees it in the menu labelled "— Gambit" and may still attempt it — it files a
 GAMBIT Move rather than curing anything, and the GM resolves the roll
 (TAGS.md §5c). A cure costing any part of a turn — including the 2 ⬢
