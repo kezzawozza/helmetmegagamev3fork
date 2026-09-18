@@ -2445,7 +2445,7 @@ tags:
     name: Heightened Psychosis
     category: general
     group: general-traits
-    description: "Your soul has been poured into one too many bodies. Something about you no longer sits quite right."
+    description: "Your soul strains against each new, unfamiliar vessel."
     pointCost: 0
     stackable: true
     visible: false
