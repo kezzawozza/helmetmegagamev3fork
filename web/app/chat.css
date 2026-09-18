@@ -25,11 +25,12 @@
   --chat-rail: 186px;
   --chat-aside-w: 252px;
   grid-template-columns: var(--chat-rail) 8px minmax(0, 1fr) 8px var(--chat-aside-w);
-  /* The mockup's ground, showing through wherever a column's own translucent
-     backing lets it — the feed re-grounds itself on top of this (below). */
-  background-image: url("/assets/chrome/chatshadow.png"), url("/assets/chrome/chatbg.png");
-  background-repeat: repeat-x, repeat;
-  background-position: 0 0, 0 0;
+  /* One implicit row, but it must be BOUNDED to this container's own height —
+     `auto` (grid's default) sizes the row to its tallest column's CONTENT
+     instead, so the aside's stack of blocks could grow past the viewport with
+     nothing above it ever noticing there was an overflow to scroll. This is
+     what lets `.chat-aside`'s `min-height: 0` below mean anything at all. */
+  grid-template-rows: minmax(0, 1fr);
   background-color: var(--bg);
 }
 
@@ -176,7 +177,17 @@
   min-height: 26px;
   background-image: url("/assets/chrome/bg2.png");
   background-repeat: repeat-x;
-  background-size: auto 100%;
+  /* The tile is 32x16 — its own proportion, not the bar's. `auto 100%` used
+     to stretch it to whatever the bar's rendered height happened to be
+     (26px, or more once a header wrapped to two lines), which blew up the
+     transparent gap the sprite carries under its rivets into a band several
+     times its real size — the sprite reads as a row of light beads once that
+     gap is stretched wide enough to show a lighter --surface through it, in
+     any block head (Turn, Here, Waiting on you). Anchored to the bar's own
+     bottom edge at native size, the rivets sit where the art drew them and
+     the bar reads as a metal strip whatever it is backed by. */
+  background-size: 32px 16px;
+  background-position: left bottom;
   image-rendering: pixelated;
   border-bottom: 1px solid var(--border-lo);
   border-top: 1px solid var(--border);
@@ -1417,6 +1428,20 @@
    a tag chip's icon has no business being point-sampled. */
 .you-frame {
   margin-bottom: var(--sp-3);
+  /* The mockup's `.you-frame` carries `margin: 6px` on every side, because
+     its `.aside` has NO padding of its own — the frame supplies the
+     column's whole inset. Ours does (`.chat-aside`'s `padding: var(--sp-3)`,
+     12px, shared with every other block below), so applying the mockup's
+     6px straight would double the inset and squeeze the frame to 215px. The
+     plate art is tuned for its own ~240px box — anything narrower stretches
+     the hole cut into the art out from under the `.you-well` div sitting on
+     top of it, which is what read as a bright patch of the art's top-right
+     corner and a stray red fragment at the left edge, with the well itself
+     off-centre inside the riveted border. A negative inline margin here
+     cancels exactly the 6px of DOUBLE inset (12px from `.chat-aside` minus
+     the art's own 6px), landing the frame at the same real width the mockup
+     built it for, symmetrically, with the well square inside it again. */
+  margin-inline: -6px;
   /* The mockup's own numbers (docs/design/mockups/chat/index.html,
      `.you-frame`): the plate's painted border, measured off the art, so the
      well lands inside the riveted edge instead of overlapping it. */
