@@ -10,12 +10,14 @@ import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
+import Select from "@/app/components/Select";
 import useComposerAutosize from "./useComposerAutosize";
+import { formatTurnLabel } from "@/lib/turnFormat";
 // Safe from a client file: db/lib/decreeText.js has zero requires, the same rule
 // db/lib/dmKinds.js keeps — see EDIT_WINDOW_MS below for what one require of
 // @lifeweb/db would drag into the browser bundle.
 import { DECREE_LABEL, splitDecree } from "@lifeweb/db/lib/decreeText";
-import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, PlusIcon, QuillIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
+import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
@@ -193,6 +195,14 @@ function NewLine() {
       <span>NEW</span>
     </li>
   );
+}
+
+// The mockup's .daybreak: a rule wherever the scene crosses into a new turn
+// (withRuns above decides WHERE; this only draws it). v3 turns carry no
+// phase word — they run 6/8/12/24 hours, not "Morning"/"Evening"
+// (TURN-ENGINE.md) — so the label is the turn number alone.
+function Daybreak({ turnNumber }) {
+  return <li className="daybreak">{formatTurnLabel(turnNumber)}</li>;
 }
 
 // What a place looks like while its backlog is on the wire. Three faded rows
@@ -723,9 +733,9 @@ export default function Feed({
   // Carries the same booleans the hover bar branches on (FeedRow), so the
   // sheet re-decides nothing the row hadn't already worked out.
   const [menuRow, setMenuRow] = useState(null);
-  // The phone (useNarrow.js): a one-line box, the send as a glyph, and the
-  // ✉ and the hood folded behind a + the way Discord's composer does it.
   const narrow = useNarrow();
+  // The ✉ menu (Write/Seal/Bird), the one composer control with no home of
+  // its own in the mockup's say row — folded behind a single ⋯.
   const [toolsOpen, setToolsOpen] = useState(false);
   const confirm = useConfirm();
   // The box's text. Seeded from what this tab last left unsent in THIS place
@@ -814,9 +824,6 @@ export default function Feed({
   // the server tells a 32-hex token from a cuid itself, so the browser never
   // learns which it sent (play/actions.js#lookAt).
   const [look, setLook] = useState(null);
-  // The ✉ menu beside the composer. The composer's, not the scene's, so it
-  // lives here.
-  const [lettersOpen, setLettersOpen] = useState(false);
   const [refresh] = useRefresh();
   const {
     run: runCommand,
@@ -1211,99 +1218,41 @@ export default function Feed({
   const sendLabel = command ? (command.entry.verb ?? "Run") : "Send";
 
   // Paperwork — Write, Seal, the bird. Not a place's affordance: these are
-  // things you do with your own hands wherever you are standing. Folded INSIDE
-  // the box when there is a box, which is Discord's shape and the whole point
-  // of this row; beside the sentence when there isn't one, because a ghost has
-  // no composer and still has hands.
-  //
-  // The hood used to sit here too. It is /conceal now and only /conceal.
+  // things you do with your own hands wherever you are standing, and the
+  // mockup's say row has no home for them — so they fold behind one ⋯,
+  // the same shape on a phone and a desktop. The hood used to sit here too.
+  // It is /conceal now and only /conceal.
   const composerTools =
-    lettersMenu.length > 0 || (narrow && speechModes.length > 1) ? (
-      <span className={narrow ? "chat-composer-tools chat-composer-tools--folded" : "chat-composer-tools"}>
-        {narrow ? (
-          <span className="chat-tool-wrap">
-            <IconButton
-              icon={PlusIcon}
-              label="More"
-              size="lg"
-              aria-haspopup="menu"
-              aria-expanded={toolsOpen}
-              onClick={() => setToolsOpen((was) => !was)}
-            />
-            {toolsOpen && (
-              <div className="chat-menu chat-menu--left" role="menu" aria-label="More">
-                {/* The phone's Speak / Shout / OOC. Radios rather than
-                    buttons — they are three states of one thing, and one
-                    of them is always on — so the menu says which voice
-                    the box is currently in without a second control. */}
-                {speechModes.length > 1 &&
-                  speechModes.map((m) => (
-                    <button
-                      key={m.mode}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={speechMode === m.mode}
-                      className="menu-item"
-                      onClick={() => {
-                        setToolsOpen(false);
-                        pickSpeechMode(m.mode);
-                      }}
-                    >
-                      {m.label}
-                    </button>
-                  ))}
-                {lettersMenu.map((entry) => (
-                  <button
-                    key={entry.mode}
-                    type="button"
-                    role="menuitem"
-                    className="menu-item"
-                    disabled={entry.disabled}
-                    onClick={() => {
-                      setToolsOpen(false);
-                      openAction?.(entry.mode);
-                    }}
-                  >
-                    {entry.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </span>
-        ) : (
-          <>
-            {lettersMenu.length > 0 && (
-              <span className="chat-tool-wrap">
-                <IconButton
-                  icon={QuillIcon}
-                  label="Letters"
-                  aria-haspopup="menu"
-                  aria-expanded={lettersOpen}
-                  onClick={() => setLettersOpen((was) => !was)}
-                />
-                {lettersOpen && (
-                  <div className="chat-menu" role="menu" aria-label="Letters">
-                    {lettersMenu.map((entry) => (
-                      <button
-                        key={entry.mode}
-                        type="button"
-                        role="menuitem"
-                        className="menu-item"
-                        disabled={entry.disabled}
-                        onClick={() => {
-                          setLettersOpen(false);
-                          openAction?.(entry.mode);
-                        }}
-                      >
-                        {entry.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </span>
-            )}
-          </>
+    lettersMenu.length > 0 ? (
+      <span className="chat-composer-tools">
+      <span className="chat-tool-wrap">
+        <IconButton
+          icon={MoreIcon}
+          label="More"
+          aria-haspopup="menu"
+          aria-expanded={toolsOpen}
+          onClick={() => setToolsOpen((was) => !was)}
+        />
+        {toolsOpen && (
+          <div className="chat-menu" role="menu" aria-label="More">
+            {lettersMenu.map((entry) => (
+              <button
+                key={entry.mode}
+                type="button"
+                role="menuitem"
+                className="menu-item"
+                disabled={entry.disabled}
+                onClick={() => {
+                  setToolsOpen(false);
+                  openAction?.(entry.mode);
+                }}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
         )}
+      </span>
       </span>
     ) : null;
 
@@ -1959,6 +1908,13 @@ export default function Feed({
         // null there and the alias stands alone, which is the whole point of
         // wearing one.
         const realName = gm && row.alias && row.speakerKey ? (speakers?.[row.speakerKey] ?? null) : null;
+        // The mockup's .daybreak: a rule wherever the scene crosses into a
+        // new turn. v3 has no turn-of-day phase to print beside it (turns are
+        // 6/8/12/24h, not "Morning"/"Evening" — TURN-ENGINE.md), so the label
+        // is just the turn number. Never on the first row of a place: there
+        // is no "before" to have crossed from.
+        const dayBreak =
+          Boolean(prev) && row.turnNumber != null && row.turnNumber !== prev?.turnNumber;
         return {
           row,
           realName,
@@ -1970,6 +1926,7 @@ export default function Feed({
           canRemove,
           canStar,
           newLine: Boolean(row.seq) && row.seq === newAt,
+          dayBreak,
         };
       }),
     [rows, self.characterId, newAt, gm, speakers, ghost, hasCamera, openAction],
@@ -2103,11 +2060,13 @@ export default function Feed({
               exhausted={backlog.exhausted}
               floored={backlog.floored}
             />
-            {withRuns.map(({ row, realName, startsRun, mine, system, canLook, canPhoto, canRemove, canStar, newLine }) => {
+            {withRuns.map(
+              ({ row, realName, startsRun, mine, system, canLook, canPhoto, canRemove, canStar, newLine, dayBreak }) => {
               const key = row.clientId ?? row.seq;
               if (system) {
                 return (
                   <Fragment key={key}>
+                    {dayBreak && <Daybreak turnNumber={row.turnNumber} />}
                     {newLine && <NewLine />}
                     <SystemRow row={row} zone={crumb[0] ?? null} />
                   </Fragment>
@@ -2116,6 +2075,7 @@ export default function Feed({
               const editing = Boolean(row.seq) && row.seq === editingSeq;
               return (
                 <Fragment key={editing ? `${row.seq}:edit` : key}>
+                  {dayBreak && <Daybreak turnNumber={row.turnNumber} />}
                   {newLine && <NewLine />}
                   <FeedRow
                     // Keyed by the CLIENT id where there is one, which the
@@ -2189,35 +2149,30 @@ export default function Feed({
         <div className="chat-composer">
           {place.canSpeak ? (
             <>
-              {/* The mockup's say row: the voice picker, then the black well
-                  with the words in it (docs/design/mockups/chat/index.html).
-                  The picker sits OUTSIDE the well — the well is a recess with
-                  the speech colour in it, and a control standing in there would
-                  read as something that had been typed. */}
+              {/* The mockup's say row, one row of three: the voice picker,
+                  the black well with the words in it, one bevelled Send
+                  (docs/design/mockups/chat/index.html). Select.js rather than
+                  a bare <select> — a bare one breaks the theme
+                  (DESIGN-SYSTEM.md) — and one control rather than the old
+                  three-way segmented toggle, since a dropdown reads the same
+                  on a phone and a desktop and needed no separate folded
+                  version for either. Hidden entirely when there is only Speak
+                  to pick: a control with one option is decoration. */}
+              <div className="chat-say-col">
               <div className="chat-say-row">
-              {/* Speak / Shout / OOC. Hidden when there is only Speak to pick —
-                  a control with one option is decoration. Desktop only: on a
-                  phone the same three sit under the + with the rest of the
-                  composer's verbs.
-
-                  The shared `.segmented`, not a dropdown (REDESIGN.md §6). A
-                  dropdown hides two of three choices behind a click and says
-                  nothing about what the others are; three words in a row say
-                  it. Pressed state lives in aria-pressed, which is where a
-                  screen reader reads a control's value. */}
-              {!narrow && speechModes.length > 1 && (
-                <div className="segmented chat-mode-seg" role="group" aria-label="How to talk">
+              {speechModes.length > 1 && (
+                <Select
+                  className="chat-mode-select"
+                  aria-label="How to talk"
+                  value={speechMode ?? "speak"}
+                  onChange={(e) => pickSpeechMode(e.target.value)}
+                >
                   {speechModes.map((m) => (
-                    <button
-                      key={m.mode}
-                      type="button"
-                      aria-pressed={speechMode === m.mode}
-                      onClick={() => pickSpeechMode(m.mode)}
-                    >
+                    <option key={m.mode} value={m.mode}>
                       {m.label}
-                    </button>
+                    </option>
                   ))}
-                </div>
+                </Select>
               )}
               <div className="field chat-composer-box" data-command={command ? "true" : undefined}>
                 {/* COMMAND MODE reads as a strip across the top of the box —
@@ -2250,6 +2205,7 @@ export default function Feed({
                   {composerTools}
                   <textarea
                     id="chat-composer"
+                    className="say"
                     ref={textareaRef}
                     aria-label={
                       concealed && alias ? `Say something as ${alias}` : `Say something in ${place.name}`
@@ -2358,26 +2314,6 @@ export default function Feed({
                       submit();
                     }}
                   />
-                  {/* ONE send for both faces now. On a phone it is the 44px
-                      accent glyph a thumb aims at; on a desktop the same glyph,
-                      quiet, inside the box — it was a filled .btn stretched to
-                      the full height of the box beside it, which made the
-                      heaviest object on the page a control almost nobody
-                      presses, since Enter sends. The verb (/shout says "Send",
-                      most commands say "Run") rides in the label, which
-                      IconButton puts in both the aria-label and the tooltip. */}
-                  <IconButton
-                    icon={SendIcon}
-                    label={sendLabel}
-                    className={narrow ? "icon-btn chat-send" : "icon-btn chat-composer-send"}
-                    size={narrow ? "lg" : "sm"}
-                    onClick={command ? runCurrent : submit}
-                    disabled={
-                      command
-                        ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
-                        : !draft.trim() || waitSeconds > 0
-                    }
-                  />
                 </div>
                 {mention && (
                   <MentionMenu
@@ -2411,43 +2347,62 @@ export default function Feed({
                   />
                 )}
               </div>
+              {/* One bevelled Send, the mockup's `.btn`, outside the well
+                  rather than a quiet glyph inside it — the verb (/shout says
+                  "Send", most commands say "Run") is the whole point of a
+                  labelled button. Enter still sends; this is for a mouse and
+                  for anybody who wants to see the word. */}
+              <button
+                type="button"
+                className="btn chat-composer-send-btn"
+                onClick={command ? runCurrent : submit}
+                disabled={
+                  command
+                    ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
+                    : !draft.trim() || waitSeconds > 0
+                }
+              >
+                {sendLabel}
+              </button>
               </div>
-              {/* Slowmode, said as a clock rather than as a refusal — and
-                  said BEFORE it bites. It only appeared once the wait was
-                  already running, so the first a player knew of a slowmode was
-                  being stopped by one. The zone summary is the only place that
-                  has one at all. */}
-              {slowmodeMs > 0 && (
-                <span
-                  className="chat-countdown mono"
-                  data-nudge={nudge ? "true" : undefined}
-                  data-waiting={waitSeconds > 0 ? "true" : undefined}
-                  aria-live="polite"
-                >
-                  {waitSeconds > 0 ? `${waitSeconds} s` : `${Math.round(slowmodeMs / 1000)} s`}
-                </span>
-              )}
-              {/* The count, drawn only where a limit actually exists to run
-                  into — the refusal used to be the first mention of one. A
-                  keyboard hint used to sit here beside it, then inside the
-                  box's placeholder; it is gone entirely now. */}
-              {command && textArgOf(command.entry)?.maxLength && (
-                <span
-                  className="chat-composer-count mono"
-                  data-over={draft.trim().length > textArgOf(command.entry).maxLength ? "true" : undefined}
-                >
-                  {draft.trim().length}/{textArgOf(command.entry).maxLength}
-                </span>
-              )}
-              {/* The same readout for ordinary speech, which had none — a
-                  player typed a goods list, the box let them, and the refusal
-                  was the first they heard of a limit. Silent until they are
-                  near it, then the count, then what it will actually do. */}
-              {!command && sayCount && (
-                <span className="chat-composer-count mono" data-over={sayCount.over ? "true" : undefined}>
-                  {sayCount.label}
-                </span>
-              )}
+              {/* The mockup's one hint line, plus whatever the box already
+                  needed to say below it — slowmode counted down rather than
+                  refused, and the length counter — sharing one footer row so
+                  none of it costs the composer a row of its own. */}
+              <div className="chat-composer-foot">
+                <p className="hint">
+                  Enter sends · Shift+Enter is a new line · {EDIT_WINDOW_MS / 60_000} minutes to edit
+                </p>
+                {slowmodeMs > 0 && (
+                  <span
+                    className="chat-countdown mono"
+                    data-nudge={nudge ? "true" : undefined}
+                    data-waiting={waitSeconds > 0 ? "true" : undefined}
+                    aria-live="polite"
+                  >
+                    {waitSeconds > 0 ? `${waitSeconds} s` : `${Math.round(slowmodeMs / 1000)} s`}
+                  </span>
+                )}
+                {/* The count, drawn only where a limit actually exists to run
+                    into — the refusal used to be the first mention of one. */}
+                {command && textArgOf(command.entry)?.maxLength && (
+                  <span
+                    className="chat-composer-count mono"
+                    data-over={draft.trim().length > textArgOf(command.entry).maxLength ? "true" : undefined}
+                  >
+                    {draft.trim().length}/{textArgOf(command.entry).maxLength}
+                  </span>
+                )}
+                {/* The same readout for ordinary speech, which had none — a
+                    player typed a goods list, the box let them, and the
+                    refusal was the first they heard of a limit. */}
+                {!command && sayCount && (
+                  <span className="chat-composer-count mono" data-over={sayCount.over ? "true" : undefined}>
+                    {sayCount.label}
+                  </span>
+                )}
+              </div>
+              </div>
             </>
           ) : place.vantage ? (
             // A street you walked out of earlier this turn and are still
