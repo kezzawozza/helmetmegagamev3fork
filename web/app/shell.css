@@ -54,6 +54,22 @@
   gap: 8px;
 }
 
+/* The quiet right side of the header: TurnMeta, LockChip and BascinetClock,
+   as plain muted text beside the Esc link. The mockup's own header draws one
+   thin line — <b>Character</b> — Ravenheart, day 14 on the left, one
+   underlined link on the right — and nothing boxed. Bascinet's call was to
+   quiet all three rather than fold them into the crumbs line, so they stay
+   three separate items; this just strips the .chip chrome (border,
+   background, radius) each one wore. Pair with the existing .mono utility
+   for a numeral-bearing note (LockChip's countdown, BascinetClock's time),
+   the same job .chip-mono did for them as chips. LockChip's two danger
+   states don't use this class at all — see LockChip.js. */
+.app-header .header-note {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+}
+
 /* ---------- the foot (PageShell.js) ---------- */
 .foot {
   margin-top: 12px;

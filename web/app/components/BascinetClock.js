@@ -31,7 +31,7 @@ export default function BascinetClock() {
     minute: "2-digit",
   }).format(new Date(now));
   return (
-    <span className="chip chip-mono" title="The game runs on this clock">
+    <span className="header-note mono" title="The game runs on this clock">
       {time}
     </span>
   );

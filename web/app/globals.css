@@ -40,7 +40,7 @@
   --fs-lg: 0.9375rem; /* 15px — h3 / panel titles */
   --fs-xl: 1rem; /* 16px — h2 */
   --fs-2xl: 1.125rem; /* 18px — h1 */
-  --fs-3xl: 1.75rem; /* 28px — blackletter moments */
+  --fs-3xl: 2.125rem; /* 34px — blackletter moments, the mockup's own .char-name size */
 
   /* Two letter-spacings, down from six ad-hoc values. */
   --ls-tight: 0.02em; /* display faces */
@@ -112,11 +112,15 @@
 }
 
 /* Phones (REDESIGN.md §2, Phones): the same look, scaled up. Body to 14px;
-   the 44px tap floor is untouched and stays where it already is. */
+   the 44px tap floor is untouched and stays where it already is.
+   --fs-3xl drops back to its old 28px here — the mockup's own .char-name
+   rule at this same breakpoint (docs/design/mockups/character/index.html)
+   — since a 34px name is the desktop-vibrancy fix, not a phone one. */
 @media (max-width: 720px) {
   :root {
     --fs-base: 0.875rem; /* 14px */
     --fs-sm: 0.875rem;
+    --fs-3xl: 1.75rem; /* 28px */
   }
 
   /* iOS zooms a focused control under 16px. The chat composer already does
@@ -215,10 +219,17 @@
 
   /* The blackletter (a zone heading, a decree, the name on the sheet), always
      at >= 24px and always with text-shadow: 0 2px 3px #000 at the call site.
-     The mockup's own #7a3c33 fails the large-text floor against the darker
-     --surface above, so this is lifted the smallest distance that clears it —
-     see the report for the exact numbers. Never set it on body text. */
-  --blackletter: #8c5249;
+     The mockup's own #7a3c33 still fails the large-text floor against the
+     darker --surface above. The value this replaced fixed that by lowering
+     BOTH lightness and saturation, which is what read as dull next to the
+     mockup — mute by spending chroma, never luminance, same rule the tag
+     code follows above. This one is #7a3c33 in oklab (L 0.4336, a 0.0768,
+     b 0.0437 — oklch C 0.0883, h 29.7°) with a and b held fixed and only L
+     raised, to 0.520, which keeps the mockup's hue and chroma exactly. It
+     also isn't aimed at the bare 3.0 floor — the old value sat at 3.006,
+     0.2% over, which read as washed out with nothing to spare — so this
+     clears it at 3.22. Never set it on body text. */
+  --blackletter: #95544a;
 
   --row-hover: rgba(255, 255, 255, 0.05);
   --shadow-color: rgba(0, 0, 0, 0.5);
@@ -322,7 +333,12 @@
   --positive: #86a675;
   --warning: #cfa955;
   --danger: #ff6666;
-  --blackletter: #925b4f; /* dusk's value plus the same step; see the dusk block */
+  /* Same oklab hue and chroma as dusk's (a 0.0768, b 0.0437), lifted further:
+     dawn's own worst case is lamp 0, where --surface sits at its lightest
+     (--dawn-surface, #1b1817 — contrast only rises as lamp climbs toward
+     dusk's darker surface), so L is raised to 0.530 rather than reusing
+     dusk's 0.520. Clears 3.21 at that worst case. */
+  --blackletter: #98574d;
   --row-hover: rgba(255, 255, 255, 0.055);
   --shadow-color: rgba(0, 0, 0, 0.45);
 
@@ -484,18 +500,17 @@ h3 {
   background: var(--accent);
 }
 
-/* Atmosphere, two fixed pointer-events:none layers that composite once and
-   never animate (REDESIGN.md §9: no backdrop-filter, no per-frame animation).
-   .grain is the ground now: one Lifeweb tile under every page, held back so it
+/* Atmosphere: one fixed, pointer-events:none layer that composites once and
+   never animates (REDESIGN.md §9: no backdrop-filter, no per-frame animation).
+   .grain is the ground: one Lifeweb tile under every page, held back so it
    reads as texture and not as a subject.
 
    z-index: -1, not 0. A fixed positioned layer at z-index 0 paints ABOVE the
    in-flow content below it, which was harmless at the old 0.025 turbulence and
-   would put a visible film over every page at 0.25. Negative pulls both layers
+   would put a visible film over every page at 0.35. Negative pulls the layer
    behind the content and above the canvas. Panels are opaque --surface, so the
    texture shows in the gutters, exactly as the mockup draws it. */
-.grain,
-.vignette {
+.grain {
   position: fixed;
   inset: 0;
   z-index: -1;
@@ -515,20 +530,18 @@ body:has(.chat-shell) .grain {
   display: none;
 }
 
-/* The ground. 0.25 app-wide (REDESIGN.md §3); the chat log takes it stronger,
-   and that is phase 4's job, not this rule's. The tile is 512x512 and is drawn
-   at 1:1 — sprites scale at integer multiples only. */
+/* The ground. 0.35 app-wide, the mockup's own figure (REDESIGN.md §3); the
+   chat log takes it stronger, and that is phase 4's job, not this rule's. The
+   tile is 512x512 and is drawn at 1:1 — sprites scale at integer multiples
+   only. There is no vignette over this any more: the mockup draws none, and
+   the radial gradient this app used to lay on top was the only saturated
+   thing on the page eating itself back to grey. */
 .grain {
-  opacity: 0.25;
+  opacity: 0.35;
   background-image: url("/assets/chrome/chatbg.png");
   background-repeat: repeat;
   background-size: 512px 512px;
   image-rendering: pixelated;
-}
-
-.vignette {
-  background: radial-gradient(ellipse at center, transparent 55%, var(--shadow-color) 100%);
-  opacity: 0.55;
 }
 
 /* The single most-used structural device in the app (68 call sites) and,
@@ -1994,13 +2007,13 @@ input[type="radio"]:disabled {
 }
 
 /* The one bad-news tone a chip may wear: Overburdened, Dying, Catatonic, a
-   carry line over its cap, and Moves being locked. It was scoped to Chat's own
-   column so it could not leak into the chips the rest of the app draws — but
-   the header now wants the same tone for the same meaning (LockChip.js), and
-   two rules saying "bad" differently is how "bad" ended up drawn with --accent
-   in some tables and --danger in others. One rule, one meaning. `danger` is the
-   chips' word for it; .status-pill says `bad`, and a third spelling would not
-   help anybody. */
+   carry line over its cap. It was scoped to Chat's own column so it could not
+   leak into the chips the rest of the app draws, and two rules saying "bad"
+   differently is how "bad" ended up drawn with --accent in some tables and
+   --danger in others. One rule, one meaning. `danger` is the chips' word for
+   it; .status-pill says `bad`, and a third spelling would not help anybody.
+   LockChip used to carry this same tone as a chip; it is a .status-pill now
+   (AppHeader.js §6), since the header stripped its chip chrome. */
 .chip[data-tone="danger"] {
   color: var(--danger);
   border-color: var(--danger);

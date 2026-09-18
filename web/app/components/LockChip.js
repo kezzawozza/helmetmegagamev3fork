@@ -28,7 +28,7 @@ export default function LockChip() {
   // locked: false (db/lib/turnGate.js).
   if (frozenReason === "NOT_IN_SESSION") {
     return (
-      <span className="chip chip-mono" data-tone="danger" title="The game is between sessions">
+      <span className="status-pill mono" data-tone="bad" title="The game is between sessions">
         NOT IN SESSION
       </span>
     );
@@ -44,13 +44,20 @@ export default function LockChip() {
   const countdown = lockCountdown(cutoffAtMs - now);
   if (!locked && !countdown) return null;
 
+  // Locked reuses .status-pill — bold coloured text, no chrome, the app's one
+  // grammar for "this means something bad" (DESIGN-SYSTEM.md §6). Ticking
+  // down to it is not bad news yet, so it stays .header-note like its
+  // neighbours.
+  if (locked) {
+    return (
+      <span className="status-pill mono" data-tone="bad" title="Moves close before the turn ends, so the GMs can adjudicate">
+        MOVES LOCKED
+      </span>
+    );
+  }
   return (
-    <span
-      className="chip chip-mono"
-      data-tone={locked ? "danger" : undefined}
-      title="Moves close before the turn ends, so the GMs can adjudicate"
-    >
-      {locked ? "MOVES LOCKED" : `LOCK ${clock} · ${countdown}`}
+    <span className="header-note mono" title="Moves close before the turn ends, so the GMs can adjudicate">
+      {`LOCK ${clock} · ${countdown}`}
     </span>
   );
 }

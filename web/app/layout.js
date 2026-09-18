@@ -90,13 +90,12 @@ export default async function RootLayout({ children }) {
         {/* Keeps data-theme and --lamp on the clock for a tab left open; see
             LampTick.js for why it writes the DOM instead of holding state. */}
         <LampTick override={override} />
-        {/* Two fixed, non-interactive atmosphere layers behind everything.
-            They replace the old .scanlines, which sat at 0.06 opacity and was
-            effectively invisible. Both composite once and never animate —
+        {/* One fixed, non-interactive atmosphere layer behind everything. It
+            replaces the old .scanlines, which sat at 0.06 opacity and was
+            effectively invisible. It composites once and never animates —
             CLAUDE.md is explicit that this must not feel like a laggy bot
             dashboard. */}
         <div className="grain" />
-        <div className="vignette" />
         {/* RefreshProvider sits above every loading.js boundary on purpose —
             it owns the one transition router.refresh() runs in, so a modal or
             a staged row that removes itself in the same handler can't orphan

@@ -164,14 +164,15 @@ folder's `ATTRIBUTION.md` (CC BY-SA 3.0) and again in the handbook's credits.
 Anything derived from them (a recolour, a crop) carries the same license; CSS
 that only references them does not.
 
-- **`.grain`** tiles `chatbg.png` under every page at `opacity: 0.25` — texture,
-  not a subject. It sits at `z-index: -1` (not 0) so it paints behind in-flow
-  content rather than as a film over it, and it never animates.
-- **`.vignette`** is a radial gradient toward `--shadow-color` at the same
-  `z-index`, both layers fixed and `pointer-events: none` so neither costs a
-  paint on scroll. Neither layer, nor anything else in the app, gets a
-  `backdrop-filter` or a per-frame or full-viewport animation — `/gm/turns`
-  scrolling smoothly with these composited is the benchmark.
+- **`.grain`** tiles `chatbg.png` under every page at `opacity: 0.35`, the
+  mockup's own figure — texture, not a subject. It sits at `z-index: -1` (not
+  0) so it paints behind in-flow content rather than as a film over it, is
+  `fixed` and `pointer-events: none` so it costs no paint on scroll, and it
+  never gets a `backdrop-filter` or a per-frame or full-viewport animation —
+  `/gm/turns` scrolling smoothly with it composited is the benchmark. There is
+  no vignette over it: the mockup draws the ground plain, and the radial
+  gradient toward `--shadow-color` this app used to lay on top was the only
+  saturated thing on the page eating itself back to grey.
 - **The header strip is retired (2026-09-18).** `.panel-header` and the desk
   bars (`.desk-inspector-head`, `.desk-convo-head`, `.ops-section-head`) no
   longer carry `bg2.png` along their foot — the character-sheet mockup's own
@@ -481,10 +482,17 @@ zone editors) — it still keeps the block padding and the foot.
 **The header** is `AppHeader.js`'s own markup now, not a wrapper around
 `DeskHeader.js`: a left `.crumbs` line (`<b>{title}</b> — {meta}`, muted with
 a bold lead) and a right `.app-header-controls` strip holding the page's
-`actions`, the turn/zone chip (`TurnMeta.js`), `LockChip` and
-`BascinetClock`, each an ordinary `.chip` rather than heavier chrome.
-`DeskHeader.js` itself is untouched — the six `(desk)` workspaces still
-render it directly, unaffected by anything in this section.
+`actions`, the turn/zone note (`TurnMeta.js`), `LockChip` and
+`BascinetClock`. These three used to be ordinary `.chip`s; the mockup's own
+header draws one thin line with nothing boxed, so they're `.app-header
+.header-note` now — plain muted text, no border, no background — and pair
+with `.mono` where their content is a numeral (`LockChip`'s countdown,
+`BascinetClock`'s time). `LockChip`'s two bad-news states (moves locked, out
+of session) drop `.header-note` for `.status-pill[data-tone="bad"]` instead —
+bold coloured text is the app's one grammar for "this means something bad"
+(§5), and a boxed tone here would be the chip chrome coming back in through
+the side door. `DeskHeader.js` itself is untouched — the six `(desk)`
+workspaces still render it directly, unaffected by anything in this section.
 
 **The foot** is `.foot`, added inside `PageShell` after `{children}`, on
 every page that goes through it: the setting line

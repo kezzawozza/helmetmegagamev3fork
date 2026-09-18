@@ -816,6 +816,23 @@
 }
 
 @media (hover: hover) {
+  /* The whole row lifts, not just its name — the mockup's own
+     `.tag-row:hover { background: #1c1712; }`. --row-hover is that same lift
+     already (~+5% white over --surface, the .data-table hover token), so this
+     reuses it instead of a second hex. Targets .sheet-row-line/.item-card-line
+     rather than the .sheet-row/.item-card <li> itself: an open row's <li>
+     also wraps .sheet-row-details as a sibling (TagRow.js), so lighting the
+     <li> would tint the open detail panel along with the face. Gated to
+     pointer devices for the same reason the verb reveal below is: a :hover
+     that never clears on a touch tap would leave one row stuck lit after the
+     finger lifts. */
+  .sheet-row-line:hover,
+  .sheet-row[data-open="true"] .sheet-row-line,
+  .item-card-line:hover,
+  .item-card[data-open="true"] .item-card-line {
+    background: var(--row-hover);
+  }
+
   .sheet-row-verbs {
     visibility: hidden;
   }

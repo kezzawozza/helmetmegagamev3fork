@@ -10,7 +10,7 @@ export default async function TurnMeta({ turnPromise }) {
   const zone = viewer.character?.location?.zone?.name ?? (viewer.gm ? "Gamemaster" : null);
 
   return (
-    <span className="chip">
+    <span className="header-note">
       {zone ? `${zone} · ` : ""}
       {label}
     </span>
