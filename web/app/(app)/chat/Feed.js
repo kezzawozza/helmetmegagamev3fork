@@ -2,7 +2,6 @@
 
 import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
-import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import TranscriptLine from "@/app/components/TranscriptLine";
 import nameHue from "@/app/components/nameHue";
@@ -311,29 +310,12 @@ const FeedRow = memo(function FeedRow({
       failed={row.failed}
       // Only a line that ARRIVED gets the fade. See `liveAfter` below.
       live={live}
-      // The face draws only on the first line of a run; the gutter keeps its
-      // width on every line so the text stays aligned.
-      avatar={
-        startsRun ? (
-          <CharacterAvatar
-            characterId={row.characterId}
-            name={row.name ?? ""}
-            version={row.avatarVersion}
-            src={row.avatarPath ?? undefined}
-            // A line said under an alias before the game recorded what was
-            // over the speaker's face. It cannot be given one now — the sprite
-            // lived on the tag they were wearing then — so it keeps its secret
-            // and draws the plate (db/lib/archive.js#feedRowShape).
-            unknown={row.unknownFace}
-            size={32}
-            zoomable
-          />
-        ) : null
-      }
-      // A run's second line prints no head at all, which is what `name`
-      // being null means. The real name behind an alias is printed in the
-      // parentheses and nowhere else — no tooltip, no second element.
-      name={startsRun ? (realName ? `${row.name} (${realName})` : row.name) : null}
+      // The mockup's log names EVERY line, not just the first of a run — a
+      // scene read a name at a time, never a face (TranscriptLine.js,
+      // density="feed" draws no gutter at all). The real name behind an alias
+      // is printed in the parentheses and nowhere else — no tooltip, no
+      // second element.
+      name={realName ? `${row.name} (${realName})` : row.name}
       alias={Boolean(row.alias)}
       // The speaker's own colour out of the six (REDESIGN.md §3). Hashed off the
       // character id, or off the hood token when the row carries no id — either
@@ -1154,7 +1136,10 @@ export default function Feed({
   const speechModes = useMemo(
     () =>
       [
-        { mode: "speak", label: "Speak", command: null },
+        // "Say", not "Speak" — the mockup's own word for it
+        // (docs/design/mockups/chat/index.html, `.mode`), and the shortest of
+        // the three so the picker never has to be wider than "Say" needs.
+        { mode: "speak", label: "Say", command: null },
         { mode: "shout", label: "Shout", command: "shout" },
         { mode: "ooc", label: "OOC", command: "ooc" },
       ].filter((m) => !m.command || available.some((entry) => entry.name === m.command)),
@@ -1961,16 +1946,16 @@ export default function Feed({
     setDismissedJump(jump?.at ?? null);
   };
 
-  // The head is ChatHead.js: the name, where you are standing above it, the
-  // place's own words under it as one line you open, and — on a phone — the
-  // two drawer buttons either side. Search is the head's trailing control.
-  const description = place?.description?.trim() || "";
+  // The head is ChatHead.js: the mockup's one `.bar` — the name, where you
+  // are standing above it, a spacer, then how many are here — and, on a
+  // phone, the two drawer buttons either side. Search is the head's trailing
+  // control. The place's own words are PlaceCard's line in the aside now, not
+  // this bar's (CHAT.md).
   return (
     <div className="chat-main">
       <ChatHead
         name={place.name}
         crumb={crumb}
-        description={description}
         onOpenPlaces={onOpenPlaces}
         onOpenAside={onOpenAside}
         unreadElsewhere={unreadElsewhere}

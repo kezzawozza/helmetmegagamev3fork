@@ -439,68 +439,31 @@
   margin-left: var(--sp-2);
 }
 
+/* THE FEED HEAD IS THE MOCKUP'S `.bar` ITSELF now, one row, at every width
+   (docs/design/mockups/chat/index.html): the name, then `.crumb` (zone ·
+   kind), then a spacer, then `.sub` saying how many are here. ChatHead.js
+   renders `className="chat-head bar"`, so `.bar` (above) supplies the metal
+   strip, the min-height, the uppercase caps type and the drop shadow, and
+   this rule only adds what a bar with drawer buttons on either side needs
+   that a plain column head does not.
+
+   This used to be three stacked lines — the name, the crumb, and the place's
+   own words running under both — because the head tried to say what the room
+   LOOKED like as well as where it was. It no longer prints that prose at
+   all: PlaceCard.js already says it, always on the page in the aside, so the
+   bar only has to name the place. */
 .chat-head {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-4);
-  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-/* The metal strip, on the DESKTOP head only (REDESIGN.md §5, "One header strip").
-   The mockup's feed bar is `.bar` itself — name, crumb, a spacer, "N here" —
-   so above the phone breakpoint this head takes `.bar`'s own background and
-   type, in place of the old lone `::after` strip.
-
-   ON A PHONE THE HEAD IS THE WHOLE TOP OF THE SCREEN and the place's description
-   sits under its name, so the metal strip and the small-caps type would land
-   between the name and the description and eat a line of the scene. Phase 3
-   shard 4b exempted this bar for exactly that reason; the strip above 720px is
-   the half of the call that is safe, and the 720px block below leaves the
-   phone's head as it was. */
-@media (min-width: 45.0625rem) {
-  .chat-head {
-    padding: 5px var(--sp-4);
-    min-height: 26px;
-    background-image: url("/assets/chrome/bg2.png");
-    background-repeat: repeat-x;
-    background-size: auto 100%;
-    image-rendering: pixelated;
-    border-bottom: 1px solid var(--border-lo);
-    border-top: 1px solid var(--border);
-    text-shadow: 0 1px 0 var(--border-lo);
-  }
-
-  .chat-head-main {
-    flex-direction: row;
-    align-items: baseline;
-    gap: var(--sp-2);
-  }
-
-  .chat-head .section-title,
-  .chat-head-name {
-    font-family: inherit;
-    font-size: var(--fs-2xs);
-    font-weight: 700;
-    letter-spacing: var(--ls-wide);
-    text-transform: uppercase;
-    line-height: normal;
-    color: var(--text);
-  }
-}
-
-/* The title and the place's own words, stacked on a phone (the description
-   toggles in below the name); inline on the desktop bar (above). min-width: 0
-   or a long name never truncates inside the flex row. */
-.chat-head-main {
-  flex: 1;
+.chat-head-name {
+  margin: 0;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: inherit;
+  color: inherit;
 }
 
 /* Zone · Location, beside the open place's name — the mockup's `.crumb`. */
@@ -510,49 +473,6 @@
   letter-spacing: 0.08em;
   color: var(--muted);
   margin: 0;
-}
-
-.chat-head-desc {
-  appearance: none;
-  background: none;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  text-align: left;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.chat-head-desc[data-open="true"] {
-  white-space: normal;
-  text-overflow: clip;
-  /* A long description must not eat the feed it sits above. */
-  max-height: 8rem;
-  overflow-y: auto;
-}
-
-/* The name as the button that opens the description — a heading in every
-   respect but the cursor. On a phone it is the ONLY way to the line, since
-   the clamped line itself is not drawn there. */
-.chat-head-name {
-  appearance: none;
-  background: none;
-  border: 0;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* The phone's two drawer buttons either side of the head (ChatHead.js): ≡
@@ -802,18 +722,26 @@
   pointer-events: auto;
 }
 
-/* ---- density: feed (/chat) ---- */
+/* ---- density: feed (/chat) ----
+   THE LOG SHAPE (docs/design/mockups/chat/index.html, `.row`/`.who`/`.said`):
+   one line per utterance, no face, no per-row clock — `Marrow Vance: Second
+   tithe…` — never Discord's name-and-time row over a second line with an
+   avatar beside it. TranscriptLine.js draws this density as a flat run of
+   inline children (name, ": ", the body) rather than the gutter/head/body
+   shape "thread" and "thread-compact" still use below, so there is no
+   `.tline-gutter` or `.tline-body` here to style at all. */
 
 .tline[data-density="feed"] {
-  display: flex;
-  gap: var(--sp-3);
+  display: block;
   /* The mockup's .row: 12px, where the rest of the app sits a half-step up
      at --fs-base. A scene is a wall of names and short lines, not prose. */
   font-size: var(--fs-xs);
-  /* A run of lines from one speaker sits tight; the first line of a new run
-     stands off from the last. Two booleans, so CSS rather than an inline
-     style (Feed.js sets data-run / data-pending). */
-  margin-top: var(--sp-1);
+  line-height: 1.3;
+  /* The mockup's `.row { margin: 0 0 3px }` — every line the same distance
+     from the next, named speaker or not. There is no run to group: the
+     mockup's log names EVERY line, so there is nothing left for a "first of
+     a run stands off further" rule to mean. */
+  margin: 0 0 3px;
   /* The row is the positioning context for the action bar that floats at its
      top-right. */
   position: relative;
@@ -826,18 +754,13 @@
   border-radius: var(--r-sm);
 }
 
-.tline[data-density="feed"] .tline-body {
-  flex: 1;
-}
-
 /* Where a pointer can hover, the words stop short of the right edge so the
    action bar that floats there on hover never sits on them — Discord's
-   messages carry the same right indent for the same toolbar. A run's second
-   line has no name row to put the bar over, so without this it landed on
-   the sentence itself. Not on a touch screen: the bar only shows for a
-   tapped row there, and the width is worth more than the clearance. */
+   messages carry the same right indent for the same toolbar. Not on a touch
+   screen: the bar only shows for a tapped row there, and the width is worth
+   more than the clearance. */
 @media (hover: hover) {
-  .tline[data-density="feed"] .tline-body {
+  .tline[data-density="feed"] {
     padding-right: 8rem;
   }
 }
@@ -849,7 +772,6 @@
   outline: none;
 }
 
-.tline[data-density="feed"] .tline-time,
 .tline[data-density="feed"] .tline-edited {
   font-size: var(--fs-2xs);
 }
@@ -862,6 +784,22 @@
   text-shadow: 0 1px 0 var(--border-lo);
 }
 
+.tline[data-density="feed"] .tline-sep {
+  color: var(--text);
+}
+
+/* THE SPEECH ITSELF, in --speech (the mockup's `.said`, salmon), not the body
+   grey the rest of the app reads prose in. ChatMarkdown wraps every row in
+   `.markdown-content`, a block element built for a thread's own paragraphs —
+   forced inline here so it runs on from "Name: " on the same line rather than
+   dropping to one of its own, which is what made a feed row read as two
+   stacked lines even after the avatar and the per-row clock were gone. */
+.tline[data-density="feed"] .markdown-content,
+.tline[data-density="feed"] .markdown-content p {
+  display: inline;
+  color: var(--speech);
+}
+
 /* The row lights up under the pointer, and under the keyboard: without this
    there was no indication at all of which line the action bar belonged to.
    Kept to a fill, no border and no movement — a hundred of these scroll past
@@ -871,16 +809,6 @@
   background: var(--row-hover);
 }
 
-.tline[data-density="feed"][data-run="start"] {
-  margin-top: var(--sp-3);
-}
-
-/* Lines within a run sit tight — the same speaker, moments apart. */
-.tline[data-density="feed"]:not([data-run="start"]) {
-  margin-top: 2px;
-}
-
-/* A pending row is the same row, quieter. */
 /* A send the server refused. The line stays exactly where it was put — losing
    what somebody typed is worse than watching it sit there — so the mark is what
    says it went nowhere: a danger rule down the leading edge, and the words held
@@ -904,13 +832,6 @@
 
 .tline[data-density="feed"][data-pending] {
   opacity: 0.6;
-}
-
-/* The avatar column. The face draws only on the first line of a run; the
-   column keeps its width on every line so the text stays aligned. */
-.tline[data-density="feed"] .tline-gutter {
-  width: var(--chat-face);
-  flex-shrink: 0;
 }
 
 /* ---- density: thread (the DM thread, and its compact twin in the
@@ -1388,12 +1309,14 @@
 
    It sits OUTSIDE the say box — the box is a black well with the speech
    colour in it, and a control inside that well would read as something typed
-   into it. Narrow rather than `width:100%`, since "Say" is the longest label
-   and three words do not need a quarter of the row. */
+   into it. Narrow rather than `width:100%`: none of the three words need a
+   quarter of the row. Wide enough for "Shout", the longest of the three —
+   4.5rem read as "Say" but clipped "Shout" and "Speak" (its old label) to
+   "Sp…", which is the bug this number fixes. */
 .chat-mode-select {
   flex: 0 0 auto;
   align-self: flex-end;
-  width: 4.5rem;
+  width: 5.25rem;
 }
 
 /* Bare inside the container — the box draws the surface, the border and the
@@ -1494,7 +1417,10 @@
    a tag chip's icon has no business being point-sampled. */
 .you-frame {
   margin-bottom: var(--sp-3);
-  padding: 22px 18px 20px;
+  /* The mockup's own numbers (docs/design/mockups/chat/index.html,
+     `.you-frame`): the plate's painted border, measured off the art, so the
+     well lands inside the riveted edge instead of overlapping it. */
+  padding: 26px 20px 22px;
   border: 1px solid var(--border-lo);
   background-image: url("/assets/chrome/stats-LFWB.png");
   background-repeat: no-repeat;
@@ -1511,7 +1437,8 @@
 /* The dark well the words sit in, inside the plate. Recessed and shadowed, so the
    plate reads as a frame around a hole rather than as a picture behind text. */
 .you-well {
-  padding: var(--sp-2);
+  /* The mockup's `.you-well`: 7px 8px, not the panel's usual --sp-2 square. */
+  padding: 7px 8px;
   border: 1px solid var(--border-lo);
   background: var(--field-bg);
   box-shadow: inset 0 0 12px var(--shadow-color);
@@ -1520,7 +1447,9 @@
 .you-name {
   margin: 0;
   font-family: var(--font-serif);
-  font-size: var(--fs-md);
+  /* The mockup's 16px, not the aside's usual --fs-md (14px) — a name carries
+     more weight than a section label. */
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text);
   text-shadow: 0 1px 0 var(--border-lo);
@@ -2263,30 +2192,12 @@
     display: inline-flex;
   }
 
-  /* The head is one 48px bar: the name on one line, no crumb (the drawer's
-     title says where you are), and the description only once the name has
-     been tapped. */
+  /* A bigger bar on a phone, for the two drawer buttons either side of it —
+     the same `.bar` a desktop gets, just tall enough for a thumb. */
   .chat-head {
     min-height: 48px;
     padding-top: var(--sp-1);
     padding-bottom: var(--sp-1);
-  }
-
-  .chat-head-main {
-    gap: 0;
-  }
-
-  .chat-head .section-title {
-    font-size: var(--fs-md);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .chat-head .crumb,
-  .chat-head .sub,
-  .chat-head-desc:not([data-open="true"]) {
-    display: none;
   }
 
   .chat-head,
