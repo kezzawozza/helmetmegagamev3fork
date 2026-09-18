@@ -28,6 +28,19 @@ function NumberField({ field, value }) {
   );
 }
 
+function StringField({ field, value }) {
+  const id = `config-${field.key}`;
+  return (
+    <div className="field">
+      <label htmlFor={id} className="field-label">
+        {field.label}
+        {field.info ? <InfoIcon text={field.info} /> : null}
+      </label>
+      <input type="text" id={id} name={field.key} defaultValue={value ?? field.default} />
+    </div>
+  );
+}
+
 function BoolField({ field, value }) {
   return (
     <div className="ops-toggle">
@@ -47,7 +60,8 @@ export default function ConfigForm({ config }) {
       {GROUPS.map((group) => {
         const fields = fieldsInGroup(group.key);
         if (fields.length === 0) return null;
-        const numbers = fields.filter((f) => f.type !== "bool");
+        const numbers = fields.filter((f) => f.type !== "bool" && f.type !== "string");
+        const strings = fields.filter((f) => f.type === "string");
         const bools = fields.filter((f) => f.type === "bool");
         return (
           <section key={group.key} className="flex flex-col gap-3">
@@ -56,6 +70,13 @@ export default function ConfigForm({ config }) {
               <div className="ops-grid">
                 {numbers.map((field) => (
                   <NumberField key={field.key} field={field} value={config[field.key]} />
+                ))}
+              </div>
+            ) : null}
+            {strings.length ? (
+              <div className="ops-grid">
+                {strings.map((field) => (
+                  <StringField key={field.key} field={field} value={config[field.key]} />
                 ))}
               </div>
             ) : null}

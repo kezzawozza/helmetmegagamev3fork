@@ -10,15 +10,26 @@ export function corpseLabel(corpse) {
   return `${corpse.tagName} — ${corpse.source.name}`;
 }
 
-// Display names for the four yields, kept here rather than fetched: the
-// dialog needs a word, not a catalog row.
-const CORPSE_YIELD_NAMES = {
+// Display names for every yield the Butcher verb can produce — the four
+// corpse ones, plus livestock's meat and fat (ARELITZ.md §5) — kept here
+// rather than fetched: the dialog needs a word, not a catalog row.
+const YIELD_NAMES = {
   "nekker-pheromones": "Nekker Pheromones",
   "graga-sac": "a Graga Sac",
   "skinless-brain": "a Skinless Brain",
   "human-flesh": "Human Flesh",
+  meat: "Meat",
+  "rendered-fat": "Fat",
 };
 
+// `corpse.yields` is `[{ slug, quantity }, ...]` — one entry for an ordinary
+// corpse, two (meat + fat) for livestock.
 export function yieldLabel(corpse) {
-  return CORPSE_YIELD_NAMES[corpse.yieldSlug] ?? "something";
+  const parts = (corpse.yields ?? []).map(({ slug, quantity }) => {
+    const name = YIELD_NAMES[slug] ?? "something";
+    return quantity > 1 ? `${quantity} ${name}` : name;
+  });
+  if (!parts.length) return "something";
+  if (parts.length === 1) return parts[0];
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 }

@@ -58,7 +58,7 @@ function shouldPromptKeyed(link, { tagSlugs, now = new Date() } = {}) {
   return held.has(link.requiredTagSlug);
 }
 
-// The pure predicate: may a character holding `tagSlugs` cross this edge right now? Separated from the queries so the picker, mover and re-validation all reach the identical verdict from already-loaded data. `listed` is weaker than `passable`: a LOCKED edge is listed and refuses (so a player can see the door and learn they need the key), while a HIDDEN edge is not listed at all. A propped-open keyed edge satisfies its own tag requirement, which also makes a hidden one listed — deliberate: a door somebody held open must be visible to whoever is meant to follow them through it. `onFootBlocked` is the ONE input here about tags-you-have-out, not tags-you-hold — pass it from blocksOnFoot(equippedSlugs(tags)); a horse or cart in your pocket is not one you're riding or pushing.
+// The pure predicate: may a character holding `tagSlugs` cross this edge right now? Separated from the queries so the picker, mover and re-validation all reach the identical verdict from already-loaded data. `listed` is weaker than `passable`: a LOCKED edge is listed and refuses (so a player can see the door and learn they need the key), while a HIDDEN edge is not listed at all. A propped-open keyed edge satisfies its own tag requirement, which also makes a hidden one listed — deliberate: a door somebody held open must be visible to whoever is meant to follow them through it. `onFootBlocked` is the ONE input here about tags-you-have-out, not tags-you-hold — pass it from blocksOnFoot(equippedSlugs(tags)); an arelitz or cart in your pocket is not one you're riding or pushing.
 function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date() } = {}) {
   if (!link) {
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
@@ -101,7 +101,7 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
   const links = await linksFor(prisma, locationId);
   if (links.length === 0) return [];
 
-  // Loaded in the shape equippedSlugs expects, not the cheaper flat set: heldTagSlugs returns BARE slugs with no equip state, and a stowed horse must not read as a mount.
+  // Loaded in the shape equippedSlugs expects, not the cheaper flat set: heldTagSlugs returns BARE slugs with no equip state, and a stowed arelitz must not read as a mount.
   const tags =
     character?.tags ??
     (character?.id
@@ -310,7 +310,7 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS 
   if (!usable(from)) return [];
 
   // Equip-shaped, not the flat set: heldTagSlugs returns bare slugs and a stowed
-  // horse would read as one you are riding (MAP.md §2c).
+  // an arelitz would read as one you are riding (MAP.md §2c).
   const tags =
     character?.tags ??
     (character?.id
@@ -360,7 +360,7 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS 
         if (claimed.has(neighbor.id)) continue;
         claimed.add(neighbor.id);
         prev.set(neighbor.id, nodeId);
-        // Sticky: a route that took your horse off you at hop 2 is still a
+        // Sticky: a route that took your arelitz off you at hop 2 is still a
         // route you finish on foot.
         dismountBy.set(neighbor.id, Boolean(dismountBy.get(nodeId)) || neighbor.dismounts);
         next.push(neighbor.id);

@@ -166,6 +166,9 @@ export default function CharacterSheet({
   canFarm = false,
   farmBlocked = null,
   farmMaxCrops,
+  canSeeBreakIn = false,
+  canBreakIn = false,
+  breakInBlocked = null,
   canSeePackage = false,
   lootTargets = [],
   // Who a cure or an administerable item could be given to (the medical
@@ -284,6 +287,9 @@ export default function CharacterSheet({
         canFarm={canFarm}
         farmBlocked={farmBlocked}
         farmMaxCrops={farmMaxCrops}
+        canSeeBreakIn={canSeeBreakIn}
+        canBreakIn={canBreakIn}
+        breakInBlocked={breakInBlocked}
         canSeePackage={canSeePackage}
         lootTargets={lootTargets}
         consumeTargets={consumeTargets}

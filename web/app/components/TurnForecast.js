@@ -1,10 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import {
-  HORSE_UPKEEP_COST,
-  UPKEEP_SLUGS,
-} from "@lifeweb/db/lib/constants";
 import { chainTokens } from "@/lib/tagChains";
 import ChipText from "./ChipText";
 
@@ -13,8 +9,7 @@ import ChipText from "./ChipText";
 // you arrive at the end of, and whether there is dinner. Every item is derived
 // from what the sheet already loaded — nothing here is a second opinion, only
 // the turn passes read forward one step (db/lib/tagExpiryPass.js,
-// hungerPass.js, horseUpkeepPass.js, craft and structure passes,
-// locationTravel.js).
+// hungerPass.js, craft and structure passes, locationTravel.js).
 //
 // The items read INLINE, separated by · rather than one to a line. As a list
 // four short clauses made the box taller than the turn card beside it, for
@@ -77,14 +72,6 @@ export default function TurnForecast({
   }
 
 
-  // The horse's feed (and every other UPKEEP_SLUGS animal, e.g. the
-  // Arelitz), the way horseUpkeepPass.js settles it: 1 ⬢ per species held,
-  // billed separately — read straight off the same list the real pass uses,
-  // so a future addition to UPKEEP_SLUGS shows up here with no second edit.
-  const held = new Set(tags.map((ct) => ct.tag?.slug));
-  const heldUpkeepCount = UPKEEP_SLUGS.filter((slug) => held.has(slug)).length;
-  const horseCost = heldUpkeepCount * HORSE_UPKEEP_COST;
-
   // The 0-100 hunger meter (db/lib/hunger.js): no ⬢ cost any more, and never a
   // number — just a one-time warning on the turn decay would newly cross a
   // threshold. Staying in a band already entered says nothing new (the doc's
@@ -93,18 +80,6 @@ export default function TurnForecast({
     items.push(<span key="hunger">You&apos;ll start starving</span>);
   } else if (hungerWarning === "hungry") {
     items.push(<span key="hunger">You&apos;ll go hungry</span>);
-  }
-
-  // The horse's feed (and every other UPKEEP_SLUGS animal) is its own line
-  // now that Hunger costs no ⬢ to fold it into.
-  if (horseCost > 0) {
-    items.push(
-      <span key="horse-upkeep">
-        {resources >= horseCost
-          ? `Your ${heldUpkeepCount > 1 ? "animals" : "animal"} will consume ${horseCost} ⬢`
-          : "You can't feed your animal"}
-      </span>,
-    );
   }
 
   if (items.length === 0) return null;

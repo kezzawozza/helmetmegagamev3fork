@@ -52,6 +52,7 @@ import {
   packageItemsRequestImpl,
 } from "./actions/misc.js";
 import { farmRequestImpl } from "./actions/soilery.js";
+import { breakInArelitzRequestImpl } from "./actions/arelitz.js";
 import {
   birdMessageRequestImpl,
   birdReplyRequestImpl,
@@ -219,6 +220,10 @@ export async function extractGodfleshRequest(input) {
 
 export async function farmRequest(input) {
   return guarded(() => farmRequestImpl(input));
+}
+
+export async function breakInArelitzRequest(input) {
+  return guarded(() => breakInArelitzRequestImpl(input));
 }
 
 export async function packageItemsRequest(input) {

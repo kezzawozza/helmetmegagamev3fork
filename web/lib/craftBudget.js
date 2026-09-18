@@ -106,14 +106,19 @@ export function craftMoveCost(
   // A cost of one Move or less shares the Move; a project (turns ≥ 2, always a
   // whole number) takes the whole Move every turn.
   //
-  // `turns * 4` is exact: the sync refuses any cost that is not on a quarter
-  // (db/lib/tagShapes.js), and quarters are exactly representable in binary
-  // floating point, so this multiplication cannot drift. `allowance` is how
-  // many fit in a Routine — 4 at 0.25, 2 at 0.5, 1 at a whole Move — which is
-  // what the dialogs print as "up to N a turn". It used to be read off
-  // requirementPerTurn, which is a ration again now and nothing else.
+  // `turns * 1000` then reduced is exact: the sync (db/lib/tagShapes.js,
+  // SUB_MOVE_COSTS) only ever admits a cost that is a multiple of 0.005 —
+  // quarters plus Cooking's finer shares, 0.05/0.1/0.125/0.2 included — so
+  // every legal `turns` value converts to a whole number of thousandths with
+  // no drift `Math.round` cannot absorb (a `turns` not on that grid is
+  // refused at authoring time, long before this runs). `reduceFraction`
+  // brings it back down to the smallest exact denominator (1/20, 1/8, 1/5,
+  // 1/4…). `allowance` is how many fit in a Routine — 20 at 0.05, 4 at 0.25,
+  // 2 at 0.5, 1 at a whole Move — which is what the dialogs print as "up to N
+  // a turn". It used to be read off requirementPerTurn, which is a ration
+  // again now and nothing else.
   if (turns > 0 && turns <= 1 && family) {
-    const cost = reduceFraction(Math.round(quantity * turns * 4), 4);
+    const cost = reduceFraction(Math.round(quantity * turns * 1000), 1000);
     return {
       kind: "share",
       family,

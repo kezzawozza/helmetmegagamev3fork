@@ -139,7 +139,7 @@ laborType:
       - "+1"
       - "+2"
       - { slug: old-coin, rarity: common }  # turned up by the plow — sells 1 ⬢
-      - { slug: sweets, rarity: common }  # a jar someone forgot in the field — sells 2 ⬢
+      - { slug: sugar-candy, rarity: common }  # a jar someone forgot in the field — sells 2 ⬢
   basic:  # ⬢ EV/labor 0.17 · hit 26%
   skilled:  # ⬢ EV/labor 0.17 · hit 26%
   # Buffed ~50% across the board (Bascinet, 2026-09-20) — the moderate/good
@@ -155,7 +155,7 @@ laborType:
     3:  # a floor for malachite, same reasoning: face 3 carried nothing before it
       - { slug: malachite, rarity: uncommon }  # a green mineral, worth an inlay — sells 6 ⬢
     2:  # EV 2.13 ⬢ · hit 100%
-      - { slug: sweets, rarity: common }  # a rarity, tucked away and forgotten — sells 2 ⬢
+      - { slug: sugar-candy, rarity: common }  # a rarity, tucked away and forgotten — sells 2 ⬢
       - { slug: nightshade-herb, rarity: common }  # sells 2 ⬢
       - { slug: poppy-pods, rarity: common }  # sells 2 ⬢
       - { slug: coca-leaves, rarity: common }  # sells 2 ⬢

@@ -66,8 +66,15 @@ export default function CraftAction({ presets, onDone, onClose }) {
   // A build site standing here, picked from the same dropdown as a project.
   const [siteId, setSiteId] = useState("");
   const [projectChoice, setProjectChoice] = useState("continue");
-  // Which member of a recipe's `anyOf` ingredient goes in.
+  // Which member of a recipe's `anyOf` ingredient goes in — the single-picker
+  // channel every recipe used before multi-picker existed, and the Death
+  // Mask's corpse pick.
   const [ingredientChoice, setIngredientChoice] = useState("");
+  // One pick per `anyOf` picker, indexed by pickerIndex, for a recipe with
+  // MORE than one picker (Vegetable Stew, Fried Fish, Sweets — COOKING.md
+  // §A4). Stays empty on every other recipe, which uses ingredientChoice
+  // above instead — see ingredientPickers below.
+  const [ingredientPicksState, setIngredientPicksState] = useState([]);
   // The slugs a cook slotted, in order, on a recipe with `ingredientSlots`
   // (docs/systemdocs/COOKING.md). Deliberately NOT folded into
   // ingredientChoice above: that one is a single pick from a list the recipe
@@ -95,36 +102,65 @@ export default function CraftAction({ presets, onDone, onClose }) {
   const stacking = Boolean(chosen?.stackable) && !chosen?.placement;
   const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
 
+  // Every `anyOf` entry a recipe carries, in pickerIndex order. Most recipes
+  // have zero or one; Cooking's tiered recipes can carry several (Vegetable
+  // Stew, Fried Fish, Sweets — COOKING.md §A4).
+  const anyOfEntries = useMemo(
+    () => (chosen?.requirementItems ?? []).filter((i) => i?.kind === "anyOf"),
+    [chosen],
+  );
+  // Two or more pickers renders through here instead of the single
+  // ingredientPick below — one dropdown per picker, backed by
+  // ingredientPicksState.
+  const ingredientPickers = useMemo(() => {
+    if (mode !== "craft" || anyOfEntries.length < 2) return null;
+    return anyOfEntries.map((entry) => ({
+      pickerIndex: entry.pickerIndex,
+      label: entry.label,
+      options: (entry.options ?? []).filter((o) => heldSlugs.has(o.slug)),
+    }));
+  }, [mode, anyOfEntries, heldSlugs]);
   // An `anyOf` ingredient (Tag.requirementItems) is the one part of a recipe
   // the catalog cannot decide for the player: which delicacy goes into the
   // Lavish Meal. Only members they are actually holding are offered — the
   // server re-checks both membership and possession, so this is a shortlist,
-  // not a gate. At most one per recipe; the sync refuses a second.
+  // not a gate. Used only when the recipe has at most one picker;
+  // ingredientPickers above takes over past that.
   const ingredientPick = useMemo(() => {
     if (mode !== "craft") return null;
     // The Death Mask's `group` corpse entry needs a SPECIFIC body — same
     // picker, same ingredientChoice channel (a recipe never carries both an
-    // anyOf and this; the sync caps anyOf at one and only this recipe binds
-    // a group member). The server re-resolves the choice like any other
-    // (requestActions.js#resolveDeathMaskSource).
+    // anyOf and this; the sync caps a `group` recipe at no anyOf, and only
+    // this recipe binds a group member). The server re-resolves the choice
+    // like any other (requestActions.js#resolveDeathMaskSource).
     if (chosen?.slug === "death-mask") {
       return { label: "Whose face?", options: deathMaskCorpses };
     }
-    const entry = (chosen?.requirementItems ?? []).find(
-      (i) => i?.kind === "anyOf",
-    );
+    if (ingredientPickers) return null;
+    const entry = anyOfEntries[0];
     if (!entry) return null;
     return {
       label: entry.label,
       options: (entry.options ?? []).filter((o) => heldSlugs.has(o.slug)),
     };
-  }, [mode, chosen, heldSlugs, deathMaskCorpses]);
+  }, [mode, chosen, heldSlugs, deathMaskCorpses, anyOfEntries, ingredientPickers]);
   // One option needs no decision, so it is taken as made rather than asked for.
   const ingredientChoiceValue =
     ingredientChoice ||
     (ingredientPick?.options.length === 1
       ? ingredientPick.options[0].slug
       : "");
+  // Same auto-pick, per picker, for a multi-picker recipe.
+  const ingredientPicksValue = useMemo(() => {
+    if (!ingredientPickers) return [];
+    const next = [];
+    for (const picker of ingredientPickers) {
+      const existing = ingredientPicksState[picker.pickerIndex];
+      next[picker.pickerIndex] =
+        existing || (picker.options.length === 1 ? picker.options[0].slug : "");
+    }
+    return next;
+  }, [ingredientPickers, ingredientPicksState]);
 
   // COOKING (docs/systemdocs/COOKING.md). Deliberately NOT given the auto-pick
   // above: slotting a cook's only onion into a Fine Meal because it was the
@@ -268,7 +304,10 @@ export default function CraftAction({ presets, onDone, onClose }) {
     let max = 99;
     for (const item of chosen.requirementItems ?? []) {
       if (item.keep || item.kind === "group") continue;
-      const slug = item.kind === "anyOf" ? ingredientChoiceValue : item.slug;
+      const slug =
+        item.kind === "anyOf"
+          ? (ingredientPicksValue[item.pickerIndex] ?? ingredientChoiceValue)
+          : item.slug;
       if (!slug) continue;
       max = Math.min(max, Math.floor((heldBySlug.get(slug) ?? 0) / (item.count ?? 1)));
     }
@@ -311,6 +350,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
     chosen,
     heldBySlug,
     ingredientChoiceValue,
+    ingredientPicksValue,
     ingredientChoices,
     craftAllowances,
     craftRemaining,
@@ -320,6 +360,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
     setTagId(nextTagId);
     setQuantity("1");
     setIngredientChoice("");
+    setIngredientPicksState([]);
     setIngredientChoices([]);
     setCustomName("");
     setCustomDescription("");
@@ -454,6 +495,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
       customDescription,
       inscription,
       ingredientChoice: ingredientChoiceValue,
+      ingredientPicks: ingredientPicksValue,
       ingredientChoices,
       // What the confirm just showed as billable against the Move — 0
       // when it read as free. The server refuses to bill past this, so a
@@ -482,6 +524,8 @@ export default function CraftAction({ presets, onDone, onClose }) {
     if (!chosen) return false;
     // A recipe with a pick and nothing to pick from cannot be made at all.
     if (ingredientPick && !ingredientChoiceValue) return false;
+    // Same rule, one picker at a time, for a multi-picker recipe.
+    if (ingredientPickers && ingredientPicksValue.some((v) => !v)) return false;
     // A Lavish Meal needs something in it. A Fine Meal's slot is optional, so
     // min 0 never blocks (docs/systemdocs/COOKING.md).
     if (ingredientChoices.length < (ingredientSlots?.min ?? 0)) return false;
@@ -546,6 +590,16 @@ export default function CraftAction({ presets, onDone, onClose }) {
           // and 1 honey), so switching resets the count rather than
           // stranding a 5 over a max of 1.
           setIngredientChoice(slug);
+          setQuantity("1");
+        }}
+        ingredientPickers={ingredientPickers}
+        ingredientPicksValue={ingredientPicksValue}
+        onIngredientPick={(pickerIndex, slug) => {
+          setIngredientPicksState((prev) => {
+            const next = [...prev];
+            next[pickerIndex] = slug;
+            return next;
+          });
           setQuantity("1");
         }}
         ingredientSlots={ingredientSlots}

@@ -27,7 +27,7 @@ import {
 } from "@/lib/discordGuild";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
-import { corpsesInReach } from "@lifeweb/db/lib/corpses";
+import { corpsesInReach, livestockInReach } from "@lifeweb/db/lib/corpses";
 import {
   partFor,
   resolveMutilation,
@@ -84,6 +84,33 @@ async function takeCorpse(tx, corpse) {
     throw new UserError("That body isn't there any more.");
 }
 
+// Livestock's own version (ARELITZ.md §5): takes ONE unit off the stack,
+// never the whole row — a corpse is always singular, but a stabled arelitz
+// stack can hold several, and butchering one must not eat the herd.
+async function takeLivestockUnit(tx, livestock) {
+  if (livestock.source.kind === "room") {
+    const { ok } = await dropRoomTag(tx, livestock.source.id, livestock.tagId, 1);
+    if (!ok) throw new UserError("That animal isn't there any more.");
+    return;
+  }
+  await dropCharacterTag(tx, livestock.source.id, livestock.tagId, 1);
+}
+
+// Butcher's reach rule spans both sources it accepts — a corpse (CORPSES.md)
+// or livestock (ARELITZ.md §5) — re-resolved server-side every time, same
+// posture as resolveCorpseSource above.
+async function resolveButcherable(character, { tagId, sourceKey }) {
+  const [corpses, livestock] = await Promise.all([
+    corpsesInReach(prisma, character),
+    livestockInReach(prisma, character),
+  ]);
+  const found = [...corpses, ...livestock].find(
+    (c) => c.tagId === tagId && c.sourceKey === sourceKey,
+  );
+  if (!found) throw new UserError("That's not there any more.");
+  return found;
+}
+
 // Butchering. FREE — no ⬢, no Move — and consumes the body. Deliberately does NOT free the soul: no burial means the
 // player stays Cursed. Engrave exists to fill that hole.
 export async function butcherCorpseRequestImpl({
@@ -97,17 +124,26 @@ export async function butcherCorpseRequestImpl({
     throw new UserError("You don't know how to butcher.");
   }
 
-  const corpse = await resolveCorpseSource(character, { tagId, sourceKey });
-  const yieldTag = await prisma.tag.findUnique({
-    where: { slug: corpse.yieldSlug },
-  });
+  const corpse = await resolveButcherable(character, { tagId, sourceKey });
+  // Livestock yields several tags at once (meat + fat — ARELITZ.md §5); a
+  // corpse always yields exactly one. Same shape either way: `corpse.yields`
+  // is `[{ slug, quantity }, ...]`.
+  const yieldSlugs = corpse.yields.map((y) => y.slug);
+  const yieldTags = await prisma.tag.findMany({ where: { slug: { in: yieldSlugs } } });
+  const yieldTagBySlug = new Map(yieldTags.map((t) => [t.slug, t]));
   // A catalog out of step with the code — refuse rather than silently grant nothing, which would read as a broken button.
-  if (!yieldTag) throw new UserError("Nothing comes of that one. Tell a GM.");
+  if (yieldTagBySlug.size !== new Set(yieldSlugs).size) {
+    throw new UserError("Nothing comes of that one. Tell a GM.");
+  }
 
   const openTurn = await getOpenTurn();
-  const expiresTurn = await expiryForGrant(prisma, yieldTag, openTurn, {
-    reason: "butcher",
-  });
+  const expiryEntries = await Promise.all(
+    corpse.yields.map(async (y) => [
+      y.slug,
+      await expiryForGrant(prisma, yieldTagBySlug.get(y.slug), openTurn, { reason: "butcher" }),
+    ]),
+  );
+  const expiresTurnBySlug = new Map(expiryEntries);
 
   // A human body also gives up whatever Mutilate hasn't already taken — every ladder run to its end in one pass instead of nine presses.
   let subject = null;
@@ -156,12 +192,16 @@ export async function butcherCorpseRequestImpl({
   }
 
   await prisma.$transaction(async (tx) => {
-    await takeCorpse(tx, corpse);
-    await addToStack(tx, character.id, yieldTag.id, 1, {
-      source: "EVENT",
-      expiresTurn,
-      stackable: yieldTag.stackable,
-    });
+    if (corpse.livestock) await takeLivestockUnit(tx, corpse);
+    else await takeCorpse(tx, corpse);
+    for (const y of corpse.yields) {
+      const tag = yieldTagBySlug.get(y.slug);
+      await addToStack(tx, character.id, tag.id, y.quantity, {
+        source: "EVENT",
+        expiresTurn: expiresTurnBySlug.get(y.slug),
+        stackable: tag.stackable,
+      });
+    }
     for (const h of harvests) {
       const grantTag = organTagBySlug.get(h.grantSlug);
       const itemTag = organTagBySlug.get(h.itemSlug);
@@ -185,7 +225,7 @@ export async function butcherCorpseRequestImpl({
       targetCharacterId: corpse.deadCharacterId ?? character.id,
       details: {
         corpse: corpse.tagName,
-        made: yieldTag.name,
+        made: corpse.yields.map((y) => yieldTagBySlug.get(y.slug).name),
         source: corpse.source.kind,
         ...(harvests.length
           ? { organs: harvests.map((h) => ({ part: h.part, quantity: h.quantity })) }
@@ -206,12 +246,12 @@ export async function butcherCorpseRequestImpl({
   // A public room's contents changing is public by nature (CARRY.md §6).
   if (corpse.source.kind === "room") {
     after(() =>
-      announceInRoom(corpse.source, character, "butchers a body here."),
+      announceInRoom(corpse.source, character, corpse.livestock ? "butchers an arelitz here." : "butchers a body here."),
     );
   }
 
   revalidateAll();
-  return { made: yieldTag.name };
+  return { made: corpse.yields.map((y) => yieldTagBySlug.get(y.slug).name).join(" and ") };
 }
 
 // Mutilating. One piece off a bound person or a corpse, FREE — no ⬢, no Move, no turn. Press again for the next

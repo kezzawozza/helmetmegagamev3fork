@@ -182,13 +182,32 @@ export async function resolveIngredientSlots(character, tag, quantity, ingredien
 }
 
 // requirementItems: most entries are SPENT `quantity` per craft (× an entry's own `count` multiplier); `keep` is a
-// hold-check instead (a body has its own lifecycle — a second Miasma bottled over the same corpse is still fine); `group` is always kept and is the only way to name a corpse written at death; `anyOf` is a spend the PLAYER picks via `ingredientChoice`, and the membership check here is what makes the dialog a hint, not a lock.
-function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
+// hold-check instead (a body has its own lifecycle — a second Miasma bottled over the same corpse is still fine); `group` is always kept and is the only way to name a corpse written at death; `anyOf` is a spend the PLAYER picks, and the membership check here is what makes the dialog a hint, not a lock.
+// A recipe with several `anyOf` pickers (Vegetable Stew, Fried Fish, Sweets — COOKING.md §A4) is answered by `ingredientPicks[entry.pickerIndex]`; `ingredientChoice` is the single-picker channel every recipe used before multi-picker existed (plus the Death Mask's corpse pick, a different use of the same field) and is read as picker 0's fallback so no existing recipe or dialog needs to change.
+function resolveRecipeItems(character, tag, quantity, ingredientChoice, ingredientPicks) {
   const items = Array.isArray(tag.requirementItems) ? tag.requirementItems : [];
   const plan = { spend: [], hold: [] };
   if (!items.length) return plan;
   const held = character.tags.filter((ct) => ct.tag);
   const bySlug = new Map(held.map((ct) => [ct.tag.slug, ct]));
+  // Merges into an existing plan.spend entry for the same tagId rather than
+  // pushing a duplicate — two `anyOf` pickers can land on the same slug
+  // (Fried Fish's two identical fish choices), and consumeRecipeItems must
+  // see one cumulative need checked against the actual held quantity, not
+  // two independent entries each individually under the total.
+  const pushSpend = (ct, tagName, needed) => {
+    const existing = plan.spend.find((s) => s.tagId === ct.tagId);
+    const total = (existing?.quantity ?? 0) + needed;
+    if (ct.quantity < total) {
+      throw new UserError(
+        total > 1
+          ? `Making ${quantity > 1 ? `${quantity} of those` : "that"} takes ${total} × ${tagName}, and you have ${ct.quantity}.`
+          : `Making that needs ${tagName}.`,
+      );
+    }
+    if (existing) existing.quantity = total;
+    else plan.spend.push({ tagId: ct.tagId, tagName, quantity: needed });
+  };
   for (const item of items) {
     if (item.kind === "group") {
       if (!held.some((ct) => ct.tag.group?.slug === item.slug)) {
@@ -209,20 +228,14 @@ function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
         continue;
       }
       const needed = quantity * (item.count ?? 1);
-      if (ct.quantity < needed) {
-        throw new UserError(
-          needed > 1
-            ? `Making ${quantity > 1 ? `${quantity} of those` : "that"} takes ${needed} × ${item.label}, and you have ${ct.quantity}.`
-            : `Making that needs ${item.label}.`,
-        );
-      }
-      plan.spend.push({ tagId: ct.tagId, tagName: ct.tag.name ?? item.label, quantity: needed });
+      pushSpend(ct, ct.tag.name ?? item.label, needed);
       continue;
     }
     let slug = item.slug;
     if (item.kind === "anyOf") {
-      const choice =
-        typeof ingredientChoice === "string" ? ingredientChoice.trim() : "";
+      const raw = Array.isArray(ingredientPicks) ? ingredientPicks[item.pickerIndex] : undefined;
+      const picked = raw ?? ingredientChoice;
+      const choice = typeof picked === "string" ? picked.trim() : "";
       if (!choice || !item.slugs.includes(choice)) {
         throw new UserError(`Choose which of ${item.label} goes into it.`);
       }
@@ -236,14 +249,14 @@ function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
       continue;
     }
     const needed = quantity * (item.count ?? 1);
-    if (!ct || ct.quantity < needed) {
+    if (!ct) {
       throw new UserError(
         needed > 1
-          ? `Making ${quantity > 1 ? `${quantity} of those` : "that"} takes ${needed} × ${name}, and you have ${ct?.quantity ?? 0}.`
+          ? `Making ${quantity > 1 ? `${quantity} of those` : "that"} takes ${needed} × ${name}, and you have 0.`
           : `Making that needs ${name}.`,
       );
     }
-    plan.spend.push({ tagId: ct.tagId, tagName: name, quantity: needed });
+    pushSpend(ct, name, needed);
   }
   return plan;
 }
@@ -386,6 +399,16 @@ function craftLabel(tag, quantity) {
   return quantity > 1 ? `${quantity}× ${tag.name}` : tag.name;
 }
 
+// "Quantity Produced" (COOKING.md §A5) — recipe runs times the recipe's own
+// requirementYield. Read off the RECIPE tag, never a minted custom-craft
+// clone (which carries no requirementYield). Deliberately excludes
+// Distilling's doubling, matching that bonus's existing precedent of never
+// showing in the "made:" label — see grantCrafted's own `granted` for the
+// number that actually lands in the stack.
+function producedQuantity(recipeTag, quantity) {
+  return quantity * (recipeTag.requirementYield ?? 1);
+}
+
 
 // FIFTH runtime authoring door onto the tag catalog (db/lib/paperMint.js has the other four): a `customizable` recipe mints a custom+ephemeral clone (`craftable: false`, an ITEM never a recipe) and grants THAT row. Runs OUTSIDE the craft tx (createWithRetry's P2002 retry can't nest, and name collisions are routine — reused if identical, "(2)"'d if not; caller deletes a fresh mint if the tx then fails).
 // Lives in db/lib/customCraftMint.js (db/lib can't require web/); this wrapper reraises its plain Error as a UserError.
@@ -429,7 +452,14 @@ async function grantCrafted(
   const distilled =
     craftFamily(recipeTag) === "brewing" &&
     (character.tags ?? []).some((ct) => ct.tag?.slug === BREWING_DISTILLING_SLUG);
-  const granted = distilled ? quantity * 2 : quantity;
+  // "Quantity Produced" (COOKING.md §A5, Tag.requirementYield) multiplies onto
+  // the stack the same way Distilling's doubling does — both are downstream of
+  // the ingredient plan and the ⬢ spend, which are priced off `quantity` alone
+  // and must never also see either multiplier. Read off the RECIPE
+  // (recipeTag), not the possibly-minted `tag` — a minted custom-craft row
+  // carries no `requirementYield` of its own.
+  const yielded = quantity * (recipeTag.requirementYield ?? 1);
+  const granted = distilled ? yielded * 2 : yielded;
   await addToStack(tx, character.id, tag.id, granted, {
     source: "CRAFT",
     // Must arrive already stamped or it never expires — resolveNeeds()'s sweep matches on expiresTurn and nothing backfills it.
@@ -453,6 +483,12 @@ async function grantCrafted(
       quantity,
       // Only when the doubling actually landed — addToStack pins a non-stackable tag at quantity 1 regardless, so a non-stackable brew doubles to nothing and a row claiming otherwise would lie in the GM ledger.
       ...(distilled && tag.stackable ? { granted, distilled: true } : {}),
+      // Same posture, for a recipe whose "Quantity Produced" is itself > 1
+      // (Pizza Slice: 3) — recorded so a GM reading the ledger sees why the
+      // stack grew by more than `quantity`.
+      ...(recipeTag.requirementYield && recipeTag.requirementYield !== 1 && tag.stackable
+        ? { granted, yieldPerCraft: recipeTag.requirementYield }
+        : {}),
       resourcesSpent: cost,
       payer: payerParty,
       projectId: project?.id ?? null,
@@ -529,8 +565,10 @@ export async function craftRequestImpl({
   tagId,
   quantity: rawQuantity,
   payerKey,
-  // Which member of an `anyOf` ingredient goes in — a slug the dialog posts, re-checked for membership and possession like everything else a client sends.
+  // Which member of an `anyOf` ingredient goes in — a slug the dialog posts, re-checked for membership and possession like everything else a client sends. The single-picker channel; also the Death Mask's corpse pick.
   ingredientChoice,
+  // One pick per `anyOf` picker, indexed by pickerIndex — a recipe with several pickers (Vegetable Stew, Fried Fish, Sweets — COOKING.md §A4) posts one entry per picker here instead of the single `ingredientChoice`. Absent falls back to `ingredientChoice` for picker 0, so a one-picker recipe needs neither field to change.
+  ingredientPicks,
   // Slugs a cook slotted, in order, on a recipe with `ingredientSlots` (COOKING.md) — an ordered set out of a catalog the recipe names nothing about, unlike `ingredientChoice`'s pick from a named list. Re-checked here for membership, possession and count, so the chip list is a hint like any other disabled control.
   ingredientChoices,
   // Custom-item fields (CRAFTING.md), honored only on a `customizable` recipe. cleanCustomText decides what survives — the dialog priced the +1 ⬢ with the same helper, so client and server can't disagree on whether a whitespace-only name counts.
@@ -567,6 +605,7 @@ export async function craftRequestImpl({
     tag,
     quantity,
     ingredientChoice,
+    ingredientPicks,
   );
   // Ingredient slots, on top of `items` (COOKING.md). Legal set is every tag with a `cooked` block, read here rather than named on the recipe — `cooked: { not: null }` is the membership check itself.
   const posted = (Array.isArray(ingredientChoices) ? ingredientChoices : [])
@@ -717,7 +756,7 @@ export async function craftRequestImpl({
     ]);
     payerNotice(character, payer, cost, tag);
     revalidateAll();
-    return { made: craftLabel(grant?.tag ?? tag, quantity) };
+    return { made: craftLabel(grant?.tag ?? tag, producedQuantity(tag, quantity)) };
   }
 
   // Real work: this turn's Move, and a project if it takes more than one. Quantity is limited by WORK ARITHMETIC and nothing else: a unit costs its `turnsCost` of the Move (a whole turn, or the decimal share a part-turn recipe authors), so a brewer's Routine holds four 0.25-turn Alcohol and a smith's holds ONE broadsword, and a spare part-turn takes more same-family work or none. A project takes the Move whole every turn it runs, so it can never share one, and makes ONE unit — wanting two means starting it twice.
@@ -862,7 +901,7 @@ export async function craftRequestImpl({
   payerNotice(character, payer, cost, tag);
   revalidateAll();
   return done
-    ? { made: craftLabel(grant?.tag ?? tag, quantity) }
+    ? { made: craftLabel(grant?.tag ?? tag, producedQuantity(tag, quantity)) }
     : { started: craftLabel(tag, quantity), turns };
 }
 
@@ -1003,7 +1042,7 @@ export async function continueCraftImpl({ projectId }) {
   if (done) await afterInventoryChange(character.id);
   revalidateAll();
   return done
-    ? { made: craftLabel(grant?.tag ?? tag, project.quantity) }
+    ? { made: craftLabel(grant?.tag ?? tag, producedQuantity(tag, project.quantity)) }
     : {
         continued: craftLabel(tag, project.quantity),
         turnsDone: next,

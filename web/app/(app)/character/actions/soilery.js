@@ -10,6 +10,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { hasAttribute, SOILERY_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { sowableCrops, validatePlan, farmRefusalFor, FARM_MAX_CROPS } from "@lifeweb/db/lib/soilery";
+import { FERTILIZED_FIELDS_SLUG } from "@lifeweb/db/lib/constants";
 import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
 import { logAudit } from "@/lib/requests";
 import { dropCharacterTag } from "@/lib/tagEffects";
@@ -74,8 +75,16 @@ export async function farmRequestImpl({ lines }) {
     }
   }
 
+  // Fertilizer's addendum (SOILERY.md): not spent here, and not re-checked
+  // under the lock — the buff is a 2-turn status, and nothing spends it at
+  // farm time (the 3-turn fatigue lockout already means one bottle covers
+  // exactly one fertilized farm either way), so the outer snapshot is exactly
+  // as good as a fresh one.
+  const fertilized = character.tags.some((ct) => ct.tag?.slug === FERTILIZED_FIELDS_SLUG);
+
   const farmPlan = {
-    v: 1,
+    v: 2,
+    fertilized,
     rows: lines.map((row) => {
       const tag = tagBySlug.get(row.crop);
       return { slug: row.crop, tagId: tag.id, tagName: tag.name, planted: row.planted };

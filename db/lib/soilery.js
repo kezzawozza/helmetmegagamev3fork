@@ -10,6 +10,9 @@ const { LABORING_FARMING_SLUG, EXHAUSTED_SLUG, TIRED_SLUG } = require("./constan
 const FARM_MAX_CROPS = 50;
 // 1-in-6 fails, independently PER UNIT sown — not a rounded average. See reap() below for why.
 const WITHER_IN = 6;
+// Fertilizer's addendum: nothing withers, and 1-in-6 comes up double instead
+// — same die, same independence, opposite outcome table. See reap() below.
+const BOUNTY_IN = 6;
 
 const CROPS = [
   { sowing: "sowing-wheat", crop: "wheat" },
@@ -72,12 +75,21 @@ function validatePlan(plan, licensed, maxCrops = FARM_MAX_CROPS) {
 // real per-unit variance (a small planting can wholly fail or wholly
 // survive), which a rounded average can never produce and which later tests
 // are expected to check for.
-function reap(planted, rng = Math.random) {
-  let survived = 0;
+//
+// `fertilized` swaps the whole outcome table (SOILERY.md's Addendum): no
+// wither roll at all, replaced by an independent 1-in-BOUNTY_IN chance of
+// TWO foodstuff instead of one, per planted unit. Same die shape, opposite
+// direction — never both rolled for the same unit.
+function reap(planted, rng = Math.random, { fertilized = false } = {}) {
+  let harvested = 0;
   for (let i = 0; i < planted; i++) {
-    if (Math.floor(rng() * WITHER_IN) !== 0) survived++;
+    if (fertilized) {
+      harvested += Math.floor(rng() * BOUNTY_IN) === 0 ? 2 : 1;
+    } else if (Math.floor(rng() * WITHER_IN) !== 0) {
+      harvested++;
+    }
   }
-  return survived;
+  return harvested;
 }
 
 // "sowed 30 Wheat and reaped 25, sowed 20 Potato and reaped 18"
@@ -88,9 +100,11 @@ function harvestLine(rows) {
 }
 
 // The turn-close DM text for a farm's harvest — harvestLine does the counting, this says it in scene.
-function farmDm(turn, rows) {
+// `fertilized` adds a line so a player who spent on Fertilizer is told it did something.
+function farmDm(turn, rows, fertilized = false) {
   const line = harvestLine(rows);
-  return `*The Farms brought in their harvest, turn ${turn}.*\n**Harvest:** ${line}`;
+  const fertilizedLine = fertilized ? "\nThe fields were richly fed — nothing withered, and some came up double." : "";
+  return `*The Farms brought in their harvest, turn ${turn}.*\n**Harvest:** ${line}${fertilizedLine}`;
 }
 
 // Null means "go ahead"; a string is the refusal to show the player.
@@ -114,6 +128,7 @@ function farmRefusalFor(characterTags, hasOpenAction) {
 module.exports = {
   FARM_MAX_CROPS,
   WITHER_IN,
+  BOUNTY_IN,
   CROPS,
   sowableCrops,
   validatePlan,

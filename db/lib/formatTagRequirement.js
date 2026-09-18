@@ -10,13 +10,14 @@
 //
 // Takes a num/den pair because that is what the Move ledger holds
 // (web/lib/craftBudget.js keeps exact rationals so a turn adds up), and prints
-// the quotient: 0.25, 0.5, 1, 1.5. Trailing zeroes are trimmed, so a whole Move
-// reads "1" and not "1.00". Two decimal places is the cap, which only a spill
-// against an odd ration can reach — a ration of 3 bills a third of a Move and
-// prints 0.33.
+// the quotient: 0.25, 0.5, 1, 1.5, 0.125. Trailing zeroes are trimmed, so a
+// whole Move reads "1" and not "1.000". Three decimal places is the cap —
+// Cooking's Pancakes costs 0.125 of a Move, which two places rounds to "0.13"
+// and prints a wrong number; a spill against an odd ration can still reach a
+// third place on its own, e.g. a ration of 3 billing 0.333.
 function formatMoveAmount(num, den = 1) {
   const value = den ? num / den : 0;
-  return String(Number(value.toFixed(2)));
+  return String(Number(value.toFixed(3)));
 }
 
 // Null when there's nothing to report (0 turns or no requirement block).

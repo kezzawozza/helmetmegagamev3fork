@@ -325,14 +325,28 @@ separate marker, cleared by the mood pass instead — `MOOD.md` §8) carries a
 corrected comment in `docs/tags.yaml` reflecting the same fact: it no longer
 claims the hunger pass eats `ate-meal`, since nothing does that any more.
 
-## 8. Cooking needed no new code
+## 8. Cooking, and the Fertilizer addendum
 
-Cooking (the design doc's page 2) is already fully built. Any tag with a
-`cooked:` block — including every new crop and foodstuff tag from §6 — is
-automatically a valid Cooking ingredient the moment `docs/tags.yaml` is
-synced. `cooked.hunger` and `cooked.tasteForm` are the only two additions
-Cooking's own code needed to learn to read (`COOKING.md` §3), and both are
-opt-in fields on the same block Cooking already parsed.
+Cooking (the design doc's page 2) needed no new code **for this crop/
+foodstuff pass**: any tag with a `cooked:` block — including every new crop
+and foodstuff tag from §6 — is automatically a valid Cooking ingredient the
+moment `docs/tags.yaml` is synced. `cooked.hunger` and `cooked.tasteForm` are
+the two additions Cooking's own code needed to learn to read (`COOKING.md`
+§3), and both are opt-in fields on the same block Cooking already parsed. A
+**later** pass did rebuild the rest of Cooking, replacing the old Fine/Lavish
+Meal pair with the design doc's 31 named recipes — see `COOKING.md` §2a,
+which is unrelated to the crop/foodstuff catalog this file covers.
+
+The design doc's Addendum — Fertilizer disables the wither roll and replaces
+it with an independent 1-in-6 (`BOUNTY_IN`) chance of double yield per
+planted unit — lives in `db/lib/soilery.js#reap`'s `fertilized` option, not a
+separate function: same per-unit loop shape, opposite outcome table, and the
+two are mutually exclusive per unit. `farmRequestImpl` reads whether the
+character holds `fertilized-fields` (unconsumed — the buff's existing 2-turn
+duration already covers exactly one farm, since the Exhausted-outright
+lockout is 3 turns) and stamps it onto `farmPlan` (`v: 2` now,
+`{ fertilized: boolean }` added), read at push by `moveEffects.js`'s `farmed`
+entry the same way every other farmPlan field is.
 
 ## 9. Where the code lives
 

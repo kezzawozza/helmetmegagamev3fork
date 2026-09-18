@@ -339,7 +339,7 @@ test("a consume is worth its largest single figure, never a sum", () => {
   // Bliss lands two statuses and is one drink.
   assert.equal(consumeReliefFor("bliss", ["euphoric", "high"]), 35);
   // A treat is a treat, not a treat plus a meal.
-  assert.equal(consumeReliefFor("sweets", ["ate-meal"]), 9);
+  assert.equal(consumeReliefFor("sugar-candy", ["ate-meal"]), 9);
   assert.equal(consumeReliefFor("honeyed-cakes", ["ate-meal"]), 9);
   assert.equal(consumeReliefFor("coffee", ["caffeinated"]), 17);
   assert.equal(consumeReliefFor("sky-lantern", []), 9);

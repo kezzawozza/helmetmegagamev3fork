@@ -57,9 +57,18 @@ export default function CraftDialog({
   moveOk = true,
   // The one ingredient a recipe leaves to the player: { label, options } for
   // an `anyOf` entry, already narrowed to what this character holds, or null.
+  // Null on a recipe with MORE than one anyOf picker — that renders through
+  // ingredientPickers below instead (COOKING.md §A4's tiered recipes).
   ingredientPick = null,
   ingredientChoice = "",
   onIngredientChoice,
+  // [{ pickerIndex, label, options }], one per anyOf entry, for a recipe with
+  // two or more pickers (Vegetable Stew, Fried Fish, Sweets). Null on every
+  // other recipe, which uses ingredientPick above instead — a recipe never
+  // renders both.
+  ingredientPickers = null,
+  ingredientPicksValue = [],
+  onIngredientPick,
   // Cooking (docs/systemdocs/COOKING.md). A separate channel from the `anyOf`
   // pick above because they answer different questions: that one names a
   // member of a list the recipe wrote down, this one is an ordered set out of
@@ -304,6 +313,28 @@ export default function CraftDialog({
                     them.
                   </p>
                 ))}
+              {ingredientPickers?.map((picker) =>
+                picker.options.length > 0 ? (
+                  <label className="field" key={picker.pickerIndex}>
+                    <span className="field-label">Which {picker.label}?</span>
+                    <Select
+                      value={ingredientPicksValue[picker.pickerIndex] ?? ""}
+                      onChange={(e) => onIngredientPick(picker.pickerIndex, e.target.value)}
+                    >
+                      <option value="">Choose one…</option>
+                      {picker.options.map((o) => (
+                        <option key={o.slug} value={o.slug}>
+                          {o.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                ) : (
+                  <p className="text-xs text-accent" key={picker.pickerIndex}>
+                    This needs {picker.label}, and you have none of them.
+                  </p>
+                ),
+              )}
               {ingredientSlots && (
                 <div className="field">
                   <span className="field-label">

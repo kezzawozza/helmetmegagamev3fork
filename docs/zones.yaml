@@ -1315,6 +1315,15 @@ zones:
             stash:
               items:
                 work-knife: 1
+          # The Stable (ARELITZ.md) — a placeholder Room the same way `farms`
+          # itself is a placeholder Location for Soilery: when the Farms
+          # rework lands, `stable: true` moves to whatever Room replaces this
+          # one and db/lib/stablePass.js needs no code change to follow it.
+          farms-stable:
+            name: Stable
+            description: >-
+              A low, timber-roofed stable built onto the side of the fields. Straw covers the floor, and something large is breathing in the dark past the gate.
+            stable: true
           farms-village-green:
             name: Village Green
             description: >-
@@ -1937,7 +1946,7 @@ zones:
                 name: Storefront
                 description: >-
                   An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the shuttle landing pad.
-                stash: [tea, sweets]
+                stash: [tea, sugar-candy]
               depot-landing-pad:
                 name: Landing Pad
                 access: [depot-keycard]

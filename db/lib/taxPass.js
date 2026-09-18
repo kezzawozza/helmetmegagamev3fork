@@ -1,5 +1,5 @@
 // What a filed tax actually DOES: moves ⬢ or Obols from the target to the taxer, unless refused — the close-of-turn half of Taxman (docs/tags.yaml's `taxman`; db/lib/tax.js files the row, this resolves it). Run from db/index.js#resolveNeeds().
-// Slot: right after "stagedPush", before "tagExpiry" — after autoLabor (taxes what the day earned) and a GM's own staged adjudication, and BEFORE "horseUpkeep"/"hunger" (a tax is the same kind of levy as the animal eating first).
+// Slot: right after "stagedPush", before "tagExpiry" — after autoLabor (taxes what the day earned) and a GM's own staged adjudication, and BEFORE "hunger" (a tax is the same kind of levy).
 // ONE TRANSACTION PER ROW, never one around the whole batch (stagedPush.js's rule): a bad row must not roll back the others.
 // CATATONIC IS NOT SPECIAL-CASED, ANYWHERE IN THIS FILE, AND MUST STAY THAT WAY — a Catatonic target simply never clicks Refuse. Adding an `if (catatonic)` branch would invent a permission this tag was never meant to carry.
 const { resolveParty } = require("./parties");

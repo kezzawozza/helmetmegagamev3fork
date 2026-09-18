@@ -20,6 +20,12 @@ const {
   validateExpiresInto,
   normalizeRemovesInto,
   validateRemovesInto,
+  normalizeRequirementItems,
+  validateRequirementItems,
+  normalizeRequirementYield,
+  validateRequirementYield,
+  normalizeMealTaste,
+  validateMealTasteForm,
 } = require("../lib/tagShapes");
 
 const knownSlugs = new Set([
@@ -210,7 +216,7 @@ test("normalizeTurnsCost accepts a whole-number turnsCost, and null when unset",
 // A part-turn cost is the number itself now; nothing is folded into
 // requirementPerTurn, which is a ration again and nothing else.
 test("normalizeTurnsCost takes a decimal number of Moves and leaves perTurn alone", () => {
-  for (const turnsCost of [0.25, 0.5, 0.75, 1, 2, 6]) {
+  for (const turnsCost of [0.05, 0.1, 0.125, 0.2, 0.25, 0.5, 0.75, 1, 2, 6]) {
     assert.deepEqual(normalizeTurnsCost({ turnsCost }, { slug: "x" }), {
       requirementTurns: turnsCost,
       requirementPerTurn: null,
@@ -218,14 +224,16 @@ test("normalizeTurnsCost takes a decimal number of Moves and leaves perTurn alon
   }
 });
 
-// The quarter is not fussiness: the Move budget is exact rational arithmetic
+// Exactness is not fussiness: the Move budget is exact rational arithmetic
 // (web/lib/craftBudget.js), and a cost it cannot hold exactly would let a
-// character do work they never paid for.
-test("normalizeTurnsCost refuses a cost that is not on a quarter", () => {
-  for (const turnsCost of [0.1, 0.33, 0.125, 0.3, -0.25, -1]) {
+// character do work they never paid for. 0.1/0.125/0.2 are legal now
+// (Cooking's finer shares, COOKING.md) — 0.33/0.3 stay refused because
+// nothing on the grid can hold them exactly.
+test("normalizeTurnsCost refuses a cost that is not on the exact grid", () => {
+  for (const turnsCost of [0.33, 0.3, -0.25, -1]) {
     assert.throws(
       () => normalizeTurnsCost({ turnsCost }, { slug: "x" }),
-      /turnsCost must be a number of Moves on a quarter/,
+      /turnsCost must be an exact number of Moves/,
       `expected ${turnsCost} to be refused`,
     );
   }
@@ -332,5 +340,96 @@ test("validateRemovesInto refuses dead — curing a wound must never be able to 
         label: "test",
       }),
     /unknown tag "dead"/,
+  );
+});
+
+// Cooking's multi-ingredient recipes (Vegetable Stew, Fried Fish, Sweets —
+// COOKING.md §A4) need more than one anyOf picker per recipe, each answered
+// independently by pickerIndex.
+test("normalizeRequirementItems stamps each anyOf with a 0-based pickerIndex, counted only across anyOf entries", () => {
+  const items = normalizeRequirementItems([
+    "sword",
+    { anyOf: ["leeches", "cleaning-powder"] },
+    { anyOf: ["bruised", "infected"] },
+  ]);
+  assert.equal(items[0].kind, "tag");
+  assert.equal(items[1].pickerIndex, 0);
+  assert.equal(items[2].pickerIndex, 1);
+});
+
+test("validateRequirementItems accepts several anyOf pickers, including two with identical slugs", () => {
+  const items = normalizeRequirementItems([
+    { anyOf: ["leeches", "cleaning-powder"] },
+    { anyOf: ["leeches", "cleaning-powder"] },
+  ]);
+  assert.doesNotThrow(() =>
+    validateRequirementItems(items, {
+      selfSlug: "fried-fish",
+      tagSlugs: knownSlugs,
+      groupSlugs: new Set(),
+      craftable: true,
+    }),
+  );
+});
+
+test("validateRequirementItems still refuses a genuine non-anyOf duplicate", () => {
+  const items = normalizeRequirementItems(["sword", "sword"]);
+  assert.throws(
+    () =>
+      validateRequirementItems(items, {
+        selfSlug: "x",
+        tagSlugs: knownSlugs,
+        groupSlugs: new Set(),
+        craftable: true,
+      }),
+    /lists requirement item "sword" twice/,
+  );
+});
+
+// requirement.yield — "Quantity Produced" (COOKING.md §A5).
+test("normalizeRequirementYield: null stays null, a positive integer passes, anything else is refused", () => {
+  assert.equal(normalizeRequirementYield(null, { slug: "x" }), null);
+  assert.equal(normalizeRequirementYield(3, { slug: "x" }), 3);
+  assert.throws(() => normalizeRequirementYield(0, { slug: "x" }), /whole number of 1 or more/);
+  assert.throws(() => normalizeRequirementYield(1.5, { slug: "x" }), /whole number of 1 or more/);
+});
+
+test("validateRequirementYield refuses a non-craftable, a placement, or a multi-turn project", () => {
+  const base = { selfSlug: "x" };
+  assert.doesNotThrow(() => validateRequirementYield(2, { ...base, craftable: true }));
+  assert.throws(
+    () => validateRequirementYield(2, { ...base, craftable: false }),
+    /declares requirement.yield but is not craftable/,
+  );
+  assert.throws(
+    () => validateRequirementYield(2, { ...base, craftable: true, placement: {} }),
+    /declares requirement.yield and placement/,
+  );
+  assert.throws(
+    () => validateRequirementYield(2, { ...base, craftable: true, turnsCost: 3 }),
+    /a project makes exactly one unit/,
+  );
+});
+
+// mealTaste/mealTasteForm — the eating-side twin of mealMood/mealHunger (COOKING.md §A1/§A6).
+test("normalizeMealTaste: null stays null, an empty string is legal (undetectable), long tastes are refused", () => {
+  assert.equal(normalizeMealTaste(null, { slug: "x" }), null);
+  assert.equal(normalizeMealTaste("", { slug: "x" }), "");
+  assert.equal(normalizeMealTaste("  bland  ", { slug: "x" }), "bland");
+  assert.throws(() => normalizeMealTaste("x".repeat(41), { slug: "x" }), /keep it under 40/);
+});
+
+test("validateMealTasteForm refuses anything but adjective/omitted, and refuses a form with no taste to describe", () => {
+  assert.doesNotThrow(() => validateMealTasteForm({ mealTaste: null, mealTasteForm: null }, { selfSlug: "x" }));
+  assert.doesNotThrow(() =>
+    validateMealTasteForm({ mealTaste: "acidic", mealTasteForm: "adjective" }, { selfSlug: "x" }),
+  );
+  assert.throws(
+    () => validateMealTasteForm({ mealTaste: "acidic", mealTasteForm: "noun" }, { selfSlug: "x" }),
+    /must be "adjective" or omitted/,
+  );
+  assert.throws(
+    () => validateMealTasteForm({ mealTaste: null, mealTasteForm: "adjective" }, { selfSlug: "x" }),
+    /has mealTasteForm but no mealTaste/,
   );
 });

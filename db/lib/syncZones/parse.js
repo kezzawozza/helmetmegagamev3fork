@@ -208,7 +208,7 @@ function parseConnection(raw, locationByRef, problems) {
     entry.hidden = hides;
   }
 
-  // A way no horse or cart fits through — gates on what's EQUIPPED, refuses at the threshold rather than parking the mount on arrival.
+  // A way no arelitz or cart fits through — gates on what's EQUIPPED, refuses at the threshold rather than parking the mount on arrival.
   if (spec.on_foot != null) {
     if (typeof spec.on_foot !== "boolean") {
       problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean on_foot: ${JSON.stringify(spec.on_foot)}`);
@@ -392,6 +392,11 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
         accessTagSlugs: access,
         destroysContents: room.destroys === true,
         soundproof: room.soundproof === true,
+        // Arelitz are kept here (ARELITZ.md). db/lib/stablePass.js resolves
+        // "the stable floor" as every Room carrying this — generically,
+        // never a hardcoded Room id — so moving the Stable later is a YAML
+        // edit here, not a code change.
+        stable: room.stable === true,
         live: collectLive(room.live, `room "${room.id}"`, problems),
         stash: parseStash(room.stash, room.id, problems),
         locationSlug: location.id,

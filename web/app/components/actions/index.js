@@ -24,6 +24,7 @@ import MoveThingsDialog from "./MoveThingsDialog";
 import DestroyDialog from "./DestroyDialog";
 import PackageDialog from "./PackageDialog";
 import FarmDialog from "./FarmDialog";
+import BreakInDialog from "./BreakInDialog";
 import PurchaseDialog from "./PurchaseDialog";
 import HealDialog from "./HealDialog";
 import MiracleDialog from "./MiracleDialog";
@@ -120,6 +121,7 @@ export const DIALOGS = {
   destroy: DestroyDialog,
   package: PackageDialog,
   farm: FarmDialog,
+  breakin: BreakInDialog,
   purchase: PurchaseDialog,
   heal: HealDialog,
   miracle: MiracleDialog,

@@ -23,6 +23,7 @@ const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfe
 const { ensureDeliveries } = require("./stagedDelivery");
 const { applyDeathToRow } = require("./characterDeath");
 const { farmDm } = require("./soilery");
+const { breakInDm } = require("./arelitz");
 
 // The tail on a Routine nothing else spoke for. Left off when a GM staged a
 // message or an effect on the Move — that IS the adjudication, and "no notes"
@@ -398,6 +399,10 @@ async function runStagedPushPass(prisma, turn) {
   for (const action of unapplied) {
     if ((action.gmNotes ?? "").includes("auto:lesson")) continue;
     if ((action.gmNotes ?? "").includes("auto:research")) continue;
+    // A break-in Gambit resolves automatically and tells the player the
+    // outcome (breakInDm below) — the bare "you rolled X" notice would just
+    // be a confusing, contextless second message ahead of it.
+    if ((action.gmNotes ?? "").includes("auto:break_arelitz")) continue;
     if (action.moveKind === "GAMBIT" && action.diceRoll != null && action.character?.discordUserId) {
       gambitRollNotices.push({
         discordUserId: action.character.discordUserId,
@@ -467,7 +472,15 @@ async function runStagedPushPass(prisma, turn) {
           // loosening that skip for every other auto: Routine.
           notice = {
             discordUserId: action.character.discordUserId,
-            content: farmDm(turn.number, applied.farmed.rows),
+            content: farmDm(turn.number, applied.farmed.rows, action.farmPlan.fertilized === true),
+          };
+        } else if (action.breakInPlan && applied.brokeIn && action.character?.discordUserId) {
+          // A break-in Gambit resolves automatically here rather than waiting
+          // on a GM (ARELITZ.md §6) — the player has to be told how it went,
+          // same narrow carve-out reasoning as farmPlan just above.
+          notice = {
+            discordUserId: action.character.discordUserId,
+            content: breakInDm(turn.number, applied.brokeIn),
           };
         }
       });

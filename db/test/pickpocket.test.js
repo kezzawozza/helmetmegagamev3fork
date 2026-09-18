@@ -84,9 +84,9 @@ test("what a hand can reach: tradeable, not worn, not an Asset", () => {
 });
 
 // The one that would be a hole rather than a nicety. An Asset weighs 0 on
-// purpose (a horse carries itself, CARRY.md §1), so the weight budget — the
+// purpose (an arelitz carries itself, CARRY.md §1), so the weight budget — the
 // only brake this verb has — cannot bound it. Without this clause 15 lb buys
-// every horse, deed and house somebody has on them, unlimited.
+// every arelitz, deed and house somebody has on them, unlimited.
 test("Assets are off the table entirely, because the budget cannot measure them", () => {
   assert.equal(pickpocketableHoldings([row({ tag: { tradeable: true, category: "Assets", weightLbs: 0 } })]).length, 0);
   // Case-folded, matching tagWeight.js — the catalog has held both spellings.

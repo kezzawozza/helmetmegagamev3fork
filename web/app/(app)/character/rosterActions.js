@@ -4,7 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
-import { corpsesInReach } from "@lifeweb/db/lib/corpses";
+import { corpsesInReach, livestockInReach } from "@lifeweb/db/lib/corpses";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
@@ -87,9 +87,14 @@ export async function loadActionRoster({ need = [] } = {}) {
           select: { id: true, name: true, kind: true, accessTagSlugs: true },
         })
       : [];
-    out.corpses = await corpsesInReach(prisma, character, {
-      rooms: accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds),
-    });
+    // Livestock (ARELITZ.md §5) concatenates onto the same list — BodyDialog.js
+    // never has to tell a corpse and a butcherable animal apart.
+    const reachableRoomsForBodies = accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
+    const [corpsesHere, livestockHere] = await Promise.all([
+      corpsesInReach(prisma, character, { rooms: reachableRoomsForBodies }),
+      livestockInReach(prisma, character, { rooms: reachableRoomsForBodies }),
+    ]);
+    out.corpses = [...corpsesHere, ...livestockHere];
   }
   if (wants.has("self")) {
     out.self = {

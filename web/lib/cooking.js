@@ -66,9 +66,20 @@ export function mergeDishCures(mealTag, ingredientTags = []) {
 // The line the eater reads (NoticeProvider, bottom-right). A mark, if one ever belongs on this
 // feature, goes HERE on the composed sentence, not on a taste fragment — one mark per message, at
 // the very end, is the convention (CLAUDE.md).
-export function tasteLine(tastes = []) {
-  tastes = tastes.filter(Boolean);
-  if (!tastes.length) return "You ate a meal.";
-  if (tastes.length === 1) return `You ate a meal. It tastes like ${tastes[0]}.`;
-  return `You ate a meal. It tastes like ${tastes.slice(0, -1).join(", ")} and ${tastes[tastes.length - 1]}.`;
+//
+// `entries` is the meal's OWN taste first (Tag.mealTaste/mealTasteForm), then
+// one per additional ingredient (cooked.taste/cooked.tasteForm) — COOKING.md
+// §A1/§A6. Each entry is `{ taste, adjective }`; an empty taste is dropped
+// rather than printed as a gap (that's what keeps Phrygian Tears and Adder's
+// Bite undetectable even cooked into something), and `adjective: true`
+// renders the fragment bare ("acidic") instead of the default noun form
+// ("like onions") — web/lib/tagShapes.js#normalizeCooked's own tasteForm
+// comment has the full rule. No fragments at all reads as "bland".
+export function tasteLine(mealName, entries = []) {
+  const fragments = entries
+    .filter((e) => e && typeof e.taste === "string" && e.taste.trim())
+    .map((e) => (e.adjective ? e.taste.trim() : `like ${e.taste.trim()}`));
+  if (!fragments.length) return `You eat the ${mealName}, it tastes bland.`;
+  if (fragments.length === 1) return `You eat the ${mealName}, it tastes ${fragments[0]}.`;
+  return `You eat the ${mealName}, it tastes ${fragments.slice(0, -1).join(", ")} and ${fragments[fragments.length - 1]}.`;
 }

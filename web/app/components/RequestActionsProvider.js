@@ -194,6 +194,14 @@ export default function RequestActionsProvider({
   canFarm = false,
   farmBlocked = null,
   farmMaxCrops,
+  // Breaking in an unruly arelitz (db/lib/arelitz.js). Same posture as Farm
+  // just above: whether there's a stable here is a fact about where you're
+  // standing, resolved server-side in character/page.js. `breakInBlocked` is
+  // breakInRefusalFor()'s own sentence — the same one breakInArelitzRequestImpl
+  // throws on a bypassed request.
+  canSeeBreakIn = false,
+  canBreakIn = false,
+  breakInBlocked = null,
   canSeePackage = false,
   // Crucify: you hold `fundamentalist` and a COMPLETE Cross stands where you
   // are. Both facts about YOUR sheet and YOUR ground, resolved in
@@ -490,6 +498,7 @@ export default function RequestActionsProvider({
         examine: examineBlocked,
         extract: extractBlocked,
         farm: farmBlocked,
+        breakin: breakInBlocked,
         kiss: kissBlocked,
       },
       canLearn: teachers.length > 0,
@@ -530,6 +539,8 @@ export default function RequestActionsProvider({
       canExtract,
       canSeeFarm,
       canFarm,
+      canSeeBreakIn,
+      canBreakIn,
       canSeePackage,
       canCrucify,
       canShackle,
@@ -567,6 +578,7 @@ export default function RequestActionsProvider({
       examineBlocked,
       extractBlocked,
       farmBlocked,
+      breakInBlocked,
       kissBlocked,
       kissTargets,
       searchParties,
@@ -588,6 +600,8 @@ export default function RequestActionsProvider({
       canExtract,
       canSeeFarm,
       canFarm,
+      canSeeBreakIn,
+      canBreakIn,
       canSeePackage,
       canCrucify,
       canShackle,

@@ -40,7 +40,7 @@ test("exertedThisTurn: the base pool over the base allowance, and nothing else",
 
 test("exertRefusal: the reasons, in the order a player can read them off their sheet", () => {
   const spent = counters(1);
-  assert.match(exertRefusal({ ...withTags("horse"), ...spent }, config, turn, { left: 0, acted: true }), /horse has ridden/);
+  assert.match(exertRefusal({ ...withTags("arelitz"), ...spent }, config, turn, { left: 0, acted: true }), /arelitz has ridden/);
   const water = { crossing: { fromZoneSlug: "forest", toZoneSlug: "hills" }, left: 0, acted: true };
   assert.match(exertRefusal({ ...withTags("fishing-boat"), ...spent }, config, turn, water), /push the boat/);
   // The same boat on a land leg is on foot.

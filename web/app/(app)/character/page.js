@@ -23,7 +23,7 @@ import {
   questAllowedRoomIds,
 } from "@lifeweb/db/lib/roomAccess";
 import { mayCustomize } from "@/lib/customCraft";
-import { corpsesInReach } from "@lifeweb/db/lib/corpses";
+import { corpsesInReach, livestockInReach } from "@lifeweb/db/lib/corpses";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import {
   THANATI_SLUG,
@@ -51,6 +51,7 @@ import {
 } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor, extractedToday } from "@lifeweb/db/lib/godflesh";
 import { farmRefusalFor } from "@lifeweb/db/lib/soilery";
+import { breakInRefusalFor } from "@lifeweb/db/lib/arelitz";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { resourcesOf, readRoomResources } from "@lifeweb/db/lib/resourceStack";
@@ -534,9 +535,15 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const rooms = await loadStashRooms(character);
   // Every body in reach, for Butcher and Bury (CORPSES.md). Handed the
   // ALREADY-FILTERED room list, matching exactly what the server re-check uses.
-  const corpses = await corpsesInReach(prisma, character, {
-    rooms: accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds, questRoomIds),
-  });
+  // Livestock (ARELITZ.md §5) concatenates onto the same list — both row
+  // shapes carry `livestock`/`yields` now, so BodyDialog.js never has to
+  // tell the two apart.
+  const reachableRoomsForBodies = accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds, questRoomIds);
+  const [corpsesHere, livestockHere] = await Promise.all([
+    corpsesInReach(prisma, character, { rooms: reachableRoomsForBodies }),
+    livestockInReach(prisma, character, { rooms: reachableRoomsForBodies }),
+  ]);
+  const corpses = [...corpsesHere, ...livestockHere];
   // A fact about your own sheet, resolved here so no slug matching reaches the browser.
   const canButcher = character.tags.some((ct) => ct.tag.slug === BUTCHER_SLUG);
   // The Mulligan Potion — drinking it is the one player-facing rename, so
@@ -633,6 +640,22 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     ? null
     : farmRefusalFor(character.tags, Boolean(currentAction));
   const canFarm = canSeeFarm && !farmBlocked;
+  // Breaking in an unruly arelitz (ARELITZ.md §6): same HIDE-not-grey
+  // posture, but the gate is a `stable: true` Room rather than a Location
+  // attribute — any stable Room in this Location counts, matching how
+  // Butcher/corpsesInReach read "reachable" at Location grain.
+  const canSeeBreakIn = character.locationId
+    ? Boolean(
+        await prisma.room.findFirst({
+          where: { locationId: character.locationId, stable: true },
+          select: { id: true },
+        }),
+      )
+    : false;
+  const breakInBlocked = !canSeeBreakIn
+    ? null
+    : breakInRefusalFor(character.tags, Boolean(currentAction));
+  const canBreakIn = canSeeBreakIn && !breakInBlocked;
   const canSeePackage = await hasEquipmentInReach(
     prisma,
     character,
@@ -1179,6 +1202,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canFarm: canFarm,
       farmBlocked: farmBlocked,
       farmMaxCrops: gameConfig?.farmMaxCrops ?? undefined,
+      canSeeBreakIn: canSeeBreakIn,
+      canBreakIn: canBreakIn,
+      breakInBlocked: breakInBlocked,
       canSeePackage: canSeePackage,
       lootTargets: lootTargets,
       consumeTargets: consumeTargets,

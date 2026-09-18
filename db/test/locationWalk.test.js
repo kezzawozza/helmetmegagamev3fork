@@ -162,14 +162,14 @@ test("two equally short roads always resolve to the same one, whatever order the
   assert.deepEqual([...roads], ["north>keep"]);
 });
 
-test("a narrow way does not change the road, but says the horse is coming off", async () => {
+test("a narrow way does not change the road, but says the arelitz is coming off", async () => {
   const links = [way("gate", "square"), way("market", "square", { onFoot: true }), way("keep", "market")];
   const prisma = fakePrisma(ROAD.locations, links);
 
   const walking = await pathWithinZone(prisma, walker(), "keep", { known: ALL_KNOWN });
   assert.equal(walking.dismounts, false);
 
-  const riding = await pathWithinZone(prisma, walker(["horse"]), "keep", { known: ALL_KNOWN });
+  const riding = await pathWithinZone(prisma, walker(["arelitz"]), "keep", { known: ALL_KNOWN });
   assert.equal(riding.hops, 3, "the narrow way is still walked");
   assert.equal(riding.dismounts, true, "and it is said before they commit");
 });

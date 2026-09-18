@@ -258,6 +258,19 @@ export const ACTION_SECTIONS = [
         gate: "canFarm",
         gateReason: "You're worn out.",
       },
+      // Breaking in an unruly arelitz (db/lib/arelitz.js, ARELITZ.md §6).
+      // Same HIDE-not-grey posture as Farm just above — whether there's a
+      // stable here is a fact about where you're standing, not your own
+      // sheet. breakInRefusalFor is the SAME function the server action
+      // re-checks, so the tooltip and a bypassed request can never disagree.
+      {
+        mode: "breakin",
+        icon: ShackleIcon,
+        label: "Break In",
+        show: "canSeeBreakIn",
+        gate: "canBreakIn",
+        gateReason: "You don't know how to break in an arelitz.",
+      },
       // HIDDEN, never greyed, the same rule Extract just above follows: being
       // Bound is a fact about YOUR OWN sheet, and a dead row on every other
       // sheet would only teach a bystander that struggling free is possible.

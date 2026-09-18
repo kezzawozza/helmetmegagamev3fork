@@ -26,6 +26,9 @@ const CATATONIC_SLUG = "catatonic-afk";
 const TAXMAN_SLUG = "taxman";
 // Over a carry cap (db/lib/carry.js). Granted/cleared by settleCarry; read by the travel gate in db/lib/locationTravel.js.
 const OVERBURDENED_SLUG = "overburdened";
+// Fertilizer's buff (SOILERY.md's Addendum) — read by farmRequestImpl to flip
+// db/lib/soilery.js#reap into its bounty table instead of the wither one.
+const FERTILIZED_FIELDS_SLUG = "fertilized-fields";
 
 // Read on a gate crossing (db/lib/locationMove.js#announceGateCrossing) — a MANNED gate falls back to what a passer-by saw.
 const STEALTH_SLUG = "stealth";
@@ -86,17 +89,25 @@ const KISS_BLOCKING_SLUGS = Object.freeze([
 // Puts a Sound Trumpet button on your Character page; heard across the Location graph (db/lib/trumpet.js).
 const TRUMPET_SLUG = "trumpet";
 
-// The horse eats: 1 ⬢/turn in inventory (db/lib/horseUpkeepPass.js). HELD, not equipped, so stowing it indoors doesn't skip the bill.
-const HORSE_SLUG = "horse";
-const HORSE_UPKEEP_COST = 1;
-// The Arelitz — horse-hybrids bred via db/lib/tagShapes.js recipes. Read by db/lib/arelitzLayPass.js and horseUpkeepPass.js.
-const ARELITZ_WARBEAST_SLUG = "arelitz-warbeast";
-const ARELITZ_OVUM_SLUG = "arelitz-ovum";
-const ARELITZ_THOROUGHBRED_SLUG = "arelitz-thoroughbred";
+// Arelitz (ARELITZ.md) — bred in a Stable room, not crafted. No food
+// upkeep, unlike the old Horse family this replaced: db/lib/horseUpkeepPass.js
+// and its UPKEEP_SLUGS are gone along with it.
+const ARELITZ_SLUG = "arelitz";
+const UNRULY_ARELITZ_SLUG = "unruly-arelitz";
+const ARELITZ_HATCHLING_SLUG = "arelitz-hatchling";
+const ARELITZ_YOUNGLING_SLUG = "arelitz-youngling";
+const ARELITZ_YEARLING_SLUG = "arelitz-yearling";
+const ARELITZ_MASTERY_SLUG = "arelitz-mastery";
 const ARELITZ_EGG_SLUG = "arelitz-egg";
 
-// The whole horse family, for horseUpkeepPass.js — every species eats, each billed separately.
-const UPKEEP_SLUGS = [HORSE_SLUG, ARELITZ_WARBEAST_SLUG, ARELITZ_OVUM_SLUG, ARELITZ_THOROUGHBRED_SLUG];
+// The stable's per-Room cap on arelitz + brood, and the two dice ARELITZ.md
+// specifies. GameConfig.stableCapacity/db:check-config carries the tunable
+// default; these are the code fallbacks (same posture as FARM_MAX_CROPS).
+const STABLE_CAPACITY = 10;
+const HATCH_IN = 30;
+// A d6, target 5+ (roughly 1-in-3 before mood/hunger modifiers) — Bascinet's
+// chosen difficulty for db/lib/arelitz.js's break-in Gambit.
+const BREAK_IN_TARGET = 5;
 const HUMAN_FLESH_SLUG = "human-flesh";
 const ENGRAVE_RESOURCE_COST = 4;
 // Turns a person's corpse stays fresh. Monster corpses never rot.
@@ -205,6 +216,7 @@ module.exports = {
   CATATONIC_SLUG,
   TAXMAN_SLUG,
   OVERBURDENED_SLUG,
+  FERTILIZED_FIELDS_SLUG,
   STEALTH_SLUG,
   CORPSE_GROUP_SLUG,
   BUTCHER_SLUG,
@@ -222,13 +234,16 @@ module.exports = {
   MUTILATE_GATE_SLUGS,
   KISS_BLOCKING_SLUGS,
   TRUMPET_SLUG,
-  HORSE_SLUG,
-  HORSE_UPKEEP_COST,
-  UPKEEP_SLUGS,
-  ARELITZ_WARBEAST_SLUG,
-  ARELITZ_OVUM_SLUG,
-  ARELITZ_THOROUGHBRED_SLUG,
+  ARELITZ_SLUG,
+  UNRULY_ARELITZ_SLUG,
+  ARELITZ_HATCHLING_SLUG,
+  ARELITZ_YOUNGLING_SLUG,
+  ARELITZ_YEARLING_SLUG,
+  ARELITZ_MASTERY_SLUG,
   ARELITZ_EGG_SLUG,
+  STABLE_CAPACITY,
+  HATCH_IN,
+  BREAK_IN_TARGET,
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,
   CORPSE_ROT_TURNS,
