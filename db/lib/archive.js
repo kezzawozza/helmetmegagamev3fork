@@ -24,6 +24,12 @@ const FEED_ROW_SELECT = {
   channelKind: true,
   editedAt: true,
   deletedAt: true,
+  // Stamped from the open turn as the row was written (same column
+  // ARCHIVE_ROW_SELECT already reads below) — carried onto the live feed too
+  // now, so it can rule a .daybreak divider where the scene crosses into a
+  // new turn. Also safe on every row, hooded or not: a turn number names no
+  // speaker.
+  turnNumber: true,
 };
 
 // One archived row as the wire shape /chat and /api/feed speak.
@@ -50,6 +56,7 @@ function feedRowShape(row, extra = {}) {
     sentAt: row.sentAt ? new Date(row.sentAt).toISOString() : null,
     source: row.source ?? "DISCORD",
     channelKind: row.channelKind ?? null,
+    turnNumber: row.turnNumber ?? null,
     editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
     deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
     ...rest,
@@ -82,7 +89,6 @@ const ARCHIVE_ROW_SELECT = {
   ...FEED_ROW_SELECT,
   id: true,
   kind: true,
-  turnNumber: true,
   dayNumber: true,
   zoneName: true,
   threadName: true,

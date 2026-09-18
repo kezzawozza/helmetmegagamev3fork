@@ -795,6 +795,9 @@
 .tline[data-density="feed"] {
   display: flex;
   gap: var(--sp-3);
+  /* The mockup's .row: 12px, where the rest of the app sits a half-step up
+     at --fs-base. A scene is a wall of names and short lines, not prose. */
+  font-size: var(--fs-xs);
   /* A run of lines from one speaker sits tight; the first line of a new run
      stands off from the last. Two booleans, so CSS rather than an inline
      style (Feed.js sets data-run / data-pending). */
@@ -836,7 +839,15 @@
 
 .tline[data-density="feed"] .tline-time,
 .tline[data-density="feed"] .tline-edited {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
+}
+
+/* The mockup's .who: bold with a hairline drop shadow, the way every metal
+   bar's text in the app already carries one — a name is the thing a reader's
+   eye is hunting for in a wall of grey narration, and the shadow is what
+   makes bold read as EMBOSSED rather than merely heavier. */
+.tline[data-density="feed"] .tline-name {
+  text-shadow: 0 1px 0 var(--border-lo);
 }
 
 /* The row lights up under the pointer, and under the keyboard: without this
@@ -996,7 +1007,7 @@
    half of db/lib/ambientLine.js's `-#`, which is why it wears no face. The
    unkeyed default, so an unrecognised channelKind reads as scenery. */
 .tline--system {
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   color: var(--muted);
   margin-top: var(--sp-2);
   padding-left: calc(var(--chat-face) + var(--sp-3));
@@ -1098,13 +1109,15 @@
 /* Out of character (db/lib/ooc.js) — the PLAYER talking, not the character and
    not the world. Subtext-sized like the scenery, because none of it is
    happening in the room either, but its own rule so it can be told from a
-   smell or a gate crossing at a glance: the accent border is the whole tell.
-   The body already carries its `[OOC]:` tag, so nothing here needs to say it
-   twice. */
+   smell or a gate crossing at a glance: the tint and the rule are the whole
+   tell. --name-6, the mockup's mauve OOC hue — an existing AA-gated colour
+   rather than a new token. The body already carries its `[OOC]:` tag, so
+   nothing here needs to say it twice. */
 .tline--system[data-kind="ooc"] {
   margin-left: calc(var(--chat-face) + var(--sp-3));
-  padding-left: var(--sp-2);
-  border-left: 2px solid var(--border);
+  padding-left: 6px;
+  border-left: 2px solid var(--border-hi);
+  color: var(--name-6);
 }
 
 /* Discord's red line: everything below it arrived since you last had this
@@ -1125,6 +1138,30 @@
   flex: 1;
   height: 1px;
   background: var(--danger);
+}
+
+/* A turn boundary in the scene (the mockup's `.daybreak`), copied off
+   .dm-day's shape (globals.css) — a rule either side of a quiet caption is
+   the same "time has moved on" grammar the DM thread already uses. Feed.js
+   draws one wherever ArchiveEntry.turnNumber changes between two consecutive
+   rows (CHAT.md). v3 has no turn-of-day phase to add beside it. */
+.daybreak {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-4) 0 var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.daybreak::before,
+.daybreak::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
 }
 
 /* The top of a feed that has more behind it (./chat/Feed.js#BacklogEdge).
@@ -1318,30 +1355,33 @@
   flex-shrink: 0;
 }
 
-/* Speak / Shout / OOC, beside the words rather than under a dropdown
-   (REDESIGN.md §6). The shared `.segmented`, shrunk to sit on one row with a
-   26px send: three words a glance reads, instead of one word and two nobody
-   knows are there.
+/* The say row's whole column: the row itself, then the foot below it. The
+   ONLY reason this exists is that .chat-composer is a flex ROW shared with
+   two other composers (GmSystemComposer, DmPane's), each with a single
+   child — so this is what turns "the say row, then a line under it" into a
+   single flex item that row can place. */
+.chat-say-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  flex: 1;
+  min-width: 0;
+}
 
-   It sits OUTSIDE the say box now — the box is a black well with the speech
+/* Speak / Shout / OOC (or just Say, when there is nothing else to pick), a
+   Select.js dropdown beside the words rather than a bare <select> — a bare
+   one breaks the theme (DESIGN-SYSTEM.md). One control on every width now:
+   the old three-way segmented toggle needed a second, folded shape for a
+   phone; a dropdown reads the same everywhere.
+
+   It sits OUTSIDE the say box — the box is a black well with the speech
    colour in it, and a control inside that well would read as something typed
-   into it. */
-.chat-mode-seg {
+   into it. Narrow rather than `width:100%`, since "Say" is the longest label
+   and three words do not need a quarter of the row. */
+.chat-mode-select {
   flex: 0 0 auto;
   align-self: flex-end;
-  height: 26px;
-  border-color: var(--border);
-}
-
-.chat-mode-seg button {
-  padding: 0 var(--sp-2);
-  letter-spacing: 0;
-  text-transform: none;
-  font-size: var(--fs-2xs);
-}
-
-.chat-mode-seg button[aria-pressed="true"] {
-  color: var(--speech);
+  width: 4.5rem;
 }
 
 /* Bare inside the container — the box draws the surface, the border and the
@@ -1400,18 +1440,6 @@
   color: var(--muted);
   background: transparent;
   border-color: var(--border);
-}
-
-/* The + on the phone's composer: the ✉ and the hood, folded behind one
-   button at the LEFT edge of the box (Discord's), so it sits first in the
-   row and its menu opens to the right rather than off the screen. */
-.chat-composer > .chat-composer-tools--folded {
-  order: -1;
-}
-
-.chat-menu--left {
-  right: auto;
-  left: 0;
 }
 
 /* ---- The right column: who is here, the place, and you ---- */
@@ -2440,6 +2468,31 @@
   color: var(--danger);
 }
 
+/* .chat-say-col already puts a gap between the row and this foot, so the
+   foot's own margin-top (for DmPane, where it has no such parent) would
+   double it here. */
+.chat-say-col .chat-composer-foot {
+  margin-top: 0;
+}
+
+/* The mockup's one line under the say row: how to send, and how long a line
+   stays open to change. flex:1 so it takes the run of the row and the
+   slowmode clock / length counter, drawn after it, land at the right edge —
+   the same foot this shares with DmPane's error/counter pair. */
+.hint {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+
+/* One bevelled Send outside the well (the mockup's `.btn`), sized like every
+   other .btn in the app rather than stretched to the box's full height. */
+.chat-composer-send-btn {
+  flex-shrink: 0;
+}
+
 /* ---- The composer's slash commands ---- */
 
 /* A command in the box, as a chip above the text it is taking. Accent-tinted
@@ -2749,8 +2802,8 @@
   .chat-shell .chat-search-row,
   .chat-shell .chat-pill,
   .chat-shell .chat-buttons .btn-quiet,
-  .chat-shell .chat-mode-seg,
-  .chat-shell .chat-mode-seg button {
+  .chat-shell .chat-mode-select,
+  .chat-shell .chat-composer-send-btn {
     box-sizing: border-box;
     min-height: var(--tap);
   }
@@ -2776,10 +2829,6 @@
      this block is keyed on the pointer for in the first place. */
   .chat-shell .chat-composer textarea {
     min-height: var(--tap);
-  }
-
-  .chat-shell .chat-composer-box .chat-mode-select {
-    height: var(--tap);
   }
   /* 36 is for a label you may also press, inside prose. */
   .chat-shell .chip,

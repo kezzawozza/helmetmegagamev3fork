@@ -543,10 +543,19 @@ like everything else.
   lazily-filled ref of the seq the place painted with — a ref rather than
   state, since `react-hooks/set-state-in-effect` is an error here — and sets
   `data-live` above it.
-- **The composer is ONE container, the way Discord's is.** The ✉, the words and
-  the send all sit inside a single box (`.chat-composer-box`, holding one
-  `.chat-composer-row`); the voice picker stands beside it in `.chat-say-row`.
-  The slowmode clock and the character count stay outside it, to its right.
+- **The composer is the mockup's `.say-row`: mode, well, Send, one row.**
+  `.chat-say-row` holds three flat children — the mode picker
+  (`.chat-mode-select`), the say box (`.chat-composer-box`, a `.field`), and
+  one bevelled `.btn` **Send** (`.chat-composer-send-btn`) — with a `.hint`
+  line under it (`.chat-composer-foot`, shared with the slowmode clock and
+  the length counter, which land to the hint's right).
+
+  The ✉ menu (Write/Seal/Bird) has no place in that row, so it folds behind a
+  single **⋯** inside the well, beside the words — the same shape on a phone
+  and a desktop now. It used to be two different shapes: a folded `+` on a
+  phone that ALSO carried the voice picker, and a separate `.chat-tool-wrap`
+  ✉ button on desktop. Both are gone; only the letters live behind ⋯, since
+  the mode picker moved into the row itself.
 
   The box is the mockup's say box: a **black inset well** (`--field-bg`, a hard
   `--border-lo` edge and an inset shadow) with the words in **`--speech`**, the
@@ -555,25 +564,12 @@ like everything else.
   than a hole in the page; the cost was that your own sentence changed colour
   the moment you pressed Enter.
 
-  It was three bordered rectangles standing in a line — a dropdown, a
-  two-line recess, and a solid `--accent-solid` slab stretched to the box's
-  full height — which is three objects to read before you can type into one of
-  them, with the heaviest thing on the page being a button almost nobody
-  presses. **The send is a quiet glyph on both faces now**, `.chat-composer-send`
-  on a desktop and the 44px accent `.chat-send` under a coarse pointer, where
-  it really is the thing a thumb aims at.
-
-  **Every child of `.chat-composer-row` is the same height**, and that is what
-  makes the row read as one line: 26px under a fine pointer, `--tap` under a
-  coarse one. The row is `align-items: flex-end`, so the controls stay level
-  with the LAST line as the box grows — which only looks right if they all
-  start equal. The textarea needs saying so explicitly: it is
-  `box-sizing: border-box` here so a height means what it means on the buttons
-  beside it (a textarea's `scrollHeight` already includes its padding, so a
-  content-box height counted it twice). The voice picker beside the box takes the
-  same two heights, `align-self: flex-end`. The coarse-pointer floor for all of
-  them lives in the `.chat-shell` touch block rather than the 720px one, or a
-  tablet in landscape draws a 34px box between two 44px buttons.
+  **Send is a labelled button now, not a glyph.** It carries the same word the
+  command chip would use (`/shout` says "Send", most commands say "Run"), sits
+  OUTSIDE the well as the mockup draws it, and is the shared `.btn` every other
+  primary action in the app already uses — no separate phone/desktop shape.
+  Enter still sends; the button is for a mouse, and for anybody who wants to
+  read the word rather than guess at a glyph.
 - **The box is one line at rest and grows to about six.** `rows={1}` is only
   the floor; `useComposerAutosize` sets the height off `scrollHeight` — but
   **only once something is typed**. An empty box clears the inline height and
@@ -624,24 +620,31 @@ like everything else.
   label for where you are, and the **`aria-label`**, which keeps the place name
   because words cost a screen reader no pixels.
 
-  "Enter to send · Shift+Enter for a line" used to ride along on the end of it
-  too: permanent chrome, at full size, for something anybody learns on their
-  first message, and the longest thing in the composer. It is gone; the send
-  button's tooltip is what is left, which is why the send stays a labelled
-  `IconButton`.
-- **Speak / Shout / OOC is a `.segmented` control beside the box** on desktop
-  (REDESIGN.md §6), in `.chat-say-row` — the picker, then the say box. It sat
-  inside the box as a dropdown for a while; a dropdown hides two of three
-  choices behind a click and says nothing about what the others are, and a
-  control standing inside a recessed well reads as something that was typed into
-  it. On a phone it still folds into the `+` beside the words, where the ✉
-  already lives. It stores **no state of its own**: each of the two that
-  is not plain speech is already a command in `./commands.js`, so the control
-  enters command mode and `runCurrent()` does the sending, the clearing, the
-  length cap and the hand-back-on-refusal. Which mode you are in is *derived*
-  from `command` — two copies of "which voice is this" could disagree, and the
-  one in `command` is the one that actually sends. Picking a mode keeps whatever
-  is already typed: it is a change of voice, not a change of subject.
+  "Enter to send · Shift+Enter for a line" used to ride along on the end of
+  the placeholder, then leave entirely once the send carried a tooltip. It is
+  back now as the mockup's `.hint` — one plain line under the row: **"Enter
+  sends · Shift+Enter is a new line · 5 minutes to edit"**
+  (`EDIT_WINDOW_MS`, always true, so it costs nothing to keep saying).
+- **Say kinds are Say / Shout / OOC — no Emote, no Whisper.** The game has no
+  `/me` verb and no directed whisper (a Discord whisper string in `db/lib/` is
+  the bot's unrelated `whisperPoll` bleed), so the mockup's five-option
+  composer draws three.
+- **The voice picker is a `Select.js` dropdown beside the box**, in
+  `.chat-say-row` — the picker, then the say box, then Send. It was a
+  `.segmented` control before this: three words in a row, hidden on a phone
+  behind the `+` where the ✉ also lived, so a phone and a desktop drew it two
+  different ways. One `<select>`-shaped control now reads the same on both,
+  and it is a `Select.js` rather than a bare `<select>` — a bare one breaks
+  the theme (DESIGN-SYSTEM.md). It is skipped entirely when there is nothing
+  to pick but Speak.
+
+  It stores **no state of its own**: each of the two that is not plain speech
+  is already a command in `./commands.js`, so picking one enters command mode
+  and `runCurrent()` does the sending, the clearing, the length cap and the
+  hand-back-on-refusal. Which mode you are in is *derived* from `command` —
+  two copies of "which voice is this" could disagree, and the one in `command`
+  is the one that actually sends. Picking a mode keeps whatever is already
+  typed: it is a change of voice, not a change of subject.
 
   Which modes appear comes off the same `where` gate the slash list takes, so a
   place that cannot be shouted in never offers Shout. The server actions
@@ -674,6 +677,17 @@ like everything else.
   **Web only.** Discord stops a player at 2000 in its own client, so there is
   nothing on that side to split. An EDIT is also still one message: editing
   one message into three is a different feature.
+- **A `.daybreak` rules the scene wherever it crosses into a new turn.**
+  `ArchiveEntry.turnNumber` — already stamped on every row at write time
+  (`recordArchiveMessage`/`recordArchiveEvent`) — now rides on the live feed
+  too (`FEED_ROW_SELECT`, `db/lib/archive.js`), and `Feed.js#withRuns` marks
+  the row where it changes from the row before it. The mockup draws the
+  divider as "Turn 12 · Morning"; v3 has no turn-of-day phase to print (a
+  turn is 6/8/12/24 hours, not Morning/Evening — TURN-ENGINE.md), so the
+  label is `formatTurnLabel(turnNumber)` alone. Never on the first row of a
+  place — there is no "before" to have crossed from — and it draws for a
+  system row exactly as it does for a spoken one, since a turn boundary is a
+  fact about the scene, not about who is talking.
 - **No section in the places column folds.** It used to (`sectionFold.js`,
   deleted): a folded section stayed shut across visits, and one bug in that
   scheme — `.chat-bar`'s `flex-shrink: 0` fixing only half the shorthand
