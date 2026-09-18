@@ -2696,6 +2696,14 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # NOTHING USES THIS RIGHT NOW, and that is worth saying out loud rather than
+  # leaving for somebody to discover. Its eight recipes were the per-location
+  # lockboxes, and all eight went on 2026-09-18 — seven with the old drop table
+  # and {tag:netted-lockbox} with them, since nothing had granted that one for a
+  # long time either. The skill is kept on purpose (Bascinet's call): a lock is
+  # an obvious thing for the game to want later, and the replacement
+  # {tag:lockbox} is one edit away from needing it. Until something does, this
+  # is 4 points for nothing — do not sell it to a player as anything else.
   lockpicking:
     catalog: all
     name: Lockpicking
@@ -7622,11 +7630,11 @@ tags:
       hunger: 9
 
   # The extremely-rare prospecting find that is not an ingredient: a box with
-  # something in it. No skill gate and no craft step — the seven per-location
-  # lockboxes that needed Lockpicking and minted a matching "-spoils" tag went
-  # with the old drop table (2026-09-18), and this one just opens. 25 ¢ inside,
-  # 12 ¢ if you sell it shut, so opening it is always the better move and
-  # selling it shut is the impatient one.
+  # something in it. No skill gate and no craft step — the EIGHT per-location
+  # lockboxes that needed Lockpicking and minted a matching "-spoils" tag all
+  # went on 2026-09-18, and this one just opens. 25 ¢ inside, 12 ¢ if you sell
+  # it shut, so opening it is always the better move and selling it shut is the
+  # impatient one.
   lockbox:
     catalog: gm
     name: Lockbox
@@ -7685,49 +7693,6 @@ tags:
     consumesInto:
       - alcohol
     consumesIntoResources: 8
-
-  netted-lockbox:
-    catalog: gm
-    name: Netted Lockbox
-    category: items
-    group: items-gear
-    description: "A small lockbox, netted up along with everything else — whatever sank it isn't telling."
-    pointCost: 0
-    weight: 6
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    # Half of what's inside (18 ⬢): a locked box sells for less than an
-    # opened one, which is what makes picking it worth a Move.
-    sellable: true
-    sellablePrice: 9
-
-  netted-spoils:
-    catalog: gm
-    name: Netted Spoils
-    category: items
-    group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through."
-    pointCost: 0
-    weight: 4
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0
-      resourceCost: 0
-      perTurn: 1
-      skills: [lockpicking]
-      items: [netted-lockbox]
-    consumable: true
-    consumesInto:
-      - trout-heart
-      - silver
-      - jewelry
-      - old-coin
 
   pocket-watch:
     catalog: all
