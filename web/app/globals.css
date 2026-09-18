@@ -219,6 +219,13 @@
   --row-hover: rgba(255, 255, 255, 0.05);
   --shadow-color: rgba(0, 0, 0, 0.5);
 
+  /* The rail's own ground (§3a's Chrome pass, 2026-09-18): a dark wash over
+     .grain rather than an opaque fill, the Chat mockup's own Places column
+     figure. Not --row-hover (a white lift, for hovering IN a surface) and
+     not --shadow-color (a shadow's colour, not a ground) — nothing existing
+     names "translucent black wash", so this is new. */
+  --sunk-wash: rgba(0, 0, 0, 0.3);
+
   /* The veil over the log's own texture tile (REDESIGN.md §3). chatbg.png
      runs at about 0.6 in the chat log against 0.25 everywhere else, and an
      element with text in it has no opacity to set — so the strength is this
@@ -3145,6 +3152,9 @@ input[type="radio"]:disabled {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  /* The mobile bar's own value — the 721px rule below collapses it to 0,
+     since a filled, bevelled item reads as a row of beads with 2px of bare
+     ground between each one. */
   gap: 2px;
   /* 56px, icon-only, down from 92px of stacked icon-over-label. The desks in
      (desk) are full-viewport-minus-rail, and 36px of that width is a third of
@@ -3155,7 +3165,24 @@ input[type="radio"]:disabled {
   flex-shrink: 0;
   padding: 12px 0;
   border-right: 1px solid var(--border);
-  background: var(--surface);
+  /* Ground and edge, the Chat mockup's Places column
+     (docs/design/mockups/chat/index.html): a dark wash instead of an opaque
+     fill, so .grain shows through underneath, and a real metal strip at the
+     edge instead of a flat hairline — the same bg.png .chat-rail tiles,
+     flanked by a flat --border-lo line on its inner side so the edge reads
+     bevelled rather than merely striped. Both are background LAYERS on the
+     rail itself, not a bordered pseudo-element: .app-rail scrolls its own
+     overflow (a long GM rail runs to 15+ items), and a background painted on
+     the element's own box is pinned there and does not scroll off with that
+     content the way an absolutely-positioned child would. */
+  background-color: var(--sunk-wash);
+  background-image:
+    url("/assets/chrome/bg.png"),
+    linear-gradient(var(--border-lo), var(--border-lo));
+  background-repeat: repeat-y, repeat-y;
+  background-position: right top, right 6px top;
+  background-size: 6px auto, 1px 100%;
+  image-rendering: pixelated;
   position: sticky;
   top: 0;
   height: 100dvh;
@@ -3167,23 +3194,59 @@ input[type="radio"]:disabled {
   min-width: 0;
 }
 
+/* The rail's own head — the console cap the mockup's own rails wear, wired
+   up in NavRail.js as `<div className="rail-cap bar">`. It reuses `.bar`
+   (chat.css), the same bg2.png metal-strip recipe the chat columns' own
+   heads wear, rather than a second copy of that recipe living here.
+   `.app-rail .rail-cap` for specificity: chat.css imports AFTER globals.css,
+   so a bare `.rail-cap` here would lose the min-height fight to `.bar`'s own
+   26px despite appearing first in this file's source order.
+
+   Deliberately NOT sticky. `.app-rail` already establishes its own sticky,
+   scrolling box; nesting another positioned/stacking element inside it is
+   the exact bug class this repo has already been bitten by once (a z-index
+   buried inside a sticky ancestor stops painting where it should) — better
+   to let the cap scroll off with a long GM rail than risk it. */
+.app-rail .rail-cap {
+  flex: 0 0 auto;
+  justify-content: center;
+  /* Under .bar's usual 26px — a superadmin's rail runs to 15+ items plus
+     dividers, the chime toggle and sign-out, and every pixel of cap here is
+     a pixel that list has to scroll past to reach the bottom. */
+  min-height: 22px;
+  margin-bottom: 12px;
+}
+
+.rail-cap-glyph {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: var(--fs-lg);
+  color: var(--text-hi);
+  /* Not --blackletter — that token is gated for 28px+ text (§3), and this
+     glyph sits at --fs-lg (15px). */
+  text-shadow: 0 1px 0 var(--border-lo);
+}
+
 .rail-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 10px 4px;
+  /* 1px left, not 4 — the 3px transparent border below eats the difference,
+     so a resting item still centres on the same axis a hovered or active one
+     does once that border goes solid. */
+  padding: 10px 4px 10px 1px;
   text-decoration: none;
   color: var(--muted);
   font-size: var(--fs-2xs);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   border: none;
+  border-left: 3px solid transparent;
   background: none;
   font-family: inherit;
   cursor: pointer;
-  /* Anchors the active pill and the badge below. */
+  /* Anchors the pending wash and the badge below. */
   position: relative;
 }
 
@@ -3193,19 +3256,22 @@ input[type="radio"]:disabled {
 }
 
 .rail-item:hover {
-  color: var(--accent-text);
+  /* Hover used to share --accent-text with the active state, so arriving at
+     an item and merely pointing at one looked the same. Hover stays neutral
+     now; accent is reserved for where you actually are. */
+  background: var(--row-hover);
+  color: var(--text-hi);
 }
 
 /* The pending wash — see RailLinkPending.js. With no loading.js anywhere, a
    click holds the current page on screen, so this is the only thing that says
    the press landed.
- 
+
    A real node rather than a second pseudo-element on .rail-item, because the
-   active pill below already owns ::before and the two mean different things at
-   the same moment: the pill is where you ARE (still the old route while the
-   next one loads), this is where you clicked. On a rail click they are two
-   different items, and one selector cannot say both.
- 
+   item's own background already says where you ARE, and this says something
+   different at the same moment: where you just clicked, which on a rail
+   click can be a different item while the old route is still on screen.
+
    Always rendered, only opacity animates, so nothing here can move the rail. */
 .rail-item-pending {
   position: absolute;
@@ -3236,19 +3302,42 @@ input[type="radio"]:disabled {
   }
 }
 
+/* ACTIVE: the pressed plate. Same token mapping chat.css's own `.place`
+   ported from the mockup's raised gradient row (chat.css ~426) — flat
+   --surface-raised (not a literal gradient; §3a's "no gradient over chrome"
+   never comes into play here either way) with the mockup's inset highlight/
+   shadow pair standing in for its own inset shadow. The left rule and the
+   text stay --accent-text rather than following .place onto --border-hi: the
+   rail says where you are in the whole app, not inside one column, and
+   --accent-text is what the outgoing (pre-chrome) rule already used for that. */
 .rail-item[data-active="true"] {
+  background: var(--surface-raised);
+  box-shadow: inset 0 1px 0 var(--border-hi), inset 0 -1px 0 var(--border-lo);
+  border-left-color: var(--accent-text);
   color: var(--accent-text);
+  font-weight: bold;
 }
 
 /* Desktop only: the icon carries the item on its own. The mobile bottom bar
    still shows labels (it has width to spare per item and no hover to fall
    back on), and .nav-sheet-item is a separate class the sheet uses. */
 @media (min-width: 721px) {
+  /* Filled, bevelled plates read as one instrument panel with no ground
+     between them; the mobile bar's 2px gap (base rule, above) is for bare
+     icons on a flat strip and doesn't belong here. */
+  .app-rail {
+    gap: 0;
+  }
+
   .app-rail .rail-item {
     gap: 0;
     /* 20px icon + 12px either side = 44px, the touch minimum, kept even
-       though this branch is pointer-first. */
-    padding: 12px 4px;
+       though this branch is pointer-first. Right padding is wider than left:
+       the edge strip above eats 8px off the rail's right side (a flanking
+       --border-lo line, the 6px sprite, then --border-right itself), so the
+       icon field is really 48px wide, not 56 — this keeps the icon centred
+       in what's actually left over instead of in the strip. */
+    padding: 12px 8px 12px 1px;
   }
 
   .app-rail .rail-item > span:not(.rail-item-badge) {
@@ -3259,20 +3348,6 @@ input[type="radio"]:disabled {
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
-  }
-
-  /* A pill against the rail's edge, rather than the whole item changing
-     background — at 56px a filled block reads as a button, not a location. */
-  .rail-item[data-active="true"]::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 22px;
-    border-radius: 0 var(--r-full) var(--r-full) 0;
-    background: var(--accent-solid);
   }
 
   /* With the label gone there is no baseline to sit the count on, so it
@@ -3290,11 +3365,15 @@ input[type="radio"]:disabled {
    above and below carries the grouping on its own. The mobile sheet uses
    .rail-section-label below instead, where there IS room. Hidden entirely for
    a player, whose items carry no section (see navItems.js). */
+/* A groove, not a flat rule — the same dark-over-light bevel §3b uses for a
+   recessed edge (dark top-left, light bottom-right), read here as dark-top/
+   light-bottom since this line only runs one way. */
 .rail-divider {
   display: block;
-  height: 1px;
-  background: var(--border);
-  margin: var(--sp-2) var(--sp-3);
+  height: 0;
+  border-top: 1px solid var(--border-lo);
+  border-bottom: 1px solid var(--border-hi);
+  margin: var(--sp-2) 0;
   flex-shrink: 0;
 }
 
@@ -3358,6 +3437,15 @@ input[type="radio"]:disabled {
     justify-content: space-around;
     border-right: none;
     border-top: 1px solid var(--border);
+    /* Same edge recipe as the desktop rail, turned 90° — the strip that ran
+       down the right side now runs along the top, matching .app-header's own
+       bg.png strip (shell.css). The wash carries over unchanged. */
+    background-image:
+      url("/assets/chrome/bg.png"),
+      linear-gradient(var(--border-lo), var(--border-lo));
+    background-repeat: repeat-x, repeat-x;
+    background-position: left top, left top 6px;
+    background-size: auto 6px, 100% 1px;
     /* The home indicator sits over the bottom ~34px on a modern iPhone, which
        clipped the rail labels. .nav-sheet already accounts for it. */
     padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
@@ -3366,6 +3454,27 @@ input[type="radio"]:disabled {
 
   .app-main {
     padding-bottom: calc(var(--rail-h) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* The cap is a desktop-only console flourish. In the bottom bar it would
+     sit as an extra, unclickable icon at the row's left end.
+
+     Scoped under .app-rail, and that is load-bearing: the cap wears `.bar`
+     too, chat.css imports after this file, and `.bar` sets display: flex at
+     the same specificity a bare `.rail-cap` would have — so the later file
+     wins and the glyph stays on screen. Same trap the min-height above
+     dodges. */
+  .app-rail .rail-cap {
+    display: none;
+  }
+
+  /* A 3px rule down the left of one target in a row of six reads as a
+     misprint rather than a marker, so the mark moves to the top edge the way
+     a tab's would. The filled plate stays; the double bevel does not — six
+     bevelled plates across a phone is noise. */
+  .app-rail .rail-item[data-active="true"] {
+    border-left-color: transparent;
+    box-shadow: inset 0 2px 0 var(--accent-text);
   }
 
   /* Items past NavRail's MOBILE_PRIMARY cap live in the sheet instead. */
@@ -5696,7 +5805,12 @@ label.chip {
   color: var(--muted);
 }
 
-/* NavRail unread-conversation badge. */
+/* NavRail unread-conversation badge — the mockup's `.unread` (chat/index.html),
+   a hard bordered box rather than a soft pill: chat.css's own `.unread`
+   (~402) already ported it to these tokens, so this just follows suit. No
+   border-radius to drop — --r-full is already 0 app-wide (§3b), so the pill
+   this used to draw was square all along; the shape difference was only ever
+   the border and the ground. */
 .rail-item-badge {
   display: inline-flex;
   align-items: center;
@@ -5704,10 +5818,11 @@ label.chip {
   min-width: 1.1rem;
   height: 1.1rem;
   padding: 0 0.3rem;
-  border-radius: var(--r-full);
+  border: 1px solid var(--border-lo);
   background: var(--accent-solid);
   color: var(--on-accent);
   font-size: 0.6rem;
+  text-shadow: 0 1px 0 var(--border-lo);
 }
 
 @media (max-width: 720px) {
