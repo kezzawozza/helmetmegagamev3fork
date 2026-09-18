@@ -38,8 +38,7 @@ async function examineLines(prisma, locationId) {
   // No row means you cannot dig here at all (MINING.md §3), so the line is
   // left off entirely rather than printed as a permanent ×. A row that has
   // drifted to 0 still prints — that is a place worth checking back on, not
-  // one that can never pay. There were four of these lines once, one per
-  // labor kind; mining is the only one left.
+  // one that can never pay.
   const miningLine = location.mining
     ? `**Mining**: ${qualityWord(location.mining.current)}`
     : null;

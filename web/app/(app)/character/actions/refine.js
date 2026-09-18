@@ -4,10 +4,6 @@
 // whole rulebook this action enforces). Modelled on ./soilery.js, the closest existing analog:
 // a Location-attribute-gated action with its own refusal chain, filed as a Move that commits
 // now and resolves at the turn push (db/lib/moveEffects.js's `refined` entry).
-//
-// This used to be a Labor filed while standing on the floor — there was no Refine button, and
-// db/lib/refinery.js was reachable only through the LABOR move kind. Laboring is gone, so the
-// shift is its own verb now.
 import { prisma } from "@lifeweb/db";
 import { UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";

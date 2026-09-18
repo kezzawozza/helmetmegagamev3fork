@@ -2,9 +2,9 @@
 
 // The Mine button (db/lib/mining.js — read its header first, it's the whole rulebook this
 // action enforces). Modelled on ./soilery.js, but with one difference that matters: Mine is
-// paid AT THE PRESS, not at the turn push. That is what filing a Labor did, and the reason is
-// the same — a day in the seam is a roll against a range, not a judgement anybody makes, so
-// there is nothing for a GM to arbitrate and nothing worth making the player wait for.
+// paid AT THE PRESS, not at the turn push — a day in the seam is a roll against a range, not a
+// judgement anybody makes, so there is nothing for a GM to arbitrate and nothing worth making
+// the player wait for.
 import { prisma } from "@lifeweb/db";
 import { UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";

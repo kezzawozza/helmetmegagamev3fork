@@ -138,7 +138,7 @@ test("the reason says why they follow, not why they cannot", () => {
 
 const held = (...slugs) => ({ tags: slugs.map((slug) => ({ equipped: true, tag: { slug, name: slug } })) });
 const CONFIG = { freeZoneMovesPerTurn: 1 };
-const allowance = (character, partySize) => freeZoneMoves(character, CONFIG, null, partySize);
+const allowance = (character, partySize) => freeZoneMoves(character, CONFIG, partySize);
 
 test("on foot, any number of people is free", () => {
   // There is no bonus to lose without a mount, so the seat rule never bites.

@@ -1,6 +1,5 @@
 // The Godard Factory floor: a day that pays in cubes instead of ⬢. Reached
-// by the Refine button (web/app/(app)/character/actions/refine.js); it was a
-// Labor filed while standing here until Laboring was removed. A
+// by the Refine button (web/app/(app)/character/actions/refine.js). A
 // Location attribute, not a slug: `refinery: true` in docs/zones.yaml,
 // checked through db/lib/locationAttributes.js#hasAttribute. One Godflesh in,
 // eight Squeeze out, once per day. Input may be in the worker's own hands OR
@@ -29,8 +28,8 @@ function inputSource({ holdsInput = false, rooms = [] } = {}) {
 }
 
 // The bulk half: two queries for a whole roster rather than two per
-// character. The auto-labor pass was its caller; refineryInput below wraps it
-// for the one character the Refine button is acting for.
+// character. refineryInput below wraps it for the one character the Refine
+// button is acting for.
 async function loadRefineryStashes(prisma, locationIds) {
   if (!locationIds?.length) return { roomsByLocation: new Map(), guestsByCharacter: new Map() };
   const rooms = await prisma.room.findMany({

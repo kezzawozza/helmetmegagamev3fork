@@ -8,9 +8,6 @@ import { updateLocationMining } from "../../actions";
 // `current` is the live, drifting coefficient re-computed every turn close —
 // read-only here on purpose. `base` is what it drifts toward, and the only
 // thing a GM edits.
-//
-// There were four rows here, one per Laboring kind. Mining is the only kind of
-// day left, so a Location has one coefficient or none at all.
 export default function YieldPanel({ locationId, row }) {
   const { call, pending, error } = useActionRunner();
 

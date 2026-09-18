@@ -485,20 +485,14 @@ export async function loadTravel() {
       // Which way the push on's die leans for this character, said before
       // they commit (MAP.md §3). Null when it doesn't.
       const exertNote = exertEdgeSentence(exertEdgeFor(character.tags ?? []));
-      const exertOpts = { crossing: null, left: 0, acted };
-      // THIS destination's own count, unlike the ambient one above — a boat's
-      // bonus is earned per crossing (db/lib/mounts.js#boatCrossing), so
-      // Forest<->Hills or Hills<->Marshes has to show one more than a
-      // crossing the water does nothing for, even though both are "a zone
-      // crossing" equally as far as `crossesZone` is concerned.
-      const crossing = { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: row.location.zone?.slug ?? null };
-      const freeLeft = freeMovesLeft(character, config, openTurn, party.length, crossing);
+      const exertOpts = { left: 0, acted };
+      const freeLeft = freeMovesLeft(character, config, openTurn, party.length);
       // The server's own refusal of a push on here, asked ahead of time
       // (MAP.md §3); null is yes. Shown once the Move is spent and this is
       // the only way across, so a player knows why the way is shut till
       // next turn.
       const exertWhy = row.crossesZone
-        ? exertRefusal(character, config, openTurn, { ...exertOpts, crossing, left: freeLeft })
+        ? exertRefusal(character, config, openTurn, { ...exertOpts, left: freeLeft })
         : null;
       return {
         id: row.location.id,

@@ -161,9 +161,7 @@ const ROLE_MEMORIES = {
 };
 
 // A tag a character starts with can add roads they have walked, on top of
-// whatever their role knows. The three Commoner kit crates were the only
-// entries this ever had; they went with the role, and the mechanism is kept
-// because it is the shape any future starting kit would use.
+// whatever their role knows.
 const KIT_MEMORIES = {};
 
 // Empty for a role nobody wrote a line for — a blank map, exactly what the old

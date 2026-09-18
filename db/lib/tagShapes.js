@@ -413,10 +413,6 @@ function validateRequirementItems(normalized, { selfSlug, tagSlugs, groupSlugs, 
 
 // The `miningBonus:` block — what a tool adds to a day's mining (docs/systemdocs/MINING.md).
 // { amount, equipped, requiresTag } or null. `equipped` defaults TRUE.
-//
-// There was a `kind` key naming which of the four Laboring types the bonus
-// paid into, and a typo in it silently made a tool worthless. Mining is the
-// only kind left, so a bonus is just a bonus.
 function normalizeMiningBonus(entry, label = "docs/tags.yaml") {
   if (entry == null) return null;
   if (typeof entry !== "object" || Array.isArray(entry)) {

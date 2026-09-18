@@ -3,12 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import {
-  STOWABLE_SLUGS,
-  WATER_TRAVEL_SLUGS,
-  BOAT_CONFLICT_SLUGS,
-  FAST_TRAVEL_SLUGS,
-} from "@lifeweb/db/lib/mounts";
+import { STOWABLE_SLUGS, FAST_TRAVEL_SLUGS } from "@lifeweb/db/lib/mounts";
 import { MOTION_SICKNESS_SLUG } from "@lifeweb/db/lib/constants";
 import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
 import { HANDS_TAG_FIELDS, findEquipProblem, handsFor } from "@lifeweb/db/lib/equipSlots";
@@ -78,27 +73,10 @@ export async function equipOne(characterTagId) {
   // Motion Sickness: gated here only, on equipping yourself. A dragged passenger with no mount of their own is db/lib/locationTravel.js's job.
   if (
     firstUnitOut &&
-    (FAST_TRAVEL_SLUGS.has(held.tag.slug) || WATER_TRAVEL_SLUGS.has(held.tag.slug)) &&
+    FAST_TRAVEL_SLUGS.has(held.tag.slug) &&
     character.tags.some((ct) => ct.tag.slug === MOTION_SICKNESS_SLUG)
   ) {
     return { error: `Your stomach won't have it — you can't ride ${held.tag.name}.` };
-  }
-
-  // Riding or poling, not both — boat and road kit compete for the same free crossing. Checked in both directions.
-  if (firstUnitOut) {
-    const conflicting = WATER_TRAVEL_SLUGS.has(held.tag.slug)
-      ? BOAT_CONFLICT_SLUGS
-      : BOAT_CONFLICT_SLUGS.has(held.tag.slug)
-        ? WATER_TRAVEL_SLUGS
-        : null;
-    if (conflicting) {
-      const other = character.tags.find((ct) => ct.equipped && conflicting.has(ct.tag.slug));
-      if (other) {
-        return {
-          error: `Put ${other.tag.name} away first — you can't have that and ${held.tag.name} out at once.`,
-        };
-      }
-    }
   }
 
   // Counting inside the transaction alone isn't enough: Prisma runs at READ COMMITTED, so two tabs could both read the same worn set and both write. The Character row lock serializes every equip for this character.

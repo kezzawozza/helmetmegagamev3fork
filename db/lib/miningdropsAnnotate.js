@@ -4,7 +4,7 @@
 const { scopeFilters, passesRequiredTag } = require("./miningDrops");
 const { rowShares } = require("./miningdropsRarity");
 
-// One "slot" per nesting step before a bucket reaches roll-keyed leaves — global consumes none. There were three more buckets here, each crossing a Laboring tier with a place; mining is the only kind of day left, so the tier step went with it.
+// One "slot" per nesting step before a bucket reaches roll-keyed leaves — global consumes none.
 const BRANCH_PLANS = {
   global: [],
   zone: ["zoneSlug"],

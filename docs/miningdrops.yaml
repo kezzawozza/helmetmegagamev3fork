@@ -7,11 +7,6 @@
 # day's mining pulls from whichever of the three actually name where the
 # character is standing, all at the SAME roll face, pooled together.
 #
-# There was a fourth dimension here — `laborType`, which of the six Laboring
-# tiers was working, plus a crossed laborTypeZone and laborTypeLocation.
-# Mining is the only kind of day left, so those pools were promoted into the
-# three above and the rest went with Laboring.
-#
 # THE DRAW IS TWO-STAGE, the shape db/lib/cavingLoot.js has always had: land
 # on a rarity band by the die face's column, then pick evenly among that
 # band's members. db/lib/miningdropsRarity.js owns the columns.

@@ -2,9 +2,7 @@
 // Shape is { [roleSlug]: "LOW" | "MEDIUM" | "HIGH" }; absent is Off. Setting a role to HIGH demotes whichever role held HIGH before to MEDIUM, so there is only ever one.
 
 const LEVELS = ["LOW", "MEDIUM", "HIGH"];
-// Migrant is the one unlimited seat left. Commoner was the other, and the
-// default — it went with Laboring, since it only ever existed to be the fate
-// of somebody who wanted to work for a living.
+// Migrant is the one unlimited seat left.
 const JOBLESS_ROLES = ["MIGRANT", "RETURN_TO_LOBBY"];
 
 function setPriority(priorities, slug, level) {

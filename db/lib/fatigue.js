@@ -3,10 +3,6 @@
 // (db/lib/dawnAfflictionPass.js) and pushing on through a travel gate
 // (db/lib/locationTravel.js). The Exhausted->Tired decay is the ordinary `expiresInto` chain
 // (TAGS.md §5c).
-//
-// This used to live in db/lib/laborFatigue.js and read as a Laboring file. It never was one —
-// two of its three callers have nothing to do with working a day — so when Laboring was removed
-// the ladder stayed and moved here under a name that says what it is.
 const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 

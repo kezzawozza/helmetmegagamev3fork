@@ -4,11 +4,7 @@
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
-// Three buckets, not six. There was a `laborType` dimension here — which of
-// the six Laboring tiers was working — plus a crossed `laborTypeZone` and
-// `laborTypeLocation`. Mining is the only kind of day left, so the pools that
-// were scoped to it were promoted into these three and the rest went with
-// Laboring.
+// The three legal buckets (MININGDROPS.md §2).
 const TOP_LEVEL_KEYS = new Set(["global", "zone", "location"]);
 
 function requireDocsPath(...segments) {

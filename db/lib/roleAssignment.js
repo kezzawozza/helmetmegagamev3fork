@@ -18,9 +18,9 @@
 const { roleCapacity } = require("./roleCapacity");
 
 const LEVEL_ORDER = ["HIGH", "MEDIUM", "LOW"];
-// Migrant is the only overflow seat now; Commoner was the other until it was
-// removed with Laboring. A jobless preference naming no seat walks to the
-// lobby, which is what the fallback below already did for a missing slug.
+// Migrant is the only overflow seat now. A jobless preference naming no seat
+// walks to the lobby, which is what the fallback below already did for a
+// missing slug.
 const OVERFLOW_SLUG = { MIGRANT: "migrant" };
 
 // Good enough for a shuffle — not a security boundary.

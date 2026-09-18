@@ -23,9 +23,8 @@ const EXHAUSTED_SLUG = "exhausted";
 const AUTO_MINE_NOTE = "auto:mine";
 const AUTO_REFINE_NOTE = "auto:refine";
 
-// The two skills that replaced the Laboring ladder: one gates the Mine
-// button, one gates Farm. Neither gates the other, and neither has a rung
-// above or below it — see docs/systemdocs/MINING.md.
+// One gates the Mine button, one gates Farm. Neither gates the other — see
+// docs/systemdocs/MINING.md.
 const PROSPECTING_SLUG = "prospecting";
 const SOILERY_SLUG = "soilery";
 const CATATONIC_SLUG = "catatonic-afk";

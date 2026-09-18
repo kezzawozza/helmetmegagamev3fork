@@ -877,7 +877,6 @@ zones:
               items:
                 hound: 2
                 horse: 1
-                plow: 1
       undercroft:
         name: Undercroft
         indoors: true
@@ -993,10 +992,6 @@ zones:
     description: >-
       Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, and bountiful visages. The trees thin on their approach to the mountains.
     locations:
-      # The Forest had Prospecting rows once, for the panning-and-foraging
-      # side of it — a stream, a wreck, a fungal floor. Mining is the only kind
-      # of day left (MINING.md) and it is a caves-and-hills thing, so the
-      # Forest carries no coefficient at all now: you cannot dig here.
       forest-headwaters:
         name: Headwaters
         attributes:
@@ -1173,9 +1168,6 @@ zones:
             description: >-
               A steep muddy ravine opens beneath the trees, littered with rain-filled pits and splintered timber. At its far end, rotten beams brace a collapsed mineshaft whose entrance has been sealed beneath tons of stone.
             access: [mountaineering]
-            stash:
-              items:
-                plow: 1
       forest-south:
         name: South Forest
         attributes:
@@ -1269,20 +1261,6 @@ zones:
             name: Bridge
             description: >-
               A weathered wooden bridge spans the canyon where the banks briefly draw close, its supports wedged between old stone foundations much older than the timber above them.
-          east-river-washup:
-            name: Rockside Washup
-            description: >-
-              Accessible by boat, there's a still pond on the side of the river where some of the town's washup has collected.
-            access: [fishing-boat]
-            stash:
-              items:
-                sewer-key: 1
-                obol: 3
-                skinned-cave-rat: 1
-                feces: 4
-                alcohol: 3
-                crate-rv-6207-m: 1
-                a-murmur-darkly-a-shot-in-the-dark: 1
       farms:
         name: Farms
         description: >-
@@ -2161,7 +2139,6 @@ zones:
                     purse: 2
                     bastard-sword: 1
                     old-coin: 9
-                    trapping-gear: 1
           depths-last-chance:
             name: Last Chance
             map_node: 20
@@ -2246,7 +2223,6 @@ zones:
                   resources: 9
                   items:
                     deep-morel: 1
-                    fishing-rod: 1
           depths-crystal-chambers:
             name: Crystal Chambers
             map_node: 23

@@ -66,7 +66,7 @@ export async function loadMap() {
 async function buildMap({ character, unfogged }) {
   const { width, height } = plateSize();
 
-  const [locations, links, config, openTurn, currentZone] = await Promise.all([
+  const [locations, links, config, openTurn] = await Promise.all([
     prisma.location.findMany({
       where: { retiredAt: null },
       select: {
@@ -82,7 +82,6 @@ async function buildMap({ character, unfogged }) {
     prisma.locationLink.findMany(),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
-    character?.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } }) : null,
   ]);
   // Whether the Move is spent — a push on is only offered after it is
   // (MAP.md §3). The same read the Travel panel and the sheet make.
@@ -130,19 +129,13 @@ async function buildMap({ character, unfogged }) {
     const near = adjacent.get(location.id) ?? null;
     const walk = walkTo.get(location.id) ?? null;
     const stood = unfogged || known.stood.has(location.id);
-    // THIS crossing's own count, not a flat one shared by every node — a
-    // boat's bonus is earned per crossing (db/lib/mounts.js#boatCrossing),
-    // so Forest<->Hills or Hills<->Marshes shows one more than a crossing
-    // the water does nothing for. Only worth asking for an adjacent node;
-    // a merely-known one has no crossing to weigh yet.
-    const crossing = { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: location.zone?.slug ?? null };
-    const freeLeft = near ? freeMovesLeft(character, config, openTurn, party.length, crossing) : null;
+    const freeLeft = near ? freeMovesLeft(character, config, openTurn, party.length) : null;
     // The server's own refusal of a push on here, asked ahead of time
     // (MAP.md §3); null is yes. Same question the Travel panel asks per
     // option, and the reason is shown once the Move is spent and this was
     // the only way across.
     const exertWhy = near?.crossesZone
-      ? exertRefusal(character, config, openTurn, { crossing, left: freeLeft, acted })
+      ? exertRefusal(character, config, openTurn, { left: freeLeft, acted })
       : null;
 
     nodes.push({

@@ -3,10 +3,6 @@
 // the whole Farms Location is expected to be redesigned later, and this is
 // only a stand-in until then. Pure and Prisma-free, modelled on
 // db/lib/godflesh.js. See docs/systemdocs/SOILERY.md.
-//
-// The gate used to be the Laboring (Farming) tag, borrowed from a system that
-// had nothing to do with sowing a field. Laboring is gone and Farm has its
-// own skill now: Soilery.
 
 const { SOILERY_SLUG, EXHAUSTED_SLUG, TIRED_SLUG } = require("./constants");
 
