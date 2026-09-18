@@ -198,7 +198,7 @@ Not cosmetic. Discord caps a webhook username at 80 characters and the proxy
 sends `name` as-is, so the **inputs** are capped instead and the composed name
 is ≤79 by construction. Both form-fed writers — creation and the GM dev panel
 — apply the caps and the title allowlist server-side; both of those forms are
-public endpoints. The longest title is 9 characters (Professor, Constable), so
+public endpoints. The longest title is 9 characters (Professor), so
 the 10-char cap holds with the catalog as it stands.
 
 ## 1c. Titles are earned, and gender picks the form
@@ -209,7 +209,9 @@ the 10-char cap holds with the catalog as it stands.
 | Title | Earned from | MAN / WOMAN / NEUTRAL |
 |---|---|---|
 | Sergeant | tag `sergeant` | one word |
-| Constable | tag `cerberon` | one word |
+| Cerberus | role `cerberus` | one word |
+| Squire | role `squire` | one word |
+| Sheriff | role `sheriff` | one word |
 | Censor | role `censor` | one word |
 | Knighthood | tag `knighted` | Sir / Dame / Ser |
 | Nobility | tag `nobility` | Lord / Lady / Noble |

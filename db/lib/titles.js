@@ -17,7 +17,12 @@ const TITLES = Object.freeze([
   { words: "Sergeant", tags: ["sergeant"], roles: ["tribune"] },
   { words: "Corporal", roles: ["tribune"] },
   { words: "Ordinator", tags: ["ordinator-insignia"], roles: ["tribunal-ordinator"] },
-  { words: "Constable", tags: ["cerberon"] },
+  // The Cerberon's three seats each wear their own word. It used to be one
+  // Constable off the `cerberon` tag, which also styled the Baron, the Hand,
+  // the Censor and an Incarn — all of whom have a title of their own.
+  { words: "Cerberus", roles: ["cerberus"] },
+  { words: "Squire", roles: ["squire"] },
+  { words: "Sheriff", roles: ["sheriff"] },
   { words: "Censor", roles: ["censor"] },
 
   // Noble. Baron/baroness also grant `nobility`, so its holder is offered
