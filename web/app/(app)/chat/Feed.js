@@ -5,11 +5,11 @@ import { useRefresh } from "@/app/components/useRefresh";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import TranscriptLine from "@/app/components/TranscriptLine";
+import nameHue from "@/app/components/nameHue";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
-import Select from "@/app/components/Select";
 import useComposerAutosize from "./useComposerAutosize";
 import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, PlusIcon, QuillIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -123,9 +123,36 @@ function timeLabel(iso) {
 // (`"shout-near"`, still fully audible on Discord too) draws at ordinary
 // size, and anything past that keeps no tag and falls through to the default
 // subtext — matching its muffled `-#` treatment on Discord.
-const SystemRow = memo(function SystemRow({ row }) {
-  // The five-way branch that used to live here is CSS now: channelKind goes
-  // straight onto data-kind and .tline--system keys off it.
+// Discord's copy of an intercom line opens with the words the PA is wearing as a
+// heading here, so the body would say it twice. Cut on the web only — the row
+// itself is untouched, and Discord still reads what it always read (REDESIGN.md
+// §9, "a web-only feature is presentation").
+const INTERCOM_PREFIX = /^you hear a voice from the intercom:\s*/i;
+
+// The two rows that are a NOTICE rather than a line: the PA and a decree. One
+// component, two heading faces (TranscriptLine's variant="block").
+const BLOCK_KINDS = new Set(["intercom", "decree"]);
+
+const SystemRow = memo(function SystemRow({ row, zone = null }) {
+  // The intercom and the decree draw as a bordered block across the log
+  // (REDESIGN.md §6): a heading, the words at reading size, a rule top and
+  // bottom. Everything else is one line, and its channelKind goes straight onto
+  // data-kind for the CSS to key off — the five-way branch that used to live here.
+  if (BLOCK_KINDS.has(row.channelKind)) {
+    const decree = row.channelKind === "decree";
+    const body = decree ? row.content : String(row.content ?? "").replace(INTERCOM_PREFIX, "");
+    return (
+      <TranscriptLine
+        variant="block"
+        channelKind={row.channelKind}
+        headingFace={decree ? "blackletter" : "caps"}
+        heading={decree ? (zone ?? "Ravenheart") : zone ? `Intercom · ${zone}` : "Intercom"}
+        seq={row.seq}
+      >
+        <ChatMarkdown content={body} />
+      </TranscriptLine>
+    );
+  }
   return (
     <TranscriptLine variant="system" channelKind={row.channelKind} seq={row.seq}>
       <ChatMarkdown content={row.content} />
@@ -257,6 +284,10 @@ const FeedRow = memo(function FeedRow({
       seq={row.seq}
       startsRun={startsRun}
       pending={row.pending}
+      // A send that came back refused. The line STAYS — losing what you typed
+      // is worse than watching it sit there marked unsent — so the mark is what
+      // has to say it went nowhere, beside the Try again below.
+      failed={row.failed}
       // Only a line that ARRIVED gets the fade. See `liveAfter` below.
       live={live}
       // The face draws only on the first line of a run; the gutter keeps its
@@ -283,6 +314,11 @@ const FeedRow = memo(function FeedRow({
       // parentheses and nowhere else — no tooltip, no second element.
       name={startsRun ? (realName ? `${row.name} (${realName})` : row.name) : null}
       alias={Boolean(row.alias)}
+      // The speaker's own colour out of the six (REDESIGN.md §3). Hashed off the
+      // character id, or off the hood token when the row carries no id — either
+      // way it is the same colour every session, which is what makes it worth
+      // reading. The alias tint wins in the CSS for a hooded line.
+      hue={nameHue(row.characterId ?? row.speakerKey ?? null)}
       time={timeLabel(row.sentAt)}
       edited={Boolean(row.editedAt)}
       // The bar FLOATS over the row's top-right corner (.tline-actions), so it
@@ -332,9 +368,12 @@ const FeedRow = memo(function FeedRow({
             </span>
           )}
           {row.failed && (
-            <button type="button" className="btn-quiet" onClick={() => onRetry(row.clientId)}>
-              Try again
-            </button>
+            <p className="chat-unsent">
+              <span>Not sent.</span>
+              <button type="button" className="btn-quiet" onClick={() => onRetry(row.clientId)}>
+                Try again
+              </button>
+            </p>
           )}
         </>
       }
@@ -668,14 +707,23 @@ export default function Feed({
   // brought a deleted line back: take the only line in a quiet street down,
   // the store empties, and the server's copy from page-load slid in behind it
   // as though nothing had happened.
-  const rows =
+  //
+  // `stored.some(row => row.seq)` rather than `stored.length === 0`, and that is
+  // load-bearing for the optimistic row: sending the first line into a place
+  // whose history was still loading put ONE row in the store, which flipped this
+  // off the fallback and blanked the whole scene down to your own sentence. A
+  // pending row carries no seq, so this asks whether the store holds anything
+  // CONFIRMED and keeps the server's copy underneath until it does.
+  const usingFallback =
     historyState !== "loaded" &&
-    stored.length === 0 &&
-    placeKey &&
+    Boolean(placeKey) &&
     placeKey === fallbackPlace &&
-    fallbackRows?.length
-      ? fallbackRows
-      : stored;
+    Boolean(fallbackRows?.length) &&
+    !stored.some((row) => row.seq);
+  const rows = useMemo(
+    () => (usingFallback ? [...fallbackRows, ...stored] : stored),
+    [usingFallback, fallbackRows, stored],
+  );
   const [searchOpen, setSearchOpen] = useState(false);
   // The `at` of a jump whose failure the reader has already waved away, so
   // closing the search box after a miss actually closes it.
@@ -1338,6 +1386,27 @@ export default function Feed({
     if (pieces > MAX_SAY_PIECES) return { label: tooManyPieces(pieces), over: true };
     return { label: `sends as ${pieces} messages`, over: false };
   }, [draft]);
+
+  // ArrowUp on an EMPTY box recalls the last thing you said here, the way a
+  // shell recalls the last command (REDESIGN.md §6). It opens the row's own
+  // editor rather than putting the words back in the composer: that editor is
+  // what actually saves an edit, and two ways of changing a line would be two
+  // places for the five-minute window to be checked.
+  //
+  // Only a confirmed row of your own, and only speech — a pending row has no
+  // seq to edit and the world's lines are not yours. The window is checked by
+  // onEdit, which says so out loud when it has passed.
+  const lastOwnLine = useMemo(() => {
+    if (!self?.characterId && !self?.speakerKey) return null;
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      const row = rows[i];
+      if (!row?.seq || row.pending || row.failed) continue;
+      if (row.source === "SYSTEM") continue;
+      if (!isOwnRow(row, self.characterId ?? null, self.speakerKey ?? null)) continue;
+      return { seq: row.seq, sentAt: row.sentAt ?? null };
+    }
+    return null;
+  }, [rows, self?.characterId, self?.speakerKey]);
 
   const submit = useCallback(() => {
     const content = draft.trim();
@@ -2051,7 +2120,7 @@ export default function Feed({
                 return (
                   <Fragment key={key}>
                     {newLine && <NewLine />}
-                    <SystemRow row={row} />
+                    <SystemRow row={row} zone={crumb[0] ?? null} />
                   </Fragment>
                 );
               }
@@ -2131,6 +2200,36 @@ export default function Feed({
         <div className="chat-composer">
           {place.canSpeak ? (
             <>
+              {/* The mockup's say row: the voice picker, then the black well
+                  with the words in it (docs/design/mockups/chat/index.html).
+                  The picker sits OUTSIDE the well — the well is a recess with
+                  the speech colour in it, and a control standing in there would
+                  read as something that had been typed. */}
+              <div className="chat-say-row">
+              {/* Speak / Shout / OOC. Hidden when there is only Speak to pick —
+                  a control with one option is decoration. Desktop only: on a
+                  phone the same three sit under the + with the rest of the
+                  composer's verbs.
+
+                  The shared `.segmented`, not a dropdown (REDESIGN.md §6). A
+                  dropdown hides two of three choices behind a click and says
+                  nothing about what the others are; three words in a row say
+                  it. Pressed state lives in aria-pressed, which is where a
+                  screen reader reads a control's value. */}
+              {!narrow && speechModes.length > 1 && (
+                <div className="segmented chat-mode-seg" role="group" aria-label="How to talk">
+                  {speechModes.map((m) => (
+                    <button
+                      key={m.mode}
+                      type="button"
+                      aria-pressed={speechMode === m.mode}
+                      onClick={() => pickSpeechMode(m.mode)}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="field chat-composer-box" data-command={command ? "true" : undefined}>
                 {/* COMMAND MODE reads as a strip across the top of the box —
                     what you are running, what it does, and a way out. It used
@@ -2159,30 +2258,6 @@ export default function Feed({
                     orange slab as tall as both — which is three objects to read
                     before you can type into one of them. */}
                 <div className="chat-composer-row">
-                  {/* Speak / Shout / OOC. Hidden when there is only Speak to
-                      pick — a control with one option is decoration. Desktop
-                      only: on a phone the same three sit under the + with the
-                      rest of the composer's verbs.
-
-                      The shared Select, never a bare <select>: it draws its own
-                      popup rather than OS chrome that ignores the theme. It
-                      already puts `.control` on its trigger, and inside this
-                      container that is a frame around a frame, so the CSS takes
-                      its surface and border off and leaves a label you press. */}
-                  {!narrow && speechModes.length > 1 && (
-                    <Select
-                      className="chat-mode-select"
-                      aria-label="How to talk"
-                      value={speechMode ?? "speak"}
-                      onChange={(e) => pickSpeechMode(e.target.value)}
-                    >
-                      {speechModes.map((m) => (
-                        <option key={m.mode} value={m.mode}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
                   {composerTools}
                   <textarea
                     id="chat-composer"
@@ -2277,6 +2352,14 @@ export default function Feed({
                           return;
                         }
                       }
+                      // Nothing typed, and Up: recall your own last line into
+                      // its editor. Only on an EMPTY box, so Up inside a draft
+                      // still moves the caret through what you are writing.
+                      if (e.key === "ArrowUp" && draft.length === 0 && lastOwnLine) {
+                        e.preventDefault();
+                        onEdit(lastOwnLine.seq, lastOwnLine.sentAt);
+                        return;
+                      }
                       // A phone keyboard's Enter is a newline, as it is in
                       // Discord's app; the button beside the box is the send
                       // there. On a keyboard Enter sends and Shift+Enter breaks
@@ -2338,6 +2421,7 @@ export default function Feed({
                     }
                   />
                 )}
+              </div>
               </div>
               {/* Slowmode, said as a clock rather than as a refusal — and
                   said BEFORE it bites. It only appeared once the wait was

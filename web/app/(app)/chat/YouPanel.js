@@ -138,15 +138,25 @@ export default function YouPanel({
         onFile={() => setDialog("move")}
         onEdit={() => setDialog("move")}
       />
-      {/* `meter` for the load bar: this column has no Carrying tile of its
-          own, so unlike the sheet there is nothing here already drawing it. */}
-      <StatusStrip
-        resources={status?.resources ?? 0}
-        carry={status?.carry ?? null}
-        tags={status?.tags ?? []}
-        currentTurn={moveState.turn?.number ?? null}
-        meter
-      />
+      {/* The body, inside the sprite frame the mockup draws around it
+          (docs/design/mockups/chat/index.html, `.you-frame`): stats-LFWB.png
+          stretched to whatever height the strip needs, with a dark inset well
+          holding the words. THIS block and no other — it is what you are, and
+          the turn, your things and your Desires are things you have.
+
+          `meter` for the load bar: this column has no Carrying tile of its own,
+          so unlike the sheet there is nothing here already drawing it. */}
+      <div className="chat-you-frame">
+        <div className="chat-you-well">
+          <StatusStrip
+            resources={status?.resources ?? 0}
+            carry={status?.carry ?? null}
+            tags={status?.tags ?? []}
+            currentTurn={moveState.turn?.number ?? null}
+            meter
+          />
+        </div>
+      </div>
       <Things groups={things} />
       <DesiresBlock view={desires} />
 
