@@ -341,7 +341,11 @@ actually depend on the lock itself.
   no roster, no chat, no memory: it is all on the page already). The reply is
   appended to `phaseOneBody` and stored as the page's `body`; `phaseTwoAt` is
   stamped. Once every zone and Threats page carries `phaseTwoAt`, the editor
-  runs and writes the front page, same as before.
+  runs and writes the front page, same as before. A page a GM has already
+  edited never gets this append or its own `phaseTwoAt` — `isEdited` skips it
+  outright — so `isPhaseTwoAppended` / `isComplete` treat an edit as finished
+  too (`row.phaseTwoAt || row.editedAt`); otherwise a GM's own correction would
+  be the one thing standing between a turn and a front page it can never earn.
 
 **Phase one is still all seven or none; phase two resumes zone by zone.** The
 two hazards that make phase one all-or-nothing haven't gone anywhere — the

@@ -127,7 +127,9 @@ export async function runOracleNow(turnNumber = null) {
 
   let turn;
   if (turnNumber != null) {
-    turn = await prisma.turn.findUnique({ where: { number: Number(turnNumber) }, select: { id: true } });
+    const number = Number(turnNumber);
+    if (!Number.isInteger(number)) return { ok: false, error: "No such turn." };
+    turn = await prisma.turn.findUnique({ where: { number }, select: { id: true } });
   } else {
     turn =
       (await getOpenTurn()) ??
@@ -135,8 +137,9 @@ export async function runOracleNow(turnNumber = null) {
   }
   if (!turn) return { ok: false, error: "No turn to write about yet." };
 
-  // No ledger here — a failure is TOLD to the waiting GM, not swallowed. The
-  // step below deliberately does not catch, so a provider error surfaces.
+  // No ledger here — a failure is TOLD to the waiting GM, not swallowed.
+  // runOracle itself catches now (db/lib/oracle.js), so this try/catch is
+  // only for something thrown before that, e.g. a bad turnId.
   let result;
   try {
     result = await runOracle(prisma, { turnId: turn.id, step: (_key, fn) => fn(), phases: "both" });

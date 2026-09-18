@@ -84,8 +84,12 @@ async function runOracleAtCutoff(db, { now = new Date() } = {}) {
     phases: phase === 1 ? "one" : "two",
   });
 
-  // Nothing to do is not an attempt — un-spend it, or a quiet game would burn its three tries finding the set already complete.
-  if (!result.ran) attempts.set(attemptKey(turn.id, phase), before);
+  // Nothing to do is not an attempt — un-spend it, or a quiet game would burn
+  // its three tries finding the set already complete. A THROWING run is the
+  // opposite: `failed` (db/lib/oracle.js's catch) is left spent on purpose, or
+  // a provider that errors every time would retry once a minute for the whole
+  // three-hour window instead of giving up after MAX_ATTEMPTS.
+  if (!result.ran && !result.failed) attempts.set(attemptKey(turn.id, phase), before);
 
   return { ...result, phase: result.phase ?? phase, turnNumber: turn.number };
 }

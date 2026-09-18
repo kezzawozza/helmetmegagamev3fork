@@ -13,6 +13,7 @@
 // claiming nothing across zones — so it resumes zone by zone: a run that
 // finished phase one but not two picks up exactly where it stopped.
 
+const { Prisma } = require("@prisma/client");
 const { complete } = require("./oracleClient");
 const { correspondentPrompt, editorPrompt, appendPrompt, splitEditorReply } = require("./oraclePrompts");
 const {
@@ -40,7 +41,7 @@ function seatZones(prisma) {
   });
 }
 
-// The last N turns of pages for one scope, oldest first, as context. Reads `body`, the EDITED text when a GM has rewritten it — the entire correction mechanism, since there is no regenerate.
+// The last N turns of pages for one scope, oldest first, as context. Reads `body`, the EDITED text when a GM has rewritten it — the correction mechanism for a page nobody Regenerates.
 // Ceilings on length, not targets, sitting at roughly three times the prompts' ask so an ordinary page never comes near them. Deliberately generous: a cap too high costs nothing, a cap too low cuts a page off mid-sentence (the editor suffers most, since its THREADS block is at the END). A page hitting either is now an error, not a silent short page — treat one in the log as a prompt problem.
 const CORRESPONDENT_MAX_TOKENS = 10000;
 const EDITOR_MAX_TOKENS = 10000;
@@ -76,7 +77,11 @@ async function memoryFor(prisma, { turnNumber, zoneId, kind, take }) {
 // turns even when the page count that carries prose is turned down to 1 or 0.
 async function threadsMemory(prisma, { turnNumber, within = 3 }) {
   const row = await prisma.oracleSynopsis.findFirst({
-    where: { kind: "FRONT", threads: { not: null }, turn: { number: { lt: turnNumber, gte: turnNumber - within } } },
+    where: {
+      kind: "FRONT",
+      threads: { not: Prisma.DbNull },
+      turn: { number: { lt: turnNumber, gte: turnNumber - within } },
+    },
     orderBy: { turn: { number: "desc" } },
     select: { threads: true },
   });
@@ -109,7 +114,11 @@ function findPage(prisma, turnId, zoneId, select, kind) {
 // phaseTwoAt — clearing it is what makes a re-run of phase one (Run now,
 // Regenerate) redo phase two rather than trust a stale stamp.
 // phase 2: appends to the stored phaseOneBody (falling back to body for a row
-// written before two-phase existed) and stamps phaseTwoAt.
+// written before two-phase existed) and stamps phaseTwoAt. The update is
+// CONDITIONAL on phaseTwoAt still being null: the bot's own cutoff tick and a
+// GM's web Regenerate can both reach the same zone at the cutoff, and losing
+// that race must not double the append onto the page. Losing it is not an
+// error — the row already carries the state we wanted.
 // The FRONT write (no `phase` passed) stamps phaseTwoAt too — the editor only
 // ever runs once, after every zone+threats page already carries its own
 // phaseTwoAt, so there is no separate "phase one" front page to distinguish it
@@ -139,10 +148,31 @@ async function writePage(prisma, { turnId, zoneId, kind, phase, body, threads, c
     data.phaseTwoAt = new Date();
   }
 
-  if (existing) return prisma.oracleSynopsis.update({ where: { id: existing.id }, data });
+  if (existing) {
+    if (phase === 2) {
+      const { count } = await prisma.oracleSynopsis.updateMany({
+        where: { id: existing.id, phaseTwoAt: null },
+        data,
+      });
+      return count > 0;
+    }
+    return prisma.oracleSynopsis.update({ where: { id: existing.id }, data });
+  }
   return prisma.oracleSynopsis.create({
     data: { turnId, zoneId: zoneId ?? null, kind: pageKind(zoneId, kind), ...data },
   });
+}
+
+// The same race as writePage's phase-2 branch, for the F2 shortcut below: two
+// callers finding an empty declared-Moves bucket at once must not both think
+// they were the one to stamp it. `updateMany` with `phaseTwoAt: null` makes
+// the stamp itself the race-loser-safe operation.
+async function stampPhaseTwoDone(prisma, id) {
+  const { count } = await prisma.oracleSynopsis.updateMany({
+    where: { id, phaseTwoAt: null },
+    data: { phaseTwoAt: new Date() },
+  });
+  return count > 0;
 }
 
 // A page a GM has rewritten is theirs. Neither a resume nor a Run now may silently replace it — the edit IS the correction.
@@ -165,25 +195,38 @@ async function isPhaseOneComplete(prisma, turnId, zones) {
   return rows.some((row) => row.kind === "THREATS") && zones.every((zone) => writtenZoneIds.has(zone.id));
 }
 
-// Every seat zone plus Threats carrying phaseTwoAt — phase two's own resume
-// check, and the gate on whether the editor may run yet. A row existing is no
-// longer proof a page is finished: phase one alone leaves a ZONE/THREATS row
-// with phaseTwoAt still null, and running the editor over a set like that is
-// the same "some of the document" hazard phase one's all-or-none guards.
-async function isPhaseTwoAppended(prisma, turnId, zones) {
-  const rows = await prisma.oracleSynopsis.findMany({
-    where: { turnId, kind: { in: ["ZONE", "THREATS"] } },
-    select: { zoneId: true, kind: true, phaseTwoAt: true },
-  });
-  const finishedZoneIds = new Set(
-    rows.filter((row) => row.kind === "ZONE" && row.phaseTwoAt).map((row) => row.zoneId),
-  );
-  const threatsFinished = rows.some((row) => row.kind === "THREATS" && row.phaseTwoAt);
+// Shared by isPhaseTwoAppended and isComplete: from a set of ZONE/THREATS
+// rows (each carrying phaseTwoAt and editedAt), is every seat zone plus
+// Threats "done" for phase two? A page a GM edited between phase one and
+// phase two counts as done too — runZoneAppend/runThreatsAppend skip an
+// edited page outright, so it never gets a phaseTwoAt of its own; the edit
+// IS the finished state, and treating it as unfinished would leave the
+// front page (and Regenerate) unable to ever complete that turn.
+function zonesFinished(rows, zones) {
+  const done = (row) => Boolean(row.phaseTwoAt || row.editedAt);
+  const finishedZoneIds = new Set(rows.filter((row) => row.kind === "ZONE" && done(row)).map((row) => row.zoneId));
+  const threatsFinished = rows.some((row) => row.kind === "THREATS" && done(row));
   return threatsFinished && zones.every((zone) => finishedZoneIds.has(zone.id));
 }
 
-// Is the whole set present AND finished — every seat zone plus Threats
-// carrying phaseTwoAt, and a FRONT row on top?
+// Every seat zone plus Threats carrying phaseTwoAt (or a GM's own edit) —
+// phase two's own resume check, and the gate on whether the editor may run
+// yet. A row existing is no longer proof a page is finished: phase one alone
+// leaves a ZONE/THREATS row with phaseTwoAt still null, and running the
+// editor over a set like that is the same "some of the document" hazard
+// phase one's all-or-none guards.
+async function isPhaseTwoAppended(prisma, turnId, zones) {
+  const rows = await prisma.oracleSynopsis.findMany({
+    where: { turnId, kind: { in: ["ZONE", "THREATS"] } },
+    select: { zoneId: true, kind: true, phaseTwoAt: true, editedAt: true },
+  });
+  return zonesFinished(rows, zones);
+}
+
+// Is the whole set present AND finished — a FRONT row, and isPhaseTwoAppended
+// true for the rest? One query: the same `turnId` fetch that finds the FRONT
+// row also carries everything zonesFinished needs, so there is no reason to
+// issue isPhaseTwoAppended's own query on top of it.
 // ALL SEVEN OR NONE for phase one, still, and the FRONT row on top of that:
 // runEditor reads zone pages back from the database and writes the front page
 // over whatever it finds, so a later-filled zone would leave the front page
@@ -194,15 +237,10 @@ async function isPhaseTwoAppended(prisma, turnId, zones) {
 async function isComplete(prisma, turnId, zones) {
   const rows = await prisma.oracleSynopsis.findMany({
     where: { turnId },
-    select: { zoneId: true, kind: true, phaseTwoAt: true },
+    select: { zoneId: true, kind: true, phaseTwoAt: true, editedAt: true },
   });
   if (!rows.some((row) => row.kind === "FRONT")) return false;
-
-  const finishedZoneIds = new Set(
-    rows.filter((row) => row.kind === "ZONE" && row.phaseTwoAt).map((row) => row.zoneId),
-  );
-  const threatsFinished = rows.some((row) => row.kind === "THREATS" && row.phaseTwoAt);
-  return threatsFinished && zones.every((zone) => finishedZoneIds.has(zone.id));
+  return zonesFinished(rows, zones);
 }
 
 // One line per model call in the run log. The provider is staying slow
@@ -211,7 +249,7 @@ async function isComplete(prisma, turnId, zones) {
 // returns usage, some do not, and "?" is an honest answer.
 function logCall(label, { buildMs, result }) {
   const io = `${result.inputTokens ?? "?"} in / ${result.outputTokens ?? "?"} out`;
-  console.log(`Oracle ${label}: build ${buildMs}ms · request ${result.ms ?? "?"}ms · ${io}`);
+  console.log(`Oracle ${label}: build ${buildMs}ms · request ${result.ms}ms · ${io}`);
 }
 
 // One zone's phase-one page. Returns nothing useful — the row is the output.
@@ -320,13 +358,27 @@ async function runPhaseOne(prisma, { turn, config, step, threadsCache }) {
 // zone — unlike phase one, nothing here is claimed across zones, so a run
 // that appended to three zones and then died picks up at the fourth.
 async function runZoneAppend(prisma, { turn, zone, material, config }) {
-  if (await isEdited(prisma, turn.id, zone.id)) return;
-  const existing = await findPage(prisma, turn.id, zone.id, { phaseOneBody: true, body: true, phaseTwoAt: true });
-  if (!existing || existing.phaseTwoAt) return;
+  const existing = await findPage(prisma, turn.id, zone.id, {
+    id: true,
+    phaseOneBody: true,
+    body: true,
+    phaseTwoAt: true,
+    editedAt: true,
+  });
+  if (!existing || existing.phaseTwoAt || existing.editedAt) return;
 
   const buildStart = Date.now();
   const block = zoneDeclaredBlock(material, zone, { pageSoFar: existing.phaseOneBody ?? existing.body });
   const buildMs = Date.now() - buildStart;
+
+  // No declared Moves at all — an empty zone, or a Threats seat nobody holds.
+  // A model call over nothing to summarise only invites invention, so skip it
+  // and stamp the page done outright; the body is untouched.
+  if (block.counts.moves === 0) {
+    console.log(`Oracle ${zone.slug}:declared: skipped, no declared Moves this turn`);
+    await stampPhaseTwoDone(prisma, existing.id);
+    return;
+  }
 
   const result = await complete(config, {
     system: appendPrompt(config),
@@ -346,15 +398,14 @@ async function runZoneAppend(prisma, { turn, zone, material, config }) {
 }
 
 async function runThreatsAppend(prisma, { turn, material, config }) {
-  if (await isEdited(prisma, turn.id, null, "THREATS")) return;
   const existing = await findPage(
     prisma,
     turn.id,
     null,
-    { phaseOneBody: true, body: true, phaseTwoAt: true },
+    { id: true, phaseOneBody: true, body: true, phaseTwoAt: true, editedAt: true },
     "THREATS",
   );
-  if (!existing || existing.phaseTwoAt) return;
+  if (!existing || existing.phaseTwoAt || existing.editedAt) return;
 
   const buildStart = Date.now();
   const block = zoneDeclaredBlock(material, null, {
@@ -362,6 +413,14 @@ async function runThreatsAppend(prisma, { turn, material, config }) {
     scope: "threats",
   });
   const buildMs = Date.now() - buildStart;
+
+  // No seat-holder declared a Move this turn — the same empty-bucket shortcut
+  // as runZoneAppend above.
+  if (block.counts.moves === 0) {
+    console.log("Oracle threats:declared: skipped, no declared Moves this turn");
+    await stampPhaseTwoDone(prisma, existing.id);
+    return;
+  }
 
   const result = await complete(config, {
     system: appendPrompt(config),
@@ -514,7 +573,10 @@ async function runOracle(prisma, { turnId, step, skipIfComplete = false, phases 
     await runPhaseTwo(prisma, { turn, config, step });
     return { ran: true, phase: 2, zones: zones.length };
   } catch (err) {
-    return { ran: false, reason: err?.message ?? String(err) };
+    // `failed: true` marks this apart from an ordinary "nothing to do"
+    // refusal — see runOracleAtCutoff, which spends the attempt on a failure
+    // but refunds every other refusal (oracleCutoff.js).
+    return { ran: false, failed: true, reason: err?.message ?? String(err) };
   }
 }
 
@@ -524,4 +586,5 @@ module.exports = {
   threadsMemory,
   isComplete,
   isPhaseOneComplete,
+  isPhaseTwoAppended,
 };

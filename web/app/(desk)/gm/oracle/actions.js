@@ -55,8 +55,11 @@ export async function regenerateTurn(turnNumber) {
   const session = await requireGm();
   if (!isSuperadmin(session.discordUserId)) return { ok: false, error: "Superadmin only." };
 
+  const number = Number(turnNumber);
+  if (!Number.isInteger(number)) return { ok: false, error: "No such turn." };
+
   const turn = await prisma.turn.findUnique({
-    where: { number: Number(turnNumber) },
+    where: { number },
     select: { id: true },
   });
   if (!turn) return { ok: false, error: "No such turn." };

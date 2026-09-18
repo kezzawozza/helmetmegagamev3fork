@@ -5575,9 +5575,11 @@ model OracleSynopsis {
   // written before two-phase, and on a FRONT row (the editor writes once).
   phaseOneBody String?
 
-  // When phase two appended to this page. NULL means phase one only — which
-  // is what isComplete() asks now, since a row existing is no longer proof
-  // the page is finished. The FRONT row is stamped when the editor writes it.
+  // When phase two appended to this page. NULL means phase one only (and no
+  // GM edit either — an edited page counts as finished without ever getting
+  // its own stamp) — which is what isComplete() asks now, since a row
+  // existing is no longer proof the page is finished. The FRONT row IS
+  // stamped, by the editor, the one time it writes.
   phaseTwoAt DateTime?
 
   // Front-page rows only: [{ name, state }], two to five of them. The

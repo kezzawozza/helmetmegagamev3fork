@@ -23,7 +23,7 @@ const {
 const { moveCutoffAt } = require("../lib/turnClock");
 const { cutoffDecision } = require("../lib/oracleCutoff");
 const { splitEditorReply, correspondentPrompt, editorPrompt, appendPrompt } = require("../lib/oraclePrompts");
-const { isComplete, isPhaseOneComplete } = require("../lib/oracle");
+const { isComplete, isPhaseOneComplete, isPhaseTwoAppended, runOracle } = require("../lib/oracle");
 
 function namesFixture() {
   return {
@@ -711,7 +711,13 @@ test("isComplete requires the front page, and every zone plus Threats stamped wi
   const zones = [{ id: "z1" }, { id: "z2" }];
   const rowsFor = (kinds) => ({
     oracleSynopsis: {
-      findMany: async () => kinds.map(({ zoneId = null, kind, phaseTwoAt = null }) => ({ zoneId, kind, phaseTwoAt })),
+      findMany: async () =>
+        kinds.map(({ zoneId = null, kind, phaseTwoAt = null, editedAt = null }) => ({
+          zoneId,
+          kind,
+          phaseTwoAt,
+          editedAt,
+        })),
     },
   });
   const STAMP = new Date();
@@ -755,4 +761,75 @@ test("isComplete requires the front page, and every zone plus Threats stamped wi
     { zoneId: "z2", kind: "ZONE", phaseTwoAt: STAMP },
   ]);
   assert.equal(await isComplete(complete, "t1", zones), true);
+});
+
+// F1: a page a GM edited between phase one and phase two never gets its own
+// phaseTwoAt (runZoneAppend/runThreatsAppend skip an edited page outright),
+// so both predicates must treat an edit as finished too, or a turn with one
+// GM-corrected page could never earn a front page and Regenerate could never
+// recover it.
+test("an edited page with no phaseTwoAt of its own counts as finished", async () => {
+  const zones = [{ id: "z1" }, { id: "z2" }];
+  const rowsFor = (kinds) => ({
+    oracleSynopsis: {
+      findMany: async () =>
+        kinds.map(({ zoneId = null, kind, phaseTwoAt = null, editedAt = null }) => ({
+          zoneId,
+          kind,
+          phaseTwoAt,
+          editedAt,
+        })),
+    },
+  });
+  const STAMP = new Date();
+  const EDITED = new Date();
+
+  const zoneEdited = rowsFor([
+    { kind: "FRONT" },
+    { kind: "THREATS", phaseTwoAt: STAMP },
+    { zoneId: "z1", kind: "ZONE", phaseTwoAt: STAMP },
+    { zoneId: "z2", kind: "ZONE", editedAt: EDITED },
+  ]);
+  assert.equal(await isPhaseTwoAppended(zoneEdited, "t1", zones), true);
+  assert.equal(await isComplete(zoneEdited, "t1", zones), true);
+
+  const stillUnfinished = rowsFor([
+    { kind: "FRONT" },
+    { kind: "THREATS", phaseTwoAt: STAMP },
+    { zoneId: "z1", kind: "ZONE", phaseTwoAt: STAMP },
+    { zoneId: "z2", kind: "ZONE" },
+  ]);
+  assert.equal(await isComplete(stillUnfinished, "t1", zones), false, "no edit and no stamp is still unfinished");
+});
+
+// F6: a throwing run must say so distinctly from an ordinary "nothing to do"
+// refusal, so oracleCutoff.js can tell the two apart and stop retrying a
+// provider that fails every time instead of burning a minute-by-minute retry
+// for the whole three-hour cutoff window.
+test("runOracle's catch marks the failure so a retrying caller can tell it apart from a plain refusal", async () => {
+  const fakePrisma = {
+    gameConfig: { findFirst: async () => ({ oracleEnabled: true, oracleApiKey: "k", oracleModel: "m" }) },
+    turn: {
+      findUnique: async () => ({ id: "t1", number: 5, startedAt: new Date() }),
+      findFirst: async () => null,
+    },
+    zone: {
+      findMany: async () => [{ id: "z1", slug: "town", name: "Town", seatZoneId: null }],
+    },
+    character: {
+      findMany: async () => {
+        throw new Error("boom");
+      },
+    },
+  };
+
+  const result = await runOracle(fakePrisma, {
+    turnId: "t1",
+    step: async (_key, fn) => fn(),
+    phases: "one",
+  });
+
+  assert.strictEqual(result.ran, false);
+  assert.strictEqual(result.failed, true);
+  assert.strictEqual(result.reason, "boom");
 });
