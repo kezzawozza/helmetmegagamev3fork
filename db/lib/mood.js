@@ -13,7 +13,13 @@
 // pure half without the Prisma client. No require of ./tagWrites here: it
 // requires this module for applyWoundMood, and a cycle would break one.
 const { hasAttribute, SAFE_ATTRIBUTE, WILDERNESS_ATTRIBUTE, HAVEN_ATTRIBUTE } = require("./locationAttributes");
-const { DYING_SLUG, IMPERTURBABLE_SLUG, AMOR_FATI_SLUG, WOUND_TAG_GROUPS } = require("./constants");
+const {
+  DYING_SLUG,
+  IMPERTURBABLE_SLUG,
+  CHANGA_HIGH_SLUG,
+  AMOR_FATI_SLUG,
+  WOUND_TAG_GROUPS,
+} = require("./constants");
 
 
 // Ecstatic mirrors Afraid (same width/distance from Fine), Panicking has no twin.
@@ -47,8 +53,15 @@ const PLACE_TERMS = Object.freeze({ CAVE: -14, WILDERNESS: -10, OPEN: 5, INDOORS
 
 // Overnight slide toward Fine from both sides, never overshooting 0: fear
 // wears off slowly (drift up small), a good evening is mostly gone by morning.
+//
+// The down figure was 40 until the drug shelf landed. A high that is already
+// most of the way gone by the next morning is not worth 20 obols, so
+// happiness now decays about a fifth slower. The UP figure is deliberately
+// untouched: the asymmetry is the design (MOOD.md §6) — fear and grief are
+// the half of the dial a character has to live with, delight is the half
+// they have to keep earning.
 const MOOD_DRIFT_UP = 4;
-const MOOD_DRIFT_DOWN = 40;
+const MOOD_DRIFT_DOWN = 32;
 
 // Movement mood is rationed per open turn (walking is cheap and repeatable);
 // nothing else is capped. The ration counts the delta that actually landed,
@@ -121,6 +134,17 @@ const CONSUME_RELIEF = Object.freeze({
   // it carries its own `cooked.mood: 7` now and is priced by the new
   // raw-food rule (db/lib/hunger.js#rawFoodMoodTerms), same as Honey and
   // Fish Roe below — a row here would silently win over that.
+  // The Silver Chip shelf. These are ITEM-keyed on purpose: Bliss grants
+  // `euphoric` and `high`, both of which sit above at DRINK_RELIEF, and an
+  // item row wins outright over its grants -- which is the whole point, since
+  // a refined drug should not be worth the same as the fungus it came from.
+  //
+  // Heroin and Changa are deliberately absent. Neither ADDS to the dial; both
+  // put it at the top outright (MOOD_MAX_CONSUMABLES below), which no figure
+  // in this table can express -- +82 from a frightened character still lands
+  // short of Ecstatic.
+  bliss: 80,
+  "eth-lod": 20,
   // The treats. Sugar does not grow in Ravenheart.
   sweets: 9,
   "honeyed-cakes": 9,
@@ -242,7 +266,9 @@ function amorFatiHarm(kind, base, heldSlugs) {
 // did not SELECT it would compute the whole night as though the holder were
 // ordinary. That is exactly the silent kind of miss this list exists to stop,
 // so anything the dial reads belongs here whether or not it is a multiplier.
-const MULTIPLIER_SLUGS = [...new Set([...MULTIPLIERS.map((m) => m.slug), IMPERTURBABLE_SLUG, AMOR_FATI_SLUG])];
+const MULTIPLIER_SLUGS = [
+  ...new Set([...MULTIPLIERS.map((m) => m.slug), IMPERTURBABLE_SLUG, CHANGA_HIGH_SLUG, AMOR_FATI_SLUG]),
+];
 
 // --- the pure half --------------------------------------------------------
 
@@ -490,6 +516,12 @@ async function applyMoodTerms(
   // is already a case resolveDelta handles (it returns 0 for either sign), so
   // this adds no new arithmetic.
   const unshakable = heldSlugs.has(IMPERTURBABLE_SLUG);
+  // Changa's three turns, and the mirror image of Imperturbable below: one
+  // pins the dial to Fine, this one pins it to the top. Nothing that happens
+  // to somebody on Changa reaches them, which is most of what the drug is
+  // for and the reason the come-down is a coin toss with death on one side.
+  // Imperturbable wins a tie — being unreachable beats being delighted.
+  const soaring = !unshakable && heldSlugs.has(CHANGA_HIGH_SLUG);
   if (character.status === "ALIVE" && terms?.length) {
     const k = unshakable ? 0 : intensity ?? (await loadIntensity(tx));
     let moveDelta = 0;
@@ -534,6 +566,16 @@ async function applyMoodTerms(
   if (unshakable && before !== 0 && character.status === "ALIVE") {
     await tx.character.update({ where: { id: characterId }, data: { mood: 0 } });
     after = 0;
+    delta = 0;
+  } else if (soaring && character.status === "ALIVE") {
+    // No `before !== MOOD_MAX` guard on this one, unlike Imperturbable's.
+    // Somebody already at the top still has to take this branch rather than
+    // fall through, or the night's own drift term (-32) would land on them
+    // and the pin would leak a little every turn.
+    if (before !== MOOD_MAX) {
+      await tx.character.update({ where: { id: characterId }, data: { mood: MOOD_MAX } });
+    }
+    after = MOOD_MAX;
     delta = 0;
   } else if (delta !== 0) {
     // Clamped in the database, so two hooks in the same tick cannot race a
@@ -759,6 +801,19 @@ async function applyArrivalMood(prisma, { characterId, fromLocationId, toLocatio
 // of its own falls back to the largest figure among what it granted — most
 // drinks are keyed on the STATUS they grant (Coffee has no entry; its relief
 // comes from Caffeinated's) rather than the item itself. 0 for a stew.
+// The two that SET the dial instead of moving it. "Instantly Ecstatic" is not
+// a delta: a character at -50 given +82 lands at +32, nowhere near the band.
+// consumeTagRequest checks this before it reaches consumeReliefFor.
+//
+// Changa is on the list as well as carrying the changa-high pin, because the
+// pin only fires on the nightly pass -- without this, the first evening of a
+// high would not feel like one.
+const MOOD_MAX_CONSUMABLES = new Set(["heroin", "changa"]);
+
+function consumeSetsMoodToMax(itemSlug) {
+  return MOOD_MAX_CONSUMABLES.has(itemSlug);
+}
+
 function consumeReliefFor(itemSlug, grantedSlugs = []) {
   if (itemSlug in CONSUME_RELIEF) return CONSUME_RELIEF[itemSlug];
   let best = 0;
@@ -834,6 +889,7 @@ module.exports = {
   applyKissMood,
   KISS_AUDIT_ACTION,
   setMood,
+  consumeSetsMoodToMax,
   applyWoundMood,
   applyArrivalMood,
 };

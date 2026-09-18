@@ -2812,6 +2812,12 @@ model Tag {
   // without re-deriving from live state. See docs/systemdocs/CAVING.md.
   consumesIntoResources Int?
 
+  // The same idea for tag POINTS, and the only thing in the game that hands
+  // any out outside a fulfilled Desire: Ambrosia is a pill you swallow to be
+  // better at something. Null for everything else. Applied by the same
+  // consumeTagRequest, beside creditResources.
+  consumesIntoTagPoints Int?
+
   // Parallel array to consumesInto, same length and order — added for the
   // Caves Update's Skinned Cave Rat (a 50/50 pick between Ate Meal and
   // Vomiting). Each entry is either null (that position grants exactly the
@@ -3468,6 +3474,23 @@ model Role {
   // Declared in the YAML rather than in code, so a new seat needs none. See
   // docs/systemdocs/DEPOT.md §0g.
   bankAccountClass BankAccountClass?
+
+  // What that account opens WITH, declared as `starting_account:` in
+  // docs/roles.yaml. 0 for most seats, and for every seat with no
+  // bankAccountClass at all -- there is nothing to hold the claim.
+  //
+  // This is the one thing the comment above used to say never happens, so it
+  // is worth saying why it does now. A TREASURY balance is a hard claim on the
+  // physical obols in the Keep's Vault, and the objection to seeding one was
+  // that it would be a claim with nothing behind it. That is answered by the
+  // Vault's own seed rather than by refusing: docs/zones.yaml stocks
+  // undercroft-vault with enough coin to cover every purse a full game hands
+  // out, and `npm run db:audit-vault-backing` is the check that says so. Raise
+  // any figure here and check that script still exits 0.
+  //
+  // The Merchant is the exception that needs none of this: his account is
+  // OFFSHORE, so his 55 is held off-world and claims nothing in the Vault.
+  startingAccountObols Int @default(0)
 
   // Whether picking this role needs the @Leader Whitelist Discord role -- a
   // hosting decision about who may claim this seat at all. These are the named

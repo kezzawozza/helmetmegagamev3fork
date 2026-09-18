@@ -76,10 +76,13 @@ const WINDED_SLUG = "winded";
 // without this they could push on. Bascinet's list, 2026-09-12.
 const EXERT_REFUSAL_SLUGS = new Set(["arterial-bleed", "punctured-lung", "gut-wound", "sepsis", "blind-drunk"]);
 // The traits that pull the die (db/lib/advantage.js#rollWithEdge): a runner
-// and two stimulants keep the better of two, "more easily tired out by
-// physical activity" and "slower" keep the worse. Lucky counts as it does on
-// every other die. The count decides; a tie rolls once.
-const EXERT_BETTER_SLUGS = new Set([LUCKY_SLUG, "quick-footed", "caffeinated", "stimulant-high"]);
+// and a stimulant keep the better of two, "more easily tired out by physical
+// activity" and "slower" keep the worse. Lucky counts as it does on every
+// other die. The count decides; a tie rolls once.
+//
+// Stimulant High was the second stimulant here until the coca chain left the
+// game; nothing granted it any more, so it went with the rest.
+const EXERT_BETTER_SLUGS = new Set([LUCKY_SLUG, "quick-footed", "caffeinated"]);
 const EXERT_WORSE_SLUGS = new Set(["fat", "old"]);
 function exertOutcome(die) {
   if (die <= 1) return "injury";

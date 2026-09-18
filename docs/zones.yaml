@@ -924,7 +924,13 @@ zones:
                 # this pile and nothing else, so a withdrawal takes real coin
                 # out of this room and an empty Vault means nobody gets paid.
                 # See docs/systemdocs/DEPOT.md §0g.
-                obol: 350
+                #
+                # 350 until roles started opening their accounts with money in
+                # them (`starting_account:` in docs/roles.yaml). Those purses
+                # come to about 310 at 100 players and 395 at 150, so this has
+                # to cover them and still leave the town something to spend.
+                # `npm run db:audit-vault-backing` is the check.
+                obol: 480
                 painting: 1
                 nuclear-device: 1
       road:
@@ -1338,7 +1344,6 @@ zones:
               items:
                 nightshade-herb: 2
                 poppy-pods: 2
-                coca-leaves: 2
 
       hills-underlocks:
         name: Underlocks
@@ -1565,7 +1570,6 @@ zones:
               items:
                 paper: 8
                 obol: 23
-                distilled-coca: 1
       hills-cliffs:
         name: Cliffs
         attributes:

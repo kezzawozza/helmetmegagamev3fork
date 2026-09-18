@@ -150,6 +150,16 @@ families:
     group: appetite
     color: "#c98f3e"
     # Recreational narcotics — taking, dealing, overdosing, first tastes.
+  heroin:
+    name: Heroin
+    group: appetite
+    color: "#b07a34"
+    # Its own family, separate from drugs, and it holds exactly one Desire.
+    # That is the whole reason it exists: the Heroin Addict tag locks every
+    # Desire except this family, and pointing that lock at `drugs` would have
+    # left a dozen other narcotics Desires standing. A lock reaches a family,
+    # never a single slug — so a Desire that must stand alone needs a family
+    # of its own.
   gambling:
     name: Gambling
     group: appetite
@@ -354,6 +364,19 @@ desires:
     tier: 1
     families: [drugs]
     cooldownTurns: 3
+
+  # Gated on the tag AND locked to by the tag, which is not redundant: the
+  # gate stops it appearing for anybody clean, and the lock on heroin-addict
+  # (docs/tags.yaml) stops everything else appearing for anybody who is not.
+  # A 1-turn cooldown, the shortest in the file, because a habit does not wait.
+  use-heroin:
+    name: Use heroin
+    verify: "Heroin"
+    tier: 1
+    families: [heroin]
+    cooldownTurns: 1
+    requires:
+      anyTags: [heroin-addict]
 
   take-a-drug:
     name: Take a recreational drug — not alcohol

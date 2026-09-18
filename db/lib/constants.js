@@ -148,6 +148,10 @@ const MANIC_SLUG = "manic";
 const METEMPSYCHOSIS_SLUG = "metempsychosis";
 const AMOR_FATI_SLUG = "amor-fati";
 const IMPERTURBABLE_SLUG = "imperturbable";
+// Imperturbable's opposite number, and the only other tag that PINS the dial
+// rather than nudging it: while the high lasts, the holder is at MOOD_MAX
+// every turn no matter what is done to them. See db/lib/mood.js.
+const CHANGA_HIGH_SLUG = "changa-high";
 const SECOND_WIND_SLUG = "second-wind";
 const BREWING_DISTILLING_SLUG = "brewing-distilling";
 const MUSICIAN_PYTHAGOREAN_SLUG = "musician-pythagorean";
@@ -255,6 +259,7 @@ module.exports = {
   METEMPSYCHOSIS_SLUG,
   AMOR_FATI_SLUG,
   IMPERTURBABLE_SLUG,
+  CHANGA_HIGH_SLUG,
   SECOND_WIND_SLUG,
   BREWING_DISTILLING_SLUG,
   MUSICIAN_PYTHAGOREAN_SLUG,

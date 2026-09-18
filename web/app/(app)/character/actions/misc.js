@@ -219,8 +219,11 @@ import {
   applyMood,
   applyMoodTerms,
   consumeReliefFor,
+  consumeSetsMoodToMax,
+  setMood,
   dishMoodTerms,
   woundMoodFor,
+  MOOD_MAX,
   DESIRE_RELIEF_PER_POINT,
 } from "@lifeweb/db/lib/mood";
 import {
@@ -863,6 +866,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     resisted: resistedSlugs,
     durations: grantDurations,
     resources: resourcesGranted,
+    tagPoints: tagPointsGranted,
   } = resolveConsumeGrants(resolveAgainst, heldSlugsOf(target.tags), ladder, resistSlugs);
 
   // The rungs the climb clears — Tipsy coming off as Wasted goes on. Built
@@ -894,7 +898,11 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     : hungerRestored > 0
       ? rawFoodMoodTerms(held.tag.cooked?.mood ?? 0)
       : null;
-  const moodRelief = moodTerms ? 0 : consumeReliefFor(held.tag.slug, grantSlugs);
+  // Heroin and Changa do not move the dial, they put it at the top. A delta
+  // cannot say that -- +82 from a frightened character still lands short of
+  // Ecstatic -- so these two skip the relief arithmetic entirely.
+  const moodToMax = !moodTerms && consumeSetsMoodToMax(held.tag.slug);
+  const moodRelief = moodTerms || moodToMax ? 0 : consumeReliefFor(held.tag.slug, grantSlugs);
 
   // What the eater is told, and the only thing they are told: a dish names
   // its tastes and never its ingredients. `line` is returned to the client,
@@ -1056,6 +1064,15 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         allResourcesGranted,
       );
     }
+    // Ambrosia, and nothing else so far: a pill that leaves you better at
+    // something. Unclamped like every other tagPoints write (db/lib/
+    // stagedPush.js says why) -- the column may legitimately sit negative.
+    if (tagPointsGranted) {
+      await tx.character.update({
+        where: { id: target.id },
+        data: { tagPoints: { increment: tagPointsGranted } },
+      });
+    }
     // db/lib/hiddenCures.js. Runs after the ordinary grants and records
     // nothing on the request, on purpose. A dish runs it for each INGREDIENT
     // too, so a pie made with leeches still takes the bruise off — the cure
@@ -1073,6 +1090,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
       await clearHungerBands(tx, target.id, row?.after ?? 0);
     }
     if (moodTerms?.length) await applyMoodTerms(tx, target.id, moodTerms);
+    else if (moodToMax) await setMood(tx, target.id, MOOD_MAX);
     else if (moodRelief) await applyMood(tx, target.id, { kind: "DRINK", base: moodRelief });
 
     // Per held cured tag: drop it, grant the aftermath (the item's own
@@ -1154,6 +1172,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
         restore,
         granted: granted.map((g) => g.tagName),
         resourcesGranted: allResourcesGranted,
+        tagPointsGranted,
         moodRelief: moodRelief || undefined,
         hungerRestored: hungerRestored || undefined,
         // The GM's copy of what a dish was, which is the only place the

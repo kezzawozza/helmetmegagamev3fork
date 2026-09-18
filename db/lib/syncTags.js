@@ -962,6 +962,7 @@ async function syncTagsFromYaml(prisma) {
       psychological: entry.psychological ?? false,
       consumable: entry.consumable ?? false,
       consumesIntoResources: entry.consumesIntoResources ?? null,
+      consumesIntoTagPoints: entry.consumesIntoTagPoints ?? null,
       expiresInto: normalizeExpiresInto(entry.expiresInto),
       escalatesInto: entry.escalatesInto ?? null,
       removesInto: normalizeRemovesInto(entry.removesInto),

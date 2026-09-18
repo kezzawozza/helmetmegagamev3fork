@@ -1641,6 +1641,34 @@ tags:
           exceptFamilies: [drugs]
           slot: bottom
 
+  # The heaviest of the six, and the only one that is not bought. You get it
+  # by using Heroin, once, and nothing in Ravenheart takes it off you except a
+  # Chaplain's Confess or a dose of Gelabine.
+  #
+  # Two things make it worse than its siblings on purpose. The others lock the
+  # BOTTOM Desire slot; this locks ALL of them, so the only thing the holder
+  # can still want is the next dose. And -8 against their -4 is Bascinet's
+  # call: it is the whole creation drawback budget (GameConfig
+  # maxDrawbackPoints, 8), so a character who takes it at creation can take
+  # nothing else.
+  heroin-addict:
+    catalog: all
+    name: "Heroin Addict"
+    psychological: true
+    category: general
+    group: general-addictions
+    description: "You're addicted to heroin. Nothing else seems worth wanting. Locks every Desire except using again."
+    pointCost: -8
+    exclusive: true
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: false
+    conflictsWith: [depressed, prudish]
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [heroin]
+
   slave-brand:
     catalog: all
     name: Slave Brand
@@ -3706,19 +3734,6 @@ tags:
     durationTurns: 2
 
   # Push on (MAP.md §3): keeps the better of two dice — db/lib/locationTravel.js.
-  stimulant-high:
-    catalog: gm
-    name: Stimulant High
-    category: status
-    group: status-buffs
-    description: "This is so fun! You could do anything!"
-    fighting: { tree: both, tiers: 0.5 }
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 2
-
   invisible:
     catalog: gm
     name: Invisible
@@ -3883,6 +3898,95 @@ tags:
     category: status
     group: status-debuffs
     description: "You could do this for the rest of your life."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 3
+
+  # The drug highs (docs/systemdocs/BREWING.md). Each one is the STATE half of
+  # an item on the Silver Chip shelf, the same split every consumable in this
+  # file uses — you swallow the tablet, you hold the high.
+  #
+  # None of them carries its mood here, and that is not an oversight: a drug
+  # restores no hunger, so the consume path never reads `cooked.mood` for one.
+  # What a drug does to the dial is a row in CONSUME_RELIEF (db/lib/mood.js),
+  # and Heroin and Changa do not use that either — they SET the dial rather
+  # than adding to it, which no authored field can express.
+  dissociated:
+    catalog: gm
+    name: Dissociated
+    category: status
+    group: status-debuffs
+    description: "This feels strange."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  # The only tag in the game that can kill you by running out. `oneOf` is an
+  # even pick and `dead` is the reserved token (db/lib/tagShapes.js), so this
+  # is a true 50/50 with no code behind it: three turns of being the happiest
+  # person in Ravenheart, then a coin toss between a Seizure and the end.
+  #
+  # The max-mood pin is NOT here — a tag cannot author "set my holder to
+  # MOOD_MAX every turn". It lives beside Imperturbable's pin-to-Fine in
+  # db/lib/mood.js#applyMoodTerms, and the slug is in MULTIPLIER_SLUGS so the
+  # nightly pass actually loads it.
+  changa-high:
+    catalog: gm
+    name: Changa High
+    category: status
+    group: status-buffs
+    description: "You are losing your mind and going crazy. You might die."
+    fighting: { tree: melee, tiers: 1 }
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 3
+    expiresInto: [{ oneOf: [seizure, dead] }]
+
+  # What Changa is once somebody has refined the madness out of it: the same
+  # strength, none of the coin toss.
+  buffout-high:
+    catalog: gm
+    name: Buffout High
+    category: status
+    group: status-buffs
+    description: "You feel wired and intense."
+    fighting: { tree: melee, tiers: 1.5 }
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+
+  # Heroin's other half. The dial goes to the top and the body goes slack.
+  doped:
+    catalog: gm
+    name: Doped
+    category: status
+    group: status-debuffs
+    description: "You feel tranquil and tired."
+    fighting: { tree: both, tiers: -0.5 }
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  # The one appearance-ish bonus that is NOT crossed. Pretty, Beautiful and
+  # Seductive all pay the person you kiss and never yourself (db/lib/kiss.js);
+  # a Love Tablet pays both, so one tablet between two people is enough. That
+  # exception is written in kiss.js, not here.
+  in-love:
+    catalog: gm
+    name: In Love
+    category: status
+    group: status-buffs
+    description: "Your kisses make both you and the other person very happy."
     pointCost: 0
     visible: true
     purchasable: false
@@ -6877,11 +6981,11 @@ tags:
       taste: "something poisonous"
       mood: -10
 
-  # Two more of the same shape (Chris 2026-09-05): Poppy and Distilled Coca
-  # used to be brewed out of ⬢ alone, and now spend a raw ingredient the way
-  # Nightshade does. Public like nightshade-herb, and like it, NOTHING DROPS
-  # THESE YET — nothing drops them and no table is waiting to; a GM grants
-  # them meanwhile.
+  # The same shape as nightshade-herb (Chris 2026-09-05): Poppy used to be
+  # brewed out of ⬢ alone, and now spends a raw ingredient. Public like
+  # nightshade-herb, and like it, NOTHING DROPS IT YET — no table is waiting
+  # to; a GM grants them meanwhile. Coca Leaves were its twin until the coca
+  # chain left the game.
   poppy-pods:
     catalog: all
     name: Poppy Pods
@@ -6899,24 +7003,6 @@ tags:
     cooked:
       taste: "something bitter"
       mood: 10
-
-  coca-leaves:
-    catalog: all
-    name: Coca Leaves
-    category: items
-    group: items-gear
-    description: "Glossy leaves that numb the tongue."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 2
-    cooked:
-      taste: "something bitter"
-      mood: 12
 
   # Fished up by the labor loot pass. Public on purpose (Chris 2026-09-07):
   # the heart is a curiosity anyone may catch, but the White Honey link stays
@@ -11850,8 +11936,6 @@ tags:
     manifest: black-market
     pointCost: 0
     depotPrice: 4
-    sellable: true
-    sellablePrice: 3
     weight: 0
     stackable: true
     visible: false
@@ -11879,8 +11963,6 @@ tags:
     manifest: black-market
     pointCost: 0
     depotPrice: 15
-    sellable: true
-    sellablePrice: 9
     weight: 1
     stackable: true
     visible: false
@@ -11896,8 +11978,6 @@ tags:
     manifest: black-market
     pointCost: 0
     depotPrice: 23
-    sellable: true
-    sellablePrice: 14
     weight: 1
     stackable: true
     visible: false
@@ -11913,8 +11993,6 @@ tags:
     manifest: black-market
     pointCost: 0
     depotPrice: 4
-    sellable: true
-    sellablePrice: 2
     weight: 0
     stackable: true
     visible: false
@@ -11934,8 +12012,6 @@ tags:
     manifest: black-market
     pointCost: 0
     depotPrice: 11
-    sellable: true
-    sellablePrice: 7
     equippable: true
     equipSlot: WEAPON
     weight: 3
@@ -13142,8 +13218,6 @@ tags:
     # with ravenheart-red — its only price is sellablePrice 14, since it has
     # no depotPrice of its own (not depot-importable). See DEPOT.md §3.
     depotPrice: 9
-    sellable: true
-    sellablePrice: 7
     weight: 2
     stackable: true
     visible: false
@@ -13353,8 +13427,6 @@ tags:
     pointCost: 0
     depotPrice: 41
     sealedShipping: true
-    sellable: true
-    sellablePrice: 27
     weight: 0.5
     stackable: true
     visible: false
@@ -13608,8 +13680,6 @@ tags:
       resourceCost: 2
       skills: [brewing-basic]
       gambit: false
-    sellable: true
-    sellablePrice: 3
     # The one local brew the Depot also sells, for a Merchant who would rather
     # not wait on a brewer. Six against a sell-back of four, so importing it
     # and dumping it straight back is a losing trade. See DEPOT.md §3.
@@ -13696,6 +13766,266 @@ tags:
       items: [cave-fungus]
     sellable: true
     sellablePrice: 3
+
+  # ---------------------------------------------------------------------
+  # The Silver Chip shelf (docs/systemdocs/DEPOT.md §0e).
+  #
+  # Nine wares the Depot imports and the Pusher resells. Every one of them is
+  # BUY-ONLY: a depotPrice and no sellablePrice at all, the shape bar-soap
+  # already uses. That is deliberate and it now covers the whole black-market
+  # shelf, brews included — you can buy a drug at the counter and you can
+  # never sell one back, so the market for them is other players.
+  #
+  # None of them authors its mood. A drug restores no hunger, so the consume
+  # path never reads `cooked.mood` for one (web/.../actions/misc.js) — what a
+  # drug does to the dial is a row in CONSUME_RELIEF (db/lib/mood.js), and the
+  # two that go straight to the top SET the dial there rather than adding to
+  # it. The `taste:` lines below are empty on purpose, the way Phrygian Tears
+  # does it: an empty taste prints nothing rather than a gap, and none of
+  # these has been given a flavour yet.
+  # ---------------------------------------------------------------------
+
+  # Cheap, imported, and the start of the worst thing that can happen to a
+  # character in this file. One dose puts the dial at the top and hands over
+  # Heroin Addict, permanently.
+  heroin:
+    catalog: all
+    name: Heroin
+    category: items
+    group: items-drink
+    description: "A powerful substance, instantly making its user Ecstatic."
+    manifest: black-market
+    depotPrice: 2
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - doped
+      - heroin-addict
+    cures: [aching, severe-pain, pain-shock]
+    cooked:
+      taste: ""
+      mood: 0
+
+  changa:
+    catalog: all
+    name: Changa
+    category: items
+    group: items-drink
+    description: "A cheap, dangerous powder that's usually smoked. It makes the user aggressive and insane, but ecstatic."
+    manifest: black-market
+    depotPrice: 2
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - changa-high
+    cooked:
+      taste: ""
+      mood: 0
+
+  eth-lod:
+    catalog: all
+    name: ETH-LOD
+    category: items
+    group: items-drink
+    description: "A dissolvable tablet that causes dissociation."
+    manifest: black-market
+    depotPrice: 3
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - dissociated
+    cures: [aching, severe-pain, pain-shock]
+    cooked:
+      taste: ""
+      mood: 0
+
+  kzozel-yantar:
+    catalog: all
+    name: Kzozel Yantar
+    category: items
+    group: items-drink
+    description: "A carbonated, dark-colored alcoholic drink. The label depicts a strange horned animal."
+    manifest: black-market
+    depotPrice: 4
+    pointCost: 0
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - tipsy
+    cooked:
+      taste: ""
+      mood: 0
+
+  love-tablets:
+    catalog: all
+    name: Love Tablets
+    category: items
+    group: items-drink
+    description: "An expensive pill enjoyed by party-goers, increasing the mood boost of kissing."
+    manifest: black-market
+    depotPrice: 7
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - in-love
+    cooked:
+      taste: ""
+      mood: 0
+
+  # The way out, and the only one that is not a Chaplain. Enumerated rather
+  # than pointed at the general-addictions group because removesOnConsume
+  # takes a flat list of slugs — a new addiction has to be added here by hand.
+  gelabine:
+    catalog: all
+    name: Gelabine
+    category: items
+    group: items-drink
+    description: "It cures all addictions."
+    manifest: black-market
+    depotPrice: 8
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    consumesInto:
+      - aching
+    removesOnConsume: [alcoholic, drug-habit, gambler, vain, glutton, heroin-addict]
+    requirement:
+      turnsCost: 0.5
+      resourceCost: 0
+      skills: [brewing-skilled]
+      gambit: false
+      items: [cave-fungus]
+    cooked:
+      taste: ""
+      mood: 0
+
+  # The military autoinjector's cures list exactly, at a fifth of the price,
+  # because whatever is in the clear tube also costs you your eyes a little.
+  # The damaged-vision stack is the same one Moonshine hands out.
+  black-market-autoinjector:
+    catalog: all
+    name: Black Market Autoinjector
+    category: items
+    group: items-gear
+    description: "It has a clear substance inside."
+    manifest: black-market
+    depotPrice: 8
+    pointCost: 0
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - damaged-vision
+    cures:
+      [
+        bruised,
+        sprained-ankle,
+        burned,
+        minor-bleeding,
+        minor-wound,
+        dislocated-shoulder,
+        deep-wound,
+        broken-bone,
+        cracked-ribs,
+        blunt-force-trauma,
+        frostbite,
+        severe-burns,
+        grievous-wound,
+        gut-wound,
+        crush-injury,
+      ]
+
+  buffout:
+    catalog: all
+    name: Buffout
+    category: items
+    group: items-drink
+    description: "A refined, safer version of Changa. It makes the user strong."
+    manifest: black-market
+    depotPrice: 20
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    consumesInto:
+      - buffout-high
+    cures: [aching, severe-pain, pain-shock]
+    requirement:
+      turnsCost: 0.25
+      resourceCost: 0
+      skills: [brewing-skilled]
+      gambit: false
+      items: [changa, cave-fungus]
+    cooked:
+      taste: ""
+      mood: 0
+
+  # The dearest thing on the shelf, and the only item in the game that hands
+  # out tag points — `consumesIntoTagPoints`, the twin of the ⬢ field beside
+  # it. 80 ¢ or five Cave Fungus and a day, so a prospector can make what a
+  # courtier has to buy.
+  ambrosia:
+    catalog: all
+    name: Ambrosia
+    category: items
+    group: items-drink
+    description: "A set of dissolvable tabs with the symbol of a happy face on them. Tablets used by university students in the United Cities."
+    manifest: black-market
+    depotPrice: 80
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    consumesIntoTagPoints: 4
+    requirement:
+      turnsCost: 1
+      resourceCost: 0
+      skills: [brewing-expert]
+      gambit: false
+      items: [{ tag: cave-fungus, count: 5 }]
+    cooked:
+      taste: ""
+      mood: 0
 
   ravenheart-red:
     catalog: all
@@ -14013,8 +14343,6 @@ tags:
       # 2026-09-07): a bottle of Nightshade distilled further, cut with
       # cave-fungus. Both public, so the recipe stays in the book.
       items: [nightshade, cave-fungus]
-    sellable: true
-    sellablePrice: 22
     depotPrice: 32
     sealedShipping: true
 
@@ -14179,33 +14507,6 @@ tags:
     cooked:
       taste: "something soothing"
       mood: 0
-
-  distilled-coca:
-    catalog: all
-    name: Distilled Coca
-    category: items
-    group: items-drink
-    description: "A bitter green syrup distilled from {tag:coca-leaves}. Can be consumed to gain {tag:stimulant-high}."
-    manifest: black-market
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    consumesInto:
-      - stimulant-high
-    requirement:
-      turnsCost: 1
-      resourceCost: 4
-      skills: [brewing-skilled]
-      gambit: false
-      items: [coca-leaves]
-    sellable: true
-    sellablePrice: 10
-    depotPrice: 11
 
   black-river-mud:
     catalog: gm

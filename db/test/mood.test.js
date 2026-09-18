@@ -273,9 +273,12 @@ test("a bed never makes anybody happy, however many nights they sleep in one", (
   assert.equal(bandOf(mood).label, "Fine");
 
   // Somebody already above Fine only drifts back down, and the bed does not
-  // slow the fall — a good mood is spent by morning either way.
-  assert.equal(night(40), 0);
-  assert.equal(night(60), 20);
+  // slow the fall — the bed adds nothing either way, which is the claim this
+  // test is making. How MUCH of a good mood survives the night is
+  // MOOD_DRIFT_DOWN's business and it moved from 40 to 32 when the drug shelf
+  // landed, so a little now carries over where none used to.
+  assert.equal(night(40), 8);
+  assert.equal(night(60), 28);
   assert.equal(night(4), 0);
 
   // Recovery from a bad mood is untouched — the full +18 still lands.
@@ -336,8 +339,12 @@ test("only the three bands that move a Gambit say anything, and only on the way 
 });
 
 test("a consume is worth its largest single figure, never a sum", () => {
-  // Bliss lands two statuses and is one drink.
-  assert.equal(consumeReliefFor("bliss", ["euphoric", "high"]), 35);
+  // Bliss lands two statuses and is one drink — and its own item row (80)
+  // wins outright over both of them, which is the other half of the rule:
+  // largest SINGLE figure, and an item's own entry beats what it grants.
+  assert.equal(consumeReliefFor("bliss", ["euphoric", "high"]), 80);
+  // The same drink without an item row of its own still maxes its grants.
+  assert.equal(consumeReliefFor("cave-fungus", ["high"]), 35);
   // A treat is a treat, not a treat plus a meal.
   assert.equal(consumeReliefFor("sweets", ["ate-meal"]), 9);
   assert.equal(consumeReliefFor("honeyed-cakes", ["ate-meal"]), 9);

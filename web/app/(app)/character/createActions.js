@@ -31,7 +31,8 @@ import {
 } from "@lifeweb/db/lib/wantedPoster";
 import { addToStack } from "@lifeweb/db/lib/tagWrites";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
-import { openAccount } from "@lifeweb/db/lib/bankAccounts";
+import { openAccount, bumpBankAccount } from "@lifeweb/db/lib/bankAccounts";
+import { turnStamp } from "@lifeweb/db/lib/economyLedger";
 import {
   ensureCharacterRole,
   syncCharacterNarrowcastAccess,
@@ -455,19 +456,32 @@ export async function createCharacter(formData) {
   // Neither curse nor ghost needs a write — the new ALIVE row is already the answer to both.
   await closeDeadchatTo(prisma, discordUserId).catch(() => {});
 
-  // The Depot account this seat opens with, from docs/roles.yaml's
-  // `bank_account:` (db/lib/syncRoles.js). It opens EMPTY — a starting purse is
-  // physical obols out of `starting_tags`, because a seeded balance on day one
-  // would be a claim with nothing behind it in the Vault, which is exactly what
-  // the hard backing exists to prevent.
+  // The Depot account this seat opens with, and what is already in it — from
+  // docs/roles.yaml's `bank_account:` and `starting_account:`
+  // (db/lib/syncRoles.js).
+  //
+  // It used to open EMPTY, always, on the argument that a seeded balance would
+  // be a claim with nothing behind it in the Vault. That is answered by
+  // stocking the Vault to cover every purse a full game hands out
+  // (docs/zones.yaml, `undercroft-vault`) rather than by refusing — so a seat
+  // can now start with money in the bank as well as in its hand.
+  // `npm run db:audit-vault-backing` is the check that keeps the two honest.
   //
   // Best-effort, in the side-effect block rather than the create transaction:
   // a character with no account can open one at the counter in one click, and
-  // failing a whole character creation over a bank is the wrong trade.
+  // failing a whole character creation over a bank is the wrong trade. The
+  // credit is inside the same try, so a failed open never leaves a balance
+  // with no account under it.
   if (role.bankAccountClass) {
-    await openAccount(prisma, created, { accountClass: role.bankAccountClass, turnNumber: openTurn?.number ?? null }).catch(
-      (err) => console.error("Opening a bank account failed:", err),
-    );
+    await openAccount(prisma, created, { accountClass: role.bankAccountClass, turnNumber: openTurn?.number ?? null })
+      .then(async (account) => {
+        if (!account || !(role.startingAccountObols > 0)) return;
+        await bumpBankAccount(prisma, account.id, role.startingAccountObols, {
+          holderName: account.holderName,
+          econ: { reason: "CHARACTER_START", ...turnStamp(openTurn) },
+        });
+      })
+      .catch((err) => console.error("Opening a bank account failed:", err));
   }
 
   // The Depot's turret spares exactly one face — he knows his own name here.

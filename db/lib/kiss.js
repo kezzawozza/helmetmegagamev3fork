@@ -35,13 +35,32 @@ const KISS_ACCEPTED_ACTION = "kiss_accepted";
 // of the numbers.
 const KISS_APPEARANCE = Object.freeze({ seductive: 75, beautiful: 12, pretty: 6 });
 
+// A Love Tablet, and the one bonus here that is NOT crossed. Everything in
+// the table above is a fact about your face, so it is paid to the person who
+// has to look at it; In Love is a fact about the evening, so it is paid to
+// both of you and one tablet between two people is enough. Kept out of
+// KISS_APPEARANCE on purpose — a row there would be silently crossed like the
+// rest, which is exactly the bug this shape prevents.
+const IN_LOVE_SLUG = "in-love";
+const IN_LOVE_BONUS = 80;
+
+function heldSlugsOf(tags) {
+  return new Set((tags ?? []).map((ct) => ct?.tag?.slug ?? ct?.slug).filter(Boolean));
+}
+
 function appearanceBonus(tags) {
-  const held = new Set((tags ?? []).map((ct) => ct?.tag?.slug ?? ct?.slug).filter(Boolean));
+  const held = heldSlugsOf(tags);
   const face = Math.max(
     held.has("beautiful") ? KISS_APPEARANCE.beautiful : 0,
     held.has("pretty") ? KISS_APPEARANCE.pretty : 0,
   );
   return (held.has("seductive") ? KISS_APPEARANCE.seductive : 0) + face;
+}
+
+// Paid to BOTH sides if EITHER side holds it, and only once however many
+// tablets are in the room.
+function inLoveBonus(...tagSets) {
+  return tagSets.some((tags) => heldSlugsOf(tags).has(IN_LOVE_SLUG)) ? IN_LOVE_BONUS : 0;
 }
 
 // `equipped` and CONCEALMENT_TAG_FIELDS make the covered-face rule work — concealmentFrom() only counts a piece actually WEARING, missing them reports every hood as no hood.
@@ -199,10 +218,20 @@ async function acceptKiss(prisma, offer, responder) {
   // The bonuses CROSS: each side is paid for the other's looks, never their own.
   const actorLooks = appearanceBonus(actor.tags);
   const targetLooks = appearanceBonus(target.tags);
+  // …and this one does not cross: it lands on both sides, from either side.
+  const love = inLoveBonus(actor.tags, target.tags);
   const moved = await prisma.$transaction(async (tx) => {
     const [a, b] = await Promise.all([
-      applyKissMood(tx, actor.id, { turnId: turn?.id ?? null, partnerId: target.id, bonus: targetLooks }),
-      applyKissMood(tx, target.id, { turnId: turn?.id ?? null, partnerId: actor.id, bonus: actorLooks }),
+      applyKissMood(tx, actor.id, {
+        turnId: turn?.id ?? null,
+        partnerId: target.id,
+        bonus: targetLooks + love,
+      }),
+      applyKissMood(tx, target.id, {
+        turnId: turn?.id ?? null,
+        partnerId: actor.id,
+        bonus: actorLooks + love,
+      }),
     ]);
     // One row per side, both carry turnId — REQUESTS.md §1a — the only thing that lets a ration ever count them.
     await tx.auditLog.createMany({

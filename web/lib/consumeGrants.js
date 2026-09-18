@@ -87,7 +87,15 @@ export function resolveConsumeGrants(tag, heldSlugs, ladder = null, resistSlugs 
     const override = overrides?.[slug];
     if (override != null) durations[slug] = override;
   }
-  return { slugs, blocked, resisted, removes, durations, resources: tag?.consumesIntoResources ?? 0 };
+  return {
+    slugs,
+    blocked,
+    resisted,
+    removes,
+    durations,
+    resources: tag?.consumesIntoResources ?? 0,
+    tagPoints: tag?.consumesIntoTagPoints ?? 0,
+  };
 }
 
 export function resistSlugsOf(characterTags) {

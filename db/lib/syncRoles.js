@@ -27,6 +27,27 @@ function loadDoc() {
 
 // Flattens the group -> role nesting into one list, preserving authoring order
 // within a group as sortOrder so the picker reads the way the YAML does.
+// `starting_account:` -- how many obols are already in the account when this
+// seat's bank account is opened (docs/systemdocs/DEPOT.md 0g). Absent is 0.
+//
+// Refused on a seat with no `bank_account:`, because the money would have
+// nowhere to land and the author plainly meant something. Refused on a
+// negative or fractional figure for the same reason: an account cannot open
+// overdrawn, and bumpBankAccount would floor it at 0 without a word.
+function startingAccount(role, slug) {
+  const raw = role.starting_account;
+  if (raw == null) return 0;
+  if (!Number.isInteger(raw) || raw < 0) {
+    throw new Error(`docs/roles.yaml: role "${slug}" starting_account must be a whole number of 0 or more`);
+  }
+  if (raw > 0 && role.bank_account !== "treasury" && role.bank_account !== "offshore") {
+    throw new Error(
+      `docs/roles.yaml: role "${slug}" sets starting_account but has no bank_account -- there is no account to open it into`,
+    );
+  }
+  return raw;
+}
+
 function parseRolesYaml(doc) {
   const roles = [];
   for (const [groupSlug, group] of Object.entries(doc?.groups ?? {})) {
@@ -58,6 +79,10 @@ function parseRolesYaml(doc) {
             : role.bank_account === "treasury"
               ? "TREASURY"
               : null,
+        // What that account opens WITH. A seat with no account may not name
+        // one -- there would be nowhere to put the money, so that is a typo
+        // and gets said out loud rather than silently dropped.
+        startingAccountObols: startingAccount(role, role.slug),
         // Who may claim this seat at all — a hosting decision. It also decides
         // which seats the assignment roll fills first (db/lib/roleAssignment.js).
         requiresWhitelist: role.whitelist === true,
@@ -195,6 +220,7 @@ async function syncRolesFromYaml(prisma) {
       extraStartingPoints: entry.extraStartingPoints,
       startingTagSlugs: entry.startingTagSlugsResolved,
       bankAccountClass: entry.bankAccountClass,
+      startingAccountObols: entry.startingAccountObols,
       requiresWhitelist: entry.requiresWhitelist,
       examineVisible: entry.examineVisible,
       lockedGender: entry.lockedGender,
