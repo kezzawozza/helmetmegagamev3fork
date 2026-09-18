@@ -44,13 +44,9 @@ export async function stealRequestImpl({ fromKey, tags }) {
     { announceTake: false },
   );
 
-  // Every d6 a character throws goes through rollWithAdvantage. `gambitOnly`
-  // stays FALSE, which is two decisions:
-  //
-  //   - Lucky applies, quietly and permanently, the same admission
-  //     SEARCH.md §3b makes about a die nobody is shown.
-  //   - Inspired does NOT. It is a one-shot the player paid for, and letting an
-  //     unlimited free roll eat it would be a theft they could not even see.
+  // Every d6 a character throws goes through rollWithAdvantage, so Lucky
+  // applies here — quietly and permanently, the same admission SEARCH.md §3b
+  // makes about a die nobody is shown.
   const roll = rollWithAdvantage(character.tags, 6);
   const modifiers = stealModifiers(character.tags);
   const unseen = stealSucceeds(roll.die, modifiers);

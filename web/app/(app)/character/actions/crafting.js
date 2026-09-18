@@ -520,7 +520,7 @@ function resolveDeathMaskSource(character, ingredientChoice) {
   const corpses = character.tags.filter(
     (ct) => ct.tag?.group?.slug === "items-corpse",
   );
-  if (!corpses.length) throw new UserError("Making that needs a corpse to hand.");
+  if (!corpses.length) throw new UserError("Making that requires a corpse.");
   const untaken = corpses.filter(
     (ct) => !(ct.tag.description ?? "").includes(FACE_TAKEN_SENTENCE),
   );

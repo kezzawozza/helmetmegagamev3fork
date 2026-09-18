@@ -354,7 +354,7 @@ Reject of the auto-filed Action remains the full reset for the turn's Move
 ## 4a. Custom items (`customizable`)
 
 A recipe flagged `customizable:` in docs/tags.yaml (the fine and lavish
-meals, the painting, the sketch, the badge, the hat, and — since
+meals, the painting, the badge, the hat, and — since
 2026-09-09 — the plain arms and all the armor on the Smithing ladder,
 `SMITHING.md` §3-§4) can be crafted as the maker's OWN: for
 **+1 ⬢ a unit** (`CUSTOM_SURCHARGE`, web/lib/customCraft.js) the player sets
@@ -403,7 +403,7 @@ your work is a skilled smith's privilege — not something an apprentice does
 to a cudgel — and the piece's own tier has nothing to do with it: a basic
 smith still forges a plain dagger, they just cannot put their name on it.
 Omit the key and the recipe is open to anyone who can make the thing, which
-is the meals, the painting, the sketch, the badge and the hat.
+is the meals, the painting, the badge and the hat.
 
 One verdict, `mayCustomize` in web/lib/customCraft.js, read by both faces:
 `/character` ships `customizable` already RESOLVED against the viewer's held

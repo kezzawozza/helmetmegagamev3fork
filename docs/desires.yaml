@@ -647,13 +647,6 @@ desires:
     families: [social]
     cooldownTurns: 5
 
-  use-a-censer:
-    name: Use a censer
-    verify: "Censer"
-    tier: 1
-    cooldownTurns: 5
-    families: [faith]
-
   make-a-merchant-purchase:
     name: Purchase something from the merchant.
     tier: 1

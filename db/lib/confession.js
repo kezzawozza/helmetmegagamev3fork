@@ -9,7 +9,6 @@
 // first. Takes `prisma` as the first parameter; NOT on the @lifeweb/db
 // barrel, require it by path.
 const { rollWithAdvantage } = require("./advantage");
-const { consumeInspiredIfUsed } = require("./tagWrites");
 const { gambitModifierTotal } = require("./gambitModifier");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
@@ -279,8 +278,7 @@ async function acceptConfession(prisma, offer, responder) {
       // Penitent's Gambit. @@unique([characterId, turnId]) is the real gate; slot checks above were
       // the polite version. Lucky/Inspired keeps the better of two dice (db/lib/advantage.js);
       // Inspired is spent the instant it wins one.
-      const penitentAdvantage = rollWithAdvantage(penitent.tags, 6, { gambitOnly: true });
-      await consumeInspiredIfUsed(tx, penitent.id, penitentAdvantage.source);
+      const penitentAdvantage = rollWithAdvantage(penitent.tags, 6);
       const penitentAction = await tx.action.create({
         data: {
           characterId: penitent.id,

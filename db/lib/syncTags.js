@@ -80,6 +80,7 @@ const EQUIP_SLOTS = new Set(EQUIP_SLOT_LIST);
 // directory that isn't there, means "cannot check" rather than "invalid" —
 // see repoPaths.js#repoPath.
 const HELM_DIR = repoPath("web/public/assets/helms");
+const ITEM_SPRITE_DIR = repoPath("web/public/assets/items");
 
 // `visible:` in docs/tags.yaml -> Tag.inspectVisibility, a real enum rather
 // than a truthy string.
@@ -426,6 +427,20 @@ async function syncTagsFromYaml(prisma) {
       if (HELM_DIR && fs.existsSync(HELM_DIR) && !fs.existsSync(`${HELM_DIR}/${t.concealSprite.trim()}.webp`)) {
         throw new Error(
           `docs/tags.yaml: tag "${t.slug}" sets concealSprite "${t.concealSprite}" but web/public/assets/helms/${t.concealSprite}.webp does not exist — add the source sprite and run \`npm run assets:helms --workspace=web\``,
+        );
+      }
+    }
+    // Same bargain as concealSprite above: a typo here would otherwise ship as
+    // a broken image on every chip the tag appears on, which is a lot of
+    // surfaces to find out on. An absent `sprite` is the ordinary case and is
+    // not an error — the tag just keeps its group's glyph.
+    if (t.sprite !== undefined) {
+      if (typeof t.sprite !== "string" || !t.sprite.trim()) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sprite but it is empty — name a PNG in web/public/assets/items`);
+      }
+      if (ITEM_SPRITE_DIR && fs.existsSync(ITEM_SPRITE_DIR) && !fs.existsSync(`${ITEM_SPRITE_DIR}/${t.sprite.trim()}.png`)) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" sets sprite "${t.sprite}" but web/public/assets/items/${t.sprite}.png does not exist`,
         );
       }
     }
@@ -951,6 +966,7 @@ async function syncTagsFromYaml(prisma) {
       concealsIdentity: entry.concealsIdentity ?? false,
       forcesConceal: entry.forcesConceal ?? false,
       concealSprite: entry.concealSprite?.trim() ?? null,
+      sprite: entry.sprite?.trim() ?? null,
       equipSlot: entry.equipSlot ?? null,
       equipLayer: entry.equipLayer ?? null,
       twoHanded: entry.twoHanded ?? false,

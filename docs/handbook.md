@@ -427,7 +427,7 @@ Press **Craft** on your [Character](https://ravenheart.quest/character) page, pi
 - **Brewing I**, **Brewing II**, and **Brewing III** — alcohol, tonics, poisons, and now the medicines too: three plain remedies brew at Skilled, the rest — five more, including the field's rarest recipes — brew at Expert. Nearly every brew spends a real ingredient you have to be holding, used up in the making unless its own recipe says otherwise.
 - **Medical II** and **Medical III** — no medicine-making left in this trade. Heal treats a patient, and fitting a prosthetic onto a maiming (even your own) still needs Medical III, whoever crafted the prosthetic itself.
 
-**Make it your own.** A few crafts — a badge, a hat, a painting, a sketch, and a cook's meals — can be made as truly YOURS: pay 1 ⬢ extra and give it your own name and description. A named piece always still plainly shows what it is underneath, so a "Dockers' Mark (Badge)" reads as a badge regardless of what you called it.
+**Make it your own.** A few crafts — a badge, a hat, a painting, and a cook's meals — can be made as truly YOURS: pay 1 ⬢ extra and give it your own name and description. A named piece always still plainly shows what it is underneath, so a "Dockers' Mark (Badge)" reads as a badge regardless of what you called it.
 
 **Finding a recipe.** Every recipe the world knows how to make — priced, skill-gated, and always current — lists on the **Recipes tab** of the [Documents](https://ravenheart.quest/documents) page, whether or not you personally hold the skills or ⬢ for it yet. A few recipes are withheld from that list on purpose: they only appear in your own Craft menu once you're already holding the rare ingredient they need. That's deliberate — finding the thing is how you learn the recipe, not the other way around.
 
@@ -532,3 +532,11 @@ When your character dies:
 - As a ghost you have no voice at all. What speaks for you is your body: while it lies unburied it stinks, and every few hours the Location it is in is told so.
 - You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6-point penalty during character creation.
 - The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone who has your body in hand can do so). A buried body can no longer be looted or moved. If nobody can find you, someone can **engrave** a headstone with your name instead — it costs them, but it frees you the same way. Being cut up is not a burial, and does not free you.
+
+## Credits
+
+Bascinet's pixel art — the item sprites, the helms a hooded face shows, and
+the textures under the page — is from **OpenSourceWeb**, the open-licensed
+archive of the BYOND game Lifeweb / Farweb, used under
+[Creative Commons Attribution-ShareAlike 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
+Our thanks to everyone who drew it.

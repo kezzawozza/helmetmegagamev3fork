@@ -192,8 +192,8 @@ tray as "unattached" for the GM to keep or drop.
 - **The Gambit's die is thrown at submit, and it belongs to the character and
   the turn rather than to the Move.** `db/lib/gambitDie.js`, called from
   `moveConfirm.js` inside the confirming transaction. One row per character per
-  turn, and the unique index is the claim, so two submits racing can neither
-  throw twice nor spend Inspired twice. **A GM sees the die the moment it is
+  turn, and the unique index is the claim, so two submits racing cannot
+  throw twice. **A GM sees the die the moment it is
   filed and can start adjudicating hours before the lock**, which is the whole
   reason it moved.
   The edit window survives that, and the binding is why. The die used to be
@@ -203,9 +203,8 @@ tray as "unattached" for the GM to keep or drop.
   and re-file, and a GM's kind flip on the desk all read the same number back,
   so there is nothing to fish for. That matters most for **withdraw, which
   deletes the Action row outright** (`moveEconomy.js#deleteActionRestoringTurn`)
-  — a die kept on that row would go with it.
-  **Withdrawing does not hand Inspired back.** The row is the spend, it outlives
-  the Action, and re-filing returns the same boosted die.
+  — a die kept on that row would go with it. The row outlives the Action, and
+  re-filing returns the same number.
 - **What still happens at the cutoff is the MODIFIER.** `db/lib/gambitCutoff.js`,
   a per-minute poll in the bot sharing `turnClock.js`'s `cutoffReached` with the
   Oracle's own cutoff run, with a backstop at the head of the staged push for a

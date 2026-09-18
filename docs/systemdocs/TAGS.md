@@ -477,7 +477,7 @@ block. They no longer overlap — a tag with a point price is bought, a tag with
 a recipe is made, and nothing is both. Armor and weapons showing up under Add
 Tag is the crafting economy, not a store leak.
 
-**The Assets are creation-only.** Horse, Bird, Rat, Kitty Cat, Dog, Manor,
+**The Assets are creation-only.** Horse, Bird, Rat, Dog, Manor,
 House and Shack are
 `purchasableAfterStart: false`, so they leave `/store` as well as Add Tag —
 mid-game a horse or a house comes from a GM grant, another player, or the
@@ -587,7 +587,7 @@ deliberate call rather than a new scale:**
 | Dense | −3 | alongside Tremor, same magnitude of nuisance |
 | Motion Sickness, Insomniac, Lazy, Hemophobia, Agoraphobia | −4 | between −2 and −5 |
 | Pyrophobia, Teratophobia | −2 | on-scale |
-| Adventurer, Dagger, Death Wish, Knuckle Duster, Pickpocketing (Basic), Skeleton Wedge, Nine Lives | 3 | between 2 and 5 |
+| Adventurer, Dagger, Death Wish, Knuckle Duster, Pickpocketing (Basic), Nine Lives | 3 | between 2 and 5 |
 | Pickpocketing (Skilled) | 2 | on-scale, and a second rung rather than a first: `requiredTag: pickpocket`, so a master pays 5 in total (`THEFT.md` §2) |
 | Escape Artist, Esoteric, Lockpicking, Pavise | 4 | between 2 and 5 |
 | Brave | 5 | on-scale (repriced for its ×0.5 on every mood harm, `MOOD.md`) |
@@ -2095,6 +2095,35 @@ alongside `concealsIdentity`, and sync checks the file really exists: a hood
 nobody can see is not concealment, it is a missing image. Build the files with
 `npm run assets:helms --workspace=web` after adding a source sprite to
 `web/assets/helms/`.
+
+### `sprite`
+
+`sprite:` names the item's OWN art — a PNG under `web/public/assets/items/`,
+given as a basename with no extension. It is what `TagIcon.js` draws on a chip,
+a sheet row, an item card and the items table, **instead of** the tag's
+`TagGroup` glyph.
+
+Four things are worth knowing before adding one:
+
+- **It is optional, and absent is the ordinary case.** A tag with no `sprite`
+  draws its group's lucide icon exactly as the whole catalog did before
+  2026-09-18. Do not feel obliged to find art for everything — a wrong sprite
+  is worse than the glyph, which is never wrong, only general. The keys, the
+  wax seals and the courtier retinue have none on purpose.
+- **Sync checks the file exists**, the same bargain `concealSprite` strikes
+  above and for the same reason: a typo would otherwise ship as a broken image
+  on every surface the tag appears on.
+- **A custom craft inherits it.** `db/lib/customCraftMint.js` copies the base
+  recipe's `sprite` onto the minted row, so a smith's named Breastplate wears
+  the Breastplate art. Nothing has to be authored per mint.
+- **Several tags may share one file**, and often should: the keys are named for
+  the doors they open, not for looking different.
+
+The art comes from `assets/osw-sprites/`, the OpenSourceWeb library kept in the
+repo for exactly this. Pick a file, crop it to its content, drop it in
+`web/public/assets/items/` and name the tag after it. See that folder's
+ATTRIBUTION.md for the licence and the crop. There is no build step: the PNG in
+that folder is the file the browser gets.
 
 ### `equipSlot` / `equipLayer` / `twoHanded`
 

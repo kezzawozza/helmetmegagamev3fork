@@ -149,8 +149,8 @@ filtered to `unruly-arelitz`.
 modeled directly on `healCharacterRequestImpl`'s Gambit branch
 (`actions/medical.js`): inside one transaction (character lock, then a room
 lock if the target is stashed), the target is re-checked under the lock,
-`rollWithAdvantage(character.tags, 6, { gambitOnly: true })` rolls the die
-immediately (Lucky/Inspired apply the same as any other Gambit), and an
+`rollWithAdvantage(character.tags, 6)` rolls the die
+immediately (Lucky applies the same as on any other Gambit), and an
 `Action` row is created directly — `moveKind: "GAMBIT"`,
 `moveReviewStatus: "OPEN"`, `diceRoll`/`diceModifier` stamped,
 `gmNotes: "auto:break_arelitz"`, and a `breakInPlan` —

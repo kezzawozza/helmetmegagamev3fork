@@ -79,6 +79,7 @@ async function mintCustomCraft(
     concealsIdentity: baseTag.concealsIdentity,
     forcesConceal: baseTag.forcesConceal,
     concealSprite: baseTag.concealSprite,
+    sprite: baseTag.sprite,
     miningBonus: baseTag.miningBonus ?? undefined,
     carryBonus: baseTag.carryBonus,
     // A clone must carry every "what this does while held" field or the

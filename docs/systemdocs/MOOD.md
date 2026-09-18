@@ -413,7 +413,6 @@ Held tags scale **harm** by its kind; the factors multiply, and a 0 wins:
 | `pain-immunity` (status) | TORTURED, BRANDED | ×0 |
 | `opium-high` (status) | TORTURED, BRANDED | ×0 |
 | `rage` (the Rite of Rage, THANATI.md §4) | everything | ×0 |
-| `blessed` (status, 3t — a `chrism`'s anointing) | everything | ×0.5 |
 | `heartforged-blade` (**while equipped** — the first equipped-conditional rule; a caller that can't say what's equipped skips it, failing safe) | everything | ×0 |
 
 Brave × Rough Camper × Agoraphobia on a wilderness night is ×0.5; Pale ×

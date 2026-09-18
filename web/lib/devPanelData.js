@@ -102,6 +102,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         ballisticArmor: true,
         // ChipLabel's mastery star.
         mastery: true,
+        sprite: true, // TagIcon's item art; null falls back to the group glyph
         // So Clone from… in the custom-tag dialog carries an item's weight
         // across — cloning a longsword to make a notched one and silently
         // getting a weightless sword is the hole this door used to leave.

@@ -159,10 +159,7 @@ because that is the repo's rule for every d6 a character throws, which means
 **Lucky quietly applies here** — a Lucky searcher rolls twice and keeps the
 better, permanently and unobservably. That is defensible (Lucky is meant to be
 quiet) but it is a real rebalance of Lucky into a search skill, so it is written
-down rather than left to be discovered. **Inspired deliberately does not
-apply**: `gambitOnly` stays false, because a search is not a Gambit and a player
-losing their one-shot Inspired to a die nobody is shown would be a theft they
-could not even see.
+down rather than left to be discovered.
 
 ## 4. Where it dies
 

@@ -46,7 +46,6 @@ async function recordTagMoney(tx, holder, tagId, signedQuantity, econ = {}) {
 async function recordSpentTagMoney(tx, holder, tagId, quantity, econ = {}) {
   await recordTagMoney(tx, holder, tagId, -Math.abs(quantity || 0), econ);
 }
-const { INSPIRED_SLUG } = require("./constants");
 
 // A wound landing on a sheet frightens its owner (docs/systemdocs/MOOD.md). Only the `!existing` branches call this — a stack going up isn't a new wound. Required lazily to avoid a cycle with db/lib/mood.js. Wrapped: a mood hiccup must never fail a tag write.
 async function chargeWoundMood(tx, characterId, tagIds) {
@@ -147,17 +146,7 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null, options
   return { poisonedTaken, poisonPayload };
 }
 
-// db/lib/advantage.js#rollWithAdvantage reports which tag granted advantage (`source`); Inspired must disappear the moment it wins, Lucky is permanent and never touched here. Called right after rolling, in the same transaction. No-op for Lucky or nothing.
-async function consumeInspiredIfUsed(tx, characterId, source) {
-  if (source !== "inspired") return;
-  const held = await tx.characterTag.findFirst({
-    where: { characterId, tag: { slug: INSPIRED_SLUG } },
-    select: { tagId: true },
-  });
-  if (held) await dropCharacterTag(tx, characterId, held.tagId);
-}
-
-// A stack shrunk by a raw quantity decrement OUTSIDE dropCharacterTag — riteEffects.js#spendFromHolder, thanatiActions.js#spendCharacterTag, cavingPass.js's musk-lure spend — each a guarded conditional updateMany for its own concurrency reason (dropCharacterTag reads then writes, "the wrong shape for money"). Each needs this run right after, the same clamp dropCharacterTag applies inline.
+// A stack shrunk by a raw quantity decrement OUTSIDE dropCharacterTag — riteEffects.js#spendFromHolder, thanatiActions.js#spendCharacterTag — each a guarded conditional updateMany for its own concurrency reason (dropCharacterTag reads then writes, "the wrong shape for money"). Each needs this run right after, the same clamp dropCharacterTag applies inline.
 // A single atomic UPDATE, safe to call unconditionally after any decrement — the WHERE only matches a row left over-equipped. Keyed on (characterId, tagId) since not every call site has read the row first.
 async function clampEquippedQuantity(tx, characterId, tagId) {
   await tx.$executeRaw`
@@ -205,20 +194,6 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
   const owed = new Map();
   for (const slug of slugs) owed.set(slug, (owed.get(slug) ?? 0) + 1);
 
-  // The chrism's ward: a `blessed` character's soul cannot be claimed while the anointing holds (docs/tags.yaml `blessed`). Absolute on purpose — a GM who means it strips Blessed first — and the skipped grant reports itself (`warded: true, added: 0`) instead of silently vanishing.
-  const SOUL_CLAIM_SLUGS = ["broken", "broken-enslaved"];
-  let blessedHeld = null;
-  const isWarded = async (slug) => {
-    if (!SOUL_CLAIM_SLUGS.includes(slug)) return false;
-    if (blessedHeld == null) {
-      blessedHeld =
-        (await tx.characterTag.count({
-          where: { characterId, tag: { slug: "blessed" } },
-        })) > 0;
-    }
-    return blessedHeld;
-  };
-
   const tags = await tx.tag.findMany({
     where: { slug: { in: [...owed.keys()] } },
     select: { id: true, slug: true, name: true, stackable: true, defaultDurationTurns: true },
@@ -227,11 +202,6 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
 
   const granted = [];
   for (const [slug, count] of owed) {
-    if (await isWarded(slug)) {
-      const tag = tagBySlug.get(slug);
-      granted.push({ tagId: tag?.id ?? null, tagName: tag?.name ?? slug, slug, added: 0, warded: true });
-      continue;
-    }
     // Unknown slugs are rejected at sync time (db/lib/syncTags.js); skip rather than fail the whole request.
     const tag = tagBySlug.get(slug);
     if (!tag) continue;
@@ -379,7 +349,6 @@ module.exports = {
   recordSpentTagMoney,
   addToStack,
   dropCharacterTag,
-  consumeInspiredIfUsed,
   clampEquippedQuantity,
   replaceLowerTiers,
   grantTagSlugs,

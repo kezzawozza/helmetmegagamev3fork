@@ -1,12 +1,9 @@
-// Dice advantage: roll twice, keep the better die. Two things grant it:
-// Lucky (TAGS.md §4a), a permanent mastery tag never removed by rolling, and
-// Inspired (Black River Mud), a one-shot consumable buff that has to
-// disappear the moment it wins a Gambit rather than by its timer alone —
-// which is why rollWithAdvantage reports WHICH one fired, so a Gambit call
-// site knows whether it owes a consume afterward (db/lib/tagWrites.js's
-// consumeInspiredIfUsed). Lucky is never consumed; Inspired always is, when
-// it's the one that granted the roll. The push on's die also listens to a
-// few traits, both ways (rollWithEdge below).
+// Dice advantage: roll twice, keep the better die. One thing grants it:
+// Lucky (TAGS.md §4a), a permanent mastery tag never removed by rolling.
+// There was a second, one-shot source (Inspired, off Black River Mud), which
+// is why the return shape still names `source` — it is "lucky" or null now.
+// The push on's die also listens to a few traits, both ways (rollWithEdge
+// below).
 //
 // This is a sibling of db/lib/gambitModifier.js rather than part of it, and the
 // split is the point. A modifier is a number added to a die and named in the
@@ -21,22 +18,20 @@
 // range, a loot draw) keeps using rollDie.
 //
 // No prisma import, so bot/ and web/ both require it by subpath.
-const { LUCKY_SLUG, INSPIRED_SLUG } = require("./constants");
+const { LUCKY_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
 
 // Accepts CharacterTag[] (`{ tag: { slug } }`) or a bare Tag[].
-// `gambitOnly` also checks Inspired, which grants advantage on the next Gambit specifically, not any d6.
-function holdsAdvantage(characterTags, { gambitOnly = false } = {}) {
+function holdsAdvantage(characterTags) {
   const held = characterTags ?? [];
   if (held.some((ct) => (ct?.tag?.slug ?? ct?.slug) === LUCKY_SLUG)) return LUCKY_SLUG;
-  if (gambitOnly && held.some((ct) => (ct?.tag?.slug ?? ct?.slug) === INSPIRED_SLUG)) return INSPIRED_SLUG;
   return null;
 }
 
 // -> { die, rolls, advantage, source }. `rolls` shows every die thrown so a surface can show the discarded one.
-// `source` (`"lucky"`/`"inspired"`/null) tells a Gambit caller whether it owes db/lib/tagWrites.js#consumeInspiredIfUsed.
-function rollWithAdvantage(characterTags, sides = 6, { gambitOnly = false } = {}) {
-  const source = holdsAdvantage(characterTags, { gambitOnly });
+// `source` is `"lucky"` or null.
+function rollWithAdvantage(characterTags, sides = 6) {
+  const source = holdsAdvantage(characterTags);
   if (!source) {
     const die = rollDie(sides);
     return { die, rolls: [die], advantage: false, source: null };
@@ -45,12 +40,11 @@ function rollWithAdvantage(characterTags, sides = 6, { gambitOnly = false } = {}
   return { die: Math.max(...rolls), rolls, advantage: true, source };
 }
 
-// "(6, 2 — Lucky)" / "(6, 2 — Inspired)" for a roll line. Null when there was
-// no advantage, so a caller can concatenate it unconditionally.
-function formatAdvantage({ rolls, advantage, source }) {
+// "(6, 2 — Lucky)" for a roll line. Null when there was no advantage, so a
+// caller can concatenate it unconditionally.
+function formatAdvantage({ rolls, advantage }) {
   if (!advantage || !rolls || rolls.length < 2) return null;
-  const label = source === "inspired" ? "Inspired" : "Lucky";
-  return `(${rolls.join(", ")} — ${label})`;
+  return `(${rolls.join(", ")} — Lucky)`;
 }
 
 // The two-sided version, for a die that a few tags pull each way — the push

@@ -96,6 +96,11 @@ export const TAG_CHIP_FIELDS = {
   description: true,
   pointCost: true,
   category: true,
+  // The item's own art, when the catalog gave it one. Null on most of the
+  // catalog and that is the ordinary case — TagIcon.js falls back to the
+  // group glyph below. Selected here because every chip surface reads this
+  // one field list.
+  sprite: true,
   // A caller gating to what the viewer holds must filter group-gated tags
   // itself — the name would tip off anyone else.
   requiredTagId: true,

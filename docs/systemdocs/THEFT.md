@@ -84,15 +84,13 @@ to read *"the room never notices you doing it"*, which is this verb exactly. It
 was rewritten on 2026-09-16 to be about whispers not carrying, so it is a sound
 tag now rather than a sleight-of-hand one.
 
-### 1c. Lucky applies, Inspired does not
+### 1c. Lucky applies
 
 The die goes through `db/lib/advantage.js#rollWithAdvantage`, which is the
 repo's rule for every d6 a character throws, so **Lucky quietly applies** — the
 same admission [`SEARCH.md`](SEARCH.md) §3b makes about its own unseen die.
 
-`gambitOnly` stays **false**, so **Inspired deliberately does not**. It is a
-one-shot the player paid for, and an unlimited free roll eating it would be a
-theft they could not even see. Worth knowing because Bascinet's own note for
+Worth knowing because Bascinet's own note for
 this feature said "rolls a gambit" — it is Gambit-*shaped*, the way Torture and
 Confession are, but it files no `Action` and spends no Move.
 

@@ -150,7 +150,7 @@ instead.
 
 | Brew III | ⬢ | Turns | Ingredient | Cures |
 |---|---|---|---|---|
-| `autoinjector` | 3 | 1 | `antidote` + `fever-draught` + `brackenmoss` (HIDDEN — needs the brewer to hold all three) | bruised, sprained-ankle, burned, minor-bleeding, minor-wound, dislocated-shoulder, cracked-ribs, blunt-force-trauma, frostbite |
+| `autoinjector` | 3 | 1 | `antidote` + `fever-draught` + `cave-fungus` | bruised, sprained-ankle, burned, minor-bleeding, minor-wound, dislocated-shoulder, cracked-ribs, blunt-force-trauma, frostbite |
 | `portable-surgical-pack` | 8 | 1 | — | — (a surgical-site enabler, not a cure — `MEDICAL.md` §3) |
 | `last-breath` | 11 | 3 (project) | `aberrant-heart` (secret) | dying |
 | `cybernetic-arm` | 15 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
@@ -177,9 +177,10 @@ fulfilled Desire — five Cave Fungus and a day for what costs a courtier 80 ¢.
 
 `last-breath` and the two cybernetics are `catalog: secret` and hidden by
 conjunction — the Craft menu only shows them to a `brewing-expert` already
-holding the named ingredient (`MEDICAL.md` §6). `autoinjector` is `catalog:
-all` but HIDDEN the ordinary way: off the Recipes tab until the brewer holds
-`brackenmoss`, the non-public ingredient (`CRAFTING.md` §2b). Neither
+holding the named ingredient (`MEDICAL.md` §6). `autoinjector` used to be
+hidden the ordinary way too, behind the non-public `brackenmoss`; nothing
+dropped that, so on 2026-09-18 `cave-fungus` took its place and the recipe is
+plainly craftable now. Neither
 cybernetic has an aftermath — the graft leaves no mark — while `last-breath`
 cures Dying outright with no die, the one item door onto a tier-7 cure that
 isn't a Gambit.

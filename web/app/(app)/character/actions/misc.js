@@ -133,7 +133,6 @@ import {
   attachPointerPair,
   locatePointerPartner,
 } from "@lifeweb/db/lib/pointerMint";
-import { consumeInspiredIfUsed } from "@lifeweb/db/lib/tagWrites";
 import { WANTED_SLUG } from "@lifeweb/db/lib/wanted";
 import {
   TORTURING_EQUIPMENT_SLUG,
@@ -1284,8 +1283,7 @@ export async function researchRequestImpl({ ingredientSlug }) {
     try {
       // Lucky or Inspired keeps the better of two dice (db/lib/advantage.js);
       // Inspired is spent the instant it wins one.
-      const researchAdvantage = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
-      await consumeInspiredIfUsed(tx, character.id, researchAdvantage.source);
+      const researchAdvantage = rollWithAdvantage(character.tags, 6);
       action = await tx.action.create({
         data: {
           characterId: character.id,
@@ -1686,7 +1684,7 @@ export async function breakRestraintsRequestImpl() {
 
   // The character's own die — their Lucky or Inspired bends it, the same
   // side gambitMods work on any other Gambit roll.
-  const roll = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
+  const roll = rollWithAdvantage(character.tags, 6);
   const result = resolveBreakRestraints({ die: roll.die, turnsElapsed, heldSlugs, shackled });
   const rollLine = result.automatic
     ? null
@@ -1694,7 +1692,6 @@ export async function breakRestraintsRequestImpl() {
   const outcome = result.success ? "broke free" : "still bound";
 
   await prisma.$transaction(async (tx) => {
-    await consumeInspiredIfUsed(tx, character.id, roll.source);
     if (result.success) {
       // Not dropped now: stamped to expire with this turn, so the expirySweep
       // pass (db/index.js) takes `bound` off at the close. Bascinet's ruling.
@@ -2023,7 +2020,7 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
   // the roll line can show the one that was thrown away.
   // Lucky or Inspired keeps the better of two dice (db/lib/advantage.js);
   // Inspired is spent the instant it wins one, in the transaction below.
-  const tortureRoll = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
+  const tortureRoll = rollWithAdvantage(character.tags, 6);
   const result = resolveTorture({
     die: tortureRoll.die,
     rolls: tortureRoll.rolls,
@@ -2073,7 +2070,6 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
 
   const outcome = result.success ? "they broke" : "they held out";
   await prisma.$transaction(async (tx) => {
-    await consumeInspiredIfUsed(tx, character.id, tortureRoll.source);
     // −40, or nothing under Pain Immunity / an Opium High, which are ×0 multipliers
     // (MOOD.md §6, TORTURE.md §4). Lands on a failed torture too — being worked over
     // and holding out still costs you.

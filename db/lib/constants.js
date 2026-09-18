@@ -153,8 +153,6 @@ const DEBTOR_SLUG = "debtor";
 const WOUND_TAG_GROUPS = Object.freeze(["health-wounds", "health-maiming", "health-infection"]);
 
 const LUCKY_SLUG = "lucky";
-// Advantage's other source (db/lib/advantage.js) — one-shot, consumed the moment it wins a Gambit.
-const INSPIRED_SLUG = "inspired";
 const MANIC_SLUG = "manic";
 const METEMPSYCHOSIS_SLUG = "metempsychosis";
 const AMOR_FATI_SLUG = "amor-fati";
@@ -269,7 +267,6 @@ module.exports = {
   DEBTOR_SLUG,
   WOUND_TAG_GROUPS,
   LUCKY_SLUG,
-  INSPIRED_SLUG,
   MANIC_SLUG,
   METEMPSYCHOSIS_SLUG,
   AMOR_FATI_SLUG,

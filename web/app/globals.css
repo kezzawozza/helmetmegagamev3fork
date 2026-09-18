@@ -2125,7 +2125,27 @@ input[type="radio"]:disabled {
    otherwise squash before the text does. */
 .chip-icon {
   flex: none;
+}
+
+/* The lucide glyphs are line art and take their colour from the text. A
+   sprite is a raster image and does not, so `color` sits on the SVG case
+   only — setting it on .chip-icon would be a property that silently does
+   nothing on half the marks that wear the class. */
+.chip-icon:not(.chip-sprite) {
   color: var(--muted);
+}
+
+/* An item's own art (web/app/components/TagIcon.js). The files are cropped to
+   their own content, so they arrive between 5 and 32px and land in this box at
+   whatever ratio that implies — `pixelated` is what keeps an odd ratio chunky
+   rather than blurred (DESIGN-SYSTEM.md §3a), and `contain` keeps a tall item
+   from stretching. The explicit box stops a chip reflowing while the image is
+   still in flight. */
+.chip-sprite {
+  width: 16px;
+  height: 16px;
+  image-rendering: pixelated;
+  object-fit: contain;
 }
 
 /* ── The tag state grammar (web/app/components/TagMarks.js) ────────────────

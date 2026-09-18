@@ -306,9 +306,6 @@ async function acceptSearch(prisma, offer, responder) {
 
   const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
 
-  // gambitOnly: false is deliberate. Lucky applies and INSPIRED DOES NOT — a
-  // search is not a Gambit, and a player losing their one-shot Inspired to a
-  // die nobody is ever shown would be a theft they could not even see.
   const { die, rolls, advantage } = rollWithAdvantage(actor.tags, 6);
 
   const hiddenIds = new Set(offer.hiddenTagIds ?? []);

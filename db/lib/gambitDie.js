@@ -24,7 +24,6 @@
 // and the modifier answers how you were when the day closed. There is no
 // randomness in a modifier, so there is nothing to fish for on that side either.
 const { rollWithAdvantage } = require("./advantage");
-const { consumeInspiredIfUsed } = require("./tagWrites");
 
 // Throws this character's die for this turn, or hands back the one already
 // thrown. Takes a transaction client: the caller's own write and this claim must
@@ -34,7 +33,7 @@ const { consumeInspiredIfUsed } = require("./tagWrites");
 // -> { die, rolls, source, fresh }. `fresh` is true only for the caller that
 // actually threw it, and is what says whether Inspired was just spent.
 async function ensureGambitDie(tx, { turnId, character }) {
-  const advantage = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
+  const advantage = rollWithAdvantage(character.tags, 6);
 
   // createMany({ skipDuplicates }) rather than create + catch P2002, and the
   // difference matters: this compiles to ON CONFLICT DO NOTHING, whereas a
@@ -59,7 +58,6 @@ async function ensureGambitDie(tx, { turnId, character }) {
     // Inspired is spent by the throw, and only by the throw. Paired with the
     // claim in one transaction so a crash between them can never leave a boosted
     // die on the row with the tag still in the player's pocket.
-    await consumeInspiredIfUsed(tx, character.id, advantage.source);
     return { die: advantage.die, rolls: advantage.rolls, source: advantage.source, fresh: true };
   }
 

@@ -225,8 +225,8 @@ means automatic, no roll needed at all:
 
 Bascinet rebalanced this on 2026-09-14: harder in the first two turns, and
 automatic from the third for everyone. **Giant no longer helps** — it used
-to lower turn 1, and with Escape Artist made breaking free instant. Lucky or
-Inspired still rolls two dice and keeps the better. No Hunger/mood Gambit
+to lower turn 1, and with Escape Artist made breaking free instant. Lucky
+still rolls two dice and keeps the better. No Hunger/mood Gambit
 modifiers apply; this is a flat die-vs-threshold check.
 
 On success, `bound` is **not** removed on the spot: its row is stamped

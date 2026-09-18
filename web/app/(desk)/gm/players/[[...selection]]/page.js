@@ -48,6 +48,7 @@ async function FreshPlayerRoster({ userId }) {
         description: true,
         pointCost: true,
         mastery: true, // ChipLabel's mastery star
+        sprite: true, // TagIcon's item art; null falls back to the group glyph
         parentTagId: true, // bulk-tag picker sorts chain-aware; degrades to alphabetical without it
         group: { select: { name: true } },
       },

@@ -261,17 +261,14 @@ documents:
       | {tag:honeyed-cakes} | Cooking II | 3 | {tag:honey} | the Depot's shelf, 3 ¢ |
       | {tag:graga-hide-cloak} | Crafting | 6 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:minted-charm} | Smithing I | 15, 3-turn project | {tag:old-coin} | caving loot |
-      | {tag:musk-lure} | Butcher | 2 | {tag:nekker-pheromones} | butchered from a {tag:nekker-corpse} |
-      | {tag:autoinjector} | Brewing III | 3, 1 turn | {tag:antidote}, {tag:fever-draught} and {tag:brackenmoss} | foraged — GM-granted until the loot pass wires it |
       | {tag:last-breath} | Brewing III | 12, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
       | {tag:cybernetic-arm}, {tag:cybernetic-leg} | Brewing III | 16, 3-turn project each | {tag:cybernetic-core} | GM-granted only, nothing drops it yet |
-      | {tag:chrism} | Blessing | 2 | {tag:holy-water} and {tag:honey} | the Cathedral's still and the Depot's shelf |
       | {tag:heartforged-blade} | Smithing II | 34, 3-turn project | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
       | {tag:death-mask} | Artist | 4, 2-turn project | a corpse (kept) and {tag:saltpeter} | hidden by its own catalog flag, like the {tag:bone-mask}: an artist standing with a body finds it |
 
       The {tag:lavish-meal} also takes {tag:honey} as an unlisted delicacy — a cook holding a jar sees the option; the public paper names tea, sweets and fish roe, but never honey.
 
-      Mechanics a GM adjudicates or should know: the {tag:blessed} status a {tag:chrism} grants blocks Break-family grants outright and halves everything that sinks the mood for 3 turns; an equipped {tag:heartforged-blade} stops the mood sinking at all and fights as Exceptional; a held {tag:musk-lure} is auto-spent to negate its holder's first cave TROUBLE; an equipped {tag:minted-charm} adds +1 to Learn Skill rolls; a {tag:death-mask} can be taken ONCE per corpse — the body's description says when a face is gone — and the finished mask is named for the dead.
+      Mechanics a GM adjudicates or should know: an equipped {tag:heartforged-blade} stops the mood sinking at all and fights as Exceptional; an equipped {tag:minted-charm} adds +1 to Learn Skill rolls; a {tag:death-mask} can be taken ONCE per corpse — the body's description says when a face is gone — and the finished mask is named for the dead.
 
   # The Demoness threat's own brief (db/lib/threats.js). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag

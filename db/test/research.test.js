@@ -52,9 +52,10 @@ const recipe = (slug, catalogVisibility, items) => ({
 // are covered on a GM-visibility row.
 const catalog = [
   recipe("minted-charm", "GM", [item("old-coin")]),
-  recipe("musk-lure", "GM", [item("nekker-pheromones")]),
   recipe("heartforged-blade", "GM", [item("aberrant-heart")]),
-  recipe("chrism", "GM", [item("holy-water"), item("honey")]),
+  // Synthetic: no catalog: gm product takes honey any more, and the
+  // exclusion test below needs one that does.
+  recipe("gilded-draught", "GM", [item("holy-water"), item("honey")]),
   recipe("bone-mask", "GM", [group("items-corpse", "a corpse")]),
   recipe("death-mask", "GM", [group("items-corpse", "a corpse"), item("saltpeter")]),
   recipe("graga-hide-cloak", "GM", [item("graga-sac")]),
@@ -120,7 +121,7 @@ test("secretRecipesFor: kind=group match on the ingredient's own group slug", ()
 
 test("secretRecipesFor: excludes ALL-visibility recipes even though they name the ingredient", () => {
   const found = secretRecipesFor(honey, catalog).map((r) => r.slug);
-  assert.deepEqual(found, ["chrism"]);
+  assert.deepEqual(found, ["gilded-draught"]);
   assert.ok(!found.includes("lavish-meal"), "a public recipe naming a gm ingredient is not a secret");
 });
 
@@ -185,8 +186,8 @@ test("RESEARCH_MARKER_RE does not false-positive on a similarly-worded marker", 
 test("researchPaperText: name, quoted description with tokens named, costs, escaped Requires rule", () => {
   const text = researchPaperText(
     {
-      name: "Chrism",
-      description: "Consecrated oil. Anointing someone adds the {tag:blessed} tag.",
+      name: "White Honey",
+      description: "Thick and pale. Eating it marks you {tag:high}.",
       requirementTurns: 3,
       requirementResources: 15,
       requirementSkills: [{ name: "Smithing II" }],
@@ -197,13 +198,13 @@ test("researchPaperText: name, quoted description with tokens named, costs, esca
         { kind: "group", slug: "items-corpse", label: "a corpse", keep: true },
       ],
     },
-    (slug) => (slug === "blessed" ? "Blessed" : null),
+    (slug) => (slug === "high" ? "High" : null),
   );
   assert.equal(
     text,
     [
-      "Chrism",
-      '"Consecrated oil. Anointing someone adds the Blessed tag."',
+      "White Honey",
+      '"Thick and pale. Eating it marks you High."',
       "3 turns  \n15 ⬢  \nSmithing II",
       "\\- Requires -  \nHoly Water  \nPaper ×10  \na corpse (kept)",
     ].join("\n\n"),

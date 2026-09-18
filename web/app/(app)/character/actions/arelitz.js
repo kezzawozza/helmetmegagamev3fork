@@ -17,7 +17,7 @@ import { UNRULY_ARELITZ_SLUG } from "@lifeweb/db/lib/constants";
 import { requireFreeMove } from "@/lib/moveSpend";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
-import { consumeInspiredIfUsed, lockRoom } from "@lifeweb/db/lib/tagWrites";
+import { lockRoom } from "@lifeweb/db/lib/tagWrites";
 import { logAudit } from "@/lib/requests";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { requireCharacter, revalidateAll, lockCharacter } from "./shared.js";
@@ -100,8 +100,7 @@ export async function breakInArelitzRequestImpl({ tagId, sourceKey }) {
 
     // Lucky or Inspired keeps the better of two dice; Inspired spends the
     // instant it wins one — same as a Heal Gambit.
-    const advantage = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
-    await consumeInspiredIfUsed(tx, character.id, advantage.source);
+    const advantage = rollWithAdvantage(character.tags, 6);
 
     let action;
     try {

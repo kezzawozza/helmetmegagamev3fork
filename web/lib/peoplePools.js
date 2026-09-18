@@ -530,6 +530,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
         stackable: true,
         // ChipLabel's mastery star.
         mastery: true,
+        sprite: true, // TagIcon's item art; null falls back to the group glyph
         group: { select: { slug: true, name: true } },
       },
     })

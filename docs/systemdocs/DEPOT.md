@@ -244,8 +244,7 @@ says so. With no public room there, the crate refuses to open.
 A ware ships sealed by setting `sealedShipping: true` in `docs/tags.yaml`. The
 sync refuses it on a tag with no `depotPrice`, since the station cannot ship
 what it does not stock. Currently sealed: the two firearms, the flamethrower,
-Light Infantry Armour, Soporific, Phrygian Tears, the Amoeba Vial, the
-Homunculus.
+Light Infantry Armour, Soporific, Phrygian Tears, the Homunculus.
 
 ## 0e. The manifests
 
@@ -725,7 +724,6 @@ buying one mid-game is still a real decision.
 | `boombox` | 10 | 7 | |
 | `whip` | 10 | 7 | Equippable |
 | `machete` | 11 | — | Black Market. Equippable, 0.3 tiers as a `sword` |
-| `censer` | 13 | 8 | |
 | `iron` | 13 | 8 | Craftable (`smithing`, spends `hematite` — `SMITHING.md`) — the fourth exception to "almost nothing here is craftable," below. It took `steel`'s numbers and its slot when steel and coal left the game on 2026-09-18. |
 | `silver` | 14 | 10 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source (`MINING.md` §3b); this is the fallback. Repriced up from 8/5 on 2026-09-18 so an uncommon find is not worth less than an ingot smelted from ultracommon rock. |
 | `jewelry` | 14 | 8 | Also a 2-pt creation pick |
@@ -742,7 +740,6 @@ buying one mid-game is still a real decision.
 | `light-infantry-armour` | 37 | 22 | Stops a bullet. Nothing forged here does. |
 | `hound` | 40 | 24 | |
 | `soporific` | 41 | — | Inflicts `asleep` (1t) |
-| `amoeba-vial` | 55 | 33 | |
 | `bb-pistol` | 68 | 41 | Equippable |
 | `ambrosia` | 80 | — | Black Market. Also an Expert brew (1t, five `cave-fungus`). **+4 tag points**, the only item in the game that grants any |
 | `silencer` | 83 | 50 | Equippable. The Merchant starts holding one |

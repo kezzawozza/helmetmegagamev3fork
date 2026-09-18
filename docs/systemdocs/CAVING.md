@@ -226,13 +226,6 @@ Armor."* — so a player reads their own roll and not just its outcome. A
 `QUIET` used to send nothing, but players could not tell a quiet roll from
 a die that never rolled, so it now says so in one line.
 
-**A held Musk Lure eats a 1** (2026-09-07; docs/tags.yaml `musk-lure`, a
-hidden butcher craft): when the die lands `TROUBLE` for a holder, one lure is
-spent in the same transaction — the conditional write is the check — and the
-row lands `QUIET`, already resolved, so nothing reaches the Caving lens and
-no `CAVE_TROUBLE` mood hit fires. The DM says what happened: whatever it was
-followed the stink instead. One lure, one trouble; the next 1 is real.
-
 ### 2d. The push lets go of what nobody adjudicated
 
 **A `TROUBLE` roll still unresolved when the turn is pushed is resolved by the

@@ -45,7 +45,6 @@ import {
   notHereMessage,
 } from "@/lib/peopleHere";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
-import { consumeInspiredIfUsed } from "@lifeweb/db/lib/tagWrites";
 import {
   SURGICAL_EQUIPMENT_SLUG,
   PORTABLE_SURGICAL_PACK_SLUG,
@@ -314,8 +313,7 @@ export async function healCharacterRequestImpl({
       let action;
       try {
         // Lucky or Inspired keeps the better of two dice; Inspired spends the instant it wins one.
-        const healGambitAdvantage = rollWithAdvantage(character.tags, 6, { gambitOnly: true });
-        await consumeInspiredIfUsed(tx, character.id, healGambitAdvantage.source);
+        const healGambitAdvantage = rollWithAdvantage(character.tags, 6);
         action = await tx.action.create({
           data: {
             characterId: character.id,

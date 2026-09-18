@@ -4,7 +4,7 @@
 // is the only brake. Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const { drawLoot } = require("./cavingLoot");
 const { hasAttribute, SAFE_ATTRIBUTE } = require("./locationAttributes");
-const { addToStack, clampEquippedQuantity, recordSpentTagMoney } = require("./tagWrites");
+const { addToStack } = require("./tagWrites");
 const { applyMood } = require("./mood");
 const { rollWithAdvantage } = require("./advantage");
 const { LUCKY_SLUG } = require("./constants");
@@ -16,10 +16,6 @@ function quietDm(die) {
 
 function troubleDm(die) {
   return `Caving Die: ${die} — Something is wrong down here. A GM has been notified.`;
-}
-
-function luredDm(die) {
-  return `Caving Die: ${die} — Something appeared in the darkness, but your lure distracted it.`;
 }
 
 function findDm(die, tagName) {
@@ -41,35 +37,7 @@ async function rollCaving(prisma, character, turn, location) {
 
   return await prisma.$transaction(async (tx) => {
     if (kind !== "FIND") {
-      // A held Musk Lure eats the first TROUBLE: spent, row lands QUIET, no mood hit. Conditional write is the check — the no-free-overdraw rule.
-      let lured = false;
-      if (kind === "TROUBLE") {
-        const lure = await tx.characterTag.findFirst({
-          where: { characterId: character.id, tag: { slug: "musk-lure" } },
-          select: { id: true, tagId: true, quantity: true },
-        });
-        if (lure) {
-          const spent =
-            lure.quantity > 1
-              ? await tx.characterTag.updateMany({
-                  where: { id: lure.id, quantity: { gte: 1 } },
-                  data: { quantity: { decrement: 1 } },
-                })
-              : await tx.characterTag.deleteMany({ where: { id: lure.id, quantity: 1 } });
-          lured = spent.count > 0;
-          if (lured) {
-            await clampEquippedQuantity(tx, character.id, lure.tagId);
-            await recordSpentTagMoney(
-              tx,
-              { kind: "character", id: character.id, name: character.name ?? null, zoneId: character.zoneId ?? null },
-              lure.tagId,
-              1,
-              { reason: "CAVING", turnId: turn?.id ?? null, turnNumber: turn?.number ?? null },
-            );
-          }
-        }
-      }
-      const rowKind = lured ? "QUIET" : kind;
+      const rowKind = kind;
       const row = await tx.cavingRoll.create({
         data: {
           turnId: turn.id,
@@ -87,7 +55,7 @@ async function rollCaving(prisma, character, turn, location) {
         roll: row,
         dm: {
           discordUserId: character.discordUserId,
-          content: lured ? luredDm(die) : kind === "TROUBLE" ? troubleDm(die) : quietDm(die),
+          content: kind === "TROUBLE" ? troubleDm(die) : quietDm(die),
         },
       };
     }

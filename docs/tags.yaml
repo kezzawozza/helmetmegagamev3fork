@@ -54,6 +54,17 @@
 # can't be clobbered by a bulk overwrite.
 #
 # Per-tag fields not covered elsewhere in this file:
+#   sprite          - the item's own art: a PNG basename, no extension, under
+#                     web/public/assets/items/ (pixel art from OpenSourceWeb,
+#                     CC BY-SA 3.0 — see that folder's ATTRIBUTION.md, and
+#                     assets/osw-sprites/ for the library it is picked from).
+#                     Drawn by TagIcon.js on chips, sheet rows and item cards
+#                     INSTEAD of the tag's TagGroup glyph. Optional, and absent
+#                     is the ordinary case: a tag with no sprite keeps its group
+#                     icon, which is never wrong, only general. Do not stretch
+#                     to fill one in — a misleading picture is worse than a
+#                     generic mark. The sync throws if the file is not there. A
+#                     custom craft inherits its base recipe's value. TAGS.md 4c.
 #   durationTurns   - default turns-to-expire once granted, for tags that
 #                     auto-expire (e.g. Drained: 3). Omit for tags that don't
 #                     expire on their own.
@@ -3777,39 +3788,6 @@ tags:
     purchasableAfterStart: false
     durationTurns: 3
 
-  # A one-shot cousin of Lucky (db/lib/advantage.js): granted by Black River
-  # Mud, spent the instant it wins a Gambit (db/lib/tagWrites.js#
-  # consumeInspiredIfUsed), gone on its own after 2 turns otherwise via the
-  # ordinary expiry sweep.
-  inspired:
-    catalog: gm
-    name: Inspired
-    category: status
-    group: status-buffs
-    description: "Your next Gambit is rolled with advantage."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 2
-
-  # What a chrism anoints (Chris 2026-09-07). Two real mechanics, neither
-  # named here so the tag leaks no secrets: db/lib/tagWrites.js refuses to
-  # grant `broken` / `broken-enslaved` to a holder, and db/lib/mood.js halves
-  # every mood harm (MULTIPLIERS). Visible on purpose — a ward someone can
-  # see is a statement, and the Demoness seeing it is the point.
-  blessed:
-    catalog: gm
-    name: Blessed
-    category: status
-    group: status-buffs
-    description: "Anointed. While it holds, what would claim your soul cannot, and fear finds less purchase on you."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 3
-
   pheromones:
     catalog: secret
     name: Pheromones
@@ -5663,6 +5641,7 @@ tags:
     name: Arelitz Egg
     category: items
     group: items-food
+    sprite: egg
     description: "A large egg colored like ivory, still wet with the placenta. It can be sold or cracked open into foodstuffs."
     pointCost: 0
     weight: 0.5
@@ -5700,18 +5679,6 @@ tags:
     category: assets
     group: assets-companions
     description: "A trained rat. It's not good for much. But it does tiny tricks!"
-    pointCost: 2
-    visible: true
-    tradeable: true
-    purchasable: true
-    purchasableAfterStart: false
-
-  kitty-cat:
-    catalog: all
-    name: Kitty Cat
-    category: assets
-    group: assets-companions
-    description: "A cat. It may or may not be useful for anything — generally, it's the cat who decides that."
     pointCost: 2
     visible: true
     tradeable: true
@@ -6153,6 +6120,7 @@ tags:
     name: Graga Sac
     category: items
     group: items-gear
+    sprite: l-kidney
     description: "A fleshy item cut from a dead Graga. It's useful in many tonics. The Merchant is always looking for more."
     pointCost: 0
     weight: 0.5
@@ -6176,6 +6144,7 @@ tags:
     name: Skinless Brain
     category: items
     group: items-gear
+    sprite: brain-alien
     description: "The extracted, wrinkled mass of a Skinless. A miraculous organ, prized for its alchemical properties."
     pointCost: 0
     weight: 3
@@ -6262,6 +6231,7 @@ tags:
     name: Saltpeter
     category: items
     group: items-gear
+    sprite: powderbag
     description: "A white powdery compound."
     pointCost: 0
     weight: 1
@@ -6315,6 +6285,7 @@ tags:
     name: Hematite
     category: items
     group: items-mining
+    sprite: ore
     description: "A red metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6331,6 +6302,7 @@ tags:
     name: Malachite
     category: items
     group: items-mining
+    sprite: green-lump
     description: "A green metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6347,6 +6319,7 @@ tags:
     name: Garnierite
     category: items
     group: items-mining
+    sprite: green-lump
     description: "A pale green metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6406,6 +6379,7 @@ tags:
     name: Copper
     category: items
     group: items-mining
+    sprite: brace-copper
     description: "A piece of red metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6431,6 +6405,7 @@ tags:
     name: Nickel
     category: items
     group: items-mining
+    sprite: silver-ore
     description: "A piece of pale metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6462,6 +6437,7 @@ tags:
     name: Silver
     category: items
     group: items-mining
+    sprite: silver-ore
     description: "Raw silver, ready for the forge. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6483,6 +6459,7 @@ tags:
     name: Platinum
     category: items
     group: items-mining
+    sprite: sheet-silver
     description: "A piece of white metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6519,6 +6496,7 @@ tags:
     name: Milk Quartz
     category: items
     group: items-mining
+    sprite: clown-ore
     description: "A cloudy white stone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6535,6 +6513,7 @@ tags:
     name: Onyx
     category: items
     group: items-mining
+    sprite: boulder1
     description: "A black gem. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6551,6 +6530,7 @@ tags:
     name: Moonstone
     category: items
     group: items-mining
+    sprite: bluespace-crystal
     description: "A pale glowing stone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6567,6 +6547,7 @@ tags:
     name: Pyrite
     category: items
     group: items-mining
+    sprite: gold-ore
     description: "A brassy gold cube. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6583,6 +6564,7 @@ tags:
     name: White Jade
     category: items
     group: items-mining
+    sprite: moon
     description: "A smooth white stone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6602,6 +6584,7 @@ tags:
     name: Fire Opal
     category: items
     group: items-mining
+    sprite: ore
     description: "A burning orange gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6618,6 +6601,7 @@ tags:
     name: Sphalerite
     category: items
     group: items-mining
+    sprite: glass-ore
     description: "A glittering brown crystal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6634,6 +6618,7 @@ tags:
     name: Tetrahedrite
     category: items
     group: items-mining
+    sprite: sheet-adamantine
     description: "A grey metallic crystal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6652,6 +6637,7 @@ tags:
     name: Opal
     category: items
     group: items-mining
+    sprite: crystal
     description: "A shimmering white gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6700,6 +6686,7 @@ tags:
     name: Kunzite
     category: items
     group: items-mining
+    sprite: plasma-ore
     description: "A pink gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6719,6 +6706,7 @@ tags:
     name: Star Sapphire
     category: items
     group: items-mining
+    sprite: ansible-crystal
     description: "A blue star gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6735,6 +6723,7 @@ tags:
     name: Black Diamond
     category: items
     group: items-mining
+    sprite: adamantine-ore
     description: "A dark gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6766,6 +6755,7 @@ tags:
     name: Arkenstone
     category: items
     group: items-mining
+    sprite: gibtonite-ore
     description: "A dazzling gemstone. If forged into a Trinket, it will bestow great power. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6797,6 +6787,7 @@ tags:
     name: Trinket
     category: items
     group: items-gear
+    sprite: gearring
     description: "A trinket. When making it, a Gambit die is rolled. The quality is random but influenced by your skill. It is very valuable to the merchant."
     pointCost: 0
     weight: 1
@@ -6820,6 +6811,7 @@ tags:
     name: Black Powder
     category: items
     group: items-gear
+    sprite: powderbag
     description: "Saltpeter ground fine and refined until it is eager to burn."
     pointCost: 0
     weight: 0.5
@@ -6848,6 +6840,7 @@ tags:
     name: Minted Charm
     category: items
     group: items-gear
+    sprite: zodiac-charm
     description: "A talisman of old metal worn smooth, hung on a cord. Old metal remembers old learning, and some of it rubs off."
     pointCost: 3
     equippable: true
@@ -6866,31 +6859,6 @@ tags:
       items: [old-coin]
     sellable: true
     sellablePrice: 52
-
-  # HIDDEN recipe (nekker-pheromones is non-public; Chris 2026-09-07): the
-  # trapper's insurance. Not consumable by hand — db/lib/cavingPass.js spends
-  # it: the first TROUBLE the Caving Die rolls a holder is negated, the lure
-  # eaten in their place. One a turn, bone-mask's exact 0-turn butcher shape.
-  musk-lure:
-    catalog: gm
-    name: Musk Lure
-    category: items
-    group: items-gear
-    description: "A wax plug with an animal smell that carries farther than it should. Things in the dark would rather follow it than you."
-    pointCost: 2
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0
-      resourceCost: 2
-      perTurn: 1
-      skills: [butcher]
-      gambit: false
-      items: [nekker-pheromones]
 
   # --- Three brewing ingredients that used to be prose ---------------------
   #
@@ -6911,6 +6879,7 @@ tags:
     name: Aberrant Heart
     category: items
     group: items-gear
+    sprite: heart
     description: "The cut out heart of an Aberrant."
     pointCost: 0
     weight: 0.5
@@ -6931,6 +6900,7 @@ tags:
     name: Raven's Eye
     category: items
     group: items-gear
+    sprite: eye
     description: "A raven's eye."
     pointCost: 0
     weight: 0.5
@@ -6996,6 +6966,7 @@ tags:
     name: Trout Heart
     category: items
     group: items-gear
+    sprite: heart-off
     description: "The heart of a rainbow trout, hardly bigger than a thumbnail."
     pointCost: 0
     weight: 0.5
@@ -7008,28 +6979,6 @@ tags:
     cooked:
       taste: "raw fish"
       mood: 6
-
-  # {tag:autoinjector}'s third ingredient (M6c). catalog: gm, same shape as
-  # {tag:aberrant-heart}/{tag:cybernetic-core}: a GM can look it up granting
-  # one, but it never shows in the public Tag Catalog, which is what keeps
-  # its actual use a discovery — the flavor text is written the way a hunter
-  # or a farmhand would actually describe it, not the way a brewer would.
-  # NOTHING DROPS THIS YET, and no table is waiting to; a GM grants it
-  # meanwhile.
-  brackenmoss:
-    catalog: gm
-    name: Brackenmoss
-    category: items
-    group: items-gear
-    description: "A dense, springy moss that grows thickly on fallen trees."
-    pointCost: 0
-    weight: 0.3
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 3
 
   # Fished up by the labor loot pass. The bruise cure is now the `cures:`
   # field below rather than the old HIDDEN_CURES entry in
@@ -7064,6 +7013,7 @@ tags:
     name: Fertilizer
     category: items
     group: items-gear
+    sprite: bottle1
     description: "Synthetic liquid that can be consumed to gain {tag:fertilized-fields} — nothing withers on your next sowing, and one crop in six comes up double."
     pointCost: 2
     depotPrice: 4
@@ -7085,6 +7035,7 @@ tags:
     name: Instrument
     category: items
     group: items-gear
+    sprite: harmonica
     description: "An instrument of one's choice — type {cmd:play} to play it."
     pointCost: 1
     weight: 4
@@ -7099,6 +7050,7 @@ tags:
     name: Radio System (Cerberon)
     category: items
     group: items-gear
+    sprite: radio
     description: "An old device that sends messages to all its paired Systems and Bracelets. Tuned to the Cerberon's frequency."
     pointCost: 14
     requiredTag: cerberon
@@ -7113,6 +7065,7 @@ tags:
     name: Radio Bracelet (Cerberon)
     category: items
     group: items-gear
+    sprite: bracelet
     description: "A metal bracelet that receives messages from Radio Systems. Tuned to the Cerberon's frequency."
     pointCost: 0
     weight: 0.2
@@ -7132,6 +7085,7 @@ tags:
     name: Radio (27.065)
     category: items
     group: items-gear
+    sprite: radio
     description: "A radio hardset to a certain frequency."
     pointCost: 4
     weight: 3
@@ -7149,6 +7103,7 @@ tags:
     name: Radio (243.000)
     category: items
     group: items-gear
+    sprite: radio
     description: "A radio hardset to a certain frequency."
     pointCost: 4
     weight: 3
@@ -7164,6 +7119,7 @@ tags:
     name: Rock
     category: items
     group: items-gear
+    sprite: smallrock1
     description: "A hefty stone. Can be thrown with varying results."
     pointCost: 0
     weight: 2
@@ -7177,6 +7133,7 @@ tags:
     name: Rope
     category: items
     group: items-gear
+    sprite: rope
     description: "A long coil of braided rope, stiff with grime."
     pointCost: 2
     weight: 3
@@ -7198,6 +7155,7 @@ tags:
     name: Bear Trap
     category: items
     group: items-gear
+    sprite: beartrap0
     description: "Strong spring jaws with a pressure plate."
     pointCost: 2
     weight: 10
@@ -7219,6 +7177,7 @@ tags:
     name: Barbed Net
     category: items
     group: items-gear
+    sprite: net
     description: "A cruel but effective tool used to bind someone."
     pointCost: 2
     equippable: true
@@ -7237,25 +7196,12 @@ tags:
     sellable: true
     sellablePrice: 6
 
-  skeleton-wedge:
-    catalog: all
-    name: Skeleton Wedge
-    category: items
-    group: items-gear
-    description: "A metal wedge that can be used once to open a locked door."
-    pointCost: 3
-    weight: 0
-    stackable: false
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-
   jester-outfit:
     catalog: all
     name: Jester Outfit
     category: items
     group: items-gear
+    sprite: jester
     description: "A bright, bold jester outfit. Pure aura."
     pointCost: 7
     equippable: true
@@ -7291,6 +7237,7 @@ tags:
     name: Disguise Kit
     category: items
     group: items-gear
+    sprite: fake-moustache
     description: "Makeup, a change of clothes, an array of false mustaches… Can be used to temporarily change one's name and appearance for 3 turns. Reusable."
     pointCost: 2
     weight: 3
@@ -7310,6 +7257,7 @@ tags:
     name: Jewelry
     category: items
     group: items-gear
+    sprite: gearring
     description: "Shiny valuables. It could be offered in exchange for one's life."
     pointCost: 2
     equippable: true
@@ -7336,6 +7284,7 @@ tags:
     name: Art Supplies
     category: items
     group: items-gear
+    sprite: palette
     description: "Brushes, pigment, and a stretch of canvas. Artists can use them to make a {tag:painting}."
     pointCost: 0
     depotPrice: 3
@@ -7366,6 +7315,7 @@ tags:
     name: Painting
     category: items
     group: items-gear
+    sprite: unnamed
     description: "A painting of middling beauty. It'll fetch a good price."
     pointCost: 0
     weight: 6
@@ -7386,31 +7336,6 @@ tags:
     # that is ~10 ⬢/turn, still the best per-turn rate a craftable pays.
     sellablePrice: 41
 
-  # The quick artist's piece beside the 4-turn Painting (Chris 2026-09-07):
-  # customizable like it, priced to be flavor rather than income — at 2 a
-  # sheet the wage tops out at +2 ⬢/turn, well under the Painting's ~10.
-  sketch:
-    catalog: all
-    name: Sketch
-    category: items
-    group: items-gear
-    description: "A few honest lines on paper — a face, a street, and a moment kept. Worth little at the counter and rather more to the right person."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    customizable: true
-    requirement:
-      turnsCost: 0.5
-      resourceCost: 1
-      skills: [artist]
-      gambit: false
-    sellable: true
-    sellablePrice: 2
-
   # Exists to be made CUSTOM (customizable, CRAFTING.md): +1 ⬢ on the base
   # cost buys the maker's own name and words on the thing — a crew's mark, a
   # society's pin, a joke. A plain one can be made too. DRAFT numbers
@@ -7420,6 +7345,7 @@ tags:
     name: Badge
     category: items
     group: items-gear
+    sprite: medala
     description: "A small emblem worked in tin, pinned where it can be seen showing a name or icon."
     pointCost: 0
     weight: 0.5
@@ -7525,6 +7451,7 @@ tags:
     name: Obol
     category: items
     group: items-gear
+    sprite: 5obol
     description: "A small coin used by the Merchant."
     pointCost: 0
     weight: 0
@@ -7548,6 +7475,7 @@ tags:
     name: Cross
     category: items
     group: items-gear
+    sprite: cross
     description: "A wooden cross."
     pointCost: 0
     weight: 1
@@ -7561,6 +7489,7 @@ tags:
     name: Purse
     category: items
     group: items-gear
+    sprite: minisatchel
     description: "A purse of useful things."
     pointCost: 0
     weight: 0
@@ -7577,6 +7506,7 @@ tags:
     name: Skinned Cave Rat
     category: items
     group: items-food
+    sprite: rat
     description: "A dead, hairless creature. It is probably edible."
     pointCost: 0
     weight: 1
@@ -7601,6 +7531,7 @@ tags:
     name: Moldy Bread
     category: items
     group: items-food
+    sprite: bread
     description: "It has grown mold on it, but it's edible."
     pointCost: 0
     weight: 0.5
@@ -7616,6 +7547,7 @@ tags:
     name: Grasshopper Kebab
     category: items
     group: items-food
+    sprite: kabob
     description: "Shriveled arthropods on a stick."
     pointCost: 0
     weight: 0.5
@@ -7646,6 +7578,7 @@ tags:
     name: Budget Cold Soup
     category: items
     group: items-food
+    sprite: closedcan
     description: "A can of cold soup. A mix of wilted vegetables in a watery broth. The label reads VOLGOGA."
     pointCost: 0
     weight: 0.5
@@ -7665,6 +7598,7 @@ tags:
     name: Ration Box
     category: items
     group: items-food
+    sprite: box
     description: "A cardboard container with a faded stamp. The lettering says VOLGOGA. You can open it and hopefully find some food."
     manifest: general
     pointCost: 0
@@ -7696,6 +7630,7 @@ tags:
     name: Box of Junk
     category: items
     group: items-gear
+    sprite: box
     description: "An assortment of stale rations and crafting ingredients — bulk goods."
     pointCost: 0
     depotPrice: 3
@@ -7713,6 +7648,7 @@ tags:
     name: Purring Maggot
     category: items
     group: items-food
+    sprite: worm1
     description: "A pale maggot, squirming in your hand. You can squish it into a mug for maggot milk."
     pointCost: 0
     weight: 0.5
@@ -7736,6 +7672,7 @@ tags:
     name: Maggot Milk
     category: items
     group: items-drink
+    sprite: milk
     description: "A freshly squeezed cup of milk."
     pointCost: 0
     weight: 0.5
@@ -7770,6 +7707,7 @@ tags:
     name: Lockbox
     category: items
     group: items-gear
+    sprite: lockbox
     description: "A locked box. You could open it."
     pointCost: 0
     weight: 4
@@ -7812,6 +7750,7 @@ tags:
     name: Supply Kit
     category: items
     group: items-gear
+    sprite: donk-kit
     description: "A kit full of various useful things. Can be consumed to gain 8 ⬢."
     pointCost: 0
     weight: 10
@@ -7829,6 +7768,7 @@ tags:
     name: Pocket Watch
     category: items
     group: items-gear
+    sprite: watch
     description: "Stopped at whatever hour it was dropped. Still a fine watch."
     pointCost: 0
     weight: 0.5
@@ -7839,26 +7779,12 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  prayer-beads:
-    catalog: all
-    name: Prayer Beads
-    category: items
-    group: items-gear
-    description: "Worn smooth by someone else's thumb, once, at the Shrine."
-    pointCost: 0
-    weight: 0
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 3
-
   smoke-grenade:
     catalog: gm
     name: Smoke Grenade
     category: items
     group: items-gear
+    sprite: nanotrasen-grenade
     description: "A thin metal canister. Can be thrown to obscure vision and make people choke."
     pointCost: 0
     weight: 1.5
@@ -7872,6 +7798,7 @@ tags:
     name: Tear Gas Grenade
     category: items
     group: items-gear
+    sprite: nanotrasen-grenade
     description: "A sealed canister. Can be thrown to obscure vision, cause choking, and irritate people's skin."
     pointCost: 0
     weight: 1.5
@@ -7906,6 +7833,7 @@ tags:
     name: Military Autoinjector
     category: items
     group: items-gear
+    sprite: dnainjector
     description: "A field trauma kit that immediately heals minor wounds, up to broken bones."
     pointCost: 0
     weight: 2
@@ -7939,15 +7867,15 @@ tags:
   # brew one instead of finding one. Lighter than the military version —
   # cracked ribs and a beating, not a set bone or a wound down to bone —
   # because those two heavier rung-3 wounds stay the military kit's own
-  # edge. HIDDEN recipe: {tag:brackenmoss} is non-public (catalog: gm), so
-  # this only shows in a medical-expert's Craft menu while they hold one,
-  # same door as {tag:white-honey} — see docs/documents.yaml's
-  # withheldrecipes.
+  # edge. The third ingredient was {tag:brackenmoss}, which nothing dropped
+  # and no one could get; {tag:cave-fungus} replaced it 2026-09-18, so the
+  # recipe is public and actually brewable now rather than GM-granted.
   autoinjector:
     catalog: all
     name: Autoinjector
     category: items
     group: items-gear
+    sprite: dnainjector
     description: "A compact medical injector that immediately heals minor wounds, up to broken bones."
     pointCost: 0
     depotPrice: 54
@@ -7975,7 +7903,7 @@ tags:
       resourceCost: 3
       skills: [brewing-expert]
       gambit: false
-      items: [antidote, fever-draught, brackenmoss]
+      items: [antidote, fever-draught, cave-fungus]
     sellable: true
     sellablePrice: 32
 
@@ -7988,6 +7916,7 @@ tags:
     name: Starting Wares
     category: items
     group: items-gear
+    sprite: crate
     description: "Goods you came in with, still crated. Unpack them whenever you like. [This is a small trader's stock, should you wish to go into business. Its real value is in what you can talk somebody into paying for it.]"
     pointCost: 14
     weight: 12
@@ -8049,6 +7978,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
+    sprite: horn
     description: "Live carrying out messages for the Baron and telling the day's news. Gives an {tag:arelitz}, a {tag:trumpet}, a {tag:bird} and four sheets of {tag:paper}."
     pointCost: 7
     weight: 2
@@ -8077,6 +8007,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
+    sprite: knight
     description: "Live out your days as a knight of Ravenheart and reminisce on your valor during the Skinless attack of 1088. Gives knighthood, {tag:plate-armor}, a {tag:broadsword}, a {tag:shield}, a {tag:knights-helmet}, {tag:melee-trained}, {tag:ranged-basic}, along with {tag:old} and {tag:arthritis}."
     pointCost: 9
     weight: 3
@@ -8119,6 +8050,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
+    sprite: chaplain
     description: "Live as an envoy from the church. Gives {tag:chaplain}, {tag:pious} and {tag:blessing}."
     pointCost: 4
     weight: 1
@@ -8137,6 +8069,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
+    sprite: goblet-gold
     description: "Live to host and enjoy marvelous feasts. Gives {tag:game-master}, an {tag:iron-liver} and two {tag:alcohol}."
     pointCost: 3
     weight: 4
@@ -8160,6 +8093,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
+    sprite: lordcrown
     description: "Live to run your manor from outside the fortress gates. Gives an {tag:heirloom}, a {tag:rapier}, two {tag:manor-key} and {tag:appraisal}."
     pointCost: 5
     weight: 2
@@ -8181,6 +8115,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
+    sprite: dress
     description: "Live as a general member of the court, here to try their fate. Gives {tag:pretty}."
     pointCost: 1
     weight: 1
@@ -8197,6 +8132,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-artist, courtier-master-engineer]
     group: items-gear
+    sprite: esculap
     description: "Live to treat the Keep's wounded. Gives {tag:medical-skilled} and a {tag:sanctuary-key}."
     pointCost: 4
     weight: 1
@@ -8214,6 +8150,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-master-engineer]
     group: items-gear
+    sprite: palette
     description: "Live to paint portraits of the Baron and his family. Gives {tag:artist}, {tag:musician}, an {tag:instrument} and {tag:appraisal}."
     pointCost: 5
     weight: 2
@@ -8260,6 +8197,7 @@ tags:
     name: Crate RV-6207-M
     category: items
     group: items-gear
+    sprite: crate1
     description: "[SHIPMENT ID RV-6207-M]: Iron x 2 | Squeeze"
     pointCost: 0
     weight: 11
@@ -8277,6 +8215,7 @@ tags:
     name: Cargo Crate
     category: items
     group: items-gear
+    sprite: crate
     description: "A merchant's crate, still nailed shut. The manifest on the side reads: Coffee x2, Alcohol, Work Knife."
     pointCost: 0
     weight: 6
@@ -8295,6 +8234,7 @@ tags:
     name: Spectacles
     category: items
     group: items-gear
+    sprite: glasses
     description: "Allows the wearer to see clearly, removing the downside of {tag:nearsighted}."
     pointCost: 2
     weight: 0
@@ -8316,6 +8256,7 @@ tags:
     name: Suspicious Game Set
     category: items
     group: items-gear
+    sprite: d6
     description: "A game set with weighted and shaved dice, marked and bonus cards, and an assortment of other tricks to guarantee the owner's victory."
     pointCost: 7
     weight: 2
@@ -8329,6 +8270,7 @@ tags:
     name: Sewer Key
     category: items
     group: items-keys
+    sprite: key
     description: "A small metal key."
     pointCost: 0
     stackable: true
@@ -8349,6 +8291,7 @@ tags:
     name: Elevator Key
     category: items
     group: items-keys
+    sprite: key
     description: "A small metal key."
     pointCost: 0
     stackable: true
@@ -8369,6 +8312,7 @@ tags:
     name: "Forester's Key"
     category: items
     group: items-keys
+    sprite: key
     description: "A key to the forester's waystation."
     pointCost: 0
     stackable: true
@@ -8389,6 +8333,7 @@ tags:
     name: Graywall Key
     category: items
     group: items-keys
+    sprite: key
     description: "A key to the property room at Graywall."
     pointCost: 0
     stackable: true
@@ -8413,6 +8358,7 @@ tags:
     name: Ancient Keycard
     category: items
     group: items-keys
+    sprite: keycard1
     description: "A small piece of plastic, with a metal lining on one edge."
     pointCost: 0
     stackable: true
@@ -8424,6 +8370,7 @@ tags:
     name: "Baron's Key"
     category: items
     group: items-keys
+    sprite: key2
     description: "The Baron's key."
     pointCost: 0
     stackable: true
@@ -8451,6 +8398,7 @@ tags:
     name: "Baroness's Key"
     category: items
     group: items-keys
+    sprite: key2
     description: "A finely engraved key."
     pointCost: 0
     stackable: true
@@ -8488,6 +8436,7 @@ tags:
     name: Manor Key
     category: items
     group: items-keys
+    sprite: key2
     description: "A finely engraved key."
     pointCost: 0
     stackable: true
@@ -8510,6 +8459,7 @@ tags:
     name: Cerberus Key
     category: items
     group: items-keys
+    sprite: key
     description: "A menacing metal key."
     pointCost: 0
     stackable: true
@@ -8532,6 +8482,7 @@ tags:
     name: Armory Key
     category: items
     group: items-keys
+    sprite: key
     description: "A menacing metal key."
     pointCost: 0
     stackable: true
@@ -8554,6 +8505,7 @@ tags:
     name: Inn Key
     category: items
     group: items-keys
+    sprite: key
     description: "A wooden key."
     pointCost: 0
     stackable: true
@@ -8576,6 +8528,7 @@ tags:
     name: Order Key
     category: items
     group: items-keys
+    sprite: key
     description: "An old key."
     pointCost: 0
     stackable: true
@@ -8598,6 +8551,7 @@ tags:
     name: Cathedral Key
     category: items
     group: items-keys
+    sprite: key
     description: "An old key."
     pointCost: 0
     stackable: true
@@ -8620,6 +8574,7 @@ tags:
     name: Sanctuary Key
     category: items
     group: items-keys
+    sprite: key
     description: "An old key."
     pointCost: 0
     stackable: true
@@ -8642,6 +8597,7 @@ tags:
     name: Smithy Key
     category: items
     group: items-keys
+    sprite: key
     description: "A small key."
     pointCost: 0
     stackable: true
@@ -8664,6 +8620,7 @@ tags:
     name: Headman's Key
     category: items
     group: items-keys
+    sprite: key
     description: "A small key."
     pointCost: 0
     stackable: true
@@ -8686,6 +8643,7 @@ tags:
     name: Pusher's Key
     category: items
     group: items-keys
+    sprite: key
     description: "A small key."
     pointCost: 0
     stackable: true
@@ -8708,6 +8666,7 @@ tags:
     name: Room A Key
     category: items
     group: items-keys
+    sprite: key
     description: "A small key."
     pointCost: 0
     stackable: true
@@ -8730,6 +8689,7 @@ tags:
     name: Room B Key
     category: items
     group: items-keys
+    sprite: key
     description: "A small key."
     pointCost: 0
     stackable: true
@@ -8752,6 +8712,7 @@ tags:
     name: Room C Key
     category: items
     group: items-keys
+    sprite: key
     description: "A small key."
     pointCost: 0
     stackable: true
@@ -8774,6 +8735,7 @@ tags:
     name: "Mortus Key"
     category: items
     group: items-keys
+    sprite: key
     description: "A small key."
     pointCost: 0
     stackable: true
@@ -8796,6 +8758,7 @@ tags:
     name: "Hand's Key"
     category: items
     group: items-keys
+    sprite: key3
     description: "A finely made key."
     pointCost: 0
     stackable: true
@@ -8818,6 +8781,7 @@ tags:
     name: "Meister's Key"
     category: items
     group: items-keys
+    sprite: key3
     description: "A finely made key."
     pointCost: 0
     stackable: true
@@ -8840,6 +8804,7 @@ tags:
     name: "Censor's Key"
     category: items
     group: items-keys
+    sprite: key3
     description: "A finely made key."
     pointCost: 0
     stackable: true
@@ -8862,6 +8827,7 @@ tags:
     name: "Heir's Key"
     category: items
     group: items-keys
+    sprite: key3
     description: "A finely made key."
     pointCost: 0
     stackable: true
@@ -8884,6 +8850,7 @@ tags:
     name: "Successor's Key"
     category: items
     group: items-keys
+    sprite: key3
     description: "A finely made key."
     pointCost: 0
     stackable: true
@@ -8907,6 +8874,7 @@ tags:
     name: Neoclassic R&W10
     category: items
     group: items-weapons
+    sprite: neoclassic
     description: "A classic revolver with six chambers."
     fighting: { tiers: 0.7, weaponClass: firearm }
     pointCost: 14
@@ -8931,6 +8899,7 @@ tags:
     name: Cracked Bone Club
     category: items
     group: items-weapons
+    sprite: boneclub
     description: "A femur wrapped in cord."
     fighting: { tiers: 0.1, weaponClass: club }
     pointCost: 0
@@ -8947,6 +8916,7 @@ tags:
     name: Neoclassic Duelista
     category: items
     group: items-weapons
+    sprite: duelista
     description: "A classic revolver with six chambers."
     fighting: { tiers: 0.7, weaponClass: firearm }
     pointCost: 0
@@ -9021,6 +8991,7 @@ tags:
     name: Work Knife
     category: items
     group: items-weapons
+    sprite: knife
     description: "A good knife, hard to handle in battle."
     fighting: { tiers: 0.1, weaponClass: knife }
     pointCost: 2
@@ -9047,6 +9018,7 @@ tags:
     name: Hatchet
     category: items
     group: items-weapons
+    sprite: axe
     description: "A short single-bladed axe meant for cutting wood."
     fighting: { tiers: 0.3, weaponClass: axe }
     pointCost: 2
@@ -9074,6 +9046,7 @@ tags:
     name: "Prospector's Pick"
     category: items
     group: items-gear
+    sprite: pickaxe
     description: "A short-handled pick. While equipped, Prospecting produces an additional 1 ⬢."
     pointCost: 2
     miningBonus: { amount: 1 }
@@ -9123,6 +9096,7 @@ tags:
     name: Quarterstaff
     category: items
     group: items-weapons
+    sprite: woodenstaff
     description: "A wooden staff meant to be wielded as a weapon."
     fighting: { tiers: 0.3, weaponClass: club }
     pointCost: 2
@@ -9148,6 +9122,7 @@ tags:
     name: Cudgel
     category: items
     group: items-weapons
+    sprite: club
     description: "A heavy stick meant to hit people."
     fighting: { tiers: 0.3, weaponClass: club }
     pointCost: 2
@@ -9175,6 +9150,7 @@ tags:
     name: Truncheon
     category: items
     group: items-weapons
+    sprite: blackjack
     description: "A short thick stiff made out of an unknown black material. Meant for hitting people?"
     fighting: { tiers: 0.3, weaponClass: club }
     pointCost: 2
@@ -9193,6 +9169,7 @@ tags:
     name: Shortbow
     category: items
     group: items-weapons
+    sprite: bow
     description: "A small, quiet bow that's fast to draw, but sports less power against armored targets."
     fighting: { tiers: 0.4, weaponClass: bow }
     pointCost: 2
@@ -9219,6 +9196,7 @@ tags:
     name: Spear
     category: items
     group: items-weapons
+    sprite: spear
     description: "A wooden staff with a sharp tip at the end that gives a longer reach."
     fighting: { tiers: 0.4, weaponClass: polearm }
     pointCost: 5
@@ -9247,6 +9225,7 @@ tags:
     name: Dagger
     category: items
     group: items-weapons
+    sprite: dagger
     description: "A short blade made for stabbing."
     fighting: { tiers: 0.3, weaponClass: knife }
     pointCost: 3
@@ -9274,6 +9253,7 @@ tags:
     name: Silver Knife
     category: items
     group: items-weapons
+    sprite: silverdagger
     description: "A short blade made of silver. For the superstitious."
     fighting: { tiers: 0.3, weaponClass: knife }
     pointCost: 5
@@ -9302,6 +9282,7 @@ tags:
     name: Gladius
     category: items
     group: items-weapons
+    sprite: gladius
     description: "A short, broad stabbing sword."
     fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 5
@@ -9329,6 +9310,7 @@ tags:
     name: Phrygian Spear
     category: items
     group: items-weapons
+    sprite: tribal-spear
     description: "A spear with a barbed end to cause more damage when pulled out."
     fighting: { tiers: 0.4, weaponClass: polearm }
     pointCost: 5
@@ -9355,6 +9337,7 @@ tags:
     name: Javelin
     category: items
     group: items-weapons
+    sprite: throwing
     description: "A light spear designed to be thrown into one's enemies."
     fighting: { tiers: 0.4, weaponClass: thrown }
     pointCost: 5
@@ -9380,6 +9363,7 @@ tags:
     name: Longbow
     category: items
     group: items-weapons
+    sprite: warbow
     description: "A large bow that requires strength to wield, but can pack a major punch."
     fighting: { tiers: 0.5, weaponClass: bow }
     pointCost: 5
@@ -9406,6 +9390,7 @@ tags:
     name: Mace
     category: items
     group: items-weapons
+    sprite: steelmace
     description: "A flanged iron head on a stout haft."
     fighting: { tiers: 0.4, weaponClass: club }
     pointCost: 5
@@ -9433,6 +9418,7 @@ tags:
     name: Battle Axe
     category: items
     group: items-weapons
+    sprite: combataxe
     description: "A haft with a sleek metal wedge and a spearhead on top."
     fighting: { tiers: 0.5, weaponClass: axe }
     pointCost: 5
@@ -9462,6 +9448,7 @@ tags:
     name: Knuckle Duster
     category: items
     group: items-weapons
+    sprite: knuckleduster
     description: "Connected metal rings meant to be worn on one's fingers to pack a heavier punch."
     fighting: { tiers: 0.2, weaponClass: unarmed }
     pointCost: 3
@@ -9517,6 +9504,7 @@ tags:
     name: Halberd
     category: items
     group: items-weapons
+    sprite: bardiche
     description: "A polearm with a heavy blade and a spike. Cuts through armor and flesh alike."
     fighting: { tiers: 0.6, weaponClass: polearm }
     pointCost: 7
@@ -9545,6 +9533,7 @@ tags:
     name: Broadsword
     category: items
     group: items-weapons
+    sprite: broadsword
     description: "A standard slashing sword."
     fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 7
@@ -9572,6 +9561,7 @@ tags:
     name: War Hammer
     category: items
     group: items-weapons
+    sprite: klevec
     description: "A small head. It concentrates force better than a mace."
     fighting: { tiers: 0.4, weaponClass: club }
     pointCost: 7
@@ -9601,6 +9591,7 @@ tags:
     name: Bastard Sword
     category: items
     group: items-weapons
+    sprite: bastard
     description: "A large sword that requires 2 hands to use effectively."
     fighting: { tiers: 0.6, weaponClass: sword }
     pointCost: 9
@@ -9629,6 +9620,7 @@ tags:
     name: Rapier
     category: items
     group: items-weapons
+    sprite: rapier
     description: "An elegant steel rapier."
     fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 9
@@ -9658,6 +9650,7 @@ tags:
     name: Sabre
     category: items
     group: items-weapons
+    sprite: sabre
     description: "A refined slashing weapon."
     fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 9
@@ -9712,6 +9705,7 @@ tags:
     name: Silver Spear
     category: items
     group: items-weapons
+    sprite: spear
     description: "A silver spear."
     fighting: { tiers: 0.4, weaponClass: polearm }
     pointCost: 9
@@ -9741,6 +9735,7 @@ tags:
     name: Lucerne
     category: items
     group: items-weapons
+    sprite: klevec
     description: "A long and mean polearm combining the traits of a spear, pick, and hammer."
     fighting: { tiers: 0.6, weaponClass: polearm }
     pointCost: 9
@@ -9767,6 +9762,7 @@ tags:
     name: Zweihander
     category: items
     group: items-weapons
+    sprite: bigsword
     description: "A monstrously large double bladed sword."
     fighting: { tiers: 0.6, weaponClass: sword }
     pointCost: 9
@@ -9798,6 +9794,7 @@ tags:
     name: Heartforged Blade
     category: items
     group: items-weapons
+    sprite: lightbringer
     description: "A blade that came out of its quenching with a warmth the forge cannot explain, and it has never quite cooled since. Its wielder's hands do not shake, steeled with a newfound steadiness. Anyone who examines it knows something terrible was done in the blade's making."
     fighting: { tiers: 1, weaponClass: sword }
     pointCost: 14
@@ -9822,6 +9819,7 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
+    sprite: crossbow0
     description: "A mechanical bow that shoots far and straight. When using the weapon, your Ranged Fighting skill counts as half a tier higher due to its ease of use."
     fighting: { tiers: 0.5, weaponClass: crossbow }
     pointCost: 9
@@ -9849,6 +9847,7 @@ tags:
     name: Musketoon
     category: items
     group: items-weapons
+    sprite: dshotgun-sawn
     description: "A short gun with a wide bore. It fires one powerful shot before needing to be reloaded."
     fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 18
@@ -9875,6 +9874,7 @@ tags:
     name: Bore Pistol
     category: items
     group: items-weapons
+    sprite: duelista
     description: "A powerful single-shot pistol."
     fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 14
@@ -9930,6 +9930,7 @@ tags:
     name: Sword Cane
     category: items
     group: items-weapons
+    sprite: bonecane
     description: "A gentleman's cane, filled with three feet of steel."
     fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 7
@@ -9953,6 +9954,7 @@ tags:
     name: Disabler
     category: items
     group: items-weapons
+    sprite: stunnerpistol
     description: "A non-lethal energy pistol, only useful against unarmed people. After enough shots, the target's muscles fail and they fall to the floor, cramping and groaning. Powered by disposable batteries imported by the Baron."
     fighting: { tiers: 0.3, weaponClass: firearm }
     pointCost: 0
@@ -9987,6 +9989,7 @@ tags:
     name: Human Flesh
     category: items
     group: items-food
+    sprite: meat2
     description: "Meat, cut from a person."
     pointCost: 0
     weight: 5
@@ -10033,6 +10036,7 @@ tags:
     keepSlug: true
     category: items
     group: items-remains
+    sprite: eye
     description: "A human eyeball, it looks back at you."
     pointCost: 0
     weight: 1
@@ -10053,6 +10057,7 @@ tags:
     name: Tongue
     category: items
     group: items-remains
+    sprite: tongue
     description: "Someone let their tongue slip!"
     pointCost: 0
     weight: 1
@@ -10073,6 +10078,7 @@ tags:
     name: Hand
     category: items
     group: items-remains
+    sprite: right-hand
     description: "A human hand."
     pointCost: 0
     weight: 2
@@ -10093,6 +10099,7 @@ tags:
     name: Foot
     category: items
     group: items-remains
+    sprite: right-foot
     description: "A human foot."
     pointCost: 0
     weight: 3
@@ -10113,6 +10120,7 @@ tags:
     name: Bone
     category: items
     group: items-remains
+    sprite: bone
     description: "A human bone."
     pointCost: 0
     weight: 1
@@ -10128,6 +10136,7 @@ tags:
     name: Stomach
     category: items
     group: items-remains
+    sprite: stomach
     description: "A human stomach."
     pointCost: 0
     weight: 2
@@ -10148,6 +10157,7 @@ tags:
     name: Heart
     category: items
     group: items-remains
+    sprite: heart
     description: "Someone's once beating heart, now in the palm of your hand."
     pointCost: 0
     weight: 1
@@ -10191,6 +10201,7 @@ tags:
     name: Onion
     category: items
     group: items-food
+    sprite: onion-harvest
     description: "An onion. Goes well in soups."
     pointCost: 0
     depotPrice: 3
@@ -10218,6 +10229,7 @@ tags:
     name: Wheat
     category: items
     group: items-food
+    sprite: wheat
     description: "A sheaf of raw wheat. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10243,6 +10255,7 @@ tags:
     name: Potato
     category: items
     group: items-food
+    sprite: potato
     description: "A potato, fresh from the dirt. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10265,6 +10278,7 @@ tags:
     name: Tomato
     category: items
     group: items-food
+    sprite: tomato
     description: "A ripe tomato. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10287,6 +10301,7 @@ tags:
     name: Carrot
     category: items
     group: items-food
+    sprite: carrot
     description: "A carrot, pulled from the earth. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10309,6 +10324,7 @@ tags:
     name: Plump Helmet
     category: items
     group: items-food
+    sprite: plump-harvest
     description: "A stubby fungus that passes for a vegetable in the caves. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10334,6 +10350,7 @@ tags:
     name: Pigtails
     category: items
     group: items-gear
+    sprite: pigtail
     description: "A bundle of tough fibrous reeds, grown in the fields. Could be crushed into fibre for rope or thread, if anyone worked out how."
     pointCost: 0
     weight: 0.5
@@ -10351,6 +10368,7 @@ tags:
     name: Meat
     category: items
     group: items-food
+    sprite: rottenmeat
     description: "A cut of raw meat. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10373,6 +10391,7 @@ tags:
     name: Rations
     category: items
     group: items-food
+    sprite: monkeycube
     description: "A hard block of preserved rations. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10396,6 +10415,7 @@ tags:
     name: Dead Rat
     category: items
     group: items-food
+    sprite: rat
     description: "A dead rat. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10419,6 +10439,7 @@ tags:
     name: Sugar
     category: items
     group: items-food
+    sprite: sugar
     description: "A twist of raw sugar. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10443,6 +10464,7 @@ tags:
     name: Cheese
     category: items
     group: items-food
+    sprite: cheesewedge
     description: "A wedge of cheese. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10468,6 +10490,7 @@ tags:
     name: Rendered Fat
     category: items
     group: items-food
+    sprite: fat
     description: "A tub of rendered fat. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10514,6 +10537,7 @@ tags:
     name: Dustfish
     category: items
     group: items-food
+    sprite: fish
     description: "A pale fish coated in cave dust. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10559,6 +10583,7 @@ tags:
     name: Tunnel Trout
     category: items
     group: items-food
+    sprite: fish
     description: "A trout, fished out of some flooded tunnel. You could cook with it."
     pointCost: 0
     weight: 0.5
@@ -10589,6 +10614,7 @@ tags:
     name: Wheat Seed Bag
     category: items
     group: items-seeds
+    sprite: wheat-2
     description: "A sack of seed wheat. Open it in the fields to sow."
     pointCost: 0
     depotPrice: 4
@@ -10619,6 +10645,7 @@ tags:
     name: Potato Seed Bag
     category: items
     group: items-seeds
+    sprite: potato-2
     description: "A sack of seed potatoes. Open it in the fields to sow."
     pointCost: 0
     depotPrice: 4
@@ -10649,6 +10676,7 @@ tags:
     name: Tomato Seed Bag
     category: items
     group: items-seeds
+    sprite: tomato-2
     description: "A sack of seed tomato. Open it in the fields to sow."
     pointCost: 0
     depotPrice: 4
@@ -10679,6 +10707,7 @@ tags:
     name: Carrot Seed Bag
     category: items
     group: items-seeds
+    sprite: carrot-2
     description: "A sack of seed carrot. Open it in the fields to sow."
     pointCost: 0
     depotPrice: 4
@@ -10709,6 +10738,7 @@ tags:
     name: Onion Seed Bag
     category: items
     group: items-seeds
+    sprite: onion
     description: "A sack of seed onion. Open it in the fields to sow."
     pointCost: 0
     depotPrice: 4
@@ -10739,6 +10769,7 @@ tags:
     name: Plump Helmet Seed Bag
     category: items
     group: items-seeds
+    sprite: unnamed-2
     description: "A sack of plump helmet spores. Open it in the fields to sow."
     pointCost: 0
     depotPrice: 4
@@ -10769,6 +10800,7 @@ tags:
     name: Pigtails Seed Bag
     category: items
     group: items-seeds
+    sprite: pigtail
     description: "A sack of pigtails seed. Open it in the fields to sow."
     pointCost: 0
     depotPrice: 4
@@ -10801,6 +10833,7 @@ tags:
     description: "A cut of boar. You could cook with it."
     category: items
     group: items-food
+    sprite: meatstake
     pointCost: 0
     weight: 3
     stackable: true
@@ -10820,6 +10853,7 @@ tags:
     name: Deer Liver
     category: items
     group: items-food
+    sprite: liver
     description: "A deer's liver. Best cooked."
     pointCost: 0
     weight: 1
@@ -10840,6 +10874,7 @@ tags:
     name: Goose Fat
     category: items
     group: items-food
+    sprite: fat
     description: "Goose fat. A delicacy, good for cooking."
     pointCost: 0
     weight: 0.5
@@ -10860,6 +10895,7 @@ tags:
     name: Hard Cheese
     category: items
     group: items-food
+    sprite: cheesewheel
     description: "A hard wheel of cheese. You could cook with it."
     pointCost: 0
     depotPrice: 6
@@ -10950,6 +10986,7 @@ tags:
     description: "A pale, eyeless fish. You could cook with it."
     category: items
     group: items-food
+    sprite: fish
     pointCost: 0
     weight: 1
     stackable: true
@@ -10973,6 +11010,7 @@ tags:
     name: Deep Morel
     category: items
     group: items-food
+    sprite: dshroom-harvest
     description: "A cave morel. You could cook with it."
     pointCost: 0
     depotPrice: 5
@@ -11020,6 +11058,7 @@ tags:
     name: Saffron
     category: items
     group: items-food
+    sprite: spice
     description: "Foreign spices. Tastes delicious in meals."
     pointCost: 0
     depotPrice: 17
@@ -11043,6 +11082,7 @@ tags:
     name: Tinned Butter
     category: items
     group: items-food
+    sprite: butterpack
     description: "Butter. A delicacy."
     pointCost: 0
     depotPrice: 8
@@ -11065,6 +11105,7 @@ tags:
     name: Canned Crabmeat
     category: items
     group: items-food
+    sprite: filledcan
     description: "A can of food, labeled VOLGOGA CRAB. It smells fishy. The label has a faded drawing of a crab."
     pointCost: 0
     depotPrice: 2
@@ -11101,6 +11142,7 @@ tags:
     name: Bread
     category: items
     group: items-food
+    sprite: bread
     description: "Two sheaves of wheat, baked down to something you can actually eat."
     pointCost: 0
     weight: 0.5
@@ -11127,6 +11169,7 @@ tags:
     name: Potato Bread
     category: items
     group: items-food
+    sprite: loaf4
     description: "A denser loaf, half wheat and half potato."
     pointCost: 0
     weight: 0.5
@@ -11154,6 +11197,7 @@ tags:
     name: Pasta
     category: items
     group: items-food
+    sprite: pastatomato
     description: "Wheat worked with tomato into something worth a fork."
     pointCost: 0
     weight: 0.5
@@ -11181,6 +11225,7 @@ tags:
     name: Baked Potato
     category: items
     group: items-food
+    sprite: bakedpotato
     description: "Two potatoes, baked through."
     pointCost: 0
     weight: 0.5
@@ -11235,6 +11280,7 @@ tags:
     name: Vegetable Stew
     category: items
     group: items-food
+    sprite: vegetablesoup
     description: "Whatever the field gave up today, boiled down together."
     pointCost: 0
     weight: 0.5
@@ -11270,6 +11316,7 @@ tags:
     name: Ratato
     category: items
     group: items-food
+    sprite: potatorat
     description: "Potato and whatever the traps caught."
     pointCost: 0
     weight: 0.5
@@ -11297,6 +11344,7 @@ tags:
     name: Tomato Soup
     category: items
     group: items-food
+    sprite: tomatosoup
     description: "Tomatoes, cooked down to a soup."
     pointCost: 0
     weight: 0.5
@@ -11324,6 +11372,7 @@ tags:
     name: Fried Onion
     category: items
     group: items-food
+    sprite: onion3
     description: "Onion, fried down to something sweeter than it started."
     pointCost: 0
     weight: 0.5
@@ -11351,6 +11400,7 @@ tags:
     name: Broth
     category: items
     group: items-food
+    sprite: meatballsoup
     description: "Meat, boiled down with whatever root vegetable is on hand."
     pointCost: 0
     weight: 0.5
@@ -11380,6 +11430,7 @@ tags:
     name: Fried Meat
     category: items
     group: items-food
+    sprite: meatstake
     description: "Meat, fried plain."
     pointCost: 0
     weight: 0.5
@@ -11434,6 +11485,7 @@ tags:
     name: Fried Mushroom
     category: items
     group: items-food
+    sprite: shroomsteak
     description: "Plump Helmet, fried down to a mushroom's version of Fried Onion."
     pointCost: 0
     weight: 0.5
@@ -11488,6 +11540,7 @@ tags:
     name: Fish Stew
     category: items
     group: items-food
+    sprite: stew
     description: "Whatever's biting, boiled down with a root vegetable."
     pointCost: 0
     weight: 0.5
@@ -11517,6 +11570,7 @@ tags:
     name: Fried Fish
     category: items
     group: items-food
+    sprite: fishfillet
     description: "Two catches, fried plain."
     pointCost: 0
     weight: 0.5
@@ -11548,6 +11602,7 @@ tags:
     name: Omelette
     category: items
     group: items-food
+    sprite: omelette
     description: "Two arelitz eggs, worked into an omelette."
     pointCost: 0
     weight: 0.5
@@ -11575,6 +11630,7 @@ tags:
     name: Sausage
     category: items
     group: items-food
+    sprite: sausage
     description: "Meat packed with rendered fat."
     pointCost: 0
     weight: 0.5
@@ -11602,6 +11658,7 @@ tags:
     name: Salo
     category: items
     group: items-food
+    sprite: fat
     description: "Rendered fat, cured with rock salt."
     pointCost: 0
     weight: 0.5
@@ -11636,6 +11693,7 @@ tags:
     name: Hash Brown
     category: items
     group: items-food
+    sprite: piepotato
     description: "Bread worked through with potato and fried."
     pointCost: 0
     weight: 0.5
@@ -11665,6 +11723,7 @@ tags:
     name: Egg in the Hole
     category: items
     group: items-food
+    sprite: egghole
     description: "Bread with an arelitz egg fried into the middle."
     pointCost: 0
     weight: 0.5
@@ -11693,6 +11752,7 @@ tags:
     name: Pizza Slice
     category: items
     group: items-food
+    sprite: pizzamargheritaslice
     description: "Two loaves worked flat, with cheese and tomato baked in."
     pointCost: 0
     weight: 0.5
@@ -11721,6 +11781,7 @@ tags:
     name: Sandwich
     category: items
     group: items-food
+    sprite: sandwich
     description: "Bread and tomato, closed over meat or whatever the traps caught."
     pointCost: 0
     weight: 0.5
@@ -11755,6 +11816,7 @@ tags:
     name: Honeyed Sweets
     category: items
     group: items-food
+    sprite: honeycomb
     description: "Honey or sugar, worked into a treat."
     pointCost: 0
     weight: 0.5
@@ -11784,6 +11846,7 @@ tags:
     name: Scones
     category: items
     group: items-food
+    sprite: bun
     description: "Bread worked with tinned butter."
     pointCost: 0
     weight: 0.5
@@ -11814,6 +11877,7 @@ tags:
     name: Carrot Cake
     category: items
     group: items-food
+    sprite: carrotcake-slice
     description: "Bread and carrot, sweetened with honey or sugar."
     pointCost: 0
     weight: 0.5
@@ -11844,6 +11908,7 @@ tags:
     name: Pancakes
     category: items
     group: items-food
+    sprite: pancake
     description: "Wheat, arelitz egg and maggot milk, worked into a batter."
     pointCost: 0
     weight: 0.5
@@ -11871,6 +11936,7 @@ tags:
     name: Steak
     category: items
     group: items-food
+    sprite: steak
     description: "Three cuts of meat, cooked plain."
     pointCost: 0
     weight: 0.5
@@ -11925,6 +11991,7 @@ tags:
     name: Meat Pie
     category: items
     group: items-food
+    sprite: meatpie
     description: "Bread worked around arelitz egg and meat."
     pointCost: 0
     weight: 0.5
@@ -12097,6 +12164,7 @@ tags:
     name: Trail Ration
     category: items
     group: items-food
+    sprite: sosjerky
     description: "Hardtack, dried meat, and whatever else keeps. It weighs next to nothing and tastes like the bottom of a pack, but it is a meal that'll keep you going."
     pointCost: 0
     weight: 0.5
@@ -12122,6 +12190,7 @@ tags:
     name: Honeyed Cakes
     category: items
     group: items-food
+    sprite: syndi-cakes
     description: "Golden, sticky, and gone far too fast. A plate of these makes an occasion out of an ordinary evening."
     pointCost: 0
     weight: 0.5
@@ -12149,6 +12218,7 @@ tags:
     name: Flesh of Tzchernobog
     category: items
     group: items-food
+    sprite: rottenmeat
     description: "Corrupted edible food. It is a sloppy, withered shadow of what it used to be."
     pointCost: 0
     weight: 0.5
@@ -12180,6 +12250,7 @@ tags:
     name: Workshop Equipment
     category: items
     group: items-gear
+    sprite: anvil
     description: "Allows you to build and smith."
     pointCost: 9
     visible: true
@@ -12201,6 +12272,7 @@ tags:
     catalog: all
     name: Surgical Equipment
     category: items
+    sprite: open-medkit
     description: "A set of advanced medical equipment. It allows you to perform complex surgeries without penalty."
     pointCost: 9
     visible: true
@@ -12221,6 +12293,7 @@ tags:
     catalog: all
     name: Torturing Equipment
     category: items
+    sprite: whip1
     description: "Various equipment and devices designed to bring harm to others. Torture-related Gambits attempted while equipped or at a Location holding this gain +1."
     pointCost: 0
     visible: true
@@ -12271,6 +12344,7 @@ tags:
     name: Mesmer Glass
     category: items
     group: items-special
+    sprite: vial-blue
     description: "A glass vial swirling with color. You can activate it to blind someone."
     pointCost: 0
     weight: 0
@@ -12285,6 +12359,7 @@ tags:
     name: Power Fist
     category: items
     group: items-special
+    sprite: powered
     description: "An engine-powered gauntlet."
     pointCost: 0
     equippable: true
@@ -12299,6 +12374,7 @@ tags:
     name: Fragmentation Grenade
     category: items
     group: items-special
+    sprite: nanotrasen-grenade
     description: "A standard-issue fragmentation grenade."
     pointCost: 0
     weight: 1.5
@@ -12314,6 +12390,7 @@ tags:
     name: C4
     category: items
     group: items-special
+    sprite: c4-wall
     description: "A plastic explosive, good at breaching walls."
     pointCost: 0
     weight: 4
@@ -12327,6 +12404,7 @@ tags:
     name: EMP Grenade
     category: items
     group: items-special
+    sprite: emp
     description: "A small metal device that shuts down anything electronic in a 10-foot radius."
     pointCost: 0
     weight: 1.5
@@ -12357,6 +12435,7 @@ tags:
     name: Flamethrower
     category: items
     group: items-special
+    sprite: flamethrower1
     description: "A barrelled two handed device that can shoot out a stream of fire."
     pointCost: 0
     equippable: true
@@ -12381,6 +12460,7 @@ tags:
     name: Dark-Eye Lenses
     category: items
     group: items-special
+    sprite: thermal
     description: "Allows the wearer to see heat through solid stone, including from flames, bodies, or anything else. The wearer will also be blinded by bright light."
     pointCost: 0
     equippable: true
@@ -12412,6 +12492,7 @@ tags:
     name: Ravenheart Map
     category: items
     group: items-gear
+    sprite: oldmap
     description: "Can be consumed to reveal all overground locations immediately."
     pointCost: 0
     depotPrice: 4
@@ -12440,6 +12521,7 @@ tags:
     name: Nuclear Device
     category: items
     group: items-special
+    sprite: nuke
     description: "A large capsule of a fissile explosive. A gift from God King Enoch II. There's no way to activate it."
     pointCost: 0
     weight: 100
@@ -12453,6 +12535,7 @@ tags:
     name: Nuclear Datacard
     category: items
     group: items-special
+    sprite: nucleardisk
     description: "It can be inserted into the {tag:nuclear-device} to start a ten minute countdown. It also points to where the device is at all times."
     pointCost: 0
     weight: 0
@@ -12486,6 +12569,7 @@ tags:
     name: Sawn-Off Double Barrel
     category: items
     group: items-special
+    sprite: dshotgun-sawn
     description: "A two-shot shotgun that is more easily concealable than its normal counterpart."
     fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
@@ -12502,6 +12586,7 @@ tags:
     name: Golden Arrow
     category: items
     group: items-special
+    sprite: arrow
     description: "An arrow no bow has ever touched. You feel compelled to stab yourself with it, hard."
     pointCost: 0
     weight: 0.5
@@ -12518,6 +12603,7 @@ tags:
     name: Codex Supprimata
     category: items
     group: items-special
+    sprite: book
     description: "A strange kind of book: you can only read it once. Your breath slows when you near it. [You must be {tag:literate} to understand its contents.]"
     pointCost: 0
     weight: 5
@@ -12559,6 +12645,7 @@ tags:
     name: Baron's Scepter
     category: items
     group: items-special
+    sprite: caduceus
     description: "A rod of gold, gems, and filigree. This thing must weigh five pounds."
     pointCost: 0
     equippable: true
@@ -12573,6 +12660,7 @@ tags:
     name: Mortus Rags
     category: items
     group: items-special
+    sprite: mortus
     description: "The black rags of a Mortus. They smell faintly of decay."
     pointCost: 0
     equippable: true
@@ -12588,6 +12676,7 @@ tags:
     name: Merchant's Garb
     category: items
     group: items-special
+    sprite: trader
     description: "The elaborate outfit of a wealthy Merchant. Exotic furs and silks go a long way toward disguising the thin breastplate beneath — and the couple bionic pumps, which serve some unknown, impractical purpose."
     pointCost: 0
     equippable: true
@@ -12615,6 +12704,7 @@ tags:
     name: Merchant's License
     category: items
     group: items-special
+    sprite: technician-id
     description: "A sharp plastic card bearing the Merchant's name, face and, funnily enough, their home address — somewhere in a certain city far away."
     pointCost: 0
     weight: 0
@@ -12636,6 +12726,7 @@ tags:
     name: Depot Keycard
     category: items
     group: items-keys
+    sprite: keycard2
     description: "A worn plastic card on a lanyard."
     pointCost: 0
     stackable: true
@@ -12668,6 +12759,7 @@ tags:
     name: Incarn's Key
     category: items
     group: items-keys
+    sprite: key
     description: "An elegant silver key."
     pointCost: 0
     equippable: true
@@ -12734,6 +12826,7 @@ tags:
     name: Esculap's Vest
     category: items
     group: items-special
+    sprite: esculap
     description: "A patterned vest, freshly pressed. A serpent-shaped brooch nests atop its lapel."
     pointCost: 0
     equippable: true
@@ -12763,6 +12856,7 @@ tags:
     name: Inquisitor's Longcoat
     category: items
     group: items-special
+    sprite: inquisitor
     description: "A coat of dark leather. Silver mail glints underneath."
     pointCost: 0
     equippable: true
@@ -12778,6 +12872,7 @@ tags:
     name: Practicii's Robes
     category: items
     group: items-special
+    sprite: monk-hooded
     description: "Belted, hooded, knee-length robes with an argent cross on the belt buckle."
     pointCost: 0
     equippable: true
@@ -12793,6 +12888,7 @@ tags:
     name: Vestments
     category: items
     group: items-special
+    sprite: nun
     description: "A long black robe with a white collar."
     pointCost: 0
     equippable: true
@@ -12865,6 +12961,7 @@ tags:
     name: Cigarette
     category: items
     group: items-drink
+    sprite: cigpacket
     description: "A Mudghara, special import. It has a robust, heavy flavor."
     manifest: black-market
     pointCost: 0
@@ -12892,6 +12989,7 @@ tags:
     name: Bomb Collar
     category: items
     group: items-gear
+    sprite: collar
     description: "A collar that can be locked around someone's neck, controlled by a remote detonator."
     manifest: black-market
     pointCost: 0
@@ -12907,6 +13005,7 @@ tags:
     name: Remote Detonator
     category: items
     group: items-gear
+    sprite: c-4detonator-1
     description: "A small, handheld device with a big red trigger and an antenna on the top."
     manifest: black-market
     pointCost: 0
@@ -12922,6 +13021,7 @@ tags:
     name: Collar Key
     category: items
     group: items-keys
+    sprite: key1
     description: "It unlocks slave collars."
     manifest: black-market
     pointCost: 0
@@ -12940,6 +13040,7 @@ tags:
     name: Machete
     category: items
     group: items-weapons
+    sprite: cleaver
     description: "A cutting implement."
     fighting: { tiers: 0.3, weaponClass: sword }
     manifest: black-market
@@ -12960,6 +13061,7 @@ tags:
     name: Tea
     category: items
     group: items-drink
+    sprite: tea
     description: "A hot, soothing liquid."
     pointCost: 0
     depotPrice: 2
@@ -13002,6 +13104,7 @@ tags:
     name: Stack of Paper
     category: items
     group: items-paper
+    sprite: paper-bin
     description: "A ream of blank sheets. It can be consumed into paper."
     pointCost: 1
     depotPrice: 2
@@ -13038,6 +13141,7 @@ tags:
     name: Paper
     category: items
     group: items-paper
+    sprite: paper
     description: "*Blank paper.*"
     pointCost: 0
     weight: 0
@@ -13051,6 +13155,7 @@ tags:
     name: "Prospector's Notes"
     category: items
     group: items-paper
+    sprite: oldmap
     description: "Notes describing the location of a vein of ore, in a vast chasm."
     pointCost: 0
     weight: 0
@@ -13077,6 +13182,7 @@ tags:
     name: Blank Book
     category: items
     group: items-paper
+    sprite: book
     description: "A book of blank pages, ready to be written in."
     pointCost: 0
     weight: 1.5
@@ -13104,6 +13210,7 @@ tags:
     name: Grimoire
     category: items
     group: items-gear
+    sprite: necronomicon
     description: "It will detail the available rites and their words of corruption."
     pointCost: 0
     weight: 1.5
@@ -13132,6 +13239,7 @@ tags:
     name: Scrying Eye
     category: items
     group: items-gear
+    sprite: eye-2
     description: "Its pupil darts around frantically, overwhelmed by vision through the veil. Holding it in your hand while wearing your robes lets you see through walls."
     pointCost: 0
     weight: 1
@@ -13152,6 +13260,7 @@ tags:
     name: Sacrificial Knife
     category: items
     group: items-weapons
+    sprite: obsknife
     description: "A curved blade etched with all manner of heretical markings."
     fighting: { tiers: 0.3, weaponClass: knife }
     pointCost: 0
@@ -13171,6 +13280,7 @@ tags:
     name: Poison Tooth
     category: items
     group: items-gear
+    sprite: tooth
     description: "A poisoned tooth. Once installed, it may be bitten down on, releasing a deadly nerve agent into the room you are in."
     pointCost: 0
     weight: 0
@@ -13198,6 +13308,7 @@ tags:
     name: Adder’s Bite
     category: items
     group: items-drink
+    sprite: inkvdflask0
     description: "A small phial of black liquid. It can kill in seconds."
     pointCost: 0
     weight: 0.5
@@ -13219,6 +13330,7 @@ tags:
     name: Dynamite Stick
     category: items
     group: items-special
+    sprite: tnt-stick1
     description: "A singular stick of dynamite, can be combined with four others to make a bundle."
     pointCost: 0
     weight: 1
@@ -13232,6 +13344,7 @@ tags:
     name: Dynamite Bundle
     category: items
     group: items-special
+    sprite: tnt-bundle1
     description: "A bundle of dynamite, could easily devastate a crowd or building."
     pointCost: 0
     weight: 5
@@ -13273,6 +13386,7 @@ tags:
     name: Caspian's Diary
     category: items
     group: items-paper
+    sprite: diary
     bookText: >-
       Dear Diary, It's been 4 days in these caves...at least I think it has. Time seems to have lost all meaning, and I'm unsure whether I've been walking this through this current passage for hours or days. I can't help but feel a blooming hope that I will find the exit soon, for I encountered something today that I've not seen since I entered this place: a hole. Tomorrow I jump to my destiny, and discover what is at the bottom of the hole. With luck, it will be my salvation. Caspian
     pointCost: 0
@@ -13286,6 +13400,7 @@ tags:
     name: 100 Years of Solitude
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       by Gabriel Garcia Marquez
 
@@ -13301,6 +13416,7 @@ tags:
     name: The Art of War
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       by Sun Tzu
 
@@ -13316,6 +13432,7 @@ tags:
     name: States of Matter
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       by David L. Goodstein
 
@@ -13334,6 +13451,7 @@ tags:
     name: Flatbreads, Sweet Breads, and Red Breads
     category: items
     group: items-paper
+    sprite: redblank
     bookText: |-
       A guide on basic baking, by Madam Molley, a royal chef half a century before our time.
 
@@ -13349,6 +13467,7 @@ tags:
     name: Pancakes, Cupcakes, and Cake Cakes
     category: items
     group: items-paper
+    sprite: yellowblank
     bookText: |-
       A guide on complex baking, by Madam Molley, a royal chef half a century before our time.
 
@@ -13364,6 +13483,7 @@ tags:
     name: Pastry's, Crumbly's, and Pies
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       A guide on advanced baking, by Madam Molley, a royal chef half a century before our time.
 
@@ -13380,6 +13500,7 @@ tags:
     name: The Bird
     category: items
     group: items-paper
+    sprite: oldletter
     bookText: |-
       Lilac was either a pigeon or a demon, depending on the account, or perhaps she never existed to begin with. Not many descriptions on her physical form exist because the most notable thing about The Bird is the devastation that follows in her absence. Enemies became allies, and the allied betrayed another. The fortress never knew peace and the town never knew silence after The Bird had disappeared. Screams that even The Watch could not handle filled the days and nights to follow. Some medics in contemporary society will heal and feed whatever birds they come across out of respect for the Mother Healer, who is said to have offered her services to save Lilac.
     pointCost: 0
@@ -13406,6 +13527,7 @@ tags:
     name: Amour et Socialisme (Translated)
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       Women love better when their material conditions are satisfied. It is in the interest of commoners and in the interest of lovers to ensure that housing, food, and medical care is provided to all. Feel the passion, the aggressive intimacy, the primal desire when one no longer needs to think about where their next meal comes from or their preferred method of sacrificing their health. To love truly is to be socialist. The royalty and the privileged fates control our resources so that we fear and hate and cry instead of becoming empowered to smile, to laugh, to kiss. Go organize your friends and family, and love freely.
     pointCost: 0
@@ -13421,6 +13543,7 @@ tags:
     name: "A Murmur Darkly: Last Call"
     category: items
     group: items-paper
+    sprite: blueblank
     bookText: |-
       by G.C Aspitt
 
@@ -13462,6 +13585,7 @@ tags:
     name: "A Murmur Darkly: Aches and Pains"
     category: items
     group: items-paper
+    sprite: greenblank
     bookText: |-
       by G.C Aspitt
 
@@ -13505,6 +13629,7 @@ tags:
     name: "A Murmur Darkly: A Shot in the Dark"
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       by G.C Aspitt
 
@@ -13554,6 +13679,7 @@ tags:
     name: 10'001 things to do with your pet rat
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       Play together, eat cheese, make cheese, go to the inn, get drunk, do a surgical operation, eat another rat, run for headman, work in the fields, stand guard, learn literature, plant a tree, cosplay as a dog to intimidate cats, wear a fancy hat,...
     pointCost: 0
@@ -13567,6 +13693,7 @@ tags:
     name: Cooking, all you need to know
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       The ingredients for hot chocolate are milk, cacao, sugar, starch, and (if you feel fancy) cinnymon. Moreover EVO oil is best oil.
     pointCost: 0
@@ -13583,6 +13710,7 @@ tags:
     name: "Magical Code of Regulations - Part XXXII: Regulatory Mandates Conserning the Codification and Simplification of Magical Documentation"
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       §3201.1 Prohibition Against Gratuitus Prolixity and Obfuscatory Circumlocution in Codificatory Processes:
       ...
@@ -13597,6 +13725,7 @@ tags:
     name: Sword in High Heavens
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       The sword was flying high in the sky, until it gained conciusness and became aware its metal. This day the weight of existence came down on it, as the sword fall from Heaven.
     pointCost: 0
@@ -13610,6 +13739,7 @@ tags:
     name: Prophecies of Sir Thomast
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       The time shall come in which The Mime dies, at that moment only Archon will come to serve the final Judgement. Only salvation will be found in those believed impaired, who lied to everyone, to keep their secrets. Now they stand witness, and have a chance to act.
     pointCost: 0
@@ -13623,6 +13753,7 @@ tags:
     name: Basic Strategy
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       Believe in the legs. Legs will save thee, they make thee swift, fast. Thou don't need to fear any enemy, as long as thy legs are stronger than the ones of their horses, for thou are faster.
     pointCost: 0
@@ -13636,6 +13767,7 @@ tags:
     name: "Love, Lies and Lays of Larry Luca: Life 1 — Royal Loyal Lynn"
     category: items
     group: items-paper
+    sprite: book
     bookText: >-
       Larry Luca lied his way into Lynn's love and affection, and invited her into his life. Lynn entered Larry's lodging, the locale's light illuminating softly. Larry Luca pulled Lynn in to feel her love in a lip lock. Larry Luca lobbed Lynn, who landed and lay on the bed, as Larry leapt to lick Lynn's royal flesh all over.
     pointCost: 0
@@ -13661,6 +13793,7 @@ tags:
     name: Wax Seal (Three Cups)
     category: items
     group: items-paper
+    sprite: paper-talisman
     sealMark: "Three cups, stacked."
     pointCost: 1
     exclusive: true
@@ -13681,6 +13814,7 @@ tags:
     name: Wax Seal (Duo of Saints)
     category: items
     group: items-paper
+    sprite: paper-talisman
     sealMark: "Two saints beholding each other."
     pointCost: 1
     exclusive: true
@@ -13701,6 +13835,7 @@ tags:
     name: Wax Seal (Regal Cross)
     category: items
     group: items-paper
+    sprite: cross
     sealMark: "A cross wrapped in vines."
     pointCost: 1
     exclusive: true
@@ -13721,6 +13856,7 @@ tags:
     name: Wax Seal (Fleur de Lis)
     category: items
     group: items-paper
+    sprite: paper-talisman
     sealMark: "A fleur de lis—chivalrous and noble."
     pointCost: 1
     exclusive: true
@@ -13741,6 +13877,7 @@ tags:
     name: Wax Seal (Mounted Knight)
     category: items
     group: items-paper
+    sprite: paper-talisman
     sealMark: "A knight on a warhorse."
     pointCost: 1
     exclusive: true
@@ -13761,6 +13898,7 @@ tags:
     name: Wax Seal (Ox)
     category: items
     group: items-paper
+    sprite: paper-talisman
     sealMark: "An ox."
     pointCost: 1
     exclusive: true
@@ -13802,6 +13940,7 @@ tags:
     name: Banneret's Wax Stamp
     category: items
     group: items-paper
+    sprite: stamp-cap
     sealOffice: Banneret
     sealMark: "Three ravens on a tree branch."
     pointCost: 0
@@ -13821,6 +13960,7 @@ tags:
     name: Baron's Wax Stamp
     category: items
     group: items-paper
+    sprite: stamp-ce
     sealOffice: Baron
     sealMark: "A raven clutching a banner."
     pointCost: 0
@@ -13840,6 +13980,7 @@ tags:
     name: Esculap's Wax Stamp
     category: items
     group: items-paper
+    sprite: stamp-cent
     sealOffice: Esculap
     sealMark: "A staff wrapped with snakes."
     pointCost: 0
@@ -13859,6 +14000,7 @@ tags:
     name: Meister's Wax Stamp
     category: items
     group: items-paper
+    sprite: stamp-cmo
     sealOffice: Meister
     sealMark: "A single goblet."
     pointCost: 0
@@ -13878,6 +14020,7 @@ tags:
     name: Censor's Wax Stamp
     category: items
     group: items-paper
+    sprite: stamp-hop
     sealOffice: Censor
     sealMark: "A shield with a sword."
     pointCost: 0
@@ -13897,6 +14040,7 @@ tags:
     name: Hand's Wax Stamp
     category: items
     group: items-paper
+    sprite: stamp-hos
     sealOffice: Hand
     sealMark: "An open palm."
     pointCost: 0
@@ -13916,6 +14060,7 @@ tags:
     name: Bishop's Wax Stamp
     category: items
     group: items-paper
+    sprite: stamp-intaff
     sealOffice: Bishop
     sealMark: "A cross wreathed in vines."
     pointCost: 0
@@ -13935,6 +14080,7 @@ tags:
     name: Inquisitor's Wax Stamp
     category: items
     group: items-paper
+    sprite: stamp-intaff
     sealOffice: Inquisitor
     sealMark: "A cross with a rapier on one side and a skull on the other."
     pointCost: 0
@@ -13959,6 +14105,7 @@ tags:
     name: Merchant's Wax Stamp
     category: items
     group: items-paper
+    sprite: stamp-rd
     sealOffice: Merchant
     pointCost: 0
     weight: 0
@@ -13982,6 +14129,7 @@ tags:
     name: Coffee
     category: items
     group: items-drink
+    sprite: coffee
     description: "A brown drink that's refreshing and energizing. It cures {tag:tired}."
     pointCost: 0
     depotPrice: 5
@@ -14005,6 +14153,7 @@ tags:
     name: Bar Soap
     category: items
     group: items-gear
+    sprite: soap
     description: "Wash up."
     pointCost: 0
     depotPrice: 1
@@ -14021,6 +14170,7 @@ tags:
     name: Perfume
     category: items
     group: items-gear
+    sprite: bottle3
     description: "Makes you smell good."
     pointCost: 0
     depotPrice: 2
@@ -14061,6 +14211,7 @@ tags:
     name: Sugar Candy
     category: items
     group: items-food
+    sprite: candy
     description: "A sweet treat. What a rarity!"
     pointCost: 0
     depotPrice: 3
@@ -14107,6 +14258,7 @@ tags:
     name: Honey
     category: items
     group: items-food
+    sprite: honeycomb
     description: "A sweet viscous substance. What a rarity!"
     pointCost: 0
     depotPrice: 3
@@ -14148,6 +14300,7 @@ tags:
     name: Sake
     category: items
     group: items-drink
+    sprite: vermouthbottle
     description: "Rice wine aged in the shadow of cherry blossoms."
     manifest: black-market
     pointCost: 0
@@ -14173,6 +14326,7 @@ tags:
     name: Boombox
     category: items
     group: items-gear
+    sprite: boombox0
     description: "A black box that can serve as a portable speaker."
     pointCost: 0
     depotPrice: 10
@@ -14191,6 +14345,7 @@ tags:
     name: Trumpet
     category: items
     group: items-gear
+    sprite: horn
     description: "A loud brass instrument that can be heard for miles."
     pointCost: 0
     weight: 3
@@ -14203,6 +14358,7 @@ tags:
     name: Whip
     category: items
     group: items-weapons
+    sprite: whip1
     description: "A thin leather implement that can be used to punish heretics or those who have not paid their taxes."
     fighting: { tiers: 0.2, weaponClass: exotic }
     pointCost: 0
@@ -14213,21 +14369,6 @@ tags:
     equippable: true
     equipSlot: WEAPON
     visible: worn
-    purchasable: false
-    purchasableAfterStart: false
-
-  censer:
-    catalog: gm
-    name: Censer
-    category: items
-    group: items-gear
-    description: "A metal vessel which substances can be poured into to diffuse through the room."
-    pointCost: 0
-    depotPrice: 13
-    sellable: true
-    sellablePrice: 8
-    weight: 2
-    visible: false
     purchasable: false
     purchasableAfterStart: false
 
@@ -14256,6 +14397,7 @@ tags:
     name: Microscope
     category: items
     group: items-gear
+    sprite: microscope1
     description: "An odd contraption with a spot to place the eyes. Heavily magnifies small objects placed under it."
     pointCost: 0
     depotPrice: 31
@@ -14282,6 +14424,7 @@ tags:
     name: Cataphract Armor
     category: items
     group: items-armor
+    sprite: armor
     description: "Nearly impenetrable armor. Slow and heavy."
     pointCost: 0
     equippable: true
@@ -14299,6 +14442,7 @@ tags:
     name: Heavy Infantry Armor
     category: items
     group: items-armor
+    sprite: heavy
     description: "A modern set of infantry armor, fully covering the body."
     pointCost: 0
     equippable: true
@@ -14320,6 +14464,7 @@ tags:
     name: Light Infantry Armour
     category: items
     group: items-armor
+    sprite: bulletproof
     description: "A bulletproof vest and pad combination."
     pointCost: 0
     depotPrice: 37
@@ -14358,6 +14503,7 @@ tags:
     name: Soporific
     category: items
     group: items-drink
+    sprite: vial0
     poison: true
     description: "A small vial of a clear substance."
     manifest: black-market
@@ -14376,30 +14522,12 @@ tags:
       taste: "something bitter"
       mood: 0
 
-  amoeba-vial:
-    catalog: gm
-    name: Amoeba Vial
-    category: items
-    group: items-gear
-    description: "A small vial containing a wriggling mass that will eat all material it finds. Can be used to effectively clean up crime scenes."
-    pointCost: 0
-    depotPrice: 55
-    sealedShipping: true
-    sellable: true
-    sellablePrice: 33
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: []
-
   homunculus:
     catalog: gm
     name: Homunculus
     category: items
     group: items-special
+    sprite: creation1
     description: "A hideous little monster that will understand your simple instructions and carry them out."
     pointCost: 0
     depotPrice: 84
@@ -14434,6 +14562,7 @@ tags:
     name: Antibiotics
     category: items
     group: items-drink
+    sprite: vial-blue
     description: "A small vial of liquid that can be drunk to immediately cure all stages of infection."
     pointCost: 0
     depotPrice: 92
@@ -14454,6 +14583,7 @@ tags:
     name: ML-23
     category: items
     group: items-weapons
+    sprite: pistol1
     description: "A 9mm pistol."
     fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
@@ -14479,6 +14609,7 @@ tags:
     name: CTT4&3 Rifle
     category: items
     group: items-weapons
+    sprite: grinder-3
     description: "A semi-automatic rifle chambered in .308."
     fighting: { tiers: 1, weaponClass: firearm }
     pointCost: 0
@@ -14499,6 +14630,7 @@ tags:
     name: Kpfw-6 Avtomat
     category: items
     group: items-weapons
+    sprite: kpfw
     description: "An experimental fully automatic rifle that belongs to the past."
     fighting: { tiers: 1.2, weaponClass: firearm }
     pointCost: 0
@@ -14519,6 +14651,7 @@ tags:
     name: Adamantium Sword
     category: items
     group: items-weapons
+    sprite: goldensword
     description: "A gleaming sword fit for the highest of nobility. Light, strong, and unimaginably sharp."
     fighting: { tiers: 1, weaponClass: sword }
     pointCost: 0
@@ -14538,6 +14671,7 @@ tags:
     name: Silver Sword
     category: items
     group: items-weapons
+    sprite: silversword
     description: "A sword with a blade of pure silver. Might be useful…"
     fighting: { tiers: 0.5, weaponClass: sword }
     pointCost: 0
@@ -14600,6 +14734,7 @@ tags:
     name: Alcohol
     category: items
     group: items-drink
+    sprite: beer
     description: "Beer, ale, and other fine drinks."
     manifest: black-market
     pointCost: 0
@@ -14627,6 +14762,7 @@ tags:
     name: Holy Water
     category: items
     group: items-special
+    sprite: water
     description: "Water that has been prayed over. Poured on the offender, it reduces the efficacy of unholy activity."
     pointCost: 0
     weight: 1
@@ -14644,40 +14780,12 @@ tags:
       taste: "something holy"
       mood: 25
 
-  # HIDDEN recipe (honey is non-public; Chris 2026-09-07): the Cathedral's
-  # second craft. Holy water poured on a thing; this is worked into a person.
-  # What Blessed actually does is documented on that tag, not here.
-  chrism:
-    catalog: gm
-    name: Chrism
-    category: items
-    group: items-special
-    description: "Consecrated oil, golden and slow to pour. Anointing someone marks them {tag:blessed} for a time."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    consumesInto:
-      - blessed
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [blessing]
-      gambit: false
-      items: [holy-water, honey]
-    cooked:
-      taste: "something holy"
-      mood: 25
-
   bliss:
     catalog: all
     name: Bliss
     category: items
     group: items-drink
+    sprite: bottle1
     description: "Properly boiled and refined cave fungus."
     pointCost: 0
     weight: 0.5
@@ -14733,6 +14841,7 @@ tags:
     name: Heroin
     category: items
     group: items-drink
+    sprite: powder
     description: "A powerful substance, instantly making its user Ecstatic."
     manifest: black-market
     depotPrice: 2
@@ -14756,6 +14865,7 @@ tags:
     name: Changa
     category: items
     group: items-drink
+    sprite: jointon
     description: "A cheap, dangerous powder that's usually smoked. It makes the user aggressive and insane, but ecstatic."
     manifest: black-market
     depotPrice: 2
@@ -14777,6 +14887,7 @@ tags:
     name: ETH-LOD
     category: items
     group: items-drink
+    sprite: blotter3
     description: "A dissolvable tablet that causes dissociation."
     manifest: black-market
     depotPrice: 3
@@ -14799,6 +14910,7 @@ tags:
     name: Kzozel Yantar
     category: items
     group: items-drink
+    sprite: beer
     description: "A carbonated, dark-colored alcoholic drink. The label depicts a strange horned animal."
     manifest: black-market
     depotPrice: 4
@@ -14820,6 +14932,7 @@ tags:
     name: Love Tablets
     category: items
     group: items-drink
+    sprite: pill17
     description: "An expensive pill enjoyed by party-goers, increasing the mood boost of kissing."
     manifest: black-market
     depotPrice: 7
@@ -14844,6 +14957,7 @@ tags:
     name: Gelabine
     category: items
     group: items-drink
+    sprite: pill-canister
     description: "It cures all addictions."
     manifest: black-market
     depotPrice: 8
@@ -14876,6 +14990,7 @@ tags:
     name: Black Market Autoinjector
     category: items
     group: items-gear
+    sprite: autoinjector0
     description: "It has a clear substance inside."
     manifest: black-market
     depotPrice: 8
@@ -14912,6 +15027,7 @@ tags:
     name: Buffout
     category: items
     group: items-drink
+    sprite: buff-canister
     description: "A refined, safer version of Changa. It makes the user strong."
     manifest: black-market
     depotPrice: 20
@@ -14945,6 +15061,7 @@ tags:
     name: Ambrosia
     category: items
     group: items-drink
+    sprite: blotter1
     description: "A set of dissolvable tabs with the symbol of a happy face on them. Tablets used by university students in the United Cities."
     manifest: black-market
     depotPrice: 80
@@ -14972,6 +15089,7 @@ tags:
     name: Ravenheart Red
     category: items
     group: items-drink
+    sprite: winebottle
     description: "A wine as dark as a raven's blood. A valuable export."
     pointCost: 0
     weight: 2.5
@@ -15012,6 +15130,7 @@ tags:
     name: Miasma
     category: items
     group: items-drink
+    sprite: bottle15
     description: "A bottle that stinks of rotting flesh. Can be uncorked to give {tag:vomiting} to everyone in a closed room."
     pointCost: 0
     weight: 0.5
@@ -15078,6 +15197,7 @@ tags:
     name: Cleaning Powder
     category: items
     group: items-drink
+    sprite: powder
     description: "An alchemical substance that can cure a minor infection outright, but does not help against {tag:festering}."
     pointCost: 0
     depotPrice: 7
@@ -15097,40 +15217,12 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  cat:
-    catalog: all
-    name: Cat
-    category: items
-    group: items-drink
-    description: "A special concoction distilled with alcohol until it turns pale. Can be consumed to gain {tag:night-vision} for 2 turns."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    consumesInto:
-      - slug: night-vision
-        durationTurns: 1
-    requirement:
-      turnsCost: 1
-      resourceCost: 3
-      skills: [brewing-basic]
-      gambit: false
-      items: [alcohol]
-    sellable: true
-    sellablePrice: 7
-    cooked:
-      taste: "something bitter"
-      mood: 0
-
   poppy:
     catalog: all
     name: Poppy
     category: items
     group: items-drink
+    sprite: bottle3
     description: "A draught that soothes pain, but is rapidly addictive."
     pointCost: 0
     weight: 0.5
@@ -15185,6 +15277,7 @@ tags:
     name: Nightshade
     category: items
     group: items-drink
+    sprite: bottle18
     poison: true
     description: "A draught refined from {tag:nightshade-herb}. Inflicts {tag:choking as the consumer begins to perish."
     pointCost: 0
@@ -15229,6 +15322,7 @@ tags:
     name: Crude Grenade
     category: items
     group: items-weapons
+    sprite: frag1
     description: "A crude bomb packed with raw {tag:saltpeter} mined out of the Caves."
     pointCost: 0
     weight: 2
@@ -15255,6 +15349,7 @@ tags:
     name: Phrygian Tears
     category: items
     group: items-drink
+    sprite: bottle10
     poison: true
     description: "A powerful draught that requires 2 turns to create. Inflicts {tag:phrygian-toxin}."
     manifest: black-market
@@ -15291,6 +15386,7 @@ tags:
     name: Advanced Poppy
     category: items
     group: items-drink
+    sprite: bottle11
     description: "Poppy refined into something uncannily pure. Grants {tag:pain-immunity}."
     pointCost: 0
     weight: 0.5
@@ -15316,6 +15412,7 @@ tags:
     name: Graga Sweat
     category: items
     group: items-drink
+    sprite: bottle6
     description: "A draught made with rendered {tag:graga-sac}. If consumed, gain 2 turns of {tag:brutish-strength}."
     pointCost: 0
     weight: 0.5
@@ -15341,6 +15438,7 @@ tags:
     name: Purifier
     category: items
     group: items-drink
+    sprite: bottle17
     description: "A draught brewed from {tag:cave-fungus}. Can be consumed to remove {tag:infected}, {tag:festering} and {tag:feverish}, and greatly improve the condition of someone with {tag:sepsis}."
     pointCost: 0
     weight: 0.5
@@ -15399,6 +15497,7 @@ tags:
     name: Deadeye Drops
     category: items
     group: items-drink
+    sprite: dropper0
     description: "Eye drops refined from {tag:cave-fungus}. Can be consumed to gain {tag:increased-accuracy} for 2 turns."
     pointCost: 0
     weight: 0.5
@@ -15424,6 +15523,7 @@ tags:
     name: Mercy
     category: items
     group: items-drink
+    sprite: bottle19
     description: "Increases recovery. Brewed from {tag:cave-fungus}."
     pointCost: 0
     weight: 0.5
@@ -15448,28 +15548,12 @@ tags:
       taste: "something soothing"
       mood: 0
 
-  black-river-mud:
-    catalog: gm
-    name: Black River Mud
-    category: items
-    group: items-drink
-    description: "A brown powder. You can smoke it to become {tag:inspired} — your next Gambit is rolled with advantage."
-    pointCost: 0
-    depotPrice: 14
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - inspired
-
   mindbreaker-toxin:
     catalog: all
     name: Mindbreaker Toxin
     category: items
     group: items-drink
+    sprite: vial0
     poison: true
     description: "A vial full of a clear acid drawn from cave fungus. Inflicts {tag:hallucinating}."
     pointCost: 0
@@ -15505,6 +15589,7 @@ tags:
     name: Mulligan Potion
     category: items
     group: items-drink
+    sprite: bottle12
     description: "A milky but tasteless potion. Can be consumed to transfigure into a new name and appearance."
     pointCost: 2
     weight: 0.5
@@ -15579,6 +15664,7 @@ tags:
     name: Raven Draught
     category: items
     group: items-drink
+    sprite: inkvdflask1
     description: "A black draught made with a {tag:ravens-eye}. It can be consumed to send a message anywhere."
     pointCost: 0
     weight: 0.5
@@ -15633,6 +15719,7 @@ tags:
     name: Dreamer's Draught
     category: items
     group: items-drink
+    sprite: bottle7
     description: "A cloudy draught made with a {tag:skinless-brain}. It can be consumed to ask the universe anything during one's next rest (ask a GM)."
     pointCost: 0
     weight: 0.5
@@ -15686,6 +15773,7 @@ tags:
     name: Antidote
     category: items
     group: items-drink
+    sprite: bottle13
     description: "A bitter draught that clears the basic poisons."
     pointCost: 0
     depotPrice: 19
@@ -15710,6 +15798,7 @@ tags:
     name: Fever Draught
     category: items
     group: items-drink
+    sprite: bottle14
     description: "A bitter draught that clears fevers."
     pointCost: 0
     weight: 0.5
@@ -15733,6 +15822,7 @@ tags:
     name: Burn Dressing
     category: items
     group: items-gear
+    sprite: burnkit
     description: "A cooling salve to treat burns."
     pointCost: 0
     depotPrice: 19
@@ -15763,6 +15853,7 @@ tags:
     name: Portable Surgical Pack
     category: items
     group: items-gear
+    sprite: medbriefcase
     description: "A barber-surgeon's kit, containing clamps, needles and sutures. It allows you to perform surgeries, but with a -1 to the Gambit die."
     pointCost: 0
     weight: 3
@@ -15792,6 +15883,7 @@ tags:
     name: Last Breath
     category: items
     group: items-drink
+    sprite: pwinebottle
     description: "Rendered from an aberrant heart, black and thick. A lifesaving coagulation."
     pointCost: 0
     weight: 0.5
@@ -15857,6 +15949,7 @@ tags:
     name: Wooden Leg
     category: items
     group: items-gear
+    sprite: m-r-leg2
     description: "A carved peg buckled tight with leather straps. You can walk again."
     pointCost: 0
     depotPrice: 37
@@ -15884,6 +15977,7 @@ tags:
     name: Iron Hook
     category: items
     group: items-gear
+    sprite: hook
     description: "A fitted iron hook."
     pointCost: 0
     depotPrice: 37
@@ -15911,6 +16005,7 @@ tags:
     name: Prosthetic Hand
     category: items
     group: items-gear
+    sprite: f-r-hand2
     description: "A prosthetic hand."
     pointCost: 0
     depotPrice: 64
@@ -15938,6 +16033,7 @@ tags:
     name: Glass Eye
     category: items
     group: items-gear
+    sprite: eyes-prosthetic
     description: "A painted glass sphere."
     pointCost: 0
     weight: 0.2
@@ -15971,6 +16067,7 @@ tags:
     name: Cybernetic Core
     category: items
     group: items-gear
+    sprite: roro-core
     description: "Salvaged machinery that works just as well as the real thing."
     pointCost: 0
     weight: 0.5
@@ -15994,6 +16091,7 @@ tags:
     name: Cybernetic Arm
     category: items
     group: items-gear
+    sprite: f-l-arm-cyber2
     description: "Salvaged machinery that works just as well as the real thing."
     pointCost: 0
     weight: 2
@@ -16019,6 +16117,7 @@ tags:
     name: Cybernetic Leg
     category: items
     group: items-gear
+    sprite: f-l-leg-cyber2
     description: "Salvaged machinery that works just as well as the real thing."
     pointCost: 0
     weight: 2
@@ -16152,6 +16251,7 @@ tags:
     name: Soulbreaker Helm
     category: items
     group: items-headgear
+    sprite: soulbreaker1
     description: "An opaque steel cage with a HUD display inside the iridescent visor, aiding targeting. It has lights on the front."
     pointCost: 9
     equippable: true
@@ -16170,6 +16270,7 @@ tags:
     name: Cerberus Helmet
     category: items
     group: items-headgear
+    sprite: cerbhelm
     description: "A metal helmet shaped like a wolf's head."
     pointCost: 9
     equippable: true
@@ -16218,6 +16319,7 @@ tags:
     name: Gladiator Helmet
     category: items
     group: items-headgear
+    sprite: siegehelmet
     description: "A cage for a visor. Dramatic."
     pointCost: 7
     equippable: true
@@ -16247,6 +16349,7 @@ tags:
     name: Tribunal Helmet
     category: items
     group: items-headgear
+    sprite: oldordinator
     description: "A thick flak helmet that conceals one's identity."
     pointCost: 7
     equippable: true
@@ -16266,6 +16369,7 @@ tags:
     name: Tribunal Ordinator Helmet
     category: items
     group: items-headgear
+    sprite: ordinator
     description: "A thick flak helmet that conceals one's identity. It has a band around on top with playing cards stuffed in."
     pointCost: 7
     equippable: true
@@ -16285,6 +16389,7 @@ tags:
     name: Spacesuit Helmet
     category: items
     group: items-headgear
+    sprite: space
     description: "An old helmet with a reflective visor with a pipe connecting it to the suit's internal systems."
     pointCost: 7
     equippable: true
@@ -16304,6 +16409,7 @@ tags:
     name: Pumpkin
     category: items
     group: items-headgear
+    sprite: pumpkin
     description: "A large orange fruit. Put it on your head!"
     pointCost: 2
     equippable: true
@@ -16327,6 +16433,7 @@ tags:
     name: Black Robes
     category: items
     group: items-armor
+    sprite: thanati-hood
     description: "Dark brown robes drape the wearer. Gives bonuses to the servants of Tzchernobog in combat, and allows the use of Thanati enchanted items."
     fighting: { tree: both, tiers: 2, when: { holds: [thanati], equipped: [black-robes] } }
     pointCost: 0
@@ -16375,6 +16482,7 @@ tags:
     name: Thanati Mask
     category: items
     group: items-headgear
+    sprite: ironmask
     description: "A bold declaration of one's faith, wrought out of iron. Offers some protection."
     pointCost: 5
     equippable: true
@@ -16394,6 +16502,7 @@ tags:
     name: Plague Doctor Mask
     category: items
     group: items-headgear
+    sprite: plaguedoctor
     description: "A black mask with a long elegant beak."
     pointCost: 2
     equippable: true
@@ -16474,6 +16583,7 @@ tags:
     name: Death Mask
     category: items
     group: items-headgear
+    sprite: death
     description: "A likeness taken from the dead in wax and plaster, saltpeter-cured so it keeps. A memorial, an evidence, or a prop — depending entirely on whose face it is and who is holding it."
     pointCost: 2
     equippable: true
@@ -16498,6 +16608,7 @@ tags:
     name: Balaclava
     category: items
     group: items-headgear
+    sprite: balaclava
     description: "A sock to be worn around one's head."
     pointCost: 2
     equippable: true
@@ -16542,6 +16653,7 @@ tags:
     name: Hood
     category: items
     group: items-headgear
+    sprite: blackbag
     description: "A bag with eyes cut out. Terrifying."
     pointCost: 2
     equippable: true
@@ -16564,6 +16676,7 @@ tags:
     name: Bag
     category: items
     group: items-headgear
+    sprite: trashbag
     description: "A bag for hostages."
     pointCost: 2
     equippable: true
@@ -16586,6 +16699,7 @@ tags:
     name: Plebeian Hood
     category: items
     group: items-headgear
+    sprite: plebhood
     description: "A peasant's hood. It can be drawn down."
     pointCost: 1
     equippable: true
@@ -16602,6 +16716,7 @@ tags:
     name: Leper's Hood
     category: items
     group: items-headgear
+    sprite: leper
     description: "A hood that masks the worst of a leper's wounds."
     pointCost: 0
     requiredTag: leper
@@ -16619,6 +16734,7 @@ tags:
     name: Padded Cap
     category: items
     group: items-headgear
+    sprite: armingcap
     description: "A cushioned cap. It turns away blows."
     pointCost: 2
     equippable: true
@@ -16645,6 +16761,7 @@ tags:
     name: Mail Coif
     category: items
     group: items-headgear
+    sprite: hauberkhood
     description: "A mail hood covering the head and neck."
     pointCost: 5
     equippable: true
@@ -16673,6 +16790,7 @@ tags:
     name: Gas Mask
     category: items
     group: items-headgear
+    sprite: gas-mask
     description: "A specialized mask."
     pointCost: 0
     equippable: true
@@ -16691,6 +16809,7 @@ tags:
     name: Simple Helm
     category: items
     group: items-headgear
+    sprite: ahelm
     description: "An open helmet."
     pointCost: 5
     equippable: true
@@ -16721,6 +16840,7 @@ tags:
     name: Mining Helmet
     category: items
     group: items-headgear
+    sprite: hardhat0-yellow
     description: "A cushioned helmet with a small light, useful in the caves. While equipped, Prospecting produces an additional 1 ⬢."
     pointCost: 5
     depotPrice: 15
@@ -16741,6 +16861,7 @@ tags:
     name: Knight's Helmet
     category: items
     group: items-headgear
+    sprite: knight-2
     description: "A closed helmet that partially obscures vision."
     pointCost: 9
     equippable: true
@@ -16798,6 +16919,7 @@ tags:
     name: Padded Armor
     category: items
     group: items-armor
+    sprite: leatherjack
     description: "Quilted linen. Absorbs impact and blunts a cut. Can be worn under clothing."
     pointCost: 2
     equippable: true
@@ -16825,6 +16947,7 @@ tags:
     name: Buckler
     category: items
     group: items-armor
+    sprite: buckler
     description: "A small shield held in the fist."
     pointCost: 2
     equippable: true
@@ -16852,6 +16975,7 @@ tags:
     name: Shield
     category: items
     group: items-armor
+    sprite: paladin-shield
     description: "A shield carried on the arm. It becomes more effective when fighting alongside others with shields."
     fighting: { situational: true }
     pointCost: 5
@@ -16879,6 +17003,7 @@ tags:
     name: Pavise
     category: items
     group: items-armor
+    sprite: largeshield-u
     description: "A shield tall enough to stand behind. It can be set on the ground as cover."
     pointCost: 4
     equippable: true
@@ -16911,6 +17036,7 @@ tags:
     name: Graga-Hide Cloak
     category: items
     group: items-armor
+    sprite: cloak
     description: "Cut from a graga's thick, rubbery sac and cured whole, this heavy travelling cloak has rain slide right off and takes a blow better than any coat has a right to."
     pointCost: 3
     equippable: true
@@ -16938,6 +17064,7 @@ tags:
     name: Mail Shirt
     category: items
     group: items-armor
+    sprite: hauberk
     description: "A shirt made out of interlocking rings."
     pointCost: 7
     equippable: true
@@ -16966,6 +17093,7 @@ tags:
     name: Brigandine
     category: items
     group: items-armor
+    sprite: leatherjack
     description: "Small steel plates riveted inside a fabric coat. It isn't visible."
     pointCost: 9
     equippable: true
@@ -16997,6 +17125,7 @@ tags:
     name: Breastplate
     category: items
     group: items-armor
+    sprite: ironbplate
     description: "A plate over the chest. Offers some protection of full plate while permitting mobility, and it's easy to don."
     pointCost: 9
     equippable: true
@@ -17025,6 +17154,7 @@ tags:
     name: Spacesuit
     category: items
     group: items-armor
+    sprite: rig-atmos
     description: "A thick bulky outfit painted with orange stripes. It has an internal oxygen system."
     pointCost: 9
     equippable: true
@@ -17042,6 +17172,7 @@ tags:
     name: Plate Armor
     category: items
     group: items-armor
+    sprite: ironplate
     description: "Steel over the whole body. Requires a second person and time to don."
     pointCost: 14
     equippable: true
@@ -17075,6 +17206,7 @@ tags:
     name: Salvage Plate
     category: items
     group: items-armor
+    sprite: ironbplate
     description: "Scrap metal strapped over the body."
     pointCost: 2
     equippable: true
@@ -17102,6 +17234,7 @@ tags:
     name: Suit and Tie
     category: items
     group: items-armor
+    sprite: black-suit
     description: "A fine although scuffed outfit, with a padded vest inside."
     pointCost: 4
     equippable: true
@@ -17119,6 +17252,7 @@ tags:
     name: Energy Shield
     category: items
     group: items-armor
+    sprite: adshield
     description: "A futuristic shield that can stop firearm fire, but is less effective against melee attacks."
     pointCost: 0
     equippable: true
@@ -17138,6 +17272,7 @@ tags:
     name: Silver Cross
     category: items
     group: items-special
+    sprite: cross
     description: "A cross. As simple as it is, it is beautiful."
     pointCost: 0
     visible: false
@@ -17313,6 +17448,7 @@ tags:
     name: Instant Camera
     category: items
     group: items-gear
+    sprite: camera
     description: "An instant camera. You can 📸 react a person's message to take a picture of them."
     pointCost: 2
     weight: 2
@@ -17333,6 +17469,7 @@ tags:
     name: Pointer Device Kit
     category: items
     group: items-gear
+    sprite: pointer
     description: "A kit of two pointer devices. They always point at each other."
     pointCost: 0
     depotPrice: 6
@@ -17402,6 +17539,7 @@ tags:
     name: Godflesh
     category: items
     group: items-gear
+    sprite: stage3
     description: "A fibrous, pink substance harvested from the waterlogged marshes. While alive, it squirmed and bit at anyone handling it."
     pointCost: 0
     weight: 28
@@ -17463,6 +17601,7 @@ tags:
     name: Armored Gloves
     category: items
     group: items-armor
+    sprite: gloves-vox
     description: "Thick leather gloves with chainmail, essential for handling dangerous Godflesh."
     pointCost: 2
     equippable: true
@@ -17490,6 +17629,7 @@ tags:
     name: Factory Key
     category: items
     group: items-keys
+    sprite: key
     description: "A large key."
     pointCost: 0
     stackable: true
@@ -17512,6 +17652,7 @@ tags:
     name: Banneret's Key
     category: items
     group: items-keys
+    sprite: key3
     description: "A finely made key."
     pointCost: 0
     stackable: true
@@ -17534,6 +17675,7 @@ tags:
     name: Fisherman's Key
     category: items
     group: items-keys
+    sprite: key
     description: "A wooden key."
     pointCost: 0
     stackable: true
@@ -17570,6 +17712,7 @@ tags:
     name: Moonshine
     category: items
     group: items-drink
+    sprite: vodkabottle
     description: "Freebase alcohol. Not good for one's vision."
     pointCost: 0
     weight: 2
@@ -17666,6 +17809,7 @@ tags:
     name: Chainsaw
     category: items
     group: items-special
+    sprite: chainsaw1
     description: "BRRRR! Produces two Godflesh per extraction."
     pointCost: 0
     equippable: true

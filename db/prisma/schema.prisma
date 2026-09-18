@@ -2602,6 +2602,16 @@ model Tag {
   // rather than as a failed sync.
   concealSprite String?
 
+  // The item's own art on a chip, a sheet row and an item card, as a basename
+  // under web/public/assets/items (pixel art lifted from OpenSourceWeb; see
+  // that folder's ATTRIBUTION.md, and assets/osw-sprites/ for the library it
+  // was picked from). Null is the ordinary case and means the tag draws its
+  // TagGroup's lucide glyph instead, exactly as it always has — this only ever
+  // REPLACES that fallback, never removes it. syncTags.js checks the file is
+  // really there, same reasoning as concealSprite above. A custom craft
+  // inherits its base recipe's value (db/lib/customCraftMint.js).
+  sprite String?
+
   // Where this sits on the body, and how deep. Two equipped tags may not share
   // a layer within HEAD/BODY/MOUNT: layer 1 is against the skin and 3 is
   // outermost, so a mail coif (1) goes under a knight's helm (2) but two helms

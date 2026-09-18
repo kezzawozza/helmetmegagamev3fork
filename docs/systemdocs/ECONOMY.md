@@ -122,7 +122,7 @@ call site is untouched.
 
 **Three call sites spend a stack without going through `dropCharacterTag`** —
 `riteEffects.js#spendFromHolder`, `thanatiActions.js#spendCharacterTag`, and
-`cavingPass.js`'s musk lure — each a guarded conditional decrement, each for a
+each a guarded conditional decrement, each for a
 concurrency reason documented where it sits, because `dropCharacterTag` reads
 then writes and that is the wrong shape for money. They skip the hook with it,
 so they call **`recordSpentTagMoney`** right where they already call

@@ -60,6 +60,7 @@ export default async function PlayerDeskLayout({ children }) {
         // ChipLabel's mastery star. A GM handing out Lucky from this picker
         // should see that they are granting a capstone.
         mastery: true,
+        sprite: true, // TagIcon's item art; null falls back to the group glyph
         group: { select: { id: true, name: true } },
       },
     }),

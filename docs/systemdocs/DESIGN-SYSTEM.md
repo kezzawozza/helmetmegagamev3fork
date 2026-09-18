@@ -124,6 +124,25 @@ Three things about the token set are load-bearing and easy to undo by accident:
   now. Do not give a `TagGroup` a colour. (The role group below is not that
   rule breaking: a tag group is one of dozens of shelves in a catalog, and a
   role group is one of eight estates a person belongs to.)
+- **An item may carry its OWN art, and it replaces the group glyph.**
+  `Tag.sprite` names a PNG under `web/public/assets/items` (2026-09-18), and
+  `TagIcon.js` draws it instead of the lucide mark. It is a third level under
+  the two above, not a fourth signal: category still paints the rule, and a tag
+  WITHOUT a sprite is drawn exactly as it was before sprites existed. Much of
+  the catalog has none, and that is the design — the fallback is the normal
+  case, not a gap to fill in. **A sprite renders in a fixed 16px box**,
+  ignoring the caller's `size`, and the lucide glyphs keep their own 11/12/13.
+  The files are **cropped to their own content and squared**, which is the one
+  place this deliberately bends §3a's integer-scaling rule. OpenSourceWeb draws
+  an item small inside a tile-sized frame, so mapping the whole 32px frame to
+  16 left dozens of them — most of the bottles — as five-pixel specks. Cropped,
+  their natural sizes run 5–32px and most land on a non-integer ratio.
+  `image-rendering: pixelated` is what makes that acceptable: §3a's objection
+  is to BLUR, and a nearest-neighbour scale at an odd ratio is uneven but still
+  crisp. Legible beats exact here. Do not extend that reasoning to the chrome
+  in §3a, which is tiled texture and has no such excuse.
+  The art is from OpenSourceWeb under CC BY-SA 3.0 — the same grant as the
+  chrome, with the whole library kept at `assets/osw-sprites/` to pick from.
 - **The estate palette is six tokens, and they owe full AA.** `--role-court`,
   `--role-clergy`, `--role-cerberon`, `--role-saviors`, `--role-business` and
   `--role-soil` are muted hues, one per **role group** (`db/lib/roleGroups.js`),

@@ -68,7 +68,6 @@ const LOOT_TABLE = {
   ],
   rare: [
     "ravenheart-red",
-    "cat",
     "salvage-plate",
     "supply-kit",
     "jewelry",
@@ -84,7 +83,6 @@ const LOOT_TABLE = {
   "extremely-rare": [
     "emp-grenade",
     "smithing-gunpowder",
-    "skeleton-wedge",
     "jester-outfit",
     "starting-wares",
     "military-autoinjector",

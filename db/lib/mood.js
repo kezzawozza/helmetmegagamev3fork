@@ -206,9 +206,6 @@ const MULTIPLIERS = Object.freeze([
   // The Rite of Rage (docs/systemdocs/THANATI.md §4): "Rage people do not
   // become afraid." Every kind, permanently.
   { slug: "rage", kinds: "*", factor: 0 },
-  // A chrism's anointing steadies the whole dial for its three turns —
-  // half of Brave's own rule, on a status instead of a build.
-  { slug: "blessed", kinds: "*", factor: 0.5 },
   // The blade quenched in an Aberrant's heart: the wielder's dial does not
   // fall AT ALL while it is in hand. `equipped` rules only fire when the
   // caller can say what is equipped (equippedSlugs below); a caller that

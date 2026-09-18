@@ -9,11 +9,9 @@ const assert = require("node:assert/strict");
 
 const { ensureGambitDie } = require("../lib/gambitDie");
 
-const INSPIRED = [{ tag: { slug: "inspired" } }];
 const LUCKY = [{ tag: { slug: "lucky" } }];
 
-// Stands in for a Prisma transaction client. `rows` is the GambitDie table; `dropped`
-// records every tag consumeInspiredIfUsed took, so a double-spend is visible.
+// Stands in for a Prisma transaction client. `rows` is the GambitDie table.
 function fakeTx({ held = [] } = {}) {
   const rows = [];
   const dropped = [];
@@ -34,7 +32,6 @@ function fakeTx({ held = [] } = {}) {
       findUnique: async ({ where: { characterId_turnId: key } }) =>
         rows.find((r) => r.characterId === key.characterId && r.turnId === key.turnId) ?? null,
     },
-    // What consumeInspiredIfUsed reaches for.
     characterTag: {
       findFirst: async ({ where }) => (held.includes(where.tag.slug) ? { tagId: where.tag.slug } : null),
     },
@@ -86,47 +83,16 @@ test("advantage is recorded on the row, and the kept die is the better of the pa
   }
 });
 
-test("Inspired is spent exactly once, by the throw and never by a re-read", async () => {
-  // The reason `fresh` exists. Inspired is a one-shot, and a withdraw-and-refile reading
-  // the row back must not burn a second one — nor hand the first back, since the die it
-  // bought is still the die they will get.
-  const tx = fakeTx();
-  // consumeInspiredIfUsed looks the tag up before dropping it, so counting the lookups
-  // counts the spends. Answering null stops the fake short of dropCharacterTag, which
-  // reaches further into Prisma than this stands in for.
-  let drops = 0;
-  tx.characterTag.findFirst = async () => {
-    drops += 1;
-    return null;
-  };
-
-  const first = await ensureGambitDie(tx, { turnId: "t1", character: { id: "c1", tags: INSPIRED } });
-  assert.equal(first.source, "inspired");
-  assert.equal(drops, 1, "the throw consults Inspired once");
-
-  for (let i = 0; i < 10; i++) {
-    await ensureGambitDie(tx, { turnId: "t1", character: { id: "c1", tags: INSPIRED } });
-  }
-  assert.equal(drops, 1, "a re-read must never reach for Inspired again");
-});
-
-test("a loser in a race keeps the winner's die and spends nothing", async () => {
+test("a loser in a race keeps the winner's die", async () => {
   // Two submits landing together: the second createMany returns 0 under the unique index,
   // and everything that follows has to come off the stored row rather than the roll this
   // call made and must now discard.
   const tx = fakeTx();
   tx.rows.push({ characterId: "c1", turnId: "t1", die: 6, rolls: [6, 2], advantageSource: "lucky" });
 
-  let consulted = 0;
-  tx.characterTag.findFirst = async () => {
-    consulted += 1;
-    return null;
-  };
-
-  const got = await ensureGambitDie(tx, { turnId: "t1", character: { id: "c1", tags: INSPIRED } });
+  const got = await ensureGambitDie(tx, { turnId: "t1", character: { id: "c1", tags: LUCKY } });
   assert.equal(got.die, 6);
   assert.equal(got.source, "lucky");
   assert.equal(got.fresh, false);
-  assert.equal(consulted, 0, "the loser must not touch Inspired");
   assert.equal(tx.rows.length, 1);
 });

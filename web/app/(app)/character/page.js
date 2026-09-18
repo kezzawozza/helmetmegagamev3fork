@@ -351,6 +351,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         purchasable: true,
         purchasableAfterStart: true, // addableTags' purchasable branch requires this or drops purchasable-only tags
         mastery: true, // ChipLabel's mastery star
+        sprite: true, // TagIcon's item art; null falls back to the group glyph
         craftable: true,
         catalogVisibility: true, // a SECRET recipe's own discovery gate (M3 review, last-breath)
         recipePublic: true, // Miasma's escape hatch — see schema.prisma#Tag.recipePublic
