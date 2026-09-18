@@ -19,7 +19,7 @@ import Tooltip from "./Tooltip";
 // span, so it works whether or not CatatonicDot is also present. --accent
 // rather than --positive: a ring is a rule, one of the two things --accent is
 // ever allowed to be (DESIGN-SYSTEM.md), and it already carries its own value
-// per theme (dusk/dawn/limestone) rather than one green fixed everywhere.
+// per theme (dusk/dawn) rather than one green fixed everywhere.
 function OnlineRing({ size }) {
   return (
     <span

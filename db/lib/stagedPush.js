@@ -22,6 +22,7 @@ const { addRoomResources } = require("./roomStash");
 const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfer");
 const { ensureDeliveries } = require("./stagedDelivery");
 const { applyDeathToRow } = require("./characterDeath");
+const { farmDm } = require("./soilery");
 
 // The tail on a Routine nothing else spoke for. Left off when a GM staged a
 // message or an effect on the Move — that IS the adjudication, and "no notes"
@@ -458,6 +459,15 @@ async function runStagedPushPass(prisma, turn) {
           notice = {
             discordUserId: action.character.discordUserId,
             content: formatRoutineCloseDm(turn, action, applied, alreadyTold || alreadyAdjudicated),
+          };
+        } else if (action.farmPlan && applied.farmed && action.character?.discordUserId) {
+          // Farming files as "auto:farm" (web/lib/moves.js), which the generic "auto:" skip above
+          // would otherwise swallow the way it does auto-labor/travel — but the wither die IS the
+          // whole point of the Farm button, so it gets its own narrow carve-out rather than
+          // loosening that skip for every other auto: Routine.
+          notice = {
+            discordUserId: action.character.discordUserId,
+            content: farmDm(turn.number, applied.farmed.rows),
           };
         }
       });

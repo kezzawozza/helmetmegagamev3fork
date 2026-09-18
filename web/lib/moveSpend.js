@@ -19,6 +19,10 @@ export async function requireFreeMove(character, openTurn) {
 
 // A Move the player never wrote: filed for them, already PASSED. `gmNotes` names the caller.
 // The P2002 catch is the real gate (@@unique([characterId, turnId])) — two tabs can race requireFreeMove().
+// `deferEffects` (Soilery, db/lib/moveEffects.js's `farmed` entry): the Move is spent and its cost paid
+// NOW, but `appliedEffects` stays null (rather than `{}`) so the turn-push's staged-push claim
+// (`appliedEffects: DbNull -> {}`) still sees this row as unresolved and rolls its dice at push time,
+// exactly like `refined`. `farmPlan` rides along on the Action row for that same later resolution.
 export async function fileAutoRoutine(
   tx,
   character,
@@ -26,6 +30,7 @@ export async function fileAutoRoutine(
   description,
   gmNotes,
   craftBudget = null,
+  { deferEffects = false, farmPlan = null } = {},
 ) {
   try {
     return await tx.action.create({
@@ -39,7 +44,8 @@ export async function fileAutoRoutine(
         moveKind: "ROUTINE",
         moveReviewStatus: "PASSED",
         description,
-        appliedEffects: {},
+        ...(deferEffects ? {} : { appliedEffects: {} }),
+        ...(farmPlan ? { farmPlan } : {}),
         zoneId: character.zoneId ?? null,
         locationId: character.locationId ?? null,
         gmNotes,

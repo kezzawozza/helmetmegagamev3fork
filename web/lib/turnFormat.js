@@ -26,17 +26,6 @@ export function describeTurn(turn) {
   return { day, phase: turn.phase, label: `DAY ${day} · ${turn.phase}` };
 }
 
-export const THEMES = ["dusk", "dawn", "limestone"];
-
-export function themeForPhase(phase) {
-  return phase === "DUSK" ? "dusk" : "dawn";
-}
-
-// Pins an environment to one theme regardless of the turn; unrecognised falls through to the phase theme.
-export function resolveTheme(phase, override) {
-  return THEMES.includes(override) ? override : themeForPhase(phase);
-}
-
 export function formatTurnLabel(turnNumber, phase) {
   if (turnNumber == null) return "-";
   if (!phase) return `Turn ${turnNumber}`;

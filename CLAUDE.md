@@ -2,6 +2,50 @@
 
 Guidance for Claude Code (claude.ai/code) when working in this repository.
 
+## This checkout is v3, the prototype — not the live game
+
+**Read this before anything else in this file.** Most of what follows was
+written for the live game and carried over wholesale. A lot of it still
+applies; some of it actively does not, and the parts that do not are the
+dangerous ones, because they read as though they do.
+
+Check which checkout you are in before you touch git or a database:
+
+```
+git remote -v
+```
+
+- `origin` → `peace-lock/helmetmegagamev3` — **this repo.** The prototype for
+  the next game. No players, no live Discord guild, no Railway services.
+- `origin` → `peace-lock/helmetmegagame` — the live game. Everything below
+  applies as written.
+
+What is different here:
+
+- **Nothing deploys.** `npm run deploy` and `./migrate.sh` drive Railway
+  services this project does not have. Do not run them.
+- **`npm run push` is wrong here too.** It writes `CHANGELOG.md` and posts the
+  entry to a channel id hardcoded in `scripts/changelog/log.js` — the LIVE
+  game's Discord. Push with plain `git push origin master`.
+- **Contributors open PRs against this repo**, not against `helmetmegagame`.
+  A PR merged here ships nothing to anybody; it lands in the prototype.
+
+And the one that is sharper here than on the live game:
+
+- **`echo $DATABASE_URL` before anything that writes, and do not assume a
+  prototype has a harmless database.** There is no `.env` in this checkout, so
+  nothing overrides whatever the shell already exports — and a session working
+  here has been observed carrying a **Railway** connection string
+  (`*.proxy.rlwy.net`) inherited from the live game's project. `dotenv.config()`
+  does not override an exported variable, so a script run from this directory
+  can reach a real database and say nothing about it. "This is only the
+  prototype" is a statement about the repo, never about the connection string.
+- **A migration file is inert until something runs it**, but it is still a
+  loaded gun for whoever eventually does. Author them here with the same care
+  as on the live game — see the `migrate diff` note under **Notes for future
+  work** for the drops Prisma proposes on every run, and that every migration
+  here has had to decline by hand.
+
 ## The double-dagger convention is retired
 
 Every piece of prose Claude wrote used to end in a double dagger (U+2021), so
@@ -209,6 +253,7 @@ you pick the right doc — they are never enough to change code with.
 | [`LABORING.md`](docs/systemdocs/LABORING.md) | You're touching Laboring — the tag ladder, a Location's `yield:` coefficients and their drift, the tools (`laborBonus`), the auto-labor pass, or the Examine button |
 | [`LABORDROPS.md`](docs/systemdocs/LABORDROPS.md) | You're touching the labor drop die — `docs/labordrops.yaml`, `db/lib/laborDrops.js`, or the `laborDrop` entry in `db/lib/moveEffects.js` |
 | [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
+| [`SOILERY.md`](docs/systemdocs/SOILERY.md) | You're touching Farming — the Farm button, seed bags and their sowing licences, the wither roll, the `soilery` Location attribute, or **anything that asks what eating restores** (`db/lib/hunger.js`) |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
 | [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
 | [`MOOD.md`](docs/systemdocs/MOOD.md) | You're touching the mood dial — the nine bands and the Mood box on the sheet, what sinks or lifts a mood, the phobias, Brave / Rough Camper / Outsider / Spelunker, `moodIntensity`, or the nightly mood pass |
@@ -230,6 +275,7 @@ you pick the right doc — they are never enough to change code with.
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
 | [`THREATS.md`](docs/systemdocs/THREATS.md) | You're touching the antagonist seats — the threat catalog, Assign, mid-round Spawn, or the two Threats sections on `/gm/dev` |
 | [`ORACLE.md`](docs/systemdocs/ORACLE.md) | You're touching the per-turn chronicle — `/gm/oracle`, the zone writers and the editor, the prompts, or **anything that calls a language model** |
+| [`REDESIGN.md`](docs/systemdocs/REDESIGN.md) | You're touching **anything visual for game 3** — the rust palette, the fonts, the header strip, the chat rework, the tier rename. The architecture and the decisions already made; read it before `DESIGN-SYSTEM.md`, which it will replace |
 | [`CRT-TERMINAL.md`](docs/systemdocs/CRT-TERMINAL.md) | Someone suggests a terminal/CRT look — read before rebuilding it |
 
 Other reference docs, outside `systemdocs/`:
@@ -948,7 +994,7 @@ it before writing any UI. Four rules apply everywhere:
   everything else. A bare `<select>` outside `.field` visibly breaks the
   theme.
 - **`--font-mono` is for data only** (numbers, IDs, timestamps), applied with
-  `.mono`. Headings get their serif automatically from the tag — never
+  `.mono`. Headings get their face automatically from the tag — never
   hand-apply a font class. `--font-display` (blackletter) is for a handful of
   thematic moments.
 - **`react-hooks/set-state-in-effect`, `react-hooks/immutability` and
@@ -1401,6 +1447,11 @@ global CLIs. To make one able to build, run, and deploy:
   game entirely (`PROXYING.md` §8) — the column stays, but it is listed in
   `INTERNAL_KEYS` rather than as a knob, so `/gm/dev` no longer offers a switch
   for something nothing reads. Do not wire a nickname write back up.
+  `Character.hungerStreak` is the newest of them, orphaned when the 0–100
+  hunger meter replaced the streak it counted (`SOILERY.md`). Hunger is
+  `Character.hungerValue` now, and the Gambit penalty comes off the
+  `hungry`/`starving` tags rather than off a streak — nothing reads the column,
+  and nothing should start.
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning

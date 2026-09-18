@@ -298,10 +298,6 @@ const TURN_PASSES = [
   // run before "carry"'s own overflow drop might already be putting things
   // there.
   "arelitzLay",
-  // The Depot's hardware: the generator burns a turn of fuel, the shuttle's
-  // six-turn clock runs out, and the turret sweeps whoever is standing in the
-  // room. Last, so the turret fires on the sheet everything else left behind —
-  // in particular the armour the carry pass may have made someone drop.
   // The train, on its every-other-turn cycle (db/lib/train.js). Departure
   // first, so that if the cycle is ever retuned to run both halves on one
   // close, selling can never sweep crates that landed the same close.
@@ -317,6 +313,10 @@ const TURN_PASSES = [
   // coin — so the income-before-upkeep rule does not reach here.
   "trainDeparture",
   "trainArrival",
+  // The Merchant's gun, sweeping whoever is standing in the room. Last, so it
+  // fires on the sheet everything else left behind — in particular the armour
+  // the carry pass may have made someone drop.
+  //
   // The key stays "depot" although the pass is only the turret now: it is
   // written into Turn.resolvedPasses, and renaming it makes every
   // half-resolved turn look like it still owes the pass. Same precedent as

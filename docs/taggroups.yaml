@@ -144,6 +144,11 @@ groups:
   items-food:
     name: Food
     category: items
+  # Sowing tickets and harvested crops (db/lib/soilery.js) — separate from
+  # Food since a raw seed packet isn't a meal.
+  items-seeds:
+    name: Seeds
+    category: items
   # Tonic is its own group rather than a corner of Food: the catalog is a
   # supply chain (fungus -> Bliss, grain -> Alcohol -> the Red) and the
   # tonics above it are nothing like a meal. See the Alcohol & Drugs

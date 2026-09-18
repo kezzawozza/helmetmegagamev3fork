@@ -999,6 +999,7 @@ async function syncTagsFromYaml(prisma) {
       inlayValue: normalizeInlayValue(entry.inlayValue, { slug: entry.slug }),
       requirementIngredientSlots: normalizeIngredientSlots(entry.requirement?.ingredientSlots, { slug: entry.slug }),
       mealMood: entry.mealMood ?? null,
+      mealHunger: entry.mealHunger ?? null,
       ...normalizeCustom(entry.custom, { slug: entry.slug, customizable: entry.customizable ?? false }),
       laborBonus: normalizeLaborBonus(entry.laborBonus),
       fighting: normalizeFighting(entry.fighting),

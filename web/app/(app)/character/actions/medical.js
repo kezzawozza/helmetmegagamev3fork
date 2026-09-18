@@ -327,10 +327,7 @@ export async function healCharacterRequestImpl({
             description: `Treating ${target.id === character.id ? "their own" : `${target.name}'s`} ${held.tag.name}.`,
             diceRoll: healGambitAdvantage.die,
             diceModifier:
-              gambitModifierTotal(character.tags, {
-                hungerStreak: character.hungerStreak,
-                mood: character.mood,
-              }) + (surgicalPenalty ? -1 : 0),
+              gambitModifierTotal(character.tags, { mood: character.mood }) + (surgicalPenalty ? -1 : 0),
             zoneId: character.zoneId ?? null,
             gmNotes: "auto:heal_gambit",
           },

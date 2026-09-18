@@ -41,6 +41,7 @@ export default function LedgerBand({
   sitesHere = [],
   hasTrumpet = false,
   isSelf = true,
+  hungerWarning = null,
 }) {
 
   const moodBand = bandOf(character.mood ?? 0);
@@ -60,10 +61,7 @@ export default function LedgerBand({
   // Carrying tile's cap instead (docs/systemdocs/CARRY.md §1).
   const heldResources = resourcesOf(character);
 
-  const gambitParts = gambitModifiers(character.tags, {
-    hungerStreak: character.hungerStreak,
-    mood: character.mood,
-  });
+  const gambitParts = gambitModifiers(character.tags, { mood: character.mood });
   // Summed from the parts: two calls to the same module is two chances for the number and its explanation to disagree.
   const gambit = gambitParts.reduce((sum, m) => sum + m.value, 0);
   const gambitDetail = gambitParts.length
@@ -204,6 +202,9 @@ export default function LedgerBand({
           craftProjects={craftProjects}
           sitesHere={sitesHere}
           resources={heldResources}
+          // Never on someone else's sheet — a hunger meter is a private fact
+          // (db/lib/hunger.js), same reasoning the Combat tile above uses.
+          hungerWarning={isSelf ? hungerWarning : null}
         />
       </div>
 

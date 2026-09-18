@@ -18,7 +18,8 @@ const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { CHAPLAIN_SLUG, CONFESSION_THRESHOLD, GUILT_RIDDEN_SLUG } = require("./constants");
 
-// hungerStreak and mood feed the penitent's Gambit modifier, same as a hand-filed Gambit.
+// mood feeds the penitent's Gambit modifier, same as a hand-filed Gambit
+// (Hunger comes off held tags instead, already part of `tags` below).
 const CONFESSION_CHARACTER_SELECT = {
   id: true,
   name: true,
@@ -28,7 +29,6 @@ const CONFESSION_CHARACTER_SELECT = {
   concealed: true,
   buriedAt: true,
   discordUserId: true,
-  hungerStreak: true,
   mood: true,
   tags: {
     select: {
@@ -295,10 +295,7 @@ async function acceptConfession(prisma, offer, responder) {
           moveReviewStatus: "OPEN",
           description: `Confessing ${tag.name} to ${chaplain.name}.`,
           diceRoll: penitentAdvantage.die,
-          diceModifier: gambitModifierTotal(penitent.tags, {
-            hungerStreak: penitent.hungerStreak,
-            mood: penitent.mood,
-          }),
+          diceModifier: gambitModifierTotal(penitent.tags, { mood: penitent.mood }),
           zoneId: penitent.zoneId ?? null,
           gmNotes: "auto:confession",
         },

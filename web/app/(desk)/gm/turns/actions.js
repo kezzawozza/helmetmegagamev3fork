@@ -958,7 +958,7 @@ async function releaseMoveLockImpl({ actionId }) {
 // claimed to roll "the same die the player's own submit path would have", and
 // now it does. It also means Inspired is spent by the helper, inside this same
 // transaction, so the caller owes no consume.
-async function normalizeEdits(tx, action, edits, characterTags, hungerStreak, mood) {
+async function normalizeEdits(tx, action, edits, characterTags, mood) {
   const data = {};
 
   const kind = ["GAMBIT", "ROUTINE", "LABOR"].includes(edits.moveKind) ? edits.moveKind : action.moveKind;
@@ -989,7 +989,7 @@ async function normalizeEdits(tx, action, edits, characterTags, hungerStreak, mo
       // The modifier IS recomputed from the character's state right now, not
       // carried — it is a reading of how they are, and unlike the die there is
       // nothing random in it to fish for.
-      data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak, mood });
+      data.diceModifier = gambitModifierTotal(characterTags, { mood });
     }
   }
 
@@ -1038,7 +1038,6 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
       action,
       edits,
       action.character.tags,
-      action.character.hungerStreak,
       action.character.mood,
     );
     // Before the update below clears appliedEffects: revertMoveEffects reads it off the row
@@ -1260,7 +1259,7 @@ async function getCharacterInspectorImpl({ characterId }) {
     // already in hand — no second query for a balance.
     resources: resourcesOf(character),
     tagPoints: character.tagPoints,
-    gambitModifier: gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak, mood: character.mood }),
+    gambitModifier: gambitModifierTotal(character.tags, { mood: character.mood }),
     acted,
     currentTurnNumber: openTurn?.number ?? null,
     tags: character.tags.map((ct) => ({

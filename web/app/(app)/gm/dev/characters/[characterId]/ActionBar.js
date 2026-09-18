@@ -33,6 +33,7 @@ import {
   teleportCharacter,
   deleteCharacter,
   transferResources,
+  feedCharacter,
 } from "./actions";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 
@@ -57,7 +58,6 @@ export default function ActionBar({
   transferRoster,
   tags,
   held,
-  feed,
   onApplyTags,
   refresh,
   onDeleted,
@@ -196,19 +196,22 @@ export default function ActionBar({
     );
   }
 
-  // Drop Hungry, grant Ate Meal — the same pair db/lib/hungerPass.js works in.
+  // Sets hungerValue to full and clears Hungry/Starving in one microaction
+  // (db/lib/hunger.js) — a real server action now, not a tag-op pair, since
+  // "feed them" no longer maps to dropping/granting a couple of tags. Same
+  // "said what it did" shape as runTags, just calling feedCharacter instead
+  // of onApplyTags.
   function feedThem() {
-    const hunger = tags.find((t) => t.slug === feed.dropSlug);
-    const meal = tags.find((t) => t.slug === feed.grantSlug);
-    const ops = [];
-    if (hunger && heldIds.has(hunger.id)) ops.push({ tagId: hunger.id, op: "remove", quantity: null });
-    if (meal && !heldIds.has(meal.id)) ops.push({ tagId: meal.id, op: "add", quantity: 1 });
-    if (!ops.length) {
-      setError(`${character.name} is already fed.`);
-      return;
-    }
     setError(null);
-    runTags(ops, "Fed them");
+    startTransition(async () => {
+      const res = await feedCharacter({ characterId: character.id });
+      if (!res?.ok) {
+        setError(res?.error ?? "Something went wrong.");
+        return;
+      }
+      setDone("Fed them");
+      doRefresh();
+    });
   }
 
   const wounds = tags.filter((t) => t.healable);

@@ -48,7 +48,6 @@ async function pendingGambits(db, turnId) {
       character: {
         select: {
           id: true,
-          hungerStreak: true,
           mood: true,
           tags: { select: { tag: { select: { slug: true } } } },
         },
@@ -70,10 +69,7 @@ async function settleGambitDice(db, turnId) {
       const character = action.character;
       if (!character) continue;
 
-      const diceModifier = gambitModifierTotal(character.tags, {
-        hungerStreak: character.hungerStreak,
-        mood: character.mood,
-      });
+      const diceModifier = gambitModifierTotal(character.tags, { mood: character.mood });
 
       // The claim IS the `diceModifier: null` in the WHERE. A second tick finds count 0 and drops
       // everything on the floor. On the ordinary path the die was thrown at submit and this only

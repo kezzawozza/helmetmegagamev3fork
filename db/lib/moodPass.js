@@ -1,5 +1,5 @@
-// The mood dial's nightly settle (docs/systemdocs/MOOD.md). Run from db/index.js#resolveNeeds(): after hunger (reads final hungerStreak), after carry, and BEFORE travelArrival — a traveller still stands where they set out from and pays the night for that place.
-// Per ALIVE character it sums the turn-end terms and applies them in ONE write through db/lib/mood.js, its own transaction per character so a bad row cannot roll back a hundred good ones. The `dined` marker is consumed here too, the way hungerPass eats `ate-meal`.
+// The mood dial's nightly settle (docs/systemdocs/MOOD.md). Run from db/index.js#resolveNeeds(): after hunger (reads the hungry/starving tags it just granted), after carry, and BEFORE travelArrival — a traveller still stands where they set out from and pays the night for that place.
+// Per ALIVE character it sums the turn-end terms and applies them in ONE write through db/lib/mood.js, its own transaction per character so a bad row cannot roll back a hundred good ones. The `dined` marker is consumed here too — `ate-meal` needs no such handling any more, since it just expires on its own clock (docs/tags.yaml).
 // Returns an object, never null (null means "did not run, retry"). DMs are not sent here — they ride back on `dms` for the thunk. Takes `prisma` as a parameter — see db/lib/dm.js.
 const {
   MULTIPLIER_SLUGS,
@@ -11,7 +11,7 @@ const {
   loadIntensity,
 } = require("./mood");
 const { alivePassCharacters } = require("./aliveCharacters");
-const { DINED_SLUG, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG } = require("./constants");
+const { DINED_SLUG, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG, HUNGER_SLUG, STARVING_SLUG } = require("./constants");
 
 // db/lib/bind.js reads the slug directly too; a hostage's night is not restful.
 const BOUND_SLUG = "bound";
@@ -49,14 +49,23 @@ async function runMoodPass(prisma, turn) {
 
   const corpseLocationIds = await unburiedCorpseLocationIds(prisma);
   // One read per character; applyMoodTerms is handed the row rather than re-reading it.
-  const watched = [...MULTIPLIER_SLUGS, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG, DINED_SLUG, BOUND_SLUG, SHACKLED_SLUG];
+  const watched = [
+    ...MULTIPLIER_SLUGS,
+    NOBILITY_SLUG,
+    HUNGERLESS_SLUG,
+    DYING_SLUG,
+    DINED_SLUG,
+    BOUND_SLUG,
+    SHACKLED_SLUG,
+    HUNGER_SLUG,
+    STARVING_SLUG,
+  ];
   const characters = await alivePassCharacters(prisma, {
     select: {
       id: true,
       status: true,
       mood: true,
       discordUserId: true,
-      hungerStreak: true,
       locationId: true,
       location: { select: { indoors: true, attributes: true, zone: { select: { kind: true } } } },
       tags: { where: { tag: { slug: { in: watched } } }, select: { equipped: true, tag: { select: { slug: true } } } },
@@ -77,7 +86,12 @@ async function runMoodPass(prisma, turn) {
     terms.push(placeTermFor(placeClass));
     const drift = driftTermFor(character.mood);
     if (drift) terms.push(drift);
-    if (character.hungerStreak > 0) terms.push({ kind: "HUNGER", base: EVENTS.HUNGER });
+    // Starving takes priority over Hungry — never both, same rule the
+    // Gambit modifier uses (db/lib/gambitModifier.js). A character at or
+    // below the Starving threshold holds both tags at once (db/lib/hunger.js),
+    // so this has to pick one rather than summing them.
+    if (held.has(STARVING_SLUG)) terms.push({ kind: "STARVING", base: EVENTS.STARVING });
+    else if (held.has(HUNGER_SLUG)) terms.push({ kind: "HUNGER", base: EVENTS.HUNGER });
     if (held.has(BOUND_SLUG) || held.has(SHACKLED_SLUG)) terms.push({ kind: "BOUND", base: EVENTS.BOUND_HELD });
     if (character.locationId && corpseLocationIds.has(character.locationId)) terms.push({ kind: "CORPSE", base: EVENTS.CORPSE });
     const noble = held.has(NOBILITY_SLUG) && !held.has(HUNGERLESS_SLUG) && !held.has(DYING_SLUG);

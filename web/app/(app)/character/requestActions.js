@@ -49,6 +49,9 @@ import {
   brandCharacterRequestImpl,
   extractGodfleshRequestImpl,
   packageItemsRequestImpl,
+} from "./actions/misc.js";
+import { farmRequestImpl } from "./actions/soilery.js";
+import {
   birdMessageRequestImpl,
   birdReplyRequestImpl,
   whisperRequestImpl,
@@ -207,6 +210,10 @@ export async function engraveHeadstoneRequest(input) {
 
 export async function extractGodfleshRequest(input) {
   return guarded(() => extractGodfleshRequestImpl(input));
+}
+
+export async function farmRequest(input) {
+  return guarded(() => farmRequestImpl(input));
 }
 
 export async function packageItemsRequest(input) {

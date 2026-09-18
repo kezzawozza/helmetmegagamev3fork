@@ -11,15 +11,17 @@ laggy Discord bot dashboard.
 
 ## 1. Fonts
 
-Four faces loaded via `next/font/google` in `layout.js`, exposed as CSS
-variables on `<html>`:
+One face loaded via `next/font/google` in `layout.js`, exposed as a CSS
+variable on `<html>`:
 
 | Variable | Face | Use |
 |---|---|---|
-| `--font-sans` | Source Sans 3 | The app default, set on `body`. Chrome, tables, forms, buttons and prose. |
-| `--font-mono` | IBM Plex Mono | **Data only** — numbers, resources, dice, IDs, timestamps, audit rows. Opt in with `.mono`. |
-| `--font-serif` | Source Serif 4 | Applied automatically to every `h1`/`h2`/`h3` by a global rule. |
 | `--font-display` | UnifrakturMaguntia | Blackletter, reserved for a few thematic moments — the login wordmark and a couple of flavor-heavy titles — via `.font-display`/`.wordmark`. |
+
+`--font-sans`, `--font-serif` and `--font-mono` are plain system stacks
+declared on `:root` in `globals.css`, not downloaded fonts. `--font-serif` is
+an alias of `--font-sans` — headings are the body face, bold, not a second
+face.
 
 Three rules that are easy to get wrong:
 
@@ -98,13 +100,13 @@ Three things about the token set are load-bearing and easy to undo by accident:
 
 ## 3. Themes
 
-`dusk` and `dawn` follow the current turn's phase via `themeForPhase`. Both are
-*underground darks* — Ravenheart is a cave civilisation, so they differ by
-lamplight temperature and lift, not by daylight.
-
-`limestone` is a light-theme backup that no phase maps to; reach it with
-`BASCINET_THEME=limestone` (`resolveTheme` in `web/lib/turnFormat.js`, applied in
-`layout.js`).
+One rust palette, two named looks, both *underground darks* — Ravenheart is a
+cave civilisation, so they differ by lamplight temperature and lift, not by
+daylight. The look follows real Chicago wall-clock time via
+`web/lib/clockTheme.js`: dawn 06:00–18:00 with a slow warmth ramp on six
+tokens driven by `--lamp`, dusk 18:00–06:00 flat, hard switch at 18:00.
+`BASCINET_THEME` pins either look with no ramp. `audit:contrast` gates the
+ramp at five points.
 
 A CRT/terminal look is a parked option, written up in `CRT-TERMINAL.md`. **Read
 that before rebuilding it** — it has been half-built and deleted twice.

@@ -36,8 +36,9 @@ const {
   DRILL_THRESHOLD,
 } = require("./constants");
 
-// What a lesson needs to know about each side. hungerStreak and mood feed
-// the learner's Gambit modifier, same as a hand-filed Gambit.
+// What a lesson needs to know about each side. mood feeds the learner's
+// Gambit modifier, same as a hand-filed Gambit (Hunger comes off held tags
+// instead, already part of `tags` below).
 // `equipped` and the hood fields are for presence.js#isHere: a forcing hood hides a teacher the column doesn't.
 const { CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
 const LESSON_CHARACTER_SELECT = {
@@ -49,7 +50,6 @@ const LESSON_CHARACTER_SELECT = {
   concealed: true,
   buriedAt: true,
   discordUserId: true,
-  hungerStreak: true,
   mood: true,
   tags: {
     select: {
@@ -496,10 +496,7 @@ async function acceptLesson(prisma, offer, responder) {
       // Inspired is spent the instant it wins one.
       const learnerAdvantage = rollWithAdvantage(learner.tags, 6, { gambitOnly: true });
       await consumeInspiredIfUsed(tx, learner.id, learnerAdvantage.source);
-      const diceModifier = gambitModifierTotal(learner.tags, {
-        hungerStreak: learner.hungerStreak,
-        mood: learner.mood,
-      });
+      const diceModifier = gambitModifierTotal(learner.tags, { mood: learner.mood });
 
       // The Minted Charm (docs/tags.yaml): +1 to the wearer's Learn roll while EQUIPPED —
       // the student-side sibling of Teaching (Drill Instructor), which moves the threshold

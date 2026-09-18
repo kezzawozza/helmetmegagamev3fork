@@ -45,13 +45,16 @@ import {
 import {
   hasAttribute,
   GODFLESH_ATTRIBUTE,
+  SOILERY_ATTRIBUTE,
 } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor, extractedToday } from "@lifeweb/db/lib/godflesh";
+import { farmRefusalFor } from "@lifeweb/db/lib/soilery";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { resourcesOf, readRoomResources } from "@lifeweb/db/lib/resourceStack";
 import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
+import { clampHunger, decayFor, crossings } from "@lifeweb/db/lib/hunger";
 import {
   freeMovesLeft,
   freeZoneMovesReason,
@@ -413,6 +416,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         desireSlotLockTurns: true,
         maxDrawbackTags: true,
         maxDrawbackPoints: true,
+        farmMaxCrops: true,
       },
     }),
     findOpenTurnAction(prisma, character.id),
@@ -616,6 +620,17 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       : !extractTool
         ? "You need a hatchet, a battle-axe or a chainsaw in your hands."
         : null;
+  // The Farms placeholder (db/lib/soilery.js): same HIDE-not-grey posture as
+  // Extract just above — whether this ground is a Soilery is a fact about
+  // where you're standing. farmRefusalFor reads the SAME function the Sow
+  // button's server action re-checks (soilery.js#farmRequestImpl), so the
+  // tooltip and a bypassed request can never disagree. `Boolean(currentAction)`
+  // is the same "already filed a Move this turn" fact `hasMoved` below reads.
+  const canSeeFarm = hasAttribute(character.location, SOILERY_ATTRIBUTE);
+  const farmBlocked = !canSeeFarm
+    ? null
+    : farmRefusalFor(character.tags, Boolean(currentAction));
+  const canFarm = canSeeFarm && !farmBlocked;
   const canSeePackage = await hasEquipmentInReach(
     prisma,
     character,
@@ -898,14 +913,28 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // holder (canDetectPoison), computed ONCE for the viewer's OWN sheet.
   const canSmellPoison = canDetectPoison(character.tags);
 
+  // The 0-100 hunger meter (db/lib/hunger.js): same posture as poisonedCount
+  // above — hungerValue must NEVER reach the client raw (the doc's own rule:
+  // no number, ever, on the sheet), so it is read here, used to derive a
+  // plain word, and dropped from `sheetCharacter` below rather than trusted
+  // to every future reader. TurnForecast.js only ever sees `hungerWarning`.
+  const hungerAfterDecay = clampHunger(character.hungerValue - decayFor(character.tags.map((ct) => ct.tag?.slug)));
+  const hungerCross = crossings(character.hungerValue, hungerAfterDecay);
+  const hungerWarning = hungerCross.enteredStarving
+    ? "starving"
+    : hungerCross.enteredHungry
+      ? "hungry"
+      : null;
+
   // The mood dial rides along as a number (MOOD.md) — the sheet needs it for
   // the Mood box's word and the Gambit tile's modifier, both computed client-side.
   //
   // COOKING (COOKING.md): held tags come down with a bare `include`, so
   // `cooked` is cut to its taste and `cookedFrom` dropped HERE — a cook is
   // told what an ingredient tastes of and nothing else, or it's one dev-tools inspection away.
+  const { hungerValue: _hungerValue, starvingSinceTurn: _starvingSinceTurn, ...characterWithoutHunger } = character;
   const sheetCharacter = {
-    ...character,
+    ...characterWithoutHunger,
     tags: character.tags.map((ct) => {
       const { poisonedCount, poisonPayload, ...ctRest } = ct;
       // Cooking's cut runs first: `cooked` narrowed to its taste,
@@ -1067,6 +1096,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     kind: "sheet",
     sheet: {
       character: sheetCharacter,
+      hungerWarning: hungerWarning,
       mode: "self",
       openTurn: openTurnWithWindow,
       currentAction: sheetAction,
@@ -1136,6 +1166,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canSeeExtract: canSeeExtract,
       canExtract: canExtract,
       extractBlocked: extractBlocked,
+      canSeeFarm: canSeeFarm,
+      canFarm: canFarm,
+      farmBlocked: farmBlocked,
+      farmMaxCrops: gameConfig?.farmMaxCrops ?? undefined,
       canSeePackage: canSeePackage,
       lootTargets: lootTargets,
       consumeTargets: consumeTargets,

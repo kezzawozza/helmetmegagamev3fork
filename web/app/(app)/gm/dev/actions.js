@@ -459,8 +459,9 @@ export async function wipeGameData(formData) {
       prisma.gameState.deleteMany({}),
       prisma.gameState.create({ data: { id: 1, gameId: nextGame.id } }),
       // The Depot is the same kind of row and was missed entirely, so it kept
-      // everything: an ARMED turret, the Merchant's account, a docked shuttle
-      // and a merchantFace naming a character the wipe had just deleted. The
+      // everything: an ARMED turret, the Merchant's account, the shuttle that
+      // used to sit there, and a merchantFace naming a character the wipe had
+      // just deleted. The
       // gun then shot the people in the caves the next game, with nobody in
       // that game having armed it. Same delete-and-recreate for the same
       // reason — loadDepot upserts id 1, so a read before this lands is fine.
