@@ -95,7 +95,7 @@ async function loadConcealment(prisma, characterId) {
   return concealmentFrom(held);
 }
 
-// The columns presentedIdentity() reads, plus the tags it resolves against. Modelled on db/lib/whosHere.js#PRESENT_SELECT minus Role/Faction — hearing somebody yell tells you their name, not who they answer to.
+// The columns presentedIdentity() reads, plus the tags it resolves against. Modelled on db/lib/whosHere.js#PRESENT_SELECT minus the role title — hearing somebody yell tells you their name, not what they do.
 const PRESENTED_IDENTITY_SELECT = {
   id: true,
   name: true,

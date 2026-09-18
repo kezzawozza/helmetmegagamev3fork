@@ -32,7 +32,7 @@ async function loadAssignmentInput(db, memberRoles) {
     db.role.findMany({
       select: {
         id: true, slug: true, name: true, isUnique: true, unlimited: true, weight: true,
-        requiresWhitelist: true, grantsLeader: true, factionId: true,
+        requiresWhitelist: true,
       },
     }),
   ]);
@@ -123,7 +123,7 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
 
     const config = await getGameConfig(tx);
     const roles = await tx.role.findMany({
-      include: { faction: { select: { name: true } }, startingLocation: { include: { zone: { select: { name: true } } } } },
+      include: { startingLocation: { include: { zone: { select: { name: true } } } } },
     });
     const bySlug = new Map(roles.map((r) => [r.slug, r]));
     const now = new Date();
@@ -142,7 +142,6 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
           entryId: entry.id,
           discordUserId: row.discordUserId,
           roleName: role.name,
-          factionName: role.faction?.name ?? null,
           zoneName: role.startingLocation?.zone?.name ?? null,
           expiresAt,
         });
@@ -208,11 +207,11 @@ function epoch(date) {
 
 // First line is what Discord shows in the notification, so the seat is in
 // it. `origin` is passed in because db/ must not know it (web/lib/auth.js).
-function assignmentMessage({ roleName, factionName, zoneName, expiresAt }, origin) {
+function assignmentMessage({ roleName, zoneName, expiresAt }, origin) {
   const t = epoch(expiresAt);
   return [
     `**You're in. You are the ${roleName}.**`,
-    [factionName ? `${factionName}.` : null, zoneName ? `You start in ${zoneName}.` : null].filter(Boolean).join(" "),
+    zoneName ? `You start in ${zoneName}.` : "",
     `Build your character here: ${origin}/character`,
     `The seat is yours until <t:${t}:F> (<t:${t}:R>).`,
     "-# Can't make it? Free the seat up by pressing Decline.",

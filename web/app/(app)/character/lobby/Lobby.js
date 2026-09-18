@@ -269,9 +269,9 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
                           aria-expanded={openIntro === role.id}
                         >
                           {role.name}
-                          {role.grantsLeader ? <span title="Leader"> ★</span> : null}
+                          {role.requiresWhitelist ? <span title="Reserved seat"> ★</span> : null}
                         </button>
-                        <span className="text-xs text-muted">{role.factionName}</span>
+                        <span className="text-xs text-muted">{role.startingZoneName}</span>
                       </div>
                       {openIntro === role.id && role.intro ? (
                         <p className="mt-1 text-sm text-muted">{role.intro}</p>

@@ -1575,9 +1575,9 @@ export default function Feed({
   // the rows arriving and React laying them out, which is this component's
   // own render. Chat.js loads the FIRST page of a place; this loads the rest.
   const reachBack = useCallback(() => {
-    // The two pseudo-places never reach this component at all — Chat.js
-    // draws ./FactionPanel.js and ./DmPane.js instead — so a real place is
-    // the only thing a mounted Feed can be looking at.
+    // The pseudo-place never reaches this component at all — Chat.js draws
+    // ./DmPane.js instead — so a real place is the only thing a mounted Feed
+    // can be looking at.
     if (!placeKey) return;
     const state = backlogOf(placeKey);
     if (state.loading || state.exhausted) return;

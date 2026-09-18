@@ -5,7 +5,7 @@
 //
 //   npm run dev:check                             # the whole matrix below
 //   npm run dev:check -- --gm /gm/turns           # named routes, as a superadmin
-//   npm run dev:check -- --character "Aezir" /faction
+//   npm run dev:check -- --character "Aezir" /character
 //   npm run dev:check -- --anon /character        # no cookie
 //
 // Exits non-zero if anything fails, so it can gate a change.
@@ -26,7 +26,6 @@ const DEFAULT_ROUTES = [
   { path: "/chat", as: "player" },
   { path: "/map", as: "player" },
   { path: "/documents", as: "player" },
-  { path: "/faction", as: "player" },
   { path: "/notes", as: "player" },
 
   { path: "/store", as: "player", expect: "/character" }, // deliberate redirect stub for old links
@@ -46,12 +45,10 @@ const DEFAULT_ROUTES = [
   // redirect is worth asserting: they are what /gm/audit's rows and a year of
   // bookmarks point at.
   { path: "/gm/dev?s=characters", as: "gm" },
-  { path: "/gm/dev?s=factions", as: "gm" },
   { path: "/gm/dev?s=tags", as: "gm" },
   { path: "/gm/dev?s=zones", as: "gm" },
   { path: "/gm/dev?s=bulk", as: "gm" },
   { path: "/gm/dev/characters", as: "gm", expect: "/gm/dev?s=characters" },
-  { path: "/gm/dev/factions", as: "gm", expect: "/gm/dev?s=factions" },
   { path: "/gm/dev/tags", as: "gm", expect: "/gm/dev?s=tags" },
   { path: "/gm/dev/zones", as: "gm", expect: "/gm/dev?s=zones" },
   { path: "/ledger", as: "gm", expect: "/character" }, // old sheet path forward (SHEET.md)

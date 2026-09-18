@@ -631,11 +631,11 @@ float over a desk shell (same reason no desk carries one — `DESIGN-SYSTEM.md`
 §6). The server actions, the client tables and the nested editors stay in
 `(app)/gm/dev/`, since only the top page needed to move.
 
-**One navigation now, not two.** Characters, Factions, Tags and Zones used to
-be four PageShell pages of their own, listed in an "Elsewhere ↗" group on the
+**One navigation now, not two.** Characters, Tags and Zones used to
+be PageShell pages of their own, listed in an "Elsewhere ↗" group on the
 rail and again in a `DevSubNav.js` row in their own headers, both reading one
 shared `DEV_PAGES` list. Their index pages are **sections of this panel**
-now — `?s=characters`, `?s=factions`, `?s=tags`, `?s=zones` — so there is one
+now — `?s=characters`, `?s=tags`, `?s=zones` — so there is one
 rail and no shared list to keep: `DevSubNav.js` and `web/lib/devNav.js` are
 both gone. The old paths redirect to their sections.
 
@@ -690,20 +690,19 @@ action is a public endpoint and a hidden button is a hint:
 | Where | Superadmin only |
 |---|---|
 | `?s=reports` | **Repair**. `runDoctorAction` reads the posted `mode` **before** the guard and asks for `super` only when it is `repair` — the dry run is GM work |
-| `/gm/dev/factions` | Delete a faction (`FactionsTable`'s `canDelete` prop) |
 | `?s=tags` | Delete a custom tag |
 | `/gm/dev/characters/[id]` | Delete a character |
 
-Characters and Factions are GM-open. The per-character panel this doc is about
+Characters is GM-open. The per-character panel this doc is about
 was always GM-gated, so its own index being superadmin was an inconsistency,
 not a policy.
 
 ### 11b. The sections
 
-Fifteen: **Game**, **History**, **Turn**, **Configuration**, **Depot** and
+Fourteen: **Game**, **History**, **Turn**, **Configuration**, **Depot** and
 **Oracle** under "Game"; **Bulk actions**, **System reports** and
-**Gamemasters** under "Operations"; **Quests**, **Characters**, **Factions**,
-**Tags** and **Zones** under "Content"; **Assignments** and **Antagonists**
+**Gamemasters** under "Operations"; **Quests**, **Characters**, **Tags** and
+**Zones** under "Content"; **Assignments** and **Antagonists**
 under "Threats"; **Archive & restart** on its own under "Danger". Everything
 under "Game" and "Danger" is `super`; everything else is `gm`.
 

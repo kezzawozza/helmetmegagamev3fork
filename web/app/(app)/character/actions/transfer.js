@@ -30,7 +30,6 @@ import {
 import {
   canReachParty,
   outOfReachMessage,
-  isOwnFactionSilo,
 } from "@/lib/transferReach";
 import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -159,22 +158,12 @@ export async function transferRequestImpl(
   }
   // Both ends have to be where you stand — re-checked here on the posted
   // key, the same predicate that built the menu (web/lib/peopleHere.js). A
-  // room adds "and its door opens for you".
-  //
-  // The one asymmetry: `direction` lets a member DEPOSIT into their own
-  // faction's silo from anywhere in that room's zone, while taking anything
-  // back out keeps the strict rule (web/lib/transferReach.js).
+  // room adds "and its door opens for you". No exceptions either way: the
+  // faction silo was the one, and it went with the silos.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
-  for (const [direction, party] of [
-    ["from", from],
-    ["to", to],
-  ]) {
-    if (!(await canReachParty(character, party, { heldSlugs, direction, allowConcealed: true }))) {
-      // Only to pick which of the two out-of-reach sentences to write —
-      // the same predicate the gate itself used, not a second one.
-      const isSilo =
-        party.kind === "room" && (await isOwnFactionSilo(character, party));
-      throw new UserError(outOfReachMessage(party, { isSilo }));
+  for (const party of [from, to]) {
+    if (!(await canReachParty(character, party, { heldSlugs, allowConcealed: true }))) {
+      throw new UserError(outOfReachMessage(party));
     }
   }
   if (amount > from.balance)
@@ -294,8 +283,8 @@ export async function transferRequestImpl(
   };
   const fromParty = { kind: from.kind, id: from.id, name: from.name };
   const toParty = { kind: to.kind, id: to.id, name: to.name };
-  // Two fields the silo ledger reads back (FACTIONS.md §4c), and the reason
-  // both are written HERE rather than resolved when the ledger is drawn.
+  // Two fields the audit log carries on every hand-to-hand move, and the
+  // reason both are written HERE rather than resolved when a row is drawn.
   //
   // `by` is the name the room saw, frozen the way ArchiveEntry.concealedAlias
   // is: resolving it live would unmask every deposit somebody ever made the
@@ -304,8 +293,8 @@ export async function transferRequestImpl(
   // concealmentFrom read.
   //
   // `moveId` ties one act together. This writes one audit row per tag stack
-  // plus one for the ⬢, so handing in two stacks and 30 ⬢ is three rows; the
-  // ledger groups on this to print it as the one thing it was.
+  // plus one for the ⬢, so handing in two stacks and 30 ⬢ is three rows; a
+  // reader groups on this to print it as the one thing it was.
   const identity = presentedIdentity(character, {
     forcedName: forcedNameFrom(character.tags),
     concealment: concealmentFrom(character.tags),

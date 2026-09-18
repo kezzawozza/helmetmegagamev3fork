@@ -19,7 +19,7 @@ const { aliasRow } = require("./concealedIdentity");
 const { hoodToken } = require("./hoodToken");
 
 // Columns and tags presentedIdentity reads — whosHere's PRESENT_SELECT minus
-// the faction half, since a members strip prints no Role.
+// the role title, since a members strip prints no Role.
 const MEMBER_SELECT = {
   id: true,
   name: true,

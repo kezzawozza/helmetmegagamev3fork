@@ -10,8 +10,7 @@ import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 export const MOVE_INCLUDE = {
   character: {
     include: {
-      // faction.zone is the ZONE SEAT (never a cave level); `zone` is the PRESENCE zone the desk labels.
-      faction: { include: { zone: true } },
+      // `zone` is the PRESENCE zone the desk labels — where the character is standing.
       zone: true,
       // Character.locationId is the authoritative "where they stand" (MAP.md §1), so the desk needs it too.
       location: { select: { id: true, name: true } },
@@ -57,7 +56,6 @@ export const CAVING_ROLL_INCLUDE = {
       discordUserId: true,
       updatedAt: true,
       roleTitle: true,
-      faction: { include: { zone: true } },
     },
   },
   zone: { select: { name: true } },
@@ -133,9 +131,8 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     discordUserId: a.character.discordUserId,
     discordUsername: username,
     roleTitle: a.character.roleTitle ?? "",
-    factionName: a.character.faction?.name ?? "",
-    factionId: a.character.factionId ?? null,
-    factionZoneName: a.character.faction?.zone?.name ?? "",
+    // Where they are standing — the only zone a desk row has now.
+    zoneName: a.character.zone?.name ?? "",
     description: a.description,
     kindLabel: moveKindLabel(a.moveKind, a.gmNotes),
     moveKind: a.moveKind ?? "ROUTINE",
@@ -193,7 +190,7 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
     moveId: e.moveId,
     cavingRollId: e.cavingRollId,
     batchId: e.batchId,
-    // Nullable: an old, pre-Silo-removal faction-to-faction transfer has no character end.
+    // Nullable: an old, pre-removal room-to-room transfer has no character end.
     targetCharacterId: e.targetCharacterId,
     targetName: e.targetCharacterId ? (e.targetCharacter?.name ?? "(deleted)") : null,
     targetAvatarVersion: e.targetCharacter?.updatedAt ? e.targetCharacter.updatedAt.getTime() : null,
@@ -401,8 +398,7 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
     catatonic: catatonicIds?.has(c.characterId) ?? false,
     discordUsername: nameFor,
     roleTitle: c.character.roleTitle ?? "",
-    factionZoneName: c.character.faction?.zone?.name ?? "",
-    // Where the die actually rolled — the only zone that means anything for a caving row; the seat is beside the point.
+    // Where the die actually rolled.
     zoneName: c.zone?.name ?? "",
     locationName: c.location?.name ?? null,
     die: c.die,

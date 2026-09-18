@@ -1,7 +1,6 @@
 // The fog behind /map. The ONE module reading or writing LocationVisit, same
 // reason db/lib/locationGraph.js is the one for LocationLink. `stood` is "I have been here"; without it, "seen from next door" (hollow). Deliberately NOT on the @lifeweb/db barrel — require by path.
 const { travelOptions } = require("./locationGraph");
-const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 
 // Called from applyLocationMoveSideEffects, run by every writer of Character.locationId (MAP.md §4).
 async function recordArrival(prisma, character, locationId) {
@@ -61,32 +60,6 @@ async function knownLocations(prisma, characterId) {
   return { stood, seen };
 }
 
-// STOOD in the Location, behind a door that opens for them. Lifted out of
-// web/app/(app)/map/actions.js#roomsInside. `accessibleRooms` is the same predicate the channel doctor, Secret rooms? and Transfer dialog use.
-async function knownRooms(prisma, characterId, where = {}) {
-  if (!characterId) return [];
-
-  const [{ stood }, keys] = await Promise.all([
-    knownLocations(prisma, characterId),
-    roomAccessKeys(prisma, characterId),
-  ]);
-  if (stood.size === 0) return [];
-
-  const rooms = await prisma.room.findMany({
-    where: { ...where, locationId: { in: [...stood] } },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      kind: true,
-      accessTagSlugs: true,
-      location: { select: { name: true, zoneId: true, zone: { select: { name: true } } } },
-    },
-  });
-
-  return accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
-}
-
 // Deliberately NOT recordArrival/seedMemories reused — those also paint
 // NEIGHBOURS, leaking a cave-adjacent Location as a "sighting". `stood: false` throughout; `skipDuplicates` keeps a stood-in Location from ever downgrading.
 async function revealSurface(prisma, characterId) {
@@ -102,4 +75,4 @@ async function revealSurface(prisma, characterId) {
   });
 }
 
-module.exports = { recordArrival, seedMemories, revealSurface, knownLocations, knownRooms };
+module.exports = { recordArrival, seedMemories, revealSurface, knownLocations };

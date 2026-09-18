@@ -213,7 +213,6 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         name: true,
         roleTitle: true,
         discordUserId: true,
-        faction: { select: { name: true } },
         zone: { select: { name: true } },
       },
     }),
@@ -439,7 +438,6 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         roster: roster.map((c) => ({
         id: c.id,
         name: c.name,
-        factionName: c.faction?.name ?? "",
         roleTitle: c.roleTitle ?? "",
         zoneName: c.zone?.name ?? "",
         discordUserId: c.discordUserId,

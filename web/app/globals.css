@@ -1031,9 +1031,9 @@ input[type="radio"]:focus-visible,
 .field select,
 /* .control is the same surface without .field's label column, for a control
    that cannot have one — a <select> in a table cell, an input inline in a
-   toolbar. .field is still the default. This used to be .text-input, which is
-   why the <select> two lines from one in gm/dev/factions/page.js was bare: the
-   name promised it was for text, so nobody reached for it. */
+   toolbar. .field is still the default. This used to be .text-input, and the
+   name promised it was for text, so nobody reached for it and bare <select>s
+   crept in beside styled ones. */
 .control {
   background: var(--field-bg);
   /* Inset: a hard dark edge top and left, the ordinary hairline bottom and
@@ -1683,7 +1683,7 @@ input[type="radio"]:disabled {
 
 /* --- The pregame lobby (docs/systemdocs/LOBBY.md) ------------------------- */
 
-/* One role per row: the name and its faction on the left, the four-level
+/* One role per row: the name and its starting zone on the left, the four-level
    control on the right. A locked row (whitelist) is greyed and inert but
    stays readable — nothing is hidden. */
 .lobby-role {
@@ -2031,8 +2031,8 @@ input[type="radio"]:disabled {
 .zone-chip[data-zone="caves"] { border-left-color: var(--zone-caves); }
 .zone-chip[data-zone="depths"] { border-left-color: var(--zone-depths); }
 
-/* No faction at all -- not a fifth zone. Reads as absent rather than as a
-   colour nobody has learned yet. */
+/* No zone at all -- not a further zone of its own. Reads as absent rather
+   than as a colour nobody has learned yet. */
 .zone-chip[data-zone="none"] {
   color: var(--muted);
   border-left-style: dashed;
@@ -2863,7 +2863,7 @@ input[type="radio"]:disabled {
 }
 
 /* .menu-item adds its own 2px vertical padding on top of the cell's, which
-   sinks a linked cell (Name, Faction) below a plain-text cell (Role) in the
+   sinks a linked cell (Name) below a plain-text cell (Role) in the
    same row. Zero it out here so every cell's text sits on the same line. */
 .data-table td .menu-item {
   padding: 0;
@@ -3534,7 +3534,7 @@ input[type="radio"]:disabled {
   outline-offset: 2px;
 }
 
-/* The "where this came from" line — the tag, role, faction or Public that
+/* The "where this came from" line — the tag, the role or Public that
    put this paper in your folder. Alt colour on purpose: it is metadata
    about the document, not part of it. */
 .doc-card-source {
@@ -6262,9 +6262,9 @@ label.chip {
   border-left-color: var(--danger);
 }
 
-/* The Depot's and the faction console's section strips are .tab-bar /
-   .tab-item now — they were the shared strip written out a third time, in a
-   slightly bigger font and with an -on class instead of data-active. */
+/* The Depot's section strip is .tab-bar / .tab-item now — it was the shared
+   strip written out again, in a slightly bigger font and with an -on class
+   instead of data-active. */
 
 /* Two columns where there is room, stacked where there is not. The aside is
    the manifest/summary side and is always the narrower of the two. */

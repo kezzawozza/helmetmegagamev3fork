@@ -7,7 +7,6 @@ import ItemCard from "./ItemCard";
 import TagRow from "./TagRow";
 import { buildCards, itemFacts, matchesQuery, rowValue, INVENTORY_CARDS } from "@/lib/sheetCards";
 import { useRefresh } from "./useRefresh";
-import FactionLink from "./FactionLink";
 import DevCharacterButton from "./DevCharacterButton";
 import MarkdownContent from "./MarkdownContent";
 import TranscriptLine from "./TranscriptLine";
@@ -328,7 +327,6 @@ function SheetView({
   const facts = [
     ["Status", data.status],
     ["Role", data.roleTitle ?? "—"],
-    ["Faction", <FactionLink key="f" factionId={data.factionId} name={data.factionName ?? "—"} />],
     ["Standing", data.locationLabel],
     [
       "Resources",
@@ -673,7 +671,7 @@ const SEARCH_RESULT_LIMIT = 8;
 
 // The "look someone up without leaving the desk" box, sitting above the pin
 // row. Filters the roster page.js already ships to the client with scoreMatch
-// (web/lib/fuzzySearch.js) over name, role, faction, username and zone.
+// (web/lib/fuzzySearch.js) over name, role, username and zone.
 function InspectorSearch({ roster, onInspect }) {
   const [query, setQuery] = useState("");
 
@@ -684,7 +682,6 @@ function InspectorSearch({ roster, onInspect }) {
           match: scoreMatch(query, {
             name: c.name,
             role: c.roleTitle,
-            faction: c.factionName,
             username: c.username,
             zone: c.zoneName,
           }),
@@ -725,7 +722,6 @@ function InspectorSearch({ roster, onInspect }) {
                   values={{
                     username: c.username ? `@${c.username}` : null,
                     role: c.roleTitle,
-                    faction: c.factionName,
                     zone: c.zoneName,
                   }}
                 />

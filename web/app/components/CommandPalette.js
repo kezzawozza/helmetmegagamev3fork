@@ -8,10 +8,10 @@ import { getPaletteIndex } from "./paletteActions";
 
 // ⌘K: one box that reaches everything. Type a name and land on that player's
 // desk, type a fragment of a move and land on it already selected in
-// Adjudication, type a zone or a faction or the name of a screen.
+// Adjudication, type a zone or the name of a screen.
 //
 // It exists because the rail is 56px of icons and several GM screens
-// (/gm/dev/tags, /gm/dev/factions, /gm/audit) have no rail
+// (/gm/dev/tags, /gm/audit) have no rail
 // item at all — they were reachable only by knowing the URL or by hunting a
 // hand-rolled sub-nav on some other page.
 //
@@ -28,7 +28,6 @@ const KIND_LABELS = {
   move: "Move",
   request: "Request",
   zone: "Zone",
-  faction: "Faction",
   page: "Page",
   // A player's own two: everywhere they can hear, and everyone standing
   // beside them. Both land on /chat with the place in the hash.

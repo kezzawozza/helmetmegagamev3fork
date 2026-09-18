@@ -15,7 +15,7 @@ export function tagLookup(tagCatalog) {
 }
 
 // A staged row created before Silos were removed can still carry a
-// "faction" party — render it plainly, same as any other party.
+// party kind that is no longer minted — render it plainly, same as any other party.
 function partyLabel(party) {
   if (!party) return "?";
   return party.name;

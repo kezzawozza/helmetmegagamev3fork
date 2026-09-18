@@ -1,22 +1,20 @@
 import { zoneKey } from "@/lib/zones";
 
-// The zone a row belongs to, as a chip.
-//
-// What it shows is the zone the character's FACTION is keyed to
-// (Faction.zoneId), never where they happen to be standing
-// (Character.zoneId) — a Courtier is Fortress whether or not they are in
-// the Fortress. Callers pass a flat `factionZoneName` string for that reason;
-// getting the two zones confused is the one real bug this component invites.
+// The zone a row is in, as a chip — where the character is STANDING
+// (Character.zoneId). It used to show the zone their faction was keyed to
+// instead, so a Courtier read as Fortress wherever they had wandered; with
+// factions gone there is one zone and the chip is simply it. Callers pass a
+// flat `zoneName` string.
 //
 // No "use client": a leaf with no handlers, so it stays server-rendered inside
-// /gm/dev/factions and /faction, which are server components.
+// the server components that draw it.
 export default function ZoneChip({ zoneName }) {
   const key = zoneKey(zoneName);
   if (!zoneName) {
     return (
       <span className="chip zone-chip" data-zone="none">
         <span aria-hidden="true">—</span>
-        <span className="sr-only">No faction zone</span>
+        <span className="sr-only">No zone</span>
       </span>
     );
   }

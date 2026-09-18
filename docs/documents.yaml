@@ -8,12 +8,12 @@ documents:
     name: Courtier
     public: false
     tags: []
-    description: As a member of the Baron's retinue, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don't steal. If you'd like to steal, arrange it with a GM).
+    description: As a member of the Baron's retinue, you may take food from a fellow member whenever you please — within reason. If you'd like to steal, arrange it with a GM.
   church:
     name: Church
     public: false
     tags: []
-    description: As a member of the Church, you may take food from a fellow member whenever you please — within reason (Treasurer and Leader roles can see everyone's Resources, so don't steal. If you'd like to steal, arrange it with a GM).
+    description: As a member of the Church, you may take food from a fellow member whenever you please — within reason. If you'd like to steal, arrange it with a GM.
   independent:
     name: Independent
     public: false
@@ -31,18 +31,6 @@ documents:
     tags: []
     description: |-
       Ravenheart's liege is God-King Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however — and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court, and arranges the royal tithe if such a thing becomes necessary.
-  treasurer:
-    name: Treasurer
-    public: true
-    tags:
-      - Treasurer
-      - Leader
-    description: |-
-      As Treasurer or Leader, you can see each faction member's Resources.
-
-      **Transferring Resources**
-
-      You may transfer Resources from any source to any recipient, provided you are in the same Location as both.
   sanctuary:
     name: Sanctuary
     public: true
@@ -351,7 +339,6 @@ documents:
     name: Godard Factory
     public: false
     tags: []
-    factions: [the-factory]
     description: |-
       Godard's beauty days are over, but it still functions. The Banneret's lineage, one of the Baron's cadet houses, has (usually grudgingly) employed refugees to extract {tag:godflesh} from the marshes and refine it into {tag:squeeze}, which is then shipped off to the merchant. It is generally unknown what Squeeze does or why it's so valuable. Unfortunately, due to the working conditions, most refugees don't stay for long and usually try to make it to the town. They're easily replaced, so it doesn't matter.
 
@@ -383,7 +370,7 @@ documents:
     description: |-
       This reality is flawed to its core! Lord Tzchernobog will deliver a new, perfect reality once this one has come to an end, when the last human observer has passed into nothingness.
 
-      You and your fellow cultists must obey the instructions of your leader and ultimately, Tzchernobog. You can see who your fellow cultists are in the faction tab.
+      You and your fellow cultists must obey the instructions of your leader and ultimately, Tzchernobog. You can see who your fellow cultists are with the Recall Comrades button.
 
       Secrecy is your greatest strength. Ever since the arrival of the Inquisitor, the cults position has been tenuous. The capture of one of you will result in your exposure, death is preferable to what the sadistic inquisition will do to you.
 
@@ -420,8 +407,8 @@ documents:
       You oversee management of the cults resources and stockpile. Equip your cultists however you see fit.
 
       Your presence is required for the most important rites. Good luck.
-  # Readable by the cult and by the two religious factions — the Church and
-  # the Order — through `roles:`, the same way elevatorkey reaches the Baron.
+  # Readable by the cult and by the clergy — the Church's seats and the
+  # Order's — through `roles:`, the same way elevatorkey reaches the Baron.
   thanati:
     name: Thanati
     public: false

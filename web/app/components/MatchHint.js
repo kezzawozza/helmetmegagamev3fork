@@ -24,7 +24,6 @@ export default function MatchHint({ match, values = null, className = "" }) {
 const FIELD_WORDS = {
   username: "handle",
   role: "role",
-  faction: "faction",
   zone: "zone",
   tag: "tag",
   preview: "message text",

@@ -262,11 +262,9 @@ function loadGroupsDoc() {
 function roleSlugsFromYaml() {
   const doc = yaml.load(fs.readFileSync(requireDocsPath("roles.yaml"), "utf8"));
   const slugs = new Set();
-  for (const zone of entriesOf(doc?.zones, "slug")) {
-    for (const faction of entriesOf(zone?.factions, "slug")) {
-      for (const role of entriesOf(faction?.roles, "slug")) {
-        if (role.slug) slugs.add(role.slug);
-      }
+  for (const group of Object.values(doc?.groups ?? {})) {
+    for (const role of entriesOf(group, "slug")) {
+      if (role.slug) slugs.add(role.slug);
     }
   }
   return slugs;

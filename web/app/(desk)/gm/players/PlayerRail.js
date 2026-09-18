@@ -145,7 +145,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
         setContentHits({ q, hits: data.hits ?? [] });
       } catch {
         // Aborted by the next keystroke, or offline. The rail still filters on
-        // name, role, faction, handle, zone and tag without this — content
+        // name, role, handle, zone and tag without this — content
         // hits only ever widen the result.
       }
     }, CONTENT_SEARCH_DEBOUNCE_MS);
@@ -277,9 +277,8 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
           match: scoreMatch(q, {
             name: c.name,
             role: c.roleTitle,
-            faction: c.factionName,
             username: [c.username, c.globalName].filter(Boolean).join(" "),
-            zone: `${c.zoneName ?? ""} ${c.factionZoneName ?? ""}`.trim(),
+            zone: c.zoneName ?? "",
             tag: c.tag,
             preview: c.preview,
           }),
@@ -369,7 +368,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="name, role, faction, tag, zone, @handle, message text…"
+              placeholder="name, role, tag, zone, @handle, message text…"
             />
           </label>
           {zoneOptions.length > 0 && (
@@ -531,7 +530,6 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                     match={match}
                     values={{
                       role: row.roleTitle,
-                      faction: row.factionName,
                       zone: row.zoneName,
                       tag: matchedTagNames(row.tagNames, query),
                     }}

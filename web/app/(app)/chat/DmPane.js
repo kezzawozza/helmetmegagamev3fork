@@ -21,8 +21,8 @@ import { peekSeen, markSeen } from "./seenStore";
 // write back into. The same DirectMessage rows the GM desk reads, drawn by
 // the desk's own DmThread from the other chair (CHAT.md §2b).
 //
-// A pseudo-place like the faction banner: it is in the places column and it
-// round-trips through the hash, but it has no feed, no seq and no channel.
+// A pseudo-place: it is in the places column and it round-trips through the
+// hash, but it has no feed, no seq and no channel.
 // What lives here is the page fetch, the reply, and the seen mark.
 
 let optimisticSeq = 0;

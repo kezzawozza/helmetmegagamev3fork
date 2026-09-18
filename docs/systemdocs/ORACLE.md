@@ -272,7 +272,7 @@ Three shapes:
 
 - **Included** — adjudication outcomes, caving, heals, loots, transfers,
   crafts, consumes, intercepts fired, escorts, name changes, Lifeweb feeding,
-  desires, faction power shifts, deaths, arrivals.
+  desires, shifts in who holds sway, deaths, arrivals.
 - **Collapsed** — tag buys, adds and removes fold into one line per character.
 - **Aggregated** — `hunger_resolved` and friends appear once for the whole
   turn, in whichever zone is built first, rather than once per character.

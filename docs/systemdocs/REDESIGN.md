@@ -133,7 +133,7 @@ the look the earlier ones establish.
 3. **Shared set consolidation — landed**, across five shards: `aaa28209`
    ("one TranscriptLine for the feed, the inspector and DMs"), `e7f512ef`
    ("one DeskRail — the Dev Panel and audit rails fold into it"), `d182b0c2`
-   ("Chat's, the Depot's and the faction console's tabs take the shared
+   ("Chat's and the Depot's tabs take the shared
    strip"), `34ada3a4` ("one recipe for the quiet label over a group of
    things"), `9f7c07b1` ("one header strip on the desk column heads"). Pure
    refactor, no visible change beyond the look phases 1–2 already landed.

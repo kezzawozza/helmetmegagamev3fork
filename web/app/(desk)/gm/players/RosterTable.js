@@ -10,11 +10,9 @@ import DevCharacterButton from "@/app/components/DevCharacterButton";
 import MatchHint from "@/app/components/MatchHint";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import DevPanelModal from "@/app/components/DevPanelModal";
-import FactionLink from "@/app/components/FactionLink";
 import Select from "@/app/components/Select";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import ZoneChip from "@/app/components/ZoneChip";
-import FactionsPanel from "./FactionsPanel";
 import Pager from "@/app/components/Pager";
 import { filterTagsByQuery, sortForMode, tagsById as buildTagsById } from "@/lib/characterCreation";
 // bulkTagCharacters stays in (app) — it is shared GM plumbing, not this
@@ -40,25 +38,23 @@ import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 // row. Folded into one cell of chips they cost nothing when empty and read as
 // a set when they are not, and the table stopped needing a permanent
 // horizontal scroll to reach Resources.
-const COL_COUNT = 11;
+const COL_COUNT = 9;
 
-// The key "zone" means the zone SEAT — the zone their faction is keyed to —
-// because that is what every other GM surface means by Zone and what a GM's
-// default filter is keyed on. The physical one is "Standing in": a real and
-// different question, not a duplicate.
+// "Zone" is where the character is STANDING, and there is only the one zone
+// now. It used to mean the seat — the zone their faction was keyed to — with
+// the physical one beside it as "Standing in"; with factions gone there is no
+// seat to keep apart from the feet, so a GM's desk follows the feet.
 // Status is a fixed CharacterStatus vocabulary — options: lists every value
 // so "Cursed" doesn't vanish from the dropdown just because nobody's cursed
-// this turn. Zone/Standing in/Faction stay derived from the loaded rows,
-// since those legitimately vary game to game.
+// this turn. Zone stays derived from the loaded rows, since it legitimately
+// varies game to game.
 // Acted is a FILTER rather than a sortable column now that it lives in the
 // Flags cell. That is the better control for the question it answers — "who
 // still hasn't moved" wants the other forty rows gone, not pushed to page two
 // — and it only exists while a turn is open, since with none there is nothing
 // to have acted in.
 const FILTER_DEFS = [
-  { key: "zone", label: "Zone", value: (c) => c.factionZoneName },
-  { key: "locationZone", label: "Standing in", value: (c) => c.zoneName },
-  { key: "faction", label: "Faction", value: (c) => c.factionName },
+  { key: "zone", label: "Zone", value: (c) => c.zoneName },
   { key: "status", label: "Status", value: (c) => c.status, options: ["ALIVE", "DEAD", "CURSED"] },
 ];
 
@@ -69,18 +65,14 @@ const ACTED_FILTER = {
   options: ["Acted", "Not acted"],
 };
 
-// scoreMatch fields. Both zone concepts (faction seat and where they're
-// physically standing) share the one "zone" slot the fuzzy engine has —
-// concatenated rather than picking one, so a query matches either. `tag` is
-// every tag name the character holds, which is what makes "search by faction
-// or player" reach the sheet: role and faction were the only two proxies for
-// it before, and neither covers a Smith who took Pale.
+// scoreMatch fields. `tag` is every tag name the character holds, which is
+// what makes a search reach the sheet: the role was the only proxy for it
+// before, and that does not cover a Smith who took Pale.
 const CHARACTER_STATUS_TEXT = { ALIVE: "Alive", DEAD: "Dead", CURSED: "Cursed" };
 const searchMapFor = (c) => ({
   name: c.name,
   role: c.roleTitle,
-  faction: c.factionName,
-  zone: `${c.factionZoneName ?? ""} ${c.zoneName ?? ""}`,
+  zone: c.zoneName,
   username: c.username || c.globalName,
   status: CHARACTER_STATUS_TEXT[c.status] ?? c.status,
   tag: c.tag,
@@ -91,18 +83,7 @@ export default function RosterTable({
   tags = [],
   visibleZoneNames,
   hasOpenTurn,
-  factions,
-  factionCount,
-  initialTab,
-  initialHighlightFactionId,
 }) {
-  const [view, setView] = useState(initialTab === "factions" ? "factions" : "players");
-  // Which faction row the Factions tab highlights — set on load from the
-  // `?faction=` search param (a link in from the Dossier column, a different
-  // route under this same desk), and again whenever a FactionLink inside
-  // this desk is clicked, so the click always lands on its own row rather
-  // than just switching tabs.
-  const [highlightFactionId, setHighlightFactionId] = useState(initialHighlightFactionId || null);
   // Keyed on character id rather than row index, so a selection survives
   // paging, filtering and sorting — the recipient list is what gets sent.
   const [selected, setSelected] = useState(new Set());
@@ -152,15 +133,6 @@ export default function RosterTable({
     initialSort: { key: "name", dir: "asc" },
   });
 
-  // A FactionLink clicked from the Players tab routes here rather than to
-  // /faction — switch to the Factions tab and highlight the row, instead of
-  // leaving. The Factions tab itself no longer uses this: its own faction
-  // names are plain FactionLinks straight out to /faction.
-  function goToFaction(factionId) {
-    setHighlightFactionId(factionId);
-    setView("factions");
-  }
-
   function toggle(id) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -187,206 +159,179 @@ export default function RosterTable({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="segmented self-start" role="group" aria-label="Roster view">
-        <button type="button" aria-pressed={view === "players"} onClick={() => setView("players")}>
-          {/* inView, not `characters` — the tab said 40 while the table
-              below it showed the 6 in the zones this GM has picked. */}
-          Players ({inView.length})
+      <FilterBar
+        filterDefs={filterDefs}
+        filters={filters}
+        setFilters={setFilters}
+        options={options}
+        query={query}
+        setQuery={setQuery}
+        /* "Filter roster", not "Search players": the rail beside this one
+           already owns the word Search ("Search inbox"), and this box does
+           not reach past the rows on screen the way that one does. Two
+           boxes, two verbs. */
+        searchLabel="Filter roster"
+        searchPlaceholder="name, role, zone, @handle…"
+      >
+        <button
+          type="button"
+          className="btn"
+          disabled={selected.size === 0}
+          onClick={() => setComposerOpen(true)}
+        >
+          Message selected ({selected.size})
         </button>
-        <button type="button" aria-pressed={view === "factions"} onClick={() => setView("factions")}>
-          Factions ({factionCount})
+        <button
+          type="button"
+          className="btn"
+          disabled={selected.size === 0}
+          onClick={() => setTagBarOpen((open) => !open)}
+        >
+          Tag selected ({selected.size})
         </button>
-      </div>
+        {selected.size > 0 && (
+          <button type="button" className="btn-quiet" onClick={() => setSelected(new Set())}>
+            Clear
+          </button>
+        )}
+      </FilterBar>
 
-      {view === "factions" ? (
-        <FactionsPanel factions={factions} highlightFactionId={highlightFactionId} />
-      ) : (
-        <>
-          <FilterBar
-            filterDefs={filterDefs}
-            filters={filters}
-            setFilters={setFilters}
-            options={options}
-            query={query}
-            setQuery={setQuery}
-            /* "Filter roster", not "Search players": the rail beside this one
-               already owns the word Search ("Search inbox"), and this box does
-               not reach past the rows on screen the way that one does. Two
-               boxes, two verbs. */
-            searchLabel="Filter roster"
-            searchPlaceholder="name, role, faction, zone, @handle…"
-          >
-            <button
-              type="button"
-              className="btn"
-              disabled={selected.size === 0}
-              onClick={() => setComposerOpen(true)}
-            >
-              Message selected ({selected.size})
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={selected.size === 0}
-              onClick={() => setTagBarOpen((open) => !open)}
-            >
-              Tag selected ({selected.size})
-            </button>
-            {selected.size > 0 && (
-              <button type="button" className="btn-quiet" onClick={() => setSelected(new Set())}>
-                Clear
-              </button>
-            )}
-          </FilterBar>
-
-          {tagBarOpen && selected.size > 0 && (
-            <BulkTagBar
-              tags={tags}
-              count={selected.size}
-              characterIds={[...selected]}
-              onDone={() => {
-                setTagBarOpen(false);
-                setSelected(new Set());
-              }}
-            />
-          )}
-
-          {/* Ten columns plus the checkbox, down from thirteen. 1050px is the
-              width at which no row wraps to a second line with a real roster
-              in it — measured, not guessed: below about 1000px the names start
-              breaking over two lines and every row grows, which costs more
-              vertical room than the horizontal scroll ever cost. It is still a
-              long way down from 1230px.
-
-              It does NOT fit the desk's middle column at 1440 (694px of room),
-              so the frame keeps its horizontal scroll. Folding the three flag
-              columns cut how far you have to push it from about 535px to about
-              355px — better, not solved. Making it fit outright means dropping
-              a column somebody asked for or narrowing the inspector, and
-              neither is this batch's call. */}
-          <TableScroll minWidth="1050px">
-            <thead>
-              <tr>
-                <th scope="col" className="col-fit">
-                  <input
-                    type="checkbox"
-                    checked={pageAllSelected}
-                    onChange={togglePage}
-                    aria-label="Select every player on this page"
-                  />
-                </th>
-                <SortHeader label="Name" sortKey="name" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Discord" sortKey="username" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Role" sortKey="roleTitle" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Zone" sortKey="factionZoneName" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Faction" sortKey="factionName" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Standing in" sortKey="zoneName" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
-                <th scope="col">Flags</th>
-                <SortHeader label="Tags" sortKey="tagCount" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Resources" sortKey="resources" sort={sort} onSort={toggleSort} />
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((c) => {
-                const match = matchFor(c);
-                return (
-                <tr key={c.id}>
-                  {/* The box itself stays 16px; the padding is what makes the
-                      tap target reach the 44px minimum. */}
-                  <td style={{ padding: "12px 14px" }}>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(c.id)}
-                      onChange={() => toggle(c.id)}
-                      aria-label={`Select ${c.name}`}
-                    />
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-2">
-                      <CharacterAvatar
-                        characterId={c.id}
-                        name={c.name}
-                        version={c.avatarVersion}
-                        catatonic={c.catatonic}
-                        zoomable
-                      />
-                      {/* Straight into their conversation — the verb this desk
-                          exists for. The Dev Panel is one click further, off
-                          the name itself. */}
-                      <Link href={`/gm/players/${c.discordUserId}`} className="menu-item">
-                        {c.name}
-                      </Link>
-                      <MatchHint
-                        match={match}
-                        values={{ role: c.roleTitle, faction: c.factionName, zone: c.zoneName }}
-                      />
-                      <DevCharacterButton
-                        characterId={c.id}
-                        name={c.name}
-                        onOpen={() => setDevPanel({ characterId: c.id, name: c.name })}
-                      />
-                    </div>
-                  </td>
-                  <td className="text-muted">{c.username ? `@${c.username}` : c.globalName || "-"}</td>
-                  <td>{c.roleTitle ?? "-"}</td>
-                  <td>
-                    <ZoneChip zoneName={c.factionZoneName} />
-                  </td>
-                  <td>
-                    <FactionLink
-                      factionId={c.factionId}
-                      name={c.factionName || "-"}
-                      onSelect={goToFaction}
-                    />
-                  </td>
-                  <td className="text-muted">{c.zoneName || "-"}</td>
-                  <td>
-                    <EnumPill map={CHARACTER_STATUS} value={c.status} />
-                  </td>
-                  {/* Three states that are nearly always absent, in one cell.
-                      Catatonic is AFK, from the auto-granted catatonic tag
-                      (db/lib/catatonicPass.js), not a CharacterStatus. "Not
-                      acted" is the only one drawn for its ABSENCE, because
-                      absence is the thing a GM is hunting in the back half of
-                      a turn; with no turn open there is nothing to say. */}
-                  <td>
-                    <div className="flex flex-wrap items-center gap-1">
-                      {c.cursed && <StatusPill tone="bad">Cursed</StatusPill>}
-                      {c.catatonic && <StatusPill tone="warn">Catatonic</StatusPill>}
-                      {hasOpenTurn &&
-                        (c.acted ? (
-                          <StatusPill tone="good">Acted</StatusPill>
-                        ) : (
-                          <StatusPill tone="warn">Not acted</StatusPill>
-                        ))}
-                      {!c.cursed && !c.catatonic && !hasOpenTurn && (
-                        <span className="text-muted">-</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="mono">{c.tagCount}</td>
-                  <td className="mono">{c.resources} ⬢</td>
-                </tr>
-                );
-              })}
-              {pageRows.length === 0 && (
-                <tr>
-                  <td colSpan={COL_COUNT} className="text-center text-muted">
-                    No characters match these filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </TableScroll>
-
-          <Pager page={page} totalPages={totalPages} total={total} unit="players" onPage={setPage} />
-        </>
+      {tagBarOpen && selected.size > 0 && (
+        <BulkTagBar
+          tags={tags}
+          count={selected.size}
+          characterIds={[...selected]}
+          onDone={() => {
+            setTagBarOpen(false);
+            setSelected(new Set());
+          }}
+        />
       )}
+
+      {/* Ten columns plus the checkbox, down from thirteen. 1050px is the
+          width at which no row wraps to a second line with a real roster
+          in it — measured, not guessed: below about 1000px the names start
+          breaking over two lines and every row grows, which costs more
+          vertical room than the horizontal scroll ever cost. It is still a
+          long way down from 1230px.
+
+          It does NOT fit the desk's middle column at 1440 (694px of room),
+          so the frame keeps its horizontal scroll. Folding the three flag
+          columns cut how far you have to push it from about 535px to about
+          355px — better, not solved. Making it fit outright means dropping
+          a column somebody asked for or narrowing the inspector, and
+          neither is this batch's call. */}
+      <TableScroll minWidth="880px">
+        <thead>
+          <tr>
+            <th scope="col" className="col-fit">
+              <input
+                type="checkbox"
+                checked={pageAllSelected}
+                onChange={togglePage}
+                aria-label="Select every player on this page"
+              />
+            </th>
+            <SortHeader label="Name" sortKey="name" sort={sort} onSort={toggleSort} />
+            <SortHeader label="Discord" sortKey="username" sort={sort} onSort={toggleSort} />
+            <SortHeader label="Role" sortKey="roleTitle" sort={sort} onSort={toggleSort} />
+            <SortHeader label="Zone" sortKey="zoneName" sort={sort} onSort={toggleSort} />
+            <SortHeader label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
+            <th scope="col">Flags</th>
+            <SortHeader label="Tags" sortKey="tagCount" sort={sort} onSort={toggleSort} />
+            <SortHeader label="Resources" sortKey="resources" sort={sort} onSort={toggleSort} />
+          </tr>
+        </thead>
+        <tbody>
+          {pageRows.map((c) => {
+            const match = matchFor(c);
+            return (
+            <tr key={c.id}>
+              {/* The box itself stays 16px; the padding is what makes the
+                  tap target reach the 44px minimum. */}
+              <td style={{ padding: "12px 14px" }}>
+                <input
+                  type="checkbox"
+                  checked={selected.has(c.id)}
+                  onChange={() => toggle(c.id)}
+                  aria-label={`Select ${c.name}`}
+                />
+              </td>
+              <td>
+                <div className="flex items-center gap-2">
+                  <CharacterAvatar
+                    characterId={c.id}
+                    name={c.name}
+                    version={c.avatarVersion}
+                    catatonic={c.catatonic}
+                    zoomable
+                  />
+                  {/* Straight into their conversation — the verb this desk
+                      exists for. The Dev Panel is one click further, off
+                      the name itself. */}
+                  <Link href={`/gm/players/${c.discordUserId}`} className="menu-item">
+                    {c.name}
+                  </Link>
+                  <MatchHint
+                    match={match}
+                    values={{ role: c.roleTitle, zone: c.zoneName }}
+                  />
+                  <DevCharacterButton
+                    characterId={c.id}
+                    name={c.name}
+                    onOpen={() => setDevPanel({ characterId: c.id, name: c.name })}
+                  />
+                </div>
+              </td>
+              <td className="text-muted">{c.username ? `@${c.username}` : c.globalName || "-"}</td>
+              <td>{c.roleTitle ?? "-"}</td>
+              <td>
+                <ZoneChip zoneName={c.zoneName} />
+              </td>
+              <td>
+                <EnumPill map={CHARACTER_STATUS} value={c.status} />
+              </td>
+              {/* Three states that are nearly always absent, in one cell.
+                  Catatonic is AFK, from the auto-granted catatonic tag
+                  (db/lib/catatonicPass.js), not a CharacterStatus. "Not
+                  acted" is the only one drawn for its ABSENCE, because
+                  absence is the thing a GM is hunting in the back half of
+                  a turn; with no turn open there is nothing to say. */}
+              <td>
+                <div className="flex flex-wrap items-center gap-1">
+                  {c.cursed && <StatusPill tone="bad">Cursed</StatusPill>}
+                  {c.catatonic && <StatusPill tone="warn">Catatonic</StatusPill>}
+                  {hasOpenTurn &&
+                    (c.acted ? (
+                      <StatusPill tone="good">Acted</StatusPill>
+                    ) : (
+                      <StatusPill tone="warn">Not acted</StatusPill>
+                    ))}
+                  {!c.cursed && !c.catatonic && !hasOpenTurn && (
+                    <span className="text-muted">-</span>
+                  )}
+                </div>
+              </td>
+              <td className="mono">{c.tagCount}</td>
+              <td className="mono">{c.resources} ⬢</td>
+            </tr>
+            );
+          })}
+          {pageRows.length === 0 && (
+            <tr>
+              <td colSpan={COL_COUNT} className="text-center text-muted">
+                No characters match these filters.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </TableScroll>
+
+      <Pager page={page} totalPages={totalPages} total={total} unit="players" onPage={setPage} />
 
       {/* One bulk-message UI on this desk, not two. "Message selected" used
           to unfold its own inline panel with a bare textarea — no recipient
-          list you could edit, no character count, no zone/faction shortcuts —
+          list you could edit, no character count, no zone shortcuts —
           beside a BulkComposer that already had all four and was reachable
           from the desk header. Same modal now, opened with the roster's
           selection already ticked. */}

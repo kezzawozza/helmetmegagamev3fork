@@ -50,15 +50,15 @@ function standingIn(character, locationId) {
   return Boolean(character && character.locationId === locationId);
 }
 
-// The green "Who's here?" button. Named characters first, with their Role
-// for a fellow faction member (same rule as the 🔍 inspect gate, FACTIONS.md
-// §4a). Concealed characters listed separately. A forced name outranks both:
-// listed with no Role, never on the concealed line.
+// The green "Who's here?" button. Named characters first — names and nothing
+// else, since a role title is private (the same rule the 🔍 inspect embed
+// keeps). Concealed characters are listed separately, and a forced name
+// outranks a real one without ever joining the concealed line.
 async function handleWhosHere(interaction, locationId) {
   await ack(interaction);
 
   const viewer = await actingCharacter(interaction, {
-    select: { id: true, factionId: true, locationId: true },
+    select: { id: true, locationId: true },
   });
   // A GM reads the room from anywhere; a player has to be in it. Without this
   // a doorway walked through once would be a live roster of everyone coming

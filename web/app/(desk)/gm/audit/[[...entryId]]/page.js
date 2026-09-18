@@ -59,16 +59,15 @@ async function FreshAudit({ params, searchParams, userId }) {
   const selectedId = routeParams?.entryId?.[0] ?? null;
   const filters = parseAuditParams(rawSearch);
 
-  const [guildMembers, gmProfiles, openTurn, zones, factions, locations, visibleZones, selectableZones] = await Promise.all([
+  const [guildMembers, gmProfiles, openTurn, zones, locations, visibleZones, selectableZones] = await Promise.all([
     listGuildMembers(),
     getGmProfiles(),
     getOpenTurn(),
     // Seat zones: every stamped zoneId in the app is one, so the three cave
     // levels would be four filter options nothing ever matches.
     prisma.zone.findMany({ where: { kind: { not: "CAVE_LEVEL" } }, select: { id: true, name: true } }),
-    prisma.faction.findMany({ select: { id: true, name: true } }),
     // WHERE it happened — a different axis from the Zone filter above, which
-    // is the target's faction zone. Rooms travel nested under their
+    // is where the target is standing. Rooms travel nested under their
     // Location so the filter can narrow the room list to the chosen place.
     prisma.location.findMany({
       select: { id: true, name: true, rooms: { select: { id: true, name: true } } },
@@ -166,7 +165,6 @@ async function FreshAudit({ params, searchParams, userId }) {
   ).map((t) => composeChipTag(t, GM_CHIP_CTX));
   const names = Object.fromEntries([
     ...tags.map((t) => [t.id, t.name]),
-    ...factions.map((f) => [f.id, f.name]),
     ...zones.map((z) => [z.id, z.name]),
     ...ctx.characters.map((c) => [c.id, c.name]),
   ]);
@@ -255,10 +253,8 @@ async function FreshAudit({ params, searchParams, userId }) {
           id: c.id,
           name: c.name,
           status: c.status,
-          factionName: c.faction?.name ?? null,
         }))
         .sort((a, b) => a.name.localeCompare(b.name)),
-        factions: factions.sort((a, b) => a.name.localeCompare(b.name)),
         zones: sortZones(zones),
         // WHERE it happened — the room filter's options, nested under
         // Location so the rail can narrow rooms to whichever place is picked.

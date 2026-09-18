@@ -28,7 +28,7 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
     for (const e of stagedEffects) {
       if (e.applied) continue;
       // A row with no character end — a room's stash, or an old,
-      // pre-Silo-removal transfer between two factions — has nothing to group
+      // pre-removal transfer between two rooms — has nothing to group
       // under, so each gets its own bucket keyed by its own row id rather than
       // piling every such row into one shared "no character" entry.
       const id = e.targetCharacterId ?? `party:${e.id}`;

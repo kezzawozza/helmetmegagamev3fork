@@ -210,11 +210,6 @@ families:
     group: ambition
     color: "#5ab3ce"
     # Rank, office, title, promotion, coronation, standing.
-  faction-success:
-    name: Faction Success
-    group: ambition
-    color: "#8cd0dc"
-    # Your own side winning something.
   feud:
     name: Feud
     group: blood
@@ -537,12 +532,6 @@ desires:
     tier: 3
     families: [bravery, charity]
     cooldownTurns: 5
-
-  save-a-leaders-life:
-    name: Save a faction leader's life
-    tier: 5
-    families: [bravery, charity]
-    oncePerLife: true
 
   win-a-tournament:
     name: Win a tournament
@@ -1027,14 +1016,14 @@ desires:
   angry-mob:
     name: Organise an angry mob
     tier: 4
-    families: [faction-success, faith]
+    families: [status, faith]
     requires:
       anyRoles: [preacher]
 
   stop-the-taxes:
     name: Stop sending taxes to the Baron
     tier: 3
-    families: [faction-success]
+    families: [status]
     requires:
       anyRoles: [headman]
 

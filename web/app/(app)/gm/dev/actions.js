@@ -4,7 +4,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
-import { isUnaffiliated, UNAFFILIATED_SLUG } from "@lifeweb/db/lib/factionConstants";
 import { closeDeadchatTo, deadchatSeatHolders, ensureDeadchatChannel } from "@lifeweb/db/lib/deadchat";
 import { after } from "next/server";
 import { parseConfigForm } from "@lifeweb/db/lib/gameConfigFields";
@@ -45,7 +44,6 @@ import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { inactiveCharacters } from "@lifeweb/db/lib/inactivity";
 import { grantTagSlugs, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { addCharacterResources, resourcesByCharacterIds } from "@lifeweb/db/lib/resourceStack";
-import { getFactionAncestorIds } from "@/lib/factionPermissions";
 import { mintLetterFor, sealWithMark } from "@lifeweb/db/lib/paperMint";
 import { dmAction, DM_ACTION } from "@lifeweb/db/lib/dmActions";
 import {
@@ -61,14 +59,6 @@ import { afterInventoryChange } from "@/lib/afterInventoryChange";
 // The same ceiling the Write dialog puts on a player's sheet — a GM letter is
 // a sheet of paper like any other, and a longer one would not fit the object.
 const GM_LETTER_MAX = 2000;
-
-// The three faction-editing actions below (create/edit, delete, assign
-// member) all touch the same three surfaces on the way out.
-function revalidateFactionSurfaces() {
-  revalidatePath("/gm/dev");
-  revalidatePath("/faction");
-  revalidatePath("/gm/players", "layout");
-}
 
 function str(formData, key) {
   const v = formData.get(key);
@@ -424,15 +414,6 @@ export async function wipeGameData(formData) {
       // /gm/dev/tags is custom too and must SURVIVE a restart. Runs after the
       // holdings above so nothing references these rows.
       prisma.tag.deleteMany({ where: { ephemeral: true } }),
-      // Factions are live game state now (FACTIONS.md), so a restart has to
-      // undo the parts players wrote. Handshakes go with the characters they
-      // named; every silo is un-pointed so db:sync-roles' null-fill floor can
-      // seed the authored ones again; and a faction somebody FOUNDED in the
-      // last game is deleted outright rather than lingering as a leaderless
-      // ghost. Founded factions carry no Role rows, so nothing cascades into
-      // the creation wizard.
-      prisma.factionApplication.deleteMany({}),
-      prisma.faction.updateMany({ data: { siloRoomId: null } }),
       prisma.auditLog.deleteMany({}),
       // Antagonist objectives are per-game state. The epilogue snapshot above
       // ran before this transaction opened, so it has already read them.
@@ -538,10 +519,6 @@ export async function wipeGameData(formData) {
         });
       }
     }
-
-    // After the character sweep above, so the FK from Character.factionId is
-    // already gone and the delete cannot be blocked by a member.
-    await prisma.faction.deleteMany({ where: { foundedById: { not: null } } });
 
     const wipeStartedAt = new Date();
     const wipeTurnLengthHours = normalizeTurnLength((await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { turnLengthHours: true } }))?.turnLengthHours);
@@ -694,126 +671,6 @@ async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds,
       },
     })
     .catch((err) => console.error("Game wipe completion audit failed:", err));
-}
-
-export async function updateFaction(formData) {
-  await requireDev("gm");
-
-  const factionId = str(formData, "factionId");
-  if (!factionId) return;
-
-  const before = await prisma.faction.findUnique({ where: { id: factionId } });
-  if (!before) return;
-
-  const parentFactionId = str(formData, "parentFactionId").trim() || null;
-  if (parentFactionId) {
-    if (parentFactionId === factionId) return;
-    // Reject a cycle: can't already be an ancestor of its new parent.
-    const ancestorIds = await getFactionAncestorIds(parentFactionId);
-    if (ancestorIds.includes(factionId)) return;
-  }
-
-  // A room id straight off the form. Validated by existence rather than
-  // trusted, and "" clears the pointer.
-  const siloRoomRaw = str(formData, "siloRoomId").trim();
-  let siloRoomId = null;
-  if (siloRoomRaw) {
-    const room = await prisma.room.findUnique({ where: { id: siloRoomRaw }, select: { id: true } });
-    if (!room) return;
-    siloRoomId = room.id;
-  }
-
-  await prisma.faction.update({
-    where: { id: factionId },
-    data: {
-      name: str(formData, "name").trim(),
-      parentFactionId,
-      siloRoomId,
-    },
-  });
-
-  revalidateFactionSurfaces();
-}
-
-// Reassigns the faction's members to "Unaffiliated" before deleting the row.
-export async function deleteFaction(formData) {
-  const session = await requireDev();
-
-  const factionId = str(formData, "factionId");
-  if (!factionId) return;
-
-  const faction = await prisma.faction.findUnique({ where: { id: factionId } });
-  if (!faction || isUnaffiliated(faction)) return;
-
-  const unaffiliated = await prisma.faction.findFirst({ where: { slug: UNAFFILIATED_SLUG } });
-  if (unaffiliated) {
-    await prisma.character.updateMany({
-      where: { factionId },
-      data: { factionId: unaffiliated.id, isLeader: false },
-    });
-  }
-
-  await prisma.faction.delete({ where: { id: factionId } });
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "faction_deleted",
-      details: { factionId, name: faction.name },
-    },
-  });
-
-  revalidateFactionSurfaces();
-}
-
-// Moves a character into a faction and sets their seats, in one write.
-// Deliberately not built out of the player-facing actions: those all check
-// "is this your faction", which is the check a GM is here to skip.
-export async function assignFactionMember(formData) {
-  const session = await requireDev("gm");
-
-  const characterId = str(formData, "characterId");
-  const factionId = str(formData, "factionId");
-  if (!characterId || !factionId) return;
-
-  const [character, faction] = await Promise.all([
-    prisma.character.findUnique({ where: { id: characterId }, select: { id: true, name: true } }),
-    prisma.faction.findUnique({ where: { id: factionId }, select: { id: true, name: true, slug: true } }),
-  ]);
-  if (!character || !faction) return;
-
-  const makeLeader = str(formData, "isLeader") === "true" && !isUnaffiliated(faction);
-  const makeTreasurer = str(formData, "isTreasurer") === "true" && !isUnaffiliated(faction);
-
-  await prisma.$transaction(async (tx) => {
-    // One Leader per faction, same rule setFactionLeader keeps.
-    if (makeLeader) {
-      await tx.character.updateMany({
-        where: { factionId, isLeader: true },
-        data: { isLeader: false },
-      });
-    }
-    await tx.character.update({
-      where: { id: characterId },
-      data: { factionId, isLeader: makeLeader, isTreasurer: makeTreasurer },
-    });
-    // Whatever they had open elsewhere is moot once a GM has placed them.
-    await tx.factionApplication.updateMany({
-      where: { characterId, status: "PENDING" },
-      data: { status: "WITHDRAWN" },
-    });
-  });
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "faction_member_assigned",
-      targetCharacterId: characterId,
-      details: { factionId, factionName: faction.name, isLeader: makeLeader, isTreasurer: makeTreasurer },
-    },
-  });
-
-  revalidateFactionSurfaces();
 }
 
 // --- The bomb ---------------------------------------------------------

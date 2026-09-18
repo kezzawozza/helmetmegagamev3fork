@@ -980,7 +980,7 @@ standing balance. It is visible to GMs, and that is the enforcement.
 
 Selling to another **player** is still not on this page. It is the existing
 `TRANSFER_TAG` and `TRANSFER_RESOURCES` pair on `/character`, which requires
-both parties in the same zone (`FACTIONS.md` §3b).
+both parties standing together (`CARRY.md`).
 
 What changed is that selling to the **station** is no longer the Merchant's
 alone: the drop box (§0f) takes anything from anybody. That does not make him

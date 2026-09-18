@@ -5,9 +5,8 @@ import IconButton from "@/app/components/IconButton";
 import { MenuIcon, PlayersIcon } from "@/app/components/icons";
 
 // The head over a scene: the open place's name, where you are standing above
-// it, and the place's own words under it. The feed, the Bascinet pane and
-// the faction panel all wear this one — they used to build three slightly
-// different heads by hand.
+// it, and the place's own words under it. Both the feed and the Bascinet pane
+// wear this one — they used to build slightly different heads by hand.
 //
 // On a phone (under 720px, useNarrow.js) it is also the whole top of the
 // screen, the way Discord's channel bar is: ≡ on the left opens the places
@@ -30,7 +29,7 @@ export default function ChatHead({
   unreadElsewhere = false,
   // The count on the people button. Null draws the glyph alone.
   hereCount = null,
-  // Whatever sits at the right edge: the feed's search, the faction link.
+  // Whatever sits at the right edge — the feed's search, for instance.
   trailing = null,
 }) {
   const [descOpen, setDescOpen] = useState(false);

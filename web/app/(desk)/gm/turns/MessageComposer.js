@@ -63,7 +63,7 @@ export default function MessageComposer({
       .filter((c) => !chosen.has(c.id))
       .map((c) => ({
         c,
-        match: scoreMatch(q, { name: c.name, role: c.roleTitle, faction: c.factionName, zone: c.zoneName, username: c.username }),
+        match: scoreMatch(q, { name: c.name, role: c.roleTitle, zone: c.zoneName, username: c.username }),
       }))
       .filter((r) => r.match)
       .sort((a, b) => b.match.score - a.match.score)
@@ -121,7 +121,7 @@ export default function MessageComposer({
           </div>
           <label className="field">
             <span className="field-label">Add a recipient</span>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="name, role, faction, zone…" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="name, role, zone…" />
           </label>
           {matches.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -137,7 +137,6 @@ export default function MessageComposer({
                   }}
                 >
                   + {c.name}
-                  {c.factionName ? <span className="text-muted"> · {c.factionName}</span> : null}
                 </button>
               ))}
             </div>

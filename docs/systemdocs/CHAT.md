@@ -229,7 +229,7 @@ DM, and a box to write back into.
 stream's catch-up, `history`, `say`, `feedStore`, the wipe floors — is keyed
 on `ArchiveEntry.seq`. A DM has no seq, must never appear in `/archive` or a
 GM's transcript views, and must never be wiped by the turn. So Bascinet is a
-**pseudo-place**, the shape the faction banner already had: it is in the
+**pseudo-place**: it is in the
 column and it round-trips through the hash (`#gm`, `DM_PLACE_KEY`), and what
 its row opens is a panel of its own, `DmPane.js`, rather than `Feed`.
 
@@ -851,8 +851,8 @@ a 48px head and a one-line composer:
   opposite swipe inside a drawer closes it). Touch events only, passive, no
   follow-the-finger — the drawer slides in on its own once the gesture
   lands.
-- **The head is `ChatHead.js`**, one component the feed, the Bascinet pane
-  and the faction panel all wear. On a phone
+- **The head is `ChatHead.js`**, one component both the feed and the Bascinet
+  pane wear. On a phone
   the crumb is dropped, the name is one line, and the description shows only
   once the name has been tapped.
 - **The box is one line and grows** as you type, to about six lines
@@ -897,8 +897,8 @@ a 48px head and a one-line composer:
 - **`PlacesColumn.js`** draws the column, and since the zone split it draws it
   in two halves. The top is the places that belong to **no zone**: **Mail**
   (the Bascinet conversation, §2b, then Deadchat, one section — the mockup
-  draws them together), **Radio** (the frequencies carried, §5d) and
-  **Faction** (the roster pseudo-place). Everything below that is **grouped by
+  draws them together) and **Radio** (the frequencies carried, §5d).
+  Everything below that is **grouped by
   zone**, the way Discord groups channels into categories, each group headed by
   a horizontal divider carrying the zone's name — `—— TOWN ——`,
   `—— FORTRESS ——`. Inside a group the sections are unchanged: **Summary** (the
@@ -1477,8 +1477,8 @@ a 48px head and a one-line composer:
      it too) — drawn at the TOP of the Place panel, on every width. Everyone
      standing here, hooded or not, off
      `db/lib/whosHere.js#whosHere` called with `{ withSightings: true }`. A row
-     is a 24px avatar, the presented name (their Role for a fellow member of a
-     real faction, `you` on your own) and, **once you have heard them speak**,
+     is a 24px avatar, the presented name (`you` on your own) and, **once you
+     have heard them speak**,
      an eye at the row's right edge that opens **Look at** in one click. The
      name opens a `.chat-menu` of the SHEET's own people dialogs — Heal,
      Transfer, Loot, Bind, Free, Harm, **Converse** — by mounting
@@ -2090,8 +2090,8 @@ a stale sheet is safe; the fresh data simply replaces it.
 `/notes`, `/gm/players` and a player's conversation, `/gm/turns`, `/gm/audit`,
 `/gm/crafts`, `/gm/structures`, `/gm/dev/tags` and the dev panel for one
 character. Not yet, because their bodies are hand-built server JSX rather
-than one client component: `/archive`, `/faction`, `/lifeweb`, `/gm/dev` and
-its Characters / Factions tables. Those still show their skeleton on every
+than one client component: `/archive`, `/lifeweb`, `/gm/dev` and its
+Characters table. Those still show their skeleton on every
 visit; converting one means lifting its JSX into a client view first.
 
 **Converting a page** is: split the default export into a session read plus
@@ -2461,7 +2461,8 @@ the room is not hearing the speaker's own name.
 `whosHereGm` is a sibling of `whosHere` rather than a flag on it, because the
 answer is a different SHAPE and not the same shape with something withheld:
 there is no named/concealed split to make, no sighting to earn a face with, and
-no faction gate on a Role. A name in the list opens `DevPanelModal` over the
+the Role is printed outright — a GM reads it, a player never does. A name in
+the list opens `DevPanelModal` over the
 chat, which is already built to mount over any desk without leaving it.
 
 ### Saying something

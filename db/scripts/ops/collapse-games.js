@@ -2,7 +2,7 @@
 // deleted, and the transcript emptied with them. Restart Game's own Discard
 // button is the per-game version of this; this script takes the whole
 // history at once. Keeps the CURRENT game (characters, tags, turns,
-// factions, everything GameState points at), stripped of any ending
+// everything GameState points at), stripped of any ending
 // (`endedAt`, `closingNote`, `epilogue`, `nukeDetonatedTurn`/
 // `ascensionFiredTurn`). ArchiveEntry.gameId is a snapshot column, not a
 // foreign key, so the transcript is deleted in the same pass rather than

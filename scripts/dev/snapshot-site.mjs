@@ -52,7 +52,6 @@ const ROUTES = [
   ["/character", "player"],
   ["/chat", "player"],
   ["/documents", "player"],
-  ["/faction", "player"],
   ["/notes", "player"],
   ["/archive", "gm"],
   ["/lifeweb", "gm"],
@@ -66,7 +65,6 @@ const ROUTES = [
   ["/gm/dev?s=gamemasters", "gm"],
   ["/gm/dev?s=bulk", "gm"],
   ["/gm/dev?s=characters", "gm"],
-  ["/gm/dev?s=factions", "gm"],
   ["/gm/dev?s=tags", "gm"],
   ["/gm/dev?s=zones", "gm"],
 ];

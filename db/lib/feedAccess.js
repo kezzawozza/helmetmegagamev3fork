@@ -81,7 +81,7 @@ function place({
     // Which category this place sits in, so the web column can group by zone
     // the way Discord groups by category (web/app/(app)/chat/PlacesColumn.js).
     // Null means it belongs to no zone at all and is drawn above the groups:
-    // the radio nets here, and the DM/Faction pseudo-places Chat.js adds.
+    // the radio nets here, and the DM pseudo-place Chat.js adds.
     zoneId,
     zoneName,
     // A place you walked out of and are still watching (db/lib/vantages.js).

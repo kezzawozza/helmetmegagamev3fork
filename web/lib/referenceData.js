@@ -116,7 +116,6 @@ export async function getDocumentIndex() {
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
       include: {
         role: true,
-        faction: true,
         tags: { include: { tag: { select: { slug: true, name: true } } } },
       },
     }),

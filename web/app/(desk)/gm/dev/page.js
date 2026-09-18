@@ -45,10 +45,8 @@ import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ArchiveGameButton from "@/app/(app)/gm/dev/ArchiveGameButton";
 import QuestsSection from "@/app/(app)/gm/dev/quests/QuestsSection";
 import CharactersTable from "@/app/(app)/gm/dev/characters/CharactersTable";
-import FactionsTable from "@/app/(app)/gm/dev/factions/FactionsTable";
 import ZonesTable from "@/app/(app)/gm/dev/zones/ZonesTable";
 import DevTagsSection from "./DevTagsSection";
-import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
 import { turnsRemaining } from "@lifeweb/db/lib/quests";
 import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
@@ -286,7 +284,6 @@ export default async function DevPanelPage({ searchParams }) {
   // was already a client table fed a flat DTO, so moving it here is the fetch
   // and the table — no shell, no sub-nav, no second header.
   let devCharacters = [];
-  let devFactions = null;
   let devZones = [];
   let inactiveList = [];
   let inactiveTurn = null;
@@ -588,7 +585,7 @@ export default async function DevPanelPage({ searchParams }) {
           orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
           // RESOURCES_SELECT rides along inside the include — ⬢ are a stack
           // row now, so the count comes off the tag rather than a column.
-          include: { faction: true, zone: true, ...RESOURCES_SELECT },
+          include: { zone: true, ...RESOURCES_SELECT },
           // Safety net against unbounded growth, not a real limit — far above
           // any realistic roster size for this game (100+ players).
           take: 1000,
@@ -599,87 +596,11 @@ export default async function DevPanelPage({ searchParams }) {
         // No Date objects across the boundary, so updatedAt travels as the
         // epoch CharacterAvatar's `version` prop wants.
         avatarVersion: c.updatedAt.getTime(),
-        factionId: c.factionId,
-        factionName: c.faction?.name ?? "-",
         zoneName: c.zone?.name ?? "-",
         status: c.status,
         resources: resourcesOf(c),
       }));
       break;
-    case "factions": {
-      const [factions, allRooms, characters, pendingApplications] = await Promise.all([
-        prisma.faction.findMany({
-          orderBy: { name: "asc" },
-          include: {
-            zone: { select: { name: true } },
-            _count: { select: { characters: true } },
-          },
-        }),
-        prisma.room.findMany({
-          orderBy: [{ name: "asc" }],
-          select: {
-            id: true,
-            name: true,
-            accessTagSlugs: true,
-            location: { select: { name: true, zone: { select: { name: true } } } },
-          },
-        }),
-        prisma.character.findMany({
-          where: { status: "ALIVE" },
-          orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-          select: { id: true, name: true, factionId: true, isLeader: true, isTreasurer: true },
-          take: 1000,
-        }),
-        prisma.factionApplication.findMany({
-          where: { status: "PENDING" },
-          orderBy: { createdAt: "asc" },
-          select: {
-            id: true,
-            kind: true,
-            note: true,
-            factionId: true,
-            faction: { select: { name: true } },
-            character: { select: { id: true, name: true } },
-          },
-        }),
-      ]);
-
-      // Flat DTOs for the client table — flat strings/numbers only.
-      devFactions = {
-        rows: factions.map((f) => ({
-          id: f.id,
-          name: f.name,
-          zoneName: f.zone?.name ?? "",
-          parentFactionId: f.parentFactionId,
-          siloRoomId: f.siloRoomId,
-          memberCount: f._count.characters,
-          foundedInPlay: Boolean(f.foundedById),
-          deletable: !isUnaffiliated(f),
-        })),
-        rooms: allRooms.map((r) => ({
-          id: r.id,
-          name: r.name,
-          locationName: r.location.name,
-          zoneName: r.location.zone?.name ?? "",
-          locked: r.accessTagSlugs.length > 0,
-        })),
-        members: characters.map((c) => ({
-          id: c.id,
-          name: c.name,
-          isLeader: c.isLeader,
-          isTreasurer: c.isTreasurer,
-        })),
-        applications: pendingApplications.map((a) => ({
-          id: a.id,
-          kind: a.kind,
-          note: a.note,
-          factionName: a.faction.name,
-          characterId: a.character.id,
-          characterName: a.character.name,
-        })),
-      };
-      break;
-    }
     case "zones":
       devZones = (
         await prisma.zone.findMany({
@@ -1271,21 +1192,6 @@ export default async function DevPanelPage({ searchParams }) {
                 <h2 className="section-title">Characters ({devCharacters.length})</h2>
               </div>
               <CharactersTable rows={devCharacters} />
-            </section>
-          ) : null}
-
-          {section === "factions" ? (
-            <section className="ops-section ops-section--wide">
-              <div className="ops-section-head">
-                <h2 className="section-title">Factions ({devFactions?.rows.length ?? 0})</h2>
-              </div>
-              <FactionsTable
-                rows={devFactions?.rows ?? []}
-                rooms={devFactions?.rooms ?? []}
-                members={devFactions?.members ?? []}
-                applications={devFactions?.applications ?? []}
-                canDelete={isMaster}
-              />
             </section>
           ) : null}
 

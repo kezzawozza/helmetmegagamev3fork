@@ -392,9 +392,9 @@ model GameConfig {
   // the Dev Panel so it can be tuned right up to launch.
   startingTagPoints Int @default(8)
 
-  // Whether a role that grants a faction Leader seat still requires the
+  // Whether a reserved seat (Role.requiresWhitelist) still requires the
   // @Leader Whitelist Discord role (db/lib/roleIds.js). Off means every player
-  // may pick a Leader role - read by character/page.js to decide which cards
+  // may pick one - read by character/page.js to decide which cards
   // render selectable, and re-checked by createCharacter, the same
   // presentation/lock split the game phase uses. Deliberately ON by default:
   // this gate fails closed, and the reservation is the normal state of the game.
@@ -481,7 +481,7 @@ model GameConfig {
   // a head. It died in 9/2026 with the ⬢ columns: Resources are a one-pound
   // item now, so they push against THIS cap beside everything else and a
   // character choosing between a fortune and their armour is the point.
-  carryWeightLbs   Int @default(71)
+  carryWeightLbs Int @default(71)
 
   // Free zone crossings per character per turn, before a crossing starts
   // spending the Move (docs/systemdocs/CARRY.md §2). An equipped mount adds
@@ -1012,107 +1012,6 @@ model Depot {
   updatedAt DateTime @updatedAt
 }
 
-// Master-sourced from docs/roles.yaml's zones[].factions[]
-// (db/lib/syncRoles.js#syncRolesFromYaml, npm run db:sync-roles), then LIVE:
-// players found factions, rename them, secede from a parent and move between
-// them, so nothing here is safe to re-derive from the YAML.
-//
-// `slug` is the stable match key and the ONLY thing code may branch on --
-// `name` is player-editable (db/lib/factionConstants.js#isUnaffiliated).
-model Faction {
-  id   String @id @default(cuid())
-  slug String @unique
-  name String
-
-  // Where this faction banks: a Room, whose RoomTag stacks ARE the silo, ⬢
-  // included (CARRY.md, FACTIONS.md). There is no faction-level
-  // balance -- a Silo model existed until 9/2026 and is not coming back.
-  // Seeded create-only from roles.yaml's `silo:`, then owned by the faction's
-  // officers. SetNull, so pruning a room in db:sync-zones unpoints the silo
-  // rather than cascading the faction away.
-  siloRoomId String?
-  siloRoom   Room?   @relation("FactionSilo", fields: [siloRoomId], references: [id], onDelete: SetNull)
-
-  // The character who founded this faction in play; null for every faction
-  // the YAML authored. Kept as a plain id rather than a relation: the founder
-  // can die, leave or be deleted, and none of that should touch the faction.
-  foundedById String?
-
-  applications FactionApplication[]
-
-  // The Zone this faction belongs to, from its nesting in roles.yaml. Groups
-  // the character-creation role picker (Zone -> Faction -> Role) and labels
-  // the faction on every ZoneChip surface. Members are not confined to it.
-  zoneId String?
-  zone   Zone?   @relation("FactionHomeZone", fields: [zoneId], references: [id])
-
-  // Authoring order within the zone, so the picker lists factions the way
-  // roles.yaml does rather than alphabetically.
-  sortOrder Int @default(0)
-
-  roles Role[]
-
-  // Nesting, for the role picker and the roster. Membership/leadership
-  // administration stays same-faction only.
-  parentFactionId String?
-  parentFaction   Faction?  @relation("FactionHierarchy", fields: [parentFactionId], references: [id])
-  subjectFactions Faction[] @relation("FactionHierarchy")
-
-  characters Character[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// One live handshake between a character and a faction, in whichever
-// direction it was opened. Deliberately NOT a Request (REQUESTS.md): a
-// Request lands immediately and is reviewed afterwards, carrying an applied
-// `effect` snapshot, and an application's whole nature is that it sits
-// pending until somebody answers it.
-enum FactionApplicationKind {
-  // The character knocked. Any officer of the faction answers.
-  APPLICATION
-  // An officer knocked. The named character answers.
-  INVITE
-}
-
-enum FactionApplicationStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
-  // Pulled back by whoever opened it -- including automatically, when the
-  // applicant joins somewhere else or dies.
-  WITHDRAWN
-}
-
-model FactionApplication {
-  id String @id @default(cuid())
-
-  factionId String
-  faction   Faction @relation(fields: [factionId], references: [id], onDelete: Cascade)
-
-  characterId String
-  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-
-  kind   FactionApplicationKind
-  status FactionApplicationStatus @default(PENDING)
-
-  // What the applicant or the inviting officer wrote. Free text, shown to the
-  // other side verbatim.
-  note String @default("")
-
-  // Who answered and when are deliberately NOT columns here. Every decision
-  // already writes an AuditLog row naming the actor, and `updatedAt` below is
-  // the timestamp -- two more fields nothing read would have been state
-  // stored twice.
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([factionId, status])
-  @@index([characterId, status])
-}
-
 // A region of the map: a Discord category, its #summary channel and the
 // "Zone: {Name}" role. Since Bascinet 2 a character STANDS in a Location
 // (below), not in a zone; Character.zoneId is kept equal to
@@ -1129,7 +1028,7 @@ model FactionApplication {
 //
 // kind decides the Discord footprint (see ZoneKind above). seatZoneId is the
 // denormalized GM-seat key: parentZoneId ?? id, written by the sync. Every
-// query that groups by "which GM's table does this belong on" — factions,
+// query that groups by "which GM's table does this belong on" —
 // Action/Note/StagedMessage stamping — filters on
 // seatZoneId, so the four GM seats stay four while presence is six. Writers
 // stamp it via db/lib/seatZone.js#seatZoneIdFor, never by hand.
@@ -1200,17 +1099,16 @@ model Zone {
   // is left for a human to clean up. Null means live. See db/lib/placeDeletable.js.
   retiredAt DateTime?
 
-  locations        Location[]
-  factions         Faction[]         @relation("FactionHomeZone")
-  characters       Character[]
-  actions          Action[]
-  notes            Note[]
-  gmZoneViews      GmZoneView[]
-  stagedMessages   StagedMessage[]
-  startingForRoles Role[]            @relation("RoleStartingZone")
-  cavingRolls      CavingRoll[]
+  locations         Location[]
+  characters        Character[]
+  actions           Action[]
+  notes             Note[]
+  gmZoneViews       GmZoneView[]
+  stagedMessages    StagedMessage[]
+  startingForRoles  Role[]             @relation("RoleStartingZone")
+  cavingRolls       CavingRoll[]
   miningDropOptions MiningDropOption[]
-  oraclePages      OracleSynopsis[]
+  oraclePages       OracleSynopsis[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1273,8 +1171,8 @@ model GmZoneView {
 // Split out of Location rather than added as columns because the drift pass
 // (db/lib/miningYield.js) wants one uniform row shape to walk.
 model LocationMining {
-  id         String    @id @default(cuid())
-  locationId String @unique
+  id         String   @id @default(cuid())
+  locationId String   @unique
   location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
   // Authored in docs/zones.yaml's per-location `mining:` value and pushed by
@@ -1463,17 +1361,17 @@ model Location {
   updatedAt DateTime @updatedAt
 
   // Moves filed while standing here (Action.locationId).
-  actions          Action[]
-  threatSpawns     ThreatSpawn[]
-  cavingRolls      CavingRoll[]
-  visits           LocationVisit[]
-  vantages         Vantage[]
-  auditLogs        AuditLog[]
+  actions           Action[]
+  threatSpawns      ThreatSpawn[]
+  cavingRolls       CavingRoll[]
+  visits            LocationVisit[]
+  vantages          Vantage[]
+  auditLogs         AuditLog[]
   // Everybody lying in wait here. A watch is anchored to one place and dies
   // when its owner leaves it (docs/systemdocs/INTERCEPT.md §1), so a Location
   // that goes away takes them with it.
-  interceptWatches InterceptWatch[]
-  attacks          Attack[]
+  interceptWatches  InterceptWatch[]
+  attacks           Attack[]
   miningDropOptions MiningDropOption[]
 
   @@index([zoneId])
@@ -1735,11 +1633,6 @@ model Room {
   playerThreads PlayerThread[]
   guests        RoomGuest[]
   auditLogs     AuditLog[]
-
-  // Factions banking here. A list rather than a single back-reference because
-  // nothing stops two factions sharing a room -- the Church and the Order
-  // both sit in the Cathedral.
-  siloOf Faction[] @relation("FactionSilo")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2076,12 +1969,6 @@ model Character {
   roleId    String?
   role      Role?   @relation(fields: [roleId], references: [id])
 
-  factionId String?
-  faction   Faction? @relation(fields: [factionId], references: [id])
-
-  // Applications this character has open, in either direction.
-  factionApplications FactionApplication[]
-
   // AUTHORITATIVE "where is this character" since Bascinet 2. Drives the
   // "Location: {Name}" Discord role (swapped by
   // db/lib/locationMove.js#applyLocationMoveSideEffects) and therefore the
@@ -2091,7 +1978,7 @@ model Character {
 
   // DENORMALIZED from location.zoneId — every writer of locationId writes
   // both, and db/lib/channelDoctor.js flags a mismatch. Kept because dozens
-  // of readers group by zone (the seat tables, factions, #summary, the
+  // of readers group by zone (the seat tables, #summary, the
   // narrowcast rules). Always a presence zone (SURFACE or CAVE_LEVEL, never
   // the CAVE_GROUP row); rows stamped onto Action/Note/
   // StagedMessage carry the SEAT zone instead (db/lib/seatZone.js).
@@ -2143,9 +2030,7 @@ model Character {
   // per-member overwrite instead (db/lib/locationAccess.js).
   discordRoleId String? @unique
 
-  isLeader    Boolean         @default(false)
-  isTreasurer Boolean         @default(false)
-  status      CharacterStatus @default(ALIVE)
+  status CharacterStatus @default(ALIVE)
 
   // No `resources` column. ⬢ are a one-pound item held in the `tags` stack
   // below (docs/tags.yaml `resources`), read and written only through
@@ -2510,8 +2395,8 @@ model Character {
 
   // Searches asked of them, and searches they asked for
   // (docs/systemdocs/SEARCH.md §4). Same two-ended shape as the catches above.
-  searchesOfThem   SearchAttempt[] @relation("SearchTarget")
-  searchesTheyMade SearchAttempt[] @relation("SearchSearcher")
+  searchesOfThem   SearchAttempt[]     @relation("SearchTarget")
+  searchesTheyMade SearchAttempt[]     @relation("SearchSearcher")
   pocketsPicked    PickpocketAttempt[] @relation("PickpocketThief")
   pocketsOfTheirs  PickpocketAttempt[] @relation("PickpocketTarget")
 
@@ -2525,8 +2410,8 @@ model Character {
   attacksMade  Attack[] @relation("AttackMade")
   attacksTaken Attack[] @relation("AttackTaken")
 
-  // Taxes this character filed as a faction officer, and taxes filed against
-  // them (the Taxman tag). Two relations to the same table, so both ends are
+  // Taxes this character filed, and taxes filed against them (the Taxman
+  // tag). Two relations to the same table, so both ends are
   // named.
   // The fingerprinted bank account, if this character has one. Optional:
   // the Black Hills seats start without one and a spawned antagonist opens
@@ -2858,8 +2743,7 @@ model Tag {
   catalogVisibility CatalogVisibility @default(GM)
 
   // Role slugs (docs/roles.yaml) that may NOT buy this tag, authored in
-  // docs/tags.yaml as `excludedRoles:`. Devoted Follower is the first user:
-  // a Migrant or a Bum has no faction to be devoted to. Plain slugs rather
+  // docs/tags.yaml as `excludedRoles:`. Plain slugs rather
   // than a Role relation on purpose — db:sync-roles rewrites Role rows and a
   // relation would need re-linking every time, while the slug is the stable
   // key the rest of the codebase already matches roles on (CURSED_ROLE_SLUGS).
@@ -3513,13 +3397,13 @@ model Tag {
   desireForbiddenBy   DesireTemplate[] @relation("DesireForbidsTag")
   desireAllRequiredBy DesireTemplate[] @relation("DesireRequiresAllTag")
 
-  characters          CharacterTag[]
-  roomTags            RoomTag[]
-  noticePost          NoticePost?
-  gatedGroups         TagGroup[]        @relation("TagGroupGate")
-  cavingRolls         CavingRoll[]
-  offers              Offer[]
-  craftProjects       CraftProject[]
+  characters           CharacterTag[]
+  roomTags             RoomTag[]
+  noticePost           NoticePost?
+  gatedGroups          TagGroup[]         @relation("TagGroupGate")
+  cavingRolls          CavingRoll[]
+  offers               Offer[]
+  craftProjects        CraftProject[]
   miningDropOptions    MiningDropOption[] @relation("MiningDropGrantTag")
   miningDropRequiredBy MiningDropOption[] @relation("MiningDropRequiredTag")
 
@@ -3627,8 +3511,8 @@ model CharacterTag {
   @@unique([characterId, tagId])
 }
 
-// A playable seat, master-sourced from docs/roles.yaml's
-// zones[].factions[].roles[] (db/lib/syncRoles.js, npm run db:sync-roles).
+// A playable seat, master-sourced from docs/roles.yaml's groups[].roles[]
+// (db/lib/syncRoles.js, npm run db:sync-roles).
 // Threats are deliberately not in that YAML at all — they live in
 // db/lib/threats.js, hand-assigned by a GM, and never appear in the
 // player-facing picker. See docs/systemdocs/THREATS.md.
@@ -3640,11 +3524,17 @@ model Role {
   description String[] @default([])
   difficulty  String?
 
-  // Authoring order within the faction, so the picker matches roles.yaml.
+  // Authoring order within the group, so the picker matches roles.yaml.
   sortOrder Int @default(0)
 
-  factionId String
-  faction   Faction @relation(fields: [factionId], references: [id])
+  // Which bucket of the character-creation picker this seat sits in --
+  // "court", "clergy", "cerberon", "saviors", "business", "soil",
+  // "outsiders", or "other". A plain slug, not a relation: the buckets are a
+  // presentation grouping mastered by db/lib/roleGroups.js and declared as
+  // docs/roles.yaml's `groups:` keys, exactly as Tag.excludedRoleSlugs holds
+  // role slugs rather than a Role relation. Defaults "other" so a row nobody
+  // bucketed reads as untidy rather than becoming UNPICKABLE.
+  groupSlug String @default("other")
 
   // Seat math, from the YAML's `multiple`/`weight` pair. Exactly one of
   // these three shapes applies, resolved by roleCapacity() in
@@ -3660,31 +3550,29 @@ model Role {
   startingResources   Int      @default(0)
   extraStartingPoints Int      @default(0)
   startingTagSlugs    String[] @default([])
-  grantsLeader        Boolean  @default(false)
-  grantsTreasurer     Boolean  @default(false)
   docElements         String[] @default([])
 
   // Which kind of bank account this seat opens with at the Depot, declared as
   // `bank_account:` in docs/roles.yaml. Null means none — the Black Hills seats
   // arrive without one and open one at the counter if they ever want one. The
   // account opens EMPTY; a starting purse is physical obols in `starting_tags`.
-  // Same posture as grantsLeader/grantsTreasurer above: a new seat needs no
-  // code. See docs/systemdocs/DEPOT.md §0g.
+  // Declared in the YAML rather than in code, so a new seat needs none. See
+  // docs/systemdocs/DEPOT.md §0g.
   bankAccountClass BankAccountClass?
 
-  // Whether picking this role needs the @Leader Whitelist Discord role. This
-  // used to ride on grantsLeader, which conflated two unrelated things: the
-  // Baron HAS to lead the Court, but "who may claim this seat" is a hosting
-  // decision that has nothing to do with faction mechanics. Declared as
-  // `whitelist:` in docs/roles.yaml. Gated by GameConfig.leaderWhitelistEnabled;
-  // superadmins bypass. See docs/systemdocs/CHARACTERS.md §2.
+  // Whether picking this role needs the @Leader Whitelist Discord role -- a
+  // hosting decision about who may claim this seat at all. These are the named
+  // seats the game cannot open without, so they are also the ones the
+  // assignment roll fills first (db/lib/roleAssignment.js) and the ones the
+  // picker marks with a star. Declared as `whitelist:` in docs/roles.yaml.
+  // Gated by GameConfig.leaderWhitelistEnabled; superadmins bypass. See
+  // docs/systemdocs/CHARACTERS.md §2.
   requiresWhitelist Boolean @default(false)
 
   // A seat that fixes the holder's gender rather than letting them choose:
   // Baron and Heir are MAN, Baroness and Successor are WOMAN. Null for every
   // ordinary role, which is nearly all of them. Declared as `gender:` in
-  // docs/roles.yaml, so a future gendered seat needs no code — same posture
-  // as grantsLeader/grantsTreasurer above.
+  // docs/roles.yaml, so a future gendered seat needs no code.
   //
   // createCharacter stamps this over whatever the form posted, exactly as it
   // does for a dynasty member's last name; the disabled picker in the wizard
@@ -3709,7 +3597,7 @@ model Role {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([factionId])
+  @@index([groupSlug])
 }
 
 // A creation-wizard-in-progress hold on a Role seat. Without this, a player
@@ -3817,9 +3705,8 @@ model LobbyEntry {
 // catalog is ~30 rows, fully rebuilt from YAML on every sync, and read in one
 // query per page view, so four relations would buy nothing. A document is
 // ASSIGNED to a character if ANY of these matches: their role's docElements
-// lists this key, they hold one of tagSlugs, their role is in roleSlugs,
-// their faction is in factionSlugs, or flags names a Character boolean they
-// have set.
+// lists this key, they hold one of tagSlugs, or their role is in roleSlugs.
+// `flags` names a reader the row is for who is not a character at all.
 model Document {
   id          String @id @default(cuid())
   key         String @unique
@@ -3836,12 +3723,11 @@ model Document {
   // handing every zone-GM the full picture.
   isSecret Boolean @default(false)
 
-  tagSlugs     String[] @default([])
-  roleSlugs    String[] @default([])
-  factionSlugs String[] @default([])
-  // "leader" / "treasurer", read against Character.isLeader/isTreasurer,
-  // which are booleans rather than tags (see docs/systemdocs/TAGS.md §6).
-  flags        String[] @default([])
+  tagSlugs  String[] @default([])
+  roleSlugs String[] @default([])
+  // "gamemaster", resolved against the Discord GM role at request time
+  // (web/lib/discordGuild.js#isGm) rather than against any Character column.
+  flags     String[] @default([])
 
   // Authoring order from the YAML, so the gallery matches the file.
   sortOrder Int @default(0)
@@ -5682,8 +5568,8 @@ model OracleSynopsis {
   // of FRONT or THREATS rows for one turn (both have zoneId NULL). The real
   // guards are two PARTIAL unique indexes added in raw migration SQL —
   // `WHERE "zoneId" IS NULL AND "kind" = 'FRONT'` and `WHERE "kind" =
-  // 'THREATS'` — the same shape as FactionApplication_pending_unique and
-  // ThreatSpawn_pending_unique, and they come with the same warning: `prisma
+  // 'THREATS'` — the same shape as ThreatSpawn_pending_unique, and they come
+  // with the same warning: `prisma
   // migrate diff` cannot express either, will propose dropping both, and the
   // drop must be declined (CLAUDE.md). This @@unique still does real work: it
   // is what keeps two ZONE rows from ever landing for the same zone.
@@ -5781,7 +5667,7 @@ model ThreatSpawn {
   // One live offer per player is enforced by a PARTIAL unique index
   // (WHERE status = 'PENDING') that lives only in the migration SQL, because
   // Prisma's schema language cannot express one. `prisma migrate diff` will
-  // propose dropping it -- decline, same as FactionApplication_pending_unique.
+  // propose dropping it -- decline, same as AuditLog_details_trgm_idx.
   @@index([discordUserId, status])
   @@index([status])
 }

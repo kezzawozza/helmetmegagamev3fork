@@ -241,7 +241,7 @@ Use these instead of rolling one-off markup.
 | `.btn-quiet` | Text-only. |
 | `.field` | Wraps a `.field-label` + input/textarea/select. |
 | `.chip` | Small tag/pill labels. |
-| `.zone-chip` | A `.chip` carrying the zone code on `data-zone`. `data-zone="none"` is the dashed neutral for no faction. |
+| `.zone-chip` | A `.chip` carrying the zone code on `data-zone`. `data-zone="none"` is the dashed neutral for no zone. |
 | `.data-table` | Tabular data. |
 | `.menu-item` | Link-like row actions. |
 | `.control` | The `.field` control surface, without the label column — a `<select>` in a table cell, an input inline in a toolbar. |
@@ -251,7 +251,7 @@ Use these instead of rolling one-off markup.
 | `.group-label` | The quiet uppercase label over a group of things, on its own — Chat's section headers, the audit inspector's field labels, a `DeskRailGroup` title, every sheet rail group. One recipe (`--ls-wide`, `--fs-2xs`, `--muted`) rather than a hand-typed letter-spacing at each call site. |
 | `.tline` | One line of transcript, via `TranscriptLine.js` — the Chat feed, the DM thread, the inspector's Archive tab and the archive-context popup all draw through it. `data-density` (`feed` / `thread` / `thread-compact`) is geometry only, a staging post for the three old page families' numbers rather than a real fork; `data-kind` carries the row's `channelKind` and is the only thing allowed to change how a system line looks. `/archive`'s own four-column grid row is the one exception — no gutter/body shape reproduces it without breaking the grid. |
 | `DeskRail` / `.desk-rail` | The left rail on every `(desk)` page — one component and one class family for what used to be three: the adjudication desk's and player desk's queue, `/gm/audit`'s filters, and `/gm/dev`'s and `/gm/economy`'s section nav. `variant="queue"` is a scrolling list of selectable rows; `variant="sections"` is a padded stack of titled groups (`DeskRailGroup`, which is `.group-label` over its children — this replaced `.ops-nav-group`/`.audit-group` written twice). Never give this component or its children `position`/`z-index`/`transform`/`filter`/`contain`/`will-change` — see §6. |
-| `.tab-item` / `.tab-bar` | A tab strip navigating between panels. Keyed on `data-active`. One shared strip now: Chat's aside, the Depot console and the faction console all wear it instead of three near-copies, and it scrolls sideways under a narrow viewport rather than wrapping. |
+| `.tab-item` / `.tab-bar` | A tab strip navigating between panels. Keyed on `data-active`. One shared strip now: Chat's aside and the Depot console both wear it instead of near-copies, and it scrolls sideways under a narrow viewport rather than wrapping. |
 | `.segmented` | A group of mutually exclusive options as one joined pill. Keyed on `aria-pressed`. |
 | `.chip-row` | A wrapping row of chips. The house form for a **multi**-select: each chip is a `<button className="chip">` keyed on `data-active` (plus `aria-pressed`), and `.chip[data-active]` gives it the accent border and label. |
 | `.select-card` | A `.panel` you pick. Selection is `aria-pressed`. Its left rule may carry a group colour set inline per row — a tag group in Point Buy, a desire family in the Desire picker — because those are freeform hexes out of data, not tokens. |
@@ -436,7 +436,7 @@ shared `AppHeader` with no `PageShell` at all — still an ordinary scrolling
 page, just not a centred one: `SHEET.md` §1.)
 
 `PageHeader`'s `actions` slot takes anything belonging beside the title: a
-sub-nav, a faction switcher.
+sub-nav, a lens switcher.
 
 **Don't hand-roll `mx-auto flex max-w-… p-6 sm:p-8` or a bare `<h1>`.** That
 was a documented convention for months and drifted anyway, which is why it is

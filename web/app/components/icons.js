@@ -7,7 +7,6 @@ import {
   Users,
   ScrollText,
   Check,
-  ShieldCheck,
   Coins,
   Scale,
   MessageSquare,
@@ -90,7 +89,6 @@ export function lucide(Glyph, name) {
 export const CharacterIcon = lucide(User, "CharacterIcon");
 export const PlayersIcon = lucide(Users, "PlayersIcon");
 export const AuditIcon = lucide(ScrollText, "AuditIcon");
-export const FactionIcon = lucide(ShieldCheck, "FactionIcon");
 export const ScaleIcon = lucide(Scale, "ScaleIcon");
 export const EconomyIcon = lucide(Coins, "EconomyIcon");
 export const MessageIcon = lucide(MessageSquare, "MessageIcon");

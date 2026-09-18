@@ -28,14 +28,13 @@ const SECTIONS = [
     ],
   },
   {
-    // The things the game is made of. Characters, Factions, Tags and Zones
+    // The things the game is made of. Characters, Tags and Zones
     // used to be four pages of their own, linked from an "Elsewhere" group
     // that threw you out of the desk to reach them.
     title: "Content",
     items: [
       { key: "quests", label: "Quests" },
       { key: "characters", label: "Characters" },
-      { key: "factions", label: "Factions" },
       { key: "tags", label: "Tags" },
       { key: "zones", label: "Zones" },
     ],

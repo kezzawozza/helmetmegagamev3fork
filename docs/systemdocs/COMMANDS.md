@@ -565,8 +565,8 @@ zone" (free, on a cooldown), "Crosses into {Zone} — costs your Move", or
 
 **Every hop offers the party**, on the same message as the Confirm/Cancel
 row: `loc:bring` lists everyone standing **here** with a verdict from
-`db/lib/escort.js#escortCandidates` — a corpse, anyone helpless, a member of
-the faction you lead, or somebody you'd have to ask. The select is
+`db/lib/escort.js#escortCandidates` — a corpse, anyone helpless, or somebody
+you'd have to ask. The select is
 `minValues: 0`, is pre-ticked with whoever is already following you, and
 `buildBringRow` returns `null` (dropping the row entirely) when there is
 nobody to bring, since Discord rejects an empty select.
@@ -595,10 +595,10 @@ file and you must change it in `interactionCreate.js` too.
   this Location. Since phase 3 of Chat the rule itself is
   **`db/lib/whosHere.js#whosHere`**, and the handler only speaks the answer —
   `/chat`'s people column reads the same function, so the street and the page
-  cannot disagree about who a stranger is. Named characters first (with their `roleTitle` shown to a
-  fellow member of the same real faction, same rule the 🔍 inspect gate
-  uses), then concealed characters as their alias with an article — "a young
-  man" — and no title, since a Role is as identifying as a name. Nobody here
+  cannot disagree about who a stranger is. Named characters first, names and
+  nothing else — a role title is shown to nobody now, the same rule the 🔍
+  inspect embed keeps — then concealed characters as their alias with an
+  article, "a young man". Nobody here
   ⇒ "Nobody is here."
 - **Secret rooms?** (`handleSecretRooms`) lists the private Rooms this
   character's held tags admit them to (`db/lib/roomAccess.js#accessibleRooms`)

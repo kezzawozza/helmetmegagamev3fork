@@ -102,7 +102,7 @@ async function walkWithinZone(prisma, character, targetLocation) {
     // `status` by a turret, `heldUntil` by somebody's watch firing, and `tags`
     // by a wound or a mount parked at a door. ESCORT_SELECT and not something
     // cheaper, because the next hop hands this row straight back to the mover,
-    // which re-authorises the party off it (escort.js's missing-faction trap).
+    // which re-authorises the party off it (db/lib/escort.js).
     row = await prisma.character.findUnique({ where: { id: character.id }, select: ESCORT_SELECT });
     if (!row) {
       stoppedBy = { reason: null, at: arrivedAt };

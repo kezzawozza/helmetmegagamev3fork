@@ -53,11 +53,6 @@ const INCLUDED = new Set([
   // A GM's proclamation, read into a zone as a notice rather than a remark
   // (db/lib/decree.js). The loudest thing the game says out loud.
   "decree_broadcast",
-  "faction_leader_set",
-  "faction_treasurer_assigned",
-  "faction_treasurer_revoked",
-  "faction_member_added",
-  "faction_member_removed",
 
   // Arrivals and departures — GM-actioned kills/revives are here because the OUTCOME is a fiction fact even when the actor isn't.
   "character_created",
@@ -128,7 +123,7 @@ const MEANINGFUL_WHEN_FALSE = new Set(["concealed"]);
 
 // "request_heal_character" -> "heal_character" — the prefix outlived the Request table.
 function verb(actionType) {
-  return String(actionType || "").replace(/^(request|gm|move|desire|faction|character|catatonic)_/, "") || actionType;
+  return String(actionType || "").replace(/^(request|gm|move|desire|character|catatonic)_/, "") || actionType;
 }
 
 function truncate(text, max) {

@@ -85,7 +85,6 @@ async function requireWriter({ needs = null } = {}) {
 
 function revalidateAll() {
   revalidatePath("/character");
-  revalidatePath("/faction");
 }
 
 // Who signs the paper, internally: the PRESENTED name, so a hooded writer doesn't put their real one on a sheet somebody may find, and a forced name (Apex Form) writes as the Beast. Never shown to another player — only tells a GM whose hand it was, since Tag.name is deliberately anonymous (db/lib/paper.js#paperName).

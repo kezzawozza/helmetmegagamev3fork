@@ -571,7 +571,7 @@ instance is a change to the hub, not a slider.
   had just Solved make the desk they were sitting in read back
   `solved = false` and offer Save/Solve on a row already SOLVED in the DB —
   the incident this section's model fixes. Search runs the shared
-  `scoreMatch` engine (`web/lib/fuzzySearch.js`) over name, role, faction,
+  `scoreMatch` engine (`web/lib/fuzzySearch.js`) over name, role,
   both zones, Discord handle, tag names, Move/Request kind and status, and
   the free text (a Move's description, a Request's reason/summary, GM notes)
   — a bare word matches anything, `field:term` (`role:smith`, `zone:caves`)
@@ -713,7 +713,7 @@ instance is a change to the hub, not a slider.
   the line below, all from the roster DTO already on the client — no fetch
   needed just to see who someone is. A search box above the pin row
   (`InspectorSearch`, fuzzy-matched via `web/lib/fuzzySearch.js#scoreMatch`
-  over name/role/faction/username/zone) opens anyone the same way, not just
+  over name/role/username/zone) opens anyone the same way, not just
   names already on screen. Pin the ones an arbitration keeps returning to.
   Fetched on demand via server actions, cached for the page view. Three quick
   edits live here too: the DMs tab carries a composer that sends immediately

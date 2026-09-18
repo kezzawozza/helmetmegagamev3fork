@@ -13,7 +13,6 @@ import ActionGrid from "./ActionGrid";
 import AvatarZoom from "./AvatarZoom";
 import CombatTile from "./CombatReadout";
 import DetailTile from "./DetailTile";
-import FactionLink from "./FactionLink";
 import { MOOD_DETAIL } from "./MoodPanel";
 import SheetTurn from "./SheetTurn";
 import SoundTrumpetButton from "./SoundTrumpetButton";
@@ -121,14 +120,7 @@ export default function LedgerBand({
               — `identity-text` is the mockup's own name, added alongside it. */}
           <div className="ledger-who identity-text">
             <h2 className="ledger-name char-name">{character.name}</h2>
-            <p className="m-0 text-sm text-muted identity-line">
-              {character.roleTitle ?? "No role"} ·{" "}
-              <FactionLink
-                factionId={character.faction?.id ?? null}
-                name={character.faction?.name ?? "No faction"}
-                className="ledger-faction"
-              />
-            </p>
+            <p className="m-0 text-sm text-muted identity-line">{character.roleTitle ?? "No role"}</p>
             {/* "Standing in Town — Tallow Row", the mockup's line: the zone and
                 the Location emphasised inside a sentence rather than sitting as
                 two bare nouns with a dot between them. */}

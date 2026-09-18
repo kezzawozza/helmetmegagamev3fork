@@ -69,7 +69,6 @@ export default function StagingTray({
   presenceZones,
   stagingLocations,
   stagingRooms,
-  factions,
   tagCatalog,
   onInspect,
   onOpenPreview,
@@ -373,7 +372,6 @@ export default function StagingTray({
       {composer === "transfer" && (
         <TransferComposer
           roster={roster}
-          factions={factions}
           onDone={(patch) => {
             setComposer(null);
             applyDeskPatch(patch);

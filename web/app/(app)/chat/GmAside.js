@@ -62,11 +62,7 @@ function GmHereList({ people, onOpen }) {
               {person.presentedAs ? `${person.presentedAs} (${person.name})` : person.name}
               {person.online ? <span className="chat-quiet-line"> · online</span> : null}
             </span>
-            {(person.roleTitle || person.factionName) && (
-              <span className="chat-quiet-line">
-                {[person.roleTitle, person.factionName].filter(Boolean).join(" · ")}
-              </span>
-            )}
+            {person.roleTitle && <span className="chat-quiet-line">{person.roleTitle}</span>}
           </button>
         </div>
       ))}

@@ -23,7 +23,7 @@ import { sendGmBroadcast } from "./actions";
 // What stays here is what is actually about messaging: the character cap, the
 // two one-shot segment selects, and the send.
 const searchRoster = (item, query) =>
-  scoreMatch(query, { name: item.label, role: item.roleTitle, faction: item.factionName, zone: item.zoneName });
+  scoreMatch(query, { name: item.label, role: item.roleTitle, zone: item.zoneName });
 
 export default function BulkComposer({ characters, initialSelectedIds, onClose }) {
   const [refresh] = useRefresh();
@@ -40,7 +40,6 @@ export default function BulkComposer({ characters, initialSelectedIds, onClose }
         label: c.name,
         note: [c.roleTitle, c.zoneName].filter(Boolean).join(" · "),
         roleTitle: c.roleTitle,
-        factionName: c.factionName,
         zoneName: c.zoneName,
       })),
     [characters],
@@ -50,10 +49,6 @@ export default function BulkComposer({ characters, initialSelectedIds, onClose }
 
   const zoneOptions = useMemo(
     () => [...new Set(characters.map((c) => c.zoneName).filter(Boolean))].sort(),
-    [characters],
-  );
-  const factionOptions = useMemo(
-    () => [...new Set(characters.map((c) => c.factionName).filter(Boolean))].sort(),
     [characters],
   );
 
@@ -84,7 +79,7 @@ export default function BulkComposer({ characters, initialSelectedIds, onClose }
           value={pick.picked}
           onChange={pick.set}
           search={searchRoster}
-          filterPlaceholder="Name, role, faction, zone…"
+          filterPlaceholder="Name, role, zone…"
           emptyLabel="No characters match."
           maxHeight="16rem"
           toolbar={
@@ -97,19 +92,6 @@ export default function BulkComposer({ characters, initialSelectedIds, onClose }
                     {zoneOptions.map((z) => (
                       <option key={z} value={z}>
                         {z}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              )}
-              {factionOptions.length > 0 && (
-                <label className="field">
-                  <span className="field-label">Check faction</span>
-                  <Select value="" onChange={(e) => pick.checkWhere((c) => c.factionName === e.target.value)}>
-                    <option value="">Pick a faction…</option>
-                    {factionOptions.map((f) => (
-                      <option key={f} value={f}>
-                        {f}
                       </option>
                     ))}
                   </Select>

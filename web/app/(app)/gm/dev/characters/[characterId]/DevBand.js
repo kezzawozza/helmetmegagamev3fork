@@ -8,7 +8,6 @@ import { moveKindLabel } from "@/lib/moves";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import CombatTile from "@/app/components/CombatReadout";
 import DetailTile from "@/app/components/DetailTile";
-import FactionLink from "@/app/components/FactionLink";
 import StatusPill, { CHARACTER_STATUS } from "@/app/components/StatusPill";
 import TagPointsValue from "@/app/components/TagPointsValue";
 
@@ -107,16 +106,7 @@ export default function DevBand({
                 colour, not a live fact). curse.cursed is db/lib/curse.js's
                 own answer, so this can be true on an ALIVE character. */}
             {curse?.cursed && <StatusPill tone="bad">Cursed</StatusPill>}
-            <span>
-              {staged.roleTitle || "No role"} ·{" "}
-              <FactionLink
-                factionId={character.factionId}
-                name={character.factionName ?? "No faction"}
-                className="ledger-faction"
-              />
-              {character.isLeader && <span className="chip">Leader</span>}
-              {character.isTreasurer && <span className="chip">Treasurer</span>}
-            </span>
+            <span>{staged.roleTitle || "No role"}</span>
           </p>
           <p className="m-0 text-sm text-muted">
             {character.zoneName ?? "No zone"} · {character.locationName ?? "Nowhere"}

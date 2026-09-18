@@ -68,12 +68,12 @@ categories:
           - Don't say who your character is or who you're playing. People might figure it out eventually, but protect the mystery.
           - You are allowed to use vague OOC in roleplay channels when necessary — `(OOC: hey, gtg, see ya)` — instead of DM'ing the player.
 
-          ④ **Antagonism** — Fulfill your character's Desires, but not to the point of crossing your faction's objectives.
+          ④ **Antagonism** — Fulfill your character's Desires, but not to the point of wrecking the people your character answers to.
           - High ranks are expected to be relatively fit for duty and willing to collaborate. Peasants can brawl and do mostly whatever they want.
-          - If things naturally progress to where you betray your faction, that's fine, but come into the game planning to do mostly good.
+          - If things naturally progress to where you turn on your own, that's fine, but come into the game planning to do mostly good.
       - title: Fates
         body: |-
-          Choose a fate at game start, determining your starting tags, faction, and location. Whitelisted roles (★) are reserved for players who can vouch frequent and long-term availability and proficiency in roleplay.
+          Choose a fate at game start, determining your starting tags and location. Whitelisted roles (★) are reserved for players who can vouch frequent and long-term availability and proficiency in roleplay.
 
           Most fates have small limits, but **Bolded** ones have higher caps and are more generalized, allowing for more freedom of play.
         generated: roles-intro
@@ -130,7 +130,7 @@ categories:
           Gambit moves are actions that could affect the narrative and could go any way. Fighting, trying to discover a bandit outpost, and stealing from the Inn are all Gambits. Gambits require a 1d6 roll.
 
           **Group Moves**
-          Unless they do something else or refuse to participate, a Leader can direct members of his faction (even AFK members) as part of his Moves. Their tags are considered during the adjudication. Only one Gambit die is rolled.
+          Several characters can act together as one Move, with everyone who agreed to take part written into it. Their tags are considered during the adjudication. Only one Gambit die is rolled.
       - title: Roleplay
         body: |-
           The game's roleplay layer is where the results of last turn's Moves come to life. If the Gamemaster declared you were bested in a duel, that's canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
