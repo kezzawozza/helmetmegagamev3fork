@@ -910,6 +910,41 @@ a 48px head and a one-line composer:
   browsers added the permanent block for.
 
   `SYSTEM` scenery counts for **neither**, as it always has.
+- **A bare name is a mention, on both faces** (REDESIGN.md §2, §6). Saying
+  "Marrow, get down" names Marrow exactly as picking her out of the `@` menu
+  would. Three pieces, and they are three so that one rule answers everywhere:
+
+  - **`db/lib/mentions.js`** is the predicate, and asks no database. Whole-word,
+    case-insensitive, Unicode-aware (`\b` is ASCII-only in JavaScript, so a name
+    ending in an accented letter would match inside a longer word). Two spellings
+    count: the **presented name whole** and its **bare first word**, which must be
+    at least 3 characters — offering every word of a name would ping Ilda Roke at
+    every "Roke" and every "Sister", and a mention that fires on a common word is
+    a mention nobody trusts. `{…}` tokens and URLs are cut before scanning, so an
+    explicit mention is not also counted as a bare one. **Zero requires, ever**:
+    the browser asks it directly for its own notified count, and one require of
+    `@lifeweb/db` here would drag PrismaClient into the client bundle.
+  - **`db/lib/characterMentions.js#charactersNamedNearby`** is the query that
+    hands it candidates — everybody in the place's **earshot**, the same rule a
+    role ping obeys (PROXYING.md §6). A **concealed** or force-named character is
+    dropped: the room does not know that name is theirs, and pinging them by it
+    would be the hood confirming itself. The **speaker** is dropped too.
+  - **Two call sites**, and both relay through the shape that already existed:
+    `bot/src/events/messageCreate.js` for a Discord-origin line, and
+    `bot/src/lib/feedOutbox.js#relayWebMentions` for a web-origin one. So Discord
+    gets the same relay DM and push a token mention gets, and the web gets a
+    notified count.
+
+  **Notify-only, and that is load-bearing.** A `{char:…}` mention inside a
+  Conversation is *also an invite* — it adds the person to the thread, the same
+  contract `/add` has. A bare name must never be, or "Marrow told me the bell had
+  gone" typed in a private conversation would pull Marrow into it. Both call sites
+  keep the two lists apart and only the token list takes the invite arm; a name
+  that is both tokened and typed keeps its invite. The cap (10) applies across the
+  pair.
+
+  **The text is never rewritten.** Nothing turns a bare name into `<@&roleId>`, so
+  Discord reads the words the room read. The relay DM is the ping.
 
   Notable means **somebody spoke**: the row is not yours, and its `source` is
   not `SYSTEM`. That is the whole predicate,

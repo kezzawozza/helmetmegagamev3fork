@@ -31,22 +31,21 @@ const TOKEN_RE = /\{[a-z]+:[^{}\n]*\}/g;
 // A URL. A name inside a link is part of an address, not something said.
 const URL_RE = /https?:\/\/\S+/g;
 
-// Every spelling of a name that counts: the presented name whole, and its bare
-// first word. "Sister Ilda Roke" answers to "Sister Ilda Roke" and to "Sister",
-// which is the wrong bare half — so the LAST word is offered too, and a two-word
-// name offers both halves. Deduped, longest first, so a match is attributed to
-// the fullest spelling present.
+// The two spellings that count (REDESIGN.md §6): the presented name WHOLE, and
+// its bare FIRST word — which for `Character.firstName` + `lastName` is the first
+// name, the thing anybody in a room actually says.
+//
+// Two words and no more, deliberately. Offering every word of a name would ping
+// Ilda Roke at every "Roke" AND every "Sister" in a name like "Sister Ilda Roke",
+// and a mention that fires on a common word is a mention nobody trusts. Longest
+// first, so a match is attributed to the fullest spelling present.
 function nameForms(name) {
   if (typeof name !== "string") return [];
   const whole = name.replace(/\s+/g, " ").trim();
   if (!whole) return [];
   const forms = [whole];
-  const words = whole.split(" ");
-  if (words.length > 1) {
-    for (const word of [words[0], words[words.length - 1]]) {
-      if (word.length >= MIN_BARE_NAME && !forms.includes(word)) forms.push(word);
-    }
-  }
+  const first = whole.split(" ")[0];
+  if (first !== whole && first.length >= MIN_BARE_NAME) forms.push(first);
   return forms.sort((a, b) => b.length - a.length);
 }
 
