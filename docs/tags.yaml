@@ -1049,7 +1049,6 @@ tags:
       - pacifist
       - eunuch
       - desperate
-      - devoted-follower
       - hypochondriac
       - prudish
       - hot-headed
@@ -1722,24 +1721,6 @@ tags:
         - all: true
           exceptFamilies: [gambling]
           slot: bottom
-
-  devoted-follower:
-    catalog: all
-    name: Devoted Follower
-    psychological: true
-    category: general
-    group: general-personality
-    description: "You're incapable of betraying whoever you first swore yourself to, even in the most extreme circumstances. Locks all Desires about scheming."
-    pointCost: -2
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    # The seats with nobody to be loyal to: a Migrant and a Mercenary arrive
-    # owing nothing to anyone, and a Bum and a Pusher answer to nobody either.
-    excludedRoles: [migrant, mercenary, bum, pusher]
-    desires:
-      locks:
-        - families: [betrayal, scheming]
 
   # Sign flip 2026-08-31 (Desires rework), grandfathered — see Superstitious.
   hypochondriac:
@@ -8181,7 +8162,7 @@ tags:
   #
   # `onlyRoles: [courtier]` is load-bearing, exactly as it is up there. Each
   # kit holds far more than it costs (the Tutor is 17 points of tags for 4, the
-  # Seasoned Knight 39 for 9), which is fine for the seat these were written
+  # Seasoned Knight 42 for 9), which is fine for the seat these were written
   # for and a faucet for anybody else. The `courtier` TAG would be the wrong
   # gate: the Baron, the Baroness, the Heir, the Successor, the Hand and the
   # Meister all carry it, and several of them already draw
@@ -8211,7 +8192,9 @@ tags:
   # The one kit that hands over drawbacks. They arrive through a crate rather
   # than point-buy, so the 5/12 drawback caps never see them -- that is the
   # intent, not a hole: an old knight IS his bad hip, and pricing the kit at 9
-  # already accounts for the relief the negatives give back.
+  # already accounts for the relief the negatives give back. It carried a third
+  # negative, Devoted Follower (-2), until that tag was retired in 10/2026; the
+  # 9 has not been revisited since.
   courtier-seasoned-knight:
     catalog: all
     name: "Courtier: Seasoned Knight"
@@ -8219,7 +8202,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
-    description: "Live out your days as a knight of Ravenheart and reminisce on your valor during the Skinless attack of 1088. Gives knighthood, {tag:plate-armor}, a {tag:broadsword}, a {tag:shield}, a {tag:knights-helmet}, {tag:melee-trained}, {tag:ranged-basic} and a {tag:devoted-follower}, along with {tag:old} and {tag:arthritis}."
+    description: "Live out your days as a knight of Ravenheart and reminisce on your valor during the Skinless attack of 1088. Gives knighthood, {tag:plate-armor}, a {tag:broadsword}, a {tag:shield}, a {tag:knights-helmet}, {tag:melee-trained}, {tag:ranged-basic}, along with {tag:old} and {tag:arthritis}."
     pointCost: 9
     weight: 3
     purchasable: true
@@ -8235,7 +8218,6 @@ tags:
       - knights-helmet
       - melee-trained
       - ranged-basic
-      - devoted-follower
 
   courtier-tutor:
     catalog: all

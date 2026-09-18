@@ -172,7 +172,7 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   **The rule is the Desire system, not the group.** Depressed locks the whole
   Desire catalog, so it conflicts with the other tags that *touch* Desires —
   the ones carrying their own `desires:` block (Nobility, Eunuch, Craven,
-  Kleptomaniac, Pacifist, Prudish, Devoted Follower) and the ones a Desire
+  Kleptomaniac, Pacifist, Prudish) and the ones a Desire
   gates on from `docs/desires.yaml` (Mad Doctor, Esoteric, Adventurer, Cruel,
   Charitable, Death Wish, Schemer, Superstitious, Desperate, Hypochondriac,
   Hot-Headed, Corrupt). A tag that never touches Desires has no quarrel with
@@ -191,9 +191,11 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   holds and looks at their **seat** instead. Authored in `docs/tags.yaml` as
   `excludedRoles: [migrant, mercenary, …]`, a list of role slugs from
   `docs/roles.yaml` (validated against that file by `db:sync-tags`, so a typo
-  throws rather than quietly opening the gate). Devoted Follower is the first
-  and only user: a Migrant, a Mercenary, a Bum, an Outsider or a Pusher has
-  nobody to be devoted to. Plain slugs rather than a `Role` relation, because
+  throws rather than quietly opening the gate). Lightweight is the only user
+  left: a Chaplain and a Bishop are not going to be the ones who cannot hold
+  their drink. Devoted Follower was the other, excluding the seats with nobody
+  to be devoted to, until it was retired with the factions in 10/2026. Plain
+  slugs rather than a `Role` relation, because
   `db:sync-roles` rewrites Role rows and the slug is the stable key the rest
   of the codebase already matches seats on (`CURSED_ROLE_SLUGS`).
   `roleExcluded(tag, roleSlug)` is the predicate. Because it never depends on

@@ -115,8 +115,8 @@ in the same transaction, in **two sweeps**.
   asked of `db/lib/desireGates.js#lockedReasonForTemplate` — the same
   evaluator the catalog itself draws with, rather than a per-seat list
   somebody has to keep. So for the Thanati, **Pacifist** (`violence`),
-  **Devoted Follower** (`scheming`), **Depressed** (`all`) and **Nobility**
-  (by tier) go, while **Kleptomaniac** stays: it locks `wealth`, and no
+  **Depressed** (`all`) and **Nobility** (by tier) go, while
+  **Kleptomaniac** stays: it locks `wealth`, and no
   Thanati Desire is in that family. A seat that opens no Desires of its own
   therefore strips Addictions and nothing else.
 

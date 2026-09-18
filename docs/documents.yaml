@@ -31,12 +31,6 @@ documents:
     tags: []
     description: |-
       Ravenheart's liege is God-King Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however — and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court, and arranges the royal tithe if such a thing becomes necessary.
-  transferring:
-    name: Transferring Resources
-    public: true
-    tags: []
-    description: |-
-      You may transfer Resources from any source to any recipient, provided you are in the same Location as both.
   sanctuary:
     name: Sanctuary
     public: true
