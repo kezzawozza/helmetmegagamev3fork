@@ -58,11 +58,17 @@ makes it feel immediate.
 
 Inside, `.sheet-body` is the band, then `.ledger-body`: **two columns**
 (`1fr / 22rem`). The left is what you have — the tag rail, the Items and Assets
-cards, the Bio, Crafting & building. The right is what you are wearing, how you
-feel and what you want — the rig, Mood, Desires — then Who's here and what
-stands here. Under 1180px the right column narrows to `18rem`; under 720px they
-stack, and everything that presses takes a 44px floor. Only the widths change —
-the scrolling is the same at every size.
+cards, the Bio, Crafting & building (only while something is actually in
+progress — see §5). The right is what you are wearing, how you feel and what
+you want — the rig, Mood, Desires — then what stands here. Under 1180px the
+right column narrows to `18rem`; under 720px they stack, and everything that
+presses takes a 44px floor. Only the widths change — the scrolling is the same
+at every size.
+
+There is no "Who's here" panel on the sheet any more (removed 2026-09-18):
+`/chat`'s aside already carries the same list under "Here · N", and drawing it
+twice was redundant. `HereList.js` itself is untouched — `/chat` still mounts
+it.
 
 It was three columns behind a **You / Do / Tags** tab bar until phase 4 of the
 game 3 redesign (`REDESIGN.md` §10, `docs/design/mockups/character/index.html`
@@ -407,16 +413,19 @@ portaled click menu that used to live inside `play/ThingsDrawer.js`.
 
 The band's Mood tile says the one word and the figure. The panel in the right
 column says **where that word sits among the others**: one cell per band from
-Panicking to Ecstatic tinted by the band's tone, the one you are in lit, every
-band's word underneath with yours picked out, then the sentence on what moves a
-mood. "Uncomfortable" means nothing until you can see there are four worse states
-below it and five better ones above.
+Panicking to Ecstatic tinted by the band's tone, the one you are in lit. That is
+the whole panel now (Bascinet, 2026-09-18: "the bar is good but we don't need
+to show all the text") — the word and the score are already in the panel
+header's own `.note` pill (e.g. "Uncomfortable · −16"), and the run of ten band
+names that used to sit under the bar is gone. "Uncomfortable" reads off its
+position in the row instead: four worse cells below it, five better ones above.
 
-Both the cells and the words come from `MOOD_BANDS` in `db/lib/mood.js`, never
-from a count written here — that table is the only thing that says how many bands
-there are, and it says **ten**, where `MOOD.md` and the mockup both say nine.
-Drawing it from the table means the table keeps winning. The strip itself is
-`aria-hidden`; the run of words carries the same information in text.
+The cells come from `MOOD_BANDS` in `db/lib/mood.js`, never from a count
+written here — that table is the only thing that says how many bands there
+are, and it says **ten**, where `MOOD.md` and the mockup both say nine. Drawing
+it from the table means the table keeps winning. The strip itself is
+`aria-hidden`, since the header pill already carries the one thing a screen
+reader needs.
 
 Self sheet only, the same posture the Combat tile takes: somebody else's figure
 is not yours to read.
@@ -447,15 +456,71 @@ counts slots with no active lock.
 
 ## 5. What is not here
 
-- **The Bio form is the form** (`BioForm.js`), unchanged, at the foot of the
-  left column under the tag rail, with `LedgerWork.js` — Crafting & building,
-  the clock on a half-finished project or build site — under it. Both are
-  readouts and nothing on either presses, so they sit at the bottom of the
-  reading column rather than beside the rig, which is all controls.
+- **The Bio panel is one field now** (`BioForm.js`, rebuilt 2026-09-18): the
+  mockup's own shape is Appearance, then Save, and nothing else. Everything
+  the old card also held — the four read-only name fields, gender, age, title,
+  the picture and its three switches (ping, Play on Discord, Conceal) — moved
+  behind one quiet button in the panel header, "Name, portrait and
+  settings…", which opens a `Modal` holding those same fields (`BioNameFields`,
+  `AvatarField`) unchanged.
+
+  This is **two independent forms**, both posting the same server action
+  (`updateCharacterProfile`), not one shared form split across a dialog
+  boundary. `Modal.js` fully **unmounts** its children on close
+  (`if (!open) return null`), and `updateCharacterProfile` reads a missing
+  checkbox as "off" and applies it — so a single form would have silently
+  un-mirrored a player from Discord, or dropped their turn ping, the next time
+  they saved Appearance alone with the dialog closed. Appearance's own form
+  carries three hidden fallback inputs (`turnPingOptIn`, `discordMirrored`,
+  `concealed`) defaulting to the character's actual stored values for exactly
+  that reason; the settings dialog is a save of its own, and each save
+  revalidates the page, so the fallbacks are never stale once a settings save
+  has landed.
+
+- **`LedgerWork.js` — Crafting & building — only renders while something is
+  actually in progress** (2026-09-18: the mockup has no panel for an empty
+  reading column, `craftProjects` and any `UNDER_CONSTRUCTION` site are both
+  empty, this returns `null` and the card is simply absent, rather than a
+  panel that only ever said "Nothing in progress." It sits at the foot of the
+  left column under the tag rail and the Bio, a readout with nothing on it
+  that presses, so it stays out of the rig column, which is all controls.
 - No collapsing cards, no Traits/Drawbacks split — both were put to Bascinet
   and skipped.
+- **The page ends in a `.foot` line** (`CharacterSheet.js`), the mockup's own
+  shape — a hairline, then the setting, quiet and small: "Ravenheart · the
+  year of our Lord God, 1210" (`docs/lore.md`'s own words). The mockup's
+  right-hand span was its own "Mockup only — nothing here presses" placeholder
+  and is dropped, not replaced.
 
-## 5a. One global change came with this pass
+## 5a. Global changes came with this pass
+
+**2026-09-18, the second round.** Three more app-wide token changes, all on
+Bascinet's own sign-off after looking at the mockup beside the app ("look how
+neat, compressed, clean the artifact looked… just reuse its code, CSS etc. it
+looked SO much better"):
+
+- **`--font-sans` is Verdana again** — `Verdana, Tahoma, Geneva, "DejaVu Sans",
+  sans-serif`, the mockup's own `--font-ui` ("the old internet explorer font"),
+  replacing the `system-ui` stack a previous round installed. Body text
+  app-wide, not just the sheet.
+- **The dusk and dawn surface ladders adopt the mockup's own hex, exactly** —
+  `--bg`, `--surface`, `--surface-raised`, `--field-bg`, `--border`,
+  `--border-hi`/`--border-lo`, `--muted`, `--accent`/`--accent-text`/
+  `--accent-solid`, `--positive`/`--warning`/`--danger`, `--blackletter` and
+  the seven `--tag-*` rules, in `web/app/globals.css`'s `[data-theme]` blocks.
+  This REVERSES the "10% less grimdark" lift those blocks used to describe —
+  the surfaces are darker now, on purpose. `--muted` and `--tag-demoness`
+  moved a few hex points off the mockup's own value to clear
+  `audit:contrast`'s AA floor against the new, darker `--surface`; every other
+  changed token passed at the mockup's own value untouched. Three checks in
+  that same audit — the surface-ladder ratio (`bg -> surface`,
+  `surface -> surface-raised`) and the border-vs-surface ratio — now fail at
+  every lamp position, in both looks: the mockup's own surfaces sit closer
+  together than the ~1.20-per-rung ladder the audit was written to enforce,
+  and narrowing that gap is the entire point of the change. Left failing,
+  reported rather than patched around, and not a reason to touch
+  `audit-contrast.js` itself.
+- **`.panel-header` dropped its sprite strip** — see `DESIGN-SYSTEM.md` §3a.
 
 `--font-serif` on `:root` is a real serif again —
 `"Times New Roman", Times, "Liberation Serif", serif` — where phase 1 had left it

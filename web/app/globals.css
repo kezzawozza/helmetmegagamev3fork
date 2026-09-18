@@ -58,7 +58,11 @@
      mockup draws every heading in a bold Times, so h1/h2/h3, .panel-header and
      .section-title all pick it up from this one line and nothing else changes.
      Body text stays --font-sans. */
-  --font-sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Verdana, per the character-sheet mockup's own --font-ui — Bascinet's "old
+     internet explorer font" (2026-09-18), replacing the system-ui stack a
+     previous round installed. Verdana is metrically wide; sheet.css's density
+     work already accounts for it. */
+  --font-sans: Verdana, Tahoma, Geneva, "DejaVu Sans", sans-serif;
   --font-serif: "Times New Roman", Times, "Liberation Serif", serif;
   --font-mono: "Courier New", Courier, ui-monospace, monospace;
 
@@ -149,14 +153,14 @@
 [data-theme] {
   --lamp: 0;
 
-  --dawn-bg: #12100e;
-  --dusk-bg: #0e0c09;
-  --dawn-surface: #2a2521;
-  --dusk-surface: #26201a;
-  --dawn-surface-raised: #3a3430;
-  --dusk-surface-raised: #363028;
-  --dawn-border: #605448;
-  --dusk-border: #5b4f40;
+  --dawn-bg: #110f0d;
+  --dusk-bg: #0d0b08;
+  --dawn-surface: #1b1817;
+  --dusk-surface: #171310;
+  --dawn-surface-raised: #251f1e;
+  --dusk-surface-raised: #211b16;
+  --dawn-border: #3f3732;
+  --dusk-border: #3a322a;
   --dawn-text: #bdb7ab;
   --dusk-text: #b3ada2;
   --dawn-speech: #ecb694;
@@ -165,16 +169,18 @@
 
 /* Dusk — the lamps banked. The warmer, lower of the two looks on the one rust
    ground (REDESIGN.md §3). Warm black, iron, dried blood; no teal, no orange.
-   The surfaces sit higher than the chat mockup's #0d0b08/#171310/#211b16
-   because the 1.20-per-rung ladder makes those impossible — #171310 on ANY
-   ground measures at most 1.18 — and because Bascinet's 10% correction asks
-   for dark rather than black. bg -> surface is 1.21, surface -> raised 1.23. */
+   As of 2026-09-18 the surfaces are the character-sheet mockup's OWN
+   #0d0b08/#171310/#211b16, exactly — the "10% less grimdark" lift this block
+   used to describe is reverted; Bascinet's call, on sight of the mockup
+   ("the darker color... so grimdark"). The 1.20-per-rung ladder this comment
+   used to promise no longer holds at every rung — see the contrast note on
+   --muted and --blackletter below. */
 [data-theme="dusk"] {
   color-scheme: dark;
   --bg: var(--dusk-bg);
   --surface: var(--dusk-surface);
   --surface-raised: var(--dusk-surface-raised);
-  --field-bg: rgba(0, 0, 0, 0.32); /* recessed BELOW the surface, not another panel */
+  --field-bg: #0a0806; /* the mockup's own field ground, not a tint of --bg */
   --border: var(--dusk-border);
 
   /* The bevel pair (REDESIGN.md §3, Shape). --border-hi is the lit top-left
@@ -182,7 +188,7 @@
      edge inside a .field. Both are drawn as explicit per-side borders rather
      than with the `outset`/`inset` keywords, which compute their own light
      and dark from border-color and land differently per browser. */
-  --border-hi: #6b5d4c;
+  --border-hi: #55493d;
   --border-lo: #0b0907;
 
   --text: var(--dusk-text);
@@ -190,27 +196,29 @@
   /* Quoted speech in a Chat row (CHAT.md §5). A warm lift of --text, not a
      second accent. Gated at AA against --surface like every other text token. */
   --speech: var(--dusk-speech);
-  --muted: #9f9789;
+  /* The mockup's own --dim, moved the smallest distance that clears AA
+     against the darker --surface above (audit-contrast.js) — see the report
+     for the exact numbers. */
+  --muted: #857f73;
 
-  /* Dried blood, desaturated a little from the mockup's #7a2a24/#d8806a per
-     the 10% correction. --accent is a FILL and a RULE only; --accent-text is
-     what text and outlines take. */
-  --accent: #74302a;
-  --accent-text: #d18a78;
-  --accent-solid: #5e241e;
+  /* Dried blood, the mockup's own values exactly. --accent is a FILL and a
+     RULE only; --accent-text is what text and outlines take. */
+  --accent: #7a2a24;
+  --accent-text: #d8806a;
+  --accent-solid: #5e201b;
   --on-accent: #e8ddd4;
 
   /* Lamplight and moss carry more of the interface than the blood does. */
-  --positive: #83a26d;
+  --positive: #7fa06a;
   --warning: #c9a24a;
-  --danger: #f0685f;
+  --danger: #fd5b5b;
 
   /* The blackletter (a zone heading, a decree, the name on the sheet), always
      at >= 24px and always with text-shadow: 0 2px 3px #000 at the call site.
-     Lifeweb's own #744 and REDESIGN.md's #9a5a5a both measure under 3.0 on
-     this ground (2.94), so this is lifted to 3.65 — the large-text floor, the
-     same deviation the zone code's Fortress carries. Never set it on body text. */
-  --blackletter: #a86666;
+     The mockup's own #7a3c33 fails the large-text floor against the darker
+     --surface above, so this is lifted the smallest distance that clears it —
+     see the report for the exact numbers. Never set it on body text. */
+  --blackletter: #8c5249;
 
   --row-hover: rgba(255, 255, 255, 0.05);
   --shadow-color: rgba(0, 0, 0, 0.5);
@@ -249,13 +257,13 @@
      sheet row or an item card. Unchanged: every value clears the 3.0 floor on
      the new ground with room to spare (worst case 5.95). Fills only. Mute by
      spending chroma, never luminance. */
-  --tag-general: #96a3bd;
-  --tag-skills: #9ab494;
-  --tag-status: #bfac84;
-  --tag-health: #c79595;
-  --tag-items: #85aeab;
-  --tag-assets: #aeaaa2;
-  --tag-demoness: #b892ae;
+  --tag-general: #6d7386;
+  --tag-skills: #6d8265;
+  --tag-status: #8a7a51;
+  --tag-health: #8f6161;
+  --tag-items: #547472;
+  --tag-assets: #6f6a61;
+  --tag-demoness: #82596e;
 
   /* The river on the /map plate, painted through map-river.png's alpha mask.
      Re-solved off the old teal, which the rust palette does not admit: a cool
@@ -299,21 +307,22 @@
   --bg: color-mix(in srgb, var(--dawn-bg) calc((1 - var(--lamp)) * 100%), var(--dusk-bg));
   --surface: color-mix(in srgb, var(--dawn-surface) calc((1 - var(--lamp)) * 100%), var(--dusk-surface));
   --surface-raised: color-mix(in srgb, var(--dawn-surface-raised) calc((1 - var(--lamp)) * 100%), var(--dusk-surface-raised));
-  --field-bg: rgba(0, 0, 0, 0.28);
+  --field-bg: #0a0806;
   --border: color-mix(in srgb, var(--dawn-border) calc((1 - var(--lamp)) * 100%), var(--dusk-border));
-  --border-hi: #706253;
+  --border-hi: #5a4e44;
   --border-lo: #0d0b09;
   --text: color-mix(in srgb, var(--dawn-text) calc((1 - var(--lamp)) * 100%), var(--dusk-text));
   --speech: color-mix(in srgb, var(--dawn-speech) calc((1 - var(--lamp)) * 100%), var(--dusk-speech));
-  --muted: #a59d8b;
-  --accent: #7c3a31;
-  --accent-text: #d59182;
-  --accent-solid: #6a2d24;
+  /* Dusk's value plus the same small step this block always kept over it. */
+  --muted: #8c8578;
+  --accent: #82342b;
+  --accent-text: #dc8774;
+  --accent-solid: #6a2921;
   --on-accent: #efe6dc;
-  --positive: #8aa878;
+  --positive: #86a675;
   --warning: #cfa955;
-  --danger: #f2736a;
-  --blackletter: #ae6f6c; /* 3.82 — see the dusk block for why this is not #9a5a5a */
+  --danger: #ff6666;
+  --blackletter: #925b4f; /* dusk's value plus the same step; see the dusk block */
   --row-hover: rgba(255, 255, 255, 0.055);
   --shadow-color: rgba(0, 0, 0, 0.45);
 
@@ -341,13 +350,13 @@
   --zone-depths: #8f7f9c;
 
   /* Tag code — see the dusk block. Both looks share one set. */
-  --tag-general: #96a3bd;
-  --tag-skills: #9ab494;
-  --tag-status: #bfac84;
-  --tag-health: #c79595;
-  --tag-items: #85aeab;
-  --tag-assets: #aeaaa2;
-  --tag-demoness: #b892ae;
+  --tag-general: #6d7386;
+  --tag-skills: #6d8265;
+  --tag-status: #8a7a51;
+  --tag-health: #8f6161;
+  --tag-items: #547472;
+  --tag-assets: #6f6a61;
+  --tag-demoness: #82596e;
 
   /* The /map river — see the dusk block. Dawn's is the lifted one; the old
      #c07a3c sunrise orange is gone with the ember palette. */
@@ -530,24 +539,30 @@ h3 {
   border-radius: var(--r);
 }
 
-/* A section header, and the one piece of sprite chrome that goes app-wide:
-   bg2.png as a 32x16 strip repeated along the foot (REDESIGN.md §2, Panel
-   chrome). The strip IS the rule, so the old border-bottom is gone — two
-   lines under one heading reads as a mistake.
-
-   Drawn as ::after rather than as the element's own background so the 16px
-   sprite sits BELOW the words instead of behind them, and so it is never
-   squashed: integer multiples only.
+/* A section header — the character-sheet mockup's own build (2026-09-18),
+   which REPLACES the sprite-strip look this rule used to wear (REDESIGN.md
+   §2/§5's "one strip goes on every panel header" is retired; the mockup
+   wins). A flex row with the title on the left and a quiet note on the right,
+   over a single hairline — not a 20px sprite strip, which read as a row of
+   beads and cost every panel in the app 20px of padding for no reason.
 
    flex: 1 1 auto because Panel.js puts this h2 in a flex row beside its
-   actions; without it the strip stops at the end of the title. Outside a flex
-   row it is ignored and the header spans the panel as before. */
+   actions; without it the border stops at the end of the title. Outside a
+   flex row it is ignored and the header spans the panel as before.
+
+   The desk's own column heads (.desk-inspector-head, .desk-convo-head,
+   .ops-section-head) keep the sprite strip removed here too — see the rule
+   just below — but keep their OWN layout and border, unaffected by this one. */
 .panel-header {
   position: relative;
-  display: block;
+  display: flex;
   flex: 1 1 auto;
-  margin: 0 0 var(--sp-2);
-  padding-bottom: 20px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-1);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
   font-family: var(--font-serif);
   font-size: var(--fs-lg);
   font-weight: 700;
@@ -555,32 +570,17 @@ h3 {
   color: var(--text);
 }
 
-/* ONE header strip, and this is it (REDESIGN.md §5). .panel-header wears it as
-   a heading; the desk's column heads wear it as a BAR — a flex row with actions
-   at the right end — so they keep their own layout and take the strip on the
-   bar itself, exactly where the 1px rule they are giving up already ran. Two
-   lines under one heading reads as a mistake, so a bar that takes the strip
-   drops its border.
-
-   position: relative and NO z-index, on every one of them. .desk-shell's family
-   must create no stacking context: Modal.js renders .modal-overlay in-tree, and
-   a stacking context on a desk bar would trap every dialog opened from it under
-   the 720px nav bar (globals.css, DESIGN-SYSTEM.md §6). */
-.panel-header::after,
-.desk-inspector-head::after,
-.desk-convo-head::after,
-.ops-section-head::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 16px;
-  background-image: url("/assets/chrome/bg2.png");
-  background-repeat: repeat-x;
-  background-size: 32px 16px;
-  image-rendering: pixelated;
+.panel-header .note {
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  font-weight: normal;
+  color: var(--muted);
 }
+
+/* The desk's column heads no longer wear the sprite strip either (see the
+   comment above .panel-header) — .desk-inspector-head, .desk-convo-head and
+   .ops-section-head each now carry their own border-bottom instead, at their
+   own selectors elsewhere in this file. */
 
 .panel-header--with-icon {
   display: flex;
@@ -4546,9 +4546,8 @@ label.chip {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  /* The strip takes the foot of the bar; 20px is its 16px plus the gap the
-     panel heading leaves it. See .panel-header::after. */
-  padding: 0.5rem 0.75rem 20px;
+  padding: 0.5rem 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .desk-inspector-body {
@@ -5227,7 +5226,8 @@ label.chip {
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
-  padding: 0.5rem 1rem 20px;
+  padding: 0.5rem 1rem 0.5rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .desk-convo-thread {
@@ -5960,7 +5960,8 @@ label.chip {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  padding-bottom: 20px;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .ops-lede {

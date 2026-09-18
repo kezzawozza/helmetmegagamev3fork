@@ -7,38 +7,38 @@
 //
 // A finished or ruined site is not "in progress" and belongs to
 // StandingHerePanel, which the sheet mounts beside this one.
+//
+// Renders nothing at all when there is nothing to show — the mockup has no
+// panel for an empty state, and a card that only ever says "Nothing in
+// progress" is a card worth not drawing (Bascinet, 2026-09-18).
 export default function LedgerWork({ craftProjects = [], sitesHere = [] }) {
   const sites = sitesHere.filter((s) => s.status === "UNDER_CONSTRUCTION");
-  const nothing = craftProjects.length === 0 && sites.length === 0;
+  if (craftProjects.length === 0 && sites.length === 0) return null;
 
   return (
     <section className="panel p-3">
       <h2 className="panel-header">Crafting & building</h2>
-      {nothing ? (
-        <p className="text-sm text-muted">Nothing in progress.</p>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {craftProjects.map((p) => (
-            <li key={`project-${p.id}`} className="flex items-center justify-between gap-3 text-sm">
-              <span className="min-w-0">
-                {p.quantity > 1 ? `${p.quantity}× ` : ""}
-                {p.tagName}
-              </span>
-              <span className="mono text-muted">
-                {p.turnsDone}/{p.turnsNeeded} turns
-              </span>
-            </li>
-          ))}
-          {sites.map((s) => (
-            <li key={`site-${s.id}`} className="flex items-center justify-between gap-3 text-sm">
-              <span className="min-w-0">{s.typeName}</span>
-              <span className="mono text-muted">
-                {s.turnsDone}/{s.turnsNeeded} turns
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="flex flex-col gap-2">
+        {craftProjects.map((p) => (
+          <li key={`project-${p.id}`} className="flex items-center justify-between gap-3 text-sm">
+            <span className="min-w-0">
+              {p.quantity > 1 ? `${p.quantity}× ` : ""}
+              {p.tagName}
+            </span>
+            <span className="mono text-muted">
+              {p.turnsDone}/{p.turnsNeeded} turns
+            </span>
+          </li>
+        ))}
+        {sites.map((s) => (
+          <li key={`site-${s.id}`} className="flex items-center justify-between gap-3 text-sm">
+            <span className="min-w-0">{s.typeName}</span>
+            <span className="mono text-muted">
+              {s.turnsDone}/{s.turnsNeeded} turns
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

@@ -34,21 +34,27 @@ export const MOOD_DETAIL =
 // That paragraph still exists, one press away, as the band's Mood tile's
 // on-demand detail ("press for why", LedgerBand.js) — a different affordance,
 // shown only when asked for — under the same MOOD_DETAIL export below.
+//
+// The run of ten band names under the bar is gone too, same day, same voice
+// ("the bar is good but we don't need to show all the text"): the segmented
+// bar with the current band lit, plus the word and score already in the
+// header pill, is the whole panel now.
 export default function MoodPanel({ mood = 0 }) {
   const here = bandOf(mood);
   const signed = `${mood > 0 ? "+" : mood < 0 ? "−" : "±"}${Math.abs(mood)}`;
 
   return (
     <section className="panel p-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="panel-header">Mood</h2>
-        <span className="status-pill" data-tone={here?.tone ?? "muted"}>
+      <h2 className="panel-header">
+        Mood
+        <span className="note status-pill" data-tone={here?.tone ?? "muted"}>
           {here?.label ?? "Fine"} · {signed}
         </span>
-      </div>
+      </h2>
 
-      {/* Decoration for the words below it, so it says nothing to a screen
-          reader — the run of band names carries the same information in text. */}
+      {/* Decoration — the current band's own word and score are already in
+          the header pill above, so this carries no accessible name of its
+          own; it is the lit position among the others that matters. */}
       <div className="mood-scale" aria-hidden="true">
         {MOOD_BANDS.map((band) => (
           <i
@@ -58,19 +64,6 @@ export default function MoodPanel({ mood = 0 }) {
           />
         ))}
       </div>
-
-      <p className="mood-names m-0">
-        {MOOD_BANDS.map((band, i) => (
-          <span key={band.key}>
-            {i > 0 && " · "}
-            {band.key === here?.key ? (
-              <b data-tone={band.tone === "muted" ? undefined : band.tone}>{band.label}</b>
-            ) : (
-              band.label
-            )}
-          </span>
-        ))}
-      </p>
     </section>
   );
 }
