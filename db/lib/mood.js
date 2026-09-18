@@ -577,18 +577,25 @@ async function applyMood(tx, characterId, { kind, base = EVENTS[kind], ctx = {},
 // and, like the Cathedral two blocks down, worth it ONCE a turn per person —
 // so a pair who kiss all afternoon lift each other one band, not eight.
 //
-// The ration is an AuditLog row rather than a column pair. At +15 against a
-// 15-a-turn ceiling a magnitude cap and a once-a-turn gate are the same
-// arithmetic, so this takes the cheap one: no migration, and the row is
-// already worth writing. (MOVE_MOOD_TURN_CAP's heavier machinery earns itself
-// on movement, where a dozen small steps have to part-spend one allowance.)
+// The ration is an AuditLog row rather than a column pair: a once-a-turn gate
+// needs no migration, and the row is already worth writing. (MOVE_MOOD_TURN_CAP's
+// heavier machinery earns itself on movement, where a dozen small steps have to
+// part-spend one allowance.) It cannot be a magnitude cap instead, and that is
+// firmer since `bonus` arrived — a Seductive kiss is worth several times
+// EVENTS.KISS on its own, so a cap sized to one kiss would silently eat it.
+//
+// `bonus` is the PARTNER's appearance, added to the base: a fact about the
+// person doing the kissing, paid to the person being kissed. The table and the
+// arithmetic live in db/lib/kiss.js#appearanceBonus — this only has to add it,
+// so the mood tables stay the record of what an EVENT is worth and nothing
+// else has to know that Pretty exists.
 //
 // Returns the applyMood result, or null when the ration is already spent —
 // which is not a failure. The caller still posts its scene line; a kiss that
 // moves no dial is a kiss that happened.
 const KISS_AUDIT_ACTION = "mood_kissed";
 
-async function applyKissMood(tx, characterId, { turnId, partnerId = null } = {}) {
+async function applyKissMood(tx, characterId, { turnId, partnerId = null, bonus = 0 } = {}) {
   // No open turn means nothing to ration against, the answer applyArrivalMood
   // gives itself: it charges in full.
   if (turnId) {
@@ -597,7 +604,7 @@ async function applyKissMood(tx, characterId, { turnId, partnerId = null } = {})
     });
     if (already > 0) return null;
   }
-  const result = await applyMood(tx, characterId, { kind: "KISS", base: EVENTS.KISS });
+  const result = await applyMood(tx, characterId, { kind: "KISS", base: EVENTS.KISS + (Number(bonus) || 0) });
   if (turnId) {
     await tx.auditLog.create({
       data: {

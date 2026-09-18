@@ -444,7 +444,7 @@ export default function TagFieldset({
               <label className="field">
                 <span className="field-label flex items-center gap-1.5">
                   Sellable price
-                  <InfoIcon text="Reference: a painting (4 turns to craft) sells for 60 ⬢. A flamethrower sells for 104 ⬢." />
+                  <InfoIcon text="Reference: a painting (4 turns to craft) sells for 41 ¢. A flamethrower sells for 130 ¢." />
                 </span>
                 <input
                   type="number"

@@ -12,6 +12,20 @@ import {
   canOpenCrate,
 } from "@lifeweb/db";
 import { heldReasonFor } from "@lifeweb/db/lib/intercept";
+import {
+  COLLAR_ITEM_SLUG,
+  COLLAR_LOCKED_SLUG,
+  DETONATOR_SLUG,
+  COLLAR_KEY_SLUG,
+  COLLAR_SELECT,
+  heldSlugs as collarHeldSlugs,
+  wearsCollar,
+  needsNoConsent as collarNeedsNoConsent,
+  applyCollar,
+  createCollarOffer,
+  unlockCollar,
+  detonateCollar,
+} from "@lifeweb/db/lib/collar";
 import { resourcesOf, isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { cleanCustomText, CUSTOM_DESCRIPTION_MAX } from "@/lib/customCraft";
@@ -3576,3 +3590,129 @@ export async function readPointerDeviceImpl() {
   return { ok: true, line: `The other pointer is located in ${location.name}.` };
 }
 
+
+
+// ---------------------------------------------------------------------------
+// The bomb collar (docs/systemdocs/COLLAR.md)
+//
+// Three verbs sharing one gate. Each re-checks the tag its BUTTON was hidden
+// on: a hidden button is a hint, and a server action is a public endpoint.
+//
+// None of them filters its roster on who is already collared, and neither does
+// the refusal shortcut past a real lookup — the whole point is that you learn
+// one person's answer per click and never the room's.
+
+// Everything the three share: resolve the posted key, refuse anywhere you
+// can't act, and hand back the actor shape db/lib/collar.js wants.
+async function collarActorAndTarget(session, character, targetCharacterId, { allowSelf = false, allowDead = false } = {}) {
+  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
+  if (!character.locationId) throw new UserError("You aren't anywhere you could do that.");
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetId ?? "", status: allowDead ? { in: ["ALIVE", "DEAD"] } : "ALIVE" },
+    select: COLLAR_SELECT,
+  });
+  if (!target || !isHere(character, target, { allowDead, allowConcealed: true }))
+    throw new UserError(notHereMessage(target));
+  if (!allowSelf && target.id === character.id) throw new UserError("Pick somebody else.");
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open.");
+
+  return {
+    target,
+    openTurn,
+    actor: {
+      id: character.id,
+      name: character.name,
+      discordUserId: session.discordUserId,
+      locationId: character.locationId,
+    },
+  };
+}
+
+// Re-read the actor's own stock from the database rather than trusting the
+// page's `heldSlugs`, which was rendered who-knows-when.
+async function requireHeld(characterId, slug, refusal) {
+  const has = await prisma.characterTag.count({
+    where: { characterId, quantity: { gt: 0 }, tag: { slug } },
+  });
+  if (!has) throw new UserError(refusal);
+}
+
+// Two doors, exactly as Bind has them: anybody who could refuse is asked;
+// somebody helpless, or yourself, is collared on the spot.
+export async function applyCollarRequestImpl({ targetCharacterId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+  const { target, actor, openTurn } = await collarActorAndTarget(session, character, targetCharacterId, {
+    allowSelf: true,
+    allowDead: true,
+  });
+
+  await requireHeld(character.id, COLLAR_ITEM_SLUG, "You don't have a collar.");
+  if (wearsCollar(target)) throw new UserError(`${target.name} already has a collar on.`);
+
+  const self = target.id === character.id;
+  if (!self && !collarNeedsNoConsent(target)) {
+    const offer = await createCollarOffer(prisma, { actor, target, turn: openTurn });
+    if (!offer.ok) throw new UserError(offer.reason);
+    after(() =>
+      sendDm(offer.dm.discordUserId, offer.dm.content, {
+        components: offer.dm.components,
+        meta: offer.dm.meta,
+        source: "player_event",
+      }).catch((err) => console.error(`Collar offer DM to ${target.id} failed:`, err)),
+    );
+    await prisma.auditLog.create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "request_collar_offer",
+        targetCharacterId: target.id,
+        details: { offerId: offer.offer.id, targetName: target.name },
+      },
+    });
+    revalidateAll();
+    return { pending: true, name: target.name };
+  }
+
+  await applyCollar(prisma, { actor, target, turn: openTurn });
+  await afterInventoryChange(self ? [character.id] : [character.id, target.id]);
+  if (!self) notifyCharacter(target, "Someone put a collar on you.");
+  revalidateAll();
+  return { name: target.name };
+}
+
+// The key. No consent and no offer — a collar coming OFF needs nobody's leave.
+export async function unlockCollarRequestImpl({ targetCharacterId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+  const { target, actor, openTurn } = await collarActorAndTarget(session, character, targetCharacterId, {
+    allowDead: true,
+  });
+
+  await requireHeld(character.id, COLLAR_KEY_SLUG, "You don't have a key.");
+  if (!wearsCollar(target)) throw new UserError(`${target.name} doesn't have a collar on.`);
+
+  await unlockCollar(prisma, { actor, target, turn: openTurn });
+  await afterInventoryChange([character.id, target.id]);
+  notifyCharacter(target, "Someone took your collar off.");
+  revalidateAll();
+  return { name: target.name };
+}
+
+// The trigger. Kills outright and leaves no body, so it takes the same
+// re-checks as the two above and one more: the detonator itself.
+export async function detonateCollarRequestImpl({ targetCharacterId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+  const { target, actor, openTurn } = await collarActorAndTarget(session, character, targetCharacterId);
+
+  await requireHeld(character.id, DETONATOR_SLUG, "You don't have a detonator.");
+
+  const result = await detonateCollar(prisma, { actor, target, turn: openTurn });
+  // The uncollared refusal comes back from db/lib/collar.js rather than being
+  // decided here, so the sentence lives beside the rule it enforces.
+  if (!result.ok) throw new UserError(result.reason);
+
+  await afterInventoryChange([target.id]);
+  revalidateAll();
+  return { name: result.name, alreadyDead: result.alreadyDead, line: `${result.name} explodes into mist.` };
+}

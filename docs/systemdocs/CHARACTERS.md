@@ -563,7 +563,6 @@ Picking a role decides almost everything:
   per-Location channels and no per-member overwrites to grant any more
   (`CHANNELS.md` §3). A `starting_zone` must be a *presence* zone: the Caves
   group is a container, not a place, and the role sync refuses it.
-- `resources` — `starting_resources`.
 - `isLeader` / `isTreasurer` — from `leader: true` / `treasurer: true`.
   These were once entries in `starting_tags`; they're booleans on
   `Character`, not Tags (`TAGS.md` §6).

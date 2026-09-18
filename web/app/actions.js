@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto";
 import { signIn, signOut } from "@/lib/auth";
 import { isLocalMode } from "@lifeweb/db/lib/localMode";
-import { prisma, addCharacterResources } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
 import { randomCharacterName } from "@lifeweb/db/lib/nameCorpus";
 import { formatCharacterName, GENDERS } from "@/lib/characterName";
 
@@ -61,10 +61,6 @@ export async function startAsLocalPlayer() {
       zoneId: role.startingLocation?.zoneId ?? null,
     },
   });
-  // Starting ⬢ is a stack now, not a column on the create — grant it once the
-  // row exists (db/lib/resourceStack.js).
-  await addCharacterResources(prisma, character.id, role.startingResources);
-
   await signIn("local", { playerId: discordUserId, redirectTo: "/character" });
 }
 

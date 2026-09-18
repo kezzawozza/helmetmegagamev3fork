@@ -67,6 +67,9 @@ export default function CharacterSheet({
   canTorture = false,
   canMutilate = false,
   canBrand = false,
+  canApplyCollar = false,
+  canUnlockCollar = false,
+  canDetonateCollar = false,
   canBreakRestraints = false,
   hasDatacard = false,
   hasStepstone = false,
@@ -309,6 +312,9 @@ export default function CharacterSheet({
         canTorture={canTorture}
         canMutilate={canMutilate}
         canBrand={canBrand}
+        canApplyCollar={canApplyCollar}
+        canUnlockCollar={canUnlockCollar}
+        canDetonateCollar={canDetonateCollar}
         canBreakRestraints={canBreakRestraints}
         hasDatacard={hasDatacard}
         hasStepstone={hasStepstone}

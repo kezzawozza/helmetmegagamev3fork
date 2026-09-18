@@ -66,6 +66,8 @@ export async function loadActionRoster({ need = [] } = {}) {
       transferParties: people.transferParties,
       lootTargets: people.lootTargets,
       bindTargets: people.bindTargets,
+      collarTargets: people.collarTargets,
+      collarOthers: people.collarOthers,
       harmTargets: people.harmTargets,
       harmTags: people.harmTags,
       kissTargets: people.kissTargets,

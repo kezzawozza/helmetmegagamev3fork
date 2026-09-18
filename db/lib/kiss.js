@@ -18,6 +18,32 @@ const KISS_COOLDOWN_MS = 2 * 60 * 60 * 1000;
 const KISS_AUDIT_ACTION = "kiss";
 const KISS_ACCEPTED_ACTION = "kiss_accepted";
 
+// What a kisser's looks are worth to the person they kiss, on top of
+// EVENTS.KISS. This is a fact about the KISSER paid to the OTHER side — being
+// pretty is not something that cheers you up, it is something that cheers up
+// whoever you kiss — so acceptKiss crosses the two terms over.
+//
+// Seductive is the Courtesan's trade and stacks on top of a face rather than
+// replacing it; pretty/beautiful are one tier chain (Beautiful carries
+// `parentTag: pretty`), so only one of them is ever held. `Math.max` says that
+// out loud instead of trusting it: a hand-granted pair would otherwise pay
+// twice, and a GM_GRANT walks past the tier rule that keeps them exclusive.
+//
+// Sizing: EVENTS.KISS is 17 and Ecstatic starts at 64 against a ceiling of 82
+// (db/lib/mood.js), so Seductive alone carries anyone at −22 or better into
+// Ecstatic and its +1 Gambit. That is the point of the seat, not an accident
+// of the numbers.
+const KISS_APPEARANCE = Object.freeze({ seductive: 75, beautiful: 12, pretty: 6 });
+
+function appearanceBonus(tags) {
+  const held = new Set((tags ?? []).map((ct) => ct?.tag?.slug ?? ct?.slug).filter(Boolean));
+  const face = Math.max(
+    held.has("beautiful") ? KISS_APPEARANCE.beautiful : 0,
+    held.has("pretty") ? KISS_APPEARANCE.pretty : 0,
+  );
+  return (held.has("seductive") ? KISS_APPEARANCE.seductive : 0) + face;
+}
+
 // `equipped` and CONCEALMENT_TAG_FIELDS make the covered-face rule work — concealmentFrom() only counts a piece actually WEARING, missing them reports every hood as no hood.
 const KISS_SELECT = {
   id: true,
@@ -170,10 +196,13 @@ async function acceptKiss(prisma, offer, responder) {
   if (claim.count === 0) return { ok: false, reason: "That offer's gone.", dms: [] };
 
   // Both dials and both audit rows in one transaction; the scene line stays outside it (it's a network call).
+  // The bonuses CROSS: each side is paid for the other's looks, never their own.
+  const actorLooks = appearanceBonus(actor.tags);
+  const targetLooks = appearanceBonus(target.tags);
   const moved = await prisma.$transaction(async (tx) => {
     const [a, b] = await Promise.all([
-      applyKissMood(tx, actor.id, { turnId: turn?.id ?? null, partnerId: target.id }),
-      applyKissMood(tx, target.id, { turnId: turn?.id ?? null, partnerId: actor.id }),
+      applyKissMood(tx, actor.id, { turnId: turn?.id ?? null, partnerId: target.id, bonus: targetLooks }),
+      applyKissMood(tx, target.id, { turnId: turn?.id ?? null, partnerId: actor.id, bonus: actorLooks }),
     ]);
     // One row per side, both carry turnId — REQUESTS.md §1a — the only thing that lets a ration ever count them.
     await tx.auditLog.createMany({
@@ -217,6 +246,8 @@ async function acceptKiss(prisma, offer, responder) {
 // is private: the only two people told are the two who agreed, each by DM.
 
 module.exports = {
+  KISS_APPEARANCE,
+  appearanceBonus,
   KISS_COOLDOWN_MS,
   KISS_AUDIT_ACTION,
   KISS_SELECT,

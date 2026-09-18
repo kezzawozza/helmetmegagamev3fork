@@ -256,7 +256,7 @@ one buyer.
 | Manifest | Opened by | Holds |
 |---|---|---|
 | `general` | nothing — anyone standing at the counter | ⬢ and Ration Boxes |
-| `black-market` | **Silver Chip** | the drink and drug shelf |
+| `black-market` | **Silver Chip** | the drink and drug shelf, the machete and the collar kit |
 | `merchant` | **Merchant's Licence** | everything priced, sealed goods included |
 
 The catalog is `db/lib/depotManifests.js` — zero requires, like `dmKinds.js`,
@@ -681,51 +681,55 @@ buying one mid-game is still a real decision.
 
 | Ware | ¢ | Sells back | Notes |
 |---|---|---|---|
-| `coffee` | 2 | 1 | Consumes into `caffeinated` (2t) |
+| `coffee` | 5 | 1 | Consumes into `caffeinated` (2t) |
 | `tea` | 2 | 1 | +15 mood (`MOOD.md` §5), the same as Maggot Milk |
 | `art-supplies` | 3 | 2 | What a `painting` spends — the Artist's one running cost |
-| `stack-of-paper` | 3 | — | **The cheapest paper on the shelf**, deliberately. A ream: consumes into twenty blank sheets, and writing on one mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. Loose `paper` is not stocked. |
-| `firecracker` | 3 | 2 | |
-| `honey` | 4 | 2 | Consumes into `ate-meal` |
-| `sky-lantern` | 4 | 2 | |
-| `sweets` | 4 | 2 | Consumes into `ate-meal` |
-| `alcohol` | 5 | 4 | He stocks the local brew too |
+| `stack-of-paper` | 2 | — | **The cheapest paper on the shelf**, deliberately. A ream: consumes into twenty blank sheets, and writing on one mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. Loose `paper` is not stocked. |
+| `firecracker` | 2 | 1 | |
+| `honey` | 3 | 2 | Consumes into `ate-meal` |
+| `sky-lantern` | 3 | 2 | |
+| `sweets` | 3 | 2 | Consumes into `ate-meal` |
+| `alcohol` | 4 | 3 | He stocks the local brew too |
+| `collar-key` | 4 | 2 | Black Market. Turns a shut collar back into a loose one, into the UNLOCKER's hands (`COLLAR.md`) |
 | `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source, and it is priced below real gear on purpose: a paper-thin disguise shouldn't compete with it. |
-| `cigarette` | 5 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
+| `cigarette` | 4 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
 | `silver` | 14 | 10 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source (`MINING.md` §3b); this is the fallback. Repriced up from 8/5 on 2026-09-18 so an uncommon find is not worth less than an ingot smelted from ultracommon rock. |
-| `boombox` | 11 | 7 | |
+| `boombox` | 10 | 7 | |
 | `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
-| `sake` | 11 | 7 | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
-| `whip` | 11 | 7 | Equippable |
-| `censer` | 12 | 7 | |
-| `jewelry` | 13 | 8 | Also a 2-pt creation pick |
+| `machete` | 11 | 7 | Black Market. Equippable, 0.3 tiers as a `sword` |
+| `sake` | 9 | 7 | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
+| `whip` | 10 | 7 | Equippable |
+| `censer` | 13 | 8 | |
+| `jewelry` | 14 | 8 | Also a 2-pt creation pick |
 | `iron` | 13 | 8 | Craftable (`smithing`, spends `hematite` — `SMITHING.md`) — the fourth exception to "almost nothing here is craftable," below. It took `steel`'s numbers and its slot when steel and coal left the game on 2026-09-18. |
-| `mining-helmet` | 14 | 9 | Caving loot he also imports. A Simple Helm's plates plus a lamp, so it prices level with one — the lamp is station work, not forge work |
+| `mining-helmet` | 15 | 9 | Caving loot he also imports. A Simple Helm's plates plus a lamp, so it prices level with one — the lamp is station work, not forge work |
+| `bomb-collar` | 15 | 9 | Black Market. The loose collar; Apply Collar spends one to write `bomb-collar-locked` (`COLLAR.md`) |
 | `poison-snooper` | 22 | 13 | **The exception:** also buyable at creation, 9 pt |
-| `sword-cane` | 23 | 14 | Also a 7-pt creation pick |
-| `instant-camera` | 26 | 16 | Also a 2-pt creation pick |
-| `microscope` | 29 | 17 | |
-| `surgical-equipment` | 31 | 19 | Also a 9-pt creation pick |
-| `light-infantry-armour` | 34 | 20 | Stops a bullet. Nothing forged here does. |
-| `phrygian-tears` | 36 | 22 | Also a Skilled brew, at 4 ⬢ — see §4 |
-| `hound` | 38 | 23 | |
-| `soporific` | 45 | 27 | Inflicts `asleep` (1t) |
-| `amoeba-vial` | 52 | 31 | |
-| `bb-pistol` | 61 | 37 | Equippable |
-| `silencer` | 74 | 44 | Equippable. The Merchant starts holding one |
-| `homunculus` | 75 | 45 | |
-| `antibiotics` | 82 | 49 | Cures every stage of infection |
-| `horse` | 90 | 54 | **The dearest thing that is not a weapon or armour.** Also a 9-pt creation pick, and `purchasableAfterStart: false` — so mid-game the Merchant is the only horse in Ravenheart |
-| `silver-sword` | 123 | 74 | |
-| `chainsaw` | 126 | 76 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
-| `neoclassic-rw10` | 134 | 80 | Neoclassic R&W10. Also a 14-pt creation pick. |
-| `energy-shield` | 145 | 87 | **The dearest thing on the shelf that is not a gun.** Stops bullets outright and softens a melee blow — the best odds against the Fortress turret in the game, though a minor wound is still very possible. Caving loot he also imports. |
-| `ml-23` | 149 | 89 | A 9mm pistol |
-| `motorcycle` | 171 | 103 | Caving loot he also imports |
-| `adamantium-sword` | 189 | 113 | |
-| `flamethrower` | 194 | 116 | Caving loot he also imports |
-| `ctt43-rifle` | 213 | 128 | A .308 semi-automatic |
-| `kpfw-6-avtomat` | 443 | 266 | The dearest thing on the counter |
+| `remote-detonator` | 23 | 14 | Black Market. Kills whoever wears a shut collar, and leaves no body |
+| `sword-cane` | 24 | 14 | Also a 7-pt creation pick |
+| `instant-camera` | 27 | 16 | Also a 2-pt creation pick |
+| `microscope` | 31 | 19 | |
+| `surgical-equipment` | 33 | 20 | Also a 9-pt creation pick |
+| `light-infantry-armour` | 37 | 22 | Stops a bullet. Nothing forged here does. |
+| `phrygian-tears` | 32 | 22 | Also a Skilled brew, at 4 ⬢ — see §4 |
+| `hound` | 40 | 24 | |
+| `soporific` | 41 | 27 | Inflicts `asleep` (1t) |
+| `amoeba-vial` | 55 | 33 | |
+| `bb-pistol` | 68 | 41 | Equippable |
+| `silencer` | 83 | 50 | Equippable. The Merchant starts holding one |
+| `homunculus` | 84 | 50 | |
+| `antibiotics` | 92 | 55 | Cures every stage of infection |
+| `horse` | 100 | 60 | **The dearest thing that is not a weapon or armour.** Also a 9-pt creation pick, and `purchasableAfterStart: false` — so mid-game the Merchant is the only horse in Ravenheart |
+| `silver-sword` | 138 | 83 | |
+| `chainsaw` | 140 | 84 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
+| `neoclassic-rw10` | 150 | 90 | Neoclassic R&W10. Also a 14-pt creation pick. |
+| `energy-shield` | 162 | 97 | **The dearest thing on the shelf that is not a gun.** Stops bullets outright and softens a melee blow — the best odds against the Fortress turret in the game, though a minor wound is still very possible. Caving loot he also imports. |
+| `ml-23` | 167 | 100 | A 9mm pistol |
+| `motorcycle` | 191 | 115 | Caving loot he also imports |
+| `adamantium-sword` | 212 | 127 | |
+| `flamethrower` | 217 | 130 | Caving loot he also imports |
+| `ctt43-rifle` | 238 | 143 | A .308 semi-automatic |
+| `kpfw-6-avtomat` | 496 | 298 | The dearest thing on the counter |
 
 Three of these need code, not just catalog data:
 

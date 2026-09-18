@@ -661,7 +661,7 @@ async function syncTagsFromYaml(prisma) {
     // Warning only, not an error — see docs/systemdocs/DEPOT.md §3.
     if (t.depotPrice != null && t.sellablePrice != null && t.sellablePrice >= t.depotPrice) {
       console.warn(
-        `docs/tags.yaml: tag "${t.slug}" sells back for ${t.sellablePrice} ⬢ but costs ${t.depotPrice} ⬢ at the Depot — buying and selling it in a loop prints Resources`,
+        `docs/tags.yaml: tag "${t.slug}" sells back for ${t.sellablePrice} ¢ but costs ${t.depotPrice} ¢ at the Depot — buying and selling it in a loop prints money`,
       );
     }
     // A wax stamp is declared BY its mark: `sealMark` is the line the wax

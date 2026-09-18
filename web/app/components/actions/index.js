@@ -8,6 +8,7 @@ import { checkWanted } from "@/app/(app)/character/cerberonActions";
 import { extractGodfleshRequest, refineRequest, mineRequest, healCharacterRequest, readPointerDevice, breakRestraintsRequest } from "@/app/(app)/character/requestActions";
 import { formatMoveAmount } from "@/lib/craftBudget";
 import BindDialog, { BIND_VERBS } from "./BindDialog";
+import CollarDialog from "./CollarDialog";
 import HarmDialog from "./HarmDialog";
 import MutilateDialog from "./MutilateDialog";
 import BrandDialog from "./BrandDialog";
@@ -117,6 +118,9 @@ export const DIALOGS = {
   crucify: BindDialog,
   shackle: BindDialog,
   torture: BindDialog,
+  applycollar: CollarDialog,
+  unlockcollar: CollarDialog,
+  detonatecollar: CollarDialog,
   harm: HarmDialog,
   mutilate: MutilateDialog,
   brand: BrandDialog,

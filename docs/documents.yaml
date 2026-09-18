@@ -252,13 +252,13 @@ documents:
 
       | Recipe | Skill | ⬢ | Needs | The ingredient comes from |
       |---|---|---|---|---|
-      | {tag:white-honey} | Brewing II | 3 | {tag:honey} and {tag:trout-heart} | the Depot's shelf, 4 ⬢, and a rare fishing catch |
+      | {tag:white-honey} | Brewing II | 3 | {tag:honey} and {tag:trout-heart} | the Depot's shelf, 3 ¢, and a rare fishing catch |
       | {tag:graga-sweat} | Brewing II | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:invisibility-potion} | Brewing II | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:dreamers-draught} | Brewing II | 6 | {tag:skinless-brain} | butchered from a {tag:skinless-corpse} |
       | {tag:pure-luck} | Brewing II | 0 | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
       | {tag:raven-draught} | Brewing II | 2 | {tag:ravens-eye} | foraged while hunting |
-      | {tag:honeyed-cakes} | Cooking II | 3 | {tag:honey} | the Depot's shelf, 4 ⬢ |
+      | {tag:honeyed-cakes} | Cooking II | 3 | {tag:honey} | the Depot's shelf, 3 ¢ |
       | {tag:graga-hide-cloak} | Crafting | 6 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:minted-charm} | Smithing I | 15, 3-turn project | {tag:old-coin} | caving loot |
       | {tag:musk-lure} | Butcher | 2 | {tag:nekker-pheromones} | butchered from a {tag:nekker-corpse} |
@@ -334,7 +334,7 @@ documents:
 
       The Baron highly values the Banneret's work on the Squeeze, as it singlehandedly funds Ravenheart's warchest. Squeeze has no use for anyone in Ravenheart, but without its production, Ravenheart wouldn't be able to grow at all. Its production is very dangerous.
 
-      Squeeze sells for 7 ⬢ at the Merchant's Depot. The Merchant has, in the past, traditionally taken 1 or 2 ⬢ per, leaving the Banneret with 5 or 6 per cube.
+      Squeeze sells for 7 ¢ at the Merchant's Depot. The Merchant has, in the past, traditionally taken 1 or 2 ¢ per, leaving the Banneret with 5 or 6 per cube.
   godardfactory:
     name: Godard Factory
     public: false

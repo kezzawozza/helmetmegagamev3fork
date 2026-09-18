@@ -77,9 +77,6 @@
 # account opens EMPTY; a starting purse is physical obols in `starting_tags`.
 # See docs/systemdocs/DEPOT.md §0g.
 #
-# `starting_resources` (role-level) is how many Resources that character
-# starts play with.
-#
 # `starting_zone` (role-level) is a Zone **slug** from docs/zones.yaml — it
 # decides where the character starts, and therefore which zone role (and so
 # which Discord category) they get on creation. Must be a presence zone: the
@@ -96,6 +93,12 @@
 # creation on top of whatever the player buys with points. The sync throws on
 # any name not in the catalog, so a typo can't silently ship a character
 # missing tags.
+#
+# Tag NAMES are not unique. Where two tags share one ("Seductive" is both the
+# Courtesan's trade and a catalog: secret Demoness power), the sync refuses the
+# name and you write the SLUG instead — it takes either. It used to take the
+# last row it happened to load, which handed the Courtesan the Demoness tag and
+# said nothing.
 #
 # `extra_starting_points` (optional, defaults 0) is added to
 # GameConfig.startingTagPoints to form that role's point-buy budget.
@@ -136,7 +139,6 @@ groups:
       difficulty: hard
       bank_account: treasury
       multiple: false
-      starting_resources: 5
       starting_zone: fortress
       starting_location: keep
       extra_starting_points: 7
@@ -177,7 +179,6 @@ groups:
       difficulty: easy
       bank_account: treasury
       multiple: false
-      starting_resources: 1
       starting_zone: fortress
       starting_location: keep
       starting_tags:
@@ -205,7 +206,6 @@ groups:
       difficulty: easy
       bank_account: treasury
       multiple: false
-      starting_resources: 1
       starting_zone: fortress
       starting_location: keep
       extra_starting_points: 5
@@ -231,7 +231,6 @@ groups:
       difficulty: easy
       bank_account: treasury
       multiple: false
-      starting_resources: 1
       starting_zone: fortress
       starting_location: keep
       starting_tags:
@@ -270,7 +269,6 @@ groups:
       difficulty: normal
       bank_account: treasury
       multiple: false
-      starting_resources: 1
       starting_zone: fortress
       starting_location: keep
       extra_starting_points: 7
@@ -312,7 +310,6 @@ groups:
       difficulty: normal
       bank_account: treasury
       multiple: false
-      starting_resources: 2
       starting_zone: fortress
       starting_location: keep
       whitelist: true
@@ -348,7 +345,6 @@ groups:
       bank_account: treasury
       multiple: false
       whitelist: true
-      starting_resources: 2
       starting_zone: fortress
       starting_location: keep
       starting_tags:
@@ -375,7 +371,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 6
-      starting_resources: 1
       starting_zone: fortress
       starting_location: keep
       starting_tags:
@@ -397,7 +392,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 1
-      starting_resources: 1
       starting_zone: fortress
       starting_location: keep
       starting_tags:
@@ -421,7 +415,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 3
-      starting_resources: 1
       starting_zone: fortress
       starting_location: servant-wing
       starting_tags:
@@ -451,7 +444,6 @@ groups:
       difficulty: normal
       bank_account: treasury
       multiple: false
-      starting_resources: 1
       starting_zone: town
       starting_location: cathedral
       whitelist: true
@@ -487,7 +479,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 3
-      starting_resources: 1
       starting_zone: town
       starting_location: cathedral
       starting_tags:
@@ -517,7 +508,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 1
-      starting_resources: 1
       starting_zone: town
       starting_location: cathedral
       starting_tags:
@@ -546,7 +536,6 @@ groups:
       difficulty: hard
       bank_account: treasury
       multiple: false
-      starting_resources: 1
       starting_zone: town
       starting_location: cathedral
       whitelist: true
@@ -586,7 +575,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 2
-      starting_resources: 1
       starting_zone: town
       starting_location: cathedral
       starting_tags:
@@ -622,7 +610,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 1
-      starting_resources: 1
       starting_zone: town
       starting_location: cathedral
       starting_tags:
@@ -652,7 +639,6 @@ groups:
       difficulty: hard
       bank_account: treasury
       multiple: false
-      starting_resources: 1
       starting_zone: fortress
       starting_location: garrison
       whitelist: true
@@ -697,7 +683,6 @@ groups:
       difficulty: normal
       bank_account: treasury
       multiple: false
-      starting_resources: 2
       starting_zone: fortress
       starting_location: garrison
       starting_tags:
@@ -734,7 +719,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 6
-      starting_resources: 1
       starting_zone: fortress
       starting_location: garrison
       starting_tags:
@@ -766,7 +750,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 2
-      starting_resources: 1
       starting_zone: fortress
       starting_location: garrison
       starting_tags:
@@ -805,7 +788,6 @@ groups:
       difficulty: normal
       bank_account: treasury
       multiple: false
-      starting_resources: 26
       starting_zone: town
       starting_location: sanctuary
       whitelist: true
@@ -839,7 +821,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 4
-      starting_resources: 8
       starting_zone: town
       starting_location: sanctuary
       starting_tags:
@@ -862,6 +843,8 @@ groups:
         - >-
           Ravenheart's poor souls are a great source of business, but it's a terrible place otherwise. You wouldn't dare put your heart here — the place is doomed. Time to make some money.
         - >-
+          You are from the merchant's class in the United Cities, a nation of cosmopolitan city states.
+        - >-
           Your License opens the whole manifest — everything the station stocks, sealed goods included — where everyone else gets a short shelf. The mini-turret is keyed to your face, so it will shoot everyone except you. Be careful not to conceal your face, however.
         - >-
           You deal in obols (¢), not ⬢. You can buy at the Depot's price and sell it at whatever makes sense for profit. You can also buy things from Ravenheartians and sell them on: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
@@ -874,7 +857,6 @@ groups:
       difficulty: hard
       bank_account: offshore
       multiple: false
-      starting_resources: 10
       starting_zone: caves
       starting_location: depot
       whitelist: true
@@ -908,7 +890,6 @@ groups:
       bank_account: offshore
       multiple: true
       weight: 2
-      starting_resources: 1
       starting_zone: caves
       starting_location: depot
       starting_tags:
@@ -937,7 +918,6 @@ groups:
       difficulty: hard
       bank_account: treasury
       multiple: false
-      starting_resources: 4
       starting_zone: marshes
       starting_location: factory
       whitelist: true
@@ -976,7 +956,6 @@ groups:
       difficulty: normal
       bank_account: treasury
       multiple: false
-      starting_resources: 4
       starting_zone: marshes
       starting_location: factory
       starting_tags:
@@ -1013,7 +992,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 3
-      starting_resources: 2
       starting_zone: marshes
       starting_location: factory
       starting_tags:
@@ -1023,6 +1001,38 @@ groups:
         - Factory Key
       doc_elements:
         - godardfactory
+    exactor:
+      name: Exactor
+      intro: >-
+        Run Ravenheart's criminal underbelly.
+      description:
+        - >-
+          You're from the United Cities, like the merchant. Unlike him, you aren't from the upper classes, and instead found your way into a criminal enterprise.
+        - >-
+          You have a few elements tools: the Pusher, a brewer and drug seller; the Slaves, miners with bomb collars you can detonate; and the Courtesans, who do not work for you but will pay some of their cut for your protection.
+        - >-
+          Your Silver Chip allows you to obtain items from the Black Market manifest at the depot.
+        - >-
+          Your only job is to make as much money as possible. The slaves and the Pusher will make you money by default, but you should plan big business moves. One lucrative enterprise is selling your slaves or getting new ones. The Incarn might sell you prisoners if you can cut a deal.
+      difficulty: normal
+      bank_account: treasury
+      multiple: false
+      starting_zone: town
+      starting_location: underquarter
+      whitelist: true
+      starting_tags:
+        - Bore Pistol
+        - Machete
+        - Suit and Tie
+        - Balaclava
+        - Bomb Collar
+        - Remote Detonator
+        - Collar Key
+        - Silver Chip
+        - Literate
+      doc_elements:
+        - townstarting
+        - independent
 
   # Soil
   soil:
@@ -1038,7 +1048,6 @@ groups:
       difficulty: hard
       bank_account: treasury
       multiple: false
-      starting_resources: 1
       starting_zone: town
       starting_location: square
       whitelist: true
@@ -1068,7 +1077,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 1
-      starting_resources: 1
       starting_zone: town
       starting_location: square
       starting_tags:
@@ -1100,7 +1108,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 2
-      starting_resources: 20
       starting_zone: town
       starting_location: square
       starting_tags:
@@ -1132,7 +1139,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 2
-      starting_resources: 1
       starting_zone: town
       starting_location: old-cock-inn
       starting_tags:
@@ -1163,7 +1169,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 3
-      starting_resources: 1
       starting_zone: town
       starting_location: underquarter
       starting_tags:
@@ -1188,7 +1193,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 4
-      starting_resources: 1
       starting_zone: town
       starting_location: underquarter
       extra_starting_points: -3
@@ -1210,7 +1214,6 @@ groups:
       difficulty: normal
       bank_account: treasury
       multiple: false
-      starting_resources: 8
       starting_zone: town
       starting_location: underquarter
       starting_tags:
@@ -1240,7 +1243,6 @@ groups:
       difficulty: normal
       bank_account: treasury
       multiple: false
-      starting_resources: 9
       starting_zone: town
       starting_location: old-cock-inn
       whitelist: true
@@ -1268,7 +1270,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 2
-      starting_resources: 1
       starting_zone: town
       starting_location: old-cock-inn
       starting_tags:
@@ -1290,7 +1291,6 @@ groups:
       difficulty: easy
       bank_account: treasury
       multiple: false
-      starting_resources: 2
       starting_zone: marshes
       starting_location: marshes-village
       starting_tags:
@@ -1299,6 +1299,53 @@ groups:
         - Rough Camper
       doc_elements:
         - godardfactory
+    courtesan:
+      name: Courtesan
+      intro: >-
+        Kiss people for money.
+      description:
+        - >-
+          Ravenheart is a dangerous place, which is why you rely on the Exactor to protect you. You owe him some of your cut in exchange for his protection, but you can also choose to work independently.
+        - >-
+          Set your prices and work the late hours. Your kisses are the most powerful in the game and can easily make other people ecstatic, giving them a +1 to their Gambits.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 2
+      starting_zone: town
+      starting_location: underquarter
+      starting_tags:
+        # The SLUG, not the name: "Seductive" is also the display name of the
+        # catalog: secret Demoness power, and the sync refuses an ambiguous
+        # name rather than picking one.
+        - seductive
+        - Ration Box x2
+        - Cigarette
+      doc_elements:
+        - townstarting
+        - independent
+    slave:
+      name: Slave
+      intro: >-
+        You were sold into slavery. Work to earn your freedom.
+      description:
+        - >-
+          Do what the Exactor says, with the eventual hope of earning your freedom. Your contract details the amount of obols you must obtain to buy your freedom.
+        - >-
+          You may rebel, but given your collar, it will be a difficult thing to do.
+        - >-
+          Your primary job is to go into the caves and prospect for resources.
+      difficulty: easy
+      multiple: true
+      weight: 3
+      starting_zone: town
+      starting_location: underquarter
+      starting_tags:
+        - Bomb Collar (Locked)
+        - Prospector's Pick
+        - Ration Box
+      doc_elements:
+        - townstarting
 
   # Outsiders
   outsiders:
@@ -1311,7 +1358,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: unlimited
-      starting_resources: 1
       starting_zone: caves
       starting_location: caves-abandoned-camp
       extra_starting_points: 6
@@ -1330,7 +1376,6 @@ groups:
       bank_account: treasury
       multiple: true
       weight: 3
-      starting_resources: 4
       starting_zone: caves
       starting_location: customs
       starting_tags:
@@ -1366,7 +1411,6 @@ groups:
       difficulty: normal
       multiple: false
       examine_visible: false
-      starting_resources: 3
       starting_zone: hills
       starting_location: hills-grand-ravine
       whitelist: true
@@ -1404,7 +1448,6 @@ groups:
       multiple: true
       weight: 3
       examine_visible: false
-      starting_resources: 2
       starting_zone: hills
       starting_location: hills-grand-ravine
       starting_tags:
@@ -1442,7 +1485,6 @@ groups:
       multiple: true
       weight: 1
       examine_visible: false
-      starting_resources: 8
       starting_zone: hills
       starting_location: hills-waterway
       starting_tags:
@@ -1493,7 +1535,6 @@ groups:
       multiple: true
       weight: unlimited
       examine_visible: false
-      starting_resources: 8
       starting_zone: hills
       starting_location: hills-waterway
       starting_tags:
