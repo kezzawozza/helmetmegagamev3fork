@@ -136,6 +136,13 @@
 
 .ledger-face-blank {
   background: var(--field-bg);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--sp-1);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  text-align: center;
 }
 
 /* The faction is a link to /faction, but on a muted line rather than in a
@@ -163,7 +170,12 @@
   max-width: 47rem;
 }
 
-.ledger-tile {
+/* .ledger-tile is the shared name the GM desks style off too (DevBand.js,
+   InspectorColumn.js) — the rule stays under it so their look doesn't move.
+   .tile is the mockup's own name for the same box, added by DetailTile.js
+   alongside it, so this rule also answers to the mockup's class. */
+.ledger-tile,
+.tile {
   background: var(--field-bg);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -370,7 +382,9 @@
    happens to have. */
 .combat-rows {
   display: grid;
-  grid-template-columns: auto auto auto;
+  /* The mockup's own column shape: label, band, then the armour word taking
+     whatever is left, so it never wraps under a narrow band box. */
+  grid-template-columns: auto auto 1fr;
   justify-content: start;
   align-items: baseline;
   column-gap: var(--sp-3);
@@ -839,7 +853,10 @@
   .sheet-row[data-open="true"] .sheet-row-verbs,
   .item-card-line:hover .sheet-row-verbs,
   .item-card-line:focus-within .sheet-row-verbs,
-  .item-card[data-open="true"] .sheet-row-verbs {
+  .item-card[data-open="true"] .sheet-row-verbs,
+  .data-table tr:hover .sheet-row-verbs,
+  .data-table tr:focus-within .sheet-row-verbs,
+  .data-table tr[data-open="true"] .sheet-row-verbs {
     visibility: visible;
   }
 }
@@ -1067,6 +1084,75 @@ button.equip-cell-face:focus-visible {
 
 .mood-names > b[data-tone="bad"] {
   color: var(--danger);
+}
+
+/* ── Desires (DesirePanel.js) ──
+   The mockup's own grammar: one .desire per slot, a .head line with the slot's
+   name and a status pill, then plain prose underneath. No pill for a pending
+   reward — Desires are claimed RETROACTIVELY now (DESIRES.md), so a slot is
+   never "occupied" with a reward waiting, only open or cooling down. */
+.desire {
+  padding: var(--sp-1) 0;
+  border-top: 1px solid var(--border);
+}
+
+.desire:first-of-type {
+  border-top: 0;
+}
+
+.desire[data-bound="true"] {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-1);
+}
+
+.desire .head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.desire .head b {
+  color: var(--text);
+}
+
+.desire p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* ── The Items table (ItemsTable.js) ──
+   The mockup's own .data-table (globals.css) for the sheet's inventory —
+   Items and Assets, merged into one list — instead of the two item cards
+   ItemCard.js still draws for the GM's Sheet tab and Dev Character Panel. */
+.data-table-face {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.data-table-face:hover .chip,
+tr[data-open="true"] .data-table-face .chip {
+  border-color: var(--accent-text);
+}
+
+.data-table-face:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* A stack count or a state word beside a name — "×5", the same quiet grey the
+   mockup gives it wherever it shows up (a tag row, an item table). */
+.mark {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
 }
 
 /* ── Widths ──

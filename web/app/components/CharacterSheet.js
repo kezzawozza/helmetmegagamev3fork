@@ -12,7 +12,7 @@ import GoalsPanel from "./GoalsPanel";
 import HereList from "./HereList";
 import LedgerBand from "./LedgerBand";
 import LedgerWork from "./LedgerWork";
-import MoodPanel, { MOOD_DETAIL } from "./MoodPanel";
+import MoodPanel from "./MoodPanel";
 import RequestActionsProvider from "./RequestActionsProvider";
 import RichText from "./RichText";
 import StandingHerePanel from "./StandingHerePanel";
@@ -420,8 +420,12 @@ export default function CharacterSheet({
             {/* The mood ladder, and only on your own sheet: the band above shows
                 somebody else's word, and where that word sits plus the figure
                 behind it is a private reading (the same posture the Combat tile
-                takes). */}
-            {isSelf && <MoodPanel mood={character.mood ?? 0} detail={MOOD_DETAIL} />}
+                takes). No narrative paragraph here (Bascinet, 2026-09-18): the
+                only text for it would be Bascinet's own generic paragraph on
+                what moves a mood, not this character's own reason — that one
+                still lives on the band's Mood tile, one press away
+                ("press for why"), which is what SHEET.md documents it as. */}
+            {isSelf && <MoodPanel mood={character.mood ?? 0} />}
 
             {isSelf && (
               <GoalsPanel
