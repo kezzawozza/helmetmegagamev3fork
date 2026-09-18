@@ -56,19 +56,35 @@ and the page navigated out from under a player who meant to close a menu.
 The `/chat` snapshot (`CHAT.md` §5c) paints in the first frame, which is what
 makes it feel immediate.
 
-Inside, `.sheet-body` is the band, then `.ledger-body`: three columns
-(`18rem / 1fr / 22rem`). Under 1180px the rail folds under the working column;
-under 820px the three columns become three tabs, **You / Do / Tags**, a
-`.tab-bar` keyed on `data-tab` in CSS with no JS media query. Only the widths
-change at those breakpoints — the scrolling is the same at every size.
+Inside, `.sheet-body` is the band, then `.ledger-body`: **two columns**
+(`1fr / 22rem`). The left is what you have — the tag rail, the Items and Assets
+cards, the Bio, Crafting & building. The right is what you are wearing, how you
+feel and what you want — the rig, Mood, Desires — then Who's here and what
+stands here. Under 1180px the right column narrows to `18rem`; under 720px they
+stack, and everything that presses takes a 44px floor. Only the widths change —
+the scrolling is the same at every size.
+
+It was three columns behind a **You / Do / Tags** tab bar until phase 4 of the
+game 3 redesign (`REDESIGN.md` §10, `docs/design/mockups/character/index.html`
+is the spec). The middle column existed mostly to give the Bio form somewhere to
+be, and the tab bar hid two thirds of a sheet on a phone — reading your own wound
+cost two taps. There are no tabs now, and `.sheet-tabs` is gone.
 
 ## 2. The band (`LedgerBand.js`)
 
 Who this is, where they stand, and:
 
-- **The identity cluster** (`.ledger-identity`) — the face, then the name as an
-  `h2`, the role and faction on one muted line (the faction a link to
-  `/faction`), where they stand on the next, and the status strip under that.
+- **The identity cluster** (`.ledger-identity`) — the face, then the name, the
+  role and faction on one muted line (the faction a link to `/faction`),
+  **"Standing in Town — Tallow Row"** on the next, and the status strip under
+  that.
+- **The name is the blackletter.** `.ledger-name` takes `--font-display` in
+  `--blackletter` with `text-shadow: 0 2px 3px #000`, at `--fs-3xl`. It is one of
+  the handful of places the world speaks in its own voice (`REDESIGN.md` §1), and
+  the size is a floor rather than a choice: the face is illegible smaller, and
+  `--blackletter` only clears contrast as large text. That shadow is the one
+  literal colour in `globals.css`'s sheet families, and it is black, which no
+  theme changes.
   These are the page's only statement of who you are, now that the header is a
   page name again (§1).
 - **The face has no size of its own.** The column beside it sets the height and
@@ -85,13 +101,22 @@ Who this is, where they stand, and:
   say both with the caps and the load meter the chips could only half-say, and
   printing the same two numbers twice on one band read as a bug. Chat has no
   tiles, so it keeps them. On the sheet the strip takes `onPick`, and a
-  clicked chip opens the tag's `TagDetails` under it. The rail has no Status
-  card for that reason.
+  clicked chip opens the tag's `TagDetails` under it. The rail has a Status run
+  as well as of phase 4 (§3) — a chip and a row are not the same reading.
 - **Five tiles, one row** — free moves, the ⬢ balance, carrying with its
   meter, the **Mood box** (`MOOD.md` §4) and the Gambit modifier
   (`db/lib/gambitModifier.js`, the same call the bot makes). `.ledger-tiles`'
   `max-width` fits exactly five: a sixth needs 856px, so anything else goes on
   the row below rather than into this row.
+- **Every tile carries a quiet second line** (`DetailTile`'s `sub`), always
+  drawn, never pressed for: free moves says whether the Gambit is filed, ⬢ says
+  the coin in your pocket in `¢`, Mood says its own figure and `press for why`,
+  the Gambit die names the heaviest single modifier and counts the rest. Two
+  things the mockup asks for do not exist in the data and are not invented here:
+  there is **no ⬢ cap** (the old `GameConfig.carryResourceCap` went when a ⬢
+  started weighing a pound and counting against the carry cap, `CARRY.md` §1), so
+  that line says the coin instead; and nothing records **why** a mood is where it
+  is, so `press for why` opens Bascinet's paragraph on what moves one.
 - **The row below is This turn · Combat · Turn Effects** — three boxes of the
   same build, reading as what you are doing, what you can do (`COMBAT.md`) and
   what the turn will do to you. It is `auto-fit`, so Turn Effects simply
@@ -107,7 +132,7 @@ Who this is, where they stand, and:
 - **Nearly all of them press**, and that is what fixed the one that did not.
   Free moves (why it is 0), Carrying (what holds the cap up), Combat, Mood and
   the Gambit die (which modifiers, by name) all have something to say; only ⬢
-  does not — it is a plain number with no cap of its own to explain, since ⬢
+  does not — its sub-line says the coin, which is all there is to say — it is a plain number with no cap of its own to explain, since ⬢
   became a one-pound item and started counting against the carry cap beside
   the gear (`CARRY.md`). There used to be a second cap, and the tile still did
   not press then either. The Carrying breakdown had come off precisely because *one*
@@ -166,11 +191,16 @@ Who this is, where they stand, and:
   walks, so an animal added later shows up here with no second edit — and says
   either what they will consume or that you cannot feed them.
 - **The verb strip** — `ActionGrid variant="strip"`: every action in
-  `actionRegistry.js` as one wrapping row of small labelled buttons, sections
-  split by a hairline. **Every button hovers**, the same tooltip the verb wears
-  everywhere else: its name, the sentence saying what it does, and — when it is
-  greyed — the pool's `gateReason`. A gated verb is dashed and does not press.
-  The Trumpet joins the row when held.
+  `actionRegistry.js` as one wrapping row of bevelled buttons, the sections split
+  by a hairline. Each one **is a `.btn-secondary`** (`.action-strip-item` only
+  adds the icon gap and the strip's spacing), so the bevel, the press and the
+  dashed gated state all come from the shared class and a verb here looks like
+  every other button in the app (`REDESIGN.md` §5). **Every button hovers**, the
+  same tooltip the verb wears everywhere else: its name, the sentence saying what
+  it does, and — when it is greyed — the pool's `gateReason`. A gated verb is
+  dashed and does not press. The **Trumpet** joins the end of the row when held,
+  in its own hairline group, as the one filled red `.btn` among the greys — it
+  commits on the spot rather than opening a dialog, and it asks first.
 - **On a touch screen that tooltip IS the button** (`ActionButton.js`). It could
   not be read at all before: every variant passed `pinnable={false}`, which is
   what switches off the one tap path `HoverCard` has, so a tap fell straight
@@ -187,8 +217,20 @@ Who this is, where they stand, and:
 
 ## 3. The rail (`TagRail.js`)
 
-One card per kind, one row per tag. `web/lib/sheetCards.js` is the pure half:
-which card (the tag's category, Status excluded), the order inside it, the
+Two shapes. The plain rails — **Skills, Health, Status, General, Meta** — are
+labelled runs of rows inside **one Tags card**, with the filter and the tag
+points over the lot of them. **Items and Assets get a card each**, because an
+item row carries its own verbs and the card carries a weight total. Before phase
+4 it was one panel per kind plus a separate header strip, which read as six
+unrelated boxes.
+
+**Status is in the rail now** (`buildCards(…, { includeStatus: true })`), as well
+as a chip in the band. The two are not the same reading — a chip says "you are
+Concealed", a row says what it turns into and when it ends — and the mockup draws
+both.
+
+`web/lib/sheetCards.js` is the pure half:
+which card (the tag's category), the order inside it, the
 sub-groups (the `TagGroup` a tag belongs to), and `rowValue()` — the one thing
 on the row's right, picked in the order a player cares: turns left (in
 `--danger` on the last turn), then pounds, then the armour word, then a carry
@@ -197,7 +239,7 @@ or labor bonus, then a stack count.
 | Card | Order | Second line |
 |---|---|---|
 | Health | soonest to run out first | `→ Festering · cure 2 ⬢ · Medical (Basic)` from `expiresInto` and the requirement block |
-| Skills | by family (TagGroup) | the next rung: the catalog tag whose `parentTagId` is this one, with its cost |
+| Skills | by family (TagGroup) | the next rung: the catalog tag whose `parentTagId` is this one, with its cost in **tag points** — the mockup writes `8 ⬢` there, but the store spends `Character.tagPoints`, so the row says `pts` |
 | Items, Assets | by kind, heaviest first; the header carries the total lb | an **item card** — see below |
 | General, Meta, Demoness | alphabetical | — |
 
@@ -257,9 +299,9 @@ So on a phone **tapping a row means "what is this?" and nothing else.** Acting
 is a second tap, from inside what the first one opened — the rule
 [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) §9 now states for the whole app.
 
-The header holds **Spend Tag Points** (the store modal) and the filter box:
-name, description or group; a card with nothing left hides while a query is
-set.
+The Tags card's header holds **Spend Tag Points** (the store modal) and, under
+it, the filter box: name, description or group. A run with nothing left hides
+while a query is set, and so does an Items or Assets card.
 
 ## 4. The rig (`EquipBoard.js`)
 
@@ -286,8 +328,17 @@ audit row and the room's own "a young man takes a Padded Cap" line both still
 fire (`CARRY.md` §7) — and then equips what it took. **A refusal on the wearing
 half leaves the take standing**, says so, and the thing is in your pack. The
 rooms are the ones `loadStashRooms` already offers the Transfer dialog, so a
-door locked to one is locked to the other. The header is the
-combined armour as words (`armorValue.js#combineArmor` → `armorWord`).
+door locked to one is locked to the other.
+
+The panel is headed **Equipment**, with the combined armour beside it as two
+shield marks and two words (`armorValue.js#combineArmor` → `armorWord`). Each
+slot row names itself on the left and says how it fills on the right — "Mail,
+then Over", "3/4 hands", "one thing" — off `equipSlots.js#LAYER_NAMES` rather
+than written out again, so a slot that gains a layer says so. At the **foot of
+the board is the Carrying line and its meter**, the same two numbers and the same
+`carry` object the band's Carrying tile reads: the board above is what changes
+them, and taking a coat off to get under the cap should not mean scrolling back
+up to check.
 
 The rows are only as good as the catalog: slots and layers reach the database
 through `npm run db:sync-tags`, which no deploy step runs, so a push without
@@ -311,17 +362,41 @@ a boat against a horse, anything at all with Motion Sickness — with a line in
 the menu saying why. `ClickMenu.js` is the
 portaled click menu that used to live inside `play/ThingsDrawer.js`.
 
+## 4a. Mood, as the ladder (`MoodPanel.js`)
+
+The band's Mood tile says the one word and the figure. The panel in the right
+column says **where that word sits among the others**: one cell per band from
+Panicking to Ecstatic tinted by the band's tone, the one you are in lit, every
+band's word underneath with yours picked out, then the sentence on what moves a
+mood. "Uncomfortable" means nothing until you can see there are four worse states
+below it and five better ones above.
+
+Both the cells and the words come from `MOOD_BANDS` in `db/lib/mood.js`, never
+from a count written here — that table is the only thing that says how many bands
+there are, and it says **ten**, where `MOOD.md` and the mockup both say nine.
+Drawing it from the table means the table keeps winning. The strip itself is
+`aria-hidden`; the run of words carries the same information in text.
+
+Self sheet only, the same posture the Combat tile takes: somebody else's figure
+is not yours to read.
+
 ## 5. What is not here
 
-- **The Bio form is the form** (`BioForm.js`), unchanged, in the left column,
-  with `LedgerWork.js` — Crafting & building, the clock on a half-finished
-  project or build site — under it. That panel sat in the middle column beside
-  the rig until the sheet read as a tall middle between two short sides; it is
-  a readout and nothing on it presses, so it belongs with the Bio rather than
-  with the verbs. Below 820px that also moves it from the **Do** tab to
-  **You**.
+- **The Bio form is the form** (`BioForm.js`), unchanged, at the foot of the
+  left column under the tag rail, with `LedgerWork.js` — Crafting & building,
+  the clock on a half-finished project or build site — under it. Both are
+  readouts and nothing on either presses, so they sit at the bottom of the
+  reading column rather than beside the rig, which is all controls.
 - No collapsing cards, no Traits/Drawbacks split — both were put to Bascinet
   and skipped.
+
+## 5a. One global change came with this pass
+
+`--font-serif` on `:root` is a real serif again —
+`"Times New Roman", Times, "Liberation Serif", serif` — where phase 1 had left it
+an alias of `--font-sans`. That one line is what puts `h1`/`h2`/`h3`,
+`.panel-header` and `.section-title` into the bold serif the mockup draws them
+in, **app-wide**, with no call site touched. Body text is still `--font-sans`.
 
 ## 6. The `ledger` names are kept on purpose
 

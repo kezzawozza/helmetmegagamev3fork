@@ -9,6 +9,10 @@ import { useRef } from "react";
 // §3). Click matters as much as hover: a phone has no hover, and focus
 // reaches players on a keyboard the same way.
 // `tone` colours the value by meaning, the rule StatusPill.js sets. `word` drops the mono face — a word is not data.
+// `sub` is the quiet line under the number, always drawn: the coin in your
+// pocket beside your ⬢, the mood's own figure, which modifier is on the Gambit.
+// It is NOT the `detail` — that swaps the whole face, and only on demand — so a
+// tile can carry both, which is what the Mood box does ("−16 · press for why").
 //
 // Lifted out of LedgerBand.js so the GM desks can wear the same behaviour:
 // the inspector's Combat readout and the Move desk's both mount this, and a
@@ -19,6 +23,7 @@ export default function DetailTile({
   over = false,
   tone = null,
   word = false,
+  sub = null,
   detail = null,
   open = false,
   onOpen = null,
@@ -45,6 +50,7 @@ export default function DetailTile({
         >
           {value}
         </span>
+        {sub && <span className="ledger-tile-sub">{sub}</span>}
         {children}
       </div>
     );
@@ -88,6 +94,7 @@ export default function DetailTile({
           >
             {value}
           </span>
+          {sub && <span className="ledger-tile-sub">{sub}</span>}
           {children}
         </span>
         <span className="ledger-tile-detail" data-open={open ? "true" : "false"}>

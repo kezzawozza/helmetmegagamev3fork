@@ -19,7 +19,7 @@ export default function GoalsPanel({
   openTurnNumber,
 }) {
   return (
-    <section className="panel p-4">
+    <section className="panel p-3">
       <DesirePanel
         desireSlots={desireSlots}
         slotLockTurns={slotLockTurns}

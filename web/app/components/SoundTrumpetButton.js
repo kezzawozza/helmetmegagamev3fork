@@ -37,16 +37,17 @@ export default function SoundTrumpetButton() {
     });
   }
 
+  // It rides at the end of the verb strip (ActionGrid.js), in its own hairline
+  // group, as the one filled red .btn among the bevelled greys — the mockup's
+  // Trumpet. No caption over it: a group of one in a strip of verbs does not
+  // need a label saying it is the trumpet when the button says Trumpet.
   return (
-    <div className="mt-2">
-      <p className="field-label mb-1">The trumpet</p>
-      <button type="button" className="btn" onClick={onClick} disabled={pending}>
-        {pending ? "Sounding…" : "Sound trumpet"}
+    <>
+      <button type="button" className="btn action-strip-item" onClick={onClick} disabled={pending}>
+        {pending ? "Sounding…" : "Trumpet"}
       </button>
-      {sounded && !error ? (
-        <p className="text-muted mt-1 text-sm">You sound it.</p>
-      ) : null}
-      <FormError className="mt-1">{error}</FormError>
-    </div>
+      {sounded && !error ? <span className="text-muted text-sm">You sound it.</span> : null}
+      <FormError>{error}</FormError>
+    </>
   );
 }

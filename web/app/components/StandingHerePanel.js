@@ -14,7 +14,7 @@ export default function StandingHerePanel({ sites = [] }) {
   if (!sites.length) return null;
 
   return (
-    <section className="panel p-4">
+    <section className="panel p-3">
       <h2 className="panel-header">Standing here</h2>
       <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm">
         {sites.map((s) => (
