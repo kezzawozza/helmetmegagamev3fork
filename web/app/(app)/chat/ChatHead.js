@@ -1,12 +1,20 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment } from "react";
 import IconButton from "@/app/components/IconButton";
 import { MenuIcon, PlayersIcon } from "@/app/components/icons";
 
-// The head over a scene: the open place's name, where you are standing above
-// it, and the place's own words under it. Both the feed and the Bascinet pane
-// wear this one — they used to build slightly different heads by hand.
+// The head over a scene: ONE `.bar` (the mockup's, docs/design/mockups/chat/
+// index.html) — the open place's name, then `.crumb` (zone · kind), then a
+// spacer, then `.sub` saying how many are here. The feed, the Bascinet pane
+// and the faction panel all wear this one — they used to build three
+// slightly different heads by hand.
+//
+// The place's own WORDS are not this component's to print. They used to run
+// a third line under the crumb, which is what put "The coziest part of
+// Ravenheart…" wrapping under the You panel and off the edge of the column —
+// a head is where you are, not what it looks like. That prose already has a
+// home: the first line PlaceCard.js prints in the aside, always on the page.
 //
 // On a phone (under 720px, useNarrow.js) it is also the whole top of the
 // screen, the way Discord's channel bar is: ≡ on the left opens the places
@@ -14,14 +22,9 @@ import { MenuIcon, PlayersIcon } from "@/app/components/icons";
 // only when the caller hands over an opener — the GM desk's Scene tab embeds
 // the feed and has neither drawer — and CSS keeps them off a desktop, where
 // both columns are already on the page.
-//
-// The description is one clamped line you open with a tap. On a phone there
-// is no room for it at all, so the NAME is the button and the line drops in
-// under the bar when asked.
 export default function ChatHead({
   name,
   crumb = [],
-  description = "",
   // The phone's two drawers. Null means no button.
   onOpenPlaces = null,
   onOpenAside = null,
@@ -32,56 +35,25 @@ export default function ChatHead({
   // Whatever sits at the right edge — the feed's search, for instance.
   trailing = null,
 }) {
-  const [descOpen, setDescOpen] = useState(false);
-  const text = description?.trim() || "";
   return (
-    <div className="chat-head">
+    <div className="chat-head bar">
       {onOpenPlaces && (
         <span className="chat-head-phone">
           <IconButton icon={MenuIcon} label="Places" size="lg" onClick={onOpenPlaces} />
           {unreadElsewhere && <span className="chat-dot chat-head-dot" aria-label="Unread elsewhere" />}
         </span>
       )}
-      <div className="chat-head-main">
-        {/* The name is a button only where it has something to open. A
-            heading that looks like a button and does nothing is worse than
-            a plain heading. */}
-        {text ? (
-          <h1 className="section-title">
-            <button
-              type="button"
-              className="chat-head-name"
-              aria-expanded={descOpen}
-              onClick={() => setDescOpen((open) => !open)}
-            >
-              {name}
-            </button>
-          </h1>
-        ) : (
-          <h1 className="section-title">{name}</h1>
-        )}
-        {crumb.length > 0 && (
-          <span className="crumb">
-            {crumb.map((part, i) => (
-              <Fragment key={part}>
-                {i > 0 && <span aria-hidden="true"> · </span>}
-                {part}
-              </Fragment>
-            ))}
-          </span>
-        )}
-        {text && (
-          <button
-            type="button"
-            className="chat-head-desc"
-            data-open={descOpen ? "true" : undefined}
-            aria-expanded={descOpen}
-            onClick={() => setDescOpen((open) => !open)}
-          >
-            {text}
-          </button>
-        )}
-      </div>
+      <h1 className="chat-head-name">{name}</h1>
+      {crumb.length > 0 && (
+        <span className="crumb">
+          {crumb.map((part, i) => (
+            <Fragment key={part}>
+              {i > 0 && <span aria-hidden="true"> · </span>}
+              {part}
+            </Fragment>
+          ))}
+        </span>
+      )}
       <span className="spacer" />
       {hereCount != null && hereCount > 0 && <span className="sub">{hereCount} here</span>}
       {trailing}

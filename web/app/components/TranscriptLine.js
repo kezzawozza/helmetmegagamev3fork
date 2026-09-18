@@ -15,10 +15,17 @@
 // server page the day one prints a transcript (DESIGN-SYSTEM.md §5a, the same
 // rule CheckField and Switch follow).
 //
-// `density` is GEOMETRY ONLY. The three variants are the three old families'
-// numbers moved verbatim, so this component could become singular before the
-// numbers do; phase 5 re-solves them and collapses the variants. A variant
-// here is a staging post, not drift.
+// `density` is GEOMETRY ONLY. "thread" and "thread-compact" are the two old
+// families' numbers moved verbatim, so this component could become singular
+// before the numbers do; phase 5 re-solves them and collapses the variants. A
+// variant here is a staging post, not drift.
+//
+// "feed" draws the mockup's LOG shape instead
+// (docs/design/mockups/chat/index.html): one line, no face —
+// `Name: what they said` — never a name/time row over a second line with an
+// avatar beside it. It has its own branch below rather than sharing the
+// gutter/head/body markup the other two densities use, because that shape has
+// nothing in this one: no gutter, no per-row clock, no separate head.
 //
 // /archive is the one log that does NOT come through here. Its row is a
 // four-column CSS grid whose children are the columns (clock, who, what, cite),
@@ -56,9 +63,11 @@
  *   The face, already built by the caller with that surface's own size and
  *   zoomable choices. Null leaves the gutter empty, which is what a run
  *   continuation wants — the column keeps its width so the text stays aligned.
+ *   IGNORED for density="feed" — the mockup's log has no face at all.
  * @param {boolean} [p.gutter=true]
  *   False drops the gutter element entirely, for a surface that has no faces
  *   at all (the inspector's Archive tab). The body then takes the full width.
+ *   Meaningless for density="feed", which never draws a gutter.
  * @param {import("react").ReactNode} [p.gutterAside=null]
  *   What the gutter shows instead of a face — the DM thread's hover-revealed
  *   clock.
@@ -154,6 +163,45 @@ export default function TranscriptLine({
         id={id ?? undefined}
       >
         {children}
+      </Tag>
+    );
+  }
+
+  // "feed" is the mockup's LOG shape, not Discord's message shape (CHAT.md):
+  // one line, no face, the name and the body run on together —
+  // `Marrow Vance: Second tithe…` — rather than a name/time row over a
+  // second line with an avatar beside it. "thread" and "thread-compact" keep
+  // the gutter/head/body shape below exactly as they were; only this branch
+  // changed.
+  if (density === "feed") {
+    return (
+      <Tag
+        className={`tline${className ? ` ${className}` : ""}`}
+        data-density={density}
+        data-kind={channelKind ?? undefined}
+        data-run={startsRun ? "start" : undefined}
+        data-pending={pending ? "true" : undefined}
+        data-failed={failed ? "true" : undefined}
+        data-live={live ? "true" : undefined}
+        data-dir={direction ?? undefined}
+        data-seq={seq ?? undefined}
+        id={id ?? undefined}
+        tabIndex={tabIndex}
+      >
+        {name != null ? (
+          <span
+            className="tline-name"
+            data-alias={alias ? "true" : undefined}
+            data-hue={hue ?? undefined}
+          >
+            {name}
+          </span>
+        ) : null}
+        {name != null ? <span className="tline-sep">: </span> : null}
+        {children}
+        {edited ? <span className="tline-edited"> (edited)</span> : null}
+        {actions ? <div className="tline-actions">{actions}</div> : null}
+        {trailing}
       </Tag>
     );
   }

@@ -535,6 +535,27 @@ like everything else.
 
 ### Feed and composer details worth knowing
 
+- **A feed row is a LOG line, not a Discord message.** `TranscriptLine.js`'s
+  `density="feed"` draws no face and no per-row clock: one line —
+  `Marrow Vance: Second tithe. They say that like it costs them something.` —
+  a bold, hued name, a colon, then the words in `--speech`, the mockup's own
+  shape (`docs/design/mockups/chat/index.html`, `.row`/`.who`/`.said`). It
+  used to be Discord's own shape instead: an avatar, a name-and-timestamp row,
+  then the words on a second line, with a run's later lines dropping the name
+  and the face to sit tight under the first — which read as a chat app's
+  message list rather than a chronicle of a scene. The name prints on EVERY
+  line now for exactly that reason; there is no run to group into one face
+  any more, so `FeedRow` (`Feed.js`) always passes it. `density="thread"` and
+  `"thread-compact"` (the DM thread, the inspector's Archive tab) keep the
+  gutter/head/body shape and the avatar-per-run grouping exactly as they
+  were — only `"feed"` changed, and `TranscriptLine.js` draws it as its own
+  branch rather than a variant of the other two, because the two shapes share
+  nothing below the row's outer element.
+
+  `ChatMarkdown`'s `.markdown-content` is a block element built for a
+  thread's own paragraph — `.tline[data-density="feed"] .markdown-content` is
+  forced `display: inline` so the words run on from `"Name: "` on the same
+  line instead of dropping to one of their own.
 - **The feed row lights up under pointer AND keyboard** via `:hover` /
   `:focus-within`. The row action bar is always in the DOM and revealed by
   CSS, which is what makes it reachable by tab — a keyboard fires no
@@ -851,10 +872,16 @@ a 48px head and a one-line composer:
   opposite swipe inside a drawer closes it). Touch events only, passive, no
   follow-the-finger — the drawer slides in on its own once the gesture
   lands.
-- **The head is `ChatHead.js`**, one component both the feed and the Bascinet
-  pane wear. On a phone
-  the crumb is dropped, the name is one line, and the description shows only
-  once the name has been tapped.
+- **The head is `ChatHead.js`**, one component the feed, the Bascinet pane
+  and the faction panel all wear — ONE `.bar` at every width now (the
+  mockup's own shape): the place's name, `.crumb` (zone · where you are
+  standing), a spacer, then `.sub` saying how many are here. It used to also
+  print the place's own words under the crumb, clamped to one line you
+  tapped open — which is what ran a Location's description under the You
+  panel and off the right edge of the column on a wide screen, three stacked
+  lines doing one bar's job. That prose is gone from the head; it was never
+  the head's to say twice; `PlaceCard.js` already prints it, always on the
+  page, as the first line of the **Place** side of the aside's place card.
 - **The box is one line and grows** as you type, to about six lines
   (`useComposerAutosize` sets the height off `scrollHeight` — on a desktop too,
   where one row is the floor on both faces now). Send is the ➤ glyph, and the ✉
