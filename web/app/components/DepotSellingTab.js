@@ -6,7 +6,7 @@ import { depotDrop, depotSaleDestination } from "@/app/(app)/depot/actions";
 import { TableScroll } from "./DataTable";
 import Select from "./Select";
 import RequestDialog from "./RequestDialog";
-import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/placeAffordances";
+import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/dropboxText";
 
 // What you have put in the drop box, and where the money is going.
 //

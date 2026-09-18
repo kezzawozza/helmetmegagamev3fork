@@ -9,7 +9,7 @@ import { NoticeText } from "./NoticeCards";
 import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { INTERACT_PROMPT, INTENTION_MAX, QUEST_INTERACT_PREFIX } from "@lifeweb/db/lib/questText";
-import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/placeAffordances";
+import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/dropboxText";
 import {
   loadAffordances,
   flipGate,

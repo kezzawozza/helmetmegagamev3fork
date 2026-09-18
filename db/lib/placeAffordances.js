@@ -55,15 +55,10 @@ const ROOM_ATM_PREFIX = "room:atm:";
 const ROOM_DROPBOX_PREFIX = "room:dropbox:";
 const ROOM_DEPOT_TURRET_PREFIX = "room:depotturret:";
 
-// The one line of help the Dropbox carries, on the Discord modal, the Chat
-// modal and the Depot's own Selling tab. Bascinet's words, verbatim — kept here
-// beside the button's label so the three faces cannot drift apart.
-const DROPBOX_HELP =
-  "The next time the train leaves, anything you put in the dropbox will be " +
-  "automatically sold and credited to your chosen account.";
-
-// What the Dropbox says when you are carrying nothing it takes.
-const DROPBOX_EMPTY = "You don't have anything you can sell.";
+// The Dropbox's help and empty lines live in ./dropboxText.js (zero requires,
+// so the two client components that show them can import it); re-exported
+// here so server callers keep their one import.
+const { DROPBOX_HELP, DROPBOX_EMPTY } = require("./dropboxText");
 
 // `tone` is what the affordance MEANS, never a colour — each face maps it to its own look.
 const GO = "go";
