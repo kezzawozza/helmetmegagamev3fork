@@ -368,6 +368,7 @@
 html,
 body {
   height: 100%;
+  overscroll-behavior: none;
 }
 
 /* No scrollbar, anywhere, on purpose (Bascinet: "if an element can be
