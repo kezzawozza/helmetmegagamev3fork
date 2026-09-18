@@ -463,10 +463,10 @@
   display: block;
 }
 
-/* The strip under the tiles: the Move as filed, on the recessed surface
-   the tiles use so the whole band reads as one instrument panel. */
+/* The strip under the tiles: the Move as filed, on the raised surface the
+   tiles use so the whole band reads as one instrument panel. */
 .ledger-turn {
-  background: var(--field-bg);
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: var(--sp-1) var(--sp-2);
