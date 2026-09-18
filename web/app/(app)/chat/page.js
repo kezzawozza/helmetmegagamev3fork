@@ -154,7 +154,7 @@ async function FreshChat({ userId }) {
   // backlog down the stream.
   // The wipe watermarks, read before the rows so the first paint and the
   // stream's catch-up agree about where the day starts (db/lib/feedWipe.js).
-  // Two of them: a zone summary clears at Dawn, everywhere else every turn.
+  // Two of them: a zone summary clears once a game-day, everywhere else every turn.
   const floors = await feedWipeFloors(prisma);
   const floor = floorForPlace(floors, first.placeKey);
 
@@ -280,7 +280,7 @@ async function FreshChat({ userId }) {
             where: { status: "OPEN" },
             // `number` for the Desire gates and the turn card's label,
             // `startedAt` for the Move window (db/lib/turnClock.js).
-            select: { id: true, number: true, phase: true, startedAt: true },
+            select: { id: true, number: true, dayNumber: true, turnLengthHours: true, endsAt: true, startedAt: true },
           }),
         ]);
         const character = { ...viewer.character, ...sheet };

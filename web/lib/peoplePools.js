@@ -4,6 +4,7 @@ import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { kissBlock } from "@lifeweb/db/lib/kiss";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
+import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { RESOURCES_SELECT, resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import { peopleHere } from "@/lib/peopleHere";
@@ -220,7 +221,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // so the sentence a button shows and the one examineActions.js refuses with
   // are the same sentence.
   const examineBlocked = examineBlock(character.tags, {
-    phase: openTurn?.phase ?? null,
+    daylight: isDaylight(),
     indoors: character.location?.indoors ?? true,
   });
 

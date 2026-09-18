@@ -18,6 +18,7 @@ const { EXAMINE_TAG_SELECT, EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire
 const { readPresentedState, rehydrateSubject } = require("./examineSnapshot");
 const { buildSkillAncestry, satisfiedSkillIds } = require("./medicalVision");
 const { examineBlock } = require("./examineVision");
+const { isDaylight } = require("./turnClock");
 const { forcedNameFrom, wasHooded } = require("./presentedIdentity");
 const { feedWipeFloors, floorForPlace } = require("./feedWipe");
 const { mayReadPlace } = require("./feedAccess");
@@ -72,11 +73,11 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
   if (row.kind !== "MESSAGE") return null;
   if (row.characterId === viewer.id) return null;
 
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true, phase: true } });
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
 
   // Blindness first — nothing else can rescue it.
   const blocked = examineBlock(viewer.tags ?? [], {
-    phase: openTurn?.phase ?? null,
+    daylight: isDaylight(),
     indoors: viewer.location?.indoors ?? true,
   });
   if (blocked && !ghost) return { blocked };

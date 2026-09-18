@@ -215,6 +215,12 @@
   --row-hover: rgba(255, 255, 255, 0.05);
   --shadow-color: rgba(0, 0, 0, 0.5);
 
+  /* The veil over the log's own texture tile (REDESIGN.md §3). chatbg.png runs at
+     about 0.6 in the chat log against 0.25 everywhere else, and an element with
+     text in it has no opacity to set — so the strength is this much of the ground
+     laid back over the tile. 0.40 of the ground leaves the tile reading at 0.60. */
+  --feed-veil: rgba(14, 12, 9, 0.4);
+
   /* The name palette (REDESIGN.md §3): six muted hues, one per character,
      assigned stably and used as BOLD TEXT on a log line — so unlike the zone
      and tag codes these owe full AA, and audit-contrast.js gates them at 4.5.
@@ -310,6 +316,11 @@
   --blackletter: #ae6f6c; /* 3.82 — see the dusk block for why this is not #9a5a5a */
   --row-hover: rgba(255, 255, 255, 0.055);
   --shadow-color: rgba(0, 0, 0, 0.45);
+
+  /* See the dusk block. Dawn's ground is the lifted one, so the veil is its
+     colour rather than dusk's, or the log would read a shade colder than the
+     page around it. */
+  --feed-veil: rgba(18, 16, 14, 0.4);
 
   /* The name palette — see the dusk block. One set for both looks. */
   --name-1: #a8b4c8;
@@ -6389,6 +6400,8 @@ label.chip {
 .chat-body {
   flex: 1;
   min-height: 0;
+  /* The rails below are absolute, and this is what they are absolute to. */
+  position: relative;
   display: grid;
   /* The flanks are properties rather than literals so the ladder below moves
      two numbers instead of rewriting the template three times — and so
@@ -6396,6 +6409,41 @@ label.chip {
   --chat-rail: 15rem;
   --chat-aside-w: 20rem;
   grid-template-columns: var(--chat-rail) minmax(0, 1fr) var(--chat-aside-w);
+}
+
+/* The iron rails between the three columns (REDESIGN.md §3): bg.png, 32px wide,
+   repeated down the boundary. Drawn as pseudo-elements on the GRID rather than as
+   elements in it — the two flanks are scrollers, so a rail inside one would
+   scroll away, and two more grid tracks would be two more numbers to keep in step
+   with every breakpoint. They stand just INSIDE the feed, in its 16px gutter, so
+   nothing is ever overlapped.
+
+   Integer scale: 32px is the tile's own width, so `pixelated` has nothing to
+   round. pointer-events: none, because a rail is scenery — a click goes through
+   it to whatever it is lying over. */
+.chat-body::before,
+.chat-body::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  pointer-events: none;
+  z-index: 1;
+  background-image: url("/assets/chrome/bg.png");
+  background-repeat: repeat-y;
+  background-size: 32px auto;
+  image-rendering: pixelated;
+  border-left: 1px solid var(--border-lo);
+  border-right: 1px solid var(--border);
+}
+
+.chat-body::before {
+  left: var(--chat-rail);
+}
+
+.chat-body::after {
+  right: var(--chat-aside-w);
 }
 
 .chat-body--empty {
@@ -6486,8 +6534,36 @@ label.chip {
   flex-direction: column;
 }
 
+/* COMPRESSED (REDESIGN.md §6, "Places column"). The mockup's column is tighter
+   than a list of panels: a section is a heading and its rows, with just enough air
+   under it to say the run has ended. It was --sp-3 (12px) between sections and a
+   12px inset per row, which put more of the column into gaps than into places. */
 .chat-section {
-  margin-bottom: var(--sp-3);
+  margin-bottom: var(--sp-2);
+}
+
+/* The column's own bar, so all three columns start on the same line. `.panel-header`
+   brings the metal strip (REDESIGN.md §5) and a page heading's serif at --fs-lg,
+   which is a page heading's size — this takes it down to a bar's.
+
+   `.chat-head` is deliberately NOT given this: on a phone it is the whole top of
+   the screen and the place's own words sit under its name, so the strip would land
+   between the name and the description and eat the scene. Phase 3 shard 4b made
+   that call and it still holds; the desktop-only strip below is the half of it
+   that is safe. */
+.chat-bar {
+  flex-shrink: 0;
+  margin: 0 0 var(--sp-2);
+  padding: 0 var(--sp-3) 18px;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.chat-bar::after {
+  height: 14px;
 }
 
 /* One zone's worth of the column (PlacesColumn.js). Discord has categories;
@@ -6627,7 +6703,9 @@ label.chip {
 }
 
 .chat-place {
-  padding: var(--sp-1) var(--sp-3);
+  /* Compressed with the sections above: 2px of leading, not 4, and the inset cut
+     to --sp-2 so a long Location name has the width to say itself. */
+  padding: 2px var(--sp-2);
   color: var(--muted);
   border-left: 2px solid transparent;
 }
@@ -6669,16 +6747,42 @@ label.chip {
   color: var(--muted);
 }
 
-/* Something has been said here that this browser has not read. Full-strength
-   against a column whose rows are all var(--muted), which is the same move
-   .desk-body--players makes on its own rail — "unread reads bright, the way an
-   unread channel does". The dot stays beside it: brightness alone is one cue,
-   and on a dim screen it is not always the one that lands.
+/* UNREAD: something notable has been said here that this browser has not read
+   (REDESIGN.md §6, Discord's shape). The name BRIGHTENS and gains weight, and
+   that is the whole mark — no dot and no number. It carried a dot beside it on
+   the argument that brightness alone is one cue; two marks for one state read as
+   two states, and the number is now reserved for the one thing that deserves it.
+
+   Full-strength against a column whose rows are all var(--muted), the same move
+   .desk-body--players makes on its own rail.
 
    Under :hover and [data-active] in the cascade on purpose, so hovering an
    unread row and opening one both still look like what they are. */
 .chat-place[data-unread="true"] {
   color: var(--text);
+}
+
+.chat-place[data-unread="true"] .chat-place-name {
+  font-weight: 700;
+}
+
+/* NOTIFIED: a red count, and only for something addressed to YOU — your name
+   said, a line in your Bascinet mail, a DM (./notifiedStore.js). The mockup's
+   badge: a hard-edged block, not a pill, bordered dark against the accent fill.
+   A notified place is also unread, so the name is already bright; this is the
+   number that says it was about you. */
+.chat-unread {
+  flex-shrink: 0;
+  min-width: 17px;
+  margin-left: var(--sp-2);
+  padding: 0 3px;
+  border: 1px solid var(--border-lo);
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
 }
 
 
@@ -6711,6 +6815,7 @@ label.chip {
 }
 
 .chat-head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6718,6 +6823,36 @@ label.chip {
   padding: var(--sp-2) var(--sp-4);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+/* The metal strip, on the DESKTOP head only (REDESIGN.md §5, "One header strip").
+   Not `.panel-header` itself: that recipe is a page heading's serif at --fs-lg and
+   this bar holds a crumb, a name, the place's own words and a search button.
+
+   ON A PHONE THE HEAD IS THE WHOLE TOP OF THE SCREEN and the place's description
+   sits under its name, so a 14px strip would land between the two and eat a line
+   of the scene. Phase 3 shard 4b exempted this bar for exactly that reason; the
+   strip above 720px is the half of the call that is safe, and the 720px block
+   below leaves the phone's head as it was. */
+@media (min-width: 45.0625rem) {
+  .chat-head {
+    padding-bottom: calc(var(--sp-2) + 14px);
+    border-bottom: 0;
+  }
+
+  .chat-head::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 14px;
+    background-image: url("/assets/chrome/bg2.png");
+    background-repeat: repeat-x;
+    background-size: 32px 16px;
+    image-rendering: pixelated;
+    pointer-events: none;
+  }
 }
 
 /* The title and the place's own words, stacked, so the search button stays on
@@ -6824,12 +6959,44 @@ label.chip {
   color: var(--muted);
 }
 
+/* THE LOG'S OWN GROUND (REDESIGN.md §3). chatbg.png at about 0.6, against the
+   0.25 the rest of the app takes: the log is where the look lives, and the
+   gutters of a panel are not. There is no opacity to set on an element with text
+   in it, so the strength is a VEIL of the ground colour laid over the tile —
+   --feed-veil, solved per look in the theme blocks.
+   chatshadow.png repeats along the TOP, and stays there as the scene scrolls
+   under it: background-attachment defaults to `scroll`, which is fixed relative
+   to this element's own box, not to the content. `local` would drag it down the
+   log, which is the one thing it must not do.
+
+   No image-rendering here, deliberately. The tiles are drawn at their own size —
+   512x512 and 181x278, integer scale by doing nothing — and `pixelated` INHERITS,
+   so setting it on the scroller would pixelate every face in the scene.
+
+   scrollbar-color, not a sprite: the mockup's sprite scrollbar was cut
+   (REDESIGN.md §2). Flat, dark, and the same two tokens in all three scrollers. */
 .chat-feed {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--sp-3) var(--sp-4);
+  background-color: var(--bg);
+  background-image:
+    url("/assets/chrome/chatshadow.png"),
+    linear-gradient(var(--feed-veil), var(--feed-veil)),
+    url("/assets/chrome/chatbg.png");
+  background-repeat: repeat-x, repeat, repeat;
+  background-position: 0 0, 0 0, 0 0;
+  background-size: auto, auto, 512px 512px;
+  border-top: 1px solid var(--border-lo);
+}
+
+.chat-feed,
+.chat-places,
+.chat-aside-panel {
+  scrollbar-color: var(--border) var(--bg);
+  scrollbar-width: thin;
 }
 
 /* .chat-feed-inner carries no width of its own: the scene fills the column it
@@ -6874,8 +7041,26 @@ label.chip {
 }
 
 .tline-name {
-  font-weight: 600;
+  font-weight: 700;
 }
+
+/* THE NAME PALETTE (REDESIGN.md §3, Text). Six muted hues, one per character,
+   assigned by a hash of the character id so the colour is the same in every
+   session and on every device (web/app/components/nameHue.js). Bold coloured
+   names are how a reader finds a person in a wall of grey narration.
+   These owe FULL AA — they are bold body text, not a chip rule — and
+   audit-contrast.js gates all six at 4.5 against --surface.
+
+   Above the alias rule on purpose. The two have the same specificity, so source
+   order decides, and a HOOD is the more important thing for a name to say: a
+   line spoken under one takes the alias tint even though its speaker key hashes
+   to a hue like anybody else. */
+.tline-name[data-hue="1"] { color: var(--name-1); }
+.tline-name[data-hue="2"] { color: var(--name-2); }
+.tline-name[data-hue="3"] { color: var(--name-3); }
+.tline-name[data-hue="4"] { color: var(--name-4); }
+.tline-name[data-hue="5"] { color: var(--name-5); }
+.tline-name[data-hue="6"] { color: var(--name-6); }
 
 /* Somebody speaking under an alias — a hood, or a forced name like Apex
    Form's Beast (db/lib/archive.js#feedRowShape). Tinted so a scene can be
@@ -7049,6 +7234,27 @@ label.chip {
 }
 
 /* A pending row is the same row, quieter. */
+/* A send the server refused. The line stays exactly where it was put — losing
+   what somebody typed is worse than watching it sit there — so the mark is what
+   says it went nowhere: a danger rule down the leading edge, and the words held
+   at the pending dim so they do not read as something that was said. Never
+   removed silently; .chat-unsent under the body carries the Try again. */
+.tline[data-density="feed"][data-failed] {
+  border-left: 2px solid var(--danger);
+  margin-left: -2px;
+  padding-left: 2px;
+  opacity: 1;
+}
+
+.chat-unsent {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--danger);
+}
+
 .tline[data-density="feed"][data-pending] {
   opacity: 0.6;
 }
@@ -7172,14 +7378,66 @@ label.chip {
   padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
-/* The intercom (db/lib/intercom.js) — a loudspeaker, not scenery, so it does
-   NOT get the muted subtext treatment above. Full size and bold, same
-   weight-first idea as Discord's own @here: the loudest notice Discord has
-   should not render as the quietest text on the page. Still wears no face —
-   it's the PA, not a person — so it keeps the face-gutter indent. */
-.tline--system[data-kind="intercom"] {
-  font-size: var(--fs-base);
+/* THE NOTICE BLOCK (REDESIGN.md §6). A bordered, full-width interruption that
+   scrolls with the log rather than pinning anywhere: the intercom
+   (db/lib/intercom.js) and the GM's decree are ONE component with two heading
+   faces (TranscriptLine's variant="block"). A PA and a proclamation are both the
+   world cutting across the scene, and drawing them twice is how they drift apart.
+
+   Ruled top and bottom, the top rule heavier — the mockup's `.decree`. It sits
+   flush across the column with no face gutter, because neither of them is a
+   person. The intercom drew as full-size bold TEXT before this, which read as
+   somebody in the room shouting rather than as a notice on the wall.
+
+   No decree writer exists yet: any row written with `channelKind: "decree"`
+   draws one, and that is all a future GM broadcast has to pass. */
+.tline--block {
+  margin: var(--sp-4) 0 var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-top-width: 2px;
+  border-bottom-width: 2px;
+  background: var(--field-bg);
+}
+
+/* The PA's heading: a small micro-label in the uppercase vocabulary every other
+   section head in the app uses. A loudspeaker is a machine, so it gets the
+   machine's face, not the world's. */
+.tline-block-head {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-2xs);
   font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* A decree is the world speaking in its own voice, which is the one thing the
+   blackletter is for (REDESIGN.md §1). Always over 24px and always with the
+   shadow — --blackletter is solved for large text and nothing else. */
+.tline--block[data-face="blackletter"] .tline-block-head {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: var(--ls-tight);
+  text-transform: none;
+  color: var(--blackletter);
+  text-shadow: 0 2px 3px var(--shadow-color);
+}
+
+.tline-block-by {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The words themselves at READING size, not shouted. The border is what makes
+   this a notice; the body does not also have to be loud. */
+.tline-block-body {
+  font-size: var(--fs-base);
   color: var(--text);
 }
 
@@ -7424,35 +7682,30 @@ label.chip {
   flex-shrink: 0;
 }
 
-/* Speak / Shout / OOC, folded INSIDE the box. As narrow as its longest label
-   and no narrower — it must not take room from the words, which are the thing
-   anybody is actually aiming at.
+/* Speak / Shout / OOC, beside the words rather than under a dropdown
+   (REDESIGN.md §6). The shared `.segmented`, shrunk to sit on one row with a
+   26px send: three words a glance reads, instead of one word and two nobody
+   knows are there.
 
-   The trigger is a `.control`, so it draws its own recessed surface and border.
-   Inside the container that is a frame around a frame, so it drops both and
-   reads as a label you can press. It keeps the app's focus ring: the global
-   :focus-visible rule is untouched, and must stay that way — the caret
-   argument that lets the textarea go without one does not apply to a
-   dropdown. */
-.chat-composer-box .chat-mode-select {
+   It sits OUTSIDE the say box now — the box is a black well with the speech
+   colour in it, and a control inside that well would read as something typed
+   into it. */
+.chat-mode-seg {
   flex: 0 0 auto;
-  width: auto;
-  min-width: 0;
-  font-size: var(--fs-xs);
-  background: transparent;
-  border-color: transparent;
-  color: var(--muted);
-  /* Same height as everything else on the row. `.control` brings `padding: 8px
-     10px` and a 1px border, which made this 32px next to a 26px send — and the
-     row is align-items: flex-end, so three heights meant three different text
-     positions. The trigger is already a centred flex box, so a height is all it
-     takes; no padding maths, and it survives a font-size change. */
+  align-self: flex-end;
   height: 26px;
-  padding: 0 var(--sp-1);
+  border-color: var(--border);
 }
 
-.chat-composer-box .chat-mode-select:hover {
-  color: var(--text);
+.chat-mode-seg button {
+  padding: 0 var(--sp-2);
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: var(--fs-2xs);
+}
+
+.chat-mode-seg button[aria-pressed="true"] {
+  color: var(--speech);
 }
 
 /* Bare inside the container — the box draws the surface, the border and the
@@ -7473,6 +7726,13 @@ label.chip {
      a content-box height added that padding a second time and drew the box 8px
      taller than its own text. */
   box-sizing: border-box;
+}
+
+/* What you are about to say, in the colour it will be said in (REDESIGN.md §3,
+   Text). The feed draws speech in --speech; the box drawing it in body grey
+   meant your own sentence changed colour the moment you pressed Enter. */
+.chat-composer-box textarea {
+  color: var(--speech);
 }
 
 .chat-composer textarea::placeholder {
@@ -7530,6 +7790,43 @@ label.chip {
 .chat-party,
 .chat-room,
 .chat-travel,
+/* THE "YOU" FRAME (REDESIGN.md §3). stats-LFWB.png, the Lifeweb stats plate,
+   stretched around the status strip in the right column — the one place in the
+   app that wears a whole sprite rather than a strip of one. Stretched on purpose:
+   the plate is a frame with a hole in it and the strip inside decides how tall the
+   hole has to be, so `100% 100%` is the only size that fits it. `pixelated` is
+   what keeps that stretch honest rather than blurry.
+
+   The padding is the plate's own border, measured off the art: the well has to
+   land inside the riveted edge, not over it.
+
+   image-rendering INHERITS, so it is put back for anything with a picture in it —
+   a tag chip's icon has no business being point-sampled. */
+.chat-you-frame {
+  margin-bottom: var(--sp-3);
+  padding: 22px 18px 20px;
+  border: 1px solid var(--border-lo);
+  background-image: url("/assets/chrome/stats-LFWB.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  image-rendering: pixelated;
+}
+
+.chat-you-frame img,
+.chat-you-frame svg {
+  image-rendering: auto;
+}
+
+/* The dark well the words sit in, inside the plate. Recessed and shadowed, so the
+   plate reads as a frame around a hole rather than as a picture behind text. */
+.chat-you-well {
+  padding: var(--sp-2);
+  border: 1px solid var(--border-lo);
+  background: var(--field-bg);
+  box-shadow: inset 0 0 12px var(--shadow-color);
+}
+
 .chat-you {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -8147,6 +8444,11 @@ label.chip {
     display: none;
   }
 
+  /* No right column, so no right rail. */
+  .chat-body::after {
+    display: none;
+  }
+
   /* The people button in the head, which opens the right drawer. */
   .chat-head-phone:last-child {
     display: inline-flex;
@@ -8183,6 +8485,12 @@ label.chip {
 
   /* Belt and braces: useNarrow.js already stops the column mounting. */
   .chat-body > .chat-places {
+    display: none;
+  }
+
+  /* One column on a phone, so neither rail has a boundary to sit on. */
+  .chat-body::before,
+  .chat-body::after {
     display: none;
   }
 
@@ -8409,10 +8717,28 @@ label.chip {
   position: relative;
   min-width: 0;
   flex: 1;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  /* The mockup's say box: a black inset well, not a raised panel
+     (docs/design/mockups/chat/index.html, `.say`). --field-bg is the recessed
+     surface every input in the app takes, and the inset shadow is what makes it
+     read as a hole rather than a lighter rectangle. */
+  background: var(--field-bg);
+  border: 1px solid var(--border-lo);
+  box-shadow: inset 0 1px 3px var(--shadow-color), 0 0 0 1px var(--border);
   border-radius: var(--r-md);
   padding: var(--sp-1) var(--sp-2);
+}
+
+/* The mockup's say row: the voice picker beside the well, level with its
+   bottom edge so the two stay aligned as the box grows to six lines. */
+.chat-say-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.chat-say-row > .chat-composer-box {
+  min-width: 0;
 }
 
 /* The quiet half of a focus indicator. The textarea's own ring is dropped —
@@ -8786,7 +9112,9 @@ label.chip {
   .chat-shell .chat-cmd-strip-out,
   .chat-shell .chat-search-row,
   .chat-shell .chat-pill,
-  .chat-shell .chat-buttons .btn-quiet {
+  .chat-shell .chat-buttons .btn-quiet,
+  .chat-shell .chat-mode-seg,
+  .chat-shell .chat-mode-seg button {
     box-sizing: border-box;
     min-height: var(--tap);
   }

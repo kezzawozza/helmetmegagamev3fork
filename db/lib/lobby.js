@@ -8,6 +8,7 @@ const { heldSeatsByRole } = require("./seatCount");
 const { LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { getGameConfig } = require("./gameState");
 const { pickTurnBanner } = require("./turnBanner");
+const { normalizeTurnLength, nextBoundaryAfter } = require("./turnClock");
 
 // Button customId prefix for the assignment DM's Decline (web builds it, bot routes the click).
 const LOBBY_DECLINE_PREFIX = "lobby-decline:";
@@ -158,14 +159,27 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
       where: { id: 1 },
       data: { phase: "RUNNING", startedAt: now, playerCount: draft.playerCount ?? null, assignmentDraft: null },
     });
-    // Both stamps, not just gameDate: every Move deadline derives from startedAt (turnClock.js).
+    // Restamp the clock, not just the start: every Move deadline comes off the turn row now (turnClock.js), so `endsAt` has
+    // to be recomputed or Turn 1 keeps a deadline set before anybody was playing.
+    const turnLengthHours = normalizeTurnLength(config?.turnLengthHours);
+    const endsAt = new Date(nextBoundaryAfter(now.getTime(), turnLengthHours));
     const open = await tx.turn.findFirst({ where: { status: "OPEN" } });
     let turn;
-    if (open) turn = await tx.turn.update({ where: { id: open.id }, data: { gameDate: now, startedAt: now } });
+    if (open) turn = await tx.turn.update({ where: { id: open.id }, data: { startedAt: now, endsAt, turnLengthHours } });
     else {
       // Turn.number is unique; a resolved Turn 1 with nothing open must not throw a constraint error.
       const last = await tx.turn.aggregate({ _max: { number: true } });
-      turn = await tx.turn.create({ data: { number: (last._max.number ?? 0) + 1, phase: "DAWN", banner: pickTurnBanner("DAWN"), status: "OPEN", gameDate: now, startedAt: now } });
+      turn = await tx.turn.create({
+        data: {
+          number: (last._max.number ?? 0) + 1,
+          dayNumber: 1,
+          turnLengthHours,
+          endsAt,
+          banner: pickTurnBanner(),
+          status: "OPEN",
+          startedAt: now,
+        },
+      });
     }
 
     await tx.auditLog.create({

@@ -3,7 +3,7 @@
 //   every turn — a Location channel down to its pinned anchor, every Room
 //                thread down to its starter, every Conversation deleted
 //                outright, and every special channel marked `wipe: "clear"`.
-//   Dawn only  — a zone's #summary, the abstracted slowmoded channel
+//   once a day — a zone's #summary, the abstracted slowmoded channel
 //                adjudication results land in.
 // Every rule is bounded by a CUTOFF (when the turn advance's side effects
 // began), so it can't eat its own push's #summary post or an in-flight
@@ -119,7 +119,7 @@ async function wipeLocation(prisma, location, roomsByThreadId, rowsByThreadId, a
 
 // `cutoffMs` is when the turn advance's side effects began (see
 // db/index.js#runSideEffects); defaults to "now" so a hand-run wipe can't eat
-// its own tail. `wipeSummaries` is the Dawn half, true only on a DAWN turn.
+// its own tail. `wipeSummaries` is the slower half, true only on the turn that starts a new game-day.
 async function runMessageWipe(prisma, { cutoffMs = Date.now(), wipeSummaries = false } = {}) {
   const startedAt = Date.now();
   const cutoff = buildCutoff(cutoffMs);

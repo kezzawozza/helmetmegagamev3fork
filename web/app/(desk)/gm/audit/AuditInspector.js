@@ -100,7 +100,7 @@ export default function AuditInspector({ entry, names, tagsByName, tagsById, onF
             {entry.turnNumber != null ? (
               <span className="mono">
                 {entry.turnNumber}
-                {entry.turnPhase ? ` · ${entry.turnPhase === "DAWN" ? "Dawn" : "Dusk"}` : ""}
+                {entry.dayNumber != null ? ` · Day ${entry.dayNumber}` : ""}
               </span>
             ) : (
               <span className="text-muted">—</span>

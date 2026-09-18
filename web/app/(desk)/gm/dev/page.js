@@ -39,6 +39,8 @@ import {
 import OracleForm from "@/app/(app)/gm/dev/OracleForm";
 import { loadOracleSettings } from "@/app/(app)/gm/dev/oracleActions";
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
+import SessionPanel from "./SessionPanel";
+import { TIME_ZONE } from "@lifeweb/db/lib/turnClock";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ArchiveGameButton from "@/app/(app)/gm/dev/ArchiveGameButton";
 import QuestsSection from "@/app/(app)/gm/dev/quests/QuestsSection";
@@ -73,6 +75,7 @@ import AssignmentPreview from "./AssignmentPreview";
 import { isSpawnOnly } from "@/lib/characterCreation";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
+import BascinetClock from "@/app/components/BascinetClock";
 import OpsNav from "./OpsNav";
 import Switch from "@/app/components/Switch";
 import Select from "@/app/components/Select";
@@ -130,6 +133,40 @@ function stamp(date) {
   return new Date(date).toISOString().slice(0, 16).replace("T", " ");
 }
 
+// The game's own clock, for the Sessions panel — America/Chicago, and with no
+// zone suffix, because in Ravenheart that is simply the time (SESSIONS.md).
+function chicagoStamp(date) {
+  if (!date) return null;
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: TIME_ZONE,
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(date));
+}
+
+// The same instant as a <input type="datetime-local"> value: "YYYY-MM-DDTHH:mm"
+// read in Chicago, which is how gameActions.js#scheduleSession parses it back.
+function chicagoInputValue(date) {
+  if (!date) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+    .formatToParts(new Date(date))
+    .reduce((acc, p) => {
+      acc[p.type] = p.value;
+      return acc;
+    }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
 // A report's per-step breakdown is the useful half but far too long to dump
 // inline, so the JSON line drops it and the five slowest steps get their own
 // rows. That is how the message wipe says which zone ate the hour.
@@ -184,7 +221,7 @@ export default async function DevPanelPage({ searchParams }) {
   const isMaster = tier === "super";
 
   // Always fetched: the header needs the open turn regardless of section,
-  // and the turn section derives day and phase from the same rows.
+  // and the turn section derives the day and turn number from the same rows.
   const [config, state, openTurnRecord, lastTurn, depot, readyCount] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
     prisma.gameState.upsert({ where: { id: 1 }, update: {}, create: GAME_STATE_CREATE, include: {
@@ -219,8 +256,16 @@ export default async function DevPanelPage({ searchParams }) {
     : [];
   const gmCharacterByUserId = new Map(gmCharacters.map((c) => [c.discordUserId, c]));
 
-  const currentDay = openTurnRecord ? Math.ceil(openTurnRecord.number / 2) : Math.ceil(((lastTurn?.number ?? 0) + 1) / 2);
-  const currentPhase = openTurnRecord?.phase ?? (lastTurn?.phase === "DAWN" ? "DUSK" : "DAWN");
+  const currentDay = openTurnRecord?.dayNumber ?? (lastTurn?.dayNumber ?? 0) + 1;
+  const currentNumber = openTurnRecord?.number ?? (lastTurn?.number ?? 0) + 1;
+
+  // Sessions. Every stamp is formatted HERE, in Chicago, so the client panel
+  // never has to agree with the server about what time it is (SESSIONS.md).
+  const sessionsOn = config.gameMode === "SESSIONS";
+  const sessionOpen = Boolean(state.sessionOpenedAt);
+  const sessionNextLabel = state.sessionScheduledStartAt
+    ? `Next opens ${chicagoStamp(state.sessionScheduledStartAt)}.`
+    : "Nothing scheduled.";
 
   let locations = [];
   let bulkCharacters = [];
@@ -976,6 +1021,7 @@ export default async function DevPanelPage({ searchParams }) {
           <>
             <DeskTurnChip turn={openTurnRecord} />
             <LockChip />
+            <BascinetClock />
           </>
         }
       />
@@ -1072,15 +1118,16 @@ export default async function DevPanelPage({ searchParams }) {
 
                 <form action={updateCurrentTurn} className="flex flex-wrap items-end gap-3">
                   <label className="field">
+                    <span className="field-label">Turn</span>
+                    <input type="number" name="number" min="1" defaultValue={currentNumber} className="max-w-24" />
+                  </label>
+                  <label className="field">
                     <span className="field-label">Day</span>
                     <input type="number" name="day" min="1" defaultValue={currentDay} className="max-w-24" />
                   </label>
                   <label className="field">
-                    <span className="field-label">Phase</span>
-                    <Select name="phase" defaultValue={currentPhase}>
-                      <option value="DAWN">DAWN</option>
-                      <option value="DUSK">DUSK</option>
-                    </Select>
+                    <span className="field-label">Re-roll banner</span>
+                    <Switch name="rerollBanner" defaultChecked={false} />
                   </label>
                   <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
                 </form>
@@ -1092,6 +1139,16 @@ export default async function DevPanelPage({ searchParams }) {
                 )}
 
               </section>
+
+              <SessionPanel
+                sessions={sessionsOn}
+                open={sessionOpen}
+                openedAtLabel={chicagoStamp(state.sessionOpenedAt)}
+                closedAtLabel={chicagoStamp(state.sessionClosedAt)}
+                startAtValue={chicagoInputValue(state.sessionScheduledStartAt)}
+                endAtValue={chicagoInputValue(state.sessionScheduledEndAt)}
+                nextLabel={sessionNextLabel}
+              />
 
               <section className="ops-section">
                 <div className="ops-section-head">

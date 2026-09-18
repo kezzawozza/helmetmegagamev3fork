@@ -1424,7 +1424,7 @@ async function getCharacterMoveHistoryImpl({ characterId }) {
     orderBy: [{ turn: { number: "desc" } }, { createdAt: "desc" }],
     take: MOVE_HISTORY_LIMIT,
     include: {
-      turn: { select: { number: true, phase: true } },
+      turn: { select: { number: true, dayNumber: true } },
       stagedMessages: {
         where: { kind: "PRIVATE", sentAt: { not: null } },
         orderBy: { createdAt: "asc" },
@@ -1441,7 +1441,7 @@ async function getCharacterMoveHistoryImpl({ characterId }) {
   return {
     rows: actions.map((a) => ({
       id: a.id,
-      turnLabel: a.turn ? `${a.turn.number} · ${a.turn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "—",
+      turnLabel: a.turn ? `${a.turn.number} · Day ${a.turn.dayNumber}` : "—",
       kindLabel: moveKindLabel(a.moveKind, a.gmNotes),
       reviewLabel: MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open",
       rollLabel: rollLabel(a),
@@ -1794,7 +1794,7 @@ async function getCharacterAuditSliceImpl({ characterId, query }) {
     }),
     getGmProfiles(),
     listGuildMembers(),
-    prisma.turn.findMany({ select: { number: true, phase: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
+    prisma.turn.findMany({ select: { number: true, dayNumber: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
   ]);
 
   // Same DTO shape /gm/audit's own page.js builds (toDto), trimmed to what
@@ -1824,7 +1824,7 @@ async function getCharacterAuditSliceImpl({ characterId, query }) {
         location: row.location ? { id: row.location.id, name: row.location.name } : null,
         room: row.room ? { id: row.room.id, name: row.room.name } : null,
         turnNumber: turn?.number ?? null,
-        turnPhase: turn?.phase ?? null,
+        dayNumber: turn?.dayNumber ?? null,
       };
     }),
   };

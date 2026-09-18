@@ -1,6 +1,6 @@
 // Fires the Oracle when a turn's Move cutoff passes, so a GM reads the chronicle while they adjudicate (docs/systemdocs/ORACLE.md). There is no lock EVENT to hang this on, so this is a per-minute check rather than a subscription — a fixed cron would be wrong for a turn opened by hand, or during a frozen clock.
 
-const { cutoffReached } = require("./turnClock");
+const { cutoffReached, TURN_CLOCK_SELECT } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
 const { runOracle } = require("./oracle");
 
@@ -27,7 +27,7 @@ function cutoffDecision(turn, { now = new Date(), clockFrozen = false } = {}) {
 async function runOracleAtCutoff(db, { now = new Date() } = {}) {
   const turn = await db.turn.findFirst({
     where: { status: "OPEN" },
-    select: { id: true, number: true, startedAt: true },
+    select: { id: true, number: true, ...TURN_CLOCK_SELECT },
   });
   if (!turn) return { ran: false };
 

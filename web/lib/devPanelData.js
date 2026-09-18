@@ -501,7 +501,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     // hand down here for it any more.
     startingTagPoints: config?.startingTagPoints ?? 8,
     carry,
-    openTurn: openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null,
+    openTurn: openTurn ? { id: openTurn.id, number: openTurn.number, dayNumber: openTurn.dayNumber } : null,
     // The parts, not just the total: the band's Gambit tile opens to say WHICH
     // modifiers, the way the player's own sheet does. Summed here rather than
     // calling gambitModifierTotal beside it — two calls to the same module is
@@ -563,7 +563,7 @@ export async function loadDevPanelRecord(characterId, discordUserId) {
       where: { characterId },
       orderBy: { id: "desc" },
       take: 100,
-      include: { turn: { select: { number: true, phase: true } } },
+      include: { turn: { select: { number: true, dayNumber: true } } },
     }),
     prisma.auditLog.findMany({ where: { targetCharacterId: characterId }, orderBy: { createdAt: "desc" }, take: 100 }),
     prisma.directMessage.findMany({
@@ -576,7 +576,7 @@ export async function loadDevPanelRecord(characterId, discordUserId) {
   return {
     moves: moves.map((m) => ({
       id: m.id,
-      turn: m.turn ? `${m.turn.number} ${m.turn.phase}` : "—",
+      turn: m.turn ? `Turn ${m.turn.number}` : "—",
       description: m.description,
       moveKind: m.moveKind,
       gmNotes: m.gmNotes,

@@ -41,7 +41,7 @@ export async function GET(request) {
   if (!found) return Response.json({ error: "You aren't there." }, { status: 403 });
 
   // Nothing from before the last wipe of THIS place (db/lib/feedWipe.js): a
-  // zone summary reads the Dawn watermark, everywhere else the turn one.
+  // zone summary reads the once-a-day watermark, everywhere else the turn one.
   const floor = floorForPlace(await feedWipeFloors(prisma), place);
 
   // ?around=<seq> — the window either side of one line, for a search hit.

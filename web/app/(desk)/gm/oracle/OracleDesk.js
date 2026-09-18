@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import DiscordTime from "@/app/components/DiscordTime";
 import LockChip from "@/app/components/LockChip";
+import BascinetClock from "@/app/components/BascinetClock";
 import InspectorColumn from "@/app/components/InspectorColumn";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import GmZoneRail from "@/app/components/GmZoneRail";
@@ -183,6 +184,7 @@ export default function OracleDesk({
                 chronicle, and the select in the actions slot changes it. */}
             <DeskTurnChip turn={turn} />
             <LockChip />
+            <BascinetClock />
             {/* Muted text, not a chip: it is a count-style fact, and only
                 warnings take colour in a desk header (DESIGN-SYSTEM §5a). */}
             <span className="text-sm text-muted">
@@ -209,7 +211,7 @@ export default function OracleDesk({
             >
               {turns.map((t) => (
                 <option key={t.number} value={t.number}>
-                  {t.number} · {t.phase === "DAWN" ? "Dawn" : "Dusk"}
+                  {t.number} · Day {t.dayNumber}
                 </option>
               ))}
             </select>

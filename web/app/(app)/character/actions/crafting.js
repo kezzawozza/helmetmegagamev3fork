@@ -75,6 +75,7 @@ import { placementOf } from "@lifeweb/db/lib/structures";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { ACT } from "@lifeweb/db/lib/incapacitation";
 import { openBuildSiteImpl } from "./structures.js";
+import { movesOpen } from "@lifeweb/db/lib/turnGate";
 import {
   requireCharacter,
   revalidateAll,
@@ -672,9 +673,8 @@ export async function craftRequestImpl({
       if (spend.kind === "spill") {
         // The fast fail only ran resolveCraftMove when the OUTSIDE price already spilled, so a spill first seen here re-checks the Move window itself — a craft submitted after Moves lock must not write a ledger no matter how the race fell.
         if (moveCost.kind !== "spill") {
-          const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
-          if (locked)
-            throw new UserError("Moves are locked for this turn.");
+          const gate = await movesOpen(tx, { turn: openTurn });
+          if (!gate.ok) throw new UserError(gate.message);
         }
         ({ action, budget } = await spendCraftMove(tx, {
           character,

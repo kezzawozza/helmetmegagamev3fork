@@ -95,8 +95,8 @@ function extractionDm(result, { locationName = null } = {}) {
 }
 
 // Character.extractTurnKey (FACTORY.md §3, BIRD.md). This keyed on the in-game
-// DAY once — a day is TWO turns — back when the cut was once a day. Harvest
-// Godflesh is once a TURN now, so the turn id is the key.
+// DAY once — a day can be several turns — back when the cut was once a day.
+// Harvest Godflesh is once a TURN now, so the turn id is the key.
 function extractTurnKey(openTurn) {
   return openTurn ? String(openTurn.id) : null;
 }

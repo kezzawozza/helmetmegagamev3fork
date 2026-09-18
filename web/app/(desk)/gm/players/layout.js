@@ -8,6 +8,7 @@ import { railKindSql, dmPreview } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
+import BascinetClock from "@/app/components/BascinetClock";
 import InboxPoller from "./InboxPoller";
 import InboxStream from "./InboxStream";
 import { InboxStreamChip } from "../StreamStatusChip";
@@ -283,6 +284,7 @@ export default async function PlayerDeskLayout({ children }) {
                 below are one muted run (DeskInboxCounts.js). */}
             <DeskTurnChip turn={openTurn} />
             <LockChip />
+            <BascinetClock />
             <DeskInboxCounts rows={rows} rowsAsOfMs={rowsAsOfMs} />
             <InboxStreamChip />
           </>

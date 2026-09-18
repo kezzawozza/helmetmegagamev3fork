@@ -18,7 +18,7 @@ export default function DeskHeader({ title, meta, actions }) {
 export function DeskTurnChip({ turn }) {
   return (
     <span className="chip">
-      {turn ? `Turn ${turn.number} · ${turn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "No turn open"}
+      {turn ? `Turn ${turn.number} · Day ${turn.dayNumber}` : "No turn open"}
     </span>
   );
 }

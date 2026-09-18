@@ -33,6 +33,10 @@ function buildSideEffectPayload(fields) {
   return {
     startedAtMs: Date.now(),
     newTurnId: fields.newTurnId,
+    // The day the CLOSING turn belonged to. The zone-summary wipe fires only when the new turn starts a new game-day, and a
+    // resumed run has no other way to know — re-reading the last RESOLVED turn would give a different answer if a second
+    // advance had landed in between.
+    previousDayNumber: fields.previousDayNumber ?? null,
     note: fields.note ?? null,
     lessonDms: fields.lessonDms ?? [],
     researchDms: fields.researchDms ?? [],

@@ -3,6 +3,7 @@ import { updateGameConfig } from "@/app/(app)/gm/dev/actions";
 import SubmitButton from "@/app/components/SubmitButton";
 import Switch from "@/app/components/Switch";
 import InfoIcon from "@/app/components/InfoIcon";
+import Select from "@/app/components/Select";
 
 // The Configuration section, rendered from the registry rather than written
 // by hand — see db/lib/gameConfigFields.js for why. A plain server component:
@@ -28,6 +29,26 @@ function NumberField({ field, value }) {
   );
 }
 
+// Inside `.field`, never a bare <select> — one outside it visibly breaks the theme (DESIGN-SYSTEM.md).
+function SelectField({ field, value }) {
+  const id = `config-${field.key}`;
+  return (
+    <div className="field">
+      <label htmlFor={id} className="field-label">
+        {field.label}
+        {field.info ? <InfoIcon text={field.info} /> : null}
+      </label>
+      <Select id={id} name={field.key} defaultValue={String(value ?? field.default)}>
+        {field.options.map((o) => (
+          <option key={String(o.value)} value={String(o.value)}>
+            {o.label}
+          </option>
+        ))}
+      </Select>
+    </div>
+  );
+}
+
 function BoolField({ field, value }) {
   return (
     <div className="ops-toggle">
@@ -47,7 +68,8 @@ export default function ConfigForm({ config }) {
       {GROUPS.map((group) => {
         const fields = fieldsInGroup(group.key);
         if (fields.length === 0) return null;
-        const numbers = fields.filter((f) => f.type !== "bool");
+        const numbers = fields.filter((f) => f.type !== "bool" && f.type !== "select");
+        const selects = fields.filter((f) => f.type === "select");
         const bools = fields.filter((f) => f.type === "bool");
         return (
           <section key={group.key} className="flex flex-col gap-3">
@@ -56,6 +78,13 @@ export default function ConfigForm({ config }) {
               <div className="ops-grid">
                 {numbers.map((field) => (
                   <NumberField key={field.key} field={field} value={config[field.key]} />
+                ))}
+              </div>
+            ) : null}
+            {selects.length ? (
+              <div className="ops-grid">
+                {selects.map((field) => (
+                  <SelectField key={field.key} field={field} value={config[field.key]} />
                 ))}
               </div>
             ) : null}

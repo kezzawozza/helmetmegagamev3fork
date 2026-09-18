@@ -65,7 +65,7 @@ export async function loadAuditContext({ gmIds, guildMembers }) {
       },
     }),
     // Ascending: bucketing a timestamp into a turn is a walk forward through the boundaries.
-    prisma.turn.findMany({ select: { number: true, phase: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
+    prisma.turn.findMany({ select: { number: true, dayNumber: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
   ]);
   return { characters, turns, gmIds: new Set(gmIds ?? []), guildMembers: guildMembers ?? [] };
 }

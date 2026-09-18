@@ -1,10 +1,10 @@
 // Web half of the message wipe (CHAT.md §7, CHANNELS.md §8). Discord deletes;
 // Chat reads past a GameConfig WATERMARK instead (`seq > <floor>`), since
 // ArchiveEntry IS the transcript /archive reads. TWO watermarks: `feedWipeSeq`
-// every turn (loc:/room:/conv:), `feedWipeSummarySeq` only on Dawn (zone:) —
+// every turn (loc:/room:/conv:), `feedWipeSummarySeq` only on a day boundary (zone:) —
 // cross these and the faces disagree where the day starts. Takes `prisma`, same reason as archive.js/say.js.
 
-// Taken as the wipe BEGINS (Discord's `cutoffMs`); `summaries` is the Dawn half, both columns go in ONE update, never half-landed.
+// Taken as the wipe BEGINS (Discord's `cutoffMs`); `summaries` is the once-a-day half, both columns go in ONE update, never half-landed.
 async function markFeedWiped(prisma, { summaries = false } = {}) {
   try {
     const newest = await prisma.archiveEntry.aggregate({ _max: { seq: true } });

@@ -28,8 +28,11 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
 
   if (!turn) return <p className="chat-quiet-line">No turn is open.</p>;
 
-  const { label } = describeTurn({ number: turn.number, phase: turn.phase });
-  const countdown = turn.locked ? "locked" : untilLabel(turn.closesAt, now);
+  const { label } = describeTurn({ number: turn.number, dayNumber: turn.dayNumber });
+  // `shut` outranks the countdown, and is checked separately from `locked`: out of session there is no cutoff to count to
+  // and `locked` is false, so reading it alone would draw an open turn on a closed game (db/lib/turnGate.js).
+  const countdown = turn.shut ? "not in session" : turn.locked ? "locked" : untilLabel(turn.closesAt, now);
+  const shut = Boolean(turn.shut) || turn.locked;
 
   return (
     <div className="chat-move">
@@ -37,7 +40,7 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
       <p className="chat-quiet-line" suppressHydrationWarning>
         {label}
         {countdown &&
-          (turn.locked ? (
+          (shut ? (
             <>
               {" · "}
               <span className="chip chip-mono" data-tone="danger">
@@ -86,7 +89,7 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
         </>
       ) : (
         <div className="chat-buttons">
-          <button type="button" className="btn" disabled={turn.locked} onClick={onFile}>
+          <button type="button" className="btn" disabled={shut} onClick={onFile}>
             Move…
           </button>
         </div>

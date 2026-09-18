@@ -9,6 +9,7 @@ import {
 } from "@lifeweb/db/lib/paper";
 import { APPRAISAL_SLUG } from "@lifeweb/db/lib/appraisal";
 import { appraise } from "@/lib/appraisal";
+import { isDaylight } from "@lifeweb/db/lib/turnClock";
 
 // ONE PLACE THAT TURNS A TAG ROW INTO A CHIP, off TAG_CHIP_FIELDS plus a
 // composed `paper`. THE RULE THIS MODULE EXISTS TO HOLD: `Tag.paperText`
@@ -169,20 +170,11 @@ export const CHIP_VIEWER_SELECT = {
   location: { select: { indoors: true } },
 };
 
-async function openTurnPhase() {
-  const turn = await prisma.turn.findFirst({
-    where: { status: "OPEN" },
-    orderBy: { number: "desc" },
-    select: { phase: true },
-  });
-  return turn?.phase ?? null;
-}
-
 // `null` yields a viewer holding nothing, read as unable to read.
 async function chipViewerFor(character) {
   return {
     tags: character?.tags ?? [],
-    phase: await openTurnPhase(),
+    daylight: isDaylight(),
     indoors: character?.location?.indoors ?? true,
   };
 }

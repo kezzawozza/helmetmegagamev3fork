@@ -80,9 +80,11 @@ enum MoveReviewStatus {
   PASSED
 }
 
-enum TurnPhase {
-  DAWN
-  DUSK
+// Persistent runs the clock continuously. Sessions only runs it while a session
+// is open, and freezes the whole game between them (db/lib/session.js).
+enum GameMode {
+  PERSISTENT
+  SESSIONS
 }
 
 // What kind of place a Zone row is. SURFACE zones own the full category +
@@ -109,6 +111,10 @@ enum RoomKind {
 enum SystemReportKind {
   WIPE
   DOCTOR
+  // The zone-summary wipe. Named for the Dawn turn it used to ride, which no
+  // longer exists — it fires on the turn that starts a new game-day now. The
+  // VALUE stays because SystemReport rows already carry it; the Dev Panel
+  // labels it "Summary wipe". Same reasoning as the "lessons" pass key.
   DAWN_WIPE
   BULK_MOVE
   MIRROR
@@ -249,8 +255,8 @@ model GameConfig {
   //
   // TWO watermarks, because the wipe has two cadences. `feedWipeSeq` moves on
   // every turn and floors loc:/room:/conv: places; `feedWipeSummarySeq` moves
-  // only on a Dawn and floors zone: places, matching what the Discord sweep
-  // actually clears. Both set by db/lib/feedWipe.js#markFeedWiped as the pass
+  // only on the turn that starts a new game-day and floors zone: places,
+  // matching what the Discord sweep actually clears. Both set by db/lib/feedWipe.js#markFeedWiped as the pass
   // begins.
   feedWipeSeq        BigInt @default(0)
   feedWipeSummarySeq BigInt @default(0)
@@ -420,6 +426,19 @@ model GameConfig {
   // and a wipe resets this back to false along with every other operational
   // toggle here.
   autoTurnAdvanceDisabled Boolean @default(false)
+
+  // How long a turn runs, in hours: 6, 8, 12 or 24. The adjudication window is
+  // NOT a knob — it falls out of this one (2 hours on 6 and 8, 3 on 12 and 24,
+  // db/lib/turnClock.js#adjudicationHours). Changing it takes effect at the NEXT
+  // turn: every open turn carries its own Turn.turnLengthHours, so a deadline
+  // can never move under somebody mid-action.
+  turnLengthHours Int @default(24)
+
+  // Persistent or Sessions. In Sessions the clock only runs while a session is
+  // open (GameState.sessionOpenedAt); between them the whole game freezes and
+  // every surface says so. Sessions sit beside the game lifecycle and never
+  // touch GameState.phase, so one game can run several of them (SESSIONS.md).
+  gameMode GameMode @default(PERSISTENT)
 
   // Master switch for letting a player upload their own profile picture.
   // Off means AvatarField's file input doesn't render and
@@ -696,6 +715,23 @@ model GameState {
 
   // GM override consumed by the next turn advance, then nulled.
   nextTurnNote String?
+
+  // THE SESSION WINDOW, read only when GameConfig.gameMode is SESSIONS.
+  //
+  // `sessionOpenedAt` non-null IS "in session right now" — one boolean's worth
+  // of truth kept as a timestamp so the GM panel can say how long it has been
+  // running. The two scheduled stamps are the NEXT window; the bot's per-minute
+  // cron opens on the first and closes on the second, and a GM's Start now /
+  // Close now writes the same fields through db/lib/session.js.
+  //
+  // Here rather than on GameConfig because a session belongs to a game, so
+  // Restart Game — which recreates this row — clears them for free. There is
+  // deliberately no Session table: only the next window is ever needed, and a
+  // queue of them is a calendar nobody asked for.
+  sessionScheduledStartAt DateTime?
+  sessionScheduledEndAt   DateTime?
+  sessionOpenedAt         DateTime?
+  sessionClosedAt         DateTime?
 
   // THE BOMB. Two nullable turn numbers, and nothing else in the schema knows
   // about it.
@@ -1798,7 +1834,7 @@ model RoomTag {
 /// Converse button on a Location's anchor. A private thread under the
 /// Location's channel, linked to one of its Rooms — every 15 minutes the
 /// linked room hears who is whispering in it (bot/src/lib/whisperPoll.js).
-/// Deleted at every Dawn, no exceptions; there is no persistence any more.
+/// Deleted at every turn, no exceptions; there is no persistence any more.
 /// The bot is the ONLY creator (players hold no create-thread permission),
 /// so this table is complete.
 ///
@@ -2148,7 +2184,7 @@ model Character {
   cursedOverride Boolean?
 
   // The in-game DAY a FAST_TRAVEL was last claimed on — despite the name,
-  // NOT a turn id. A day is TWO turns (Dawn/Dusk), so this stores
+  // NOT a turn id. A day can be several turns (Turn.turnLengthHours), so this stores
   // The load at the last db/lib/carry.js settle — the watermark that tells an
   // ACQUISITION from a capacity SHRINK, which is the whole of what decides
   // whether anything is set down (docs/systemdocs/CARRY.md §5).
@@ -2205,7 +2241,7 @@ model Character {
 
   // The in-game DAY this character's bird last flew — the same claim token as
   // fastTravelTurnId above, for the same reason and with the same trap. A day
-  // is TWO turns, so this stores String(describeTurn(openTurn).day) and NOT a
+  // can be several turns, so this stores String(turn.dayNumber) and NOT a
   // turn id; keying it on the turn would hand out two letters a day instead of
   // the one the feature promises. Written by a conditional updateMany whose
   // WHERE is the check, so two tabs racing cannot both send. Not a foreign key
@@ -3892,15 +3928,33 @@ model Turn {
   // holding it cannot wedge the turn.
   sideEffectClaimedAt DateTime?
 
-  id         String     @id @default(cuid())
-  number     Int        @unique
-  phase      TurnPhase
+  id     String @id @default(cuid())
+  number Int    @unique
+
+  // Which in-game day this turn belongs to, stamped when the turn opens rather
+  // than derived. A turn is 6, 8, 12 or 24 hours now (GameConfig.turnLengthHours),
+  // so ceil(number / 2) is gone: it would rewrite every past day the moment a GM
+  // changed the length. The day rolls at 00:00 America/Chicago, whatever the
+  // turn length, which is what db/turnCalendar.js#gameDate wants.
+  dayNumber Int
+
+  // The length in force WHEN THIS TURN OPENED, and the reason a mid-game change
+  // to GameConfig.turnLengthHours cannot move a deadline under a player who is
+  // mid-action: db/lib/turnClock.js reads the turn, never the config. It also
+  // keeps db/lib/oracleInput.js honest, which asks past turns for their cutoff.
+  turnLengthHours Int @default(24)
+
+  // When this turn ends, computed once at open as the first Chicago grid
+  // boundary strictly after startedAt. Stored for the same reason as the line
+  // above — and because a session opening mid-afternoon restamps it. Null only
+  // on rows written before the column existed; turnClock.js derives those.
+  endsAt DateTime?
+
   // Which banner #turns posted for this turn — a filename in docs/assets/turn/,
   // chosen once when the turn opens so a repost shows the same picture rather
   // than a fresh roll. Null on rows that predate the column; the resolver
   // picks one on the spot for those (db/lib/turnBanner.js).
   banner     String?
-  gameDate   DateTime
   status     TurnStatus @default(OPEN)
   startedAt  DateTime   @default(now())
   resolvedAt DateTime?
@@ -5447,10 +5501,13 @@ model ArchiveEntry {
   id   String      @id @default(cuid())
   kind ArchiveKind @default(MESSAGE)
 
-  // Stamped from the open turn as the row is written.
+  // Stamped from the open turn as the row is written. `dayNumber` rides along
+  // because /archive and db/lib/objectives.js read the day off THIS row with no
+  // Turn join, and the day is no longer derivable from the turn number once the
+  // turn length is a knob (TURN-ENGINE.md).
   turnNumber Int?
-  turnPhase  TurnPhase?
-  sentAt     DateTime   @default(now())
+  dayNumber  Int?
+  sentAt     DateTime @default(now())
 
   zoneId        String?
   zoneName      String?

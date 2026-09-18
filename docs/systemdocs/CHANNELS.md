@@ -56,7 +56,7 @@ every-run reconcile build from them, so the two can never disagree.
 
 | Channel | Type | Purpose | Notes |
 |---|---|---|---|
-| `#summary` | text | Abstracted, big-picture play. Adjudication results and staged public declarations land here. | 300s (5 min) slowmode — the slowmode is what stops it becoming a second moment-to-moment channel. Wiped at Dawn, and it is the one thing the wipe does not take every turn (§8). |
+| `#summary` | text | Abstracted, big-picture play. Adjudication results and staged public declarations land here. | 300s (5 min) slowmode — the slowmode is what stops it becoming a second moment-to-moment channel. Wiped once an in-game day, and it is the one thing the wipe does not take every turn (§8). |
 
 The `CAVE_GROUP` row (Underground) owns the shared category and nothing else —
 no `#summary`, no role. Each `CAVE_LEVEL` (Caves, Depths) has no channels of
@@ -990,21 +990,25 @@ Both build the context with `buildNarrowcastContext` and run
 |---|---|---|
 | **Message wipe** (`db/lib/messageWipe.js`) | **every** turn, while `GameConfig.messageWipeEnabled` | clears roleplay content per the table below — on two different cadences |
 | **Full wipe** (`db/lib/fullWipe.js`) | Restart Game only | spares nothing (`LAUNCH.md`) |
-| **`#turns` sweep** (`db/lib/turnAnnouncement.js#postTurnsConsole`, via `discordRest.js#clearMessagesExcept`) | every turn, Dawn or Dusk | deletes everything in `#turns` except the console message just posted — a stray GM post, an orphaned console from before a config reset |
+| **`#turns` sweep** (`db/lib/turnAnnouncement.js#postTurnsConsole`, via `discordRest.js#clearMessagesExcept`) | every turn | deletes everything in `#turns` except the console message just posted — a stray GM post, an orphaned console from before a config reset |
 
-**Two cadences, and the split is the point.** A turn is one real day, but Dawn
-and Dusk alternate, so anything gated on Dawn only comes round every 48 hours.
-Roleplay should not outlive the day it happened in, so the wipe runs every
-turn — with one exception:
+**Two cadences, and the split is the point.** A turn is 6, 8, 12 or 24 hours
+now (`GameConfig.turnLengthHours`), so "every turn" can mean four times a real
+day. Roleplay should not outlive the scene it happened in, so the wipe runs
+every turn — with one exception:
 
 - **every turn** — Location channels, Rooms, Conversations, and every special
   channel the registry marks `wipe: "clear"` (`#cerberon`).
-- **Dawn only** — a zone's `#summary`. It is the abstracted, slowmoded channel
-  the adjudication results land in, so it gets the longer life the rest no
-  longer does.
+- **once an in-game day** — a zone's `#summary`: the turn whose `dayNumber`
+  differs from the closing turn's (`db/lib/turnSideEffects/steps/turnWrapup.js`).
+  It is the abstracted, slowmoded channel the adjudication results land in, so
+  it gets the longer life the rest no longer does. **On a 6-hour game this is
+  what stops a GM's ruling being swept off the wall two hours after they made
+  it** — at 24 hours it is every turn, which is the old cadence exactly.
 
-It was Dawn-only for everything until 2026-09-07, back when a turn was half a
-day and a Dawn came round every 24 hours anyway.
+The gate used to be "on a DAWN turn", back when a turn was half a day, then
+a whole one. Dawn and Dusk are gone (`TURN-ENGINE.md`); the day boundary is
+the same rule with the phases taken out of it.
 
 `GameConfig.messageWipeEnabled` is **not a GM knob** — there is no form control
 for it. The wipe is how the game works. The column survives as a
@@ -1018,12 +1022,12 @@ costs the turn announcement that already went out. Its *access* is managed
 though — see §3a.
 
 The wipe is wired into `db/index.js#advanceTurn()`'s side-effect thunk, so it
-fires identically whether the turn came from the bot's nightly cron or a GM's
-"End Turn" button.
+fires identically whether the turn came from the bot's per-minute clock or a
+GM's "End Turn" button.
 
 **The web has a watermark instead of a delete — two of them.** The same pass
 sets `GameConfig.feedWipeSeq` to the newest `ArchiveEntry.seq` as it BEGINS,
-and `feedWipeSummarySeq` alongside it on a Dawn
+and `feedWipeSummarySeq` alongside it on a day boundary
 (`db/lib/feedWipe.js#markFeedWiped`, called from `db/index.js` immediately
 before `runMessageWipe`). Every feed query on `/chat` then reads `seq >` the
 floor for **that place's own cadence**: a `zone:` key against the summary
@@ -1065,7 +1069,7 @@ zone loop runs every turn either way — it has to, for the Locations under it:
 
 | Target | When | Behaviour |
 |---|---|---|
-| a zone's `#summary` | **Dawn only** | every message deleted |
+| a zone's `#summary` | **once an in-game day** | every message deleted |
 | a Location channel | every turn | every top-level message deleted **except the pinned anchor**. Underground this also carries the level's public declarations, which therefore live one turn rather than a `#summary`'s two |
 | a Room | every turn | every message deleted **except the starter** (`Room.starterMessageId`); unarchived if it had idled into the archive |
 | a Conversation | every turn | deleted outright — thread, `PlayerThread` row and its invites. There is no persistence any more |

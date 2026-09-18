@@ -21,8 +21,6 @@
 const { rollWithAdvantage } = require("./advantage");
 const { consumeInspiredIfUsed, addToStack, replaceLowerTiers } = require("./tagWrites");
 const { gambitModifierTotal, rollLine } = require("./gambitModifier");
-const { moveWindow } = require("./turnClock");
-const { clockFrozen } = require("./gameState");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
@@ -41,6 +39,7 @@ const {
 // instead, already part of `tags` below).
 // `equipped` and the hood fields are for presence.js#isHere: a forcing hood hides a teacher the column doesn't.
 const { CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
+const { movesOpen } = require("./turnGate");
 const LESSON_CHARACTER_SELECT = {
   id: true,
   name: true,
@@ -199,14 +198,12 @@ function lessonThreshold(teacher, skill) {
 const GONE = "That offer's gone.";
 const LOCKED_IN = "You've already locked in a Move this turn.";
 
+// A thin shim over db/lib/turnGate.js#movesOpen, kept only because both call sites here want the turn row back as well as
+// the verdict. `blocked` is the reason to say out loud, null when the player may act — which covers the lock AND the game
+// being out of session, two things this used to have no way to tell apart.
 async function openTurnAndWindow(db) {
-  const [turn, frozen] = await Promise.all([
-    db.turn.findFirst({ where: { status: "OPEN" } }),
-    clockFrozen(db),
-  ]);
-  if (!turn) return { turn: null, locked: true };
-  const { locked } = moveWindow(turn, { clockFrozen: frozen });
-  return { turn, locked };
+  const gate = await movesOpen(db);
+  return { turn: gate.turn, locked: !gate.ok, blocked: gate.message };
 }
 
 // Can this teacher take this lesson on? Two different questions, depending on
@@ -312,9 +309,9 @@ async function createLessonOffer(
   prisma,
   { initiatorId, teacherId, learnerId, tagId },
 ) {
-  const { turn, locked } = await openTurnAndWindow(prisma);
+  const { turn, locked, blocked } = await openTurnAndWindow(prisma);
   if (!turn) return { ok: false, reason: "No turn is open." };
-  if (locked) return { ok: false, reason: "Moves are locked for this turn." };
+  if (locked) return { ok: false, reason: blocked };
 
   const [teacher, learner, tag] = await Promise.all([
     loadCharacter(prisma, teacherId),
@@ -441,15 +438,14 @@ async function acceptLesson(prisma, offer, responder) {
   if (!fresh || fresh.status !== "PENDING")
     return { ok: false, reason: GONE, dms: [] };
 
-  const { turn, locked } = await openTurnAndWindow(prisma);
+  const { turn, locked, blocked } = await openTurnAndWindow(prisma);
   if (!turn || turn.id !== offer.turnId)
     return await cancelWith(
       prisma,
       offer,
       "That offer was for a turn that's over.",
     );
-  if (locked)
-    return await cancelWith(prisma, offer, "Moves are locked for this turn.");
+  if (locked) return await cancelWith(prisma, offer, blocked);
 
   const [teacher, learner, tag] = await Promise.all([
     loadCharacter(prisma, offer.teacherId),

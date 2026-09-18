@@ -57,7 +57,7 @@ function groupRows(rows, roomId, turnsDesc) {
 
 // Fails closed. Returns { rows, blocked }; a blocked reader gets NO rows.
 export async function loadSiloLedger(roomId, viewer) {
-  if (readBlock(viewer?.tags ?? [], { phase: viewer?.phase ?? null, indoors: viewer?.indoors ?? true })) {
+  if (readBlock(viewer?.tags ?? [], { daylight: viewer?.daylight ?? false, indoors: viewer?.indoors ?? true })) {
     return { rows: [], blocked: true };
   }
 

@@ -47,7 +47,7 @@ import {
 import { craftMoveCost } from "@/lib/craftBudget";
 import { UserError } from "@/lib/actionResult";
 import { describeTurn } from "@/lib/turnFormat";
-import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { moveWindow, isDaylight } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
@@ -220,6 +220,7 @@ import {
   formatCharacterName,
 } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
+import { movesOpen } from "@lifeweb/db/lib/turnGate";
 import {
   requireCharacter,
   revalidateAll,
@@ -916,8 +917,8 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
       // outside, but that read and this spend are not atomic with each
       // other, the same reasoning craftRequestImpl's spill path and
       // healCharacterRequestImpl's own in-tx checks already act on.
-      const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
-      if (locked) throw new UserError("Moves are locked for this turn.");
+      const gate = await movesOpen(tx, { turn: openTurn });
+      if (!gate.ok) throw new UserError(gate.message);
       // The Move is claimed first: it is the contended thing, and a refusal
       // here rolls back everything below it (craftRequestImpl's project path
       // does the same).
@@ -2870,7 +2871,7 @@ export async function packageItemsRequestImpl({
   if (label) {
     const labelTurn = await getOpenTurn();
     const where = {
-      phase: labelTurn?.phase ?? null,
+      daylight: isDaylight(),
       indoors: character.location?.indoors ?? true,
     };
     if (readBlock(character.tags, where)) throw new UserError(CANNOT_READ);

@@ -141,10 +141,10 @@ the look the earlier ones establish.
    character sheet, rebuilt"). The band with the blackletter name, the five
    tiles, the verb strip as hairline-split bevelled groups, the tag rail, the
    equip board, Mood as the nine-band strip. `SHEET.md` was updated with it.
-5. **Chat — in progress**, on branch `phase5-chat`. The composer, instant own
+5. **Chat — landed** (`Merge branch 'phase5-chat'`). The composer, instant own
    line, cached place switch, unread/notified, name mentions, the intercom
    block, the places column. See §6 above.
-6. **Tier names — in progress**, on branch `phase6-tiers`. See §7 above.
+6. **Tier names — landed** (`Merge branch 'phase6-tiers'`). See §7 above.
 7. **GM desks — absorbed into phase 3.** No separate pass was needed; the
    shard commits above did the consolidation this phase asked for.
 8. **Docs — this commit.** `DESIGN-SYSTEM.md` rewritten to the rules as they

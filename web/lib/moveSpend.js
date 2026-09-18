@@ -2,14 +2,15 @@
 // Crafting instead takes requestActions.js's resolveCraftMove, since a craft may cost a FRACTION
 // of the Move and share the rest with another craft (FACTORY.md §3).
 import { prisma } from "@lifeweb/db";
-import { moveWindow } from "@lifeweb/db/lib/turnClock";
-import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { UserError } from "@/lib/actionResult";
+import { movesOpen } from "@lifeweb/db/lib/turnGate";
 
 export async function requireFreeMove(character, openTurn) {
   if (!openTurn) throw new UserError("No turn is open.");
-  const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
-  if (locked) throw new UserError("Moves are locked for this turn.");
+  // One gate, one sentence — db/lib/turnGate.js. It asks about the session BEFORE the lock window, because a frozen clock
+  // reports `locked: false` (freezing removes the deadline, it does not shut the game).
+  const gate = await movesOpen(prisma, { turn: openTurn });
+  if (!gate.ok) throw new UserError(gate.message);
   const acted = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
     select: { id: true },

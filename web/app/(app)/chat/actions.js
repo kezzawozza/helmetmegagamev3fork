@@ -8,8 +8,8 @@ import { parksMounts, hasAttribute, SAFE_ATTRIBUTE } from "@lifeweb/db/lib/locat
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
-import { moveWindow } from "@lifeweb/db/lib/turnClock";
-import { clockFrozen } from "@lifeweb/db/lib/gameState";
+import { moveWindow, isDaylight } from "@lifeweb/db/lib/turnClock";
+import { clockStatus } from "@lifeweb/db/lib/gameState";
 import { loadDesireView } from "@/lib/selfPools";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
 import { resolveDmActions } from "@/lib/dmActions";
@@ -850,7 +850,7 @@ export async function readNotice(postId) {
   const post = ctx.posts.find((p) => p.id === postId);
   if (!post) return { ok: false, error: "It's gone." };
 
-  const where = { phase: ctx.openTurn?.phase ?? null, indoors: ctx.location.indoors ?? true };
+  const where = { daylight: isDaylight(), indoors: ctx.location.indoors ?? true };
   // The same predicate the tag chip uses, and the same sentence — a blind
   // reader and an illiterate one get identical refusals, so neither the
   // reader nor anyone watching learns which it was.
@@ -1703,12 +1703,12 @@ export async function myMove() {
 
   const openTurn = await prisma.turn.findFirst({
     where: { status: "OPEN" },
-    select: { id: true, number: true, phase: true, startedAt: true },
+    select: { id: true, number: true, dayNumber: true, turnLengthHours: true, endsAt: true, startedAt: true },
   });
   if (!openTurn) return { ok: true, turn: null, move: null, characterId: me.character.id };
 
-  const [frozen, action] = await Promise.all([
-    clockFrozen(prisma),
+  const [clock, action] = await Promise.all([
+    clockStatus(prisma),
     prisma.action.findFirst({
       where: { characterId: me.character.id, turnId: openTurn.id },
       select: {
@@ -1727,19 +1727,23 @@ export async function myMove() {
       },
     }),
   ]);
-  const { cutoffAt, locked, hasLock } = moveWindow(openTurn, { clockFrozen: frozen });
-  const { editable } = moveIsEditable(action, openTurn, { clockFrozen: frozen });
+  const { cutoffAt, locked, hasLock } = moveWindow(openTurn, { clockFrozen: clock.frozen });
+  const { editable } = moveIsEditable(action, openTurn, { clockFrozen: clock.frozen, inSession: clock.inSession });
 
   return {
     ok: true,
     turn: {
       number: openTurn.number,
-      phase: openTurn.phase,
+      dayNumber: openTurn.dayNumber,
       // ISO — a Date doesn't survive to a client component. It's the CUTOFF,
-      // not the turn's end: Moves stop three hours early (db/lib/turnClock.js).
+      // not the turn's end: Moves stop an adjudication window early (db/lib/turnClock.js).
       closesAt: hasLock && cutoffAt ? cutoffAt.toISOString() : null,
+      // `locked` is the cutoff. `shut` is the game being closed for any reason, which `locked` cannot say: a frozen clock
+      // reports locked: false, because freezing removes the deadline rather than shutting the game (db/lib/turnGate.js).
       locked,
       hasLock,
+      shut: !clock.inSession,
+      shutReason: clock.inSession ? null : "The game isn't in session.",
     },
     move: action
       ? { id: action.id, kind: action.moveKind, description: action.description, editable }

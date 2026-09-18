@@ -77,8 +77,22 @@ like every other archive write.
 
 **The intercom passes `channelKind: "intercom"` instead of the default
 `"scene"`**, and that is what SystemRow (`web/app/(app)/chat/Feed.js`) reads
-to draw it `.tline--system[data-kind="intercom"]` — bold, regular size, still no face — rather than
-`.chat-subtext`. It writes through `sceneLineAt` the same as every other
+to draw it as a **notice block** — `TranscriptLine`'s `variant="block"`: bordered,
+ruled top and bottom, a small-caps `Intercom · <zone>` heading, the words at
+reading size, scrolling with the log (REDESIGN.md §6). It was full-size bold text
+for a while, which read as somebody in the room shouting rather than as a notice
+on the wall.
+
+The **decree** is the same component with a blackletter heading, so a GM notice
+and a PA share one shape: a row written with `channelKind: "decree"` draws one,
+and that is all a future GM broadcast has to pass. **Nothing writes `"decree"`
+yet** — `broadcastToZones` (the nuke, the rites, the turn side effects) still
+writes plain scenery, and changing that is a call about those lines rather than
+about this component.
+
+The heading strips the `"You hear a voice from the intercom:"` the row carries,
+since the heading already says it; the ROW is untouched and Discord reads what it
+always read. It writes through `sceneLineAt` the same as every other
 ambient line, but it isn't one: CLAUDE.md's "Bot message style" calls it out
 as the deliberate exception to `-#`, a loudspeaker rather than scenery, full
 size on Discord too. Until 2026-09-15 the web side had no way to tell the two
@@ -518,12 +532,17 @@ like everything else.
   lazily-filled ref of the seq the place painted with — a ref rather than
   state, since `react-hooks/set-state-in-effect` is an error here — and sets
   `data-live` above it.
-- **The composer is ONE container, the way Discord's is.** The Speak picker,
-  the ✉, the words and the send all sit inside a single rounded box
-  (`.chat-composer-box`, holding one `.chat-composer-row`), on `--surface` —
-  *above* the feed's `--bg` rather than recessed below it in `--field-bg`,
-  because a composer is the place you type, not a hole in the page. The
-  slowmode clock and the character count stay outside it, to its right.
+- **The composer is ONE container, the way Discord's is.** The ✉, the words and
+  the send all sit inside a single box (`.chat-composer-box`, holding one
+  `.chat-composer-row`); the voice picker stands beside it in `.chat-say-row`.
+  The slowmode clock and the character count stay outside it, to its right.
+
+  The box is the mockup's say box: a **black inset well** (`--field-bg`, a hard
+  `--border-lo` edge and an inset shadow) with the words in **`--speech`**, the
+  same colour the feed will print them in. It was a raised `--surface` panel
+  with body-grey text, on the argument that a composer is where you type rather
+  than a hole in the page; the cost was that your own sentence changed colour
+  the moment you pressed Enter.
 
   It was three bordered rectangles standing in a line — a dropdown, a
   two-line recess, and a solid `--accent-solid` slab stretched to the box's
@@ -537,13 +556,13 @@ like everything else.
   makes the row read as one line: 26px under a fine pointer, `--tap` under a
   coarse one. The row is `align-items: flex-end`, so the controls stay level
   with the LAST line as the box grows — which only looks right if they all
-  start equal. Two need saying so explicitly: the Speak picker, because
-  `.control` brings its own `padding: 8px 10px` and a border, and the textarea,
-  which is `box-sizing: border-box` here so a height means what it means on the
-  buttons beside it (a textarea's `scrollHeight` already includes its padding,
-  so a content-box height counted it twice). The coarse-pointer floor for both
-  lives in the `.chat-shell` touch block rather than the 720px one, or a tablet
-  in landscape draws a 34px box between two 44px buttons.
+  start equal. The textarea needs saying so explicitly: it is
+  `box-sizing: border-box` here so a height means what it means on the buttons
+  beside it (a textarea's `scrollHeight` already includes its padding, so a
+  content-box height counted it twice). The voice picker beside the box takes the
+  same two heights, `align-self: flex-end`. The coarse-pointer floor for all of
+  them lives in the `.chat-shell` touch block rather than the 720px one, or a
+  tablet in landscape draws a 34px box between two 44px buttons.
 - **The box is one line at rest and grows to about six.** `rows={1}` is only
   the floor; `useComposerAutosize` sets the height off `scrollHeight` — but
   **only once something is typed**. An empty box clears the inline height and
@@ -553,6 +572,30 @@ like everything else.
   three composers share that hook — the scene's, Bascinet's pane and the GM's
   system box — because a one-line box with no autosize scrolls a long message
   inside a single line instead of growing to hold it.
+- **Up-arrow on an empty box recalls your last line**, the way a shell recalls
+  the last command (REDESIGN.md §6). It opens that row's own editor rather than
+  putting the words back in the composer — that editor is what actually saves an
+  edit, and two ways of changing a line would be two places for the five-minute
+  window to be checked. Only a confirmed row of your own, and only speech; a
+  pending row has no seq to edit. Past the window `onEdit` says so out loud,
+  exactly as the row's own ✎ does. On a NON-empty box Up still moves the caret
+  through what you are writing.
+- **Your own line appears at once, and a refused one is marked rather than
+  removed.** `submit()` clears the box and calls `addPending` before the POST
+  goes out, so the row is in the same React commit as the empty box; the
+  confirmed row evicts its pending twin by `clientId` whichever way it arrives
+  (the stream, or the POST's own answer). A refusal calls `markPendingFailed`,
+  which leaves the words on screen: the line takes a danger rule down its
+  leading edge (`data-failed`) and a `.chat-unsent` foot with **Try again**.
+  Losing what somebody typed is worse than watching it sit there.
+
+  One trap, and it cost the whole scene: `Feed.js` falls back to the
+  server-rendered rows while a place's history is still loading, and that test
+  used to be `stored.length === 0`. Sending the first line into such a place put
+  one row in the store, flipped the test off the fallback, and blanked the scene
+  down to your own sentence. The test asks whether the store holds anything
+  **confirmed** now — a pending row carries no seq — and the fallback rows stay
+  underneath it until it does.
 - **The textarea shows no focus ring, and the container shows the focus
   instead.** It drew `outline: 2px solid var(--accent-text)` at a 2px offset,
   so a focused box read as two frames with a light leak between them.
@@ -575,13 +618,13 @@ like everything else.
   first message, and the longest thing in the composer. It is gone; the send
   button's tooltip is what is left, which is why the send stays a labelled
   `IconButton`.
-- **Speak / Shout / OOC is an inline dropdown at the head of the composer row**
-  on desktop — inside the box now, at the left of `.chat-composer-row`, with
-  its `.control` surface and border taken off so it reads as a label you press
-  rather than a frame inside a frame. On a phone it folds into the `+` beside
-  the words, where the ✉ already lives. It was a `.segmented` strip ACROSS THE
-  TOP of the box for a day, which cost the composer a whole band of chrome for
-  a three-item choice. It stores **no state of its own**: each of the two that
+- **Speak / Shout / OOC is a `.segmented` control beside the box** on desktop
+  (REDESIGN.md §6), in `.chat-say-row` — the picker, then the say box. It sat
+  inside the box as a dropdown for a while; a dropdown hides two of three
+  choices behind a click and says nothing about what the others are, and a
+  control standing inside a recessed well reads as something that was typed into
+  it. On a phone it still folds into the `+` beside the words, where the ✉
+  already lives. It stores **no state of its own**: each of the two that
   is not plain speech is already a command in `./commands.js`, so the control
   enters command mode and `runCurrent()` does the sending, the clearing, the
   length cap and the hand-back-on-refusal. Which mode you are in is *derived*
@@ -850,10 +893,85 @@ a 48px head and a one-line composer:
   grouped the remembered key is scoped per zone — folding Rooms under Town
   leaves Rooms under Fortress open. Ungrouped, the key is the bare title, so a
   player's existing folds carried over.
-- **The unread mark** is one comparison: the newest **notable** seq in a place
-  against the newest seq this browser has seen there. An unread place reads at
-  full strength against a column that is otherwise `--muted`, and keeps its
-  dot — the same move `/gm/players` makes on its own rail.
+- **The column's own bar and its section names.** The places column opens with a
+  `.chat-bar` reading PLACES, so all three columns start on the same line — it
+  used to open straight onto its first section heading, which left two bars
+  between three columns. Its sections are the mockup's: **Mail**, then a zone
+  divider, then Summary, **Here** (or **Locations**, when the group holds more
+  than one — a player stands in exactly one, a GM watches every one), Rooms,
+  Conversations, Elsewhere. The fold key for that section is a literal, NOT its
+  title, or a walk that changed the count would forget the fold.
+
+  `.chat-head` is the one bar deliberately **without** the metal strip on a phone.
+  There it is the whole top of the screen and the place's own words sit under its
+  name, so a strip would land between the two; above 720px it takes the strip like
+  every other bar.
+- **Two levels, Discord's shape** (REDESIGN.md §6), and they are two because one
+  is a watermark and the other is a count.
+
+  **UNREAD** is one comparison: the newest **notable** seq in a place against the
+  newest seq this browser has seen there (`seenStore.js`). The place's name
+  brightens and gains weight, against a column that is otherwise `--muted` — the
+  same move `/gm/players` makes on its own rail. **No number, and no dot.** It
+  carried a dot beside the bright name on the argument that brightness alone is
+  one cue; two marks for one state read as two states, and the number is now
+  reserved for the one thing that earns it.
+
+  **NOTIFIED** is a count of things said **to you**: your name (either spelling —
+  the `{char:…}` token or a bare name, `db/lib/mentions.js`), a line in your
+  Bascinet mail, or a DM. A red `.chat-unread` block with the number in it, the
+  chime, and — only while the tab is **hidden** — a browser notification.
+  `notifiedStore.js` owns it: per place, per browser, in localStorage, read
+  through `useSyncExternalStore`. A watermark cannot say "three people said your
+  name", which is why this one accumulates as the events arrive instead.
+
+  **Cleared on read**, the way Discord clears: opening the place clears its count,
+  and so does bringing the tab back to a place that was already open. A count
+  raised on a scene under somebody's eyes is never raised at all — the stream
+  handler checks that first. The tick in the column's foot clears every count
+  along with every mark, or the control would be a half-truth.
+
+  **Permission is never asked for by this.** Web Push already asks once, behind
+  the bell in the places column (§5a); nothing is shown until that is granted. A
+  page that prompts the first time somebody's name comes up is the pattern
+  browsers added the permanent block for.
+
+  `SYSTEM` scenery counts for **neither**, as it always has.
+- **A bare name is a mention, on both faces** (REDESIGN.md §2, §6). Saying
+  "Marrow, get down" names Marrow exactly as picking her out of the `@` menu
+  would. Three pieces, and they are three so that one rule answers everywhere:
+
+  - **`db/lib/mentions.js`** is the predicate, and asks no database. Whole-word,
+    case-insensitive, Unicode-aware (`\b` is ASCII-only in JavaScript, so a name
+    ending in an accented letter would match inside a longer word). Two spellings
+    count: the **presented name whole** and its **bare first word**, which must be
+    at least 3 characters — offering every word of a name would ping Ilda Roke at
+    every "Roke" and every "Sister", and a mention that fires on a common word is
+    a mention nobody trusts. `{…}` tokens and URLs are cut before scanning, so an
+    explicit mention is not also counted as a bare one. **Zero requires, ever**:
+    the browser asks it directly for its own notified count, and one require of
+    `@lifeweb/db` here would drag PrismaClient into the client bundle.
+  - **`db/lib/characterMentions.js#charactersNamedNearby`** is the query that
+    hands it candidates — everybody in the place's **earshot**, the same rule a
+    role ping obeys (PROXYING.md §6). A **concealed** or force-named character is
+    dropped: the room does not know that name is theirs, and pinging them by it
+    would be the hood confirming itself. The **speaker** is dropped too.
+  - **Two call sites**, and both relay through the shape that already existed:
+    `bot/src/events/messageCreate.js` for a Discord-origin line, and
+    `bot/src/lib/feedOutbox.js#relayWebMentions` for a web-origin one. So Discord
+    gets the same relay DM and push a token mention gets, and the web gets a
+    notified count.
+
+  **Notify-only, and that is load-bearing.** A `{char:…}` mention inside a
+  Conversation is *also an invite* — it adds the person to the thread, the same
+  contract `/add` has. A bare name must never be, or "Marrow told me the bell had
+  gone" typed in a private conversation would pull Marrow into it. Both call sites
+  keep the two lists apart and only the token list takes the invite arm; a name
+  that is both tokened and typed keeps its invite. The cap (10) applies across the
+  pair.
+
+  **The text is never rewritten.** Nothing turns a bare name into `<@&roleId>`, so
+  Discord reads the words the room read. The relay DM is the ping.
 
   Notable means **somebody spoke**: the row is not yours, and its `source` is
   not `SYSTEM`. That is the whole predicate,
@@ -1206,8 +1324,8 @@ a 48px head and a one-line composer:
   the web half of the `-#` those lines go out as on Discord
   (`db/lib/ambientLine.js`). Phase 4 is what actually writes them. **The
   intercom is the one `SYSTEM` row that isn't scenery** — `channelKind:
-  "intercom"` (§2) draws it `.tline--system[data-kind="intercom"]` instead: bold, regular size,
-  still no face. **A shout is three sizes**: `channelKind: "shout"` at
+  "intercom"` (§2) draws it as a bordered notice block instead (`variant="block"`,
+  which the decree shares). **A shout is three sizes**: `channelKind: "shout"` at
   distance 0 draws `[data-kind="shout"]` (bigger and bold), `"shout-near"` at distance
   1 draws `[data-kind="shout-near"]` (ordinary size), and distance 2+ keeps the
   default `"scene"` and stays `.chat-subtext`.
@@ -1832,6 +1950,36 @@ end them.
   route answers 404, and the toggle never draws. The chime and the DM are
   unaffected. The three go on **both** Railway services, since the bot sends
   the mention pushes and the web app serves the key.
+
+### 5b. Switching places paints from cache
+
+Bascinet named three pains in `/chat`, and this is the second (REDESIGN.md §6):
+switching places was slow. Two halves answer it, and they answer different
+halves of the problem.
+
+- **Inside one session, `feedStore` is the cache.** It has always held every
+  place it has ever been given rows for, keyed by place, and a switch is a pure
+  client store read — `openPlace.js` moves a hash, nothing navigates. `Feed.js`
+  draws `stored` the moment it is non-empty, so a place that was read once paints
+  at once and its history request merely tops it up. Two rules keep that true and
+  both are load-bearing: `resetHistory` clears only the per-place *history
+  states*, never the rows (a gap would otherwise blink every open place back to a
+  skeleton), and `seedRows` only ever ADDS, so a re-read merges.
+- **Across a reload, `rowCache.js` is the cache.** The last 40 rows of the 12
+  places nearest the reader are kept in the snapshot layer under its own scope
+  (`play:rows`), written at most every 4 s off a store subscription and once more
+  on unmount, and restored in Chat's state initializer — before the first client
+  paint, since from an effect the first frame is already a skeleton.
+
+  A stored window is only painted if it was written **within half an hour**. The
+  cache cannot know a turn-end wipe raised a place's floor (§7), and `seedRows`
+  adds rather than replaces, so stale rows would sit above the fresh ones. Half an
+  hour covers a reload, a crash and a tab restored from history, and a wipe almost
+  never falls inside one.
+
+The prefetch is unchanged and still does the other half of the work: after the
+first paint a player's other places are fetched one at a time, capped, and never
+for a GM or a ghost — their column is every room in the game.
 
 ## 5c. Snapshots: the page paints before the server answers
 

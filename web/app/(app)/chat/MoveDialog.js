@@ -52,8 +52,11 @@ export default function MoveDialog({ turn = null, characterId = null, existing =
     return () => clearInterval(timer);
   }, []);
 
-  const countdown = turn?.locked ? "locked" : untilLabel(turn?.closesAt, now);
-  const shut = Boolean(turn?.locked) || countdown === "locked";
+  const countdown = turn?.shut ? "not in session" : turn?.locked ? "locked" : untilLabel(turn?.closesAt, now);
+  // `shut` has to read turn.shut separately: out of session `locked` is false, because freezing the clock removes the
+  // deadline rather than shutting the game (db/lib/turnGate.js).
+  const shut = Boolean(turn?.shut) || Boolean(turn?.locked) || countdown === "locked";
+  const shutReason = turn?.shut ? (turn.shutReason ?? "The game isn't in session.") : "Moves were locked.";
   const canFile = Boolean(body.trim()) && !pending && !shut && body.length <= BODY_MAX;
 
   async function file() {
@@ -154,7 +157,7 @@ export default function MoveDialog({ turn = null, characterId = null, existing =
 
       {shut && (
         <p className="form-error" role="alert">
-          Moves were locked.
+          {shutReason}
         </p>
       )}
       <FormError>{error}</FormError>

@@ -296,7 +296,7 @@ const R = {
   // ---- System (actor is "system") ----
   // Weather was deleted; the clause is guarded so old rows that carry it still read.
   turn_advanced: (d) => [
-    t("Turn"), em(String(d.number ?? "?")), t("opened —"), em(titleCase(d.phase)),
+    t("Turn"), em(String(d.number ?? "?")), t("opened — day"), em(String(d.dayNumber ?? "?")),
     ...(d.weather ? [t("·"), em(titleCase(d.weather))] : []),
   ],
   turn_resume: () => [t("A half-finished turn advance was resumed")],

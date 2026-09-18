@@ -1,8 +1,8 @@
 // Restart Game's message wipe (wipeGameData, web/app/(app)/gm/dev/actions.js)
-// — distinct from the routine Dawn message wipe (messageWipe.js), which
+// — distinct from the routine per-turn message wipe (messageWipe.js), which
 // spares the Room threads' starters and the location anchors. This one does
 // not: every message-bearing channel and every anchor/starter clears, on the
-// theory that a restart is a bigger reset than a Dawn. What it does NOT do
+// theory that a restart is a bigger reset than a turn. What it does NOT do
 // any more is touch structure — no category, channel or role is ever
 // deleted. That is now the Discord mirror's job (db/lib/discordMirror),
 // which repairs whatever this empties, including a quest Room's thread and

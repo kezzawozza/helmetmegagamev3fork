@@ -1542,14 +1542,17 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Bascinet's line, dictated verbatim. Blocks Look at outdoors at
-  # Dawn only — the Caves and Dusk really are fine, as the text promises.
+  # Bascinet's line, lightly amended. Blocks Look at outdoors in DAYLIGHT only —
+  # the Caves and the night really are fine, as the text promises. It used to
+  # read "Dusk", and be gated on a DAWN turn; turns carry no time of day any
+  # more, so the mechanic reads the real Chicago clock instead
+  # (db/lib/turnClock.js#isDaylight) and the word had to follow it.
   sun-sensitivity:
     catalog: all
     name: Sun Sensitivity
     category: general
     group: general-traits
-    description: "You can barely see when it's bright outside. You prefer Dusk or the Caves."
+    description: "You can barely see when it's bright outside. You prefer the dark, or the Caves."
     fighting: { tree: both, tiers: -0.3, situational: true }
     pointCost: -2
     visible: true
@@ -1856,8 +1859,9 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Scripted: confession refused in db/lib/confession.js; 5% each dawn to
-  # wake Exhausted, db/lib/dawnAfflictionPass.js.
+  # Scripted: confession refused in db/lib/confession.js; 5% each turn close to
+  # wake Exhausted, db/lib/dawnAfflictionPass.js (named for the Dawn turn it
+  # used to ride — it runs every close now).
   guilt-ridden:
     catalog: all
     name: Guilt Ridden
@@ -1869,7 +1873,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Scripted: 20% each dawn, db/lib/dawnAfflictionPass.js.
+  # Scripted: 20% each turn close, db/lib/dawnAfflictionPass.js.
   insomniac:
     catalog: all
     name: Insomniac

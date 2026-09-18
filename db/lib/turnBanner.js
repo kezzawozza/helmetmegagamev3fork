@@ -9,34 +9,31 @@ const { docsPath } = require("./repoPaths");
 // since path.join(null, ...) throws and would take down the whole announcement.
 const TURN_BANNER_DIR = docsPath("assets", "turn");
 
-const PLATES_PER_PHASE = 4;
+// All eight plates, one pool. They were four Dawn and four Dusk, picked by the turn's phase; with no phases left they are
+// simply eight pictures of Ravenheart. The FILENAMES stay as they are — docs/assets/make-turn-banners.js builds them from
+// named source plates, and renaming them would cost a rebuild for nothing.
+const PLATES = ["dawn-1.jpg", "dawn-2.jpg", "dawn-3.jpg", "dawn-4.jpg", "dusk-1.jpg", "dusk-2.jpg", "dusk-3.jpg", "dusk-4.jpg"];
 
-function platesFor(phase) {
-  const stem = phase === "DUSK" ? "dusk" : "dawn";
-  return Array.from({ length: PLATES_PER_PHASE }, (_, i) => `${stem}-${i + 1}.jpg`);
-}
-
-// Avoids the previous turn OF THE SAME PHASE (turns alternate DAWN/DUSK).
-function pickTurnBanner(phase, previousBanner = null) {
-  const plates = platesFor(phase);
-  const pool = plates.filter((p) => p !== previousBanner);
-  const from = pool.length ? pool : plates;
+// Avoids the plate the previous turn used. It used to avoid the previous turn of the same PHASE, which was the same idea
+// against a pool of four.
+function pickTurnBanner(previousBanner = null) {
+  const pool = PLATES.filter((p) => p !== previousBanner);
+  const from = pool.length ? pool : PLATES;
   return from[Math.floor(Math.random() * from.length)];
 }
 
-// The banner the previous same-phase turn used, or null if there wasn't one.
-async function lastBannerForPhase(prisma, phase) {
+// The banner the previous turn used, or null if there wasn't one.
+async function lastBanner(prisma) {
   const previous = await prisma.turn.findFirst({
-    where: { phase },
     orderBy: { number: "desc" },
     select: { banner: true },
   });
   return previous?.banner ?? null;
 }
 
-// Reads the last same-phase banner and picks a different one.
-async function nextTurnBanner(prisma, phase) {
-  return pickTurnBanner(phase, await lastBannerForPhase(prisma, phase));
+// Reads the last banner and picks a different one.
+async function nextTurnBanner(prisma) {
+  return pickTurnBanner(await lastBanner(prisma));
 }
 
 // Resolves a Turn to a file on disk; null means nothing to post — a missing
@@ -57,10 +54,10 @@ function turnBannerPath(turn, state = null) {
     if (fs.existsSync(hellfire)) return hellfire;
     console.error(`Turn banner: hellfire plate missing from ${TURN_BANNER_DIR}`);
   }
-  if (!turn?.phase) return null;
+  if (!turn) return null;
   // A null banner is a Turn row written before this column existed; pick one
   // on the spot so Turn 1 of a game never posts bare.
-  const file = turn.banner ?? pickTurnBanner(turn.phase);
+  const file = turn.banner ?? pickTurnBanner();
   const full = path.join(TURN_BANNER_DIR, file);
   return fs.existsSync(full) ? full : null;
 }

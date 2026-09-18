@@ -2,6 +2,7 @@
 // The name is frozen at send time as the PRESENTED name (db/lib/presentedIdentity.js: forced > concealed > own) — a row must never print a name the room couldn't have heard — and lives IN the token, not a sidecar column, because the text gets copied (a ⭐ into Note.content, a journal entry) with no migration needed. A token with no `|` predates this and resolves live; there is deliberately NO BACKFILL, since stamping today's names onto old rows would be the retroactive rewrite this exists to prevent.
 
 const { parsePlaceKey } = require("./placeKey");
+const { charactersNamedIn } = require("./mentions");
 const {
   CONCEALMENT_TAG_FIELDS,
   concealmentFrom,
@@ -155,6 +156,62 @@ function inEarshot(character, earshot) {
   return false;
 }
 
+// Everybody in earshot whose NAME this text says out loud — a bare name is a
+// mention on both faces (REDESIGN.md §2, §6). The predicate is db/lib/mentions.js,
+// which asks no database; this is the query that hands it its candidates.
+//
+// NOTIFY-ONLY, and the callers must keep it that way. An explicit `{char:…}`
+// mention inside a Conversation is also an INVITE — it adds the person to the
+// thread — and a bare name must never be, or "Marrow said the bell had gone"
+// typed in a private conversation would pull Marrow into it.
+//
+// Earshot is the same rule a role ping obeys (PROXYING.md §6): a Location, Room
+// or Conversation gates on the Location around it, a zone summary on the zone. So
+// a candidate that comes back here has already passed the test `inEarshot` would
+// apply, and the caller need not apply it twice.
+//
+// The name matched is the PRESENTED one, and a character who is concealed or
+// under a forced name is dropped: the room does not know that name is theirs, and
+// pinging them by it would be the hood confirming itself.
+async function charactersNamedNearby(prisma, { placeKey, content, speakerId = null }) {
+  if (typeof content !== "string" || !content.trim()) return [];
+  const earshot = await earshotForPlaceKey(prisma, placeKey);
+  if (!earshot.locationId && !earshot.zoneId) return [];
+
+  const candidates = await prisma.character.findMany({
+    where: {
+      status: "ALIVE",
+      ...(earshot.locationId ? { locationId: earshot.locationId } : { zoneId: earshot.zoneId }),
+      ...(speakerId ? { id: { not: speakerId } } : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      discordRoleId: true,
+      discordUserId: true,
+      locationId: true,
+      zoneId: true,
+      discordMirrored: true,
+      concealed: true,
+      age: true,
+      gender: true,
+      tags: IDENTITY_INCLUDE,
+    },
+  });
+
+  const shaped = candidates.map((character) => {
+    const shown = presentedIdentity(character, {
+      forcedName: forcedNameFrom(character.tags),
+      concealment: concealmentFrom(character.tags),
+    });
+    const { tags, ...rest } = character;
+    return { ...rest, name: shown.name, concealed: Boolean(shown.concealed || shown.forced) };
+  });
+
+  return charactersNamedIn(content, shaped, { speakerId });
+}
+
 module.exports = {
   TOKEN_RE,
   ROLE_RE,
@@ -166,4 +223,5 @@ module.exports = {
   rolesToTokens,
   earshotForPlaceKey,
   inEarshot,
+  charactersNamedNearby,
 };

@@ -38,9 +38,11 @@ function expiryFor(tag, openTurn) {
   return expiryFrom(openTurn.number, tag?.defaultDurationTurns);
 }
 
-// Two turns (Dawn, Dusk) make one day; matches web/lib/turnFormat.js#describeTurn and Character.birdTurnId's claim key (CARRY.md §2a).
+// Which in-game day a turn belongs to. STAMPED on the row at open (Turn.dayNumber), never derived — a turn is 6, 8, 12 or
+// 24 hours now, so ceil(number / 2) would renumber every past day the moment a GM changed the length, including the day keys
+// the Bird and Fast Travel claim once a day against (CARRY.md §2a). The fallback is only for rows written before the column.
 function turnDay(turn) {
-  return Math.ceil(turn.number / 2);
+  return turn?.dayNumber ?? Math.ceil(turn.number / 2);
 }
 
 module.exports = { turnsLeft, formatTurnsLeft, tagDuration, expiryFrom, expiryFor, turnDay };

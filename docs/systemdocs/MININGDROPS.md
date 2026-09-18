@@ -152,11 +152,10 @@ entry can never be mistaken for already-active.
 ### 2b. Building a table that is actually worth something
 
 Mining's base pay is thin on purpose — 2–8 before the coefficients
-(`MINING.md` §3), the thinnest range in the game. **This table is what makes
-up the difference**, which is why mining's pools use faces 2, 3, 4 and 5 as
-well as 6, rather than sitting on 1 and 6 the way the old Laboring tables did.
-A prospector finds something worth having more often than a hunter found a
-body, even if any one find is smaller.
+(`MINING.md` §3). **This table is what makes up the difference**, which is why
+mining's pools use faces 2, 3, 4 and 5 as well as 6, rather than sitting on 1
+and 6 the way the old Laboring tables did. A prospector finds something worth
+having more often than a hunter found a body, even if any one find is smaller.
 
 Read the number off `npm run db:audit-mining-drops`'s own `⬢ EV/day` line for
 the table you're building (§6a), the same way every other table in this file

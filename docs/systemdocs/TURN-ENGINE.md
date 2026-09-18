@@ -4,14 +4,32 @@ How a turn closes and the next one opens. One function owns it —
 `advanceTurn()` in `db/index.js` — and everything else on this page is either a
 pass it calls or a side effect it hands back.
 
-Turns advance **once a day, 00:00 America/Chicago**, strictly alternating: a
-DAWN turn opens at midnight and runs to the next midnight, then a DUSK turn
-does the same. So a turn is one real day and an **in-game day is two of them**
-— `Math.ceil(turn.number / 2)` still gives the day, it just takes twice as long
-to get there. The schedule lives in `bot/src/events/ready.js`'s cron, and
-`db/lib/turnClock.js`'s `TURN_BOUNDARY_HOURS` must agree with it. It was two
-turns a day until 2026-09-03, boundaries at 00:00 and 12:00; everything counted
-in turns therefore takes twice as long in real time as it used to. The advance is also **the push**: everything the GMs staged during the
+A turn is **6, 8, 12 or 24 hours**, set by `GameConfig.turnLengthHours`, and
+ends on a clean **America/Chicago** boundary — every `turnLengthHours` from
+00:00, so a 6-hour game ends turns at 00:00, 06:00, 12:00 and 18:00 local. That
+is the game's clock and the only one it quotes; the header of every web page
+carries it (`web/app/components/BascinetClock.js`).
+
+**There are no Dawn and Dusk halves any more.** A turn is a turn, and
+`Turn.dayNumber` — stamped when the turn opens — says which in-game day it
+belongs to. The day rolls at Chicago midnight whatever the length, so 24 hours
+is one turn a day and 6 hours is four. `Math.ceil(turn.number / 2)` is gone:
+with the length a knob it would renumber the whole history the moment a GM
+changed it, including the day keys the Bird and Fast Travel claim against.
+
+**Three columns on the turn row, and they are what makes the knob safe.**
+`turnLengthHours` and `endsAt` are stamped at open, so `db/lib/turnClock.js`
+reads the TURN and never the config. A GM changing the length therefore moves
+the **next** turn and never the open one — nobody's deadline jumps while they
+are mid-action — and `db/lib/oracleInput.js` can ask a turn that closed last
+week what its cutoff was and get the right answer.
+
+**There is no advance cron.** `bot/src/events/ready.js` polls every minute
+(`bot/src/lib/sessionClock.js#tickTurnClock`, on `turnClock.js#advanceDue`),
+because no single cron string can express a length a GM may change. A missed
+tick now heals within a minute instead of at the next midnight.
+
+The advance is also **the push**: everything the GMs staged during the
 closing turn — mechanical effects, private messages, public declarations, and
 every Move's own declared payout — applies and delivers here, and nowhere
 else. See `ADJUDICATION.md`.
@@ -20,15 +38,16 @@ else. See `ADJUDICATION.md`.
 
 | Caller | Path | How it handles the side effects |
 |---|---|---|
-| The bot's cron | `bot/src/lib/turnEngine.js` (a 39-line wrapper) | Awaits the thunk inline — it's a background process, nobody is waiting. |
+| The bot's per-minute clock | `bot/src/lib/sessionClock.js` -> `bot/src/lib/turnEngine.js` | Awaits the thunk inline — it's a background process, nobody is waiting. |
 | The Dev Panel's "End turn" | `web/app/(app)/gm/dev/actions.js#forceAdvanceTurn` | Hands it to `next/server`'s `after()`, so the response — already carrying the committed new turn — flushes first. |
 
 Each adds its own `AuditLog` entry. **Both must check the returned `advanced`
 flag** before logging or dereferencing `newTurn`. It is also `false`, with
 `refused: "NOT_RUNNING"`, whenever `GameState.phase` is not RUNNING
 (`LOBBY.md` §1) — the one gate for both callers, so a game in the lobby or
-already ended never ticks. `GameConfig.autoTurnAdvanceDisabled` is the
-separate, cron-only pause.
+already ended never ticks — and `refused: "NOT_IN_SESSION"` between sittings
+(`SESSIONS.md`). `GameConfig.autoTurnAdvanceDisabled` is the separate,
+poll-only pause.
 
 Manual turn control lives only in the Dev Panel, not on `/gm/turns`. The
 Current Turn widget can also overwrite the open turn's day/phase directly
@@ -104,8 +123,8 @@ each arrived at by getting them wrong first.
    (`db/lib/moveConfirm.js` → `db/lib/gambitDie.js`) so the GM desk has it
    immediately, and shown to the player nowhere else, so this is where they
    find out how it fell. `/character`
-   used to reveal it at Moves lock — three hours early
-   (`MOVE_LOCK_HOURS`, `db/lib/turnClock.js`) — which handed players a bare
+   used to reveal it at Moves lock — an adjudication window early
+   (`adjudicationHours`, `db/lib/turnClock.js`) — which handed players a bare
    number with no outcome attached; it now strips the die unconditionally
    (`web/app/(app)/character/page.js`). The gap between the throw and the
    telling is wider than it used to be, so that strip carries more weight:
@@ -258,9 +277,16 @@ each arrived at by getting them wrong first.
    The other order collides with `@@unique([characterId, tagId])` and silently
    drops the re-grant, leaving a tag that expires immediately.
 8a. **Dawn afflictions pass** (`db/lib/dawnAfflictionPass.js`) — right after
-   hunger. Guilt Ridden and Insomniac each roll a nightly chance of a bad
-   night's sleep, stepping the Tired → Exhausted ladder (`TAGS.md`,
-   `MINING.md` §5). Audit action `dawn_afflictions_resolved`.
+   hunger. Guilt Ridden and Insomniac each roll a chance of a bad night's
+   sleep, stepping the Tired → Exhausted ladder (`TAGS.md`, `MINING.md` §5).
+   Audit action `dawn_afflictions_resolved`.
+
+   **The name is a fossil and stays one.** It ran on the DAWN turn once; it
+   runs every close now, which on a 6-hour game is four bad nights a day. The
+   file name, the `"dawnAffliction"` key and the audit action are all left
+   alone on purpose — the key is written into `Turn.resolvedPasses` and the
+   action into `AuditLog`, so renaming either makes history unreadable. Same
+   precedent as the `"lessons"` key.
 8a-bis. **Xom pass** (`db/lib/xomPass.js`, `"xom"` in `TURN_PASSES`) — the
    god of chance and disorder collects. Every ALIVE holder of
    `{tag:old-ways-xom}` rolls once on a weighted table, and roughly half the
@@ -516,7 +542,10 @@ The thunk performs, in narrative order:
 7. The message wipe, on **every** turn while `GameConfig.messageWipeEnabled` is
    on (`db/lib/messageWipe.js`; see `CHANNELS.md` §8). Location channels, Rooms
    and Conversations clear every turn; a zone's `#summary` only when the new
-   phase is `DAWN`, which the thunk passes as `wipeSummaries`. It is handed a
+   turn starts a new in-game day — `newTurn.dayNumber !== p.previousDayNumber`,
+   which the thunk passes as `wipeSummaries`. The closing turn's day rides in
+   `sideEffectPayload` rather than being re-read, so a resumed run cannot get a
+   different answer than the original. It is handed a
    **cutoff** — a timestamp the thunk takes as its very first statement, before
    any Discord call — and deletes nothing created at or after it. That is what
    lets the slow wipe stay last in the order without eating the summaries step
@@ -545,7 +574,7 @@ players a per-character row would drown every human-authored line in
 
 ## 4. Turn banners
 
-Each turn announcement carries a photograph. There are eight, four per phase, in
+Each turn announcement carries a photograph. There are eight, in
 `docs/assets/turn/{dawn,dusk}-{1..4}.jpg`, all cropped to the same 2446×1122
 frame as the `#info` banner so both channels read as one system. They are built
 by `docs/assets/make-turn-banners.js`, which holds the per-plate crop window and
@@ -556,10 +585,12 @@ the `Weather` enum are orphaned columns from a removed feature — nothing
 reads or writes them, and no GM control exists for a next-weather override.
 
 **Which plate.** `db/lib/turnBanner.js` picks one when the turn opens and writes
-it to `Turn.banner`. The pick avoids whatever the last turn **of the same phase**
-used — same phase, not simply the previous turn, because turns alternate
-DAWN/DUSK and the turn before a dawn is always a dusk, whose plate was never a
-candidate anyway.
+it to `Turn.banner`, avoiding whatever the previous turn used. All eight are one
+pool now; they were four Dawn and four Dusk, picked by the turn's phase, and the
+filenames still say so because they are only pictures and renaming them would
+cost a rebuild of `docs/assets/make-turn-banners.js` for nothing. On a 6-hour
+game a plate comes round about twice as often as it used to, which is inherent
+to there being four times as many turns.
 
 **Why it is stored rather than rolled at post time.** The announcement gets
 reposted: the bot rebuilds a missing console on cold start
@@ -599,10 +630,16 @@ player console together. Discord renders content, then attachments, then
 components, which is exactly the order wanted:
 
 ```
-DAY 4 · DUSK                 <- content
-[ turn banner ]              <- attachment
-Travel   Move   Speak        <- components, always last
+-# Day 4, Turn 7 | April 24th, 1098     <- content
+[ turn banner ]                        <- attachment
+Travel   Move   Speak                  <- components, always last
 ```
+
+There used to be a one-word scene line under that header — `Dawn.` or `Dusk.` —
+and with the phases gone it has nothing left to say. The turn-ping role it
+carried moved onto the clock line rather than sitting alone on a line of its
+own, and the line is omitted entirely when no ping role is configured, so the
+message never carries a stray blank line.
 
 It was three messages once — banner, announcement, and a console anchor
 deliberately kept separate so it would not "jump above and below the
@@ -812,29 +849,48 @@ advance from drifting the whole map twice. The full parameter table is in
 
 ## 6a. The Move cutoff
 
-Moves close **three hours before the turn ends** (`MOVE_LOCK_HOURS` in
-`db/lib/turnClock.js`) — 9:00 PM America/Chicago on a normal turn — so a GM has
-a window to adjudicate what was filed before the push runs.
+Moves close an **adjudication window** before the turn ends, so a GM has time
+to read what was filed before the push runs. It is **not a knob** — it falls out
+of the turn's length, in `db/lib/turnClock.js#adjudicationHours`:
 
-Nothing stores a turn's end time, so it is derived: `turnEndsAt(turn)` is the
-first `TURN_BOUNDARY_HOURS` Chicago boundary strictly after `turn.startedAt` —
-now just 00:00, regardless of phase (a turn a GM opened by hand at 13:00 really
-does end at the coming midnight, eleven hours later, rather than running a full
-24) — and `moveCutoffAt(turn)` is that minus three hours. Deriving from
-`startedAt` rather than from *now* is what makes a manually advanced turn come
-out right — and it fixes a live bug in the announcement, which the bot rebuilds
-on restart and which used to say "ends at noon" six hours after noon.
+| Turn length | 6h | 8h | 12h | 24h |
+|---|---|---|---|---|
+| Adjudication window | 2h | 2h | 3h | 3h |
+
+A GM who could set this to zero would be adjudicating a push that was still
+moving, and one who set it to the whole turn would have shut the game; it is a
+property of how much there is to read, not a preference.
+
+**The end time is stored, not derived.** `turnEndsAt(turn)` returns
+`turn.endsAt`, stamped at open as the first Chicago grid boundary strictly
+after `startedAt`, and `moveCutoffAt(turn)` is that minus the window for
+`turn.turnLengthHours`. The derivation survives only as the fallback for rows
+written before the column. Reading live config instead would let a GM's knob
+move a deadline under somebody mid-action, and would make ~20 synchronous
+callers async for the privilege.
+
+**A boundary is strictly after the start, so a manual advance SNAPS FORWARD.**
+End a 6-hour turn by hand at 15:00 and the next one runs to 18:00 — three
+hours, not six — and the grid never moves. That is what keeps every turn landing
+on a clean local time no matter how many times a GM intervenes.
 
 `moveWindow(turn, { now, clockFrozen })` returns
 `{ endsAt, cutoffAt, locked, hasLock }`. There is **no lock at all**
 (`hasLock: false`) in two cases: the clock is frozen
 (`db/lib/gameState.js#clockFrozen` — `GameConfig.autoTurnAdvanceDisabled` is
-on, or the game is not RUNNING), so
-there is no scheduled end to count back from; or the turn is shorter than three
-hours, which a manual advance at, say, 11:00 produces — counting back would
-otherwise lock the whole turn the moment it opened. `locked` is true only
-*between* the cutoff and the end, so a turn that outlives its derived end (a
-missed cron) reopens rather than staying shut forever.
+on, the game is not RUNNING, or it is between sittings), so there is no
+scheduled end to count back from; or the turn is shorter than its own window,
+which the snap above produces a few minutes before any boundary — counting back
+would otherwise lock the whole turn the moment it opened. `locked` is true only
+*between* the cutoff and the end, so a turn that outlives its end (a missed
+poll) reopens rather than staying shut forever.
+
+**`locked: false` does not mean the game is open**, and this is the sharpest
+edge in the whole module. A frozen clock reports `locked: false` because
+freezing removes the DEADLINE, not because anybody may act. Whether a player
+may act is `db/lib/turnGate.js#movesOpen`, which asks about the session first
+and the window second. Read `locked` alone and a game between sittings is wide
+open.
 
 **Two things fire on the cutoff itself.** The Oracle drafts the turn's
 chronicle a couple of minutes after the lock, off the bot's minute cron
@@ -863,7 +919,7 @@ Surfaced to players on the `#turns` announcement (`Moves must be sent by
 Chat's turn card counts to the **cutoff**, not to the turn's end: `myMove`
 sends `moveWindow(...).cutoffAt` as `closesAt`, and `TurnCard.js` renders
 `closes in N h` from it, or `locked` once the window has shut. Counting to
-`endsAt` told a player they had three hours they did not have.
+`endsAt` told a player they had the adjudication window they did not have.
 
 **And it is in the header of every page**, which is the one surface nobody has
 to go looking for: `LOCK 9:00 PM · 2h 14m`, becoming `MOVES LOCKED` once the
@@ -918,7 +974,7 @@ player happened to type.
 `gambitCutoff` is a per-minute poll in the **bot** process, sharing
 `turnClock.js`'s `cutoffReached` with the Oracle's cutoff run. Three
 consequences: a web-only deploy never ticks it, a frozen clock or a turn
-shorter than `MOVE_LOCK_HOURS` never locks at all, and the roll can land up to
+shorter than its adjudication window never locks at all, and the roll can land up to
 a minute late. So `rollPendingGambits` is **also called at the head of the
 staged push** as the backstop — a no-op on an ordinary turn where the cutoff
 already fired.
@@ -938,7 +994,12 @@ markers for the desk's labels.
 | `db/index.js` | `advanceTurn`, `resolveNeeds`, `sweepExpiredStacks` |
 | `db/turnCalendar.js` | The in-fiction calendar and `buildTurnAnnouncement` |
 | `db/lib/turnBanner.js` | Picking and resolving the turn banner (§4) |
-| `db/lib/turnClock.js` | Turn end / Move cutoff derivation (§6a) |
+| `db/lib/turnClock.js` | The Chicago boundary grid, turn end, Move cutoff, the day rule, `advanceDue` (§6a) |
+| `db/lib/turnGate.js` | **The one answer to "may a player act right now?"** — the session first, the lock second |
+| `db/lib/session.js` | Opening and closing a sitting (`SESSIONS.md`) |
+| `db/lib/sessionNotice.js` | The one line into `#turns` when a session opens or closes |
+| `bot/src/lib/sessionClock.js` | The bot's per-minute turn and session polls |
+| `web/app/components/BascinetClock.js` | The game's clock in every page header (§9) |
 | `web/app/components/LockChip.js` | The cutoff in every page header, in the reader's own time (§6a) |
 | `db/lib/stagedPush.js` | The staged push pass (`ADJUDICATION.md`) |
 | `db/lib/miningYield.js` | Mining coefficient drift, and the quality words |
@@ -961,7 +1022,7 @@ markers for the desk's labels.
 | `db/lib/messageWipe.js` | The message wipe (`CHANNELS.md` §8) |
 | `db/lib/threadExpiryPass.js` | Inactivity expiry for player threads (`CHANNELS.md` §4) |
 | `db/lib/channelDoctor.js` | The optional post-turn reconcile (`CHANNELS.md` §6) |
-| `bot/src/lib/turnEngine.js` | The cron caller |
+| `bot/src/lib/turnEngine.js` | The poll's caller: the audit row and the inline thunk |
 | `bot/src/lib/moveModal.js` | The Move modal a player files a Move through (`COMMANDS.md`) |
 | `db/lib/moveConfirm.js` | Confirming a filed Move — both faces call it, and a Move that never reaches it stays `PENDING_TYPE` and is skipped by the staged push (`bot/src/lib/moveConfirm.js` is a shim that binds `prisma`) |
 | `web/app/(app)/gm/dev/actions.js` | `forceAdvanceTurn`, the GM caller |

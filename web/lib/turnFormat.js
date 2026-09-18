@@ -1,7 +1,7 @@
 // Pure turn-formatting helpers, kept separate from turn.js's getOpenTurn() so client components can import these without dragging the @lifeweb/db (Prisma) barrel into the bundle.
 export { turnsLeft, formatTurnsLeft, tagDuration, expiryFrom, expiryFor } from "@lifeweb/db/lib/turnFormat";
 
-// How long is left to file a Move; counts to the CUTOFF (MOVE_LOCK_HOURS before midnight), not the turn's end.
+// How long is left to file a Move; counts to the CUTOFF (the adjudication window before the turn's end), not the end itself.
 export function untilLabel(closesAt, now) {
   if (!closesAt) return null;
   const ms = new Date(closesAt).getTime() - now;
@@ -20,15 +20,15 @@ export function lockCountdown(ms) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+// The day comes off Turn.dayNumber, stamped when the turn opened. It used to be ceil(number / 2), back when a turn was half
+// a day; a turn is 6, 8, 12 or 24 hours now, so deriving it would renumber the past whenever a GM changed the length.
 export function describeTurn(turn) {
-  if (!turn) return { day: null, phase: null, label: "NO TURN OPEN" };
-  const day = Math.ceil(turn.number / 2);
-  return { day, phase: turn.phase, label: `DAY ${day} · ${turn.phase}` };
+  if (!turn) return { day: null, label: "NO TURN OPEN" };
+  const day = turn.dayNumber ?? Math.ceil(turn.number / 2);
+  return { day, label: `DAY ${day}` };
 }
 
-export function formatTurnLabel(turnNumber, phase) {
+export function formatTurnLabel(turnNumber) {
   if (turnNumber == null) return "-";
-  if (!phase) return `Turn ${turnNumber}`;
-  const phaseLabel = phase.charAt(0) + phase.slice(1).toLowerCase();
-  return `Turn ${turnNumber}, ${phaseLabel}`;
+  return `Turn ${turnNumber}`;
 }

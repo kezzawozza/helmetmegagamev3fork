@@ -3,7 +3,8 @@
 // A Gambit stays yours until lock-in: `editMove` rewrites it, `withdrawMove` takes it back and hands the turn over. Everything else a player files is a RECEIPT for something that already happened, and is final the moment it lands.
 // That is safe because the d6 belongs to the CHARACTER AND TURN rather than to the Move row (db/lib/gambitDie.js). While the die lived on the row, an uncapped edit was a re-roll button — flip Gambit → Routine → Gambit and fish for a better one. Nothing to fish for now: the die is thrown once at submit and every edit, withdraw and re-file reads the same number back.
 const { moveWindow } = require("./turnClock");
-const { clockFrozen } = require("./gameState");
+const { clockStatus } = require("./gameState");
+const { movesOpen } = require("./turnGate");
 const { blockerFor, gambitBlockerFor, ACT } = require("./incapacitation");
 const { touchCharacterActivity } = require("./characterActivity");
 const { deleteActionRestoringTurn, lockIsLive, syncQuestIntention } = require("./moveEconomy");
@@ -27,9 +28,10 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (!openTurn) return { ok: false, error: "Your turn isn't open — your Move wasn't recorded." };
 
-  // Re-checked here, not just where the dialog opened — a form can sit open across the cutoff. Before the Action row, so a refusal costs no turn.
-  const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
-  if (locked) return { ok: false, error: "Moves for this turn are locked." };
+  // Re-checked here, not just where the dialog opened — a form can sit open across the cutoff, or across the end of a
+  // session. Before the Action row, so a refusal costs no turn.
+  const gate = await movesOpen(prisma, { turn: openTurn });
+  if (!gate.ok) return { ok: false, error: gate.message };
 
   const alreadyActed = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
@@ -95,8 +97,11 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
 
 // Pure, so every branch is testable without a database or a clock — the same shape db/lib/oracleCutoff.js uses, and for the same reason: all but one branch is a refusal, and a refusal the player can't read is a bug report.
 // `action` needs { playerFiled, moveKind, moveReviewStatus, lockExpiresAt, diceModifier }. A null action means nothing is filed, which is not an error anywhere — the caller decides whether that's "file one" or "nothing to withdraw".
-function moveIsEditable(action, openTurn, { now = new Date(), clockFrozen = false } = {}) {
+function moveIsEditable(action, openTurn, { now = new Date(), clockFrozen = false, inSession = true } = {}) {
   if (!action) return { editable: false, reason: "no Move was declared" };
+  // Before everything else, and separate from the lock below, because `locked` is false out of session — freezing the clock
+  // removes the DEADLINE, it does not shut the game (db/lib/turnGate.js says the same thing at greater length).
+  if (!inSession) return { editable: false, reason: "the game isn't in session" };
   // A receipt. Bury, craft, torture, travel, a lesson, the day underground you already got paid for — the thing happened, so there is nothing left to take back.
   if (!action.playerFiled) return { editable: false, reason: "the game declared this one for you" };
   // A Mine pays the moment it's filed, so by the time it exists it is a receipt too. Withdraw is a Gambit's alone.
@@ -140,7 +145,8 @@ async function loadEditableMove(prisma, { character, actionId }) {
   // The WHERE is the ownership check: another character's actionId simply doesn't match.
   if (!action) return { ok: false, error: "That Move isn't yours." };
 
-  const { editable, reason } = moveIsEditable(action, openTurn, { clockFrozen: await clockFrozen(prisma) });
+  const clock = await clockStatus(prisma);
+  const { editable, reason } = moveIsEditable(action, openTurn, { clockFrozen: clock.frozen, inSession: clock.inSession });
   if (!editable) return { ok: false, error: `You can't change this Move — ${reason}.` };
 
   return { ok: true, action, openTurn };

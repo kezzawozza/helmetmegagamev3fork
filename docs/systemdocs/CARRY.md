@@ -195,7 +195,8 @@ crossing per *day*. Now:
 
 - Everyone gets `GameConfig.freeZoneMovesPerTurn` crossings a turn, default 1.
 - An **equipped** mount adds one, and it refreshes every turn — a horse carries
-  you at Dawn and again at Dusk. It is **spent first**: the mount's crossing
+  you once per turn, which on a short turn length is several times a day. It
+  is **spent first**: the mount's crossing
   goes before the base one and stays charged to the mount, so parking the horse
   at an indoors door later in the turn cannot take back a crossing you never
   spent. **Only while your escort party fits its

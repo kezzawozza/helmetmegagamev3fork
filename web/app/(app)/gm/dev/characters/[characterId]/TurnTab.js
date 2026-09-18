@@ -14,7 +14,7 @@ export default function TurnTab({ character, openTurn, action }) {
     <>
       <section className="panel flex flex-col gap-3 p-4">
         <h2 className="panel-header">
-          {openTurn ? `Turn ${openTurn.number} — ${openTurn.phase}` : "No turn is open"}
+          {openTurn ? `Turn ${openTurn.number} — Day ${openTurn.dayNumber}` : "No turn is open"}
         </h2>
 
         {!action ? (
