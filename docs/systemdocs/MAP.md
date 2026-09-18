@@ -424,7 +424,8 @@ in the Moves history; the `AuditLog` row `exert_crossing` is the record.
 
 **Mounts.** `horse` and `motorcycle`
 (`db/lib/mounts.js#FAST_TRAVEL_SLUGS`) each add one free crossing, **and it refreshes every
-turn** rather than once a day — a horse carries you at Dawn and again at Dusk.
+turn** rather than once a day — on a short turn length a horse carries you
+several times a day.
 They only count while **equipped**, and they are unequipped for you at the door
 of any indoors Location (`CARRY.md` §3).
 

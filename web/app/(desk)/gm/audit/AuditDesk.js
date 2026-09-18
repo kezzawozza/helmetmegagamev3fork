@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Pager from "@/app/components/Pager";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
+import BascinetClock from "@/app/components/BascinetClock";
 import { useRefresh } from "@/app/components/useRefresh";
 import AuditFeed from "./AuditFeed";
 import AuditFilters from "./AuditFilters";
@@ -172,6 +173,7 @@ export default function AuditDesk({
                 open" and "the chip has not loaded" looked the same. */}
             <DeskTurnChip turn={openTurn} />
             <LockChip />
+            <BascinetClock />
             {freshCount > 0 && (
               <button type="button" className="chip" onClick={acknowledge}>
                 {freshCount} new

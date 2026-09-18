@@ -218,7 +218,8 @@ you pick the right doc — they are never enough to change code with.
 |---|---|
 | [`ARCHITECTURE.md`](docs/systemdocs/ARCHITECTURE.md) | You're deciding where a new module goes, or touching anything that talks to Discord from both faces |
 | [`COMMANDS.md`](docs/systemdocs/COMMANDS.md) | You're adding or changing a slash command, button, modal or reaction |
-| [`TURN-ENGINE.md`](docs/systemdocs/TURN-ENGINE.md) | You're touching how a turn advances — hunger, auto-labor, turn banners, the side-effect thunk |
+| [`TURN-ENGINE.md`](docs/systemdocs/TURN-ENGINE.md) | You're touching how a turn advances — the turn length (6/8/12/24), the Chicago boundary grid, hunger, auto-labor, turn banners, the side-effect thunk |
+| [`SESSIONS.md`](docs/systemdocs/SESSIONS.md) | You're touching the game type, a sitting's schedule, or **anything that asks whether a player may act right now** (`db/lib/turnGate.js`) — read it before adding a Move gate |
 | [`LAUNCH.md`](docs/systemdocs/LAUNCH.md) | You're opening a game or running a Restart Game wipe — the order that keeps players from being locked out |
 | [`BACKUPS.md`](docs/systemdocs/BACKUPS.md) | You're touching backups or restoring one — point-in-time recovery, the nightly dump service in `ops/backup/`, or **anything that has just gone badly wrong with the database** |
 | [`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md) | You're setting up a local Postgres, testing a GM-gated page with no real Discord credentials, or about to run anything against the live database |

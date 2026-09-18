@@ -30,6 +30,7 @@ import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
 import { drainMirrorQueue } from "@lifeweb/db/lib/discordMirror/queue";
 import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
 import { pickTurnBanner, nextTurnBanner } from "@lifeweb/db/lib/turnBanner";
+import { normalizeTurnLength, nextBoundaryAfter } from "@lifeweb/db/lib/turnClock";
 import { requireDev } from "@/lib/devAccess";
 import {
   deleteCharacterRole,
@@ -131,30 +132,43 @@ export async function updateDepot(formData) {
   revalidatePath("/depot");
 }
 
-// A raw superadmin correction to the current turn's day/phase, not a
-// normal turn advance.
+// A raw superadmin correction to the current turn's number and day, not a
+// normal turn advance. It used to set a day and a PHASE and derive the number
+// from the pair; with no phases the two numbers are simply both editable, and
+// re-rolling the banner — which used to be a side effect of flipping the phase
+// and flipping it back — is its own checkbox.
 export async function updateCurrentTurn(formData) {
   await requireDev();
 
   const day = intOrNull(formData, "day");
-  const phase = str(formData, "phase") || "DAWN";
+  const number = intOrNull(formData, "number");
   if (day == null || day < 1) return;
+  if (number == null || number < 1) return;
 
-  const number = (day - 1) * 2 + (phase === "DAWN" ? 1 : 2);
-
+  const rerollBanner = formData.get("rerollBanner") === "on";
   const openTurnRecord = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+
   if (openTurnRecord) {
-    // A phase flip has to re-pick the banner, or a dusk turn keeps riding a
-    // dawn plate. Saving the form unchanged leaves the picture alone, so this
-    // doubles as the GM re-roll: switch the phase and switch it back.
-    const banner =
-      openTurnRecord.phase === phase && openTurnRecord.banner
-        ? openTurnRecord.banner
-        : await nextTurnBanner(prisma, phase);
-    await prisma.turn.update({ where: { id: openTurnRecord.id }, data: { number, phase, banner } });
+    const banner = rerollBanner || !openTurnRecord.banner ? await nextTurnBanner(prisma) : openTurnRecord.banner;
+    await prisma.turn.update({
+      where: { id: openTurnRecord.id },
+      data: { number, dayNumber: day, banner },
+    });
   } else {
+    const startedAt = new Date();
+    const turnLengthHours = normalizeTurnLength(
+      (await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { turnLengthHours: true } }))?.turnLengthHours,
+    );
     await prisma.turn.create({
-      data: { number, phase, banner: await nextTurnBanner(prisma, phase), status: "OPEN", gameDate: new Date() },
+      data: {
+        number,
+        dayNumber: day,
+        turnLengthHours,
+        endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours)),
+        banner: await nextTurnBanner(prisma),
+        status: "OPEN",
+        startedAt,
+      },
     });
   }
 
@@ -216,7 +230,7 @@ export async function forceAdvanceTurn() {
       data: {
         actorDiscordUserId: session.discordUserId,
         actionType: "superadmin_turn_forced",
-        details: { previousTurnId: previousTurn?.id ?? null, newTurnId: newTurn.id, number: newTurn.number, phase: newTurn.phase },
+        details: { previousTurnId: previousTurn?.id ?? null, newTurnId: newTurn.id, number: newTurn.number, dayNumber: newTurn.dayNumber },
       },
     });
 
@@ -238,7 +252,7 @@ export async function forceAdvanceTurn() {
 
 // Full game restart for dev/testing: wipes every player- and turn-scoped
 // row, recreates GameState (phase CLOSED), clears every Discord channel,
-// opens Turn 1/DAWN, reposts #turns, then re-syncs every YAML master in
+// opens Turn 1, reposts #turns, then re-syncs every YAML master in
 // dependency order. Requires typing "WIPE" — no undo.
 //
 // GameConfig and PlayerPreference are deliberately NOT touched: the knobs a
@@ -529,8 +543,18 @@ export async function wipeGameData(formData) {
     // already gone and the delete cannot be blocked by a member.
     await prisma.faction.deleteMany({ where: { foundedById: { not: null } } });
 
+    const wipeStartedAt = new Date();
+    const wipeTurnLengthHours = normalizeTurnLength((await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { turnLengthHours: true } }))?.turnLengthHours);
     const firstTurn = await prisma.turn.create({
-      data: { number: 1, phase: "DAWN", banner: pickTurnBanner("DAWN"), status: "OPEN", gameDate: new Date() },
+      data: {
+        number: 1,
+        dayNumber: 1,
+        turnLengthHours: wipeTurnLengthHours,
+        endsAt: new Date(nextBoundaryAfter(wipeStartedAt.getTime(), wipeTurnLengthHours)),
+        banner: pickTurnBanner(),
+        status: "OPEN",
+        startedAt: wipeStartedAt,
+      },
     });
 
     await prisma.auditLog.create({

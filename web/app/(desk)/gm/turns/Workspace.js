@@ -20,6 +20,7 @@ import PushPreview from "./PushPreview";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
+import BascinetClock from "@/app/components/BascinetClock";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import usePins from "@/app/components/usePins";
@@ -661,6 +662,7 @@ export default function Workspace({
                 takes colour. */}
             <DeskTurnChip turn={openTurn} />
             <LockChip />
+            <BascinetClock />
             <DeskStreamChip />
             <span className="text-xs text-muted">
               <span title="Moves marked solved, of the Moves filed this turn">

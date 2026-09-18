@@ -25,6 +25,7 @@ const {
 const { ack, respond } = require("./respond");
 const { actingCharacter, isGmMember } = require("./interactionGuild");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
+const { isDaylight } = require("@lifeweb/db/lib/turnClock");
 
 // The Noticeboard button on a Location's anchor (docs/systemdocs/PAPERWORK.md). Everything is
 // ephemeral except the ambient line a pin raises, so five people can read the same board at once.
@@ -73,7 +74,7 @@ async function boardContext(interaction, locationId) {
     gm,
     openTurn,
     posts,
-    where: { phase: openTurn?.phase ?? null, indoors: location.indoors ?? true },
+    where: { daylight: isDaylight(), indoors: location.indoors ?? true },
   };
 }
 

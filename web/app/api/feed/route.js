@@ -83,7 +83,7 @@ export async function GET(request) {
       const floors = await feedWipeFloors(prisma);
       // Where the catch-up starts scanning, and nothing more. One number has
       // to serve every place on the stream, so it is the LOWER of the two
-      // floors — the summary is wiped on the slower Dawn schedule and its rows
+      // floors — the summary is wiped on the slower once-a-day schedule and its rows
       // are legitimately older than the turn floor.
       //
       // It used to double as a suppression rule, because lastSeq was the gate
@@ -134,7 +134,7 @@ export async function GET(request) {
         // by folding lowestFloor into lastSeq, and it could only ever be the
         // LOWER of the two floors because one number had to serve every place
         // on the stream. Asking per row is both simpler and stricter: a zone
-        // summary keeps its slower Dawn floor, a room keeps the turn floor,
+        // summary keeps its slower once-a-day floor, a room keeps the turn floor,
         // and neither borrows the other's.
         if (seq <= floorForPlace(floors, row.placeKey)) return;
         const key = String(row.seq);

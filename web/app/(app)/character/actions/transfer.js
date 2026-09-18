@@ -289,7 +289,7 @@ export async function transferRequestImpl(
     actorCharacterId: character.id,
     actorName: character.name,
     turnNumber: openTurn?.number ?? null,
-    turnPhase: openTurn?.phase ?? null,
+    dayNumber: openTurn?.dayNumber ?? null,
     note: null,
   };
   const fromParty = { kind: from.kind, id: from.id, name: from.name };

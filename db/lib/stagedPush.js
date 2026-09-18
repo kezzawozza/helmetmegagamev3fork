@@ -139,7 +139,7 @@ async function applyOneStagedEffect(prisma, row, turn) {
           actorCharacterId: null,
           actorName: "GM (Adjudication)",
           turnNumber: turn.number,
-          turnPhase: turn.phase,
+          dayNumber: turn.dayNumber ?? null,
           note: `Staged transfer, turn ${turn.number}`,
         },
       }, {

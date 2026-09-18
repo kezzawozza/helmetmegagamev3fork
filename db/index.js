@@ -36,7 +36,8 @@ const { runDepotPass } = require("./lib/depotPass");
 const { runTrainArrivalPass } = require("./lib/trainArrivalPass");
 const { runTrainDeparturePass } = require("./lib/trainDeparturePass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
-const { getGameState, readGameState } = require("./lib/gameState");
+const { getGameState, readGameState, inSession } = require("./lib/gameState");
+const { normalizeTurnLength, nextBoundaryAfter, nextDayNumber } = require("./lib/turnClock");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
 const { runVisionDecayPass } = require("./lib/visionDecayPass");
@@ -1002,7 +1003,8 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Hunger audit log failed:", err));
   }
 
-  // Dawn afflictions: Guilt Ridden and Insomniac each carry a nightly chance
+  // Dawn afflictions (named for the turn phase it used to ride; it runs every
+  // close now): Guilt Ridden and Insomniac each carry a chance
   // of waking Exhausted. After hunger so it sees the final sheet, same as
   // carry below. See db/lib/dawnAfflictionPass.js.
   let dawnAfflictions = null;
@@ -1464,7 +1466,7 @@ async function resumeTurnSideEffects(prisma_, { skipTurnId = null } = {}) {
   return { resumed: true, turnNumber: unfinished.number };
 }
 
-// Resolves the OPEN turn and opens the next, alternating DAWN/DUSK. Shared
+// Resolves the OPEN turn and opens the next. Shared
 // by the bot's cron advance and the GM "End Turn" action. Discord side
 // effects are returned as a `runSideEffects()` thunk rather than run here —
 // the message wipe can take minutes, so a caller awaits it only where safe
@@ -1486,6 +1488,21 @@ async function advanceTurn() {
     return {
       advanced: false,
       refused: "NOT_RUNNING",
+      previousTurn: null,
+      newTurn: openTurn,
+      note: null,
+      runSideEffects: async () => {},
+    };
+  }
+
+  // The session gate, beside the phase gate and for the same reason: both
+  // callers land here, so a game between sittings can never tick — not from
+  // the bot's poll, and not from a GM who forgot the game was shut. A GM who
+  // means it starts the session first (db/lib/session.js).
+  if (!inSession(config, state)) {
+    return {
+      advanced: false,
+      refused: "NOT_IN_SESSION",
       previousTurn: null,
       newTurn: openTurn,
       note: null,
@@ -1688,10 +1705,9 @@ async function advanceTurn() {
 
   const lastTurn =
     openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
-  const phase = !lastTurn || lastTurn.phase === "DUSK" ? "DAWN" : "DUSK";
   // Picked once, here, and remembered on the Turn row — a repost of the
   // announcement must show the same picture, not roll a new one.
-  const banner = await nextTurnBanner(prisma, phase);
+  const banner = await nextTurnBanner(prisma);
   const lifewebFlavor =
     lifewebBlood <= LIFEWEB_SPUTTER_THRESHOLD
       ? "The Lifeweb sputters, failing."
@@ -1699,12 +1715,19 @@ async function advanceTurn() {
   const note =
     [lifewebFlavor, state.nextTurnNote].filter(Boolean).join("\n\n") || null;
 
+  // The length is read from config exactly HERE and nowhere else, which is what
+  // makes a GM's change take effect at the next turn rather than under whoever
+  // is mid-action: every deadline afterwards comes off the row (turnClock.js).
+  const startedAt = new Date();
+  const turnLengthHours = normalizeTurnLength(config.turnLengthHours);
   const newTurn = await prisma.turn.create({
     data: {
       number: (lastTurn?.number ?? 0) + 1,
-      phase,
+      dayNumber: nextDayNumber(lastTurn, startedAt),
+      turnLengthHours,
+      endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours)),
       banner,
-      gameDate: new Date(),
+      startedAt,
       status: "OPEN",
     },
   });
@@ -1718,12 +1741,7 @@ async function advanceTurn() {
   // /chat carries the day line (HALL.md §5). /archive folds them back into the
   // single sticky day divider it always drew — a TURN_START row is never
   // rendered as a row, and the divider keys on the day.
-  const turnStartContent = [
-    `Day ${Math.ceil(newTurn.number / 2)} — ${newTurn.phase}`,
-    note,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const turnStartContent = [`Day ${newTurn.dayNumber}`, note].filter(Boolean).join("\n");
   const turnStartZones = await prisma.zone
     .findMany({ select: { id: true, name: true }, orderBy: { sortOrder: "asc" } })
     .catch(() => []);
@@ -1754,6 +1772,7 @@ async function advanceTurn() {
   // that a redeploy landing mid-fan-out used to lose the rest of it forever.
   const sideEffectPayload = buildSideEffectPayload({
     newTurnId: newTurn.id,
+    previousDayNumber: lastTurn?.dayNumber ?? null,
     note,
     autoLaborDms,
     lessonDms,

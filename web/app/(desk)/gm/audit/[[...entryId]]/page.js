@@ -206,7 +206,7 @@ async function FreshAudit({ params, searchParams, userId }) {
       location: row.location ? { id: row.location.id, name: row.location.name } : null,
       room: row.room ? { id: row.room.id, name: row.room.name } : null,
       turnNumber: turn?.number ?? null,
-      turnPhase: turn?.phase ?? null,
+      dayNumber: turn?.dayNumber ?? null,
     };
   }
 
@@ -247,7 +247,7 @@ async function FreshAudit({ params, searchParams, userId }) {
         total: total,
         pageSize: PAGE_SIZE,
         filters: serializeFilters(filters),
-        openTurn: openTurn ? { number: openTurn.number, phase: openTurn.phase } : null,
+        openTurn: openTurn ? { number: openTurn.number, dayNumber: openTurn.dayNumber } : null,
         typeCounts: typeCounts.map((t) => ({ actionType: t.actionType, count: t._count._all })),
         actors: [...actorById.values()].sort((a, b) => a.name.localeCompare(b.name)),
         characters: ctx.characters

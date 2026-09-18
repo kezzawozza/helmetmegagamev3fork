@@ -15,9 +15,12 @@ async function wrapUpTurn({ prisma, p, step }, sideEffectsStartedAt) {
     );
   }
 
-  // The wipe runs on EVERY turn now. A turn is one real day, and Dawn/Dusk
-  // alternate, so the old Dawn gate meant a Room scene ran for 48 hours.
-  // Only the zone summaries keep that slower life — CHANNELS.md §8.
+  // The wipe runs on EVERY turn. Only the zone summaries keep a slower life —
+  // CHANNELS.md §8 — and "slower" means once a game-day now rather than "on a
+  // DAWN turn", which is the same rule with the phases taken out of it. On a
+  // 24-hour game that is every turn; on a 6-hour game, every fourth. A summary
+  // is where adjudication results land, and wiping it every six hours would
+  // take a GM's ruling off the wall before most of the guild had read it.
   // `messageWipeEnabled` is no longer a GM knob; the column stays as a
   // hand-flippable escape hatch if Discord starts rate-limiting. Read now
   // rather than carried in the payload, so a resume honours the switch as it
@@ -26,7 +29,7 @@ async function wrapUpTurn({ prisma, p, step }, sideEffectsStartedAt) {
     .findFirst({ select: { messageWipeEnabled: true } })
     .catch(() => null);
   if (config?.messageWipeEnabled && newTurn) {
-    const wipeSummaries = newTurn.phase === "DAWN";
+    const wipeSummaries = p.previousDayNumber == null || newTurn.dayNumber !== p.previousDayNumber;
     // The web's half of the same wipe, and it goes FIRST: the watermark is
     // the newest row as the pass begins, which is the same instant
     // `cutoffMs` names on the Discord side. Taking it afterwards would put

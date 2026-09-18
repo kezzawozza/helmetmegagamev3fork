@@ -11,7 +11,11 @@ if (!model) {
   console.error("check-config: no GameConfig model in the generated client — run npm run db:generate");
   process.exit(1);
 }
-const columns = new Set(model.fields.filter((f) => f.kind === "scalar").map((f) => f.name));
+// "scalar" alone misses an ENUM column, which is just as real a column and just as settable from the form — GameConfig.gameMode
+// is one. Relations are what this is meant to skip, and they are neither kind.
+const columns = new Set(
+  model.fields.filter((f) => f.kind === "scalar" || f.kind === "enum").map((f) => f.name),
+);
 const declared = new Set([...FIELDS.map((f) => f.key), ...INTERNAL_KEYS]);
 
 const missing = [...columns].filter((c) => !declared.has(c));

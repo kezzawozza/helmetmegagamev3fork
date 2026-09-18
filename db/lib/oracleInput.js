@@ -3,7 +3,7 @@
 // Three things here are easy to get wrong, commented where they happen: the turn window runs lock to lock (derived, not read off AuditLog's turnId), tags are filtered to the two categories that actually move, and a concealed character is written with both faces.
 
 const { auditLinesFor, AGGREGATE } = require("./oracleAudit");
-const { moveCutoffAt } = require("./turnClock");
+const { moveCutoffAt, TURN_CLOCK_SELECT } = require("./turnClock");
 const {
   CONCEALMENT_TAG_FIELDS,
   forcedNameFrom,
@@ -37,12 +37,12 @@ async function turnWindow(prisma, turn) {
     (await prisma.turn.findFirst({
       where: { number: { lt: turn.number }, oraclePages: { some: {} } },
       orderBy: { number: "desc" },
-      select: { number: true, startedAt: true },
+      select: { number: true, ...TURN_CLOCK_SELECT },
     })) ??
     (await prisma.turn.findFirst({
       where: { number: { lt: turn.number } },
       orderBy: { number: "desc" },
-      select: { number: true, startedAt: true },
+      select: { number: true, ...TURN_CLOCK_SELECT },
     }));
   return windowBetween(anchor, turn);
 }

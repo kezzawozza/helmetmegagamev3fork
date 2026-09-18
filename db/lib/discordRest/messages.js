@@ -151,7 +151,7 @@ async function bulkDeleteMessages(channelId, messageIds) {
 }
 
 // Everything in a channel or thread except one nominated message. `before`
-// bounds it the way the Dawn wipe's cutoff bounds every other clear.
+// bounds it the way the message wipe's cutoff bounds every other clear.
 async function clearMessagesExcept(channelId, keepId, { before } = {}) {
   const messages = await fetchAllMessages(channelId, { before });
   const toDelete = messages.filter((m) => m.id !== keepId).map((m) => m.id);

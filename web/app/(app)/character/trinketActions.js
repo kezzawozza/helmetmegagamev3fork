@@ -23,11 +23,10 @@ import { WORKSHOP_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { consumeInspiredIfUsed } from "@lifeweb/db/lib/tagWrites";
 import { dropCharacterTag, debitResources } from "@/lib/tagEffects";
-import { moveWindow } from "@lifeweb/db/lib/turnClock";
-import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { buildSkillAncestry, satisfiedSkillIds } from "@lifeweb/db/lib/medicalVision";
 import { cleanCustomText, CUSTOM_NAME_MAX, CUSTOM_DESCRIPTION_MAX } from "@/lib/customCraft";
 import { resolveIngredientSlots, resolveCraftPayer } from "./actions/crafting";
+import { movesOpen } from "@lifeweb/db/lib/turnGate";
 
 // The recipe's own numbers (TRINKETS.md §1), authored as constants (see file header).
 const TRINKET_RESOURCE_COST = 4;
@@ -84,8 +83,10 @@ async function requireWorkshop(character) {
 
 async function requireFreeMoveForGambit(character, openTurn) {
   if (!openTurn) throw new UserError("No turn is open.");
-  const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
-  if (locked) throw new UserError("Moves are locked for this turn.");
+  // One gate, one sentence — db/lib/turnGate.js. It asks about the session BEFORE the lock window, because a frozen clock
+  // reports `locked: false` (freezing removes the deadline, it does not shut the game).
+  const gate = await movesOpen(prisma, { turn: openTurn });
+  if (!gate.ok) throw new UserError(gate.message);
   const acted = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
     select: { id: true },

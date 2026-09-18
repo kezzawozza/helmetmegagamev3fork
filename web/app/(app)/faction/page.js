@@ -18,6 +18,7 @@ import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import FactionLink from "@/app/components/FactionLink";
 import CharacterLink from "@/app/components/CharacterLink";
 import FactionConsole from "@/app/components/FactionConsole";
+import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import {
   setFactionLeader,
   setTreasurer,
@@ -183,13 +184,9 @@ async function buildPlayerProps(session, me) {
     // literacy and eyesight rules every other written thing does, and the rows
     // are withheld server-side rather than hidden in the browser.
     if (isOfficer && canOpen) {
-      const openTurn = await prisma.turn.findFirst({
-        where: { status: "OPEN" },
-        select: { phase: true },
-      });
       const { rows, blocked } = await loadSiloLedger(room.id, {
         tags: me.tags,
-        phase: openTurn?.phase ?? null,
+        daylight: isDaylight(),
         indoors: me.location?.indoors ?? true,
       });
       silo.ledger = rows;

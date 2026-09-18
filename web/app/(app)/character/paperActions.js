@@ -28,6 +28,7 @@ import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { guarded, UserError } from "@/lib/actionResult";
 import { auth } from "@/lib/auth";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
+import { isDaylight } from "@lifeweb/db/lib/turnClock";
 
 // Writing and sealing. See docs/systemdocs/PAPERWORK.md. NEITHER FILES A REQUEST (same call equipActions.js makes): writing costs nothing, spends no Move, and a Request per sentence would drown /gm/turns and /gm/audit at 100+ players — a GM just reads the tag's text, which every GM surface already renders.
 // Breaking a seal IS a Request (destroys something, must be undoable) and lives in requestActions.js with the rest of Consume.
@@ -84,7 +85,7 @@ async function requireWriter({ needs = null } = {}) {
   return {
     session,
     character,
-    where: { phase: turn?.phase ?? null, indoors: character.location?.indoors ?? true },
+    where: { daylight: isDaylight(), indoors: character.location?.indoors ?? true },
   };
 }
 

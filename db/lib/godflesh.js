@@ -96,7 +96,7 @@ function extractionDm(result, { locationName = null } = {}) {
 }
 
 // Character.extractDayKey, the in-game DAY (FACTORY.md §3, BIRD.md) — a day
-// is TWO turns, so keying on the turn id would give two cuts a day.
+// can be several turns, so keying on the turn id would give several cuts a day.
 function extractDayKey(openTurn) {
   return openTurn ? String(turnDay(openTurn)) : null;
 }

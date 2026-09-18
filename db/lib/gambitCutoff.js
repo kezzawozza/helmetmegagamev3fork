@@ -22,7 +22,7 @@
 // drives it (a web-only deploy never ticks), and a frozen clock or a turn shorter than
 // MOVE_LOCK_HOURS never locks at all. `settleGambitDice` is therefore ALSO called at the head of
 // the staged push, as the backstop — a turn that never locked still has to resolve.
-const { cutoffReached } = require("./turnClock");
+const { cutoffReached, TURN_CLOCK_SELECT } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
 const { gambitModifierTotal } = require("./gambitModifier");
 const { ensureGambitDie } = require("./gambitDie");
@@ -101,7 +101,7 @@ async function settleGambitDice(db, turnId) {
 async function runGambitCutoff(db, { now = new Date() } = {}) {
   const turn = await db.turn.findFirst({
     where: { status: "OPEN" },
-    select: { id: true, number: true, startedAt: true },
+    select: { id: true, number: true, ...TURN_CLOCK_SELECT },
   });
   if (!turn) return { ran: false };
 

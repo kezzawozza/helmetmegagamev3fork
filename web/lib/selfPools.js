@@ -30,6 +30,7 @@ import { placeKeyForRoom } from "@lifeweb/db/lib/placeKey";
 import { describeTurn } from "@/lib/turnFormat";
 import { loadFaction } from "@/lib/factionView";
 import { getMyFactionRole } from "@/lib/factionPermissions";
+import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import {
   projectDesireTemplateForGates,
   loadRoleBySlugForTemplates,
@@ -149,7 +150,7 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
   const hasBird = holdsBirdAndLetters(tags);
   // Letters AND eyes — the same predicate the tag chips, the noticeboard and paperActions.js all use.
   const canReadNow = canRead(tags, {
-    phase: openTurn?.phase ?? null,
+    daylight: isDaylight(),
     indoors: character.location?.indoors ?? true,
   });
   // Something to write ON: a blank sheet, a blank book, or a note already started; a sealed letter doesn't count.

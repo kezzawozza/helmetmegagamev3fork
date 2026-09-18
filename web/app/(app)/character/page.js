@@ -62,7 +62,8 @@ import {
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { groupRoles } from "@lifeweb/db/lib/roleGroups";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
-import { clockFrozen, readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
+import { clockStatus, readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
+import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { deployVersion } from "@/lib/deployVersion";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
@@ -420,7 +421,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       },
     }),
     findOpenTurnAction(prisma, character.id),
-    clockFrozen(prisma),
+    clockStatus(prisma),
     readGameState(prisma, { nukeArmedTurn: true }),
     // The turn card in the sheet's band paints from this, so it is read on
     // every load rather than gated on a scope.
@@ -901,7 +902,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // as being able to read it, the entire point of an illiterate courier.
   const viewer = {
     tags: character.tags,
-    phase: openTurn?.phase ?? null,
+    daylight: isDaylight(),
     indoors: character.location?.indoors ?? true,
   };
   // Poison state (medical pass, M4): CharacterTag.poisonedCount/
@@ -1079,11 +1080,16 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     concealment,
   }).avatarPath;
 
-  // The Move cutoff for the band's "This turn" box.
+  // The Move cutoff for the band's "This turn" box. `shut` rides beside it because the window alone cannot say the game is
+  // closed — out of session `locked` is false, since freezing removes the deadline (db/lib/turnGate.js).
   const openTurnWithWindow = openTurn
     ? {
         ...openTurn,
-        moveWindow: moveWindow(openTurn, { clockFrozen: frozen }),
+        moveWindow: {
+          ...moveWindow(openTurn, { clockFrozen: frozen.frozen }),
+          shut: !frozen.inSession,
+          shutReason: frozen.inSession ? null : "The game isn't in session.",
+        },
       }
     : openTurn;
 

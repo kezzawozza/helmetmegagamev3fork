@@ -21,19 +21,20 @@ function locationEligible(location) {
 async function loadDeaths(prisma, gameId) {
   return prisma.archiveEntry.findMany({
     where: { kind: "DEATH", ...(gameId ? { gameId } : {}) },
-    select: { characterId: true, turnNumber: true },
+    select: { characterId: true, turnNumber: true, dayNumber: true },
   });
 }
 
-// The most deaths any one in-game day saw. Two turns make a day
-// (db/lib/turnFormat.js#turnDay); a row with no turn number belongs to no
-// day. The bomb's turn is left out entirely: the blast is the Tribunal's
+// The most deaths any one in-game day saw. The day is snapshotted onto the
+// ArchiveEntry itself (there is no Turn join here, and it is no longer
+// derivable from the turn number — db/lib/turnFormat.js#turnDay); a row with no
+// turn number belongs to no day. The bomb's turn is left out entirely: the blast is the Tribunal's
 // objective, not a Thanati bloodbath.
 function maxDeathsInOneDay(deaths, { excludeTurn = null } = {}) {
   const perDay = new Map();
   for (const d of deaths) {
     if (d.turnNumber == null || d.turnNumber === excludeTurn) continue;
-    const day = turnDay({ number: d.turnNumber });
+    const day = d.dayNumber ?? turnDay({ number: d.turnNumber });
     perDay.set(day, (perDay.get(day) ?? 0) + 1);
   }
   let max = 0;

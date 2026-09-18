@@ -15,17 +15,19 @@ const test = require("node:test");
 const assert = require("node:assert");
 
 const { moveIsEditable } = require("../lib/moves");
-const { cutoffReached, MOVE_LOCK_HOURS } = require("../lib/turnClock");
+const { cutoffReached, adjudicationHours, TURN_LENGTH_CHOICES } = require("../lib/turnClock");
 
 // A FIXED turn, and every test passes an explicit `now`.
 //
 // These used to build the fixture from Date.now() and let `now` default to the real
-// clock. turnEndsAt derives a turn's end from TURN_BOUNDARY_HOURS in the game's own
-// timezone, so "a turn that started an hour ago" lands INSIDE the lock window for a few
-// hours every real night — the suite passed when it was written and failed at 02:00 the
-// next morning. Nothing about this rule depends on when the tests are run, so nothing
-// here reads the wall clock.
-const TURN = { startedAt: new Date("2026-09-16T12:00:00Z") };
+// clock. turnEndsAt lands a turn's end on the game's own Chicago boundary grid, so "a turn
+// that started an hour ago" lands INSIDE the lock window for a few hours every real night —
+// the suite passed when it was written and failed at 02:00 the next morning. Nothing about
+// this rule depends on when the tests are run, so nothing here reads the wall clock.
+//
+// `turnLengthHours` is explicit rather than left to the fallback: the length rides on the
+// turn row now, and a fixture without it is testing the default rather than the rule.
+const TURN = { startedAt: new Date("2026-09-16T12:00:00Z"), turnLengthHours: 24 };
 // Derived from TURN above, not hardcoded twice: cutoff 02:00Z, end 05:00Z the next day.
 const { cutoffAt: CUTOFF_AT, endsAt: ENDS_AT } = require("../lib/turnClock").moveWindow(TURN, {
   now: TURN.startedAt,
@@ -210,7 +212,25 @@ test("a Move stays editable for exactly as long as the cutoff is unreached", () 
   }
 });
 
-test("MOVE_LOCK_HOURS is what both of them count back from", () => {
-  assert.equal(typeof MOVE_LOCK_HOURS, "number");
-  assert.ok(MOVE_LOCK_HOURS > 0);
+// The adjudication window is a function of the turn's length now rather than one constant, so what has to hold is that
+// EVERY length has one, that it is positive, and that it is short enough to leave a turn worth playing.
+test("every turn length has an adjudication window both of them count back from", () => {
+  for (const hours of TURN_LENGTH_CHOICES) {
+    const lock = adjudicationHours(hours);
+    assert.equal(typeof lock, "number", `${hours}h has no window`);
+    assert.ok(lock > 0, `${hours}h window is not positive`);
+    assert.ok(lock < hours, `${hours}h window swallows the whole turn`);
+  }
+});
+
+// The grid a turn can end on, per length. These are the boundaries the bot's per-minute poll advances at, and the numbers
+// Bascinet picked: 2 hours to adjudicate a 6- or 8-hour turn, 3 for a 12- or 24-hour one.
+test("the adjudication window matches the turn length it was set for", () => {
+  assert.equal(adjudicationHours(6), 2);
+  assert.equal(adjudicationHours(8), 2);
+  assert.equal(adjudicationHours(12), 3);
+  assert.equal(adjudicationHours(24), 3);
+  // An unrecognised length is not a crash and not a zero window — it reads as the default.
+  assert.equal(adjudicationHours(7), adjudicationHours(24));
+  assert.equal(adjudicationHours(undefined), adjudicationHours(24));
 });

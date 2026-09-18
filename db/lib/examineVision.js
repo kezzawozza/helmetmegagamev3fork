@@ -28,10 +28,14 @@ function equippedSet(characterTags) {
 }
 
 // Why this character cannot look anyone over, or null if they can. `where` carries the two facts Sun
-// Sensitivity needs (open turn's phase, whether indoors); both default permissive, so a caller that
-// can't resolve a turn or Location never blinds somebody by accident.
+// Sensitivity needs (whether the sun is up, whether indoors); both default permissive, so a caller
+// that can't resolve the time or a Location never blinds somebody by accident.
+//
+// `daylight` used to be `phase === "DAWN"`, back when a turn was half a day and a DAWN turn WAS the
+// daytime. Turns are 6, 8, 12 or 24 hours now and carry no time of day at all, so the question is put
+// to the real clock instead (db/lib/turnClock.js#isDaylight).
 function examineBlock(characterTags = [], where = {}) {
-  const { phase = null, indoors = true } = where;
+  const { daylight = false, indoors = true } = where;
   const slugs = slugSet(characterTags);
 
   // First — nothing below can rescue it.
@@ -47,9 +51,9 @@ function examineBlock(characterTags = [], where = {}) {
     return "Everything past arm's length is a blur. Put your spectacles on.";
   }
 
-  // Dawn outdoors only — Caves and Dusk stay fine; the tag is a schedule to work around, not an off switch.
-  if (slugs.has(SUN_SENSITIVITY_SLUG) && phase === "DAWN" && !indoors) {
-    return "The daylight is too much to look into. Wait for Dusk, or get under a roof.";
+  // Daylight outdoors only — the Caves and the night stay fine; the tag is a schedule to work around, not an off switch.
+  if (slugs.has(SUN_SENSITIVITY_SLUG) && daylight && !indoors) {
+    return "The daylight is too much to look into. Wait for dark, or get under a roof.";
   }
 
   return null;

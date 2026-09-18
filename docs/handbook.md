@@ -97,8 +97,10 @@ General questions can be asked in the `#general` channel or by creating a thread
 | **Handbook** | A full page version of this document. |
 
 ## The Game Clock
-Bascinet runs for 30 real days. One turn is one of those days, and turns alternate — Dawn, then Dusk, then Dawn again — so an in-game day is two of them and the game ends somewhere around in-game Day 15.
-- **Every turn begins at midnight US Central.**
+Bascinet runs on real time, in US Central. That is simply what time it is in Ravenheart, and every deadline the game gives you is in it — the clock in the corner of every page is the game's own.
+
+A turn is 6, 8, 12 or 24 hours long, and the GMs set which. Turns always end on a clean hour: a 24-hour turn ends at midnight, a 6-hour one at midnight, 6:00, noon and 6:00 again. An in-game day is however many turns fit in a real day, so on the longest setting one turn is one day.
+- **Your sheet and the `#turns` channel both say when the current turn ends.**
 
 At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
@@ -110,7 +112,7 @@ You can find information on the current turn in the `#turns` channel, in additio
 
 At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn.
 
-The one exception is your Zone's Summary channel, which is only cleared at Dawn — so what is posted there has two days to be read.
+The one exception is your Zone's Summary channel, which is only cleared once an in-game day — so what is posted there has longer to be read than a scene does.
 
 What survives:
 - Every Room keeps its thread and its description; the messages in it are archived.

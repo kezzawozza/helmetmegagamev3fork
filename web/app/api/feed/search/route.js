@@ -38,7 +38,7 @@ export async function GET(request) {
   if (scope.length === 0) return Response.json({ rows: [] });
 
   // Nothing from before the last wipe, the same floors the feed reads (db/lib/feedWipe.js).
-  // A zone summary clears on the slower Dawn schedule, so the floor is picked per row below.
+  // A zone summary clears on the slower once-a-day schedule, so the floor is picked per row below.
   const floors = await feedWipeFloors(prisma);
 
   // LIKE metacharacters escaped, so % or _ in the query search literally. Backslash is
