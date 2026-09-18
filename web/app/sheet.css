@@ -18,6 +18,13 @@
   gap: var(--sp-2);
   /* Room at the bottom for the last card's shadow and the mobile bar. */
   padding: var(--sp-2) var(--sp-3) var(--sp-4);
+  /* The mockup's own `.page` cap (1180px, centred). Scoped here rather than
+     on the app's global page shell: the sheet draws no PageShell of its own
+     (CharacterView.js), so without this the sheet is the one page in the app
+     that spreads across the whole viewport instead of reading as one
+     instrument panel. */
+  max-width: 1180px;
+  margin-inline: auto;
 }
 
 /* Every panel ON THE SHEET, tightened to the mockup's own density (its
@@ -27,6 +34,32 @@
    own reading of ITS page, not a house-wide repaint. */
 .sheet-body .panel {
   padding: var(--sp-2);
+}
+
+/* The mockup's `.field-label` carries NO text-transform — "Free moves",
+   "This turn", "Melee" — sentence case, bold, small. `.field-label` is a
+   shared app-wide class (globals.css) that uppercases everywhere else, so
+   this is undone here rather than there. */
+.sheet-body .field-label {
+  text-transform: none;
+}
+
+/* The mockup's `.data-table th` is the same face, no text-transform either
+   ("Thing", not "THING"). Same reasoning as .field-label above: the shared
+   class shouts everywhere else in the app, and only the sheet's own table
+   reads the mockup's page. */
+.sheet-body .data-table th {
+  text-transform: none;
+}
+
+/* The tag rail's own group headings ("Health", "Skills") are drawn with the
+   shared `.section-title` class — a serif card heading used elsewhere in the
+   app for other things (a modal section, for one), so it is left alone
+   everywhere but here. The mockup's `.tag-group-label` is what these actually
+   are, and it IS uppercase — exactly the opposite direction from the two
+   overrides above. */
+.sheet-rail-run .section-title {
+  text-transform: uppercase;
 }
 
 .sheet-band {
@@ -56,25 +89,21 @@
   min-width: 0;
 }
 
-/* The banner: portrait and name on the left, the tiles on the right, wrapping
-   under it when the page gets narrow. */
+/* The banner: identity on its own full-width row, the tiles below it as a
+   second full-width row — the mockup's own stack (`.ledger-identity` then
+   `.ledger-tiles`), not the two side by side. Side by side left a hole in the
+   middle of the row on a wide screen and squeezed both halves. */
 .ledger-band {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.ledger-identity {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--sp-4);
-}
-
-/* The identity half GROWS now. It was flex-initial until 2026-09-10, so on a
-   wide screen `space-between` opened a gap in the middle of the band and the
-   face sat small at the far left of it. `.ledger-tiles` still caps at 47rem,
-   so this soaks up whatever is left over rather than the gap doing it. */
-.ledger-identity {
-  display: flex;
-  align-items: flex-start;
   gap: var(--sp-3);
-  flex: 1 1 22rem;
   min-width: 0;
 }
 
@@ -157,13 +186,12 @@
 .ledger-tiles {
   display: grid;
   /* auto-fit rather than a fixed five, so the row folds before any tile is
-     narrow enough to wrap "30.5 / 71 lb" onto a second line. The max-width
-     fits all five across when there is room — and exactly five: a sixth needs
-     856px, which is why the Combat readout lives on the row below instead. */
+     narrow enough to wrap "30.5 / 71 lb" onto a second line. Spans the whole
+     band now — the mockup's own row, below the identity rather than beside
+     it — so all five sit across the full width instead of being squeezed
+     into whatever the identity block left over. */
   grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: var(--sp-2);
-  flex: 1 1 26rem;
-  max-width: 47rem;
 }
 
 /* .ledger-tile is the shared name the GM desks style off too (DevBand.js,
