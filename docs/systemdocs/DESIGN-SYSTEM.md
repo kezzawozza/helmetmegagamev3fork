@@ -134,7 +134,7 @@ Use these instead of rolling one-off markup.
 | Class | For |
 |---|---|
 | `.panel` | Any card/section container. A card **with** a heading is `Panel` — it carries the padding `.panel` deliberately does not, and writes the `.panel-header` for you. |
-| `.panel-header` | Its heading — serif `--fs-lg` with a hairline rule. |
+| `.panel-header` | Its heading — serif `--fs-lg` over the 16px metal strip. The strip is the rule; a header that carries it never also carries a border. |
 | `.section-title` | A heading that is a **flex child beside something else**. |
 | `.btn` | Solid primary button. |
 | `.btn-secondary` | Outline. |
@@ -177,8 +177,11 @@ Three of these carry a trap:
 - **`.panel-header` vs `.section-title`.** Use `.section-title` wherever the
   heading sits beside something else — a modal title next to its close button,
   a status band next to its value, a "Tags" heading next to its buttons.
-  `.panel-header`'s `border-bottom` would underline just the title text there
-  rather than spanning the container, which reads as an underline, not a divider.
+  `.panel-header`'s strip would sit under just the title text there rather than
+  spanning the container, which reads as an underline, not a divider. Where the
+  whole thing is a **bar** heading a column — `.desk-inspector-head`,
+  `.desk-convo-head`, `.ops-section-head` — the BAR takes the strip and keeps
+  its own flex layout; the heading inside it stays `.section-title`.
 - **`.tab-item` and `.segmented` are not the same idea.** A tab strip navigates
   between panels and is keyed on `data-active`, a styling hook. A segmented
   control has a *value*, so its pressed state lives in `aria-pressed`, where a

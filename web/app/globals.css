@@ -543,7 +543,21 @@ h3 {
   color: var(--text);
 }
 
-.panel-header::after {
+/* ONE header strip, and this is it (REDESIGN.md §5). .panel-header wears it as
+   a heading; the desk's column heads wear it as a BAR — a flex row with actions
+   at the right end — so they keep their own layout and take the strip on the
+   bar itself, exactly where the 1px rule they are giving up already ran. Two
+   lines under one heading reads as a mistake, so a bar that takes the strip
+   drops its border.
+
+   position: relative and NO z-index, on every one of them. .desk-shell's family
+   must create no stacking context: Modal.js renders .modal-overlay in-tree, and
+   a stacking context on a desk bar would trap every dialog opened from it under
+   the 720px nav bar (globals.css, DESIGN-SYSTEM.md §6). */
+.panel-header::after,
+.desk-inspector-head::after,
+.desk-convo-head::after,
+.ops-section-head::after {
   content: "";
   position: absolute;
   left: 0;
@@ -4560,12 +4574,14 @@ label.chip {
 }
 
 .desk-inspector-head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--border);
+  /* The strip takes the foot of the bar; 20px is its 16px plus the gap the
+     panel heading leaves it. See .panel-header::after. */
+  padding: 0.5rem 0.75rem 20px;
 }
 
 .desk-inspector-body {
@@ -5238,13 +5254,13 @@ label.chip {
 }
 
 .desk-convo-head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   flex-wrap: wrap;
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 1rem 20px;
 }
 
 .desk-convo-thread {
@@ -5973,11 +5989,11 @@ label.chip {
 }
 
 .ops-section-head {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
+  padding-bottom: 20px;
 }
 
 .ops-lede {
