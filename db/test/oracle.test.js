@@ -23,7 +23,7 @@ const {
 const { moveCutoffAt } = require("../lib/turnClock");
 const { cutoffDecision } = require("../lib/oracleCutoff");
 const { splitEditorReply, correspondentPrompt, editorPrompt, appendPrompt } = require("../lib/oraclePrompts");
-const { isComplete } = require("../lib/oracle");
+const { isComplete, isPhaseOneComplete } = require("../lib/oracle");
 
 function namesFixture() {
   return {
@@ -257,9 +257,12 @@ test("it drafts once the cutoff has passed", () => {
   assert.strictEqual(cutoffDecision(turn, { now }).draft, true);
 });
 
-test("it does not draft before the cutoff", () => {
+test("it does not draft before the cutoff or its five-minute lead", () => {
+  // Inside the lead window (the last five minutes before the cutoff) phase
+  // one now correctly drafts — db/test/oracleCutoff.test.js covers that shape
+  // in full. Ten minutes out is still a plain refusal.
   const turn = DAY_TWO;
-  const now = new Date(moveCutoffAt(turn).getTime() - 60 * 1000);
+  const now = new Date(moveCutoffAt(turn).getTime() - 10 * 60 * 1000);
   const { draft, reason } = cutoffDecision(turn, { now });
   assert.strictEqual(draft, false);
   assert.strictEqual(reason, "before the cutoff");
@@ -686,23 +689,70 @@ test("threat/objective lifecycle rows round-trip through the audit allowlist", (
   assert.match(lines[0], /assigned \| Maeris \| threat: Demoness/);
 });
 
-test("isComplete requires the front page, the Threats page, and every zone", async () => {
+test("isPhaseOneComplete requires the Threats page and every zone, front page or not", async () => {
   const zones = [{ id: "z1" }, { id: "z2" }];
   const rowsFor = (kinds) => ({
     oracleSynopsis: { findMany: async () => kinds.map(({ zoneId = null, kind }) => ({ zoneId, kind })) },
   });
 
-  const missing = rowsFor([{ kind: "FRONT" }, { kind: "THREATS" }, { zoneId: "z1", kind: "ZONE" }]);
+  const missingZone = rowsFor([{ kind: "THREATS" }, { zoneId: "z1", kind: "ZONE" }]);
+  assert.equal(await isPhaseOneComplete(missingZone, "t1", zones), false, "z2 hasn't written yet");
+
+  const missingThreats = rowsFor([{ zoneId: "z1", kind: "ZONE" }, { zoneId: "z2", kind: "ZONE" }]);
+  assert.equal(await isPhaseOneComplete(missingThreats, "t1", zones), false, "the Threats page hasn't written yet");
+
+  // No FRONT row at all — irrelevant to phase one, which is written before
+  // any editor pass exists to produce one.
+  const wholePhaseOne = rowsFor([{ kind: "THREATS" }, { zoneId: "z1", kind: "ZONE" }, { zoneId: "z2", kind: "ZONE" }]);
+  assert.equal(await isPhaseOneComplete(wholePhaseOne, "t1", zones), true);
+});
+
+test("isComplete requires the front page, and every zone plus Threats stamped with phaseTwoAt", async () => {
+  const zones = [{ id: "z1" }, { id: "z2" }];
+  const rowsFor = (kinds) => ({
+    oracleSynopsis: {
+      findMany: async () => kinds.map(({ zoneId = null, kind, phaseTwoAt = null }) => ({ zoneId, kind, phaseTwoAt })),
+    },
+  });
+  const STAMP = new Date();
+
+  const missing = rowsFor([
+    { kind: "FRONT" },
+    { kind: "THREATS", phaseTwoAt: STAMP },
+    { zoneId: "z1", kind: "ZONE", phaseTwoAt: STAMP },
+  ]);
   assert.equal(await isComplete(missing, "t1", zones), false, "z2 hasn't written yet");
 
-  const noThreats = rowsFor([{ kind: "FRONT" }, { zoneId: "z1", kind: "ZONE" }, { zoneId: "z2", kind: "ZONE" }]);
+  const noThreats = rowsFor([
+    { kind: "FRONT" },
+    { zoneId: "z1", kind: "ZONE", phaseTwoAt: STAMP },
+    { zoneId: "z2", kind: "ZONE", phaseTwoAt: STAMP },
+  ]);
   assert.equal(await isComplete(noThreats, "t1", zones), false, "the Threats page hasn't written yet");
 
-  const complete = rowsFor([
+  // Every row present, but phase one only — nothing has appended yet. A row
+  // existing is no longer proof the page is finished.
+  const phaseOneOnly = rowsFor([
     { kind: "FRONT" },
     { kind: "THREATS" },
     { zoneId: "z1", kind: "ZONE" },
     { zoneId: "z2", kind: "ZONE" },
+  ]);
+  assert.equal(await isComplete(phaseOneOnly, "t1", zones), false, "phaseTwoAt is null on every row");
+
+  const oneZoneUnstamped = rowsFor([
+    { kind: "FRONT" },
+    { kind: "THREATS", phaseTwoAt: STAMP },
+    { zoneId: "z1", kind: "ZONE", phaseTwoAt: STAMP },
+    { zoneId: "z2", kind: "ZONE" },
+  ]);
+  assert.equal(await isComplete(oneZoneUnstamped, "t1", zones), false, "z2 is missing its stamp");
+
+  const complete = rowsFor([
+    { kind: "FRONT" },
+    { kind: "THREATS", phaseTwoAt: STAMP },
+    { zoneId: "z1", kind: "ZONE", phaseTwoAt: STAMP },
+    { zoneId: "z2", kind: "ZONE", phaseTwoAt: STAMP },
   ]);
   assert.equal(await isComplete(complete, "t1", zones), true);
 });

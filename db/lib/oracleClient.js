@@ -30,6 +30,7 @@ function retryableStatus(status) {
 }
 
 async function once({ baseUrl, apiKey, model, system, user, timeoutMs, maxTokens }) {
+  const started = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let response;
@@ -85,6 +86,10 @@ async function once({ baseUrl, apiKey, model, system, user, timeoutMs, maxTokens
     truncated: choice?.finish_reason === "length",
     inputTokens: Number(json?.usage?.prompt_tokens) || null,
     outputTokens: Number(json?.usage?.completion_tokens) || null,
+    // How long THIS request took, provider round-trip only. oracle.js's
+    // logCall pairs it with the time spent building the input, so a slow
+    // turn's log line says whose time it was.
+    ms: Date.now() - started,
   };
 }
 

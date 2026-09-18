@@ -323,9 +323,14 @@ model GameConfig {
   oracleApiKeySetAt DateTime?
   oracleApiKeySetBy String?
 
-  // How many previous turns' synopses ride along as context. This is the whole
-  // of the Oracle's memory: at 0 each turn is written blind.
-  oracleMemoryTurns Int @default(3)
+  // How many previous turns' synopses ride along as context. This is the
+  // whole of the page-body half of the Oracle's memory: at 0 each turn is
+  // written blind for prose, though the structured threads (below) still
+  // carry regardless. Default dropped 3 -> 1 once the open-threads list took
+  // over most of what re-reading three whole pages was for — an existing
+  // install's row is not rewritten by the migration, so it keeps reading 3
+  // until a GM sets it to 1 at /gm/dev?s=oracle.
+  oracleMemoryTurns Int @default(1)
 
   // Whether the chat transcript joins the moves/tags/audit input. Off is about
   // 34K tokens a turn; on is closer to 650K and costs roughly ten times as
@@ -337,6 +342,11 @@ model GameConfig {
   // docs/handbook.md is read at runtime.
   oracleCorrespondentPrompt String?
   oracleEditorPrompt        String?
+
+  // The short phase-two call that appends "Declared this turn" / "Needs a
+  // ruling" to a page phase one already wrote. NULL means "use the built-in
+  // default in db/lib/oraclePrompts.js", same rule as the other two.
+  oracleAppendPrompt String?
 
   // The anchor message in #turns carrying the Travel / Move / Speak buttons
   // (see bot/src/lib/turnsConsole.js) — same tracked-message pattern as
@@ -5558,6 +5568,17 @@ model OracleSynopsis {
   // Markdown, carrying {char:Full Name} tokens that
   // web/app/components/DocumentMarkdown.js resolves against the turn's roster.
   body String
+
+  // The text phase one wrote, before phase two appended "Declared this turn"
+  // and "Needs a ruling". Kept apart from `body` so a phase-two retry appends
+  // to the draft rather than to its own previous output. NULL on a row
+  // written before two-phase, and on a FRONT row (the editor writes once).
+  phaseOneBody String?
+
+  // When phase two appended to this page. NULL means phase one only — which
+  // is what isComplete() asks now, since a row existing is no longer proof
+  // the page is finished. The FRONT row is stamped when the editor writes it.
+  phaseTwoAt DateTime?
 
   // Front-page rows only: [{ name, state }], two to five of them. The
   // STRUCTURED half of the rolling memory — an ongoing situation carried

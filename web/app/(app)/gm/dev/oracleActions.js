@@ -139,7 +139,7 @@ export async function runOracleNow(turnNumber = null) {
   // step below deliberately does not catch, so a provider error surfaces.
   let result;
   try {
-    result = await runOracle(prisma, { turnId: turn.id, step: (_key, fn) => fn() });
+    result = await runOracle(prisma, { turnId: turn.id, step: (_key, fn) => fn(), phases: "both" });
   } catch (err) {
     return { ok: false, error: err?.message ?? String(err) };
   }

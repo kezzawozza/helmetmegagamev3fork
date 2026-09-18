@@ -275,8 +275,8 @@ module.exports = {
       if (oracleRunning) return;
       oracleRunning = true;
       runOracleAtCutoff(prisma)
-        .then(({ ran, turnNumber, zones }) => {
-          if (ran) console.log(`Oracle: drafted turn #${turnNumber} across ${zones} zones.`);
+        .then(({ ran, phase, turnNumber, zones }) => {
+          if (ran) console.log(`Oracle: turn #${turnNumber} phase ${phase} across ${zones} zones.`);
         })
         .catch((err) => console.error("Oracle cutoff check failed:", err))
         .finally(() => {
