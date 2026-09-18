@@ -194,6 +194,7 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null } = {}) {
       accessTagSlugs: entry.accessTagSlugs,
       destroysContents: entry.destroysContents,
       soundproof: entry.soundproof,
+      stable: entry.stable,
       live: entry.live,
       locationId: location.id,
     };

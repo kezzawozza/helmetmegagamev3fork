@@ -55,7 +55,7 @@ test("a quantity counts once per unit", () => {
 
 test("untradeable rows and Assets never weigh on the pallbearer", () => {
   assert.equal(gearWeight([item("neck-graft", 10, { tradeable: false })]), 0);
-  assert.equal(gearWeight([item("horse", 900, { category: "Assets" })]), 0);
+  assert.equal(gearWeight([item("arelitz", 900, { category: "Assets" })]), 0);
 });
 
 test("a corpse never counts toward its own weight", () => {

@@ -24,7 +24,7 @@ const {
 const { expiryFrom } = require("./lib/turnFormat");
 const { runCorpseRotPass } = require("./lib/corpseRotPass");
 const { runStructureYieldPass } = require("./lib/structureYieldPass");
-const { runArelitzLayPass } = require("./lib/arelitzLayPass");
+const { runStablePass } = require("./lib/stablePass");
 const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runHungerPass } = require("./lib/hungerPass");
@@ -46,7 +46,6 @@ const { runNukeExplosionPass } = require("./lib/nukeExplosionPass");
 const { runAscensionPass } = require("./lib/ascensionPass");
 const { endGameInDb } = require("./lib/gameEnd");
 const { runBirdPass } = require("./lib/birdPass");
-const { runHorseUpkeepPass } = require("./lib/horseUpkeepPass");
 const { runMiningYieldPass } = require("./lib/miningYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
 const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
@@ -254,11 +253,10 @@ const TURN_PASSES = [
   "catatonic",
   "catatonicDeath",
   "bird",
-  // The horse's feed. Immediately BEFORE hunger, and the order is
-  // load-bearing: the animal eats before the rider does — a character down to
-  // their last ⬢ feeds the horse and goes Hungry. See
-  // db/lib/horseUpkeepPass.js.
-  "horseUpkeep",
+  // Arelitz need no food upkeep (ARELITZ.md) — the old Horse family's
+  // per-turn ⬢ charge (horseUpkeepPass.js, "horseUpkeep" here) is gone with
+  // it, not replaced. A stabled arelitz feeds itself off the stable floor;
+  // see "arelitzLay" further down.
   "hunger",
   // Guilt Ridden and Insomniac's nightly chance of waking Exhausted. After
   // hunger so it sees the final sheet. See db/lib/dawnAfflictionPass.js.
@@ -290,11 +288,15 @@ const TURN_PASSES = [
   // happen before the overflow drop that may already be putting things there.
   // Nothing above reads a stash, so nothing above can see it.
   "structureYield",
-  // What Arelitz LAY (db/lib/arelitzLayPass.js). Same reasoning as
-  // structureYield just above, and for the same reason it sits right after
-  // it: the egg lands on a Room's floor for a stashed Arelitz, so it must not
-  // run before "carry"'s own overflow drop might already be putting things
-  // there.
+  // The Stable's whole lifecycle — mature the brood, feed the adults and lay
+  // an egg, hatch what's on the floor, evict past capacity (db/lib/stablePass.js,
+  // ARELITZ.md). Key is still "arelitzLay" even though the module was
+  // renamed and rewritten — same posture as offerExpiryPass.js's own
+  // renamed-but-not-rekeyed pass, since the key is written into
+  // Turn.resolvedPasses rows. Same reasoning as structureYield just above,
+  // and for the same reason it sits right after it: an egg lands on the
+  // stable Room's floor, so this must not run before "carry"'s own overflow
+  // drop might already be putting things there.
   "arelitzLay",
   // The train, on its every-other-turn cycle (db/lib/train.js). Departure
   // first, so that if the cycle is ever retuned to run both halves on one
@@ -336,10 +338,9 @@ async function resolveNeeds(turn, config) {
   // cutoff. A soul can arrive mid-close (Metempsychosis, fired from
   // stagedPush/dyingDeath/ascension/nukeExplosion/catatonicDeath/xom — see
   // db/lib/characterDeath.js) and be ALIVE in time for a later pass in this
-  // same run to find them. hunger/horseUpkeep pass this to exclude anyone
-  // born after it: neither writes a per-character ledger row, so a charge
-  // billed to a body that wasn't alive for the turn would leave no trace to
-  // find it by.
+  // same run to find them. hunger passes this to exclude anyone born after
+  // it: it writes no per-character ledger row, so a charge billed to a body
+  // that wasn't alive for the turn would leave no trace to find it by.
   const passRunStartedAt = new Date();
 
   // Passes already applied — non-empty only when a previous advance died
@@ -921,28 +922,6 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Catatonic death audit log failed:", err));
   }
 
-  // The horse eats first (db/lib/horseUpkeepPass.js). Held, not equipped, and
-  // a character who cannot afford the 1 ⬢ pays nothing and keeps the animal.
-  let horseUpkeep = null;
-  if (!done.has("horseUpkeep")) {
-    horseUpkeep = await runHorseUpkeepPass(prisma, turn, { bornBefore: passRunStartedAt }).catch(async (err) => {
-      await passFailed("Horse upkeep", err);
-      return null;
-    });
-    if (horseUpkeep) await markDone("horseUpkeep");
-  }
-  if (horseUpkeep) {
-    await prisma.auditLog
-      .create({
-        data: {
-          actorDiscordUserId: "system",
-          actionType: "horse_upkeep",
-          details: horseUpkeep,
-        },
-      })
-      .catch((err) => console.error("Horse upkeep audit log failed:", err));
-  }
-
   // Hunger upkeep runs after the sweep, so a Hunger granted last close is
   // cleared before this pass can grant a fresh one — otherwise the re-grant
   // collides with @@unique([characterId, tagId]) and gets dropped. See
@@ -1180,27 +1159,29 @@ async function resolveNeeds(turn, config) {
     }
   }
 
-  // What Arelitz lay: an egg into the owner's pocket, or into the room's
-  // stash for one parked there. See db/lib/arelitzLayPass.js's header for why
-  // this sits right after structureYield and does not share its per-row
-  // claim.
+  // The Stable's whole lifecycle: mature the brood, feed the adults and lay
+  // an egg per adult fed, hatch what's on the floor, evict past capacity
+  // (db/lib/stablePass.js, ARELITZ.md §4). Sits right after structureYield
+  // for the same reason the old arelitz lay pass did — an egg lands on the
+  // stable Room's floor, and must not run before "carry"'s own overflow drop
+  // might already be putting something there.
   if (!done.has("arelitzLay")) {
-    const laid = await runArelitzLayPass(prisma, turn).catch(async (err) => {
-      await passFailed("Arelitz lay", err);
+    const stabled = await runStablePass(prisma, turn).catch(async (err) => {
+      await passFailed("Stable", err);
       return null;
     });
-    if (laid) {
+    if (stabled) {
       await markDone("arelitzLay");
-      if (laid.laidToCharacters > 0 || laid.laidToRooms > 0) {
+      if (stabled.laid > 0 || stabled.hatched > 0 || stabled.matured > 0 || stabled.evicted > 0) {
         await prisma.auditLog
           .create({
             data: {
               actorDiscordUserId: "system",
-              actionType: "arelitz_lay",
-              details: laid,
+              actionType: "stable_pass",
+              details: stabled,
             },
           })
-          .catch((err) => console.error("Arelitz lay audit log failed:", err));
+          .catch((err) => console.error("Stable pass audit log failed:", err));
       }
     }
   }

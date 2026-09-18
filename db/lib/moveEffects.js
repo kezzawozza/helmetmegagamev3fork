@@ -21,7 +21,7 @@ async function addResources(tx, characterId, amount, ctx) {
 
 const { characterParty, recordDelta, record, BURN } = require("./economyLedger");
 const { addCharacterResources } = require("./resourceStack");
-const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
+const { TIRED_SLUG, EXHAUSTED_SLUG, ARELITZ_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
 const { expiryFrom } = require("./turnFormat");
 const { nextFatigueSlug, grantExhaustedOutright } = require("./fatigue");
@@ -197,7 +197,9 @@ const MOVE_EFFECTS = {
   // Soilery (db/lib/soilery.js, docs' Soilery plan §B6): a Farm Move commits at press — the seed
   // bag's licence is spent and gone the moment `farmRequestImpl` files it — but the wither die and
   // the Exhausted lockout only land here, at push, exactly like `refined` above. `action.farmPlan`
-  // is `{ v: 1, rows: [{ slug, tagId, tagName, planted }, ...] }`, written by farmRequestImpl.
+  // is `{ v: 2, fertilized, rows: [{ slug, tagId, tagName, planted }, ...] }`, written by
+  // farmRequestImpl. `fertilized` (SOILERY.md's Addendum) swaps reap()'s whole outcome table —
+  // a v1 row (no `fertilized` key) reads as `undefined`, which reap()'s own default treats as false.
   farmed: {
     read: (action) => (action.farmPlan?.rows?.length ? 1 : 0),
     apply: async (tx, action) => {
@@ -211,7 +213,7 @@ const MOVE_EFFECTS = {
 
       const rows = [];
       for (const row of plan.rows) {
-        const reaped = reap(row.planted);
+        const reaped = reap(row.planted, Math.random, { fertilized: plan.fertilized === true });
         if (reaped > 0) {
           const { addToStack } = require("./tagWrites");
           await addToStack(tx, action.characterId, row.tagId, reaped, {
@@ -263,6 +265,69 @@ const MOVE_EFFECTS = {
             skipDuplicates: true,
           });
         }
+      }
+    },
+  },
+
+  // Breaking in an unruly arelitz (db/lib/arelitz.js, ARELITZ.md §6): a
+  // Gambit whose die and modifier are already rolled at filing time
+  // (Action.diceRoll/diceModifier), same as a Heal Gambit — but this
+  // resolves automatically HERE at push, rather than waiting on a GM, so a
+  // stable's worth of attempts never sits in limbo. `action.breakInPlan` is
+  // `{ v: 1, kind: "room"|"character", roomId|characterId, tagId, tagName }`,
+  // written by breakInArelitzRequestImpl.
+  brokeIn: {
+    read: (action) => (action.breakInPlan ? 1 : 0),
+    apply: async (tx, action) => {
+      const { breakInSucceeded } = require("./arelitz");
+      const { dropCharacterTag, dropRoomTag, addToStack, addToRoomStack } = require("./tagWrites");
+      const plan = action.breakInPlan;
+      const rolled = breakInSucceeded(action.diceRoll, action.diceModifier);
+      // The target may have been sold, transferred or butchered between
+      // filing and push — checked here, not assumed, so a gone target never
+      // silently grants a broken-in arelitz from nothing.
+      const still =
+        plan.kind === "character"
+          ? await tx.characterTag.findUnique({
+              where: { characterId_tagId: { characterId: plan.characterId, tagId: plan.tagId } },
+              select: { quantity: true },
+            })
+          : await tx.roomTag.findUnique({
+              where: { roomId_tagId: { roomId: plan.roomId, tagId: plan.tagId } },
+              select: { quantity: true },
+            });
+      const ok = rolled && Boolean(still?.quantity);
+      if (ok) {
+        const brokenTag = await tx.tag.findUnique({ where: { slug: ARELITZ_SLUG }, select: { id: true, stackable: true } });
+        if (plan.kind === "character") {
+          await dropCharacterTag(tx, plan.characterId, plan.tagId, 1);
+          await addToStack(tx, plan.characterId, brokenTag.id, 1, { source: "EVENT", stackable: brokenTag.stackable });
+        } else {
+          await dropRoomTag(tx, plan.roomId, plan.tagId, 1);
+          await addToRoomStack(tx, plan.roomId, brokenTag.id, 1);
+        }
+      }
+      return {
+        ok,
+        gone: rolled && !still?.quantity,
+        roll: action.diceRoll,
+        modifier: action.diceModifier ?? 0,
+        kind: plan.kind,
+        holderId: plan.kind === "character" ? plan.characterId : plan.roomId,
+        tagId: plan.tagId,
+        tagName: plan.tagName,
+      };
+    },
+    revert: async (tx, action, snapshot) => {
+      if (!snapshot?.ok) return;
+      const { dropCharacterTag, dropRoomTag, addToStack, addToRoomStack } = require("./tagWrites");
+      const brokenTag = await tx.tag.findUnique({ where: { slug: ARELITZ_SLUG }, select: { id: true, stackable: true } });
+      if (snapshot.kind === "character") {
+        await dropCharacterTag(tx, snapshot.holderId, brokenTag.id, 1);
+        await addToStack(tx, snapshot.holderId, snapshot.tagId, 1, { source: "EVENT", stackable: true });
+      } else {
+        await dropRoomTag(tx, snapshot.holderId, brokenTag.id, 1);
+        await addToRoomStack(tx, snapshot.holderId, snapshot.tagId, 1);
       }
     },
   },
@@ -318,6 +383,15 @@ function describeMoveEffects(applied) {
       );
     }
     else if (key === "farmed") parts.push(harvestLine(value.rows));
+    else if (key === "brokeIn") {
+      parts.push(
+        value.ok
+          ? `broke in ${value.tagName}`
+          : value.gone
+            ? `${value.tagName} was gone by the time the die was read`
+            : `${value.tagName} threw them off (rolled ${value.roll}${value.modifier ? ` ${value.modifier > 0 ? "+" : ""}${value.modifier}` : ""})`,
+      );
+    }
     else parts.push(`${key}: ${value}`);
   }
   return parts.join(", ");

@@ -16,7 +16,7 @@
 // weighty on the server — the kind of split that shows up as a carry meter
 // nobody can reconcile.
 
-// The category whose tags never weigh on your back. A horse carries itself, a
+// The category whose tags never weigh on your back. An arelitz carries itself, a
 // cart rolls, a house does not move at all. Tag.category holds the DISPLAY
 // name rather than the YAML slug (db/lib/syncTags.js), but the compare is
 // case-folded: until the 2026-09-26 backfill the catalog genuinely held both

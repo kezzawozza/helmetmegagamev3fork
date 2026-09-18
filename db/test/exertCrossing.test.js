@@ -7,7 +7,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { exertOutcome, exertedThisTurn, exertRefusal, exertResultLine, exertEdgeFor, exertEdgeSentence } = require("../lib/locationTravel");
 
-const NAMES = { "sprained-ankle": "Sprained Ankle", horse: "Horse", overburdened: "Overburdened", tired: "Tired", exhausted: "Exhausted", "punctured-lung": "Punctured Lung", "blind-drunk": "Blind Drunk" };
+const NAMES = { "sprained-ankle": "Sprained Ankle", arelitz: "Arelitz", overburdened: "Overburdened", tired: "Tired", exhausted: "Exhausted", "punctured-lung": "Punctured Lung", "blind-drunk": "Blind Drunk" };
 const withTags = (...slugs) => ({ tags: slugs.map((slug) => ({ equipped: true, tag: { slug, name: NAMES[slug] ?? slug } })) });
 const turn = { id: "t1", number: 4 };
 const config = { freeZoneMovesPerTurn: 1 };
@@ -32,15 +32,15 @@ test("exertedThisTurn: the base pool over the base allowance, and nothing else",
   assert.equal(exertedThisTurn({ ...withTags(), ...counters(2) }, config, turn), true);
   // A mount's crossing was charged to the bonus pool, then the land crossing
   // to the base: still no. Then a push on: yes.
-  assert.equal(exertedThisTurn({ ...withTags("horse"), ...counters(2, 1) }, config, turn), false);
-  assert.equal(exertedThisTurn({ ...withTags("horse"), ...counters(3, 1) }, config, turn), true);
+  assert.equal(exertedThisTurn({ ...withTags("arelitz"), ...counters(2, 1) }, config, turn), false);
+  assert.equal(exertedThisTurn({ ...withTags("arelitz"), ...counters(3, 1) }, config, turn), true);
   // No open turn: never.
   assert.equal(exertedThisTurn({ ...withTags(), ...counters(2) }, config, null), false);
 });
 
 test("exertRefusal: the reasons, in the order a player can read them off their sheet", () => {
   const spent = counters(1);
-  assert.match(exertRefusal({ ...withTags("horse"), ...spent }, config, turn, { left: 0, acted: true }), /horse has ridden/);
+  assert.match(exertRefusal({ ...withTags("arelitz"), ...spent }, config, turn, { left: 0, acted: true }), /arelitz has ridden/);
   assert.match(exertRefusal({ ...withTags("sprained-ankle"), ...spent }, config, turn, { left: 0, acted: true }), /Sprained Ankle/);
   // Too hurt to march, though none of these restrict ACT.
   assert.match(exertRefusal({ ...withTags("punctured-lung"), ...spent }, config, turn, { left: 0, acted: true }), /Punctured Lung prevents you/);

@@ -74,11 +74,17 @@ export function stripWeightless(tag) {
 // (COOKING.md); the whole `cooked` Json block is cut down here on the server
 // before it crosses, and `cookedFrom` dropped outright. Deliberate, and it
 // also keeps `cooked.hunger` server-only — hunger must never leak to the
-// client (see Soilery hunger-meter rework).
+// client (see Soilery hunger-meter rework). `tasteForm` rides along with
+// `taste` — it says how to RENDER the fragment (bare adjective vs. "like X"),
+// not what it does, so it's not a leak; dropping it here made every
+// adjective-form taste (the Soilery crops) render as "It tastes like acidic"
+// in the Craft dialog's ingredient chips.
 export function cookedTasteOnly(tag) {
   if (!tag?.cooked && !tag?.cookedFrom?.length) return tag;
   const { cooked, cookedFrom, ...rest } = tag;
-  return cooked ? { ...rest, cooked: { taste: cooked.taste ?? "" } } : rest;
+  return cooked
+    ? { ...rest, cooked: { taste: cooked.taste ?? "", ...(cooked.tasteForm ? { tasteForm: cooked.tasteForm } : {}) } }
+    : rest;
 }
 
 export const TAG_CHIP_FIELDS = {

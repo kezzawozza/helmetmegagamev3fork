@@ -55,6 +55,10 @@ const {
   normalizeIngredientSlots,
   validateIngredientSlots,
   normalizeCustom,
+  normalizeRequirementYield,
+  validateRequirementYield,
+  normalizeMealTaste,
+  validateMealTasteForm,
 } = require("./tagShapes");
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
@@ -119,7 +123,7 @@ const DESTROYABLE_CATEGORIES = new Set(["items", "assets"]);
 // times, and the one time it got made wrong (a GM's flower, minted untradeable
 // and therefore also weightless) nobody found out for days.
 //
-// ASSETS ARE NOT IN THIS SET, and won't be. They are genuinely split: a horse,
+// ASSETS ARE NOT IN THIS SET, and won't be. They are genuinely split: an arelitz,
 // a cart, a plow and a dog change hands; a forge, a palisade, a gallows and a
 // trebuchet do not. There is no category boundary under that — "is it nailed
 // down" is a fact about the thing — so an Asset still says which it is, and
@@ -511,7 +515,7 @@ async function syncTagsFromYaml(prisma) {
       );
     }
     // An Asset still says which it is, and silence would default to unmovable:
-    // nobody would notice until a player couldn't hand over their horse.
+    // nobody would notice until a player couldn't hand over their arelitz.
     if (t.category === "assets" && typeof t.tradeable !== "boolean") {
       throw new Error(
         `docs/tags.yaml: tag "${t.slug}" is in category "${t.category}" but does not set tradeable — say true or false explicitly, since it decides whether the tag can be handed over or looted off a body`,
@@ -520,7 +524,7 @@ async function syncTagsFromYaml(prisma) {
     // `weight` must be explicit for an item, for the reason `tradeable` used
     // to be: silence would default to weightless and a new sword would cost
     // nobody anything to carry. Assets are exempt because they are not cargo
-    // (docs/systemdocs/CARRY.md §1) — a horse carries itself and a forge does
+    // (docs/systemdocs/CARRY.md §1) — an arelitz carries itself and a forge does
     // not move at all. Items have no exemption any more: there is no such
     // thing as an untradeable item to be "part of you" rather than hauled.
     if (t.category === "items" && typeof t.weight !== "number") {
@@ -824,6 +828,18 @@ async function syncTagsFromYaml(prisma) {
       placement: t.placement ?? null,
       turnsCost: t.requirement?.turnsCost ?? null,
     });
+    // requirement.yield — "Quantity Produced". Same posture as ingredientSlots.
+    validateRequirementYield(normalizeRequirementYield(t.requirement?.yield, { slug: t.slug }), {
+      selfSlug: t.slug,
+      craftable: t.craftable ?? false,
+      placement: t.placement ?? null,
+      turnsCost: t.requirement?.turnsCost ?? null,
+    });
+    // mealTaste/mealTasteForm — the eating-side twin of mealMood/mealHunger.
+    validateMealTasteForm(
+      { mealTaste: normalizeMealTaste(t.mealTaste, { slug: t.slug }), mealTasteForm: t.mealTasteForm ?? null },
+      { selfSlug: t.slug },
+    );
     // desires.locks — validated via the shared desireShapes rules. A missing
     // docs/desires.yaml yields an empty family set, so this only throws when
     // a tag actually names one.
@@ -1001,6 +1017,13 @@ async function syncTagsFromYaml(prisma) {
       requirementIngredientSlots: normalizeIngredientSlots(entry.requirement?.ingredientSlots, { slug: entry.slug }),
       mealMood: entry.mealMood ?? null,
       mealHunger: entry.mealHunger ?? null,
+      // The eating-side twin of mealMood/mealHunger above — a recipe's own
+      // base taste, read first in the taste line (COOKING.md §3/§8).
+      mealTaste: normalizeMealTaste(entry.mealTaste, { slug: entry.slug }),
+      mealTasteForm: entry.mealTasteForm === "adjective" ? "adjective" : null,
+      // "Quantity Produced" — how many units one unit of crafting this recipe
+      // actually mints (COOKING.md §A5).
+      requirementYield: normalizeRequirementYield(entry.requirement?.yield, { slug: entry.slug }),
       ...normalizeCustom(entry.custom, { slug: entry.slug, customizable: entry.customizable ?? false }),
       miningBonus: normalizeMiningBonus(entry.miningBonus),
       fighting: normalizeFighting(entry.fighting),

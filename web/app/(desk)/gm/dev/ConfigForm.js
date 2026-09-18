@@ -29,6 +29,19 @@ function NumberField({ field, value }) {
   );
 }
 
+function StringField({ field, value }) {
+  const id = `config-${field.key}`;
+  return (
+    <div className="field">
+      <label htmlFor={id} className="field-label">
+        {field.label}
+        {field.info ? <InfoIcon text={field.info} /> : null}
+      </label>
+      <input type="text" id={id} name={field.key} defaultValue={value ?? field.default} />
+    </div>
+  );
+}
+
 // Inside `.field`, never a bare <select> — one outside it visibly breaks the theme (DESIGN-SYSTEM.md).
 function SelectField({ field, value }) {
   const id = `config-${field.key}`;
@@ -68,7 +81,10 @@ export default function ConfigForm({ config }) {
       {GROUPS.map((group) => {
         const fields = fieldsInGroup(group.key);
         if (fields.length === 0) return null;
-        const numbers = fields.filter((f) => f.type !== "bool" && f.type !== "select");
+        const numbers = fields.filter(
+          (f) => f.type !== "bool" && f.type !== "string" && f.type !== "select",
+        );
+        const strings = fields.filter((f) => f.type === "string");
         const selects = fields.filter((f) => f.type === "select");
         const bools = fields.filter((f) => f.type === "bool");
         return (
@@ -78,6 +94,13 @@ export default function ConfigForm({ config }) {
               <div className="ops-grid">
                 {numbers.map((field) => (
                   <NumberField key={field.key} field={field} value={config[field.key]} />
+                ))}
+              </div>
+            ) : null}
+            {strings.length ? (
+              <div className="ops-grid">
+                {strings.map((field) => (
+                  <StringField key={field.key} field={field} value={config[field.key]} />
                 ))}
               </div>
             ) : null}

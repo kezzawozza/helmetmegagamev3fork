@@ -906,8 +906,18 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
 
   // What the eater is told, and the only thing they are told: a dish names
   // its tastes and never its ingredients. `line` is returned to the client,
-  // which prefers it over the generic "It used up." (noticeLines.js).
-  const line = isDish ? tasteLine(ingredientTags.map((t) => t.cooked?.taste ?? "")) : null;
+  // which prefers it over the generic "It used up." (noticeLines.js). The
+  // meal's own taste (Tag.mealTaste/mealTasteForm) reads FIRST, then each
+  // additional ingredient's — COOKING.md §A6.
+  const line = isDish
+    ? tasteLine(held.tag.name, [
+        { taste: held.tag.mealTaste ?? "", adjective: held.tag.mealTasteForm === "adjective" },
+        ...ingredientTags.map((t) => ({
+          taste: t.cooked?.taste ?? "",
+          adjective: t.cooked?.tasteForm === "adjective",
+        })),
+      ])
+    : null;
   let grantedNames = [];
   let resourcesGrantedOut = 0;
 

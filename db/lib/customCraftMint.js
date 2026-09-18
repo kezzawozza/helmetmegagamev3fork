@@ -95,6 +95,11 @@ async function mintCustomCraft(
     cookedFrom: key,
     mealMood: baseTag.mealMood,
     mealHunger: baseTag.mealHunger,
+    // The eating-side twin of mealMood/mealHunger above (COOKING.md §2/§2a)
+    // — miss this and every minted dish reads its base taste as empty,
+    // showing only its additional ingredients' tastes on the taste line.
+    mealTaste: baseTag.mealTaste,
+    mealTasteForm: baseTag.mealTasteForm,
     sellable: baseTag.sellable,
     sellablePrice: sellablePriceOverride ?? baseTag.sellablePrice,
     defaultDurationTurns: baseTag.defaultDurationTurns,

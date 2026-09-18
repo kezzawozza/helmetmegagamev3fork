@@ -19,7 +19,7 @@ const { addToStack, grantTagSlugs } = require("./tagWrites");
 const { sendDm } = require("./dm");
 
 // Too hurt or too dazed to make a whole zone's walk for free. A Peg Leg is absent on
-// purpose (Bascinet's call: a wooden leg still walks); Pain Shock joins for the other reason: not injured enough to stop you, just too out of it to find your own way. An equipped mount cancels every one of these — the horse is doing the walking (or, for Pain Shock, the finding).
+// purpose (Bascinet's call: a wooden leg still walks); Pain Shock joins for the other reason: not injured enough to stop you, just too out of it to find your own way. An equipped mount cancels every one of these — the arelitz is doing the walking (or, for Pain Shock, the finding).
 const LAMED_SLUGS = new Set(["crippled-leg", "missing-leg", "sprained-ankle", "pain-shock", "cripple"]);
 
 const CHARACTER_SELECT = {
@@ -41,8 +41,8 @@ const CHARACTER_SELECT = {
 };
 
 // How many zone crossings this character gets for free this turn, before a crossing
-// starts spending their Move (CARRY.md §2). Everyone gets GameConfig.freeZoneMovesPerTurn; an EQUIPPED mount adds one, refreshed every turn. Being Overburdened takes the lot — an overloaded character can still cross, they just pay their Move. A ruined leg takes it too, unless a horse is doing the walking.
-// The mount's crossing is spent BEFORE the base one (moveAllowance returns the two pools separately, Character.zoneMovesBonusUsed remembers which was charged) — otherwise a rider who stables their horse at an indoors door would lose a crossing they still had, since the allowance is recomputed every time.
+// starts spending their Move (CARRY.md §2). Everyone gets GameConfig.freeZoneMovesPerTurn; an EQUIPPED mount adds one, refreshed every turn. Being Overburdened takes the lot — an overloaded character can still cross, they just pay their Move. A ruined leg takes it too, unless an arelitz is doing the walking.
+// The mount's crossing is spent BEFORE the base one (moveAllowance returns the two pools separately, Character.zoneMovesBonusUsed remembers which was charged) — otherwise a rider who stables their arelitz at an indoors door would lose a crossing they still had, since the allowance is recomputed every time.
 
 // How many are LEFT right now, for surfaces that must say so before a player commits
 // (Travel confirm, character sheet).
@@ -51,7 +51,7 @@ function freeMovesLeft(character, config, openTurn, partySize = 0) {
 }
 
 // The arithmetic both the display above and the spend below run: base and bonus are
-// counted SEPARATELY, since a bonus that goes away mid-turn must not take a base crossing with it — whatever was charged to a bonus stays charged to it, so a horse parked at an indoors door leaves the rider the crossing they never spent.
+// counted SEPARATELY, since a bonus that goes away mid-turn must not take a base crossing with it — whatever was charged to a bonus stays charged to it, so an arelitz parked at an indoors door leaves the rider the crossing they never spent.
 function movesLeft({ base, bonus }, character, openTurn) {
   if (!openTurn) return base + bonus;
   const sameTurn = character?.zoneMovesTurnId === openTurn.id;
@@ -117,7 +117,7 @@ function exertedThisTurn(character, config, openTurn) {
 function exertRefusal(character, config, openTurn, { left = 0, acted = false } = {}) {
   const held = character.tags ?? [];
   const active = equippedSlugs(held);
-  if (isMounted(active)) return "Your horse has ridden as hard as it can.";
+  if (isMounted(active)) return "Your arelitz has ridden as hard as it can.";
   const stopped = held.find((ct) => LAMED_SLUGS.has(ct.tag?.slug) || EXERT_REFUSAL_SLUGS.has(ct.tag?.slug));
   if (stopped) return `${stopped.tag.name} prevents you from pushing on.`;
   // Exhausted is the top of the ladder, so a push on could cost them nothing
@@ -262,8 +262,8 @@ function moveAllowance(character, config, partySize = 0) {
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return { base: 0, bonus: 0 };
   const base = config?.freeZoneMovesPerTurn ?? 1;
   const active = equippedSlugs(held);
-  // A horse carries you whatever your legs are, so it's checked FIRST and cancels
-  // lameness outright rather than adding one to a zero — but only while the party FITS it (fastTravelCapacity counts the rider: a horse seats two, a cart six, mounts.js). No cap on party size — going over just costs the mount's extra crossing, so an overloaded horse is never WORSE than legs, only no better.
+  // An arelitz carries you whatever your legs are, so it's checked FIRST and cancels
+  // lameness outright rather than adding one to a zero — but only while the party FITS it (fastTravelCapacity counts the rider: an arelitz seats two, a cart six, mounts.js). No cap on party size — going over just costs the mount's extra crossing, so an overloaded arelitz is never WORSE than legs, only no better.
   if (isMounted(active)) {
     return { base, bonus: fitsMount(active, partySize) ? fastTravelBonus(active) : 0 };
   }
@@ -499,7 +499,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
         const spentFree = sameTurn ? (character.zoneMovesUsed ?? 0) : 0;
         const spentBonus = sameTurn ? (character.zoneMovesBonusUsed ?? 0) : 0;
         const left = movesLeft(allowance, character, openTurn);
-        // The bonus pool goes first — a crossing charged to it stays charged to it for the rest of the turn, so parking the horse indoors afterwards gives back nothing and takes back nothing.
+        // The bonus pool goes first — a crossing charged to it stays charged to it for the rest of the turn, so parking the arelitz indoors afterwards gives back nothing and takes back nothing.
         const onBonus = allowance.bonus > spentBonus;
         // The claim's WHERE, shared by a free crossing and a push on: the
         // counter as this read saw it, or a stale/absent turn id.

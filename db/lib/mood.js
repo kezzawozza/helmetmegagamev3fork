@@ -146,7 +146,7 @@ const CONSUME_RELIEF = Object.freeze({
   bliss: 80,
   "eth-lod": 20,
   // The treats. Sugar does not grow in Ravenheart.
-  sweets: 9,
+  "sugar-candy": 9,
   "honeyed-cakes": 9,
   pumpkin: 9,
   // Celebrations. Neither grants a status, so both key by the item.

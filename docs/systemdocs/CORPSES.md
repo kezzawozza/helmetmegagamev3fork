@@ -203,8 +203,9 @@ GM inspecting the dead character) sees the same ladder state either way.
 butchered now, and its row is gone from `BREWING.md` §2 and from the Alcohol &
 Drugs document.
 
-`human-flesh` is consumed exactly as a `fine-meal` is — it feeds you and settles
-the turn's hunger — and is deliberately **not sellable**. Butchering is free and
+`human-flesh` is consumed exactly like any other raw foodstuff (SOILERY.md) —
+it feeds you and settles the turn's hunger — and is deliberately **not
+sellable**. Butchering is free and
 every death mints a corpse, so a priced Human Flesh would be a code-enforced ⬢
 faucet hanging off a free action. It stays `tradeable`, so players can still
 sell it to each other for whatever they can get, which is the right market.
@@ -222,6 +223,31 @@ repeatable) and `feast-on-human-flesh` (tier 4, gated on `glutton`, once per
 life — an appetite has a first time exactly once). Neither is wired to the
 Butcher action; a player claims it and writes what they did, and the
 `request_butcher_corpse` audit row is the receipt a GM checks it against.
+
+### 6a. Livestock — the Butcher verb's second source
+
+An adult arelitz or a brood animal isn't a corpse — it's alive, held or
+sitting in a stable's floor — but Butcher takes it the same way
+(ARELITZ.md §5). `db/lib/corpses.js#livestockInReach` mirrors
+`corpsesInReach`'s reach rule and row shape exactly (held, or stashed in a
+Room at your Location you can get into), so `BodyDialog.js` never has to
+tell the two apart: both rows carry `livestock`/`yields` now, `yields` being
+`[{ slug, quantity }, ...]` rather than a single slug.
+
+| Animal | Yields |
+|---|---|
+| Arelitz, Unruly Arelitz | 20 Meat, 10 Fat |
+| Hatchling, Youngling, Yearling | 5 Meat, 2 Fat |
+
+**Takes ONE unit off the stack, never the whole row** — the one real
+difference from a corpse, which is always singular. A corpse held or
+stashed is deleted outright (`takeCorpse`); livestock goes through
+`takeLivestockUnit`, an ordinary `dropCharacterTag`/`dropRoomTag` at quantity
+1, so butchering one arelitz out of a stable's five leaves four.
+
+No organ harvest, no death DM, no curse — those are `corpse.human`'s branch,
+and every livestock row carries `human: false`. The room announcement reads
+"butchers an arelitz here" instead of "butchers a body here."
 
 ## 7. Bury and Engrave
 

@@ -45,23 +45,28 @@ of it:
   refunded on cancel or on undo-by-GM of a mid-project turn. Paid by
   **yourself, a Room stash here, or a person standing here** (payer select;
   a person is DM'd "*X paid N ⬢ from your purse toward Y*").
-- `turnsCost` — the WORK one unit takes, in Moves, as a **decimal on a
-  quarter**. **0** is free of the Move entirely, rationed only by a recipe's
-  own `perTurn` if it has one (bliss at 2, bone-mask at 1) — Dead Simple used
-  to live here too, off a shared 4-a-turn pool, but that rung costs `0.25`
-  now (`SMITHING.md` §2, `DEPOT.md` §4), so `0` is rarer than it was.
-  **0.25**, **0.5** and **0.75** are shares of the Routine — four of the
-  first fill it, two of the second, one of the third with a quarter left
-  over for more work of the same family. An Alcohol is `0.25`, so four fill
-  a Routine. **1** is this turn's whole Routine — one per turn, by
-  arithmetic. **2+** is a project (§3), one unit per project, whole turns
-  only. Quantity is limited by this arithmetic alone (Chris 2026-09-06).
-  Anything off a quarter is refused by the sync, because the Move budget is
-  exact rational arithmetic and a cost it cannot hold exactly would let a
-  character do work they never paid for. It was a `1/N` fraction until
-  9/2026, stored as `requirementTurns: 1` + `requirementPerTurn: N`; the
-  decimal sits in `requirementTurns` itself now, and the thirds went with
-  the old encoding (§2a).
+- `turnsCost` — the WORK one unit takes, in Moves, as a **decimal on the
+  exact grid** `db/lib/tagShapes.js#SUB_MOVE_COSTS` names: `0.05`, `0.1`,
+  `0.125`, `0.2`, `0.25`, `0.5`, `0.75`, plus `0` and any whole number. **0**
+  is free of the Move entirely, rationed only by a recipe's own `perTurn` if
+  it has one (bliss at 2, bone-mask at 1) — Dead Simple used to live here
+  too, off a shared 4-a-turn pool, but that rung costs `0.25` now
+  (`SMITHING.md` §2, `DEPOT.md` §4), so `0` is rarer than it was. Quarters
+  read the way they always did (four `0.25`s fill a Routine, two `0.5`s, one
+  `0.75` with a quarter left over); Cooking's finer shares (COOKING.md §2a)
+  work the same way at their own denominator — twenty `0.05`s fill a
+  Routine, ten `0.1`s, eight `0.125`s, five `0.2`s. **1** is this turn's
+  whole Routine — one per turn, by arithmetic. **2+** is a project (§3), one
+  unit per project, whole turns only. Quantity is limited by this arithmetic
+  alone (Chris 2026-09-06). Anything off the grid is refused by the sync,
+  because the Move budget is exact rational arithmetic
+  (`web/lib/craftBudget.js`) and a cost it cannot hold exactly would let a
+  character do work they never paid for — `0.33` is refused for that reason,
+  not because it misses a quarter specifically; every value on the grid is an
+  exact rational (a whole multiple of 1/1000), which is the actual rule.
+  It was a `1/N` fraction until 9/2026, stored as `requirementTurns: 1` +
+  `requirementPerTurn: N`; the decimal sits in `requirementTurns` itself now,
+  and the thirds went with the old encoding (§2a).
 - `perTurn` — a RATION, and **only legal at `turnsCost: 0`**: a hard daily
   cap, and now the only free allowance a 0-turn recipe gets — there is no
   shared pool behind it any more (bliss at 2, bone-mask at 1). It is never a
@@ -75,9 +80,17 @@ of it:
   work starts** — so a multi-turn project pays up front and `continueCraft`
   does not re-check them. A `group:` entry is *kept* instead: any corpse to
   hand satisfies Miasma, and none is used up. An `anyOf:` entry is a spend the
-  player chooses, posted from the dialog as `ingredientChoice` and re-checked
-  server-side for membership and possession. A `placement:` recipe may not
-  carry `items` at all; the sync refuses the pair.
+  player chooses, posted from the dialog and re-checked server-side for
+  membership and possession. A recipe may now carry **more than one**
+  `anyOf` picker (COOKING.md §2a's tiered recipes need it — Vegetable Stew
+  alone needs two) — the single-picker `ingredientChoice` channel still
+  answers picker 0 for every recipe that only ever had one, and a multi-picker
+  recipe posts `ingredientPicks: string[]` instead, one entry per
+  `pickerIndex` (`db/lib/tagShapes.js` stamps it at sync time). Two pickers
+  landing on the same slug merge into one cumulative spend
+  (`resolveRecipeItems`'s `pushSpend`), not two independent reads of the same
+  stack. A `placement:` recipe may not carry `items` at all; the sync refuses
+  the pair.
 - `count:` on a spent `items` entry — how many units of THAT ingredient one
   craft takes, on top of the craft quantity. A blank book is `paper` with
   `count: 10`, and three of them take thirty sheets. Defaults to 1, which is
@@ -118,7 +131,7 @@ can be split across any mix of families in the same turn, not just one.
 |---|---|
 | `turnsCost: 0`, inside its own `perTurn` allowance | nothing — a free action, as before |
 | `turnsCost: 0`, past that allowance | `1/perTurn` per extra unit (a fourth bone-mask is a third of a Move) |
-| `turnsCost: 0.25`, `0.5` or `0.75` | `quantity × turnsCost` — each unit is that much of a turn's work |
+| `turnsCost` on the sub-Move grid (`0.05`–`0.75`) | `quantity × turnsCost` — each unit is that much of a turn's work |
 | `turnsCost: 1` | one is a turn's work |
 | `turnsCost: 2+` — a project start or continue | the whole Move, every turn it runs — and ONE unit per project, its turns being per piece |
 
@@ -132,18 +145,19 @@ all — it prices at `turnsCost: 0.25` from the first unit, so four of them
 fill the Routine outright and a fifth simply has no Move left to spend.
 
 **Decimals on the page, exact rationals underneath.** A cost is authored as a
-decimal on a quarter (§2) and a player reads it as one — "0.25 turns", "0.5
-of your Move". The budget does not hold it that way: `craftMoveCost`
+decimal on the exact grid (§2) and a player reads it as one — "0.25 turns",
+"0.125 of your Move". The budget does not hold it that way: `craftMoveCost`
 (`web/lib/craftBudget.js`) turns the decimal into a num/den pair once and
-exactly, and everything past that is integer arithmetic — added by
+exactly (`× 1000` then reduced — every legal cost is a whole multiple of
+1/1000), and everything past that is integer arithmetic — added by
 `addFractions`, compared by cross-multiplication in `fitsInRemaining`, never by
-a float. That is the reason the quarter rule exists at all: a turn's Move has
-to close exactly, and a cost the ledger could only approximate would leave a
-sliver behind or come up short, which is a character doing work they never paid
-for. Costs were authored as `1/N` fractions until 9/2026, thirds among them;
+a float. That is the reason the exact-grid rule exists at all: a turn's Move
+has to close exactly, and a cost the ledger could only approximate would leave
+a sliver behind or come up short, which is a character doing work they never
+paid for. Costs were authored as `1/N` fractions until 9/2026, thirds among them;
 the thirds are what this argument finally cost.
 
-**A spill denominator is still whatever the ration is.** The quarter rule
+**A spill denominator is still whatever the ration is.** The exact-grid rule
 binds what a recipe may be *authored* as; it does not bind what the ledger can
 hold. A `turnsCost: 0` recipe past its own `perTurn` bills `1/perTurn` per
 extra unit, and an allowance is any whole number — so Flesh of Tzchernobog,

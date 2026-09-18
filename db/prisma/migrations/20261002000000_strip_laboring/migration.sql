@@ -8,12 +8,29 @@
 
 -- MoveKind: LABOR goes. ROUTINE stays as the kind the game files on a
 -- player's behalf when a button spends their day.
+--
+-- Action_notify (20260921030000_desk_notify) reads "moveKind" in its UPDATE OF
+-- list, so Postgres refuses the type rebuild below while the trigger is live
+-- ("cannot alter type of a column used in a trigger definition"). Drop it and
+-- recreate it identically once the column is back to a real MoveKind.
+DROP TRIGGER IF EXISTS "Action_notify" ON "Action";
 ALTER TABLE "Action" ALTER COLUMN "moveKind" DROP DEFAULT;
 UPDATE "Action" SET "moveKind" = 'ROUTINE' WHERE "moveKind" = 'LABOR';
 ALTER TYPE "MoveKind" RENAME TO "MoveKind_old";
 CREATE TYPE "MoveKind" AS ENUM ('GAMBIT', 'ROUTINE');
 ALTER TABLE "Action" ALTER COLUMN "moveKind" TYPE "MoveKind" USING ("moveKind"::text::"MoveKind");
 DROP TYPE "MoveKind_old";
+CREATE TRIGGER "Action_notify"
+  AFTER INSERT OR DELETE OR UPDATE OF
+    "moveReviewStatus",
+    "resultMessage",
+    "moveKind",
+    "reviewedByDiscordUserId",
+    "lockedByDiscordUserId",
+    "lockExpiresAt",
+    "appliedEffects"
+  ON "Action"
+  FOR EACH ROW EXECUTE FUNCTION bascinet_desk_notify('move');
 
 -- The tier a Labor resolved at. One skill, no ladder, so nothing to stamp.
 ALTER TABLE "Action" DROP COLUMN IF EXISTS "laborTier";
@@ -84,8 +101,13 @@ ALTER TABLE "MiningDropOption" ADD CONSTRAINT "MiningDropOption_requiredTagId_fk
     FOREIGN KEY ("requiredTagId") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- A tag's tool bonus is a mining bonus now, and carries no `kind`.
+--
+-- A JSON-null jsonb scalar (as opposed to a SQL NULL) is not an object, so
+-- `- 'kind'` refuses it ("cannot delete from scalar") — a real shape seen in
+-- practice on a tag with no bonus. Guard on jsonb_typeof rather than
+-- IS NOT NULL so either representation of "nothing here" survives the rename.
 ALTER TABLE "Tag" RENAME COLUMN "laborBonus" TO "miningBonus";
-UPDATE "Tag" SET "miningBonus" = "miningBonus" - 'kind' WHERE "miningBonus" IS NOT NULL;
+UPDATE "Tag" SET "miningBonus" = "miningBonus" - 'kind' WHERE jsonb_typeof("miningBonus") = 'object';
 
 -- Harvest Godflesh is once a TURN now, not once an in-game day (a day is two
 -- turns), so the claim token holds a turn id and is named for it.

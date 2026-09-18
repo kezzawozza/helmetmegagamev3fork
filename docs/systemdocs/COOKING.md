@@ -1,8 +1,9 @@
 # Cooking
 
-The Fine and Lavish Meals, the ingredients that go in them, and what eating
-one does. Read this before touching `Tag.cooked`, `Tag.cookedFrom`,
-`requirement.ingredientSlots`, `web/lib/cooking.js`,
+31 named recipes across three skill tiers (Basic, Skilled, Skilled Lavish),
+the ingredients that go in them, and what eating one does. Read this before
+touching `Tag.cooked`, `Tag.cookedFrom`, `Tag.mealTaste`/`mealTasteForm`,
+`Tag.requirementYield`, `requirement.ingredientSlots`, `web/lib/cooking.js`,
 `db/lib/mood.js#dishMoodTerms`, or `IngredientSlots.js`.
 
 Crafting in general is [`CRAFTING.md`](CRAFTING.md); this is the one recipe
@@ -10,20 +11,32 @@ family that does something crafting alone cannot.
 
 ## 1. What changed, and why
 
-Cooking used to make two flat items. A Fine Meal was always +15 mood and a
-Lavish always +30, the Lavish took exactly one delicacy out of a hardcoded
-list of four (`items: [anyOf: [tea, sweets, honey, fish-roe]]`), and putting
-your own name on a dish cost +1 ⬢. Nothing a cook chose changed what the food
-**was** — the ingredient was a gate on the recipe, not a part of the meal.
+Cooking used to make two flat items, Fine Meal and Lavish Meal: a small base
+mood (`mealMood`, 5 and 8) plus 0–1 or 1–2 player-chosen ingredients out of
+any tag carrying a `cooked` block. Nothing named which dish a cook was
+actually making — "Fine Meal" was the only name on the tin regardless of what
+went in, unless the cook typed one themselves.
 
-Now the ingredient is the point:
+The design doc (`E:\bascinet\v3\Soilery.docx`) specs something more specific:
+31 **named** recipes, each with its own FIXED base ingredients (consumed
+automatically — Bread is always Wheat + Wheat) that also carry the recipe's
+own small base taste/mood/hunger, plus a slot layer on top for whatever
+additional ingredient a cook wants to add. That's what ships now — Fine Meal
+and Lavish Meal are deleted (pre-launch, no compat shim needed), replaced by
+the tables in §2a.
 
-- The meal's own mood is small (`mealMood`, **5** and **8**) and the
-  ingredient carries the rest, from **+45** (saffron) down to **−55** (feces).
-- Fine takes 0–1 ingredients, Lavish takes 1–2.
+What carries over from the old system, unchanged in mechanism:
+
+- A recipe's own base figure is still small next to what an ingredient can
+  add, from **+45** (saffron) down to **−55** (feces) — see §2a's tables for
+  each recipe's own base mood/hunger/taste.
+- Additional ingredients still slot on top of the fixed base — 0–4 of them,
+  the `IngredientSlots.js` dialog's own ceiling (the design doc names no cap).
 - An ingredient brings its side effects with it. A dish made from a person
   makes the eater nauseous or worse; one made with Squeeze is a seizure.
-- Every dish has a **taste**, and eating one says so.
+- Every dish has a **taste**, and eating one says so — now the recipe's own
+  base taste (`mealTaste`/`mealTasteForm`) reads FIRST, then each additional
+  ingredient's.
 - Naming your work is free.
 
 ### 1a. A meal is now the only way to be fed
@@ -61,26 +74,30 @@ on the clone:
 |---|---|
 | `cookedFrom` | the ingredient slugs, **sorted** |
 | `mealMood` | copied off the recipe |
+| `mealHunger` | copied off the recipe |
+| `mealTaste` / `mealTasteForm` | copied off the recipe (§2a) |
 
-A meal with **no words and no ingredients** does not mint. It has nothing to
-carry, and an ephemeral clone of the base row would only make it
-un-Depot-listable and Restart-Game-deletable for no gain. In practice a
-Lavish Meal always mints, because it always has an ingredient.
+A meal with **no words and no additional ingredients** does not mint. It has
+nothing to carry, and an ephemeral clone of the base row would only make it
+un-Depot-listable and Restart-Game-deletable for no gain. A recipe with a
+`requirement.items` entry that names a real ingredient (nearly all of them —
+see §2a) still consumes that fixed base without minting, unless the cook also
+adds something extra or a name.
 
 **The ingredients are part of the mint's identity.** Reuse keys on name +
-description + `cookedFrom`, so two cooks who both type "Steak Dinner" — one
-over saffron, one over feces — get two rows. Nothing on any surface tells them
-apart, which is the point. Miss this and one of them is serving the other's
-dinner.
+description + `cookedFrom`, so two cooks who both type "Steak Dinner" over
+Steak — one adding saffron, one adding feces — get two rows. Nothing on any
+surface tells them apart, which is the point. Miss this and one of them is
+serving the other's dinner.
 
-**A dish nobody named is named after its taste** — "Lavish Meal (rich
-spices)". That rule is for the cook's own pantry rather than for anyone else's
-secrecy: every Lavish Meal mints, so without it a cook who named neither of
-their two dinners would have two identical rows and no way to tell the saffron
-from the feces before biting. A taste is coarser than an ingredient ("meat"
-covers a boar loin and a human foot), and the two undetectable poisons have no
-taste at all, so it gives away less than it looks. A cook who wants to hide
-something types a name.
+**A dish nobody named is named after its taste** — "Steak (rich)". That rule
+is for the cook's own pantry rather than for anyone else's secrecy: a recipe
+that mints (because it took an additional ingredient) needs some way to tell
+the saffron batch from the feces batch before biting, if the cook named
+neither. A taste is coarser than an ingredient ("meat" covers a boar loin and
+a human foot), and the two undetectable poisons have no taste at all, so it
+gives away less than it looks. A cook who wants to hide something types a
+name.
 
 Sorted rather than kept in slot order because Postgres array equality is
 order-sensitive; the cost is that the taste sentence reads alphabetically.
@@ -88,6 +105,56 @@ order-sensitive; the cost is that the taste sentence reads alphabetically.
 Dishes are swept like disguises — `db/index.js`'s expiry pass deletes
 `ephemeral` `custom-craft-` rows nobody holds, that no room holds, and that
 no Offer or CraftProject pins.
+
+## 2a. The three tiers
+
+31 recipes in `docs/tags.yaml`, gated on `cooking-basic` (Basic) or
+`cooking-skilled` (Skilled, Skilled Lavish — `cooking-skilled` carries
+`parentTag: cooking-basic`, so a skilled cook can still make every Basic
+recipe). Exact values (base mood/hunger/taste, turn cost, ingredients) live
+in the catalog, not duplicated here — this is the shape, not the numbers.
+
+**Fixed base ingredients**, authored as an ordinary `requirement.items` list
+— the same mechanism every other craft recipe uses, not a special case.
+Consumed automatically the moment the recipe is picked; the cook never
+chooses them. A base ingredient that is itself a cooked dish (most of the
+Skilled/Skilled Lavish tier builds on Bread) is named with `customOf:`, never
+`tag:` — a cooked Bread never keeps the bare `bread` slug once it's minted,
+so a plain `tag:` reference would never see one.
+
+**A recipe needing more than one choice** (Vegetable Stew: "Potato +
+(Carrot/Onion), Carrot + Onion") authors **several `anyOf` pickers** in one
+`items:` list — `db/lib/tagShapes.js` stamps each with a 0-based
+`pickerIndex`, and the Craft dialog posts one choice per picker
+(`ingredientPicks: string[]`) instead of the single `ingredientChoice` every
+one-picker recipe (and the Death Mask's corpse pick) still uses. Two pickers
+naming the same options (Fried Fish's two fish choices, Sweets — here,
+"Honeyed Sweets", see below) are legal; `resolveRecipeItems` merges a spend
+by tagId when two pickers land on the same slug, so it reads as one
+cumulative need against the actual stack, not two independent short reads.
+
+**"Quantity Produced"** — `Tag.requirementYield`, authored as
+`requirement.yield`. Null means 1; Hash Brown/Egg in the Hole/Scones make 2,
+Pizza Slice makes 3. Multiplies onto the stack `grantCrafted` writes
+(`quantity * (recipeTag.requirementYield ?? 1)`), same point in the pipeline
+Distilling's doubling already lives — downstream of the ingredient spend and
+the ⬢ cost, which price off the craft's own `quantity` alone. The "made:"
+label reflects the produced count; Distilling's doubling deliberately still
+doesn't (`craftRequestImpl#producedQuantity`, precedent kept on purpose).
+
+**The additional-ingredient layer sits on top**, unchanged from the old Fine/
+Lavish mechanism: `ingredientSlots: { min: 0, max: 4 }` on every recipe (4 is
+`IngredientSlots.js`'s own ceiling; the design doc names no cap), and what
+the cook slots there is what the minted dish actually carries on eating —
+§7's mood sum and §8's taste line both read the additional ingredients, never
+the fixed base.
+
+One authored collision, worth knowing about: the design doc's "Sweets"
+(Honey/Sugar + Honey/Sugar) collides with the pre-existing `sweets` Depot
+candy — both would read "Sweets" on one sheet. The new recipe ships as
+**Honeyed Sweets** (`honeyed-sweets`) instead; the old candy is renamed
+`sugar-candy` (Sugar Candy) rather than the other way round, since the recipe
+is the newer, doc-specified thing and the candy is an incidental curio.
 
 ## 3. `cooked:` — what a tag contributes as an ingredient
 
@@ -192,9 +259,9 @@ nothing. `mergeDishCures` in `web/lib/cooking.js` does the union, and
 `curesInto` — the aftermath a cure leaves — merges beside it, last ingredient
 winning a collision.
 
-A **dish never carries cures of its own.** A Fine Meal is a minted custom
-craft off a recipe with no cure on it; the ingredients are the only place one
-can come from.
+A **dish never carries cures of its own.** A minted dish is a custom craft
+off a recipe with no cure on it; the ingredients are the only place one can
+come from.
 
 ### `into` — the half that was free
 
@@ -276,23 +343,38 @@ short: `dishMoodTerms` sums the meal's own small figure and its ingredients'
 relief as two terms so only the harm half is scaled, and flags the harm
 `noMultiplier` so nothing in the fright table makes disgust free.
 
-The recipe's own figure is deliberately tiny beside its ingredients' — **5**
-for a Fine Meal and **8** for a Lavish, against +45 (saffron) to −55 (feces).
+The recipe's own figure is deliberately tiny beside its ingredients' — 2 to
+10 across the 31 recipes (§2a), against +45 (saffron) to −55 (feces).
 
 ## 8. The taste line
 
-One sentence, in the bottom-right notice (`NoticeProvider`). Composed by
-`tasteLine` in `web/lib/cooking.js`; empty tastes are dropped rather than
-printed as a gap.
+One sentence, in the bottom-right notice (`NoticeProvider`). `tasteLine(mealName,
+entries)` (`web/lib/cooking.js`) takes the meal's own name and an array of
+`{ taste, adjective }` — the recipe's own `mealTaste`/`mealTasteForm` FIRST,
+then one entry per additional ingredient's `cooked.taste`/`cooked.tasteForm`
+(§2a/§3). The design doc's exact wording: "You eat the [meal], it tastes
+[flavour], [flavour], …, and [flavour]." — replacing the old, ingredient-only,
+mealess "You ate a meal. It tastes like X." Empty tastes are dropped rather
+than printed as a gap; no fragments at all reads as "bland" (the two
+undetectable poisons, or a plain Bread eaten alone, both land here).
 
-A taste is a **fragment**, not a sentence — it is dropped into the middle of
-the composed line, so it carries no punctuation and no closing anything of its
-own. `tasteLine` owns the sentence around it.
+A taste fragment renders bare (`tasteForm: "adjective"` — "acidic") or as a
+noun (`"like onions"`, the default, unmarked on the 58 legacy tastes) — same
+rule `cooked.tasteForm` always had, now shared with the recipe's own
+`mealTaste`.
 
 **Both eating paths raise it.** The one-click Consume on the tag rail is how
 people actually eat; it used to throw the server's result away, which would
 have meant the taste line only ever reaching the handful who go through the
 Actions grid.
+
+**One real bug fixed alongside this rewrite**: `cooked.tasteForm` was
+validated and stored since the Soilery pass (SOILERY.md §6) but never
+actually read anywhere — `web/lib/tagChipRows.js#cookedTasteOnly` (the
+server-side cut before a tag's `cooked` block reaches the browser) dropped it,
+so every adjective-form taste (every Soilery crop) printed as "like acidic"
+in the Craft dialog's ingredient chips. Both are fixed now: `cookedTasteOnly`
+keeps `tasteForm` alongside `taste`, and `tasteLine` actually reads it.
 
 ## 9. `ingredientSlots`
 
@@ -301,10 +383,14 @@ Actions grid.
       ingredientSlots: { min: 1, max: 2 }
 ```
 
-A **sibling** of `requirement.items`, not a second `anyOf`. The legal set is
+A **sibling** of `requirement.items`, not another `anyOf`. The legal set is
 "any tag carrying a `cooked` block", which no authored list could keep up
-with — so `validateRequirementItems`' one-picker cap stays exactly where it
-is, still guarding the Death Mask and the Dreamer's Draught.
+with. `requirement.items`'s own `anyOf` no longer caps at one picker per
+recipe (§2a — Cooking's multi-ingredient tiers needed more), but
+`ingredientSlots` is still the separate door for "any cookable tag, not a
+named list" — the Death Mask and the Dreamer's Draught still use `anyOf`/
+`group` because they need a *specific* item or a corpse, not "anything that
+tastes of something."
 
 Refused on anything not craftable, on a `placement`, and on a **multi-turn
 project**: the mint happens on the finishing turn, days after the cook picked,

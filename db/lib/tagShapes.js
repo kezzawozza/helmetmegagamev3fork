@@ -233,10 +233,11 @@ function joinWithOr(names) {
   return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
 }
 
-// requirement.turnsCost carries the WORK one unit takes, as a decimal number of Moves in QUARTERS: 0 is free, 0.25 / 0.5 / 0.75 are shares of one Routine, 1 is the whole of it, 2+ is a multi-turn project. Quantity is limited by that arithmetic, never by a separate cap. The Dead Simple rung is 0.25 now — four a day, paid for, rather than four a day free.
+// requirement.turnsCost carries the WORK one unit takes, as a decimal number of Moves: 0 is free and — since the shared Dead Simple pool is gone (web/lib/tagRequests.js says why) — unrationed unless `perTurn` says otherwise, which is exactly why almost nothing is 0-turn any more. A share below 1 is part of one Routine, 1 is the whole of it, 2+ is a multi-turn project. Quantity is limited by that arithmetic, never by a separate cap.
 // It was a `1/N` fraction until 9/2026, stored as requirementTurns: 1 with N in requirementPerTurn as a denominator — which made that column mean two things at once and let a wound's severity be read off its cure price. Both are untangled: work is the number below, and requirementPerTurn is a ration and nothing else.
-// A quarter is the floor because the Move budget is exact rational arithmetic (web/lib/craftBudget.js — "nothing rounds"), and a cost it cannot hold exactly would let a character squeeze in work they had not paid for. 0.33 is refused for that reason, not to be awkward.
-// `perTurn:` is ONLY legal on a 0-turn recipe, where it is a RATION — a hard daily cap on a recipe that costs no Move at all; on a recipe that costs a Move it is refused. The shared Dead Simple pool that used to sit behind it is gone (web/lib/tagRequests.js says why), so a 0-turn recipe with no `perTurn` is now unrationed, which is exactly why almost nothing is 0-turn any more.
+// The legal set is closed to values the Move budget can hold EXACTLY (web/lib/craftBudget.js — "nothing rounds"): quarters plus Cooking's finer shares (0.05/0.1/0.125/0.2), every one an exact rational at a denominator craftBudget.js's arithmetic can represent without drift. 0.33 is refused for that reason, not to be awkward — it was never about quarters specifically, only about exactness, and Cooking's tiered recipes (COOKING.md) needed finer shares than a quarter admits.
+// `perTurn:` is ONLY legal on a 0-turn recipe, where it is a RATION — a hard daily cap on a recipe that costs no Move at all; on a recipe that costs a Move it is refused.
+const SUB_MOVE_COSTS = new Set([0.05, 0.1, 0.125, 0.2, 0.25, 0.5, 0.75]);
 function normalizeTurnsCost(requirement, { slug, healable = false }, label = "docs/tags.yaml") {
   const raw = requirement?.turnsCost;
   // A healable tag's turnsCost must be authored explicitly: countsAgainstHealCap (web/lib/healRequests.js) reads a MISSING turnsCost as 0, craftMoveCost (web/lib/craftBudget.js) reads it as 1 — an unauthored healable tag would silently split what the Heal dialog shows from what the server bills. validateHealableRequirement below is the same rule for the GM form's door.
@@ -256,11 +257,23 @@ function normalizeTurnsCost(requirement, { slug, healable = false }, label = "do
     throw new Error(
       `${label}: tag "${slug}" requirement.turnsCost is a fraction (${JSON.stringify(raw)}) — those are gone; write it as a decimal number of Moves (1/4 and 1/3 are both 0.25, 1/2 is 0.5)`,
     );
-  } else if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0 && Number.isInteger(raw * 4)) {
+  } else if (
+    typeof raw === "number" &&
+    Number.isFinite(raw) &&
+    raw >= 0 &&
+    // The old quarter grid (Number.isInteger(raw * 4)) still covers every
+    // whole number and every quarter-multiple ABOVE 1 (1.25, 1.5, 2.25…) —
+    // those stay legal HERE so they reach the more specific "past one Move a
+    // recipe is a project" refusal below, rather than being caught by this
+    // generic message instead. SUB_MOVE_COSTS only adds the finer shares
+    // Cooking needs (0.05/0.1/0.125/0.2), which sit below 1 and were never on
+    // the quarter grid at all.
+    (SUB_MOVE_COSTS.has(raw) || Number.isInteger(raw * 4))
+  ) {
     turns = raw;
   } else {
     throw new Error(
-      `${label}: tag "${slug}" requirement.turnsCost must be a number of Moves on a quarter — 0, 0.25, 0.5, 0.75, 1, 2… — got ${JSON.stringify(raw)}`,
+      `${label}: tag "${slug}" requirement.turnsCost must be an exact number of Moves — 0, 0.05, 0.1, 0.125, 0.2, 0.25, 0.5, 0.75, 1, 2… — got ${JSON.stringify(raw)}`,
     );
   }
   // A project is "one unit, and it takes the whole Move every turn until it is
@@ -301,6 +314,10 @@ function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameByS
   if (entries == null) return null;
   if (!Array.isArray(entries)) throw new Error(`${label}: requirement.items must be a list`);
   if (entries.length === 0) return null;
+  // Counted only across `anyOf` entries, in authored order — a recipe mixing
+  // fixed items and pickers (e.g. Broth: meat + an anyOf) still numbers its
+  // pickers from 0.
+  let pickerIndex = 0;
   return entries.map((entry) => {
     if (typeof entry === "string") {
       return { kind: "tag", slug: entry, label: tagNameBySlug?.get(entry) ?? entry, keep: false };
@@ -341,12 +358,19 @@ function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameByS
       }
       const slugs = [...entry.anyOf];
       const options = slugs.map((slug) => ({ slug, name: tagNameBySlug?.get(slug) ?? slug }));
+      const thisPickerIndex = pickerIndex;
+      pickerIndex += 1;
       return {
         kind: "anyOf",
         slugs,
         options,
         label: entry.as ?? joinWithOr(options.map((o) => o.name)),
         keep: entry.keep === true,
+        // Which picker this is, 0-based in authored order — the Craft dialog
+        // posts one choice PER picker now (`ingredientPicks[pickerIndex]`,
+        // COOKING.md §A4), stamped here rather than left to the caller to
+        // count so every reader agrees on the index.
+        pickerIndex: thisPickerIndex,
         ...countField,
       };
     }
@@ -375,7 +399,6 @@ function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameByS
 function validateRequirementItems(normalized, { selfSlug, tagSlugs, groupSlugs, craftable, placement = null, label = "docs/tags.yaml" }) {
   if (!normalized) return;
   const seen = new Set();
-  let pickers = 0;
   for (const entry of normalized) {
     const slugs = entry.kind === "anyOf" ? entry.slugs : [entry.slug];
     const known = entry.kind === "group" ? groupSlugs : tagSlugs;
@@ -387,16 +410,21 @@ function validateRequirementItems(normalized, { selfSlug, tagSlugs, groupSlugs, 
     if (entry.kind === "anyOf" && new Set(slugs).size !== slugs.length) {
       throw new Error(`${label}: tag "${selfSlug}" lists the same slug twice inside one anyOf`);
     }
-    if (entry.kind === "anyOf") pickers += 1;
-    const key = entry.kind === "anyOf" ? `anyOf:${[...slugs].sort().join("|")}` : `${entry.kind}:${entry.slug}`;
+    // Several `anyOf` pickers are legal now (Cooking's multi-ingredient
+    // recipes — COOKING.md §A4), each answered independently by
+    // `ingredientPicks[pickerIndex]`. The dedupe key includes the picker
+    // index so two IDENTICAL pickers (Fried Fish's two fish choices, Sweets'
+    // two honey/sugar choices) are legal — each pickerIndex is unique by
+    // construction, so this only ever catches a genuine duplicate among the
+    // non-anyOf entries (a plain tag or customOf named twice).
+    const key =
+      entry.kind === "anyOf"
+        ? `anyOf:${[...slugs].sort().join("|")}#${entry.pickerIndex}`
+        : `${entry.kind}:${entry.slug}`;
     if (seen.has(key)) {
       throw new Error(`${label}: tag "${selfSlug}" lists requirement item "${slugs.join("/")}" twice`);
     }
     seen.add(key);
-  }
-  // ONE picker per recipe: the Craft dialog posts a single `ingredientChoice`, so a second anyOf would have no way to be answered.
-  if (pickers > 1) {
-    throw new Error(`${label}: tag "${selfSlug}" has ${pickers} anyOf ingredients — the Craft dialog posts one choice`);
   }
   // The Craft path is the only enforcement point, so an `items` block on anything else would sit in the catalog looking enforced and do nothing.
   if (!craftable) {
@@ -748,6 +776,52 @@ function validateIngredientSlots(normalized, { selfSlug, craftable, placement = 
   }
 }
 
+// requirement.yield — how many units ONE unit of crafting this recipe actually produces (COOKING.md §A5, the doc's "Quantity Produced"). Null means 1. Multiplies onto the stack quantity a craft grants; never touches ingredient spend, the Move budget, or a per-turn ration, all of which still key off the craft's own `quantity`.
+function normalizeRequirementYield(value, { slug, label = "docs/tags.yaml" } = {}) {
+  if (value == null) return null;
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`${label}: tag "${slug}" requirement.yield must be a whole number of 1 or more`);
+  }
+  return value;
+}
+
+function validateRequirementYield(value, { selfSlug, craftable, placement = null, turnsCost = null, label = "docs/tags.yaml" }) {
+  if (value == null) return;
+  if (!craftable) {
+    throw new Error(`${label}: tag "${selfSlug}" declares requirement.yield but is not craftable — nothing would ever check it`);
+  }
+  if (placement) {
+    throw new Error(`${label}: tag "${selfSlug}" declares requirement.yield and placement — a build site makes one structure, not a stack`);
+  }
+  // A project is "one unit, and it takes the whole Move every turn until it is done" (normalizeTurnsCost's own comment) — a yield past 1 would contradict that definition.
+  if (Number.isInteger(turnsCost) && turnsCost >= 2) {
+    throw new Error(
+      `${label}: tag "${selfSlug}" declares requirement.yield on a ${turnsCost}-turn project — a project makes exactly one unit by definition`,
+    );
+  }
+}
+
+// mealTaste/mealTasteForm — the eating-side twin of mealMood/mealHunger (COOKING.md §A1/§A6): a meal recipe's own base taste, read FIRST in the taste line, before any additional ingredient's `cooked.taste`. "" is legal and means undetectable, same convention as `cooked.taste`. `mealTasteForm` is only ever "adjective" or absent, same vocabulary as `cooked.tasteForm`.
+function normalizeMealTaste(value, { slug, label = "docs/tags.yaml" } = {}) {
+  if (value == null) return null;
+  if (typeof value !== "string") {
+    throw new Error(`${label}: tag "${slug}" mealTaste must be a string — write "" if it is deliberately undetectable`);
+  }
+  if (value.trim().length > COOKED_TASTE_MAX) {
+    throw new Error(`${label}: tag "${slug}" mealTaste is ${value.trim().length} characters — keep it under ${COOKED_TASTE_MAX}, it sits mid-sentence`);
+  }
+  return value.trim();
+}
+
+function validateMealTasteForm({ mealTaste, mealTasteForm }, { selfSlug, label = "docs/tags.yaml" }) {
+  if (mealTasteForm != null && mealTasteForm !== "adjective") {
+    throw new Error(`${label}: tag "${selfSlug}" mealTasteForm must be "adjective" or omitted`);
+  }
+  if (mealTasteForm === "adjective" && mealTaste == null) {
+    throw new Error(`${label}: tag "${selfSlug}" has mealTasteForm but no mealTaste — the form has nothing to describe`);
+  }
+}
+
 // What a customizable recipe charges for the player's words, and whether it takes a description at all: `{ cost: 0, describable: false }`, legal only beside `customizable: true`. Absent `cost` means the standard surcharge (web/lib/customCraft.js); `0` is the meals.
 function normalizeCustom(custom, { slug, customizable, label = "docs/tags.yaml" }) {
   if (custom == null) return { customCost: null, customDescribable: true };
@@ -1027,4 +1101,9 @@ module.exports = {
   normalizeIngredientSlots,
   validateIngredientSlots,
   normalizeCustom,
+  SUB_MOVE_COSTS,
+  normalizeRequirementYield,
+  validateRequirementYield,
+  normalizeMealTaste,
+  validateMealTasteForm,
 };

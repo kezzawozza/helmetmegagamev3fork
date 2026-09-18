@@ -1,20 +1,26 @@
 // Mount tags: buy an extra free zone crossing (db/lib/locationTravel.js) and set
 // mount seats. Lives in db/ so both faces read one set; web/lib/tagRequests.js
-// re-exports for page gates. See DEPOT.md §3 and CARRY.md §2.
+// re-exports for page gates. See DEPOT.md §3, CARRY.md §2 and ARELITZ.md.
 // A mount only works while EQUIPPED (MOUNT slot, db/lib/equipSlots.js) and is
 // unequipped at any indoors door — helpers here take ACTIVE slugs
 // (`equippedSlugs` below), never a bare held-slug set.
-const FAST_TRAVEL_SLUGS = new Set(["horse", "motorcycle", "arelitz-warbeast", "arelitz-thoroughbred"]);
+//
+// Arelitz replaced the old Horse/Warbeast/Ovum/Thoroughbred family
+// (ARELITZ.md): one mount type instead of three bred variants, so this whole
+// module collapses from per-variant branches to one `arelitz` slug.
+// `unruly-arelitz` appears in NONE of the sets below — not being equippable
+// is the entire "cannot be ridden" enforcement, so it needs no special case
+// here at all.
+const FAST_TRAVEL_SLUGS = new Set(["arelitz", "motorcycle"]);
 
-// Horseshoes buy the plain Horse one more crossing — not the Thoroughbred/
-// Warbeast (already fast, no shoe) and not the Motorcycle (no hooves).
+// Tags that stop working once unequipped. Fishing Boat (and the whole
+// water-travel/BOAT_CONFLICT concept it needed) is gone with the rest of
+// Laboring's Fishing kind — upstream's own removal, confirmed no consumer
+// anywhere in the tree references it any more.
+const STOWABLE_SLUGS = new Set([...FAST_TRAVEL_SLUGS, "cart"]);
 
-// Tags that stop working once unequipped. The Ovum earns no free move (it
-// hates moving, so it's not in FAST_TRAVEL_SLUGS) but still needs parking at
-// an indoors door, so it's added here by hand.
-const STOWABLE_SLUGS = new Set([...FAST_TRAVEL_SLUGS, "cart", "arelitz-ovum"]);
-
-const HORSESHOE_SLUG = "horseshoes";
+// Renamed from "horseshoes" — an arachnid does not wear shoes.
+const ARELITZ_TACK_SLUG = "arelitz-tack";
 
 // Slugs a character currently has in play: held, minus any stowable not equipped.
 function equippedSlugs(characterTags = []) {
@@ -28,23 +34,19 @@ function equippedSlugs(characterTags = []) {
   return active;
 }
 
-// Seats a mount carries, rider included. Horse seats 2 (6 with Cart), Warbeast
-// 4 (6 with Cart). Motorcycle is checked before Horse so the Cart upgrade can
-// never reach it — a hand-cart towed behind a bike isn't a thing. Whichever
-// mount is out decides the arithmetic when more than one is held.
+// Seats a mount carries, rider included. An arelitz seats 2 (6 with Cart).
+// Motorcycle is checked before Arelitz so the Cart upgrade can never reach
+// it — a hand-cart towed behind a bike isn't a thing.
 function fastTravelCapacity(activeSlugs) {
-  if (activeSlugs.has("arelitz-warbeast")) return activeSlugs.has("cart") ? 6 : 4;
-  if (activeSlugs.has("arelitz-thoroughbred")) return activeSlugs.has("cart") ? 6 : 2;
-  if (activeSlugs.has("horse")) return activeSlugs.has("cart") ? 6 : 2;
   if (activeSlugs.has("motorcycle")) return 2;
+  if (activeSlugs.has("arelitz")) return activeSlugs.has("cart") ? 6 : 2;
   return 0;
 }
 
-// Extra zone crossings a fast-travel mount buys. Every slug is worth 1 except
-// the Thoroughbred (2). Horseshoes add one more, only under a plain Horse.
+// Extra zone crossings a fast-travel mount buys. An arelitz is worth 1, 2
+// with Arelitz Tack.
 function fastTravelBonus(activeSlugs) {
-  if (activeSlugs.has("arelitz-thoroughbred")) return 2;
-  if (activeSlugs.has("horse")) return activeSlugs.has(HORSESHOE_SLUG) ? 2 : 1;
+  if (activeSlugs.has("arelitz")) return activeSlugs.has(ARELITZ_TACK_SLUG) ? 2 : 1;
   return isMounted(activeSlugs) ? 1 : 0;
 }
 

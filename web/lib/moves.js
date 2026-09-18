@@ -47,6 +47,16 @@ function isAutoFarm(gmNotes) {
   return typeof gmNotes === "string" && gmNotes.includes(AUTO_FARM);
 }
 
+// A break-in Gambit (db/lib/arelitz.js, web/app/(app)/character/actions/arelitz.js):
+// the die and modifier are rolled at filing, same as a Heal Gambit, but resolves
+// automatically at push (db/lib/moveEffects.js's `brokeIn` entry) rather than
+// waiting on a GM — see ARELITZ.md §6 for why.
+const AUTO_BREAK_ARELITZ = "auto:break_arelitz";
+
+function isAutoBreakArelitz(gmNotes) {
+  return typeof gmNotes === "string" && gmNotes.includes(AUTO_BREAK_ARELITZ);
+}
+
 // A lesson's learner-side Gambit (db/lib/lessons.js). A lesson is settled the moment it
 // is accepted now, so its row arrives already PASSED and there is nothing to solve.
 // The label still matters for the ones filed BEFORE that shipped: those sit OPEN with a
@@ -78,6 +88,7 @@ export function moveKindLabel(moveKind, gmNotes) {
   if (isAutoRefine(gmNotes)) return "Refining";
   if (isAutoLesson(gmNotes)) return "Lesson (auto)";
   if (isAutoFarm(gmNotes)) return "Farming";
+  if (isAutoBreakArelitz(gmNotes)) return "Breaking in an arelitz";
   return MOVE_KIND_LABELS[moveKind] ?? "Move";
 }
 

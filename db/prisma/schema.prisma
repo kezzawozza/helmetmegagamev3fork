@@ -596,6 +596,19 @@ model GameConfig {
   // (db/lib/soilery.js#validatePlan, FARM_MAX_CROPS is the fallback
   // default). Edited on /gm/dev. See SOILERY.md.
   farmMaxCrops Int @default(50)
+
+  // The most arelitz (adults + unruly + brood, all three growth rungs) one
+  // `stable: true` Room may hold before db/lib/stablePass.js evicts the
+  // excess to stableOverflowRoomSlug below. STABLE_CAPACITY is the fallback
+  // default. Edited on /gm/dev. See ARELITZ.md.
+  stableCapacity Int @default(10)
+
+  // Where an overflowing stable's excess arelitz/brood are relocated to —
+  // "the streets/field" in the design doc. A Room slug rather than a second
+  // Location attribute, so a GM can retarget it with no deploy. A missing or
+  // unresolvable slug makes db/lib/stablePass.js skip the eviction and log,
+  // rather than delete anything. See ARELITZ.md.
+  stableOverflowRoomSlug String @default("farms-fields")
 }
 
 /// Where a game is in its life. The turn cron and the force-advance button
@@ -1484,6 +1497,13 @@ model Room {
   // so soundproofAt's query threw, its catch swallowed the error, and every
   // soundproof room quietly stopped being one.
   soundproof Boolean @default(false)
+
+  // Arelitz are kept here. Set from `stable: true` in docs/zones.yaml.
+  // db/lib/stablePass.js resolves "the stable floor" as every Room carrying
+  // this flag, generically — never a hardcoded Room id — so moving the
+  // Stable to a different Room later (e.g. when the Soilery Location gets
+  // its own rework) is a YAML edit, not a code change. See ARELITZ.md.
+  stable Boolean @default(false)
 
   // A key from the registry in db/lib/roomLive.js, set from `live:` in
   // docs/zones.yaml. The room's starter message carries one extra line read
@@ -3178,6 +3198,27 @@ model Tag {
   // docs/systemdocs/COOKING.md §3.
   mealHunger Int?
 
+  // A meal recipe's own base taste, read first in the taste line (before any
+  // additional ingredient's `cooked.taste`) — the eating-side twin of
+  // mealMood/mealHunger above. "" is legal and means undetectable, same
+  // convention as `cooked.taste`. Copied onto the minted dish row by
+  // db/lib/customCraftMint.js. See docs/systemdocs/COOKING.md §3/§8.
+  mealTaste String?
+
+  // Only ever "adjective" or absent — same vocabulary as `cooked.tasteForm`.
+  // Renders mealTaste bare ("it tastes bland") instead of as a noun ("it
+  // tastes like bland"). Copied onto the minted dish row alongside mealTaste.
+  mealTasteForm String?
+
+  // How many units ONE unit of crafting this recipe actually produces —
+  // authored as `requirement.yield`, null means 1. Multiplies onto the
+  // stack quantity `grantCrafted` writes; never touches ingredient spend,
+  // the Move budget, or a per-turn ration, which all still key off the
+  // craft's own `quantity`. Refused on a `placement:` recipe, a
+  // non-craftable, or a multi-turn project (requirementTurns >= 2), which by
+  // definition makes exactly one unit. See docs/systemdocs/COOKING.md §5.
+  requirementYield Int?
+
   // How many ingredients this recipe takes: `{ min, max }`, authored as
   // `requirement.ingredientSlots`. A sibling of requirementItems below rather
   // than a second `anyOf` entry — the legal set is "any tag with a `cooked`
@@ -3872,6 +3913,14 @@ model Action {
   // entry (db/lib/moveEffects.js), same as appliedEffects staying null until
   // then. Null on every Action that is not a farm.
   farmPlan Json?
+
+  // Which unruly arelitz a break-in Gambit targets, committed at filing:
+  // { v, kind: "room"|"character", roomId|characterId, tagId, tagName }.
+  // The die and modifier are rolled at filing (see db/lib/gambitDie.js), but
+  // the actual tag swap resolves at turn push via the "brokeIn" MOVE_EFFECTS
+  // entry (db/lib/moveEffects.js), same deferred shape as farmPlan above.
+  // Null on every Action that is not a break-in attempt.
+  breakInPlan Json?
 
   // The Result box — the GM-facing canon of what happened, never auto-sent
   // (players are told through StagedMessages at the push; ADJUDICATION.md).

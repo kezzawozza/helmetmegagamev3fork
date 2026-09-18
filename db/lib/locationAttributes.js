@@ -66,7 +66,7 @@ const ATTRIBUTES = {
   // Splits the roof question (`indoors`) from the wheels one. Means nothing outdoors.
   wheels: {
     type: "boolean",
-    describe: () => "**Wheels**: you can bring a cart or a horse in here.",
+    describe: () => "**Wheels**: you can bring a cart or an arelitz in here.",
   },
 
   // A public board to pin a paper to. What Noticeboard matches on. See docs/systemdocs/PAPERWORK.md.
@@ -104,10 +104,10 @@ function parksMounts(location) {
 // Location no longer parks anything at the door.
 function placementLine(location) {
   if (hasAttribute(location, WHEELS_ATTRIBUTE)) return null;
-  if (!location?.indoors) return "**Outdoors**: you can use your horse or cart here.";
+  if (!location?.indoors) return "**Outdoors**: you can use your arelitz or cart here.";
   return parksMounts(location)
-    ? "**Indoors**: you can't equip a cart or horse here."
-    : "**Indoors**: you can still bring a horse or cart in here.";
+    ? "**Indoors**: you can't equip a cart or arelitz here."
+    : "**Indoors**: you can still bring an arelitz or cart in here.";
 }
 
 // Says the STATE, not the verb — buttons say what a click DOES, Examine says what IS TRUE.

@@ -72,6 +72,16 @@ const FIELDS = [
     label: "Farm sow cap",
     info: "Most crops one Farm action may sow in a single plan",
   },
+  {
+    key: "stableCapacity", type: "int", group: "economy", default: 10, min: 1, max: 200,
+    label: "Stable capacity",
+    info: "Most arelitz (adults, unruly, and brood) one Stable room may hold before the excess is evicted",
+  },
+  {
+    key: "stableOverflowRoomSlug", type: "string", group: "economy", default: "farms-fields",
+    label: "Stable overflow room",
+    info: "Room slug an overflowing Stable evicts its excess arelitz to. A missing or unresolvable slug skips the eviction rather than deleting anything.",
+  },
 
   // --- Carrying --------------------------------------------------------------
   {
@@ -234,6 +244,7 @@ function parseField(field, raw, current) {
   }
   const text = raw == null ? "" : String(raw).trim();
   if (text === "") return current ?? field.default;
+  if (field.type === "string") return text;
   const n = field.type === "float" ? Number.parseFloat(text) : Number.parseInt(text, 10);
   if (Number.isNaN(n)) return current ?? field.default;
   const lo = field.min ?? -Infinity;

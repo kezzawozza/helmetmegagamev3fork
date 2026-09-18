@@ -91,7 +91,7 @@
 #                     item is a thing, and a thing can change hands, so the
 #                     sync derives it the way it derives `removable` and THROWS
 #                     on the line either way round. Assets DO write it, and
-#                     must: they are genuinely split, since a horse, a cart, a
+#                     must: they are genuinely split, since an arelitz, a cart, a
 #                     plow and a dog change hands while a forge, a palisade and
 #                     a gallows do not. Everything else is untradeable and says
 #                     nothing. A runtime mint is not bound by this — a Disguise
@@ -1889,7 +1889,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Scripted: can't equip a horse or motorcycle; dragged
+  # Scripted: can't equip an arelitz, motorcycle or fishing boat; dragged
   # across a zone by a mounted mover you end up {tag:vomiting}.
   # web/app/(app)/character/equipActions.js, db/lib/locationTravel.js.
   motion-sickness:
@@ -1897,7 +1897,7 @@ tags:
     name: Motion Sickness
     category: general
     group: general-personality
-    description: "You are unpleasantly affected by certain movements. You can't use horses or boats."
+    description: "You are unpleasantly affected by certain movements. You can't use arelitz or boats."
     pointCost: -4
     visible: false
     purchasable: true
@@ -3663,6 +3663,23 @@ tags:
     category: status
     group: status-buffs
     description: "Crudox Cruo! You can cast rites."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+
+  # The Fertilizer's effect half (SOILERY.md's Addendum). Its old +8 ⬢
+  # laborBonus is gone with the rest of Laboring (upstream's "Strip Laboring"
+  # pass) — nothing here replaces it, since the mechanic it boosted no
+  # longer exists. What survives is the crop-yield half, unrelated to
+  # Laboring: db/lib/soilery.js#reap reads this tag directly.
+  fertilized-fields:
+    catalog: gm
+    name: Fertilized Fields
+    category: status
+    group: status-buffs
+    description: "Your fields are richly fed. Nothing withers when you sow, and one crop in six comes up double."
     pointCost: 0
     visible: false
     purchasable: false
@@ -5537,144 +5554,109 @@ tags:
   # vehicles and ordinary animals travel: they are standing right there and
   # anyone can lead them away. Real property does not — you cannot carry a boat
   # off a corpse.
-  horse:
+  # Arelitz (docs/systemdocs/ARELITZ.md): replaces the old Horse +
+  # Warbeast/Ovum/Thoroughbred family. One mount type rather than three bred
+  # variants (Bascinet's call) — an adult is `unruly-arelitz` by default, and
+  # `arelitz-mastery` lets someone break one in via a Gambit
+  # (ARELITZ.md §6). Bred only, in a Stable room (`Room.stable`) — neither
+  # this tag nor any of the brood rungs below is craftable; db/lib/stablePass.js
+  # is the only thing that mints one.
+  arelitz:
     catalog: all
-    name: Horse
+    name: Arelitz
     category: assets
     group: assets-companions
-    description: "A horse rideable by up to 2 people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others. Cannot be used in the Caves. Consumes 1 ⬢ per turn."
+    description: "A broken-in arelitz, rideable by up to 2 people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others. Cannot be used in the Caves. No food upkeep — it feeds itself in the stable."
     pointCost: 9
     tradeable: true
     stackable: true
     equippable: true
     equipSlot: MOUNT
     equipLayer: 1
-    purchasable: true
-    visible: true
+    purchasable: false
     purchasableAfterStart: false
-    # The Merchant is the only mid-game source, so the price is meant to hurt:
-    # a free zone move every turn is the strongest thing on the assets shelf.
-    depotPrice: 100
+    visible: true
+    depotPrice: 81
     sellable: true
-    sellablePrice: 60
-    craftable: true
-    # Reproduction. Keeps the mare — `keep: true` — and spends a Lavish Meal
-    # instead of ⬢: a Lavish Meal always needs a real errand (tea/sweets/honey/
-    # fish roe, three of them Depot imports), which is the actual throttle on
-    # breeding a line of horses out of nothing. `customOf:` reaches a Lavish
-    # Meal because a cooked one never keeps the `lavish-meal` slug — it mints
-    # fresh every time (COOKING.md) — see db/lib/tagShapes.js.
-    requirement:
-      turnsCost: 1
-      resourceCost: 4
-      gambit: false
-      items:
-        - tag: horse
-          keep: true
-        - customOf: lavish-meal
-      skills: [arelitz-breeding]
+    sellablePrice: 54
 
-  # The gate on the whole family below, added 2026-09-11 — none of these four
-  # recipes carried a skill requirement at all before this, so anyone holding
-  # a horse and the ingredients could breed any of them. Mastery (Bascinet's
-  # call): nobody starts the game able to breed one, same posture as
-  # Smithing (Gunpowder).
-  #
-  # `catalog: gm` (not `all`) so the four recipes above actually stay
-  # secret rather than just gated: `redactWithheldRecipes` /
-  # `recipeFields` / `clientTagCatalog` only redact a recipe when its
-  # OWN gating skill is non-`ALL` catalog (CRAFTING.md §2b) — the same
-  # lever `forger` uses for wax seals. Holding a horse or a graga sac
-  # never reveals it; the skill check answers first. The Arelitz mounts
-  # themselves stay `catalog: all` — a bred one is still a known,
-  # tradeable object, only the method is secret. Purchasing the skill is
-  # unaffected: `loadPointBuyCatalog` gates on `purchasable`, never on
-  # `catalogVisibility`.
-  # Not teachable, like every other mastery except Smithing (Gunpowder):
-  # a 15-point capstone must not be had for the price of one Lesson Move.
-  # The secret is the method, and the method is not a lesson.
-  arelitz-breeding:
-    catalog: gm
-    name: Arelitz Breeding
+  # Identical to a broken-in arelitz except not equippable — that omission IS
+  # "cannot be ridden", the whole enforcement (mounts.js only ever reads the
+  # ACTIVE/equipped slug set, so a tag that can't equip can't be a mount).
+  # Still counts as an adult for the stable's feed-and-lay pass.
+  unruly-arelitz:
+    catalog: all
+    name: Unruly Arelitz
+    category: assets
+    group: assets-companions
+    description: "An adult arelitz nobody has broken in. It eats, it lays, it pulls a plow if you hold it — but nobody rides it until it's tamed."
+    pointCost: 6
+    tradeable: true
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 40
+
+  arelitz-hatchling:
+    catalog: all
+    name: Arelitz Hatchling
+    category: assets
+    group: assets-companions
+    description: "A newly-hatched arelitz, barely out of the egg. It will grow if it's left where it hatched."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 5
+
+  arelitz-youngling:
+    catalog: all
+    name: Arelitz Youngling
+    category: assets
+    group: assets-companions
+    description: "A young arelitz, past hatching but still growing."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 5
+
+  arelitz-yearling:
+    catalog: all
+    name: Arelitz Yearling
+    category: assets
+    group: assets-companions
+    description: "An almost-grown arelitz, one turn from maturity."
+    pointCost: 0
+    tradeable: true
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 5
+
+  # Breaking in an unruly arelitz (ARELITZ.md §6) — a fresh skill rather than
+  # a repurposed arelitz-breeding: that tag's whole reason for existing was
+  # gating the four craft recipes above, and all four are gone.
+  arelitz-mastery:
+    catalog: all
+    name: Arelitz Mastery
     category: skills
     teachable: false
-    description: "You are a master of the ancient art of breeding Arelitz, horse-hybrids that have various effects, including the {tag:arelitz-ovum} and {tag:arelitz-warbeast}"
+    description: "You know how to break an unruly arelitz in. It's still a Gambit — the beast gets a say."
     pointCost: 15
     mastery: true
     purchasable: true
     purchasableAfterStart: true
-
-  # --- Arelitz — horse-hybrids bred with a graga sac, fish roe or plain ⬢.
-  # Each recipe spends the horse; only Reproduction (above) keeps it.
-  arelitz-warbeast:
-    catalog: all
-    name: Arelitz (Warbeast)
-    category: assets
-    group: assets-companions
-    description: "A terrifying, arachnid behemoth that tramples men with ease. It is only barely hurt by typical weapons. Consumes 1 ⬢ per turn."
-    pointCost: 0
-    tradeable: true
-    equippable: true
-    equipSlot: MOUNT
-    equipLayer: 1
-    purchasable: false
-    purchasableAfterStart: false
-    visible: true
-    sellable: true
-    sellablePrice: 80
-    craftable: true
-    requirement:
-      turnsCost: 1
-      gambit: false
-      items: [horse, graga-sac]
-      skills: [arelitz-breeding]
-
-  arelitz-ovum:
-    catalog: all
-    name: Arelitz (Ovum)
-    category: assets
-    group: assets-companions
-    description: "A bloated Arelitz. It hates moving. It produces the valuable Arelitz egg. Does not allow fast travel. Consumes 1 ⬢ per turn."
-    pointCost: 0
-    tradeable: true
-    equippable: true
-    equipSlot: MOUNT
-    equipLayer: 1
-    purchasable: false
-    purchasableAfterStart: false
-    visible: true
-    sellable: true
-    sellablePrice: 60
-    craftable: true
-    requirement:
-      turnsCost: 1
-      gambit: false
-      items: [horse, fish-roe]
-      skills: [arelitz-breeding]
-
-  arelitz-thoroughbred:
-    catalog: all
-    name: Arelitz (Thoroughbred)
-    category: assets
-    group: assets-companions
-    description: "A healthy and upright arachnid, capable of galloping easily. It has an extra zone move compared to a regular horse. Consumes 1 ⬢ per turn."
-    pointCost: 0
-    tradeable: true
-    equippable: true
-    equipSlot: MOUNT
-    equipLayer: 1
-    purchasable: false
-    purchasableAfterStart: false
-    visible: true
-    sellable: true
-    sellablePrice: 70
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 10
-      gambit: false
-      items: [horse]
-      skills: [arelitz-breeding]
 
   arelitz-egg:
     catalog: all
@@ -5695,7 +5677,9 @@ tags:
     sellablePrice: 10
     cooked:
       taste: "eggs"
-      mood: 30
+      # Was 30; the design doc's Foodstuffs table gives Arelitz Egg +10 —
+      # corrected to match it (the ask was to reflect the docx's values).
+      mood: 10
       hunger: 12
 
   bird:
@@ -5739,7 +5723,7 @@ tags:
     name: Cart
     category: assets
     group: assets-property
-    description: "A standard hand-cart to better move items. Upgrades personal carrying capacity while equipped and improves the {tag:horse}, letting it carry up to 6 people total. {carry:cart}."
+    description: "A standard hand-cart to better move items. Upgrades personal carrying capacity while equipped and improves the {tag:arelitz}, letting it carry up to 6 people total. {carry:cart}."
     pointCost: 5
     visible: true
     tradeable: true
@@ -7070,6 +7054,27 @@ tags:
       taste: "leeches"
       mood: -10
 
+  # Bought from the Depot rather than made: nothing in Ravenheart produces it,
+  # which is what puts it on the shelf at all (TAGS.md §5, `depotPrice`). It is
+  # deliberately NOT `sellable` — a sell price under the buy price is a loop
+  # that prints ⬢, and there is no honest sell price above 5 for a thing worth
+  # a farm's whole harvest not withering.
+  fertilizer:
+    catalog: all
+    name: Fertilizer
+    category: items
+    group: items-gear
+    description: "Synthetic liquid that can be consumed to gain {tag:fertilized-fields} — nothing withers on your next sowing, and one crop in six comes up double."
+    pointCost: 2
+    depotPrice: 4
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [fertilized-fields]
+
   # A lute, a fiddle, a set of pipes — the player decides which. Off the point
   # scale at 1 (TAGS.md §4a): the tag buys no mechanical advantage, only the
   # instrument half of /play (anyone can sing without one), and the Minstrel
@@ -8009,7 +8014,7 @@ tags:
       - tea
       - coffee
       - sake
-      - sweets
+      - sugar-candy
 
   # A crate sitting in the Merchant's Cargo Bay. The Depot's real crates are
   # runtime Tag rows minted per shuttle (docs/systemdocs/DEPOT.md §5), which a
@@ -8044,14 +8049,14 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
-    description: "Live carrying out messages for the Baron and telling the day's news. Gives a {tag:horse}, a {tag:trumpet}, a {tag:bird} and four sheets of {tag:paper}."
+    description: "Live carrying out messages for the Baron and telling the day's news. Gives an {tag:arelitz}, a {tag:trumpet}, a {tag:bird} and four sheets of {tag:paper}."
     pointCost: 7
     weight: 2
     purchasable: true
     purchasableAfterStart: false
     consumable: true
     consumesInto:
-      - horse
+      - arelitz
       - trumpet
       - bird
       - paper
@@ -9481,12 +9486,14 @@ tags:
   # The mechanical half lives in `db/lib/mounts.js#fastTravelBonus`: equipped
   # alongside a plain Horse, it turns that horse's one free zone crossing into
   # two (docs/systemdocs/CARRY.md §3).
-  horseshoes:
+  # Renamed from "horseshoes" — an arachnid does not wear shoes, and horses
+  # are gone (ARELITZ.md).
+  arelitz-tack:
     catalog: all
-    name: Horseshoes
+    name: Arelitz Tack
     category: items
     group: items-gear
-    description: "Increases the speed of your horse, giving it +1 free zone move."
+    description: "Increases the speed of your arelitz, giving it +1 free zone move."
     pointCost: 7
     equippable: true
     equipSlot: ACCESSORY
@@ -10990,7 +10997,7 @@ tags:
     group: items-food
     description: "Rock salt. You could cook with it."
     pointCost: 0
-    depotPrice: 1
+    depotPrice: 2
     weight: 0.5
     stackable: true
     visible: false
@@ -11071,90 +11078,1016 @@ tags:
     sellable: true
     sellablePrice: 1
 
-  fine-meal:
+  # Basic, Skilled and Skilled Lavish Cooking (docs/systemdocs/COOKING.md
+  # §A1-A9): replaces the old Fine Meal / Lavish Meal pair. Each recipe has
+  # FIXED base ingredients (consumed automatically, gating what the recipe
+  # even is) plus a slot layer for player-chosen additional ingredients —
+  # what the cooked dish actually carries on eating (mealTaste/mealMood/
+  # mealHunger are the recipe's own small base figure, read FIRST in the
+  # taste line; the additional ingredients' cooked.taste/mood/hunger are
+  # summed on top, same mechanism COOKING.md §6-7 already had).
+  #
+  # Common shape across all 19+6+10: catalog: all, category: items, group:
+  # items-food, craftable + customizable (naming is free, no description —
+  # matches fine-meal's old posture), weight 0.5 (every foodstuff, cooked or
+  # raw, is 0.5 lb per the design doc), consumesInto [ate-meal, dined] (both
+  # meals this replaces already granted dined regardless of tier, so every
+  # rung here does too — Trail Ration and Honeyed Cakes below stay the two
+  # exceptions that don't), ingredientSlots 0-4 (INGREDIENT_SLOTS_MAX, the
+  # dialog's own ceiling — the design doc names no cap), and no resourceCost:
+  # the base ingredients are the price, not ⬢.
+  bread:
     catalog: all
-    name: Fine Meal
+    name: Bread
     category: items
     group: items-food
-    description: "An honest, well-made meal."
+    description: "Two sheaves of wheat, baked down to something you can actually eat."
     pointCost: 0
-    weight: 2
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    # Naming your own work is free now (COOKING.md), and a Fine Meal takes a
-    # NAME only — the Lavish is the one that gets its own words.
     custom: { cost: 0, describable: false }
-    # Was a flat 15 in db/lib/mood.js. The ingredient does the work now.
-    mealMood: 5
-    # A cooked plate beats its raw ingredients (db/lib/hunger.js#foodHungerFor
-    # sums this with each ingredient's own cooked.hunger) — SOILERY.md §6.
-    mealHunger: 12
+    mealMood: 3
+    mealHunger: 30
+    mealTaste: ""
     consumable: true
-    consumesInto:
-      - ate-meal
-      - dined
+    consumesInto: [ate-meal, dined]
     requirement:
-      # Written out for the reason Bliss's was: an absent turnsCost read as 1
-      # by accident, and this recipe's own paper says "up to 4 Fine meals in
-      # one Routine Move" — which is a 1-turn batch, now enforced.
-      turnsCost: 0.25
-      resourceCost: 2
+      turnsCost: 0.05
       skills: [cooking-basic]
       gambit: false
-      # Optional, unlike the Lavish. A Fine Meal is an honest plate of food
-      # with or without something good in it.
-      ingredientSlots: { min: 0, max: 1 }
-  lavish-meal:
+      items: [{ tag: wheat, count: 2 }]
+      ingredientSlots: { min: 0, max: 4 }
+  potato-bread:
     catalog: all
-    name: Lavish Meal
+    name: Potato Bread
     category: items
     group: items-food
-    description: "A worthy meal made with a special ingredient."
+    description: "A denser loaf, half wheat and half potato."
     pointCost: 0
-    weight: 3
+    weight: 0.5
     stackable: true
     visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    # Free words, and the Lavish is the one recipe that takes a DESCRIPTION —
-    # the dish a cook writes their own line for (COOKING.md).
-    custom: { cost: 0, describable: true }
-    # Was a flat 30 in db/lib/mood.js, which was the single largest relief in
-    # the game and left the ingredient nothing to say. See MOOD.md §6.
-    mealMood: 8
-    # See fine-meal's mealHunger comment above — the Lavish rung is worth more.
-    mealHunger: 18
+    custom: { cost: 0, describable: false }
+    mealMood: 5
+    mealHunger: 30
+    mealTaste: "earthy"
+    mealTasteForm: "adjective"
     consumable: true
-    consumesInto:
-      - ate-meal
-      - dined
+    consumesInto: [ate-meal, dined]
     requirement:
-      # Written out rather than left to the `?? 1` fallback — an absent
-      # turnsCost is how Bliss quietly cost a Move it wasn't meant to.
-      turnsCost: 0.25
-      resourceCost: 3
-      # Its own copy has always said "up to 3 per Routine"; now the catalog
-      # says it too.
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [wheat, potato]
+      ingredientSlots: { min: 0, max: 4 }
+  pasta:
+    catalog: all
+    name: Pasta
+    category: items
+    group: items-food
+    description: "Wheat worked with tomato into something worth a fork."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 7
+    mealHunger: 30
+    mealTaste: "acidic"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [wheat, tomato]
+      ingredientSlots: { min: 0, max: 4 }
+  baked-potato:
+    catalog: all
+    name: Baked Potato
+    category: items
+    group: items-food
+    description: "Two potatoes, baked through."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 3
+    mealHunger: 30
+    mealTaste: "earthy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [{ tag: potato, count: 2 }]
+      ingredientSlots: { min: 0, max: 4 }
+  red-mash:
+    catalog: all
+    name: Red Mash
+    category: items
+    group: items-food
+    description: "Potato mashed through with tomato."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 5
+    mealHunger: 30
+    mealTaste: "acidic"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [potato, tomato]
+      ingredientSlots: { min: 0, max: 4 }
+  vegetable-stew:
+    catalog: all
+    name: Vegetable Stew
+    category: items
+    group: items-food
+    description: "Whatever the field gave up today, boiled down together."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 5
+    mealHunger: 30
+    mealTaste: "earthy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      # Two independent pickers (Potato-or-Carrot, then Carrot-or-Onion) — the
+      # closest fit to the design doc's "Potato + (Carrot/Onion), Carrot +
+      # Onion" against the existing one-picker-per-anyOf schema. It legalizes
+      # one combination the doc doesn't literally name (Carrot + Carrot,
+      # which merges to one stack of 2 — CRAFTING.md's multi-picker merge),
+      # which is harmless and keeps this ONE recipe row rather than two.
+      items:
+        - { anyOf: [potato, carrot] }
+        - { anyOf: [carrot, onion] }
+      ingredientSlots: { min: 0, max: 4 }
+  ratato:
+    catalog: all
+    name: Ratato
+    category: items
+    group: items-food
+    description: "Potato and whatever the traps caught."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 7
+    mealHunger: 30
+    mealTaste: "meaty"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [potato, dead-rat]
+      ingredientSlots: { min: 0, max: 4 }
+  tomato-soup:
+    catalog: all
+    name: Tomato Soup
+    category: items
+    group: items-food
+    description: "Tomatoes, cooked down to a soup."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 4
+    mealHunger: 30
+    mealTaste: "acidic"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [{ tag: tomato, count: 2 }]
+      ingredientSlots: { min: 0, max: 4 }
+  fried-onion:
+    catalog: all
+    name: Fried Onion
+    category: items
+    group: items-food
+    description: "Onion, fried down to something sweeter than it started."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 3
+    mealHunger: 30
+    mealTaste: "acrid"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [{ tag: onion, count: 2 }]
+      ingredientSlots: { min: 0, max: 4 }
+  broth:
+    catalog: all
+    name: Broth
+    category: items
+    group: items-food
+    description: "Meat, boiled down with whatever root vegetable is on hand."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 8
+    mealHunger: 42
+    mealTaste: "salty"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items:
+        - meat
+        - { anyOf: [potato, onion, carrot, plump-helmet] }
+      ingredientSlots: { min: 0, max: 4 }
+  fried-meat:
+    catalog: all
+    name: Fried Meat
+    category: items
+    group: items-food
+    description: "Meat, fried plain."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 6
+    mealHunger: 30
+    mealTaste: "meaty"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [{ tag: meat, count: 2 }]
+      ingredientSlots: { min: 0, max: 4 }
+  fried-rat:
+    catalog: all
+    name: Fried Rat
+    category: items
+    group: items-food
+    description: "Dead rat, fried down until it's actually appetizing."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 2
+    mealHunger: 24
+    mealTaste: "meaty"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [{ tag: dead-rat, count: 2 }]
+      ingredientSlots: { min: 0, max: 4 }
+  fried-mushroom:
+    catalog: all
+    name: Fried Mushroom
+    category: items
+    group: items-food
+    description: "Plump Helmet, fried down to a mushroom's version of Fried Onion."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 2
+    mealHunger: 24
+    mealTaste: "earthy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [{ tag: plump-helmet, count: 2 }]
+      ingredientSlots: { min: 0, max: 4 }
+  poached-rat:
+    catalog: all
+    name: Poached Rat
+    category: items
+    group: items-food
+    description: "Dead rat, poached in arelitz egg."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 5
+    mealHunger: 40
+    mealTaste: "salty"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [dead-rat, arelitz-egg]
+      ingredientSlots: { min: 0, max: 4 }
+  fish-stew:
+    catalog: all
+    name: Fish Stew
+    category: items
+    group: items-food
+    description: "Whatever's biting, boiled down with a root vegetable."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 8
+    mealHunger: 42
+    mealTaste: "fishy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items:
+        - { anyOf: [eel, haggar, tunnel-trout] }
+        - { anyOf: [potato, carrot, onion, plump-helmet] }
+      ingredientSlots: { min: 0, max: 4 }
+  fried-fish:
+    catalog: all
+    name: Fried Fish
+    category: items
+    group: items-food
+    description: "Two catches, fried plain."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 6
+    mealHunger: 30
+    mealTaste: "fishy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      # The SAME picker twice — two independent choices of Eel/Haggar/Tunnel
+      # Trout, so "two eels" and "an eel and a haggar" are both legal.
+      items:
+        - { anyOf: [eel, haggar, tunnel-trout] }
+        - { anyOf: [eel, haggar, tunnel-trout] }
+      ingredientSlots: { min: 0, max: 4 }
+  omelette:
+    catalog: all
+    name: Omelette
+    category: items
+    group: items-food
+    description: "Two arelitz eggs, worked into an omelette."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 8
+    mealHunger: 36
+    mealTaste: "creamy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [{ tag: arelitz-egg, count: 2 }]
+      ingredientSlots: { min: 0, max: 4 }
+  sausage:
+    catalog: all
+    name: Sausage
+    category: items
+    group: items-food
+    description: "Meat packed with rendered fat."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 8
+    mealHunger: 30
+    mealTaste: "meaty"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [meat, rendered-fat]
+      ingredientSlots: { min: 0, max: 4 }
+  salo:
+    catalog: all
+    name: Salo
+    category: items
+    group: items-food
+    description: "Rendered fat, cured with rock salt."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 10
+    mealHunger: 24
+    mealTaste: "salty"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.05
+      skills: [cooking-basic]
+      gambit: false
+      items: [rendered-fat, rock-salt]
+      ingredientSlots: { min: 0, max: 4 }
+
+  # Skilled Cooking Meals — gated on cooking-skilled (which carries
+  # parentTag: cooking-basic, so a skilled cook can still make everything
+  # above). Several of these use Bread as a base ingredient via `customOf:`,
+  # not `tag:` — a plain tag reference can't see a minted custom-craft row,
+  # and Bread always mints one the moment it's customized or carries an
+  # additional ingredient (COOKING.md §2).
+  hash-brown:
+    catalog: all
+    name: Hash Brown
+    category: items
+    group: items-food
+    description: "Bread worked through with potato and fried."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 10
+    mealHunger: 20
+    mealTaste: "earthy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.1
       skills: [cooking-skilled]
       gambit: false
-      # Was `items: [anyOf: [tea, sweets, honey, fish-roe]]` — four slugs, one
-      # slot, and a hardcoded list that every new delicacy had to be added to
-      # by hand. Now it is slots: at least one of ANYTHING carrying a `cooked`
-      # block, and room for two.
-      #
-      # The Honey discovery survives the change and gets better. It used to
-      # live in the RECIPE — the Recipes tab narrowed the anyOf to "Tea,
-      # Sweets or Fish Roe" until a cook held a jar. Now the recipe names
-      # nothing at all, and the secret lives in the chip list instead: Honey
-      # only appears as something you can slot if you are holding one. Same
-      # discovery, one less place to maintain it.
-      ingredientSlots: { min: 1, max: 2 }
+      items: [{ customOf: bread }, potato]
+      ingredientSlots: { min: 0, max: 4 }
+      # "Quantity Produced" (COOKING.md §5): one cook mints two.
+      yield: 2
+  egg-in-the-hole:
+    catalog: all
+    name: Egg in the Hole
+    category: items
+    group: items-food
+    description: "Bread with an arelitz egg fried into the middle."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 15
+    mealHunger: 20
+    mealTaste: "creamy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.1
+      skills: [cooking-skilled]
+      gambit: false
+      items: [{ customOf: bread }, arelitz-egg]
+      ingredientSlots: { min: 0, max: 4 }
+      yield: 2
+  pizza-slice:
+    catalog: all
+    name: Pizza Slice
+    category: items
+    group: items-food
+    description: "Two loaves worked flat, with cheese and tomato baked in."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 18
+    mealHunger: 20
+    mealTaste: "cheesy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.25
+      skills: [cooking-skilled]
+      gambit: false
+      items: [{ customOf: bread, count: 2 }, cheese, tomato]
+      ingredientSlots: { min: 0, max: 4 }
+      yield: 3
+  sandwich:
+    catalog: all
+    name: Sandwich
+    category: items
+    group: items-food
+    description: "Bread and tomato, closed over meat or whatever the traps caught."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 15
+    mealHunger: 45
+    mealTaste: "meaty"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.1
+      skills: [cooking-skilled]
+      gambit: false
+      items:
+        - { customOf: bread }
+        - tomato
+        - { anyOf: [dead-rat, meat] }
+      ingredientSlots: { min: 0, max: 4 }
+  # Named "Honeyed Sweets" rather than the design doc's bare "Sweets" —
+  # `sweets` (the Depot candy, docs/tags.yaml elsewhere) already holds that
+  # name and slug, and two tags both reading "Sweets" on one sheet is a real
+  # collision the doc didn't anticipate, not a design call. Judgement call.
+  honeyed-sweets:
+    catalog: all
+    name: Honeyed Sweets
+    category: items
+    group: items-food
+    description: "Honey or sugar, worked into a treat."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 20
+    mealHunger: 26
+    mealTaste: "sweet"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.1
+      skills: [cooking-skilled]
+      gambit: false
+      items:
+        - { anyOf: [honey, sugar] }
+        - { anyOf: [honey, sugar] }
+      ingredientSlots: { min: 0, max: 4 }
+  scones:
+    catalog: all
+    name: Scones
+    category: items
+    group: items-food
+    description: "Bread worked with tinned butter."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 15
+    mealHunger: 20
+    mealTaste: "creamy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.1
+      skills: [cooking-skilled]
+      gambit: false
+      items: [{ customOf: bread }, tinned-butter]
+      ingredientSlots: { min: 0, max: 4 }
+      yield: 2
+
+  # Skilled Cooking Lavish Meals — same gate as Skilled above.
+  carrot-cake:
+    catalog: all
+    name: Carrot Cake
+    category: items
+    group: items-food
+    description: "Bread and carrot, sweetened with honey or sugar."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 30
+    mealHunger: 54
+    mealTaste: "sweet"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.2
+      skills: [cooking-skilled]
+      gambit: false
+      items:
+        - { customOf: bread }
+        - carrot
+        - { anyOf: [honey, sugar] }
+      ingredientSlots: { min: 0, max: 4 }
+  pancakes:
+    catalog: all
+    name: Pancakes
+    category: items
+    group: items-food
+    description: "Wheat, arelitz egg and maggot milk, worked into a batter."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 35
+    mealHunger: 48
+    mealTaste: "creamy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.125
+      skills: [cooking-skilled]
+      gambit: false
+      items: [wheat, arelitz-egg, maggot-milk]
+      ingredientSlots: { min: 0, max: 4 }
+  steak:
+    catalog: all
+    name: Steak
+    category: items
+    group: items-food
+    description: "Three cuts of meat, cooked plain."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 28
+    mealHunger: 60
+    mealTaste: "meaty"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.2
+      skills: [cooking-skilled]
+      gambit: false
+      items: [{ tag: meat, count: 3 }]
+      ingredientSlots: { min: 0, max: 4 }
+  caviar:
+    catalog: all
+    name: Caviar
+    category: items
+    group: items-food
+    description: "Fish roe, cured with rock salt."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 40
+    mealHunger: 45
+    mealTaste: "salty"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.2
+      skills: [cooking-skilled]
+      gambit: false
+      items: [{ tag: fish-roe, count: 2 }, rock-salt]
+      ingredientSlots: { min: 0, max: 4 }
+  meat-pie:
+    catalog: all
+    name: Meat Pie
+    category: items
+    group: items-food
+    description: "Bread worked around arelitz egg and meat."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 35
+    mealHunger: 72
+    mealTaste: "meaty"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.2
+      skills: [cooking-skilled]
+      gambit: false
+      items: [{ customOf: bread }, arelitz-egg, meat]
+      ingredientSlots: { min: 0, max: 4 }
+  honeyed-crayfish:
+    catalog: all
+    name: Honeyed Crayfish
+    category: items
+    group: items-food
+    description: "Crayfish, glazed in honey."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 30
+    mealHunger: 66
+    mealTaste: "rich"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.2
+      skills: [cooking-skilled]
+      gambit: false
+      items: [crayfish, honey]
+      ingredientSlots: { min: 0, max: 4 }
+  soaked-truffles:
+    catalog: all
+    name: Soaked Truffles
+    category: items
+    group: items-food
+    description: "Deep morel and plump helmet, soaked in sake or Ravenheart Red."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 38
+    mealHunger: 48
+    mealTaste: "earthy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.2
+      skills: [cooking-skilled]
+      gambit: false
+      items:
+        - deep-morel
+        - plump-helmet
+        - { anyOf: [sake, ravenheart-red] }
+      ingredientSlots: { min: 0, max: 4 }
+  fondue:
+    catalog: all
+    name: Fondue
+    category: items
+    group: items-food
+    description: "Cheese melted through with maggot milk and honey or sugar."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 32
+    mealHunger: 48
+    mealTaste: "cheesy"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.2
+      skills: [cooking-skilled]
+      gambit: false
+      items:
+        - cheese
+        - maggot-milk
+        - { anyOf: [honey, sugar] }
+      ingredientSlots: { min: 0, max: 4 }
+  foie-gras:
+    catalog: all
+    name: Foie Gras
+    category: items
+    group: items-food
+    description: "Deer liver, worked with tinned butter."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 35
+    mealHunger: 54
+    mealTaste: "rich"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.2
+      skills: [cooking-skilled]
+      gambit: false
+      items: [deer-liver, tinned-butter]
+      ingredientSlots: { min: 0, max: 4 }
+  northern-delight:
+    catalog: all
+    name: Northern Delight
+    category: items
+    group: items-food
+    description: "Ravenheart Red, honey and dustfish, worked into something you probably shouldn't eat."
+    pointCost: 0
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    custom: { cost: 0, describable: false }
+    mealMood: 50
+    mealHunger: 60
+    mealTaste: "toxic"
+    mealTasteForm: "adjective"
+    consumable: true
+    consumesInto: [ate-meal, dined]
+    requirement:
+      turnsCost: 0.5
+      skills: [cooking-skilled]
+      gambit: false
+      items: [ravenheart-red, honey, dustfish]
+      ingredientSlots: { min: 0, max: 4 }
 
   # Featherweight travel food (Chris 2026-09-07): a Fine Meal weighs 2 lb and
   # this weighs a quarter of that — the meal you pack ten of for the caves.
@@ -13119,9 +14052,13 @@ tags:
     consumesInto: []
 
   # Public (Chris 2026-09-07): same reasoning as tea.
-  sweets:
+  # Renamed from "sweets" when the Cooking rework (COOKING.md) needed that
+  # name and slug for the new Honeyed Sweets RECIPE — two tags both reading
+  # "Sweets" on one sheet would have been a real collision. This is still the
+  # plain Depot candy, unrelated to cooking.
+  sugar-candy:
     catalog: all
-    name: Sweets
+    name: Sugar Candy
     category: items
     group: items-food
     description: "A sweet treat. What a rarity!"

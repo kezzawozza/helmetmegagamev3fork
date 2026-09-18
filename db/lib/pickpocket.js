@@ -20,7 +20,7 @@ const PICKPOCKET_SKILLED_SLUG = "pickpocketing-skilled";
 const SKILLED_BONUS = 1;
 
 // What you can walk off with, in pounds. Weighed with db/lib/tagWeight.js#rowWeight,
-// so the Assets rule (a horse carries itself) applies here the same as anywhere.
+// so the Assets rule (an arelitz carries itself) applies here the same as anywhere.
 const BUDGET_LBS = 15;
 const SKILLED_BUDGET_LBS = 30;
 
@@ -40,9 +40,9 @@ const FAILED = "failed"; // 1 — nothing moves, and they feel it
 //     difference is deliberate: Search asks what you could hide on yourself,
 //     this asks what somebody else's fingers could reach.
 //   - NOT an Asset — and this is the one that would otherwise be a hole rather
-//     than a nicety. An Asset weighs 0 on purpose (a horse carries itself,
+//     than a nicety. An Asset weighs 0 on purpose (an arelitz carries itself,
 //     docs/systemdocs/CARRY.md §1), so a weight budget cannot bound it: 15 lb
-//     would buy every horse, deed and house a person had on them, unlimited,
+//     would buy every arelitz, deed and house a person had on them, unlimited,
 //     because none of it counts. The budget is the only brake this verb has, so
 //     anything the budget cannot measure has to be off the table entirely.
 function pickpocketableHoldings(characterTags = []) {

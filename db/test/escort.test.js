@@ -129,39 +129,39 @@ test("on foot, any number of people is free", () => {
 });
 
 test("a mount buys its extra crossing only while the party fits its seats", () => {
-  // fastTravelCapacity counts the RIDER, so a horse's 2 seats are one saddle
+  // fastTravelCapacity counts the RIDER, so an arelitz's 2 seats are one saddle
   // for you and one for somebody else.
-  assert.equal(allowance(held("horse"), 0), 2);
-  assert.equal(allowance(held("horse"), 1), 2);
-  assert.equal(allowance(held("horse"), 2), 1);
+  assert.equal(allowance(held("arelitz"), 0), 2);
+  assert.equal(allowance(held("arelitz"), 1), 2);
+  assert.equal(allowance(held("arelitz"), 2), 1);
   assert.equal(allowance(held("motorcycle"), 1), 2);
   assert.equal(allowance(held("motorcycle"), 2), 1);
 });
 
-test("a cart upgrades the horse's pair to six, and cannot reach the motorcycle", () => {
-  assert.equal(allowance(held("horse", "cart"), 5), 2);
-  assert.equal(allowance(held("horse", "cart"), 6), 1);
+test("a cart upgrades the arelitz's pair to six, and cannot reach the motorcycle", () => {
+  assert.equal(allowance(held("arelitz", "cart"), 5), 2);
+  assert.equal(allowance(held("arelitz", "cart"), 6), 1);
   // A hand-cart towed behind a motorcycle is not a thing (db/lib/mounts.js).
   assert.equal(allowance(held("motorcycle", "cart"), 2), 1);
 });
 
 test("an overloaded mount is never WORSE than legs, only no better", () => {
-  assert.equal(allowance(held("horse"), 9), allowance(held(), 9));
+  assert.equal(allowance(held("arelitz"), 9), allowance(held(), 9));
 });
 
 test("a stowed mount seats nobody, because it is not out", () => {
-  const stowed = { tags: [{ equipped: false, tag: { slug: "horse", name: "horse" } }] };
+  const stowed = { tags: [{ equipped: false, tag: { slug: "arelitz", name: "arelitz" } }] };
   assert.equal(allowance(stowed, 0), 1);
 });
 
 test("Overburdened still takes the lot, party or no party", () => {
-  assert.equal(allowance(held("horse", "overburdened"), 0), 0);
+  assert.equal(allowance(held("arelitz", "overburdened"), 0), 0);
 });
 
 test("fitsMount says nothing is overfull when there are no seats", () => {
   assert.equal(fitsMount(equippedSlugs([]), 40), true);
-  assert.equal(fitsMount(equippedSlugs(held("horse").tags), 1), true);
-  assert.equal(fitsMount(equippedSlugs(held("horse").tags), 2), false);
+  assert.equal(fitsMount(equippedSlugs(held("arelitz").tags), 1), true);
+  assert.equal(fitsMount(equippedSlugs(held("arelitz").tags), 2), false);
 });
 
 // --- the select ----------------------------------------------------------
@@ -179,8 +179,8 @@ test("ESCORT_SELECT stays a superset of what performLocationMove needs", () => {
 
 // The bonus a mount (or a boat, on the water) buys is spent BEFORE the base
 // allowance, and Character.zoneMovesBonusUsed remembers that. Without it, a
-// rider who stables their horse at an indoors door lost a crossing they had
-// never spent: the allowance is recomputed every time, so the horse's move
+// rider who stables their arelitz at an indoors door lost a crossing they had
+// never spent: the allowance is recomputed every time, so the arelitz's move
 // went away and the base move was already gone.
 const TURN = { id: "t1" };
 const after = (character, spent, bonusSpent, partySize = 0) =>
@@ -191,16 +191,16 @@ const after = (character, spent, bonusSpent, partySize = 0) =>
     partySize,
   );
 
-test("a rider who parks their horse indoors keeps the crossing they never spent", () => {
-  // Two before, one charged to the horse, then the horse is unequipped at the
+test("a rider who parks their arelitz indoors keeps the crossing they never spent", () => {
+  // Two before, one charged to the arelitz, then the arelitz is unequipped at the
   // door — the base crossing is still there.
-  assert.equal(freeMovesLeft(held("horse"), CONFIG, TURN), 2);
-  assert.equal(after(held("horse"), 1, 1), 1);
+  assert.equal(freeMovesLeft(held("arelitz"), CONFIG, TURN), 2);
+  assert.equal(after(held("arelitz"), 1, 1), 1);
   assert.equal(after(held(), 1, 1), 1);
 });
 
 test("the base crossing is charged only once the bonus is gone", () => {
-  assert.equal(after(held("horse"), 2, 1), 0);
+  assert.equal(after(held("arelitz"), 2, 1), 0);
   assert.equal(after(held(), 1, 0), 0);
 });
 
@@ -213,11 +213,11 @@ test("a stale bonus count can never hand back more than the allowance", () => {
 });
 
 test("with no open turn the number is just the allowance", () => {
-  assert.equal(freeMovesLeft(held("horse"), CONFIG, null), 2);
+  assert.equal(freeMovesLeft(held("arelitz"), CONFIG, null), 2);
   assert.equal(freeMovesLeft(held(), CONFIG, null), 1);
 });
 
 test("last turn's counters do not follow you into this one", () => {
-  const yesterday = { ...held("horse"), zoneMovesTurnId: "t0", zoneMovesUsed: 2, zoneMovesBonusUsed: 1 };
+  const yesterday = { ...held("arelitz"), zoneMovesTurnId: "t0", zoneMovesUsed: 2, zoneMovesBonusUsed: 1 };
   assert.equal(freeMovesLeft(yesterday, CONFIG, TURN), 2);
 });
