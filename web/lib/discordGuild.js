@@ -331,11 +331,17 @@ export async function listGmMembers() {
   return members.filter((m) => hasGmRole(m.roles));
 }
 
+// `inGuild` is what lets a caller tell "signed in" apart from "still has web
+// access" — OAuth only proves someone once completed sign-in, not that
+// they're still in the guild. A departed member keeps a valid session
+// forever otherwise (see root CLAUDE.md "Web app auth"). Shares the same
+// failure-closed ambiguity `isGm` already lives with: `member === null` can
+// mean "confirmed gone" or, rarely, "lookup unreachable, nothing cached yet."
 export const getGmSession = cache(async () => {
   const session = await auth();
-  if (!session?.discordUserId) return { session: null, isGm: false };
+  if (!session?.discordUserId) return { session: null, isGm: false, inGuild: false };
   const member = await getGuildMember(session.discordUserId);
-  return { session, isGm: isGm(member) };
+  return { session, isGm: isGm(member), inGuild: member !== null };
 });
 
 export async function deleteMessage(channelId, messageId) {

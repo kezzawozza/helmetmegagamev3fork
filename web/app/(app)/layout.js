@@ -18,8 +18,12 @@ export default async function AppLayout({ children }) {
   // shoving the whole list down. (desk) never had that tell because it has
   // always passed a fallback matching its user; this is the same rule, and
   // /documents already awaited this exact call for its own GM-only entries.
-  const { session, isGm } = await getGmSession();
+  const { session, isGm, inGuild } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
+  // Departed the Discord guild: the session is still valid, but web access
+  // isn't (root CLAUDE.md "Web app auth"). page.js knows not to bounce them
+  // straight back here.
+  if (!inGuild) redirect("/");
 
   // The "online" badge's clock (db/lib/whosHere.js) — any page view in this
   // group counts as "used the website," Bascinet's call. After the response,

@@ -4,11 +4,10 @@ import { touchCharacterActivity } from "@lifeweb/db/lib/characterActivity";
 import { archiveContextForPlaceKey, parsePlaceKey } from "@lifeweb/db/lib/placeKey";
 import { pullMentionedIntoConversation } from "@lifeweb/db/lib/conversations";
 import { addThreadMember } from "@lifeweb/db/lib/discordRest";
-import { auth } from "@/lib/auth";
 import { loadFeedCharacter } from "@/lib/feedAccess";
 import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
-import { sendDm } from "@/lib/discordGuild";
+import { getGmSession, sendDm } from "@/lib/discordGuild";
 import { MENTION_SOURCE } from "@lifeweb/db/lib/dmKinds";
 import { oocRejectionDm } from "@lifeweb/db/lib/oocGuard";
 
@@ -24,8 +23,12 @@ function jsonResponse(body, status = 200) {
 }
 
 export async function POST(request) {
-  const session = await auth();
+  const { session, inGuild } = await getGmSession();
   if (!session?.discordUserId) return jsonResponse({ error: "Sign in first." }, 401);
+  // Left the guild: no voice in Deadchat (or anywhere else) from the web,
+  // even from an already-open tab — loadFeedViewer refuses the read side,
+  // this refuses the write side. See root CLAUDE.md "Web app auth".
+  if (!inGuild) return jsonResponse({ error: "Sign in first." }, 401);
 
   // A ghost falls through to their last body (db/lib/ghost.js). It resolves to null the moment they
   // have a living character again, so this can never hand somebody two voices — and the place gate

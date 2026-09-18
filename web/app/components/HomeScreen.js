@@ -1,7 +1,7 @@
 import { signInWithDiscord, signInLocally, startAsLocalPlayer } from "../actions";
 import { isLocalMode } from "@lifeweb/db/lib/localMode";
 
-export default function HomeScreen({ turnLabel }) {
+export default function HomeScreen({ turnLabel, leftGuild = false }) {
   // Under LOCAL_MODE there's no real DISCORD_CLIENT_ID/SECRET for the
   // Discord button to hand off to, so the one button IS the local sign-in
   // here rather than sitting beside a second one — nobody testing locally
@@ -17,6 +17,15 @@ export default function HomeScreen({ turnLabel }) {
           {turnLabel}
         </p>
       </div>
+
+      {/* Signed in, but the Discord side no longer recognizes them (left,
+          kicked, banned). A plain "sign in" prompt would be confusing here —
+          they already are signed in, they just have nothing to sign into. */}
+      {leftGuild && (
+        <p className="max-w-sm text-sm text-muted">
+          You&apos;ve left the Discord server. Rejoin to keep using the site.
+        </p>
+      )}
 
       <form action={local ? signInLocally : signInWithDiscord}>
         <button type="submit" className="btn">

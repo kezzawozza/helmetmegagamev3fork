@@ -616,6 +616,25 @@ GM-only pages (`web/app/gm`) check the signed-in user's guild roles through
 against `DISCORD_GUILD_ID`/`DISCORD_GM_ROLE_ID`. It does not trust anything
 from the OAuth profile itself.
 
+**A session surviving OAuth is not the same as still having web access.**
+`session.discordUserId` proves someone once signed in with Discord — it says
+nothing about whether they're still in the guild. `getGmSession()`
+(`web/lib/discordGuild.js`) answers that too, as `inGuild`, off the same
+cached/roster-backed `getGuildMember` lookup `isGm` already uses. Both
+route-group layouts (`web/app/(app)/layout.js`, `web/app/(desk)/layout.js`)
+redirect a departed member out, `loadFeedViewer` (`web/lib/feedAccess.js`)
+and `/api/feed/say` refuse them Chat and Deadchat, and `requireCharacter`
+(`web/app/(app)/character/actions/shared.js`) refuses the character-action
+family. Root `web/app/page.js` only redirects a signed-in session into
+`/character` when `inGuild` is also true — redirecting on `discordUserId`
+alone would loop, since the layouts above send a departed member straight
+back to `/`. This does **not** touch `Character.status`, ghost eligibility
+(`db/lib/ghost.js` stays Discord-blind on purpose), or the bot-side
+catatonic-afk/death-countdown path (`bot/src/events/guildMemberRemove.js`) —
+it only closes the web session, and a handful of action files that check
+`auth()` directly rather than through one of the hubs above are not yet
+covered.
+
 **A server action is a public endpoint.** Every one of them re-validates
 everything the client sent, resolves the acting character from the session
 (never from a posted id), and re-checks any gate the UI already applied. A

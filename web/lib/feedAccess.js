@@ -137,8 +137,11 @@ export async function loadFeedCharacter(discordUserId) {
 // and /chat asks again for its own load. One small indexed lookup either way,
 // but there is no reason for a page to run it twice in a request.
 export const loadFeedViewer = cache(async () => {
-  const { session, isGm } = await getGmSession();
-  if (!session?.discordUserId) {
+  const { session, isGm, inGuild } = await getGmSession();
+  // Departed the guild: no read (and, via /api/feed/say, no write) of Chat or
+  // Deadchat — a session surviving OAuth is not the same as still having web
+  // access (root CLAUDE.md "Web app auth"). Treated exactly like signed out.
+  if (!session?.discordUserId || !inGuild) {
     return { discordUserId: null, character: null, playing: null, canViewAsGm: false, gm: false, ghost: false, options: null };
   }
 

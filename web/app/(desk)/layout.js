@@ -12,8 +12,10 @@ export default async function DeskLayout({ children }) {
   // One call for both answers. It used to await auth() first and then
   // getGmSession(), which wraps the same auth() — a second headers() read for
   // a session it already had.
-  const { session, isGm } = await getGmSession();
+  const { session, isGm, inGuild } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
+  // Departed the guild: no web access at all, not just the desk (see (app)/layout.js).
+  if (!inGuild) redirect("/");
   if (!isGm) redirect("/character");
 
   return (

@@ -3,7 +3,7 @@ import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
-import { auth } from "@/lib/auth";
+import { getGmSession } from "@/lib/discordGuild";
 import { UserError } from "@/lib/actionResult";
 import { blockerFor, SPEAK } from "@lifeweb/db/lib/incapacitation";
 import {
@@ -23,8 +23,11 @@ import { movesOpen } from "@lifeweb/db/lib/turnGate";
 
 // `needs` (db/lib/incapacitation.js): pass ACT and the action refuses for anyone Bound, Dying, Paralyzed, Catatonic, mid-Seizure or out cold, naming the blocking tag. Omit for the few that aren't an act (reading your sheet, paperwork).
 export async function requireCharacter({ needs = null } = {}) {
-  const session = await auth();
+  const { session, inGuild } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
+  // Left the guild: the session is still valid but web access isn't (root
+  // CLAUDE.md "Web app auth") — covers a dozen action files at this one hub.
+  if (!inGuild) redirect("/");
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
     // Held tags carry their GROUP too: resolveRecipeItems matches a recipe's `{ group }` ingredient, and isCorpseTag is a group check.
