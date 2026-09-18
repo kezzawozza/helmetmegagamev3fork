@@ -152,13 +152,11 @@ stays exact, because the ledger is rational either way; only the display
 rounds, and that one prints as `0.33`.
 
 That fourth Flesh of Tzchernobog has a second price worth knowing: spilling
-files an Action, and the auto-labor pass pays only characters with **no**
-Action (`autoLaborPass.js`, `LABORING.md`). Three free ones leave the day's
-labor untouched; the fourth costs it. Dead Simple no longer gets the free
-half of that trade at all: at `turnsCost: 0.25` from the first unit
-(`SMITHING.md` §2), even one Work Knife files the `auto:craft` Action and
-closes out that day's auto-labor pay, the same as any other Move-costing
-craft.
+files an Action, and the one-Move-a-turn row is the day. Three free ones leave
+the day open; the fourth spends it, so there is no Mine, Farm or Refine left
+that turn. Dead Simple gets no free half of that trade either: at
+`turnsCost: 0.25` from the first unit (`SMITHING.md` §2), even one Work Knife
+files the `auto:craft` Action, the same as any other Move-costing craft.
 
 **The family.** `craftFamily()` (`web/lib/tagRequests.js`) takes the first of
 `brewing`, `cooking`, `smithing`, `builder`, `crafting` that any of the
@@ -412,7 +410,7 @@ above `smithing-skilled` is `smithing-gunpowder`, which carries it as a
 
 The clone carries `fighting` (a weapon's class, and what it is worth in a
 fight), `meleeArmor`, `ballisticArmor`, `concealsIdentity`, `forcesConceal`,
-`concealSprite`, `laborBonus` and `carryBonus`. Every one of those was
+`concealSprite`, `miningBonus` and `carryBonus`. Every one of those was
 missing at some point and cost something real: a "Custom Breastplate" with
 zero armor, a "Custom Knight's Helmet" that concealed nobody, a signed
 Broadsword that counted as no weapon at all. **Any new stat column on `Tag`

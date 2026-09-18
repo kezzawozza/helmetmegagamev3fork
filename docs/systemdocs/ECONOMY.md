@@ -269,7 +269,7 @@ and make the read path merge rather than choose.
 
 Two numbers the desk deliberately does not compute:
 
-- **Labor drops show what they paid, not what they were designed to pay.** The
+- **Mining drops show what they paid, not what they were designed to pay.** The
   expected value needs `docs/miningdrops.yaml` parsed and the roll shares
   simulated (`db/lib/miningdropsEv.js`), which is not a page render's job. Run
   `npm run db:audit-mining-drops` for that side. Inventing a plausible number

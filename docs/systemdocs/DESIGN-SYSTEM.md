@@ -316,7 +316,7 @@ Pick a button variant by how important the action is, rather than defaulting to
 Every label a player reads — buttons, tabs, dialog titles, section headings,
 placeholders — is sentence case: first word capitalised, the rest lower-case,
 except proper nouns and the game's own capitalised terms (page names, Move /
-Routine / Gambit / Labor, Desire, Tag / Tag Points, Resources, and the like).
+Routine / Gambit, Desire, Tag / Tag Points, Resources, and the like).
 
 ## 5a. The five that had no rule
 

@@ -70,11 +70,12 @@ of its `starting_zone`.
 
 ### 1a. What a Location is worth
 
-A Location also carries up to four `LocationYield` rows — one per `LaborKind`
-(HUNTING / FARMING / FISHING / PROSPECTING) — authored as a `yield:` block in
-`docs/zones.yaml` and drifted every turn. **No row means that labor is
-impossible there**, which is why no Location needs a "wilderness" or "water"
-boolean anywhere in the schema: the row is the gate. See `LABORING.md`.
+A Location may carry one `LocationMining` row, authored as a bare `mining:`
+value in `docs/zones.yaml` and drifted every turn. **No row means the place
+cannot be mined at all**, which is why no Location needs a "wilderness" or
+"water" boolean anywhere in the schema: the row is the gate. There were up to
+four of these per Location once, one per Laboring kind; mining is the only kind
+of day left. See [`MINING.md`](MINING.md) §2.
 
 ### 1b. What else a Location is
 
@@ -112,7 +113,7 @@ is the only module that reads the column. An unknown key is reported as a sync
 quietly never says what it is.
 
 The registry maps each key to the sentence the **Examine** button prints
-(`LABORING.md` §9). Systems that own a place should ask `hasAttribute(location,
+(`MINING.md` §7). Systems that own a place should ask `hasAttribute(location,
 "depot")` rather than comparing slugs — that is the point of the layer.
 
 Two things are deliberately *not* attributes. `indoors` stays a real column,
@@ -349,8 +350,8 @@ announcement, the Caving Die, the turrets, arrival mood and the carry settle.
 Anyone standing there can Bind, Loot or Harm you the same turn you set out.
 
 Two smaller things moved with it. The turn passes now settle a crosser at the
-**destination** rather than the origin — auto-labor pays the yield of the place
-they ended the day in, and the night's mood reads its `wilderness`/`haven`. And
+**destination** rather than the origin — the night's mood reads its
+`wilderness`/`haven`. And
 `travelArrivalPass` is now a **drain**: nothing files work for it, and it is
 kept only to land anybody who was mid-journey when the change deployed. Delete
 it once they have.
@@ -405,10 +406,10 @@ So three zones a day on foot is the ceiling: free, paid, pushed. The d6, Lucky k
 two and nothing else on it (no mood or hunger modifier — a hungry, frightened
 walker is exactly who pushes on, and a −4 would make the injury a certainty the
 confirm text does not admit): **1** grants Sprained Ankle, **2–3** Exhausted,
-**4–5** one rung up the Tired ladder (`db/lib/laborFatigue.js`), **6** Winded — a
+**4–5** one rung up the Tired ladder (`db/lib/fatigue.js`), **6** Winded — a
 turn's visible mark with no effect (`docs/tags.yaml`).
 Fatigue is granted at turn N+1 so it costs the whole next turn, the same clock
-a day's Labor runs on — so a Tired walker reads 1 ankle, 2–5 Exhausted, 6
+a day's mining runs on — so a Tired walker reads 1 ankle, 2–5 Exhausted, 6
 Winded. Winded itself is granted at N and swept when this turn closes: it only
 marks that you pushed on today, with nothing to carry over. A few traits pull the die (`db/lib/advantage.js#rollWithEdge`): Lucky,
 Quick-Footed, Caffeinated and Stimulant High each vote to keep the better of
@@ -858,9 +859,10 @@ sighting the post-commit hook dropped heals itself the next time they look.
 their life would have taught them — the home cluster, plus the road their trade
 actually walks. A Headman opens the board already seeing the Farms he has taxed
 for years; a Banneret sees every step of the run up to town. The table is
-`db/lib/startingMemories.js`, keyed by role slug, with a second half keyed by
-the Commoner kit crates so a farmer and a hunter wake up knowing different
-roads. `createCharacter` calls `seedMemories()` once, after the transaction
+`db/lib/startingMemories.js`, keyed by role slug. It has a second half keyed by
+a starting tag, `KIT_MEMORIES`, which is **empty**: the three Commoner kit
+crates were its only entries and went with the role, and the mechanism is kept
+because it is the shape any future starting kit would use. `createCharacter` calls `seedMemories()` once, after the transaction
 commits — after, because `travelOptions` reads the tags it just granted.
 
 **Leaving a slug out of that table is not a guarantee it stays dark**, and it is
@@ -1107,7 +1109,7 @@ carrying the layer switch alone.
 | `db/lib/locationGraph.js` | `LocationLink` reads and the gating verdict — the only module that touches the edge model. Also the two multi-hop questions: `soundRange` for how far a shout carries, and `routesWithinZone` / `pathWithinZone` for a walk (§3c) |
 | `db/lib/locationAttributes.js` | The attribute registry, its sync-time validation, and the prose Examine prints |
 | `db/lib/locationVisits.js` | The fog: what one character knows of the map. The ONLY module that reads or writes `LocationVisit` |
-| `db/lib/startingMemories.js` | The map a character is made knowing — role slug and Commoner kit to Location slugs — §6a |
+| `db/lib/startingMemories.js` | The map a character is made knowing — role slug to Location slugs — §6a |
 | `web/app/(app)/map/` | `loadMap()`, the board, and the route — §6 |
 | `web/lib/travelCost.js` | `travelFoot` — what a hop costs, in the words both travel surfaces print. `walkFoot` / `walkLine` are the same job for a walk |
 | `docs/zones.yaml` | The master: zones, Locations (with their seeded `structures:`), Rooms, and `connections:` with its edge types |

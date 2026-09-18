@@ -84,7 +84,7 @@ the same predicate the private-room threads are synced with) — held kit, room
 stash, or standing forge are the three reaches, and a Forge serves everyone
 standing at its Location permanently, no hauling and no door. A `DAMAGED`
 forge serves nobody — the same `COMPLETE`-only reading `structureTools` uses
-for laboring tools (`LABORING.md` §5). All of this applies when the recipe
+for mining tools (`MINING.md` §4). All of this applies when the recipe
 names a `smithing-*` or `builder-*` skill **and does not offer `crafting`**. A
 recipe whose type carries `placement.fieldwork: true` — a light field
 structure — skips the workshop rule entirely.
@@ -195,7 +195,7 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Truncheon | — | Not craftable at all, by design. Cerberi and Order issue. |
 | Sling | Dead Simple | `crafting` |
 | Quarterstaff | Dead Simple | `crafting` |
-| Pitchfork | Dead Simple | `smithing`. Carries the farming `laborBonus`, moved off the Hatchet. |
+| Pitchfork | Dead Simple | `smithing` |
 | Shortbow | Dead Simple | `crafting` |
 | Spear | Simple | 0.25 turns — four to a Routine (§2) |
 | Dagger | Simple | 0.25 turns — four to a Routine (§2) |
@@ -276,12 +276,12 @@ Off the ladder — no recipe, no smithing gate:
 ### The Plow
 
 Not a weapon, but it is smith work: `plow`, 5 points, `turnsCost: 1`,
-`resourceCost: 10`, `skills: [smithing]`. It is an **Asset**, not an Item, so
+`resourceCost: 9`, `skills: [smithing]`. It is an **Asset**, not an Item, so
 it never weighs on your back — it lives in your shed and the horse does the
-hauling. It is the one Laboring tool that needs no equipping and the only one
-gated on holding something else — without a `horse` it does nothing at all. Worth +4 ⬢ to Farming, the largest single tool
-bonus in the game, because two tags and a smith stand behind it
-(`LABORING.md` §5).
+hauling. It carried the largest tool bonus in the game, +4 ⬢ to a Farming
+Labor, gated on also holding a `horse`. Laboring is gone, farming pays in crops
+rather than ⬢ (`SOILERY.md`), and only three tags carry a `miningBonus` now
+(`MINING.md` §4) — the Plow is not one of them.
 
 ## 4. Armor
 

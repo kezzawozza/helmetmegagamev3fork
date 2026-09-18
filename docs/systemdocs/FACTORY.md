@@ -1,18 +1,19 @@
 # The Godard Factory
 
-Ravenheart's only real export, and the four verbs that make it: **Extract**,
-refine, **Package**, sell. Read this before touching `db/lib/godflesh.js`,
+Ravenheart's only real export, and the four verbs that make it: **Harvest
+Godflesh**, **Refine**, **Package**, sell. Read this before touching `db/lib/godflesh.js`,
 `db/lib/refinery.js`, `db/lib/babble.js`, `db/lib/visionDecayPass.js`, the
 `refinery:` / `godflesh:` Location attributes, or the two `EXTRACT_GODFLESH` /
 `PACKAGE_ITEMS` request types.
 
-Related: `LABORING.md` (everything a labor normally does), `CARRY.md` (crates
+Related: [`MINING.md`](MINING.md) (the other button that spends a day),
+`CARRY.md` (crates
 and the wagon), `DEPOT.md` (what a cube is worth), `REQUESTS.md` §3 (the two
 new types).
 
 ## 1. Why it exists
 
-The town's labor feeds Ravenheart and produces no surplus. Before this, nothing
+The town's work feeds Ravenheart and produces no surplus. Before this, nothing
 in the game did. The Keep's warchest, the Merchant's business and every obol in
 circulation now trace back to one wooden warehouse standing in a shallow lake
 in the Marshes, staffed by people nobody counts.
@@ -23,23 +24,23 @@ on the map with no political weight at all.
 ## 2. The chain
 
 ```
-marsh tile  --Extract-->  Godflesh  --labor at the Factory-->  8 Squeeze
-                                     --Package-->  a crate at half weight
-                                     --cart-->  the Depot  -->  obols
+marsh tile  --Harvest Godflesh-->  Godflesh  --Refine-->  8 Squeeze
+                                             --Package-->  a crate at half weight
+                                             --cart-->  the Depot  -->  obols
 ```
 
-Every step after the first is somebody's whole turn. **Extract is not** — it
-costs no Move and runs on its own once-a-day cooldown (§3), so cutting and
-working your day are two separate things. A refugee still alternates cutting
-and refining in practice, because a lump has to exist before there is anything
-to refine, which is where the "2.5 producing turns in 5" in §6 comes from.
+Every step after the first is somebody's whole turn. **Harvest Godflesh is
+not** — it costs no Move and runs on its own once-a-turn cooldown (§3), so
+cutting and working your day are two separate things. A refugee still
+alternates cutting and refining in practice, because a lump has to exist before
+there is anything to refine, which is where the "2.5 producing turns in 5" in
+§6 comes from.
 
-One consequence, and it is intended rather than an oversight: a refugee who
-cuts and files nothing is **also auto-labored**, and every marsh tile carries a
-`yield:` block (`hunting: 1.0, fishing: 1.0`). So a cutting day now pays the
-Godflesh *and* a labor on top of it.
+A cutting day is otherwise an empty day now. Nothing files itself at the close
+any more (`TURN-ENGINE.md` §6), so a refugee who cuts and presses nothing else
+has the Godflesh and nothing on top of it.
 
-## 3. Extract
+## 3. Harvest Godflesh
 
 `db/lib/godflesh.js` — pure, Prisma-free, modelled on `db/lib/depotTurret.js`.
 The server action is `extractGodfleshRequest` in
@@ -52,12 +53,12 @@ The server action is `extractGodfleshRequest` in
   consulted — cut before the deadline or after it. It used to spend the turn's
   Routine through `fileAutoRoutine`, which is where "once per turn" came from
   for free; since 2026-09-11 it carries its own cooldown instead.
-- **How often.** Once per in-game **day** — two turns, so one cut covers both.
-  `Character.extractDayKey` holds the claim, written by a conditional
-  `updateMany` whose WHERE is the check, exactly the shape the Bird's
-  `birdTurnId` has (`BIRD.md`). The refusal is *"You already harvested Godflesh
-  today."*, and the button greys with that sentence rather than hiding — where
-  you are standing is worth hiding, having already cut today is not.
+- **How often.** Once per **turn**. `Character.extractTurnKey` holds the claim,
+  written by a conditional `updateMany` whose WHERE is the check, exactly the
+  shape the Bird's `birdTurnId` has (`BIRD.md`). It keyed on the in-game *day*
+  once — a day is two turns, so one cut covered both — and the column was
+  `extractDayKey` to say so. The button greys with the refusal rather than
+  hiding: where you are standing is worth hiding, having already cut is not.
 - **What you need.** A `hatchet`, `battle-axe` or `chainsaw` **equipped**. A
   blade in a sack cuts nothing, the same rule armour follows at the turret.
 - **The roll.** 1d6, DM'd whatever it says. Yield is 1, or **2** with a
@@ -82,70 +83,67 @@ Gloves cost 3 ⬢ to craft and all three Factory roles start with a pair, so a
 lost hand is nearly always somebody who took them off. That is the intended
 reading, and it is why the DM says which column you were in.
 
-Extract also refuses while Bound, Dying, Paralyzed or Catatonic — or mid
+It also refuses while Bound, Dying, Paralyzed or Catatonic — or mid
 Seizure, which is the one it exists for. That gate matters more now, not less:
 the day claim cares about the calendar and nothing else, and there is no Move
 check left behind it, so without `blockerFor(..., ACT)` a man on the floor could
 wade into the marsh with an axe.
 
-The button **hides** off a marsh tile rather than greying. That is not a breach
-of the metagaming rule in `web/app/components/actionRegistry.js` — that rule
-forbids leaking who is standing near you, and where *you* are standing is
-already yours. A permanently dead Extract icon in the Fortress would just be
-furniture.
+The button **hides** off a marsh tile rather than greying — the same posture
+all four day-verbs take. That is not a breach of the metagaming rule in
+`web/app/components/actionRegistry.js`: that rule forbids leaking who is
+standing near you, and where *you* are standing is already yours. A
+permanently dead Harvest Godflesh icon in the Fortress would just be furniture.
 
-## 4. Refining — the one labor that pays in goods
+## 4. Refine — the day that pays in goods
 
-`db/lib/refinery.js`, entered from `db/lib/laborAccess.js#resolveLaborRateFrom`.
+`db/lib/refinery.js`, entered from the **Refine** button
+(`web/app/(app)/character/actions/refine.js`).
 
-Everywhere else a Labor resolves to a `"min-max"` range of ⬢ and a Location
-with no `LocationYield` row cannot be worked at all (`LABORING.md` §3). The
-Godard Factory has **no `yield:` block** and is worked anyway: `refinery: true`
-is a second gate beside the yield rows, and the branch returns `tier:
-"refining"` with a real `0-0` expression — real, because everything downstream
-assumes an expression and `rollResourceRange` pays nothing on a failed parse,
-silently.
+This was a Labor filed while standing on the floor until Laboring was removed,
+and `db/lib/refinery.js` was reachable only through the `LABOR` move kind.
+The shift is its own verb now, modelled on Farm: it **spends the whole Move**,
+commits at the press, and the cubes come off the line at the turn push
+(`db/lib/moveEffects.js`'s `refined` entry).
 
+- **Where.** `refinery: true`, a Location attribute rather than a slug
+  (`db/lib/locationAttributes.js`). The button hides anywhere else, the same as
+  the other three day-verbs.
 - **The input** is one Godflesh, in the worker's hands **or** in any Room stash
   at the Location they can get into. `hasEquipmentInReach`'s predicate, so the
   Logistics Room serves the whole floor and nobody hauls a 28 lb lump around
   all day to prove they own it.
 - **The output** is 8 Squeeze, and the Godflesh is consumed.
-- **No Laboring tag needed.** It wanted one until 2026-09-10, on the grounds
-  that the floor is work rather than a vending machine. The trouble is that the
-  Laboring ladder prices ⬢ and a shift here pays none, so the gate bought
+- **No skill needed.** The floor wanted one until 2026-09-10, on the grounds
+  that it is work rather than a vending machine. The trouble was that the
+  Laboring ladder priced ⬢ and a shift here pays none, so the gate bought
   nothing and stood the Factory's own people off its floor. Anybody who can get
-  in can work it (`LABORING.md` §3b).
-- No `laborBonus` applies. A refinery is not a coefficient.
-
-**Auto-labor picks this up for free.** A refugee who files nothing refines,
-which is what "nonstop production" means, and `db/lib/autoLaborPass.js` pays two
-extra bulk queries for it — only when somebody is actually standing on a Factory
-floor.
+  in can work it, and Prospecting has nothing to say about a refinery.
+- **No `miningBonus` applies.** A refinery is not a coefficient, and a pick is
+  not a tool for it.
+- **No drop die.** Refining pays in Squeeze, not in ore (`MININGDROPS.md` §1).
 
 **Losing the race is not silent.** Three refugees and one lump in the Logistics
-Room is the NORMAL case whenever the stash runs thin — the auto-labor pass
-resolves everyone against a single bulk snapshot, so all three pass the gate and
-only the first `dropRoomTag` wins. `applyRefinery` returns `{ empty: true }`
-rather than null for exactly this, so the other two get "nothing to refine — no
-Godflesh here" on their sheet and a `-#` line telling them why, instead of a
-Tired or Exhausted tag (`LABORING.md` §4) and silence.
+Room is the NORMAL case whenever the stash runs thin. The button checks the
+floor before it spends anybody's day, but `applyRefinery` re-checks under the
+transaction at the push, so the two who lost the race get "nothing to refine —
+no Godflesh here" and a `-#` line telling them why, rather than silence.
 
-**Why it lives in `MOVE_EFFECTS` and not in the pass.** `read` can only see the
-Action row, and whether a Labor was a *refining* one depends on where the
+**Why it lives in `MOVE_EFFECTS` and not in the button.** `read` can only see
+the `Action` row, and whether a shift was a *refining* one depends on where the
 character stood. So `refined.apply` decides, and returns 0 at every other
-Location. That is what lets it work from a bare row, which the hand-filed path
-(`db/lib/stagedPush.js`, at turn close, nothing in memory) needs. Returning
-`null` there would have been a real bug: `applyMoveEffects` falls back to the
-`read` value when `apply` reports nothing, so every ordinary Labor in the game
-would have been stamped `refined: 1`.
+Location. That is what lets it work from a bare row, which the turn-close path
+(`db/lib/stagedPush.js`, nothing in memory) needs. Returning `null` there would
+have been a real bug: `applyMoveEffects` falls back to the `read` value when
+`apply` reports nothing, so every ordinary Move in the game would have been
+stamped `refined: 1`.
 
 **Where you stood, not where you are.** It reads `Action.locationId`, stamped at
 filing time, and only falls back to the live location for rows filed before that
 column existed. `Action.zoneId` was not enough: a free zone move costs no Action
-(`CARRY.md` §2a) and a Labor pays at turn close, so a character could file on the
-Factory floor and walk out — or file in the marsh and walk in — and collect the
-wrong thing either way.
+(`CARRY.md` §2a) and the cubes land at the turn close, so a character could file
+on the Factory floor and walk out — or file in the marsh and walk in — and
+collect the wrong thing either way.
 
 ## 5. Package
 
@@ -356,9 +354,8 @@ about a trough.
 |---|---|
 | The die, the yield, the injury table | `db/lib/godflesh.js` |
 | Refining: reach, apply, revert | `db/lib/refinery.js` |
-| The labor branch | `db/lib/laborAccess.js`, `db/lib/autoLaborPass.js` |
 | The snapshot | `db/lib/moveEffects.js` (`refined`) |
-| Both server actions | `web/app/(app)/character/requestActions.js` |
+| Both server actions | `web/app/(app)/character/requestActions.js`, `web/app/(app)/character/actions/refine.js` |
 | Undo | `web/lib/tagEffects.js` |
 | What a GM sees | `/gm/audit`, rendered by `web/lib/auditNarrative.js` |
 | Buttons | `web/app/components/actionRegistry.js`, `RequestActionsProvider.js` |
@@ -368,6 +365,6 @@ about a trough.
 | Stupid's garble | `db/lib/babble.js`, `bot/src/lib/proxy.js` |
 | Damaged Vision → Blind | `db/lib/visionDecayPass.js` |
 | Spillway | `db/lib/parties.js`, `resourceTransfer.js`, `web/lib/tagEffects.js` |
-| The once-a-day claim | `extractDayKey` / `extractedToday` in `db/lib/godflesh.js`, `Character.extractDayKey` |
+| The once-a-turn claim | `extractTurnKey` / `extractedThisTurn` in `db/lib/godflesh.js`, `Character.extractTurnKey` |
 | Constants | `PACKAGING_EQUIPMENT_SLUG`, `PACKAGE_MAX_LBS`, `PACKAGE_LABEL_MAX` in `db/lib/constants.js` |
 | Geography, roles, papers | `docs/zones.yaml`, `docs/roles.yaml`, `docs/documents.yaml` |

@@ -185,7 +185,7 @@ tray as "unattached" for the GM to keep or drop.
   withdraw it any time before the Move cutoff — `editMove` and `withdrawMove`
   in `db/lib/moves.js`, reached from the same dialog that filed it. A
   withdrawal deletes the Action and hands the day back, exactly as Reject
-  does. Nothing else is editable: a **Labor** pays out on the press, and a
+  does. Nothing else is editable: a **Mine** pays out on the press, and a
   Move the *game* filed (a craft, a burial, a torture, a travel stub, a
   lesson) is a receipt for something that already happened. `Action.playerFiled`
   is what tells those apart, and it defaults false so it fails closed.
@@ -234,21 +234,20 @@ tray as "unattached" for the GM to keep or drop.
   rename and are kept — renaming them would orphan old audit rows and DM
   log entries.)
 - **Declared numbers always pay.** Every confirmed Move's own
-  `resourceDelta` (now only ever machine-written — the Labor roll; players
+  `resourceDelta` (now only ever machine-written — the mining roll; players
   can no longer type a delta at all) applies at the push, solved or not. A GM
   who disagrees stages a counter-effect; the composer's "offset declared"
-  prefill is that in one click. **Labor is the exception and pays at confirm**
-  — the ⬢ and any labor drop land on the press, `appliedEffects` is stamped
-  there, and the push skips the row. A Routine the game filed still pays at
-  the push.
+  prefill is that in one click. **Mine is the exception and pays at the press**
+  — the ⬢ and any mining drop land inside the filing transaction,
+  `appliedEffects` is stamped there, and the push skips the row (`MINING.md`
+  §3). A Routine the game filed still pays at the push.
 - **Solve is bookkeeping.** It stores the Result and Kind edit, stamps
   `reviewedBy`, and marks the staging complete. It applies nothing;
   Unsolve reverts nothing, because there is nothing yet to revert.
 - **Silent close.** A Move still `OPEN` at the push closes `PASSED` with
   `auto:silent_close` appended to `gmNotes` and pays its declared numbers.
-- **Every Routine gets a close DM**, whatever its review status, built to
-  match the auto-labor DM: the description, `**Applied:** …`, and the
-  resource roll. This is the *only* place a hand-filed Routine's payout is
+- **Every Routine gets a close DM**, whatever its review status: the
+  description, `**Applied:** …`, and the resource roll. This is the *only* place a hand-filed Routine's payout is
   reported — nothing pays at confirm — so a player who declared used to learn
   less about their turn than one who slept through it. A **tail** ("passed
   without any special adjudication notes…") is appended only when nothing else

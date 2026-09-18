@@ -170,7 +170,7 @@ different ways:
   buy, Loot, a stash pull) do **not** call it yet — those are self-inflicted
   rather than a griefing vector, so today they land and shed. Wiring them is
   owed work.
-- **Involuntarily** — a Labor payout (which is ⬢: `LABORING.md`), Caving loot,
+- **Involuntarily** — a mining payout (which is ⬢: `MINING.md`), Caving loot,
   a GM grant, a `consumesInto` chain. It lands, and then `settleCarry` sets the
   excess down in a random public Room where they stand. This is the farmer who
   reaps more than they can carry: past the cap they are Overburdened, past the
@@ -367,7 +367,7 @@ It runs, in this order, at:
   Caving loot picked up on the way in.
 - **The bot's `/heal`**, beside its existing room-access sync.
 - **Turn close**, as the `carry` pass (`db/lib/carryPass.js`), after `hunger`
-  and before `lifewebDecay` so it sees the final sheet: Labor payouts, staged
+  and before `lifewebDecay` so it sees the final sheet: staged
   pushes, the expiry sweep and the ⬢ upkeep all happen earlier in the close
   and none of them may settle in place. One transaction per character, drops
   returned to `runSideEffects` rather than sent. Caving loot granted at turn

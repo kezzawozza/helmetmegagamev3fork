@@ -95,8 +95,9 @@ Notes:
 - `/ooc` takes a string option for the same reason, and its own cap: 2000
   rather than `/shout`'s 300, because it reaches one channel rather than a
   couple of dozen. See §2f.
-- `/labor` is retired — laboring is now the **Labor checkbox** on the Move
-  modal (`LABORING.md` §4).
+- `/labor` is retired, and so is the Laboring it belonged to. A day's work is
+  a button on the character sheet now — Mine, Farm, Refine or Harvest Godflesh
+  (`MINING.md`).
 - `/persistent` is retired too — Bascinet 2 dropped forum topics, private
   Create-a-Thread anchors and any long-lived form of a player-made thread.
   The only thread a player can open now is a Conversation, and every
@@ -635,21 +636,26 @@ gate runs on submit instead.
 | Field | customId | Type |
 |---|---|---|
 | Your Move | `move:body` | Paragraph, required, max 1800 |
-| Kind | `move:kind` | Radio: `ROUTINE` / `GAMBIT`, required |
-| Labor | `move:labor` | Checkbox — Routine only, refused on a Gambit |
+
+**There is no Kind picker.** There was one, carrying Gambit and Labor. Laboring
+is gone and a day's work is a button on the sheet, so **a Move IS a Gambit**
+(`db/lib/moves.js#PLAYER_MOVE_KINDS`) and a picker with one option on it is not
+a choice. Routine is still written constantly — it is what the game calls a
+Move it filed for you — it just is not something a player picks. `/move` lost
+its `kind` argument for the same reason.
 
 Moves close three hours before the turn ends — 9:00 AM / 9:00 PM
 America/Chicago — so a GM can adjudicate what was filed before the push
 (`TURN-ENGINE.md` §6a). Both `move:open` and the submit handler check it: the
 button refuses to open the modal after the cutoff, and submit re-checks because
 a modal can sit open on screen across it. Either way the refusal is ephemeral
-and names the cutoff and the next turn's start. Travel, Speak, requests and the
-auto-labor pass are untouched.
+and names the cutoff and the next turn's start. Travel, Speak and requests are
+untouched.
 
 Submitting runs every gate the old `#turns` message flow ran — living
-character, open turn, before the cutoff, hasn't already acted, non-empty body,
-Labor resolved **before** any `Action` row exists so a refusal never costs a
-turn — then
+character, open turn, before the cutoff, hasn't already acted, non-empty body —
+every one of them **before** any `Action` row exists, so a refusal never costs
+a turn — then
 locks the Move in through `bot/src/lib/moveConfirm.js#confirmMove` and
 replies ephemerally. **Submit = locked**: there is no edit window, the dice
 and resource roll happen now, and the payout — like every Move payout — lands

@@ -160,7 +160,7 @@ Who this is, where they stand, and:
   poll (`play/useMyMove.js`, which `YouPanel.js` shares). File the Move from
   here. A **Gambit** that has not locked yet carries a quiet **Change…** under
   its words, which reopens the same dialog on it to rewrite or **Cancel Gambit**;
-  a Labor, or anything the game filed, has already happened and carries nothing
+  anything the game filed has already happened and carries nothing
   (TURN-ENGINE.md §6a-i). A pending lesson or binding reads under that. The turn chip and the **Move…**
   button sit on ONE line: `.sheet-turn .chat-move` is a wrapping flex row, and
   the button keeps its natural width instead of stretching into a bar that
@@ -234,7 +234,7 @@ which card (the tag's category), the order inside it, the
 sub-groups (the `TagGroup` a tag belongs to), and `rowValue()` — the one thing
 on the row's right, picked in the order a player cares: turns left (in
 `--danger` on the last turn), then pounds, then the armour word, then a carry
-or labor bonus, then a stack count.
+or mining bonus, then a stack count.
 
 | Card | Order | Second line |
 |---|---|---|

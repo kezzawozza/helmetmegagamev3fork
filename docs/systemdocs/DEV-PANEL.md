@@ -370,8 +370,8 @@ Everything follows from that:
   on the Move, and DMs the player, since a freed turn they don't know about
   is a wasted day.
 - **Spend turn** files a stub: a `PASSED` Routine worth nothing, marked
-  `gmNotes: "auto:gm_spent_turn"` in the same family as
-  `autoLaborPass.js`'s `auto:labor`. It DMs the player too. Kill, Restore
+  `gmNotes: "auto:gm_spent_turn"` in the same family as the Mine button's
+  `auto:mine` (`db/lib/constants.js`). It DMs the player too. Kill, Restore
   turn and Spend turn are each a one-line `useConfirm` — they used to open a
   `RequestDialog` for a typed reason first, and nobody ever wrote one that
   said anything the DM did not. The server actions still take an optional
@@ -961,7 +961,7 @@ Pages:
 |---|---|
 | `zones/page.js` | Every Zone, its mirror status ("mirrored" once `discordCategoryId` is set, else "pending"), reorder arrows, and a Create form |
 | `zones/[zoneId]/page.js` | The Zone's own fields (name, kind, sort order, description, map polygon) and its Locations |
-| `zones/locations/[locationId]/page.js` | The Location's fields, its `LocationYield` bases (the live `current` coefficient is read-only — it drifts on its own every turn close), its Rooms, and its travel links |
+| `zones/locations/[locationId]/page.js` | The Location's fields, its `LocationMining` base (the live `current` coefficient is read-only — it drifts on its own every turn close), its Rooms, and its travel links |
 | `zones/links/page.js` | Every `LocationLink` in the game. `isOpen` is shown read-only — it's play state, only `authoredOpen` is edited here |
 | `zones/rooms/[roomId]/page.js` | The Room's fields and its stash: existing `RoomTag` rows (read-only quantities — those move by play, not by this form) plus a **Seed these items now** box that writes new rows and appends to `seededStashSlugs` |
 

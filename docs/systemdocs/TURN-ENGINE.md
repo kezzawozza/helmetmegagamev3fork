@@ -44,12 +44,13 @@ each arrived at by getting them wrong first.
    GM clicks just as the cron fires, exactly one caller wins and the loser
    returns `advanced: false` having done nothing. A half-resolved turn is a
    cheaper failure than a losing racer double-charging everyone's upkeep.
-2. **Auto-labor pass** (`db/lib/autoLaborPass.js`) — files a Labor for anyone
-   who didn't act and can work. **First**, because a day's labor *earns*
-   resources before the horse upkeep pass below spends them (§5b) — the other
-   order charges the horse's feed against a wage that hasn't landed yet.
-   (Hunger was the headline reason until 9/2026, when eating stopped costing
-   ⬢ — the rule outlived it, since the horse still eats.) See `LABORING.md` §8.
+2. **Nothing files itself.** There was an auto-labor pass here, and it ran
+   **first** in the sequence, because a day's labor *earned* ⬢ before the horse
+   upkeep pass below spent them (§5b). Laboring is gone. A day's work is a
+   button pressed during the turn and paid at the press (`MINING.md` §3), so a
+   character who files nothing simply has a day pass — nothing left in this
+   sequence earns, and income-before-upkeep no longer constrains any ordering
+   here.
 2b. **Offer expiry pass** (`db/lib/offerExpiryPass.js`, still keyed `"lessons"`
    in `TURN_PASSES`). Every still-PENDING offer on the closing turn expires
    here, **whatever its kind** — lesson, bind, confession, kiss, escort or
@@ -83,20 +84,18 @@ each arrived at by getting them wrong first.
    (`PAPERWORK.md`); 4 or more with nothing left to find says so; anything
    else turns up nothing. One DM at close carries the die and the outcome —
    so, like Lessons, step 3 below skips its own 🎲 DM for `auto:research`.
-   Its slot is load-bearing the same way Lessons' is: **after** the
-   auto-labor pass and **before** the staged push, and it sits **before**
-   Confessions too, since neither pass's PENDING-offer expiry has anything to
+   Its slot is load-bearing the same way Lessons' is: **before** the staged
+   push, and it sits **before** Confessions too, since neither pass's PENDING-offer expiry has anything to
    do with a Gambit that was already CONFIRMED at submit. See `REQUESTS.md`
    and `ADJUDICATION.md`.
 3. **Staged push pass** (`db/lib/stagedPush.js`) — applies every `StagedEffect`
    the GMs queued this turn, then every confirmed Move's own declared numbers
-   (nothing pays at confirm any more — a Routine, a Labor payout and a
-   GM-solved Gambit all sit with `appliedEffects` null until here), and
+   (nothing pays at confirm any more — a Routine and a GM-solved Gambit both
+   sit with `appliedEffects` null until here), and
    silently closes untouched Moves (`OPEN → PASSED`, `auto:silent_close`).
-   Silent for a Gambit's *adjudication*, but every Routine and every
-   hand-filed Labor gets a close DM shaped like the auto-labor one —
+   Silent for a Gambit's *adjudication*, but every Routine gets a close DM —
    description, `**Applied:**`, resource roll — because this push is the only
-   place a hand-filed Routine or Labor payout is ever reported. It carries a "no adjudication notes" tail unless a private
+   place a hand-filed Routine is ever reported. It carries a "no adjudication notes" tail unless a private
    staged message on that Move already went to that player or a staged effect
    on it targets them, in which case the summary stands alone. The only Routine
    skipped outright is one whose `gmNotes` carry an `auto:` marker, meaning
@@ -112,13 +111,14 @@ each arrived at by getting them wrong first.
    telling is wider than it used to be, so that strip carries more weight:
    the number exists from the moment a Move is filed, and belongs to the
    player only here.
-   Its slot is load-bearing three ways: **after** the auto-labor pass
-   (whose rows arrive already stamped, so this one skips them), **before**
+   A row the Mine button already paid arrives with `appliedEffects` stamped
+   (`MINING.md` §3), so this pass skips it and the two can never both pay.
+   Its slot is load-bearing two ways: **before**
    the progression/sweep (a staged "remove Infected" must beat the
    progression, and a staged fresh grant carries `expiresTurn > N` so the
    sweep can't eat it), and **before** the horse upkeep pass (deferred income
-   lands before its bill — the same income-before-upkeep rule as step 2, now
-   about the horse's feed rather than Hunger, which charges no ⬢ at all, §5).
+   lands before its bill — about the horse's feed rather than Hunger, which
+   charges no ⬢ at all, §5).
    Every row is
    claimed with a conditional write (`appliedAt`, or `appliedEffects` DbNull
    → `{}`), so the resume path can never apply one twice. The staged DMs and
@@ -250,8 +250,8 @@ each arrived at by getting them wrong first.
    dinner was also billed in ⬢: the animal ate first, so a character down to
    their last ⬢ fed the horse and went Hungry. Hunger stopped costing money in
    9/2026 (§5), so the two passes no longer compete for the same purse and the
-   slot is merely tidy. Auto-labor still has to come first, since that is where
-   the day's income lands (§2 step 2). See §5b.
+   slot is merely tidy. Nothing in the close earns any more either (§2 step 2),
+   so there is no income for it to come after. See §5b.
 8. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
    before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
    number, so the sweep clears it a moment before a fresh one may be granted.
@@ -259,8 +259,8 @@ each arrived at by getting them wrong first.
    drops the re-grant, leaving a tag that expires immediately.
 8a. **Dawn afflictions pass** (`db/lib/dawnAfflictionPass.js`) — right after
    hunger. Guilt Ridden and Insomniac each roll a nightly chance of a bad
-   night's sleep, stepping the Tired -> Exhausted ladder (`TAGS.md`,
-   `LABORING.md` §4). Audit action `dawn_afflictions_resolved`.
+   night's sleep, stepping the Tired → Exhausted ladder (`TAGS.md`,
+   `MINING.md` §5). Audit action `dawn_afflictions_resolved`.
 8a-bis. **Xom pass** (`db/lib/xomPass.js`, `"xom"` in `TURN_PASSES`) — the
    god of chance and disorder collects. Every ALIVE holder of
    `{tag:old-ways-xom}` rolls once on a weighted table, and roughly half the
@@ -329,7 +329,7 @@ each arrived at by getting them wrong first.
    mechanic inside two turns and hand the Church a list of names.
 
 8b. **Carry pass** (`db/lib/carryPass.js`) — **after** hunger, so it sees the
-   final sheet: Labor payouts, staged pushes, the sweep and the horse's feed
+   final sheet: staged pushes, the sweep and the horse's feed
    all happen earlier in the close and none of them may settle in place.
    `settleCarry` for every ALIVE character holding a tradeable tag or
    Overburdened — one transaction each — and the overflow drops ride back for
@@ -361,8 +361,8 @@ each arrived at by getting them wrong first.
 
    One consequence of the removal worth knowing here: every pass above now
    settles a zone-crosser at their **destination** rather than their origin.
-   Auto-labor pays the yield of the place they ended the day in, the night's
-   mood reads its `wilderness`/`haven`, and a turret there can shoot them.
+   The night's mood reads their destination's `wilderness`/`haven`, and a
+   turret there can shoot them.
 9. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
 10. **Open the next turn** with the alternated phase, and pick its banner (§4).
 11. **Write the `TURN_START` archive row** — here, where the turn is created,
@@ -382,9 +382,9 @@ Two things follow from that, and both are load-bearing:
 
 - A pass with **nothing to do returns an object, not `null`**. `null` is
   reserved for "this pass did not run, retry it" — the value `resolveNeeds`'s
-  own catch returns. `autoLaborPass` and `tagExpiryPass` used to return
-  `null` for both, so a game with no default efforts (or, far more often, a
-  turn with nothing expiring) never recorded the pass at all.
+  own catch returns. `tagExpiryPass` used to return
+  `null` for both, so a turn with nothing expiring never recorded the pass at
+  all.
 - The **resume path claims `Turn.needsResumeClaimedAt`** before it does
   anything, with the same conditional `updateMany` the normal path uses on
   `status: "OPEN"`, and a 30-minute staleness window so a resume that dies
@@ -484,7 +484,8 @@ The thunk performs, in narrative order:
 
 1. Public staged posts (via `postAsCharacter`, the REST twin of the
    bot's webhook proxy), each archived only once Discord accepts it.
-2. Auto-labor DMs.
+2. *(Nothing here any more. This was the auto-labor DMs, and nothing files
+   itself at the close now — §2 step 2.)*
 3. Tag progression DMs — one per player whose condition worsened, listing each
    step (`» Festering → Feverish and Necrosis`). Before the Hunger DMs purely
    so the two arrive in severity order.
@@ -533,9 +534,9 @@ it plus `#cerberon`. **Never `Promise.all` a fan-out here** — sequential
 awaiting is what keeps the bot from emitting the burst of 429s that earns an
 IP-level ban.
 
-All three passes follow the same discipline: `runHungerPass` returns
-`starvedDiscordUserIds`, `runAutoLaborPass` returns `dms`, and
-`runTagExpiryPass` returns `dms`, rather than any of them sending anything
+Both passes follow the same discipline: `runHungerPass` returns
+`starvedDiscordUserIds` and `runTagExpiryPass` returns `dms`, rather than
+either of them sending anything
 themselves — so none makes a network call and none can hold a turn advance
 open. Each also writes exactly **one** summary `AuditLog` row
 (`tag_expiry_resolved` for the new one), never one per character: at 100+
@@ -710,7 +711,7 @@ it to `true` in the same change that ships foodstuff items, and not before."
 **This is that change.** Soilery ships the foodstuff catalog the brake was
 waiting on — six growable crops, ten more foodstuffs, and the seed-bag/Farming
 chain that gets a character to them without Cooking at all — on top of the
-Depot wares and labor drops that already existed. The counter that stocks those
+Depot wares and mining drops that already existed. The counter that stocks those
 wares is open to everybody now rather than to one man (`DEPOT.md`), so a Ration
 Box is a walk and an order rather than a favour. `STARVING_DEATH_TURNS` (above,
 this same section) is therefore unconditional, with no flag gating it: the
@@ -773,63 +774,41 @@ it is a machine, and nothing burns fuel for it.
 Same `bornBefore` cutoff as Hunger above, and for the same reason: a soul
 reincarnated mid-close hasn't had the horse long enough to owe its feed yet.
 
-## 6. Auto-labor
+## 6. Filing nothing
 
-There is no Default Move any more. `DefaultEffort` and its `/character` panel
-are deleted: filing nothing IS the standing order, and what it buys you is a
-day's work.
+There is no Default Move and no auto-labor pass. `DefaultEffort` and its
+`/character` panel are deleted, and so is the pass that used to file a Labor
+for everyone who had not acted by the close.
 
-`db/lib/autoLaborPass.js#runAutoLaborPass` walks every `ALIVE` character with
-**no `Action` at all** on the closing turn — an auto-resolved zone change
-counts as acting, since crossing zones spends the day — and files a `LABOR`
-Move: `CONFIRMED`/`PASSED`, resources pushed via `applyMoveEffects` and
-snapshotted onto `appliedEffects`. That snapshot is what tells the staged push
-pass, one step later, to skip these rows. **Never a Gambit** — a Gambit is a
-deliberate risk and nobody's there to take it. Marked `gmNotes: "auto:labor"`.
+**Filing nothing now does nothing at all.** The day passes, no `Action` is
+written, no ⬢ land, no fatigue is taken. A day's work is something a character
+presses a button to do while the turn is open — Mine, Farm, Refine or Harvest
+Godflesh (`MINING.md`, `SOILERY.md`, `FACTORY.md`) — and three of the four
+spend the Move that the one-Move-a-turn row represents.
 
-Four kinds of character are skipped, and all four are skipped **silently** — no
-Action, no Resources, no DM:
+That is a deliberate reversal. The old pass existed so an absent player still
+earned something, and it carried a long tail of exceptions with it: who is
+incapacitated, who holds no Laboring tag, who is Exhausted, who is standing
+somewhere none of their skills reach. Every one of those is now just the
+button not being pressed, or the button refusing at the press with a sentence
+the player can read (`MINING.md` §3).
 
-- **Incapacitated** (`db/lib/incapacitation.js`'s `INCAPACITATING_SLUGS`:
-  `dying`, `catatonic-afk`, `paralyzed`, `bound`). They didn't get a turn to
-  try. The tag itself is the explanation, and this is why binding someone
-  actually costs them their next turn rather than just their ability to defend
-  themselves (`REQUESTS.md` §5b).
-- **No Laboring tag at all** — **unless they are standing in the Factory**,
-  where a shift pays in Squeeze rather than ⬢ and needs no skill. Anywhere else
-  an unskilled Labor earns nothing (it is allowed, just unpaid —
-  `LABORING.md` §1), so filing one for somebody who never asked would hand them
-  a `tired` for a day that bought them nothing. A character without a skill who
-  does nothing has simply done nothing.
-- **Exhausted.** They've worked two turns running (or a bad night's sleep
-  pushed them there) and need to rest — `tired`, the rung below it, does not
-  block Labor (`LABORING.md` §4).
-- **Standing where none of their skills reach** — no `LocationYield` row of any
-  kind they hold. Filing an empty Move to say so would only clutter the desk.
+## 6b. Mining coefficient drift
 
-The rate resolves **at pass time** (`db/lib/laborAccess.js`), against the
-Location the character is standing in that night, that location's live yield
-coefficients, and the `productionCoefficient` in force — all from bulk reads,
-never per character.
-
-One summary `auto_labor_resolved` audit row per turn, reporting `filed` and
-`skipped`.
-
-The old summary-post half (`shareInSummary` / `summaryMessage`) died with
-`DefaultEffort`; the pass returns `dms` only.
-
-## 6b. Labor yield drift
-
-`"laborYield"` in `TURN_PASSES` (`db/lib/laborYield.js#runLaborYieldPass`)
-walks every `LocationYield` row one turn forward — a mean-reverting random walk
-plus rare jump events. Its slot is late and load-bearing: **after** the
-auto-labor pass, so a day is paid at the coefficients that were live during it,
-and what it writes is what the next turn is worth.
+`"miningYield"` in `TURN_PASSES` (`db/lib/miningYield.js#runMiningYieldPass`)
+walks every `LocationMining` row one turn forward — a mean-reverting random
+walk plus rare jump events. Its slot is late and load-bearing for one reason
+now: **what it writes is what the next turn's mining is worth**, so a day
+already paid keeps the coefficient it was priced at. (It used to have a second
+reason — sitting after the auto-labor pass, which paid at the close. Mining
+pays at the press instead, which makes the point sharper rather than weaker: a
+payout can land at any hour of the turn, so the coefficient must not move
+under it mid-day.)
 
 It is random and therefore **not idempotent**. That is exactly why it is a
 named pass rather than inline work: `markDone` is what stops a resumed turn
 advance from drifting the whole map twice. The full parameter table is in
-`LABORING.md` §7.
+`MINING.md` §6.
 
 ## 6a. The Move cutoff
 
@@ -874,9 +853,8 @@ staged push runs it again as the backstop. See `ADJUDICATION.md`.
 
 Enforced in the bot at both `move:open` (the `#turns` button and `/move`) and
 on modal submit — a modal can sit open on screen across the cutoff — with an
-ephemeral refusal naming both times. **Travel, Speak, requests, GM edits and
-the auto-labor pass are not affected**: the cutoff is about the Move queue a
-GM has to read, and a standing default files itself at the push.
+ephemeral refusal naming both times. **Travel, Speak, requests and GM edits are not
+affected**: the cutoff is about the Move queue a GM has to read.
 
 Surfaced to players on the `#turns` announcement (`Moves must be sent by
 <t:C:t>`, added by `buildTurnAnnouncement` when `hasLock`), in `/character`'s
@@ -919,11 +897,11 @@ Action through the shared `deleteActionRestoringTurn`
 (`db/lib/moveEconomy.js`), which is the same path a GM's Reject takes: there
 is no `turnsRemaining` column, so giving the day back means deleting the row.
 
-**Nothing else is editable.** A **Labor** settles on the press — the ⬢ and any
-labor drop land in `confirmMove`, which stamps `appliedEffects` so the push
-skips it. A Move the *game* filed is a receipt for something that already
-happened: a craft, a burial, an engraving, a torture, a travel stub, a lesson,
-an auto-Labor. `Action.playerFiled` separates the two and **defaults false**,
+**Nothing else is editable.** A **Mine** settles on the press — the ⬢ and any
+mining drop land inside the filing transaction (`MINING.md` §3), which stamps
+`appliedEffects` so the push skips it. A Move the *game* filed is a receipt for
+something that already happened: a craft, a burial, an engraving, a torture, a
+travel stub, a lesson, a day in the seam. `Action.playerFiled` separates the two and **defaults false**,
 so a writer who forgets it fails closed. It is deliberately a column rather
 than a `gmNotes` substring — that matching is what this replaced.
 
@@ -963,8 +941,7 @@ markers for the desk's labels.
 | `db/lib/turnClock.js` | Turn end / Move cutoff derivation (§6a) |
 | `web/app/components/LockChip.js` | The cutoff in every page header, in the reader's own time (§6a) |
 | `db/lib/stagedPush.js` | The staged push pass (`ADJUDICATION.md`) |
-| `db/lib/autoLaborPass.js` | The auto-labor pass |
-| `db/lib/laborYield.js` | Location yield drift, and the quality words |
+| `db/lib/miningYield.js` | Mining coefficient drift, and the quality words |
 | `db/lib/horseUpkeepPass.js` | The horse's feed (§5b) |
 | `db/lib/resourceStack.js` | ⬢ as a stack row — the only reader and writer of a ⬢ balance (`CARRY.md`, `ECONOMY.md`) |
 | `db/lib/hunger.js` | The 0-100 hunger meter itself — thresholds, decay, banding (§5) |

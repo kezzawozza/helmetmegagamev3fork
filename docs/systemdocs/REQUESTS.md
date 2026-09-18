@@ -129,7 +129,7 @@ reason.
 | `ENGRAVE_HEADSTONE` | Frees a soul with a stone instead of a body, for **4 ⬢** and the filer's Move. Target is **typed**, first name only, matched **game-wide**. Leaves a `{name}'s Headstone` tag | — | Refunds the ⬢, takes the stone, reopens the grave; does **not** re-curse |
 | `BUTCHER_CORPSE` | Cuts a corpse up for what is in it — an organ from a monster, Human Flesh from a person. Free, and it destroys the body. Gated on `butcher` | — | Takes the yield back and returns the corpse to the party it came from |
 | `FAST_TRAVEL` | **Retired.** A mount now adds a free zone move instead (CARRY.md §2a). Old rows stay undoable | — | Sends them back and returns the ride |
-| `EXTRACT_GODFLESH` | Cuts Godflesh out of a marsh tile. Costs no Move — once per in-game day, claimed on `Character.extractDayKey`. Needs a blade equipped, rolls a d6 — a 6 pays an extra, a 1 rolls an injury table that Armored Gloves dominate (`FACTORY.md` §3) | — | Takes the Godflesh back and heals what it cost; the day stays claimed |
+| `EXTRACT_GODFLESH` | The **Harvest Godflesh** button: cuts Godflesh out of a marsh tile. Costs no Move — once per turn, claimed on `Character.extractTurnKey`. Needs a blade equipped, rolls a d6 — a 6 pays an extra, a 1 rolls an injury table that Armored Gloves dominate (`FACTORY.md` §3) | — | Takes the Godflesh back and heals what it cost; the turn stays claimed |
 | `PACKAGE_ITEMS` | Packs up to 150 lb of held goods into one crate weighing half that, with a line the packer types. Needs Packaging Equipment in reach; costs no Move (`FACTORY.md` §5) | — | Prises the crate open, returns the contents, deletes the runtime Tag |
 | `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literate`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
 | `DEPOT_BUY` | Orders an import off the orbital station at its `depotPrice`. Standing at the Depot, plus whichever manifest the ware sits on — general shelf needs nothing, the black market needs a Silver Chip, everything else needs the Merchant's Licence (`DEPOT.md` §0e). Delivered as crates at the next train arrival, not on the spot | — | Returns the goods, refunds the ⬢ |
@@ -558,11 +558,12 @@ not zone-grain (`db/lib/presence.js` / `web/lib/peopleHere.js`): the target
 has to be standing in the same Location and not concealed. The reason field
 and the GM's review are the anti-abuse mechanism, exactly as everywhere else.
 
-**Binding someone also costs them their day's labor.** Every
+**Binding someone also costs them their day's work.** Every
 `INCAPACITATING_SLUGS` slug is read on the *afflicted* character's own side
-too: `db/lib/autoLaborPass.js#runAutoLaborPass` silently skips filing a Labor
-for anyone holding one, so a bound target loses their next turn, not just
-their ability to defend themselves (TURN-ENGINE.md §6).
+too: `db/lib/mining.js` refuses the Mine button to anyone holding one, and
+`blockerFor(..., ACT)` refuses Farm, Refine and Harvest Godflesh the same way,
+so a bound target loses their turn rather than just their ability to defend
+themselves.
 
 **And it now costs them nearly everything else.** The actor's own side used to
 be checked by four requests and forgotten by the rest, so a bound character
@@ -612,7 +613,7 @@ groups are things one person does to another — `health-wounds` and
 `web/lib/healRequests.js`, 33 rows, read by both the picker and the server
 action for the same reason `isHealable` is. **Paralyzed is deliberately not on
 it**: it is in `INCAPACITATING_SLUGS`, so inflicting it would let one player
-lock another out of their day's labor indefinitely, at will.
+lock another out of their day's work indefinitely, at will.
 
 The lethal half is also the only place besides billing someone else for a cure
 where the dialog asks twice.
@@ -975,7 +976,7 @@ makes) and **Waiting on you** — the Accept/Decline for a pending offer, a
 threat spawn or a lobby seat, calling the same `db/lib` functions the DM's
 buttons call. Neither files an `Action` twice: `fileMove` is guarded by
 `@@unique([characterId, turnId])`, and the rest write no Move at all.
-`fileMove` refuses a Routine or Labor for anyone who can't `ACT`, but a
+`fileMove` refuses a Routine for anyone who can't `ACT`, but a
 **Gambit** only for `GAMBIT_BLOCKING_SLUGS` (Unconscious, Paralyzed, Seizure,
 Dying) — someone Bound, Crucified or Catatonic can still file one.
 

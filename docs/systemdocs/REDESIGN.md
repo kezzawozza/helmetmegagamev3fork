@@ -40,7 +40,7 @@ These were settled with Bascinet on 2026-09-17. Do not reopen them in a plan.
 
 | Decision | Answer |
 |---|---|
-| Tier names | Numerals everywhere. `Melee (Skilled)` becomes `Melee III` in `docs/tags.yaml`, so it is the tag's real name on both faces. Sidegrades keep their word: `Laborer (Farming)`. Section 7. |
+| Tier names | Numerals everywhere. `Melee (Skilled)` becomes `Melee III` in `docs/tags.yaml`, so it is the tag's real name on both faces. Sidegrades keep their word: `Brewing (Distilling)`. Section 7. |
 | Unread model in `/chat` | Discord-style. A place with unread notable lines brightens its name. A red count appears only for a mention, Bascinet mail, or a DM. Section 6. |
 | A bare name is a mention | Yes, on both faces. The bot and the web both treat a character's name said in a Location as a mention: a red count on the web, a real ping relayed on Discord. Concealment wins: a hooded name never triggers. |
 | Themes | One rust palette. Dawn and dusk stay as the two phase looks but both are re-solved on it; they differ by lamp warmth only. Limestone is deleted. The theme follows real CST time: a slow gradient in warmth through the day and a hard switch at dusk. Section 4. |
@@ -91,7 +91,7 @@ sync with it in the meantime.
 
 This section set the rename rule — a chain's rungs become numerals
 (`Melee (Skilled)` → `Melee III`), a sidegrade keeps its word
-(`Laborer (Farming)`) — and is now what phase 6 is building on
+(`Brewing (Distilling)`) — and is now what phase 6 is building on
 `phase6-tiers`. **`TAGS.md` is the doc that owns tag naming**, and will
 describe the numerals as shipped once that branch lands.
 

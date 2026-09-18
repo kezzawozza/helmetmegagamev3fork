@@ -135,8 +135,8 @@ this shape in 9/2026 and now bills 0.25 from the first unit, `SMITHING.md`
 §2). That 0.25 is the Simple rung's own cost, not `1/MEDICAL_SIMPLE_PER_TURN`;
 the two happen to agree at four a turn. **The predicate is counted in three places that all have
 to change together** if this pool's shape ever does: `routineHealsThisTurn` here, `peoplePools.js` (whose own
-comment demands an exact match — it's what tells auto-labor a character
-still has a free Move today), and `countsAgainstHealCap`/`healCapFor`
+comment demands an exact match, so the number the sheet quotes is the one the
+server charges), and `countsAgainstHealCap`/`healCapFor`
 (`web/lib/healRequests.js`, which also feeds the Heal dialog's own quoted
 cost).
 

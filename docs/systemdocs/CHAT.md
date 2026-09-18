@@ -1103,8 +1103,9 @@ a 48px head and a one-line composer:
   in **command mode**: an accent-tinted `.chat-cmd-chip` sits above the
   textarea, the textarea holds the command's one free-text argument with that
   argument's placeholder, and any other argument it wants is a `.chip-row`
-  under the box — everyone standing here for a `person`, the three Move kinds
-  for a `moveKind`, the reachable places for a `destination`. Enter runs it
+  under the box — everyone standing here for a `person`, the reachable places
+  for a `destination`. (`/move` took a Move-kind argument once; a Move is a
+  Gambit now, so it takes only its description.) Enter runs it
   through `useActionRunner`; Escape, or Backspace on an empty box, drops the
   chip and hands the text back. **An unknown `/word` stays plain speech** — the
   chip is the tell that it parsed.

@@ -24,7 +24,7 @@ YAML and running the sync is the only way their rows change.
 
 | Master | Script | Table(s) | Match key | Removal behaviour |
 |---|---|---|---|---|
-| `docs/zones.yaml` | `db:import-zones` | `Zone`, `Location`, `Room`, `LocationLink`, `LocationYield`, `Structure` | `slug` (a link by its endpoint pair, a yield/structure by location + kind/type) | **Additive, never deletes** — creates a row the database doesn't have yet, skips one that does, and never writes a `discord*Id` column. Keeping Discord true to the database afterwards is `db/lib/discordMirror/` (`npm run db:mirror`), not this importer |
+| `docs/zones.yaml` | `db:import-zones` | `Zone`, `Location`, `Room`, `LocationLink`, `LocationMining`, `Structure` | `slug` (a link by its endpoint pair, a mining row by its location, a structure by location + type) | **Additive, never deletes** — creates a row the database doesn't have yet, skips one that does, and never writes a `discord*Id` column. Keeping Discord true to the database afterwards is `db/lib/discordMirror/` (`npm run db:mirror`), not this importer |
 | `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b): it prunes a tag absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group absent from `docs/taggroups.yaml` too |
 | `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members or roles is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
@@ -32,13 +32,13 @@ YAML and running the sync is the only way their rows change.
 | `docs/miningdrops.yaml` | `db:sync-mining-drops` | `MiningDropOption` | none (rebuilt whole) | **Destructive** — pure config, no player state ever points at a row. See `MININGDROPS.md` |
 
 **Run order matters for the five routine syncs:** tags → roles → desires →
-documents → labor drops. Roles
+documents → mining drops. Roles
 resolve a `starting_zone` and an optional `starting_location` by slug, and a
 Faction's zone by name, and validate
 `starting_tags` against the tag catalog; desires validate `requires.anyRoles`/
 `notRoles` against the Role catalog and `requires.anyTags`/`notTags` against
 the Tag catalog, so it runs after both; documents validate against tags,
-roles *and* factions; labor drops validate every pool entry against the tag
+roles *and* factions; mining drops validate every pool entry against the tag
 catalog and every scope against the zone/location catalogs, and has no
 dependents of its own, so it runs last. Running them out of order throws on a
 reference that would have existed. `db:import-zones` is a one-shot standing
@@ -159,10 +159,10 @@ zones:
       square:               # zones/locations/rooms share ONE slug namespace
         name: Square
         description: >-     # the anchor's -# subtext and the channel topic
-        yield: { hunting: 0.5, farming: 0.3, fishing: 0.7 }
-                             # → LocationYield rows. Optional, 0–2, omit a kind
-                             #   rather than writing 0. An absent kind CANNOT be
-                             #   worked here at all. See LABORING.md §3.
+        mining: 0.9        # → one LocationMining row. Optional, a bare
+                             #   number rather than a mapping. Omit it rather
+                             #   than writing 0: a place with no row CANNOT be
+                             #   mined at all. See MINING.md §2.
         rooms:               # → Room rows → threads under the Location channel
           the-charon:
             name: The Charon
@@ -288,7 +288,7 @@ by slug before every row necessarily exists: TagGroup scalars → Tag scalars +
 Zones no longer have a multi-pass sync of their own. `db:import-zones`
 (`db/lib/importZones.js`) is the one-shot, additive half: it parses
 `docs/zones.yaml` with the same `parseZonesYaml`, creates a
-Zone/Location/Room/LocationLink/LocationYield/Structure the database doesn't
+Zone/Location/Room/LocationLink/LocationMining/Structure the database doesn't
 have yet by slug, and skips — never updates, never deletes — anything that's
 already there. Keeping Discord true to whatever the database now holds is the
 other half, and it isn't the importer's job at all: `db/lib/discordMirror/`
@@ -324,8 +324,7 @@ too.
 same posture as `db:prune-orphan-roles` and `db:doctor`.
 
 **Retiring a chain may take two applies.** Blockers are computed per run, so
-a parent (`laboring-basic` under a removed `laboring-skilled`, a base tag under
-its removed variants) is reported as still-referenced until the run that
+a parent (a base tag under its removed variants) is reported as still-referenced until the run that
 deleted its children is over — run `-- --apply` again and it goes.
 
 A Tag is deleted only when *every* one of these holds. Anything failing even
@@ -378,7 +377,7 @@ everything else from YAML.
 
 | Command | What it does |
 |---|---|
-| `db:sync` | The five routine masters in order (tags, roles, desires, documents, labor drops), then a structure Discord mirror pass. Zones are not part of this run — see `db:import-zones` in §1. |
+| `db:sync` | The five routine masters in order (tags, roles, desires, documents, mining drops), then a structure Discord mirror pass. Zones are not part of this run — see `db:import-zones` in §1. |
 | `db:import-zones` | One-shot, additive: creates whatever `docs/zones.yaml` names that the database doesn't have yet, skips the rest, never deletes. **Dry run by default**; `-- --apply` writes. See §1. |
 | `db:mirror` | Diffs the live Discord guild against the database and provisions, renames or reparents to match — the repair path for zones/locations/rooms/narrowcast/Deadchat now. **Dry run by default**; `-- --apply` writes, `-- --full` adds the member sweeps. `db/lib/discordMirror/`. |
 | `db:doctor` | The channel doctor from a terminal. **Dry run by default**; `-- --apply` repairs, `-- --full` adds the expensive scope (overwrites, threads, invites, narrowcast) on top of the cheap role-membership checks. See `CHANNELS.md` §6. |

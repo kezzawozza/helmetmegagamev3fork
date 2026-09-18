@@ -233,7 +233,7 @@ to be styled.
 Overlap is deliberate: the `bishop` role grants the `chaplain` tag, so a Bishop
 may style themselves Father, Mother or Reverend instead. Same for Censor
 (grants `cerberon`) and the Baron's family (grant `nobility`). **Most of
-Ravenheart is untitled** — a Commoner earns nothing, and the picker says so
+Ravenheart is untitled** — most seats earn nothing, and the picker says so
 rather than showing an empty control.
 
 Three titles hang off *purchasable* tags (`sergeant`, `knighted`,
@@ -541,21 +541,16 @@ The sync **throws** on a `starting_tags` name that isn't in the catalog or a
 `starting_zone` slug that isn't a standable zone, rather than half-applying. A
 typo can't ship characters missing part of their package.
 
-Two things arrive on top of the YAML package, both in `createCharacter`:
+One thing arrives on top of the YAML package, in `createCharacter`:
 
-- **A Commoner who picked no trade starts a farmer.** The three kits
-  (`commoner-farmer` / `-fisherman` / `-hunter`) are ordinary point-buy tags
-  gated by `onlyRoles: [commoner]`, and nothing forced a choice — so a player
-  who skipped the picker got Laboring II and no specialisation at all,
-  able to labor but at no location's coefficient. The Farmer is the fallback
-  because it costs 0 points, so granting it can never overrun a budget already
-  spent. It lands as `GM_GRANT` and as the unopened crate: the player still
-  presses Consume, the same as a kit they chose. `COMMONER_KIT_SLUGS` in
-  `web/lib/characterCreation.js` is the list.
 - **The map they wake up with.** `db/lib/startingMemories.js` says which
   Locations each seat is made already knowing, and `seedMemories()` writes
-  them. See `MAP.md` §6a — the kit above decides which road out of town a
-  Commoner remembers.
+  them. See `MAP.md` §6a.
+
+There was a second, and it went with the Commoner role: a Commoner who picked
+no trade was granted the Farmer kit, because the three `commoner-*` kits were
+point-buy tags gated on that role and nothing forced a choice. The role, the
+kits and the fallback are all gone.
 
 ## 3. The point economy
 
@@ -792,7 +787,8 @@ thin member fetch aborts loudly rather than flagging the roster.
 
 Until the countdown runs out, a departed player's character is **ALIVE
 everywhere**: rosters, transfer pickers, their zone. They're incapacitated
-(no auto-labor) and lootable-while-alive like any Catatonic character.
+(so no day's work is open to them) and lootable-while-alive like any Catatonic
+character.
 
 ## 5b. Killing and reviving from the GM panel
 

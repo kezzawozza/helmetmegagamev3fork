@@ -55,7 +55,7 @@ debounced on the client):
   (`db/lib/playerPreferences.js#setPriority`, a port of tgstation's
   `set_job_preference_level`). Whitelisted seats are greyed for a player
   without the Whitelist role and dropped server-side if posted anyway.
-- **If none are available** — Commoner (default), Migrant, or Return to lobby.
+- **If none are available** — Migrant (the default) or Return to lobby.
 - **Antagonist opt-ins** — the twelve public boxes (`THREATS.md` §1), the
   whitelisted ones greyed the same way.
 - **Ready** — a `LobbyEntry` row, `status: READY`. Unready deletes it.
@@ -126,16 +126,18 @@ tgstation's `SSjob.divide_occupations`:
    wants a `leader: true` seat at that level gets one, at random among the
    open ones they may hold;
 3. **main pass** — the same three levels over every seat;
-4. **jobless** — whoever is left gets the overflow seat they named (Commoner
-   or Migrant, both unlimited) or a walk back to the lobby (`roleSlug: null`).
+4. **jobless** — whoever is left gets Migrant, the one unlimited overflow seat
+   and the default, or a walk back to the lobby (`roleSlug: null`). Commoner
+   was the other option until it was removed with Laboring; it only ever
+   existed to be the seat for somebody who wanted to work for a living.
 
 Eligibility: not spawn-only (`SPAWN_ONLY_ROLE_SLUGS`, `db/lib/roleCapacity.js`),
 whitelist always honoured, and a seat with room
 — capacity from `roleCapacity()` at the stamped player count minus what
 `heldSeatsByRole` (`db/lib/seatCount.js`) already counts.
 
-Two deliberate departures from SS13: no "overflow first" pass (Commoner and
-Migrant are ordinary rows, the fallback dropdown is the overflow), and **no
+Two deliberate departures from SS13: no "overflow first" pass (Migrant is an
+ordinary row, the fallback dropdown is the overflow), and **no
 forced head** — a leader seat nobody eligible wants stays empty and becomes a
 warning.
 

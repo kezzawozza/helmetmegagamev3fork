@@ -270,12 +270,12 @@ weighted draw), not player-facing catalog data the way a tag's price is. A
 `FIND` draws in two stages: a tier by the standing zone's column below, then
 a slug uniformly within that tier.
 
-**The labor drop die speaks this vocabulary too** as of the cooking rework:
+**The mining drop die speaks this vocabulary too** as of the cooking rework:
 `docs/miningdrops.yaml` entries carry one of these six tier names, and
 `db/lib/miningdropsRarity.js` draws in the same two stages. The names are
 shared on purpose — two loot systems in one game should not need two
 vocabularies — but the **numbers are not**, and should not be unified. This
-column is keyed by zone because a cave is a place; the labor one is keyed by
+column is keyed by zone because a cave is a place; the mining one is keyed by
 die face, because a 1 and a 6 are different events. See `MININGDROPS.md` §2.
 
 | Tier | Caves | Depths |

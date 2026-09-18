@@ -65,7 +65,7 @@ absent from `docs/taggroups.yaml`. `db/lib/syncTags.js#syncTagsFromYaml(prisma)`
 reads both files and does the sync, run by hand via `npm run db:sync-tags`
 (`db/scripts/sync/sync-tags.js`) or automatically as one step of Restart
 Game's `finishGameWipe` (`web/app/(app)/gm/dev/actions.js`), ahead of the role,
-desire, document and labor-drop syncs and the Discord mirror pass that closes
+desire, document and mining-drop syncs and the Discord mirror pass that closes
 the wipe out.
 
 The sync is five passes, since tags/groups can reference each other by slug
@@ -97,7 +97,7 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
 - **`parentTag` (tier chain)** — sequential, replacing. Melee I ->
   Melee II -> Melee III -> ... Acquiring a tier is meant
   to replace the previous one on the character, not stack alongside it.
-  `Laboring II` chains off `Laboring I` the same way. Each rung's `name`
+  `Smithing II` chains off `Smithing I` the same way. Each rung's `name`
   is a Roman numeral by its position in its own chain — first rung is
   always `I`, whatever tier the chain happens to start at: the `builder-skilled`
   slug now names `Builder I` even though there is no lower building tier
@@ -108,10 +108,8 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   replace it. Example in the catalog: `Ranged (Archer)` requires
   `Ranged I` but coexists with `Ranged III` — a character can
   hold both at once. Also the right relation for an origin/membership gate the
-  gated tag doesn't consume: `Manor` requires `Courtier`, `House`/`Shack`
-  require `Ravenhearter`, and
-  `Laborer (Farming)` requires `Laborer (Skilled)` — a sidegrade that coexists
-  with the tier it builds on.
+  gated tag doesn't consume: `Manor` requires `Courtier`, and `House`/`Shack`
+  require `Ravenhearter`.
 
   One exception: on a **craftable** item, `requiredTag` is a combat/use
   gate, not a workshop gate, and the Add Tag menu's craft route does not
@@ -296,11 +294,11 @@ and this list is an AND), so never author a multi-skill recipe meaning
 "either" — this paragraph claimed the reverse until 2026-09-05 and the Dead
 Simple rung had been authored to match the wrong claim.
 
-Lazy's `requiredTag: laboring-basic` is how "Laboring OR Commoner" gets
-expressed without an OR gate that doesn't exist: `holdsRequirement` walks the
-tier chain, and a Commoner starts with Laboring II, which already sits
-above Basic — so the single FK is satisfied by either the bare skill or the
-role that starts with a higher rung of it.
+Lazy used to carry `requiredTag: laboring-basic`, which was how "Laboring OR
+Commoner" got expressed without an OR gate: `holdsRequirement` walks the tier
+chain, and a Commoner started with Laboring II, above Basic. Both the ladder
+and the Commoner role are gone, and Lazy is ungated — it takes its quarter off
+a mining roll whether or not you can dig.
 
 A multi-skill recipe is therefore a deliberate conjunction. `barbed-net` is
 the one that exists: `[crafting, fundamentalist]`, i.e. only a zealot who can
@@ -420,9 +418,9 @@ in `purchasableTags()` mirroring the `afterStartOnly` line beside it, and
 `createActions.js` re-checks it server-side with `mastery: false` in its own
 `where` — a hidden option is a hint, not a lock.
 
-The nine mastery tags today are Lucky (15), Manic (13), Metempsychosis (12),
-Amor Fati (12), Imperturbable (12), Brewing (Distilling) (14), Laboring
-(Scavenging) (12), Laboring (Tireless) (14) and Musician (Pythagorean) (14).
+The nine mastery tags today are Lucky (15), Arelitz Breeding (15), Brewing
+(Distilling) (14), Musician (Pythagorean) (14), Metempsychosis (12), Amor Fati
+(12), Imperturbable (12), Manic (10) and Smithing (Gunpowder) (9).
 Second Wind reads like one and deliberately is not: it is an ordinary 6-point
 tag, buyable at creation like anything else.
 
@@ -1058,16 +1056,16 @@ them).
   what it becomes. Live; see §5b.
 - `expiresInto` — what this tag becomes when its `durationTurns` runs out,
   instead of simply being swept away. Live; see §5c.
-- `laborBonus` — what this tag adds to one kind of Laboring, e.g.
-  `laborBonus: { kind: hunting, amount: 3 }`. `equipped` defaults **true**;
-  `requiresTag` gates it on holding something else (the Plow needs a horse).
-  Bonuses sum. The hands cap readied WEAPONS only; accessories are
-  uncapped, and the fishing rod and the trapping gear are accessories.
-  Normalised and validated in `db/lib/tagShapes.js`, which throws on an
-  unknown `kind`, on a bonus that requires equipping a tag that is not
-  `equippable`, and on a `requiresTag` naming a tag that does not exist — a
-  typo'd `kind` would otherwise make a tool silently worthless. Full rules in
-  `LABORING.md` §5.
+- `miningBonus` — what this tag adds to a day's mining, e.g.
+  `miningBonus: { amount: 1 }`. `equipped` defaults **true**; `requiresTag`
+  gates it on holding something else. Bonuses sum, and three tags carry one
+  today: Prospector's Pick, Mining Helmet and the Claim Stake structure
+  (`placement.miningBonus`). Normalised and validated in `db/lib/tagShapes.js`,
+  which throws on a bonus that requires equipping a tag that is not
+  `equippable`, and on a `requiresTag` naming a tag that does not exist. There
+  was a `kind:` key here too, naming which of the four Laboring types the bonus
+  paid into, and a typo in it made a tool silently worthless — a bonus is just
+  a bonus now. Full rules in `MINING.md` §4.
 - `requirementItems` (YAML: `requirement.items`) — the recipe's
   **ingredients**, and the only ones the game has. **Spent by default**:
   `quantity` units come off the crafter's sheet per craft, the same scaling ⬢
@@ -1128,7 +1126,7 @@ true` in `docs/tags.yaml` sets `Tag.stackable`; the count lives on
 **A stack is one row carrying a count, never N rows.**
 `@@unique([characterId, tagId])` stays exactly as it was, which is the whole
 point: every presence check in the codebase — `specialChannels.js`,
-`gambitModifier.js`, `laborAccess.js`, the Mortus nav gate — keeps
+`gambitModifier.js`, `mining.js`, the Mortus nav gate — keeps
 reading "holds it or doesn't" with no change, and `restoreCharacterTag`'s
 upsert stays valid.
 
@@ -1910,8 +1908,8 @@ row. Assigned dynamically by a GM (Leader) or by a GM/the faction's own
 Leader (Treasurer) from `/faction` (`web/app/(app)/faction/actions.js`).
 `Courtier` is still a tag and gates `Manor` via `requiredTag` (§3). `Mortus`
 is still a tag too — an ordinary General one that gates `/lifeweb` nav
-visibility. `Hunter` is gone entirely: hunting is now just a flavor of
-laboring (`LABORING.md`).
+visibility. `Hunter` is gone entirely, and so is the hunting it named — a day's work is
+the Mine button now (`MINING.md`).
 
 ## 7. Where the code lives
 
@@ -2012,12 +2010,11 @@ drawbacks, each with its own writer:
   own — `db/lib/mood.js` (the multiplier table) and `db/lib/moodPass.js` (the
   nightly turn pass). See `MOOD.md`.
 - **Guilt Ridden and Insomniac** each carry a nightly chance of a bad night's
-  sleep, stepped through the same Tired -> Exhausted ladder a day's Labor uses
-  (`LABORING.md` §4) — `db/lib/dawnAfflictionPass.js`, run right after the
+  sleep, stepped through the same Tired → Exhausted ladder a day's mining uses
+  (`MINING.md` §5) — `db/lib/dawnAfflictionPass.js`, run right after the
   hunger pass.
-- **Lazy** takes a quarter off a labor roll's yield, after the roll —
-  `lazyYield()` in `db/lib/laborAccess.js`, called from both
-  `db/lib/autoLaborPass.js` and `bot/src/lib/moveConfirm.js`.
+- **Lazy** takes a quarter off a mining roll's yield, after the roll —
+  `lazyYield()` in `db/lib/mining.js`, called from the Mine button.
 - **Guilt Ridden** also blocks Confession outright —
   `db/lib/confession.js#confessableTags`/`validateConfession` (`CONFESSION.md`).
 - **Lightweight and Iron Liver** reshape the drinking ladder —
@@ -2049,7 +2046,7 @@ The state lives on two `CharacterTag` columns rather than a join table.
 unheld or fully-stowed stack, up to `quantity` itself for one equipped down to
 the last unit — and `equipped` is kept in sync as `equippedQuantity > 0`, so
 every "holds it or doesn't" check elsewhere in the codebase (fear, armour,
-mounts, concealment, labor bonuses...) reads that one boolean and needs to
+mounts, concealment, mining bonuses…) reads that one boolean and needs to
 know nothing about counts. `@@unique([characterId, tagId])` stays: a stack is
 still one row, it just carries two numbers instead of one flag.
 
@@ -2279,8 +2276,8 @@ a 35-tag authoring job at that point.
 ### Words, never numbers
 
 A player is never shown the decimal. `db/lib/armorValue.js#armorWord` turns it
-into one of six words, the same posture Laboring yields take
-(`db/lib/laborYield.js#qualityWord`):
+into one of six words, the same posture mining coefficients take
+(`db/lib/miningYield.js#qualityWord`):
 
 | value | word |
 |---|---|
@@ -2494,7 +2491,7 @@ slug names the capabilities it removes:
 | `catatonic-afk` | ✗ | ✓ | ✓ | see the trap below |
 | `mute` | ✓ | **✓** | ✗ | a mute smith is still a smith — and now still a talker |
 
-**ACT** is the physical half — equip, craft, destroy, labor, butcher, package,
+**ACT** is the physical half — equip, craft, destroy, mine, farm, butcher, package,
 transfer, extract, travel, teach, confess, the Depot, writing on paper.
 **SPEAK** is the voice — the proxy (ordinary chat, whispers, the Speak modal),
 and the Council Room intercom. **SHOUT** is `/shout` and nothing else.
