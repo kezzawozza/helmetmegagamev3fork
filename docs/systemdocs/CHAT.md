@@ -566,6 +566,22 @@ like everything else.
   pending row has no seq to edit. Past the window `onEdit` says so out loud,
   exactly as the row's own ✎ does. On a NON-empty box Up still moves the caret
   through what you are writing.
+- **Your own line appears at once, and a refused one is marked rather than
+  removed.** `submit()` clears the box and calls `addPending` before the POST
+  goes out, so the row is in the same React commit as the empty box; the
+  confirmed row evicts its pending twin by `clientId` whichever way it arrives
+  (the stream, or the POST's own answer). A refusal calls `markPendingFailed`,
+  which leaves the words on screen: the line takes a danger rule down its
+  leading edge (`data-failed`) and a `.chat-unsent` foot with **Try again**.
+  Losing what somebody typed is worse than watching it sit there.
+
+  One trap, and it cost the whole scene: `Feed.js` falls back to the
+  server-rendered rows while a place's history is still loading, and that test
+  used to be `stored.length === 0`. Sending the first line into such a place put
+  one row in the store, flipped the test off the fallback, and blanked the scene
+  down to your own sentence. The test asks whether the store holds anything
+  **confirmed** now — a pending row carries no seq — and the fallback rows stay
+  underneath it until it does.
 - **The textarea shows no focus ring, and the container shows the focus
   instead.** It drew `outline: 2px solid var(--accent-text)` at a 2px offset,
   so a focused box read as two frames with a light leak between them.

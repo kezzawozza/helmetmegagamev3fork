@@ -7093,6 +7093,27 @@ label.chip {
 }
 
 /* A pending row is the same row, quieter. */
+/* A send the server refused. The line stays exactly where it was put — losing
+   what somebody typed is worse than watching it sit there — so the mark is what
+   says it went nowhere: a danger rule down the leading edge, and the words held
+   at the pending dim so they do not read as something that was said. Never
+   removed silently; .chat-unsent under the body carries the Try again. */
+.tline[data-density="feed"][data-failed] {
+  border-left: 2px solid var(--danger);
+  margin-left: -2px;
+  padding-left: 2px;
+  opacity: 1;
+}
+
+.chat-unsent {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--danger);
+}
+
 .tline[data-density="feed"][data-pending] {
   opacity: 0.6;
 }

@@ -256,6 +256,10 @@ const FeedRow = memo(function FeedRow({
       seq={row.seq}
       startsRun={startsRun}
       pending={row.pending}
+      // A send that came back refused. The line STAYS — losing what you typed
+      // is worse than watching it sit there marked unsent — so the mark is what
+      // has to say it went nowhere, beside the Try again below.
+      failed={row.failed}
       // Only a line that ARRIVED gets the fade. See `liveAfter` below.
       live={live}
       // The face draws only on the first line of a run; the gutter keeps its
@@ -331,9 +335,12 @@ const FeedRow = memo(function FeedRow({
             </span>
           )}
           {row.failed && (
-            <button type="button" className="btn-quiet" onClick={() => onRetry(row.clientId)}>
-              Try again
-            </button>
+            <p className="chat-unsent">
+              <span>Not sent.</span>
+              <button type="button" className="btn-quiet" onClick={() => onRetry(row.clientId)}>
+                Try again
+              </button>
+            </p>
           )}
         </>
       }
@@ -667,14 +674,23 @@ export default function Feed({
   // brought a deleted line back: take the only line in a quiet street down,
   // the store empties, and the server's copy from page-load slid in behind it
   // as though nothing had happened.
-  const rows =
+  //
+  // `stored.some(row => row.seq)` rather than `stored.length === 0`, and that is
+  // load-bearing for the optimistic row: sending the first line into a place
+  // whose history was still loading put ONE row in the store, which flipped this
+  // off the fallback and blanked the whole scene down to your own sentence. A
+  // pending row carries no seq, so this asks whether the store holds anything
+  // CONFIRMED and keeps the server's copy underneath until it does.
+  const usingFallback =
     historyState !== "loaded" &&
-    stored.length === 0 &&
-    placeKey &&
+    Boolean(placeKey) &&
     placeKey === fallbackPlace &&
-    fallbackRows?.length
-      ? fallbackRows
-      : stored;
+    Boolean(fallbackRows?.length) &&
+    !stored.some((row) => row.seq);
+  const rows = useMemo(
+    () => (usingFallback ? [...fallbackRows, ...stored] : stored),
+    [usingFallback, fallbackRows, stored],
+  );
   const [searchOpen, setSearchOpen] = useState(false);
   // The `at` of a jump whose failure the reader has already waved away, so
   // closing the search box after a miss actually closes it.
