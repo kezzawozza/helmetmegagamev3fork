@@ -17,7 +17,12 @@ export default function Panel({ title, actions, children, className = "", pad = 
   return (
     <section className={`panel flex flex-col gap-3 ${pad} ${className}`.trim()}>
       {title || actions ? (
-        <div className="flex flex-wrap items-center gap-3">
+        // .panel-header-row only when there are actions beside the title —
+        // that's the case whose border-bottom used to stop at the title's
+        // own edge instead of reaching the actions (globals.css has the
+        // full story). Title alone still gets its border straight off
+        // .panel-header, no row needed.
+        <div className={actions ? "panel-header-row items-center" : undefined}>
           {title ? <h2 className="panel-header">{title}</h2> : null}
           {/* A wrapper carries ml-auto, never the button: every .btn* is
               `all: unset`, which clears a margin utility put on it directly. */}

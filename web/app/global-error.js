@@ -1,17 +1,17 @@
 "use client";
 
 // The last resort: this replaces the ROOT layout, so it only renders when the
-// root layout itself threw, before the theme, fonts or any provider existed.
-// It supplies its own <html>/<body> and imports globals.css directly since
-// Next doesn't provide it here; data-theme is pinned rather than derived
-// because reading the turn phase from the database is what may have failed.
+// root layout itself threw, before any font or provider existed. It supplies
+// its own <html>/<body> and imports globals.css directly since Next doesn't
+// provide it here. There is one look now, so no theme attribute is needed —
+// globals.css's tokens are the same for every request.
 // Next 16 names the recovery prop `retry`, not `reset`.
 
 import "./globals.css";
 
 export default function GlobalError({ error, retry }) {
   return (
-    <html lang="en" data-theme="dusk" className="h-full">
+    <html lang="en" className="h-full">
       <body className="h-full">
         <title>Bascinet</title>
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 sm:p-8">

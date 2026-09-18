@@ -517,10 +517,17 @@ looked SO much better"):
   `surface -> surface-raised`) and the border-vs-surface ratio — now fail at
   every lamp position, in both looks: the mockup's own surfaces sit closer
   together than the ~1.20-per-rung ladder the audit was written to enforce,
-  and narrowing that gap is the entire point of the change. Left failing,
-  reported rather than patched around, and not a reason to touch
-  `audit-contrast.js` itself.
+  and narrowing that gap is the entire point of the change. Left failing at
+  the time, reported rather than patched around — `audit-contrast.js`'s
+  `LADDER_MIN`/`BORDER_MIN` were lowered to 1.05/1.40 to admit this ground
+  properly a little later the same day, which is the state described in
+  `DESIGN-SYSTEM.md` §2 now.
 - **`.panel-header` dropped its sprite strip** — see `DESIGN-SYSTEM.md` §3a.
+
+Later the same day the two-look system this entry describes was retired
+outright — one look now, the mockup's `:root` taken verbatim rather than
+re-solved, no `[data-theme]` selector left in `globals.css`. See
+`DESIGN-SYSTEM.md` §3.
 
 `--font-serif` on `:root` is a real serif again —
 `"Times New Roman", Times, "Liberation Serif", serif` — where phase 1 had left it

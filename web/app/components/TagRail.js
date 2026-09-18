@@ -260,7 +260,7 @@ export default function TagRail({
   return (
     <>
       <section className="panel p-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="panel-header-row justify-between">
           <h2 className="panel-header">Tags</h2>
           {pointsControl}
         </div>

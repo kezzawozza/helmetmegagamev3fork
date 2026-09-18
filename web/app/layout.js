@@ -4,7 +4,6 @@ import "./chat.css";
 import "./sheet.css";
 import "./shell.css";
 import { getMoveWindow } from "@/lib/turn";
-import { resolveLook } from "@/lib/clockTheme";
 import {
   getVisibleTags,
   getProductionRates,
@@ -19,7 +18,6 @@ import MoveWindowProvider from "./components/MoveWindowProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
 import NoticeProvider from "./components/NoticeProvider";
 import { RefreshProvider } from "./components/useRefresh";
-import LampTick from "./components/LampTick";
 
 // The one download (REDESIGN.md §3). Body, headings and mono are plain system
 // stacks declared on :root in globals.css; Source Sans 3, Source Serif 4 and
@@ -46,11 +44,9 @@ export const viewport = {
   interactiveWidget: "resizes-content",
 };
 
-// Theme/turn state is live game state fetched per-request, not something
-// that should be statically prerendered (and prerendering would try to hit
-// the database at build time, when it isn't reachable) — and the look itself
-// is now computed from the clock per request (web/lib/clockTheme.js), not the
-// turn's phase.
+// Turn state is live game state fetched per-request, not something that
+// should be statically prerendered — and prerendering would try to hit the
+// database at build time, when it isn't reachable.
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }) {
@@ -69,27 +65,9 @@ export default async function RootLayout({ children }) {
   // handed it as a prop.
   const moveWindowPromise = getMoveWindow().catch(() => null);
 
-  // The look follows the real Chicago clock, not the turn's phase
-  // (REDESIGN.md §4) — which is also why this no longer awaits getOpenTurn(),
-  // the one blocking database query left in the layout. `lamp` rides along as
-  // an inline custom property so the FIRST PAINT already carries the right
-  // point on the day's gradient; LampTick below only keeps it moving.
-  // BASCINET_THEME pins the whole environment to one look with no gradient —
-  // "dusk" or "dawn". Leave it unset in production.
-  const override = process.env.BASCINET_THEME ?? null;
-  const { theme, lamp } = resolveLook(override);
-
   return (
-    <html
-      lang="en"
-      data-theme={theme}
-      style={{ "--lamp": String(lamp) }}
-      className={`${display.variable} h-full`}
-    >
+    <html lang="en" className={`${display.variable} h-full`}>
       <body className="h-full">
-        {/* Keeps data-theme and --lamp on the clock for a tab left open; see
-            LampTick.js for why it writes the DOM instead of holding state. */}
-        <LampTick override={override} />
         {/* One fixed, non-interactive atmosphere layer behind everything. It
             replaces the old .scanlines, which sat at 0.06 opacity and was
             effectively invisible. It composites once and never animates —

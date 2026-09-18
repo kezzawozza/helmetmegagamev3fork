@@ -319,7 +319,7 @@ export default function EquipBoard({
 
   return (
     <section className="panel p-3 equip-board">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div className="panel-header-row justify-between">
         <h2 className="panel-header">Equipment</h2>
         {/* What the rig comes to, in the header, the way the mockup draws it:
             the shield mark and the word, twice, melee then ballistic. */}

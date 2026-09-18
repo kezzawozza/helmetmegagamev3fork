@@ -55,13 +55,20 @@ Two rules that are easy to get wrong:
 
 ## 2. Colour
 
-Entirely CSS custom properties, redefined per-theme in `globals.css`. **Never
-hardcode a hex or rgb value in a component** — always `var(--x)`, so it tracks
-the active theme. There are currently zero hardcoded colours app-wide; keep it
+Entirely CSS custom properties, declared once on `:root` in `globals.css`.
+**Never hardcode a hex or rgb value in a component** — always `var(--x)`, so a
+palette change is one file, not a grep-and-replace. There are currently zero
+hardcoded colours app-wide; keep it
 that way.
 
 Three things about the token set are load-bearing and easy to undo by accident:
 
+- **`--text-hi` is a heading's own lift off `--text`**, added 2026-09-18 with
+  the rest of the mockup's literal palette. `h1`/`h2`/`h3` and `.panel-header`
+  take it, not `--text` — the mockup draws every heading a shade brighter
+  than a paragraph, so a panel title still reads as a title beside its own
+  body copy rather than as merely bigger, bolder body text. Gated at AA like
+  `--text`; measures 10.11 against `--surface`.
 - **The surface ladder is `--bg` → `--surface` → `--surface-raised`**, a step
   of about 1.06 each. `.panel` sits on `--surface`; modals, tooltips,
   sticky table headers and the turn chip sit on `--surface-raised`.
@@ -81,27 +88,27 @@ Three things about the token set are load-bearing and easy to undo by accident:
   primary button pair, and **`--danger`, not `--accent`, is for destructive
   actions**.
 - **Contrast is gated, not vibes.** `npm run audit:contrast --workspace=web`
-  parses the theme blocks straight out of `globals.css` and fails on any AA
+  parses `:root` straight out of `globals.css` and fails on any AA
   regression. Run it after touching a colour. It also **scans `web/app` and
   `web/lib`** for `var(--accent)` used as anything but a fill or a rule — an
   allowlist, not a denylist, because the worst offender was `costColor()`
   handing the token to six callers to spend as text, which no denylist could
-  attribute. `--accent` as text measures **2.96** on dusk's `--surface`: under
+  attribute. `--accent` as text measures **2.96** on `--surface`: under
   not just AA's 4.5 but the 3.0 large-text floor.
 - **The zone code is fills only.** `--zone-fortress` / `--zone-town` /
   `--zone-forest` / `--zone-hills` / `--zone-marshes` / `--zone-caves` /
-  `--zone-depths` are colour-picked from the map and
-  declared **inside each `[data-theme]` block**, not on `:root`, so the audit
-  script sees them. They are the rule down the side of a `.zone-chip` and
-  **never a text colour** — gated at **3.0** against `--surface`, the
-  large-graphic floor, because none of them would clear AA's 4.5 and gating
-  them there would only force them off the map's palette. Three of the twelve
-  values deviate from the map for contrast and say so in a comment; do not
-  restore them. See [`GAMEMASTERS.md`](GAMEMASTERS.md) §3.
+  `--zone-depths` are colour-picked from the map and declared on `:root`
+  alongside everything else, so the audit script sees them. They are the rule
+  down the side of a `.zone-chip` and **never a text colour** — gated at
+  **3.0** against `--surface`, the large-graphic floor, because none of them
+  would clear AA's 4.5 and gating them there would only force them off the
+  map's palette. One of the seven, Fortress, deviates from the map for
+  contrast and says so in a comment; do not restore it. See
+  [`GAMEMASTERS.md`](GAMEMASTERS.md) §3.
 - **The tag code is fills only, and says CATEGORY.** `--tag-general` /
   `--tag-skills` / `--tag-status` / `--tag-health` / `--tag-items` /
-  `--tag-assets` / `--tag-demoness`, one per `Tag.category`, declared per
-  theme and gated at **3.0** exactly like the zone code above. They are the
+  `--tag-assets` / `--tag-demoness`, one per `Tag.category`, gated at **3.0**
+  exactly like the zone code above. They are the
   rule down the left of a `.chip`, a sheet row or an item card, keyed off a
   `data-tag-category` attribute, and never a text colour.
   **They are deliberately desaturated** — around 20–35% where the values they
@@ -119,41 +126,53 @@ Three things about the token set are load-bearing and easy to undo by accident:
   through `--name-6` are muted hues, one assigned per character, stable across
   sessions, used as **bold text** on a log line to tell speakers apart at a
   glance. Unlike the zone and tag codes above, a name is read as text, not as
-  a fill — so `audit:contrast` gates these at **4.5**, not 3.0. Both looks
-  share one set; worst case measures 6.16.
-- **`--blackletter` is body text's opposite number** — the one token that
-  exists to be *illegible at small sizes on purpose*, because it is only ever
-  used at `--fs-3xl` (28px) and up, always with `text-shadow: 0 2px 3px #000`
-  at the call site. It is gated at the **3.0** large-text floor, not full AA:
-  Lifeweb's own `#744` and an earlier `#9a5a5a` both measured under 3.0 on
-  this ground, so both looks' values are lifted off the "authentic" pick to
-  clear it. Never set it on body text — see §1 for where it's actually used.
-- **Each theme names its own `color-scheme`.** A handful of controls are drawn
+  a fill — so `audit:contrast` gates these at **4.5**, not 3.0. Worst case
+  measures 6.16.
+- **`--blackletter` and `--muted` are the two tokens gated below their usual
+  floor, on purpose, since 2026-09-18** — see §3. `--blackletter` is body
+  text's opposite number: the one token that exists to be *illegible at small
+  sizes on purpose*, because it is only ever used at `--fs-3xl` (28px) and up,
+  always with `text-shadow: 0 2px 3px #000` at the call site. Never set it on
+  body text — see §1 for where it's actually used.
+- **`:root` names `color-scheme`.** A handful of controls are drawn
   by the browser, not by `globals.css` — the unchecked checkbox, the date
   picker's calendar glyph and popup, the search field's clear button, the
   `<select>` option list, the scrollbars. They read that property and nothing
-  else, so without it a native `<select>` popup opens white in dusk.
+  else, so without it a native `<select>` popup opens white.
 
 ## 3. Themes
 
-One rust palette, two named looks, both *underground darks* — Ravenheart is a
-cave civilisation, so they differ by lamplight temperature and lift, not by
-daylight. The look follows real Chicago wall-clock time via
-`web/lib/clockTheme.js`: dawn 06:00–18:00 with a slow warmth ramp on six
-tokens driven by `--lamp`, dusk 18:00–06:00 flat, hard switch at 18:00.
-`BASCINET_THEME` pins either look with no ramp (`resolveLook` in
-`clockTheme.js`; anything it doesn't recognise, including the deleted
-`limestone`, falls through to the clock). `audit:contrast` gates the ramp at
-five points, not just the two ends.
+**One look — there is no theme switch any more.** Until 2026-09-18 this was
+two named looks, dusk and dawn, both *underground darks* differing by
+lamplight temperature and lift, following real Chicago wall-clock time via
+`web/lib/clockTheme.js`: a slow warmth ramp through the day, a hard switch at
+18:00, `BASCINET_THEME` to pin either look with no ramp. Bascinet cut all of
+it — not "re-solve dawn to match dusk", but delete the second look entirely
+and the clock machinery that drove it, and take the character-sheet mockup's
+own `:root` (`docs/design/mockups/character/index.html`) as the app's literal
+palette, unmodified. `globals.css` now declares its colour tokens once, on
+`:root`, with no `[data-theme]` selector anywhere. `web/lib/clockTheme.js`,
+`web/app/components/LampTick.js` and the `BASCINET_THEME` env var are gone.
+
+A handful of tokens the mockup never names — `--speech`, `--name-1`…`-6`,
+`--zone-*`, `--map-river`, `--chart-*`, `--row-hover`, `--shadow-color`,
+`--feed-veil` — kept the value the retired dusk look carried, since dusk was
+the look actually being matched before this. Everything the mockup does name
+was taken verbatim, including two values that sit under their old gate:
+`--muted` (4.16 against `--surface`, was gated at AA's 4.5) and
+`--blackletter` (2.22, was gated at the 3.0 large-text floor). Rather than
+re-solve either off the palette again, `audit:contrast`'s floors for these two
+moved down to admit the mockup's own numbers — see the comment at the top of
+`web/scripts/audit-contrast.js` for the exact ratios. They are still real
+gates: a further regression on either still fails the build.
 
 A CRT/terminal look was considered twice and dropped both times — too slow and
 too much flavour once it had the full treatment (an animated warp filter,
 scanline flicker), invisible once it was toned down to fit the performance
-budget. Nobody has since found a middle version worth shipping. If a new look
-comes up, it is not a special case: add a `[data-theme="…"]` block to
-`globals.css` with the same token set as dawn and dusk, add its name to
-`THEMES` in `web/lib/clockTheme.js`, and let `audit:contrast` gate it before it
-ships — same as any other theme.
+budget. Nobody has since found a middle version worth shipping. If a second
+look ever comes back, it is real work, not a small addition: a `[data-theme]`
+switch, a mechanism to pick one, and `audit:contrast` gating every value
+again — none of which exists in this codebase any more.
 
 ## 3a. Chrome
 
@@ -398,7 +417,7 @@ Five things about these are load-bearing:
   `· worn`, and a player learning one learned nothing about the next.
 - **`StatusPill` takes a tone, not a colour.** Callers say what a state *means*
   and the stylesheet decides how that looks, so a status cannot reach for a
-  colour the themes have not solved. Per-domain label maps stay local — a
+  colour the palette has not solved. Per-domain label maps stay local — a
   Move's states are not a Request's — but they live in `web/lib/moves.js` and
   a Prisma-free module (`web/lib/auditNarrative.js` is the live example) so
   *both* faces can reach them.
@@ -417,10 +436,9 @@ verbatim into `web/app/chat.css`, the sheet's into `web/app/sheet.css`, both
 imported from `layout.js` right after `globals.css` (order matters — they win
 any name they share with it). **Token declarations never moved.**
 `web/scripts/audit-contrast.js` reads `globals.css` by a hardcoded path and
-throws if the `[data-theme]` / `[data-theme="dusk"]` / `[data-theme="dawn"]`
-blocks are missing, so a new colour token is always declared there, in those
-blocks, whichever page's stylesheet uses it. Only *rules* live in the split
-files now — `globals.css` keeps tokens, the reset, the shared primitives above,
+throws if it finds no top-level `:root` block, so a new colour token is always
+declared there, whichever page's stylesheet uses it. Only *rules* live in the
+split files now — `globals.css` keeps tokens, the reset, the shared primitives above,
 the desks, and `/map`.
 
 **`.bar`** is the chat pages' one column-head recipe, ported from the mockup

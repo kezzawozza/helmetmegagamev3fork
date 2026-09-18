@@ -162,7 +162,12 @@
    alongside it, so this rule also answers to the mockup's class. */
 .ledger-tile,
 .tile {
-  background: var(--field-bg);
+  /* var(--surface-raised), matching the mockup's own .tile — this is a
+     raised card sitting on the band, not a recessed input well. It used to
+     read var(--field-bg), which is the well colour, and painted all five
+     tiles (Free moves, Resources, Carrying, Mood, Gambit die) as flat black
+     boxes where the mockup reads warm. */
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: var(--sp-1) var(--sp-2);
@@ -264,7 +269,11 @@
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  background: var(--field-bg);
+  /* Same fix as .ledger-tile above, and for the same reason: this class rides
+     alongside it on every OPENABLE tile (Mood, the Gambit die — DetailTile.js
+     applies both), and being later in the cascade it was winning, so those
+     two tiles stayed black after the plain ones turned warm. */
+  background: var(--surface-raised);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: var(--sp-1) var(--sp-2);
