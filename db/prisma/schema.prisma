@@ -2680,7 +2680,7 @@ model Tag {
   groupId String?
   group   TagGroup? @relation(fields: [groupId], references: [id])
 
-  // For sequential/tiered skill tags (Cooking (Basic) -> Cooking (Skilled)):
+  // For sequential/tiered skill tags (Cooking I -> Cooking II):
   // the tier this one upgrades from. Buying/granting a tag with a parent
   // replaces the parent on the character rather than stacking with it.
   parentTagId String?
@@ -3237,7 +3237,7 @@ model Tag {
   psychological Boolean @default(false)
 
   // What it costs a character to gain or shed this tag through play (e.g.
-  // curing Arthritis needs Medical (Skilled), some turns, and resources;
+  // curing Arthritis needs Medical II, some turns, and resources;
   // forging a sword tag costs turns, resources, Smithing, no Gambit). One
   // shared set of fields covers whichever direction is narratively relevant
   // for a given tag (crafting only cares about adding it; healing only cares
@@ -3407,8 +3407,8 @@ model Tag {
   // `group:` entry, any current member of that group) isn't ALL. Miasma's
   // `group: items-corpse` names a group three catalog:secret monster
   // corpses always sit in (nekker/graga/skinless), so that gate never opens
-  // on its own — a player never holding a corpse never learns Brewing
-  // (Basic) makes Miasma at all, which was never the design for a basic
+  // on its own — a player never holding a corpse never learns Brewing I
+  // makes Miasma at all, which was never the design for a basic
   // recipe. `recipePublic: true` (docs/tags.yaml) says this ONE recipe
   // should always be listed regardless of what its ingredient's group
   // contains; `computeKnownRecipeIds` (web/lib/tagRequests.js) checks it

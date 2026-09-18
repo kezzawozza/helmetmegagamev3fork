@@ -285,7 +285,7 @@ group is never fully public — `nekker-corpse`, `graga-corpse` and
 `skinless-corpse` are all `catalog: secret` and always sit in it — so the
 gate above never opened for a player who had never held a body, for a
 recipe that is supposed to be common knowledge once you know Brewing
-(Basic). Bone Mask and Death Mask name the same group and do **not** set
+I. Bone Mask and Death Mask name the same group and do **not** set
 the flag: for those two, "you have to have held a corpse" is the intended
 discovery mechanic, not a side effect worth working around.
 

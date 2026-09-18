@@ -127,7 +127,7 @@ export async function healCharacterRequestImpl({
   );
   const healSkillId = catalog.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
   if (!healSkillId || !satisfied.has(healSkillId)) {
-    throw new UserError("You need Medical (Basic) to treat anyone.");
+    throw new UserError("You need Medical I to treat anyone.");
   }
 
   // No `id: { not: character.id }` — treating yourself is the ordinary case.

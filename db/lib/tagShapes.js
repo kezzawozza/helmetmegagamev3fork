@@ -507,7 +507,7 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     if (!Number.isInteger(quantity) || quantity < 1) {
       throw new Error(`${label}: placement.yields.quantity must be a positive integer`);
     }
-    // Who has to be MINDING it: a skill slug, checked against the tier ladder (db/lib/medicalVision.js#satisfiedSkillIds), so a Brewing (Skilled) brewer satisfies `brewing-basic`. Absent means it runs itself.
+    // Who has to be MINDING it: a skill slug, checked against the tier ladder (db/lib/medicalVision.js#satisfiedSkillIds), so a Brewing II brewer satisfies `brewing-basic`. Absent means it runs itself.
     const skill = raw.yields.skill == null ? null : String(raw.yields.skill).trim();
     if (raw.yields.skill != null && !skill) {
       throw new Error(`${label}: placement.yields.skill must be a tag slug`);

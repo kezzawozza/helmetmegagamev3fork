@@ -930,7 +930,7 @@ in a loop. `db/lib/syncTags.js` warns on every sync if that ever inverts.
 This used to be real. Before the Request table was dropped (2026-09-11,
 `REQUESTS.md`), `ADD_TAG` trusted a client-supplied `resourcesSpent` with no
 server-side charge and no per-turn cap, so a Merchant who also took Brewing
-(Skilled) could file it for `ravenheart-red` declaring 0 ⬢ spent, sell the
+II could file it for `ravenheart-red` declaring 0 ⬢ spent, sell the
 brew here for a code-enforced 14 ¢, and repeat — unbounded within a single
 turn.
 

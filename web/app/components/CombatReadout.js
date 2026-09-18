@@ -33,10 +33,19 @@ function tierLabel(tiers) {
   return `${tiers > 0 ? "+" : "−"}${Math.abs(tiers)}`;
 }
 
-// "Melee (Expert)" under a run already headed MELEE is the word twice; drop the prefix here.
+// "Melee IV" or "Melee (Duelist)" under a run already headed MELEE is the
+// word twice; drop the prefix here. The tier rungs are bare numerals now
+// ("Melee I" .. "Melee V"), while the weapon-class sidegrades still parenthesize
+// ("Melee (Duelist)"), so both shapes are stripped.
 function shortName(label, tree) {
-  const prefix = tree === "melee" ? "Melee (" : "Ranged (";
-  return label.startsWith(prefix) && label.endsWith(")") ? label.slice(prefix.length, -1) : label;
+  const family = tree === "melee" ? "Melee" : "Ranged";
+  if (label.startsWith(`${family} (`) && label.endsWith(")")) {
+    return label.slice(family.length + 2, -1);
+  }
+  if (label.startsWith(`${family} `)) {
+    return label.slice(family.length + 1);
+  }
+  return label;
 }
 
 // What the Combat tile opens: every contributor behind the two bands and what

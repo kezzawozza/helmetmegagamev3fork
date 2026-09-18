@@ -329,7 +329,7 @@ zones:
               - Ravenhearter
               - Courtier
               - Frail
-              - Medical (Basic)
+              - Medical I
               - Literate
               - Meister's Key
               - Bird
@@ -425,7 +425,7 @@ zones:
               - >-
                 Clean, cook, maintain, and serve.
               - >-
-                Take Cooking (Skilled) if you want to run the kitchens properly as the Chef.
+                Take Cooking II if you want to run the kitchens properly as the Chef.
             difficulty: easy
             bank_account: treasury
             multiple: true
@@ -436,7 +436,7 @@ zones:
             starting_tags:
               - Ravenhearter
               - Servant
-              - Cooking (Basic)
+              - Cooking I
             doc_elements:
               - godking
               - courtier
@@ -474,9 +474,9 @@ zones:
               - Ravenhearter
               - Cerberon
               - Tactician
-              - Melee (Trained)
+              - Melee II
               - Melee (Shield Wall)
-              - Ranged (Basic)
+              - Ranged I
               - Teaching
               - Disabler
               - Truncheon
@@ -514,8 +514,8 @@ zones:
             starting_tags:
               - Armory Key
               - Ravenhearter
-              - Melee (Trained)
-              - Ranged (Basic)
+              - Melee II
+              - Ranged I
               - Cerberon
               - Cerberus Key
               - Melee (Shield Wall)
@@ -553,8 +553,8 @@ zones:
               - Ravenhearter
               - Cerberon
               - Cerberus Key
-              - Melee (Basic)
-              - Ranged (Basic)
+              - Melee I
+              - Ranged I
               - Melee (Shield Wall)
               - Disabler
               - Radio Bracelet (Cerberon)
@@ -727,8 +727,8 @@ zones:
             starting_tags:
               - Sanctuary Key
               - Ravenhearter
-              - Medical (Expert)
-              - Brewing (Expert)
+              - Medical III
+              - Brewing III
               - Literate
               - Esculap's Vest
               - Obol x10
@@ -760,8 +760,8 @@ zones:
             starting_tags:
               - Sanctuary Key
               - Ravenhearter
-              - Medical (Skilled)
-              - Brewing (Skilled)
+              - Medical II
+              - Brewing II
               - Literate
             doc_elements:
               - townstarting
@@ -797,7 +797,7 @@ zones:
               - Cathedral Key
               - Ravenhearter
               - Pious
-              - Melee (Basic)
+              - Melee I
               - War Hammer
               - Silver Knife
               - Shield
@@ -835,7 +835,7 @@ zones:
               - Order Key
               - Ravenhearter
               - Pious
-              - Melee (Basic)
+              - Melee I
               - Mail Shirt
               - Truncheon
               - Post-Christian
@@ -902,7 +902,7 @@ zones:
               - Ravenhearter
               - Insightful
               - Old
-              - Laboring (Skilled)
+              - Laboring II
               - Laboring (Farming)
               - Literate
               - Headman's Cap
@@ -930,8 +930,8 @@ zones:
             starting_location: square
             starting_tags:
               - Ravenhearter
-              - Melee (Basic)
-              - Ranged (Basic)
+              - Melee I
+              - Ranged I
               - Neoclassic R&W10
               - Cudgel
               - Sheriff's Badge
@@ -962,7 +962,7 @@ zones:
             starting_location: square
             starting_tags:
               - Ravenhearter
-              - Smithing
+              - Smithing I
               - Smithy Key
             doc_elements:
               - townstarting
@@ -993,7 +993,7 @@ zones:
             starting_location: square
             starting_tags:
               - Ravenhearter
-              - Laboring (Skilled)
+              - Laboring II
             doc_elements:
               - townstarting
               - production
@@ -1025,7 +1025,7 @@ zones:
               - Mortus
               - Mortus Key
               - Mortus Rags
-              - Melee (Basic)
+              - Melee I
               - Cudgel
             doc_elements:
               - townstarting
@@ -1069,7 +1069,7 @@ zones:
             starting_location: underquarter
             starting_tags:
               - Ravenhearter
-              - Brewing (Skilled)
+              - Brewing II
               - Bliss
               - Poppy
               - Advanced Poppy
@@ -1110,8 +1110,8 @@ zones:
               - Room B Key x2
               - Room C Key x2
               - Ravenhearter
-              - Cooking (Basic)
-              - Brewing (Basic)
+              - Cooking I
+              - Brewing I
               - Appraisal
             doc_elements:
               - townstarting
@@ -1123,7 +1123,7 @@ zones:
               Work the floor, the kitchen, or the cellar — whatever the Inn needs.
             description:
               - >-
-                Keep the Inn running under the Innkeeper. Cook (Cooking (Skilled)), brew (Brewing (Skilled)), wait tables, or just keep the room talking — pick your corner, or split off and start your own enterprise if you're a brewer with ambition.
+                Keep the Inn running under the Innkeeper. Cook (Cooking II), brew (Brewing II), wait tables, or just keep the room talking — pick your corner, or split off and start your own enterprise if you're a brewer with ambition.
             difficulty: easy
             bank_account: treasury
             multiple: true
@@ -1134,7 +1134,7 @@ zones:
             starting_tags:
               - Inn Key
               - Ravenhearter
-              - Cooking (Basic)
+              - Cooking I
             doc_elements:
               - townstarting
               - alcoholdrugs
@@ -1245,8 +1245,8 @@ zones:
             starting_zone: caves
             starting_location: customs
             starting_tags:
-              - Melee (Basic)
-              - Ranged (Basic)
+              - Melee I
+              - Ranged I
               - Butcher
               - Dagger
               - Battle Axe
@@ -1299,8 +1299,8 @@ zones:
               - Brigandine
               - Sabre
               - Bore Pistol
-              - Melee (Basic)
-              - Ranged (Basic)
+              - Melee I
+              - Ranged I
               - Armored Gloves
               - Factory Key
               - Banneret's Key
@@ -1336,10 +1336,10 @@ zones:
               - Big Appetite
               - Cudgel
               - Padded Armor
-              - Melee (Basic)
-              - Brewing (Basic)
-              - Medical (Basic)
-              - Cooking (Basic)
+              - Melee I
+              - Brewing I
+              - Medical I
+              - Cooking I
               - Cleaning Powder
               - Armored Gloves
               - Factory Key
@@ -1367,7 +1367,7 @@ zones:
             starting_zone: marshes
             starting_location: factory
             starting_tags:
-              - Laboring (Basic)
+              - Laboring I
               - Hatchet
               - Cleaning Powder
               - Armored Gloves
@@ -1391,7 +1391,7 @@ zones:
               - Ravenhearter
               - Fishing Rod
               - Fishing Boat
-              - Laboring (Skilled)
+              - Laboring II
               - Laboring (Fishing)
               - Fisherman's Key
               - Rough Camper
@@ -1434,9 +1434,9 @@ zones:
             starting_zone: hills
             starting_location: hills-waterway
             starting_tags:
-              - Melee (Skilled)
-              - Ranged (Skilled)
-              - Medical (Skilled)
+              - Melee III
+              - Ranged III
+              - Medical II
               - Melee (Swords)
               - ML-23
               - Tribunal Ordinator Helmet
@@ -1485,9 +1485,9 @@ zones:
             starting_zone: hills
             starting_location: hills-waterway
             starting_tags:
-              - Melee (Skilled)
-              - Ranged (Skilled)
-              - Medical (Basic)
+              - Melee III
+              - Ranged III
+              - Medical I
               - CTT4&3 Rifle
               - Bore Pistol
               - Tribunal Helmet
@@ -1540,9 +1540,9 @@ zones:
               - Ravine Camp
               - Brigand Leader
               - Brigand
-              - Laboring (Basic)
-              - Melee (Basic)
-              - Ranged (Basic)
+              - Laboring I
+              - Melee I
+              - Ranged I
               - Padded Armor
               - Broadsword
               - Mail Coif
@@ -1575,9 +1575,9 @@ zones:
             starting_tags:
               - Ravine Camp
               - Brigand
-              - Laboring (Basic)
-              - Melee (Basic)
-              - Ranged (Basic)
+              - Laboring I
+              - Melee I
+              - Ranged I
               - Dagger
               - Padded Armor
               - Gladius

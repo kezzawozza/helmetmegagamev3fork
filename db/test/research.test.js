@@ -189,7 +189,7 @@ test("researchPaperText: name, quoted description with tokens named, costs, esca
       description: "Consecrated oil. Anointing someone adds the {tag:blessed} tag.",
       requirementTurns: 3,
       requirementResources: 15,
-      requirementSkills: [{ name: "Smithing (Skilled)" }],
+      requirementSkills: [{ name: "Smithing II" }],
       requirementGambit: false,
       requirementItems: [
         { kind: "tag", slug: "holy-water", label: "Holy Water", keep: false },
@@ -204,7 +204,7 @@ test("researchPaperText: name, quoted description with tokens named, costs, esca
     [
       "Chrism",
       '"Consecrated oil. Anointing someone adds the Blessed tag."',
-      "3 turns  \n15 ⬢  \nSmithing (Skilled)",
+      "3 turns  \n15 ⬢  \nSmithing II",
       "\\- Requires -  \nHoly Water  \nPaper ×10  \na corpse (kept)",
     ].join("\n\n"),
   );
