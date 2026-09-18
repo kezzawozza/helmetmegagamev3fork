@@ -390,6 +390,33 @@ desires:
     tier: 2
     families: [wealth]
 
+  # The two Prospecting goals (MINING.md). Gated on the skill rather than the
+  # role: the Prospector is not the only character who can buy Prospecting, and
+  # a Metalsmith who learned to dig should be able to want this too.
+  #
+  # The gemstone one is a 5-turn cooldown rather than tier 1's default, because
+  # what throttles a Desire is a per-attempt COST and this one's is real: a
+  # whole Move underground against a table that pays a stone maybe a third of
+  # the time in the Caves. The Arkenstone is once ever — there is one roll in
+  # the game rarer than it and nobody should expect to see either twice.
+  obtain-a-gemstone:
+    name: Obtain a gemstone
+    verify: "Gemstone"
+    tier: 1
+    families: [wealth]
+    cooldownTurns: 5
+    requires:
+      anyTags: [prospecting]
+
+  obtain-the-arkenstone:
+    name: Obtain the Arkenstone
+    verify: "Arkenstone"
+    tier: 4
+    families: [wealth]
+    oncePerLife: true
+    requires:
+      anyTags: [prospecting]
+
   embarrass-rival:
     name: Embarrass your rival publicly
     tier: 4

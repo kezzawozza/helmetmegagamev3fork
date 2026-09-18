@@ -247,8 +247,7 @@ you pick the right doc — they are never enough to change code with.
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, notes |
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, **which zones a GM can see** (`GmZoneView`, the `GM: <Zone>` roles, `/zone`), or who can see the audit log |
-| [`MINING.md`](docs/systemdocs/MINING.md) | You're touching the Mine button — the Prospecting skill, a Location's `mining:` coefficient and its drift, the tools (`miningBonus`), or the Examine button |
-| [`MININGDROPS.md`](docs/systemdocs/MININGDROPS.md) | You're touching the mining drop die — `docs/miningdrops.yaml`, `db/lib/miningDrops.js`, or the `miningDrop` entry in `db/lib/moveEffects.js` |
+| [`MINING.md`](docs/systemdocs/MINING.md) | You're touching the Mine button — the two rates and what Prospecting actually buys, the prospecting loot table (in `db/lib/cavingLoot.js`, beside the Caving Die's), a Location's `mining:` coefficient and its drift, the tools (`miningBonus`), or the Examine button |
 | [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
 | [`SOILERY.md`](docs/systemdocs/SOILERY.md) | You're touching Farming — the Farm button, seed bags and their sowing licences, the wither roll, the `soilery` Location attribute, or **anything that asks what eating restores** (`db/lib/hunger.js`) |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
@@ -365,11 +364,11 @@ npm run db:backups                   # what is in the bucket. EXITS 1 if the
                                      #   how a dead backup system announces
                                      #   itself. See BACKUPS.md.
 
-# YAML masters -> DB. `db:sync` runs the five routine ones in the working
+# YAML masters -> DB. `db:sync` runs the four routine ones in the working
 # order, then a Discord mirror pass; the individual scripts exist for one
 # master at a time. See SYNC.md.
-npm run db:sync                      # tags, roles, desires, documents, mining
-                                     #   drops, then db:mirror -- --apply.
+npm run db:sync                      # tags, roles, desires, documents, then
+                                     #   db:mirror -- --apply.
 npm run db:import-zones              # docs/zones.yaml -> Zone/Location/Room/
                                      #   LocationLink/LocationMining/Structure.
                                      #   One-shot, additive: creates what's
@@ -383,8 +382,6 @@ npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
                                      #   retires a template absent from the
                                      #   YAML — see DESIRES.md §10)
 npm run db:sync-documents            # docs/documents.yaml  (destructive)
-npm run db:sync-mining-drops         # docs/miningdrops.yaml (destructive; last)
-                                     #   — see MININGDROPS.md
 npm run db:sync-narrowcast-channels  # #watch provisioning + reconcile —
                                      #   db:mirror also provisions this now,
                                      #   this is the scoped standalone.
@@ -452,10 +449,6 @@ npm run db:prune-stale-channels      # deletes categories, channels and zone/
 npm run db:check-config              # the GameConfig field registry vs. the
                                      #   schema (db/lib/gameConfigFields.js).
                                      #   push.sh runs it; exits 1 on drift.
-npm run db:audit-mining-drops        # read-only: prices docs/miningdrops.yaml
-                                     #   off disk (no sync needed first) — each
-                                     #   entry's Depot sell value and every
-                                     #   pool's ⬢ expected value. MININGDROPS.md §6a.
 npm run db:inspect-character -- "Ada"  # read-only: one character's two hiding
                                      #   switches and what they RESOLVE to —
                                      #   discordMirrored and its cooldown, the
@@ -1343,9 +1336,9 @@ Railway services make that deploy correct, and both are set:
 - **Pre-Deploy Command on `web`: `npm run db:migrate:deploy && npm run
   db:sync-deploy`.** It runs after the build and before the new version takes
   traffic, so a failed migration aborts the deploy instead of shipping a
-  half-migrated app. `db:sync-deploy` runs tags, desires, documents, then mining
-  drops — the four syncs that touch no Discord and hold no player state (tags
-  and desires upsert; documents and mining drops rebuild pure config tables), so
+  half-migrated app. `db:sync-deploy` runs tags, desires and documents — the three
+  syncs that touch no Discord and hold no player state (tags and desires
+  upsert; documents rebuilds a pure config table), so
   a YAML edit to any of them lands with the push, no hand sync. A YAML error
   there fails the deploy loudly, which is the point. Zones and #info still move
   Discord objects, and stay hand-run steps. Scoped to `web`

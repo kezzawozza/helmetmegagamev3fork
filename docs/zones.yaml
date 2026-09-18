@@ -1406,7 +1406,7 @@ zones:
         # A unique spot rather than a milder one like Shadowed Grove or Grand
         # Ravine: the Gallows below is a real grave (bones already sit there
         # as a room's static stash), and searching it has its own table
-        # (MININGDROPS.md, location.hills-west).
+        # (MINING.md §3b).
         mining: 0.25
         rooms:
           west-hills-crumbled-post:
@@ -1762,7 +1762,7 @@ zones:
             access: [forester, tracking]
             stash:
               items:
-                coal: 2
+                hematite: 2
       marshes-drowned:
         name: Drowned Marshes
         map_node: 34
@@ -1958,7 +1958,7 @@ zones:
                 stash:
                   items:
                     black-powder: 1
-                    coal: 1
+                    hematite: 1
                     rock: 3
               approach-nekker-den:
                 name: Nekker Den
@@ -2190,7 +2190,7 @@ zones:
                 access: [sixth-sense, adventurer, brave]
                 stash:
                   items:
-                    coal: 12
+                    iron: 6
                     black-powder: 8
                     saltpeter: 4
           depths-grand-chamber:

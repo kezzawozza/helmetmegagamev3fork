@@ -126,7 +126,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     // for the same reason (web/app/(desk)/gm/turns/actions.js).
     prisma.characterTag.findMany({
       where: { characterId },
-      include: { tag: { select: chipSelect({ equippable: true, stackable: true, carryBonus: true, miningBonus: true }) } },
+      include: { tag: { select: chipSelect({ equippable: true, stackable: true, carryBonus: true, miningBonus: true, gambitBonus: true }) } },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),

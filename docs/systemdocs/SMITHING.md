@@ -211,9 +211,9 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Broadsword | Moderate | |
 | War Hammer | Moderate | |
 | Bastard Sword | High Quality | |
-| Rapier | High Quality | Spends one `steel`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — the other turn moved into steel's own recipe, and 8 ⬢ comes off for the ingot (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Rapier | High Quality | Spends one `iron`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — the other turn moved into the ingot's own recipe, and 8 ⬢ comes off for the ingot (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 | Sabre | High Quality | |
-| Katana | High Quality | Spends one `steel`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — same move as Rapier (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Katana | High Quality | Spends one `iron`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — same move as Rapier (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 | Silver Spear | High Quality | Spends one `silver` — its 25 ⬢ total is unchanged, the resourceCost is just 20 ⬢ of it now (2026-09-09; materials cut a further ~5% 2026-09-12). |
 | Lucerne | High Quality | |
 | Zweihander | High Quality | |
@@ -230,7 +230,9 @@ consumed like any brew's):
 |---|---|---|---|---|
 | `black-powder` | `smithing-gunpowder` | 3 | 1 | `saltpeter` (raw, mined) |
 | `gunpowder-grenade` (**Crude Grenade**) | `smithing-skilled` | 6 | 1 | `saltpeter` (raw, mined) |
-| `steel` | `smithing` | 4 | 0.25 | `coal` (Merchant stock or mined) |
+| `iron` | `smithing` | 0 | 0.25 | `hematite` (mined) |
+| `copper` | `smithing` | 0 | 0.25 | `malachite` (mined) |
+| `nickel` | `smithing` | 0 | 0.25 | `garnierite` (mined) |
 
 The grenade came over from Brewing II on 2026-09-05 — a powder device
 out of a still was always odd — and its group moved to `items-weapons` with
@@ -242,21 +244,28 @@ the true powder-work — `black-powder`, the Bomb, the guns. The slug stays
 saltpeter and the Bomb; its numbers (3 ⬢, sells 6) are drafted, not signed
 off.
 
-**`steel`** (2026-09-09, repriced 2026-09-10) is the same shape as
-`black-powder` — priced at cost, no smith's margin, `sellablePrice` (8) equal
-to its own `resourceCost` (4) plus coal's (4). Gated at plain `smithing`
+**The three smelts** replaced `{tag:steel}` on 2026-09-18, when `coal` and
+`steel` both left the game with the Prospecting rework (`MINING.md`). `iron`
+took steel's slot exactly — the same `sellablePrice` (8) and `depotPrice` (13)
+— so the four recipes that spend an ingot keep the discount they were priced
+with, and a smith with no prospector to hand can still buy one off the
+Merchant. `copper` and `nickel` are the same recipe over a different ore and
+feed Trinkets rather than gear.
+
+They cost **0 ⬢**, not steel's 4: the ore IS the cost now, and an ore is
+something somebody spent a day underground for. Gated at plain `smithing`
 rather than `smithing-skilled` on purpose: smelting ore into a usable ingot is
-basic forge work, and it's only the four recipes that SPEND it — `katana`,
+basic forge work, and it is only the four recipes that SPEND one — `katana`,
 `rapier`, `brigandine`, `plate-armor` — that need the higher skill to shape it
 into something fine.
 
-It is the fifth recipe under the Simple rung's Turns column (§1): `turnsCost:
-0.25`, four ingots to a Routine, for the same reason the Spear and the Silver
-Knife run there — an ingot is not a day at the anvil. Each of the four recipes
-that spend one gave up a full turn of its own (the smelting the smith no
-longer does inside them) and 8 ⬢, the ingot's value — so a smith who smelts
-his own pays the ladder's ⬢ exactly, and a quarter of a turn on top. **This
-undercuts the ladder's Turns column on purpose:** High Quality steel gear is
+They run under the Simple rung's Turns column (§1): `turnsCost: 0.25`, four
+ingots to a Routine, for the same reason the Spear and the Silver Knife run
+there — an ingot is not a day at the anvil. Each of the four recipes that spend
+one gave up a full turn of its own (the smelting the smith no longer does
+inside them) and 8 ⬢, the ingot's value — so a smith who smelts his own pays
+the ladder's ⬢ exactly, and a quarter of a turn on top. **This
+undercuts the ladder's Turns column on purpose:** High Quality ingot gear is
 a 1.25-turn job now rather than 2, Plate 2.25 rather than 3. See the Weapons and
 Armor tables above. `{tag:silver}` got the same
 `Prospecting`-sourced treatment the same day, but stays a raw material with
@@ -315,9 +324,9 @@ pair still counts at the Spillway (`CRAFTING.md` §4a).
 | Gladiator Helmet | Moderate | Also on the Merchant's shelf at 45 ⬢ (`DEPOT.md`). Optional conceal. |
 | Knight's Helmet | High Quality | Force conceal — a closed helm is not a face (`PROXYING.md` §5). |
 | Censor's Helmet | High Quality | Force conceal |
-| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. Spends one `steel`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. Spends one `iron`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 | Breastplate | High Quality | |
-| Plate Armor | Exceptional | Spends one `steel`. 2 turns / 25 ⬢ now, not the tier's 3 / 32 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Plate Armor | Exceptional | Spends one `iron`. 2 turns / 25 ⬢ now, not the tier's 3 / 32 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 
 Off the ladder:
 

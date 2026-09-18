@@ -1,18 +1,25 @@
 # Mining: the Mine button
 
-How a character turns a day into ⬢. One skill, one button, one coefficient per
-place — press **Mine** where there is a seam to work, spend the whole turn, and
-get paid on the press.
+How a character turns a day into ⬢, and sometimes into stone. One button, one
+coefficient per place — press **Mine** where there is a seam to work, spend the
+whole turn, and get paid on the press.
+
+**Anybody can press it.** Prospecting is not the gate; it is what the day is
+worth. Without the skill you get a small amount of ⬢ and nothing else. With it
+you get roughly four times as much and a roll on the prospecting loot table.
 
 Read this before touching `db/lib/mining.js`, `db/lib/miningYield.js`,
-`web/app/(app)/character/actions/mine.js`, the `mining:` values in
-`docs/zones.yaml`, or any `miningBonus:` in `docs/tags.yaml`.
+`web/app/(app)/character/actions/mine.js`, the prospecting half of
+`db/lib/cavingLoot.js`, the `mining:` values in `docs/zones.yaml`, or any
+`miningBonus:` in `docs/tags.yaml`.
 
-Related: [`MININGDROPS.md`](MININGDROPS.md) (the 1d6 that rides on top of the
-⬢), [`SOILERY.md`](SOILERY.md) and [`FACTORY.md`](FACTORY.md) (the other two
-day-spending buttons), [`TURN-ENGINE.md`](TURN-ENGINE.md) (the drift pass's
-slot), [`MAP.md`](MAP.md) (where the coefficients are authored and edited),
-and [`ECONOMY.md`](ECONOMY.md) (the `MINING` faucet).
+Related: [`CAVING.md`](CAVING.md) (the Caving Die, whose table machinery the
+loot roll reuses), [`TRINKETS.md`](TRINKETS.md) and [`SMITHING.md`](SMITHING.md)
+(what the stones are FOR), [`SOILERY.md`](SOILERY.md) and
+[`FACTORY.md`](FACTORY.md) (the other two day-spending buttons),
+[`TURN-ENGINE.md`](TURN-ENGINE.md) (the drift pass's slot), [`MAP.md`](MAP.md)
+(where the coefficients are authored and edited), and
+[`ECONOMY.md`](ECONOMY.md) (the `MINING` faucet).
 
 ## 0. What this replaced
 
@@ -45,11 +52,28 @@ One tag, `prospecting`, name **Prospecting**, 7 points. No `parentTag`, no
 `requiredTag`, nothing above it and nothing below it. You either know rock from
 ore or you do not.
 
-It is **a gate, not a floor**: without it the Mine button refuses outright
-("You wouldn't know rock from ore") rather than paying a skill-less zero. That
-is the opposite of Laboring's last rule, and deliberately so — an unskilled
-Labor that spent the day and paid nothing was a trap, and with a button there
-is no reason to let somebody press it.
+**It is a multiplier, not a gate** (changed 2026-09-18). It used to refuse the
+button outright — "You wouldn't know rock from ore" — on the reasoning that an
+unskilled day paying nothing was a trap. What that actually did was hide a
+whole verb from most of the roster and make the Caves somewhere only one build
+had any business going. Anybody can shift rock; you do not need to be told
+which way up a pick goes.
+
+So it buys two things, and nothing else:
+
+| | Base range | Loot roll |
+|---|---|---|
+| With Prospecting | **4–16** | yes |
+| Without | **0–6** | **never** |
+
+Both ranges are a BASE. Everything downstream — the place's coefficient, tools,
+Soft Hands, Lazy, the Lifeweb — scales both alike, so a rich seam beats a poor
+one either way and skilled digging beats unskilled everywhere. A flat 0–6 would
+have made an unskilled day in the Black Hills out-earn a skilled one there,
+which is the wrong way round.
+
+The loot roll is not "unlikely" without the skill, it is **skipped**
+(`db/lib/moveEffects.js`). There is no rate to tune there.
 
 `soilery` is its sibling in the same tag group (`skills-work`) and gates the
 Farm button. Neither gates the other.
@@ -102,10 +126,13 @@ creates a row only for a Location that does not have one, and never updates.
 1. **Exhausted** refuses. Tired does not — see §5.
 2. **Incapacitated** refuses (`INCAPACITATING_SLUGS`): bound, bleeding out, on
    the floor, out cold.
-3. **No row, or a row at 0** — "There's nothing to mine here."
-4. **No Prospecting** — "You wouldn't know rock from ore."
-5. The base range, **2–8**, times `GameConfig.productionCoefficient` (the
-   global dial, 0.93 out of the box) times the Location's `current`.
+3. **No row, or a row at 0** — "There's nothing to mine here." This is the only
+   place-shaped refusal there is, and it is what greys the button in Town.
+4. **The base range** — 4–16 holding Prospecting, 0–6 without — times
+   `GameConfig.productionCoefficient` (the global dial, 0.93 out of the box)
+   times the Location's `current`. The result carries `prospecting: true|false`
+   back to the caller, which is what decides the loot roll; nothing downstream
+   should re-derive it from the tag.
 6. **Tools** are added flat, after the scaling, so a tool is worth the same
    everywhere (§4).
 7. **Soft Hands** halves what is left, rounded down.
@@ -120,11 +147,101 @@ in the note instead.
 expression is cut the same way so the sheet prints the range the payout is
 actually inside.
 
-The payout lands **at the press**, not at the turn close: the ⬢, the drop die
+The payout lands **at the press**, not at the turn close: the ⬢, the loot roll
 and the fatigue step all apply inside the filing transaction, and
 `appliedEffects` is stamped so the staged push skips the row. That is what
 Labor did, and for the same reason — a roll against a range is not a judgement
 anybody makes, so there is nothing to wait for.
+
+### 3a. The button is always there
+
+`web/app/(app)/character/page.js` shows Mine to everyone, everywhere, and lets
+the greys do the talking. There is **no zone check**, which is a change worth
+knowing about: the page used to test `zone.slug === "caves"`, which shut the
+Depths and the Black Hills out of a system whose coefficients they both carry.
+The `LocationMining` row is the gate and always was (§2); the page just has to
+let it be.
+
+## 3b. The prospecting loot table
+
+On top of the ⬢, a character holding Prospecting rolls once per press on a
+weighted table. **It is the Caving Die's machinery, reused** — same file
+(`db/lib/cavingLoot.js`), same six tier names, same two-stage draw: land on a
+tier by the standing zone's column, then pick uniformly inside it.
+
+This replaced a whole subsystem on 2026-09-18. There used to be a
+`MiningDropOption` table synced from `docs/miningdrops.yaml`, with its own
+rarity module, its own EV module, its own audit script and its own pre-save
+hook — about fifteen hundred lines to say what forty lines beside the Caving
+Die now say. The YAML bought GM-editability without a deploy, and that was
+never worth what it cost. Do not bring it back.
+
+### The columns
+
+| Tier | Caves | Depths | Black Hills |
+|---|---|---|---|
+| Ultracommon | 62% | 18% | — |
+| Common | 26% | 24% | — |
+| Uncommon | 9% | 28% | — |
+| Rare | 2.8% | 22% | — |
+| Extremely rare | 0.15% | 6% | — |
+| Nearly impossible | 0.05% | 2% | — |
+
+**The Black Hills have no column at all, and that absence IS the rule.** They
+are minable for ⬢ and hold nothing worth finding — surface rock, worth working
+if you are already up there. `drawProspectingLoot` returns null for a zone with
+no column rather than throwing, which is the one way it differs from
+`drawLoot`: mining somewhere with no stones in it is an ordinary outcome, not a
+misconfiguration.
+
+### The contents
+
+| Tier | What is in it |
+|---|---|
+| Ultracommon | Hematite, Malachite, Garnierite — the three ores |
+| Common | Citrine, Milk Quartz, Onyx, Moonstone, Pyrite, White Jade |
+| Uncommon | Silver, Fire Opal, Sphalerite, Tetrahedrite, Old Coin |
+| Rare | Opal, Topaz, Amethyst, Kunzite, Purse, Supply Kit |
+| Extremely rare | Platinum, Lockbox, Mining Helmet, Jewelry |
+| Nearly impossible | Star Sapphire, Black Diamond, **Arkenstone** |
+
+Almost all of it is one kind of thing: an ingredient a smith slots into a
+Trinket for its `inlayValue` (`TRINKETS.md`). That is the point of the rework —
+a prospector's good days are worth much more through a smith than over the
+Depot counter, so the two roles have to find each other. The five entries that
+are not ingredients (Purse, Supply Kit, Lockbox, Mining Helmet, Jewelry) sit at
+the rare and extremely-rare rungs so the table has something in it besides
+inlay values.
+
+The three ores are deliberately near-worthless raw — 1 ¢ — and worth having
+only once smelted into Iron, Copper or Nickel at a forge (`SMITHING.md`). A
+metal also Consumes straight into ⬢, free and instant, so a prospector with no
+buyer to hand still eats.
+
+### Lucky does not touch this
+
+The old mining drop die was a 1d6 and **Lucky bent it** (`rollWithAdvantage`).
+The prospecting table has no die to bend: every press by a holder of
+Prospecting draws, and the draw is a weighted pick, not a roll to beat. So
+Lucky is worth nothing to a prospector now, where it used to be worth a little.
+
+That is a real change and it was not asked for — it fell out of dropping the
+d6. If Lucky should matter here, the honest way is to give it a second draw and
+keep the better tier, not to re-introduce a face nobody reads. Left alone for
+now rather than invented.
+
+The Caving Die still honours Lucky, and there it decides **whether** you find
+rather than **what**: `cavingPass` rolls 1d6 with advantage and only a 6 draws
+(`CAVING.md` §2).
+
+### Validation
+
+`validateCavingLoot(prisma)` checks **both** tables' slugs against the live Tag
+catalog and **both** weight maps' columns for summing to 1, once at process
+startup (`bot/src/index.js`, the web's instrumentation hook), never per roll. A
+typo fails the boot rather than a player's press. That is the whole reason this
+is code and not YAML, and it is why deleting a tag the table names is caught
+loudly instead of quietly.
 
 ## 4. Tools
 
@@ -215,7 +332,9 @@ At base, only `depths-chasm` wears Ample; nothing wears Bountiful.
 
 | File | What it owns |
 |---|---|
-| `db/lib/mining.js` | The gate, the range, the location cut, the tools |
+| `db/lib/mining.js` | The two rates, the location cut, the tools |
+| `db/lib/cavingLoot.js` | `PROSPECTING_TABLE`, its zone weights, `drawProspectingLoot` |
+| `db/lib/moveEffects.js` | The `miningDrop` effect: the skill gate, the draw, the grant, the undo |
 | `db/lib/miningYield.js` | Drift math, the turn pass, the quality words |
 | `web/app/(app)/character/actions/mine.js` | The button: files the Move and pays it |
 | `db/lib/fatigue.js` | The Tired → Exhausted ladder (shared, not ours) |

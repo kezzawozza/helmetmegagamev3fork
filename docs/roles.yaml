@@ -1104,6 +1104,38 @@ groups:
         - smithing
         - combat
         - independent
+    # Added 2026-09-18 with the Prospecting rework (MINING.md). Starts at the
+    # Inn rather than the cave mouth on purpose: the walk down is part of the
+    # job, and a prospector who never comes up never meets the smith he needs.
+    prospector:
+      name: Prospector
+      intro: >-
+        Enter the caves, obtain resources, and strike the earth.
+      description:
+        - >-
+          You can either sell resources directly to the Depot, or skip the sales tax by directly cutting a deal with the people that need them — like smiths and doctors.
+        - >-
+          The ores you obtain can be worked by smiths, turning them into highly valuable trinkets. However, they can also be sold raw for a small profit.
+        - >-
+          You can mine by using the Mine button while in the caves.
+        - >-
+          The caves are very, very dangerous. The depths especially so. However, the deeper you go, the higher the reward.
+      difficulty: easy
+      bank_account: treasury
+      multiple: true
+      weight: 2
+      starting_resources: 1
+      starting_zone: town
+      starting_location: old-cock-inn
+      starting_tags:
+        - Ravenhearter
+        - Prospecting
+        - Rations x2
+        - Prospector's Pick
+      doc_elements:
+        - townstarting
+        - ravenhearteconomy
+        - independent
     mortus:
       name: Mortus
       intro: >-

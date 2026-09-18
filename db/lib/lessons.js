@@ -64,6 +64,8 @@ const LESSON_CHARACTER_SELECT = {
           forcedName: true,
           parentTagId: true,
           groupId: true,
+          // Read back by db/lib/gambitModifier.js for the lesson's Gambit.
+          gambitBonus: true,
         },
       },
     },

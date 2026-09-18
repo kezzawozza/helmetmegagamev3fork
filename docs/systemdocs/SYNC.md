@@ -29,18 +29,21 @@ YAML and running the sync is the only way their rows change.
 | `docs/roles.yaml` | `db:sync-roles` | `Role` | `slug` | **Prunes only if unreferenced** — a Role a character still holds is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
-| `docs/miningdrops.yaml` | `db:sync-mining-drops` | `MiningDropOption` | none (rebuilt whole) | **Destructive** — pure config, no player state ever points at a row. See `MININGDROPS.md` |
 
-**Run order matters for the five routine syncs:** tags → roles → desires →
-documents → mining drops. Roles
+**Run order matters for the four routine syncs:** tags → roles → desires →
+documents. Roles
 resolve a `starting_zone` and an optional `starting_location` by slug, and
 validate `starting_tags` against the tag catalog; desires validate `requires.anyRoles`/
 `notRoles` against the Role catalog and `requires.anyTags`/`notTags` against
 the Tag catalog, so it runs after both; documents validate against tags and
-roles; mining drops validate every pool entry against the tag
-catalog and every scope against the zone/location catalogs, and has no
-dependents of its own, so it runs last. Running them out of order throws on a
-reference that would have existed. `db:import-zones` is a one-shot standing
+roles, and has no dependents of its own, so it runs last. Running them out of
+order throws on a reference that would have existed.
+
+(There used to be a fifth, `db:sync-mining-drops`, rebuilding a
+`MiningDropOption` table from a YAML master of its own. It went on 2026-09-18
+with the Prospecting rework — the table it fed is a weighted draw in
+`db/lib/cavingLoot.js` now, so there is nothing left to sync. See `MINING.md`
+§3b.) `db:import-zones` is a one-shot standing
 apart from this order — run it whenever `docs/zones.yaml` names a place that
 isn't in the database yet, before or after the rest, and follow it with
 `npm run db:mirror -- --apply` (or let the next bot restart or turn advance
@@ -364,7 +367,7 @@ everything else from YAML.
 
 | Command | What it does |
 |---|---|
-| `db:sync` | The five routine masters in order (tags, roles, desires, documents, mining drops), then a structure Discord mirror pass. Zones are not part of this run — see `db:import-zones` in §1. |
+| `db:sync` | The four routine masters in order (tags, roles, desires, documents), then a structure Discord mirror pass. Zones are not part of this run — see `db:import-zones` in §1. |
 | `db:import-zones` | One-shot, additive: creates whatever `docs/zones.yaml` names that the database doesn't have yet, skips the rest, never deletes. **Dry run by default**; `-- --apply` writes. See §1. |
 | `db:mirror` | Diffs the live Discord guild against the database and provisions, renames or reparents to match — the repair path for zones/locations/rooms/narrowcast/Deadchat now. **Dry run by default**; `-- --apply` writes, `-- --full` adds the member sweeps. `db/lib/discordMirror/`. |
 | `db:doctor` | The channel doctor from a terminal. **Dry run by default**; `-- --apply` repairs, `-- --full` adds the expensive scope (overwrites, threads, invites, narrowcast) on top of the cheap role-membership checks. See `CHANNELS.md` §6. |

@@ -41,7 +41,6 @@ import {
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   GUILT_RIDDEN_SLUG,
-  PROSPECTING_SLUG,
 } from "@lifeweb/db/lib/constants";
 import {
   hasAttribute,
@@ -589,22 +588,24 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         ? "You already have an action this turn."
         : null;
   const canRefine = canSeeRefine && !refineBlocked;
-  // Mine (MINING.md). The button shows for anyone holding Prospecting; being
-  // outside the Caves, the location's own gate, the Exhausted lockout and the
-  // once-a-turn Move rule are all greys.
-  const canSeeMine = heldSlugsForRooms.has(PROSPECTING_SLUG);
-  const inCaves = character.location?.zone?.slug === "caves";
-  const mineRate = canSeeMine && inCaves ? await resolveMiningRate(prisma, character.id) : null;
-  const mineBlocked = !canSeeMine
-    ? null
-    : !inCaves
-      ? "You need to be in the caves."
-      : !mineRate.ok
-        ? mineRate.reason
-        : currentAction
-          ? "You already have an action this turn."
-          : null;
-  const canMine = canSeeMine && !mineBlocked;
+  // Mine (MINING.md). The button shows to EVERYONE, always: anybody can shift
+  // rock, and Prospecting decides how much it is worth rather than whether you
+  // may try (2026-09-18). Standing where there is no seam, the Exhausted
+  // lockout and the once-a-turn Move rule are all greys.
+  //
+  // There is no zone check here on purpose. The LocationMining row IS the gate
+  // (db/lib/mining.js's header), and resolveMiningRate already says "There's
+  // nothing to mine here." for a place without one. The `zone.slug === "caves"`
+  // test that used to sit here was also wrong: it shut the Depths and the
+  // Black Hills out of a system whose coefficients they both carry.
+  const canSeeMine = true;
+  const mineRate = await resolveMiningRate(prisma, character.id);
+  const mineBlocked = !mineRate.ok
+    ? mineRate.reason
+    : currentAction
+      ? "You already have an action this turn."
+      : null;
+  const canMine = !mineBlocked;
   const canSeePackage = await hasEquipmentInReach(
     prisma,
     character,

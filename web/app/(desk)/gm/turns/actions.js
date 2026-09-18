@@ -1288,7 +1288,7 @@ async function getCharacterInspectorImpl({ characterId }) {
           // never needed: without them every item row loses its verbs mark,
           // its stack, and the carry/mining value on its right.
           tag: {
-            select: chipSelect({ equippable: true, stackable: true, carryBonus: true, miningBonus: true }),
+            select: chipSelect({ equippable: true, stackable: true, carryBonus: true, miningBonus: true, gambitBonus: true }),
           },
         },
       },

@@ -23,10 +23,10 @@ const { characterParty, recordDelta, record, BURN } = require("./economyLedger")
 const { addCharacterResources } = require("./resourceStack");
 const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
-const { rollWithAdvantage } = require("./advantage");
 const { expiryFrom } = require("./turnFormat");
 const { nextFatigueSlug, grantExhaustedOutright } = require("./fatigue");
-const { pickMiningDropOption } = require("./miningDrops");
+const { drawProspectingLoot } = require("./cavingLoot");
+const { PROSPECTING_SLUG } = require("./constants");
 const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE } = require("./constants");
 const { reap, harvestLine } = require("./soilery");
 
@@ -128,57 +128,61 @@ const MOVE_EFFECTS = {
     },
   },
 
-  // The mining drop die (docs/systemdocs/MININGDROPS.md): a 1d6 against whatever pool docs/miningdrops.yaml configured for where the day was
-  // spent. Only a Mine draws it — the die is what mining pays in ore rather than in ⬢, and nothing else is digging.
+  // The prospecting loot roll (docs/systemdocs/MINING.md). Only a Mine draws it — this is what mining pays in stone rather than in ⬢, and nothing
+  // else is digging. It reuses the Caving Die's table machinery (db/lib/cavingLoot.js), which is why there is no YAML behind it: the whole
+  // MiningDropOption subsystem it replaced was deleted on 2026-09-18.
+  //
+  // TWO gates, and they are different refusals. No Prospecting: no roll at all, ever — the skill is what turns rock into ore you can recognise
+  // (db/lib/mining.js). No column for the zone: no roll either, but that one is ordinary — the Black Hills are minable for ⬢ and hold nothing worth
+  // finding.
+  //
+  // The key, the AUTO_MINE_NOTE trigger and the { kind: "TAG", tagId, ... } snapshot shape are all unchanged on purpose, so Action rows written
+  // under the old die still revert through the arm below.
   miningDrop: {
     read: (action) => (action.gmNotes === AUTO_MINE_NOTE ? 1 : 0),
     apply: async (tx, action) => {
-      // Skill-gated pools (MININGDROPS.md §2a) need what the character holds RIGHT NOW. Loaded BEFORE the roll: Lucky bends the die.
-      const held = await tx.characterTag.findMany({
-        where: { characterId: action.characterId },
-        select: { tagId: true, tag: { select: { slug: true } } },
+      const prospecting = await tx.characterTag.findFirst({
+        where: { characterId: action.characterId, tag: { slug: PROSPECTING_SLUG } },
+        select: { id: true },
       });
-      const heldTagIds = new Set(held.map((row) => row.tagId));
-      const heldSlugs = new Set(held.map((row) => row.tag?.slug).filter(Boolean));
-      // Lucky throws this die twice and keeps the better one. `roll` stays the face that was actually rolled, snapshotted so Undo and the
-      // readout agree with what happened.
-      const { die: roll } = rollWithAdvantage([...heldSlugs].map((slug) => ({ slug })));
-      const option = await pickMiningDropOption(tx, {
-        roll,
-        zoneId: action.zoneId ?? null,
-        locationId: action.locationId ?? null,
-        heldTagIds,
-      });
-      if (!option || option.kind === "NOTHING") return 0;
+      if (!prospecting) return 0;
 
-      if (option.kind === "RESOURCES") {
-        const moved = await addResources(tx, action.characterId, option.resourceAmount ?? 0, { reason: "MINING_DROP" });
-        if (!moved) return 0;
-        return { roll, kind: "RESOURCES", amount: moved };
+      // The table is keyed by zone SLUG; the Action carries the id it was filed at, which is the right one to read — a character who walked out of
+      // the caves after pressing Mine still dug where they dug.
+      const zone = action.zoneId
+        ? await tx.zone.findUnique({ where: { id: action.zoneId }, select: { slug: true } })
+        : null;
+      const drawn = zone ? drawProspectingLoot(zone.slug) : null;
+      if (!drawn) return 0;
+
+      const tag = await tx.tag.findUnique({
+        where: { slug: drawn.slug },
+        select: { id: true, slug: true, name: true, stackable: true, defaultDurationTurns: true },
+      });
+      if (!tag) {
+        // Catalog out of sync with cavingLoot.js. validateCavingLoot() at startup exists precisely so this never fires; if it does, swallow it —
+        // a phantom tag must not take the ⬢ payout down with it.
+        console.error(`Prospecting loot: tier "${drawn.tier}" drew unknown tag "${drawn.slug}" — run npm run db:sync-tags.`);
+        return 0;
       }
 
-      // TAG. addToStack (db/lib/tagWrites.js) increments an existing stack and pins a non-stackable tag at quantity 1, so a repeat find of the same
-      // non-stackable item is a no-op. The catalog's own clock rides along — nothing backfills expiresTurn later, so a wound granted without it is
-      // a PERMANENT Deep Wound. `turn.number + 1`, not bare turn.number, since at payout `turn` is the turn being CLOSED.
+      // addToStack (db/lib/tagWrites.js) increments an existing stack and pins a non-stackable tag at quantity 1, so a repeat find of the same
+      // non-stackable item is a no-op. The catalog's own clock rides along — nothing backfills expiresTurn later. `turn.number + 1`, not bare
+      // turn.number, since at payout `turn` is the turn being CLOSED.
       const { addToStack } = require("./tagWrites");
-      const turn = option.tag?.defaultDurationTurns
+      const turn = tag.defaultDurationTurns
         ? await tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } })
         : null;
-      await addToStack(tx, action.characterId, option.tagId, 1, {
+      await addToStack(tx, action.characterId, tag.id, 1, {
         source: "EVENT",
-        stackable: option.tag?.stackable === true,
-        expiresTurn: turn ? expiryFrom(turn.number + 1, option.tag.defaultDurationTurns) : null,
+        stackable: tag.stackable === true,
+        expiresTurn: turn ? expiryFrom(turn.number + 1, tag.defaultDurationTurns) : null,
       });
-      return {
-        roll,
-        kind: "TAG",
-        tagId: option.tagId,
-        tagSlug: option.tag?.slug ?? null,
-        tagName: option.tag?.name ?? "something",
-      };
+      return { kind: "TAG", tier: drawn.tier, tagId: tag.id, tagSlug: tag.slug, tagName: tag.name ?? "something" };
     },
     revert: async (tx, action, snapshot) => {
       if (!snapshot) return;
+      // RESOURCES is the old die's shape — kept so a row pushed before 2026-09-18 still reverts. Nothing writes it any more.
       if (snapshot.kind === "RESOURCES") {
         await addResources(tx, action.characterId, -snapshot.amount);
         return;
@@ -297,6 +301,8 @@ function describeMoveEffects(applied) {
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
     // Legacy rows recorded a bare `1`.
     else if (key === "exhausted") parts.push(value?.slug === TIRED_SLUG ? "Tired" : "Exhausted");
+    // The ⬢ arm is the old mining drop die's shape (pre-2026-09-18); nothing writes it any more,
+    // but rows from that era still print.
     else if (key === "miningDrop") {
       parts.push(
         value.kind === "TAG"

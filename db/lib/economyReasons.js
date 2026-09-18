@@ -14,6 +14,9 @@ const FLOW = { FAUCET: "FAUCET", SINK: "SINK", TRANSFER: "TRANSFER", INTERNAL: "
 const REASONS = {
   // --- faucets ---
   MINING: { flow: FLOW.FAUCET, label: "Mining" },
+  // Nothing writes this any more — the old mining drop die could pay in ⬢, the prospecting table
+  // that replaced it on 2026-09-18 only ever grants a tag. Kept so historic rows still have a label,
+  // the same posture as UNATTRIBUTED.
   MINING_DROP: { flow: FLOW.FAUCET, label: "Mining drop" },
   CRATE: { flow: FLOW.FAUCET, label: "Crate opened" },
   CONSUME: { flow: FLOW.FAUCET, label: "Purse consumed" },

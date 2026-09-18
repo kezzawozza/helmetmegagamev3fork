@@ -95,6 +95,8 @@ export function paidLabel(applied) {
     // Legacy rows recorded a bare `1`, meaning a plain Exhausted grant.
     else if (key === "exhausted") parts.push(value?.slug === "tired" ? "Tired" : "Exhausted");
     // Mirrors the miningDrop arm of describeMoveEffects — both halves must learn a new effect key together.
+    // The ⬢ arm is the old mining drop die's shape (pre-2026-09-18); nothing writes it any more,
+    // but rows from that era still print.
     else if (key === "miningDrop") {
       parts.push(
         value.kind === "TAG"

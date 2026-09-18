@@ -49,7 +49,9 @@ async function pendingGambits(db, turnId) {
         select: {
           id: true,
           mood: true,
-          tags: { select: { tag: { select: { slug: true } } } },
+          // `name` and `gambitBonus` are here for db/lib/gambitModifier.js, which
+          // names each contributor — see that file's header on narrow selects.
+          tags: { select: { tag: { select: { slug: true, name: true, gambitBonus: true } } } },
         },
       },
     },

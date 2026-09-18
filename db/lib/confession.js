@@ -34,7 +34,8 @@ const CONFESSION_CHARACTER_SELECT = {
       tagId: true,
       quantity: true,
       tag: {
-        select: { id: true, slug: true, name: true, psychological: true },
+        // gambitBonus: read back by db/lib/gambitModifier.js below.
+        select: { id: true, slug: true, name: true, psychological: true, gambitBonus: true },
       },
     },
   },

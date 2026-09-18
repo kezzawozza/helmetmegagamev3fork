@@ -7,10 +7,22 @@ const { structuresAt } = require("./structures");
 const { EXHAUSTED_SLUG, PROSPECTING_SLUG, LAZY_SLUG } = require("./constants");
 
 // What a day in the seam pays at a location coefficient of 1.0, before tools
-// and before either dial. Thin on purpose — the mining drop die
-// (docs/systemdocs/MININGDROPS.md) makes up the rest of its value in ore
-// rather than in ⬢.
-const MINING_RATE = { min: 2, max: 8 };
+// and before either dial. Doubled from 2-8 on 2026-09-18: Prospecting stopped
+// being the gate on the button and became the thing that makes the day worth
+// having, so the skill had to actually pay (docs/systemdocs/MINING.md).
+const MINING_RATE = { min: 4, max: 16 };
+
+// ...and what the same day pays somebody who does not have the skill. ANYBODY
+// can press Mine where there is a seam — you do not need to be told which way
+// up a pick goes to shift rock — you just do it badly, and you turn up nothing
+// but rock: the prospecting loot roll (db/lib/moveEffects.js) is skipped
+// outright for an unskilled digger, not merely made unlikely.
+//
+// It is a BASE, not a flat payout: everything below the switch — the location
+// coefficient, tools, Soft Hands, Lazy, the Lifeweb — applies to both rates
+// alike. A flat 0-6 would have made unskilled digging in the Black Hills
+// out-earn skilled digging there, which is the wrong way round.
+const UNSKILLED_MINING_RATE = { min: 0, max: 6 };
 
 // Lazy cuts a quarter off whatever Resources actually landed, applied AFTER the roll (not a change to the rolled range). 0.75 is Bascinet's number.
 const LAZY_YIELD_FACTOR = 0.75;
@@ -144,10 +156,10 @@ function toolsFor(ctx) {
   return eligible.filter((tool) => !tool.isWeapon || tool === bestWeapon);
 }
 
-// No min>max guard: Math.round is monotonic and no multiplier is ever negative, so min <= max survives by construction; a small coefficient collapsing 2-8 to 0-0 is correct, not a bug. `coefficient` is the global GameConfig dial; `locationCoefficient` is LocationMining.current. They multiply.
-function computeRate(coefficient, locationCoefficient = 1) {
+// No min>max guard: Math.round is monotonic and no multiplier is ever negative, so min <= max survives by construction; a small coefficient collapsing the base to 0-0 is correct, not a bug. `coefficient` is the global GameConfig dial; `locationCoefficient` is LocationMining.current. They multiply. `base` picks which of the two rates above is being scaled.
+function computeRate(coefficient, locationCoefficient = 1, base = MINING_RATE) {
   const c = (coefficient ?? 1) * (locationCoefficient ?? 1);
-  return { min: Math.round(MINING_RATE.min * c), max: Math.round(MINING_RATE.max * c) };
+  return { min: Math.round(base.min * c), max: Math.round(base.max * c) };
 }
 
 // Display form — "3" when fixed, "0–4" (en dash) when it varies. The one place that dash is written.
@@ -169,13 +181,15 @@ function resolveMiningRateFrom(ctx, coefficient, { lifewebFailing = false } = {}
     return { ok: false, reason: "There's nothing to mine here." };
   }
 
-  if (!ctx.tagSlugs.has(PROSPECTING_SLUG)) {
-    return { ok: false, reason: "You wouldn't know rock from ore." };
-  }
+  // NOT a refusal any more (2026-09-18). Prospecting is a rate switch and the
+  // loot gate, not the gate on the button — see UNSKILLED_MINING_RATE above.
+  // Callers read `prospecting` back off this object to decide whether to roll
+  // the loot table at all; nothing else should re-derive it from the tag.
+  const prospecting = ctx.tagSlugs.has(PROSPECTING_SLUG);
 
   const tools = toolsFor(ctx);
   const bonus = tools.reduce((sum, tool) => sum + tool.amount, 0);
-  const rate = computeRate(coefficient, ctx.coefficient);
+  const rate = computeRate(coefficient, ctx.coefficient, prospecting ? MINING_RATE : UNSKILLED_MINING_RATE);
   let min = rate.min + bonus;
   let max = rate.max + bonus;
 
@@ -194,6 +208,7 @@ function resolveMiningRateFrom(ctx, coefficient, { lifewebFailing = false } = {}
 
   return {
     ok: true,
+    prospecting,
     min,
     max,
     bonus,
@@ -237,6 +252,7 @@ async function resolveMiningRate(prisma, characterId) {
 
 module.exports = {
   MINING_RATE,
+  UNSKILLED_MINING_RATE,
   LIFEWEB_FAILURE_MULTIPLIER,
   SOFT_HANDS_SLUG,
   lazyYield,

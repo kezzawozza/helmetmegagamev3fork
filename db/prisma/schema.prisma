@@ -1099,16 +1099,15 @@ model Zone {
   // is left for a human to clean up. Null means live. See db/lib/placeDeletable.js.
   retiredAt DateTime?
 
-  locations         Location[]
-  characters        Character[]
-  actions           Action[]
-  notes             Note[]
-  gmZoneViews       GmZoneView[]
-  stagedMessages    StagedMessage[]
-  startingForRoles  Role[]             @relation("RoleStartingZone")
-  cavingRolls       CavingRoll[]
-  miningDropOptions MiningDropOption[]
-  oraclePages       OracleSynopsis[]
+  locations        Location[]
+  characters       Character[]
+  actions          Action[]
+  notes            Note[]
+  gmZoneViews      GmZoneView[]
+  stagedMessages   StagedMessage[]
+  startingForRoles Role[]           @relation("RoleStartingZone")
+  cavingRolls      CavingRoll[]
+  oraclePages      OracleSynopsis[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1192,106 +1191,6 @@ model LocationMining {
   updatedAt DateTime @updatedAt
 }
 
-// The mining drop die's config: what a day underground can turn up on top of
-// the ⬢, keyed by which face of a 1-6 roll landed, scoped to a zone or a
-// location (never both on one row), plus an optional gate orthogonal to
-// those — requiredTagId, "only joins the pool for a character who holds this
-// tag too". Pure config, not player state — no CharacterTag or Action row
-// ever points at one of these rows, so docs/miningdrops.yaml replaces the
-// whole table on every sync run rather than upserting it
-// (db/lib/syncMiningDrops.js). See docs/systemdocs/MININGDROPS.md.
-enum MiningDropKind {
-  TAG
-  RESOURCES
-  NOTHING
-}
-
-// How rare a TAG entry is within its pool. The same six names
-// db/lib/cavingLoot.js uses, deliberately — two loot systems in one game
-// should not speak two vocabularies. The NUMBERS are not shared: the
-// probability each name carries lives in db/lib/miningdropsRarity.js, keyed
-// by die face, and a cave 6 and a mining 6 are different events.
-//
-// Only TAG rows carry one. A NOTHING pad and a RESOURCES delta are not items
-// and sit in their own bands, outside the ladder — the sync refuses a rarity
-// on either.
-enum MiningDropRarity {
-  ULTRACOMMON
-  COMMON
-  UNCOMMON
-  RARE
-  EXTREMELY_RARE
-  NEARLY_IMPOSSIBLE
-}
-
-// One entry in one pool. A "table" is never its own row: it is every
-// MiningDropOption sharing one (roll, zoneId, locationId) scope. Combining
-// both scopes at once (MININGDROPS.md §2) is a query over this table, not a
-// join anywhere else.
-//
-// The draw is TWO-STAGE, not uniform: land on a rarity band by the die face's
-// column, then pick evenly among that band's members
-// (db/lib/miningdropsRarity.js), the same shape db/lib/cavingLoot.js has
-// always had.
-model MiningDropOption {
-  id String @id @default(cuid())
-
-  // Which face of the mining die this entry answers, 1-6.
-  roll Int
-
-  // Both dimensions below are optional, and the SET of three legal
-  // combinations (zoneId alone, locationId alone, or all-null for Global) is
-  // enforced by the sync, not by the schema — zoneId and locationId are never
-  // both set on one row.
-  zoneId String?
-  zone   Zone?   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-
-  locationId String?
-  location   Location? @relation(fields: [locationId], references: [id], onDelete: Cascade)
-
-  kind MiningDropKind
-
-  // TAG only, and required on every TAG row (the sync enforces both).
-  // Authored as `rarity:` in docs/miningdrops.yaml.
-  //
-  // This replaced repeat-to-weight, which was the only lever the old uniform
-  // draw had: 87 of the file's 180 lines were duplicates, 53 more were
-  // `nothing` pads, and nothing could be rarer than 1/poolsize. See
-  // db/lib/miningdropsRarity.js for what each name is worth and why the
-  // column is keyed by face.
-  rarity MiningDropRarity?
-
-  // TAG only. Cascades on delete rather than blocking a tag prune — the sync
-  // fully rebuilds this table from docs/miningdrops.yaml on every run, so a
-  // row orphaned by a pruned tag either comes back on the next sync or the
-  // sync throws on a YAML entry naming a slug that no longer exists, the
-  // same as any other stale reference.
-  tagId String?
-  tag   Tag?    @relation("MiningDropGrantTag", fields: [tagId], references: [id], onDelete: Cascade)
-
-  // RESOURCES only. A ⬢ delta — usually a bonus, but nothing stops a
-  // negative one for a bad-table entry.
-  resourceAmount Int?
-
-  // The last gate, orthogonal to roll/zoneId/locationId: null
-  // (the overwhelming common case) means every character; set, this row only
-  // enters the combined pool for a character who holds this tag, checked in
-  // application code (db/lib/miningDrops.js#passesRequiredTag) rather than the
-  // SQL WHERE — the six scopes above are matched in the query, this is a
-  // post-filter over whichever of those rows come back, because "does this
-  // character hold tag X" isn't expressible as a join against a query keyed
-  // on the drawing character's zone and location alone. Authored in
-  // docs/miningdrops.yaml as a `requiresTag:` block nested under any of the
-  // buckets above. Same cascade reasoning as tagId above.
-  requiredTagId String?
-  requiredTag   Tag?    @relation("MiningDropRequiredTag", fields: [requiredTagId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([roll, zoneId, locationId])
-  @@index([requiredTagId])
-}
-
 model Location {
   id   String @id @default(cuid())
   slug String @unique
@@ -1361,18 +1260,17 @@ model Location {
   updatedAt DateTime @updatedAt
 
   // Moves filed while standing here (Action.locationId).
-  actions           Action[]
-  threatSpawns      ThreatSpawn[]
-  cavingRolls       CavingRoll[]
-  visits            LocationVisit[]
-  vantages          Vantage[]
-  auditLogs         AuditLog[]
+  actions          Action[]
+  threatSpawns     ThreatSpawn[]
+  cavingRolls      CavingRoll[]
+  visits           LocationVisit[]
+  vantages         Vantage[]
+  auditLogs        AuditLog[]
   // Everybody lying in wait here. A watch is anchored to one place and dies
   // when its owner leaves it (docs/systemdocs/INTERCEPT.md §1), so a Location
   // that goes away takes them with it.
-  interceptWatches  InterceptWatch[]
-  attacks           Attack[]
-  miningDropOptions MiningDropOption[]
+  interceptWatches InterceptWatch[]
+  attacks          Attack[]
 
   @@index([zoneId])
 }
@@ -3235,6 +3133,18 @@ model Tag {
   // ingredient (Iron) can happily also be a recipe ingredient elsewhere.
   inlayValue Int?
 
+  // What a Trinket forged with this ingredient adds to its HOLDER's Gambit
+  // die (TRINKETS.md). Only the Arkenstone carries it. The number does
+  // nothing while the raw stone sits in a pocket: db/lib/trinketPass.js sums
+  // it across the ingredients the same way it sums `inlayValue`, and writes
+  // the total onto the minted clone, which is the row
+  // db/lib/gambitModifier.js reads back.
+  //
+  // A contributor here is only as good as the query that loaded the tag, so
+  // any Prisma select feeding gambitModifiers() must pull this column — see
+  // that file's header.
+  gambitBonus Int?
+
   // The ingredient slugs that went into THIS dish, in the order the cook
   // slotted them. Written only on rows minted by a cooking craft
   // (mintCustomCraft), empty on every catalog row and every other mint.
@@ -3397,15 +3307,13 @@ model Tag {
   desireForbiddenBy   DesireTemplate[] @relation("DesireForbidsTag")
   desireAllRequiredBy DesireTemplate[] @relation("DesireRequiresAllTag")
 
-  characters           CharacterTag[]
-  roomTags             RoomTag[]
-  noticePost           NoticePost?
-  gatedGroups          TagGroup[]         @relation("TagGroupGate")
-  cavingRolls          CavingRoll[]
-  offers               Offer[]
-  craftProjects        CraftProject[]
-  miningDropOptions    MiningDropOption[] @relation("MiningDropGrantTag")
-  miningDropRequiredBy MiningDropOption[] @relation("MiningDropRequiredTag")
+  characters    CharacterTag[]
+  roomTags      RoomTag[]
+  noticePost    NoticePost?
+  gatedGroups   TagGroup[]     @relation("TagGroupGate")
+  cavingRolls   CavingRoll[]
+  offers        Offer[]
+  craftProjects CraftProject[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

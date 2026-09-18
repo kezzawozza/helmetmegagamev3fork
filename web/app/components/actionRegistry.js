@@ -255,9 +255,11 @@ export const ACTION_SECTIONS = [
         gateReason: "There's no Godflesh here to refine.",
         instant: true,
       },
-      // Shows for anyone holding Prospecting, wherever they stand — the
-      // "wrong ground" and "seam dried up" cases are both greys, carried
-      // dynamically through pools.gateReason.mine (db/lib/mining.js).
+      // Shows for EVERYONE, wherever they stand — anybody can shift rock, and
+      // Prospecting decides what the day is worth rather than whether you may
+      // press this (MINING.md). The "wrong ground" and "seam dried up" cases
+      // are both greys, carried dynamically through pools.gateReason.mine
+      // (db/lib/mining.js).
       {
         mode: "mine",
         icon: MineIcon,

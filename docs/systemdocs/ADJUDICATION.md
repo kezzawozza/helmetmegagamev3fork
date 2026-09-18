@@ -238,7 +238,7 @@ tray as "unattached" for the GM to keep or drop.
   can no longer type a delta at all) applies at the push, solved or not. A GM
   who disagrees stages a counter-effect; the composer's "offset declared"
   prefill is that in one click. **Mine is the exception and pays at the press**
-  — the ⬢ and any mining drop land inside the filing transaction,
+  — the ⬢ and any prospecting find land inside the filing transaction,
   `appliedEffects` is stamped there, and the push skips the row (`MINING.md`
   §3). A Routine the game filed still pays at the push.
 - **Solve is bookkeeping.** It stores the Result and Kind edit, stamps

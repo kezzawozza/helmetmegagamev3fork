@@ -667,6 +667,17 @@ function normalizeInlayValue(value, { slug, label = "docs/tags.yaml" } = {}) {
   return value;
 }
 
+// `gambitBonus` — TRINKETS.md: what a Trinket forged with this ingredient adds to its holder's Gambit die (see schema comment on Tag.gambitBonus). Same shape as inlayValue: a positive whole number, or absent.
+function normalizeGambitBonus(value, { slug, label = "docs/tags.yaml" } = {}) {
+  if (value == null) return null;
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(
+      `${label}: tag "${slug}" gambitBonus must be a positive whole number`,
+    );
+  }
+  return value;
+}
+
 // `cooked` deliberately does NOT require `consumable`: cookable and edible are different claims (nobody gnaws a raw hand, but a hand in a stew can happen). The cooking path reads this block; the consume path never sees it.
 // Conversely, an ingredient that does nothing RAW says so with `consumable: true` and an empty `consumesInto` — the honest way to write an onion, keeping "nothing happened" a real answer.
 function validateCooked(normalized, { selfSlug, tagSlugs, entry: tagEntry, label = "docs/tags.yaml" }) {
@@ -1011,6 +1022,7 @@ module.exports = {
   INGREDIENT_SLOTS_MAX,
   normalizeCooked,
   normalizeInlayValue,
+  normalizeGambitBonus,
   validateCooked,
   normalizeIngredientSlots,
   validateIngredientSlots,

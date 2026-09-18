@@ -90,11 +90,22 @@ async function runTrinketPass(prisma, turn) {
         const inlayRows = ingredientSlugs.length
           ? await tx.tag.findMany({
               where: { slug: { in: ingredientSlugs } },
-              select: { slug: true, inlayValue: true },
+              select: { slug: true, inlayValue: true, gambitBonus: true },
             })
           : [];
         const inlaySum = inlayRows.reduce((sum, t) => sum + (t.inlayValue ?? 0), 0);
         const price = tier.price + inlaySum;
+        // The Arkenstone's +1 (TRINKETS.md) rides onto the minted clone the
+        // same way its inlayValue rides onto the price. Summed like the price
+        // is, but in practice never more than one: resolveIngredientSlots
+        // refuses the same slug twice ("You've put the same ingredient in
+        // twice"), and the Arkenstone is the only tag in the catalog carrying
+        // the column. Two SEPARATE Arkenstone Trinkets do stack, because
+        // db/lib/gambitModifier.js adds one entry per held tag.
+        //
+        // Null rather than 0 when nothing contributed, so gambitModifier.js
+        // has nothing to find on an ordinary Trinket.
+        const gambitBonus = inlayRows.reduce((sum, t) => sum + (t.gambitBonus ?? 0), 0) || null;
 
         const composedName = details.name || `${tier.name} Trinket`;
         const composedDescription = details.description || baseTag.description;
@@ -110,6 +121,7 @@ async function runTrinketPass(prisma, turn) {
           literal: true,
           cookedFrom,
           sellablePriceOverride: price,
+          gambitBonusOverride: gambitBonus,
         });
 
         await addToStack(tx, character.id, minted.id, 1, { source: "CRAFT", stackable: true });
@@ -120,7 +132,7 @@ async function runTrinketPass(prisma, turn) {
           data: { moveReviewStatus: "SOLVED", reviewedAt: new Date(), resultMessage },
         });
 
-        return { character, tier, price, itemName: minted.name, face };
+        return { character, tier, price, itemName: minted.name, face, gambitBonus };
       });
       if (!outcome) continue;
       resolved += 1;
@@ -130,7 +142,12 @@ async function runTrinketPass(prisma, turn) {
           content: [
             `🎲 Your Gambit for turn ${turn.number}: **${outcome.face}**.`,
             `The forge gives you a **${outcome.tier.name}** Trinket: **${outcome.itemName}** (worth ${outcome.price} ⬢ to the merchant).`,
-          ].join("\n"),
+            outcome.gambitBonus
+              ? `-# Something in it answers you. While you carry it, your Gambit die is +${outcome.gambitBonus}.`
+              : null,
+          ]
+            .filter(Boolean)
+            .join("\n"),
         });
       }
     } catch (err) {

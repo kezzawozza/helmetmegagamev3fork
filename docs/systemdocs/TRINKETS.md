@@ -93,12 +93,55 @@ the OUTCOME changes when the COST is paid.
 ## 3. Ingredients: inlay value, a second pool beside `cooked`
 
 A smith may slot 0-2 raw materials into a Trinket, and each one adds its own
-flat `inlayValue` to the finished price on top of the tier. Two new ores feed
-this (Prospecting-sourced, `docs/miningdrops.yaml`): `{tag:malachite}` (6 ⬢)
-and `{tag:hematite}` (3 ⬢), plus `{tag:iron}` — smelted from hematite at the
-forge the same way `{tag:steel}` smelts from coal — which is worth less as an
-inlay (3 ⬢) than the raw ore it came from is worth SOLD, on purpose: iron's
-real value is as a smithing ingredient elsewhere, not as inlay filler.
+flat `inlayValue` to the finished price on top of the tier. **The whole
+`items-mining` tag group feeds this** — every one of them exists for no other
+reason (`MINING.md` §3b, and the Mining catalog comment in `docs/tags.yaml`).
+The ladder runs with the loot table's tiers:
+
+| Where it comes from | Examples | inlay |
+|---|---|---|
+| Ultracommon ore | Hematite, Malachite, Garnierite | 1 |
+| Common stone | Citrine, Onyx, Pyrite… | 4 |
+| Uncommon | Fire Opal, Sphalerite, Tetrahedrite | 8 |
+| Smelted metal | Nickel 5, Copper 6, Iron 8, Silver 9 | 5–9 |
+| Rare stone | Opal, Topaz, Amethyst, Kunzite | 14 |
+| Platinum | | 18 |
+| Star Sapphire / Black Diamond | | 30 / 36 |
+| **Arkenstone** | | **60** |
+
+That is the point of the whole arrangement: a raw ore sells for 1 ¢ and is
+worth 1 as inlay, but smelted into Iron it is worth 8 either way. A prospector
+who never speaks to a smith is leaving most of the value in the ground.
+
+**No slug twice.** `resolveIngredientSlots` refuses the same ingredient in both
+slots ("You've put the same ingredient in twice"), so the two slots are always
+two different materials.
+
+### The Arkenstone's Gambit bonus
+
+One tag in the catalog carries `Tag.gambitBonus`, and it is the rarest thing in
+the ground. A Trinket forged with an Arkenstone gives **its holder +1 on the
+Gambit die**, for as long as they carry it — held, not equipped.
+
+The wiring is deliberately the same shape as the price:
+`db/lib/trinketPass.js` sums `gambitBonus` across the ingredient rows exactly
+as it sums `inlayValue`, and passes the total to `mintCustomCraft` as
+`gambitBonusOverride` (a second door beside `sellablePriceOverride`, and for
+the same reason — the number comes from the INGREDIENTS, never from the
+never-minted `{tag:trinket}` base row). The minted clone carries the column;
+`db/lib/gambitModifier.js` reads it back and contributes one named entry per
+held tag, so the confirm DM says "+1 Anduril" rather than a bare number.
+
+**The trap, and it is worth repeating here.** `gambitModifiers` reads whatever
+tag objects it is handed. A Prisma select that narrows the tag relation to
+`{ slug: true }` contributes nothing — no error, just a die quietly one lower
+on that surface than on the sheet. Five selects were widened when this landed
+(`gambitCutoff.js`, `confession.js`, `lessons.js`, `chipSelect`'s callers);
+anything new feeding that function must pull `gambitBonus` too.
+
+Since a Trinket takes at most two slots and cannot take the same slug twice,
+one Trinket is +1 at most. Two SEPARATE Arkenstone Trinkets in one pocket do
+stack to +2, which is the only route there and is meant to be absurd.
 
 `inlayValue` is `Tag.inlayValue` on the schema, a sibling column next to
 `cooked` and validated the same permissive way (`db/lib/tagShapes.js`'s
@@ -200,6 +243,7 @@ before; only the implementation moved.
 | `db/lib/advantage.js` | `rollWithAdvantage` — the shared Gambit d6, Lucky included |
 | `web/app/(app)/character/trinketActions.js` | The request action: the gate, the charge, the filed Gambit |
 | `web/app/(app)/character/requestActions.js` | `resolveIngredientSlots` (now exported, shared with Trinket's own `inlayValue` pool), `resolveCraftPayer`, the `mintCustomCraft` wrapper |
-| `docs/tags.yaml` | `{tag:trinket}` (the base shape), `{tag:malachite}`, `{tag:hematite}`, `{tag:iron}` |
-| `docs/miningdrops.yaml` | Where `malachite`/`hematite` turn up prospecting |
+| `docs/tags.yaml` | `{tag:trinket}` (the base shape) and the whole `items-mining` group |
+| `db/lib/cavingLoot.js` | `PROSPECTING_TABLE` — where every inlay ingredient turns up |
+| `db/lib/gambitModifier.js` | Reads `gambitBonus` back off a held Trinket |
 | `db/test/trinketPass.test.js` | The pure half — the tier table and the skilled floor |

@@ -195,7 +195,7 @@ either the brewer's sheet carries the thing, or the craft is refused.
 now, `SMITHING.md`.)
 
 The forageable tags in that table are new, and **nothing drops them yet**. The
-mining drop table is what would wire acquisition (`MININGDROPS.md`); this pass
+prospecting loot table is what would wire acquisition (`MINING.md` §3b); this pass
 only had to make the slugs exist. Until then they arrive by GM grant.
 
 `skinless-brain` is the one ingredient that is also a moral problem. A Graga is

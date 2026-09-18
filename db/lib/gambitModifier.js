@@ -1,8 +1,16 @@
-// The single source of the summed Gambit die modifier. Two contributors: Hunger (a flat penalty off
-// the hungry/starving tags, db/lib/hunger.js), and the three extreme mood bands (docs/systemdocs/MOOD.md)
-// — Ecstatic +1, Afraid -1, Panicking -2. A mood is one number so the three can never sum. Stays
-// list-returning, not one number: Action.diceModifier is one Int but the confirm DM wants the
-// contribution NAMED ("−1 Hungry"), and a new contributor is an append here.
+// The single source of the summed Gambit die modifier. Three contributors: Hunger (a flat penalty off
+// the hungry/starving tags, db/lib/hunger.js), the three extreme mood bands (docs/systemdocs/MOOD.md)
+// — Ecstatic +1, Afraid -1, Panicking -2, and a mood is one number so those three can never sum — and
+// any HELD tag carrying `Tag.gambitBonus`, which today means a Trinket forged with an Arkenstone
+// (docs/systemdocs/TRINKETS.md). Stays list-returning, not one number: Action.diceModifier is one Int
+// but the confirm DM wants the contribution NAMED ("−1 Hungry", "+1 Anduril"), and a new contributor
+// is an append here.
+//
+// THE TRAP, and it is the same one the `mood` note below describes. This function reads whatever tag
+// objects it is handed, so a caller whose Prisma select narrows the tag relation to `{ slug: true }`
+// silently contributes nothing for `gambitBonus` — no error, just a die that is quietly one lower on
+// that surface than on the sheet. Every select feeding this must pull `gambitBonus`; a bare
+// `include: { tag: true }` gets it for free.
 // No prisma import, so both bot/ and web/ import it by subpath.
 const { HUNGER_SLUG, STARVING_SLUG } = require("./constants");
 const { bandOf } = require("./mood");
@@ -39,6 +47,17 @@ function gambitModifiers(characterTags = [], { mood = 0 } = {}) {
 
   const moodBand = bandOf(mood);
   if (moodBand?.gambit) out.push({ label: moodBand.label, value: moodBand.gambit });
+
+  // One entry per tag rather than one summed "Trinkets" line: the whole reason this returns a list is
+  // so the player is told WHAT is helping them, and a Trinket's name is the only thing that
+  // identifies it. Labelled by name, since every one of these is a custom mint with a name its maker
+  // chose. Held, not equipped — the bonus is the holder's.
+  for (const ct of characterTags ?? []) {
+    const tag = ct?.tag ?? ct;
+    const value = tag?.gambitBonus ?? 0;
+    if (!value) continue;
+    out.push({ label: tag.name ?? tag.slug ?? "Trinket", value });
+  }
 
   return out;
 }

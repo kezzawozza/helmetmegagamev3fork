@@ -158,6 +158,11 @@ const PAPER_FIELDS = { paperText: true };
 // The columns a chip needs, all of them. `extra` is for the handful of callers
 // that want a column the chip itself doesn't read (`stackable`, `equippable`) —
 // spread it here rather than rebuilding the select around it.
+//
+// `gambitBonus` is one of those, and the one worth naming: a caller that goes
+// on to hand these rows to db/lib/gambitModifier.js must ask for it, or the
+// Arkenstone's +1 silently vanishes on that surface alone. See that file's
+// header.
 export function chipSelect(extra = {}) {
   return { ...TAG_CHIP_FIELDS, ...PAPER_FIELDS, ...APPRAISAL_SELECT, ...extra };
 }

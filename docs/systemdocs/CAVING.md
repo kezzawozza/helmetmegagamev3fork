@@ -270,13 +270,20 @@ weighted draw), not player-facing catalog data the way a tag's price is. A
 `FIND` draws in two stages: a tier by the standing zone's column below, then
 a slug uniformly within that tier.
 
-**The mining drop die speaks this vocabulary too** as of the cooking rework:
-`docs/miningdrops.yaml` entries carry one of these six tier names, and
-`db/lib/miningdropsRarity.js` draws in the same two stages. The names are
-shared on purpose — two loot systems in one game should not need two
-vocabularies — but the **numbers are not**, and should not be unified. This
-column is keyed by zone because a cave is a place; the mining one is keyed by
-die face, because a 1 and a 6 are different events. See `MININGDROPS.md` §2.
+**This file holds TWO tables now.** The prospecting loot table
+(`PROSPECTING_TABLE` / `PROSPECTING_WEIGHTS_BY_ZONE`) moved in beside the Caving
+Die's on 2026-09-18, replacing a whole YAML-driven subsystem — see
+[`MINING.md`](MINING.md) §3b. They share the six tier names, the zone-column
+shape, `drawFrom`, and `validateCavingLoot`, which checks both tables' slugs
+and both weight maps at startup.
+
+They do **not** share numbers, and should not be unified. A cave arrival and a
+day at the seam are different events, and the Depths being generous to a caver
+says nothing about what a pick turns up there. The one behavioural difference:
+`drawLoot` THROWS on a zone with no column (cavingPass only calls it after
+establishing a CAVE_LEVEL, so that would be a bug), while
+`drawProspectingLoot` returns null (the Black Hills are minable and hold no
+stones, which is ordinary).
 
 | Tier | Caves | Depths |
 |---|---|---|

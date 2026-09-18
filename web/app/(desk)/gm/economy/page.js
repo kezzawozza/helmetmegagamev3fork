@@ -488,18 +488,6 @@ async function FreshEconomy({ section, searchParams, userId }) {
 
       data = { ...data, series, categories, table, grandTotal };
 
-      // Faucets only: designed vs. realised for mining drops. summarize() from
-      // miningdropsEv.js wants priced pool rows plus a roll-share table per
-      // zone/location/holds combination (see db/scripts/ops/audit-mining-
-      // drops.js) — that is a YAML-parse-and-simulate job, not something this
-      // page render can assemble cheaply per request. So only the realised
-      // side is shown; the designed side stays a `npm run
-      // db:audit-mining-drops` job rather than a live number here.
-      if (section === "faucets") {
-        data.miningDropRealised = totalByReason.get("MINING_DROP") ?? 0;
-        data.miningDropNote =
-          "Expected value per pool isn't wired into this page — it needs docs/miningdrops.yaml priced and rolled per zone/location, which npm run db:audit-mining-drops already does. Only the realised total is shown here.";
-      }
       break;
     }
 

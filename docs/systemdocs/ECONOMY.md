@@ -264,13 +264,8 @@ and make the read path merge rather than choose.
 | The Depot | Every account in the game, split TREASURY from OFFSHORE, against the coin in the Vault. A claim and its backing are shown APART, always (§1) |
 | Health | Drift, un-hooked call sites, and the backfill seam |
 
-Two numbers the desk deliberately does not compute:
+One number the desk deliberately does not compute:
 
-- **Mining drops show what they paid, not what they were designed to pay.** The
-  expected value needs `docs/miningdrops.yaml` parsed and the roll shares
-  simulated (`db/lib/miningdropsEv.js`), which is not a page render's job. Run
-  `npm run db:audit-mining-drops` for that side. Inventing a plausible number
-  there would be worse than leaving it out.
 - **No per-account balance history.** There is no per-turn snapshot to group
   off, so a sparkline would cost a query per account.
 

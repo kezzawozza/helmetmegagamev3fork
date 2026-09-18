@@ -121,7 +121,7 @@ commits at the press, and the cubes come off the line at the turn push
   in can work it, and Prospecting has nothing to say about a refinery.
 - **No `miningBonus` applies.** A refinery is not a coefficient, and a pick is
   not a tool for it.
-- **No drop die.** Refining pays in Squeeze, not in ore (`MININGDROPS.md` §1).
+- **No loot roll.** Refining pays in Squeeze, not in stone (`MINING.md` §3b).
 
 **Losing the race is not silent.** Three refugees and one lump in the Logistics
 Room is the NORMAL case whenever the stash runs thin. The button checks the

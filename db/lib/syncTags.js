@@ -50,6 +50,7 @@ const {
   validateResists,
   normalizeCooked,
   normalizeInlayValue,
+  normalizeGambitBonus,
   validateCooked,
   normalizeIngredientSlots,
   validateIngredientSlots,
@@ -995,6 +996,7 @@ async function syncTagsFromYaml(prisma) {
       cooked: normalizeCooked(entry.cooked, { slug: entry.slug, normalizeInto: normalizeConsumesInto }),
       // Trinket's own ingredient pool (TRINKETS.md), sibling of `cooked`.
       inlayValue: normalizeInlayValue(entry.inlayValue, { slug: entry.slug }),
+      gambitBonus: normalizeGambitBonus(entry.gambitBonus, { slug: entry.slug }),
       requirementIngredientSlots: normalizeIngredientSlots(entry.requirement?.ingredientSlots, { slug: entry.slug }),
       mealMood: entry.mealMood ?? null,
       mealHunger: entry.mealHunger ?? null,

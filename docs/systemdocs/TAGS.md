@@ -1067,6 +1067,23 @@ them).
   was a `kind:` key here too, naming which of the four Laboring types the bonus
   paid into, and a typo in it made a tool silently worthless — a bonus is just
   a bonus now. Full rules in `MINING.md` §4.
+- `inlayValue` — what this raw material adds to a minted Trinket's sell price
+  when a smith slots it in (`TRINKETS.md` §3). A positive whole number, or
+  absent. A second, narrower "what does this contribute as an ingredient"
+  annotation beside `cooked`, deliberately not folded into it — Trinket and
+  Cooking are two separate ingredient pools, and `resolveIngredientSlots`'s
+  caller tells them apart by which of the two columns is non-null. The whole
+  `items-mining` group carries one.
+- `gambitBonus` — what a Trinket forged with this ingredient adds to its
+  HOLDER's Gambit die. Same shape as `inlayValue` (positive whole number, or
+  absent) and read on the same path: `db/lib/trinketPass.js` sums it across the
+  ingredients and writes the total onto the minted clone, which is the row
+  `db/lib/gambitModifier.js` reads back. **The raw tag grants nothing while
+  held** — it has to go through the forge. Exactly one tag carries it, the
+  Arkenstone, and the ceiling is +1 per Trinket because a Trinket takes two
+  slots and the craft refuses the same slug twice. A Prisma select feeding
+  `gambitModifiers()` must pull this column or the bonus silently vanishes on
+  that surface; see that file's header. Full rules in `TRINKETS.md` §3.
 - `requirementItems` (YAML: `requirement.items`) — the recipe's
   **ingredients**, and the only ones the game has. **Spent by default**:
   `quantity` units come off the crafter's sheet per craft, the same scaling ⬢

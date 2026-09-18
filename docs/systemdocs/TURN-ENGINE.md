@@ -298,8 +298,9 @@ each arrived at by getting them wrong first.
    thirteen rows are distinct code paths rather than "grant this slug", so a
    YAML row would need a `kind:` that maps one-to-one onto a switch the pass
    already contains — a second place to keep in step for no editability at
-   all. `docs/miningdrops.yaml` also weights by REPEATING an entry, which
-   cannot express the half-unit the mass-madness row carries. Bascinet's
+   all. A weight expressed by REPEATING an entry — the shape the old mining
+   drop YAML used — also cannot express the half-unit the mass-madness row
+   carries. Bascinet's
    weights are stored unnormalised and sum to 101.5; `pickXomOutcome`
    normalises once, at roll time. `db/test/xom.test.js` asserts that every row
    in the table has an arm in the pass's switch — a row without one falls
@@ -748,7 +749,7 @@ it to `true` in the same change that ships foodstuff items, and not before."
 **This is that change.** Soilery ships the foodstuff catalog the brake was
 waiting on — six growable crops, ten more foodstuffs, and the seed-bag/Farming
 chain that gets a character to them without Cooking at all — on top of the
-Depot wares and mining drops that already existed. The counter that stocks those
+Depot wares and cave loot that already existed. The counter that stocks those
 wares is open to everybody now rather than to one man (`DEPOT.md`), so a Ration
 Box is a walk and an order rather than a favour. `STARVING_DEATH_TURNS` (above,
 this same section) is therefore unconditional, with no flag gating it: the
@@ -954,7 +955,7 @@ Action through the shared `deleteActionRestoringTurn`
 is no `turnsRemaining` column, so giving the day back means deleting the row.
 
 **Nothing else is editable.** A **Mine** settles on the press — the ⬢ and any
-mining drop land inside the filing transaction (`MINING.md` §3), which stamps
+prospecting find land inside the filing transaction (`MINING.md` §3), which stamps
 `appliedEffects` so the push skips it. A Move the *game* filed is a receipt for
 something that already happened: a craft, a burial, an engraving, a torture, a
 travel stub, a lesson, a day in the seam. `Action.playerFiled` separates the two and **defaults false**,

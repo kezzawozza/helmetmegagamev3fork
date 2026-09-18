@@ -100,7 +100,7 @@ export const INSTANT = {
     confirm: () => ({
       title: "Mine?",
       message:
-        "You spend the turn in the seam. You are paid immediately, and there is a small chance of turning up ore on top of it.",
+        "You spend the turn in the seam. You are paid immediately — and if you know what you are looking at, you might turn something up on top of it.",
       confirmLabel: "Mine",
     }),
   },

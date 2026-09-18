@@ -2577,13 +2577,17 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # No longer a gate on the Mine button — anybody standing where there is a
+  # seam can press it (MINING.md). What the skill buys is the size of the
+  # day: double the Resources, and the loot roll that an unskilled digger
+  # never makes at all.
   prospecting:
     catalog: all
     name: Prospecting
     category: skills
     group: skills-work
     teachable: true
-    description: "You can mine in the caves."
+    description: "You obtain many resources while mining, plus have a chance to obtain ores and gemstones."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -6136,91 +6140,47 @@ tags:
     # inlay value in the catalog.
     inlayValue: 2
 
-  # The first of several ingredients Prospecting is meant to source
-  # (MININGDROPS.md §2b) — {tag:silver-knife} and {tag:silver-spear} both spend
-  # one now; each recipe's resourceCost was cut by exactly this price (5 ⬢)
-  # so the total cost of either item is unchanged. Not craftable-purchasable
-  # (2026-09-09: a character can't buy it as a build pick), but the Merchant
-  # keeps some on the shelf too (DEPOT.md §3) for a smith with no prospector
-  # to hand.
-  silver:
-    catalog: all
-    name: Silver
-    category: items
-    group: items-gear
-    description: "Raw silver ore, ready for the forge."
-    pointCost: 0
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    depotPrice: 7
-    sellable: true
-    sellablePrice: 5
-    # A Trinket ingredient (TRINKETS.md §3).
-    inlayValue: 5
+  # ---------------------------------------------------------------------
+  # The Mining catalog (MINING.md, TRINKETS.md).
+  #
+  # Everything in `items-mining` is here for ONE job: a smith slots it into a
+  # Trinket for its `inlayValue`. That is why every description ends with the
+  # same sentence — a player who finds one should not have to go and read a
+  # doc to learn what it is for. Selling one raw is a consolation prize, not
+  # a living, and that is deliberate: the prospector is meant to go and find
+  # a smith.
+  #
+  # Three shelves, and they price differently:
+  #
+  #   ORES (Hematite, Malachite, Garnierite) are ultracommon and nearly
+  #   worthless raw — 1 ¢ and 1 inlay. All of their value is on the far side
+  #   of a smelt.
+  #
+  #   METALS (Iron, Copper, Nickel, Silver, Platinum) are what a smelt
+  #   produces, plus the two the ground gives up directly. Each one also
+  #   Consumes straight into ⬢ — free, instant, no skill — so a metal is
+  #   both a Trinket ingredient and a day's wage, and a prospector never has
+  #   to find a buyer to eat.
+  #
+  #   GEMSTONES are pure inlay: no recipe, no consume, just a price and a
+  #   number a smith cares about. They ladder with the loot table's tiers
+  #   (db/lib/cavingLoot.js) — 3 ¢ common, 6 ¢ uncommon, 10 ¢ rare, and then
+  #   the three at the bottom of the Depths that nobody should expect to see.
+  #
+  # Keep the ladder monotonic when retuning: a rarer stone must never be
+  # worth less to a smith than a commoner one, or the table stops reading as
+  # a table.
+  # ---------------------------------------------------------------------
 
-  # Coal and a spell at the forge folded into a usable ingot, same shape as
-  # {tag:black-powder} below: priced at cost, resourceCost (4) over a 4-⬢
-  # coal, no smith's margin baked in. Gated at plain smithing rather than
-  # Skilled — smelting ore is basic forge work, it's shaping it into
-  # {tag:katana}/{tag:rapier}/{tag:brigandine}/{tag:plate-armor} that needs
-  # the higher skill. It runs under the Simple rung's Turns column at
-  # `turnsCost: 0.25` for the same reason the Spear and the Silver Knife do
-  # (SMITHING.md §1) — an ingot is not a day at the anvil, and four fit in
-  # one Routine. Each of those four recipes subtracts 8 ⬢ (2026-09-10):
-  # steel's own sellablePrice, the "value" DEPOT.md §3-§4 says an ingredient
-  # comes off at. Numbers are drafted, not signed off.
-  steel:
-    catalog: all
-    name: Steel
-    category: items
-    group: items-gear
-    description: "A workable ingot, smelted from ore."
-    pointCost: 0
-    weight: 2
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0.25
-      resourceCost: 4
-      skills: [smithing]
-      gambit: false
-      items: [coal]
-    depotPrice: 12
-    sellable: true
-    sellablePrice: 8
-
-  # Trinket's own ore (TRINKETS.md), Prospecting-sourced like {tag:silver}.
-  # inlayValue is what it adds to a minted Trinket's sell price when a smith
-  # slots it in — a second, separate ingredient annotation from `cooked`, not
-  # a recipe of its own.
-  malachite:
-    catalog: all
-    name: Malachite
-    category: items
-    group: items-gear
-    description: "A green mineral."
-    pointCost: 0
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 6
-    inlayValue: 6
-
+  # The three ores. Ultracommon in both cave zones, and priced like it: this
+  # is the rock you come back up with on an ordinary day. The smelt is the
+  # point — see {tag:iron} below for the shape all three recipes share.
   hematite:
     catalog: all
     name: Hematite
     category: items
-    group: items-gear
-    description: "A red ore."
+    group: items-mining
+    description: "A red metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
     stackable: true
@@ -6228,18 +6188,61 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 3
-    inlayValue: 3
+    sellablePrice: 1
+    inlayValue: 1
 
-  # Smelted from {tag:hematite}, same shape as {tag:steel} smelting from coal.
-  # Also carries its own inlayValue — a smith who never lit the forge for a
-  # separate ore still has something to inlay a Trinket with.
+  malachite:
+    catalog: all
+    name: Malachite
+    category: items
+    group: items-mining
+    description: "A green metal. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 1
+    inlayValue: 1
+
+  garnierite:
+    catalog: all
+    name: Garnierite
+    category: items
+    group: items-mining
+    description: "A pale green metal. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 1
+    inlayValue: 1
+
+  # Smelted from {tag:hematite} at the forge — an ore is worth almost nothing
+  # raw, and this is what makes a day underground pay. Iron took over the old
+  # Steel tag's slot on 2026-09-18: the four recipes that spent an ingot
+  # (Rapier, Katana, Brigandine, Plate Armor) spend one of these now, and its
+  # sellablePrice (8) and depotPrice (13) are steel's own numbers, so those
+  # four keep the 8 ⬢ discount they were priced with (SMITHING.md). The
+  # Merchant stocks it, the same way he stocked steel, so a smith with no
+  # prospector to hand is not stuck.
+  #
+  # {tag:copper} and {tag:nickel} are the same recipe over a different ore.
+  # All three are gated at plain Smithing rather than Skilled — smelting is
+  # basic forge work; it is shaping the ingot afterwards that needs the
+  # higher skill — and all three run at `turnsCost: 0.25`, so four fit in one
+  # Routine (SMITHING.md §1, the same reason the Spear does).
   iron:
     catalog: all
     name: Iron
     category: items
-    group: items-gear
-    description: "A workable iron ingot."
+    group: items-mining
+    description: "A workable iron ingot. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
     stackable: true
@@ -6253,9 +6256,392 @@ tags:
       skills: [smithing]
       items: [hematite]
       gambit: false
+    # Consuming a metal is the free, instant half of smelting: no Move, no
+    # skill, no ration. A prospector who wants ⬢ rather than a buyer just
+    # opens it.
+    consumable: true
+    consumesIntoResources: 5
+    depotPrice: 13
+    sellable: true
+    sellablePrice: 8
+    inlayValue: 8
+
+  copper:
+    catalog: all
+    name: Copper
+    category: items
+    group: items-mining
+    description: "A piece of red metal. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0.25
+      resourceCost: 0
+      skills: [smithing]
+      items: [malachite]
+      gambit: false
+    consumable: true
+    consumesIntoResources: 4
+    sellable: true
+    sellablePrice: 6
+    inlayValue: 6
+
+  nickel:
+    catalog: all
+    name: Nickel
+    category: items
+    group: items-mining
+    description: "A piece of pale metal. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0.25
+      resourceCost: 0
+      skills: [smithing]
+      items: [garnierite]
+      gambit: false
+    consumable: true
+    consumesIntoResources: 3
     sellable: true
     sellablePrice: 5
-    inlayValue: 3
+    inlayValue: 5
+
+  # Found as metal rather than smelted, so there is no ore behind it.
+  # {tag:silver-knife} and {tag:silver-spear} both spend one; each recipe's
+  # resourceCost was cut by exactly its price so the total cost of either
+  # item is unchanged. Repriced upward on 2026-09-18 (was 5/7/5) so an
+  # uncommon find is not worth less than an ingot smelted from ultracommon
+  # rock. The Merchant keeps some on the shelf (DEPOT.md §3).
+  silver:
+    catalog: all
+    name: Silver
+    category: items
+    group: items-mining
+    description: "Raw silver, ready for the forge. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesIntoResources: 6
+    depotPrice: 14
+    sellable: true
+    sellablePrice: 10
+    inlayValue: 9
+
+  # The extremely-rare metal, and the only one worth walking into the Depths
+  # for on its own.
+  platinum:
+    catalog: all
+    name: Platinum
+    category: items
+    group: items-mining
+    description: "A piece of white metal. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesIntoResources: 12
+    sellable: true
+    sellablePrice: 20
+    inlayValue: 18
+
+  # The common shelf: 3 ¢, 4 inlay. Six of them, so the commonest result of a
+  # good day is variety rather than the same stone over and over.
+  citrine:
+    catalog: all
+    name: Citrine
+    category: items
+    group: items-mining
+    description: "A yellow gemstone. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+    inlayValue: 4
+
+  milk-quartz:
+    catalog: all
+    name: Milk Quartz
+    category: items
+    group: items-mining
+    description: "A cloudy white stone. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+    inlayValue: 4
+
+  onyx:
+    catalog: all
+    name: Onyx
+    category: items
+    group: items-mining
+    description: "A black gem. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+    inlayValue: 4
+
+  moonstone:
+    catalog: all
+    name: Moonstone
+    category: items
+    group: items-mining
+    description: "A pale glowing stone. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+    inlayValue: 4
+
+  pyrite:
+    catalog: all
+    name: Pyrite
+    category: items
+    group: items-mining
+    description: "A brassy gold cube. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+    inlayValue: 4
+
+  white-jade:
+    catalog: all
+    name: White Jade
+    category: items
+    group: items-mining
+    description: "A smooth white stone. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+    inlayValue: 4
+
+  # The uncommon shelf: 6 ¢, 8 inlay. {tag:silver} and {tag:old-coin} share
+  # this tier of the table without sharing its pricing — one is a metal, the
+  # other is a coin somebody dropped a long time ago.
+  fire-opal:
+    catalog: all
+    name: Fire Opal
+    category: items
+    group: items-mining
+    description: "A burning orange gemstone. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 6
+    inlayValue: 8
+
+  sphalerite:
+    catalog: all
+    name: Sphalerite
+    category: items
+    group: items-mining
+    description: "A glittering brown crystal. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 6
+    inlayValue: 8
+
+  tetrahedrite:
+    catalog: all
+    name: Tetrahedrite
+    category: items
+    group: items-mining
+    description: "A grey metallic crystal. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 6
+    inlayValue: 8
+
+  # The rare shelf: 10 ¢, 14 inlay. Four stones, and the point at which a
+  # single find is worth more than the day's ⬢ that turned it up.
+  opal:
+    catalog: all
+    name: Opal
+    category: items
+    group: items-mining
+    description: "A shimmering white gemstone. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 10
+    inlayValue: 14
+
+  topaz:
+    catalog: all
+    name: Topaz
+    category: items
+    group: items-mining
+    description: "A golden gemstone. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 10
+    inlayValue: 14
+
+  amethyst:
+    catalog: all
+    name: Amethyst
+    category: items
+    group: items-mining
+    description: "A purple gemstone. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 10
+    inlayValue: 14
+
+  kunzite:
+    catalog: all
+    name: Kunzite
+    category: items
+    group: items-mining
+    description: "A pink gemstone. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 10
+    inlayValue: 14
+
+  # The bottom of the Depths. These three are a fraction of a percent of one
+  # roll and are priced to be worth the walk: a Masterwork Trinket with two
+  # Star Sapphires in it clears 120 ¢, which is a month of somebody's wages.
+  star-sapphire:
+    catalog: all
+    name: Star Sapphire
+    category: items
+    group: items-mining
+    description: "A blue star gemstone. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 20
+    inlayValue: 30
+
+  black-diamond:
+    catalog: all
+    name: Black Diamond
+    category: items
+    group: items-mining
+    description: "A dark gemstone. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 25
+    inlayValue: 36
+
+  # The rarest thing in the ground, and the only tag in the game that carries
+  # `gambitBonus`. A Trinket forged with one grants its HOLDER +1 on the
+  # Gambit die — the ingredient's bonus rides onto the minted clone through
+  # db/lib/trinketPass.js the same way its inlayValue rides onto the price,
+  # and db/lib/gambitModifier.js is what reads it back. The Arkenstone itself
+  # grants nothing while it sits in a pocket; it has to go through the forge.
+  #
+  # One per Trinket, not because of a cap but because a Trinket takes at most
+  # two ingredient slots and the craft refuses the same slug in both. Two
+  # separate Arkenstone Trinkets in one pocket DO stack to +2, which is the
+  # only way to get there and is meant to be absurd.
+  #
+  # It is also the target of a once-ever Desire (docs/desires.yaml), so a
+  # prospector who finds one has a real decision: sell it, forge it, or keep
+  # it.
+  arkenstone:
+    catalog: all
+    name: Arkenstone
+    category: items
+    group: items-mining
+    description: "A dazzling gemstone. If forged into a Trinket, it will bestow great power. It can be smithed into trinkets in order to increase their value."
+    pointCost: 0
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 40
+    inlayValue: 60
+    gambitBonus: 1
 
   # The base row a Trinket is minted FROM (TRINKETS.md). NOT craftable in the
   # ordinary sense — there is no Craft-dialog entry point for it, on purpose:
@@ -6382,8 +6768,9 @@ tags:
   # stackable, tradeable, sellable, and NOT consumable, because the brewing
   # Move is what spends it, not the holder eating it.
   #
-  # NOTHING DROPS THESE YET. The mining drop table wires acquisition;
-  # our job was to make the slugs exist. Until then a GM grants them.
+  # NOTHING DROPS THESE YET. There is no longer a table that would — the
+  # prospecting one is ore and stones only (MINING.md §3b) — so a GM grants
+  # them, and wiring acquisition is still open.
   aberrant-heart:
     catalog: gm
     name: Aberrant Heart
@@ -6446,7 +6833,7 @@ tags:
   # Two more of the same shape (Chris 2026-09-05): Poppy and Distilled Coca
   # used to be brewed out of ⬢ alone, and now spend a raw ingredient the way
   # Nightshade does. Public like nightshade-herb, and like it, NOTHING DROPS
-  # THESE YET — the mining drop table wires acquisition; a GM grants
+  # THESE YET — nothing drops them and no table is waiting to; a GM grants
   # them meanwhile.
   poppy-pods:
     catalog: all
@@ -6510,8 +6897,8 @@ tags:
   # one, but it never shows in the public Tag Catalog, which is what keeps
   # its actual use a discovery — the flavor text is written the way a hunter
   # or a farmhand would actually describe it, not the way a brewer would.
-  # NOTHING DROPS THIS YET. The mining drop table wires acquisition;
-  # a GM grants it meanwhile.
+  # NOTHING DROPS THIS YET, and no table is waiting to; a GM grants it
+  # meanwhile.
   brackenmoss:
     catalog: gm
     name: Brackenmoss
@@ -6549,215 +6936,6 @@ tags:
     cooked:
       taste: "leeches"
       mood: -10
-
-  # The generator's proper fuel. Imported, so the Merchant has to buy it off
-  # the station with the profit he makes selling everything else — which is the
-  # squeeze the whole Depot economy is built around.
-  coal:
-    catalog: all
-    name: Coal
-    category: items
-    group: items-gear
-    description: "A black rock that rubs off on one's hands."
-    pointCost: 0
-    weight: 3
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    depotPrice: 7
-    sellable: true
-    sellablePrice: 4
-
-  # A raw pull rather than one clean vein — the seam and the ore running
-  # through it come up together, so a chunk resolves into BOTH Coal and
-  # Silver at once rather than one flat tag. No skill gate, unlike the
-  # Lockboxes: ore doesn't need picking, just breaking apart, so it's a
-  # single consumable rather than a craft-then-consume pair. Sellable at its
-  # full combined value (9 ⬢) — there's no locked/opened split to price
-  # around here, just two metals sharing a rock (Bascinet, 2026-09-10).
-  ore-chunk:
-    catalog: all
-    name: Ore Chunk
-    category: items
-    group: items-gear
-    description: "A fist-sized chunk of rock, coal and a paler vein running through it together."
-    pointCost: 0
-    weight: 4
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 9
-    consumable: true
-    consumesInto:
-      - coal
-      - silver
-
-  # A straight sell rather than a smelted intermediate — real, but small, so
-  # it sells for less than Ore Chunk's combined coal+silver despite being the
-  # rarer thing to find (Bascinet, 2026-09-20: Prospecting's tables needed
-  # more good stuff at moderate rarity, not just more of the same three
-  # items).
-  gold-fleck:
-    catalog: all
-    name: Gold Fleck
-    category: items
-    group: items-gear
-    description: "A fleck of gold, panned or picked loose from the rock. Small, but real."
-    pointCost: 0
-    weight: 0.2
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 12
-    # A Trinket ingredient (TRINKETS.md §3).
-    inlayValue: 9
-
-  # A whole haul, sorted rather than raw — one Coal, one Silver, one Steel
-  # already smelted, bundled the way the Depot's own crates are (`DEPOT.md`
-  # §0e), not picked apart one seam at a time. Priced at the sum of its
-  # contents (4 + 5 + 8), same convention as Ore Chunk above (Bascinet,
-  # 2026-09-10).
-  ore-package:
-    catalog: all
-    name: Ore Package
-    category: items
-    group: items-gear
-    description: "A crate of ore, sorted and ready for the forge — Coal, Silver, and an ingot of Steel already smelted."
-    pointCost: 0
-    weight: 6
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 17
-    consumable: true
-    consumesInto:
-      - coal
-      - silver
-      - steel
-
-  # A second crate — bigger than Ore Package, but not by much (constants.js:
-  # "a crate's consumesInto repeats a slug per unit"). Priced the same way as
-  # Ore Package: the sum of its contents (3×4 + 1×5 + 2×8).
-  rich-ore-package:
-    catalog: all
-    name: Rich Ore Package
-    category: items
-    group: items-gear
-    description: "A crate of ore, heavier than most — extra Coal and a second ingot of Steel alongside the Silver."
-    pointCost: 0
-    weight: 10
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 33
-    consumable: true
-    consumesInto:
-      - coal
-      - coal
-      - coal
-      - silver
-      - steel
-      - steel
-
-  # One of six modest finds behind Eagle Eyes (docs/miningdrops.yaml's
-  # requiresTag pool) — MANY medium prizes across every face of the die,
-  # rather than a few outsized ones on just two or three (Bascinet,
-  # 2026-09-20: the first item-only pass leaned on three 40-60 ⬢ single
-  # items and came out spiky). All six are dedicated to that pool rather
-  # than reusing Ore Chunk/Gold Fleck, which are already priced into several
-  # OTHER tables — changing their sellablePrice to tune the pool would have
-  # rippled into every one of those.
-  #
-  # Eagle Eyes says nothing about Prospecting in its own description, and
-  # that is deliberate: the bonus is meant to be discovered, not shopped
-  # for. Do not add a line about it there.
-  ore-sample:
-    catalog: all
-    name: Ore Sample
-    category: items
-    group: items-gear
-    description: "A promising streak, panned out and pocketed whole."
-    pointCost: 0
-    weight: 3
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 33
-
-  # A sack rather than a sorted crate — one of the six, see Ore Sample above.
-  ore-sack:
-    catalog: all
-    name: Ore Sack
-    category: items
-    group: items-gear
-    description: "A sack of ore, heavier than it looks."
-    pointCost: 0
-    weight: 6
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 30
-
-  # The smallest of the six — see Ore Sample above.
-  ore-speck:
-    catalog: all
-    name: Ore Speck
-    category: items
-    group: items-gear
-    description: "A speck of ore, easy to miss — unless you're looking for it."
-    pointCost: 0
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 21
-
-  # One of the six — see Ore Sample above.
-  ore-vein:
-    catalog: all
-    name: Ore Vein
-    category: items
-    group: items-gear
-    description: "A short run of ore, worth following to its end."
-    pointCost: 0
-    weight: 4
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 30
-
-  # One of the six — see Ore Sample above.
-  ore-nugget:
-    catalog: all
-    name: Ore Nugget
-    category: items
-    group: items-gear
-    description: "A single nugget, heavier in the hand than it looks."
-    pointCost: 0
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 24
 
   # A lute, a fiddle, a set of pipes — the player decides which. Off the point
   # scale at 1 (TAGS.md §4a): the tag buys no mechanical advantage, only the
@@ -7125,12 +7303,16 @@ tags:
   # New found-only items for the Caving Die's loot table. See
   # docs/systemdocs/CAVING.md for the table itself and db/lib/cavingLoot.js
   # for how a tier resolves to one of these.
+  # On both loot tables — the Caving Die's common tier and the prospecting
+  # table's uncommon one — so it lives in `items-mining` with the rest of what
+  # comes out of the ground. Its 1 ¢ price is the joke; the inlayValue is why
+  # a smith wants it anyway.
   old-coin:
     catalog: gm
     name: Old Coin
     category: items
-    group: items-gear
-    description: "A weathered coin."
+    group: items-mining
+    description: "A weathered coin. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 0
     stackable: true
@@ -7139,39 +7321,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 1
-
-  # Two finds unique to hills-west (MININGDROPS.md), a grave beneath its own
-  # gallows: what the dead were buried wearing, and what the living left them
-  # for the walk after.
-  gallows-charm:
-    catalog: gm
-    name: Gallows Charm
-    category: items
-    group: items-gear
-    description: "Carved bone strung on old cord — a dead man's luck, worn as a ward against the same rope."
-    pointCost: 0
-    weight: 0
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 18
-
-  burial-ring:
-    catalog: gm
-    name: Burial Ring
-    category: items
-    group: items-gear
-    description: "A ring, still on the hand that was buried with it."
-    pointCost: 0
-    weight: 0
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 35
+    inlayValue: 6
 
   # Resources themselves. Until 9/2026 this was a number on a sheet
   # (Character.resources / Room.resources) that weighed nothing and could not
@@ -7471,6 +7621,54 @@ tags:
       mood: 7
       hunger: 9
 
+  # The extremely-rare prospecting find that is not an ingredient: a box with
+  # something in it. No skill gate and no craft step — the seven per-location
+  # lockboxes that needed Lockpicking and minted a matching "-spoils" tag went
+  # with the old drop table (2026-09-18), and this one just opens. 25 ¢ inside,
+  # 12 ¢ if you sell it shut, so opening it is always the better move and
+  # selling it shut is the impatient one.
+  lockbox:
+    catalog: gm
+    name: Lockbox
+    category: items
+    group: items-gear
+    description: "A locked box. You could open it."
+    pointCost: 0
+    weight: 4
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 12
+    consumable: true
+    consumesInto:
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+      - obol
+
   supply-kit:
     catalog: gm
     name: Supply Kit
@@ -7488,236 +7686,6 @@ tags:
       - alcohol
     consumesIntoResources: 8
 
-  # --- Lockboxes ------------------------------------------------------------
-  # A locked find and its picked-open half, three pairs. Lockpicking
-  # (pointCost 4, purchasable) existed as a pure flavor skill with no
-  # mechanical hook anywhere until this — these are its first real use. Each
-  # pair is two tags rather than one because the engine has no single verb
-  # that is both skill-gated AND grants a list: `craftable` gates on a skill
-  # but produces exactly one tag, `consumesInto` grants a whole list but gates
-  # on nothing. So the box crafts (Lockpicking-gated, 0 ⬢, 0 turns, same
-  # shape as Bone Mask's `butcher` gate above) into its own Spoils tag, and
-  # THAT consumes into the real items — two player actions, zero new engine
-  # code (Bascinet, 2026-09-10).
-  overspill-lockbox:
-    catalog: gm
-    name: Overspill Lockbox
-    category: items
-    group: items-gear
-    description: "A small locked box, pitched over the fortress walls with the rest of the trash — whoever tossed it clearly wanted it gone, lock and all."
-    pointCost: 0
-    weight: 8
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    # Half of what's inside (30 ⬢ — the sum of {tag:overspill-spoils}'s own
-    # consumesInto list, repriced 2026-09-10 when steel dropped to 8)
-    # — a locked box is worth less to sell whole than to actually open, on
-    # purpose, so selling it unpicked is a real but lesser option rather than
-    # a way to skip the lock entirely (Bascinet, 2026-09-10).
-    sellable: true
-    sellablePrice: 15
-
-  overspill-spoils:
-    catalog: gm
-    name: Overspill Spoils
-    category: items
-    group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through."
-    pointCost: 0
-    weight: 6
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0
-      resourceCost: 0
-      perTurn: 1
-      skills: [lockpicking]
-      items: [overspill-lockbox]
-    consumable: true
-    consumesInto:
-      - jewelry
-      - steel
-      - silver
-      - mace
-
-  basement-lockbox:
-    catalog: gm
-    name: Basement Lockbox
-    category: items
-    group: items-gear
-    description: "A locked box from the Abandoned Homestead's basement, shelved in with the rest of the unlabelled tinctures."
-    pointCost: 0
-    weight: 8
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    # Half of what's inside (61 ⬢) — see overspill-lockbox's own note above.
-    sellable: true
-    sellablePrice: 31
-
-  basement-spoils:
-    catalog: gm
-    name: Basement Spoils
-    category: items
-    group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through."
-    pointCost: 0
-    weight: 6
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0
-      resourceCost: 0
-      perTurn: 1
-      skills: [lockpicking]
-      items: [basement-lockbox]
-    consumable: true
-    consumesInto:
-      - soporific
-      - amoeba-vial
-      - bliss
-
-  waterlogged-lockbox:
-    catalog: gm
-    name: Waterlogged Lockbox
-    category: items
-    group: items-gear
-    description: "A strongbox the current finally gave up, rusted shut but still holding what someone locked inside."
-    pointCost: 0
-    weight: 8
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    # Half of what's inside (41 ⬢) — see overspill-lockbox's own note above.
-    sellable: true
-    sellablePrice: 21
-
-  waterlogged-spoils:
-    catalog: gm
-    name: Waterlogged Spoils
-    category: items
-    group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through."
-    pointCost: 0
-    weight: 6
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0
-      resourceCost: 0
-      perTurn: 1
-      skills: [lockpicking]
-      items: [waterlogged-lockbox]
-    consumable: true
-    consumesInto:
-      - steel
-      - jewelry
-      - trench-knife
-      - silver
-      - dagger
-      - old-coin
-
-  # Three smaller lockboxes, spread wide rather than deep — global and every
-  # regional Prospecting table, plus Fishing, so the mechanic is something a
-  # labourer actually runs into instead of three rare location specials
-  # (Bascinet's call, 2026-09-10). Same two-tag shape as the big three above.
-  silt-lockbox:
-    catalog: gm
-    name: Silt Lockbox
-    category: items
-    group: items-gear
-    description: "A small lockbox, silted over and forgotten — the kind of thing that turns up wherever the digging is good, not just one place in particular."
-    pointCost: 0
-    weight: 6
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    # Half of what's inside (18 ⬢) — see overspill-lockbox's own note above.
-    sellable: true
-    sellablePrice: 9
-
-  silt-spoils:
-    catalog: gm
-    name: Silt Spoils
-    category: items
-    group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through."
-    pointCost: 0
-    weight: 4
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0
-      resourceCost: 0
-      perTurn: 1
-      skills: [lockpicking]
-      items: [silt-lockbox]
-    consumable: true
-    consumesInto:
-      - jewelry
-      - silver
-      - coal
-      - old-coin
-
-  buried-lockbox:
-    catalog: gm
-    name: Buried Lockbox
-    category: items
-    group: items-gear
-    description: "A lockbox, wedged in wherever the digging turned it up — nobody buries something like this on purpose and forgets it."
-    pointCost: 0
-    weight: 6
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    # Half of what's inside (24 ⬢) — see overspill-lockbox's own note above.
-    sellable: true
-    sellablePrice: 12
-
-  buried-spoils:
-    catalog: gm
-    name: Buried Spoils
-    category: items
-    group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through."
-    pointCost: 0
-    weight: 4
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0
-      resourceCost: 0
-      perTurn: 1
-      skills: [lockpicking]
-      items: [buried-lockbox]
-    consumable: true
-    consumesInto:
-      - dagger
-      - jewelry
-      - silver
-      - coal
-
   netted-lockbox:
     catalog: gm
     name: Netted Lockbox
@@ -7730,7 +7698,8 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    # Half of what's inside (18 ⬢) — see overspill-lockbox's own note above.
+    # Half of what's inside (18 ⬢): a locked box sells for less than an
+    # opened one, which is what makes picking it worth a Move.
     sellable: true
     sellablePrice: 9
 
@@ -7760,113 +7729,6 @@ tags:
       - jewelry
       - old-coin
 
-  # Two more, for Prospecting's first City ground — the Underquarter and the
-  # Undercroft (2026-09-10). Smaller than the six above on purpose: neither
-  # location is rich, just an interesting option.
-  till-lockbox:
-    catalog: gm
-    name: Till Lockbox
-    category: items
-    group: items-gear
-    description: "A gambling den's cashbox, small enough to walk off with if you're quick about it. Still locked."
-    pointCost: 0
-    weight: 5
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    # Half of what's inside (16 ⬢) — see overspill-lockbox's own note above.
-    sellable: true
-    sellablePrice: 8
-
-  till-spoils:
-    catalog: gm
-    name: Till Spoils
-    category: items
-    group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through."
-    pointCost: 0
-    weight: 3
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0
-      resourceCost: 0
-      perTurn: 1
-      skills: [lockpicking]
-      items: [till-lockbox]
-    consumable: true
-    consumesInto:
-      - obol
-      - obol
-      - silver
-      - jewelry
-      - old-coin
-
-  reliquary-lockbox:
-    catalog: gm
-    name: Reliquary Lockbox
-    category: items
-    group: items-gear
-    description: "A small reliquary box, left at the Ancient Shrine — an offering, or something somebody hid there and never came back for."
-    pointCost: 0
-    weight: 5
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    # Half of what's inside (20 ⬢) — see overspill-lockbox's own note above.
-    sellable: true
-    sellablePrice: 10
-
-  reliquary-spoils:
-    catalog: gm
-    name: Reliquary Spoils
-    category: items
-    group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through."
-    pointCost: 0
-    weight: 3
-    stackable: false
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0
-      resourceCost: 0
-      perTurn: 1
-      skills: [lockpicking]
-      items: [reliquary-lockbox]
-    consumable: true
-    consumesInto:
-      - heirloom
-      - jewelry
-
-  # Flavor finds, not ore — Prospecting's own design note already says
-  # "searching is searching, wherever it turns up plant matter"
-  # (MININGDROPS.md §2b), so it was never meant to be mining alone. These
-  # widen what a search can turn up without adding any new mechanic — same
-  # shape as Sweets or Heirloom, just more of the game's existing texture
-  # for personal effects, curios and the occult (Bascinet's call, 2026-09-10).
-  faded-photograph:
-    catalog: all
-    name: Faded Photograph
-    category: items
-    group: items-gear
-    description: "A photograph, sun-bleached almost to nothing. Whoever's in it isn't anymore."
-    pointCost: 0
-    weight: 0
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 2
-
   pocket-watch:
     catalog: all
     name: Pocket Watch
@@ -7882,66 +7744,6 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  music-box:
-    catalog: all
-    name: Music Box
-    category: items
-    group: items-gear
-    description: "Wind it and it still plays — a few bars, then the same few bars again."
-    pointCost: 0
-    weight: 2
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 6
-
-  warding-bead:
-    catalog: all
-    name: Warding Bead
-    category: items
-    group: items-gear
-    description: "A single bead off a longer strand, worn against something. Didn't work, or the strand would still be whole."
-    pointCost: 0
-    weight: 0
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 3
-
-  wedding-ring:
-    catalog: all
-    name: Wedding Ring
-    category: items
-    group: items-gear
-    description: "Someone's, once. Still engraved on the inside."
-    pointCost: 0
-    weight: 0
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 8
-
-  pawn-ticket:
-    catalog: all
-    name: Pawn Ticket
-    category: items
-    group: items-gear
-    description: "A numbered stub for something nobody came back to claim. Might still be behind the counter."
-    pointCost: 0
-    weight: 0
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 2
-
   prayer-beads:
     catalog: all
     name: Prayer Beads
@@ -7956,28 +7758,6 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 3
-
-  # The one true gem — as rare as depths-chasm's own philosophy demands
-  # (MININGDROPS.md §2b: "rare ground stays rare by what it can find, not by
-  # a bigger number"), and priced just under the game's existing ceiling
-  # (Aberrant Heart, 55 ⬢) rather than past it. "Fit for a king. Or a
-  # Baron." is doing the naming work here on purpose — Ravenheart has no
-  # king, only the Baron, and the stone doesn't know the difference
-  # (Bascinet, 2026-09-10).
-  flawless-gem:
-    catalog: gm
-    name: Flawless Gem
-    category: items
-    group: items-gear
-    description: "A stone without a single flaw — the kind that ends up on a crown, not a merchant's scale. Fit for a king. Or a Baron."
-    pointCost: 0
-    weight: 0
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 45
 
   smoke-grenade:
     catalog: gm
@@ -8385,7 +8165,7 @@ tags:
     name: Crate RV-6207-M
     category: items
     group: items-gear
-    description: "[SHIPMENT ID RV-6207-M]: Coal x 2 | Squeeze"
+    description: "[SHIPMENT ID RV-6207-M]: Iron x 2 | Squeeze"
     pointCost: 0
     weight: 11
     visible: true
@@ -8393,8 +8173,8 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto:
-      - coal
-      - coal
+      - iron
+      - iron
       - squeeze
 
   cargo-crate:
@@ -9769,10 +9549,10 @@ tags:
       resourceCost: 17
       skills: [smithing-skilled]
       gambit: false
-      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
-      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into the ingot's own recipe, and 8 ⬢
       # comes off for the ingot it spends.
-      items: [steel]
+      items: [iron]
     sellable: true
     sellablePrice: 52
 
@@ -9823,10 +9603,10 @@ tags:
       resourceCost: 17
       skills: [smithing-skilled]
       gambit: false
-      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
-      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into the ingot's own recipe, and 8 ⬢
       # comes off for the ingot it spends.
-      items: [steel]
+      items: [iron]
     sellable: true
     sellablePrice: 52
 
@@ -10303,9 +10083,9 @@ tags:
   #
   # Restored 2026-09-20 — this whole block was deleted as collateral damage
   # in the commit that swept the dagger marks ("The draft marks come off"),
-  # which broke docs/miningdrops.yaml's hunting/fishing/farming tables and
-  # docs/zones.yaml's room stashes (both still named several of these slugs)
-  # and made the entire labor-drop sync throw on the first reference. Content
+  # which broke the then-current drop tables and docs/zones.yaml's room
+  # stashes (both still named several of these slugs) and made the entire
+  # labor-drop sync throw on the first reference. Content
   # unchanged from before the deletion — a decision on whether to keep this
   # feature belongs to Bascinet, not to a sync-unblocking pass.
 
@@ -13197,29 +12977,6 @@ tags:
       taste: "sugar"
       mood: 20
 
-  # Prospecting's edible find where the ground itself isn't cave floor —
-  # every surface Prospecting location with mushroom flavor already written
-  # in (forest-creekside's colonies, forest-sparse-field's fungus on the cut
-  # stumps) grants this rather than {tag:cave-fungus}, which reads as the
-  # underground half of the same idea (MININGDROPS.md §2b).
-  wild-mushroom:
-    catalog: all
-    name: Wild Mushroom
-    category: items
-    group: items-food
-    description: "A cluster of wild mushrooms, still damp with dew."
-    pointCost: 0
-    sellable: true
-    sellablePrice: 2
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - ate-meal
-
   # The delicacy that is caught rather than imported — the labor loot pass
   # drops it (fishing).
   fish-roe:
@@ -13395,22 +13152,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  black-body-bag:
-    catalog: gm
-    name: Black Body Bag
-    category: items
-    group: items-gear
-    description: "A black bag large enough to fit a person. Muffles sounds from inside."
-    pointCost: 0
-    depotPrice: 19
-    sellable: true
-    sellablePrice: 13
-    weight: 2
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-
   microscope:
     catalog: gm
     name: Microscope
@@ -13492,22 +13233,6 @@ tags:
     equipLayer: 1
     melee: 0.66
     ballistic: 0.66
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-
-  # Companions. Live cargo, which is why they cost what they do.
-  monkey:
-    catalog: gm
-    name: Monkey
-    category: assets
-    group: assets-companions
-    description: "A pet monkey! Why, how exquisite!"
-    pointCost: 0
-    depotPrice: 19
-    sellable: true
-    sellablePrice: 13
-    tradeable: true
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -14910,8 +14635,8 @@ tags:
   # never see it in the Tag Catalog, but a GM deciding whether to grant one
   # can still look it up there. SECRET would hide it from the GM view too,
   # and TAGS.md scopes that band to cave/antagonist content besides.
-  # NOTHING DROPS THIS YET. The mining drop table wires acquisition;
-  # our job was to make the slug exist. Until then a GM grants it.
+  # NOTHING DROPS THIS YET, and no table is waiting to; a GM grants it
+  # meanwhile.
   cybernetic-core:
     catalog: gm
     name: Cybernetic Core
@@ -15931,10 +15656,10 @@ tags:
       turnsCost: 1
       resourceCost: 17
       skills: [smithing-skilled]
-      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
-      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into the ingot's own recipe, and 8 ⬢
       # comes off for the ingot it spends.
-      items: [steel]
+      items: [iron]
     sellable: true
     sellablePrice: 52
 
@@ -16007,10 +15732,10 @@ tags:
       turnsCost: 2
       resourceCost: 25
       skills: [smithing-skilled]
-      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
-      # the old 3-turn, 34 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 3-turn, 34 ⬢ recipe moved into the ingot's own recipe, and 8 ⬢
       # comes off for the ingot it spends.
-      items: [steel]
+      items: [iron]
     sellable: true
     sellablePrice: 76
 
