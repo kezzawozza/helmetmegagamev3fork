@@ -6,7 +6,7 @@ const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival, cavingHoldFor, cavingHeldIds } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG, TIRED_SLUG, EXHAUSTED_SLUG, LUCKY_SLUG } = require("./constants");
-const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs, fastTravelCapacity, fastTravelBonus, STOWABLE_SLUGS } = require("./mounts");
+const { isMounted, blocksOnFoot, equippedSlugs, fastTravelCapacity, fastTravelBonus, STOWABLE_SLUGS } = require("./mounts");
 const { rollWithEdge, edgeFor } = require("./advantage");
 const { nextFatigueSlug } = require("./fatigue");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
@@ -47,9 +47,9 @@ const CHARACTER_SELECT = {
 // The mount's crossing is spent BEFORE the base one (moveAllowance returns the two pools separately, Character.zoneMovesBonusUsed remembers which was charged) — otherwise a rider who stables their horse at an indoors door would lose a crossing they still had, since the allowance is recomputed every time.
 
 // How many are LEFT right now, for surfaces that must say so before a player commits
-// (Travel confirm, character sheet). `crossing` is the same optional `{ fromZoneSlug, toZoneSlug }` moveAllowance takes, for the same reason: a caller with a specific destination (Travel panel, /map) must pass it or a boat's bonus (earned per crossing, never banked) silently disappears; a caller with no destination yet (the sheet) passes nothing and gets the honest pre-commitment number.
-function freeMovesLeft(character, config, openTurn, partySize = 0, crossing = null) {
-  return movesLeft(moveAllowance(character, config, crossing, partySize), character, openTurn);
+// (Travel confirm, character sheet).
+function freeMovesLeft(character, config, openTurn, partySize = 0) {
+  return movesLeft(moveAllowance(character, config, partySize), character, openTurn);
 }
 
 // The arithmetic both the display above and the spend below run: base and bonus are
@@ -113,13 +113,10 @@ function exertedThisTurn(character, config, openTurn) {
 // caller reads, since this stays pure. The reasons a player can read off
 // their own sheet come first, the counter last. Bascinet's wording,
 // 2026-09-12.
-function exertRefusal(character, config, openTurn, { crossing = null, left = 0, acted = false } = {}) {
+function exertRefusal(character, config, openTurn, { left = 0, acted = false } = {}) {
   const held = character.tags ?? [];
   const active = equippedSlugs(held);
   if (isMounted(active)) return "Your horse has ridden as hard as it can.";
-  if (isBoated(active) && boatCrossing(crossing?.fromZoneSlug, crossing?.toZoneSlug)) {
-    return "You can't push the boat any faster.";
-  }
   const stopped = held.find((ct) => LAMED_SLUGS.has(ct.tag?.slug) || EXERT_REFUSAL_SLUGS.has(ct.tag?.slug));
   if (stopped) return `${stopped.tag.name} prevents you from pushing on.`;
   // Exhausted is the top of the ladder, so a push on could cost them nothing
@@ -232,7 +229,7 @@ function travelClaimsToUndo(action) {
   return Object.keys(data).length ? data : null;
 }
 
-// Motion Sickness can't be equipped onto a mount or a boat (equipActions.js), so the only
+// Motion Sickness can't be equipped onto a mount (equipActions.js), so the only
 // way it ever rides one is being dragged along by someone else's. Best-effort and swallows its own errors — a DM or tag write going wrong should never break the move itself. Fires once per zone crossing that way, and does nothing if the character already holds vomiting.
 async function vomitOnTheRide(prisma, row, openTurn) {
   try {
@@ -253,14 +250,13 @@ async function vomitOnTheRide(prisma, row, openTurn) {
   }
 }
 
-// `crossing` is optional (`{ fromZoneSlug, toZoneSlug }`) when the caller knows the destination — only the boat needs it, since its extra move is earned per crossing not banked per turn, so a caller merely displaying an allowance passes nothing and is unaffected.
-function freeZoneMoves(character, config, crossing = null, partySize = 0) {
-  const { base, bonus } = moveAllowance(character, config, crossing, partySize);
+function freeZoneMoves(character, config, partySize = 0) {
+  const { base, bonus } = moveAllowance(character, config, partySize);
   return base + bonus;
 }
 
-// The same rules, split into the two pools now spent in order: BONUS is whatever a mount or boat is buying for this crossing; BASE is the flat per-turn allowance everybody gets.
-function moveAllowance(character, config, crossing = null, partySize = 0) {
+// The same rules, split into the two pools now spent in order: BONUS is whatever a mount is buying for this crossing; BASE is the flat per-turn allowance everybody gets.
+function moveAllowance(character, config, partySize = 0) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return { base: 0, bonus: 0 };
   const base = config?.freeZoneMovesPerTurn ?? 1;
@@ -270,10 +266,8 @@ function moveAllowance(character, config, crossing = null, partySize = 0) {
   if (isMounted(active)) {
     return { base, bonus: fitsMount(active, partySize) ? fastTravelBonus(active) : 0 };
   }
-  // A boat does the same, but only where the water goes — it does NOT cancel lameness, you still have to get down to the bank.
-  const onWater = isBoated(active) && boatCrossing(crossing?.fromZoneSlug, crossing?.toZoneSlug);
   if (held.some((ct) => LAMED_SLUGS.has(ct.tag?.slug))) return { base: 0, bonus: 0 };
-  return { base, bonus: onWater ? 1 : 0 };
+  return { base, bonus: 0 };
 }
 
 // Whether the mover and their party fit the seats their mount actually has. Split out
@@ -286,9 +280,7 @@ function fitsMount(activeSlugs, partySize = 0) {
 
 // One sentence explaining the sheet's crossing count, for its hover. Usually
 // that means why the number is 0 — a bare 0 leaves a lamed or overloaded player
-// with nothing to act on. It also covers the opposite case: a boat's extra
-// crossing is earned per crossing, not banked, so the number UNDERSTATES what a
-// boatman gets on the water and has to say so.
+// with nothing to act on.
 //
 // `turn` is optional { config, openTurn }: with it, a 0 that comes from having
 // pushed on this turn says so, since nothing else on the sheet does.
@@ -309,11 +301,6 @@ function freeZoneMovesReason(character, partySize = 0, turn = null) {
   const lamed = held.find((ct) => LAMED_SLUGS.has(ct.tag?.slug));
   if (lamed) return `${lamed.tag.name}: you can't cross a zone for free without riding.`;
   if (turn && exertedThisTurn(character, turn.config, turn.openTurn)) return "You've already pushed on this turn.";
-  // Not a refusal — the number above is right for most crossings, and the
-  // boat quietly adds one to the three that touch water.
-  if (isBoated(equippedSlugs(held))) {
-    return "Your boat gives you a free crossing between the Forest, the Black Hills and the Marshes.";
-  }
   return null;
 }
 
@@ -533,11 +520,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
             where: { characterId: character.id, turnId: openTurn.id },
             select: { id: true },
           });
-          const why = exertRefusal(character, config, openTurn, {
-            crossing: { fromZoneSlug: currentLocation.zone?.slug, toZoneSlug: targetLocation.zone?.slug },
-            left,
-            acted: Boolean(acted),
-          });
+          const why = exertRefusal(character, config, openTurn, { left, acted: Boolean(acted) });
           if (why) throw new MoveRefused(why);
           // Charged to the base pool and never the bonus — that overspend is
           // what exertedThisTurn reads back.
@@ -681,9 +664,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
   }
 
   // Whether ANY leg of this move was a free ride, for the Motion Sickness check below — a dragged passenger with no mount of their own still gets sick if the one dragging them does.
-  const ridden =
-    crossedZone &&
-    (isMounted(equippedSlugs(character.tags ?? [])) || isBoated(equippedSlugs(character.tags ?? [])));
+  const ridden = crossedZone && isMounted(equippedSlugs(character.tags ?? []));
 
   const moved = [];
   for (const row of [character, ...outcome.partyRows]) {

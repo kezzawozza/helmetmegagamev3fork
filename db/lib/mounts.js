@@ -6,25 +6,13 @@
 // (`equippedSlugs` below), never a bare held-slug set.
 const FAST_TRAVEL_SLUGS = new Set(["horse", "motorcycle", "arelitz-warbeast", "arelitz-thoroughbred"]);
 
-// The boat is deliberately NOT a fast-travel mount: it only helps between the
-// three water zones, and skips the ruined-leg/mounted-gate effects that set
-// carries. It still carries passengers via fastTravelCapacity below.
-const WATER_TRAVEL_SLUGS = new Set(["fishing-boat"]);
-
 // Horseshoes buy the plain Horse one more crossing — not the Thoroughbred/
 // Warbeast (already fast, no shoe) and not the Motorcycle (no hooves).
-
-// Zone SLUGS where a boat is any use, not names — `hills` is the Black Hills.
-const WATER_ZONE_SLUGS = new Set(["forest", "hills", "marshes"]);
 
 // Tags that stop working once unequipped. The Ovum earns no free move (it
 // hates moving, so it's not in FAST_TRAVEL_SLUGS) but still needs parking at
 // an indoors door, so it's added here by hand.
-const STOWABLE_SLUGS = new Set([...FAST_TRAVEL_SLUGS, ...WATER_TRAVEL_SLUGS, "cart", "arelitz-ovum"]);
-
-// A boat and a horse are the same fiction slot — equipping one refuses while
-// the other is out (web/app/(app)/character/equipActions.js).
-const BOAT_CONFLICT_SLUGS = new Set([...FAST_TRAVEL_SLUGS, "cart"]);
+const STOWABLE_SLUGS = new Set([...FAST_TRAVEL_SLUGS, "cart", "arelitz-ovum"]);
 
 const HORSESHOE_SLUG = "horseshoes";
 
@@ -49,7 +37,6 @@ function fastTravelCapacity(activeSlugs) {
   if (activeSlugs.has("arelitz-thoroughbred")) return activeSlugs.has("cart") ? 6 : 2;
   if (activeSlugs.has("horse")) return activeSlugs.has("cart") ? 6 : 2;
   if (activeSlugs.has("motorcycle")) return 2;
-  if (activeSlugs.has("fishing-boat")) return 4;
   return 0;
 }
 
@@ -66,11 +53,6 @@ function isMounted(activeSlugs) {
   return false;
 }
 
-function isBoated(activeSlugs) {
-  for (const slug of WATER_TRAVEL_SLUGS) if (activeSlugs.has(slug)) return true;
-  return false;
-}
-
 // STOWABLE_SLUGS an indoors Location parks on arrival (db/lib/indoors.js),
 // checked before the crossing so it refuses instead of spending the free
 // move first (MAP.md §2c). Wider than isMounted: a bare Cart buys no free
@@ -78,14 +60,6 @@ function isBoated(activeSlugs) {
 function blocksOnFoot(activeSlugs) {
   for (const slug of STOWABLE_SLUGS) if (activeSlugs.has(slug)) return true;
   return false;
-}
-
-// Whether a boat helps THIS crossing — both ends must be on the water. No
-// crossing known (e.g. the sheet's allowance display) returns false: the
-// boat's move is earned per crossing, never banked.
-function boatCrossing(fromZoneSlug, toZoneSlug) {
-  if (!fromZoneSlug || !toZoneSlug) return false;
-  return WATER_ZONE_SLUGS.has(fromZoneSlug) && WATER_ZONE_SLUGS.has(toZoneSlug);
 }
 
 // Mounts held but not equipped, so Travel can warn before someone walks a
@@ -99,16 +73,11 @@ function stowedMounts(characterTags = []) {
 
 module.exports = {
   FAST_TRAVEL_SLUGS,
-  WATER_TRAVEL_SLUGS,
-  WATER_ZONE_SLUGS,
-  BOAT_CONFLICT_SLUGS,
   STOWABLE_SLUGS,
   equippedSlugs,
   fastTravelCapacity,
   fastTravelBonus,
   isMounted,
-  isBoated,
   blocksOnFoot,
-  boatCrossing,
   stowedMounts,
 };

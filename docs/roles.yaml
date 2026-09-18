@@ -1358,8 +1358,6 @@ zones:
             starting_location: marshes-village
             starting_tags:
               - Ravenhearter
-              - Fishing Rod
-              - Fishing Boat
               - Fisherman's Key
               - Rough Camper
             doc_elements:

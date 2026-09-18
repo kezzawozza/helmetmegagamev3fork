@@ -9,12 +9,7 @@ import {
   handsOf,
   handsUsed,
 } from "@lifeweb/db/lib/equipSlots";
-import {
-  BOAT_CONFLICT_SLUGS,
-  FAST_TRAVEL_SLUGS,
-  STOWABLE_SLUGS,
-  WATER_TRAVEL_SLUGS,
-} from "@lifeweb/db/lib/mounts";
+import { FAST_TRAVEL_SLUGS, STOWABLE_SLUGS } from "@lifeweb/db/lib/mounts";
 import { armorWord, combineArmor } from "@lifeweb/db/lib/armorValue";
 import { formatTagWeight } from "@/lib/formatTagWeight";
 import { carryBonusLabel } from "@/lib/sheetCards";
@@ -85,9 +80,6 @@ function fact(tag) {
 // why. Everything else on the board is filtered on the slot alone, because the
 // slot really is the whole rule there.
 function mountMenu(fits, wornRows, { indoors, motionSick }) {
-  const out = new Set(wornRows.map((ct) => ct.tag.slug));
-  const boatOut = [...WATER_TRAVEL_SLUGS].some((slug) => out.has(slug));
-  const rideOut = [...BOAT_CONFLICT_SLUGS].some((slug) => out.has(slug));
   const why = new Set();
   const options = fits.filter((ct) => {
     const slug = ct.tag.slug;
@@ -95,12 +87,8 @@ function mountMenu(fits, wornRows, { indoors, motionSick }) {
       why.add("there is no setting one up indoors");
       return false;
     }
-    if (motionSick && (FAST_TRAVEL_SLUGS.has(slug) || WATER_TRAVEL_SLUGS.has(slug))) {
+    if (motionSick && FAST_TRAVEL_SLUGS.has(slug)) {
       why.add("your stomach won't have it");
-      return false;
-    }
-    if ((boatOut && BOAT_CONFLICT_SLUGS.has(slug)) || (rideOut && WATER_TRAVEL_SLUGS.has(slug))) {
-      why.add("you are either riding or poling");
       return false;
     }
     return true;

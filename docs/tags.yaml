@@ -1845,7 +1845,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Scripted: can't equip a horse, motorcycle or fishing boat; dragged
+  # Scripted: can't equip a horse or motorcycle; dragged
   # across a zone by a mounted mover you end up {tag:vomiting}.
   # web/app/(app)/character/equipActions.js, db/lib/locationTravel.js.
   motion-sickness:
@@ -3615,21 +3615,6 @@ tags:
     category: status
     group: status-buffs
     description: "Crudox Cruo! You can cast rites."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 2
-
-  # The Fertilizer's effect half. `equipped: false` because there is nothing to
-  # wear — the same shape as the Plow's bonus, minus the horse. db/lib/
-  # tagShapes.js refuses an `equipped: true` bonus on a non-equippable tag.
-  fertilized-fields:
-    catalog: gm
-    name: Fertilized Fields
-    category: status
-    group: status-buffs
-    description: "Your fields are richly fed."
     pointCost: 0
     visible: false
     purchasable: false
@@ -5625,27 +5610,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  fishing-boat:
-    catalog: all
-    name: Fishing Boat
-    category: assets
-    group: assets-property
-    description: "A flat-bottomed boat with a pole. While equipped, gives the user 1 extra Zone crossing each turn between the Forest, Black Hills and Marshes, and adds +1 to Fishing Labor. It can carry 4 people. You can't have it out at the same time as a {tag:horse} or a {tag:cart}."
-    pointCost: 4
-    visible: true
-    tradeable: true
-    equippable: true
-    equipSlot: MOUNT
-    equipLayer: 1
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 40
-      skills: [builder-skilled]
-      gambit: false
-
   cart:
     catalog: all
     name: Cart
@@ -5691,51 +5655,6 @@ tags:
       # The builder may write a line on it (CRAFTING.md): their words REPLACE
       # the examine above in the readout. Blank keeps the stock text.
       inscribable: true
-
-  drying-racks:
-    catalog: all
-    name: Drying Racks
-    category: assets
-    group: assets-structures
-    description: "Lashed poles and lines for smoking and drying a catch, allowing for better storage down the line. Gives an additional 1 ⬢ when Hunting where erected."
-    pointCost: 0
-    visible: false
-    tradeable: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      # The plan priced this at 1 crew-turn; it ships at 2 so the catalog has
-      # a real crew build to exercise before the Palisade lands. Reprice at
-      # will — it is one number here.
-      turnsCost: 2
-      resourceCost: 6
-      skills: [builder-skilled]
-      gambit: false
-    placement:
-      fieldwork: true
-      examine: "lines strung for the catch."
-
-  fish-weir:
-    catalog: all
-    name: Fish Weir
-    category: assets
-    group: assets-structures
-    description: "A fishing weir. Gives an additional 1 ⬢ when Fishing where erected."
-    pointCost: 0
-    visible: false
-    tradeable: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 6
-      skills: [builder-skilled]
-      gambit: false
-    placement:
-      fieldwork: true
-      examine: "its stakes wall the current."
 
   # Prospecting's own structure, same shape as the Fish Weir above — the one
   # bonus category the specialization had no presence in at all until now
@@ -5975,27 +5894,6 @@ tags:
   # --- Milestone D catalog fill: everything below is pure YAML over the
   # A-C mechanisms — no new code. Numbers are design-facing placeholders
   # for Gunboat to reprice; players see words.
-
-  threshing-floor:
-    catalog: all
-    name: Threshing Floor
-    category: assets
-    group: assets-structures
-    description: "A beaten circle of hard ground for flailing and winnowing grain, reducing the amount of harvest lost to the straw. Gives an additional 1 ⬢ when Farming where erected."
-    pointCost: 0
-    visible: false
-    tradeable: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 6
-      skills: [builder-skilled]
-      gambit: false
-    placement:
-      fieldwork: true
-      examine: "beaten earth, swept flat."
 
   lazarette:
     catalog: all
@@ -6891,27 +6789,6 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 24
-
-  # Bought from the Depot rather than made: nothing in Ravenheart produces it,
-  # which is what puts it on the shelf at all (TAGS.md §5, `depotPrice`). It is
-  # deliberately NOT `sellable` — a sell price under the buy price is a loop
-  # that prints ⬢, and there is no honest sell price above 5 for a thing worth
-  # 8 ⬢ of farming.
-  fertilizer:
-    catalog: all
-    name: Fertilizer
-    category: items
-    group: items-gear
-    description: "Synthetic liquid that can be consumed to gain {tag:fertilized-fields}."
-    pointCost: 2
-    depotPrice: 4
-    weight: 3
-    stackable: true
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [fertilized-fields]
 
   # A lute, a fiddle, a set of pipes — the player decides which. Off the point
   # scale at 1 (TAGS.md §4a): the tag buys no mechanical advantage, only the
@@ -9344,37 +9221,6 @@ tags:
     sellable: true
     sellablePrice: 6
 
-  # Tools that exist only to make a day's work pay better. There were more of
-  # them, one per Laboring specialisation; mining is the only kind of day left.
-  # Priced against docs/systemdocs/TAGS.md 4a: minor edges at 2, the Plow at 5
-  # because it needs a horse behind it to do anything at all.
-  fishing-rod:
-    catalog: all
-    name: Fishing Rod
-    category: items
-    group: items-gear
-    description: "A wooden rod and line."
-    pointCost: 2
-    equippable: true
-    equipSlot: ACCESSORY
-    weight: 3
-    stackable: true
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0.25
-      resourceCost: 3
-      skills: [crafting]
-      gambit: false
-    sellable: true
-    # Dead Simple convention (cost + 1), NOT the depot wage floor: at 0 turns
-    # the free ration would mint the margin as a free action (4/turn on top of
-    # an untouched labor day). The depot's 12 stays the impatience premium.
-    sellablePrice: 6
-    depotPrice: 11
-
   # Prospecting's own tool, same shape as Fishing Rod above — every other
   # specialization has one made for the work, this was the one gap
   # (Bascinet, 2026-09-10).
@@ -9402,55 +9248,6 @@ tags:
     sellable: true
     sellablePrice: 6
     depotPrice: 11
-
-  trapping-gear:
-    catalog: all
-    name: Trapping Gear
-    category: items
-    group: items-gear
-    description: "A set of gear to trap small animals with."
-    pointCost: 5
-    equippable: true
-    equipSlot: ACCESSORY
-    weight: 10
-    stackable: true
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 6
-      skills: [crafting]
-      gambit: false
-    sellable: true
-    sellablePrice: 24
-    depotPrice: 25
-
-  # No `equipped` on the bonus: a plow is not something you hold, it is
-  # something in your shed. The horse is the whole cost of it — and that is
-  # also why it is an Asset rather than an Item, so it never weighs on your
-  # back (docs/systemdocs/CARRY.md §1).
-  plow:
-    catalog: all
-    name: Plow
-    category: assets
-    group: assets-property
-    description: "A framed instrument meant for tilling soil."
-    pointCost: 5
-    tradeable: true
-    stackable: true
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 9
-      skills: [smithing]
-      gambit: false
-    sellable: true
-    sellablePrice: 23
 
   sling:
     catalog: all
@@ -9545,55 +9342,6 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 4
-
-  pitchfork:
-    catalog: all
-    name: Pitchfork
-    category: items
-    group: items-weapons
-    description: "A pronged agricultural tool used to move around loose materials. The traditional instrument of the discontented."
-    fighting: { tiers: 0.2, weaponClass: polearm }
-    pointCost: 2
-    equippable: true
-    equipSlot: WEAPON
-    twoHanded: true
-    weight: 5
-    stackable: true
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0.25
-      resourceCost: 3
-      skills: [smithing]
-      gambit: false
-    sellable: true
-    sellablePrice: 6
-
-  sickle:
-    catalog: all
-    name: Sickle
-    category: items
-    group: items-weapons
-    description: "A curved tool for reaping."
-    fighting: { tiers: 0.1, weaponClass: knife }
-    pointCost: 2
-    equippable: true
-    equipSlot: WEAPON
-    weight: 1.5
-    stackable: true
-    visible: worn
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 0.25
-      resourceCost: 3
-      skills: [smithing]
-      gambit: false
-    sellable: true
-    sellablePrice: 6
 
   shortbow:
     catalog: all

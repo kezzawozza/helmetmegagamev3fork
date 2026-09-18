@@ -235,17 +235,7 @@ async function handleTravelPick(interaction) {
   const overflow = candidates.length - Math.min(candidates.length, MENU_OPTION_LIMIT);
 
   const party = await partyOf(prisma, character.id); // decides whether the mount's extra crossing survives (MAP.md §3a)
-  // THIS crossing's own count: a boat's bonus is per-crossing
-  // (db/lib/mounts.js#boatCrossing), so the zone slugs matter, not just the boolean above.
-  const currentZone = character.zoneId
-    ? await prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } })
-    : null;
-  const left = crossing
-    ? freeMovesLeft(character, config, openTurn, party.length, {
-      fromZoneSlug: currentZone?.slug ?? null,
-      toZoneSlug: target.zone?.slug ?? null,
-    })
-    : null;
+  const left = crossing ? freeMovesLeft(character, config, openTurn, party.length) : null;
   const seatWarning = crossing ? freeZoneMovesReason(character, party.length, { config, openTurn }) : null;
   // Push on: the crossing on a die instead of the Move (MAP.md §3), offered
   // only where performLocationMove would say yes.
@@ -255,11 +245,7 @@ async function handleTravelPick(interaction) {
       : false;
   const exertWhy =
     crossing && left === 0
-      ? exertRefusal(character, config, openTurn, {
-        crossing: { fromZoneSlug: currentZone?.slug ?? null, toZoneSlug: target.zone?.slug ?? null },
-        left,
-        acted,
-      })
+      ? exertRefusal(character, config, openTurn, { left, acted })
       : null;
   const canExert = crossing && left === 0 && exertWhy === null;
   // Once the Move is spent a crossing with no free move left has no Confirm
