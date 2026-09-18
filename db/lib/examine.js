@@ -166,6 +166,9 @@ function examineReadout({
     // faction — a balance with that faction's officers — and with factions
     // gone there is no reader entitled to it. A GM reads it off the desk.
     roleTitle: subject.visibleRoleTitle ?? null,
+    // Which of the six estates to paint that title in, or null for one that
+    // wears no colour — the same answer the feed paints a name with.
+    roleGroup: subject.visibleRoleGroup ?? null,
   };
 }
 

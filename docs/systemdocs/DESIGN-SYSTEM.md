@@ -121,13 +121,28 @@ Three things about the token set are load-bearing and easy to undo by accident:
   colour. That split replaced a freeform per-group hex out of the database on
   2026-09-15; `ChipLabel.js` painting that hex inline used to be the one
   documented exception to "colour rides on a token", and there is no exception
-  now. Do not give a group a colour.
-- **The name palette is six tokens, and they owe full AA.** `--name-1`
-  through `--name-6` are muted hues, one assigned per character, stable across
-  sessions, used as **bold text** on a log line to tell speakers apart at a
-  glance. Unlike the zone and tag codes above, a name is read as text, not as
-  a fill — so `audit:contrast` gates these at **4.5**, not 3.0. Worst case
-  measures 6.16.
+  now. Do not give a `TagGroup` a colour. (The role group below is not that
+  rule breaking: a tag group is one of dozens of shelves in a catalog, and a
+  role group is one of eight estates a person belongs to.)
+- **The estate palette is six tokens, and they owe full AA.** `--role-court`,
+  `--role-clergy`, `--role-cerberon`, `--role-saviors`, `--role-business` and
+  `--role-soil` are muted hues, one per **role group** (`db/lib/roleGroups.js`),
+  used as **bold text** on a log line to tell speakers apart at a glance and to
+  say which half of the room they answer to. They also paint the Role line on an
+  examine readout, so a reader who learned a colour off a scene reads the same
+  thing off a dossier. Unlike the zone and tag codes above, a name is read as
+  text, not as a fill — so `audit:contrast` gates these at **4.5**, not 3.0.
+  Worst case measures 6.16.
+  These were `--name-1` through `--name-6`, the same six values assigned per
+  character off a hash of their id. The hues did not change; what they say did.
+  **Two of the eight groups get no token on purpose.** Outsiders and Elsewhere
+  read in the ordinary body colour, because they hold the seats that belong to
+  no estate — and, not by accident, every seat a look may not read
+  (`CHARACTERS.md` §2). A hood carries no colour either, and `feedRowShape`
+  withholds the group from a hooded row the way it withholds the character id.
+- **`--ooc` is the out-of-character line's mauve**, the same value the Clergy
+  wear but its own token, so renaming one never repaints the other. AA, like
+  everything else that is read as text.
 - **`--blackletter` and `--muted` are the two tokens gated below their usual
   floor, on purpose, since 2026-09-18** — see §3. `--blackletter` is body
   text's opposite number: the one token that exists to be *illegible at small
@@ -154,7 +169,7 @@ palette, unmodified. `globals.css` now declares its colour tokens once, on
 `:root`, with no `[data-theme]` selector anywhere. `web/lib/clockTheme.js`,
 `web/app/components/LampTick.js` and the `BASCINET_THEME` env var are gone.
 
-A handful of tokens the mockup never names — `--speech`, `--name-1`…`-6`,
+A handful of tokens the mockup never names — `--speech`, the six `--role-*`,
 `--zone-*`, `--map-river`, `--chart-*`, `--row-hover`, `--shadow-color`,
 `--feed-veil` — kept the value the retired dusk look carried, since dusk was
 the look actually being matched before this. Everything the mockup does name

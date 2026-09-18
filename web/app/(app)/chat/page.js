@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
+import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 import { feedWipeFloors, floorForPlace, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 import { Suspense } from "react";
@@ -537,6 +538,10 @@ async function FreshChat({ userId }) {
       // theirs to take back. Learning your own token tells you nothing — it is
       // the one hood you were already under.
       speakerKey: viewer.character ? hoodToken(viewer.character.id) : null,
+      // The estate their own name is painted in, so an optimistic row is the
+      // colour the confirmed one will be. Null under an alias, on the same gate
+      // as the id above.
+      roleGroup: roleGroupHue(viewer.character?.role?.groupSlug),
     },
     aside,
     // What the server will do to the words on their way in, so the row the

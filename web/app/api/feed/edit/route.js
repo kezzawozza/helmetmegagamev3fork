@@ -2,6 +2,7 @@ import { prisma, feedRowShape } from "@lifeweb/db";
 import { editSpeech } from "@lifeweb/db/lib/say";
 import { auth } from "@/lib/auth";
 import { loadFeedCharacter } from "@/lib/feedAccess";
+import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 
 // POST /api/feed/edit { seq, content } — change something you said, inside the
 // five-minute window. db/lib/say.js owns the window, the ownership check and
@@ -37,5 +38,8 @@ export async function POST(request) {
   const result = await editSpeech(prisma, { characterId: character.id, seq, content });
   if (!result?.ok) return jsonResponse({ error: result?.refusal ?? "That didn't change." }, 403);
 
-  return jsonResponse({ row: feedRowShape(result.row) });
+  // The estate goes back on the edited row too. Without it an edit answers with
+  // an uncoloured name and the line changes colour under the writer's hands
+  // until they reload.
+  return jsonResponse({ row: feedRowShape(result.row, { roleGroup: roleGroupHue(character.role?.groupSlug) }) });
 }

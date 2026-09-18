@@ -72,3 +72,21 @@ test("a bare-faced row takes the caller's avatar version", () => {
   const row = feedRowShape({ ...base }, { avatarVersion: 1234 });
   assert.equal(row.avatarVersion, 1234);
 });
+
+test("a bare-faced row takes the caller's estate, so the name is painted", () => {
+  const row = feedRowShape({ ...base }, { roleGroup: "court" });
+  assert.equal(row.roleGroup, "court");
+});
+
+test("an aliased row carries no estate, even when the caller supplies one", () => {
+  // The same rule as the character id above, and for the same reason: a bucket
+  // is a 1-of-6 narrowing, and it would sit beside a speakerKey that groups
+  // every line one person said all session.
+  const row = feedRowShape({ ...base, concealedAlias: "Young Man" }, { roleGroup: "court" });
+  assert.equal(row.roleGroup, null);
+});
+
+test("a caller who supplies no estate leaves the name uncoloured", () => {
+  const row = feedRowShape({ ...base });
+  assert.equal(row.roleGroup, null);
+});

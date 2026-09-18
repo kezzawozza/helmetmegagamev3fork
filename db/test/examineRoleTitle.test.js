@@ -35,12 +35,12 @@ const DISGUISE = {
 const held = (tag, equipped = false) => ({ equipped, expiresTurn: null, tag });
 
 // The character as a WRITER loads them (db/lib/examineSnapshot.js#PRESENTED_STATE_SELECT).
-const speaker = ({ roleTitle = "Sheriff", examineVisible = true, tags = [], concealed = false } = {}) => ({
+const speaker = ({ roleTitle = "Sheriff", examineVisible = true, groupSlug = "soil", tags = [], concealed = false } = {}) => ({
   name: "Ivo Brandt",
   appearance: "Heavyset, sunburnt.",
   concealed,
   roleTitle,
-  role: roleTitle ? { examineVisible } : null,
+  role: roleTitle ? { examineVisible, groupSlug } : null,
   tags: tags.map((ct) => ({ tagId: ct.tag.slug, equipped: ct.equipped, expiresTurn: null, quantity: 1, tag: ct.tag })),
 });
 
@@ -57,6 +57,16 @@ function look(over = {}) {
 
 test("a public office is read off a look", () => {
   assert.equal(look().roleTitle, "Sheriff");
+});
+
+test("the title is painted in its estate's colour", () => {
+  assert.equal(look().roleGroup, "soil");
+});
+
+test("a seat in an uncoloured group is read, but wears no colour", () => {
+  const readout = look({ roleTitle: "Mercenary", groupSlug: "outsiders" });
+  assert.equal(readout.roleTitle, "Mercenary");
+  assert.equal(readout.roleGroup, null);
 });
 
 test("a seat that lives on not being known reads as nothing", () => {

@@ -38,10 +38,11 @@ const ZONE_KEYS = ["fortress", "town", "forest", "hills", "marshes", "caves", "d
 // the zone code: these are deliberately desaturated, and muting spends chroma
 // rather than luminance precisely so this gate keeps holding.
 const TAG_KEYS = ["general", "skills", "status", "health", "items", "assets", "demoness"];
-// The name palette (REDESIGN.md §3), one hue per character. Unlike the zone
-// and tag codes these are TEXT — a bold name on a log line — so they owe full
-// AA, not the 3.0 graphic floor.
-const NAME_KEYS = ["1", "2", "3", "4", "5", "6"];
+// The estate palette (REDESIGN.md §3), one hue per role group
+// (db/lib/roleGroups.js). Unlike the zone and tag codes these are TEXT — a bold
+// name on a log line — so they owe full AA, not the 3.0 graphic floor. Six, not
+// eight: Outsiders and Elsewhere wear no colour at all.
+const ROLE_KEYS = ["court", "clergy", "cerberon", "saviors", "business", "soil"];
 
 // --muted and --blackletter both moved on 2026-09-18, when Bascinet said to
 // take the character-sheet mockup's own values verbatim rather than re-solve
@@ -224,9 +225,13 @@ function auditLook(t) {
     );
   }
 
-  for (const key of NAME_KEYS) {
-    gate(`--name-${key} on surface`, contrast(parseColor(t[`--name-${key}`]).rgb, surface), AA);
+  for (const key of ROLE_KEYS) {
+    gate(`--role-${key} on surface`, contrast(parseColor(t[`--role-${key}`]).rgb, surface), AA);
   }
+
+  // The out-of-character line. Its own token rather than a borrowed estate
+  // colour, so it owes its own gate — body text on the log ground, so AA.
+  gate("--ooc on surface", contrast(parseColor(t["--ooc"]).rgb, surface), AA);
 
   gate("--blackletter on surface", contrast(parseColor(t["--blackletter"]).rgb, surface), DISPLAY_MIN);
 

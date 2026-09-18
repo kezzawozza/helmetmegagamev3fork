@@ -26,6 +26,22 @@ const OTHER_GROUP = { slug: "other", name: "Elsewhere" };
 
 const ALL_GROUPS = [...ROLE_GROUPS, OTHER_GROUP];
 
+// The six estates a name is COLOURED by in the feed and the people column
+// (--role-* in web/app/globals.css). Outsiders and Elsewhere are missing on
+// purpose, not by oversight: an estate is a place in the town's order, and
+// those two buckets are exactly the seats that hold none — a Migrant, a
+// Mercenary, the Brigands and the Tribunal. It is also what keeps a colour
+// from naming the four seats a look may not read (CHARACTERS.md §2), since all
+// four live in those two buckets.
+const COLOURED_GROUPS = new Set(["court", "clergy", "cerberon", "saviors", "business", "soil"]);
+
+// A group slug to paint by, or null for one that wears no colour — no role at
+// all included. Null means the attribute is simply absent and the name reads in
+// the ordinary body colour, so nothing has to know a list of exceptions.
+function roleGroupHue(slug) {
+  return COLOURED_GROUPS.has(slug) ? slug : null;
+}
+
 function isRoleGroupSlug(slug) {
   return ALL_GROUPS.some((group) => group.slug === slug);
 }
@@ -45,4 +61,4 @@ function groupRoles(roles) {
   );
 }
 
-module.exports = { ROLE_GROUPS, ALL_GROUPS, isRoleGroupSlug, groupRoles };
+module.exports = { ROLE_GROUPS, ALL_GROUPS, COLOURED_GROUPS, roleGroupHue, isRoleGroupSlug, groupRoles };

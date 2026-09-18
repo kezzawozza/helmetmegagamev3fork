@@ -1,18 +1,25 @@
 // Who is standing at a Location, shared by the "Who's here?" button and
-// Chat's people column. Names and nothing else — a role title is private, and
-// no player ever reads another's off this list; the GM readout below is the one
-// place it still appears. Concealed characters come back separately. A forced
+// Chat's people column. Names, plus the ESTATE a name is painted in — a role
+// TITLE is still private, and no player ever reads another's off this list (the
+// GM readout below is the one place it appears), but which of the six coloured
+// groups somebody belongs to is public by design (db/lib/roleGroups.js), and
+// the two buckets that are not coloured are exactly the ones holding every seat
+// a look may not read. Concealed characters come back separately. A forced
 // name (Tag.forcedName) outranks a real one and never joins the concealed list.
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
 const { aliasRow } = require("./concealedIdentity");
 const { lastSightings } = require("./sightings");
 const { hoodToken } = require("./hoodToken"); // its own leaf to avoid a require cycle; re-exported below.
+const { roleGroupHue } = require("./roleGroups");
 
 const PRESENT_SELECT = {
   id: true,
   name: true,
   // GM-only: whosHereGm() below is the one reader. namedRows() never touches it.
   roleTitle: true,
+  // The group, unlike the title, does reach a player — as the colour their name
+  // is drawn in. roleGroupHue() decides which groups have one.
+  role: { select: { groupSlug: true } },
   concealed: true,
   age: true,
   gender: true,
@@ -134,6 +141,13 @@ function namedRows(rows, viewer) {
         sightingSeq: c.sighting?.seq ?? null,
         self: c.self,
         online: isOnline(c.lastSeenAt),
+        // Filtered HERE rather than in the browser, so an Outsider's bucket
+        // never leaves the server at all. Null under a forced name: the name on
+        // the row is not theirs, and painting it in their own estate would hand
+        // back exactly what the Disguise Kit took away — the feed already hoods
+        // a forced-name line (db/lib/archive.js#feedRowShape), and the two
+        // lists have to agree.
+        roleGroup: c.forced ? null : roleGroupHue(c.role?.groupSlug),
       };
     });
 }

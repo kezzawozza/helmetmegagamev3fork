@@ -6,6 +6,7 @@ import { pullMentionedIntoConversation } from "@lifeweb/db/lib/conversations";
 import { addThreadMember } from "@lifeweb/db/lib/discordRest";
 import { auth } from "@/lib/auth";
 import { loadFeedCharacter } from "@/lib/feedAccess";
+import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 import { sendDm } from "@/lib/discordGuild";
 import { MENTION_SOURCE } from "@lifeweb/db/lib/dmKinds";
@@ -117,6 +118,7 @@ export async function POST(request) {
     row: feedRowShape(said.rows[0], {
       clientId,
       avatarVersion: character.updatedAt?.getTime?.() ?? null,
+      roleGroup: roleGroupHue(character.role?.groupSlug),
     }),
     pieces: said.pieces,
   });

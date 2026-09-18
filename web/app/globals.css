@@ -216,16 +216,30 @@
      the tile reading at 0.60. */
   --feed-veil: rgba(14, 12, 9, 0.4);
 
-  /* The name palette (REDESIGN.md §3): six muted hues, one per character,
-     assigned stably and used as BOLD TEXT on a log line — so unlike the zone
-     and tag codes these owe full AA, and audit-contrast.js gates them at
-     4.5. */
-  --name-1: #a8b4c8;
-  --name-2: #9fb58f;
-  --name-3: #c8ab74;
-  --name-4: #c79c9c;
-  --name-5: #8fb2b0;
-  --name-6: #b79cc0;
+  /* The estate palette (REDESIGN.md §3): six muted hues, ONE PER ROLE GROUP
+     (db/lib/roleGroups.js), used as BOLD TEXT on a log line — so unlike the
+     zone and tag codes these owe full AA, and audit-contrast.js gates them at
+     4.5.
+
+     These are the same six values that used to be --name-1..6, one per
+     character off a hash of their id. The hues were always the mockup's; what
+     they SAY is new. A colour a reader can learn is worth more than a colour
+     that is merely different from the one above it.
+
+     Outsiders and Elsewhere are missing on purpose. An estate is a place in
+     the town's order and those two hold none — and since every seat a look may
+     not read lives in one of them (CHARACTERS.md §2), no colour can name one. */
+  --role-court: #c8ab74;
+  --role-clergy: #b79cc0;
+  --role-cerberon: #c79c9c;
+  --role-saviors: #8fb2b0;
+  --role-business: #a8b4c8;
+  --role-soil: #9fb58f;
+
+  /* The out-of-character line's mauve — the same value the Clergy wear, but its
+     own token, because a player talking over the table is not a churchman and a
+     rename of one must not silently repaint the other. */
+  --ooc: #b79cc0;
 
   /* The zone code — colour-picked from the Plate map, FILLS ONLY (the 3px
      rule on a .zone-chip, never a text colour), gated at 3.0 against
