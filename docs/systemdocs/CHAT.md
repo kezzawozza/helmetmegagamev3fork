@@ -1861,6 +1861,36 @@ end them.
   unaffected. The three go on **both** Railway services, since the bot sends
   the mention pushes and the web app serves the key.
 
+### 5b. Switching places paints from cache
+
+Bascinet named three pains in `/chat`, and this is the second (REDESIGN.md §6):
+switching places was slow. Two halves answer it, and they answer different
+halves of the problem.
+
+- **Inside one session, `feedStore` is the cache.** It has always held every
+  place it has ever been given rows for, keyed by place, and a switch is a pure
+  client store read — `openPlace.js` moves a hash, nothing navigates. `Feed.js`
+  draws `stored` the moment it is non-empty, so a place that was read once paints
+  at once and its history request merely tops it up. Two rules keep that true and
+  both are load-bearing: `resetHistory` clears only the per-place *history
+  states*, never the rows (a gap would otherwise blink every open place back to a
+  skeleton), and `seedRows` only ever ADDS, so a re-read merges.
+- **Across a reload, `rowCache.js` is the cache.** The last 40 rows of the 12
+  places nearest the reader are kept in the snapshot layer under its own scope
+  (`play:rows`), written at most every 4 s off a store subscription and once more
+  on unmount, and restored in Chat's state initializer — before the first client
+  paint, since from an effect the first frame is already a skeleton.
+
+  A stored window is only painted if it was written **within half an hour**. The
+  cache cannot know a turn-end wipe raised a place's floor (§7), and `seedRows`
+  adds rather than replaces, so stale rows would sit above the fresh ones. Half an
+  hour covers a reload, a crash and a tab restored from history, and a wipe almost
+  never falls inside one.
+
+The prefetch is unchanged and still does the other half of the work: after the
+first paint a player's other places are fetched one at a time, capped, and never
+for a GM or a ghost — their column is every room in the game.
+
 ## 5c. Snapshots: the page paints before the server answers
 
 Every page used to be a skeleton until its server load finished, on every

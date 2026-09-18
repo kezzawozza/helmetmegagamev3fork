@@ -30,6 +30,7 @@ import { useSeen, markSeen, markAllSeen, seedSeenIfFresh, isUnread } from "./see
 import { noteTyping } from "./typingStore";
 import { usePushState, initPush, togglePush } from "./pushStore";
 import { useOpenPlace, setOpenPlace } from "./openPlace";
+import { seedCachedRows, startRowCache } from "./rowCache";
 import { useStreamState, noteStreamUp, noteStreamDown, noteStreamFatal } from "./streamStore";
 import { useRefresh } from "@/app/components/useRefresh";
 import {
@@ -234,6 +235,15 @@ export default function Chat({
     // a render, and that variant holds the store's notification for exactly
     // as long as it takes (feedStore.js#seedInitial).
     try {
+      // What this browser last heard, before the server's own rows go in
+      // (./rowCache.js). Both only ADD, so the order costs nothing — and a
+      // place that was read on the last visit paints in the first frame
+      // instead of a skeleton while its history request is out.
+      seedCachedRows(self?.discordUserId ?? null);
+    } catch {
+      // A refused localStorage costs a skeleton, nothing more.
+    }
+    try {
       seedInitial({ places: initialPlaces, place: initialPlace, rows: initialRows });
     } catch {
       // The effect below repeats all three, so a store that refused here is
@@ -255,6 +265,11 @@ export default function Chat({
     }
     return null;
   });
+
+  // Keeps those stored windows in step with the store, coarsely. Sets no state
+  // of its own, which is what lets it live in an effect
+  // (react-hooks/set-state-in-effect is an error here).
+  useEffect(() => startRowCache(self?.discordUserId ?? null), [self?.discordUserId]);
 
   const [chimeMuted, setChimeMuted] = useChatChimeMuted();
 
