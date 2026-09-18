@@ -550,6 +550,11 @@ body:has(.chat-shell) .grain {
   border: 1px solid var(--border);
   background: var(--surface);
   border-radius: var(--r);
+  padding: 8px;
+}
+
+.panel + .panel {
+  margin-top: 8px;
 }
 
 /* A section header — the character-sheet mockup's own build (2026-09-18),
@@ -748,11 +753,12 @@ input[type="radio"]:focus-visible,
   border-bottom: 2px solid var(--border-lo);
   background: var(--accent-solid);
   color: var(--on-accent);
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: var(--r);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
   font-weight: 700;
-  letter-spacing: var(--ls-wide);
+  white-space: nowrap;
   text-align: center;
   display: inline-flex;
   align-items: center;
@@ -791,10 +797,11 @@ input[type="radio"]:focus-visible,
   border-bottom: 2px solid var(--border-lo);
   background: var(--surface-raised);
   color: var(--text);
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: var(--r);
-  font-size: var(--fs-xs);
-  letter-spacing: var(--ls-wide);
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
+  white-space: nowrap;
   text-align: center;
   display: inline-flex;
   align-items: center;
@@ -818,7 +825,7 @@ input[type="radio"]:focus-visible,
   border: 2px dashed var(--border);
   background: var(--field-bg);
   color: var(--muted);
-  cursor: not-allowed;
+  cursor: default;
 }
 
 .btn-secondary:disabled,
@@ -844,11 +851,12 @@ input[type="radio"]:focus-visible,
   border-bottom: 2px solid var(--border-lo);
   background: color-mix(in srgb, var(--danger) 12%, var(--surface));
   color: var(--danger);
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: var(--r);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
   font-weight: 700;
-  letter-spacing: var(--ls-wide);
+  white-space: nowrap;
   text-align: center;
   display: inline-flex;
   align-items: center;
@@ -870,8 +878,10 @@ input[type="radio"]:focus-visible,
   all: unset;
   cursor: pointer;
   color: var(--muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
   padding: 3px 4px;
+  white-space: nowrap;
   text-decoration: underline;
 }
 
@@ -1015,11 +1025,12 @@ input[type="radio"]:focus-visible,
 }
 
 .field-label {
+  display: block;
   color: var(--muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   font-weight: 700;
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
 }
 
 /* One control surface, selected by exclusion rather than by enumeration. The
@@ -1058,10 +1069,10 @@ input[type="radio"]:focus-visible,
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   color: var(--text);
-  padding: 3px 6px;
+  padding: 2px 4px;
   border-radius: var(--r);
   font-family: inherit;
-  font-size: var(--fs-base);
+  font-size: var(--fs-2xs);
 }
 
 .field textarea {
@@ -1921,7 +1932,7 @@ input[type="radio"]:disabled {
   background: none;
   border: 0;
   padding: 0;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: var(--ls-tight);
   color: var(--text);
@@ -1942,7 +1953,7 @@ input[type="radio"]:disabled {
 
 .chip {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   /* Flexbox discards whitespace between items, so the literal spaces in
      ChipLabel's markup vanish and a stack/expiry suffix collides with the
      name ("Paralyzed· 2t"). The gap is what separates them. */
@@ -1957,9 +1968,9 @@ input[type="radio"]:disabled {
   color: var(--text);
   padding: 1px 5px;
   border-radius: var(--r);
-  font-size: var(--fs-xs);
-  line-height: 1.25;
-  letter-spacing: var(--ls-tight);
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 /* A chip that is an aside rather than a statement — a count, a source, a
@@ -2736,13 +2747,13 @@ input[type="radio"]:disabled {
   z-index: 1;
 }
 
-/* Same face and size as `.panel-header`, deliberately without the strip. */
 .section-title {
-  margin: 0;
-  font-family: var(--font-serif);
-  font-size: var(--fs-lg);
+  margin: 0 0 4px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
-  line-height: var(--lh-heading);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--accent-text);
 }
 
 @keyframes shake {
@@ -2845,14 +2856,16 @@ input[type="radio"]:disabled {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--fs-xs);
+  font-size: var(--fs-2xs);
   line-height: var(--lh-table);
 }
 
 /* Numeric columns keep the mono, so figures line up and read as data. Mark
    the cells with class="mono" (or wrap the value) — it is no longer the
    default now that the body face is the plain system stack. */
-.data-table .mono {
+.data-table .mono,
+.data-table td.num {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2863,15 +2876,15 @@ input[type="radio"]:disabled {
   background: var(--surface-raised);
   color: var(--muted);
   font-weight: 700;
-  text-transform: uppercase;
-  font-size: var(--fs-xs);
-  letter-spacing: var(--ls-wide);
+  letter-spacing: 0.04em;
+  font-size: var(--fs-2xs);
   white-space: nowrap;
 }
 
 .data-table td {
   padding: 2px 6px;
   border: 1px solid var(--border);
+  text-align: left;
   vertical-align: top;
 }
 
@@ -2940,6 +2953,15 @@ input[type="radio"]:disabled {
    the container, and a header that stays pinned while the body scrolls. The
    page body itself must never scroll sideways, which is why the overflow
    lives here rather than on an ancestor. */
+/* .panel now carries its own 8px padding (the mockup's `.panel{padding:8px}`,
+   DESIGN-SYSTEM.md), which would otherwise inset every edge of a table from
+   its panel frame — DataTable.js renders exactly this as `panel table-scroll`,
+   and the table wants to run flush to the panel's own border, header row
+   included, the way ItemsTable and every other data table in the app do. */
+.panel.table-scroll {
+  padding: 0;
+}
+
 .table-scroll {
   max-height: var(--list-h);
   overflow: auto;

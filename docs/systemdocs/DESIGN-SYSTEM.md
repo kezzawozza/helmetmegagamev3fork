@@ -240,9 +240,9 @@ Use these instead of rolling one-off markup.
 
 | Class | For |
 |---|---|
-| `.panel` | Any card/section container. A card **with** a heading is `Panel` — it carries the padding `.panel` deliberately does not, and writes the `.panel-header` for you. |
+| `.panel` | Any card/section container — `border`, `background`, `border-radius: 0`, and (as of the primitives pass, 2026-09-18) its own `padding: 8px`, matching the mockup's `.panel{padding:8px}` exactly. `.panel + .panel` gets `margin-top: 8px` too. A card **with** a heading is `Panel`, which writes the `.panel-header` for you on top of that padding. `.panel.table-scroll` (`DataTable.js`) is the one deliberate exception — it zeroes the padding back out so the table runs flush to the panel's own border, header row included. |
 | `.panel-header` | Its heading — serif `--fs-lg`, a flex row over a 1px `border-bottom`, with `.note` for a quiet right-aligned aside. See §3a — the metal strip it used to carry is retired. |
-| `.section-title` | A heading that is a **flex child beside something else**. |
+| `.section-title` | A heading that is a **flex child beside something else** — a modal title next to its close button, a desk's page title next to its turn chip. As of the primitives pass it is the mockup's own small recipe: uppercase, bold, `--fs-2xs` (11px), `--accent-text`, `margin: 0 0 4px` — no longer the serif `.panel-header` face. It reads as a quiet running head, not a page banner; that is the point of the retro chrome this pass matches. |
 | `.btn` | Solid primary button. |
 | `.btn-secondary` | Outline. |
 | `.btn-danger` | Destructive — Reject, Kill, Restart Game. |
@@ -250,7 +250,7 @@ Use these instead of rolling one-off markup.
 | `.field` | Wraps a `.field-label` + input/textarea/select. |
 | `.chip` | Small tag/pill labels. |
 | `.zone-chip` | A `.chip` carrying the zone code on `data-zone`. `data-zone="none"` is the dashed neutral for no zone. |
-| `.data-table` | Tabular data. |
+| `.data-table` | Tabular data — `--fs-2xs` throughout, `th` bold `--muted` on `--surface-raised` with no `text-transform` (see the label-case rule below), and `td.num` for a numeric column (mono, tabular numerals) — mark it with `class="num"`, the same way `.mono` marks a value inline. |
 | `.menu-item` | Link-like row actions. |
 | `.control` | The `.field` control surface, without the label column — a `<select>` in a table cell, an input inline in a toolbar. |
 | `.icon-btn` | The one framed icon button — via `IconButton`, whose `size` is `sm` (26, default) or `lg` (44), the desktop size; a coarse pointer inside `/chat` floors every one of these at 44 regardless. |
@@ -329,6 +329,18 @@ Every label a player reads — buttons, tabs, dialog titles, section headings,
 placeholders — is sentence case: first word capitalised, the rest lower-case,
 except proper nouns and the game's own capitalised terms (page names, Move /
 Routine / Gambit, Desire, Tag / Tag Points, Resources, and the like).
+
+**The label-case rule, stated once:** a *field label* — `.field-label`, over
+one input or one value ("Free moves", "Resources", "Search accounts") — is
+sentence case, bold, `--fs-2xs` (11px), `--muted`, **no `text-transform`**. A
+*group label* over a **list** of things — `.group-label` ("HEALTH", "SKILLS",
+"ROOMS", "ZONES I SEE") or `.section-title` used as a tag-rail heading — is
+uppercase. These read as backwards until you notice the shapes are different:
+one names a single value beside it, the other titles a run of rows below it.
+`.field-label` used to uppercase everywhere, which is why a form field and a
+group heading looked identical; it no longer does, and nothing should
+re-add the transform at a single call site to bring the old look back — fix
+the primitive, not the page.
 
 ## 5a. The five that had no rule
 
@@ -412,7 +424,15 @@ the desks, and `/map`.
 
 **`.bar`** is the chat pages' one column-head recipe, ported from the mockup
 (`docs/design/mockups/chat/index.html`): a `bg2.png` metal strip, bold
-uppercase 10px type, a `text-shadow`. The places column's head
+uppercase 10px type, a `text-shadow`. Match the mockup's own `background-size:
+auto 100%` exactly (no explicit `background-position`, which defaults to
+top-left) — an earlier pass anchored the tile at its native 32×16 to the
+bar's bottom edge instead, reasoning from the sprite's own transparent gap
+rather than from a screenshot, and that read as a thin dotted line near the
+bottom of the bar with a bare gap above it. Confirmed by cropping the bar out
+of a screenshot of `/chat` and out of `docs/design/mockups/chat/screenshot.png`
+side by side: scaled-to-height and top-anchored is what actually reads as a
+metal strip. The places column's head
 (`<p className="bar">Places</p>`) and the feed's head (`ChatHead.js`, above
 720px) both wear it, plus `.spacer` (`flex:1`, pushes trailing content to the
 right edge) and `.sub`/`.crumb` for the quieter text beside the name. It

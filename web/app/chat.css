@@ -177,17 +177,15 @@
   min-height: 26px;
   background-image: url("/assets/chrome/bg2.png");
   background-repeat: repeat-x;
-  /* The tile is 32x16 — its own proportion, not the bar's. `auto 100%` used
-     to stretch it to whatever the bar's rendered height happened to be
-     (26px, or more once a header wrapped to two lines), which blew up the
-     transparent gap the sprite carries under its rivets into a band several
-     times its real size — the sprite reads as a row of light beads once that
-     gap is stretched wide enough to show a lighter --surface through it, in
-     any block head (Turn, Here, Waiting on you). Anchored to the bar's own
-     bottom edge at native size, the rivets sit where the art drew them and
-     the bar reads as a metal strip whatever it is backed by. */
-  background-size: 32px 16px;
-  background-position: left bottom;
+  /* Matches the mockup's own `.bar` exactly (docs/design/mockups/chat/
+     index.html): scaled to the bar's own height rather than held at the
+     tile's native 32x16, and anchored top-left rather than bottom. The
+     previous native-size, bottom-anchored recipe read as a thin dotted line
+     near the bottom of the bar with a bare gap above it — confirmed by
+     cropping this bar out of a screenshot and the mockup's own
+     tex/chat/screenshot.png side by side. `auto 100%` is what the mockup
+     uses and what actually reads as a metal strip. */
+  background-size: auto 100%;
   image-rendering: pixelated;
   border-bottom: 1px solid var(--border-lo);
   border-top: 1px solid var(--border);
