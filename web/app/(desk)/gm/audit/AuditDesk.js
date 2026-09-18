@@ -4,9 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DeskRail from "@/app/components/DeskRail";
 import { useRouter } from "next/navigation";
 import Pager from "@/app/components/Pager";
-import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
-import LockChip from "@/app/components/LockChip";
-import BascinetClock from "@/app/components/BascinetClock";
 import { useRefresh } from "@/app/components/useRefresh";
 import AuditFeed from "./AuditFeed";
 import AuditFilters from "./AuditFilters";
@@ -33,7 +30,6 @@ export default function AuditDesk({
   total,
   pageSize,
   filters,
-  openTurn,
   typeCounts,
   actors,
   characters,
@@ -165,53 +161,49 @@ export default function AuditDesk({
 
   return (
     <div className="desk-shell">
-      <DeskHeader
-        title="Audit"
-        meta={
-          <>
-            {/* Unconditional. It used to vanish with the turn, so "no turn
-                open" and "the chip has not loaded" looked the same. */}
-            <DeskTurnChip turn={openTurn} />
-            <LockChip />
-            <BascinetClock />
-            {freshCount > 0 && (
-              <button type="button" className="chip" onClick={acknowledge}>
-                {freshCount} new
-              </button>
-            )}
-          </>
-        }
-        actions={
-          <>
-            {notice && <span className="text-muted text-xs">{notice}</span>}
-            <div className="segmented" role="group" aria-label="Time format">
-              <button type="button" aria-pressed={!absoluteTime} onClick={() => setAbsoluteTime(false)}>
-                Ago
-              </button>
-              <button type="button" aria-pressed={absoluteTime} onClick={() => setAbsoluteTime(true)}>
-                Clock
-              </button>
-            </div>
-            {/* A real toggle, in the house form: a chip keyed on data-active
-                plus aria-pressed (DESIGN-SYSTEM §5). As a .btn-quiet with a
-                changing word it was the one control on the desk whose state
-                you had to read the LABEL to know. */}
-            <button
-              type="button"
-              className="chip"
-              data-active={live ? "true" : undefined}
-              aria-pressed={live}
-              title={live ? "Stop following new entries" : "Follow new entries as they land"}
-              onClick={() => setLive((v) => !v)}
-            >
-              Live
+      {/* No DeskHeader any more — no title, and the turn/lock/clock chips it
+          used to carry are redundant with the universal top bar's own clock
+          block (ClockBlock.js). What's left is the desk's own state and
+          controls, which stay: a fresh-arrival count is desk state, not
+          chrome, and Ago/Clock, Live and CSV are real actions with nowhere
+          else to live. */}
+      <div className="desk-header">
+        <div className="flex min-w-0 items-center gap-3">
+          {freshCount > 0 && (
+            <button type="button" className="chip" onClick={acknowledge}>
+              {freshCount} new
             </button>
-            <button type="button" className="btn-secondary" disabled={exporting} onClick={() => download()}>
-              CSV
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {notice && <span className="text-muted text-xs">{notice}</span>}
+          <div className="segmented" role="group" aria-label="Time format">
+            <button type="button" aria-pressed={!absoluteTime} onClick={() => setAbsoluteTime(false)}>
+              Ago
             </button>
-          </>
-        }
-      />
+            <button type="button" aria-pressed={absoluteTime} onClick={() => setAbsoluteTime(true)}>
+              Clock
+            </button>
+          </div>
+          {/* A real toggle, in the house form: a chip keyed on data-active
+              plus aria-pressed (DESIGN-SYSTEM §5). As a .btn-quiet with a
+              changing word it was the one control on the desk whose state
+              you had to read the LABEL to know. */}
+          <button
+            type="button"
+            className="chip"
+            data-active={live ? "true" : undefined}
+            aria-pressed={live}
+            title={live ? "Stop following new entries" : "Follow new entries as they land"}
+            onClick={() => setLive((v) => !v)}
+          >
+            Live
+          </button>
+          <button type="button" className="btn-secondary" disabled={exporting} onClick={() => download()}>
+            CSV
+          </button>
+        </div>
+      </div>
 
       <div className="desk-body">
         <DeskRail variant="sections" as="div" ariaLabel="Audit filters">

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getGmSession } from "@/lib/discordGuild";
-import AppRail from "../components/AppRail";
+import AppBar from "../components/AppBar";
 import { GM_NAV } from "@/lib/navItems";
 
 // Full-viewport route group: workspaces own their whole screen, no
@@ -18,7 +18,7 @@ export default async function DeskLayout({ children }) {
 
   return (
     <div className="app-shell">
-      <AppRail discordUserId={session.discordUserId} fallback={GM_NAV} />
+      <AppBar discordUserId={session.discordUserId} fallback={GM_NAV} />
       <main className="app-main">{children}</main>
     </div>
   );

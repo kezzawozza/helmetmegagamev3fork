@@ -168,9 +168,10 @@ Three things about the token set are load-bearing and easy to undo by accident:
   scrollbar actually mattered — `.table-scroll`, `.desk-rail` /
   `.desk-main` / `.desk-inspector` / `.desk-queue`, `.modal-panel`,
   `.chat-places`, `.markdown-content pre` — and hand-composed into
-  `.chat-feed` and `.app-rail`, which already paint their own background
-  layers and can't simply add the class. A short list, a dropdown, a tooltip
-  and the like go without one — they're not where the cue earns its keep.
+  `.chat-feed`, which already paints its own background layers and can't
+  simply add the class. A short list, a dropdown, a tooltip and the like go
+  without one — they're not where the cue earns its keep. The universal top
+  bar (§6) uses `.scroll-fade-x` directly rather than composing its own copy.
 
 ## 3. Themes
 
@@ -500,11 +501,54 @@ independent way to hide a place with something unread in it.
 
 ## 6. Page shell
 
+**The left nav rail and every per-page header are gone (2026-09-18).**
+`NavRail.js`/`AppRail.js`/`NavRailAsync.js`/`RailLinkPending.js`,
+`AppHeader.js` and `DeskHeader.js` were deleted outright, along with every
+`.app-rail`/`.rail-*`/`.nav-sheet*` rule and the `--rail-h` token. One
+**universal top bar** (`web/app/components/AppBar.js`, built from
+`NavLinks.js` + `NavLinksAsync.js` + `ClockBlock.js`) renders once per route
+group, above `{children}`, in `(app)/layout.js`, `(desk)/layout.js` and
+`(public)/layout.js` — never per page. It carries plain text links
+(`.nav-link`, one flat rule shared with the sheet's `.tag-points-spend` —
+below), grouped and divided by `.action-strip-sep`, then the game's clock
+(`ClockBlock.js`: `describeTurn`, `GAME_YEAR` off
+`db/turnCalendar.js#gameDate`, `BascinetClock`, `LockChip`), all
+left-justified over the same double-line recipe the old `.app-header` wore
+(`.top-bar`, `shell.css`). **There is no page title and no per-page action
+slot any more** — the active link (`.nav-link[data-active="true"]`,
+`--text-hi` and bold, no underline) says where you are instead. A page that
+had a real per-page action (a "→ Documents" link, a set of back-links) moved
+it into ordinary body content; `web/app/(app)/gm/dev/zones/[zoneId]/page.js`'s
+own `← All zones` is the pattern. Signed-out `(public)` renders no bar at
+all, matching the rail's old no-render-when-signed-out behaviour — so
+signed-out `/handbook` and `/analysis` have no header chrome whatsoever, on
+purpose.
+
+`.app-shell` is a column now, not a row: the bar sizes itself and
+`.app-main` (`flex: 1; min-height: 0`) takes the rest, so `.chat-shell`,
+`.desk-shell` and `.map-shell` are `height: 100%` against it rather than
+`100dvh` minus a hand-copied rail height — the whole reason `--rail-h`
+existed. Mobile gets the identical bar, not a second layout: it scrolls
+sideways (`overflow-x: auto` plus `.scroll-fade-x`) instead of collapsing to
+a bottom bar with an overflow "More" sheet, so every item is reachable at
+every width and nothing was left to cap at `MOBILE_PRIMARY`. `/chat` still
+hides it under 720px (`body:has(.chat-shell) .top-bar`), the one sanctioned
+exception this doc has always named for the rail.
+
+A `(desk)` workspace's own state — a fresh-arrival count, `DeskInboxCounts`,
+a solved tally, a turn selector — did not move to the bar (the bar is
+game-global; this state is per-desk) and did not vanish either: each desk
+still writes a local `.desk-header` two-slot bar
+(`web/app/(desk)/gm/audit/AuditDesk.js` is the reference), just without the
+`DeskHeader.js` component or a title. What every desk header used to carry
+that the universal bar's own clock block now says on its own —
+`DeskTurnChip`, `LockChip`, `BascinetClock` — was dropped as redundant
+rather than rehomed.
+
 `web/app/components/PageShell.js` — a component, not a convention. Every
 top-level page is:
 
 ```jsx
-<AppHeader title meta actions />
 <PageShell width>
   …
 </PageShell>
@@ -529,20 +573,15 @@ same `.page` — the mockup only drew one width. `narrow` is `.page--narrow`
 and the inline padding for a page whose own grid is the width (e.g. `/gm/dev`'s
 zone editors) — it still keeps the block padding and the foot.
 
-**The header** is `AppHeader.js`'s own markup now, not a wrapper around
-`DeskHeader.js`: a left `.crumbs` line (`<b>{title}</b> — {meta}`, muted with
-a bold lead) and a right `.app-header-controls` strip holding the page's
-`actions`, the turn/zone note (`TurnMeta.js`), `LockChip` and
-`BascinetClock`. These three used to be ordinary `.chip`s; the mockup's own
-header draws one thin line with nothing boxed, so they're `.app-header
-.header-note` now — plain muted text, no border, no background — and pair
-with `.mono` where their content is a numeral (`LockChip`'s countdown,
+**The header is the universal top bar now**, not a per-page component — see
+the note at the top of this section. `LockChip` and `BascinetClock` are
+plain `.top-bar .header-note` text — no border, no background — pairing with
+`.mono` where their content is a numeral (`LockChip`'s countdown,
 `BascinetClock`'s time). `LockChip`'s two bad-news states (moves locked, out
 of session) drop `.header-note` for `.status-pill[data-tone="bad"]` instead —
 bold coloured text is the app's one grammar for "this means something bad"
 (§5), and a boxed tone here would be the chip chrome coming back in through
-the side door. `DeskHeader.js` itself is untouched — the six `(desk)`
-workspaces still render it directly, unaffected by anything in this section.
+the side door.
 
 **The foot** is `.foot`, added inside `PageShell` after `{children}`, on
 every page that goes through it: the setting line
@@ -551,7 +590,7 @@ left, nothing on the right. `/chat`, `/map` and the `(desk)` workspaces never
 render `PageShell` at all, so they never get one.
 
 (The character sheet used `PageShell` once. It now draws its own full-width
-body under the shared `AppHeader` with no `PageShell` at all — still an
+body under the shared universal top bar with no `PageShell` at all — still an
 ordinary scrolling page, just not a centred one, and with no `.foot`:
 `SHEET.md` §1.)
 
@@ -559,31 +598,22 @@ ordinary scrolling page, just not a centred one, and with no `.foot`:
 was a documented convention for months and drifted anyway, which is why it is
 now a component.
 
-**The rail's active mark**, also `shell.css`, is the one piece of `NavRail.js`
-this pass touched: on desktop, `.rail-item[data-active="true"]::before` used
-to be a filled, right-rounded pill against the rail's inner edge. It is now a
-square 2px `var(--accent-text)` rule running the full height of the item,
-matching the artifact's "a rule, not a filled shape" chrome. Everything else
-about the rail — its width, item list, the mobile bottom bar, the overflow
-sheet, the sign-out form — is unchanged.
-
 The one sanctioned exception is the `(desk)` route group, which now holds
 four GM workspaces: `/gm/turns` (adjudication), `/gm/players` (the player
 desk), `/gm/audit`, and `/gm/dev` (the game-level Dev Panel, `DEV-PANEL.md`
 §11). A workspace owns its whole screen — no PageShell, no centred max-width;
 the `.desk-*` layout family in `globals.css` is its layout — but everything
 inside it still uses the tokens and the shared control classes. Within that
-exception, `DeskHeader.js` is PageHeader's desk equivalent — title/meta/
-actions slots over `.desk-header`, `<h1 className="section-title">` — and all
-four desk pages use it, `/gm/dev` included. Don't hand-roll `.desk-header`
-markup in a new one. Every desk's left rail is `DeskRail.js` on the shared
-`.desk-rail` family — `/gm/dev`'s section nav is
-`variant="sections"`, which is what the old `.ops-*` and `.audit-*` rail
-classes became.
+exception, a desk that needs its own state or actions writes a local
+two-slot `.desk-header` bar directly (no `DeskHeader.js` component any
+more — see the note at the top of this section) rather than a title.
+Every desk's left rail is `DeskRail.js` on the shared `.desk-rail` family —
+`/gm/dev`'s section nav is `variant="sections"`, which is what the old
+`.ops-*` and `.audit-*` rail classes became.
 
-Desks **do** carry the nav rail. `(desk)/layout.js` renders the same
-`.app-shell` + `AppRail` + `.app-main` as `(app)`, so a desk is
-full-viewport-*minus-rail*. They did not always: the adjudication desk rendered
+Desks **do** carry the universal top bar. `(desk)/layout.js` renders the
+same `.app-shell` + `AppBar` + `.app-main` as `(app)`, so a desk is
+full-viewport-*minus-bar*. They did not always: the adjudication desk rendered
 bare, and the only ways out were a hand-placed "Exit" link and an Escape
 keypress that navigated away from an empty selection. With two desks, the way
 between them cannot be a link each one remembers to carry.
@@ -595,10 +625,9 @@ player desk's link-plus-affordances row is scoped under
 
 `.desk-shell` is deliberately **not positioned and carries no z-index**.
 `Modal.js` renders `.modal-overlay` in-tree rather than through a portal, so a
-stacking context on the shell traps every desk modal at that element's level —
-and under 720px `.app-rail` is a fixed bottom bar at `z-index: 30`, which puts
-those modals underneath it. Read `ADJUDICATION.md` §3 and `PLAYER-DESK.md`
-before adding a third page there.
+stacking context on the shell traps every desk modal at that element's
+level. Read `ADJUDICATION.md` §3 and `PLAYER-DESK.md` before adding a third
+page there.
 
 A page's `loading.js` is `<SkeletonPage width title panels />` from the same
 file, so a skeleton physically cannot disagree with its page about width or
@@ -816,12 +845,11 @@ of reach. Both new blocks sit **after** `.desk-body--players`' own declaration
 in the file — a media query adds no specificity, so a rule for that class
 written earlier simply loses to it.
 
-**One route hides that bar: `/chat`.** Under 720px Chat is Discord's channel
-view — the page header and the bottom bar both go, the scene has the whole
-screen, and the app's links ride the foot of the ≡ places drawer instead
-(`body:has(.chat-shell) .app-rail` in `globals.css`; `CHAT.md` §5). Nothing
-else may do this: a second route without the bar is a second place to get
-lost.
+**One route hides the universal top bar: `/chat`.** Under 720px Chat is
+Discord's channel view — the bar goes, the scene has the whole screen, and
+the app's links ride the foot of the ≡ places drawer instead
+(`body:has(.chat-shell) .top-bar` in `chat.css`; `CHAT.md` §5). Nothing else
+may do this: a second route without the bar is a second place to get lost.
 
 **The page body never scrolls sideways.** Anything wider than the viewport
 scrolls inside its own container:
@@ -880,11 +908,10 @@ fifty-odd of its call sites — right for a flush text link in a row of prose,
 and not enough for the only way to zoom a map for anyone who cannot pinch. The
 carve-out is scoped to that one bar so nothing else moves.
 
-**The bottom bar respects `env(safe-area-inset-bottom)`**, and `.app-main`'s
-bottom padding must include the same inset. Otherwise the rail labels sit under
-an iPhone's home indicator.
-
-**The bottom bar does not scroll.** `NavRail`'s `MOBILE_PRIMARY = 5` cap is
-what keeps it reachable: items past the fifth move into the "More" sheet, so
-the length of a nav list is a real design constraint. Adding a rail item means
-deciding which one it displaces.
+**There is no fixed bottom bar any more.** The rail's mobile shape — a fixed
+row along the bottom, an item cap, an overflow "More" sheet — is gone with
+it (§6). The universal top bar sits in normal document flow at the top of
+the page instead, so `env(safe-area-inset-bottom)` is no longer anything the
+nav has to reserve room for. It scrolls sideways rather than capping its
+item count: every link is reachable at every width, so there is nothing left
+to decide "which one it displaces."

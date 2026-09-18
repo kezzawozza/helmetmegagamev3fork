@@ -653,16 +653,9 @@
   color: var(--muted);
 }
 
-.tag-points-spend {
-  all: unset;
-  cursor: pointer;
-  color: var(--accent-text);
-  text-decoration: underline;
-}
-
-.tag-points-spend:hover {
-  color: var(--text-hi);
-}
+/* .tag-points-spend's own colour/hover moved to globals.css, shared with the
+   top bar's .nav-link (DESIGN-SYSTEM.md) — the class name and its markup
+   stay here, only the rule moved. */
 
 .sheet-tags-filter {
   display: block;

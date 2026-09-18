@@ -17,10 +17,7 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import DeskRail from "@/app/components/DeskRail";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import DiscordTime from "@/app/components/DiscordTime";
-import LockChip from "@/app/components/LockChip";
-import BascinetClock from "@/app/components/BascinetClock";
 import InspectorColumn from "@/app/components/InspectorColumn";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import GmZoneRail from "@/app/components/GmZoneRail";
@@ -175,30 +172,27 @@ export default function OracleDesk({
     // unpositioned and carries no z-index, so an in-tree .modal-overlay is not
     // trapped at this element's level (globals.css, above .desk-shell).
     <div className="desk-shell">
-      <DeskHeader
-        title="Oracle"
-        meta={
-          <>
-            {/* The turn being READ, which on this desk is the selected one
-                rather than the open one — the whole page is that turn's
-                chronicle, and the select in the actions slot changes it. */}
-            <DeskTurnChip turn={turn} />
-            <LockChip />
-            <BascinetClock />
-            {/* Muted text, not a chip: it is a count-style fact, and only
-                warnings take colour in a desk header (DESIGN-SYSTEM §5a). */}
-            <span className="text-sm text-muted">
-              {lastWritten ? (
-                <>
-                  Last written <DiscordTime epoch={Math.floor(Date.parse(lastWritten) / 1000)} format="R" />
-                </>
-              ) : (
-                "Not written yet"
-              )}
-            </span>
-          </>
-        }
-        actions={
+      {/* No DeskHeader any more. The turn/lock/clock chips it used to carry
+          named the OPEN turn, which the universal top bar's own clock block
+          already says — dropped as redundant there. What's left is this
+          desk's own state: the turn SELECTOR (this page reads whichever turn
+          you pick, not necessarily the open one) and the last-written note,
+          neither of which the bar can say. */}
+      <div className="desk-header">
+        <div className="flex min-w-0 items-center gap-3">
+          {/* Muted text, not a chip: it is a count-style fact, and only
+              warnings take colour in a desk header (DESIGN-SYSTEM §5a). */}
+          <span className="text-sm text-muted">
+            {lastWritten ? (
+              <>
+                Last written <DiscordTime epoch={Math.floor(Date.parse(lastWritten) / 1000)} format="R" />
+              </>
+            ) : (
+              "Not written yet"
+            )}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <div className="field">
             <label className="field-label" htmlFor="oracle-turn">
               Turn
@@ -216,8 +210,8 @@ export default function OracleDesk({
               ))}
             </select>
           </div>
-        }
-      />
+        </div>
+      </div>
 
       <div className="desk-body">
         {/* .desk-queue-row, the same rail row /gm/turns and /gm/players use —

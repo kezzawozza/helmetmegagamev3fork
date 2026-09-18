@@ -4,7 +4,6 @@ import { ARCHIVE_ROW_SELECT, archiveRowsShape } from "@lifeweb/db/lib/archive";
 import { factsLine, rosterLine } from "@lifeweb/db/lib/epilogue";
 import { formatAntagonistLines } from "@lifeweb/db/lib/objectives";
 import PageShell from "@/app/components/PageShell";
-import AppHeader from "@/app/components/AppHeader";
 import { loadArchiveAccess } from "@/lib/archiveAccess";
 import {
   ARCHIVE_PAGE_SIZE,
@@ -13,7 +12,6 @@ import {
   archiveWhere,
   parseArchiveParams,
 } from "@/lib/archiveQuery";
-import { gameTitle } from "@/lib/gameLabel";
 import ArchiveView from "./ArchiveView";
 
 // The transcript, one game at a time (docs/systemdocs/ARCHIVE.md).
@@ -87,10 +85,6 @@ export default async function ArchivePage({ searchParams }) {
   const epilogue = game.epilogue ?? null;
   return (
     <>
-      <AppHeader
-        title={`Archive · ${gameTitle(game)}`}
-        meta={archived ? "put away" : `${total.toLocaleString()} ${total === 1 ? "line" : "lines"}`}
-      />
       <PageShell width="wide">
         {epilogue ? (
           <section className="panel flex flex-col gap-3 p-4">

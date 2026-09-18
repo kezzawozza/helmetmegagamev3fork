@@ -5,7 +5,7 @@ import { playChime, chimedRecently } from "./chime";
 import useChimeMuted from "./useChimeMuted";
 
 // Watches the unread-conversation count and chimes when it rises. Mounted
-// once in NavRailAsync so it fires on any GM page, riding the same
+// once in NavLinksAsync so it fires on any GM page, riding the same
 // router.refresh() polls the desks already run (Workspace.js every 45s,
 // InboxPoller.js every 30s) rather than opening its own timer.
 //

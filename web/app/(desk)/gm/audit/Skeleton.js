@@ -1,34 +1,21 @@
-import DeskHeader from "@/app/components/DeskHeader";
 import { SkeletonBar } from "@/app/components/PageShell";
 
 // The desk paints its own frame, so the skeleton is the frame with empty
 // columns rather than PageShell's stacked bars — a centred card here would
-// reflow into a three-pane workspace the moment the data lands. Built on the
-// same DeskHeader the real AuditDesk uses (D21's unified meta/action order)
-// and AuditInspector's real empty-state root class, so the swap-in doesn't
-// visibly reflow.
+// reflow into a three-pane workspace the moment the data lands. Traces the
+// real AuditDesk's own local .desk-header (no DeskHeader component any
+// more — see that file) and AuditInspector's real empty-state root class, so
+// the swap-in doesn't visibly reflow.
 export default function Loading() {
   return (
     <div className="desk-shell">
-      <DeskHeader
-        title="Audit"
-        meta={
-          <>
-            <SkeletonBar width="6rem" height={20} />
-            {/* The lock chip's slot (LockChip.js) — the header is flex-wrap, so
-                a skeleton one chip short wraps to one line where the real one
-                takes two. */}
-            <SkeletonBar width="9rem" height={20} />
-            <SkeletonBar width="8rem" height={20} />
-          </>
-        }
-        actions={
-          <>
-            <SkeletonBar width="5rem" height={28} />
-            <SkeletonBar width="3.5rem" height={28} />
-          </>
-        }
-      />
+      <div className="desk-header">
+        <div className="flex min-w-0 items-center gap-3" />
+        <div className="flex flex-wrap items-center gap-2">
+          <SkeletonBar width="5rem" height={28} />
+          <SkeletonBar width="3.5rem" height={28} />
+        </div>
+      </div>
       <div className="desk-body">
         <div className="desk-rail" />
         <main className="desk-main audit-main">

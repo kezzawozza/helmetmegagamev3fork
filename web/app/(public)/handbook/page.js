@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getGmSession } from "@/lib/discordGuild";
 import PageShell from "@/app/components/PageShell";
-import AppHeader from "@/app/components/AppHeader";
 import DocumentMarkdown from "@/app/components/DocumentMarkdown";
 import { getHandbookBody } from "@/lib/handbook";
 
@@ -29,21 +28,20 @@ export default async function HandbookPage() {
 
   return (
     <>
-      <AppHeader
-        title="Player Handbook"
-        actions={
-          signedIn ? (
-            <Link className="btn-quiet" href="/documents?doc=handbook">
-              Open in Documents →
-            </Link>
-          ) : null
-        }
-      />
       <PageShell width="wide">
       {!signedIn && (
         <p className="text-sm text-muted">
           Playing already? <Link href="/">Sign in</Link> to reach your character, the map, and the
           rest of the site.
+        </p>
+      )}
+      {/* Used to ride the (now-deleted) AppHeader's actions slot. Ordinary
+          body content now, the same as the sign-in prompt above it. */}
+      {signedIn && (
+        <p className="text-sm">
+          <Link className="menu-item" href="/documents?doc=handbook">
+            Open in Documents →
+          </Link>
         </p>
       )}
       {/* .doc-sheet-body: the same serif reading typography the pinned card's

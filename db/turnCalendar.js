@@ -27,6 +27,15 @@ const MONTHS = [
 const GAME_EPOCH = Date.UTC(1098, 3, 21);
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// The bare year, on its own, for the two places that used to hand-type
+// "1098": the "Ravenheart …" foot line (PageShell.js, CharacterSheet.js) and
+// the top bar's clock block ("Day 14 · 1098 · Turn 27 · 10:28 PM",
+// TopBar/ClockBlock.js). One exported constant rather than a third literal —
+// it reads off the same epoch gameDate() does, so if the game ever runs long
+// enough to cross a year boundary, the day-of-year math would need to move
+// here too rather than in a fourth copy.
+const GAME_YEAR = new Date(GAME_EPOCH).getUTCFullYear();
+
 function ordinal(n) {
   // 11th, 12th and 13th are the exceptions the last-digit rule gets wrong.
   if (n % 100 >= 11 && n % 100 <= 13) return `${n}th`;
@@ -72,4 +81,4 @@ function buildTurnAnnouncement(turn, note, { clockFrozen = false, frozenReason =
   return note ? `${body}\n\n${note}` : body;
 }
 
-module.exports = { gameDate, buildTurnAnnouncement };
+module.exports = { gameDate, GAME_YEAR, buildTurnAnnouncement };

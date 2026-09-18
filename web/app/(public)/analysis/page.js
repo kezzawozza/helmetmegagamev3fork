@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { getGmSession } from "@/lib/discordGuild";
 import PageShell from "@/app/components/PageShell";
-import AppHeader from "@/app/components/AppHeader";
 import AnalysisView from "./AnalysisView";
 import {
   summaryStats,
@@ -69,7 +68,6 @@ export default async function AnalysisPage() {
 
   return (
     <>
-      <AppHeader title="Desire Analysis" />
       <PageShell width="wide">
         {!signedIn && (
           <p className="text-sm text-muted">

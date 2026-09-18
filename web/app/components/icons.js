@@ -328,3 +328,26 @@ export function KissIcon(props) {
     </Glyph>
   );
 }
+
+// The nav item -> icon lookup. Used to live in NavRail.js, keyed off each
+// nav item's `icon` string (web/lib/navItems.js) — the top bar itself is
+// text links now (TopBar.md's brief), but Chat's own phone drawer
+// (`(app)/chat/Chat.js`) still draws the same list with an icon beside each
+// label, so the map moved here rather than disappearing with the rail.
+export const ICONS = {
+  character: CharacterIcon,
+  play: PlayIcon,
+  map: MapIcon,
+  players: PlayersIcon,
+  turns: ScaleIcon,
+  audit: AuditIcon,
+  dev: DevIcon,
+  messages: MessageIcon,
+  notes: NotesIcon,
+  documents: DocumentsIcon,
+  oracle: EyeIcon,
+  archive: ArchiveIcon,
+  lifeweb: LifewebIcon,
+  help: HelpIcon,
+  store: StoreIcon,
+};

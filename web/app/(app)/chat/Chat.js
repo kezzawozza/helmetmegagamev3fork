@@ -11,8 +11,7 @@ import PlacesColumn from "./PlacesColumn";
 import useAsideFolded from "./useAsideFolded";
 import useNarrow from "./useNarrow";
 import useSwipeOpen from "./useSwipeOpen";
-import { ICONS } from "@/app/components/NavRail";
-import { SignOutIcon } from "@/app/components/icons";
+import { ICONS, SignOutIcon } from "@/app/components/icons";
 import { signOutOfDiscord } from "@/app/actions";
 import { describeTurn } from "@/lib/turnFormat";
 import Feed from "./Feed";
@@ -889,7 +888,7 @@ export default function Chat({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="menu-item nav-sheet-item"
+                  className="menu-item chat-drawer-item"
                   data-active={pathname === item.href || pathname.startsWith(`${item.href}/`) ? "true" : "false"}
                 >
                   {Icon && <Icon aria-hidden="true" />}
@@ -898,7 +897,7 @@ export default function Chat({
               );
             })}
             <form action={signOutOfDiscord}>
-              <button type="submit" className="menu-item nav-sheet-item" style={{ width: "100%" }}>
+              <button type="submit" className="menu-item chat-drawer-item" style={{ width: "100%" }}>
                 <SignOutIcon aria-hidden="true" />
                 <span>Sign out</span>
               </button>
@@ -945,7 +944,7 @@ export default function Chat({
   };
   // The drawer's title is where the app header's turn chip went: the header
   // is hidden on a phone to give the scene its 60px back.
-  // "Gamemaster" for GM mode, the way the header's chip says it (TurnMeta.js).
+  // "Gamemaster" for GM mode, the way it used to read in the header's chip.
   const drawerTitle = [aside?.zone?.name ?? (gm ? "Gamemaster" : null), describeTurn(aside?.turn ?? null).label]
     .filter(Boolean)
     .join(" · ");

@@ -19,52 +19,34 @@
   padding-inline: 0;
 }
 
-/* ---------- the header (AppHeader.js) ---------- */
-.app-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 0 7px;
+/* ---------- the universal top bar (AppBar.js / TopBar family) ---------- */
+
+/* Same recipe the old per-page AppHeader wore — the double line: a 1px
+   border-bottom plus the bg.png strip along the foot, kept exactly. It
+   used to sit beside the left rail with no horizontal padding of its own
+   (the rail's 56px was the only gutter it needed); with the rail gone this
+   is the first flush element in the whole app, so it picks up the same
+   16px inline padding `.page` uses everywhere else, so its content isn't
+   glued to the browser's own edge. Left-justified rather than
+   space-between now: there is no title/actions pair to push apart, just
+   one row — links, then the clock — read in order. */
+.top-bar {
+  padding: 6px 16px 7px;
   border-bottom: 1px solid var(--border);
   background-image: url("/assets/chrome/bg.png");
   background-repeat: repeat-x;
   background-position: left bottom;
   background-size: auto 6px;
-  margin-bottom: 12px;
-}
-.app-header .crumbs {
-  color: var(--muted);
-  min-width: 0;
-}
-.app-header .crumbs b {
-  color: var(--text);
-  font-weight: bold;
-}
-.app-header .crumbs-meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.app-header-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
 }
 
-/* The quiet right side of the header: TurnMeta, LockChip and BascinetClock,
-   as plain muted text beside the Esc link. The mockup's own header draws one
-   thin line — <b>Character</b> — Ravenheart, day 14 on the left, one
-   underlined link on the right — and nothing boxed. Bascinet's call was to
-   quiet all three rather than fold them into the crumbs line, so they stay
-   three separate items; this just strips the .chip chrome (border,
-   background, radius) each one wore. Pair with the existing .mono utility
-   for a numeral-bearing note (LockChip's countdown, BascinetClock's time),
-   the same job .chip-mono did for them as chips. LockChip's two danger
-   states don't use this class at all — see LockChip.js. */
-.app-header .header-note {
+/* The clock block's own quiet text: ClockBlock.js's "Day 14 · 1098 · Turn 27"
+   and BascinetClock's time both wear this. The mockup's own header draws one
+   thin line with nothing boxed, so this strips the .chip chrome (border,
+   background, radius) each one used to wear as a chip. Pair with the
+   existing .mono utility for a numeral-bearing note (LockChip's countdown,
+   BascinetClock's time). LockChip's two danger states don't use this class
+   at all — see LockChip.js. */
+.top-bar .header-note {
   color: var(--muted);
   font-size: var(--fs-2xs);
   white-space: nowrap;

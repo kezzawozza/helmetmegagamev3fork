@@ -19,9 +19,6 @@ import StagingTray from "./StagingTray";
 import DecreeButton from "./DecreeButton";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "@/app/components/DevPanelModal";
-import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
-import LockChip from "@/app/components/LockChip";
-import BascinetClock from "@/app/components/BascinetClock";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import usePins from "@/app/components/usePins";
@@ -650,49 +647,40 @@ export default function Workspace({
         guarded one, and cannot cross a deploy boundary. */}
     <DeskStream deployVersion={deployVersion} />
     <div className="desk-shell">
-      <DeskHeader
-        title="Adjudication"
-        meta={
-          <>
-            {/* Rank: the turn and the lock are chips because they are the two
-                facts the whole desk is keyed to. Everything after them is a
-                count or a clock, and counts do not need a bubble each — six
-                equal-weight chips in a row have no first thing to read. They
-                run together as one muted line instead, and only a warning
-                takes colour. */}
-            <DeskTurnChip turn={openTurn} />
-            <LockChip />
-            <BascinetClock />
-            <DeskStreamChip />
-            <span className="text-xs text-muted">
-              <span title="Moves marked solved, of the Moves filed this turn">
-                {solvedCount}/{moves.length} solved
-              </span>
-              <span title="Push fires at midnight CT"> · {formatCountdown(pushMinutes)}</span>
-              {lastRefreshedAt && (
-                <> · updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
-              )}
+      {/* No DeskHeader any more. The turn/lock chips it used to carry are
+          redundant with the universal top bar's own clock block; everything
+          else here is this desk's own live state and stays — a count is
+          neither a chip nor a chrome element (DESIGN-SYSTEM §5a), so it runs
+          together as one muted line same as before. */}
+      <div className="desk-header">
+        <div className="flex min-w-0 items-center gap-3">
+          <DeskStreamChip />
+          <span className="text-xs text-muted">
+            <span title="Moves marked solved, of the Moves filed this turn">
+              {solvedCount}/{moves.length} solved
             </span>
-            {/* isAnyDirty() is a plain module counter, read at render time. */}
-            {isAnyDirty() && <span className="text-xs text-accent">paused — unsaved edits</span>}
-          </>
-        }
-        actions={
-          <>
-            <DeskStaleChip />
-            <InspectorToggle />
-            {/* The one verb on this desk that belongs to no row: a decree is
-                aimed at zones, not at a Move, so the header is its only home
-                (DecreeButton.js). It SENDS rather than stages — see
-                ADJUDICATION.md §3a. */}
-            <DecreeButton zones={presenceZones} />
-            {/* No "Preview push" here. There is one of that button and it
-                lives on the push tray, beside the rows it previews — two of
-                them in two places was the desk's own example of the same
-                verb offered twice. */}
-          </>
-        }
-      />
+            <span title="Push fires at midnight CT"> · {formatCountdown(pushMinutes)}</span>
+            {lastRefreshedAt && (
+              <> · updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
+            )}
+          </span>
+          {/* isAnyDirty() is a plain module counter, read at render time. */}
+          {isAnyDirty() && <span className="text-xs text-accent">paused — unsaved edits</span>}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <DeskStaleChip />
+          <InspectorToggle />
+          {/* The one verb on this desk that belongs to no row: a decree is
+              aimed at zones, not at a Move, so the header is its only home
+              (DecreeButton.js). It SENDS rather than stages — see
+              ADJUDICATION.md §3a. */}
+          <DecreeButton zones={presenceZones} />
+          {/* No "Preview push" here. There is one of that button and it
+              lives on the push tray, beside the rows it previews — two of
+              them in two places was the desk's own example of the same
+              verb offered twice. */}
+        </div>
+      </div>
 
       {/* The zone view lives in the client from here down, so the queue
           re-filters on the click rather than on a revalidate. */}

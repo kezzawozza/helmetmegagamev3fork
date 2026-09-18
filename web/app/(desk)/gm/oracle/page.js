@@ -8,9 +8,6 @@ import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
-import DeskHeader from "@/app/components/DeskHeader";
-import LockChip from "@/app/components/LockChip";
-import BascinetClock from "@/app/components/BascinetClock";
 import OracleDesk from "./OracleDesk";
 
 const FRONT_PAGE = "__front__";
@@ -43,10 +40,8 @@ export default async function OraclePage({ searchParams }) {
   if (turns.length === 0) {
     return (
       <div className="desk-shell">
-        <DeskHeader title="Oracle" meta={<>
-          <LockChip />
-          <BascinetClock />
-        </>} />
+        {/* No DeskHeader any more — its only content was the lock/clock
+            chips, redundant with the universal top bar's own clock block. */}
         <div className="desk-body">
           <div className="desk-empty">
             <p>No turn has begun yet.</p>

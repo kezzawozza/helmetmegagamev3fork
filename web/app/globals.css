@@ -99,9 +99,10 @@
      60vh, max-h-40, and nothing at all). */
   --list-h: 70vh;
 
-  /* The phone's fixed bottom bar. Every full-height surface that has to
-     clear it subtracts this — one number, not four hand-copied 72s. */
-  --rail-h: 72px;
+  /* --rail-h is gone. It sized the phone's fixed bottom rail, which every
+     full-height surface (.chat-shell, .desk-shell, .map-shell) had to
+     subtract; the rail is gone too (NavRail.js), and none of them need the
+     arithmetic any more — see .app-shell below. */
 
   /* The Chat row's avatar column: the face itself, the skeleton's stand-in,
      and the indent under it that lines the world's `-#` lines up with the
@@ -711,12 +712,29 @@ input[type="checkbox"]:focus-visible,
 input[type="radio"]:focus-visible,
 .switch-track:focus-visible,
 .menu-item:focus-visible,
-.rail-item:focus-visible,
+.nav-link:focus-visible,
 .tab-item:focus-visible,
 .swatch:focus-visible,
 .th-sort:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: 2px;
+}
+
+/* A plain in-prose link: underlined at rest, brightening on hover. This is
+   the top bar's own look (.nav-link, TopBar family) and the sheet's "Spend
+   Tag Points" control (.tag-points-spend, sheet.css) — one rule now instead
+   of two copies, so the two can't drift. Layout (padding, display) stays
+   local to each caller; only colour and hover live here. */
+.nav-link,
+.tag-points-spend {
+  all: unset;
+  cursor: pointer;
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+.nav-link:hover,
+.tag-points-spend:hover {
+  color: var(--text-hi);
 }
 
 /* Primary action. A 2px bevel on a flat fill, pressed on :active — the
@@ -2184,7 +2202,7 @@ input[type="radio"]:disabled {
 
 /* Fixed, not absolute, and portaled to document.body by HoverCard.js — an
    in-tree tooltip was clipped by every scrolling ancestor (.doc-sheet,
-   .table-scroll, .modal-panel, .app-rail). Top/left are set inline from a
+   .table-scroll, .modal-panel, .top-bar). Top/left are set inline from a
    measurement; nothing here may reintroduce a position that depends on an
    ancestor. z-index sits above .modal-overlay (100), since chips render
    inside modals. */
@@ -2591,12 +2609,13 @@ input[type="radio"]:disabled {
   }
 }
 
-/* On a phone the stack sits above the bottom nav rail, full width. */
+/* On a phone the stack runs full width. No bottom nav rail to clear any
+   more — just the safe area. */
 @media (max-width: 720px) {
   .notice-stack {
     left: var(--sp-3);
     right: var(--sp-3);
-    bottom: calc(var(--rail-h) + env(safe-area-inset-bottom, 0px) + var(--sp-2));
+    bottom: calc(env(safe-area-inset-bottom, 0px) + var(--sp-2));
     max-width: none;
   }
 }
@@ -3294,449 +3313,94 @@ input[type="radio"]:disabled {
   color: var(--text);
 }
 
-/* App shell: left rail on desktop, bottom bar on mobile. */
+/* App shell: the universal top bar, then the page. A column now that the
+   left rail is gone (AppBar.js/TopBar family) — the bar sizes itself and
+   .app-main takes the rest, so no full-height surface below it has to
+   subtract a rail height any more (see --rail-h's removal above). */
 .app-shell {
   display: flex;
+  flex-direction: column;
   min-height: 100dvh;
   position: relative;
   z-index: 1;
 }
 
-.app-rail {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  /* The mobile bar's own value — the 721px rule below collapses it to 0,
-     since a filled, bevelled item reads as a row of beads with 2px of bare
-     ground between each one. */
-  gap: 2px;
-  /* 56px, icon-only, down from 92px of stacked icon-over-label. The desks in
-     (desk) are full-viewport-minus-rail, and 36px of that width is a third of
-     a queue column; the label survives as the accessible name (visually
-     hidden below) plus a title tooltip. The mobile bottom bar is a different
-     rule set entirely and keeps its text. */
-  width: 56px;
-  flex-shrink: 0;
-  padding: 12px 0;
-  border-right: 1px solid var(--border);
-  /* Ground and edge, the Chat mockup's Places column
-     (docs/design/mockups/chat/index.html): a dark wash instead of an opaque
-     fill, so .grain shows through underneath, and a real metal strip at the
-     edge instead of a flat hairline — the same bg.png .chat-rail tiles,
-     flanked by a flat --border-lo line on its inner side so the edge reads
-     bevelled rather than merely striped. Both are background LAYERS on the
-     rail itself, not a bordered pseudo-element: .app-rail scrolls its own
-     overflow (a long GM rail runs to 15+ items), and a background painted on
-     the element's own box is pinned there and does not scroll off with that
-     content the way an absolutely-positioned child would. */
-  background-color: var(--sunk-wash);
-  /* The fade at top and bottom (see `.scroll-fade-y` above) is written out
-     here rather than composed with that class, for the same reason
-     `.chat-feed` writes its own copy: `background-image` doesn't merge across
-     rules, and this element already owns two layers of its own. They go in
-     FRONT of the metal strip and its edge line (first in the list paints on
-     top) — the strip is only 6px wide at the rail's right edge, so a full-width
-     fade barely touches it, unlike `.chat-feed`'s full-bleed scene. */
-  background-image:
-    linear-gradient(color-mix(in srgb, black 30%, var(--bg)), transparent),
-    linear-gradient(transparent, color-mix(in srgb, black 30%, var(--bg))),
-    linear-gradient(var(--fade-shadow), transparent),
-    linear-gradient(transparent, var(--fade-shadow)),
-    url("/assets/chrome/bg.png"),
-    linear-gradient(var(--border-lo), var(--border-lo));
-  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-y, repeat-y;
-  background-position: top, bottom, top, bottom, right top, right 6px top;
-  background-size: 100% 28px, 100% 28px, 100% 12px, 100% 12px, 6px auto, 1px 100%;
-  background-attachment: local, local, scroll, scroll, scroll, scroll;
-  image-rendering: pixelated;
-  position: sticky;
-  top: 0;
+/* The three shells that own the viewport — Chat, a GM desk, the map — ask for
+   `height: 100%`, and a percentage needs a parent whose height is DEFINITE.
+   `min-height` is not: it leaves .app-shell free to grow, so the percentage
+   had nothing to resolve against and those pages fell back to content height,
+   scrolling the document behind a shell that is supposed to be the only thing
+   on screen. Chat came out at 2239px against a 900px window.
+
+   So the height is pinned for exactly those three, and nowhere else: an
+   ordinary page still grows past the fold the way it should. The `:has()`
+   idiom is the one already used to suppress .grain on Chat. */
+body:has(.chat-shell) .app-shell,
+body:has(.desk-shell) .app-shell,
+body:has(.map-shell) .app-shell {
   height: 100dvh;
-  overflow-y: auto;
 }
 
 .app-main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
 }
 
-/* The rail's own head — the console cap the mockup's own rails wear, wired
-   up in NavRail.js as `<div className="rail-cap bar">`. It reuses `.bar`
-   (chat.css), the same bg2.png metal-strip recipe the chat columns' own
-   heads wear, rather than a second copy of that recipe living here.
-   `.app-rail .rail-cap` for specificity: chat.css imports AFTER globals.css,
-   so a bare `.rail-cap` here would lose the min-height fight to `.bar`'s own
-   26px despite appearing first in this file's source order.
+/* ---------- the universal top bar (AppBar.js / TopBar family) --------- */
 
-   Deliberately NOT sticky. `.app-rail` already establishes its own sticky,
-   scrolling box; nesting another positioned/stacking element inside it is
-   the exact bug class this repo has already been bitten by once (a z-index
-   buried inside a sticky ancestor stops painting where it should) — better
-   to let the cap scroll off with a long GM rail than risk it. */
-.app-rail .rail-cap {
-  flex: 0 0 auto;
-  justify-content: center;
-  /* Under .bar's usual 26px — a superadmin's rail runs to 15+ items plus
-     dividers, the chime toggle and sign-out, and every pixel of cap here is
-     a pixel that list has to scroll past to reach the bottom. */
-  min-height: 22px;
-  margin-bottom: 12px;
-}
-
-.rail-cap-glyph {
-  font-family: var(--font-display), Georgia, serif;
-  font-size: var(--fs-lg);
-  color: var(--text-hi);
-  /* Not --blackletter — that token is gated for 28px+ text (§3), and this
-     glyph sits at --fs-lg (15px). */
-  text-shadow: 0 1px 0 var(--border-lo);
-}
-
-.rail-item {
+/* Old-fashioned text links, plus the game's clock, one row, left-justified,
+   over the double line — the mockup's own .app-header recipe (shell.css),
+   just no longer wrapping a page title. Scrolls sideways rather than
+   wrapping under a narrow viewport (.scroll-fade-x fades the edge only when
+   there is really somewhere left to scroll) — there is no separate mobile
+   layout or overflow sheet any more: every item is reachable at any width. */
+.top-bar {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  /* 1px left, not 4 — the 3px transparent border below eats the difference,
-     so a resting item still centres on the same axis a hovered or active one
-     does once that border goes solid. */
-  padding: 10px 4px 10px 1px;
-  text-decoration: none;
-  color: var(--muted);
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  border: none;
-  border-left: 3px solid transparent;
-  background: none;
-  font-family: inherit;
-  cursor: pointer;
-  /* Anchors the pending wash and the badge below. */
-  position: relative;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 10px;
+  overflow-x: auto;
 }
 
-.rail-item svg {
-  width: 20px;
-  height: 20px;
-}
-
-.rail-item:hover {
-  /* Hover used to share --accent-text with the active state, so arriving at
-     an item and merely pointing at one looked the same. Hover stays neutral
-     now; accent is reserved for where you actually are. */
-  background: var(--row-hover);
-  color: var(--text-hi);
-}
-
-/* The pending wash — see RailLinkPending.js. With no loading.js anywhere, a
-   click holds the current page on screen, so this is the only thing that says
-   the press landed.
-
-   A real node rather than a second pseudo-element on .rail-item, because the
-   item's own background already says where you ARE, and this says something
-   different at the same moment: where you just clicked, which on a rail
-   click can be a different item while the old route is still on screen.
-
-   Always rendered, only opacity animates, so nothing here can move the rail. */
-.rail-item-pending {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: var(--r-sm);
-  background: var(--accent-solid);
-  opacity: 0;
-}
-
-/* The 120ms delay is the point: a prefetched route lands sooner than that and
-   the hint never appears, so it only ever shows up when there was really
-   something to wait for. */
-.rail-item-pending[data-pending="true"] {
-  animation: rail-pending 1.2s 120ms infinite ease-in-out;
-}
-
-@keyframes rail-pending {
-  0% { opacity: 0; }
-  35% { opacity: 0.18; }
-  100% { opacity: 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rail-item-pending[data-pending="true"] {
-    animation: none;
-    opacity: 0.18;
-  }
-}
-
-/* ACTIVE: the pressed plate. Same token mapping chat.css's own `.place`
-   ported from the mockup's raised gradient row (chat.css ~426) — flat
-   --surface-raised (not a literal gradient; §3a's "no gradient over chrome"
-   never comes into play here either way) with the mockup's inset highlight/
-   shadow pair standing in for its own inset shadow. The left rule and the
-   text stay --accent-text rather than following .place onto --border-hi: the
-   rail says where you are in the whole app, not inside one column, and
-   --accent-text is what the outgoing (pre-chrome) rule already used for that. */
-.rail-item[data-active="true"] {
-  background: var(--surface-raised);
-  box-shadow: inset 0 1px 0 var(--border-hi), inset 0 -1px 0 var(--border-lo);
-  border-left-color: var(--accent-text);
-  color: var(--accent-text);
-  font-weight: bold;
-}
-
-/* Desktop only: the icon carries the item on its own. The mobile bottom bar
-   still shows labels (it has width to spare per item and no hover to fall
-   back on), and .nav-sheet-item is a separate class the sheet uses. */
-@media (min-width: 721px) {
-  /* Filled, bevelled plates read as one instrument panel with no ground
-     between them; the mobile bar's 2px gap (base rule, above) is for bare
-     icons on a flat strip and doesn't belong here. */
-  .app-rail {
-    gap: 0;
-  }
-
-  .app-rail .rail-item {
-    gap: 0;
-    /* 20px icon + 12px either side = 44px, the touch minimum, kept even
-       though this branch is pointer-first. Right padding is wider than left:
-       the edge strip above eats 8px off the rail's right side (a flanking
-       --border-lo line, the 6px sprite, then --border-right itself), so the
-       icon field is really 48px wide, not 56 — this keeps the icon centred
-       in what's actually left over instead of in the strip. */
-    padding: 12px 8px 12px 1px;
-  }
-
-  .app-rail .rail-item > span:not(.rail-item-badge) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  /* With the label gone there is no baseline to sit the count on, so it
-     tucks into the icon's top-right corner. */
-  .app-rail .rail-item-badge {
-    position: absolute;
-    top: 4px;
-    right: 6px;
-  }
-}
-
-/* The break between the two hats a GM wears — the GM group and their own
-   player screens. A hairline rather than a labelled heading: the desktop rail
-   is 56px of icons with no room for a word, and the extra breathing space
-   above and below carries the grouping on its own. The mobile sheet uses
-   .rail-section-label below instead, where there IS room. Hidden entirely for
-   a player, whose items carry no section (see navItems.js). */
-/* A groove, not a flat rule — the same dark-over-light bevel §3b uses for a
-   recessed edge (dark top-left, light bottom-right), read here as dark-top/
-   light-bottom since this line only runs one way. */
-.rail-divider {
-  display: block;
-  height: 0;
-  border-top: 1px solid var(--border-lo);
-  border-bottom: 1px solid var(--border-hi);
-  margin: var(--sp-2) 0;
+.top-bar-nav {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 10px;
   flex-shrink: 0;
 }
 
-.rail-signout {
-  margin-top: auto;
+/* One flat link style, shared with the sheet's "Spend Tag Points" control
+   (.tag-points-spend, sheet.css — see the combined rule above). Layout only
+   here; the colour and hover live with that shared rule so the two never
+   drift apart. */
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
 }
 
-/* .turn-chip is gone. It was the turn stated a second way — a bubble pinned
-   bottom-right of the viewport for every route except Chat, which drew the
-   same fact as a chip in its own header, so the floating one had to be hidden
-   by a `body:has(.chat-shell)` rule wherever the two met. And at phone widths
-   it sat exactly on the composer's ⋯, which is why that sheet could not be
-   opened. Every page wears the header now and the header carries the turn:
-   components/AppHeader.js -> components/TurnMeta.js. */
-
-/* The mobile bottom bar's overflow affordance. On desktop the rail is a tall
-   column with room for every item, so neither the More button nor its sheet
-   has any business existing — see NavRail.js. */
-.rail-more,
-.nav-sheet-overlay {
-  display: none;
+/* Where you are, not merely a link you could follow: no underline, a lift
+   off the resting colour, and bold — the same grammar the old rail's active
+   plate used (--accent-text), just spent on weight and colour instead of a
+   filled shape. */
+.nav-link[data-active="true"] {
+  color: var(--text-hi);
+  font-weight: bold;
+  text-decoration: none;
+  cursor: default;
 }
 
-/* Touch targets. At --fs-xs these controls are ~31px tall (~20px for
-   .menu-item, which carries almost no padding), under the 44px minimum the
-   rail and the nav sheet already hold themselves to. Scoped to the shell's
-   own mobile breakpoint: 44px everywhere would be a visible redesign of all
-   73 .btn call sites rather than a fix. */
-@media (max-width: 720px) {
-  .btn,
-  .btn-secondary,
-  .btn-danger,
-  .tab-item,
-  .menu-item,
-  /* A dialog footer's Cancel, so it stands as tall as the Submit beside it
-     (the coarse rule at .btn-quiet's own block stops at 36). */
-  .modal-actions .btn-quiet {
-    /* `all: unset` leaves these inline (where min-height does nothing) and
-       resets box-sizing to content-box, which would add padding and border
-       on top of the 44 and make a .btn 60px tall. */
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-    min-height: 44px;
-  }
-
-  /* .menu-item is a left-aligned list row, not a centred button. */
-  .menu-item {
-    justify-content: flex-start;
-  }
-}
-
-@media (max-width: 720px) {
-  .app-rail {
-    position: fixed;
-    inset: auto 0 0 0;
-    height: auto;
-    width: 100%;
-    flex-direction: row;
-    justify-content: space-around;
-    border-right: none;
-    border-top: 1px solid var(--border);
-    /* Same edge recipe as the desktop rail, turned 90° — the strip that ran
-       down the right side now runs along the top, matching .app-header's own
-       bg.png strip (shell.css). The wash carries over unchanged. */
-    background-image:
-      url("/assets/chrome/bg.png"),
-      linear-gradient(var(--border-lo), var(--border-lo));
-    background-repeat: repeat-x, repeat-x;
-    background-position: left top, left top 6px;
-    background-size: auto 6px, 100% 1px;
-    /* The home indicator sits over the bottom ~34px on a modern iPhone, which
-       clipped the rail labels. .nav-sheet already accounts for it. */
-    padding: 6px 0 calc(6px + env(safe-area-inset-bottom, 0px));
-    z-index: 30;
-  }
-
-  .app-main {
-    padding-bottom: calc(var(--rail-h) + env(safe-area-inset-bottom, 0px));
-  }
-
-  /* The cap is a desktop-only console flourish. In the bottom bar it would
-     sit as an extra, unclickable icon at the row's left end.
-
-     Scoped under .app-rail, and that is load-bearing: the cap wears `.bar`
-     too, chat.css imports after this file, and `.bar` sets display: flex at
-     the same specificity a bare `.rail-cap` would have — so the later file
-     wins and the glyph stays on screen. Same trap the min-height above
-     dodges. */
-  .app-rail .rail-cap {
-    display: none;
-  }
-
-  /* A 3px rule down the left of one target in a row of six reads as a
-     misprint rather than a marker, so the mark moves to the top edge the way
-     a tab's would. The filled plate stays; the double bevel does not — six
-     bevelled plates across a phone is noise. */
-  .app-rail .rail-item[data-active="true"] {
-    border-left-color: transparent;
-    box-shadow: inset 0 2px 0 var(--accent-text);
-  }
-
-  /* Items past NavRail's MOBILE_PRIMARY cap live in the sheet instead. */
-  .rail-item--overflow {
-    display: none;
-  }
-
-  /* The rail is a horizontal bar down here, where a horizontal rule between
-     two icons is meaningless — the sheet carries the grouping as a heading
-     instead (.rail-section-label). */
-  .app-rail .rail-divider {
-    display: none;
-  }
-
-  .rail-more {
-    display: flex;
-  }
-
-  /* Share the width evenly and let labels shrink. Without this the items size
-     to their text and the widest one ("Adjudicate") pushes More off-screen —
-     the bar does not scroll, so the overflow is simply unreachable. */
-  .app-rail .rail-item {
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 8px 2px;
-    /* The rail's 0.05em tracking costs ~10% of the label width, which is the
-       difference between fitting six targets on a 390px viewport and not. */
-    letter-spacing: normal;
-    font-size: 10px;
-  }
-
-  .app-rail .rail-item span {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* Sign out moves into the sheet on mobile rather than taking one of the
-     few touch targets the bottom bar has. */
-  .rail-signout {
-    display: none;
-  }
-
-  .nav-sheet-overlay {
-    display: flex;
-    align-items: flex-end;
-    padding: 0;
-    /* Above the bottom bar (z-index 30) but using the shared overlay scrim. */
-    z-index: 40;
-  }
-
-  .nav-sheet {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    background: var(--surface-raised);
-    border-top: 1px solid var(--border);
-    border-radius: var(--r-lg) var(--r-lg) 0 0;
-    box-shadow: var(--e-3);
-    padding: var(--sp-3) var(--sp-3) calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
-  }
-
-  /* The sheet's version of .rail-divider: a word, since there is width for
-     one. Sits above the first item of each section, including the first. */
-  .rail-section-label {
-    padding: var(--sp-3) var(--sp-3) var(--sp-1);
-    font-size: var(--fs-2xs);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .nav-sheet-item {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-3);
-    padding: var(--sp-3);
-    /* Comfortably over the 44px touch minimum the bottom bar was under. */
-    min-height: 48px;
-    border-radius: var(--r-sm);
-    /* Anchors .rail-item-pending, which the sheet's links carry too. */
-    position: relative;
-  }
-
-  .nav-sheet-item svg {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-  }
-
-  .nav-sheet-item[data-active="true"] {
-    color: var(--accent-text);
-  }
-
+.top-bar-clock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* ---- Documents board ------------------------------------------------- */
@@ -4129,18 +3793,19 @@ input[type="radio"]:disabled {
    (web/app/(desk)/). Three internally-scrolling regions and a collapsible
    tray, so the page body itself never scrolls: mission control, not a
    document. Tokens and the shared control classes still apply inside it.
-   It does carry the nav rail: (desk)/layout.js renders the same .app-shell
-   as (app), so this is a 100dvh column inside .app-main.
+   It does carry the universal top bar: (desk)/layout.js renders the same
+   .app-shell as (app), a column with the bar sized to its own content and
+   .app-main (this shell's parent) taking the rest — so `height: 100%` here
+   is exactly what .app-main hands down, no viewport arithmetic needed.
 
    Deliberately NOT positioned, and deliberately no z-index. Modal.js renders
    .modal-overlay (z-index 100) in-tree rather than through a portal, so a
-   stacking context here would trap every desk modal at this element's level
-   — and under 720px .app-rail is a fixed bottom bar at z-index 30, so the
-   modals would paint underneath it. */
+   stacking context here would trap every desk modal at this element's
+   level. */
 .desk-shell {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
   background: var(--bg);
 }
@@ -5373,14 +5038,14 @@ label.chip {
    must stay usable on a phone. */
 @media (max-width: 720px) {
   .desk-shell {
-    /* The height contract inverts: on desktop the shell is exactly the
-       viewport and its regions scroll inside it, here the column grows and
-       the page scrolls. The 72px comes off because .app-main carries the
-       fixed bottom bar's clearance as padding — a full 100dvh here would add
-       that much dead scroll under the tray. */
+    /* The height contract inverts: on desktop the shell is exactly its
+       parent's height and its regions scroll inside it, here the column
+       grows and the page scrolls. No rail to clear any more — the universal
+       top bar sits in normal flow above this shell rather than fixed over
+       it, so there is no dead space to subtract. */
     height: auto;
     overflow: visible;
-    min-height: calc(100dvh - var(--rail-h) - env(safe-area-inset-bottom, 0px));
+    min-height: calc(100dvh - env(safe-area-inset-bottom, 0px));
   }
 
   .desk-body {
@@ -5400,12 +5065,11 @@ label.chip {
   }
 
   /* Keeps the tray reachable without scrolling to the very bottom of a long
-     stacked column. It sticks above the nav rail's height, not at 0: the rail
-     is a fixed bottom bar under this breakpoint, so a tray at 0 sits under
-     it. */
+     stacked column. No bottom nav rail to clear any more — just the safe
+     area. */
   .desk-tray {
     position: sticky;
-    bottom: calc(var(--rail-h) + env(safe-area-inset-bottom, 0px));
+    bottom: env(safe-area-inset-bottom, 0px);
     background: var(--bg);
     z-index: 5;
   }
@@ -5971,18 +5635,19 @@ label.chip {
   color: var(--muted);
 }
 
-/* NavRail unread-conversation badge — the mockup's `.unread` (chat/index.html),
-   a hard bordered box rather than a soft pill: chat.css's own `.unread`
-   (~402) already ported it to these tokens, so this just follows suit. No
-   border-radius to drop — --r-full is already 0 app-wide (§3b), so the pill
-   this used to draw was square all along; the shape difference was only ever
-   the border and the ground. */
-.rail-item-badge {
+/* The top bar's unread-conversation badge (.top-bar-badge, NavLinks.js) —
+   the mockup's `.unread` (chat/index.html), a hard bordered box rather than a
+   soft pill: chat.css's own `.unread` (~402) already ported it to these
+   tokens, so this just follows suit. No border-radius to drop — --r-full is
+   already 0 app-wide (§3b), so the pill this used to draw was square all
+   along; the shape difference was only ever the border and the ground. */
+.top-bar-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 1.1rem;
   height: 1.1rem;
+  margin-left: 2px;
   padding: 0 0.3rem;
   border: 1px solid var(--border-lo);
   background: var(--accent-solid);
@@ -6679,12 +6344,13 @@ label.chip {
 }
 
 /* The route owns the whole screen, the same contract .chat-shell has: a
-   100dvh column that never scrolls the document. A map is the window you look
-   through, so putting one in a centred card was drawing a picture of a map. */
+   column, sized to its parent (.app-main), that never scrolls the document.
+   A map is the window you look through, so putting one in a centred card
+   was drawing a picture of a map. */
 .map-shell {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
   background: var(--bg);
 }
@@ -7227,14 +6893,6 @@ label.chip {
   }
 }
 
-@media (max-width: 720px) {
-  /* The bar's height comes off, the same reason .chat-shell takes it off:
-     .app-main carries the fixed bottom bar's clearance, and a full 100dvh
-     would put the card's Ways out list underneath it. */
-  .map-shell {
-    height: calc(100dvh - var(--rail-h) - env(safe-area-inset-bottom, 0px));
-  }
-}
 
 /* A character's name inside an Oracle page (docs/systemdocs/ORACLE.md).
 

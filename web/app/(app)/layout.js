@@ -3,11 +3,11 @@ import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { touchLastSeen } from "@lifeweb/db/lib/characterActivity";
 import { getGmSession } from "@/lib/discordGuild";
-import AppRail from "../components/AppRail";
+import AppBar from "../components/AppBar";
 import { GM_NAV, PLAYER_NAV } from "@/lib/navItems";
 
 // The nav item lists and loadNavItems moved to web/lib/navItems.js when (desk)
-// grew a rail of its own — see the note at the top of that file.
+// grew a bar of its own — see the note at the top of that file.
 
 export default async function AppLayout({ children }) {
   // getGmSession() rather than auth(): it wraps the same (React-cached) auth()
@@ -30,11 +30,11 @@ export default async function AppLayout({ children }) {
 
   // No turn chip here any more. It used to be a bubble pinned to the corner of
   // the viewport for every route in this group, hidden by CSS on Chat because
-  // Chat drew its own in its header. Every page has that header now, so the
-  // turn is stated once, in it — see components/AppHeader.js.
+  // Chat drew its own in its header. Every page wears the universal top bar
+  // now, so the turn is stated once, in it — see components/AppBar.js.
   return (
     <div className="app-shell">
-      <AppRail discordUserId={session.discordUserId} fallback={isGm ? GM_NAV : PLAYER_NAV} />
+      <AppBar discordUserId={session.discordUserId} fallback={isGm ? GM_NAV : PLAYER_NAV} />
       <main className="app-main">{children}</main>
     </div>
   );

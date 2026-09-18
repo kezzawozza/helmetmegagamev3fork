@@ -1,3 +1,5 @@
+import { GAME_YEAR } from "@lifeweb/db/turnCalendar";
+
 // The page chrome every top-level route sits in. No "use client": markup only, usable from the server components
 // every page here is. The container itself is the one from
 // docs/design/mockups/character/index.html (see shell.css's ".page" rules) —
@@ -16,13 +18,15 @@ export default function PageShell({ width = "default", children }) {
     <div className={`mx-auto flex w-full flex-col gap-6 ${WIDTH_CLASS[width] ?? WIDTH_CLASS.default}`}>
       {children}
       <div className="foot">
-        <span>Ravenheart · the year of our Lord God, 1098</span>
+        <span>Ravenheart · the year of our Lord God, {GAME_YEAR}</span>
       </div>
     </div>
   );
 }
 
-// The one page header is components/AppHeader.js, drawn full-bleed ABOVE this shell — that's where a page's title lives.
+// There is no per-page header any more. The universal top bar
+// (components/AppBar.js) draws full-bleed ABOVE this shell, once per route
+// group — that's where the active link says which page this is.
 
 // A shaped placeholder bar. Deliberately not text, so the layout doesn't jump when real content lands.
 export function SkeletonBar({ width = "100%", height = 12 }) {

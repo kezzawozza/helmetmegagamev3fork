@@ -1,5 +1,6 @@
-// Rendered as layout.js's `{children}` below the AppHeader; holds still the
-// band's height (300, matching the identity cluster's face+name, SHEET.md §2)
+// Rendered as layout.js's `{children}`, below the universal top bar; holds
+// still the band's height (300, matching the identity cluster's face+name,
+// SHEET.md §2)
 // and the three-column body. Traces the sheet layout since that's the common
 // case, even though it can't know which of the four kinds is really arriving.
 export default function Loading() {

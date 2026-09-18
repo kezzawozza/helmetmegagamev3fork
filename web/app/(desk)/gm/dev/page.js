@@ -71,9 +71,6 @@ import SeatsOut from "./SeatsOut";
 import GmRosterTable from "./GmRosterTable";
 import AssignmentPreview from "./AssignmentPreview";
 import { isSpawnOnly } from "@/lib/characterCreation";
-import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
-import LockChip from "@/app/components/LockChip";
-import BascinetClock from "@/app/components/BascinetClock";
 import OpsNav from "./OpsNav";
 import Switch from "@/app/components/Switch";
 import Select from "@/app/components/Select";
@@ -936,16 +933,9 @@ export default async function DevPanelPage({ searchParams }) {
 
   return (
     <div className="desk-shell">
-      <DeskHeader
-        title="Dev Panel"
-        meta={
-          <>
-            <DeskTurnChip turn={openTurnRecord} />
-            <LockChip />
-            <BascinetClock />
-          </>
-        }
-      />
+      {/* No DeskHeader any more — its only content was the turn/lock/clock
+          chips, all redundant now with the universal top bar's own clock
+          block (ClockBlock.js), so nothing needed rehoming here. */}
       <div className="desk-body desk-body--ops">
         <OpsNav section={section} tier={tier} />
         <main className="desk-main desk-main--ops">

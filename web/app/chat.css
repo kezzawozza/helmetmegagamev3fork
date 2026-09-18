@@ -2,12 +2,12 @@
 
 /* Chat owns its whole screen, the way the (desk) workspaces do: no
    PageShell, no centred column. A chat that scrolled the DOCUMENT would drag
-   the header off the top every time somebody spoke, so the shell is exactly
-   the viewport and its three regions scroll inside it. */
+   the top bar off the top every time somebody spoke, so the shell is sized
+   to its parent (.app-main) and its three regions scroll inside it. */
 .chat-shell {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  height: 100%;
   overflow: hidden;
   background: var(--bg);
 }
@@ -2138,7 +2138,28 @@
   padding-top: var(--sp-2);
 }
 
-.chat-drawer-nav .nav-sheet-item {
+/* This drawer's own link row. It used to lean on the old rail's
+   .nav-sheet-item for its base layout (NavRail.js's mobile "More" sheet);
+   that class went with the rail, so this carries its own copy — Chat's phone
+   drawer is a different feature and stayed. */
+.chat-drawer-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  position: relative;
+}
+
+.chat-drawer-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.chat-drawer-item[data-active="true"] {
+  color: var(--accent-text);
+}
+
+.chat-drawer-nav .chat-drawer-item {
   padding-inline: var(--sp-2);
   min-height: 44px;
 }
@@ -2188,27 +2209,16 @@
 }
 
 @media (max-width: 720px) {
-  /* The phone: Discord's channel view. The page's own header and the app's
-     bottom bar both go, and Chat has the whole screen — a 48px head, the
-     scene, a one-line box. The header's turn chip is the places drawer's
-     title; the bar's links are that drawer's foot (Chat.js). Unlike
-     .desk-shell, the height contract does NOT invert here — a chat whose
-     feed scrolls the page instead of itself loses its composer the moment
-     anybody says anything. */
-  .chat-shell {
-    height: 100dvh;
-  }
-
-  .chat-shell > .desk-header {
+  /* The phone: Discord's channel view. The universal top bar goes, and Chat
+     has the whole screen — a 48px head, the scene, a one-line box. The
+     head's turn chip is the places drawer's title; the app's own links ride
+     that drawer's foot instead (Chat.js). Unlike .desk-shell, the height
+     contract does NOT invert here — a chat whose feed scrolls the page
+     instead of itself loses its composer the moment anybody says anything.
+     With the bar hidden below, .app-main is already the full viewport, so
+     .chat-shell's base `height: 100%` (above) needs no override here. */
+  body:has(.chat-shell) .top-bar {
     display: none;
-  }
-
-  body:has(.chat-shell) .app-rail {
-    display: none;
-  }
-
-  body:has(.chat-shell) .app-main {
-    padding-bottom: 0;
   }
 
   .chat-body {

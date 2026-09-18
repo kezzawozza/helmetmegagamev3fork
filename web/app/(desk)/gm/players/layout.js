@@ -6,9 +6,6 @@ import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
 import { railKindSql, dmPreview } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
-import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
-import LockChip from "@/app/components/LockChip";
-import BascinetClock from "@/app/components/BascinetClock";
 import InboxPoller from "./InboxPoller";
 import InboxStream from "./InboxStream";
 import { InboxStreamChip } from "../StreamStatusChip";
@@ -272,27 +269,20 @@ export default async function PlayerDeskLayout({ children }) {
     // stale flag — same as /gm/turns.
     <DeskStaleRefreshGate version={deployVersion()}>
     <div className="desk-shell">
-      <DeskHeader
-        title="Players"
-        meta={
-          <>
-            {/* Same rank as /gm/turns: turn and lock are chips, the counts
-                below are one muted run (DeskInboxCounts.js). */}
-            <DeskTurnChip turn={openTurn} />
-            <LockChip />
-            <BascinetClock />
-            <DeskInboxCounts rows={rows} rowsAsOfMs={rowsAsOfMs} />
-            <InboxStreamChip />
-          </>
-        }
-        actions={
-          <>
-            <DeskStaleChip />
-            <InspectorToggle />
-            <BulkMessageButton characters={bulkCharacters} />
-          </>
-        }
-      />
+      {/* No DeskHeader any more. The turn/lock/clock chips it used to carry
+          are redundant with the universal top bar's own clock block; the
+          rest is this desk's own state and stays. */}
+      <div className="desk-header">
+        <div className="flex min-w-0 items-center gap-3">
+          <DeskInboxCounts rows={rows} rowsAsOfMs={rowsAsOfMs} />
+          <InboxStreamChip />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <DeskStaleChip />
+          <InspectorToggle />
+          <BulkMessageButton characters={bulkCharacters} />
+        </div>
+      </div>
 
       {/* The zone view lives in the client from here down, so the rail, the
           roster (which arrives as {children}) and the picker in the inspector

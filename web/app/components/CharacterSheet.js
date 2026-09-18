@@ -5,6 +5,7 @@ import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
 // Submodule path, not the @lifeweb/db barrel — this is a client component and
 // the barrel drags PrismaClient into the browser bundle (ARCHITECTURE.md §2).
 import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
+import { GAME_YEAR } from "@lifeweb/db/turnCalendar";
 import BioForm from "./BioForm";
 import CharacterPoller from "./CharacterPoller";
 import EquipBoard from "./EquipBoard";
@@ -459,7 +460,7 @@ export default function CharacterSheet({
             our Lord God, 1098." The right-hand span was the mockup's own
             "nothing here presses" placeholder — dropped, per SHEET.md. */}
         <div className="foot">
-          <span>Ravenheart · the year of our Lord God, 1098</span>
+          <span>Ravenheart · the year of our Lord God, {GAME_YEAR}</span>
         </div>
       </RequestActionsProvider>
     </div>
