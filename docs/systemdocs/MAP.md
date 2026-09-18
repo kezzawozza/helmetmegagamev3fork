@@ -645,6 +645,11 @@ set off, which is the closest thing the item has to stealth.
 
 ## 3c. Walking across a zone
 
+**"Hop" is this file's word, not a player's.** Every surface that counts steps
+for somebody — `walkFoot` on /chat and /map, the Discord destination line,
+the travel confirmation — says **moves**: "1 move", "3 moves". Keep the code and
+the prose here on "hop" if you like, but never print it.
+
 **Pick somewhere farther in your own zone and the game walks you there, hop by
 hop.** `db/lib/locationWalk.js#walkWithinZone` is the whole of it, and the first
 thing to know about it is what it is **not**: it is not a mover, and it is not a

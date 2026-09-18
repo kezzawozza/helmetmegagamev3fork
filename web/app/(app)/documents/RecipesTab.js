@@ -40,7 +40,7 @@ const SEARCH_FIELDS = [
   (r) => r.tag.description,
 ];
 
-const COLUMNS = 6;
+const COLUMNS = 5;
 
 export default function RecipesTab({ tags, mySkillIds = null }) {
   const [viewing, setViewing] = useState(null); // null | {…tag} — the detail sheet
@@ -111,12 +111,6 @@ export default function RecipesTab({ tags, mySkillIds = null }) {
         <thead>
           <tr>
             <SortHeader label="Recipe" sortKey="name" sort={table.sort} onSort={table.toggleSort} />
-            <SortHeader
-              label="Discipline"
-              sortKey="discipline"
-              sort={table.sort}
-              onSort={table.toggleSort}
-            />
             <th scope="col">Skill</th>
             <SortHeader label="Work" sortKey="turns" sort={table.sort} onSort={table.toggleSort} />
             <SortHeader label="Cost" sortKey="resources" sort={table.sort} onSort={table.toggleSort} />
@@ -215,7 +209,6 @@ function RecipeRow({ row, byId, bySlug, onView }) {
           </button>
         </div>
       </td>
-      <td className="text-sm">{row.discipline}</td>
       <td className="text-sm">
         <SkillCell row={row} byId={byId} />
         {/* Smith's and builder's work needs a set of tools in reach before any

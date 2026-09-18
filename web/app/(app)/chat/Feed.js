@@ -55,15 +55,10 @@ import { MESSAGE_LIMIT, MAX_SAY_PIECES, COUNT_FROM, tooManyPieces } from "@lifew
 import { capitalizeSentences, fixContractions } from "@lifeweb/db/lib/textCorrection";
 import MentionMenu, { mentionQueryAt, matchRoster } from "./MentionMenu";
 import CommandMenu from "./CommandMenu";
+import CommandStrip from "./CommandStrip";
 import MembersStrip from "./MembersStrip";
-import {
-  commandsFor,
-  exactCommand,
-  matchCommands,
-  pendingArg,
-  slashQueryAt,
-  textArgOf,
-} from "./commands";
+import useComposerCommands from "./useComposerCommands";
+import { pendingArg, textArgOf } from "./commands";
 
 // One place's scene: what has been said here, and — where the place allows it
 // — the box to say something.
@@ -611,6 +606,10 @@ export default function Feed({
   // of the places column. They speak nowhere and act on nobody, but they may
   // take a line down.
   gm = false,
+  // Whether that GM also plays somebody. Every `/` command resolves a living
+  // character on the server, so a GM with none is offered no command line at
+  // all rather than a menu of things that would all be refused.
+  gmPlays = false,
   // speakerKey -> real name, and only ever handed to the GM seat
   // (web/lib/gmSpeakers.js). A hooded line reaches the browser with its
   // characterId withheld, so this is how the host reads the name behind one.
@@ -674,10 +673,6 @@ export default function Feed({
   // "idle" | "loading" | "loaded". The empty state is only honest once the
   // backlog is actually in; before that it is the skeleton's turn.
   const historyState = useHistoryState(placeKey);
-  // Which commands the open place allows (./commands.js). Recomputed per
-  // place rather than filtered at use: a /roll offered in the street and
-  // refused on Enter is a control that lied.
-  const available = useMemo(() => commandsFor(place?.kind), [place?.kind]);
   // The street takes NO box at all — not speech, and not a command either. It
   // carried one for a while so /shout had somewhere to be typed, and then a
   // shout stopped being a thing you do out here too (commands.js), which left
@@ -789,36 +784,81 @@ export default function Feed({
   const [mention, setMention] = useState(null);
   // ---- Slash commands ------------------------------------------------------
   //
-  // Three pieces of state, and they are three because they change on three
-  // different keystrokes.
+  // All of command mode lives in ./useComposerCommands.js now, because the GM's
+  // composer at the foot of this file runs the same `/` line. The hook itself
+  // is created further down, once the context a command runs against exists.
   //
-  //   slash    { query, active } while the `/` popover is open. Null the rest
-  //            of the time, including all of command mode — once a command is
-  //            picked there is nothing left to autocomplete.
-  //   command  { entry, values } — command MODE. The chip in the box is drawn
-  //            off `entry`, and the textarea holds the entry's one text arg.
-  //   cmdLine  what the command answered, under the composer. Cleared on the
-  //            next keystroke, so it never outlives the thing it explains.
-  const [slash, setSlash] = useState(null);
-  const [command, setCommand] = useState(null);
-  const [cmdLine, setCmdLine] = useState(null);
   // A hood's readout, or a named person's, from `/look`. One path for both:
   // the server tells a 32-hex token from a cuid itself, so the browser never
   // learns which it sent (play/actions.js#lookAt).
   const [look, setLook] = useState(null);
   const [refresh] = useRefresh();
-  const {
-    run: runCommand,
-    pending: cmdPending,
-    error: cmdError,
-    setError: setCmdError,
-  } = useActionRunner();
+  const lastTypedAt = useRef(0);
+
+  // "Somebody is writing something", the web half of it. Fire-and-forget: the
+  // answer is never read, and a failure means one missing line rather than
+  // anything a player has to be told about.
+  const pingTyping = useCallback(() => {
+    if (!placeKey || !place?.canSpeak) return;
+    const now = Date.now();
+    if (now - lastTypedAt.current < TYPING_PING_MS) return;
+    lastTypedAt.current = now;
+    fetch("/api/feed/typing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ place: placeKey }),
+    }).catch(() => {});
+  }, [placeKey, place?.canSpeak]);
+
+  // Looking somebody up from `/look`. ONE path for a name and for a hood: the
+  // server tells a 32-hex token from a character id itself, so the browser is
+  // never told which of the two it is holding (play/actions.js#lookAt).
+  const onLookUp = useCallback((ref) => {
+    setLook({ loading: true });
+    lookAt(ref)
+      .then((res) => {
+        if (res?.ok) setLook({ readout: res.readout });
+        else setLook({ error: res?.error ?? "You can't see them." });
+      })
+      .catch(() => setLook({ error: "You can't see them." }));
+  }, []);
+
+  // What a command can reach that a server action cannot. Chat.js owns the
+  // travel grid and the Converse dialog, so both arrive as callbacks.
+  const commandCtx = useMemo(
+    () => ({
+      placeKey,
+      travelTo: onTravelPick,
+      converse: onConverse,
+      lookAt: onLookUp,
+      // /conceal changes the name every row this composer writes will wear,
+      // and that name is a SERVER prop (page.js -> Chat.js -> here), so the
+      // page has to re-read it. The composer's own hood button used to be the
+      // one caller that did this; /conceal is the only way up or down now.
+      refresh,
+    }),
+    [placeKey, onTravelPick, onConverse, onLookUp, refresh],
+  );
+
+  // Command mode itself, shared with the GM composer below.
+  const cmd = useComposerCommands({
+    placeKind: place?.kind,
+    draft,
+    setDraft,
+    textareaRef,
+    ctx: commandCtx,
+    coarse,
+    onTyping: pingTyping,
+  });
+  const { command, slash, setSlash, cmdMatches, cmdLine, cmdPending, cmdError, exitCommand, pickCommand, runCurrent } =
+    cmd;
+  const available = cmd.available;
+
   // Who is in this conversation or private room, and who could be let in.
   // Loaded here rather than inside MembersStrip because `/remove`'s picker is
   // the same list, and two fetches of it would be two answers to one question.
   const [members, setMembers] = useState(null);
   const [membersNonce, setMembersNonce] = useState(0);
-  const lastTypedAt = useRef(0);
   // Read inside the scroll handler and the arrival effect, where a stale
   // closure would stick the view to the wrong end of the list.
   const atBottomRef = useRef(true);
@@ -950,29 +990,9 @@ export default function Feed({
     };
   }, []);
 
-  // "Somebody is writing something", the web half of it. Fire-and-forget: the
-  // answer is never read, and a failure means one missing line rather than
-  // anything a player has to be told about.
-  const pingTyping = useCallback(() => {
-    if (!placeKey || !place?.canSpeak) return;
-    const now = Date.now();
-    if (now - lastTypedAt.current < TYPING_PING_MS) return;
-    lastTypedAt.current = now;
-    fetch("/api/feed/typing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ place: placeKey }),
-    }).catch(() => {});
-  }, [placeKey, place?.canSpeak]);
-
   const matches = useMemo(
     () => (mention ? matchRoster(roster, mention.query) : []),
     [mention, roster],
-  );
-
-  const cmdMatches = useMemo(
-    () => (slash ? matchCommands(available, slash.query) : []),
-    [slash, available],
   );
 
   // Only two kinds of place have a guest list at all: a conversation, and a
@@ -1018,44 +1038,24 @@ export default function Feed({
     (event) => {
       const value = event.target.value;
       const caret = event.target.selectionStart ?? value.length;
-      // The last command's answer explains the box as it was a moment ago, so
-      // it goes the instant the box changes.
-      setCmdLine(null);
-      setCmdError(null);
-
-      // Already in command mode: the box is the command's text argument, and
-      // neither menu belongs in it.
-      if (command) {
-        setDraft(value);
-        pingTyping();
-        return;
-      }
-
-      // `/shout ` — the whole name and a space. Discord's composer does this,
-      // and it is how anybody who knows the command avoids the menu entirely.
-      const exact = exactCommand(available, value);
-      if (exact) {
-        setDraft("");
-        setSlash(null);
+      // Command mode and the `/` shorthand belong to the hook; if it took the
+      // change there is nothing for the @ list to do with it.
+      if (cmd.onDraftChange(value)) {
         setMention(null);
-        setCommand({ entry: exact, values: {} });
         return;
       }
 
       setDraft(value);
-      const found = slashQueryAt(value, caret);
-      if (found) {
-        setSlash({ ...found, active: 0 });
+      if (cmd.readSlash(value, caret)) {
         setMention(null);
         pingTyping();
         return;
       }
-      setSlash(null);
       const mentioned = mentionQueryAt(value, caret);
       setMention(mentioned ? { ...mentioned, active: 0 } : null);
       pingTyping();
     },
-    [pingTyping, command, available, setCmdError],
+    [pingTyping, cmd],
   );
 
   // Swaps the half-typed `@bar` for the token the row is actually made of.
@@ -1091,35 +1091,6 @@ export default function Feed({
     },
     [draft],
   );
-
-  // ---- Command mode --------------------------------------------------------
-
-  // Leaving command mode. The typed text comes BACK into the box rather than
-  // being thrown away — Escape on a half-written /report should not cost
-  // somebody the paragraph they had written into it.
-  const exitCommand = useCallback(
-    (keepText = "") => {
-      setCommand(null);
-      setSlash(null);
-      setCmdError(null);
-      setDraft(keepText);
-      requestAnimationFrame(() => textareaRef.current?.focus());
-    },
-    [setCmdError],
-  );
-
-  // `keepText` is for the speech-mode control below, which is a change of
-  // VOICE rather than a change of subject — somebody who typed a sentence and
-  // then decided it was out of character should not have to type it again.
-  // The `/` popover still clears, since there the text WAS the command name.
-  const pickCommand = useCallback((entry, keepText = "") => {
-    setSlash(null);
-    setMention(null);
-    setDraft(keepText);
-    setCmdLine(null);
-    setCommand({ entry, values: {} });
-    requestAnimationFrame(() => textareaRef.current?.focus());
-  }, []);
 
   // ---- Speak / Shout / OOC -------------------------------------------------
   //
@@ -1166,41 +1137,9 @@ export default function Feed({
     [available, draft, exitCommand, pickCommand, speechModes],
   );
 
-  // Looking somebody up from `/look`. ONE path for a name and for a hood: the
-  // server tells a 32-hex token from a character id itself, so the browser is
-  // never told which of the two it is holding (play/actions.js#lookAt).
-  const onLookUp = useCallback((ref) => {
-    setLook({ loading: true });
-    lookAt(ref)
-      .then((res) => {
-        if (res?.ok) setLook({ readout: res.readout });
-        else setLook({ error: res?.error ?? "You can't see them." });
-      })
-      .catch(() => setLook({ error: "You can't see them." }));
-  }, []);
-
-  // What a command can reach that a server action cannot. Chat.js owns the
-  // travel grid and the Converse dialog, so both arrive as callbacks.
-  const commandCtx = useMemo(
-    () => ({
-      placeKey,
-      travelTo: onTravelPick,
-      converse: onConverse,
-      lookAt: onLookUp,
-      // /conceal changes the name every row this composer writes will wear,
-      // and that name is a SERVER prop (page.js -> Chat.js -> here), so the
-      // page has to re-read it. The composer's own hood button used to be the
-      // one caller that did this; /conceal is the only way up or down now.
-      refresh,
-    }),
-    [placeKey, onTravelPick, onConverse, onLookUp, refresh],
-  );
-
-  // The word on the send button. A command DOES something, so it runs by
-  // default — but /ooc and /shout only put words in the room, and "Run" read
-  // like a program was about to start rather than a line about to be said.
-  // Each entry says so itself (commands.js), so this stays one lookup.
-  const sendLabel = command ? (command.entry.verb ?? "Run") : "Send";
+  // The word on the send button. The hook decides it for a command (each entry
+  // says so itself in commands.js); a plain line is a Send.
+  const sendLabel = cmd.verb ?? "Send";
 
   // Paperwork — Write, Seal, the bird. Not a place's affordance: these are
   // things you do with your own hands wherever you are standing, and the
@@ -1240,57 +1179,6 @@ export default function Feed({
       </span>
       </span>
     ) : null;
-
-  // Enter, in command mode. Every gate here is a hint — each command's `run`
-  // lands on a server action that re-resolves the actor and re-checks
-  // everything, so a missing argument caught here only spares a round trip.
-  const runCurrent = useCallback(() => {
-    if (!command) return;
-    const { entry, values } = command;
-    const textArg = textArgOf(entry);
-    const body = draft.trim();
-    if (textArg && !body) {
-      setCmdError("Write something first.");
-      return;
-    }
-    if (textArg?.maxLength && body.length > textArg.maxLength) {
-      setCmdError(`That is ${body.length} characters, and the most is ${textArg.maxLength}.`);
-      return;
-    }
-    const missing = pendingArg(entry, values);
-    if (missing) {
-      setCmdError("Pick one first.");
-      return;
-    }
-    const filled = textArg ? { ...values, [textArg.name]: body } : values;
-    // Cleared HERE, not in onOk. /shout fans out to every place that heard it
-    // and only then resolves, so the line was visible in the feed for seconds
-    // while the words still sat in the box — and if anything downstream threw,
-    // onOk never ran and they sat there for good. The plain send at submit()
-    // below has always cleared optimistically; this is the same rule for the
-    // command half, with onFail handing the words back on a refusal.
-    setCommand(null);
-    setDraft("");
-    runCommand(
-      // `run` may answer with nothing at all — /look and /converse only open
-      // something — and useActionRunner reads a missing `ok` as a failure.
-      async () => (await entry.run(filled, commandCtx)) ?? { ok: true },
-      undefined,
-      {
-        onOk: (res) => {
-          setCmdLine(res?.line ?? null);
-        },
-        // Back exactly as it was: the chip, the arguments already picked, and
-        // the sentence. Retyping a refused shout is the one thing worse than
-        // watching it sit there.
-        onFail: () => {
-          setCommand({ entry, values });
-          setDraft(body);
-          requestAnimationFrame(() => textareaRef.current?.focus());
-        },
-      },
-    );
-  }, [command, draft, runCommand, commandCtx, setCmdError]);
 
   useComposerAutosize(textareaRef, draft, command);
 
@@ -1511,14 +1399,14 @@ export default function Feed({
   // The answer goes on the composer's quiet line, where every other one-shot
   // command answer already lands.
   const onStar = useCallback((seq) => {
-    setCmdError(null);
+    cmd.setCmdError(null);
     starRow(seq)
       .then((res) => {
-        if (res?.ok) setCmdLine(res.line ?? "Saved to your Notes.");
-        else setCmdError(res?.error ?? "That line is gone.");
+        if (res?.ok) cmd.setCmdLine(res.line ?? "Saved to your Notes.");
+        else cmd.setCmdError(res?.error ?? "That line is gone.");
       })
-      .catch(() => setCmdError("Could not reach the server. Nothing was changed."));
-  }, [setCmdError]);
+      .catch(() => cmd.setCmdError("Could not reach the server. Nothing was changed."));
+  }, [cmd]);
 
   // A GM taking a line down. Same route as Delete, with no character on
   // the session — db/lib/say.js#deleteSpeech skips the owner and the window
@@ -2128,7 +2016,16 @@ export default function Feed({
       </div>
 
       {!readOnly && gm && place && !place.canSpeak && place.kind !== "dead" ? (
-        <GmSystemComposer key={placeKey} placeKey={placeKey} placeName={place.name} />
+        <GmSystemComposer
+          key={placeKey}
+          placeKey={placeKey}
+          placeKind={place.kind}
+          hasCharacter={gmPlays}
+          placeName={place.name}
+          people={people}
+          members={membersData?.members ?? []}
+          ctx={commandCtx}
+        />
       ) : null}
 
       {!readOnly && place && !(gm && !place.canSpeak) && (
@@ -2166,22 +2063,7 @@ export default function Feed({
                     to be a floating accent-tinted pill above the textarea,
                     which read as a bubble stuck to the composer rather than
                     as a state the box was in. */}
-                {command && (
-                  <div className="chat-cmd-strip">
-                    <span className="chat-cmd-strip-name mono">/{command.entry.name}</span>
-                    {command.entry.description && (
-                      <span className="chat-cmd-strip-hint">{command.entry.description}</span>
-                    )}
-                    <button
-                      type="button"
-                      className="chat-cmd-strip-out"
-                      aria-label="Leave command mode"
-                      onClick={() => exitCommand("")}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
+                {command && <CommandStrip entry={command.entry} onExit={exitCommand} />}
                 {/* ONE row inside the box: what voice you are in, your hands,
                     the words, and the send. All four used to be separate boxes
                     standing in a line — a dropdown, a recess, and a solid
@@ -2220,49 +2102,10 @@ export default function Feed({
                     }
                     onChange={onDraftChange}
                     onKeyDown={(e) => {
-                      // The `/` list owns the keys while it is open, the same
-                      // way the @ list does below — and it is checked first,
-                      // because the two are never open at once and this one is
-                      // the more recently opened when they compete.
-                      if (slash && cmdMatches.length > 0) {
-                        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                          e.preventDefault();
-                          const step = e.key === "ArrowDown" ? 1 : cmdMatches.length - 1;
-                          setSlash((cur) => (cur ? { ...cur, active: (cur.active + step) % cmdMatches.length } : cur));
-                          return;
-                        }
-                        if (e.key === "Enter" || e.key === "Tab") {
-                          e.preventDefault();
-                          pickCommand(cmdMatches[slash.active] ?? cmdMatches[0]);
-                          return;
-                        }
-                        if (e.key === "Escape") {
-                          e.preventDefault();
-                          setSlash(null);
-                          return;
-                        }
-                      }
-                      // In command mode the box belongs to the command. Escape
-                      // drops the chip; so does Backspace on an empty box, which
-                      // is how Discord's composer lets go of one.
-                      if (command) {
-                        if (e.key === "Escape") {
-                          e.preventDefault();
-                          exitCommand(`/${command.entry.name} `);
-                          return;
-                        }
-                        if (e.key === "Backspace" && draft.length === 0) {
-                          e.preventDefault();
-                          exitCommand(`/${command.entry.name}`);
-                          return;
-                        }
-                        if (!coarse && e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          runCurrent();
-                          return;
-                        }
-                        return;
-                      }
+                      // The `/` list and command mode own the keys while either
+                      // is up — checked first, the same way the @ list owns
+                      // them below while IT is open.
+                      if (cmd.onKeyDown(e)) return;
                       // The @ list owns the arrows and Enter while it is open —
                       // it is the thing the keystroke is aimed at.
                       if (mention && matches.length > 0) {
@@ -2327,9 +2170,7 @@ export default function Feed({
                     people={people}
                     members={membersData?.members ?? []}
                     query={draft}
-                    onPick={(name, value) =>
-                      setCommand((cur) => (cur ? { ...cur, values: { ...cur.values, [name]: value } } : cur))
-                    }
+                    onPick={cmd.setArg}
                   />
                 )}
               </div>
@@ -2351,14 +2192,14 @@ export default function Feed({
                 {sendLabel}
               </button>
               </div>
-              {/* The mockup's one hint line, plus whatever the box already
-                  needed to say below it — slowmode counted down rather than
-                  refused, and the length counter — sharing one footer row so
-                  none of it costs the composer a row of its own. */}
+              {/* Whatever the box needs to say below it — slowmode counted
+                  down rather than refused, and the length counter — sharing one
+                  footer row so none of it costs the composer a row of its own.
+                  The mockup's hint line ("Enter sends…") is gone: everybody
+                  already knows what Enter does, and a permanent line of
+                  instructions under a text box is a tooltip that never
+                  closes. */}
               <div className="chat-composer-foot">
-                <p className="hint">
-                  Enter sends · Shift+Enter is a new line · {EDIT_WINDOW_MS / 60_000} minutes to edit
-                </p>
                 {slowmodeMs > 0 && (
                   <span
                     className="chat-countdown mono"
@@ -2437,16 +2278,34 @@ export default function Feed({
 }
 
 // A GM in GM view posts a system line into whatever place they can see —
-// the web twin of Discord's /gm command. Deliberately minimal: no character
-// picker, hood, autocorrect, slash commands, reactions, slowmode or
-// pending queue. The row comes back over the SSE hub like any other, so
-// the composer just clears on success.
-function GmSystemComposer({ placeKey, placeName }) {
+// the web twin of Discord's /gm command. Deliberately minimal on the SPEAKING
+// side: no character picker, hood, autocorrect, reactions, slowmode or pending
+// queue. The row comes back over the SSE hub like any other, so the composer
+// just clears on success.
+//
+// The `/` line is NOT minimal, though, and used to be missing entirely: a GM
+// reading a place they cannot speak in had a bare textarea, so there was no way
+// to run anything at all from Chat. It is the same command line the player's
+// composer runs (./useComposerCommands.js), minus the four entries that need a
+// body standing somewhere (commands.js#commandsFor).
+function GmSystemComposer({ placeKey, placeKind, placeName, hasCharacter, people, members, ctx }) {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
   const textareaRef = useRef(null);
-  useComposerAutosize(textareaRef, draft);
+  const coarse = useIsCoarsePointer();
+  const cmd = useComposerCommands({
+    placeKind,
+    gm: true,
+    hasCharacter,
+    draft,
+    setDraft,
+    textareaRef,
+    ctx,
+    coarse,
+  });
+  const { command, slash, cmdMatches, cmdLine, cmdPending, cmdError } = cmd;
+  useComposerAutosize(textareaRef, draft, command);
 
   const submit = useCallback(async () => {
     const text = draft.trim();
@@ -2464,22 +2323,37 @@ function GmSystemComposer({ placeKey, placeName }) {
     }
   }, [draft, placeKey, pending]);
 
+  const textArg = command ? textArgOf(command.entry) : null;
+
   return (
     <div className="chat-composer">
-      <div className="field chat-composer-box">
+      <div className="field chat-composer-box" data-command={command ? "true" : undefined}>
+        {command && <CommandStrip entry={command.entry} onExit={cmd.exitCommand} />}
         <div className="chat-composer-row">
           <textarea
             ref={textareaRef}
             aria-label={placeName ? `Post as Bascinet in ${placeName}` : "Post as Bascinet"}
             rows={1}
             value={draft}
-            placeholder={placeName ? `Post as Bascinet in ${placeName}…` : "Post as Bascinet…"}
-            onChange={(e) => setDraft(e.target.value)}
+            placeholder={
+              command
+                ? (textArg?.placeholder ?? "Press Enter to run it")
+                : placeName
+                  ? `Post as Bascinet in ${placeName}…`
+                  : "Post as Bascinet…"
+            }
+            onChange={(e) => {
+              const value = e.target.value;
+              const caret = e.target.selectionStart ?? value.length;
+              if (cmd.onDraftChange(value)) return;
+              setDraft(value);
+              cmd.readSlash(value, caret);
+            }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                void submit();
-              }
+              if (cmd.onKeyDown(e)) return;
+              if (coarse || e.key !== "Enter" || e.shiftKey) return;
+              e.preventDefault();
+              void submit();
             }}
             disabled={pending}
           />
@@ -2489,14 +2363,40 @@ function GmSystemComposer({ placeKey, placeName }) {
               moment a GM opened a place they cannot speak in. */}
           <IconButton
             icon={SendIcon}
-            label="Send"
+            label={cmd.verb ?? "Send"}
             className="icon-btn chat-composer-send"
-            onClick={() => void submit()}
-            disabled={pending || !draft.trim()}
+            onClick={() => (command ? cmd.runCurrent() : void submit())}
+            disabled={
+              command
+                ? cmdPending || (Boolean(textArg) && !draft.trim())
+                : pending || !draft.trim()
+            }
           />
         </div>
+        {slash && (
+          <CommandMenu
+            matches={cmdMatches}
+            active={slash.active}
+            onPick={cmd.pickCommand}
+            onHover={(i) => cmd.setSlash((cur) => (cur ? { ...cur, active: i } : cur))}
+          />
+        )}
+        {command && (
+          <CommandArgs
+            command={command}
+            people={people}
+            members={members ?? []}
+            query={draft}
+            onPick={cmd.setArg}
+          />
+        )}
       </div>
-      <FormError>{error}</FormError>
+      {cmdLine && (
+        <div className="chat-quiet-line">
+          <ChatMarkdown content={cmdLine} />
+        </div>
+      )}
+      <FormError>{error ?? cmdError}</FormError>
     </div>
   );
 }

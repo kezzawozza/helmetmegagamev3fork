@@ -25,7 +25,6 @@ import { walkWithinZone } from "@lifeweb/db/lib/locationWalk";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { structuresAt } from "@lifeweb/db/lib/structures";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
-import { roomLine, locationLine, zoneLine } from "@lifeweb/db/lib/placeLine";
 import { heldReasonFor, seenAs, identityOf, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
@@ -1248,83 +1247,6 @@ export async function gmPlaceView(placeKey) {
       : null,
     members,
   };
-}
-
-// The same ceiling /gm/dev's ambient form applies — one line of scenery, not a monologue.
-const AMBIENT_MAX = 1500;
-
-// A line the world says into the place a GM has open, through db/lib/placeLine.js like every line of scenery.
-// `-#` is per line and ambientLine owns that rule — never write the prefix here (CLAUDE.md, "Bot message style").
-export async function gmSayHere(placeKey, text) {
-  const ctx = await gmPlace(placeKey);
-  if (ctx.error) return { ok: false, error: ctx.error };
-
-  const said = String(text ?? "").trim();
-  if (!said) return { ok: false, error: "Write the line first." };
-  if (said.length > AMBIENT_MAX) return { ok: false, error: "That is too long for one line of scenery." };
-
-  // A place with no channel is refused BEFORE anything is written, which is
-  // ambientTarget's own rule and not merely tidiness: placeLine writes the
-  // archive row whether or not the Discord half lands, so posting first and
-  // checking after would put a line in the transcript that was never said
-  // anywhere. The cave levels are the real case — `Caves`, `Depths` and
-  // `Underground` carry no `#summary` channel, and a GM can open all three.
-  const parsed = parsePlaceKey(placeKey);
-  let target = null;
-  let details = null;
-  if (parsed.kind === "room") {
-    const room = await prisma.room.findUnique({
-      where: { id: parsed.id },
-      select: { id: true, name: true, discordThreadId: true },
-    });
-    if (!room) return { ok: false, error: "That room is gone." };
-    if (!room.discordThreadId) return { ok: false, error: "That room has no thread yet." };
-    target = () => roomLine(prisma, room, said);
-    details = { kind: "room", targetId: room.id, targetName: room.name };
-  } else if (parsed.kind === "loc") {
-    const location = ctx.location;
-    if (!location.discordChannelId) return { ok: false, error: "That location has no channel yet." };
-    target = () => locationLine(prisma, location, said);
-    details = { kind: "location", targetId: location.id, targetName: location.name };
-  } else if (parsed.kind === "zone") {
-    const zone = await prisma.zone.findUnique({
-      where: { id: parsed.id },
-      select: { id: true, name: true, discordSummaryChannelId: true },
-    });
-    if (!zone) return { ok: false, error: "That zone is gone." };
-    if (!zone.discordSummaryChannelId) return { ok: false, error: "That zone has no #summary channel yet." };
-    target = () => zoneLine(prisma, zone, said);
-    details = { kind: "zone", targetId: zone.id, targetName: `${zone.name} — #summary` };
-  } else {
-    return { ok: false, error: "Scenery needs somewhere to happen. Open a place first." };
-  }
-
-  const result = await target();
-  // The archive half has already happened by here, so the refusal says which
-  // half missed — see sendAmbientLine for the same sentence and the reason.
-  if (!result.posted) {
-    return {
-      ok: false,
-      error: result.archived
-        ? "Discord refused it — but it is on the web already, so say it again there and it will read twice."
-        : "Discord refused it. Nothing was said.",
-    };
-  }
-
-  // The SAME actionType the ambient form writes, so /gm/audit answers "who
-  // said that" with one filter however the line was typed. `face` says which
-  // surface it came from, the way gm_post_notice already does.
-  await prisma.auditLog
-    .create({
-      data: {
-        actorDiscordUserId: ctx.session.discordUserId,
-        actionType: "gm_ambient_line",
-        details: { ...details, text: said, face: "chat" },
-      },
-    })
-    .catch((err) => console.error("Ambient line audit log failed:", err));
-
-  return { ok: true, line: `Said in ${details.targetName}.` };
 }
 
 // ------------------------------------------------------------- conversation

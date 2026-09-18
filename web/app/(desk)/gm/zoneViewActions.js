@@ -34,9 +34,11 @@ export async function setVisibleZonesAction(zoneIds) {
   // The desks re-filter from client state (GmZoneViewProvider.js) off these
   // names, so they need no revalidation. /chat is different: its left column
   // is server-rendered from placesFor (db/lib/feedAccess.js#gmPlacesFor) and
-  // has no client-side zone filter, so without this the SSR'd list stayed
-  // full until a hard reload. Null, not [], means "every zone" — see
-  // inVisibleZones.
+  // has no client-side zone filter. This covers the NEXT navigation to the
+  // page; an already-open tab is refreshed by the rail itself, which re-reads
+  // /api/feed/places on a confirmed write (GmAside.js). Every server path —
+  // the page, that route and the stream — reads the same zone filter. Null,
+  // not [], means "every zone" — see inVisibleZones.
   revalidatePath("/chat");
   return { ok: true, zoneNames: zones.length > 0 ? zones.map((z) => z.name) : null };
 }

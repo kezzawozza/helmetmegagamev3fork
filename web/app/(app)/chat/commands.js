@@ -31,6 +31,7 @@ const EVERYWHERE = ["loc", "room", "conv", "zone", "net", "party"];
 export const COMMANDS = [
   {
     name: "move",
+    needsCharacter: true,
     description: "Lock in your Move for this turn.",
     where: EVERYWHERE,
     // No kind argument any more: a Move IS a Gambit (web/app/(app)/chat/MoveDialog.js).
@@ -39,6 +40,7 @@ export const COMMANDS = [
   },
   {
     name: "travel",
+    needsCharacter: true,
     description: "Go somewhere connected to here.",
     where: EVERYWHERE,
     args: [{ name: "to", kind: "destination" }],
@@ -49,6 +51,7 @@ export const COMMANDS = [
   },
   {
     name: "conceal",
+    needsCharacter: true,
     description: "Conceal yourself.",
     where: EVERYWHERE,
     args: [],
@@ -64,6 +67,7 @@ export const COMMANDS = [
   },
   {
     name: "shout",
+    needsCharacter: true,
     description: "Yell. You'll be heard nearby.",
     verb: "Send",
     where: ["room", "conv"],
@@ -132,9 +136,25 @@ export const COMMANDS = [
 ];
 
 // Which commands may run in the open place, in registry order.
-export function commandsFor(placeKind) {
+//
+// `gm` is the GM seat on /chat. Two things follow from it, and the second one
+// is the sharper:
+//
+//   - The entries marked `needsCharacter` — a Move, a walk, the hood, a shout —
+//     are things a BODY does somewhere, and doing them from a seat that is
+//     watching every zone at once means nothing. They are dropped.
+//   - Every other command still resolves a living character server-side
+//     (actions.js#actor), so a gamemaster who plays nobody is offered NOTHING.
+//     The alternative is a menu where each entry answers "You have no living
+//     character", and a control that is offered and then refused is a control
+//     that lied — the same reason the `where` gate exists at all. A GM who also
+//     plays somebody gets the list, and acts as them.
+export function commandsFor(placeKind, { gm = false, hasCharacter = true } = {}) {
   if (!placeKind) return [];
-  return COMMANDS.filter((entry) => entry.where.includes(placeKind));
+  if (gm && !hasCharacter) return [];
+  return COMMANDS.filter(
+    (entry) => entry.where.includes(placeKind) && !(gm && entry.needsCharacter),
+  );
 }
 
 // A live `/word` the caret sits at the end of, at the very START of an

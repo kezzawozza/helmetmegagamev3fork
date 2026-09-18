@@ -235,41 +235,6 @@ documents:
 
       Horrors. Drop Aberrant Hearts.
 
-  # GM-only, same mechanism as cavingmonsters. The answer sheet for every
-  # recipe the hiding rule keeps off the public papers (a recipe naming a
-  # non-public ingredient is hidden until the crafter holds one) — without
-  # this, a GM asked "how is Pure Luck made?" would be reading tags.yaml.
-  # Keep it current when a hidden recipe is added or an ingredient's
-  # catalog: changes.
-  withheldrecipes:
-    name: Withheld Recipes
-    public: false
-    tags: []
-    flags:
-      - gamemaster
-    description: |-
-      Recipes hidden from the public papers and the Recipes tab. Each appears in a character's Craft menu only while they hold the ingredient — finding the thing is how the recipe is learned. Nothing here should be told to a player outright; place the ingredient instead.
-
-      | Recipe | Skill | ⬢ | Needs | The ingredient comes from |
-      |---|---|---|---|---|
-      | {tag:white-honey} | Brewing II | 3 | {tag:honey} and {tag:trout-heart} | the Depot's shelf, 3 ¢, and a rare fishing catch |
-      | {tag:graga-sweat} | Brewing II | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
-      | {tag:invisibility-potion} | Brewing II | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
-      | {tag:dreamers-draught} | Brewing II | 6 | {tag:skinless-brain} | butchered from a {tag:skinless-corpse} |
-      | {tag:pure-luck} | Brewing II | 0 | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
-      | {tag:raven-draught} | Brewing II | 2 | {tag:ravens-eye} | foraged while hunting |
-      | {tag:honeyed-cakes} | Cooking II | 3 | {tag:honey} | the Depot's shelf, 3 ¢ |
-      | {tag:graga-hide-cloak} | Crafting | 6 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
-      | {tag:minted-charm} | Smithing I | 15, 3-turn project | {tag:old-coin} | caving loot |
-      | {tag:last-breath} | Brewing III | 12, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
-      | {tag:cybernetic-arm}, {tag:cybernetic-leg} | Brewing III | 16, 3-turn project each | {tag:cybernetic-core} | GM-granted only, nothing drops it yet |
-      | {tag:heartforged-blade} | Smithing II | 34, 3-turn project | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
-      | {tag:death-mask} | Artist | 4, 2-turn project | a corpse (kept) and {tag:saltpeter} | hidden by its own catalog flag, like the {tag:bone-mask}: an artist standing with a body finds it |
-
-      The {tag:lavish-meal} also takes {tag:honey} as an unlisted delicacy — a cook holding a jar sees the option; the public paper names tea, sweets and fish roe, but never honey.
-
-      Mechanics a GM adjudicates or should know: an equipped {tag:heartforged-blade} stops the mood sinking at all and fights as Exceptional; an equipped {tag:minted-charm} adds +1 to Learn Skill rolls; a {tag:death-mask} can be taken ONCE per corpse — the body's description says when a face is gone — and the finished mask is named for the dead.
-
   # The Demoness threat's own brief (db/lib/threats.js). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag
   # category — so the paper and the powers arrive together.

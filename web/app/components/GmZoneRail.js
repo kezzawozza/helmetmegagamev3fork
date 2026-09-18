@@ -16,11 +16,22 @@ const SETTLE_MS = 350;
 // answer actually changes — needed because three pages carrying this rail
 // are snapshotted (web/lib/snapshot) and would otherwise show a stale chip.
 // Can't be done from inside — a component can't key itself.
-export default function GmZoneRail({ zones, selectedIds }) {
-  return <ZoneChips key={(selectedIds ?? []).join(",")} zones={zones} selectedIds={selectedIds} />;
+// `onSaved` fires once the server has CONFIRMED a new selection, for a surface
+// whose own list is server-rendered and cannot re-filter from client state the
+// way the desks do — /chat's left column is the one (GmAside.js). The desks
+// pass nothing and behave exactly as before.
+export default function GmZoneRail({ zones, selectedIds, onSaved }) {
+  return (
+    <ZoneChips
+      key={(selectedIds ?? []).join(",")}
+      zones={zones}
+      selectedIds={selectedIds}
+      onSaved={onSaved}
+    />
+  );
 }
 
-function ZoneChips({ zones, selectedIds }) {
+function ZoneChips({ zones, selectedIds, onSaved }) {
   const [selected, setSelected] = useState(() => new Set(selectedIds ?? []));
   const [error, setError] = useState(null);
   const publish = useSetVisibleZoneNames();
@@ -36,14 +47,17 @@ function ZoneChips({ zones, selectedIds }) {
     if (result?.ok) {
       confirmed.current = next;
       // Only publish if nothing newer was clicked since, or this stale answer fights the latest click.
-      if (latest.current === next) publish?.(result.zoneNames ?? null);
+      if (latest.current === next) {
+        publish?.(result.zoneNames ?? null);
+        onSaved?.();
+      }
       setError(null);
       return;
     }
     latest.current = confirmed.current;
     setSelected(confirmed.current);
     setError(result?.error ?? "Couldn't save that.");
-  }, [publish]);
+  }, [publish, onSaved]);
 
   const commit = (next) => {
     setSelected(next);

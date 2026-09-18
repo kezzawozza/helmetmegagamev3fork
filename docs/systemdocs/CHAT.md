@@ -538,7 +538,8 @@ like everything else.
 - **A feed row is a LOG line, not a Discord message.** `TranscriptLine.js`'s
   `density="feed"` draws no face and no per-row clock: one line —
   `Marrow Vance: Second tithe. They say that like it costs them something.` —
-  a name in its estate's colour, a colon, then the words in `--speech`, the mockup's own
+  a name in its estate's colour, a colon, then the words in `--text`, with only
+  what sits inside quotation marks tinted `--speech` (below) — the mockup's own
   shape (`docs/design/mockups/chat/index.html`, `.row`/`.who`/`.said`). It
   used to be Discord's own shape instead: an avatar, a name-and-timestamp row,
   then the words on a second line, with a run's later lines dropping the name
@@ -579,11 +580,12 @@ like everything else.
   the mode picker moved into the row itself.
 
   The box is the mockup's say box: a **black inset well** (`--field-bg`, a hard
-  `--border-lo` edge and an inset shadow) with the words in **`--speech`**, the
-  same colour the feed will print them in. It was a raised `--surface` panel
-  with body-grey text, on the argument that a composer is where you type rather
-  than a hole in the page; the cost was that your own sentence changed colour
-  the moment you pressed Enter.
+  `--border-lo` edge and an inset shadow) with the words in **`--text`**, the
+  same colour the feed will print them in. Both used to be `--speech`
+  wholesale, which made the tint mean nothing: narration and the words somebody
+  actually said came out the same salmon, and the quote span below was
+  invisible inside it. The rule is now one rule — a row's body is prose, and a
+  quotation is tinted.
 
   **Send is a labelled button now, not a glyph.** It carries the same word the
   command chip would use (`/shout` says "Send", most commands say "Run"), sits
@@ -641,11 +643,13 @@ like everything else.
   label for where you are, and the **`aria-label`**, which keeps the place name
   because words cost a screen reader no pixels.
 
-  "Enter to send · Shift+Enter for a line" used to ride along on the end of
-  the placeholder, then leave entirely once the send carried a tooltip. It is
-  back now as the mockup's `.hint` — one plain line under the row: **"Enter
-  sends · Shift+Enter is a new line · 5 minutes to edit"**
-  (`EDIT_WINDOW_MS`, always true, so it costs nothing to keep saying).
+  "Enter to send · Shift+Enter for a line" has lived in three places and lives
+  in none of them now: on the end of the placeholder, then on the send's
+  tooltip, then as the mockup's `.hint` under the row. It is gone. Everybody
+  learns what Enter does on their first message, and a permanent line of
+  instructions under a text box is a tooltip that never closes. The footer row
+  itself stays — the slowmode countdown and a command's length counter still
+  sit in it.
 - **Say kinds are Say / Shout / OOC — no Emote, no Whisper.** The game has no
   `/me` verb and no directed whisper (a Discord whisper string in `db/lib/` is
   the bot's unrelated `whisperPoll` bleed), so the mockup's five-option
@@ -2366,8 +2370,10 @@ watcher's view of every zone the same day they gained a body, which is the
 wrong way round — the view is most useful to somebody who is *also* in the
 game.
 
-So the foot of the places column carries a **View as: GM / Player** switch
-(`PlacesColumn.js`), drawn only for a GM who has a living character. Nobody
+So the foot of the places column carries a **GM / Player** switch
+(`PlacesColumn.js`), drawn only for a GM who has a living character. Two
+buttons and no label: "View as" beside them said what the buttons already say,
+and it survives as the row's `aria-label` for a screen reader. Nobody
 else has two seats: a player has one, and a GM with no character is in the GM
 seat with nothing to switch to.
 
@@ -2377,6 +2383,18 @@ granting nothing: the GM seat lists the places `GmZoneView` already allows
 (`gmPlacesFor` → `visibleZoneIds`), which is the same gate the GM desks use.
 That is also why it meshes with the Zones I see picker rather than replacing
 it: the picker is right there in `GmAside`, deciding what the GM seat contains.
+
+**The picker re-reads the column itself** (`GmAside.js`'s `onSaved` →
+`/api/feed/places`). The zone filter was always honoured by every server path —
+the page, that route and the stream all go through `gmPlacesFor` — but nothing
+PUSHED the new list at a tab that was already open: a GM's stream carries no
+character, so it never subscribes to presence and announces its places exactly
+once, at open, and `Chat.js` prefers the streamed list over its server props, so
+the `revalidatePath("/chat")` in `zoneViewActions.js` could not reach a mounted
+column either. Ticking a zone left every other zone's rows sitting there until a
+hard reload. One thing is still outstanding: the stream stays SUBSCRIBED to the
+zones it opened with, so a row from a zone just unticked can arrive until the
+connection is remade.
 
 **One decision, one place.** `loadFeedViewer` reads the cookie and then hands
 back `character: null` in the GM seat. That single line is what carries the
@@ -2484,31 +2502,41 @@ chat, which is already built to mount over any desk without leaving it.
 
 ### Saying something
 
-`gmSayHere(placeKey, text)` — the same thing `/gm/dev`'s ambient form does with
-the picker removed, since the column already knows where the GM is reading.
-Both go through `db/lib/placeLine.js`, which owns **both halves**: the Discord
-post and the `ArchiveEntry` that puts the same line on `/chat`.
+**There is no say box in the column any more.** `gmSayHere` and the "Say
+something here" card that called it are gone: the GM composer at the foot of
+the scene (`GmSystemComposer`) is already a box a GM can type into, and two
+writing boxes on one screen is one too many. A line of scenery is composed on
+`/gm/dev`'s ambient form, which still has the picker and still goes through
+`db/lib/placeLine.js` — the module that owns **both halves**, the Discord post
+and the `ArchiveEntry` that puts the same line on `/chat`.
 
-That mattered more than it sounds. `sendAmbientLine` used to call `postMessage`
-directly and write no row at all, so the one kind of ambient line a GM composes
-by hand was the one kind a web-only player never saw — the exact gap phase 4
-closed for every other line of scenery in the game. `placeLine` gained a
-`zoneLine` beside its `roomLine` and `locationLine`, and both callers now use
-it.
-
-A place with **no channel** is refused before anything is written — the cave
-levels are the real case, since `Caves`, `Depths` and `Underground` carry no
-`#summary` and a GM can open all three. `placeLine` writes the archive row
-whether or not the Discord half lands, so checking afterwards would leave a
-line in the transcript that was never said anywhere.
+What the GM's right column keeps is the **noticeboard** (`GmPlaceBox.js`),
+drawn only where the open Location has a board.
 
 **One voice, scenery.** Speaking ALOUD into a room as the bot is still the
 `/gm` slash command's job. A full-size line archived as `SYSTEM` would light
 nobody's unread dot — `feedStore.js#isNotableRow` ignores SYSTEM rows on
 purpose, so the scenery does not make places blink — and a loud line nobody is
-told about is worse than no button. That is its own change, with its own answer
-about what such a row should be. `/gm` has the same missing-archive-row gap and
-is still to fix.
+told about is worse than no button.
+
+### The `/` line in the GM composer
+
+The GM composer used to be a bare textarea: a GM reading a place they cannot
+speak in could post as Bascinet and run nothing at all. It carries the same
+command line the player's composer does now, because both take it from one
+place — `useComposerCommands.js`, which owns the `/` popover, command mode, the
+chip strip, the argument chips and the three keystrokes that drive them.
+
+Which commands it offers is narrower, and `commands.js#commandsFor` decides it:
+
+- `move`, `travel`, `conceal` and `shout` carry `needsCharacter` and are never
+  offered to the GM seat — they are things a body does in one place, and the
+  GM seat is watching every zone at once.
+- **A GM who plays nobody is offered nothing at all.** Every other command
+  still resolves a living character server-side (`actions.js#actor`), so the
+  whole menu would answer "You have no living character". A control that is
+  offered and then refused is a control that lied. A GM who also plays somebody
+  gets the list, and acts as them.
 
 ### On a phone
 

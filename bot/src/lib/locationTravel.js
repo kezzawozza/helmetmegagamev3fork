@@ -91,7 +91,7 @@ function buildLocationSelectRow(entries, from) {
 function describeDestination(location, from, hops, through) {
   if (!from) return location.zone?.name ?? "Somewhere";
   if (hops) {
-    const far = `${hops} hops`;
+    const far = hops === 1 ? "1 move" : `${hops} moves`;
     const first = through?.[0];
     return first && `${far} — through ${first}`.length <= 100 ? `${far} — through ${first}` : `${far} away`;
   }

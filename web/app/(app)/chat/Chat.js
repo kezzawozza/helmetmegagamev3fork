@@ -1002,6 +1002,11 @@ export default function Chat({
           onConverse={onConverse}
           placesVersion={placesVersion}
           gm={gm}
+          // Whether the GM reading this also PLAYS somebody. Every command in
+          // the composer's `/` line resolves a living character server-side,
+          // so a gamemaster with none is offered none (Feed.js). `viewAs`
+          // exists only for a GM who is playing, which is the same question.
+          gmPlays={Boolean(viewAs)}
           gmSpeakers={gmSpeakers}
           ghost={ghost}
           hasCamera={hasCamera}
@@ -1041,7 +1046,7 @@ export default function Chat({
           in it is a readout. */}
       {!aside && gmZones && !asideFolded && (
         <aside className="chat-aside">
-          <GmAside selected={selected} gmZones={gmZones} onPlaceChanged={bumpBoard} />
+          <GmAside selected={selected} gmZones={gmZones} />
         </aside>
       )}
       {aside && !asideFolded && (
@@ -1075,7 +1080,7 @@ export default function Chat({
       {!aside && gmZones && asideFolded && asideOpen && (
         <Modal open title={asideTitle} onClose={closeAside} panelClassName="modal-panel chat-drawer chat-drawer--right">
           <DrawerBody onSwipeClose={closeAside} side="right">
-            <GmAside selected={selected} gmZones={gmZones} onPlaceChanged={bumpBoard} />
+            <GmAside selected={selected} gmZones={gmZones} />
           </DrawerBody>
         </Modal>
       )}

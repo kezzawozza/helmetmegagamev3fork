@@ -7,13 +7,14 @@ import GmZoneRail from "@/app/components/GmZoneRail";
 import DevPanelModal, { prefetchDevPanel } from "@/app/components/DevPanelModal";
 import TagChip from "@/app/components/TagChip";
 import PlaceCard from "./PlaceCard";
-import GmSayBox from "./GmSayBox";
+import GmPlaceBox from "./GmPlaceBox";
 import { useAsideTab } from "./asideTabStore";
+import { setPlaces } from "./feedStore";
 import { gmPlaceView } from "./actions";
 
 // The GM's right column. SAME SHAPE as ChatAside on purpose (CHAT.md §8): same
 // tab strip/classes, PlaceCard is the player's own component. A GM has no
-// hands — everything here is a readout plus GmSayBox. Loads via one server
+// hands — everything here is a readout plus GmPlaceBox. Loads via one server
 // action, not page.js, since re-rendering the server tree per click is what
 // CHAT.md §1 says this page must not do.
 
@@ -70,8 +71,21 @@ function GmHereList({ people, onOpen }) {
   );
 }
 
-export default function GmAside({ selected, gmZones, onPlaceChanged }) {
+export default function GmAside({ selected, gmZones }) {
   const placeKey = selected?.placeKey ?? null;
+  // The left column, re-read after the zone picker has been answered. Silent
+  // on a failure: the picker has already said whether the write landed, and a
+  // second complaint about the same click helps nobody.
+  const refreshPlaces = useCallback(async () => {
+    try {
+      const res = await fetch("/api/feed/places", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data?.places)) setPlaces(data.places);
+    } catch {
+      // Same.
+    }
+  }, []);
   // Answer is STAMPED with the place asked about, so a slow reply for a place
   // already clicked past renders for nobody rather than under the wrong name.
   const [view, setView] = useState(null);
@@ -245,11 +259,30 @@ export default function GmAside({ selected, gmZones, onPlaceChanged }) {
           </div>
         )}
 
-        {openTab === "gm" && <GmSayBox selected={selected} onSaid={onPlaceChanged} />}
+        {openTab === "gm" && <GmPlaceBox selected={selected} />}
       </div>
 
-      {/* Bottom-pinned by .chat-aside-tabs > .desk-inspector-zones. */}
-      {gmZones && <GmZoneRail zones={gmZones.selectable} selectedIds={gmZones.selectedIds} />}
+      {/* Bottom-pinned by .chat-aside-tabs > .desk-inspector-zones.
+
+          onSaved re-reads the place list, and that is not belt and braces: the
+          zones a GM picks DO filter every server path (db/lib/feedAccess.js's
+          gmPlacesFor, which both /api/feed/places and the stream go through),
+          but nothing pushes the new list at a tab that is already open. A GM's
+          stream carries no character, so it never subscribes to presence and
+          announces its places exactly once, at open; and Chat.js prefers the
+          streamed list over its server props, so the revalidatePath in
+          zoneViewActions.js cannot reach a mounted column either. So the click
+          fetches the list itself. The stream stays SUBSCRIBED to the old
+          zones' places until it reconnects — rows from a zone just unticked
+          can still arrive until then, which is worth fixing in the hub one
+          day. */}
+      {gmZones && (
+        <GmZoneRail
+          zones={gmZones.selectable}
+          selectedIds={gmZones.selectedIds}
+          onSaved={refreshPlaces}
+        />
+      )}
 
       {open && <DevPanelModal characterId={open} onClose={() => setOpen(null)} />}
     </div>

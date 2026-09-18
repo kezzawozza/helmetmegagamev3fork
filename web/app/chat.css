@@ -47,6 +47,7 @@
   image-rendering: pixelated;
   border-left: 1px solid var(--border-lo);
   border-right: 1px solid var(--border);
+  overflow: hidden;
 }
 
 .chat-body--empty {
@@ -55,11 +56,19 @@
   padding: var(--sp-4);
 }
 
+/* NOTHING IN CHAT SCROLLS SIDEWAYS. Every column is locked on the x axis and
+   the content inside it wraps instead — a rail that could be dragged left and
+   right was never anything but a long word or a wide chip pushing the column
+   open. `min-width: 0` is what lets a grid track shrink below its content in
+   the first place; `overflow-x: hidden` is what settles what happens when it
+   does. The two deliberate sideways scrollers are left alone: the aside's tab
+   strip (`.tab-bar`, below) and a fenced code block. */
 .chat-places,
 .chat-centre,
 .chat-aside {
   min-height: 0;
   min-width: 0;
+  overflow-x: hidden;
 }
 
 .chat-places {
@@ -110,7 +119,9 @@
 .chat-aside-panel {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
 }
 
@@ -132,6 +143,17 @@
 .chat-aside-stack {
   height: 100%;
   min-height: 0;
+  min-width: 0;
+  /* Locked on the x axis — a column that can be dragged sideways is a bug, and
+     `overflow-y: auto` alone computes overflow-x to `auto`, which is how this
+     one could be. The 6px of padding is what keeps that lock from CLIPPING the
+     one thing here that is meant to stick out: `.you-frame` cancels its
+     column's inset with `margin-inline: -6px`, so the scroller has to be that
+     much wider on the inside; the matching negative margin puts it back where
+     it was. */
+  padding-inline: 6px;
+  margin-inline: -6px;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -603,8 +625,13 @@
    four-column CSS grid whose children ARE the columns (clock, who, what, cite),
    which a gutter/body shape cannot reproduce without breaking the grid. */
 
+/* A long unbroken string — a URL, somebody leaning on one key — wraps rather
+   than widening the column it sits in. `anywhere` and not `break-word`: the
+   latter still lets the word claim its full width when it is measured, which
+   is what left the feed draggable sideways. */
 .tline-body {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .tline-head {
@@ -808,16 +835,21 @@
   color: var(--text);
 }
 
-/* THE SPEECH ITSELF, in --speech (the mockup's `.said`, salmon), not the body
-   grey the rest of the app reads prose in. ChatMarkdown wraps every row in
-   `.markdown-content`, a block element built for a thread's own paragraphs —
-   forced inline here so it runs on from "Name: " on the same line rather than
-   dropping to one of its own, which is what made a feed row read as two
-   stacked lines even after the avatar and the per-row clock were gone. */
+/* THE BODY OF A ROW, in the ordinary text colour. It used to be painted
+   --speech wholesale, which made the salmon mean nothing: narration and the
+   words somebody actually said came out the same colour, and the quote tint
+   `.chat-markdown .speech` draws was invisible inside it. Now only what sits
+   inside quotation marks is tinted, and everything around it reads as prose.
+
+   ChatMarkdown wraps every row in `.markdown-content`, a block element built
+   for a thread's own paragraphs — forced inline here so it runs on from
+   "Name: " on the same line rather than dropping to one of its own, which is
+   what made a feed row read as two stacked lines even after the avatar and the
+   per-row clock were gone. */
 .tline[data-density="feed"] .markdown-content,
 .tline[data-density="feed"] .markdown-content p {
   display: inline;
-  color: var(--speech);
+  color: var(--text);
 }
 
 /* The row lights up under the pointer, and under the keyboard: without this
@@ -959,11 +991,15 @@
 /* What the WORLD says: an arrival, a smell, a turret, the turn line. The web
    half of db/lib/ambientLine.js's `-#`, which is why it wears no face. The
    unkeyed default, so an unrecognised channelKind reads as scenery. */
+/* No left gutter. Scenery, a shout and an OOC line used to be indented by a
+   face's width while an ordinary say row was not, so half the feed started at
+   one edge and half at another for no reason a reader could see. Everything
+   starts at the same place now; the tints and the OOC rule are what tell the
+   kinds apart. */
 .tline--system {
   font-size: var(--fs-2xs);
   color: var(--muted);
   margin-top: var(--sp-2);
-  padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
 /* THE NOTICE BLOCK (REDESIGN.md §6). A bordered, full-width interruption that
@@ -1068,7 +1104,6 @@
    The body already carries its `[OOC]:` tag, so nothing here needs to say it
    twice. */
 .tline--system[data-kind="ooc"] {
-  margin-left: calc(var(--chat-face) + var(--sp-3));
   padding-left: 6px;
   border-left: 2px solid var(--border-hi);
   color: var(--ooc);
@@ -1361,10 +1396,12 @@
 }
 
 /* What you are about to say, in the colour it will be said in (REDESIGN.md §3,
-   Text). The feed draws speech in --speech; the box drawing it in body grey
-   meant your own sentence changed colour the moment you pressed Enter. */
+   Text). The feed draws a row's body in --text and tints only what is inside
+   quotation marks, so the box does the same — drawing the whole draft in
+   --speech meant your own sentence changed colour the moment you pressed
+   Enter. */
 .chat-composer-box textarea {
-  color: var(--speech);
+  color: var(--text);
 }
 
 .chat-composer textarea::placeholder {
@@ -2255,10 +2292,7 @@
     padding-right: var(--sp-3);
   }
 
-  /* The OOC line is the one system row that indents with a MARGIN and keeps
-     its own padding, so it stays out of this list the way .chat-ooc did. */
-  .chat-subtext,
-  .tline--system:not([data-kind="ooc"]) {
+  .chat-subtext {
     padding-left: 0;
   }
 
@@ -2793,20 +2827,19 @@
   margin-top: auto;
 }
 
-/* View as: GM / Player, the first row of the tail. Only a gamemaster who is
-   also playing somebody gets one — everybody else has nothing to switch to.
-   The label is a label, not an explanation: there is no tooltip here. */
+/* GM / Player, the first row of the tail. Only a gamemaster who is also
+   playing somebody gets one — everybody else has nothing to switch to. Two
+   buttons and nothing else: the "View as" label that used to sit beside them
+   said what the buttons already say. The name survives for a screen reader, as
+   an aria-label on the row. */
 .chat-view-as {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-3) 0;
   font-size: var(--fs-2xs);
   color: var(--muted);
-}
-
-.chat-view-as .segmented {
-  margin-left: auto;
 }
 
 .chat-view-as .segmented button {

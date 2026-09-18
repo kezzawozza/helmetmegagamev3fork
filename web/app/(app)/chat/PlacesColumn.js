@@ -274,8 +274,7 @@ export default function PlacesColumn({
           below the fold of a GM's every-room list. */}
       <div className="chat-places-tail">
         {viewAs && (
-          <div className="chat-view-as">
-            <span>View as</span>
+          <div className="chat-view-as" role="group" aria-label="View as">
             <div className="segmented">
               <button
                 type="button"

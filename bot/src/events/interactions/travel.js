@@ -269,7 +269,7 @@ async function handleTravelPick(interaction) {
       : null;
   const walkLine =
     walk?.ok && walk.hops > 1
-      ? `-# ${walk.hops} hops, through ${listNames(walk.path.slice(0, -1).map((l) => l.name))}. Nothing to pay.${walk.dismounts ? " One of the ways is too narrow for what you're riding." : ""}`
+      ? `-# ${walk.hops} moves, through ${listNames(walk.path.slice(0, -1).map((l) => l.name))}. Nothing to pay.${walk.dismounts ? " One of the ways is too narrow for what you're riding." : ""}`
       : null;
 
   const cost = !character.locationId
