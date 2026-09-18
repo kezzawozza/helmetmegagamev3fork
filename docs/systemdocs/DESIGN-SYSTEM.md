@@ -167,13 +167,16 @@ that only references them does not.
   paint on scroll. Neither layer, nor anything else in the app, gets a
   `backdrop-filter` or a per-frame or full-viewport animation — `/gm/turns`
   scrolling smoothly with these composited is the benchmark.
-- **The header strip** is `bg2.png`, a 32×16 sprite repeated along the foot of
-  every `.panel-header`, and — as a bar rather than a heading — of
-  `.desk-inspector-head`, `.desk-convo-head` and `.ops-section-head`. It IS the
-  rule: a header that carries the strip never also carries a `border-bottom`,
-  because two lines under one heading reads as a mistake. It's automatic —
-  `Panel.js` and the desk bar components write it for you; nobody hand-adds a
-  border under a heading that already has one.
+- **The header strip is retired (2026-09-18).** `.panel-header` and the desk
+  bars (`.desk-inspector-head`, `.desk-convo-head`, `.ops-section-head`) no
+  longer carry `bg2.png` along their foot — the character-sheet mockup's own
+  build won instead: a flex row (title on the left, a quiet `.note` on the
+  right) over a single 1px `border-bottom`. It read as a row of beads and cost
+  20px of padding on every panel in the app for it, and Bascinet's own words on
+  seeing the mockup beside the app were "look how neat, compressed, clean the
+  artifact looked". `bg2.png` is not gone from the app — `.bar` in
+  `web/app/chat.css` (the chat mockup's own build, a different mockup) still
+  wears it, unchanged.
 
 Every sprite here scales at integer multiples with `image-rendering:
 pixelated`. A non-integer size blurs a pixel-art image instead of scaling it
@@ -233,7 +236,7 @@ Use these instead of rolling one-off markup.
 | Class | For |
 |---|---|
 | `.panel` | Any card/section container. A card **with** a heading is `Panel` — it carries the padding `.panel` deliberately does not, and writes the `.panel-header` for you. |
-| `.panel-header` | Its heading — serif `--fs-lg` over the 16px metal strip. The strip is the rule; a header that carries it never also carries a border. |
+| `.panel-header` | Its heading — serif `--fs-lg`, a flex row over a 1px `border-bottom`, with `.note` for a quiet right-aligned aside. See §3a — the metal strip it used to carry is retired. |
 | `.section-title` | A heading that is a **flex child beside something else**. |
 | `.btn` | Solid primary button. |
 | `.btn-secondary` | Outline. |
@@ -277,13 +280,17 @@ Three of these carry a trap:
   falls back to unstyled native browser chrome and visibly breaks the theme —
   wrap it even for a single standalone control.
 - **`.panel-header` vs `.section-title`.** Use `.section-title` wherever the
-  heading sits beside something else — a modal title next to its close button,
-  a status band next to its value, a "Tags" heading next to its buttons.
-  `.panel-header`'s strip would sit under just the title text there rather than
-  spanning the container, which reads as an underline, not a divider. Where the
-  whole thing is a **bar** heading a column — `.desk-inspector-head`,
-  `.desk-convo-head`, `.ops-section-head` — the BAR takes the strip and keeps
-  its own flex layout; the heading inside it stays `.section-title`.
+  heading sits beside something else that is not its own `.note` — a modal
+  title next to its close button, a status band next to its value.
+  `.panel-header`'s own `border-bottom` spans only the header itself, not
+  whatever container it shares with a sibling, so used there it reads as an
+  underline on the title rather than a divider under the row. `.panel-header`
+  is for a card's own heading, where its built-in flex row already holds the
+  title on the left and a `.note` on the right — that is not "beside
+  something else" in the sense this rule means. Where the whole thing is a
+  **bar** heading a column — `.desk-inspector-head`, `.desk-convo-head`,
+  `.ops-section-head` — the BAR carries its own `border-bottom` and flex
+  layout; the heading inside it stays `.section-title`.
 - **`.tab-item` and `.segmented` are not the same idea.** A tab strip navigates
   between panels and is keyed on `data-active`, a styling hook. A segmented
   control has a *value*, so its pressed state lives in `aria-pressed`, where a

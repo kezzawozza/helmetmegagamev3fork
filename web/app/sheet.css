@@ -15,16 +15,25 @@
 .sheet-body {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
+  gap: var(--sp-2);
   /* Room at the bottom for the last card's shadow and the mobile bar. */
-  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  padding: var(--sp-2) var(--sp-3) var(--sp-4);
+}
+
+/* Every panel ON THE SHEET, tightened to the mockup's own density (its
+   `.panel{padding:8px}`) — --sp-2 is the closest token to that 8px. Scoped to
+   `.sheet-body` rather than changed on `.panel` itself: that class is shared
+   by every desk and dialog in the app, and this compression is the mockup's
+   own reading of ITS page, not a house-wide repaint. */
+.sheet-body .panel {
+  padding: var(--sp-2);
 }
 
 .sheet-band {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
 }
 
 /* TWO columns as of phase 4, not three: the rail plus the inventory and the
@@ -43,7 +52,7 @@
 .ledger-col {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-4);
+  gap: var(--sp-2);
   min-width: 0;
 }
 
@@ -179,7 +188,7 @@
   background: var(--field-bg);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  padding: var(--sp-2) var(--sp-3);
+  padding: var(--sp-1) var(--sp-2);
   min-width: 0;
 }
 
@@ -281,7 +290,7 @@
   background: var(--field-bg);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  padding: var(--sp-2) var(--sp-3);
+  padding: var(--sp-1) var(--sp-2);
   min-width: 0;
   text-align: left;
 }
@@ -469,7 +478,7 @@
   background: var(--field-bg);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  padding: var(--sp-2) var(--sp-3);
+  padding: var(--sp-1) var(--sp-2);
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
@@ -673,7 +682,7 @@
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  min-height: 32px;
+  min-height: 26px;
 }
 
 .sheet-row-face {
@@ -929,7 +938,7 @@
   display: flex;
   align-items: stretch;
   min-width: 0;
-  min-height: 44px;
+  min-height: 30px;
   background: var(--field-bg);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -1048,30 +1057,6 @@ button.equip-cell-face:focus-visible {
   background: var(--warning);
 }
 
-/* Every band's word under the ladder, the one you are in picked out. */
-.mood-names {
-  font-size: var(--fs-2xs);
-  line-height: 1.4;
-  color: var(--muted);
-}
-
-.mood-names > b {
-  font-weight: 700;
-  color: var(--text);
-}
-
-.mood-names > b[data-tone="good"] {
-  color: var(--positive);
-}
-
-.mood-names > b[data-tone="warn"] {
-  color: var(--warning);
-}
-
-.mood-names > b[data-tone="bad"] {
-  color: var(--danger);
-}
-
 /* ── Desires (DesirePanel.js) ──
    The mockup's own grammar: one .desire per slot, a .head line with the slot's
    name and a status pill, then plain prose underneath. No pill for a pending
@@ -1141,6 +1126,21 @@ tr[data-open="true"] .data-table-face .chip {
   font-size: var(--fs-2xs);
 }
 
+/* ── The foot (CharacterSheet.js) ──
+   The mockup's own line at the bottom of the page: a hairline, then the
+   setting, quiet and small. */
+.foot {
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--sp-3);
+  justify-content: space-between;
+}
+
 /* ── Widths ──
    Two columns down to 720px, then one. There are no tabs any more: the sheet
    was three columns behind a You / Do / Tags tab bar under 820px, and with two
@@ -1185,9 +1185,9 @@ tr[data-open="true"] .data-table-face .chip {
     padding-inline: var(--sp-3);
   }
 
-  /* .equip-cell already carries the 44px floor at every width. */
   .sheet-row-line,
-  .item-card-line {
+  .item-card-line,
+  .equip-cell {
     min-height: 44px;
   }
 }

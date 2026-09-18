@@ -9,7 +9,6 @@ import BioForm from "./BioForm";
 import CharacterPoller from "./CharacterPoller";
 import EquipBoard from "./EquipBoard";
 import GoalsPanel from "./GoalsPanel";
-import HereList from "./HereList";
 import LedgerBand from "./LedgerBand";
 import LedgerWork from "./LedgerWork";
 import MoodPanel from "./MoodPanel";
@@ -366,20 +365,17 @@ export default function CharacterSheet({
             />
 
             {isSelf ? (
-              <section className="panel p-3">
-                <h2 className="panel-header">Bio</h2>
-                <BioForm
-                  character={character}
-                  avatarUploadsEnabled={avatarUploadsEnabled}
-                  playPanelEnabled={playPanelEnabled}
-                  portraitMakerEnabled={portraitMakerEnabled}
-                  portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
-                  portraitSelection={portraitSelection}
-                  hasCustomAvatar={hasCustomAvatar}
-                  forcedIdentity={forcedIdentity}
-                  concealGear={concealGear}
-                />
-              </section>
+              <BioForm
+                character={character}
+                avatarUploadsEnabled={avatarUploadsEnabled}
+                playPanelEnabled={playPanelEnabled}
+                portraitMakerEnabled={portraitMakerEnabled}
+                portraitFantasyPartsEnabled={portraitFantasyPartsEnabled}
+                portraitSelection={portraitSelection}
+                hasCustomAvatar={hasCustomAvatar}
+                forcedIdentity={forcedIdentity}
+                concealGear={concealGear}
+              />
             ) : (
               character.appearance && (
                 <section className="panel p-3">
@@ -438,19 +434,22 @@ export default function CharacterSheet({
               />
             )}
 
-            {/* Who is standing here, with the same menu /chat's column has — so
-                Bind, Loot, Heal and the rest start from the person rather than
-                from a picker. No seed: the list is read on mount, which is the
-                click that asked. */}
-            {isSelf && (
-              <section className="panel p-3">
-                <h2 className="panel-header">Who&apos;s here</h2>
-                <HereList people={null} selfId={character.id} poll />
-              </section>
-            )}
+            {/* "Who's here" no longer has its own panel on the sheet — /chat's
+                aside already carries it ("Here · N"), and drawing the same
+                list twice on two surfaces was the mockup's own reading of it
+                as redundant. HereList.js itself is untouched; /chat still
+                mounts it. */}
 
             <StandingHerePanel sites={sitesHere} />
           </div>
+        </div>
+
+        {/* The mockup's own line (docs/design/mockups/character/index.html),
+            and Bascinet's own words in docs/lore.md: "Now it's the year of
+            our Lord God, 1210." The right-hand span was the mockup's own
+            "nothing here presses" placeholder — dropped, per SHEET.md. */}
+        <div className="foot">
+          <span>Ravenheart · the year of our Lord God, 1210</span>
         </div>
       </RequestActionsProvider>
     </div>
