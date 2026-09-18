@@ -9,9 +9,14 @@ import { noteActionVersion, mutationErrorMessage } from "@/app/components/useDes
 import { DECREE_BODY_MAX, DECREE_TITLE_MAX } from "@lifeweb/db/lib/decreeText";
 import { sendDecree } from "./actions";
 
-// Writing a decree. The one door is the Decree button in the desk header
-// (DecreeButton.js); what comes out is db/lib/decree.js — a blackletter notice
-// block in every chosen zone's feed and an embed in its #summary.
+// Writing a decree. The one door is `/decree` in the chat composer
+// (web/app/(app)/chat/commands.js, opened through DecreeDialog.js — this
+// component is unchanged by that move and still knows nothing about where
+// it was opened from). There used to be a second door, a Decree button in
+// this desk's own header; it was retired when Bascinet asked for the
+// command instead, and this dialog is what it reused rather than a rewrite.
+// What comes out is db/lib/decree.js — a blackletter notice block in every
+// chosen zone's feed and an embed in its #summary.
 //
 // Two things this dialog does that the staged composers do not. It SENDS rather
 // than stages, so it asks first (useConfirm) — there is no tray to take it back

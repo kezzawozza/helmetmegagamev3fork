@@ -856,6 +856,17 @@ out of the handler into `db/lib` and both faces call it.
 | `/add`, `/remove` (conversation half) | `db/lib/conversations.js` | the same two |
 | `/move` `/travel` `/converse` | already shared | `submitMove`, `TravelNodes`, `ConverseDialog` |
 
+**`/decree` runs the other way: web-only, GM-only, no bot twin at all.** Every
+entry above is a player command with a Discord original and a web copy; `/decree`
+is a GM one that never had a Discord side and is not getting one. It opens
+`DecreeComposer.js` (`ADJUDICATION.md` §3a) — a title, a body and a zone
+picker, which is more than a Discord modal can hold in one screen, so the web
+composer is the only door. Gated off the `gm` boolean `commands.js`'s registry
+already reads for `gmOnly` entries, and re-gated at the send by `sendDecree`'s
+own `requireGm()` (`web/app/(desk)/gm/turns/actions.js`) — same belt-and-braces
+every server action here gets. Don't add a `/decree` slash command to
+`bot/src/lib/commands.js` to "finish" this; the gap is deliberate.
+
 **The bot is rewired.** It was not for a while, and each of those `db/lib`
 modules carried a `TODO(rewire)` naming the handler it duplicated. The
 handlers call the shared rule now and keep only what is genuinely Discord's:

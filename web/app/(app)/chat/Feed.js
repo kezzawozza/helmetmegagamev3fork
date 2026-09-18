@@ -650,10 +650,13 @@ export default function Feed({
   // Look at is the one thing you may do to somebody you cannot name.
   people = null,
   // What the composer's commands can do that a server action cannot: pick a
-  // node in the Travel grid, open the Converse dialog. Chat.js owns both,
-  // because both live in the right column.
+  // node in the Travel grid, open the Converse dialog, open the Decree
+  // dialog. Chat.js owns all three, because each lives outside this column —
+  // the right one, or (Decree) a plain dialog Chat.js mounts for the same
+  // reason it mounts Converse's.
   onTravelPick = null,
   onConverse = null,
+  onDecree = null,
   // Bumped by Chat.js on the stream's `places` event, so a key turning or
   // somebody else's /add re-reads the members strip.
   placesVersion = 0,
@@ -824,20 +827,24 @@ export default function Feed({
   }, []);
 
   // What a command can reach that a server action cannot. Chat.js owns the
-  // travel grid and the Converse dialog, so both arrive as callbacks.
+  // travel grid, the Converse dialog and the Decree dialog, so all three
+  // arrive as callbacks. Shared with GmSystemComposer below (same `ctx`
+  // prop), so /decree opens the same way from a place a GM cannot ordinarily
+  // speak in as it does from the ordinary composer.
   const commandCtx = useMemo(
     () => ({
       placeKey,
       travelTo: onTravelPick,
       converse: onConverse,
       lookAt: onLookUp,
+      openDecree: onDecree,
       // /conceal changes the name every row this composer writes will wear,
       // and that name is a SERVER prop (page.js -> Chat.js -> here), so the
       // page has to re-read it. The composer's own hood button used to be the
       // one caller that did this; /conceal is the only way up or down now.
       refresh,
     }),
-    [placeKey, onTravelPick, onConverse, onLookUp, refresh],
+    [placeKey, onTravelPick, onConverse, onLookUp, onDecree, refresh],
   );
 
   // Command mode itself, shared with the GM composer below.
@@ -1039,7 +1046,9 @@ export default function Feed({
       const value = event.target.value;
       const caret = event.target.selectionStart ?? value.length;
       // Command mode and the `/` shorthand belong to the hook; if it took the
-      // change there is nothing for the @ list to do with it.
+      // change there is nothing for the @ list to do with it. That includes a
+      // `dialog` entry like /decree — the hook runs it immediately and this
+      // branch never sees it.
       if (cmd.onDraftChange(value)) {
         setMention(null);
         return;

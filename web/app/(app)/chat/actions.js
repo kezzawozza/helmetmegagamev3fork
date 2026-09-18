@@ -65,6 +65,7 @@ import { paperDescription, paperView, paperViewGm, TITLE_MAX, WRITE_MAX } from "
 import { mintUnownedPaper } from "@lifeweb/db/lib/paperMint";
 import { cleanCustomText } from "@lifeweb/db/lib/customText";
 import { getGmSession } from "@/lib/discordGuild";
+import { decreeZones } from "@lifeweb/db/lib/decree";
 import { writeChatViewAs } from "@/lib/viewAs";
 import { speakerDirectory } from "@/lib/gmSpeakers";
 import { readBlock } from "@lifeweb/db/lib/reading";
@@ -2657,4 +2658,19 @@ export async function gmSystemPost({ placeKey, content } = {}) {
     .catch((err) => console.error("gmSystemPost: audit log failed:", err.message ?? err));
 
   return { ok: true };
+}
+
+// The zones DecreeDialog.js offers, for the composer's own `/decree`
+// (commands.js). GM-gated the same way gmPlace() above gates every other
+// GM-only action here — the desk's own zone picker (DecreeComposer.js's
+// server-rendered `zones` prop, before it moved here) never needed a fetch
+// like this one because its page is GM-only from the route down
+// (web/app/(desk)/gm/turns), and /chat is not. sendDecree
+// (web/app/(desk)/gm/turns/actions.js) re-checks GM again at the actual send,
+// same as every server action here.
+export async function getDecreeZones() {
+  const { session, isGm } = await getGmSession();
+  if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
+  const zones = await decreeZones(prisma);
+  return { ok: true, zones };
 }

@@ -212,7 +212,9 @@ async function deleteStagedMessageImpl({ stagedMessageId }) {
 
 // ------------------------------------------------------------------ decree
 
-// The Decree button in the desk header (DecreeComposer.js). NOT a staged row:
+// `/decree` in the chat composer (web/app/(app)/chat/commands.js), which
+// opens DecreeComposer.js the same way this desk's own retired Decree button
+// used to. NOT a staged row:
 // a decree goes out the moment it is sent, the way the intercom does, because a
 // proclamation held until midnight is a proclamation about yesterday. Nothing on
 // the desk changes, so there is no patch to hand back — only what happened, so

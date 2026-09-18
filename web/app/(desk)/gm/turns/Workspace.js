@@ -16,7 +16,6 @@ import InspectorColumn from "@/app/components/InspectorColumn";
 import useInspectorOverlay, { InspectorToggle } from "@/app/components/useInspectorOverlay";
 import GmZoneRail from "@/app/components/GmZoneRail";
 import StagingTray from "./StagingTray";
-import DecreeButton from "./DecreeButton";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
@@ -670,11 +669,6 @@ export default function Workspace({
         <div className="flex flex-wrap items-center gap-2">
           <DeskStaleChip />
           <InspectorToggle />
-          {/* The one verb on this desk that belongs to no row: a decree is
-              aimed at zones, not at a Move, so the header is its only home
-              (DecreeButton.js). It SENDS rather than stages — see
-              ADJUDICATION.md §3a. */}
-          <DecreeButton zones={presenceZones} />
           {/* No "Preview push" here. There is one of that button and it
               lives on the push tray, beside the rows it previews — two of
               them in two places was the desk's own example of the same

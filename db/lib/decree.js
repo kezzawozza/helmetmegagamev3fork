@@ -1,6 +1,9 @@
 // A GM's decree: a proclamation read into a zone, or into every zone at once.
-// The Decree button on the adjudication desk is the only door
-// (web/app/(desk)/gm/turns/DecreeComposer.js); the action there is the one caller.
+// The one door is `/decree` in the web chat composer
+// (web/app/(app)/chat/commands.js), which opens
+// web/app/(desk)/gm/turns/DecreeComposer.js; sendDecree in that route's own
+// actions.js is the one caller. Deliberately web-only — see the command's own
+// entry in commands.js for why there is no Discord twin.
 //
 // db/lib/intercom.js is the model, and the reason is the same one CLAUDE.md's
 // "Bot message style" gives for the PA: this is NOT scenery, so it does not go
@@ -39,6 +42,20 @@ function decreeEmbed({ title, body }) {
     description: normalizeDecreeBody(body),
     footer: { text: DECREE_LABEL },
   };
+}
+
+// The zones a decree may address — PRESENCE zones only, never the abstract
+// Caves group row, the same rule the public-declaration composer's own zone
+// list follows. It lives here rather than beside its one caller
+// (web/app/(app)/chat/actions.js#getDecreeZones) so that it sits next to
+// broadcastDecree's validating query below, which narrows the SAME set by id:
+// the two disagreeing is how a GM gets offered a zone the send then refuses.
+function decreeZones(prisma) {
+  return prisma.zone.findMany({
+    where: { kind: { not: "CAVE_GROUP" } },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true, kind: true },
+  });
 }
 
 // Posts to each chosen zone, sequentially and individually caught. Never
@@ -119,4 +136,4 @@ async function broadcastDecree(prisma, { title, body, zoneIds = [] } = {}) {
   };
 }
 
-module.exports = { broadcastDecree, decreeEmbed };
+module.exports = { broadcastDecree, decreeEmbed, decreeZones };

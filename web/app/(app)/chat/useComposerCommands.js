@@ -26,7 +26,9 @@ import {
 //   slash    { query, active } while the `/` popover is open. Null the rest of
 //            the time, including all of command mode — once a command is
 //            picked there is nothing left to autocomplete.
-//   command  { entry, values } — command MODE.
+//   command  { entry, values } — command MODE. Never set for a `dialog`
+//            command (commands.js): picking one runs it immediately instead,
+//            since it has nothing for the box to hold.
 //   cmdLine  what the command answered, cleared on the next keystroke so it
 //            never outlives the thing it explains.
 export default function useComposerCommands({
@@ -86,15 +88,27 @@ export default function useComposerCommands({
   // rather than a change of subject — somebody who typed a sentence and then
   // decided it was out of character should not have to type it again. The `/`
   // popover still clears, since there the text WAS the command name.
+  //
+  // A `dialog` command (commands.js) never enters command mode at all: it has
+  // nothing for the box to hold — no text argument, no chips to fill in — so
+  // there is nothing to press Enter on. Picking it runs it immediately,
+  // exactly the way clicking an ordinary button would, and the box is left
+  // untouched.
   const pickCommand = useCallback(
     (entry, keepText = "") => {
       setSlash(null);
-      setDraft(keepText);
       setCmdLine(null);
+      if (entry.dialog) {
+        setDraft(keepText);
+        entry.run({}, ctx);
+        focus();
+        return;
+      }
+      setDraft(keepText);
       setCommand({ entry, values: {} });
       focus();
     },
-    [setDraft, focus],
+    [setDraft, focus, ctx],
   );
 
   const setArg = useCallback((name, value) => {
@@ -169,16 +183,17 @@ export default function useComposerCommands({
 
       // `/shout ` — the whole name and a space. Discord's composer does this,
       // and it is how anybody who knows the command avoids the menu entirely.
+      // Routed through pickCommand so a `dialog` entry opens the same way
+      // here as it does from the popover, rather than this branch
+      // re-deciding command-mode-vs-immediate on its own.
       const exact = exactCommand(available, value);
       if (exact) {
-        setDraft("");
-        setSlash(null);
-        setCommand({ entry: exact, values: {} });
+        pickCommand(exact);
         return true;
       }
       return false;
     },
-    [command, available, setCmdError, setDraft, onTyping],
+    [command, available, pickCommand, setCmdError, setDraft, onTyping],
   );
 
   // The `/word` under the caret. Separate from the above because the caller

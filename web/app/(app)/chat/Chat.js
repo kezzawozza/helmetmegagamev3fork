@@ -20,6 +20,7 @@ import { useDmState, seedNewestOutbound, addDmRow, noteDmReconnect } from "./dmS
 import NoticeCards from "./NoticeCards";
 import GmAside from "./GmAside";
 import { ConverseDialog } from "./PlacePanel";
+import DecreeDialog from "./DecreeDialog";
 import { addMember, setChatViewAs } from "./actions";
 import { mentionsCharacter } from "@/app/components/richTokens";
 import { useSeen, markSeen, markAllSeen, seedSeenIfFresh, isUnread } from "./seenStore";
@@ -318,6 +319,7 @@ export default function Chat({
   //   travelPick   { locationId, at } — `at` is a timestamp so picking the
   //                same node twice re-opens the confirm strip.
   //   converseOn   whether the Converse dialog is open.
+  //   decreeOn     whether the Decree dialog is open (GM only — see onDecree).
   //   placesVersion  bumped on every `places` frame, which is what a key
   //                turning or somebody else's /add looks like from here. The
   //                members strip re-reads on it.
@@ -328,6 +330,7 @@ export default function Chat({
   const selectedRef = useRef(null);
   const [travelPick, setTravelPick] = useState(null);
   const [converseOn, setConverseOn] = useState(false);
+  const [decreeOn, setDecreeOn] = useState(false);
   const [placesVersion, setPlacesVersion] = useState(0);
   const bumpPlaces = useCallback(() => setPlacesVersion((n) => n + 1), []);
 
@@ -413,6 +416,11 @@ export default function Chat({
     setAsideOpen(true);
   }, []);
   const onConverse = useCallback(() => setConverseOn(true), []);
+  // `/decree`. The command entry is GM-gated already (commands.js), so this
+  // callback is only ever reachable from a GM's own composer — but the dialog
+  // below still checks `gm` too, since a ctx callback handed to a command's
+  // `run` is one hop further from that gate than the click of a button would be.
+  const onDecree = useCallback(() => setDecreeOn(true), []);
   // "Add to …" on a person's row in HERE. The same server action the members
   // strip and the /add command use; the strip re-reads off placesVersion.
   // Answers with the action's own { ok, error }, so the list that offered the
@@ -1000,6 +1008,7 @@ export default function Chat({
           people={aside?.people ?? null}
           onTravelPick={onTravelPick}
           onConverse={onConverse}
+          onDecree={onDecree}
           placesVersion={placesVersion}
           gm={gm}
           // Whether the GM reading this also PLAYS somebody. Every command in
@@ -1077,6 +1086,11 @@ export default function Chat({
           }}
         />
       )}
+      {/* `/decree`, GM only. commands.js already keeps a player from ever
+          seeing the entry, so `gm` here is belt-and-braces — but the dialog
+          itself carries no gate of its own, so this is the one place that
+          matters if that ever changes. */}
+      {gm && decreeOn && <DecreeDialog onClose={() => setDecreeOn(false)} />}
       {!aside && gmZones && asideFolded && asideOpen && (
         <Modal open title={asideTitle} onClose={closeAside} panelClassName="modal-panel chat-drawer chat-drawer--right">
           <DrawerBody onSwipeClose={closeAside} side="right">

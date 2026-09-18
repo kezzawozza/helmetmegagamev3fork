@@ -341,12 +341,16 @@ portrait takedown, `/gm/audit` after a fight is called off — never this one's.
 
 ### 3a. Decree
 
-**Decree** is the one verb on this desk that belongs to no row, so it sits in
-the header beside the inspector toggle (`DecreeButton.js`) — the same seat
-`/gm/players` gives **Bulk message**. It opens a dialog
-(`DecreeComposer.js`) with three things in it: a **title**, the **words**, and
-which **zones** hear it, every zone ticked to start with. It asks before it
-sends (`useConfirm`), because nothing about a decree is staged.
+**Decree is not on this desk at all — it is `/decree` in the web chat
+composer** (`web/app/(app)/chat/commands.js`), GM-only and with **no Discord
+equivalent**: don't add a bot command for it, that gap is deliberate (the
+command's own entry says why). It used to sit in this desk's header as a
+`DecreeButton`; that button is retired, and picking `/decree` now opens the
+same dialog (`DecreeComposer.js`, reached through `DecreeDialog.js`, which
+exists only to fetch the zone list a GM-only page like this one gets for
+free) with three things in it: a **title**, the **words**, and which
+**zones** hear it, every zone ticked to start with. It asks before it sends
+(`useConfirm`), because nothing about a decree is staged.
 
 **It is not a staged row, and that is the point.** A staged public declaration
 waits for the midnight push (§1), which is right for the outcome of a Move and
