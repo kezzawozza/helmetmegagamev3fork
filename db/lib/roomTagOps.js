@@ -28,7 +28,7 @@ function validateRoomTagOps(ops, tagsById) {
 // load-bearing order): a swap must not merge the add into the stack the
 // remove was about to take from — this module never touches a Character, so
 // there's no lock-ordering to avoid. `econ` is forwarded so a staged grant
-// doesn't read as UNATTRIBUTED on /gm/economy (DEPOT.md §0g).
+// doesn't read as UNATTRIBUTED in the ledger (DEPOT.md §0g).
 async function applyRoomTagOpsInTx(tx, { roomId, ops, tagsById, openTurn, econ = {} }) {
   const applied = [];
   const removes = (ops ?? []).filter((o) => o.op === "remove");

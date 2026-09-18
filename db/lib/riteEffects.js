@@ -32,7 +32,7 @@ const { broadcastToZones } = require("./worldBroadcast");
 // roomStash's addRoomResources, NOT resourceStack's. The bare stack writer moves
 // the ⬢ and books nothing; this one records the ledger row and the CLAMP
 // shortfall. A rite minting ⬢ onto a floor is real money appearing out of
-// nowhere, and /gm/economy reconciles every account against its ledger sum —
+// nowhere, and reconciliation checks every account against its ledger sum —
 // unbooked, it reads as that floor drifting.
 const { addRoomResources } = require("./roomStash");
 const {

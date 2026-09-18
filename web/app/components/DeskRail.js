@@ -1,12 +1,12 @@
 import Link from "next/link";
 
 // The desk rail — the left column of every (desk) page. One shell and one
-// .desk-* family for all six of them (REDESIGN.md §5, "Desk chrome"): the
-// adjudication desk, the player desk, the audit log, the Dev Panel, the
-// economy desk and the Oracle. /gm/dev's .ops-nav and /gm/audit's
-// .audit-filters were the same rail written twice more, and they fold in here.
+// .desk-* family for all five of them (REDESIGN.md §5, "Desk chrome"): the
+// adjudication desk, the player desk, the audit log, the Dev Panel and the
+// Oracle. /gm/dev's .ops-nav and /gm/audit's .audit-filters were the same
+// rail written twice more, and they fold in here.
 //
-// NOT "use client": /gm/dev/page.js and /gm/economy/page.js are server
+// NOT "use client": /gm/dev/page.js and /gm/oracle/page.js are server
 // components that render their rail directly, and a directive here would drag
 // the whole Dev Panel into the client bundle. Same rule as CheckField and
 // Switch (DESIGN-SYSTEM.md §5a). Nothing in this file holds state.
@@ -23,7 +23,7 @@ import Link from "next/link";
  * @param {"queue"|"sections"} [p.variant="queue"]
  *   "queue" — a scrolling list of selectable rows, with whatever filter band
  *   and hint line the desk puts around it (/gm/turns, /gm/players, /gm/oracle).
- *   "sections" — a padded stack of titled groups (/gm/dev, /gm/economy, and
+ *   "sections" — a padded stack of titled groups (/gm/dev and
  *   /gm/audit's filter groups). Lands on data-variant.
  * @param {React.ReactNode} [p.children] the rail's contents, in order
  * @param {"aside"|"nav"|"div"} [p.as="aside"]

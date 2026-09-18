@@ -5,7 +5,7 @@
 // Nothing here touches Prisma. `fakeTx` below stands in for a transaction
 // client: it holds balances in a Map and collects the EconomyEntry rows that
 // would have been written, which is enough to assert the one property the
-// whole /gm/economy panel rests on —
+// whole ledger rests on —
 //
 //   for every account, the sum of its ledger legs equals its live balance.
 //

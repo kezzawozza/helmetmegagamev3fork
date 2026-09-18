@@ -8,8 +8,8 @@
 // every account's reconstructed sum against its LIVE balance and write one
 // PLUG row for the difference — not a fudge, the honest half, since a
 // perfect reconstruction doesn't exist (hunger/horse-upkeep/tax/carry
-// recorded totals not deltas). /gm/economy reports plug sizes so nobody
-// mistakes them for real history.
+// recorded totals not deltas). A plug's size is a diagnostic, not real
+// history (ECONOMY.md §6) — nobody should mistake it for either.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { adapt } = require("../../lib/economyAdapter");

@@ -9,7 +9,7 @@ import AnalysisNav from "./AnalysisNav";
 // Everything on /analysis, top to bottom. One long scrolling report (see
 // AnalysisNav) rather than a ?s= tab switcher — the whole dataset is one
 // cheap combined fetch (page.js), meant to be read start to finish, not
-// navigated between independently-expensive tabs the way /gm/economy is.
+// navigated between independently-expensive tabs the way a ?s=-switched desk is.
 export default function AnalysisView({
   summary,
   byCharacter,

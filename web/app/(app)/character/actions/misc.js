@@ -1385,7 +1385,7 @@ export async function lootCharacterRequestImpl({
     // picker filters them out (web/lib/peoplePools.js), but a picker is a hint
     // and not a lock (CLAUDE.md), so refuse them here too. Without this a
     // crafted post moves a body's whole purse with nothing in the book, and
-    // /gm/economy reads both parties as permanently drifted.
+    // both parties read as permanently drifted against the ledger (ECONOMY.md §3).
     if (isResourcesRow(held)) {
       throw new UserError("Take ⬢ with the Resources field, not as an item.");
     }

@@ -2,7 +2,7 @@ import { num, scale, seriesColor } from "./chartUtils";
 
 // Server component. A hover crosshair would be the ideal finish here (see the
 // dataviz skill's interaction.md), but this is the first chart component in
-// the app and GM economy pages read from a server-rendered ledger snapshot --
+// the app and /analysis reads from a server-rendered snapshot --
 // wiring a client-side tooltip layer is a follow-up, not a blocker for
 // shipping the visual + its table fallback. The legend and the hidden table
 // already carry every exact value, so nothing is gated behind hover.

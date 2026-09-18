@@ -1,7 +1,7 @@
 # The economy
 
-The source of truth for the money in Ravenheart, the ledger that records it,
-and `/gm/economy`, the desk that reads it.
+The source of truth for the money in Ravenheart, and the ledger that records
+it.
 
 ## 1. There is one unit of account, wearing several coats
 
@@ -75,9 +75,7 @@ from" has to be answerable, and before this it was not.
 
 > For every account: the sum of its ledger legs equals its live balance.
 
-This is the point of the whole system. `reconcile()` in
-`web/lib/economyQuery.js` runs it, the Pulse section shows a badge, and the
-Health section lists every account that drifts. **A drift is a finding, not a
+This is the point of the whole system. **A drift is a finding, not a
 bug in the ledger** — it means something moved money without saying so, and the
 size of the drift is the size of the hole.
 
@@ -208,8 +206,8 @@ above describes that history, not anything Hunger charges today.
 
 ## 7. Who sees what
 
-`/gm/economy` is open to **every GM**, zone-scoped and redacted. Superadmins
-read it unredacted.
+A GM reading the ledger sees it zone-scoped and redacted. A superadmin reads
+it unredacted.
 
 - **Zone scoping** follows the desks' own rule — null means every zone, never
   an empty list, so branch on null rather than on length.
@@ -249,25 +247,6 @@ same question. If the groupBy becomes slow — it is the kind of thing that
 would, on a month-old game — cache it somewhere that is actually kept warm,
 and make the read path merge rather than choose.
 
-
-## 9. What each section of the desk answers
-
-| Section | The question |
-|---|---|
-| Pulse | What is the town worth, is the supply growing, and is one person sitting on it |
-| Flows | Where does money come from, where does it go, and who trades with whom |
-| Faucets | Which sources pay, and how much |
-| Sinks | What spends money, and what destroys it — the Spillway and an overdrawn purse have their own panel, because those two are destruction rather than spending |
-| Ledger | The book: every entry, filterable, newest first |
-| Accounts | Every purse and stash, and what moved through it this turn |
-| Goods | The catalog against reality — prices, what exists, what actually trades, and any ware whose round trip prints money |
-| The Depot | Every account in the game, split TREASURY from OFFSHORE, against the coin in the Vault. A claim and its backing are shown APART, always (§1) |
-| Health | Drift, un-hooked call sites, and the backfill seam |
-
-One number the desk deliberately does not compute:
-
-- **No per-account balance history.** There is no per-turn snapshot to group
-  off, so a sparkline would cost a query per account.
 
 ## 9. Things not to do
 

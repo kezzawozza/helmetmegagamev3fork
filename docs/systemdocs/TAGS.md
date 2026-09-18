@@ -2463,7 +2463,7 @@ the gear, so a fortune in raw material is a cart's worth of work to move
 It is priced on **both** sides so the Depot trades it as an ordinary ware —
 `depotPrice: 2`, `sellablePrice: 1`, the losing round trip the Depot has always
 described. The economy ledger still books it as form `BALANCE` rather than
-`GOODS`, which is what keeps ⬢ and obols apart on `/gm/economy`
+`GOODS`, which is what keeps ⬢ and obols apart in the ledger
 (`ECONOMY.md` §1). No `pointCost`, not purchasable at creation.
 
 **`obol`** — the Merchant's currency. Stackable, tradeable, `weight: 0`,

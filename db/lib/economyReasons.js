@@ -1,8 +1,8 @@
 // The economy's vocabulary: why ⬢ moved, and how a reader should group it. A plain string on
 // EconomyEntry.reason, not a Prisma enum, for the reason AuditLog.actionType is one — the list grows
 // and a migration per reason is a tax nobody would pay. This module is the ONLY place it is authored.
-// Zero requires, ever, like db/lib/dmKinds.js — reachable from a client component (the /gm/economy
-// chips), and one require of @lifeweb/db here would drag PrismaClient into the browser bundle.
+// Zero requires, ever, like db/lib/dmKinds.js — reachable from a client component (a reason
+// chip), and one require of @lifeweb/db here would drag PrismaClient into the browser bundle.
 
 // How a reason behaves in the books — what Faucets/Sinks group on and the supply chart uses to tell a
 // mint from a hand-over. FAUCET: ⬢ that didn't exist before, supply up. SINK: ⬢ stops existing, supply
@@ -64,7 +64,7 @@ const REASONS = {
   // rather than a sink: the money does not stop existing, it changes hands.
   SELL_TAX: { flow: FLOW.TRANSFER, label: "Sell tax" },
   // Kept, unwritten: the generator is gone, but a reason is a plain string and
-  // deleting one blanks the old rows that name it on /gm/economy.
+  // deleting one blanks the old rows that name it.
   DEPOT_REFUEL: { flow: FLOW.TRANSFER, label: "Refuelled" },
 
   // --- internal (a form change, not a movement) ---
@@ -77,8 +77,9 @@ const REASONS = {
   DEPOT_CREDIT: { flow: FLOW.INTERNAL, label: "Credit line" },
 
   // --- the honest ones ---
-  // A write reached the ledger with no reason. Deliberately loud on /gm/economy as its own bar, so an
-  // un-hooked call site is visible instead of quietly missing — never filter it out on the read side.
+  // A write reached the ledger with no reason. Deliberately its own reason rather than a silent
+  // default, so an un-hooked call site is visible instead of quietly missing — never filter it out on
+  // the read side.
   UNATTRIBUTED: { flow: FLOW.INTERNAL, label: "Unattributed" },
   // What the AuditLog backfill couldn't account for, written once per account so the books close at
   // the seam. Its size is a diagnostic, not a number to trust.

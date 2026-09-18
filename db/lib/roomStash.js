@@ -16,7 +16,7 @@ async function pickRandomPublicRoom(db, locationId) {
 
 // Mints or burns a room's own ⬢, clamped at 0 — the same shape as moveEffects.js#addResources, over db/lib/resourceStack.js's stack write.
 // Deliberately NOT resourceTransfer.js#moveParty (throws on overdraw) — a GM adjustment has no other end to balance against, so clamping is right.
-// A destroysContents room takes no credit for ⬢ going in; arrival and destruction are both booked so /gm/economy's reconciliation nets correctly.
+// A destroysContents room takes no credit for ⬢ going in; arrival and destruction are both booked so reconciliation nets correctly.
 // Writes to the economy ledger: `ctx` carries the reason, and a write with none is UNATTRIBUTED rather than dropped.
 async function addRoomResources(tx, roomId, amount, ctx = {}) {
   if (!amount) return 0;

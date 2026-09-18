@@ -271,11 +271,9 @@ export async function claimsByTurn() {
   return { series, categories };
 }
 
-// Gini coefficient + Lorenz points, duplicated (not imported) from
-// web/lib/economyQuery.js#gini — that module is scoped to the GM-gated
-// economy desk, and this page is unauthenticated, so it stays self-contained
-// rather than reaching into a (desk) query module. 0 is equal, 1 is one
-// character holding every point earned via Desires.
+// Gini coefficient + Lorenz points. This page is unauthenticated, so it keeps
+// its own copy of the math rather than reaching into a GM-gated query module.
+// 0 is equal, 1 is one character holding every point earned via Desires.
 function gini(values) {
   const xs = values.filter((v) => Number.isFinite(v) && v >= 0).sort((a, b) => a - b);
   const n = xs.length;

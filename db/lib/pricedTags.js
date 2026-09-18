@@ -31,7 +31,7 @@ async function loadCache(tx) {
       // Resources carry a depotPrice and a sellablePrice like any ware, so
       // without this they would book as GOODS at their buy-back price. They
       // are not goods, they are the unit of account: one ⬢ is one obol is
-      // one ⬢ of value, and /gm/economy tells ⬢ and coin apart by FORM
+      // one ⬢ of value, and the ledger tells ⬢ and coin apart by FORM
       // (docs/systemdocs/ECONOMY.md §1). The prices are for the Depot's
       // counter; the ledger books the stack at par.
       isResources: row.slug === RESOURCES_SLUG,

@@ -48,8 +48,8 @@ async function moveParty(tx, party, delta, ctx) {
   // Spillway). Money going IN is destroyed; money coming OUT is still
   // allowed so Undo can take back what it drained from the sender.
   if (party.destroysContents && delta > 0) {
-    // TWO rows: reconciliation on /gm/economy compares each account's ledger
-    // sum against its live balance, and the room's balance doesn't move here,
+    // TWO rows: reconciliation compares each account's ledger sum against its
+    // live balance, and the room's balance doesn't move here,
     // so the book must show the ⬢ both arriving (suppressed the normal way)
     // and being destroyed (always). Net across the two: zero.
     if (!ctx?.__suppress) await recordDelta(tx, party, delta, ctx);

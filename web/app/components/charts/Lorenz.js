@@ -6,7 +6,7 @@ import { VisuallyHiddenTable, EmptyChart } from "./StackedArea";
 // ascending. `gini` is the precomputed coefficient, called out as text next
 // to the curve rather than re-derived here -- this component only draws.
 // `title` names what's distributed, defaulting to the original "resource
-// distribution" copy so /gm/economy's call site needs no changes.
+// distribution" copy so an existing call site needs no changes.
 export default function Lorenz({ points, gini, width = 320, height = 320, title = "resource distribution" }) {
   const rows = Array.isArray(points) ? points.filter((r) => r && Number.isFinite(num(r.p))) : [];
 

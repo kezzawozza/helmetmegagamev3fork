@@ -1,11 +1,11 @@
 import { num, scale } from "./chartUtils";
 
-// Server component: a sparkline is dropped into a table cell by the dozen (one
-// per row on an economy roster), so it must stay static and cheap -- no hover
-// state, no client bundle cost. `Sparkline.js` has no "use client" for that
-// reason. A viewer who wants the exact values reads the aria-label or the
-// row's own numeric column; a per-row hover layer here would be real cost for
-// a chart the size of a word.
+// Server component: a sparkline is meant to be dropped into a table cell by
+// the dozen (one per row on a data-heavy desk), so it must stay static and
+// cheap -- no hover state, no client bundle cost. `Sparkline.js` has no "use
+// client" for that reason. A viewer who wants the exact values reads the
+// aria-label or the row's own numeric column; a per-row hover layer here
+// would be real cost for a chart the size of a word.
 //
 // `points` is an array of numbers (or {value} objects) -- whatever the caller
 // already has. Degenerate input (empty, one point, all zero, non-numeric)

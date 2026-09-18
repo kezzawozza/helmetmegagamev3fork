@@ -8,8 +8,8 @@
 //   the CLAMP — a debit larger than the balance takes what is there and
 //   destroys the rest, never going negative. `addCharacterResources` reports
 //   the shortfall so db/lib/moveEffects.js can book it as a CLAMP burn; if it
-//   stopped reporting, real money destruction would go unrecorded and
-//   /gm/economy's Sinks section would quietly under-count (ECONOMY.md §4).
+//   stopped reporting, real money destruction would go unrecorded and the
+//   ledger's SINK total would quietly under-count (ECONOMY.md §4).
 //
 //   the CONDITIONAL WRITE — `take*` must be all-or-nothing in ONE statement,
 //   never a read then a decrement. Prisma runs READ COMMITTED, so two

@@ -9,8 +9,8 @@
 // The one thing SQL could not do in the migration is the ledger row. The
 // migration moved `Depot.accountObols` into the Merchant's OFFSHORE account
 // directly, which leaves `depot:account` reading as though its float simply
-// vanished — a permanent drift the size of his balance on /gm/economy's Health
-// section, and, worse, a lesson that the drift numbers are noise. record()
+// vanished — a permanent drift the size of his balance in the reconciliation,
+// and, worse, a lesson that the drift numbers are noise. record()
 // needs the reason table and the turn stamp, so the closing row is written
 // here instead. See docs/systemdocs/ECONOMY.md §3.
 require("dotenv").config();
