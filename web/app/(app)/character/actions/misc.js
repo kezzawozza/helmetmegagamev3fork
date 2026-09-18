@@ -1482,12 +1482,11 @@ export async function lootCharacterRequestImpl({
     });
   });
 
-  // The looter's carry caps and doors, and the target's if they're alive (a
-  // corpse holds nothing that needs settling).
-  await afterInventoryChange([
-    character.id,
-    target.status === "ALIVE" ? target.id : null,
-  ]);
+  // The looter's carry caps and doors, and the target's — settleCarry no-ops
+  // for a DEAD character on its own, but a corpse still needs its weight
+  // refreshed here (db/lib/corpseWeight.js#refreshCorpseWeight), or a fully
+  // stripped body goes on weighing what it did before the loot.
+  await afterInventoryChange([character.id, target.id]);
 
   const lootParts = [
     ...takenTags.map((t) => formatStack(t.tagName, t.quantity)),
