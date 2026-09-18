@@ -54,11 +54,12 @@
      arrives on <html> as --font-display (web/app/layout.js). The other three
      are plain system stacks declared here. Unlayered :root, so these outrank
      Tailwind v4's own --font-sans / --font-mono theme defaults, which live in
-     @layer theme. --font-serif is deliberately the SAME face as --font-sans:
-     headings are body-face bold now, and keeping the name means the ~12
-     `var(--font-serif)` call sites below need no sweep. */
+     @layer theme. --font-serif is a real serif again as of phase 4: the sheet
+     mockup draws every heading in a bold Times, so h1/h2/h3, .panel-header and
+     .section-title all pick it up from this one line and nothing else changes.
+     Body text stays --font-sans. */
   --font-sans: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-serif: var(--font-sans);
+  --font-serif: "Times New Roman", Times, "Liberation Serif", serif;
   --font-mono: "Courier New", Courier, ui-monospace, monospace;
 
   /* 4px spacing scale, replacing 14 ad-hoc padding values. */
@@ -422,8 +423,8 @@ body {
   background: var(--bg);
 }
 
-/* Headings are the body face, bold, barely larger than body (REDESIGN.md §3).
-   --font-serif is an alias of --font-sans now; the name and this rule stay so
+/* Headings are a bold serif, barely larger than body — the face the sheet
+   mockup draws them in (REDESIGN.md §10, phase 4). One token, --font-serif, so
    no call site has to change and no heading ever hand-applies a font class. */
 h1,
 h2,
@@ -8973,12 +8974,16 @@ label.chip {
   padding: var(--sp-3) var(--sp-4);
 }
 
-/* align-items: start, so a short column is a short column — with the columns
-   no longer scrolling there is nothing to stretch them to. */
+/* TWO columns as of phase 4, not three: the rail plus the inventory and the
+   bio on the left, the rig, the mood and the desires on the right. The mockup
+   draws it that way, and the old middle column existed mostly to give the bio
+   form somewhere to be. align-items: start, so a short column is a short
+   column — with the columns no longer scrolling there is nothing to stretch
+   them to. */
 .ledger-body {
   display: grid;
-  grid-template-columns: 18rem minmax(0, 1fr) 22rem;
-  gap: var(--sp-4);
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: var(--sp-3);
   align-items: start;
 }
 
@@ -9019,14 +9024,30 @@ label.chip {
   min-width: 0;
 }
 
-/* The one heading on the sheet that is somebody's name. Serif comes from the
-   h2 itself (DESIGN-SYSTEM.md) — this only takes the margin off and pins the
-   size, so the four lines beside the face stay a block rather than a column
-   with a gap at the top of it. */
+/* The zone and the Location inside "Standing in Town — Tallow Row": lifted out
+   of the muted line they sit on, the way the mockup draws them. */
+.ledger-who strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* The one heading on the sheet that is somebody's name, and one of the handful
+   of places the world speaks in its own voice: the blackletter, in
+   --blackletter, over the black drop the token's own comment requires. The
+   shadow is the one literal colour in this file's sheet families, and it is
+   black, which no theme changes.
+
+   --fs-3xl is the blackletter floor (24px+): the face is illegible smaller, and
+   --blackletter is only measured for contrast as large text. */
 .ledger-name {
-  margin: 0;
-  font-size: var(--fs-xl);
-  line-height: 1.2;
+  margin: 0 0 2px;
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 400;
+  font-size: var(--fs-3xl);
+  line-height: 1.05;
+  letter-spacing: var(--ls-tight);
+  color: var(--blackletter);
+  text-shadow: 0 2px 3px #000;
 }
 
 /* 9rem square, up from the 64px it was. The number is not arbitrary: it is
@@ -9245,6 +9266,39 @@ label.chip {
   color: var(--danger);
 }
 
+/* The line under a tile's number: the coin in your pocket beside your ⬢, the
+   mood's own figure, which modifier is weighing on the Gambit. Prose, not data,
+   so no mono face. */
+.ledger-tile-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-2xs);
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+/* The load meter, on the Carrying tile and again at the foot of the rig. Hard
+   edges, no radius, no gradient — the mockup's bar. A <span> and a <span>,
+   because the tile's faces are spans and a <button> may only hold phrasing
+   content, so both displays have to be said out loud. */
+.sheet-meter {
+  display: block;
+  height: 7px;
+  margin-top: var(--sp-1);
+  border: 1px solid var(--border);
+  background: var(--field-bg);
+}
+
+.sheet-meter > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.sheet-meter[data-over="true"] > span {
+  background: var(--danger);
+}
+
 /* Combat sits in the band row beside This turn and Turn Effects, all three the
    same build. It is a <button> rather than a <div>, so it needs the row's own
    stretch to match its neighbours' heights. */
@@ -9336,14 +9390,6 @@ label.chip {
   color: var(--muted);
 }
 
-/* The meter is a <span> on the sheet, because it sits inside the tile's own
-   <span> faces and a <button> may only contain phrasing content. So its
-   display has to be said out loud here — left inline it drew nothing at all. */
-.ledger-tile .depot-meter,
-.ledger-tile-button .depot-meter {
-  display: block;
-  margin-top: var(--sp-2);
-}
 
 /* Combat's opened face writes several short runs; each is its own line. */
 .combat-line {
@@ -9461,10 +9507,12 @@ label.chip {
 }
 
 /* ── The action strip (ActionGrid variant="strip") ──
-   One wrapping row of small labelled buttons, the sections split by a
-   hairline. A gated verb is drawn dashed and greyed and does not press; its
-   reason is in the tooltip, which fires on the disabled button because
-   Tooltip wraps it rather than sitting on it (ActionButton.js). */
+   The verb strip under the band: groups of bevelled buttons split by a
+   hairline, as the mockup draws it. Each item IS a .btn-secondary — the bevel,
+   the press and the dashed gated state all come from there, so this family
+   only adds the icon gap and the strip's own spacing. A gated verb's reason is
+   in the tooltip, which fires on the disabled button because Tooltip wraps it
+   rather than sitting on it (ActionButton.js). */
 .action-strip {
   display: flex;
   flex-wrap: wrap;
@@ -9488,27 +9536,15 @@ label.chip {
   border-right: none;
 }
 
+/* On top of .btn-secondary, not instead of it. The font-family is pinned
+   because the .tag-hover wrapper the tooltip brings with it hands down the mono
+   face, and these are labels, not data. */
 .action-strip-item {
-  all: unset;
-  cursor: pointer;
-  /* Pinned, not inherited: the .tag-hover wrapper the tooltip brings with it
-     hands down the mono face, and these are labels, not data. */
-  font-family: var(--font-sans);
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
   gap: var(--sp-1);
-  padding: 3px var(--sp-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  color: var(--text);
-  font-size: var(--fs-xs);
-  line-height: 1.2;
+  padding: 4px var(--sp-2);
+  font-family: var(--font-sans);
+  letter-spacing: normal;
   white-space: nowrap;
-}
-
-.action-strip-item:hover:not(:disabled) {
-  border-color: var(--accent-text);
 }
 
 .action-strip-item:focus-visible {
@@ -9516,10 +9552,13 @@ label.chip {
   outline-offset: 2px;
 }
 
-.action-strip-item[aria-disabled="true"],
+/* data-muted is the coarse-pointer spelling of gated: there the button must
+   stay pressable so its tooltip can be opened (ActionButton.js), so the look
+   has to be said again rather than riding :disabled. */
 .action-strip-item[data-muted="true"] {
+  border: 2px dashed var(--border);
+  background: var(--field-bg);
   color: var(--muted);
-  border-style: dashed;
   cursor: not-allowed;
 }
 
@@ -9532,8 +9571,21 @@ label.chip {
    One card per kind, one row per tag. A row is a button (the name and its
    note) with the verbs and the value beside it; open, its details follow on
    the recessed surface. */
-.sheet-rail-head .field input {
+.sheet-tags-filter {
+  display: block;
+  margin-bottom: var(--sp-2);
+}
+
+.sheet-tags-filter input {
   width: 100%;
+}
+
+/* One kind's run of rows inside the Tags card — SKILLS, then HEALTH, then
+   STATUS. Scoped to the run rather than to .sheet-card, which the Items and
+   Assets panels also wear: those are flex children of the column and take their
+   spacing from its gap. */
+.sheet-rail-run + .sheet-rail-run {
+  margin-top: var(--sp-3);
 }
 
 .sheet-group + .sheet-group {
@@ -9778,6 +9830,23 @@ label.chip {
   gap: var(--sp-1);
 }
 
+/* The slot's name on the left, and on the right the one hint about how it
+   fills — "Mail, then Over", "4 hands", "one thing". The mockup draws them as a
+   pair on one line. */
+.equip-row-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.equip-row-hint {
+  font-size: var(--fs-2xs);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--muted);
+}
+
 /* More weapons readied than there are hands — only reachable on a character
    who filled them before the three-hand rule existed. The count says so, and
    EquipBoard.js writes the sentence under the row. */
@@ -9873,25 +9942,90 @@ button.equip-cell-face:focus-visible {
   outline-offset: -2px;
 }
 
-/* ── Widths ── */
+/* What the rig adds up to, at its foot: the same two numbers the Carrying tile
+   shows, under a rule, because the board above is what changes them. */
+.sheet-carry-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-xs);
+}
+
+.sheet-carry-line [data-over="true"] {
+  color: var(--danger);
+}
+
+/* ── Mood, as the band ladder (MoodPanel.js) ───────────────────────
+   One cell per band from Panicking to Ecstatic, tinted by the band's tone, with
+   the one you are in lit. Decoration for the names underneath, so it is
+   aria-hidden and the words carry the meaning. */
+.mood-scale {
+  display: flex;
+  gap: 1px;
+  margin: var(--sp-1) 0;
+}
+
+.mood-scale > i {
+  flex: 1 1 0;
+  height: 9px;
+  border: 1px solid var(--bg);
+  background: var(--border);
+}
+
+.mood-scale > i[data-tone="bad"] {
+  background: color-mix(in oklab, var(--danger) 35%, var(--surface));
+}
+
+.mood-scale > i[data-tone="warn"] {
+  background: color-mix(in oklab, var(--warning) 35%, var(--surface));
+}
+
+.mood-scale > i[data-tone="good"] {
+  background: color-mix(in oklab, var(--positive) 35%, var(--surface));
+}
+
+.mood-scale > i[data-here="true"] {
+  background: var(--warning);
+}
+
+/* Every band's word under the ladder, the one you are in picked out. */
+.mood-names {
+  font-size: var(--fs-2xs);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.mood-names > b {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.mood-names > b[data-tone="good"] {
+  color: var(--positive);
+}
+
+.mood-names > b[data-tone="warn"] {
+  color: var(--warning);
+}
+
+.mood-names > b[data-tone="bad"] {
+  color: var(--danger);
+}
+
+/* ── Widths ──
+   Two columns down to 720px, then one. There are no tabs any more: the sheet
+   was three columns behind a You / Do / Tags tab bar under 820px, and with two
+   columns the phone answer is simply to stack them — a tab bar that hides two
+   thirds of a sheet costs a player two taps to find their own wound. */
 @media (max-width: 1180px) {
-  /* The rail goes under the working column first — it is a reference list,
-     and the bio form is the narrow thing that keeps its width best. */
+  /* The right column narrows before it moves: the rig and the mood ladder both
+     read fine at 18rem, and the rail is what wants the width. */
   .ledger-body {
-    grid-template-columns: 18rem minmax(0, 1fr);
-  }
-
-  .ledger-rail {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-    align-items: start;
-  }
-
-  /* The Tags header is a strip, not a card of rows — it reads as a stray
-     tile if it is left sharing a row with a tall category. */
-  .ledger-rail > .sheet-rail-head {
-    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) 18rem;
   }
 
   /* Three then two once the band has wrapped. It was two-by-two while there
@@ -9902,42 +10036,34 @@ button.equip-cell-face:focus-visible {
   }
 }
 
-/* The tabs exist only where the columns cannot sit side by side. */
-.sheet-tabs {
-  display: none;
-  flex-shrink: 0;
-}
-
-@media (max-width: 820px) {
-  .sheet-tabs {
-    display: flex;
-  }
-
+/* One column, and the 44px tap floor on everything that presses. The tile row
+   wraps to two as well: 3 × 8.5rem plus gaps overflows a 390px phone. */
+@media (max-width: 720px) {
   .ledger-body {
-    display: block;
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .ledger-rail {
-    display: flex;
+  .ledger-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .ledger-body[data-tab="you"] .ledger-col:not([data-col="you"]),
-  .ledger-body[data-tab="do"] .ledger-col:not([data-col="do"]),
-  .ledger-body[data-tab="tags"] .ledger-col:not([data-col="tags"]) {
-    display: none;
+  .ledger-name {
+    font-size: var(--fs-2xl);
   }
 
   .sheet-body {
     padding-inline: var(--sp-3);
   }
-}
 
-/* The :9178 rule wraps to three tiles under 1180px, which still overflows a
-   390px phone — 3 × 8.5rem tiles plus their gaps runs wider than the
-   viewport. Two columns instead, the last tile spanning its own row. */
-@media (max-width: 720px) {
-  .ledger-tiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .action-strip-item {
+    min-height: 44px;
+    padding-inline: var(--sp-3);
+  }
+
+  /* .equip-cell already carries the 44px floor at every width. */
+  .sheet-row-line,
+  .item-card-line {
+    min-height: 44px;
   }
 }
 

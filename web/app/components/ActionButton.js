@@ -111,7 +111,11 @@ export default function ActionButton({
       <Tooltip text={panel} pinnable={coarse}>
         <button
           type="button"
-          className="action-strip-item"
+          // A bevelled .btn-secondary with the strip's own spacing on top: the
+          // bevel, the press and the dashed gated state all come from that one
+          // class, so a verb here looks like every other button in the app
+          // rather than like a family of its own (REDESIGN.md §5).
+          className="btn-secondary action-strip-item"
           aria-busy={busy || undefined}
           data-muted={disabled ? "true" : undefined}
           data-busy={busy ? "true" : undefined}
