@@ -52,7 +52,6 @@ const LOOT_TABLE = {
   uncommon: [
     "alcohol",
     "cleaning-powder",
-    "fine-meal",
     "bear-trap",
     "hatchet",
     "dagger",
