@@ -1,4 +1,4 @@
-// Per-turn tag progression (untreated-wound chain: Tag.expiresInto turns a tag into another, e.g. Infected → Festering). MUST run immediately BEFORE the non-stackable expiry sweep — that sweep is a blind deleteMany, so it deletes the rows this pass just read. Only ever grants; db/lib/dyingDeathPass.js kills, and a chain landing on `dead` grants Dying stamped for this turn so the dying pass ends it in the same close.
+// Per-turn tag progression (untreated-wound chain: Tag.expiresInto turns a tag into another, e.g. Infected → Festering). MUST run immediately BEFORE the non-stackable expiry sweep — that sweep is a blind deleteMany, so it deletes the rows this pass just read. Only ever grants (or renews, for a self-referencing entry — see the `renewals` array below); db/lib/dyingDeathPass.js kills, and a chain landing on `dead` grants Dying stamped for this turn so the dying pass ends it in the same close.
 
 const { expiryFrom } = require("./turnFormat");
 const { applyWoundMood } = require("./mood");
@@ -72,6 +72,13 @@ async function runTagExpiryPass(prisma, turn) {
   const stalledIds = [];
   // { characterId, tagId } for the Dying rows a `dead` chain owes — they must overwrite an existing clock rather than defer to it.
   const fatalRows = [];
+  // { id, expiresTurn } — a tag naming ITSELF as a successor (TAGS.md §5c). The row already
+  // exists (it's the one expiring), so it can't go through `rows[]`/createMany: that would
+  // collide with CharacterTag's own (characterId, tagId) uniqueness and get silently skipped
+  // by skipDuplicates, and the sweep would then delete the untouched original. Pushing its
+  // OWN clock forward instead means the sweep — which queries fresh, after this pass runs —
+  // never matches it, so the tag survives alongside whatever else that entry list granted.
+  const renewals = [];
 
   for (const ct of expiring) {
     if (ct.character?.status !== "ALIVE") continue;
@@ -105,6 +112,11 @@ async function runTagExpiryPass(prisma, turn) {
         missing.add(slug);
         continue;
       }
+      if (slug === ct.tag.slug) {
+        renewals.push({ id: ct.id, expiresTurn: expiryFrom(turn.number + 1, successor.defaultDurationTurns) });
+        gained.push(successor);
+        continue;
+      }
       rows.push({
         characterId: ct.characterId,
         tagId: successor.id,
@@ -133,6 +145,10 @@ async function runTagExpiryPass(prisma, turn) {
       where: { id: { in: stalledIds } },
       data: { expiresTurn: turn.number + 1 },
     });
+  }
+
+  for (const { id, expiresTurn } of renewals) {
+    await prisma.characterTag.update({ where: { id }, data: { expiresTurn } });
   }
 
   for (const { characterId, tagId } of fatalRows) {
@@ -189,6 +205,7 @@ async function runTagExpiryPass(prisma, turn) {
     turnNumber: turn.number,
     progressed: progressions.size,
     granted: rows.length,
+    renewed: renewals.length,
     fatal: fatalRows.length,
     unknownSlugs: [...missing],
     dms: [...dms, ...moodDms],

@@ -1462,11 +1462,14 @@ set, which is the whole of what separates tier 7 from tier 6, since they share
 a price — files a **GAMBIT Move** instead of curing anything
 (`isGambitHeal()`, `web/lib/healRequests.js`). It spends the medic's Move, the
 die is rolled at file time, and the **affliction is left on the patient** until
-a GM reads the roll on `/gm/turns`: an attempt that has not been resolved
-cannot have cured anything, and a failed one is supposed to be able to leave
-them worse. The shape is copied from a learner's Lesson Gambit
-(`db/lib/lessons.js`), and `Action @@unique([characterId, turnId])` is what
-makes it one gambit heal a turn without a second check.
+the turn closes: an attempt that has not been resolved cannot have cured
+anything. It resolves itself, with no GM involved — `db/lib/healGambitPass.js`
+reads the roll against a threshold set by the skill gap (`db/lib/healGambit.js`
+§3a in `MEDICAL.md`), cures the affliction on a clear pass, and on a miss
+leaves it on and adds a complication scaled to the margin
+(`db/lib/healComplications.js`). The shape is copied from a learner's Lesson
+Gambit (`db/lib/lessons.js`), and `Action @@unique([characterId, turnId])` is
+what makes it one gambit heal a turn without a second check.
 
 ### The Move economy (M2)
 
@@ -1501,10 +1504,10 @@ crafting.
 which is the whole of what separates tier 7 from tier 6 since they share a
 price — files a GAMBIT Move** instead of curing anything (`isGambitHeal()`,
 `web/lib/healRequests.js`). It spends the medic's Move, the die is rolled at
-file time, and the **affliction is left on the patient** until a GM reads
-the roll on `/gm/turns`: an attempt that has not been resolved cannot have
-cured anything, and a failed one is supposed to be able to leave them worse.
-The shape is copied from a learner's Lesson Gambit (`db/lib/lessons.js`), and
+file time, and the **affliction is left on the patient** until the turn
+closes, where `db/lib/healGambitPass.js` resolves it with no GM involved —
+`MEDICAL.md` §3a has the full mechanism. The shape is copied from a
+learner's Lesson Gambit (`db/lib/lessons.js`), and
 `Action @@unique([characterId, turnId])` is what makes it one gambit heal a
 turn without a second check.
 
@@ -1581,14 +1584,21 @@ the untreated-wound chain, and it is the thing that makes a doctor worth
 finding:
 
 ```
-Infected ──1t──▶ Festering ──1t──▶ Feverish ──1t──▶ Sepsis ──1t──▶ Dying ──1t──▶ dead
+Infected ──1t──▶ Festering ──1t──▶ Feverish ──1t──▶ Sepsis ⟲──1t──▶ Dying ──1t──▶ dead
                      └────1t────▶ Necrosis ──2t──▶ Missing Leg *or* Missing Arm
 
-Stuffed ──3t──▶ Exploded Chest ──1t──▶ Dying ──1t──▶ dead
+Stuffed ──3t──▶ Exploded Chest ⟲──1t──▶ Dying ──1t──▶ dead
 
 Arterial Bleed ──1t──▶ dead        Phrygian Toxin ──1t──▶ dead
-Crucified ──1t──▶ dead             Choking ──1t──▶ Dying ──1t──▶ dead
+Crucified ──1t──▶ dead             Choking ⟲──1t──▶ Dying ──1t──▶ dead
 ```
+
+The `⟲` marks a tag that renews itself alongside Dying rather than vanishing
+into it — Sepsis, Exploded Chest, Choking, and (off this diagram) Severe
+Bleeding and Hypothermia all do this. See the self-reference note below: Dying
+is deliberately a cheap rescue (4 ⬢, any medic), and without the renewal these
+five would simply disappear for free the instant Dying is cured, leaving
+nothing left at their own, more expensive rung.
 
 Dying is the one *tag* that isn't an `expiresInto` target — nothing follows it
 in the catalog. Its `durationTurns: 1` is a countdown that
@@ -1621,8 +1631,8 @@ it out while it is small), `exploded-chest` is tier 7 (the rung even Esculap
 rolls for) and runs on into Dying the same way Sepsis does. Both sit in
 `health-illness`.
 
-The YAML takes a bare slug, several slugs granted together, or an even random
-pick:
+The YAML takes a bare slug, several slugs granted together, an even random
+pick, or a tag naming itself:
 
 ```yaml
 expiresInto: [festering]                    # one
@@ -1630,6 +1640,7 @@ expiresInto: [feverish, necrosis]           # both, at once
 expiresInto:
   - oneOf: [missing-leg, missing-arm]       # a coin flip
 expiresInto: [dead]                         # this one kills at its own close
+expiresInto: [dying, punctured-lung]        # both — Dying, and the wound renews itself
 ```
 
 ### `dead`, the reserved token
@@ -1673,17 +1684,31 @@ somebody hammering your back is a plausible save.
 
 `normalizeExpiresInto` normalises every entry to `{ oneOf: [...] }` — a bare
 slug is a pick of one — so the stored `Tag.expiresInto` Json, the pass, and
-`TagChip`'s "Becomes" row all handle a single shape. It validates three things
+`TagChip`'s "Becomes" row all handle a single shape. It validates two things
 **before writing anything**:
 
 - every slug exists in `docs/tags.yaml`;
-- the tag has `durationTurns` ≥ 1, or nothing would ever fire it;
-- **a tag may not list itself.** The grant happens one statement before the
-  sweep that deletes the expired row, so a self-loop would be re-granted and
-  immediately deleted, doing nothing. A recurring condition is written as a
-  **two-tag loop** instead: Migraine expires into No Migraine, which expires
-  back into Migraine, forever. That cycle is deliberate and there is no
-  cycle detection beyond the self check.
+- the tag has `durationTurns` ≥ 1, or nothing would ever fire it.
+
+**A tag may list itself.** `db/lib/tagExpiryPass.js` treats a self-reference
+as a *renewal* rather than a grant: instead of inserting a new
+`CharacterTag` row (which would collide with the still-live one about to
+expire, since `(characterId, tagId)` is unique, and get silently dropped),
+it pushes that same row's own `expiresTurn` forward one turn — the same trick
+`increased-recovery`'s stall already uses. Since the sweep that deletes
+expired rows runs *after* this pass and queries fresh, a row renewed this way
+is never caught by it, so the tag survives alongside whatever else that entry
+list granted. This is how Sepsis, Severe Bleeding, Punctured Lung,
+Hypothermia, Exploded Chest and Choking all keep their own wound alive
+alongside Dying (`expiresInto: [dying, <own-slug>]`) instead of it vanishing
+the instant the cheap Dying rescue is cured.
+
+A **two-tag loop** — Migraine expires into No Migraine, which expires back
+into Migraine, forever — is a different pattern and still the right one for a
+condition that should visibly *alternate* between two distinct states, rather
+than one condition simply persisting. There is no cycle detection beyond the
+removed self-check, so an authored loop (two-tag or self) is deliberate, not
+caught.
 
 Those rules live in `db/lib/tagShapes.js`, not in `syncTags.js`, because the
 YAML is no longer the only door: a GM can author an expiry chain from the tag
@@ -1698,8 +1723,11 @@ rules match the ones §5b lists for consuming, for the same reasons:
 
 - **A successor a character already holds is left completely alone**, its own
   clock included (`skipDuplicates`). Re-granting would silently reset a
-  condition they were most of the way through. The `dead` token is the one
-  exception, and is written outside that batch for exactly this reason.
+  condition they were most of the way through. The `dead` token is one
+  exception, written outside that batch for exactly this reason; a
+  self-reference is the other, since the row it would collide with is always
+  the very one expiring — its clock is deliberately pushed forward instead
+  (the renewal described above), not left alone.
 - **A successor starts its own clock**, `turn.number + defaultDurationTurns`,
   the same absolute-turn expression every other writer uses. A successor with
   no catalog duration is granted permanent — which is what Missing Leg and

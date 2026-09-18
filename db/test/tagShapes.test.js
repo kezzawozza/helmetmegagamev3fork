@@ -331,6 +331,32 @@ test("validateExpiresInto still refuses a genuinely unknown slug", () => {
   );
 });
 
+// A tag may now name itself (TAGS.md §5c): db/lib/tagExpiryPass.js renews the
+// row in place instead of granting a duplicate, so Sepsis/Punctured Lung/etc
+// can expire into [dying, <own-slug>] and still owe their own cure after
+// Dying is treated.
+test("validateExpiresInto accepts a tag naming itself, alongside another entry", () => {
+  assert.doesNotThrow(() =>
+    validateExpiresInto(normalizeExpiresInto(["infected", "bruised"]), {
+      selfSlug: "bruised",
+      knownSlugs,
+      durationTurns: 1,
+      label: "test",
+    }),
+  );
+});
+
+test("validateExpiresInto accepts a tag naming only itself", () => {
+  assert.doesNotThrow(() =>
+    validateExpiresInto(normalizeExpiresInto(["bruised"]), {
+      selfSlug: "bruised",
+      knownSlugs,
+      durationTurns: 1,
+      label: "test",
+    }),
+  );
+});
+
 test("validateRemovesInto refuses dead — curing a wound must never be able to kill", () => {
   assert.throws(
     () =>
@@ -431,5 +457,20 @@ test("validateMealTasteForm refuses anything but adjective/omitted, and refuses 
   assert.throws(
     () => validateMealTasteForm({ mealTaste: null, mealTasteForm: "adjective" }, { selfSlug: "x" }),
     /has mealTasteForm but no mealTaste/,
+  );
+});
+
+// Unlike expiresInto, removesInto still refuses a tag naming itself — this
+// is a distinct rule ("removing it would grant it right back") and isn't
+// part of the expiresInto self-loop fix above.
+test("validateRemovesInto still refuses a tag naming itself", () => {
+  assert.throws(
+    () =>
+      validateRemovesInto(normalizeRemovesInto(["bruised"]), {
+        selfSlug: "bruised",
+        knownSlugs,
+        label: "test",
+      }),
+    /itself/,
   );
 });

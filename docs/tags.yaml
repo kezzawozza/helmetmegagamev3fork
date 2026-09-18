@@ -4226,7 +4226,10 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1
-    expiresInto: [dying]
+    # Also expires into itself (TAGS.md §5c): Dying is a cheap rescue on
+    # purpose, and without this Sepsis would simply vanish for free the
+    # moment Dying is cured, leaving nothing left at its own 13 ⬢ rung.
+    expiresInto: [dying, sepsis]
     removesInto: [recovering, drained]
     healable: true
     requirement:
@@ -4418,7 +4421,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 2
-    expiresInto: [dying]
+    # Also expires into itself (TAGS.md §5c) — see sepsis's own note above.
+    expiresInto: [dying, severe-bleeding]
     removesInto: [stitched-up, drained]
     healable: true
     requirement:
@@ -4564,7 +4568,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1
-    expiresInto: [dying]
+    # Also expires into itself (TAGS.md §5c) — see sepsis's own note above.
+    expiresInto: [dying, punctured-lung]
     removesInto: [stitched-up, recovering]
     healable: true
     requirement:
@@ -4798,7 +4803,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1
-    expiresInto: [dying]
+    # Also expires into itself (TAGS.md §5c) — see sepsis's own note above.
+    expiresInto: [dying, hypothermia]
     healable: true
     requirement:
       turnsCost: 0.25
@@ -4887,7 +4893,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1
-    expiresInto: [dying]
+    # Also expires into itself (TAGS.md §5c) — see sepsis's own note above.
+    expiresInto: [dying, exploded-chest]
     removesInto: [stitched-up, recovering]
     healable: true
     requirement:
@@ -5383,7 +5390,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1
-    expiresInto: [dying]
+    # Also expires into itself (TAGS.md §5c) — see sepsis's own note above.
+    expiresInto: [dying, choking]
     healable: true
     requirement:
       turnsCost: 0.25

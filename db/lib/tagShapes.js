@@ -20,15 +20,15 @@ function normalizeTagChain(field, entries, label) {
 // Carried by arterial-bleed, phrygian-toxin and crucified.
 const DEAD_TOKEN = "dead";
 
-// Every chain slug must exist and not be the tag's own slug; `allowDead` opens the reserved token to expiresInto only — removesInto leaves it closed since curing a wound must never kill.
-function validateChainSlugs(field, normalized, { selfSlug, knownSlugs, label, selfProblem, allowDead = false }) {
+// Every chain slug must exist; `allowDead` opens the reserved token to expiresInto only — removesInto leaves it closed since curing a wound must never kill. `allowSelf` opens naming the tag's own slug — expiresInto only (db/lib/tagExpiryPass.js renews the row in place rather than granting a duplicate); removesInto still refuses it, since re-granting a tag you just paid to remove is always a no-op.
+function validateChainSlugs(field, normalized, { selfSlug, knownSlugs, label, selfProblem, allowDead = false, allowSelf = false }) {
   for (const { oneOf } of normalized ?? []) {
     for (const slug of oneOf) {
       if (slug === DEAD_TOKEN && allowDead) continue;
       if (!knownSlugs.has(slug)) {
         throw new Error(`${label}: tag "${selfSlug}" ${field} references unknown tag "${slug}"`);
       }
-      if (slug === selfSlug) {
+      if (slug === selfSlug && !allowSelf) {
         throw new Error(`${label}: tag "${selfSlug}" ${field} itself — ${selfProblem}`);
       }
     }
@@ -41,13 +41,18 @@ function normalizeExpiresInto(entries, label = "docs/tags.yaml") {
 
 // The three rules an expiry chain must satisfy, each a silent no-op rather than an error if unchecked, so they are checked up front on both doors.
 function validateExpiresInto(normalized, { selfSlug, knownSlugs, durationTurns, label = "docs/tags.yaml" }) {
-  // Self-expiry would be re-granted then immediately deleted by the sweep (matches on tag id) — write a two-tag loop instead (migraine <-> no-migraine).
+  // A tag MAY name itself: db/lib/tagExpiryPass.js treats a self-referencing entry as a
+  // renewal (pushes the same row's own clock forward) rather than a grant, so it survives
+  // the sweep instead of colliding with it — e.g. Punctured Lung -> [dying, punctured-lung]
+  // keeps the wound alive alongside Dying instead of it vanishing for free. A two-tag loop
+  // (migraine <-> no-migraine) is still the right shape when a condition should visibly
+  // ALTERNATE between two distinct states, rather than one persisting.
   validateChainSlugs("expiresInto", normalized, {
     selfSlug,
     knownSlugs,
     label,
-    selfProblem: "the sweep would delete the fresh grant. Use a two-tag loop instead.",
     allowDead: true,
+    allowSelf: true,
   });
   if (normalized && !(durationTurns > 0)) {
     throw new Error(`${label}: tag "${selfSlug}" sets expiresInto but has no durationTurns — nothing would ever fire it`);
