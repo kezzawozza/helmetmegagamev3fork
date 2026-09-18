@@ -54,7 +54,7 @@ export const COLLAR_VERBS = {
     confirm: (name) => ({
       title: `Detonate ${name}'s collar?`,
       message: "It kills them outright and leaves no body to bury, loot or carry.",
-      confirmLabel: "Set it off",
+      confirmLabel: "Detonate",
     }),
     run: (id) => detonateCollarRequest({ targetCharacterId: id }),
   },
