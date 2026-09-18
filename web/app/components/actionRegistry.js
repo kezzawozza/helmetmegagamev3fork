@@ -130,7 +130,7 @@ export const ACTION_HELP = {
   refine:
     "Spend your turn refining Godflesh into Squeeze. There must be some on the floor nearby or in your inventory.",
   mine:
-    "Spend your turn mining in the caves, yielding resources and a small chance of ore. What a seam is worth is a fact about the place — press Examine to see how it is running.",
+    "Spend your turn mining in the caves, yielding resources and a small chance of ore.",
   farm: "Sow the fields with seed you're licensed to plant. It takes your whole Move, and the harvest comes in when the turn closes.",
   package:
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
@@ -257,10 +257,9 @@ export const ACTION_SECTIONS = [
         gateReason: "There's no Godflesh here to refine.",
         instant: true,
       },
-      // The gate is the LocationMining row itself (db/lib/mining.js): no row
-      // means you cannot dig here at all, so the button never appears. A row
-      // that has drifted to 0 still shows one — that is a seam worth checking
-      // back on, not a place that can never pay.
+      // Shows for anyone holding Prospecting, wherever they stand — the
+      // "wrong ground" and "seam dried up" cases are both greys, carried
+      // dynamically through pools.gateReason.mine (db/lib/mining.js).
       {
         mode: "mine",
         icon: MineIcon,
