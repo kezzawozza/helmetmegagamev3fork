@@ -56,7 +56,7 @@ const FIELDS = [
 
   // --- Economy ---------------------------------------------------------------
   {
-    key: "productionCoefficient", type: "float", group: "economy", default: 0.93, min: 0, max: 5, step: 0.05,
+    key: "productionCoefficient", type: "float", group: "economy", default: 0.9, min: 0, max: 5, step: 0.05,
     label: "Production coefficient",
   },
   {
@@ -253,9 +253,19 @@ function parseField(field, raw, current) {
 }
 
 // Every field off a FormData, as the `data` for a gameConfig.update.
+//
+// A form may render only some groups (the Turn clock group lives in the Turn
+// section, the rest in Configuration). When it does, it posts a `__configGroups`
+// marker naming the groups it showed, and we parse only those fields — because
+// an absent checkbox parses to `false`, and parsing every field off a partial
+// form would silently clear the bools the form never rendered. No marker means
+// the whole registry, so any other caller is unchanged.
 function parseConfigForm(formData, current = {}) {
+  const raw = formData.get("__configGroups");
+  const only = raw ? String(raw).split(",").filter(Boolean) : null;
+  const fields = only ? FIELDS.filter((f) => only.includes(f.group)) : FIELDS;
   const data = {};
-  for (const field of FIELDS) {
+  for (const field of fields) {
     data[field.key] = parseField(field, formData.get(field.key), current[field.key]);
   }
   return data;

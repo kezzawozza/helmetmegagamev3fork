@@ -156,7 +156,7 @@ export default function DesireDesk({ desire, onInspect, onClose, registerEscape,
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="e.g. a tag or item name — empty shows everything recent"
+            placeholder="Search…"
           />
         </label>
         {sliceError && <p className="text-xs form-error">{sliceError}</p>}

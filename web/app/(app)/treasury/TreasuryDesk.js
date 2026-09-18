@@ -45,7 +45,6 @@ export default function TreasuryDesk({ rate, vaultObols, claims, stagedValue, ac
   return (
     <div className="flex flex-col gap-4">
       <section className="panel p-5">
-        <p className="text-sm text-muted">Every account, and the coin backing the Treasury ones.</p>
         <dl className="depot-totals">
           <div className={short ? "text-danger" : undefined}>
             <dt>In the treasury</dt>
@@ -88,7 +87,7 @@ export default function TreasuryDesk({ rate, vaultObols, claims, stagedValue, ac
         <p className="mt-3 text-sm text-muted">
           Taken off every sale before the seller is paid, into the treasury as coin.
         </p>
-        {readOnly && <p className="mt-2 text-sm text-muted">Read-only — setting it wants the terminal.</p>}
+        {readOnly && <p className="mt-2 text-sm text-muted">Read-only — you must be at the terminal to change it.</p>}
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </section>
 

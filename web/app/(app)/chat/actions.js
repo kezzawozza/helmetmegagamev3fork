@@ -2636,7 +2636,12 @@ export async function gmSystemPost({ placeKey, content } = {}) {
   });
   if (!place) return { ok: false, error: "You can't reach that place." };
 
-  await sceneLine(prisma, { placeKey: key, text });
+  // sceneLine swallows its own DB errors and returns null rather than
+  // throwing (db/lib/scene.js), so this always used to fall through and
+  // answer { ok: true } even when nothing was written — the composer
+  // cleared with no line ever landing. Check it.
+  const line = await sceneLine(prisma, { placeKey: key, text });
+  if (!line) return { ok: false, error: "Couldn't post that." };
 
   // Best-effort: a dead channel is one audience short rather than a refusal.
   const target = await discordTargetForPlaceKey(prisma, key).catch(() => null);

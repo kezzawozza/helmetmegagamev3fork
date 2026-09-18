@@ -126,7 +126,7 @@ function listOf(names) {
 // for what you are riding. Here rather than in either component for the reason
 // travelFoot is here: /chat and /map both say it, and two copies would drift.
 export function walkFoot(route, mounted) {
-  const far = route.hops === 1 ? "1 move" : `${route.hops} moves`;
+  const far = route.hops === 1 ? "1 away" : `${route.hops} away`;
   // Same precedence travelFoot uses — a dismount is the one consequence worth
   // the space, and saying "indoors" beside it would be the same news twice.
   if (route.dismounts) return `${far} · on foot`;

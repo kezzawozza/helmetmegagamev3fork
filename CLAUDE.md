@@ -729,8 +729,11 @@ spectator overwrite that would publish the death list.
 It persists across turns on both faces: `runMessageWipe` never walks it, and
 `db/lib/feedWipe.js#isPersistentPlace` is what stops the web disagreeing.
 
-A GM reads Deadchat and does not speak in it, matching every other place on the
-desk. Send is denied to the GM roles on the channel, not merely ungranted.
+A GM may post in Deadchat, unlike every other place on the desk — as a GM,
+through the same system composer as any other place
+(`gmSystemPost`/`GmSystemComposer`, `web/app/(app)/chat/Feed.js`), never as a
+hooded ghost of their own dead character. `db/lib/deadchat.js`'s `GM_ALLOW`
+grants `SEND_MESSAGES` on the Discord channel overwrite for this.
 
 ## Slash commands
 

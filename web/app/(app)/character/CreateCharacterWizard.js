@@ -576,7 +576,7 @@ export default function CreateCharacterWizard({
               onChange={(e) => setAge(e.target.value)}
               min={AGE_MIN}
               max={AGE_MAX}
-              placeholder={`${AGE_MIN}\u2013${AGE_MAX} \u2014 fixed once set, so leave it for later if you'd like`}
+              placeholder={`${AGE_MIN}\u2013${AGE_MAX}`}
             />
           </label>
         </div>

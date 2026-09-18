@@ -75,10 +75,20 @@ function BoolField({ field, value }) {
   );
 }
 
-export default function ConfigForm({ config }) {
+// `only` / `exclude` scope which registry groups this form renders — the Turn
+// clock group is shown in the Turn section, the rest in Configuration. The
+// rendered groups are posted as `__configGroups` so the parser reads only these
+// fields and leaves every other column alone. No props = every group, unchanged.
+export default function ConfigForm({ config, only = null, exclude = [], groupHeadings = true }) {
+  const groups = GROUPS.filter((g) => {
+    if (only && !only.includes(g.key)) return false;
+    if (exclude.includes(g.key)) return false;
+    return fieldsInGroup(g.key).length > 0;
+  });
   return (
     <form action={updateGameConfig} className="flex flex-col gap-6">
-      {GROUPS.map((group) => {
+      <input type="hidden" name="__configGroups" value={groups.map((g) => g.key).join(",")} />
+      {groups.map((group) => {
         const fields = fieldsInGroup(group.key);
         if (fields.length === 0) return null;
         const numbers = fields.filter(
@@ -89,7 +99,7 @@ export default function ConfigForm({ config }) {
         const bools = fields.filter((f) => f.type === "bool");
         return (
           <section key={group.key} className="flex flex-col gap-3">
-            <h3 className="panel-header">{group.name}</h3>
+            {groupHeadings ? <h3 className="panel-header">{group.name}</h3> : null}
             {numbers.length ? (
               <div className="ops-grid">
                 {numbers.map((field) => (

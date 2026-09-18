@@ -1063,6 +1063,13 @@ export default async function DevPanelPage({ searchParams }) {
 
               <section className="ops-section">
                 <div className="ops-section-head">
+                  <h2 className="section-title">Turn clock</h2>
+                </div>
+                <ConfigForm config={config} only={["clock"]} />
+              </section>
+
+              <section className="ops-section">
+                <div className="ops-section-head">
                   <h2 className="section-title">Next Turn</h2>
                   <p className="ops-lede">
                     {state.nextTurnNote ? `Note ready for the next turn: "${state.nextTurnNote}"` : "No note set for the next turn."}
@@ -1086,7 +1093,7 @@ export default async function DevPanelPage({ searchParams }) {
               <div className="ops-section-head">
                 <h2 className="section-title">Configuration</h2>
               </div>
-              <ConfigForm config={config} />
+              <ConfigForm config={config} exclude={["clock"]} />
             </section>
           ) : null}
 

@@ -158,7 +158,7 @@ export default function MessageComposer({
               setContent(e.target.value);
               markDirty();
             }}
-            placeholder="Lands in their DMs when the turn ends, prefixed »"
+            placeholder="Write the message…"
           />
           {over ? (
             <span className="text-xs text-danger">
