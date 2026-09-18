@@ -879,10 +879,37 @@ a 48px head and a one-line composer:
   grouped the remembered key is scoped per zone — folding Rooms under Town
   leaves Rooms under Fortress open. Ungrouped, the key is the bare title, so a
   player's existing folds carried over.
-- **The unread mark** is one comparison: the newest **notable** seq in a place
-  against the newest seq this browser has seen there. An unread place reads at
-  full strength against a column that is otherwise `--muted`, and keeps its
-  dot — the same move `/gm/players` makes on its own rail.
+- **Two levels, Discord's shape** (REDESIGN.md §6), and they are two because one
+  is a watermark and the other is a count.
+
+  **UNREAD** is one comparison: the newest **notable** seq in a place against the
+  newest seq this browser has seen there (`seenStore.js`). The place's name
+  brightens and gains weight, against a column that is otherwise `--muted` — the
+  same move `/gm/players` makes on its own rail. **No number, and no dot.** It
+  carried a dot beside the bright name on the argument that brightness alone is
+  one cue; two marks for one state read as two states, and the number is now
+  reserved for the one thing that earns it.
+
+  **NOTIFIED** is a count of things said **to you**: your name (either spelling —
+  the `{char:…}` token or a bare name, `db/lib/mentions.js`), a line in your
+  Bascinet mail, or a DM. A red `.chat-unread` block with the number in it, the
+  chime, and — only while the tab is **hidden** — a browser notification.
+  `notifiedStore.js` owns it: per place, per browser, in localStorage, read
+  through `useSyncExternalStore`. A watermark cannot say "three people said your
+  name", which is why this one accumulates as the events arrive instead.
+
+  **Cleared on read**, the way Discord clears: opening the place clears its count,
+  and so does bringing the tab back to a place that was already open. A count
+  raised on a scene under somebody's eyes is never raised at all — the stream
+  handler checks that first. The tick in the column's foot clears every count
+  along with every mark, or the control would be a half-truth.
+
+  **Permission is never asked for by this.** Web Push already asks once, behind
+  the bell in the places column (§5a); nothing is shown until that is granted. A
+  page that prompts the first time somebody's name comes up is the pattern
+  browsers added the permanent block for.
+
+  `SYSTEM` scenery counts for **neither**, as it always has.
 
   Notable means **somebody spoke**: the row is not yours, and its `source` is
   not `SYSTEM`. That is the whole predicate,

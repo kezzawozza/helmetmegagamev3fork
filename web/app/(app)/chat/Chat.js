@@ -31,6 +31,12 @@ import { noteTyping } from "./typingStore";
 import { usePushState, initPush, togglePush } from "./pushStore";
 import { useOpenPlace, setOpenPlace } from "./openPlace";
 import { seedCachedRows, startRowCache } from "./rowCache";
+import { useNotified, noteNotified, clearNotified, clearAllNotified } from "./notifiedStore";
+// By PATH, not through the @lifeweb/db barrel — the barrel pulls Prisma into
+// whatever imports it and this is a "use client" file. The module has zero
+// requires of its own precisely so both faces can ask it the same question
+// (db/lib/mentions.js).
+import { textNamesCharacter } from "@lifeweb/db/lib/mentions";
 import { useStreamState, noteStreamUp, noteStreamDown, noteStreamFatal } from "./streamStore";
 import { useRefresh } from "@/app/components/useRefresh";
 import {
@@ -211,11 +217,32 @@ export default function Chat({
 
   const onSeen = useCallback((placeKey, seq) => markSeen(placeKey, seq), []);
 
+  // The notified counts, and what clears one: opening the place, or bringing the
+  // tab back to a place that was already open. Discord clears on read and so does
+  // this — a count you have to dismiss is a second chore.
+  //
+  // Nothing here sets state: clearNotified writes localStorage and notifies its
+  // own store, which is what useSyncExternalStore is for
+  // (react-hooks/set-state-in-effect is an error here).
+  const notified = useNotified();
+  useEffect(() => {
+    if (!selectedKey) return undefined;
+    const clear = () => {
+      if (document.visibilityState === "visible") clearNotified(selectedKey);
+    };
+    clear();
+    document.addEventListener("visibilitychange", clear);
+    return () => document.removeEventListener("visibilitychange", clear);
+  }, [selectedKey]);
+
   // The tick in the column's foot. Off the SAME `newest` every row's mark is
   // drawn from, so what it clears is exactly what was lit — a place whose
   // newest is null has nothing to mark and is skipped by markAllSeen.
   const onMarkAllSeen = useCallback(() => {
     markAllSeen(navPlaces.map((place) => ({ placeKey: place.placeKey, seq: newest(place) })));
+    // The tick says "I have read everywhere", which is a claim about the red
+    // counts too — leaving them lit would make the control a half-truth.
+    clearAllNotified();
   }, [navPlaces, newest]);
 
   // A browser opening Chat for the first time starts caught up rather
@@ -598,20 +625,33 @@ export default function Chat({
           ) {
             setPlacesVersion((n) => n + 1);
           }
-          // Somebody said your name. The token is what the row is made of on
-          // both faces (CHAT.md §5), so this rings for a Discord-origin mention
-          // exactly as it does for a web one — and never for your own words.
-          // mentionsCharacter knows both spellings of the token, so the chime
-          // could not stop ringing when the grammar grew a name half.
+          // Somebody said your name. Two spellings count: the explicit
+          // `{char:…}` token, which is what a picked mention is made of on both
+          // faces (CHAT.md §5), and a BARE name, which is what nine lines out of
+          // ten actually use (db/lib/mentions.js, REDESIGN.md §6). Never your own
+          // words, and never your real name while you are hooded — under a hood
+          // the room does not know that name is yours, so being pinged by it
+          // would be the hood confirming itself.
           if (
             self?.characterId &&
             !isOwnRow(row, self.characterId, self.speakerKey) &&
             typeof row.content === "string" &&
-            mentionsCharacter(row.content, self.characterId) &&
-            !chatChimeMuted() &&
-            !chimedRecently()
+            row.source !== "SYSTEM" &&
+            (mentionsCharacter(row.content, self.characterId) ||
+              (!self.aliased && self.name && textNamesCharacter(row.content, self.name)))
           ) {
-            playChime(0.35);
+            // The count, unless they are already looking at the place — Discord
+            // clears on read, so raising a number on a scene under somebody's
+            // eyes only gives them something to dismiss. The notification itself
+            // is refused while the tab is in front (./notifiedStore.js).
+            const reading = key === selectedRef.current && document.visibilityState === "visible";
+            if (!reading) {
+              noteNotified(key, {
+                title: `${self.name ?? "You"} was named`,
+                body: row.name ? `${row.name} said your name` : "Somebody said your name",
+              });
+            }
+            if (!chatChimeMuted() && !chimedRecently()) playChime(0.35);
           }
         } catch {
           // A malformed frame is not worth tearing the stream down over.
@@ -687,8 +727,11 @@ export default function Chat({
           addDmRow(row);
           // Quiet only while the pane is open AND somebody is looking at it.
           const reading = selectedRef.current === DM_PLACE_KEY && document.visibilityState === "visible";
-          if (row?.direction === "OUTBOUND" && !reading && !chatChimeMuted() && !chimedRecently()) {
-            playChime(0.35);
+          if (row?.direction === "OUTBOUND" && !reading) {
+            // A line in your Bascinet mail is a notified event by definition —
+            // it was written to you and to nobody else (REDESIGN.md §6).
+            noteNotified(DM_PLACE_KEY, { title: "Bascinet wrote to you", body: "Open Chat to read it" });
+            if (!chatChimeMuted() && !chimedRecently()) playChime(0.35);
           }
         } catch {
           // Same.
@@ -711,7 +754,7 @@ export default function Chat({
       window.removeEventListener("online", wake);
       window.removeEventListener("pageshow", wake);
     };
-  }, [mountSeq, self?.characterId, self?.speakerKey, refresh]);
+  }, [mountSeq, self?.characterId, self?.speakerKey, self?.aliased, self?.name, refresh]);
 
   // What was said BEFORE the page opened, for a place the reader has just
   // chosen. The stream only ever carries what happens next, so without this a
@@ -887,6 +930,7 @@ export default function Chat({
       places={navPlaces}
       selected={selectedKey}
       seen={seen}
+      notified={notified}
       newest={newest}
       onSelect={narrow ? onSelectFromDrawer : onSelect}
       viewAs={viewAs ? { mode: viewAs.mode, onChange: onChangeViewAs } : null}

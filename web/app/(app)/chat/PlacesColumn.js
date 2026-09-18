@@ -39,13 +39,14 @@ function glyph(place) {
 // A row with a description shows it via HoverCard (the column scrolls, so an
 // in-tree tooltip would clip); `pinnable={false}` since the row is already a
 // button. A row with nothing to say stays a bare button, no portal mounted.
-const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
+const PlaceRow = memo(function PlaceRow({ place, active, unread, count = 0, onSelect }) {
   const button = (
     <button
       type="button"
       className="chat-place"
       data-active={active ? "true" : "false"}
       data-unread={unread ? "true" : undefined}
+      data-notified={count > 0 ? "true" : undefined}
       data-vantage={place.vantage ? "true" : undefined}
       onClick={() => onSelect(place.placeKey)}
     >
@@ -55,7 +56,15 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
         </span>
       )}
       <span className="chat-place-name">{place.name}</span>
-      {unread && <span className="chat-dot" aria-label="Unread" />}
+      {/* Discord's two levels (REDESIGN.md §6). UNREAD is the name brightening
+          and nothing else — it used to be a dot, which is a second mark saying
+          what the weight already says. A NUMBER only for a notified place: your
+          name, your Bascinet mail, a DM. */}
+      {count > 0 && (
+        <span className="chat-unread mono" aria-label={`${count} for you`}>
+          {count}
+        </span>
+      )}
     </button>
   );
   const description = place.description?.trim();
@@ -82,12 +91,14 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
 // split by zone, keying on the bare title would mean folding Rooms under Town
 // also folded Rooms under every other zone. Ungrouped, it IS the title, so a
 // player's existing folds carry over untouched.
-function Section({ title, places, selected, seen, newest, onSelect, foldKey = null }) {
+function Section({ title, places, selected, seen, notified, newest, onSelect, foldKey = null }) {
   const [folded, toggleFolded] = useFolded(foldKey ?? title);
   if (places.length === 0) return null; // after the hook above, per rules-of-hooks
   const unreadOf = (place) =>
     place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place));
-  const shown = folded ? places.filter((place) => unreadOf(place)) : places;
+  const countOf = (place) => notified?.get(place.placeKey) ?? 0;
+  // A fold hides nothing that is waiting for you, counted OR merely unread.
+  const shown = folded ? places.filter((place) => unreadOf(place) || countOf(place) > 0) : places;
   const hidden = places.length - shown.length;
   return (
     <div className="chat-section">
@@ -109,6 +120,7 @@ function Section({ title, places, selected, seen, newest, onSelect, foldKey = nu
           place={place}
           active={place.placeKey === selected}
           unread={unreadOf(place)}
+          count={countOf(place)}
           onSelect={onSelect}
         />
       ))}
@@ -120,6 +132,10 @@ export default function PlacesColumn({
   places,
   selected,
   seen,
+  // placeKey -> how many things here were addressed to YOU (./notifiedStore.js).
+  // A Map, and possibly empty; never null in practice, defaulted for the desk's
+  // embeds.
+  notified = null,
   newest,
   onSelect,
   // A gamemaster who is also playing somebody: `{ mode, onChange }`, where
@@ -188,10 +204,10 @@ export default function PlacesColumn({
 
   return (
     <nav className="chat-places" aria-label="Places">
-      <Section title="Messages" places={messages} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Deadchat" places={deadchat} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Radio" places={radio} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
-      <Section title="Faction" places={faction} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      <Section title="Messages" places={messages} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
+      <Section title="Deadchat" places={deadchat} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
+      <Section title="Radio" places={radio} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
+      <Section title="Faction" places={faction} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
       {groups.map((group) => {
         // Elsewhere is cut FIRST and the other three exclude it, so a fogged
         // street and its rooms are drawn once, together, under their own
@@ -217,6 +233,7 @@ export default function PlacesColumn({
               places={summary}
               selected={selected}
               seen={seen}
+              notified={notified}
               newest={newest}
               onSelect={onSelect}
             />
@@ -226,6 +243,7 @@ export default function PlacesColumn({
               places={here}
               selected={selected}
               seen={seen}
+              notified={notified}
               newest={newest}
               onSelect={onSelect}
             />
@@ -235,6 +253,7 @@ export default function PlacesColumn({
               places={rooms}
               selected={selected}
               seen={seen}
+              notified={notified}
               newest={newest}
               onSelect={onSelect}
             />
@@ -244,6 +263,7 @@ export default function PlacesColumn({
               places={conversations}
               selected={selected}
               seen={seen}
+              notified={notified}
               newest={newest}
               onSelect={onSelect}
             />
@@ -255,6 +275,7 @@ export default function PlacesColumn({
               places={elsewhere}
               selected={selected}
               seen={seen}
+              notified={notified}
               newest={newest}
               onSelect={onSelect}
             />

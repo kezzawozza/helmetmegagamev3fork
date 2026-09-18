@@ -6713,16 +6713,42 @@ label.chip {
   color: var(--muted);
 }
 
-/* Something has been said here that this browser has not read. Full-strength
-   against a column whose rows are all var(--muted), which is the same move
-   .desk-body--players makes on its own rail — "unread reads bright, the way an
-   unread channel does". The dot stays beside it: brightness alone is one cue,
-   and on a dim screen it is not always the one that lands.
+/* UNREAD: something notable has been said here that this browser has not read
+   (REDESIGN.md §6, Discord's shape). The name BRIGHTENS and gains weight, and
+   that is the whole mark — no dot and no number. It carried a dot beside it on
+   the argument that brightness alone is one cue; two marks for one state read as
+   two states, and the number is now reserved for the one thing that deserves it.
+
+   Full-strength against a column whose rows are all var(--muted), the same move
+   .desk-body--players makes on its own rail.
 
    Under :hover and [data-active] in the cascade on purpose, so hovering an
    unread row and opening one both still look like what they are. */
 .chat-place[data-unread="true"] {
   color: var(--text);
+}
+
+.chat-place[data-unread="true"] .chat-place-name {
+  font-weight: 700;
+}
+
+/* NOTIFIED: a red count, and only for something addressed to YOU — your name
+   said, a line in your Bascinet mail, a DM (./notifiedStore.js). The mockup's
+   badge: a hard-edged block, not a pill, bordered dark against the accent fill.
+   A notified place is also unread, so the name is already bright; this is the
+   number that says it was about you. */
+.chat-unread {
+  flex-shrink: 0;
+  min-width: 17px;
+  margin-left: var(--sp-2);
+  padding: 0 3px;
+  border: 1px solid var(--border-lo);
+  background: var(--accent-solid);
+  color: var(--on-accent);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
 }
 
 
