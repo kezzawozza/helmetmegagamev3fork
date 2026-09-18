@@ -9,9 +9,11 @@ const { readGameState } = require("./gameState");
 const MINT = { kind: "world", id: "mint", name: "Minted" };
 const BURN = { kind: "world", id: "burn", name: "Burned" };
 const COMPANY = { kind: "offworld", id: "company", name: "The Company" };
-// Separate accounts: the station's float and the Merchant's purse are NOT the same money (DEPOT.md §0g); summing them would lie on the panel's front page.
+// Retired: the station's float became the Merchant's own BankAccount. Kept because old rows name it, and closed out at zero by db/scripts/ops/open-bank-accounts.js.
 const DEPOT_ACCOUNT = { kind: "depot", id: "account", name: "Depot account" };
 const DEPOT_DEBT = { kind: "depot", id: "debt", name: "The Company's line" };
+// A bank account is its own end. NEVER summed with the holder's purse: a claim and the coins behind it are two pots, the same rule the station's float and the Merchant's pocket always followed.
+const BANK_CLEARING = { kind: "bank", id: "clearing", name: "Bank clearing" };
 
 const MAX_INT4 = 2147483647;
 
@@ -32,6 +34,16 @@ async function savepointed(tx, fn) {
 function characterParty(c) {
   if (!c?.id) return null;
   return { kind: "character", id: c.id, name: c.name ?? null, zoneId: c.zoneId ?? null };
+}
+
+// The other end when a claim moves and no coin is moving with it — a deposit's
+// account leg, say, whose coin leg is already booked by the tag hook. No live
+// balance, exempt from reconcile, exactly like MINT and BURN. Booking both legs
+// of one movement on both the tag hook and the balance bump is the double-count
+// this exists to avoid.
+function bankParty(a) {
+  if (!a?.id) return null;
+  return { kind: "bank", id: a.id, name: a.holderName ?? null };
 }
 
 function roomParty(r) {
@@ -130,6 +142,8 @@ module.exports = {
   COMPANY,
   DEPOT_ACCOUNT,
   DEPOT_DEBT,
+  BANK_CLEARING,
+  bankParty,
   characterParty,
   roomParty,
   record,

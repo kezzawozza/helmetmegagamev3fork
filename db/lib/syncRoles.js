@@ -69,6 +69,14 @@ function parseRolesYaml(doc) {
           startingTagNames: role.starting_tags ?? [],
           grantsLeader: role.leader === true,
           grantsTreasurer: role.treasurer === true,
+          // `bank_account: treasury | offshore`. Anything else — including
+          // absent — is no account, which is what the Black Hills seats get.
+          bankAccountClass:
+            role.bank_account === "offshore"
+              ? "OFFSHORE"
+              : role.bank_account === "treasury"
+                ? "TREASURY"
+                : null,
           // Independent of `leader:` since the whitelist split — see the
           // Role.requiresWhitelist comment in schema.prisma.
           requiresWhitelist: role.whitelist === true,
@@ -273,6 +281,7 @@ async function syncRolesFromYaml(prisma) {
       startingTagSlugs: entry.startingTagSlugsResolved,
       grantsLeader: entry.grantsLeader,
       grantsTreasurer: entry.grantsTreasurer,
+      bankAccountClass: entry.bankAccountClass,
       requiresWhitelist: entry.requiresWhitelist,
       lockedGender: entry.lockedGender,
       docElements: entry.docElements,

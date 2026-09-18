@@ -213,10 +213,22 @@ documents:
       You can also harvest {tag:cave-fungus} in just about every location (by doing a Gambit, or just through the encounter roll). The caves hold many secrets, requiring certain character traits or knowledge to gain access to.
 
   # The Merchant Update filled this in — it was an empty stub for as long as
-  # the seat was unfinished. Reached by doc_element from both The Company
-  # roles, so the Dockers read it too: they are the ones hauling the goods.
-  # The canonical numbers are docs/systemdocs/DEPOT.md §3-4; this is the
-  # player-facing half and only carries the bands, never the full table.
+  # the seat was unfinished. Reached by both The Company roles, so the
+  # Dockers read it too: they are the ones hauling the goods. The canonical
+  # numbers are docs/systemdocs/DEPOT.md §3-4; this is the player-facing
+  # half and only carries the bands, never the full table.
+  merchant:
+    name: The Merchant's Depot
+    public: false
+    tags: []
+    description: |-
+      The Depot is open to anyone now. Your License still opens the whole manifest, sealed goods included; everyone else gets a shorter shelf gated by what they hold — the general shelf needs nothing, the black market wants a Silver Chip.
+
+      Goods don't move the moment somebody pays. A cargo train runs every other day on its own. An order placed today lands as crates in the Railyard at the end of today or tomorrow, depending on where the train is — a Docker's job, or yours, to unload and haul on to the name stamped on the box. The Railyard is open to anyone, so a crate left there can walk.
+
+      Whoever's selling drops the thing in the dropbox, and it's gone — the money lands when the train next leaves, into their own account or, with your License or a Depot Keycard, into yours. The Meister takes a cut off every sale before it settles, into the treasury.
+
+      Prices hold to bands: a brew sells for close to what it cost to make plus a margin, smithed gear pays better the more skill and turns went into it, cave loot and bulk goods hold their price, and body parts stay cheap on purpose. The full table lives on the price list at the counter.
 
   charon:
     name: The Charon

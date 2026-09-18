@@ -29,6 +29,9 @@ const {
 } = require("@lifeweb/db/lib/locationAnchorRow");
 const {
   ROOM_STORAGE_PREFIX,
+  ROOM_ATM_PREFIX,
+  ROOM_DROPBOX_PREFIX,
+  ROOM_DEPOT_TURRET_PREFIX,
   ROOM_INTERCOM_PREFIX,
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
@@ -90,13 +93,6 @@ const {
   handleSearchHideOpen,
   handleSearchHidePick,
 } = require("../lib/offers");
-const { PENDING_TAX_DECLINE_PREFIX, PENDING_TAX_PARTIAL_PREFIX } = require("@lifeweb/db/lib/tax");
-const {
-  TAX_PARTIAL_MODAL_PREFIX,
-  handleTaxDecline,
-  handleTaxPartialOpen,
-  handleTaxPartialSubmit,
-} = require("../lib/tax");
 const {
   THREAT_SPAWN_ACCEPT_PREFIX,
   THREAT_SPAWN_DECLINE_PREFIX,
@@ -131,6 +127,24 @@ const {
   handleTurretSubmit,
   handleIntercomSubmit,
 } = require("./interactions/rooms");
+const {
+  ATM_OUT_PREFIX,
+  ATM_IN_PREFIX,
+  ATM_OPEN_PREFIX,
+  ATM_MODAL_PREFIX,
+  DROP_PICK_PREFIX,
+  DROP_MODAL_PREFIX,
+  DEPOT_TURRET_MODAL_PREFIX,
+  handleAtmOpen,
+  handleAtmAccountOpen,
+  handleAtmAmountOpen,
+  handleAtmSubmit,
+  handleDropBoxOpen,
+  handleDropBoxPick,
+  handleDropBoxSubmit,
+  handleDepotTurretOpen,
+  handleDepotTurretSubmit,
+} = require("./interactions/depotCounter");
 const {
   handleTravelOpen,
   handleGateToggle,
@@ -200,6 +214,28 @@ module.exports = {
         }
         if (interaction.customId.startsWith(ROOM_STORAGE_PREFIX)) {
           return void (await handleRoomStorage(interaction, interaction.customId.slice(ROOM_STORAGE_PREFIX.length)));
+        }
+        // The Depot's counter (docs/systemdocs/DEPOT.md). The ATM's own button
+        // acks and answers with a balance; its two amount buttons open modals,
+        // so those must NOT be acked first.
+        if (interaction.customId.startsWith(ROOM_ATM_PREFIX)) {
+          return void (await handleAtmOpen(interaction));
+        }
+        if (interaction.customId === ATM_OPEN_PREFIX) {
+          return void (await handleAtmAccountOpen(interaction));
+        }
+        if (interaction.customId === ATM_OUT_PREFIX) {
+          return void (await handleAtmAmountOpen(interaction, true));
+        }
+        if (interaction.customId === ATM_IN_PREFIX) {
+          return void (await handleAtmAmountOpen(interaction, false));
+        }
+        if (interaction.customId.startsWith(ROOM_DROPBOX_PREFIX)) {
+          return void (await handleDropBoxOpen(interaction));
+        }
+        // Opens a modal, so it must NOT be ack()'d first — see handleQuestOpen.
+        if (interaction.customId.startsWith(ROOM_DEPOT_TURRET_PREFIX)) {
+          return void (await handleDepotTurretOpen(interaction));
         }
         // Opens a modal, so it must NOT be ack()'d first — see handleQuestOpen.
         if (interaction.customId.startsWith(QUEST_INTERACT_PREFIX)) {
@@ -288,21 +324,6 @@ module.exports = {
             interaction.customId.slice(THREAT_SPAWN_DECLINE_PREFIX.length),
           ));
         }
-        // Arrives in a DM on a tax (docs/tags.yaml's `taxman` description), so
-        // guild/member are null.
-        if (interaction.customId.startsWith(PENDING_TAX_DECLINE_PREFIX)) {
-          return void (await handleTaxDecline(
-            interaction,
-            interaction.customId.slice(PENDING_TAX_DECLINE_PREFIX.length),
-          ));
-        }
-        // Opens a modal, so it must NOT be acked first.
-        if (interaction.customId.startsWith(PENDING_TAX_PARTIAL_PREFIX)) {
-          return void (await handleTaxPartialOpen(
-            interaction,
-            interaction.customId.slice(PENDING_TAX_PARTIAL_PREFIX.length),
-          ));
-        }
         // Arrives in a DM on an assignment (docs/systemdocs/LOBBY.md §4), so
         // guild/member are null and the clicker has no character yet.
         if (interaction.customId.startsWith(LOBBY_DECLINE_PREFIX)) {
@@ -337,6 +358,10 @@ module.exports = {
         // Must NOT be acked first: it opens a modal.
         if (interaction.customId.startsWith(CONVERSE_ROOM_PREFIX)) {
           return void (await handleConverseRoomPick(interaction));
+        }
+        // Opens a modal, so it must NOT be acked first.
+        if (interaction.customId === DROP_PICK_PREFIX) {
+          return void (await handleDropBoxPick(interaction));
         }
         if (interaction.customId.startsWith("heal:pick:")) {
           return void (await handleHealPick(interaction, interaction.customId.slice("heal:pick:".length)));
@@ -391,11 +416,14 @@ module.exports = {
             interaction.customId.slice(TURRET_MODAL_PREFIX.length),
           ));
         }
-        if (interaction.customId.startsWith(TAX_PARTIAL_MODAL_PREFIX)) {
-          return void (await handleTaxPartialSubmit(
-            interaction,
-            interaction.customId.slice(TAX_PARTIAL_MODAL_PREFIX.length),
-          ));
+        if (interaction.customId.startsWith(ATM_MODAL_PREFIX)) {
+          return void (await handleAtmSubmit(interaction, interaction.customId.slice(ATM_MODAL_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(DROP_MODAL_PREFIX)) {
+          return void (await handleDropBoxSubmit(interaction, interaction.customId.slice(DROP_MODAL_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(DEPOT_TURRET_MODAL_PREFIX)) {
+          return void (await handleDepotTurretSubmit(interaction));
         }
         if (interaction.customId.startsWith(BELL_MODAL_PREFIX)) {
           return void (await handleBellSubmit(interaction, interaction.customId.slice(BELL_MODAL_PREFIX.length)));

@@ -31,6 +31,7 @@ import {
 import { addToStack } from "@lifeweb/db/lib/tagWrites";
 import { addCharacterResources } from "@lifeweb/db/lib/resourceStack";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
+import { openAccount } from "@lifeweb/db/lib/bankAccounts";
 import {
   ensureCharacterRole,
   syncCharacterNarrowcastAccess,
@@ -473,6 +474,21 @@ export async function createCharacter(formData) {
   // still a ghost, so a `cursed` guard here would leave them holding a Deadchat seat while alive.
   // Neither curse nor ghost needs a write — the new ALIVE row is already the answer to both.
   await closeDeadchatTo(prisma, discordUserId).catch(() => {});
+
+  // The Depot account this seat opens with, from docs/roles.yaml's
+  // `bank_account:` (db/lib/syncRoles.js). It opens EMPTY — a starting purse is
+  // physical obols out of `starting_tags`, because a seeded balance on day one
+  // would be a claim with nothing behind it in the Vault, which is exactly what
+  // the hard backing exists to prevent.
+  //
+  // Best-effort, in the side-effect block rather than the create transaction:
+  // a character with no account can open one at the counter in one click, and
+  // failing a whole character creation over a bank is the wrong trade.
+  if (role.bankAccountClass) {
+    await openAccount(prisma, created, { accountClass: role.bankAccountClass, turnNumber: openTurn?.number ?? null }).catch(
+      (err) => console.error("Opening a bank account failed:", err),
+    );
+  }
 
   // The Depot's turret spares exactly one face — he knows his own name here.
   // Set once and never resynced: concealing himself later still gets him

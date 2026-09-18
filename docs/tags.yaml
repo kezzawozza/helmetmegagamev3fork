@@ -2415,20 +2415,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # The tax button. Purchasable by anyone — it is self-limiting, since it does
-  # nothing unless the holder is also a faction's Leader or Treasurer
-  # (Character.isLeader/isTreasurer, plain booleans, not tags — TAGS.md §6).
-  # Headman and Meister start with it (docs/roles.yaml).
-  taxman:
-    catalog: all
-    name: Taxman
-    category: general
-    group: general-traits
-    description: "While the leader or treasurer of a faction, you can use the taxation button to automatically tax your subjects. You must be in the same zone as whoever you're taxing."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
   # --- Brigands -------------------------------------------------------------
   brigand:
     catalog: gm
@@ -6403,7 +6389,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 0
       skills: [smithing]
       items: [hematite]
@@ -7046,7 +7032,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 4
       skills: [crafting]
       gambit: false
@@ -7090,7 +7076,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [crafting, fundamentalist]
       gambit: false
@@ -7383,6 +7369,7 @@ tags:
     category: items
     group: items-gear
     description: "Bulk material for crafting, smithing, or healing people."
+    manifest: general
     pointCost: 0
     weight: 1
     stackable: true
@@ -7419,25 +7406,16 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    # A smith minting their own coin — 1 ⬢ in, 1 obol out, no margin either
-    # way (an obol IS 1 ⬢, DEPOT.md). This exists so a smith can pay another
-    # smithing recipe's cost partly in coin (resolveObolSpend,
-    # requestActions.js) without depending on loot luck for the obols to do
-    # it with. Gated at Skilled, not plain smithing — striking coin is finer
-    # work than a cudgel. Its own ration (perTurn: 10) replaces the shared
-    # Dead Simple pool, and moveFamilyOf's never-spills list
-    # (web/lib/tagRequests.js) makes that ration a hard wall: the 11th in a
-    # turn is refused outright rather than spilling into the smith's Move —
-    # counting coin shouldn't cost the same Routine a Broadsword does. Still
-    # Dead Simple otherwise, so it wants the same forge as the plain tools
-    # (SMITHING.md §2a).
-    requirement:
-      turnsCost: 0
-      resourceCost: 1
-      perTurn: 10
-      skills: [smithing-skilled]
-      gambit: false
+    # NOT CRAFTABLE, and do not make it so again. A smith used to strike these
+    # — 1 ⬢ in, 1 obol out — so a recipe's cost could be paid partly in coin
+    # without depending on loot luck. It was also a mint: an obol is weightless
+    # and a ⬢ is a pound, so ten a turn turned a cart of raw material into
+    # something that fits in a pocket, for free, forever. Coin enters the world
+    # through the Merchant and the train and nowhere else, which is what makes
+    # a purse of them worth exactly as much as your ability to reach the Depot.
+    #
+    # Paying a recipe's cost WITH held obols still works (resolveObolSpend,
+    # requestActions.js) — that half was never the problem.
 
   cross:
     catalog: gm
@@ -7562,6 +7540,7 @@ tags:
     category: items
     group: items-food
     description: "A cardboard container with a faded stamp. The lettering says VOLGOGA. You can open it and hopefully find some food."
+    manifest: general
     pointCost: 0
     depotPrice: 1
     weight: 1
@@ -9407,7 +9386,7 @@ tags:
     customizable: true
     customizableSkill: smithing-skilled
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [smithing]
       gambit: false
@@ -9431,7 +9410,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [smithing]
       gambit: false
@@ -9458,7 +9437,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [crafting]
       gambit: false
@@ -9489,7 +9468,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [crafting]
       gambit: false
@@ -9572,7 +9551,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [crafting]
       gambit: false
@@ -9597,7 +9576,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [crafting]
       gambit: false
@@ -9623,7 +9602,7 @@ tags:
     customizable: true
     customizableSkill: smithing-skilled
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [smithing]
       gambit: false
@@ -9668,7 +9647,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [smithing]
       gambit: false
@@ -9693,7 +9672,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [smithing]
       gambit: false
@@ -9719,7 +9698,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [crafting]
       gambit: false
@@ -11842,7 +11821,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [smithing]
       gambit: false
@@ -12191,12 +12170,13 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # The key to the whole Depot, and the entire permission model behind it:
-  # holding this is what opens /depot, and db/lib/depot.js is where the slug
-  # is named. `tradeable: true` is not an oversight — handing it to somebody
-  # really does hand them the shuttle, and that is a decision worth being able
-  # to make. `visible: false` so it isn't obvious on inspection who is
-  # carrying the Merchant's way off this rock.
+  # The Merchant's whole seat, in a card. /depot opens for everybody now, but
+  # this is what opens the MERCHANT manifest on it — the long shelf, sealed
+  # goods included — plus the Company's credit line, the gun on his office wall
+  # and the sight of everybody else's staged selling. db/lib/depot.js names the
+  # slug. `tradeable: true` is not an oversight: handing it to somebody really
+  # does hand them the business, and that is a decision worth being able to
+  # make. `visible: false` so it isn't obvious on inspection who is carrying it.
   # See docs/systemdocs/DEPOT.md §2.
   merchants-license:
     catalog: gm
@@ -12210,9 +12190,10 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # What gets a Docker onto the landing pad and into a sealed crate. Access to
-  # the room is handled entirely by Room.accessTagSlugs — see the landing-pad
-  # entry in docs/zones.yaml — so this tag has no code of its own behind it.
+  # What gets a Docker into the Railyard and into a sealed crate. Access to the
+  # room is handled entirely by Room.accessTagSlugs — see the depot-railyard
+  # entry in docs/zones.yaml — so this tag has no code of its own behind it,
+  # beyond letting its holder sell into the Merchant's books.
   # It is emphatically NOT what the turret reads.
   # A GM-issued Depot access badge (web/lib/depotState.js), not an ordinary
   # lock. Stackable so a second issue doesn't get refused as a duplicate, but
@@ -12227,6 +12208,25 @@ tags:
     pointCost: 0
     stackable: true
     weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # The introduction to the black market, and the whole of it. It opens the
+  # BLACK_MARKET manifest at the Depot's counter (db/lib/depotManifests.js) and
+  # does nothing else whatsoever — no skill, no gate, no effect on a sheet.
+  # Tradeable and weightless on purpose: the point of a chip is that it changes
+  # hands across a table without anybody saying a word. Not craftable, because
+  # a forge that could mint these would mint the market open for everybody.
+  silver-chip:
+    catalog: gm
+    name: Silver Chip
+    category: items
+    group: items-keys
+    description: "A metallic poker chip."
+    pointCost: 0
+    weight: 0
+    stackable: true
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -12434,6 +12434,7 @@ tags:
     category: items
     group: items-drink
     description: "A Mudghara, special import. It has a robust, heavy flavor."
+    manifest: black-market
     pointCost: 0
     depotPrice: 4
     sellable: true
@@ -13661,6 +13662,7 @@ tags:
     category: items
     group: items-drink
     description: "Rice wine aged in the shadow of cherry blossoms."
+    manifest: black-market
     pointCost: 0
     # Task 11: raised above the plain-alcohol band (5 ⬢) to sit roughly level
     # with ravenheart-red — its only price is sellablePrice 14, since it has
@@ -13905,6 +13907,7 @@ tags:
     group: items-drink
     poison: true
     description: "A small vial of a clear substance."
+    manifest: black-market
     pointCost: 0
     depotPrice: 41
     sealedShipping: true
@@ -14148,6 +14151,7 @@ tags:
     category: items
     group: items-drink
     description: "Beer, ale, and other fine drinks."
+    manifest: black-market
     pointCost: 0
     weight: 2
     stackable: true
@@ -14542,6 +14546,7 @@ tags:
     group: items-drink
     poison: true
     description: "A powerful draught that requires 2 turns to create. Inflicts {tag:phrygian-toxin}."
+    manifest: black-market
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -14740,6 +14745,7 @@ tags:
     category: items
     group: items-drink
     description: "A bitter green syrup distilled from {tag:coca-leaves}. Can be consumed to gain {tag:stimulant-high}."
+    manifest: black-market
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -15867,7 +15873,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [crafting]
 
@@ -15889,7 +15895,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [crafting]
 
@@ -15947,7 +15953,7 @@ tags:
     customizable: true
     customizableSkill: smithing-skilled
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [crafting]
     sellable: true
@@ -16127,7 +16133,7 @@ tags:
     customizable: true
     customizableSkill: smithing-skilled
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [crafting]
     sellable: true
@@ -16153,7 +16159,7 @@ tags:
     customizable: true
     customizableSkill: smithing-skilled
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [crafting]
     sellable: true
@@ -16770,7 +16776,7 @@ tags:
     customizable: true
     customizableSkill: smithing-skilled
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 3
       skills: [smithing]
       gambit: false

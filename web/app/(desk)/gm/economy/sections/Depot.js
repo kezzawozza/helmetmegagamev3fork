@@ -6,11 +6,15 @@ import { SectionHead } from "./shared";
 
 // --- The Depot -----------------------------------------------------------
 // `books` is depotBooks() — nulls, not zeros, when there's no Depot row, so
-// this can say "not provisioned" rather than draw an empty ledger. DEPOT.md
-// §0g: the station's account and the Merchant's own purse are TWO POTS, the
-// ATM the only door between them — this section never sums them.
-export function Depot({ books, generatorOn, generatorFuel, fuelMax, shuttleState, tradePoints }) {
-  if (books.accountObols == null) {
+// this can say "not provisioned" rather than draw an empty ledger.
+//
+// DEPOT.md §0g: a bank account and the coin behind it are TWO POTS, never
+// summed. The number worth reading first is the BACKING — the Vault's coin
+// against what the Treasury accounts claim. Under it, somebody is going to walk
+// up to the ATM and be told no, and that is a finding rather than a bug in the
+// books (ECONOMY.md §3).
+export function Depot({ books, trainHere, tradePoints }) {
+  if (books.claimsObols == null) {
     return (
       <section className="ops-section ops-section--wide">
         <SectionHead title="The Depot" />
@@ -22,20 +26,27 @@ export function Depot({ books, generatorOn, generatorFuel, fuelMax, shuttleState
   const debt = books.debtObols ?? 0;
   const cap = books.creditCapObols ?? 0;
   const pct = cap > 0 ? Math.min(100, Math.round((debt / cap) * 100)) : 0;
-  const fuelPct = fuelMax > 0 ? Math.min(100, Math.round((generatorFuel / fuelMax) * 100)) : 0;
+  const claims = books.treasuryClaims ?? 0;
+  const vault = books.vaultObols ?? 0;
+  const backingPct = claims > 0 ? Math.min(100, Math.round((vault / claims) * 100)) : 100;
+  const short = vault < claims;
 
   return (
     <section className="ops-section ops-section--wide">
       <SectionHead
         title="The Depot"
-        lede="The station's own books — separate from the Merchant's pocket. The ATM is the only door between them."
+        lede="Every account in the game, and the coin in the Keep's Vault standing behind the Treasury ones."
       />
 
       <div className="panel" style={{ padding: "1rem", display: "flex", flexWrap: "wrap", gap: "2rem" }}>
         <dl className="depot-totals">
           <div>
-            <dt>Station account</dt>
-            <dd className="mono">{books.accountObols} ¢</dd>
+            <dt>Treasury claims</dt>
+            <dd className="mono">{claims} ¢</dd>
+          </div>
+          <div>
+            <dt>Offshore claims</dt>
+            <dd className="mono">{books.offshoreClaims ?? 0} ¢</dd>
           </div>
           <div>
             <dt>Credit available</dt>
@@ -53,11 +64,11 @@ export function Depot({ books, generatorOn, generatorFuel, fuelMax, shuttleState
         </div>
 
         <div style={{ minWidth: "14rem" }}>
-          <div className="text-sm text-muted" style={{ marginBottom: "0.25rem" }}>
-            Generator fuel: {generatorFuel} / {fuelMax} — {generatorOn ? "running" : "off"}
+          <div className={short ? "text-sm text-danger" : "text-sm text-muted"} style={{ marginBottom: "0.25rem" }}>
+            Vault backing: {vault} / {claims} ¢{short ? " — short" : ""}
           </div>
-          <div className="depot-meter" role="img" aria-label={`${generatorFuel} of ${fuelMax} fuel`}>
-            <span className="depot-meter-fill" style={{ width: `${fuelPct}%` }} />
+          <div className="depot-meter" role="img" aria-label={`${vault} of ${claims} obols backed`}>
+            <span className="depot-meter-fill" style={{ width: `${backingPct}%` }} />
           </div>
         </div>
       </div>
@@ -65,14 +76,14 @@ export function Depot({ books, generatorOn, generatorFuel, fuelMax, shuttleState
       <div className="panel" style={{ padding: "0.75rem 1rem" }}>
         <dl className="depot-totals">
           <div>
-            <dt>Manifest in flight</dt>
+            <dt>On the rails</dt>
             <dd className="mono">
-              {books.manifestLines} line{books.manifestLines === 1 ? "" : "s"} · {books.manifestValue} ⬢
+              {books.manifestLines} line{books.manifestLines === 1 ? "" : "s"} · {books.manifestValue} ¢
             </dd>
           </div>
           <div>
-            <dt>Shuttle</dt>
-            <dd>{shuttleState ?? "—"}</dd>
+            <dt>Train</dt>
+            <dd>{trainHere ? "at the platform" : "down the line"}</dd>
           </div>
         </dl>
       </div>

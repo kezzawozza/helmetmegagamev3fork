@@ -1,6 +1,7 @@
 import { prisma } from "@lifeweb/db";
 import { reasonFlow, reasonLabel, FLOW } from "@lifeweb/db/lib/economyReasons";
 import { creditAvailableObols } from "@lifeweb/db/lib/depotState";
+import { vaultObols } from "@lifeweb/db/lib/bankAccounts";
 import {
   RESOURCES_SLUG,
   resourcesByCharacterIds,
@@ -23,17 +24,24 @@ export const HOLDING_STATUSES = ["ALIVE", "DEAD", "CURSED"];
 // The money supply, right now, by form — read from balances themselves,
 // since this is the number the ledger gets checked AGAINST.
 export async function liveSupply() {
-  const [heldBalance, stashedBalance, depot, coin, goods] = await Promise.all([
+  const [heldBalance, stashedBalance, depot, claims, orders, sales, coin, goods] = await Promise.all([
     sumCharacterResources(prisma, { status: { in: HOLDING_STATUSES } }),
     sumRoomResources(prisma),
-    prisma.depot.findFirst({ select: { accountObols: true, debtObols: true, manifest: true } }),
+    prisma.depot.findFirst({ select: { debtObols: true } }),
+    // Every bank account's claim. ACCOUNT is a form, not a place, so the
+    // Treasury's and the Merchant's are summed here and told apart on the desk.
+    prisma.bankAccount.aggregate({ _sum: { balanceObols: true } }),
+    prisma.depotOrder.aggregate({ _sum: { totalObols: true }, where: { deliveredAt: null } }),
+    prisma.depotSale.findMany({ where: { settledAt: null }, select: { unitPrice: true, quantity: true } }),
     coinInWorld(),
     goodsValueInWorld(),
   ]);
   const balance = heldBalance + stashedBalance;
-  const account = depot?.accountObols ?? 0;
+  const account = claims._sum.balanceObols ?? 0;
   const debt = depot?.debtObols ?? 0;
-  const manifest = manifestValue(depot?.manifest);
+  // Paid for or sold but still on the rails: real money, in transit.
+  const manifest =
+    (orders._sum.totalObols ?? 0) + sales.reduce((n, r) => n + r.unitPrice * r.quantity, 0);
   return {
     balance,
     coin,
@@ -80,16 +88,11 @@ async function goodsValueInWorld() {
 }
 
 // An order paid for but not yet landed — already gone from the account.
-function manifestValue(manifest) {
-  if (!Array.isArray(manifest)) return 0;
-  return manifest.reduce((n, l) => n + (Number(l?.quantity) || 0) * (Number(l?.unitPrice) || 0), 0);
-}
-
 // Does the sum of each account's ledger legs equal its live balance? PLUG
 // rows are included so pre-ledger history closes instead of every account
 // drifting by its opening balance.
 export async function reconcile(gameId, { limit = 50 } = {}) {
-  const [legs, chars, rooms, booked] = await Promise.all([
+  const [legs, accountLegs, chars, rooms, accounts, booked] = await Promise.all([
     prisma.$queryRaw`
       SELECT kind, id, SUM(delta)::int AS delta FROM (
         SELECT "fromKind" AS kind, "fromId" AS id, -SUM("amount")::int AS delta
@@ -102,8 +105,26 @@ export async function reconcile(gameId, { limit = 50 } = {}) {
          WHERE "gameId" = ${gameId} AND "form" = 'BALANCE' AND "toKind" IN ('character','room')
          GROUP BY 1, 2
       ) legs GROUP BY kind, id`,
+    // The bank's own books, form ACCOUNT. It holds because every balance move
+    // is one conditional UPDATE paired with exactly one ACCOUNT row in the same
+    // transaction (db/lib/bankAccounts.js#bumpBankAccount). `bank:clearing` is
+    // a book account with no live balance and is skipped below, the way MINT
+    // and BURN are.
+    prisma.$queryRaw`
+      SELECT id, SUM(delta)::int AS delta FROM (
+        SELECT "fromId" AS id, -SUM("amount")::int AS delta
+          FROM "EconomyEntry"
+         WHERE "gameId" = ${gameId} AND "form" = 'ACCOUNT' AND "fromKind" = 'bank'
+         GROUP BY 1
+        UNION ALL
+        SELECT "toId" AS id, SUM("amount")::int AS delta
+          FROM "EconomyEntry"
+         WHERE "gameId" = ${gameId} AND "form" = 'ACCOUNT' AND "toKind" = 'bank'
+         GROUP BY 1
+      ) legs GROUP BY id`,
     prisma.character.findMany({ where: { status: { in: HOLDING_STATUSES } }, select: { id: true, name: true } }),
     prisma.room.findMany({ select: { id: true, name: true } }),
+    prisma.bankAccount.findMany({ select: { id: true, holderName: true, balanceObols: true } }),
     prisma.economyEntry.count({ where: { gameId } }),
   ]);
   const backfilled = booked > 0;
@@ -125,6 +146,22 @@ export async function reconcile(gameId, { limit = 50 } = {}) {
       if (drift !== 0) rows.push({ kind, id: row.id, name: row.name, live, booked, drift });
     }
   }
+  const accountLedger = new Map(accountLegs.map((r) => [r.id, Number(r.delta) || 0]));
+  for (const account of accounts) {
+    const bookedFor = accountLedger.get(account.id) ?? 0;
+    const drift = account.balanceObols - bookedFor;
+    if (drift !== 0) {
+      rows.push({
+        kind: "bank",
+        id: account.id,
+        name: account.holderName,
+        live: account.balanceObols,
+        booked: bookedFor,
+        drift,
+      });
+    }
+  }
+
   rows.sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift));
 
   // Bounded, since unbounded this shipped every holding account to the client.
@@ -315,7 +352,10 @@ export async function depotBooks() {
   const depot = await prisma.depot.findFirst();
   if (!depot) {
     return {
-      accountObols: null,
+      claimsObols: null,
+      treasuryClaims: null,
+      offshoreClaims: null,
+      vaultObols: null,
       debtObols: null,
       creditCapObols: null,
       creditAvailableObols: null,
@@ -323,17 +363,30 @@ export async function depotBooks() {
       manifestValue: 0,
     };
   }
-  const manifest = Array.isArray(depot.manifest) ? depot.manifest : [];
-  const manifestValueTotal = manifest.reduce(
-    (n, l) => n + (Number(l?.quantity) || 0) * (Number(l?.unitPrice) || 0),
-    0,
-  );
+  const [byClass, vault, orders, sales] = await Promise.all([
+    prisma.bankAccount.groupBy({ by: ["class"], _sum: { balanceObols: true } }),
+    vaultObols(prisma),
+    prisma.depotOrder.findMany({ where: { deliveredAt: null }, select: { totalObols: true } }),
+    prisma.depotSale.findMany({ where: { settledAt: null }, select: { unitPrice: true, quantity: true } }),
+  ]);
+  const sumFor = (klass) => byClass.find((r) => r.class === klass)?._sum.balanceObols ?? 0;
+  const treasuryClaims = sumFor("TREASURY");
+  const offshoreClaims = sumFor("OFFSHORE");
+  const manifestValueTotal =
+    orders.reduce((n, o) => n + o.totalObols, 0) + sales.reduce((n, r) => n + r.unitPrice * r.quantity, 0);
+
   return {
-    accountObols: depot.accountObols,
+    claimsObols: treasuryClaims + offshoreClaims,
+    treasuryClaims,
+    offshoreClaims,
+    // The coin actually behind the Treasury claims. Under them, somebody is
+    // going to walk up to the ATM and be told no — which is a finding, not a
+    // bug in the books (docs/systemdocs/ECONOMY.md §3).
+    vaultObols: vault,
     debtObols: depot.debtObols,
     creditCapObols: depot.creditCapObols,
     creditAvailableObols: creditAvailableObols(depot),
-    manifestLines: manifest.length,
+    manifestLines: orders.length + sales.length,
     manifestValue: manifestValueTotal,
   };
 }

@@ -56,9 +56,20 @@ const REASONS = {
   STASH: { flow: FLOW.TRANSFER, label: "Stash" },
   DEPOT_ORDER: { flow: FLOW.TRANSFER, label: "Depot order" },
   DEPOT_SALE: { flow: FLOW.TRANSFER, label: "Depot sale" },
+  TRAIN_DELIVERY: { flow: FLOW.TRANSFER, label: "Train delivery" },
+  // The Meister's cut of a settled sale, coin into the Keep's Vault. Beside TAX
+  // rather than a sink: the money does not stop existing, it changes hands.
+  SELL_TAX: { flow: FLOW.TRANSFER, label: "Sell tax" },
+  // Kept, unwritten: the generator is gone, but a reason is a plain string and
+  // deleting one blanks the old rows that name it on /gm/economy.
   DEPOT_REFUEL: { flow: FLOW.TRANSFER, label: "Refuelled" },
 
   // --- internal (a form change, not a movement) ---
+  BANK_OPEN: { flow: FLOW.INTERNAL, label: "Account opened" },
+  BANK_DEPOSIT: { flow: FLOW.INTERNAL, label: "Deposit" },
+  BANK_WITHDRAWAL: { flow: FLOW.INTERNAL, label: "Withdrawal" },
+  // Kept, unwritten: BANK_DEPOSIT/BANK_WITHDRAWAL replaced it, and the old rows
+  // still name it.
   DEPOT_ATM: { flow: FLOW.INTERNAL, label: "ATM" },
   DEPOT_CREDIT: { flow: FLOW.INTERNAL, label: "Credit line" },
 

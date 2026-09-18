@@ -2907,7 +2907,7 @@ export async function packageItemsRequestImpl({
     // crate a flat 2× carry multiplier on bulk wealth and undo the whole point
     // of ⬢ having a weight. The picker already leaves them out
     // (web/lib/tagRequests.js#packableTags); this is the lock behind that hint.
-    // The DEPOT still crates ⬢ as freight on the shuttle — that is
+    // The DEPOT still crates ⬢ as freight on the train — that is
     // splitIntoCrates, a different path, and it is not affected.
     if (isResourcesRow(row)) throw new UserError("⬢ are already bulk — they don't go in a crate.");
     // A mount is not cargo, and the MOUNT slot is weightless on purpose, so a

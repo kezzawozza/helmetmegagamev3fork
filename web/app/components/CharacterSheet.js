@@ -79,7 +79,6 @@ export default function CharacterSheet({
   isThanati = false,
   isThanatiLeader = false,
   isCerberon = false,
-  canTax = false,
   canWarrant = false,
   atHideout = false,
   hideoutRooms = [],
@@ -309,7 +308,6 @@ export default function CharacterSheet({
         isThanati={isThanati}
         isThanatiLeader={isThanatiLeader}
         isCerberon={isCerberon}
-        canTax={canTax}
         canWarrant={canWarrant}
         atHideout={atHideout}
         hideoutRooms={hideoutRooms}

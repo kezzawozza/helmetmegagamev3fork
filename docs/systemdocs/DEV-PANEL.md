@@ -920,19 +920,31 @@ db:collapse-games`, off a command line and behind a dry run.
 
 ## The Depot section
 
-`/gm/dev?s=depot`. The Merchant's station, split into live state you can
-override (account, debt, fuel, the two switches)
-and the tuning the game runs on (tank size, burn rate, fuel values, shuttle
-clock and cooldown, credit cap). There is no ⬢-per-obol field: an obol is one
-⬢ and the rate is gone (`DEPOT.md` §0).
+`/gm/dev?s=depot`. The station is a public market now (`DEPOT.md`), so there
+is far less here than there used to be: no account, no fuel, no shuttle
+clock — the generator and the shuttle are both gone entirely, and there is
+no station float to hold a balance on. `updateDepot` writes four fields:
+`Depot.debtObols` (the Company's drawn-down credit line), its cap
+`Depot.creditCapObols` (75), `Depot.sellTaxRate` (a percentage, clamped
+rather than refused) and `Depot.turretArmed`. There is no ⬢-per-obol field
+either: an obol is one ⬢ and the rate never existed as a knob.
 
-The turret's severity table is edited as JSON, one weighted column per armour
-tier. **The save is refused if any column does not sum to 1** — a broken die is
-a typo, not a preference, and normalising it silently would hide the mistake
-behind subtly wrong odds for a month. `updateDepot` returns the error and the
-form says which column is wrong.
+The last two duplicate a player-facing surface rather than being the only
+door: the sell tax rate is really the Meister's own dial, set day to day
+from `/treasury`, which gates on standing in the Keep with a key to his office
+(`DEPOT.md` §0h), and
+the turret's switch is really a red button on the Merchant's Office starter
+post, typed word, re-checked at submit, the same pattern as the Censor's
+(`DEPOT.md` §0i) — this checkbox is a superadmin's way to flip it without
+walking there.
 
-See `docs/systemdocs/DEPOT.md` §0f for the shipped table.
+**The turret's severity table is not edited here, and never really was.**
+`db/lib/depotTurret.js#turretTable()` returns the shipped
+`DEFAULT_TURRET_TABLE` and ignores its argument, so both guns have always
+rolled the same odds. There was a JSON editor on this page for it and a code
+comment calling `Depot.turretTable` an orphan column; there is no such column,
+and the editor wrote nothing anything read. Retuning means editing that
+constant. See `docs/systemdocs/DEPOT.md` §0i for the shipped table.
 
 ## Zones
 

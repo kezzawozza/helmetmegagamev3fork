@@ -31,8 +31,9 @@
     - [Health Tags](#health-tags)  
 10. [Crafting](#crafting)  
 11. [Building](#building)  
-12. [Character Page](#character-page)  
-13. [Death](#death)  
+12. [The Depot](#the-depot)  
+13. [Character Page](#character-page)  
+14. [Death](#death)  
 
 
 ## About Bascinet
@@ -452,7 +453,7 @@ Even if a doctor doesn't possess the skills needed to heal an injury or ailment,
 
 ## Crafting
 
-Press **Craft** on your [Character](https://ravenheart.quest/character) page, pick a recipe you already hold the skills for, and it pays its ⬢ cost right away — from your own purse, a room stash you're in, or someone standing with you who agrees to pay. It files as your Routine for the turn. A **Dead Simple** recipe needs no Move at all, just a cap of 4 a turn; anything past that becomes a real Move. Quick work costs only part of one — a recipe listed at 0.25 turns is a quarter of your Move, so you can make 4 of them in a day, and the Craft window tells you how much of your Move is left before you commit. A long recipe becomes a multi-turn **project** you keep working at from the same button turn after turn — or cancel outright, with no refund for what's already gone in.
+Press **Craft** on your [Character](https://ravenheart.quest/character) page, pick a recipe you already hold the skills for, and it pays its ⬢ cost right away — from your own purse, a room stash you're in, or someone standing with you who agrees to pay. It files as your Routine for the turn. Quick work costs only part of a Move — a recipe listed at 0.25 turns takes a quarter of it, and the Craft window shows how much is left. The simplest work (a work knife, a cudgel, a sling) costs the same 0.25. A long recipe becomes a multi-turn **project** you keep working at from the same button turn after turn — or cancel outright, with no refund for what's already gone in.
 
 **What you can make depends on your skills.** A handful of skill families gate crafting, each opening a different slice of the world's recipes:
 
@@ -482,9 +483,15 @@ What stands can be damaged, burned, or torn down. Attacking a structure is a Gam
 
 A destroyed structure leaves a ruin standing until somebody clears it away.
 
-## Character Page
+## The Depot
 
-Your [Character](https://ravenheart.quest/character) page contains your character sheet and all mechanical options for modifying your character. The page is dense with features and information, all of which are listed below.
+The [Depot](https://ravenheart.quest/depot) page is a public market, open to anyone. Reading it needs nothing; buying or selling needs you standing at the Depot, in the Caves.
+
+You have an account there, opened for you when you were made. Most accounts are a claim on real coin in the treasury — if the treasury runs dry, withdrawing is refused rather than shorted.
+
+Goods don't arrive the moment you pay for them. A cargo train runs every other turn, so an order you place today is crates waiting for you in the Railyard either at the end of today or at the end of tomorrow, depending on where the train is. The Depot page tells you which.
+
+What you're allowed to buy depends on your tags: everyone can buy Resources and a Ration Box, some things need you holding the right chit, and the good stuff is the Merchant's own shelf. Selling works the other way — drop what you're selling in the dropbox at the Depot, and you're paid out when the train next leaves, minus a cut the Meister takes off the top. Whatever goes in the box is gone the moment you drop it.
 
 **Header:** Your name, title (if present), role, faction, and portrait.
 

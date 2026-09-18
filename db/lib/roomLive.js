@@ -12,17 +12,26 @@
 // The line is BOLD rather than `-#` subtext: the paragraph above it is
 // already italic.
 
-const { loadDepot } = require("./depotState");
+const { trainHere } = require("./train");
 
 // key -> { load(prisma) -> state, describe(state) -> string|null }
 const LIVE = {
-  // The Landing Pad: whether the shuttle is docked.
-  shuttle: {
+  // The Railyard: whether the train is standing at the platform. Read off the
+  // open turn rather than a column, because that IS the train's state — there
+  // is nothing to keep in step. Note it is trainHere() and NOT isArrivalTurn():
+  // an arrival turn is one the train comes in at the END of, so on that turn
+  // the platform is empty (db/lib/train.js).
+  train: {
     load: async (prisma) => {
-      const depot = await loadDepot(prisma);
-      return { docked: depot?.shuttleState === "DOCKED" };
+      const turn = await prisma.turn.findFirst({
+        where: { closedAt: null },
+        orderBy: { number: "desc" },
+        select: { number: true },
+      });
+      return { here: trainHere(turn?.number ?? 0) };
     },
-    describe: (state) => (state?.docked ? "**The shuttle is here.**" : "**It's empty.**"),
+    describe: (state) =>
+      state?.here ? "**The train is at the platform.**" : "**The rails are empty.**",
   },
 };
 

@@ -9,7 +9,8 @@
 const { qualityWord } = require("./laborYield");
 const { linksFor, endpoints } = require("./locationGraph");
 const { describeLocation, hasAttribute } = require("./locationAttributes");
-const { loadDepot, depotPowered, fuelTurnsLeft } = require("./depotState");
+const { loadDepot } = require("./depotState");
+const { trainHere } = require("./train");
 const { structuresAt } = require("./structures");
 
 // Fixed order, so the readout looks the same everywhere and a player can
@@ -57,13 +58,13 @@ async function examineLines(prisma, locationId) {
   // being authored on the Location.
   let depot = null;
   if (hasAttribute(location, "depot")) {
-    const row = await loadDepot(prisma);
+    const [row, openTurn] = await Promise.all([
+      loadDepot(prisma),
+      prisma.turn.findFirst({ where: { closedAt: null }, orderBy: { number: "desc" }, select: { number: true } }),
+    ]);
     depot = {
-      generatorOn: row.generatorOn,
-      powered: depotPowered(row),
-      fuelTurnsLeft: fuelTurnsLeft(row),
       turretArmed: row.turretArmed,
-      shuttleDocked: row.shuttleState === "DOCKED",
+      trainHere: trainHere(openTurn?.number ?? 0),
     };
   }
   const structures = await structuresAt(prisma, locationId);

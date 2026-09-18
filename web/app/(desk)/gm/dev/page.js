@@ -1139,63 +1139,28 @@ export default async function DevPanelPage({ searchParams }) {
               <form action={updateDepot} className="flex flex-col gap-4">
                 <div className="ops-grid">
                   <DepotField
-                    name="accountObols"
-                    label="Account (¢)"
-                    value={depot.accountObols}
-                  />
-                  <DepotField
                     name="debtObols"
                     label="Drawn on the line (¢)"
                     value={depot.debtObols}
-                  />
-                  <DepotField
-                    name="generatorFuel"
-                    label="Fuel in the tank"
-                    value={depot.generatorFuel}
-                  />
-                </div>
-
-                <div className="ops-toggles">
-                  <div className="ops-toggle">
-                    <Switch name="generatorOn" defaultChecked={depot.generatorOn}>
-                      Generator running
-                    </Switch>
-                  </div>
-                  <div className="ops-toggle">
-                    <Switch name="turretArmed" defaultChecked={depot.turretArmed}>
-                      Turret armed
-                    </Switch>
-                  </div>
-                </div>
-
-                <div className="ops-grid">
-                  <DepotField name="fuelMax" label="Tank size" value={depot.fuelMax} />
-                  <DepotField
-                    name="fuelBurnPerTurn"
-                    label="Fuel burned per turn"
-                    value={depot.fuelBurnPerTurn}
-                  />
-                  <DepotField name="coalFuel" label="Fuel per Coal" value={depot.coalFuel} />
-                  <DepotField
-                    name="saltpeterFuel"
-                    label="Fuel per Saltpeter"
-                    value={depot.saltpeterFuel}
-                  />
-                  <DepotField
-                    name="shuttleMaxTurns"
-                    label="Shuttle stays (turns)"
-                    value={depot.shuttleMaxTurns}
-                  />
-                  <DepotField
-                    name="shuttleCooldown"
-                    label="Shuttle cooldown (turns)"
-                    value={depot.shuttleCooldown}
                   />
                   <DepotField
                     name="creditCapObols"
                     label="Credit cap (¢)"
                     value={depot.creditCapObols}
                   />
+                  <DepotField
+                    name="sellTaxRate"
+                    label="Sell tax (%)"
+                    value={depot.sellTaxRate}
+                  />
+                </div>
+
+                <div className="ops-toggles">
+                  <div className="ops-toggle">
+                    <Switch name="turretArmed" defaultChecked={depot.turretArmed}>
+                      Turret armed
+                    </Switch>
+                  </div>
                 </div>
 
                 <div className="ops-actions">

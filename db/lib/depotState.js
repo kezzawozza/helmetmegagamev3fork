@@ -1,37 +1,19 @@
-const { record, MINT, BURN, DEPOT_ACCOUNT } = require("./economyLedger");
+const { record, DEPOT_DEBT } = require("./economyLedger");
 
-// The Depot singleton's live state: account, generator, shuttle. Every mover
-// clamps inside ONE locked statement, not a read-modify-write (like
-// db/lib/lifeweb.js#bumpBlood), so two spenders can't stomp each other; the
-// returned `delta` is what Undo reads off Request.effect (REQUESTS.md §2).
+// The Depot singleton's live state: the credit line, the turret, the sell-tax
+// rate. Every mover clamps inside ONE locked statement, not a read-modify-write
+// (like db/lib/lifeweb.js#bumpBlood), so two spenders can't stomp each other.
 // Takes `tx` as a parameter rather than requiring db/index.js back (db/lib/dm.js convention).
+//
+// The generator, the shuttle and the station's own float all used to live here.
+// The float is the Merchant's BankAccount now (db/lib/bankAccounts.js), and the
+// other two went with the train (db/lib/train.js).
 
-// The tag that opens the landing pad and cracks a sealed crate. NOT what the turret reads (depotTurret.js).
+// The tag that opens the Railyard and cracks a sealed crate. NOT what the turret reads (depotTurret.js).
 const DEPOT_KEYCARD_SLUG = "depot-keycard";
-
-// The two things the generator will burn, best first.
-const COAL_SLUG = "coal";
-const SALTPETER_SLUG = "saltpeter";
 
 // The currency.
 const OBOL_SLUG = "obol";
-
-// Room id is always `<location-stem>-<room>` (docs/zones.yaml); must follow whichever Location the
-// pad sits in, or every shuttle action reports "a GM needs to run the zone sync".
-const LANDING_PAD_SLUG = "depot-landing-pad";
-
-// One predicate so web actions, turn passes and Examine can't drift on "off" — fuel at zero is off
-// even if the switch says otherwise.
-function depotPowered(depot) {
-  return Boolean(depot?.generatorOn) && (depot?.generatorFuel ?? 0) > 0;
-}
-
-// What the cockpit gauge and Examine line both report, so they cannot disagree.
-function fuelTurnsLeft(depot) {
-  const burn = depot?.fuelBurnPerTurn ?? 0;
-  if (burn <= 0) return null;
-  return Math.floor((depot?.generatorFuel ?? 0) / burn);
-}
 
 // Clamped at BOTH ends: the upper clamp is load-bearing, or a debt driven
 // below zero by an Undo would read as more headroom than the cap allows.
@@ -89,21 +71,20 @@ async function bumpColumn(tx, column, amount, { max = null } = {}) {
   return { before, after, delta: after - before };
 }
 
-// No ceiling. `ctx`, when passed, records the move on the economy ledger (form ACCOUNT); default
-// ends are MINT (deposit)/BURN (withdrawal), overridable via `ctx.econ`. No `ctx` records nothing.
-async function bumpAccount(tx, amount, ctx) {
-  const result = await bumpColumn(tx, "accountObols", amount);
+// The Company's line. No ceiling here — the CAP is refused rather than clamped
+// by the caller, so the Merchant is told he hit it. `ctx`, when passed, records
+// the move on the ledger (form DEBT). No `ctx` records nothing.
+async function bumpDebt(tx, amount, ctx) {
+  const result = await bumpColumn(tx, "debtObols", amount);
   if (ctx && result.delta) {
     // record() never throws (economyLedger.js rule 2) — a hiccup logs and drops the row.
     const econ = ctx.econ ?? {};
-    const defaultFrom = result.delta > 0 ? MINT : DEPOT_ACCOUNT;
-    const defaultTo = result.delta > 0 ? DEPOT_ACCOUNT : BURN;
     await record(
       tx,
       {
-        from: econ.from ?? defaultFrom,
-        to: econ.to ?? defaultTo,
-        form: "ACCOUNT",
+        from: econ.from ?? (result.delta > 0 ? DEPOT_DEBT : econ.other ?? null),
+        to: econ.to ?? (result.delta > 0 ? econ.other ?? null : DEPOT_DEBT),
+        form: "DEBT",
         amount: Math.abs(result.delta),
       },
       econ,
@@ -112,26 +93,15 @@ async function bumpAccount(tx, amount, ctx) {
   return result;
 }
 
-// Capped at the tank's size so shovelling coal into a full generator wastes it rather than banking it.
-async function bumpFuel(tx, amount) {
-  const depot = await loadDepot(tx);
-  return bumpColumn(tx, "generatorFuel", amount, { max: depot.fuelMax ?? 100 });
-}
-
 // No ⬢-to-obol conversion, on purpose: one obol IS one ⬢, so catalog prices are already whole
 // obols and nothing rounds.
 
 module.exports = {
   DEPOT_KEYCARD_SLUG,
-  COAL_SLUG,
-  SALTPETER_SLUG,
   OBOL_SLUG,
-  LANDING_PAD_SLUG,
-  depotPowered,
-  fuelTurnsLeft,
   creditAvailableObols,
   loadDepot,
   setMerchantFace,
-  bumpAccount,
-  bumpFuel,
+  bumpColumn,
+  bumpDebt,
 };

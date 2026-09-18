@@ -111,31 +111,19 @@ export async function updateGameConfig(formData) {
 export async function updateDepot(formData) {
   await requireDev();
 
-  const fuelMax = Math.max(1, intOrZero(formData, "fuelMax"));
-
   await prisma.depot.upsert({
     where: { id: 1 },
     create: { id: 1 },
     update: {
       // Live state.
-      accountObols: Math.max(0, intOrZero(formData, "accountObols")),
       debtObols: Math.max(0, intOrZero(formData, "debtObols")),
-      // Clamped to the tank the GM is saving in the same submit, not the one
-      // that was there before — otherwise raising both at once silently loses
-      // the fuel.
-      generatorFuel: Math.max(0, Math.min(fuelMax, intOrZero(formData, "generatorFuel"))),
-      generatorOn: formData.get("generatorOn") === "on",
       turretArmed: formData.get("turretArmed") === "on",
 
       // Tuning.
-      fuelMax,
-      fuelBurnPerTurn: Math.max(0, intOrZero(formData, "fuelBurnPerTurn")),
-      coalFuel: Math.max(0, intOrZero(formData, "coalFuel")),
-      saltpeterFuel: Math.max(0, intOrZero(formData, "saltpeterFuel")),
-      shuttleMaxTurns: Math.max(1, intOrZero(formData, "shuttleMaxTurns")),
-      shuttleCooldown: Math.max(0, intOrZero(formData, "shuttleCooldown")),
       creditCapObols: Math.max(0, intOrZero(formData, "creditCapObols")),
-      // Never zero: the ⬢-to-obol conversion divides by it.
+      // A percentage, and clamped rather than refused — a GM typing 150 here
+      // meant 100, and the Meister's own terminal is where it is really set.
+      sellTaxRate: Math.max(0, Math.min(100, intOrZero(formData, "sellTaxRate"))),
     },
   });
 
@@ -445,6 +433,15 @@ export async function wipeGameData(formData) {
       // taking the whole transaction with it: the wipe reports failure and
       // wipes nothing at all.
       prisma.offer.deleteMany({}),
+      // The Depot's two in-flight tables. DepotOrder cascades off BankAccount
+      // which cascades off Character, so it would go anyway; DepotSale is
+      // SetNull on purpose (a GM can stage one against no account), which means
+      // an unsettled sale would SURVIVE the wipe and be paid out by the next
+      // game's first departure. Deleted explicitly, and before the characters,
+      // for exactly that reason.
+      prisma.depotSale.deleteMany({}),
+      prisma.depotOrder.deleteMany({}),
+      prisma.bankAccount.deleteMany({}),
       prisma.character.deleteMany({}),
       prisma.playerThread.deleteMany({}),
       prisma.playerThreadInvite.deleteMany({}),
@@ -462,8 +459,9 @@ export async function wipeGameData(formData) {
       prisma.gameState.deleteMany({}),
       prisma.gameState.create({ data: { id: 1, gameId: nextGame.id } }),
       // The Depot is the same kind of row and was missed entirely, so it kept
-      // everything: an ARMED turret, the Merchant's account, a docked shuttle
-      // and a merchantFace naming a character the wipe had just deleted. The
+      // everything: an ARMED turret, the Merchant's account, the shuttle that
+      // used to sit there, and a merchantFace naming a character the wipe had
+      // just deleted. The
       // gun then shot the people in the caves the next game, with nobody in
       // that game having armed it. Same delete-and-recreate for the same
       // reason — loadDepot upserts id 1, so a read before this lands is fine.

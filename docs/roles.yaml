@@ -63,6 +63,14 @@
 # `leader: true` role is also whitelisted today, but that is a choice, not a
 # rule: set both, independently.
 #
+# `bank_account` (role-level, optional) opens a fingerprinted account at the
+# Depot for this character at creation: `treasury` for a claim on the coin in
+# the Keep's Vault, `offshore` for money the Company holds off-world (the
+# Merchant's and his Dockers'). Absent means no account — the Black Hills seats
+# arrive without one, and open one at the counter if they ever want one. The
+# account opens EMPTY; a starting purse is physical obols in `starting_tags`.
+# See docs/systemdocs/DEPOT.md §0g.
+#
 # `starting_resources` (role-level) is how many Resources that character
 # starts play with. A faction's Silo is not listed here: its opening balance
 # is computed at seed time from the weights of the faction's roles — see
@@ -132,6 +140,7 @@ zones:
               - >-
                 The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
             difficulty: hard
+            bank_account: treasury
             multiple: false
             starting_resources: 5
             starting_zone: fortress
@@ -173,6 +182,7 @@ zones:
               - >-
                 Your Baron is a stressed, overburdened, and threatened man. You do not understand everything, but he has a project. Ravenheart is one of humanity's last bastions. Do what you can to protect him — and the Heir.
             difficulty: easy
+            bank_account: treasury
             multiple: false
             starting_resources: 1
             starting_zone: fortress
@@ -200,6 +210,7 @@ zones:
               - >-
                 Life is good as the Heir — but that may change one day. Will you make an effort to reveal the gravity of your situation, or will you dawdle your days away?
             difficulty: easy
+            bank_account: treasury
             multiple: false
             starting_resources: 1
             starting_zone: fortress
@@ -225,6 +236,7 @@ zones:
               You are the Baron's daughter. Bring some light to the darkness.
             description: []
             difficulty: easy
+            bank_account: treasury
             multiple: false
             starting_resources: 1
             starting_zone: fortress
@@ -263,6 +275,7 @@ zones:
               - >-
                 The town's labor feeds Ravenheart but doesn't produce any surplus. Its true economic surplus comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
             difficulty: normal
+            bank_account: treasury
             multiple: false
             starting_resources: 1
             starting_zone: fortress
@@ -297,12 +310,15 @@ zones:
               - >-
                 Make sure the Town sends its taxes — your main contact there is the Headman — and oversee that no one is taking undue amounts of Resources from the Silo. The town's labor feeds Ravenheart but doesn't produce any surplus. The true money to be made comes from Godard Factory's production of Squeeze. Keep close communication with the Banneret to ensure he's getting you enough obols to fund the warchest, and buy you nice things from the merchant.
               - >-
+                Your terminal lists every account in Ravenheart and the coin in the Vault standing behind them, and it sets the sell tax — a cut of every sale at the Depot, taken before the seller is paid, paid into the Vault. Set it too high and people stop selling; set it too low and the Vault empties and nobody can draw their own money out.
+              - >-
                 Your part in fate is not well-loved nor well-understood, but it is essential. You bear the weight of Ravenheart on your shoulders — or that's what it seems like to you.
               - >-
                 In order to do your job effectively, communication and coordination is key. You can use the Keep's messenger ravens to contact others over long distances, and should consider keeping records of the events of the day, to be referenced down the line.
               - >-
                 A note: there is a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
             difficulty: normal
+            bank_account: treasury
             multiple: false
             starting_resources: 2
             starting_zone: fortress
@@ -318,7 +334,6 @@ zones:
               - Meister's Key
               - Bird
               - Obol x5
-              - Taxman
             doc_elements:
               - godking
               - squeeze
@@ -339,6 +354,7 @@ zones:
               - >-
                 Ask the Baron how you can help him. Your service will surely be appreciated.
             difficulty: normal
+            bank_account: treasury
             multiple: false
             whitelist: true
             starting_resources: 2
@@ -365,6 +381,7 @@ zones:
               - >-
                 As a Courtier, your gameplay is largely undefined. You are encouraged to set your own goals and desires and work to fulfill them.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 6
             starting_resources: 1
@@ -386,6 +403,7 @@ zones:
               - >-
                 Peddle what you smuggle to the courtiers — quietly.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 1
             starting_resources: 1
@@ -409,6 +427,7 @@ zones:
               - >-
                 Take Cooking (Skilled) if you want to run the kitchens properly as the Chef.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 3
             starting_resources: 1
@@ -439,6 +458,7 @@ zones:
               - >-
                 The Cerberi are men, but they are also dogs. Remind them that in service of Ravenheart, they should be capable of the savagery their position demands.
             difficulty: hard
+            bank_account: treasury
             multiple: false
             starting_resources: 1
             starting_zone: fortress
@@ -485,6 +505,7 @@ zones:
               - >-
                 Your role is as organizational as it is combat-like — you should assist the Censor in assigning his men, drafting battleplans, and performing espionage. Monitor the outskirts and the caves, hire a messenger — always be a step ahead of the darkness.
             difficulty: normal
+            bank_account: treasury
             multiple: false
             starting_resources: 2
             starting_zone: fortress
@@ -521,6 +542,7 @@ zones:
               - >-
                 You are loyal to the Censor and the Baron, although extreme circumstances could change that.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 6
             starting_resources: 1
@@ -552,6 +574,7 @@ zones:
               Train. One day, you might become a knight.
             description: []
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 2
             starting_resources: 1
@@ -592,6 +615,7 @@ zones:
               - >-
                 Along with the Chaplains, you have the power to take confessions, dispelling psychological drawback tags.
             difficulty: normal
+            bank_account: treasury
             multiple: false
             starting_resources: 1
             starting_zone: town
@@ -627,6 +651,7 @@ zones:
               - >-
                 Along with the Bishop, you have the power to take confessions, dispelling psychological drawback tags.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 3
             starting_resources: 1
@@ -656,6 +681,7 @@ zones:
 
                 You can Research held items in the Cathedral, uncovering lost or secret crafting recipes.
             difficulty: normal
+            bank_account: treasury
             multiple: true
             weight: 1
             starting_resources: 1
@@ -691,6 +717,7 @@ zones:
               - >-
                 You can perform medicine to remove negative medical tags according to their skill, Resource, and action cost.
             difficulty: normal
+            bank_account: treasury
             multiple: false
             starting_resources: 26
             starting_zone: town
@@ -724,6 +751,7 @@ zones:
               - >-
                 You can perform medicine to remove negative medical tags according to their skill, Resource, and action cost.
             difficulty: normal
+            bank_account: treasury
             multiple: true
             weight: 4
             starting_resources: 8
@@ -757,6 +785,7 @@ zones:
               - >-
                 Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
             difficulty: hard
+            bank_account: treasury
             multiple: false
             starting_resources: 1
             starting_zone: town
@@ -796,6 +825,7 @@ zones:
               - >-
                 Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 2
             starting_resources: 1
@@ -831,6 +861,7 @@ zones:
               - >-
                 Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 1
             starting_resources: 1
@@ -860,6 +891,7 @@ zones:
               - >-
                 Your main job is to tax people. You are beholden to the Meister, the Baron's taxperson, and things have gotten nasty in the past when the tithe didn't meet expectations. If the Silo's not full next time he comes, it won't be a pretty day. You also ought to pay tithe to the Church, for all they do for the town, and pay the Sheriff, for their work.
             difficulty: hard
+            bank_account: treasury
             multiple: false
             starting_resources: 1
             starting_zone: town
@@ -876,7 +908,6 @@ zones:
               - Headman's Cap
               - Sewer Key
               - Headman's Key
-              - Taxman
             doc_elements:
               - townstarting
               - farming
@@ -891,6 +922,7 @@ zones:
               - >-
                 You have a trusty .45 six-shooter, a reject from the Fortress's armory.
             difficulty: normal
+            bank_account: treasury
             multiple: true
             weight: 1
             starting_resources: 1
@@ -922,6 +954,7 @@ zones:
               - >-
                 You can also make Unique Tags — name and describe them yourself. You'll have to roll to see what the quality ends up being.
             difficulty: normal
+            bank_account: treasury
             multiple: true
             weight: 2
             starting_resources: 20
@@ -952,6 +985,7 @@ zones:
               - >-
                 If you fail to pay your taxes, you will likely face a brutal death. Even massed together, commoners are incapable of revolting against the Fortress. In any case, taxation is not the greatest threat: it is the evil that hides in the shadows of Ravenheart. Proper laboring supplies the Cerberon with the necessary resources to protect the lands.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: unlimited
             starting_resources: 1
@@ -980,6 +1014,7 @@ zones:
               - >-
                 You are allowed to loot whatever corpses you find. That's how the Mortus traditionally sustain themselves, but if dead people are scarce, you can ask the Headman for some food.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 3
             starting_resources: 1
@@ -1004,6 +1039,7 @@ zones:
               - >-
                 Beg for food and coin.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 4
             starting_resources: 1
@@ -1026,6 +1062,7 @@ zones:
               - >-
                 You start with an assortment of drugs and can make more.
             difficulty: normal
+            bank_account: treasury
             multiple: false
             starting_resources: 8
             starting_zone: town
@@ -1060,6 +1097,7 @@ zones:
               - >-
                 You are responsible for paying your staff. They have to eat.
             difficulty: normal
+            bank_account: treasury
             multiple: false
             starting_resources: 9
             starting_zone: town
@@ -1087,6 +1125,7 @@ zones:
               - >-
                 Keep the Inn running under the Innkeeper. Cook (Cooking (Skilled)), brew (Brewing (Skilled)), wait tables, or just keep the room talking — pick your corner, or split off and start your own enterprise if you're a brewer with ambition.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 2
             starting_resources: 1
@@ -1115,16 +1154,17 @@ zones:
               - >-
                 Ravenheart's poor souls are a great source of business, but it's a terrible place otherwise. You wouldn't dare put your heart here — the place is doomed. Time to make some money.
               - >-
-                Your License lets you call down a shuttle. The mini-turret is keyed to your face, so it will shoot everyone except you. Be careful not to conceal your face, however.
+                Your License opens the whole manifest — everything the station stocks, sealed goods included — where everyone else gets a short shelf. The mini-turret is keyed to your face, so it will shoot everyone except you. Be careful not to conceal your face, however.
               - >-
-                You deal in obols (¢), not ⬢. You are the only place they come from and the only place they go back to. You can buy at the Depot's price and sell it at whatever makes sense for profit. You can also buy things from Ravenheartians and sell them to the Depot: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
+                You deal in obols (¢), not ⬢. You can buy at the Depot's price and sell it at whatever makes sense for profit. You can also buy things from Ravenheartians and sell them on: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
               - >-
                 The Company will advance you up to 75 ¢ against the business. Your licence will be revoked if you fail to pay it.
               - >-
                 You may issue loans, lending at high rates and calling on your Dockers to collect.
               - >-
-                Taking the shuttle instead of the Railroad like a normal migrant costs 30 ⬢. And you have to have your license.
+                Your account is held off-world, so it is not a claim on the Keep's Vault the way everyone else's is. Nobody can freeze it and nobody can rob it.
             difficulty: hard
+            bank_account: offshore
             multiple: false
             starting_resources: 10
             starting_zone: caves
@@ -1145,6 +1185,7 @@ zones:
               - godking
               - squeeze
               - townstarting
+              - merchant
           docker:
             name: Docker
             intro: >-
@@ -1154,7 +1195,10 @@ zones:
                 Maybe they'll let you get a ride on their spaceship if things ever get bad around here.
               - >-
                 You are the legs of the Merchant's business. The Depot is at the bottom of the Caves and their customers are not, so somebody carries the goods up and the money down — that is you. Somebody also collects from the people who owe them. That is also you.
+              - >-
+                Your keycard cracks a sealed crate, and lets you sell into the Merchant's books instead of your own.
             difficulty: easy
+            bank_account: offshore
             multiple: true
             weight: 2
             starting_resources: 1
@@ -1175,6 +1219,7 @@ zones:
               Make it to the fortress.
             description: []
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: unlimited
             starting_resources: 1
@@ -1193,6 +1238,7 @@ zones:
               - >-
                 If you'd prefer the virtuous angle, you can be a hedge knight instead.
             difficulty: normal
+            bank_account: treasury
             multiple: true
             weight: 3
             starting_resources: 4
@@ -1238,6 +1284,7 @@ zones:
               - >-
                 There's a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
             difficulty: hard
+            bank_account: treasury
             multiple: false
             starting_resources: 4
             starting_zone: marshes
@@ -1277,6 +1324,7 @@ zones:
               - >-
                 There's a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
             difficulty: normal
+            bank_account: treasury
             multiple: false
             starting_resources: 4
             starting_zone: marshes
@@ -1312,6 +1360,7 @@ zones:
               - >-
                 But not too much, you know? Your life is worthless here. And an armed revolt? Pffft.
             difficulty: easy
+            bank_account: treasury
             multiple: true
             weight: 3
             starting_resources: 2
@@ -1333,6 +1382,7 @@ zones:
               - >-
                 Godard Factory is a strange place. As much money as they make, none of them know how to feed themselves. It's your job to bring them some food; the Banneret should pay you in obols.
             difficulty: easy
+            bank_account: treasury
             multiple: false
             starting_resources: 2
             starting_zone: marshes
