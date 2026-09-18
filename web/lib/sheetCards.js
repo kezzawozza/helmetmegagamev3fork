@@ -55,7 +55,9 @@ export function rowValue(ct, currentTurn = null) {
   const tag = ct.tag;
   const left = turnsLeft(ct.expiresTurn, currentTurn);
   const duration = tagDuration(left, null);
-  if (duration) return { text: duration.badge, tone: left === 1 ? "danger" : null };
+  // .label ("3 turns left"), not .badge ("3t") — the row's value slot has
+  // room for the whole phrase, and the terse form is for somewhere tighter.
+  if (duration) return { text: duration.label, tone: left === 1 ? "danger" : null };
   const weight = tagWeightLbs(tag, ct.quantity ?? 1);
   if (weight > 0) return { text: `${weight} lb`, tone: null };
   const armor = tag.ballisticArmor ?? tag.meleeArmor;

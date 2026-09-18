@@ -173,21 +173,39 @@ export default function TagRail({
 
   // A row's second line. Health says what it turns into and what a cure
   // costs; the Research row says why the verb is missing when a gate is shut,
-  // since this surface has no tooltips; a skill says what the next rung up
-  // would cost.
-  function noteFor(ct, card, rung) {
+  // since this surface has no tooltips. A skill's next rung used to live
+  // here too, but the mockup puts it in the row's VALUE slot instead — see
+  // skillRungValue below.
+  function noteFor(ct, card) {
     if (card.key === "Health") return healthNote(ct);
     if (isSelf && ct.tag.slug === RESEARCH_TAG_SLUG && !canResearch) return researchHint;
-    if (rung) return `next: ${rung.name} · ${rung.pointCost > 0 ? "+" : ""}${rung.pointCost} pts`;
     return null;
+  }
+
+  // A Skills row's right-hand value: what the next rung up costs, or "—"
+  // once there's nothing left to train into. The mockup writes
+  // "next: Expert · 8 ⬢", but a skill rank costs tag POINTS
+  // (Tag.pointCost), not Resources — ⬢ has exactly one job, resourceCost
+  // (CLAUDE.md), so this stays "pts" rather than copying the mockup's glyph
+  // literally. Don't "fix" this back to ⬢.
+  function skillRungValue(rung) {
+    if (!rung) return { text: "—", tone: null };
+    return { text: `next: ${rung.name} · ${rung.pointCost > 0 ? "+" : ""}${rung.pointCost} pts`, tone: null };
   }
 
   const pointsControl =
     tagPoints != null &&
     (isSelf && storeTags ? (
-      <button type="button" className="btn-quiet" onClick={() => setStoreOpen(true)}>
-        Spend Tag Points (<TagPointsValue points={tagPoints} />)
-      </button>
+      // "4 tag points · Spend Tag Points" — the mockup's own .note: plain
+      // muted text for the count, an accent-coloured link for the verb.
+      // Used to fuse the two into one uniformly muted .btn-quiet, which read
+      // as one grey button rather than a count with an action beside it.
+      <span className="tag-points-note">
+        <TagPointsValue points={tagPoints} /> tag points ·{" "}
+        <button type="button" className="tag-points-spend" onClick={() => setStoreOpen(true)}>
+          Spend Tag Points
+        </button>
+      </span>
     ) : (
       <span className="text-sm">
         <span className="text-muted">Tag points </span>
@@ -240,7 +258,7 @@ export default function TagRail({
             const rung = card.key === "Skills" ? nextRung(ct, tagCatalog, heldTagIds) : null;
             const shared = {
               ct,
-              note: noteFor(ct, card, rung),
+              note: noteFor(ct, card),
               verbs: card.key === "Health" || ct.tag.slug === RESEARCH_TAG_SLUG ? verbsFor(ct) : null,
               open: openId === id,
               onToggle: () => setOpenId((was) => (was === id ? null : id)),
@@ -249,7 +267,11 @@ export default function TagRail({
               worn: Boolean(ct.equipped),
             };
             return (
-              <TagRow key={id} {...shared} value={rowValue(ct, currentTurn)} />
+              <TagRow
+                key={id}
+                {...shared}
+                value={card.key === "Skills" ? skillRungValue(rung) : rowValue(ct, currentTurn)}
+              />
             );
           })}
         </ul>
@@ -285,9 +307,11 @@ export default function TagRail({
             <div key={card.key} className="sheet-card sheet-rail-run" data-card={card.key.toLowerCase()}>
               <div className="flex items-baseline justify-between gap-2">
                 <h3 className="section-title">{card.title}</h3>
-                <span className="mono text-sm text-muted">
-                  {filtering ? `${shown} / ${card.count}` : card.count}
-                </span>
+                {/* The mockup draws no count here at rest — the section
+                    title is enough. It only earns one back while filtering,
+                    since "3 / 12" is the thing that tells you the filter is
+                    hiding rows. */}
+                {filtering && <span className="mono text-sm text-muted">{shown} / {card.count}</span>}
               </div>
               {rowsFor(card, groups)}
             </div>

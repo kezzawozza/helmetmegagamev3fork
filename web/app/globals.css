@@ -160,6 +160,16 @@
   --border-hi: #55493d;
   --border-lo: #0b0907;
 
+  /* The "well" — a slot with nothing in it. The mockup draws an empty cell
+     as a recessed pit, not a lighter box: a darker ground than --field-bg,
+     a dashed edge, and dimmer text than --muted. It never hoists these to
+     its own :root — they turn up inline on .equip-cell.empty and on a
+     gated .btn-secondary alike — but the same three values repeat both
+     places, so they're real tokens here rather than three hand-typed hexes. */
+  --well-bg: #120f0c;
+  --well-border: #2e2823;
+  --well-text: #5c574f;
+
   --text: #b3ada2;
   /* A heading's own lift off body text — the mockup draws h1/h2/h3 and
      .panel-header a shade brighter than a paragraph, not the same colour, so
@@ -734,6 +744,8 @@ input[type="radio"]:focus-visible,
 
 .btn-secondary:hover {
   background: color-mix(in srgb, var(--text) 8%, var(--surface-raised));
+  /* The mockup's own hover lifts the label too, not only the fill. */
+  color: var(--text-hi);
 }
 
 .btn-secondary:active {
@@ -743,7 +755,14 @@ input[type="radio"]:focus-visible,
   border-bottom-color: var(--border-hi);
 }
 
-/* A gated verb: dashed, and it does not press. */
+/* A gated verb: dashed, and it does not press. The dashed border and the
+   muted colour already say "gated" — the mockup draws no opacity on top of
+   them, and stacking one on made a gated .btn-secondary read as washed out
+   rather than as its own distinct state. Since most verbs on a strip are
+   gated at any given moment, that opacity was most of what made the whole
+   app look faded. .btn-danger keeps its own opacity below: it has no dashed
+   alternate face to fall back on, so it is the only signal a disabled Reject
+   or Kill has. */
 .btn-secondary[aria-disabled="true"],
 .btn-secondary:disabled {
   border: 2px dashed var(--border);
@@ -752,7 +771,10 @@ input[type="radio"]:focus-visible,
   cursor: default;
 }
 
-.btn-secondary:disabled,
+.btn-secondary:disabled {
+  cursor: not-allowed;
+}
+
 .btn-danger:disabled {
   opacity: 0.35;
   cursor: not-allowed;

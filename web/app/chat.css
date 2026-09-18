@@ -1897,15 +1897,17 @@
 }
 
 /* A line quoting somebody's own words — the filed Move here, an offer's own
-   sentence in Waiting on you. `.mark` is the » itself, dimmer than the words
-   it introduces. */
+   sentence in Waiting on you. `.mark` is the » itself — the mockup draws it
+   in --accent-text against the muted sentence, brighter than the words it
+   introduces rather than dimmer, so the quote mark reads as a mark and not
+   as more of the same grey line. */
 .quote {
   margin: 0 0 var(--sp-2);
   color: var(--muted);
 }
 
 .quote .mark {
-  color: var(--muted);
+  color: var(--accent-text);
 }
 
 /* The filed Move, three lines of it. A Move can be a paragraph and the column

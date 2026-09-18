@@ -72,11 +72,6 @@ export default function LedgerBand({
   // web/lib/purse.js is the one copy — the chat aside's you-frame counts the
   // same way.
   const obols = obolsOf(character);
-  // The mockup's Resources tile also shows a cap. There is none: the old
-  // GameConfig.carryResourceCap was retired when a ⬢ started weighing a pound
-  // and pushing against the Carrying tile's cap instead (CARRY.md §1). So the
-  // sub-line says the coin and nothing else.
-  const resourceSub = obols > 0 ? `${obols} ¢ on you` : "no coin on you";
 
   const gambitParts = gambitModifiers(character.tags, { mood: character.mood });
   // Summed from the parts: two calls to the same module is two chances for the number and its explanation to disagree.
@@ -159,15 +154,18 @@ export default function LedgerBand({
             label="Free moves"
             value={zoneMoves != null ? zoneMoves : "—"}
             over={zoneMoves === 0}
-            // The mockup's "Gambit not yet filed" under this number: the same
-            // fact the turn card below states, said where a player counting
-            // their moves is already looking.
-            sub={isSelf ? (moveState?.move ? "Gambit filed" : "Gambit not yet filed") : null}
+            // "Gambit filed"/"not yet filed" used to sit here too, but the
+            // This turn box beside the strip already says the same thing —
+            // one fact, said once.
             detail={zoneMovesReason || null}
             open={tileOpen === "moves"}
             onOpen={(want) => setTileOpen(want ? "moves" : null)}
           />
-          <DetailTile label="Resources" value={`${heldResources} ⬢`} sub={resourceSub} />
+          {/* "Purse", not "Resources": ⬢ and ¢ side by side on one line, no
+              sub-line under it — the old sub carried "N ¢ on you" beside a
+              value that was already ⬢ alone, which is the same fact twice
+              once the two glyphs share a tile. */}
+          <DetailTile label="Purse" value={`${heldResources} ⬢ | ${obols} ¢`} />
           <DetailTile
             label="Carrying"
             value={carrying ? `${carrying} lb` : "—"}

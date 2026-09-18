@@ -126,7 +126,7 @@ function describeHandsOverflow(tags, hands = WEAPON_HANDS) {
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   const named = listWords([...counts].map(([label, n]) => (n > 1 ? `${label} ×${n}` : label)));
-  return `Your hands are full: put away ${named} before you equip something else.`;
+  return `You can't equip that much at once: put away ${named} before you equip something else.`;
 }
 
 // Where a tag goes and what it costs to put there, as a short label for a buying menu or a chip. Null for anything that isn't equippable. Terse on purpose — it sits in a `<dl>` of one-line answers beside Weight and Armour; describeSlotClash's job is the full sentence. Says the thing a shopper can't otherwise work out: that a breastplate and a robe stack because one is Over and the other Mail, that a poleaxe eats two of four hands, that trinkets run out at four.

@@ -15,7 +15,7 @@ export default function StandingHerePanel({ sites = [] }) {
 
   return (
     <section className="panel p-3">
-      <h2 className="panel-header">Standing here</h2>
+      <h2 className="panel-header">Here</h2>
       <ul className="m-0 flex list-none flex-col gap-1 p-0 text-sm">
         {sites.map((s) => (
           <li key={s.id}>
