@@ -22,7 +22,7 @@ const {
 } = require("../lib/oracleInput");
 const { moveCutoffAt } = require("../lib/turnClock");
 const { cutoffDecision } = require("../lib/oracleCutoff");
-const { splitEditorReply, correspondentPrompt, editorPrompt } = require("../lib/oraclePrompts");
+const { splitEditorReply, correspondentPrompt, editorPrompt, appendPrompt } = require("../lib/oraclePrompts");
 const { isComplete } = require("../lib/oracle");
 
 function namesFixture() {
@@ -144,6 +144,16 @@ test("a blank stored prompt falls back to the shipped default", () => {
   assert.strictEqual(correspondentPrompt({ oracleCorrespondentPrompt: "   " }), correspondentPrompt({}));
   assert.strictEqual(editorPrompt({ oracleEditorPrompt: "" }), editorPrompt({}));
   assert.strictEqual(correspondentPrompt({ oracleCorrespondentPrompt: "Custom." }), "Custom.");
+  assert.strictEqual(appendPrompt({ oracleAppendPrompt: "   " }), appendPrompt({}));
+  assert.strictEqual(appendPrompt({ oracleAppendPrompt: "" }), appendPrompt({}));
+  assert.strictEqual(appendPrompt({ oracleAppendPrompt: "Custom." }), "Custom.");
+});
+
+test("the append default carries both phase-two headings", () => {
+  // Those literal strings are what the desk's markdown renders.
+  const text = appendPrompt({});
+  assert.match(text, /### Declared this turn/);
+  assert.match(text, /### Needs a ruling/);
 });
 
 // The window, lock to lock. The Oracle runs at the Move cutoff, so a page can
@@ -522,7 +532,10 @@ test("a PUBLIC staged message lands on its own zone's page", () => {
     stagedMessages: [{ kind: "PUBLIC", content: "The gate held.", zoneId: ZONE.id, recipients: [] }],
   });
   const { text } = zoneBlock(material, ZONE, { aggregatesSeen: new Set() });
-  assert.match(text, /STAGED\nPUBLIC \| The gate held\./);
+  // Staged messages moved into RULINGS — GROUND TRUTH's "Told to the
+  // players" half; STAGED (now STAGED EFFECTS) carries only StagedEffect
+  // rows. See docs/systemdocs/ORACLE.md §3.
+  assert.match(text, /Told to the players\n- .*PUBLIC · Fortress — The gate held\./);
 });
 
 test("a PRIVATE staged message with no room trace lands by its recipient's zone", () => {
@@ -537,10 +550,12 @@ test("a PRIVATE staged message with no room trace lands by its recipient's zone"
     ],
   });
   const here = zoneBlock(material, ZONE, { aggregatesSeen: new Set() });
-  assert.match(here.text, /STAGED\nPRIVATE \| You have stepped on a land mine\./);
+  // Staged messages moved into RULINGS — GROUND TRUTH's "Told to the
+  // players" half. See docs/systemdocs/ORACLE.md §3.
+  assert.match(here.text, /Told to the players\n- .*PRIVATE · to somebody — You have stepped on a land mine\./);
 
   const elsewhere = zoneBlock(material, OTHER_ZONE, { aggregatesSeen: new Set() });
-  assert.doesNotMatch(elsewhere.text, /STAGED/);
+  assert.doesNotMatch(elsewhere.text, /RULINGS/);
 });
 
 test("a staged effect is named for its target and dropped when it describes nothing", () => {
@@ -551,7 +566,9 @@ test("a staged effect is named for its target and dropped when it describes noth
     ],
   });
   const { text } = zoneBlock(material, ZONE, { aggregatesSeen: new Set() });
-  assert.match(text, /STAGED\nAda Vance: \+10 ⬢/);
+  // Renamed: STAGED -> STAGED EFFECTS, now that staged messages moved to
+  // RULINGS and only the StagedEffect half remains here.
+  assert.match(text, /STAGED EFFECTS\nAda Vance: \+10 ⬢/);
   assert.doesNotMatch(text, /Bram Holt/);
 });
 
@@ -568,7 +585,10 @@ test("a character in a child zone counts toward its seat zone's roster and moves
   });
   const { text, counts } = zoneBlock(material, ZONE, { aggregatesSeen: new Set() });
   assert.match(text, /PRESENT \(1\)\n- Doctor Neze/);
-  assert.match(text, /MOVES\n/);
+  // Renamed: the single MOVES section split into the two-tense DECLARED /
+  // RESOLVED headers (docs/systemdocs/ORACLE.md §3). This fixture's action
+  // carries no turnId, so it lands in the DECLARED bucket.
+  assert.match(text, /DECLARED THIS TURN/);
   assert.equal(counts.present, 1);
   assert.equal(counts.moves, 1);
 
@@ -590,9 +610,13 @@ test("a child zone's beats, chat and staged rows land on the seat's page", () =>
   });
   const { text } = zoneBlock(material, ZONE, { aggregatesSeen: new Set() });
   assert.match(text, /NOTABLE\nDEATH \| Someone died\./);
-  assert.match(text, /CHAT\nAda: Help!/);
-  assert.match(text, /STAGED\n[\s\S]*land mine/);
-  assert.match(text, /Doctor Neze: -5 ⬢/);
+  // CHAT is now a budgeted sample, grouped by place, under a renamed header
+  // (db/lib/oracleChatSample.js, docs/systemdocs/ORACLE.md §3).
+  assert.match(text, /CHAT — a random sample, not the whole transcript\n[\s\S]*Ada: Help!/);
+  // Staged messages moved into RULINGS — GROUND TRUTH; STAGED (now STAGED
+  // EFFECTS) keeps only the mechanical half.
+  assert.match(text, /RULINGS — GROUND TRUTH[\s\S]*land mine/);
+  assert.match(text, /STAGED EFFECTS\nDoctor Neze: -5 ⬢/);
 });
 
 test("resolveSeat falls back to the raw id for a zone the map doesn't know", () => {
@@ -618,7 +642,10 @@ test("a non-seat-holder never appears in the Threats page's PRESENT or MOVES", (
   });
   const { text } = threatsBlock(material, { aggregatesSeen: new Set() });
   assert.match(text, /PRESENT \(1\)\n- Maeris/);
-  assert.match(text, /MOVES\nMaeris/);
+  // Renamed: the single MOVES section split into the two-tense DECLARED /
+  // RESOLVED headers (docs/systemdocs/ORACLE.md §3). This fixture's action
+  // carries no turnId, so it lands in the DECLARED bucket.
+  assert.match(text, /DECLARED THIS TURN[\s\S]*Maeris/);
   assert.doesNotMatch(text, /Ada Vance/);
 });
 

@@ -128,8 +128,9 @@ export default function OracleForm({ settings }) {
       </div>
 
       <div className="field">
-        <label className="field-label" htmlFor="oracle-memory">
+        <label className="field-label flex items-center gap-1.5" htmlFor="oracle-memory">
           Turns of memory
+          <InfoIcon text="Production rows are not rewritten by the migration. An existing install still reads 3 until somebody sets it to 1 here." />
         </label>
         <input
           id="oracle-memory"
@@ -170,6 +171,19 @@ export default function OracleForm({ settings }) {
           rows={12}
           maxLength={8000}
           defaultValue={settings.editorPrompt}
+        />
+      </div>
+
+      <div className="field">
+        <label className="field-label" htmlFor="oracle-append">
+          Phase two (Declared this turn / Needs a ruling)
+        </label>
+        <textarea
+          id="oracle-append"
+          name="appendPrompt"
+          rows={12}
+          maxLength={8000}
+          defaultValue={settings.appendPrompt}
         />
       </div>
 

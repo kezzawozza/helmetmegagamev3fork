@@ -224,6 +224,7 @@ const INTERNAL_KEYS = [
   "oracleIncludeChat",
   "oracleCorrespondentPrompt",
   "oracleEditorPrompt",
+  "oracleAppendPrompt",
 ];
 
 function fieldsInGroup(groupKey) {

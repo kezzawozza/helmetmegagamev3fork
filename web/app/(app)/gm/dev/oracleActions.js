@@ -11,7 +11,7 @@ import { requireDev } from "@/lib/devAccess";
 import { getOpenTurn } from "@/lib/turn";
 import { testConnection } from "@lifeweb/db/lib/oracleClient";
 import { runOracle } from "@lifeweb/db/lib/oracle";
-import { correspondentPrompt, editorPrompt } from "@lifeweb/db/lib/oraclePrompts";
+import { correspondentPrompt, editorPrompt, appendPrompt } from "@lifeweb/db/lib/oraclePrompts";
 
 const MAX_PROMPT = 8000;
 const MAX_URL = 300;
@@ -41,6 +41,7 @@ export async function loadOracleSettings() {
       oracleIncludeChat: true,
       oracleCorrespondentPrompt: true,
       oracleEditorPrompt: true,
+      oracleAppendPrompt: true,
       // Selected only to derive the boolean below; never leaves this function.
       oracleApiKey: true,
     },
@@ -54,6 +55,7 @@ export async function loadOracleSettings() {
     // Effective prompts, so the textareas show what is actually running.
     correspondentPrompt: correspondentPrompt(config),
     editorPrompt: editorPrompt(config),
+    appendPrompt: appendPrompt(config),
   };
 }
 
@@ -77,8 +79,10 @@ export async function saveOracleSettings(formData) {
   // default edit isn't silently overridden by a saved copy.
   const correspondent = clean(formData.get("correspondentPrompt"), MAX_PROMPT);
   const editor = clean(formData.get("editorPrompt"), MAX_PROMPT);
+  const append = clean(formData.get("appendPrompt"), MAX_PROMPT);
   data.oracleCorrespondentPrompt = !correspondent || correspondent === correspondentPrompt({}) ? null : correspondent;
   data.oracleEditorPrompt = !editor || editor === editorPrompt({}) ? null : editor;
+  data.oracleAppendPrompt = !append || append === appendPrompt({}) ? null : append;
 
   // The key is REPLACED, never edited: an empty box means "leave it alone",
   // so a normal save never wipes the credential.
