@@ -110,7 +110,8 @@ export const ACTION_HELP = {
     "Cut a piece off somebody tied up here, or off a body you can reach. One piece each time, and it costs you nothing. The piece is yours to keep.",
   brand:
     "Permanently brand someone who's bound or incapacitated. It costs you nothing, and it never comes off.",
-  applycollar: "TODO: Bascinet to write.",
+  applycollar:
+    "Permanently lock a collar around someone's neck. It can only be removed with a key.",
   unlockcollar: "Unlock someone's collar.",
   detonatecollar: "Detonate a slave collar.",
   bury: "Bury someone. Removes the player's Cursed status.",

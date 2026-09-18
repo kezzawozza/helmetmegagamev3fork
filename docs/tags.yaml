@@ -11875,7 +11875,7 @@ tags:
     name: Bomb Collar
     category: items
     group: items-gear
-    description: "TODO: Bascinet to write."
+    description: "A collar that can be locked around someone's neck, controlled by a remote detonator."
     manifest: black-market
     pointCost: 0
     depotPrice: 15
