@@ -321,7 +321,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           initial: {
             rolePriorities: preference?.rolePriorities ?? {},
             antagonistOptIns: creation.initialAntagonists,
-            joblessRole: preference?.joblessRole ?? "COMMONER",
+            joblessRole: preference?.joblessRole ?? "MIGRANT",
           },
           entry: entry?.status === "READY" ? { readyAt: entry.readyAt.toISOString() } : null,
           readyCount,

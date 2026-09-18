@@ -8,7 +8,7 @@
 //      player who wants a leader seat at that level gets one at random;
 //   3. main pass — same three levels over every seat;
 //   4. whoever is left gets their jobless fallback: the overflow seat they
-//      named (Commoner/Migrant, both unlimited) or a walk back to the lobby.
+//      named (Migrant, unlimited) or a walk back to the lobby.
 //
 // No "overflow first" pass — the fallback dropdown is the overflow. No head
 // is ever forced; an unwanted whitelisted seat stays empty and is a warning.
@@ -18,7 +18,10 @@
 const { roleCapacity } = require("./roleCapacity");
 
 const LEVEL_ORDER = ["HIGH", "MEDIUM", "LOW"];
-const OVERFLOW_SLUG = { COMMONER: "commoner", MIGRANT: "migrant" };
+// Migrant is the only overflow seat now; Commoner was the other until it was
+// removed with Laboring. A jobless preference naming no seat walks to the
+// lobby, which is what the fallback below already did for a missing slug.
+const OVERFLOW_SLUG = { MIGRANT: "migrant" };
 
 // Good enough for a shuffle — not a security boundary.
 function hashSeed(seed) {

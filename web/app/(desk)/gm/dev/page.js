@@ -315,7 +315,7 @@ export default async function DevPanelPage({ searchParams }) {
           low: levels.filter(([, l]) => l === "LOW").length,
           optIns: antagonistNames(p?.antagonistOptIns ?? []),
           whitelisted: Boolean(m?.roles.includes(LEADER_WHITELIST_ROLE_ID)),
-          jobless: { COMMONER: "Commoner", MIGRANT: "Migrant", RETURN_TO_LOBBY: "Lobby" }[p?.joblessRole ?? "COMMONER"],
+          jobless: { MIGRANT: "Migrant", RETURN_TO_LOBBY: "Lobby" }[p?.joblessRole ?? "MIGRANT"],
           status: e.status,
           assigned: e.assignedRole?.name ?? null,
           expiresAt: e.expiresAt ? e.expiresAt.toISOString().slice(5, 16).replace("T", " ") : null,

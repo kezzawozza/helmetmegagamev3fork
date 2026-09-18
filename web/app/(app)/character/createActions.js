@@ -58,9 +58,6 @@ import {
   conflictingTag,
   roleExcluded,
   CURSED_ROLE_SLUGS,
-  COMMONER_KIT_SLUGS,
-  DEFAULT_COMMONER_KIT_SLUG,
-  LABORING_SPECIALISATION_SLUGS,
 } from "@/lib/characterCreation";
 
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
@@ -300,22 +297,6 @@ export async function createCharacter(formData) {
   const spent = effectiveTotalCost(selected, byId, grantedIds);
   if (spent > budget) {
     return { error: `That costs ${spent} points and you have ${budget}.` };
-  }
-
-  // A Commoner who reached the end without picking a trade starts a farmer —
-  // left alone they'd hold Laboring II at no location's coefficient,
-  // the one build that can't feed itself. Lands in startingTags, not
-  // selected: the GM_GRANT loop below stamps expiry and carries the slug
-  // into heldSlugs. 0 points, budget untouched, crate arrives unopened.
-  if (role.slug === "commoner") {
-    const tradeHeld = [...selected, ...startingTags].some(
-      (t) =>
-        COMMONER_KIT_SLUGS.includes(t.slug) || LABORING_SPECIALISATION_SLUGS.includes(t.slug),
-    );
-    if (!tradeHeld) {
-      const kit = await prisma.tag.findUnique({ where: { slug: DEFAULT_COMMONER_KIT_SLUG } });
-      if (kit) startingTags.push(kit);
-    }
   }
 
   // Union bought + granted tags, refunding nothing (already budget-checked).

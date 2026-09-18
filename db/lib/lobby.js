@@ -41,7 +41,7 @@ async function loadAssignmentInput(db, memberRoles) {
     return {
       discordUserId: e.discordUserId,
       priorities: p?.rolePriorities ?? {},
-      joblessRole: p?.joblessRole ?? "COMMONER",
+      joblessRole: p?.joblessRole ?? "MIGRANT",
       whitelisted: (memberRoles.get(e.discordUserId) ?? []).includes(LEADER_WHITELIST_ROLE_ID),
     };
   });

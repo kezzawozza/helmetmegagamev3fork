@@ -126,10 +126,9 @@ const ROLE_MEMORIES = {
   innkeeper: TOWN_ALL,
   "inn-staff": TOWN_ALL,
   sheriff: [...TOWN_ALL, "forest-south", "forest-northern-road"],
-  // headman: collects from the farms. mortus: the vow, always knows the way there. commoner: plus whichever kit route KIT_MEMORIES adds below.
+  // headman: collects from the farms. mortus: the vow, always knows the way there.
   headman: [...TOWN_ALL, "forest-south", "farms", "forest-northern-road"],
   mortus: [...TOWN_ALL, "forest-northern-road", "manors", "road", "gatehouse", "lifeweb"],
-  commoner: TOWN_ALL,
 
   // Caves. merchant: trades the Factory's goods.
   merchant: [...CAVE_MOUTH, "forest-south", "south-gate", "square", ...FACTORY_ROAD],
@@ -161,14 +160,11 @@ const ROLE_MEMORIES = {
   "brigand-leader": [...HILLS_ALL, "forest-embankment"],
 };
 
-// A Commoner's trade decides which road out of town they have walked. Keyed by
-// the kit crate, not by the skill tag inside it, because the crate is what
-// exists at creation — it is unpacked later, by hand.
-const KIT_MEMORIES = {
-  "commoner-farmer": ["forest-south", "farms"],
-  "commoner-fisherman": ["forest-northern-road", "forest-embankment", "forest-east-river"],
-  "commoner-hunter": ["forest-northern-road", "forest-embankment", "hills-shadowed-grove"],
-};
+// A tag a character starts with can add roads they have walked, on top of
+// whatever their role knows. The three Commoner kit crates were the only
+// entries this ever had; they went with the role, and the mechanism is kept
+// because it is the shape any future starting kit would use.
+const KIT_MEMORIES = {};
 
 // Empty for a role nobody wrote a line for — a blank map, exactly what the old
 // behaviour was, not an error.

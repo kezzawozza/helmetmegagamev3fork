@@ -8405,69 +8405,6 @@ tags:
   # an ordinary authored consumable, the same shape as Starting Wares above.
   # Heavy, because it is a crate: carrying one off is a decision.
   # --- Commoner kits ------------------------------------------------------
-  # A Commoner starts skilled at labor and nothing else. These are the three
-  # trades, sold as a crate you consume rather than as loose tags, so the
-  # picker offers one decision instead of four. Same shape as starting-wares
-  # above.
-  #
-  # `onlyRoles: [commoner]` is load-bearing, not flavour. Each kit holds far
-  # more than it costs — the Fisherman is 11 points of tags for 1, the Farmer 9
-  # for 0, the Hunter 14 for 2 — because a Commoner picking a trade should be
-  # nearly free. Ungated, that is a faucet every seat could pull at creation for
-  # most of a second build.
-  commoner-fisherman:
-    catalog: all
-    name: "Commoner: Fisherman"
-    category: items
-    onlyRoles: [commoner]
-    conflictsWith: [commoner-farmer, commoner-hunter]
-    group: items-gear
-    description: "Live off the rivers of Ravenheart. Gives a {tag:fishing-boat} and {tag:laboring-fishing}."
-    pointCost: 1
-    weight: 2
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - fishing-boat
-      - laboring-fishing
-
-  commoner-farmer:
-    catalog: all
-    name: "Commoner: Farmer"
-    category: items
-    onlyRoles: [commoner]
-    conflictsWith: [commoner-fisherman, commoner-hunter]
-    group: items-gear
-    description: "Live off the land of Ravenheart. Gives a {tag:work-knife} and {tag:laboring-farming}."
-    pointCost: 0
-    weight: 1
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - work-knife
-      - laboring-farming
-
-  commoner-hunter:
-    catalog: all
-    name: "Commoner: Hunter"
-    category: items
-    onlyRoles: [commoner]
-    conflictsWith: [commoner-fisherman, commoner-farmer]
-    group: items-gear
-    description: "Live off the harsh forests of Ravenheart. Gives {tag:laboring-hunting}, {tag:forester}, {tag:rough-camper} and a {tag:shortbow}."
-    pointCost: 2
-    weight: 2
-    purchasable: true
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto:
-      - laboring-hunting
-      - forester
-      - rough-camper
-      - shortbow
-
   # --- Courtier kits ------------------------------------------------------
   # A note on the descriptions: Knighted, Old Blood and Dancer are named in
   # plain prose rather than as {tag:...} chips, unlike everything else these

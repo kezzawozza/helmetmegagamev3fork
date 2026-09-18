@@ -8,17 +8,16 @@ const ROLES = [
   R("baron", { isUnique: true, grantsLeader: true, requiresWhitelist: true }),
   R("sheriff", { isUnique: true }),
   R("courtier", { weight: 10 }),
-  R("commoner", { unlimited: true }),
   R("migrant", { unlimited: true }),
   R("tribune", { spawnOnly: true }),
 ];
-const P = (id, priorities, extra = {}) => ({ discordUserId: id, priorities, joblessRole: "COMMONER", whitelisted: false, ...extra });
+const P = (id, priorities, extra = {}) => ({ discordUserId: id, priorities, joblessRole: "MIGRANT", whitelisted: false, ...extra });
 const roleOf = (out, id) => out.rows.find((r) => r.discordUserId === id).roleSlug;
 
 test("a High beats a Medium for the same unique seat", () => {
   const out = assignRoles({ players: [P("a", { sheriff: "MEDIUM" }), P("b", { sheriff: "HIGH" })], roles: ROLES, playerCount: 10, seed: "x" });
   assert.equal(roleOf(out, "b"), "sheriff");
-  assert.equal(roleOf(out, "a"), "commoner");
+  assert.equal(roleOf(out, "a"), "migrant");
 });
 
 test("a unique seat goes to exactly one player", () => {
@@ -30,7 +29,7 @@ test("a unique seat goes to exactly one player", () => {
 test("a whitelisted seat needs the role unless the gate is off", () => {
   const players = [P("a", { baron: "HIGH" })];
   const shut = assignRoles({ players, roles: ROLES, playerCount: 10, seed: "x" });
-  assert.equal(roleOf(shut, "a"), "commoner");
+  assert.equal(roleOf(shut, "a"), "migrant");
   const open = assignRoles({ players, roles: ROLES, playerCount: 10, seed: "x", leaderWhitelistEnabled: false });
   assert.equal(roleOf(open, "a"), "baron");
   const wl = assignRoles({ players: [P("a", { baron: "HIGH" }, { whitelisted: true })], roles: ROLES, playerCount: 10, seed: "x" });
@@ -50,20 +49,19 @@ test("a weighted seat caps at its share of the player count", () => {
   // weight 10 at 30 players = 3 seats
   const out = assignRoles({ players, roles: ROLES, playerCount: 30, seed: "x" });
   assert.equal(out.rows.filter((r) => r.roleSlug === "courtier").length, 3);
-  assert.equal(out.rows.filter((r) => r.roleSlug === "commoner").length, 3);
+  assert.equal(out.rows.filter((r) => r.roleSlug === "migrant").length, 3);
 });
 
 test("seats already taken before the roll count against capacity", () => {
   const out = assignRoles({ players: [P("a", { sheriff: "HIGH" })], roles: ROLES, taken: new Map([["sheriff", 1]]), playerCount: 10, seed: "x" });
-  assert.equal(roleOf(out, "a"), "commoner");
+  assert.equal(roleOf(out, "a"), "migrant");
 });
 
-test("jobless fallbacks: commoner, migrant, or back to the lobby", () => {
+test("jobless fallbacks: migrant, or back to the lobby", () => {
   const out = assignRoles({
-    players: [P("a", {}, { joblessRole: "COMMONER" }), P("b", {}, { joblessRole: "MIGRANT" }), P("c", {}, { joblessRole: "RETURN_TO_LOBBY" })],
+    players: [P("b", {}, { joblessRole: "MIGRANT" }), P("c", {}, { joblessRole: "RETURN_TO_LOBBY" })],
     roles: ROLES, playerCount: 10, seed: "x",
   });
-  assert.equal(roleOf(out, "a"), "commoner");
   assert.equal(roleOf(out, "b"), "migrant");
   assert.equal(roleOf(out, "c"), null);
   assert.ok(out.warnings.some((w) => w.includes("return to the lobby")));
@@ -71,7 +69,7 @@ test("jobless fallbacks: commoner, migrant, or back to the lobby", () => {
 
 test("spawn-only seats are never handed out", () => {
   const out = assignRoles({ players: [P("a", { tribune: "HIGH" })], roles: ROLES, playerCount: 10, seed: "x" });
-  assert.equal(roleOf(out, "a"), "commoner");
+  assert.equal(roleOf(out, "a"), "migrant");
 });
 
 test("the same seed rolls the same table", () => {

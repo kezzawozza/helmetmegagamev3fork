@@ -1327,20 +1327,6 @@ desires:
     requires:
       anyRoles: [pusher]
 
-  peasant-revolt:
-    name: Start a revolt among the peasants
-    tier: 7
-    families: [faction-success, status]
-    requires:
-      anyRoles: [commoner]
-
-  peasant-higher-rank:
-    name: Acquire a higher rank
-    tier: 5
-    families: [status]
-    requires:
-      anyRoles: [commoner]
-
   # User gave no tier for this one.
   minstrel-joke-at-baron:
     name: Make a joke at the Baron's expense
