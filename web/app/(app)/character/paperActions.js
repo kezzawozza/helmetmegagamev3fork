@@ -76,12 +76,6 @@ async function requireWriter({ needs = null } = {}) {
     if (blocker) throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
   }
 
-  const turn = await prisma.turn.findFirst({
-    where: { status: "OPEN" },
-    orderBy: { number: "desc" },
-    select: { phase: true },
-  });
-
   return {
     session,
     character,
