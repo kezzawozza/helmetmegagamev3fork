@@ -119,13 +119,33 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
         }}
       />
       {patient && (
-        <ChipPicker
-          label="What are you treating?"
-          options={patient.healable.map((h) => ({ id: h.tagId, label: h.tagName, note: h.gambit ? "Gambit" : null }))}
-          value={tagId}
-          onChange={setTagId}
-          emptyLabel="Nothing on them you could treat."
-        />
+        <>
+          <ChipPicker
+            label="What are you treating?"
+            // A row the server will refuse outright is greyed here rather than
+            // offered with a warning under it. `needsSite` without a site in
+            // reach is the only such case (TAGS.md §5c): everything else is a
+            // Gambit, which is always allowed to be attempted. Leaving it
+            // pressable meant picking it, reading the price, and being told no.
+            options={patient.healable.map((h) => ({
+              id: h.tagId,
+              label: h.tagName,
+              note: h.gambit ? "Gambit" : null,
+              disabled: Boolean(h.needsSite) && !hasSurgicalSite,
+              reason: "You need surgical equipment.",
+            }))}
+            value={tagId}
+            onChange={setTagId}
+            emptyLabel="Nothing on them you could treat."
+          />
+          {/* A disabled chip's title tooltip never shows on a touch screen, so a
+              medic with the skill and the ⬢ had no way to learn why a row
+              wouldn't select — this says the same thing in text a tap can
+              read, always up front rather than behind a hover. */}
+          {!hasSurgicalSite && patient.healable.some((h) => h.needsSite) ? (
+            <p className="text-xs text-accent">You need surgical equipment.</p>
+          ) : null}
+        </>
       )}
       {/* The medical pass' item-cure shortcut (TAGS.md §5c): skip the Heal
           request entirely and post a targeted Consume instead, pre-seeded
