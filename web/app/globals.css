@@ -502,6 +502,19 @@ h3 {
   pointer-events: none;
 }
 
+/* Chat draws its own ground, ONE copy of it, on `.chat-feed` (chat.css) —
+   the mockup's `.feed` (docs/design/mockups/chat/index.html) is
+   `background-color: var(--bg)` plus a single tiled chatbg.png, nothing
+   under it. `.grain` sits fixed behind EVERY page regardless of route, so
+   left alone on /chat it composited a second, differently-offset copy of
+   the same tile behind the feed's own — which is what read as a washed,
+   mottled olive ground instead of near-black with a faint grain. `.grain`
+   is not itself removed (every other route still wants its ground), only
+   suppressed for the one page that grounds itself. See CHAT.md. */
+body:has(.chat-shell) .grain {
+  display: none;
+}
+
 /* The ground. 0.25 app-wide (REDESIGN.md §3); the chat log takes it stronger,
    and that is phase 4's job, not this rule's. The tile is 512x512 and is drawn
    at 1:1 — sprites scale at integer multiples only. */
