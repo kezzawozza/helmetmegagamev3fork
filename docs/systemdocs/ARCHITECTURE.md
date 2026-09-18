@@ -241,5 +241,4 @@ and `MAP.md`.
 | `DESIGN-SYSTEM.md` | Web styling |
 | `PORTRAITS.md` | The portrait maker and avatar art |
 | `INFOCHANNEL.md` | The `#info` directory |
-| `CRT-TERMINAL.md` | A parked visual direction — read before rebuilding it |
 | `LOCAL-DEV.md` | A local Postgres, `LOCAL_MODE`, and the rule against touching the live database without asking |

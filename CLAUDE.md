@@ -275,8 +275,7 @@ you pick the right doc — they are never enough to change code with.
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
 | [`THREATS.md`](docs/systemdocs/THREATS.md) | You're touching the antagonist seats — the threat catalog, Assign, mid-round Spawn, or the two Threats sections on `/gm/dev` |
 | [`ORACLE.md`](docs/systemdocs/ORACLE.md) | You're touching the per-turn chronicle — `/gm/oracle`, the zone writers and the editor, the prompts, or **anything that calls a language model** |
-| [`REDESIGN.md`](docs/systemdocs/REDESIGN.md) | You're touching **anything visual for game 3** — the rust palette, the fonts, the header strip, the chat rework, the tier rename. The architecture and the decisions already made; read it before `DESIGN-SYSTEM.md`, which it will replace |
-| [`CRT-TERMINAL.md`](docs/systemdocs/CRT-TERMINAL.md) | Someone suggests a terminal/CRT look — read before rebuilding it |
+| [`REDESIGN.md`](docs/systemdocs/REDESIGN.md) | You want the record of the game 3 redesign — what it was going for, the decisions Bascinet made, and which phase landed what. `DESIGN-SYSTEM.md` holds the rules now; this doc no longer duplicates them |
 
 Other reference docs, outside `systemdocs/`:
 
@@ -992,9 +991,10 @@ it before writing any UI. Four rules apply everywhere:
   `PageHeader` for every top-level page, `DataTable`/`useTableState` +
   `Pager` for every long list, `.panel` / `.btn` / `.field` / `.chip` for
   everything else. A bare `<select>` outside `.field` visibly breaks the
-  theme.
+  theme. `.panel-header` draws the metal header strip on its own — don't
+  hand-add a border under a heading that already carries one.
 - **`--font-mono` is for data only** (numbers, IDs, timestamps), applied with
-  `.mono`. Headings get their face automatically from the tag — never
+  `.mono`. Headings get their serif automatically from the tag — never
   hand-apply a font class. `--font-display` (blackletter) is for a handful of
   thematic moments.
 - **`react-hooks/set-state-in-effect`, `react-hooks/immutability` and
