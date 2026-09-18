@@ -10872,7 +10872,7 @@ tags:
     group: items-food
     description: "Rock salt. You could cook with it."
     pointCost: 0
-    depotPrice: 1
+    depotPrice: 2
     weight: 0.5
     stackable: true
     visible: false
