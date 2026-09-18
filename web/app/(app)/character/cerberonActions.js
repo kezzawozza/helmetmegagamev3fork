@@ -8,13 +8,14 @@ import { guarded, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
-import { grantTagSlugs } from "@lifeweb/db/lib/tagWrites";
+import { grantTagSlugs, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { FULL_NAME_LIMIT } from "@/lib/characterName";
 import {
   WANTED_SLUG,
   CERBERON_SLUG,
   WARRANT_BADGE_SLUGS,
   warrantTargets,
+  unwarrantTargets,
   listWanted,
 } from "@lifeweb/db/lib/wanted";
 
@@ -72,7 +73,7 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
       name: true,
       firstName: true,
       lastName: true,
-      tags: { where: { tag: { slug: WANTED_SLUG } }, select: { id: true } },
+      tags: { where: { tag: { slug: WANTED_SLUG } }, select: { id: true, tagId: true } },
     },
   });
   const { matched, targets, skippedSelf, alreadyWanted } = warrantTargets(candidates, typed, {
@@ -123,6 +124,72 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
   };
 }
 
+// ---- Remove Warrant --------------------------------------------------------
+// The mirror of the above, and the only thing short of a Mulligan Potion that
+// takes a name back out of the book. Same badge, same typed name — a picker
+// here would be the warrant book handed to anybody carrying a badge, and
+// reading the book is Check Wanted's job, which asks to be sworn. Same silence
+// too: nothing is posted, nothing is sent, the man simply stops being wanted.
+async function removeWarrantRequestImpl({ name: rawName }) {
+  const { session, me } = await cerberon({ needsBadge: true });
+
+  const typed = rawName?.toString().trim().slice(0, FULL_NAME_LIMIT) ?? "";
+  if (!typed) throw new UserError("Whose name?");
+
+  const candidates = await prisma.character.findMany({
+    where: { status: "ALIVE" },
+    select: {
+      id: true,
+      name: true,
+      firstName: true,
+      lastName: true,
+      tags: { where: { tag: { slug: WANTED_SLUG } }, select: { id: true, tagId: true } },
+    },
+  });
+  const { matched, targets, skippedSelf, notWanted } = unwarrantTargets(candidates, typed, {
+    selfId: me.id,
+  });
+  if (matched === 0) throw new UserError("There's nobody with that name.");
+  if (targets.length === 0) {
+    if (notWanted > 0) throw new UserError("That person isn't wanted.");
+    if (skippedSelf > 0) throw new UserError("Somebody else has to lift it.");
+    throw new UserError("There's nobody with that name.");
+  }
+
+  const openTurn = await getOpenTurn();
+  await prisma.$transaction(async (tx) => {
+    for (const target of targets) {
+      await dropCharacterTag(tx, target.id, target.tags[0].tagId);
+      // One row PER MAN, the reason the warrant path gives above.
+      await logAudit(tx, {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "request_remove_warrant",
+        targetCharacterId: target.id,
+        turnId: openTurn?.id ?? null,
+        details: {
+          name: target.name,
+          typed,
+          by: me.name,
+          ...(matched > 1 ? { answeringToThatName: matched } : {}),
+        },
+      });
+    }
+  });
+
+  await afterInventoryChange(targets.map((t) => t.id));
+  revalidate();
+  const name = targets[0].name;
+  return {
+    ok: true,
+    name,
+    caught: targets.length,
+    line:
+      matched > 1
+        ? `The warrant on ${name} is lifted — ${matched} men answer to that name.`
+        : `The warrant on ${name} is lifted.`,
+  };
+}
+
 // ---- Check Wanted ----------------------------------------------------------
 // The warrant book, read as a notice — same shape as Recall Comrades
 // (thanatiActions.js). Costs nothing, spends no Move. Lists a hooded man the
@@ -148,6 +215,9 @@ async function checkWantedImpl() {
 
 export async function arrestWarrantRequest(input) {
   return guarded(() => arrestWarrantRequestImpl(input ?? {}));
+}
+export async function removeWarrantRequest(input) {
+  return guarded(() => removeWarrantRequestImpl(input ?? {}));
 }
 export async function checkWanted() {
   return guarded(() => checkWantedImpl());

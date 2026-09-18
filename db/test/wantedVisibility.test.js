@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 const { seenByBystander } = require("../lib/medicalVision");
 const { examineReadout } = require("../lib/examine");
 const { matchesTypedName } = require("../lib/characterName");
-const { warrantTargets } = require("../lib/wanted");
+const { warrantTargets, unwarrantTargets } = require("../lib/wanted");
 
 const WANTED = {
   name: "Wanted",
@@ -188,4 +188,43 @@ test("nobody by that name matches nothing at all", () => {
   assert.equal(out.targets.length, 0);
   // A first name alone is still not enough here either.
   assert.equal(warrantTargets([IVANOV_A], "Alexander", { selfId: null }).matched, 0);
+});
+
+// ---- Who a lifted warrant frees --------------------------------------------
+// The mirror of the block above: same matching, the two sides swapped.
+
+test("a name two wanted men answer to lifts both warrants", () => {
+  const both = [man("a", "Alexander", "Ivanov", true), man("b", "Alexander", "Ivanov", true)];
+  const out = unwarrantTargets([...both, VASK], "Alexander Ivanov", { selfId: null });
+  assert.equal(out.matched, 2);
+  assert.deepEqual(
+    out.targets.map((t) => t.id),
+    ["a", "b"],
+  );
+  assert.equal(out.notWanted, 0);
+});
+
+test("a namesake who is not wanted is left alone", () => {
+  const wantedB = man("b", "Alexander", "Ivanov", true);
+  const out = unwarrantTargets([IVANOV_A, wantedB], "alexander ivanov", { selfId: null });
+  assert.equal(out.matched, 2);
+  assert.equal(out.notWanted, 1);
+  assert.deepEqual(
+    out.targets.map((t) => t.id),
+    ["b"],
+  );
+});
+
+test("a badge is not a pardon for the man carrying it", () => {
+  const meWanted = man("a", "Alexander", "Ivanov", true);
+  const out = unwarrantTargets([meWanted], "Alexander Ivanov", { selfId: "a" });
+  assert.equal(out.matched, 1);
+  assert.equal(out.skippedSelf, 1);
+  assert.equal(out.targets.length, 0);
+});
+
+test("nobody by that name lifts nothing", () => {
+  const out = unwarrantTargets([IVANOV_A, VASK], "Someone Else", { selfId: null });
+  assert.equal(out.matched, 0);
+  assert.equal(out.targets.length, 0);
 });

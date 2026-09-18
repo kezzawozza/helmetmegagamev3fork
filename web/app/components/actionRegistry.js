@@ -404,6 +404,7 @@ export const ACTION_SECTIONS = [
     label: "CERBERON",
     actions: [
       { mode: "warrant", icon: ShackleIcon, label: "Arrest warrant", show: "canWarrant" },
+      { mode: "unwarrant", icon: ShackleIcon, label: "Remove warrant", show: "canWarrant" },
       { mode: "wantedlist", icon: DocumentsIcon, label: "Check wanted", show: "isCerberon", instant: true },
     ],
   },

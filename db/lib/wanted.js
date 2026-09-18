@@ -23,14 +23,30 @@ function isCerberon(heldSlugs) {
   return held.has(CERBERON_SLUG);
 }
 
-// Who a typed name puts a warrant on: EVERY living man who answers to it. Pure and DB-free so db/test/ can hold it down without a database.
-function warrantTargets(candidates, typed, { selfId = null } = {}) {
+// The half both verbs share: who answers to the typed name, minus the officer holding the pen. Kept in one place so the two can never disagree about what "matched" means.
+function nameMatches(candidates, typed, selfId) {
   const matched = (candidates ?? []).filter((c) => matchesTypedName(c, typed));
   const skippedSelf = selfId ? matched.filter((c) => c.id === selfId).length : 0;
   const notMe = matched.filter((c) => c.id !== selfId);
-  const alreadyWanted = notMe.filter((c) => (c.tags?.length ?? 0) > 0).length;
-  const targets = notMe.filter((c) => (c.tags?.length ?? 0) === 0);
-  return { matched: matched.length, targets, skippedSelf, alreadyWanted };
+  return { matched: matched.length, skippedSelf, notMe };
+}
+
+const wanted = (c) => (c.tags?.length ?? 0) > 0;
+
+// Who a typed name puts a warrant on: EVERY living man who answers to it. Pure and DB-free so db/test/ can hold it down without a database.
+function warrantTargets(candidates, typed, { selfId = null } = {}) {
+  const { matched, skippedSelf, notMe } = nameMatches(candidates, typed, selfId);
+  const alreadyWanted = notMe.filter(wanted).length;
+  const targets = notMe.filter((c) => !wanted(c));
+  return { matched, targets, skippedSelf, alreadyWanted };
+}
+
+// The mirror: who a typed name lifts a warrant OFF. Same matching, same self rule — a badge is not a pardon for the man carrying it — with the two sides of the split swapped.
+function unwarrantTargets(candidates, typed, { selfId = null } = {}) {
+  const { matched, skippedSelf, notMe } = nameMatches(candidates, typed, selfId);
+  const notWanted = notMe.filter((c) => !wanted(c)).length;
+  const targets = notMe.filter(wanted);
+  return { matched, targets, skippedSelf, notWanted };
 }
 
 // Every living wanted man, by NAME AND NOTHING ELSE — parallels listComrades() (db/lib/thanati.js). Role deliberately omitted. Does NOT care who is
@@ -51,5 +67,6 @@ module.exports = {
   isWanted,
   isCerberon,
   warrantTargets,
+  unwarrantTargets,
   listWanted,
 };

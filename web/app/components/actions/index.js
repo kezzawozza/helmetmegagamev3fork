@@ -129,6 +129,7 @@ export const DIALOGS = {
   butcher: BodyDialog,
   engrave: EngraveDialog,
   warrant: WarrantDialog,
+  unwarrant: WarrantDialog,
   intercept: InterceptDialog,
   attack: AttackDialog,
   disguise: DisguiseDialog,

@@ -804,9 +804,9 @@ same reason: whether a corpse lies where you stand, or whether the name you have
 in mind belongs to someone dead, is exactly what you are not supposed to learn
 from a greyed-out icon.
 
-## 5g. The Cerberon: Arrest Warrant, Check Wanted
+## 5g. The Cerberon: Arrest Warrant, Remove Warrant, Check Wanted
 
-Two buttons in a `CERBERON` section of the Actions grid, both **hidden** rather
+Three buttons in a `CERBERON` section of the Actions grid, both **hidden** rather
 than greyed — which badge you carry, and whether you are sworn, are your own
 sheet's facts, and a dead Arrest Warrant icon on a brigand's sheet would teach
 him nothing except that the warrant book exists. They live in
@@ -860,6 +860,23 @@ a Censor could paper the roster; `AuditLog` is the record (`request_arrest_warra
 and a GM repairs by hand from `/gm/dev`. If that turns out to matter, the cheap
 fix is Recover Equipment's shape — count the last two turns' audit rows — and it
 needs no column.
+
+**Remove Warrant** is the mirror, on the same badge gate and through the same
+dialog (`WarrantDialog.js`, on `mode`). The name is typed for the same reason,
+and harder: reading the book is Check Wanted's job, which asks to be **sworn**,
+so a picker here would hand the whole of it to anyone merely carrying a badge.
+A name two wanted men answer to lifts both, the same way it caught both, and a
+namesake who is not in the book is left alone — `unwarrantTargets()` beside
+`warrantTargets()` in `db/lib/wanted.js`, sharing their matching so the two can
+never disagree. Its three refusals mirror the other's: nobody by that name,
+nobody by that name is wanted, and — last — yourself, because a badge is not a
+pardon for the man carrying it. It costs nothing, tells nobody, writes one
+`AuditLog` row per man (`request_remove_warrant`), and drops the tag with
+`dropCharacterTag()`.
+
+The other way off the book is unchanged: a Mulligan Potion takes the warrant
+with the old name (`CHARACTERS.md`, the name-change path), and a GM can still
+lift the tag by hand from `/gm/dev`.
 
 **Check Wanted** is the warrant book, open to anyone holding the `cerberon`
 tag. `listWanted()` (`db/lib/wanted.js`), returned as notice rows under the

@@ -59,6 +59,7 @@ const LINES = {
   // Both server actions return their own `line`, which noticeLine prefers.
   // These are the fallbacks.
   warrant: (res, ctx) => `A warrant is out on ${res.name ?? named(ctx, "them")}.`,
+  unwarrant: (res, ctx) => `The warrant on ${res.name ?? named(ctx, "them")} is lifted.`,
   wantedlist: (res) => (res.roster?.length ? `The warrant book.` : `Nobody is wanted.`),
   // The server action returns its own `line`, which noticeLine prefers. This
   // is the fallback.
