@@ -10,7 +10,7 @@ Read this before touching `db/lib/laborAccess.js`, `db/lib/production.js`,
 
 A resolved Labor also rolls the **labor drop die** — a 1d6 on top of the ⬢,
 which can grant a tag or a bonus. That system is its own doc,
-[`LABORDROPS.md`](LABORDROPS.md); this page only owns what a Labor is worth,
+[`MININGDROPS.md`](MININGDROPS.md); this page only owns what a Labor is worth,
 not what else it might find.
 
 **A day's pay has weight.** ⬢ stopped being a number on a sheet in 9/2026 and
@@ -37,7 +37,7 @@ Three things changed at once, and they only make sense together:
   tier is `unskilled`, the range is a real `0-0`, and every surface prints an
   em dash rather than a range, because there is no range. The day is still
   spent: it steps the fatigue ladder below, and it draws no drop die
-  (`LABORDROPS.md`), which stays something a skill earns.
+  (`MININGDROPS.md`), which stays something a skill earns.
 
 ## 2. The tag ladder
 
@@ -72,7 +72,7 @@ nothing to switch between — §4 pays the best one you qualify for.
 
 **Prospecting joined 2026-09-09** and pays less ⬢ than the other three
 specialisations on purpose — its range is deliberately the thinnest, because
-the plan is for a Labor drop (`LABORDROPS.md`) to make up the rest of its
+the plan is for a Labor drop (`MININGDROPS.md`) to make up the rest of its
 value in items rather than coin once that table is built out. It follows
 every other rule on this page exactly like Hunting, Farming and Fishing do —
 same tag shape, same `LocationYield` gate, same tools mechanism (§5, unused
@@ -200,7 +200,7 @@ ancient riverbed — placer ground even without running water), `hills-cliffs`
 
 `hills-west` — the Forgotten Gallows, a real grave — is the one genuinely
 unique spot: 0.8, and the first location with its own dedicated
-`laborTypeLocation.prospecting` table (LABORDROPS.md §2b), added
+`laborTypeLocation.prospecting` table (MININGDROPS.md §2b), added
 2026-09-09 on Bascinet's call rather than joining the milder-tier crowd
 above.
 

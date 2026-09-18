@@ -15,7 +15,7 @@ const UNTRAINED = 15;
 // One rung of melee-*/ranged-* == one tier, so "counts as 2 tiers higher" in a tag description stays literally true.
 const RUNG_STEP = POINTS_PER_TIER;
 
-// Eight bands, ten points each except Pitiful (deliberate: bands measure SKILL, not injury, so the bottom band should take a real injury to reach — Weak widens to 5-19 instead). `key` drives stylesheet colour (.fighting-band[data-band]); always show the word, never the number, same posture as Tag.meleeArmor and laborYield.js#qualityWord.
+// Eight bands, ten points each except Pitiful (deliberate: bands measure SKILL, not injury, so the bottom band should take a real injury to reach — Weak widens to 5-19 instead). `key` drives stylesheet colour (.fighting-band[data-band]); always show the word, never the number, same posture as Tag.meleeArmor and miningYield.js#qualityWord.
 const BANDS = Object.freeze([
   { max: 4, key: "pitiful", label: "Pitiful" },
   { max: 19, key: "weak", label: "Weak" },

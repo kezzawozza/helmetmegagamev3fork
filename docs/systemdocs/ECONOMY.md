@@ -270,9 +270,9 @@ and make the read path merge rather than choose.
 Two numbers the desk deliberately does not compute:
 
 - **Labor drops show what they paid, not what they were designed to pay.** The
-  expected value needs `docs/labordrops.yaml` parsed and the roll shares
-  simulated (`db/lib/labordropsEv.js`), which is not a page render's job. Run
-  `npm run db:audit-labor-drops` for that side. Inventing a plausible number
+  expected value needs `docs/miningdrops.yaml` parsed and the roll shares
+  simulated (`db/lib/miningdropsEv.js`), which is not a page render's job. Run
+  `npm run db:audit-mining-drops` for that side. Inventing a plausible number
   there would be worse than leaving it out.
 - **No per-faction balance history.** There is no per-turn snapshot to group
   off, so a sparkline would cost a query per faction.

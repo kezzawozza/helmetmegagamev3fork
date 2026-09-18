@@ -1,4 +1,4 @@
-import { prisma, PRODUCTION_RATES, computeRate, formatRate } from "@lifeweb/db";
+import { prisma, computeRate, formatRate } from "@lifeweb/db";
 import { carryCaps, carryBonusLine, MULT_SCALE } from "@lifeweb/db/lib/carry";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
@@ -74,17 +74,11 @@ export async function getProductionRates() {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   const coefficient = config?.productionCoefficient ?? 1;
 
-  const rates = Object.fromEntries(
-    Object.keys(PRODUCTION_RATES).map((field) => [
-      field,
-      Object.fromEntries(
-        Object.keys(PRODUCTION_RATES[field]).map((tier) => {
-          const rate = computeRate(field, tier, coefficient);
-          return [tier, { ...rate, display: formatRate(rate) }];
-        }),
-      ),
-    ]),
-  );
+  // One rate now. There were six — the Laboring tiers — keyed {field: {tier}}
+  // for the renderers; mining is the only kind of day left, so the payload a
+  // {resource:...} bubble carries is a bare name.
+  const mining = computeRate(coefficient);
+  const rates = { mining: { ...mining, display: formatRate(mining) } };
 
   return { coefficient, rates };
 }

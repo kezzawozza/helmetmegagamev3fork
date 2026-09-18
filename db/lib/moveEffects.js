@@ -25,8 +25,9 @@ const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
 const { rollWithAdvantage } = require("./advantage");
 const { expiryFrom } = require("./turnFormat");
-const { nextLaborFatigueSlug, grantExhaustedOutright } = require("./laborFatigue");
-const { TIER_TO_LABOR_DROP_TYPE, pickLaborDropOption } = require("./laborDrops");
+const { nextFatigueSlug, grantExhaustedOutright } = require("./fatigue");
+const { pickMiningDropOption } = require("./miningDrops");
+const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE } = require("./constants");
 const { reap, harvestLine } = require("./soilery");
 
 // One entry per pushable thing. `read` decides what this Move would push right now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert`
@@ -34,22 +35,23 @@ const { reap, harvestLine } = require("./soilery");
 const MOVE_EFFECTS = {
   resources: {
     read: (action) => action.resourceDelta ?? 0,
-    apply: (tx, action, value) => addResources(tx, action.characterId, value),
+    apply: (tx, action, value) => addResources(tx, action.characterId, value, { reason: "MINING" }),
     revert: (tx, action, value) => addResources(tx, action.characterId, -value),
   },
 
-  // Two Labors before a rest, tracked by db/lib/laborFatigue.js's Tired -> Exhausted ladder. A non-null resourceRollExpression means the Labor
-  // gate passed and the character labored, so the payout steps them one rung up; db/lib/laborAccess.js#computeLaborAccess refuses the next Labor
-  // only on Exhausted. The snapshot key stays "exhausted" (not "laborFatigue") even for a Tired grant now, or older rows stop reverting.
+  // Two days in the seam before a rest, tracked by db/lib/fatigue.js's Tired -> Exhausted ladder. Mining is the one thing that climbs it from a
+  // Move — db/lib/mining.js#computeMiningAccess refuses the next day only on Exhausted. Gated on the Mine button's own marker rather than on
+  // "this Action has a roll expression", which used to mean "this was a Labor" and no longer distinguishes anything. The snapshot key stays
+  // "exhausted" even for a Tired grant, or older rows stop reverting.
   exhausted: {
-    read: (action) => (action.resourceRollExpression ? 1 : 0),
+    read: (action) => (action.gmNotes === AUTO_MINE_NOTE ? 1 : 0),
     apply: async (tx, action) => {
       const heldTired = await tx.characterTag.findFirst({
         where: { characterId: action.characterId, tag: { slug: TIRED_SLUG } },
         select: { id: true, expiresTurn: true },
       });
-      // The Labor gate already refused an Exhausted character, so this is always Tired or nothing.
-      const targetSlug = nextLaborFatigueSlug(new Set(heldTired ? [TIRED_SLUG] : []));
+      // The Mine gate already refused an Exhausted character, so this is always Tired or nothing.
+      const targetSlug = nextFatigueSlug(new Set(heldTired ? [TIRED_SLUG] : []));
       if (!targetSlug) return 0; // defensive: nothing left to escalate to
       const [tag, turn] = await Promise.all([
         tx.tag.findUnique({
@@ -59,7 +61,7 @@ const MOVE_EFFECTS = {
         tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } }),
       ]);
       if (!tag || !turn) {
-        if (!tag) console.error(`Labor payout: no "${targetSlug}" tag — run npm run db:sync-tags. Labor won't be limited.`);
+        if (!tag) console.error(`Mining payout: no "${targetSlug}" tag — run npm run db:sync-tags. Mining won't be limited.`);
         return 0;
       }
       // Escalating: the Tired row is consumed by the upgrade, or the character ends up holding both.
@@ -102,12 +104,13 @@ const MOVE_EFFECTS = {
     },
   },
 
-  // A day spent on the Godard Factory floor: one Godflesh becomes eight Squeeze (db/lib/refinery.js). `read` can only say "this was a Labor" —
-  // whether it was REFINING depends on where the character was standing, so applyRefinery decides and returns null everywhere else.
+  // A day spent on the Godard Factory floor: one Godflesh becomes eight Squeeze (db/lib/refinery.js). Filed by the Refine button, which is the
+  // only thing that stamps this marker — it used to be "any Labor with a roll expression", which fired on every Labor anywhere and left
+  // applyRefinery to work out that it was standing in the wrong room.
   refined: {
-    read: (action) => (action.resourceRollExpression ? 1 : 0),
+    read: (action) => (action.gmNotes === AUTO_REFINE_NOTE ? 1 : 0),
     apply: async (tx, action) => {
-      // WHERE THE LABOR WAS FILED, not where they are standing now — a free zone move costs no Action (CARRY.md §2a), so the two can differ.
+      // WHERE THE REFINE WAS FILED, not where they are standing now — a free zone move costs no Action (CARRY.md §2a), so the two can differ.
       let locationId = action.locationId ?? null;
       if (!locationId) {
         const character = await tx.character.findUnique({
@@ -127,27 +130,23 @@ const MOVE_EFFECTS = {
     },
   },
 
-  // The labor drop die (docs/systemdocs/LABORDROPS.md): a 1d6 against whatever pool docs/labordrops.yaml configured for the tier that won.
-  // `action.laborTier` is read rather than recomputed (see schema.prisma), so this fires for the tier that was actually priced.
-  laborDrop: {
-    read: (action) => (action.laborTier && action.laborTier !== "refining" ? 1 : 0),
+  // The mining drop die (docs/systemdocs/MININGDROPS.md): a 1d6 against whatever pool docs/miningdrops.yaml configured for where the day was
+  // spent. Only a Mine draws it — the die is what mining pays in ore rather than in ⬢, and nothing else is digging.
+  miningDrop: {
+    read: (action) => (action.gmNotes === AUTO_MINE_NOTE ? 1 : 0),
     apply: async (tx, action) => {
-      const laborType = TIER_TO_LABOR_DROP_TYPE[action.laborTier] ?? null;
-      if (!laborType) return 0;
-      // Skill-gated pools (Forester in the Forest, LABORDROPS.md §2a) need what the character holds RIGHT NOW. Loaded BEFORE the roll: Lucky and Scavenging both bend the die.
+      // Skill-gated pools (MININGDROPS.md §2a) need what the character holds RIGHT NOW. Loaded BEFORE the roll: Lucky bends the die.
       const held = await tx.characterTag.findMany({
         where: { characterId: action.characterId },
         select: { tagId: true, tag: { select: { slug: true } } },
       });
       const heldTagIds = new Set(held.map((row) => row.tagId));
       const heldSlugs = new Set(held.map((row) => row.tag?.slug).filter(Boolean));
-      // Lucky throws this die twice and keeps the better one. Scavenging's own bend happens INSIDE pickLaborDropOption. `roll` stays the face that
-      // was actually rolled, snapshotted so Undo and the readout agree with what happened.
+      // Lucky throws this die twice and keeps the better one. `roll` stays the face that was actually rolled, snapshotted so Undo and the
+      // readout agree with what happened.
       const { die: roll } = rollWithAdvantage([...heldSlugs].map((slug) => ({ slug })));
-      const option = await pickLaborDropOption(tx, {
+      const option = await pickMiningDropOption(tx, {
         roll,
-        heldSlugs,
-        laborType,
         zoneId: action.zoneId ?? null,
         locationId: action.locationId ?? null,
         heldTagIds,
@@ -155,7 +154,7 @@ const MOVE_EFFECTS = {
       if (!option || option.kind === "NOTHING") return 0;
 
       if (option.kind === "RESOURCES") {
-        const moved = await addResources(tx, action.characterId, option.resourceAmount ?? 0);
+        const moved = await addResources(tx, action.characterId, option.resourceAmount ?? 0, { reason: "MINING_DROP" });
         if (!moved) return 0;
         return { roll, kind: "RESOURCES", amount: moved };
       }
@@ -300,7 +299,7 @@ function describeMoveEffects(applied) {
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
     // Legacy rows recorded a bare `1`.
     else if (key === "exhausted") parts.push(value?.slug === TIRED_SLUG ? "Tired" : "Exhausted");
-    else if (key === "laborDrop") {
+    else if (key === "miningDrop") {
       parts.push(
         value.kind === "TAG"
           ? `found ${value.tagName}`

@@ -2,10 +2,13 @@
 // sow a plan of crops, then reap what didn't wither. Deliberately small —
 // the whole Farms Location is expected to be redesigned later, and this is
 // only a stand-in until then. Pure and Prisma-free, modelled on
-// db/lib/godflesh.js. See docs/systemdocs/LABORING.md for the surrounding
-// laboring picture.
+// db/lib/godflesh.js. See docs/systemdocs/SOILERY.md.
+//
+// The gate used to be the Laboring (Farming) tag, borrowed from a system that
+// had nothing to do with sowing a field. Laboring is gone and Farm has its
+// own skill now: Soilery.
 
-const { LABORING_FARMING_SLUG, EXHAUSTED_SLUG, TIRED_SLUG } = require("./constants");
+const { SOILERY_SLUG, EXHAUSTED_SLUG, TIRED_SLUG } = require("./constants");
 
 const FARM_MAX_CROPS = 50;
 // 1-in-6 fails, independently PER UNIT sown — not a rounded average. See reap() below for why.
@@ -94,12 +97,12 @@ function farmDm(turn, rows) {
 }
 
 // Null means "go ahead"; a string is the refusal to show the player.
-// Checked in order: must hold the farming laboring tag, must NOT be worn
+// Checked in order: must hold Soilery, must NOT be worn
 // out (checks BOTH Exhausted and Tired — the two-stage fatigue ladder in
-// db/lib/laborFatigue.js, so either rung locks the farm out, not just the
+// db/lib/fatigue.js, so either rung locks the farm out, not just the
 // deeper one), and must not already have an action open this turn.
 function farmRefusalFor(characterTags, hasOpenAction) {
-  if (!holds(characterTags, LABORING_FARMING_SLUG)) {
+  if (!holds(characterTags, SOILERY_SLUG)) {
     return "You don't know how to farm.";
   }
   if (holds(characterTags, EXHAUSTED_SLUG) || holds(characterTags, TIRED_SLUG)) {

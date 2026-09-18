@@ -6,7 +6,7 @@
 // readable by anyone standing here whether or not they hold a Laboring tag.
 // Scouting a place is the point, and a scout reporting back to a hunter is a
 // conversation the game wants.
-const { qualityWord } = require("./laborYield");
+const { qualityWord } = require("./miningYield");
 const { linksFor, endpoints } = require("./locationGraph");
 const { describeLocation, hasAttribute } = require("./locationAttributes");
 const { loadDepot } = require("./depotState");

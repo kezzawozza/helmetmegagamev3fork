@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-# PostToolUse hook on Edit|Write: whenever docs/labordrops.yaml is written,
-# run `npm run db:audit-labor-drops -- --write` (docs/systemdocs/LABORDROPS.md
+# PostToolUse hook on Edit|Write: whenever docs/miningdrops.yaml is written,
+# run `npm run db:audit-mining-drops -- --write` (docs/systemdocs/MININGDROPS.md
 # §6a-§6b) to refresh the file's OWN mechanical comments in place — per-entry
 # ⬢ value, per-roll own/combined EV and hit rate, and a per-category rollup —
 # then hand the model a short reminder about the one thing that automation
@@ -25,13 +25,13 @@ def main():
         return 0
 
     file_path = (payload.get("tool_input") or {}).get("file_path") or ""
-    if not file_path.replace("\\", "/").endswith("docs/labordrops.yaml"):
+    if not file_path.replace("\\", "/").endswith("docs/miningdrops.yaml"):
         return 0
 
     project_dir = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
     try:
         result = subprocess.run(
-            ["npm", "run", "db:audit-labor-drops", "--", "--write"],
+            ["npm", "run", "db:audit-mining-drops", "--", "--write"],
             cwd=project_dir,
             capture_output=True,
             text=True,
@@ -40,7 +40,7 @@ def main():
         output = ((result.stdout or "") + (result.stderr or "")).strip()
         wrote = result.returncode == 0 and "Wrote refreshed comments" in output
     except Exception as err:
-        output = f"(db:audit-labor-drops --write could not be run: {err})"
+        output = f"(db:audit-mining-drops --write could not be run: {err})"
         wrote = False
 
     if len(output) > MAX_OUTPUT_CHARS:
@@ -48,8 +48,8 @@ def main():
 
     if wrote:
         context = (
-            "docs/labordrops.yaml's own comments were just refreshed automatically "
-            "(npm run db:audit-labor-drops -- --write) — every entry's ⬢ value, every "
+            "docs/miningdrops.yaml's own comments were just refreshed automatically "
+            "(npm run db:audit-mining-drops -- --write) — every entry's ⬢ value, every "
             "roll's own/combined EV and hit rate, and a per-category rollup are current. "
             "The one thing that refresh can't do: if this edit added a NEW pool entry, "
             "give it a short \"why\" blurb — the convention is "
@@ -60,8 +60,8 @@ def main():
         )
     else:
         context = (
-            "docs/labordrops.yaml changed, but the automatic comment refresh "
-            "(npm run db:audit-labor-drops -- --write) did not complete — check the "
+            "docs/miningdrops.yaml changed, but the automatic comment refresh "
+            "(npm run db:audit-mining-drops -- --write) did not complete — check the "
             "database is reachable and re-run it by hand before trusting the file's "
             "comments.\n\n"
             f"{output}"

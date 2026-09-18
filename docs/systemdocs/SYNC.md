@@ -29,7 +29,7 @@ YAML and running the sync is the only way their rows change.
 | `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members or roles is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
-| `docs/labordrops.yaml` | `db:sync-labor-drops` | `LaborDropOption` | none (rebuilt whole) | **Destructive** — pure config, no player state ever points at a row. See `LABORDROPS.md` |
+| `docs/miningdrops.yaml` | `db:sync-mining-drops` | `MiningDropOption` | none (rebuilt whole) | **Destructive** — pure config, no player state ever points at a row. See `MININGDROPS.md` |
 
 **Run order matters for the five routine syncs:** tags → roles → desires →
 documents → labor drops. Roles

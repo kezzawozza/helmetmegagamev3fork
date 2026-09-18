@@ -80,7 +80,7 @@ async function handleWhosHere(interaction, locationId) {
 // The Examine button on a Location anchor. Information only — costs nothing,
 // can be pressed as often as you like. Answers "what is this place?" in
 // three parts: what can be worked here (LIVE labor coefficient as a word,
-// db/lib/laborYield.js), what the place IS, and what the ways out are doing
+// db/lib/miningYield.js), what the place IS, and what the ways out are doing
 // (db/lib/locationAttributes.js). Readable by anyone standing here — scouting
 // is the point.
 async function handleExamine(interaction, locationId) {

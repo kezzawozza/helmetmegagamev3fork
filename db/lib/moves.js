@@ -1,19 +1,18 @@
-// Filing a Move, on either face — the Action row and every gate in front of it: the open turn, the move window, the one-Move-a-turn rule, the incapacitation block and Labor's rate.
-// Writes no Discord and composes no confirmation: the bot's `confirmMove` still writes the DM's lines, and the web renders its own. Returns the Action plus the labor rate when there is one.
+// Filing a Move, on either face — the Action row and every gate in front of it: the open turn, the move window, the one-Move-a-turn rule and the incapacitation block.
+// Writes no Discord and composes no confirmation: the bot's `confirmMove` still writes the DM's lines, and the web renders its own.
 // A Gambit stays yours until lock-in: `editMove` rewrites it, `withdrawMove` takes it back and hands the turn over. Everything else a player files is a RECEIPT for something that already happened, and is final the moment it lands.
 // That is safe because the d6 belongs to the CHARACTER AND TURN rather than to the Move row (db/lib/gambitDie.js). While the die lived on the row, an uncapped edit was a re-roll button — flip Gambit → Routine → Gambit and fish for a better one. Nothing to fish for now: the die is thrown once at submit and every edit, withdraw and re-file reads the same number back.
 const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
 const { blockerFor, gambitBlockerFor, ACT } = require("./incapacitation");
-const { resolveLaborRate } = require("./laborAccess");
 const { touchCharacterActivity } = require("./characterActivity");
 const { deleteActionRestoringTurn, lockIsLive, syncQuestIntention } = require("./moveEconomy");
 const { attacksBy } = require("./attack");
 
-// Every kind the column may hold. ROUTINE is still written constantly — by the auto-labor pass, by every button that spends a Move, by a GM reclassifying from the desk — it just stopped being a kind a PLAYER picks.
-const MOVE_KINDS = new Set(["ROUTINE", "GAMBIT", "LABOR"]);
-// What the modal and the Move dialog may submit. A Routine was "easy, it resolves itself", which is now simply what the game calls anything you didn't write.
-const PLAYER_MOVE_KINDS = new Set(["GAMBIT", "LABOR"]);
+// Every kind the column may hold. ROUTINE is still written constantly — by every button that spends a Move (Mine, Refine, Farm), by a GM reclassifying from the desk — it just stopped being a kind a PLAYER picks.
+const MOVE_KINDS = new Set(["ROUTINE", "GAMBIT"]);
+// What the modal and the Move dialog may submit. There is one: a Move IS a Gambit now that Laboring is gone and the kind picker went with it.
+const PLAYER_MOVE_KINDS = new Set(["GAMBIT"]);
 const DESCRIPTION_MAX = 2000;
 
 // `character` needs { id, zoneId, locationId, discordUserId }.
@@ -51,15 +50,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
     return { ok: false, error: `You can't act right now — you're ${stuck.name}. Nothing was recorded.` };
   }
 
-  let resourceRollExpression = null;
-  let laborRate = null;
-  if (moveKind === "LABOR") {
-    laborRate = await resolveLaborRate(prisma, character.id);
-    if (!laborRate.ok) return { ok: false, error: `${laborRate.reason}` };
-    resourceRollExpression = laborRate.expression;
-  }
-  // Stamped once here — see Action.laborTier's comment in schema.prisma for why this is never recomputed later.
-  const laborTier = laborRate?.tier ?? null;
+  const resourceRollExpression = null;
 
   // @@unique([characterId, turnId]) is the real gate; a retried submit at rollover must not become a second Move.
   let action;
@@ -76,7 +67,6 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
         description: raw,
         resourceDelta: null,
         resourceRollExpression,
-        laborTier,
         zoneId: character.zoneId ?? null,
         // Stamped at filing time — a free zone move costs no Action, so by turn close they may be standing somewhere else.
         locationId: character.locationId ?? null,
@@ -96,20 +86,20 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
       targetCharacterId: character.id,
       // Three per-turn rations COUNT audit rows (REQUESTS.md §1a), so every row gets its turn stamped even when nothing reads it yet.
       turnId: openTurn.id,
-      details: { actionId: action.id, kind: moveKind, tier: laborRate?.tier ?? null },
+      details: { actionId: action.id, kind: moveKind },
     },
   });
 
-  return { ok: true, action, laborRate, openTurn };
+  return { ok: true, action, openTurn };
 }
 
 // Pure, so every branch is testable without a database or a clock — the same shape db/lib/oracleCutoff.js uses, and for the same reason: all but one branch is a refusal, and a refusal the player can't read is a bug report.
 // `action` needs { playerFiled, moveKind, moveReviewStatus, lockExpiresAt, diceModifier }. A null action means nothing is filed, which is not an error anywhere — the caller decides whether that's "file one" or "nothing to withdraw".
 function moveIsEditable(action, openTurn, { now = new Date(), clockFrozen = false } = {}) {
   if (!action) return { editable: false, reason: "no Move was declared" };
-  // A receipt. Bury, craft, torture, travel, a lesson, the labor you already got paid for — the thing happened, so there is nothing left to take back.
+  // A receipt. Bury, craft, torture, travel, a lesson, the day underground you already got paid for — the thing happened, so there is nothing left to take back.
   if (!action.playerFiled) return { editable: false, reason: "the game declared this one for you" };
-  // Labor pays the moment it's filed, so by the time it exists it is a receipt too. Withdraw is a Gambit's alone.
+  // A Mine pays the moment it's filed, so by the time it exists it is a receipt too. Withdraw is a Gambit's alone.
   if (action.moveKind !== "GAMBIT") return { editable: false, reason: "only a Gambit can be changed" };
   if (action.moveReviewStatus !== "OPEN") return { editable: false, reason: "a GM has already settled this Move" };
   // A GM holding the row on the desk. Rare — they work the desk after the lock — but a player editing out from under an open adjudication is exactly the race the lock exists to stop.
@@ -156,7 +146,7 @@ async function loadEditableMove(prisma, { character, actionId }) {
   return { ok: true, action, openTurn };
 }
 
-// Rewrite a pending Gambit. Kind is deliberately NOT editable: switching to Labor pays out on the spot, and a function that both edits and pays is two functions. Withdraw and file again.
+// Rewrite a pending Gambit. Kind is deliberately NOT editable — there is only one kind a player files now, and a function that both edits and pays would be two functions. Withdraw and file again.
 async function editMove(prisma, { character, actorDiscordUserId, actionId, description }) {
   const raw = String(description ?? "").trim();
   if (!raw) return { ok: false, error: "Write something first." };
@@ -199,7 +189,7 @@ async function withdrawMove(prisma, { character, actorDiscordUserId, actionId })
   // you press it only because a Gambit is still an unspent turn — "you should only Attack if
   // you plan to use your Gambit to actually declare your combat". That gate is checked once,
   // when the fight is declared. Withdrawing the Gambit afterwards would walk straight out
-  // from under it: file a Gambit, pin somebody all day, take it back, file a Labor, and
+  // from under it: file a Gambit, pin somebody all day, take it back, press Mine, and
   // collect a paid day's work on top of a held opponent.
   // Break off is never gated (ATTACK.md §5a), so this refusal always has a way out.
   const fights = await attacksBy(prisma, character.id, openTurn.id);

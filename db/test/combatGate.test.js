@@ -10,9 +10,9 @@ test("nothing filed yet leaves both verbs open", () => {
   assert.equal(spentBy(undefined), false);
 });
 
-test("a Routine or a Labor spends the turn", () => {
+test("a Routine spends the turn", () => {
   assert.equal(spentBy({ moveKind: "ROUTINE" }), true);
-  assert.equal(spentBy({ moveKind: "LABOR" }), true);
+  assert.equal(spentBy({ moveKind: "ROUTINE" }), true);
 });
 
 test("a Gambit is the exception", () => {

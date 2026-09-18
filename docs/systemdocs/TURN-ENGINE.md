@@ -272,7 +272,7 @@ each arrived at by getting them wrong first.
    thirteen rows are distinct code paths rather than "grant this slug", so a
    YAML row would need a `kind:` that maps one-to-one onto a switch the pass
    already contains — a second place to keep in step for no editability at
-   all. `docs/labordrops.yaml` also weights by REPEATING an entry, which
+   all. `docs/miningdrops.yaml` also weights by REPEATING an entry, which
    cannot express the half-unit the mass-madness row carries. Bascinet's
    weights are stored unnormalised and sum to 101.5; `pickXomOutcome`
    normalises once, at roll time. `db/test/xom.test.js` asserts that every row

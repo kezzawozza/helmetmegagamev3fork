@@ -1,4 +1,4 @@
-// The labor drop die's rarity ladder — the six tiers from db/lib/cavingLoot.js, plus two structural bands, one probability column per die face. WHY: the die used to draw UNIFORMLY over the concatenation of whichever scope buckets matched (docs/systemdocs/LABORDROPS.md §2), which meant nothing could be rarer than 1/poolsize, every bucket needed its own `nothing` pad (53 of 180 entries were pads, LABORDROPS.md's footgun), and a bucket DILUTED its neighbours (the only global roll-6 entry was a certainty for a Town labourer and 1-in-23 for a cave fisher). A tier column fixes all three: the tier's share is fixed, so a bucket contributing a `rare` takes that tier's slice rather than a share proportional to whatever else is stacked beside it.
+// The labor drop die's rarity ladder — the six tiers from db/lib/cavingLoot.js, plus two structural bands, one probability column per die face. WHY: the die used to draw UNIFORMLY over the concatenation of whichever scope buckets matched (docs/systemdocs/MININGDROPS.md §2), which meant nothing could be rarer than 1/poolsize, every bucket needed its own `nothing` pad (53 of 180 entries were pads, MININGDROPS.md's footgun), and a bucket DILUTED its neighbours (the only global roll-6 entry was a certainty for a Town labourer and 1-in-23 for a cave fisher). A tier column fixes all three: the tier's share is fixed, so a bucket contributing a `rare` takes that tier's slice rather than a share proportional to whatever else is stacked beside it.
 // KEYED BY FACE, where cavingLoot keys by zone — a 1 and a 6 are different events (face-1 pools were 50-70% pads, face-6 pools 0-50%; one column would roughly double the wound rate and cut every payout by a third). Faces 2-4 have no column and no entries — a labourer rolling one finds nothing, exactly as before. Bascinet owns these numbers; nothing else in the file is a judgement call.
 
 // Ascending rarity. The six names are cavingLoot.js's, deliberately — two loot systems in one game shouldn't speak two vocabularies. The NUMBERS are not shared: a cave 6 and a labor 6 are different events.
@@ -9,7 +9,7 @@ const NOTHING = "nothing";
 const RESOURCES = "resources";
 const BANDS = [NOTHING, RESOURCES, ...TIERS];
 
-// One column per configured face. Each sums to 1, checked by validateRarityColumns and by db/test/laborDrops.test.js.
+// One column per configured face. Each sums to 1, checked by validateRarityColumns and by db/test/miningDrops.test.js.
 const COLUMN_BY_ROLL = Object.freeze({
   // The mishap face. The old pools missed 30-50% of the time (mean 47%), so 0.45 lands where they already were; the worse the wound, the rarer.
   1: Object.freeze({
@@ -53,7 +53,7 @@ const COLUMN_BY_ROLL = Object.freeze({
     "extremely-rare": 0.046,
     "nearly-impossible": 0.004,
   }),
-  // Configured for Depths hunting alone, and it never misses: a 5 down there is a body, every time (LABORDROPS.md §8).
+  // Configured for Depths hunting alone, and it never misses: a 5 down there is a body, every time (MININGDROPS.md §8).
   5: Object.freeze({
     nothing: 0,
     resources: 0.1,
@@ -82,7 +82,7 @@ function columnFor(roll) {
 }
 
 // A row's band: its authored rarity, or the band its kind puts it in. NOTHING and RESOURCES rows carry no rarity at all — the sync refuses one on them.
-// CASE-INSENSITIVE, and that's not politeness: a row read back from Postgres carries the LaborDropRarity enum ("EXTREMELY_RARE"), a row parsed straight out of docs/labordrops.yaml carries what the author typed ("extremely-rare") — both are the same band. Matching only the YAML spelling meant every live row fell out of every band and could never be drawn, which the pure tests couldn't see since they build rows by hand.
+// CASE-INSENSITIVE, and that's not politeness: a row read back from Postgres carries the MiningDropRarity enum ("EXTREMELY_RARE"), a row parsed straight out of docs/miningdrops.yaml carries what the author typed ("extremely-rare") — both are the same band. Matching only the YAML spelling meant every live row fell out of every band and could never be drawn, which the pure tests couldn't see since they build rows by hand.
 function bandOf(row) {
   if (row?.kind === "NOTHING") return NOTHING;
   if (row?.kind === "RESOURCES") return RESOURCES;
@@ -133,7 +133,7 @@ function bandShares(pool, roll) {
   return shares;
 }
 
-// What ONE row's chance is, within its pool. The band's share split evenly among that band's members — the same second stage cavingLoot.js uses, where a tier's slugs are equally likely once the tier is picked. This is what the audit and the annotate hook price with, so a per-entry number printed into docs/labordrops.yaml is the number the draw uses.
+// What ONE row's chance is, within its pool. The band's share split evenly among that band's members — the same second stage cavingLoot.js uses, where a tier's slugs are equally likely once the tier is picked. This is what the audit and the annotate hook price with, so a per-entry number printed into docs/miningdrops.yaml is the number the draw uses.
 function rowShares(pool, roll) {
   const shares = bandShares(pool, roll);
   const members = new Map();
@@ -176,11 +176,11 @@ function validateRarityColumns() {
   for (const [roll, column] of Object.entries(COLUMN_BY_ROLL)) {
     const unknown = Object.keys(column).filter((b) => !BANDS.includes(b));
     if (unknown.length) {
-      throw new Error(`labordropsRarity: roll ${roll} column has unknown band(s): ${unknown.join(", ")}`);
+      throw new Error(`miningdropsRarity: roll ${roll} column has unknown band(s): ${unknown.join(", ")}`);
     }
     const sum = BANDS.reduce((total, b) => total + (column[b] ?? 0), 0);
     if (Math.abs(sum - 1) > 1e-9) {
-      throw new Error(`labordropsRarity: roll ${roll} column sums to ${sum}, not 1`);
+      throw new Error(`miningdropsRarity: roll ${roll} column sums to ${sum}, not 1`);
     }
   }
 }

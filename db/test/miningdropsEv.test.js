@@ -1,10 +1,10 @@
-// db/lib/labordropsEv.js — priceEntry/summarize, extracted verbatim out of
-// db/scripts/ops/audit-labor-drops.js. This pins the shape the script relies
+// db/lib/miningdropsEv.js — priceEntry/summarize, extracted verbatim out of
+// db/scripts/ops/audit-mining-drops.js. This pins the shape the script relies
 // on (summarize's return, priceEntry's branch order) so the extraction can
 // be checked without running the CLI against a database.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { priceEntry, summarize, OBOL_SLUG, OBOL_VALUE } = require("../lib/labordropsEv");
+const { priceEntry, summarize, OBOL_SLUG, OBOL_VALUE } = require("../lib/miningdropsEv");
 
 test("priceEntry: NOTHING and RESOURCES need no tag lookup", () => {
   assert.deepEqual(priceEntry({ kind: "NOTHING" }, new Map()), { label: "(nothing)", evValue: 0, note: null });
@@ -47,7 +47,7 @@ test("priceEntry: an unpriced tag reports 0 ⬢ and is flagged 'unpriced'", () =
 });
 
 // summarize(rows, tagsById, roll) returns { priced, hits, hit, ev, unpriced, shares }
-// — the exact shape audit-labor-drops.js destructures at both its call sites.
+// — the exact shape audit-mining-drops.js destructures at both its call sites.
 test("summarize: returns the shape the script relies on", () => {
   const rows = [{ kind: "RESOURCES", resourceAmount: 5 }, { kind: "NOTHING" }];
   const result = summarize(rows, new Map(), 1);
@@ -59,7 +59,7 @@ test("summarize: returns the shape the script relies on", () => {
   assert.equal(typeof result.unpriced, "number");
   assert.ok(Array.isArray(result.shares));
 
-  // Cross-check against the die's own roll-1 column (db/lib/labordropsRarity.js):
+  // Cross-check against the die's own roll-1 column (db/lib/miningdropsRarity.js):
   // nothing 0.45, resources 0.065, and since no rarity tier is authored the
   // leftover column mass falls to `resources` (the only live band). ev is the
   // resources row's own delta times its (boosted) share; hit is that same

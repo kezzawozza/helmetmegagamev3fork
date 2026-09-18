@@ -297,7 +297,7 @@ const R = {
     t("A day's labor was filed for everyone who did not act"),
     ...((d.filed ?? 0) > 0 ? [t("—"), em(`${d.filed} worked`)] : []),
   ],
-  labor_yields_drifted: (d) => [
+  mining_yields_drifted: (d) => [
     t("What the land is worth shifted"),
     ...((d.drifted ?? 0) > 0 ? [t("—"), em(`${d.drifted} places changed`)] : []),
   ],

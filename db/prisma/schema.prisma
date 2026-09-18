@@ -55,13 +55,13 @@ enum ActionStatus {
 // the schema for historical rows but are no longer meaningfully set beyond
 // a constant "MOVE" going forward.
 enum MoveKind {
-  ROUTINE
+  // The only kind a player picks now. A Move IS a Gambit: it rolls a d6 and
+  // it gets arbitrated.
   GAMBIT
-  // Working the day. Files itself when a player submits nothing (the auto-labor
-  // pass, db/lib/autoLaborPass.js) and can be picked by hand on the Move modal.
-  // Never arbitrated and never rolls a die - it resolves entirely from the
-  // character's Laboring tags and where they stand (db/lib/laborAccess.js).
-  LABOR
+  // Never picked. What the game files on somebody's behalf when a button
+  // spends their day — Mine, Refine, Harvest Godflesh, Farm — through
+  // web/lib/moveSpend.js#fileAutoRoutine. Never arbitrated, never rolls.
+  ROUTINE
 }
 
 // GM-facing spreadsheet status, tracked independently of ActionStatus (which
@@ -369,12 +369,12 @@ model GameConfig {
   restBreakerOpenUntil   DateTime?
 
   // Multiplier applied to every rate in db/lib/production.js's
-  // PRODUCTION_RATES table — read live by the Labor checkbox
-  // (db/lib/laborAccess.js). docs/documents.yaml renders its numbers through
+  // PRODUCTION_RATES table — read live by the Mine button
+  // (db/lib/miningAccess.js). docs/documents.yaml renders its numbers through
   // live {resource:...} bubbles, so nothing needs regenerating when this
-  // changes. See docs/systemdocs/LABORING.md.
+  // changes. See docs/systemdocs/MINING.md.
   //
-  // Default is 0.93, not 1: laboring was brought down about 7% before launch.
+  // Default is 0.93, not 1: a day's pay was brought down about 7% before launch.
   // Note what that does NOT reach — Basic is in UNSCALED_TIERS on purpose, and
   // Skilled's 1-4 rounds back to 1-4, so the cut lands on the three
   // specialisations, which is where the volume is.
@@ -1173,7 +1173,7 @@ model Zone {
   stagedMessages   StagedMessage[]
   startingForRoles Role[]            @relation("RoleStartingZone")
   cavingRolls      CavingRoll[]
-  laborDropOptions LaborDropOption[]
+  miningDropOptions MiningDropOption[]
   oraclePages      OracleSynopsis[]
 
   createdAt DateTime @default(now())
@@ -1229,37 +1229,29 @@ model GmZoneView {
 /// zone is free (on the GameConfig.locationMoveCooldownSeconds cooldown); a
 /// hop whose edge crosses into another zone costs the Move, exactly as zone
 /// travel used to.
-// The four specialised labor types. A Location carries one LocationYield row
-// per kind it supports; no row at all means that kind is impossible there,
-// which is what the Labor? button prints as a bare "x".
-enum LaborKind {
-  HUNTING
-  FARMING
-  FISHING
-  PROSPECTING
-}
-
-// What one Location yields for one labor type, and how far it has drifted from
-// what docs/zones.yaml authored. One row per (location, kind) - at most 224 of
-// them (56 Locations x 4 kinds), and only for kinds the location actually
-// supports.
+// What one Location is worth to mine, and how far it has drifted from what
+// docs/zones.yaml authored. At most one row per Location, and only for the
+// places mining is possible at all — no row means you cannot dig here, which
+// is what the Examine button prints as a bare "x".
+//
+// There were four of these per Location once, one per labor type. Mining is
+// the only one left (docs/systemdocs/MINING.md), so the `kind` column went
+// with the rest of Laboring and the row became the Location's single
+// coefficient.
 //
 // Split out of Location rather than added as columns because the drift pass
-// (db/lib/laborYield.js) wants one uniform row shape to walk, and nine columns
-// plus six of drift state would have made Location unreadable for a concept
-// that only laboring cares about.
-model LocationYield {
+// (db/lib/miningYield.js) wants one uniform row shape to walk.
+model LocationMining {
   id         String    @id @default(cuid())
-  locationId String
-  location   Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
-  kind       LaborKind
+  locationId String @unique
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
-  // Authored in docs/zones.yaml's per-location `yield:` block and pushed by
+  // Authored in docs/zones.yaml's per-location `mining:` value and pushed by
   // db:sync-zones. The value `current` reverts toward.
   base Float
 
   // The live coefficient, re-drifted at every turn close. This is what a
-  // payout multiplies by and what the Labor? button reads - never `base`.
+  // payout multiplies by and what the Examine button reads - never `base`.
   current Float
 
   // An active swing. While set and unexpired, `current` reverts toward
@@ -1269,29 +1261,21 @@ model LocationYield {
   eventUntilTurn Int?
 
   updatedAt DateTime @updatedAt
-
-  @@unique([locationId, kind])
 }
 
-// The labor drop die's config: what a Labor payout can find, keyed by which
-// face of a 1-6 roll landed, up to two scopes at once (a labor type, and
-// either a zone or a location — never both on one row), and an optional
-// SEVENTH gate orthogonal to all of those — requiredTagId, "only joins the
-// pool for a character who holds this tag too" (Forester in the Forest is
-// the first user). Pure config, not player state — no CharacterTag or Action
-// row ever points at one of these rows, so docs/labordrops.yaml replaces the
+// The mining drop die's config: what a day underground can turn up on top of
+// the ⬢, keyed by which face of a 1-6 roll landed, scoped to a zone or a
+// location (never both on one row), plus an optional gate orthogonal to
+// those — requiredTagId, "only joins the pool for a character who holds this
+// tag too". Pure config, not player state — no CharacterTag or Action row
+// ever points at one of these rows, so docs/miningdrops.yaml replaces the
 // whole table on every sync run rather than upserting it
-// (db/lib/syncLaborDrops.js). See docs/systemdocs/LABORDROPS.md.
-enum LaborDropLaborType {
-  BASIC
-  SKILLED
-  HUNTING
-  FARMING
-  FISHING
-  PROSPECTING
-}
-
-enum LaborDropKind {
+// (db/lib/syncMiningDrops.js). See docs/systemdocs/MININGDROPS.md.
+//
+// There was a `laborType` column here once, scoping a pool to one of the six
+// Laboring tiers. Mining is the only one left, so every row is a mining row
+// and the column went with Laboring.
+enum MiningDropKind {
   TAG
   RESOURCES
   NOTHING
@@ -1300,13 +1284,13 @@ enum LaborDropKind {
 // How rare a TAG entry is within its pool. The same six names
 // db/lib/cavingLoot.js uses, deliberately — two loot systems in one game
 // should not speak two vocabularies. The NUMBERS are not shared: the
-// probability each name carries lives in db/lib/labordropsRarity.js, keyed by
-// die face, and a cave 6 and a labor 6 are different events.
+// probability each name carries lives in db/lib/miningdropsRarity.js, keyed
+// by die face, and a cave 6 and a mining 6 are different events.
 //
 // Only TAG rows carry one. A NOTHING pad and a RESOURCES delta are not items
 // and sit in their own bands, outside the ladder — the sync refuses a rarity
 // on either.
-enum LaborDropRarity {
+enum MiningDropRarity {
   ULTRACOMMON
   COMMON
   UNCOMMON
@@ -1316,73 +1300,70 @@ enum LaborDropRarity {
 }
 
 // One entry in one pool. A "table" is never its own row: it is every
-// LaborDropOption sharing one (roll, laborType, zoneId, locationId) scope.
-// Combining several scopes at once (LABORDROPS.md §2) is a query over this
-// table, not a join anywhere else.
+// MiningDropOption sharing one (roll, zoneId, locationId) scope. Combining
+// both scopes at once (MININGDROPS.md §2) is a query over this table, not a
+// join anywhere else.
 //
-// The draw is TWO-STAGE now, not uniform: land on a rarity band by the die
-// face's column, then pick evenly among that band's members
-// (db/lib/labordropsRarity.js), the same shape db/lib/cavingLoot.js has
-// always had. Repeat-to-weight is gone with it — a repeated entry is now
-// just a duplicate, and the sync says so.
-model LaborDropOption {
+// The draw is TWO-STAGE, not uniform: land on a rarity band by the die face's
+// column, then pick evenly among that band's members
+// (db/lib/miningdropsRarity.js), the same shape db/lib/cavingLoot.js has
+// always had.
+model MiningDropOption {
   id String @id @default(cuid())
 
-  // Which face of the Labor die this entry answers, 1-6.
+  // Which face of the mining die this entry answers, 1-6.
   roll Int
 
-  // Every dimension below is optional, and the SET of six legal combinations
-  // (laborType alone, zoneId alone, locationId alone, laborType+zoneId,
-  // laborType+locationId, or all-null for Global) is enforced by the sync,
-  // not by the schema — zoneId and locationId are never both set on one row.
-  laborType LaborDropLaborType?
-
+  // Both dimensions below are optional, and the SET of three legal
+  // combinations (zoneId alone, locationId alone, or all-null for Global) is
+  // enforced by the sync, not by the schema — zoneId and locationId are never
+  // both set on one row.
   zoneId String?
   zone   Zone?   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
 
   locationId String?
   location   Location? @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
-  kind LaborDropKind
+  kind MiningDropKind
 
   // TAG only, and required on every TAG row (the sync enforces both).
-  // Authored as `rarity:` in docs/labordrops.yaml.
+  // Authored as `rarity:` in docs/miningdrops.yaml.
   //
   // This replaced repeat-to-weight, which was the only lever the old uniform
   // draw had: 87 of the file's 180 lines were duplicates, 53 more were
   // `nothing` pads, and nothing could be rarer than 1/poolsize. See
-  // db/lib/labordropsRarity.js for what each name is worth and why the
+  // db/lib/miningdropsRarity.js for what each name is worth and why the
   // column is keyed by face.
-  rarity LaborDropRarity?
+  rarity MiningDropRarity?
 
   // TAG only. Cascades on delete rather than blocking a tag prune — the sync
-  // fully rebuilds this table from docs/labordrops.yaml on every run, so a
+  // fully rebuilds this table from docs/miningdrops.yaml on every run, so a
   // row orphaned by a pruned tag either comes back on the next sync or the
   // sync throws on a YAML entry naming a slug that no longer exists, the
   // same as any other stale reference.
   tagId String?
-  tag   Tag?    @relation("LaborDropGrantTag", fields: [tagId], references: [id], onDelete: Cascade)
+  tag   Tag?    @relation("MiningDropGrantTag", fields: [tagId], references: [id], onDelete: Cascade)
 
   // RESOURCES only. A ⬢ delta — usually a bonus, but nothing stops a
   // negative one for a bad-table entry.
   resourceAmount Int?
 
-  // The seventh gate, orthogonal to roll/laborType/zoneId/locationId: null
+  // The last gate, orthogonal to roll/zoneId/locationId: null
   // (the overwhelming common case) means every character; set, this row only
   // enters the combined pool for a character who holds this tag, checked in
-  // application code (db/lib/laborDrops.js#passesRequiredTag) rather than the
+  // application code (db/lib/miningDrops.js#passesRequiredTag) rather than the
   // SQL WHERE — the six scopes above are matched in the query, this is a
   // post-filter over whichever of those rows come back, because "does this
   // character hold tag X" isn't expressible as a join against a query keyed
-  // on the drawing character's zone/location/laborType alone. Authored in
-  // docs/labordrops.yaml as a `requiresTag:` block nested under any of the
-  // six buckets. Same cascade reasoning as tagId above.
+  // on the drawing character's zone and location alone. Authored in
+  // docs/miningdrops.yaml as a `requiresTag:` block nested under any of the
+  // buckets above. Same cascade reasoning as tagId above.
   requiredTagId String?
-  requiredTag   Tag?    @relation("LaborDropRequiredTag", fields: [requiredTagId], references: [id], onDelete: Cascade)
+  requiredTag   Tag?    @relation("MiningDropRequiredTag", fields: [requiredTagId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
-  @@index([roll, laborType, zoneId, locationId])
+  @@index([roll, zoneId, locationId])
   @@index([requiredTagId])
 }
 
@@ -1448,7 +1429,7 @@ model Location {
   playerThreads    PlayerThread[]
   partyThreads     PartyThread[]
   startingForRoles Role[]          @relation("RoleStartingLocation")
-  yields           LocationYield[]
+  mining           LocationMining?
   noticePosts      NoticePost[]
 
   createdAt DateTime @default(now())
@@ -1466,7 +1447,7 @@ model Location {
   // that goes away takes them with it.
   interceptWatches InterceptWatch[]
   attacks          Attack[]
-  laborDropOptions LaborDropOption[]
+  miningDropOptions MiningDropOption[]
 
   @@index([zoneId])
 }
@@ -2750,8 +2731,8 @@ model Tag {
   // combination and the word scale.
   //
   // NEVER shown to a player as the number. Armour reads as a word — None,
-  // Meager, Sufficient, Good, Strong, Overkill — the same posture Laboring
-  // yields take (db/lib/laborYield.js#qualityWord): working out that Strong
+  // Meager, Sufficient, Good, Strong, Overkill — the same posture mining
+  // yields take (db/lib/miningYield.js#qualityWord): working out that Strong
   // beats Good is the player's job, and a decimal on a chip would turn kit
   // choice into arithmetic.
   //
@@ -2820,7 +2801,7 @@ model Tag {
   // meals, ammunition, anything a crafting Move produces in a batch. A
   // stack is ONE CharacterTag row carrying a count (CharacterTag.quantity),
   // never N rows: @@unique([characterId, tagId]) stays, so every presence
-  // check in the codebase (narrowcastAccess, gambitModifier, labor)
+  // check in the codebase (narrowcastAccess, gambitModifier, mining)
   // keeps reading "holds it or doesn't" unchanged. Safe to combine with
   // defaultDurationTurns: the expiry sweep sheds one unit per expiry and
   // rerolls the remaining stack's timer, rather than deleting the row.
@@ -3409,24 +3390,27 @@ model Tag {
   // group, still meant to be discovered by holding a body — alone.
   recipePublic Boolean @default(false)
 
-  // What holding (or wearing) this tag adds to one kind of Laboring, from
-  // docs/tags.yaml's `laborBonus:` block. Normalised by db/lib/tagShapes.js
-  // and read by db/lib/laborAccess.js when it scores a labor candidate.
+  // What holding (or wearing) this tag adds to a day's mining, from
+  // docs/tags.yaml's `miningBonus:` block. Normalised by db/lib/tagShapes.js
+  // and read by db/lib/miningAccess.js when it scores a mining candidate.
   //
-  // Shape: { kind: "hunting"|"farming"|"fishing", amount: Int,
-  //          equipped: Bool, requiresTag: String? }. A flat number of the
-  //          hexagon, added AFTER the location coefficient has scaled the
-  //          range, so a tool is worth the same everywhere.
+  // Shape: { amount: Int, equipped: Bool, requiresTag: String? }. A flat
+  //          number of the hexagon, added AFTER the location coefficient has
+  //          scaled the range, so a tool is worth the same everywhere.
   //
-  // Json rather than three columns because most tags have no bonus at all,
-  // and because `requiresTag` (the Plow needs a horse) has no column shape.
-  laborBonus Json?
+  // There was a `kind` key here once, naming which of the four labor types
+  // the bonus applied to. Mining is the only one left, so a bonus is just a
+  // bonus.
+  //
+  // Json rather than columns because most tags have no bonus at all, and
+  // because `requiresTag` has no column shape.
+  miningBonus Json?
 
   // What this tag does in a fight, from docs/tags.yaml's `fighting:` block.
   // Normalised by db/lib/tagShapes.js and read by db/lib/fightingSkill.js,
   // which owns the band words and the stacking rule the way
   // db/lib/armorValue.js owns armour's. Same Json-rather-than-columns posture
-  // as laborBonus above: most of the catalog has no block at all, and `when`
+  // as miningBonus above: most of the catalog has no block at all, and `when`
   // has no column shape.
   //
   // Shape, every key optional: { tree: "melee"|"ranged"|"both",
@@ -3451,7 +3435,7 @@ model Tag {
 
   // Structure type data, from docs/tags.yaml's `placement:` block —
   // normalised and validated by db/lib/tagShapes.js, same posture as
-  // laborBonus above. Its PRESENCE is what makes a craftable BUILD ON SITE
+  // miningBonus above. Its PRESENCE is what makes a craftable BUILD ON SITE
   // (a Structure row at the builder's Location) instead of landing in a
   // pocket; there is deliberately no separate `placeable` boolean, because
   // a bare flag would still need somewhere to put the numbers.
@@ -3461,7 +3445,7 @@ model Tag {
   //     fieldwork: Bool (default false — true skips needsWorkshop()),
   //     examine: String, defenseNote: String,
   //     inscribable: Bool (the builder may write a line on it),
-  //     laborBonus: { kind: "hunting"|"farming"|"fishing", amount: Int },
+  //     miningBonus: { amount: Int },
   //     provides: [tagSlug, ...],
   //     locations: [locationSlug, ...] — where it may be raised at all;
   //       absent means anywhere the ground rules allow (canBuildHere),
@@ -3513,8 +3497,8 @@ model Tag {
   cavingRolls         CavingRoll[]
   offers              Offer[]
   craftProjects       CraftProject[]
-  laborDropOptions    LaborDropOption[] @relation("LaborDropGrantTag")
-  laborDropRequiredBy LaborDropOption[] @relation("LaborDropRequiredTag")
+  miningDropOptions    MiningDropOption[] @relation("MiningDropGrantTag")
+  miningDropRequiredBy MiningDropOption[] @relation("MiningDropRequiredTag")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3587,7 +3571,7 @@ model CharacterTag {
   // Whether AT LEAST ONE unit of this held tag is currently equipped —
   // `equippedQuantity > 0`, kept in sync with it on every write. Only ever
   // true for a Tag.equippable one. Every "holds it or doesn't" check in the
-  // codebase (fear, armour, mounts, concealment, labor bonuses...) reads only
+  // codebase (fear, armour, mounts, concealment, mining bonuses...) reads only
   // this column and is unaffected by how many units that actually is. The cap
   // itself is per slot, not a flat count across the character: Tag.equipSlot
   // says where a thing goes and db/lib/equipSlots.js says how many fit there.
@@ -3726,10 +3710,11 @@ model RoleReservation {
 }
 
 /// What a player asked for if the roll leaves them with nothing
-/// (docs/systemdocs/LOBBY.md §3). COMMONER and MIGRANT are the two unlimited
-/// seats; RETURN_TO_LOBBY means they late-join by hand after Start.
+/// (docs/systemdocs/LOBBY.md §3). MIGRANT is the one unlimited seat left —
+/// Commoner was the other until it was removed with Laboring, since it only
+/// existed to be the seat for somebody who wanted to work for a living.
+/// RETURN_TO_LOBBY means they late-join by hand after Start.
 enum JoblessRole {
-  COMMONER
   MIGRANT
   RETURN_TO_LOBBY
 }
@@ -3751,7 +3736,7 @@ model PlayerPreference {
   // where it locks; this row stays editable only while there is no character.
   antagonistOptIns String[] @default([])
 
-  joblessRole JoblessRole @default(COMMONER)
+  joblessRole JoblessRole @default(MIGRANT)
   updatedAt   DateTime    @updatedAt
 }
 
@@ -3940,9 +3925,9 @@ model Action {
   zone                   Zone?       @relation(fields: [zoneId], references: [id])
   // WHERE this Move happened, stamped at filing time. zoneId above is not
   // enough: a free zone move (CARRY.md §2a) costs no Action, so a character
-  // can file a Labor on the Factory floor and walk out before the turn closes,
+  // can file a Refine on the Factory floor and walk out before the turn closes,
   // and the payout runs at turn close. db/lib/moveEffects.js#refined reads
-  // this to decide whether a Labor was a REFINING one; without it, it asked
+  // this to decide which room's Godflesh was refined; without it, it asked
   // where the character is standing NOW and paid for the wrong room.
   // Nullable, and readers fall back to the live location, so rows filed
   // before this existed still resolve.
@@ -3950,7 +3935,7 @@ model Action {
   location               Location?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
   resourceDelta          Int?
   // A range like "5-12", rolled at ⚜ confirm. @map keeps the original column
-  // names: this used to hold dice notation ("1d6*2"), which the labor
+  // names: this used to hold dice notation ("1d6*2"), which the payout
   // shorthands and ranges replaced, so the field renamed but the SQL didn't.
   resourceRollExpression String?     @map("resourceDiceExpression")
   resourceRollValue      Int?        @map("resourceDiceRoll")
@@ -3982,19 +3967,6 @@ model Action {
   // back. Deliberately a column rather than a `gmNotes` string match: that
   // matching is what this change exists to retire.
   playerFiled Boolean @default(false)
-
-  // Which tier actually won for a LABOR Move — "basic" | "skilled" |
-  // "hunting" | "farming" | "fishing" | "refining", db/lib/laborAccess.js's
-  // own tier strings, not a Prisma enum (nothing else needs to query on it).
-  // Stamped once, at filing (db/lib/moves.js) or at auto-labor creation
-  // (db/lib/autoLaborPass.js), and never recomputed — a free zone move can
-  // carry a character somewhere else before turn close (see locationId's own
-  // comment above), so re-deriving from where they stand NOW would answer a
-  // different question than the one that was actually priced.
-  // db/lib/moveEffects.js's `laborDrop` effect is the one reader; a row filed
-  // before this field existed reads null and simply rolls no drop, same as
-  // any LABOR Move whose roll matches no configured pool.
-  laborTier String?
 
   // Who resolved this Move and when. Request has carried these since the
   // rework; Moves need them too now that several GMs share the queue behind a
@@ -4038,7 +4010,7 @@ model Action {
   // (players are told through StagedMessages at the push; ADJUDICATION.md).
   resultMessage      String?
   // Machine markers only since the staged-arbitration rework — the "auto:*"
-  // family (auto:labor, auto:zone_change, auto:silent_close…). No GM UI
+  // family (auto:mine, auto:zone_change, auto:silent_close…). No GM UI
   // renders or edits it any more.
   gmNotes            String?
   forumThreadId      String?

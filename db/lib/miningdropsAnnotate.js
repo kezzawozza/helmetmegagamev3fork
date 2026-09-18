@@ -1,20 +1,15 @@
-// Rewrites docs/labordrops.yaml's own comments in place: per-entry value (an
-// author-written "why" blurb is preserved across refreshes — see the `— ` split below), per-roll EV/hit-rate (own bucket AND what pools with it — global, place, any requiresTag ancestor), and a per-category rollup. See docs/systemdocs/LABORDROPS.md §6a-§6b.
+// Rewrites docs/miningdrops.yaml's own comments in place: per-entry value (an
+// author-written "why" blurb is preserved across refreshes — see the `— ` split below), per-roll EV/hit-rate (own bucket AND what pools with it — global, place, any requiresTag ancestor), and a per-category rollup. See docs/systemdocs/MININGDROPS.md §6a-§6b.
 // Pure text surgery over an indentation stack, not a YAML round-trip — this file's shape is fully hand-authored and disciplined, so it never reorders a key, reformats a list, or drops a blank line: it only rewrites the trailing `# ...` on lines it recognizes.
-const { scopeFilters, passesRequiredTag, TIER_TO_LABOR_DROP_TYPE } = require("./laborDrops");
-const { rowShares } = require("./labordropsRarity");
+const { scopeFilters, passesRequiredTag } = require("./miningDrops");
+const { rowShares } = require("./miningdropsRarity");
 
-// One "slot" per nesting step before a bucket reaches roll-keyed leaves — laborTypeZone/laborTypeLocation consume two (type, then place), global consumes none.
+// One "slot" per nesting step before a bucket reaches roll-keyed leaves — global consumes none. There were three more buckets here, each crossing a Laboring tier with a place; mining is the only kind of day left, so the tier step went with it.
 const BRANCH_PLANS = {
   global: [],
-  laborType: ["laborTypeSlug"],
   zone: ["zoneSlug"],
   location: ["locationSlug"],
-  laborTypeZone: ["laborTypeSlug", "zoneSlug"],
-  laborTypeLocation: ["laborTypeSlug", "locationSlug"],
 };
-
-const LABOR_TYPE_BY_KEY = TIER_TO_LABOR_DROP_TYPE;
 
 function indentOf(line) {
   const m = /^( *)/.exec(line);
@@ -39,7 +34,7 @@ function withComment(code, comment) {
   return comment ? `${code}  ${comment}` : code;
 }
 
-// The one pool entry -> mechanical value fragment. Mirrors audit-labor-drops.js#priceEntry but returns just the fragment, since the entry line already has its own slug.
+// The one pool entry -> mechanical value fragment. Mirrors audit-mining-drops.js#priceEntry but returns just the fragment, since the entry line already has its own slug.
 const OBOL_SLUG = "obol";
 
 // EV overrides: the number a loot table's balance math should use for this tag,
@@ -77,29 +72,28 @@ function mechanicalValue(rawValue, tagsById) {
       : `assumed ${overrideValue} ⬢ (not actually sellable yet)`;
   }
   if (tag.sellable && tag.sellablePrice) return `sells ${tag.sellablePrice} ⬢`;
-  // Not sellable, but consuming it pays out anyway (Purse, Supply Kit) — mirrors audit-labor-drops.js#priceEntry's own fallback.
+  // Not sellable, but consuming it pays out anyway (Purse, Supply Kit) — mirrors audit-mining-drops.js#priceEntry's own fallback.
   if (tag.consumesIntoResources) return `worth ${tag.consumesIntoResources} ⬢ consumed`;
   return "not sellable";
 }
 
 // Combined pool EV/hit-rate for one roll at one resolved scope — the exact runtime rule (scopeFilters + passesRequiredTag): what a payout in that scope actually draws from.
-function combinedStats(rows, roll, { laborType, zoneId, locationId, heldTagIds }) {
-  const scopes = scopeFilters(laborType ?? null, zoneId ?? null, locationId ?? null);
+function combinedStats(rows, roll, { zoneId, locationId, heldTagIds }) {
+  const scopes = scopeFilters(zoneId ?? null, locationId ?? null);
   const matched = rows.filter(
     (r) =>
       r.roll === roll &&
-      scopes.some((s) => s.laborType === r.laborType && s.zoneId === r.zoneId && s.locationId === r.locationId) &&
+      scopes.some((s) => s.zoneId === r.zoneId && s.locationId === r.locationId) &&
       passesRequiredTag(r, heldTagIds),
   );
   return summarize(matched);
 }
 
 // Own-bucket EV/hit-rate: the exact scope tuple this node was authored at, no OR-expansion.
-function ownStats(rows, roll, { laborType, zoneId, locationId, requiredTagId }) {
+function ownStats(rows, roll, { zoneId, locationId, requiredTagId }) {
   const matched = rows.filter(
     (r) =>
       r.roll === roll &&
-      r.laborType === (laborType ?? null) &&
       r.zoneId === (zoneId ?? null) &&
       r.locationId === (locationId ?? null) &&
       r.requiredTagId === (requiredTagId ?? null),
@@ -121,7 +115,7 @@ function summarize(rows) {
 }
 
 // summarize() can't price a TAG row without the catalog, so pricing happens up front:
-// every row gets `.evValue` (⬢, 0 for unpriced/NOTHING), matching audit-labor-drops.js's EV rule. Also normalizes requiredTagId to explicit `null` — parseDoc's in-memory rows OMIT the key when there's no requiresTag ancestor (unlike a live Prisma row), and `undefined` here would silently fail every own-scope equality check below.
+// every row gets `.evValue` (⬢, 0 for unpriced/NOTHING), matching audit-mining-drops.js's EV rule. Also normalizes requiredTagId to explicit `null` — parseDoc's in-memory rows OMIT the key when there's no requiresTag ancestor (unlike a live Prisma row), and `undefined` here would silently fail every own-scope equality check below.
 function priceRows(rows, tagsById) {
   return rows.map((r) => {
     const withTagId = { ...r, requiredTagId: r.requiredTagId ?? null };
@@ -143,7 +137,7 @@ function statLine(stats) {
   return `EV ${(stats.ev ?? 0).toFixed(2)} ⬢ · hit ${Math.round((stats.hit ?? 0) * 100)}%`;
 }
 
-// Priced by BAND, not row count — rowShares (labordropsRarity.js) gives each row's real chance under the face's column, so `ev` is a proper expectation and `hit` the actual miss rate, not "fraction of lines that aren't pads".
+// Priced by BAND, not row count — rowShares (miningdropsRarity.js) gives each row's real chance under the face's column, so `ev` is a proper expectation and `hit` the actual miss rate, not "fraction of lines that aren't pads".
 function computeStats(rows, roll, scope) {
   const matched = rows.filter((predicateFor(roll, scope)));
   if (matched.length === 0) return null;
@@ -157,19 +151,18 @@ function computeStats(rows, roll, scope) {
   return { count: matched.length, hits: hit, evSum: ev, ev, hit };
 }
 
-function predicateFor(roll, { mode, laborType, zoneId, locationId, requiredTagId, heldTagIds }) {
+function predicateFor(roll, { mode, zoneId, locationId, requiredTagId, heldTagIds }) {
   if (mode === "own") {
     return (r) =>
       r.roll === roll &&
-      r.laborType === (laborType ?? null) &&
       r.zoneId === (zoneId ?? null) &&
       r.locationId === (locationId ?? null) &&
       r.requiredTagId === (requiredTagId ?? null);
   }
-  const scopes = scopeFilters(laborType ?? null, zoneId ?? null, locationId ?? null);
+  const scopes = scopeFilters(zoneId ?? null, locationId ?? null);
   return (r) =>
     r.roll === roll &&
-    scopes.some((s) => s.laborType === r.laborType && s.zoneId === r.zoneId && s.locationId === r.locationId) &&
+    scopes.some((s) => s.zoneId === r.zoneId && s.locationId === r.locationId) &&
     passesRequiredTag(r, heldTagIds ?? new Set());
 }
 
@@ -206,7 +199,7 @@ function buildRollupComment(rows, frame) {
 }
 
 // The exhaustive set of shapes mechanicalValue() can produce, numbers wildcarded —
-// matches a bare mechanical comment from an EARLIER run even after the tag's price has since changed, which an exact match against TODAY's value would miss (and would otherwise duplicate as `# sells 21 ⬢ — sells 30 ⬢`). Kept in lockstep with mechanicalValue() by hand, same as audit-labor-drops.js#priceEntry.
+// matches a bare mechanical comment from an EARLIER run even after the tag's price has since changed, which an exact match against TODAY's value would miss (and would otherwise duplicate as `# sells 21 ⬢ — sells 30 ⬢`). Kept in lockstep with mechanicalValue() by hand, same as audit-mining-drops.js#priceEntry.
 const MECHANICAL_SHAPES = [
   /^the coin itself, worth \d+ ⬢$/,
   /^worth \d+ ⬢ opened \(sells \d+ ⬢ locked\)$/,
@@ -232,11 +225,8 @@ function splitBlurb(comment, mech = null) {
   return { blurb: text || null };
 }
 
-function resolveLaborTypeKey(key) {
-  return LABOR_TYPE_BY_KEY[key] ?? null;
-}
 
-// The main pass. `lines` is the raw file split on "\n"; `ctx` carries the resolved catalogs (see db/scripts/ops/audit-labor-drops.js) plus `rows`, the parsed+priced LaborDropOption-shaped rows (syncLaborDrops.js#parseDoc, then priceRows()).
+// The main pass. `lines` is the raw file split on "\n"; `ctx` carries the resolved catalogs (see db/scripts/ops/audit-mining-drops.js) plus `rows`, the parsed+priced MiningDropOption-shaped rows (syncMiningDrops.js#parseDoc, then priceRows()).
 function annotateLines(lines, ctx) {
   const rows = ctx.rows;
   const out = [...lines];
@@ -275,8 +265,7 @@ function annotateLines(lines, ctx) {
         const [stepKind, ...restPlan] = parent.plan;
         if (!stepKind) continue; // malformed nesting — leave untouched
         const scope = { ...parent.scope };
-        if (stepKind === "laborTypeSlug") scope.laborType = resolveLaborTypeKey(key);
-        else if (stepKind === "zoneSlug") scope.zoneId = ctx.zoneIdBySlug.get(key) ?? null;
+        if (stepKind === "zoneSlug") scope.zoneId = ctx.zoneIdBySlug.get(key) ?? null;
         else if (stepKind === "locationSlug") scope.locationId = ctx.locationIdBySlug.get(key) ?? null;
         const frame = {
           indent,

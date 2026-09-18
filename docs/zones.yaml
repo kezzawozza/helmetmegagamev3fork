@@ -1450,7 +1450,7 @@ zones:
         # A unique spot rather than a milder one like Shadowed Grove or Grand
         # Ravine: the Gallows below is a real grave (bones already sit there
         # as a room's static stash), and searching it has its own table
-        # (LABORDROPS.md, laborTypeLocation.prospecting.hills-west).
+        # (MININGDROPS.md, laborTypeLocation.prospecting.hills-west).
         yield: { hunting: 1.0, prospecting: 0.8 }
         rooms:
           west-hills-crumbled-post:

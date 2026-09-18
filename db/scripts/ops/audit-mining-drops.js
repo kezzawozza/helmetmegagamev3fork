@@ -1,21 +1,21 @@
 #!/usr/bin/env node
-// Prices out docs/labordrops.yaml — what each pool entry is worth and each
+// Prices out docs/miningdrops.yaml — what each pool entry is worth and each
 // pool's ⬢ expected value. Reads the YAML off disk, so it prices a draft
-// before db:sync-labor-drops runs. See LABORDROPS.md §2 for the six buckets,
+// before db:sync-mining-drops runs. See MININGDROPS.md §2 for the six buckets,
 // §2a for requiredTag, §6 for "not yet configured".
 //
-//   npm run db:audit-labor-drops
-//   npm run db:audit-labor-drops -- --zone forest --location forest-west-riverbank
-//   npm run db:audit-labor-drops -- --zone forest --holds forester   # also folds in a skill's extra pool
-//   npm run db:audit-labor-drops -- --write   # the only flag that TOUCHES the file — rewrites its comments
+//   npm run db:audit-mining-drops
+//   npm run db:audit-mining-drops -- --zone forest --location forest-west-riverbank
+//   npm run db:audit-mining-drops -- --zone forest --holds forester   # also folds in a skill's extra pool
+//   npm run db:audit-mining-drops -- --write   # the only flag that TOUCHES the file — rewrites its comments
 const fs = require("node:fs");
 const { prisma } = require("../../index");
-const { loadDoc, parseDoc } = require("../../lib/syncLaborDrops");
-const { scopeFilters, TIER_TO_LABOR_DROP_TYPE, passesRequiredTag } = require("../../lib/laborDrops");
-const { annotateLines, priceRows } = require("../../lib/labordropsAnnotate");
-const { bandOf } = require("../../lib/labordropsRarity");
+const { loadDoc, parseDoc } = require("../../lib/syncMiningDrops");
+const { scopeFilters, passesRequiredTag } = require("../../lib/miningDrops");
+const { annotateLines, priceRows } = require("../../lib/miningdropsAnnotate");
+const { bandOf } = require("../../lib/miningdropsRarity");
 const { docsPath } = require("../../lib/repoPaths");
-const { summarize } = require("../../lib/labordropsEv");
+const { summarize } = require("../../lib/miningdropsEv");
 
 function parseArgs(argv) {
   const out = { zoneSlug: null, locationSlug: null, holdsSlugs: [], write: false };
@@ -30,11 +30,10 @@ function parseArgs(argv) {
   return out;
 }
 
-// priceEntry and summarize live in db/lib/labordropsEv.js, exercised by
+// priceEntry and summarize live in db/lib/miningdropsEv.js, exercised by
 // db/test/ directly.
 function bucketLabel(row, zoneNameById, locationNameById, tagsById) {
   const parts = [];
-  if (row.laborType) parts.push(`labor type: ${row.laborType.toLowerCase()}`);
   if (row.zoneId) parts.push(`zone: ${zoneNameById.get(row.zoneId) ?? row.zoneId}`);
   if (row.locationId) parts.push(`location: ${locationNameById.get(row.locationId) ?? row.locationId}`);
   if (row.requiredTagId) {
@@ -75,14 +74,14 @@ async function main() {
   const rows = parseDoc(doc, catalogs);
 
   if (rows.length === 0) {
-    console.log("docs/labordrops.yaml has no entries at all yet.");
+    console.log("docs/miningdrops.yaml has no entries at all yet.");
     await prisma.$disconnect();
     return;
   }
 
   if (write) {
-    const filePath = docsPath("labordrops.yaml");
-    if (!filePath) throw new Error("Cannot find docs/labordrops.yaml — see db/lib/repoPaths.js");
+    const filePath = docsPath("miningdrops.yaml");
+    if (!filePath) throw new Error("Cannot find docs/miningdrops.yaml — see db/lib/repoPaths.js");
     const lines = fs.readFileSync(filePath, "utf8").split("\n");
     const pricedRows = priceRows(rows, tagsById);
     const out = annotateLines(lines, {
@@ -156,49 +155,49 @@ async function main() {
     .join(", ");
   console.log(`=== Combined pools (what a payout actually draws from${where ? `, at ${where}` : ""}) ===\n`);
 
-  for (const [tier, laborType] of Object.entries(TIER_TO_LABOR_DROP_TYPE)) {
-    // 1d6 uniform: the real EV of ONE Labor is (1/6) * sum over all six
-    // faces, an unconfigured face counted as a real zero, not skipped.
-    let totalEv = 0;
-    let totalHitFraction = 0;
-    let anyConfigured = false;
-    for (let roll = 1; roll <= 6; roll++) {
-      const scopes = scopeFilters(laborType, zoneId ?? null, locationId ?? null);
-      const combined = rows.filter(
-        (r) =>
-          r.roll === roll &&
-          scopes.some((s) => s.laborType === r.laborType && s.zoneId === r.zoneId && s.locationId === r.locationId) &&
-          passesRequiredTag(r, heldTagIds),
-      );
-      if (combined.length === 0) continue;
-      anyConfigured = true;
-      const { hit, ev, unpriced } = summarize(combined, tagsById, roll);
-      totalEv += ev;
-      totalHitFraction += hit;
-      console.log(
-        `${tier}, roll ${roll} — ${combined.length} pooled entries -> ⬢ EV ${ev.toFixed(2)} · ` +
-          `hit rate ${(hit * 100).toFixed(0)}%` +
-          (unpriced ? ` · ${unpriced} unpriced` : ""),
-      );
-    }
-    if (anyConfigured) {
-      console.log(
-        `  -> ${tier}: ⬢ EV/labor ${(totalEv / 6).toFixed(2)} · hit ${Math.round((totalHitFraction / 6) * 100)}% ` +
-          `(across all six faces, not just the configured ones)`,
-      );
-    }
+  // 1d6 uniform: the real EV of ONE day's mining is (1/6) * sum over all six
+  // faces, an unconfigured face counted as a real zero, not skipped. There
+  // was an outer loop over the six Laboring tiers here; mining is the only
+  // one left, so there is one set of numbers now.
+  let totalEv = 0;
+  let totalHitFraction = 0;
+  let anyConfigured = false;
+  for (let roll = 1; roll <= 6; roll++) {
+    const scopes = scopeFilters(zoneId ?? null, locationId ?? null);
+    const combined = rows.filter(
+      (r) =>
+        r.roll === roll &&
+        scopes.some((s) => s.zoneId === r.zoneId && s.locationId === r.locationId) &&
+        passesRequiredTag(r, heldTagIds),
+    );
+    if (combined.length === 0) continue;
+    anyConfigured = true;
+    const { hit, ev, unpriced } = summarize(combined, tagsById, roll);
+    totalEv += ev;
+    totalHitFraction += hit;
+    console.log(
+      `roll ${roll} — ${combined.length} pooled entries -> ⬢ EV ${ev.toFixed(2)} · ` +
+        `hit rate ${(hit * 100).toFixed(0)}%` +
+        (unpriced ? ` · ${unpriced} unpriced` : ""),
+    );
+  }
+  if (anyConfigured) {
+    console.log(
+      `  -> mining: ⬢ EV/day ${(totalEv / 6).toFixed(2)} · hit ${Math.round((totalHitFraction / 6) * 100)}% ` +
+        `(across all six faces, not just the configured ones)`,
+    );
   }
 
   console.log(
     "\nLegend: a bare 'roll N' line is CONDITIONAL on landing on that face — what you'd get IF you\n" +
-      "rolled it. The '-> tier: ⬢ EV/labor' line is the real, unconditional number: (1/6) times the\n" +
+      "rolled it. The '-> mining: ⬢ EV/day' line is the real, unconditional number: (1/6) times the\n" +
       "sum of all six faces' EV, an unconfigured face (almost always 2-5) counted as a real zero\n" +
       "rather than skipped. Adding two 'roll N' lines together is not that number — divide by 6 first,\n" +
-      "and count the unlisted faces too. ⬢ EV is the RARITY-BAND-WEIGHTED expectation (LABORDROPS.md\n" +
+      "and count the unlisted faces too. ⬢ EV is the RARITY-BAND-WEIGHTED expectation (MININGDROPS.md\n" +
       "§2, §7), not a flat average of the pool's lines — each entry's real chance comes from the die\n" +
-      "face's column and which rarity band it's authored at (db/lib/labordropsRarity.js), printed as\n" +
+      "face's column and which rarity band it's authored at (db/lib/miningdropsRarity.js), printed as\n" +
       "the leading percentage on each entry above. RESOURCES entries use their own ⬢ delta; NOTHING\n" +
-      "counts as 0 ⬢. A tag priced in labordropsAnnotate.js's ASSUMED_VALUES (a Lockbox, godflesh, a\n" +
+      "counts as 0 ⬢. A tag priced in miningdropsAnnotate.js's ASSUMED_VALUES (a Lockbox, godflesh, a\n" +
       "monster corpse) prices at that override, ahead of its own sellablePrice — a Lockbox's real price\n" +
       "is deliberately half its contents, so the table's balance math needs the FULL value a player who\n" +
       "actually opens it realizes. A tag with neither a price nor an override, but a consumesIntoResources\n" +

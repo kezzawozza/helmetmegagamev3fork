@@ -8,7 +8,7 @@
 //
 // Zones are no longer part of this run: docs/zones.yaml is a one-shot
 // additive importer now (`npm run db:import-zones`), not a routine sync.
-// sync-documents and sync-labor-drops delete rows dropped from their YAML;
+// sync-documents and sync-mining-drops delete rows dropped from their YAML;
 // see SYNC.md §1 before running against a live game.
 require("dotenv").config();
 const {
@@ -17,7 +17,7 @@ const {
   syncRolesFromYaml,
   syncDesiresFromYaml,
   syncDocumentsFromYaml,
-  syncLaborDropsFromYaml,
+  syncMiningDropsFromYaml,
 } = require("../../index");
 const { runDiscordMirror } = require("../../lib/discordMirror");
 
@@ -46,7 +46,7 @@ async function main() {
       return `+${s.created}/~${s.updated}` + (s.pruned.length ? `, pruned ${s.pruned.join(", ")}` : "");
     }],
     ["labor drops", async () => {
-      const s = await syncLaborDropsFromYaml(prisma);
+      const s = await syncMiningDropsFromYaml(prisma);
       return `${s.total} options`;
     }],
     ["discord mirror", async () => {

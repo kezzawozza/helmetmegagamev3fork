@@ -8,7 +8,7 @@ const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG, TIRED_SLUG, EXHAUSTED_SLUG, LUCKY_SLUG } = require("./constants");
 const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs, fastTravelCapacity, fastTravelBonus, STOWABLE_SLUGS } = require("./mounts");
 const { rollWithEdge, edgeFor } = require("./advantage");
-const { nextLaborFatigueSlug } = require("./laborFatigue");
+const { nextFatigueSlug } = require("./fatigue");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
 const { heldReasonFor, fireWatches, NOT_A_FIGHT } = require("./intercept");
 const { linkBetween, crossingCheck } = require("./locationGraph");
@@ -167,7 +167,7 @@ async function pushOn(tx, character, openTurn, targetLocation) {
   let slug = null;
   if (effect === "injury") slug = EXERT_INJURY_SLUG;
   else if (effect === "exhausted") slug = EXHAUSTED_SLUG;
-  else if (effect === "tired") slug = nextLaborFatigueSlug(held);
+  else if (effect === "tired") slug = nextFatigueSlug(held);
   else slug = WINDED_SLUG;
 
   let tagName = null;

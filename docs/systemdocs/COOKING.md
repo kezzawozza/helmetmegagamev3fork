@@ -369,7 +369,7 @@ once the five cheeses are eaten there are no more.
 **The fragmentation grenade lands at 0.067% — about 1 in 1,500 cave fishing
 labors.** Getting there is what made the labor-drop die adopt caving's rarity
 tiers: under the old uniform draw the floor was 1/poolsize and it would have
-shipped eight times too common. See `LABORDROPS.md` §2.
+shipped eight times too common. See `MININGDROPS.md` §2.
 
 ## 12. Two catalog bugs fixed here
 

@@ -10,7 +10,7 @@ import { SectionHead } from "./shared";
 //
 // Every source of new ⬢ — the mirror of Sinks.js.
 
-export function Faucets({ series, categories, table, grandTotal, laborDropRealised, laborDropNote }) {
+export function Faucets({ series, categories, table, grandTotal, miningDropRealised, miningDropNote }) {
   return (
     <section className="ops-section ops-section--wide">
       <SectionHead title="Faucets" lede="Every source of new ⬢, over the whole game." />
@@ -27,9 +27,9 @@ export function Faucets({ series, categories, table, grandTotal, laborDropRealis
       )}
 
       <div className="panel" style={{ padding: "0.75rem 1rem" }}>
-        <strong>{laborDropRealised} ⬢</strong> realised from Labor drop.
+        <strong>{miningDropRealised} ⬢</strong> realised from Labor drop.
         <p className="text-xs text-muted" style={{ marginTop: "0.25rem" }}>
-          {laborDropNote}
+          {miningDropNote}
         </p>
       </div>
 

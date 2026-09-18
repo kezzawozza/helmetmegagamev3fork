@@ -168,7 +168,6 @@ const DUAL_SURFACE_FILES = new Set([
   "db/lib/formatTagRequirement.js",
   "db/lib/moveEffects.js",
   "db/lib/mood.js",
-  "db/lib/production.js",
 ]);
 
 // The `»` rule is per-call-site, and NO transport strips or doubles one:
@@ -212,7 +211,7 @@ const JS_GROUPS = [
   {
     group: "bot-turns",
     test: (f) =>
-      /turnsConsole|turnAnnouncement|turnEngine|turnFormat|turnCalendar|turnBanner|moveModal|moveConfirm|autoLaborPass|hungerPass|tagExpiryPass|labor|travel/i.test(
+      /turnsConsole|turnAnnouncement|turnEngine|turnFormat|turnCalendar|turnBanner|moveModal|moveConfirm|hungerPass|tagExpiryPass|mining|travel/i.test(
         f,
       ),
   },

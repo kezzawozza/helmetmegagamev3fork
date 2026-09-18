@@ -96,8 +96,8 @@ export function paidLabel(applied) {
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
     // Legacy rows recorded a bare `1`, meaning a plain Exhausted grant.
     else if (key === "exhausted") parts.push(value?.slug === "tired" ? "Tired" : "Exhausted");
-    // Mirrors the laborDrop arm of describeMoveEffects — both halves must learn a new effect key together.
-    else if (key === "laborDrop") {
+    // Mirrors the miningDrop arm of describeMoveEffects — both halves must learn a new effect key together.
+    else if (key === "miningDrop") {
       parts.push(
         value.kind === "TAG"
           ? `found ${value.tagName}`

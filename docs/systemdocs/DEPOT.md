@@ -693,7 +693,7 @@ buying one mid-game is still a real decision.
 | `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source, and it is priced below real gear on purpose: a paper-thin disguise shouldn't compete with it. |
 | `cigarette` | 5 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
 | `coal` | 7 | 4 | Smelts into `steel` (`SMITHING.md`). It used to be the generator's fuel; there is no generator. |
-| `silver` | 8 | 5 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source cheaper (`LABORDROPS.md` §2b); this is the fallback. |
+| `silver` | 8 | 5 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source cheaper (`MININGDROPS.md` §2b); this is the fallback. |
 | `boombox` | 11 | 7 | |
 | `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
 | `sake` | 11 | 7 | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |

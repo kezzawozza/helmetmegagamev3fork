@@ -487,7 +487,7 @@ YAML — `INTERCOM_ROOM_SLUG` (`db/lib/intercom.js`), `BELL_ROOM_SLUG`
 which `db/lib/syncRoles.js` resolves by slug and *throws* on a miss.
 
 **The id (slug) is immutable once set** — it's `placeKey`, archive keys,
-`roles.yaml`/`labordrops.yaml`/threat references — so the old "a changed id is
+`roles.yaml`/`miningdrops.yaml`/threat references — so the old "a changed id is
 a new room" trap is gone with the sync that made it: the `/gm/dev/zones`
 editor doesn't let a slug be edited at all, only the display `name`. A rename
 there edits `name` and *does* rename the live Discord thread, behind a confirm

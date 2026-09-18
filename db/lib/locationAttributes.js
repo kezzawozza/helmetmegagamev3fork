@@ -168,7 +168,7 @@ function structureLines(ctx = {}) {
   });
 }
 
-// The labor readout is NOT here (db/lib/laborYield.js#qualityWord); the caller prints it first.
+// The mining readout is NOT here (db/lib/miningYield.js#qualityWord); the caller prints it first.
 function describeLocation(location, ctx = {}) {
   return [
     placementLine(location),

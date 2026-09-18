@@ -2,7 +2,6 @@ const { sendDm } = require("../../dm");
 const { plainDm } = require("../shared");
 
 async function sendEarlyDmNotices({ prisma, p, eachDm }) {
-  await eachDm("autoLabor", p.autoLaborDms, (dm) => plainDm(prisma, dm, "Auto-labor"));
   await eachDm("lesson", p.lessonDms, (dm) => plainDm(prisma, dm, "Lesson"));
   await eachDm("research", p.researchDms, (dm) => plainDm(prisma, dm, "Research"));
   await eachDm("confession", p.confessionDms, (dm) => plainDm(prisma, dm, "Confession"));

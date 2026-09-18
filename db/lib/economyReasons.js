@@ -13,8 +13,8 @@ const FLOW = { FAUCET: "FAUCET", SINK: "SINK", TRANSFER: "TRANSFER", INTERNAL: "
 // reason -> { flow, label }. Label is prose a GM reads, never the word "Resources" beside a ⬢ glyph.
 const REASONS = {
   // --- faucets ---
-  LABOR: { flow: FLOW.FAUCET, label: "Labor" },
-  LABOR_DROP: { flow: FLOW.FAUCET, label: "Labor drop" },
+  MINING: { flow: FLOW.FAUCET, label: "Mining" },
+  MINING_DROP: { flow: FLOW.FAUCET, label: "Mining drop" },
   CRATE: { flow: FLOW.FAUCET, label: "Crate opened" },
   CONSUME: { flow: FLOW.FAUCET, label: "Purse consumed" },
   RITE_GRANT: { flow: FLOW.FAUCET, label: "Rite" },

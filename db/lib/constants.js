@@ -12,15 +12,22 @@ const COURTIER_SLUG = "courtier";
 const ATE_MEAL_SLUG = "ate-meal";
 const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
-// The two-stage labor-fatigue ladder — see db/lib/laborFatigue.js.
+// The two-stage fatigue ladder — see db/lib/fatigue.js.
 const TIRED_SLUG = "tired";
 const EXHAUSTED_SLUG = "exhausted";
-const LABORING_BASIC_SLUG = "laboring-basic";
-const LABORING_SKILLED_SLUG = "laboring-skilled";
-const LABORING_FARMING_SLUG = "laboring-farming";
-const LABORING_HUNTING_SLUG = "laboring-hunting";
-const LABORING_FISHING_SLUG = "laboring-fishing";
-const LABORING_PROSPECTING_SLUG = "laboring-prospecting";
+// The `auto:` markers the two day-spending buttons stamp on the Action they
+// file (db/lib/moveEffects.js reads them to decide what to push at turn
+// close). Soilery's own "auto:farm" is written at its call site; these two are
+// shared between the web action that files the Move and the effect that
+// resolves it, so they are named once here.
+const AUTO_MINE_NOTE = "auto:mine";
+const AUTO_REFINE_NOTE = "auto:refine";
+
+// The two skills that replaced the Laboring ladder: one gates the Mine
+// button, one gates Farm. Neither gates the other, and neither has a rung
+// above or below it — see docs/systemdocs/MINING.md.
+const PROSPECTING_SLUG = "prospecting";
+const SOILERY_SLUG = "soilery";
 const CATATONIC_SLUG = "catatonic-afk";
 // Over a carry cap (db/lib/carry.js). Granted/cleared by settleCarry; read by the travel gate in db/lib/locationTravel.js.
 const OVERBURDENED_SLUG = "overburdened";
@@ -144,8 +151,6 @@ const AMOR_FATI_SLUG = "amor-fati";
 const IMPERTURBABLE_SLUG = "imperturbable";
 const SECOND_WIND_SLUG = "second-wind";
 const BREWING_DISTILLING_SLUG = "brewing-distilling";
-const LABORING_SCAVENGING_SLUG = "laboring-scavenging";
-const LABORING_TIRELESS_SLUG = "laboring-tireless";
 const MUSICIAN_PYTHAGOREAN_SLUG = "musician-pythagorean";
 // The instrument, and the skill that plays it well — shared so web /play (Chat) and the bot's /play read the same slugs.
 const INSTRUMENT_SLUG = "instrument";
@@ -194,12 +199,10 @@ module.exports = {
   DRAINED_SLUG,
   TIRED_SLUG,
   EXHAUSTED_SLUG,
-  LABORING_BASIC_SLUG,
-  LABORING_SKILLED_SLUG,
-  LABORING_FARMING_SLUG,
-  LABORING_HUNTING_SLUG,
-  LABORING_FISHING_SLUG,
-  LABORING_PROSPECTING_SLUG,
+  PROSPECTING_SLUG,
+  SOILERY_SLUG,
+  AUTO_MINE_NOTE,
+  AUTO_REFINE_NOTE,
   CATATONIC_SLUG,
   OVERBURDENED_SLUG,
   STEALTH_SLUG,
@@ -255,8 +258,6 @@ module.exports = {
   IMPERTURBABLE_SLUG,
   SECOND_WIND_SLUG,
   BREWING_DISTILLING_SLUG,
-  LABORING_SCAVENGING_SLUG,
-  LABORING_TIRELESS_SLUG,
   MUSICIAN_PYTHAGOREAN_SLUG,
   INSTRUMENT_SLUG,
   MUSICIAN_SLUG,

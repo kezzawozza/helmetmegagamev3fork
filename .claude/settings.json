@@ -55,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/labordrops-value-hint.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/miningdrops-value-hint.py",
             "timeout": 60
           }
         ]

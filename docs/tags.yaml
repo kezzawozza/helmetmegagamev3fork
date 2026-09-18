@@ -2676,7 +2676,7 @@ tags:
   # be obtainable for the price of one Lesson Move.
   #
   # Scavenging redraws on the 6's pool when a 4 or a 5 finds an EMPTY one
-  # (db/lib/laborDrops.js) rather than remapping every 4 and 5, which would take
+  # (db/lib/miningDrops.js) rather than remapping every 4 and 5, which would take
   # a fisherman's 10 ⬢ face away and hand him a 1.56 ⬢ one. A 1 still hurts.
   laboring-scavenging:
     catalog: all
@@ -2713,7 +2713,7 @@ tags:
     mastery: true
 
   # Joined 2026-09-09. Pays the least ⬢ of the four on purpose — a labor drop
-  # (LABORDROPS.md) is meant to make up the difference in items rather than
+  # (MININGDROPS.md) is meant to make up the difference in items rather than
   # coin, once that table is built out.
   laboring-prospecting:
     catalog: all
@@ -6374,7 +6374,7 @@ tags:
     inlayValue: 2
 
   # The first of several ingredients Prospecting is meant to source
-  # (LABORDROPS.md §2b) — {tag:silver-knife} and {tag:silver-spear} both spend
+  # (MININGDROPS.md §2b) — {tag:silver-knife} and {tag:silver-spear} both spend
   # one now; each recipe's resourceCost was cut by exactly this price (5 ⬢)
   # so the total cost of either item is unchanged. Not craftable-purchasable
   # (2026-09-09: a character can't buy it as a build pick), but the Merchant
@@ -6905,7 +6905,7 @@ tags:
       - steel
       - steel
 
-  # One of six modest finds behind Eagle Eyes (docs/labordrops.yaml's
+  # One of six modest finds behind Eagle Eyes (docs/miningdrops.yaml's
   # requiresTag pool) — MANY medium prizes across every face of the die,
   # rather than a few outsized ones on just two or three (Bascinet,
   # 2026-09-20: the first item-only pass leaned on three 40-60 ⬢ single
@@ -7398,7 +7398,7 @@ tags:
     sellable: true
     sellablePrice: 1
 
-  # Two finds unique to hills-west (LABORDROPS.md), a grave beneath its own
+  # Two finds unique to hills-west (MININGDROPS.md), a grave beneath its own
   # gallows: what the dead were buried wearing, and what the living left them
   # for the walk after.
   gallows-charm:
@@ -8106,7 +8106,7 @@ tags:
 
   # Flavor finds, not ore — Prospecting's own design note already says
   # "searching is searching, wherever it turns up plant matter"
-  # (LABORDROPS.md §2b), so it was never meant to be mining alone. These
+  # (MININGDROPS.md §2b), so it was never meant to be mining alone. These
   # widen what a search can turn up without adding any new mechanic — same
   # shape as Sweets or Heirloom, just more of the game's existing texture
   # for personal effects, curios and the occult (Bascinet's call, 2026-09-10).
@@ -8216,7 +8216,7 @@ tags:
     sellablePrice: 3
 
   # The one true gem — as rare as depths-chasm's own philosophy demands
-  # (LABORDROPS.md §2b: "rare ground stays rare by what it can find, not by
+  # (MININGDROPS.md §2b: "rare ground stays rare by what it can find, not by
   # a bigger number"), and priced just under the game's existing ceiling
   # (Aberrant Heart, 55 ⬢) rather than past it. "Fit for a king. Or a
   # Baron." is doing the naming work here on purpose — Ravenheart has no
@@ -10770,7 +10770,7 @@ tags:
   #
   # Restored 2026-09-20 — this whole block was deleted as collateral damage
   # in the commit that swept the dagger marks ("The draft marks come off"),
-  # which broke docs/labordrops.yaml's hunting/fishing/farming tables and
+  # which broke docs/miningdrops.yaml's hunting/fishing/farming tables and
   # docs/zones.yaml's room stashes (both still named several of these slugs)
   # and made the entire labor-drop sync throw on the first reference. Content
   # unchanged from before the deletion — a decision on whether to keep this
@@ -13668,7 +13668,7 @@ tags:
   # every surface Prospecting location with mushroom flavor already written
   # in (forest-creekside's colonies, forest-sparse-field's fungus on the cut
   # stumps) grants this rather than {tag:cave-fungus}, which reads as the
-  # underground half of the same idea (LABORDROPS.md §2b).
+  # underground half of the same idea (MININGDROPS.md §2b).
   wild-mushroom:
     catalog: all
     name: Wild Mushroom

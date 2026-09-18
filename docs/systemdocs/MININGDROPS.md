@@ -6,8 +6,8 @@ What a Labor payout can find, on top of its ⬢. Companion to `LABORING.md`
 "roll a die on an action, maybe grant a tag" system in the game — see §5 for
 where the two diverge on purpose).
 
-Read this before touching `db/lib/laborDrops.js`, `db/lib/syncLaborDrops.js`,
-`docs/labordrops.yaml`, or the `laborDrop` entry in `db/lib/moveEffects.js`.
+Read this before touching `db/lib/miningDrops.js`, `db/lib/syncMiningDrops.js`,
+`docs/miningdrops.yaml`, or the `miningDrop` entry in `db/lib/moveEffects.js`.
 
 ## 1. The die
 
@@ -16,7 +16,7 @@ Every Labor payout that actually resolves to a real tier — `basic`,
 once, on top of its ⬢. **A refining Labor (the Godard Factory floor) never
 rolls at all**; it pays in Squeeze, not the die (`FACTORY.md`).
 
-It fires from exactly one place: the `laborDrop` entry in
+It fires from exactly one place: the `miningDrop` entry in
 `db/lib/moveEffects.js`'s `MOVE_EFFECTS`, which every Labor payout already
 runs through — the auto-labor pass (`db/lib/autoLaborPass.js`) and a
 hand-filed Labor's turn-close payout (`db/lib/stagedPush.js`) both call
@@ -46,7 +46,7 @@ whose face lands on an unconfigured pool.
 
 ## 2. Combining scopes
 
-A drop table is never one row. `LaborDropOption` rows are pool *entries*, and
+A drop table is never one row. `MiningDropOption` rows are pool *entries*, and
 a "table" for one roll is every entry that answers to it across up to **six**
 scopes at once, drawn from as one combined pool:
 
@@ -63,13 +63,13 @@ scopes at once, drawn from as one combined pool:
 "Labor type + Zone + Location" bucket, and no plain "Zone + Location" one.
 Farming in a zone with no location-specific table still draws from Global,
 `laborType: farming`, and the zone's own pool, all at the same die face —
-`db/lib/laborDrops.js#scopeFilters` is the one place this is expressed, and
-`db/test/laborDrops.test.js` pins its exact output.
+`db/lib/miningDrops.js#scopeFilters` is the one place this is expressed, and
+`db/test/miningDrops.test.js` pins its exact output.
 
 The combined pool is drawn from in **two stages**, the shape
 `db/lib/cavingLoot.js` has always had: land on a **rarity band** by the die
 face's column, then pick evenly among that band's members.
-`db/lib/labordropsRarity.js` owns the columns and the arithmetic.
+`db/lib/miningdropsRarity.js` owns the columns and the arithmetic.
 
 Every find carries a rarity — `ultracommon`, `common`, `uncommon`, `rare`,
 `extremely-rare`, `nearly-impossible`, the same six names caving uses, though
@@ -95,7 +95,7 @@ the sync refuses it.
 ### 2a. The seventh gate: `requiredTag`
 
 The six scopes above answer "where, and doing what" — a **seventh**, fully
-orthogonal dimension answers "held by whom". A `LaborDropOption` row may
+orthogonal dimension answers "held by whom". A `MiningDropOption` row may
 carry `requiredTagId`: null (the overwhelming common case) means every
 character; set, the row only joins the combined pool for a character who
 holds that tag too. Forester-in-the-Forest is the first user: a `forester`
@@ -105,16 +105,16 @@ under `zone.forest`.
 
 It is deliberately **not** part of the SQL `WHERE` `scopeFilters` builds.
 "Does the drawing character hold tag X" cannot be expressed against a query
-keyed on their zone/location/laborType alone, so `db/lib/laborDrops.js`
+keyed on their zone/location/laborType alone, so `db/lib/miningDrops.js`
 fetches every row the six scopes already matched and **post-filters** in
 application code — `passesRequiredTag(row, heldTagIds)`, pure and
-unit-tested (`db/test/laborDrops.test.js`) precisely because it has no
+unit-tested (`db/test/miningDrops.test.js`) precisely because it has no
 database dependency to fake. `heldTagIds` defaults to an empty set, so a
 caller that doesn't pass it — or genuinely holds nothing — sees every gated
 row excluded rather than leaking in; there is no "unknown, so allow it"
 branch anywhere in this path.
 
-`db/lib/moveEffects.js`'s `laborDrop.apply` loads the character's held tags
+`db/lib/moveEffects.js`'s `miningDrop.apply` loads the character's held tags
 **fresh, at apply time** — the same live-state reasoning §1a gives for
 `Action.laborTier`: a skill learned between filing and turn close should
 count, the same way the tier itself is never re-derived from a stale
@@ -136,11 +136,11 @@ zone:
           - "+1"
 ```
 
-The nesting is a plain recursive parse (`db/lib/syncLaborDrops.js#rowsFromScopeNode`),
+The nesting is a plain recursive parse (`db/lib/syncMiningDrops.js#rowsFromScopeNode`),
 so it isn't special-cased to `zone` — `laborType.hunting.requiresTag.forester`
 or even a double-gated `requiresTag.forester.requiresTag.butcher` parse the
 same way with no extra code, though nothing seeds those yet. `npm run
-db:audit-labor-drops -- --holds <skill-slug>` (optionally with `--zone`/
+db:audit-mining-drops -- --holds <skill-slug>` (optionally with `--zone`/
 `--location`) previews the enriched combined pool a holder actually draws
 from; omit it and the Combined section shows the baseline every other
 character gets, which is also exactly what the tool defaults to so a gated
@@ -168,7 +168,7 @@ formula to hit exactly:
 | 0.6-0.7 | ~9-10.5 ⬢ |
 | 0.8-1.0 | ~12-15 ⬢ |
 
-Read this off `npm run db:audit-labor-drops`'s own combined EV/labor line
+Read this off `npm run db:audit-mining-drops`'s own combined EV/labor line
 for the table you're building (§6a), the same way every other table in this
 file was tuned — not by hand arithmetic. Since a Prospecting-specific
 `zone:`/`laborType:` bucket doesn't exist yet at most locations, a
@@ -192,7 +192,7 @@ in a bucket (Forest's regional table had no face 6 at all) is the safest
 place to add fresh content, since there's nothing there yet to dilute.
 
 **The Prospecting advantage pool (the `requiresTag` pool nested under
-`laborType.prospecting`, LABORDROPS.md §2a — it hangs off Eagle Eyes, and
+`laborType.prospecting`, MININGDROPS.md §2a — it hangs off Eagle Eyes, and
 nothing player-facing says so) learned the same lesson the hard way, across
 four redesigns.** Its first pass used tag grants only, verified "never hurts"
 against the OLD uniform draw — but that property doesn't carry over to the
@@ -211,7 +211,7 @@ entire probability instead of its own column share, and the average shot
 past +5 ⬢/labor from one slot.
 
 **The rule that held: only use a rarity STRICTLY LATER, in TIERS order
-(`db/lib/labordropsRarity.js`), than whatever the base table's own ungated
+(`db/lib/miningdropsRarity.js`), than whatever the base table's own ungated
 entries ALWAYS put on that face.** That earlier tier is always live, so it
 always wins the "commonest" tiebreak instead, and the grant's share is
 capped at its own column percentage, full stop. `laborType.prospecting`
@@ -248,7 +248,7 @@ draws on faces 3-6 with two tags minted for it alone (`gallows-charm`,
 
 ## 3. Pool entries
 
-Authored in `docs/labordrops.yaml`, one list per (bucket, roll face). Three
+Authored in `docs/miningdrops.yaml`, one list per (bucket, roll face). Three
 kinds, and the sync tells them apart by the string's own shape:
 
 ```yaml
@@ -293,7 +293,7 @@ Printing it on the desk costs **two** edits, not one: `describeMoveEffects`
 (`db/lib/moveEffects.js`) is mirrored by hand in `web/lib/moveRows.js#paidLabel`
 so the web never imports `db/lib` just to print "+5 ⬢". The first version of
 this system taught only the db half, and `/gm/turns` rendered
-`laborDrop: [object Object]` for a week. Teach both. Worth
+`miningDrop: [object Object]` for a week. Teach both. Worth
 building once the table is real and Bascinet wants to watch it; not built
 now because there is nothing yet worth watching.
 
@@ -306,7 +306,7 @@ different design questions:
 - **The Caving Die's table is code** (`db/lib/cavingLoot.js`) — a fixed
   weighted-tier draw nobody expects a GM to retune without a deploy, gated by
   `validateCavingLoot()` at startup. **The labor drop table is data**
-  (`docs/labordrops.yaml`) — Bascinet's own session notes call it out
+  (`docs/miningdrops.yaml`) — Bascinet's own session notes call it out
   explicitly as unfinished and iterative ("we don't have the full loot table
   figured out yet"), and the whole point of this system is a GM-editable
   pool with no code change required to reshape it.
@@ -323,7 +323,7 @@ different design questions:
 
 ## 6. Seeding a table for the first time
 
-`docs/labordrops.yaml` seeds `laborType.hunting.6`, `laborType.farming.6`,
+`docs/miningdrops.yaml` seeds `laborType.hunting.6`, `laborType.farming.6`,
 `laborType.fishing.6`, `global.1`/`global.6`, and one skill-gated bucket,
 `zone.forest.requiresTag.forester.6` (§2a). `location`, `laborTypeZone`,
 `laborTypeLocation` and both `basic`/`skilled` on their own are still `{}`,
@@ -338,17 +338,17 @@ demonstration of what Global is *for*: three self-clearing minor mishaps
 (`bruised`, `vomiting`, `aching` — 1-2 turns, no mechanical cost beyond the
 tag) with no hunting/farming/fishing-specific equivalent in the catalog, so
 one shared pool covers a bad roll for every labor type at once — Basic and
-Skilled included, which is why `db:audit-labor-drops`'s combined view reports
+Skilled included, which is why `db:audit-mining-drops`'s combined view reports
 100% hit rate on their roll-1 even though neither has an authored bucket of
 its own. `global.6` is one entry, `obol` — the physical form of ⬢ itself
 (`DEPOT.md`), so it is priced at exactly 1 ⬢ rather than by a `sellablePrice`
 it doesn't carry (§6a).
 
-To add to a table: edit `docs/labordrops.yaml`, run
-`npm run db:audit-labor-drops` to see what it's actually worth before
-committing to it (§6a), then `npm run db:sync-labor-drops` (or
+To add to a table: edit `docs/miningdrops.yaml`, run
+`npm run db:audit-mining-drops` to see what it's actually worth before
+committing to it (§6a), then `npm run db:sync-mining-drops` (or
 `npm run db:sync`, which includes it last) to apply it. The sync is
-**destructive on every run** — the whole `LaborDropOption` table is deleted
+**destructive on every run** — the whole `MiningDropOption` table is deleted
 and rebuilt from the YAML, the same posture as `db:sync-documents`
 (`SYNC.md` §1) — which is safe here specifically because nothing in the game
 ever points *at* one of these rows (no `CharacterTag`, no `Action` foreign
@@ -356,7 +356,7 @@ key), so there is no player state a partial upsert would need to protect.
 
 ### 6a. Pricing a table before you commit to it
 
-`npm run db:audit-labor-drops` reads `docs/labordrops.yaml` straight off
+`npm run db:audit-mining-drops` reads `docs/miningdrops.yaml` straight off
 disk — no sync needed first — and prints, for every authored bucket and
 every combined labor-type pool:
 
@@ -366,7 +366,7 @@ every combined labor-type pool:
   but a `consumesIntoResources` — Purse, Supply Kit — falls back to that
   instead, since that's the ⬢ a player actually realizes, just through the
   other door (2026-09-09); a `TAG` with neither, but listed in
-  `labordropsAnnotate.js`'s `ASSUMED_VALUES` — godflesh at 8 ⬢, and the three
+  `miningdropsAnnotate.js`'s `ASSUMED_VALUES` — godflesh at 8 ⬢, and the three
   monster corpses (Skinless/Graga/Nekker) at what Butchering turns them into
   (25/8/5 ⬢) since Butchering is free (CORPSES.md §6: no ⬢, no turn) and
   consumes the body for exactly one of that yield, so the corpse and its
@@ -395,8 +395,8 @@ the flag changes.
 
 ### 6b. `--write`: the file annotates itself
 
-`npm run db:audit-labor-drops -- --write` is the one flag that touches the
-file. It rewrites `docs/labordrops.yaml`'s own comments in place — every
+`npm run db:audit-mining-drops -- --write` is the one flag that touches the
+file. It rewrites `docs/miningdrops.yaml`'s own comments in place — every
 pool entry's ⬢ value, every roll's **own** EV (this bucket alone, CONDITIONAL
 on landing on that face) *and* **combined** EV (what a real payout in that
 exact scope actually pools together on that face, per §2's six buckets and
@@ -424,7 +424,7 @@ edit the pool, run `--write`, read the new number. The terminal report
 (no `--write`) prints the same per-tier total after each tier's per-face
 lines, labeled `-> <tier>: ⬢ EV/labor ...`.
 
-It is **text surgery, not a YAML round-trip** (`db/lib/labordropsAnnotate.js`)
+It is **text surgery, not a YAML round-trip** (`db/lib/miningdropsAnnotate.js`)
 — an indentation-stack walker over the raw lines that only ever replaces a
 trailing `# ...` on a line it recognizes (a roll key, a category key, a pool
 entry). Every other line — every hand-written paragraph, every blank line,
@@ -436,7 +436,7 @@ file's shape is fully hand-authored and disciplined (2-space indents,
 tailored to exactly that shape is simpler and safer than a general one.
 
 **A `PostToolUse` hook runs it automatically.**
-`.claude/hooks/labordrops-value-hint.py`, registered in the project's
+`.claude/hooks/miningdrops-value-hint.py`, registered in the project's
 `.claude/settings.json`, fires on every Edit/Write to this file and runs
 `--write` right away — the mechanical numbers are never stale for more than
 one edit. What the hook cannot do is judge *why* an entry belongs in a pool,
@@ -449,7 +449,7 @@ mechanical value.**
 - minor-bleeding  # a boar's tusk catches you — not sellable
 ```
 
-Write the blurb yourself when you add an entry — `db/lib/labordropsAnnotate.js`
+Write the blurb yourself when you add an entry — `db/lib/miningdropsAnnotate.js`
 never invents one. On every later `--write`, `splitBlurb()` preserves
 whatever sits before ` — ` and only regenerates what comes after; a bare
 comment that already equals today's mechanical value (no blurb ever
@@ -468,7 +468,7 @@ with it" a real rule, and forgetting it quietly raised the wound rate
 everywhere the bucket applied. 53 of the file's 180 entries were pad.
 
 How often a roll misses is now **one number in the face's column**
-(`db/lib/labordropsRarity.js`): 45% on a 1, 15% on a 6, never on a 5. A pool
+(`db/lib/miningdropsRarity.js`): 45% on a 1, 15% on a 6, never on a 5. A pool
 says `nothing` once to opt in, or leaves it out to say a roll here always
 lands. The sync refuses a second one.
 
@@ -495,7 +495,7 @@ is the face's, not an emergent average of whatever was authored. Standing
 somewhere dangerous no longer changes how *often* a 1 bites, only how hard.
 
 Every wound carries the catalog's `durationTurns` (2-4) onto the grant, so
-these all clear on their own — see `laborDrop.apply`'s own comment for why
+these all clear on their own — see `miningDrop.apply`'s own comment for why
 that has to be stamped at grant time rather than read back from the catalog.
 
 ## 8. The Depths corpse table
@@ -519,7 +519,7 @@ is always a body, a 6 is a body or an ordinary find. Per Depths-hunting Labor:
 **23.3% a corpse, 2.59% an Aberrant Heart.**
 
 Two things to know about the corpses. They are `sellable: false`, so
-`db:audit-labor-drops` scores them at 0 ⬢ and the bucket's EV is really the
+`db:audit-mining-drops` scores them at 0 ⬢ and the bucket's EV is really the
 heart alone — their worth is butchering (`skinless-brain`, `graga-sac`,
 `nekker-pheromones`). And a Graga Corpse is 75 lb against a 71 lb base cap, so
 a hunter who draws one walks out Overburdened; the carry pass settles it at
@@ -530,23 +530,23 @@ turn close (`TURN-ENGINE.md` §8b), shedding to a Depths room only past the
 
 | Concern | File |
 |---|---|
-| The config table, and its two enums | `db/prisma/schema.prisma` (`LaborDropOption`, `LaborDropLaborType`, `LaborDropKind`) |
-| Reading a combined pool and drawing from it | `db/lib/laborDrops.js` |
-| The die roll, the grant/credit, and Undo | `db/lib/moveEffects.js`'s `laborDrop` entry |
+| The config table, and its two enums | `db/prisma/schema.prisma` (`MiningDropOption`, `LaborDropLaborType`, `MiningDropKind`) |
+| Reading a combined pool and drawing from it | `db/lib/miningDrops.js` |
+| The die roll, the grant/credit, and Undo | `db/lib/moveEffects.js`'s `miningDrop` entry |
 | Which tier a roll answers to | `Action.laborTier`, stamped by `db/lib/moves.js` and `db/lib/autoLaborPass.js` |
-| The YAML master | `docs/labordrops.yaml` |
-| The sync | `db/lib/syncLaborDrops.js`, `db/scripts/sync/sync-labor-drops.js` |
-| Pricing a table, and `--write`ing its own comments | `db/scripts/ops/audit-labor-drops.js`, `db/lib/labordropsAnnotate.js` |
-| The auto-refresh hook | `.claude/hooks/labordrops-value-hint.py` |
-| Combine-scope tests | `db/test/laborDrops.test.js` |
-| Cascading-EV / annotator tests | `db/test/labordropsAnnotate.test.js` |
+| The YAML master | `docs/miningdrops.yaml` |
+| The sync | `db/lib/syncMiningDrops.js`, `db/scripts/sync/sync-mining-drops.js` |
+| Pricing a table, and `--write`ing its own comments | `db/scripts/ops/audit-mining-drops.js`, `db/lib/miningdropsAnnotate.js` |
+| The auto-refresh hook | `.claude/hooks/miningdrops-value-hint.py` |
+| Combine-scope tests | `db/test/miningDrops.test.js` |
+| Cascading-EV / annotator tests | `db/test/miningdropsAnnotate.test.js` |
 
 
 ## 8. Laboring (Scavenging) redraws an empty face
 
 Laboring (Scavenging) (a mastery, `TAGS.md` §4a) redraws on the **6's pool**
-when a rolled 4 or 5 finds **an empty one** — `pickLaborDropOption` in
-`db/lib/laborDrops.js`, where the pool is already in hand.
+when a rolled 4 or 5 finds **an empty one** — `pickMiningDropOption` in
+`db/lib/miningDrops.js`, where the pool is already in hand.
 
 The empty-pool test is the rule, not a detail. This shipped first as a blanket
 `4/5 → 6` remap, which was written when faces **1 and 6 were the only ones

@@ -1,12 +1,17 @@
-// Tired -> Exhausted ladder (docs/systemdocs/TAGS.md, docs/systemdocs/LABORING.md §4). Labor
-// (db/lib/moveEffects.js) and a bad night (db/lib/dawnAfflictionPass.js) both escalate identically —
-// though only a HAND-FILED Labor reaches the second rung, since the auto-labor pass stops at Tired;
-// the Exhausted->Tired decay is the ordinary `expiresInto` chain (TAGS.md §5c).
+// Tired -> Exhausted ladder (docs/systemdocs/TAGS.md). Three unrelated things climb it and they
+// all climb it identically: a day's mining (db/lib/moveEffects.js), a bad night
+// (db/lib/dawnAfflictionPass.js) and pushing on through a travel gate
+// (db/lib/locationTravel.js). The Exhausted->Tired decay is the ordinary `expiresInto` chain
+// (TAGS.md §5c).
+//
+// This used to live in db/lib/laborFatigue.js and read as a Laboring file. It never was one —
+// two of its three callers have nothing to do with working a day — so when Laboring was removed
+// the ladder stayed and moved here under a name that says what it is.
 const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 
 // Returns the slug to grant, or null if already at the top of the ladder.
-function nextLaborFatigueSlug(heldSlugs) {
+function nextFatigueSlug(heldSlugs) {
   if (heldSlugs.has(EXHAUSTED_SLUG)) return null;
   return heldSlugs.has(TIRED_SLUG) ? EXHAUSTED_SLUG : TIRED_SLUG;
 }
@@ -14,7 +19,7 @@ function nextLaborFatigueSlug(heldSlugs) {
 // Farming's lockout (db/lib/soilery.js; Context §2 of the Soilery plan): unlike the ladder above,
 // which ESCALATES Tired into Exhausted, a day sowing a field grants Exhausted OUTRIGHT — there is
 // no lesser rung to climb through first. If the character already holds Tired (say, from an
-// unrelated Labor filed earlier the same turn), it's replaced rather than left to stack alongside
+// unrelated day of mining earlier the same turn), it's replaced rather than left to stack alongside
 // Exhausted; its `expiresTurn` is snapshotted so db/lib/moveEffects.js's `farmed` entry can restore
 // it exactly on Undo. `turnNumber` is the CLOSING turn's number — this adds one itself, the same
 // "+1" the `exhausted` MOVE_EFFECTS entry already applies when it grants at push.
@@ -45,4 +50,4 @@ async function grantExhaustedOutright(tx, characterId, turnNumber) {
   return { replacedTired: heldTired ? { expiresTurn: heldTired.expiresTurn } : null };
 }
 
-module.exports = { nextLaborFatigueSlug, grantExhaustedOutright };
+module.exports = { nextFatigueSlug, grantExhaustedOutright };

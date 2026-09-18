@@ -23,7 +23,7 @@ import {
   syncRolesFromYaml,
   syncDesiresFromYaml,
   syncDocumentsFromYaml,
-  syncLaborDropsFromYaml,
+  syncMiningDropsFromYaml,
 } from "@lifeweb/db";
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
 import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
@@ -637,7 +637,7 @@ async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds,
   await step("document sync", () => syncDocumentsFromYaml(prisma));
   // No dependents of its own, so it runs last — validates against the tag,
   // zone and location catalogs the steps above just rebuilt.
-  await step("labor drop sync", () => syncLaborDropsFromYaml(prisma));
+  await step("labor drop sync", () => syncMiningDropsFromYaml(prisma));
 
   // Backstop: repairs every category, channel, role, anchor and Room thread
   // the wipe just cleared or emptied, including reposting the starters and

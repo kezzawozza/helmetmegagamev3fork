@@ -66,8 +66,8 @@ test("a Move the game filed is a receipt, never editable", () => {
   assert.match(reason, /the game declared this one/);
 });
 
-test("a Labor is paid on the press, so there is nothing pending to take back", () => {
-  const { editable, reason } = moveIsEditable(gambit({ moveKind: "LABOR" }), TURN, {
+test("a Mine is paid on the press, so there is nothing pending to take back", () => {
+  const { editable, reason } = moveIsEditable(gambit({ moveKind: "ROUTINE" }), TURN, {
     now: OPEN_AT,
   });
   assert.equal(editable, false);

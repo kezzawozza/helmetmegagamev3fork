@@ -1,4 +1,4 @@
-// node --test over db/lib/labordropsRarity.js — the tier columns, the
+// node --test over db/lib/miningdropsRarity.js — the tier columns, the
 // renormalisation that stops one bucket diluting another, and the two-stage
 // draw. Run with `npm test --workspace=db`. Nothing here touches Prisma.
 const test = require("node:test");
@@ -13,7 +13,7 @@ const {
   rowShares,
   drawFromPool,
   validateRarityColumns,
-} = require("../lib/labordropsRarity");
+} = require("../lib/miningdropsRarity");
 
 const tag = (rarity, slug = rarity) => ({ kind: "TAG", rarity, slug });
 const nothing = () => ({ kind: "NOTHING" });
@@ -106,7 +106,7 @@ test("a pool of nothing but pad is a guaranteed miss", () => {
 });
 
 test("a database row and a YAML row name the same band", () => {
-  // Postgres hands back the LaborDropRarity enum, the YAML hands back what
+  // Postgres hands back the MiningDropRarity enum, the YAML hands back what
   // the author typed. Matching only one spelling meant every live row fell
   // out of every band and could never be drawn at all.
   assert.equal(bandOf({ kind: "TAG", rarity: "EXTREMELY_RARE" }), "extremely-rare");

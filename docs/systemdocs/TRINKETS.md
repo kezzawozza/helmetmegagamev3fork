@@ -94,7 +94,7 @@ the OUTCOME changes when the COST is paid.
 
 A smith may slot 0-2 raw materials into a Trinket, and each one adds its own
 flat `inlayValue` to the finished price on top of the tier. Two new ores feed
-this (Prospecting-sourced, `docs/labordrops.yaml`): `{tag:malachite}` (6 ⬢)
+this (Prospecting-sourced, `docs/miningdrops.yaml`): `{tag:malachite}` (6 ⬢)
 and `{tag:hematite}` (3 ⬢), plus `{tag:iron}` — smelted from hematite at the
 forge the same way `{tag:steel}` smelts from coal — which is worth less as an
 inlay (3 ⬢) than the raw ore it came from is worth SOLD, on purpose: iron's
@@ -201,5 +201,5 @@ before; only the implementation moved.
 | `web/app/(app)/character/trinketActions.js` | The request action: the gate, the charge, the filed Gambit |
 | `web/app/(app)/character/requestActions.js` | `resolveIngredientSlots` (now exported, shared with Trinket's own `inlayValue` pool), `resolveCraftPayer`, the `mintCustomCraft` wrapper |
 | `docs/tags.yaml` | `{tag:trinket}` (the base shape), `{tag:malachite}`, `{tag:hematite}`, `{tag:iron}` |
-| `docs/labordrops.yaml` | Where `malachite`/`hematite` turn up prospecting |
+| `docs/miningdrops.yaml` | Where `malachite`/`hematite` turn up prospecting |
 | `db/test/trinketPass.test.js` | The pure half — the tier table and the skilled floor |

@@ -18,11 +18,10 @@ function TagToken({ payload, fallback }) {
   return tag ? <TagChip tag={tag} /> : fallback;
 }
 
-// Payload is "field:tier" — see db/lib/production.js's PRODUCTION_RATES. Pre-formatted as `display` ("3" or "0–4").
+// Payload names a rate — see db/lib/mining.js's MINING_RATE. Pre-formatted as `display` ("3" or "0–4").
 function ResourceToken({ payload, fallback }) {
   const { rates } = useProductionRates();
-  const [field, tier] = payload.split(":").map((p) => p.trim());
-  const rate = rates[field]?.[tier];
+  const rate = rates[payload.trim()];
   if (!rate) return fallback;
   return <ResourceChip value={rate.display} />;
 }

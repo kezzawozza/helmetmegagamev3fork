@@ -198,9 +198,9 @@ test("an amount past int4 is clamped rather than raising", async () => {
 
 test("moveParty reconciles: ledger sum equals the live balance", async () => {
   const tx = fakeTx({ ada: 0 });
-  await moveParty(tx, ada, 10, { reason: "LABOR" });
+  await moveParty(tx, ada, 10, { reason: "MINING" });
   await moveParty(tx, ada, -3, { reason: "HUNGER" });
-  await moveParty(tx, ada, 5, { reason: "LABOR_DROP" });
+  await moveParty(tx, ada, 5, { reason: "MINING_DROP" });
   assert.equal(tx.bal.get("ada"), 12);
   assert.equal(ledgerBalance(tx.entries, "character", "ada"), 12);
 });
@@ -276,8 +276,8 @@ test("a party kind the table does not know is a no-op in the book too", async ()
 
 test("a whole turn of mixed traffic reconciles across every account", async () => {
   const tx = fakeTx({ ada: 0, bram: 0, stash: 0 });
-  await moveParty(tx, ada, 14, { reason: "LABOR" });
-  await moveParty(tx, bram, 9, { reason: "LABOR" });
+  await moveParty(tx, ada, 14, { reason: "MINING" });
+  await moveParty(tx, bram, 9, { reason: "MINING" });
   await applyTransfer(tx, { from: ada, to: bram, amount: 4 }, { reason: "TRANSFER" });
   await applyTransfer(tx, { from: bram, to: stash, amount: 10 }, { reason: "STASH" });
   await moveParty(tx, ada, -1, { reason: "HUNGER" });

@@ -34,7 +34,6 @@ function buildSideEffectPayload(fields) {
     startedAtMs: Date.now(),
     newTurnId: fields.newTurnId,
     note: fields.note ?? null,
-    autoLaborDms: fields.autoLaborDms ?? [],
     lessonDms: fields.lessonDms ?? [],
     researchDms: fields.researchDms ?? [],
     confessionDms: fields.confessionDms ?? [],

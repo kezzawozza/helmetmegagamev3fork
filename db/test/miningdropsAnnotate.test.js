@@ -1,11 +1,11 @@
-// node --test over db/lib/labordropsAnnotate.js. Nothing here touches
+// node --test over db/lib/miningdropsAnnotate.js. Nothing here touches
 // Prisma or the filesystem — annotateLines takes plain rows and lines, so
 // the whole cascading-EV/blurb-preservation contract is testable with
 // synthetic data. A live-file smoke test (--write against a real db) is a
-// second layer, not a replacement (see LABORDROPS.md §6a-§6b).
+// second layer, not a replacement (see MININGDROPS.md §6a-§6b).
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { annotateLines, priceRows, mechanicalValue, splitBlurb, ASSUMED_VALUES } = require("../lib/labordropsAnnotate");
+const { annotateLines, priceRows, mechanicalValue, splitBlurb, ASSUMED_VALUES } = require("../lib/miningdropsAnnotate");
 
 test("mechanicalValue: obol, a sellable tag, an unsellable tag, and non-tag entries", () => {
   const tagsById = new Map([
@@ -153,9 +153,9 @@ test("splitBlurb: a bare comment with no separator, authored before any mechanic
   });
 });
 
-// A minimal but real tree: global (1 tag, roll 6), laborType.hunting (roll
-// 6, one entry), and zone.forest.requiresTag.forester (roll 6) — enough to
-// exercise every node kind the walker handles (top, slugStep, rollLevel,
+// A minimal but real tree: global (1 tag, roll 6), location.caves-approach
+// (roll 6, one entry), and zone.forest.requiresTag.forester (roll 6) — enough
+// to exercise every node kind the walker handles (top, slugStep, rollLevel,
 // rollLeaf, requiresTagMarker, skillLevel) in one pass.
 function fixture() {
   const tagsById = new Map([
@@ -164,12 +164,12 @@ function fixture() {
   ]);
   const tagIdBySlug = new Map([["obol", "t-obol"], ["rope", "t-rope"], ["forester", "t-forester"]]);
   const zoneIdBySlug = new Map([["forest", "z-forest"]]);
-  const locationIdBySlug = new Map();
+  const locationIdBySlug = new Map([["caves-approach", "l-caves"]]);
 
   const rows = [
-    { roll: 6, laborType: null, zoneId: null, locationId: null, requiredTagId: null, kind: "TAG", tagId: "t-obol", rarity: "ultracommon", evValue: 1 },
-    { roll: 6, laborType: "HUNTING", zoneId: null, locationId: null, requiredTagId: null, kind: "RESOURCES", resourceAmount: 2, evValue: 2 },
-    { roll: 6, laborType: null, zoneId: "z-forest", locationId: null, requiredTagId: "t-forester", kind: "TAG", tagId: "t-rope", rarity: "uncommon", evValue: 4 },
+    { roll: 6, zoneId: null, locationId: null, requiredTagId: null, kind: "TAG", tagId: "t-obol", rarity: "ultracommon", evValue: 1 },
+    { roll: 6, zoneId: null, locationId: "l-caves", requiredTagId: null, kind: "RESOURCES", resourceAmount: 2, evValue: 2 },
+    { roll: 6, zoneId: "z-forest", locationId: null, requiredTagId: "t-forester", kind: "TAG", tagId: "t-rope", rarity: "uncommon", evValue: 4 },
   ];
 
   const lines = [
@@ -177,8 +177,8 @@ function fixture() {
     "  6:",
     "    - { slug: obol, rarity: ultracommon }",
     "",
-    "laborType:",
-    "  hunting:",
+    "location:",
+    "  caves-approach:",
     '    6:',
     '      - "+2"',
     "",
@@ -197,14 +197,14 @@ function fixture() {
 test("annotateLines: global's own roll comment shows one number (own == combined)", () => {
   const { lines, ...ctx } = fixture();
   const out = annotateLines(lines, ctx);
-  const globalRoll = out.find((l) => l.trim().startsWith("6:") && !l.includes("hunting"));
+  const globalRoll = out.find((l) => l.startsWith("  6:"));
   assert.match(globalRoll, /^  6:\s+# EV 1\.00 ⬢ · hit 100%$/);
 });
 
-test("annotateLines: hunting's roll 6 shows own AND combined (global's obol pools in)", () => {
+test("annotateLines: the location's roll 6 shows own AND combined (global's obol pools in)", () => {
   const { lines, ...ctx } = fixture();
   const out = annotateLines(lines, ctx);
-  const line = out[6]; // '    6:' under laborType.hunting
+  const line = out[6]; // '    6:' under location.caves-approach
   assert.match(line, /own EV 2\.00 ⬢ · hit 100%/);
   // Priced by BAND now, not by row count. The ⬢ delta holds `resources`'s
   // 0.20 at face 6 and nothing more — a consolation prize never absorbs the

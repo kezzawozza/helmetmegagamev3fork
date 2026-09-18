@@ -1,11 +1,11 @@
-// Manual sync from docs/labordrops.yaml -> DB (`npm run db:sync-labor-drops`).
+// Manual sync from docs/miningdrops.yaml -> DB (`npm run db:sync-mining-drops`).
 // Run AFTER db:import-zones and db:sync-tags — every slug named in the YAML is
 // validated against the Tag/Zone/Location rows those create.
 require("dotenv").config();
-const { prisma, syncLaborDropsFromYaml } = require("../../index");
+const { prisma, syncMiningDropsFromYaml } = require("../../index");
 
 async function main() {
-  const summary = await syncLaborDropsFromYaml(prisma);
+  const summary = await syncMiningDropsFromYaml(prisma);
   console.log(`labor drop options: ${summary.total}`);
 }
 

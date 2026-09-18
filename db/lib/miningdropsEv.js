@@ -1,8 +1,8 @@
-// The labor-drop EV maths, pulled out of db/scripts/ops/audit-labor-drops.js
+// The labor-drop EV maths, pulled out of db/scripts/ops/audit-mining-drops.js
 // so it's testable with node --test. See that script for callers and
-// LABORDROPS.md §6a/§7 for what the numbers mean.
-const { rowShares } = require("./labordropsRarity");
-const { ASSUMED_VALUES } = require("./labordropsAnnotate");
+// MININGDROPS.md §6a/§7 for what the numbers mean.
+const { rowShares } = require("./miningdropsRarity");
+const { ASSUMED_VALUES } = require("./miningdropsAnnotate");
 
 // The one tag that IS ⬢ (DEPOT.md: "one obol is one ⬢"), no sellablePrice of
 // its own since selling an obol for ⬢ is a category error. Hardcoded — no
@@ -12,11 +12,11 @@ const OBOL_VALUE = 1;
 
 // One pool entry -> { label, evValue, note }. evValue is always a ⬢ number
 // (0 for NOTHING or an unpriced tag). Mirrors
-// labordropsAnnotate.js#mechanicalValue/priceRows exactly — ASSUMED_VALUES
+// miningdropsAnnotate.js#mechanicalValue/priceRows exactly — ASSUMED_VALUES
 // checked BEFORE the real sellable price (a Lockbox's discounted
 // sellablePrice must never win over its full contents value), then
 // consumesIntoResources for a non-sellable tag that pays out when consumed
-// (Purse, Supply Kit). Keep this branch order in sync with labordropsAnnotate.js.
+// (Purse, Supply Kit). Keep this branch order in sync with miningdropsAnnotate.js.
 function priceEntry(row, tagsById) {
   if (row.kind === "NOTHING") return { label: "(nothing)", evValue: 0, note: null };
   if (row.kind === "RESOURCES") {
@@ -51,7 +51,7 @@ function priceEntry(row, tagsById) {
 }
 
 // Priced by BAND, not row count: a row's chance comes from the die face's
-// rarity column (labordropsRarity.js), so `ev`/`hit` are real expectations,
+// rarity column (miningdropsRarity.js), so `ev`/`hit` are real expectations,
 // not "fraction of lines" as under the old uniform draw. `hits` stays a count
 // for the printout's "N entries"; `hit` is the fraction that matters.
 function summarize(rows, tagsById, roll) {
