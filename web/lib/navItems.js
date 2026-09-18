@@ -82,9 +82,13 @@ export async function loadNavItems(discordUserId) {
     .map((item) =>
       item.href === "/gm/players" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
     );
-  const withLifeweb = hasMortus ? [...baseNav, LIFEWEB_NAV_ITEM] : baseNav;
-  const withArchive = gm ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
-  const withDepot = [...withArchive, DEPOT_NAV_ITEM];
+  // Archive first, then Lifeweb: the bar starts a new group wherever `section`
+  // changes, so the order here is what decides the grouping. Lifeweb sits with
+  // the Depot and the Treasury — the three places a character goes to look at
+  // what is held rather than to act — instead of trailing the ordinary pages.
+  const withArchive = gm ? [...baseNav, ARCHIVE_NAV_ITEM] : baseNav;
+  const withLifeweb = hasMortus ? [...withArchive, LIFEWEB_NAV_ITEM] : withArchive;
+  const withDepot = [...withLifeweb, DEPOT_NAV_ITEM];
   const withTreasury = treasuryGate.ok || superadmin ? [...withDepot, TREASURY_NAV_ITEM] : withDepot;
   if (!superadmin) return withTreasury;
   const lastGm = withTreasury.findLastIndex((item) => item.section === "gm");
