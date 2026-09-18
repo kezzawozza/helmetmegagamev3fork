@@ -902,8 +902,7 @@ zones:
               - Ravenhearter
               - Insightful
               - Old
-              - Laboring II
-              - Laboring (Farming)
+              - Soilery
               - Literate
               - Headman's Cap
               - Sewer Key
@@ -1338,7 +1337,6 @@ zones:
             starting_zone: marshes
             starting_location: factory
             starting_tags:
-              - Laboring I
               - Hatchet
               - Cleaning Powder
               - Armored Gloves
@@ -1362,8 +1360,6 @@ zones:
               - Ravenhearter
               - Fishing Rod
               - Fishing Boat
-              - Laboring II
-              - Laboring (Fishing)
               - Fisherman's Key
               - Rough Camper
             doc_elements:
@@ -1511,7 +1507,7 @@ zones:
               - Ravine Camp
               - Brigand Leader
               - Brigand
-              - Laboring I
+              - Prospecting
               - Melee I
               - Ranged I
               - Padded Armor
@@ -1546,7 +1542,7 @@ zones:
             starting_tags:
               - Ravine Camp
               - Brigand
-              - Laboring I
+              - Prospecting
               - Melee I
               - Ranged I
               - Dagger

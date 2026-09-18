@@ -62,33 +62,24 @@ documents:
     name: Producing Resources
     public: true
     tags:
-      - Laboring I
-      - Laboring II
-      - Laboring (Hunting)
-      - Laboring (Farming)
-      - Laboring (Fishing)
-      - Laboring (Prospecting)
+      - Prospecting
+      - Soilery
     description: |-
-      Labor is how Resources are produced, and it needs one of the tags below.
+      There is no Labor Move any more. A day's work is a button, pressed where the work is, and there are four of them.
 
-      Pick **Labor** as your Move. It pays according to the best skill you hold for the Location, and it is your only action that turn. Labor is the default Move if no other Move is submitted.
+      **Mine** — in the Caves and the Depths, and thinly across the Black Hills. Needs {tag:prospecting}. It spends your whole turn and pays immediately: {resource:mining} at ordinary ground, scaled by how good the seam is. Now and then it turns something up besides the ⬢.
 
-      | Skill | Per turn | Where |
-      |---|---|---|
-      | {tag:laboring-basic} | {resource:labor:basic} | Anywhere |
-      | {tag:laboring-skilled} | {resource:labor:skilled} | Anywhere |
-      | {tag:laboring-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
-      | {tag:laboring-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
-      | {tag:laboring-fishing} | {resource:labor:fishing} | Water, scaled by the place |
-      | {tag:laboring-prospecting} | {resource:labor:prospecting} | Somewhere worth searching, scaled by the place |
+      **Farm** — on ground that takes seed. Needs {tag:soilery}. It spends your whole turn: you sow a plan of crops, and reap whatever didn't wither when the turn closes.
 
-      The bottom four need {tag:laboring-skilled} behind them and are side-grades. There is no limit on the number of Labor tags a Character may hold. Laboring always pays the best result for where you stand.
+      **Refine** — on the Godard Factory floor. Needs no skill, only Godflesh within reach. It spends your whole turn and turns one Godflesh into eight Squeeze at the close.
 
-      The Per Turn ranges are what an ordinary spot pays. What a Location pays **changes over the course of the game**. Press **Examine** in any Location's channel to see what it yields right now. Hunting is typically the most variable; Farming the most steady.
+      **Harvest Godflesh** — in the marsh. Needs a hatchet, a battle-axe or a chainsaw in your hands. This one is free: up to once a turn, and it costs you no Move.
 
-      Tools raise a yield while you carry them — bows and guns for hunting, a Pitchfork or a Plow for farming, a Rod for fishing. Each says so in its own description.
+      What a Location is worth to mine **changes over the course of the game**, and no two places are alike. Press **Examine** in any Location's channel to see how its ground is running right now — that is the only surface that will tell you.
 
-      If the Lifeweb fails, laboring nearly stops.
+      Tools raise what a day pays while you carry them. A Prospector's Pick and a Mining Helmet each say so in their own description.
+
+      If the Lifeweb fails, a day's work pays almost nothing.
   combat:
     name: Combat
     public: true
@@ -378,7 +369,7 @@ documents:
     description: |-
       Godard's beauty days are over, but it still functions. The Banneret's lineage, one of the Baron's cadet houses, has (usually grudgingly) employed refugees to extract {tag:godflesh} from the marshes and refine it into {tag:squeeze}, which is then shipped off to the merchant. It is generally unknown what Squeeze does or why it's so valuable. Unfortunately, due to the working conditions, most refugees don't stay for long and usually try to make it to the town. They're easily replaced, so it doesn't matter.
 
-      Anyone with a hatchet or chainsaw equipped can obtain Godflesh by pressing the Extract button from the character panel while in a marsh wilderness location. You can only do it once per turn. To turn it into {tag:squeeze}, simply labor while in the factory. You must have Godflesh in your inventory or somewhere in the factory. You will then obtain eight Squeeze cubes. Crate these up and load them into a cart!
+      Anyone with a hatchet or chainsaw equipped can obtain Godflesh by pressing the Harvest Godflesh button from the character panel while in a marsh wilderness location. You can only do it once per turn, and it costs you no Move. To turn it into {tag:squeeze}, press Refine while in the factory — that one spends your whole turn. You must have Godflesh in your inventory or somewhere in the factory. You will then obtain eight Squeeze cubes. Crate these up and load them into a cart!
 
       Extracting is dangerous, because the Godflesh is a living thing with swarming mouths that try to eat you. You run a risk of getting wounded. On the upside, working at the Factory gives you a chance of social mobility — a good Banneret will pay you much more than the average commoner would make, if only to keep you around.
 

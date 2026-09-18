@@ -22,8 +22,8 @@
     - [Transferring Resources](#transferring-resources)  
     - [Hunger](#hunger)  
 8. [Submitting A Move](#submitting-a-move)  
-    - [Routine, Gambit, or Labor](#routine-gambit-or-labor)  
-    - [Labor](#labor)  
+    - [What a Move is](#what-a-move-is)  
+    - [Working a day](#working-a-day)  
     - [Move Submission Is Final](#move-submission-is-final)  
 9. [Tags & Tag Points](#tags--tag-points)  
     - [Gaining, Using, and Losing Tags](#gaining-using-and-losing-tags)  
@@ -55,7 +55,7 @@ Each Zone has a Summary channel, where players can post descriptions of what the
 Introduce yourself, barge into conversations, make plans, offer services, beg for food, ask questions, etc. The bulk of the game is roleplaying as your character in a Location's channel, its Rooms, or a private Conversation. OOC discussions should take place in `#general`, keeping in mind that you should not intentionally reveal which character you play.
 
 **Decide What You're Doing**  
-Walk between Locations as often as you like, travel to another Zone, submit a description of what your character is trying to accomplish during the turn, or do neither and spend the day laboring.  
+Walk between Locations as often as you like, travel to another Zone, submit a description of what your character is trying to accomplish during the turn, or spend the day working instead.  
 
 ### Help & GMs
 
@@ -305,17 +305,12 @@ You submit a Move by pressing the Move button in `#turns` or using the `/move` s
 **Your Move**  
 A paragraph describing your character's objective, where it's happening, who else is involved, etc.
 
-**Kind**  
-Routine, Gambit, or Labor.
-
-If you don't submit a Move at all, you'll automatically Labor — provided you have a Laboring skill and aren't Exhausted. Nothing is filed for you otherwise.
+If you don't submit a Move at all, nothing is filed for you and nothing happens. The day simply passes.
 
 Moves are collectively adjudicated by the GMs at the end of every turn. If the Baron's intent was to stay in his castle then the Bandit's intent to rob him won't succeed. If the Baron was wandering in the forest, the Bandit may very well get him. Adjudication results are messaged to players at the end of every turn.
 
-### Routine, Gambit, or Labor
-Choose **Routine** when your Move is assumed to be successful and without any risk or uncertainty as to the outcome. Spending the turn farming, hunting, or going on a daily patrol would all be considered Routine.
-
-Choose **Gambit** when the results may affect the overall narrative and are uncertain or up to chance. Fighting a duel, stealing something, spying on someone, and similar actions would all be Gambits.
+### What a Move is
+A Move is a **Gambit**: something whose results may affect the overall narrative and are uncertain or up to chance. Fighting a duel, stealing something, spying on someone, and similar actions are all Gambits. There is nothing else to pick — working a day is a button now, not a kind of Move (see below).
 
 When you submit a Gambit, the bot rolls a d6 immediately — but doesn't tell you the result yet. The GMs adjudicating your action can see it and take it into account when determining the results, with the number rolled helping determine your Move results. The die result is not an outright indicator of success/failure, but rather a measure of how fortunate your character was while attempting it.  
 **Roll a 1:** Things went worse than you feared.  
@@ -323,29 +318,23 @@ When you submit a Gambit, the bot rolls a d6 immediately — but doesn't tell yo
 
 You'll find out how your die fell when the turn ends — the bot DMs you the number alongside whatever the GMs decided it did. Playing the turn without knowing is the point: your character doesn't know how it went either.
 
-Choose **Labor** to spend the day working. It isn't adjudicated and it doesn't roll — it simply pays, based on your skills and where you're standing. Choosing it means choosing not to do anything else that turn.
+### Working a day
 
-The choice between Routine or Gambit is left to you because you know what your character is attempting with your Move. It's not a mechanism to choose whether you succeed, and Moves submitted using the wrong option may be adjusted by the GMs.
+Work isn't a Move you declare — it's a button you press where the work is, on your own sheet. There are four, and three of them spend your whole turn.
 
-### Labor
+**Mine** — {tag:prospecting}, in the Caves, the Depths, or thinly across the Black Hills. Spends the turn and pays you immediately: {resource:mining} at ordinary ground, scaled by how good the seam is. Now and then you turn something up besides the ⬢.
 
-Labor is how you produce ⬢, and **you need a skill to do it at all**. Without one of the Laboring tags below, a day of work produces nothing.
+**Farm** — {tag:soilery}, on ground that takes seed. Spends the turn. You sow a plan of crops and reap whatever didn't wither when the turn closes.
 
-Laboring is hard work: your first day leaves you {tag:tired}. A second day running leaves you {tag:exhausted} — you can't Labor again until you rest, and you're worse in a fight too. One turn of rest eases it back to Tired; a second clears it completely.
+**Refine** — on the Godard Factory floor, with Godflesh within reach. No skill needed. Spends the turn and gives you eight Squeeze at the close.
 
-| Tag | ⬢ Yield | Where |
-|---|---|---|
-| {tag:laboring-basic} | {resource:labor:basic} | Anywhere |
-| {tag:laboring-skilled} | {resource:labor:skilled} | Anywhere |
-| {tag:laboring-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
-| {tag:laboring-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
-| {tag:laboring-fishing} | {resource:labor:fishing} | Water, scaled by the place |
+**Harvest Godflesh** — in the marsh, with a hatchet, a battle-axe or a chainsaw in your hands. This one is **free**: up to once a turn, and it costs you no Move.
 
-The bottom three need {tag:laboring-skilled} behind them, and they're **side-grades rather than upgrades** — you can hold several, and you never have to pick. Laboring always pays the best result you're entitled to for wherever you happen to be standing.
+Mining is hard work: your first day leaves you {tag:tired}. A second day running leaves you {tag:exhausted} — you can't work again until you rest, and you're worse in a fight too. One turn of rest eases it back to Tired; a second clears it completely.
 
-The numbers above are what those three pay at an ordinary spot. A real place is better or worse than ordinary, and **what a place is worth changes** — some ground is quietly reliable, some swings wildly from week to week. Press the **Examine** button in any location's channel to see what it's yielding right now, along with anything else worth knowing about the place. Hunting is the wildest of the three; a field is a field.
+**What a place is worth changes.** Some ground is quietly reliable, some swings from week to week, and no two seams are alike. Press the **Examine** button in any location's channel to see how its ground is running right now, along with anything else worth knowing about the place. That is the only surface that will tell you.
 
-Tools help. A bow or a gun makes hunting pay more while it's equipped, a Pitchfork or a Plow does the same for farming, and a Fishing Rod for fishing. Each one names what it does in its own description. Carrying two weapons does not pay twice — you hunt with one of them, so only the better one counts — but a weapon, a set of gear and a skill all stack.
+Tools help. A Prospector's Pick or a Mining Helmet makes a day pay more while it's equipped, and each names what it does in its own description.
 
 If the Lifeweb fails, all of this very nearly stops.
 
@@ -502,7 +491,7 @@ What you're allowed to buy depends on your tags: everyone can buy Resources and 
 | **Resources** | The ⬢ you are carrying. A pound each, counted against your weight cap. |
 | **Gambit** | The modifier for your Gambit die. |
 | **Tag Points** | Points available to spend on new tags. |
-| **This turn** | Displays whether you've submitted a Move for this turn. If not, you'll Labor instead — if you can. |
+| **This turn** | Displays whether you've submitted a Move for this turn, or spent it on a day's work. |
 
 **Actions:** This is the grid of buttons next to your Status. Each button opens a dialog that asks for your reason and applies immediately. These operate on a system of trust and verification. Your changes take effect when you submit, but are reviewed by GMs to ensure proper use.
 
@@ -549,8 +538,6 @@ In the header:
 Claiming shuts that slot for a couple of turns, and puts that specific Desire on its own cooldown before anyone can claim it again. If you have an Addiction, your bottom slot only accepts Desires about the thing you're addicted to; your other slot is untouched.
 
 A Desire arranged purely to claim a Desire doesn't count — asking someone for a hug so you can tick off "Get a hug" is not a hug.
-
-**Labor:** What your character does on any turn you don't submit a Move at all — provided you hold a Laboring skill and aren't Exhausted.
 
 **Bio:** Your character details.
 - **Name:** Your title (if present), name, and age. Click the **Change name** button to submit a GM request.

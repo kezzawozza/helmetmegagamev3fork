@@ -1,11 +1,16 @@
-# The labor drop die's config. Sole master for MiningDropOption, synced by
+# The mining drop die's config. Sole master for MiningDropOption, synced by
 # `db:sync-mining-drops` — see docs/systemdocs/MININGDROPS.md, which is
-# canonical for the shape below and how the six buckets combine.
+# canonical for the shape below and how the three buckets combine.
 #
-# Six top-level buckets, one per legal scope. Each nests roll face (1-6) ->
-# a pool (a plain list). A combined draw for one Labor payout pulls from
-# whichever of the six buckets actually name that labor type/zone/location,
-# all at the SAME roll face, and draws from them pooled together.
+# Three top-level buckets, one per legal scope: global, zone and location.
+# Each nests roll face (1-6) -> a pool (a plain list). A combined draw for one
+# day's mining pulls from whichever of the three actually name where the
+# character is standing, all at the SAME roll face, pooled together.
+#
+# There was a fourth dimension here — `laborType`, which of the six Laboring
+# tiers was working, plus a crossed laborTypeZone and laborTypeLocation.
+# Mining is the only kind of day left, so those pools were promoted into the
+# three above and the rest went with Laboring.
 #
 # THE DRAW IS TWO-STAGE, the shape db/lib/cavingLoot.js has always had: land
 # on a rarity band by the die face's column, then pick evenly among that
@@ -22,7 +27,7 @@
 #
 # The same six names cavingLoot.js uses — two loot systems in one game should
 # not speak two vocabularies — though not the same numbers, because a cave 6
-# and a labor 6 are different events.
+# and a mining 6 are different events.
 #
 # RARITY IS ABSOLUTE. A `rare` entry is worth its band's share whatever else
 # sits beside it, and the bands nobody authored give their share to the
@@ -39,16 +44,13 @@
 # once or not at all; the sync refuses a second, and refuses a repeated tag
 # for the same reason (a repeat is a copy-paste now, not a weight).
 #
-# laborType keys: basic, skilled, hunting, farming, fishing — the five
-# Laboring tiers db/lib/laborAccess.js resolves a Labor payout to
-# (LABORING.md §2). A refining Labor (the Godard Factory floor) never rolls
-# at all — it pays in Squeeze, not the die.
+# zone / location keys are slugs from docs/zones.yaml. Only a place that
+# carries a `mining:` coefficient can ever be drawn at, so a bucket naming
+# anywhere else is dead config (MINING.md §3). Refining and Farming never roll
+# this die at all — they pay in Squeeze and in crops, not in ore.
 #
-# zone / location keys are slugs from docs/zones.yaml. laborTypeZone and
-# laborTypeLocation nest labor type first, then place.
-#
-# A SEVENTH gate, orthogonal to all six buckets: nest `requiresTag:` under
-# any roll-keyed node (a whole bucket, or one place/labor-type inside it) to
+# A LAST gate, orthogonal to all three buckets: nest `requiresTag:` under
+# any roll-keyed node (a whole bucket, or one place inside it) to
 # add a skill-gated pool on top — a map of skill slug -> the same roll-keyed
 # shape, recursively, so it can nest to any depth. A gated entry only joins
 # the combined draw for a character who holds that tag too; every ungated
@@ -67,7 +69,7 @@
 #
 # Basic/skilled on their own are still unconfigured — an unconfigured
 # (bucket, roll) pair simply never contributes to the pool, so a character
-# labors and finds nothing, same as an explicit "nothing" draw. That's the
+# digs and finds nothing, same as an explicit "nothing" draw. That's the
 # deliberate default while the rest of the table gets designed.
 #
 # Every pool entry below carries a short "why" blurb before its mechanical
@@ -77,7 +79,7 @@
 # preserves it and only refreshes what comes after " — ". Never hand-guess a
 # number — run `--write` (or the plain read-only form) instead.
 
-# Global entries combine into EVERY labor type's pool at the same roll face
+# Global entries combine into every place's pool at the same roll face
 # (MININGDROPS.md §2), which is exactly why the minor mishaps below live here
 # instead of being copy-pasted into hunting/farming/fishing separately —
 # there's no tag in the catalog that reads as hunting-specific-minor-injury
@@ -113,17 +115,17 @@ global:
   # "common" on face 5, and most locations have nothing earlier than that
   # live there — so "common" inherited almost the face's ENTIRE
   # probability (the leftover from every tier nobody authored) instead of
-  # its own ~28% column share, and the average shot to +5.6 ⬢/labor from
+  # its own ~28% column share, and the average shot to +5.6 ⬢/day from
   # one slot.
   #
   # The rule that actually holds: only use a rarity STRICTLY LATER, in
   # TIERS order (db/lib/miningdropsRarity.js), than whatever
-  # `laborType.prospecting`'s own ungated entries ALWAYS put on that face —
+  # the global pool's own ungated entries ALWAYS put on that face —
   # that earlier tier is always live, so it always wins the "commonest"
   # tiebreak instead, and the grant's share is capped at its own column
   # percentage, full stop. The global mishap pool (`global.1`, every face 1
   # everywhere) plays the same guaranteeing role at face 1 that
-  # `laborType.prospecting` plays at 2/4/5/6, so every one of Prospecting's
+  # the global pool plays at 2/4/5/6, so every one of mining's
   # six faces now has a floor: `ultracommon` (1), `common` (2), `uncommon`
   # (3, since 2026-09-20 — zone.hills/zone.forest picked up a face-3 entry
   # apiece specifically so this floor exists everywhere), `uncommon` (4),
@@ -139,7 +141,7 @@ global:
   # Six modest finds (tags.yaml, 14-33 ⬢ each) rather than three big ones
   # (previously 51-60 ⬢ each) — the same total floor, spread thinner and
   # across every face on purpose. Verified across all 29 Prospecting
-  # locations: floor +1.79 ⬢/labor (worst case, Underlocks), average
+  # locations: floor +1.79 ⬢/day (worst case, Underlocks), average
   # +2.12, zero locations hurt.
   3:  # a floor for malachite, same reasoning: face 3 carried nothing before it
     - { slug: malachite, rarity: uncommon }  # a green mineral, worth an inlay — sells 6 ⬢
@@ -159,7 +161,7 @@ global:
     - { slug: heirloom, rarity: rare }  # sells 12 ⬢
     - { slug: sword-cane, rarity: rare }  # an elegant thing, buried with whoever carried it — sells 14 ⬢
   requiresTag:
-    eagle-eyes:  # ⬢ EV/labor 12.30 · hit 93%
+    eagle-eyes:  # ⬢ EV/day 12.30 · hit 93%
       1:  # own EV 21.00 ⬢ · hit 100% · combined EV 3.47 ⬢ · hit 55%
         - { slug: ore-speck, rarity: common }  # even a bad day turns up something, if you're looking — sells 21 ⬢
       2:  # own EV 33.00 ⬢ · hit 100% · combined EV 7.07 ⬢ · hit 100%
@@ -215,7 +217,7 @@ zone:
       - { slug: mining-helmet, rarity: uncommon }  # sells 9 ⬢
       - { slug: buried-lockbox, rarity: uncommon }  # wedged in wherever the digging turned it up — worth 24 ⬢ opened (sells 12 ⬢ locked)
       - { slug: gold-fleck, rarity: uncommon }  # sells 12 ⬢
-  caves:  # ⬢ EV/labor 5.96 · hit 93%
+  caves:  # ⬢ EV/day 5.96 · hit 93%
     2:  # own EV 2.50 ⬢ · hit 100% · combined EV 2.38 ⬢ · hit 100%
       - { slug: leeches, rarity: ultracommon }  # the same still water everything else here drinks from — sells 2 ⬢
       - { slug: salvage-plate, rarity: ultracommon }  # scrap somebody left behind — sells 3 ⬢
@@ -235,14 +237,14 @@ zone:
       - { slug: ore-chunk, rarity: rare }  # sells 9 ⬢
       - { slug: gold-fleck, rarity: rare }  # sells 12 ⬢
 location:
-  caves-approach:  # ⬢ EV/labor 2.72 · hit 76%
+  caves-approach:  # ⬢ EV/day 2.72 · hit 76%
     4:  # own EV 2.50 ⬢ · hit 100% · combined EV 4.59 ⬢ · hit 100%
       - { slug: coal, rarity: common }  # sells 4 ⬢
       - { slug: old-coin, rarity: common }  # sells 1 ⬢
     5:  # own EV 5.50 ⬢ · hit 100% · combined EV 6.17 ⬢ · hit 100%
       - { slug: dagger, rarity: uncommon }  # a Nekker didn't leave much else worth taking — sells 7 ⬢
       - { slug: coal, rarity: uncommon }  # sells 4 ⬢
-  depths-chasm:  # ⬢ EV/labor 5.30 · hit 76%
+  depths-chasm:  # ⬢ EV/day 5.30 · hit 76%
     4:  # own EV 9.00 ⬢ · hit 100% · combined EV 13.00 ⬢ · hit 100%
       - { slug: ore-chunk, rarity: rare }  # sells 9 ⬢
     5:  # own EV 26.50 ⬢ · hit 100% · combined EV 13.88 ⬢ · hit 100%
@@ -250,7 +252,7 @@ location:
       - { slug: flawless-gem, rarity: extremely-rare }  # fit for a king. Or a Baron — sells 45 ⬢
     6:  # own EV 5.00 ⬢ · hit 100% · combined EV 2.78 ⬢ · hit 100%
       - { slug: silver, rarity: uncommon }  # sells 5 ⬢
-  depths-fork:  # ⬢ EV/labor 2.26 · hit 76%
+  depths-fork:  # ⬢ EV/day 2.26 · hit 76%
     4:  # own EV 2.50 ⬢ · hit 100% · combined EV 4.59 ⬢ · hit 100%
       - { slug: coal, rarity: common }  # sells 4 ⬢
       - { slug: old-coin, rarity: common }  # sells 1 ⬢
@@ -260,7 +262,7 @@ location:
     6:  # own EV 5.00 ⬢ · hit 100% · combined EV 2.46 ⬢ · hit 100%
       - { slug: black-powder, rarity: uncommon }  # sells 6 ⬢
       - { slug: coal, rarity: uncommon }  # sells 4 ⬢
-  hills-grand-ravine:  # ⬢ EV/labor 4.59 · hit 76%
+  hills-grand-ravine:  # ⬢ EV/day 4.59 · hit 76%
     4:  # own EV 6.33 ⬢ · hit 100% · combined EV 9.20 ⬢ · hit 100%
       - { slug: work-knife, rarity: uncommon }  # a brigand's, left behind — sells 4 ⬢
       - { slug: spear, rarity: uncommon }  # sells 7 ⬢
@@ -271,7 +273,7 @@ location:
     6:  # own EV 6.50 ⬢ · hit 100% · combined EV 2.56 ⬢ · hit 100%
       - { slug: buckler, rarity: uncommon }  # sells 4 ⬢
       - { slug: mace, rarity: uncommon }  # sells 9 ⬢
-  hills-north:  # ⬢ EV/labor 5.67 · hit 93%
+  hills-north:  # ⬢ EV/day 5.67 · hit 93%
     2:  # own EV 1.00 ⬢ · hit 100% · combined EV 1.35 ⬢ · hit 100%
       - { slug: old-coin, rarity: ultracommon }  # sells 1 ⬢
     3:  # EV 3.00 ⬢ · hit 100%
@@ -286,7 +288,7 @@ location:
       - { slug: bliss, rarity: uncommon }  # sells 3 ⬢
       - { slug: jewelry, rarity: uncommon }  # sells 8 ⬢
       - { slug: distilled-coca, rarity: uncommon }  # one more distillation, cooling on the shelf — sells 10 ⬢
-  hills-underlocks:  # ⬢ EV/labor 8.46 · hit 93%
+  hills-underlocks:  # ⬢ EV/day 8.46 · hit 93%
     2:  # own EV 1.00 ⬢ · hit 100% · combined EV 1.35 ⬢ · hit 100%
       - { slug: old-coin, rarity: ultracommon }  # sells 1 ⬢
     3:  # EV 10.00 ⬢ · hit 100%
@@ -302,7 +304,7 @@ location:
       - { slug: purse, rarity: ultracommon }  # worth 3 ⬢ consumed
       - { slug: supply-kit, rarity: ultracommon }  # worth 8 ⬢ consumed
       - { slug: gold-fleck, rarity: ultracommon }  # sells 12 ⬢
-  hills-waterway:  # ⬢ EV/labor 7.38 · hit 93%
+  hills-waterway:  # ⬢ EV/day 7.38 · hit 93%
     2:  # own EV 1.00 ⬢ · hit 100% · combined EV 1.35 ⬢ · hit 100%
       - { slug: old-coin, rarity: ultracommon }  # green with verdigris, worn past reading — sells 1 ⬢
     3:  # EV 5.00 ⬢ · hit 100%
@@ -317,7 +319,7 @@ location:
       - { slug: silver, rarity: rare }  # sells 5 ⬢
       - { slug: jewelry, rarity: rare }  # sells 8 ⬢
       - { slug: monkey, rarity: rare }  # someone's pet, swept downstream and somehow still holding on — sells 13 ⬢
-  hills-west:  # ⬢ EV/labor 6.49 · hit 93%
+  hills-west:  # ⬢ EV/day 6.49 · hit 93%
     3:  # EV 3.50 ⬢ · hit 100%
       - { slug: foot, rarity: common }  # a foot still in its boot — sells 4 ⬢
       - { slug: warding-bead, rarity: common }  # didn't work, or the strand would still be whole — sells 3 ⬢

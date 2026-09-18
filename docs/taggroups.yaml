@@ -281,8 +281,8 @@ groups:
   # belong to any family and would just be noise in a one-tag group. The one
   # exception is Teaching (Drill Instructor), a Skill that borrows
   # general-cerberon purely for its requiredTag gate.
-  skills-labor:
-    name: Labor
+  skills-work:
+    name: Work
     category: skills
   skills-fighting:
     name: Combat

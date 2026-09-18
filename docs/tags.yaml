@@ -535,7 +535,7 @@ tags:
     name: Soft Hands
     category: general
     group: general-court
-    description: "You've never done a day's labor. You make half the ⬢ you otherwise would when laboring."
+    description: "You've never done a day's work. You make half the ⬢ you otherwise would from a day of mining."
     pointCost: -4
     purchasable: true
     purchasableAfterStart: false
@@ -1881,10 +1881,12 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # requiredTag laboring-basic is the "Laboring OR Commoner" gate —
-  # holdsRequirement walks the tier chain and Commoners start with Laboring
-  # II. psychological so a chaplain can confess it away. Scripted:
-  # -25% on every labor payout after the roll, db/lib/autoLaborPass.js.
+  # Ungated. It was gated on Laboring I — the "Laboring OR Commoner" gate, back
+  # when a Commoner started with the ladder — and both halves of that are gone.
+  # A drawback anybody can take is the right shape for it anyway: gating a
+  # flaw on a skill meant the people least able to afford it couldn't buy it.
+  # psychological so a chaplain can confess it away. Scripted: -25% on every
+  # mining payout after the roll, db/lib/mining.js#lazyYield.
   lazy:
     catalog: all
     name: Lazy
@@ -1892,7 +1894,6 @@ tags:
     group: general-personality
     description: "You work less hard, producing fewer Resources than others."
     pointCost: -4
-    requiredTag: laboring-basic
     psychological: true
     visible: false
     purchasable: true
@@ -2330,7 +2331,7 @@ tags:
     name: Lucky
     category: general
     group: general-traits
-    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and the laboring die included."
+    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and the mining die included."
     pointCost: 15
     visible: false
     purchasable: true
@@ -2599,131 +2600,29 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  laboring-basic:
+  # What replaced the Laboring ladder. There were eight rungs: two general
+  # tiers, four side-grades scaled by where you stood, and two masteries. All
+  # of it is gone. These two are what is left, and neither gates the other —
+  # each is one skill that turns on one button, with nothing above or below it.
+  prospecting:
     catalog: all
-    name: Laboring I
-    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
-    # so no character loses the tag and every parentTag/requiredTag
-    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
-    keepSlug: true
+    name: Prospecting
     category: skills
-    group: skills-labor
+    group: skills-work
     teachable: true
-    description: "You can sometimes provide for yourself. Can produce {resource:labor:basic} every other turn."
+    description: "You know rock from ore. Press Mine where there is a seam to work and you produce {resource:mining}, scaled by how good the ground is — and now and then you turn something up besides."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
 
-  laboring-skilled:
+  soilery:
     catalog: all
-    name: Laboring II
-    # Roman-numeral rung name (game 3 tier rename); slug kept as-is
-    # so no character loses the tag and every parentTag/requiredTag
-    # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
-    keepSlug: true
+    name: Soilery
     category: skills
-    group: skills-labor
+    group: skills-work
     teachable: true
-    description: "You can provide for yourself and others. Can produce {resource:labor:skilled} every other turn."
+    description: "You can work a field. Press Farm on ground that takes seed and you can sow a plan of crops, then reap whatever didn't wither."
     pointCost: 7
-    parentTag: laboring-basic
-    purchasable: true
-    purchasableAfterStart: true
-
-  # The four side-grades. Each needs Laboring II behind it, each is
-  # scaled by where you are standing (docs/zones.yaml's per-location `yield:`
-  # block), and holding several is fine — a Labor pays the best one you
-  # qualify for, so there is nothing to switch and nothing to forget.
-  laboring-hunting:
-    catalog: all
-    name: Laboring (Hunting)
-    category: skills
-    group: skills-labor
-    teachable: true
-    description: "While laboring in a wilderness location, you produce {resource:labor:hunting}."
-    pointCost: 7
-    requiredTag: laboring-skilled
-    purchasable: true
-    purchasableAfterStart: true
-
-  laboring-farming:
-    catalog: all
-    name: Laboring (Farming)
-    category: skills
-    group: skills-labor
-    teachable: true
-    description: "While laboring in fields and worked ground, you produce {resource:labor:farming}."
-    pointCost: 7
-    requiredTag: laboring-skilled
-    purchasable: true
-    purchasableAfterStart: true
-
-  laboring-fishing:
-    catalog: all
-    name: Laboring (Fishing)
-    category: skills
-    group: skills-labor
-    teachable: true
-    description: "While laboring in a location with water, you produce {resource:labor:fishing}."
-    pointCost: 7
-    requiredTag: laboring-skilled
-    purchasable: true
-    purchasableAfterStart: true
-
-  # The two Laboring MASTERIES. Both need Laboring II behind them and
-  # neither can be bought at creation — see TAGS.md 4a on the mastery band.
-  # Neither is teachable: a capstone bought only after the game starts must not
-  # be obtainable for the price of one Lesson Move.
-  #
-  # Scavenging redraws on the 6's pool when a 4 or a 5 finds an EMPTY one
-  # (db/lib/miningDrops.js) rather than remapping every 4 and 5, which would take
-  # a fisherman's 10 ⬢ face away and hand him a 1.56 ⬢ one. A 1 still hurts.
-  laboring-scavenging:
-    catalog: all
-    name: Laboring (Scavenging)
-    category: skills
-    group: skills-labor
-    teachable: false
-    description: "You have an eye for what a day's work turns up. Your laboring finds something far more often, and what a good day turns up is never an injury."
-    pointCost: 12
-    requiredTag: laboring-skilled
-    visible: false
-    purchasable: true
-    purchasableAfterStart: true
-    mastery: true
-
-  # Tireless does two things, and the second is the one that matters. The gate
-  # in db/lib/laborAccess.js lets the holder work while Exhausted at half yield;
-  # the fatigue ladder then needs NO special case, because
-  # db/lib/laborFatigue.js#nextLaborFatigueSlug already returns null for anybody
-  # who is Exhausted — so the work neither escalates nor refreshes the tag, and
-  # the holder can labor every turn instead of one turn in three.
-  laboring-tireless:
-    catalog: all
-    name: Laboring (Tireless)
-    category: skills
-    group: skills-labor
-    teachable: false
-    description: "You can work through exhaustion. While {tag:exhausted} you still labor, at half of what you would otherwise make."
-    pointCost: 14
-    requiredTag: laboring-skilled
-    visible: false
-    purchasable: true
-    purchasableAfterStart: true
-    mastery: true
-
-  # Joined 2026-09-09. Pays the least ⬢ of the four on purpose — a labor drop
-  # (MININGDROPS.md) is meant to make up the difference in items rather than
-  # coin, once that table is built out.
-  laboring-prospecting:
-    catalog: all
-    name: Laboring (Prospecting)
-    category: skills
-    group: skills-labor
-    teachable: true
-    description: "While laboring somewhere worth searching — a stream, a ruin, the undergrowth — you turn up {resource:labor:prospecting}: thin pay in Resources, but plenty else comes up with it."
-    pointCost: 7
-    requiredTag: laboring-skilled
     purchasable: true
     purchasableAfterStart: true
 
@@ -2815,8 +2714,7 @@ tags:
     name: Butcher
     category: skills
     teachable: true
-    description: "You can butcher monster and human corpses. Additionally, Hunting laboring yields +1 ⬢."
-    laborBonus: { kind: hunting, amount: 1, equipped: false }
+    description: "You can butcher monster and human corpses."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -3727,9 +3625,8 @@ tags:
     name: Fertilized Fields
     category: status
     group: status-buffs
-    description: "Your fields are richly fed. Farming produces +8 ⬢."
+    description: "Your fields are richly fed."
     pointCost: 0
-    laborBonus: { kind: farming, amount: 8, equipped: false }
     visible: false
     purchasable: false
     purchasableAfterStart: false
@@ -4027,13 +3924,12 @@ tags:
     visible: true
     durationTurns: 1
 
-  # The precursor to Exhausted (db/lib/laborFatigue.js). Granted by a day's
-  # Labor, a bad night's sleep (Guilt Ridden, Insomniac) or pushing on
-  # (MAP.md §3). Doesn't block anything by itself — Labor, a second bad
-  # night or a second push escalates it straight to Exhausted instead of
-  # refreshing this. Left alone, it clears on its
-  # own — durationTurns: 1 the same way Exhausted's does, so it only survives
-  # into the very next turn.
+  # The precursor to Exhausted (db/lib/fatigue.js). Granted by a day's mining,
+  # a bad night's sleep (Guilt Ridden, Insomniac) or pushing on (MAP.md §3).
+  # Doesn't block anything by itself — a second day, a second bad night or a
+  # second push escalates it straight to Exhausted instead of refreshing this.
+  # Left alone, it clears on its own — durationTurns: 1 the same way
+  # Exhausted's does, so it only survives into the very next turn.
   tired:
     catalog: gm
     name: Tired
@@ -4045,8 +3941,8 @@ tags:
     purchasable: false
     durationTurns: 1
 
-  # The escalated half of the same ladder (db/lib/laborFatigue.js). Reached by
-  # Laboring, a bad night's sleep or pushing on (MAP.md §3) while already
+  # The escalated half of the same ladder (db/lib/fatigue.js). Reached by a
+  # day's mining, a bad night's sleep or pushing on (MAP.md §3) while already
   # Tired — two days running, or two bad nights running — or straight away
   # on a 2–3 when pushing on. durationTurns: 1 is what makes the clock work:
   # granted while turn T closes, it blocks turn T+1 and degrades back into
@@ -4056,7 +3952,7 @@ tags:
     name: Exhausted
     category: status
     group: status-debuffs
-    description: "You've pushed too far. You can't Labor again until you rest, and you won't fight well like this."
+    description: "You've pushed too far. You can't work again until you rest, and you won't fight well like this."
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     purchasable: false
@@ -5737,7 +5633,6 @@ tags:
     equippable: true
     equipSlot: MOUNT
     equipLayer: 1
-    laborBonus: { kind: fishing, amount: 1 }
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -5816,7 +5711,6 @@ tags:
     placement:
       fieldwork: true
       examine: "lines strung for the catch."
-      laborBonus: { kind: hunting, amount: 1 }
 
   fish-weir:
     catalog: all
@@ -5838,7 +5732,6 @@ tags:
     placement:
       fieldwork: true
       examine: "its stakes wall the current."
-      laborBonus: { kind: fishing, amount: 1 }
 
   # Prospecting's own structure, same shape as the Fish Weir above — the one
   # bonus category the specialization had no presence in at all until now
@@ -5863,7 +5756,7 @@ tags:
     placement:
       fieldwork: true
       examine: "a stake driven deep, claiming this ground."
-      laborBonus: { kind: prospecting, amount: 1 }
+      miningBonus: { amount: 1 }
 
   forge:
     catalog: all
@@ -6099,7 +5992,6 @@ tags:
     placement:
       fieldwork: true
       examine: "beaten earth, swept flat."
-      laborBonus: { kind: farming, amount: 1 }
 
   lazarette:
     catalog: all
@@ -6619,7 +6511,7 @@ tags:
   # stackable, tradeable, sellable, and NOT consumable, because the brewing
   # Move is what spends it, not the holder eating it.
   #
-  # NOTHING DROPS THESE YET. The laboring loot-table pass wires acquisition;
+  # NOTHING DROPS THESE YET. The mining drop table wires acquisition;
   # our job was to make the slugs exist. Until then a GM grants them.
   aberrant-heart:
     catalog: gm
@@ -6683,7 +6575,7 @@ tags:
   # Two more of the same shape (Chris 2026-09-05): Poppy and Distilled Coca
   # used to be brewed out of ⬢ alone, and now spend a raw ingredient the way
   # Nightshade does. Public like nightshade-herb, and like it, NOTHING DROPS
-  # THESE YET — the laboring loot-table pass wires acquisition; a GM grants
+  # THESE YET — the mining drop table wires acquisition; a GM grants
   # them meanwhile.
   poppy-pods:
     catalog: all
@@ -6747,7 +6639,7 @@ tags:
   # one, but it never shows in the public Tag Catalog, which is what keeps
   # its actual use a discovery — the flavor text is written the way a hunter
   # or a farmhand would actually describe it, not the way a brewer would.
-  # NOTHING DROPS THIS YET. The laboring loot-table pass (hunting/fishing/
+  # NOTHING DROPS THIS YET. The mining drop table (
   # farming yields) wires acquisition; a GM grants it meanwhile.
   brackenmoss:
     catalog: gm
@@ -9290,7 +9182,6 @@ tags:
     category: items
     group: items-weapons
     description: "A classic revolver with six chambers."
-    laborBonus: { kind: hunting, amount: 2 }
     fighting: { tiers: 0.7, weaponClass: firearm }
     pointCost: 14
     equippable: true
@@ -9331,7 +9222,6 @@ tags:
     category: items
     group: items-weapons
     description: "A classic revolver with six chambers."
-    laborBonus: { kind: hunting, amount: 2 }
     fighting: { tiers: 0.7, weaponClass: firearm }
     pointCost: 0
     equippable: true
@@ -9450,7 +9340,8 @@ tags:
     sellable: true
     sellablePrice: 6
 
-  # Three tools that exist only to make a Laboring specialisation pay better.
+  # Tools that exist only to make a day's work pay better. There were more of
+  # them, one per Laboring specialisation; mining is the only kind of day left.
   # Priced against docs/systemdocs/TAGS.md 4a: minor edges at 2, the Plow at 5
   # because it needs a horse behind it to do anything at all.
   fishing-rod:
@@ -9458,9 +9349,8 @@ tags:
     name: Fishing Rod
     category: items
     group: items-gear
-    description: "A wooden rod and line. While equipped, Fishing produces an additional 1 ⬢."
+    description: "A wooden rod and line."
     pointCost: 2
-    laborBonus: { kind: fishing, amount: 1 }
     equippable: true
     equipSlot: ACCESSORY
     weight: 3
@@ -9489,9 +9379,9 @@ tags:
     name: "Prospector's Pick"
     category: items
     group: items-gear
-    description: "A short-handled pick. While equipped, Prospecting produces an additional 1 ⬢."
+    description: "A short-handled pick. While equipped, mining produces an additional 1 ⬢."
     pointCost: 2
-    laborBonus: { kind: prospecting, amount: 1 }
+    miningBonus: { amount: 1 }
     equippable: true
     equipSlot: ACCESSORY
     weight: 4
@@ -9514,9 +9404,8 @@ tags:
     name: Trapping Gear
     category: items
     group: items-gear
-    description: "A set of gear to trap small animals with. While equipped, Hunting produces an additional 1 ⬢."
+    description: "A set of gear to trap small animals with."
     pointCost: 5
-    laborBonus: { kind: hunting, amount: 1 }
     equippable: true
     equipSlot: ACCESSORY
     weight: 10
@@ -9543,15 +9432,8 @@ tags:
     name: Plow
     category: assets
     group: assets-property
-    description: "A framed instrument meant for tilling soil. While equipped with a {tag:horse}, Farming produces an additional 3 ⬢."
+    description: "A framed instrument meant for tilling soil."
     pointCost: 5
-    # An Arelitz (Warbeast) or (Thoroughbred) pulls a plow as well as a horse
-    # does. Not the Ovum — it hates moving, and the plow is nothing but.
-    laborBonus:
-      kind: farming
-      amount: 3
-      equipped: false
-      requiresTag: [horse, arelitz-warbeast, arelitz-thoroughbred]
     tradeable: true
     stackable: true
     visible: true
@@ -9571,8 +9453,7 @@ tags:
     name: Sling
     category: items
     group: items-weapons
-    description: "A small weapon made of rope and leather meant to injure people and animals. While equipped, Hunting produces an additional 1 ⬢."
-    laborBonus: { kind: hunting, amount: 1 }
+    description: "A small weapon made of rope and leather meant to injure people and animals."
     fighting: { tiers: 0.3, weaponClass: thrown }
     pointCost: 2
     equippable: true
@@ -9666,8 +9547,7 @@ tags:
     name: Pitchfork
     category: items
     group: items-weapons
-    description: "A pronged agricultural tool used to move around loose materials. The traditional instrument of the discontented. While equipped, Farming produces an additional 1 ⬢."
-    laborBonus: { kind: farming, amount: 1 }
+    description: "A pronged agricultural tool used to move around loose materials. The traditional instrument of the discontented."
     fighting: { tiers: 0.2, weaponClass: polearm }
     pointCost: 2
     equippable: true
@@ -9692,8 +9572,7 @@ tags:
     name: Sickle
     category: items
     group: items-weapons
-    description: "A curved tool. It adds +1 ⬢ to farming labor."
-    laborBonus: { kind: farming, amount: 1 }
+    description: "A curved tool for reaping."
     fighting: { tiers: 0.1, weaponClass: knife }
     pointCost: 2
     equippable: true
@@ -9717,8 +9596,7 @@ tags:
     name: Shortbow
     category: items
     group: items-weapons
-    description: "A small, quiet bow that's fast to draw, but sports less power against armored targets. While equipped, Hunting produces an additional 1 ⬢."
-    laborBonus: { kind: hunting, amount: 1 }
+    description: "A small, quiet bow that's fast to draw, but sports less power against armored targets."
     fighting: { tiers: 0.4, weaponClass: bow }
     pointCost: 2
     equippable: true
@@ -9905,8 +9783,7 @@ tags:
     name: Longbow
     category: items
     group: items-weapons
-    description: "A large bow that requires strength to wield, but can pack a major punch. While equipped, Hunting produces an additional 1 ⬢."
-    laborBonus: { kind: hunting, amount: 1 }
+    description: "A large bow that requires strength to wield, but can pack a major punch."
     fighting: { tiers: 0.5, weaponClass: bow }
     pointCost: 5
     requiredTag: ranged-basic
@@ -10346,8 +10223,7 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
-    description: "A mechanical bow that shoots far and straight. When using the weapon, your Ranged Fighting skill counts as half a tier higher due to its ease of use. Furthermore, while equipped, Hunting produces an additional 1 ⬢."
-    laborBonus: { kind: hunting, amount: 1 }
+    description: "A mechanical bow that shoots far and straight. When using the weapon, your Ranged Fighting skill counts as half a tier higher due to its ease of use."
     fighting: { tiers: 0.5, weaponClass: crossbow }
     pointCost: 9
     requiredTag: ranged-basic
@@ -10374,8 +10250,7 @@ tags:
     name: Musketoon
     category: items
     group: items-weapons
-    description: "A short gun with a wide bore. It fires one powerful shot before needing to be reloaded. While equipped, Hunting produces an additional 2 ⬢."
-    laborBonus: { kind: hunting, amount: 2 }
+    description: "A short gun with a wide bore. It fires one powerful shot before needing to be reloaded."
     fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 18
     requiredTag: ranged-basic
@@ -10401,8 +10276,7 @@ tags:
     name: Bore Pistol
     category: items
     group: items-weapons
-    description: "A powerful single-shot pistol. While equipped, Hunting produces an additional 2 ⬢."
-    laborBonus: { kind: hunting, amount: 2 }
+    description: "A powerful single-shot pistol."
     fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 14
     requiredTag: ranged-basic
@@ -14036,8 +13910,7 @@ tags:
     name: ML-23
     category: items
     group: items-weapons
-    description: "A 9mm pistol. While equipped, Hunting produces an additional 2 ⬢."
-    laborBonus: { kind: hunting, amount: 2 }
+    description: "A 9mm pistol."
     fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
     depotPrice: 135
@@ -15315,7 +15188,7 @@ tags:
   # never see it in the Tag Catalog, but a GM deciding whether to grant one
   # can still look it up there. SECRET would hide it from the GM view too,
   # and TAGS.md scopes that band to cave/antagonist content besides.
-  # NOTHING DROPS THIS YET. The laboring loot-table pass wires acquisition;
+  # NOTHING DROPS THIS YET. The mining drop table wires acquisition;
   # our job was to make the slug exist. Until then a GM grants it.
   cybernetic-core:
     catalog: gm
@@ -15937,9 +15810,10 @@ tags:
     name: Plebeian Hood
     category: items
     group: items-headgear
+    # Ungated: it was behind Laboring I, and no skill has any business gating
+    # a hat.
     description: "A peasant's hood. It can be drawn down."
     pointCost: 1
-    requiredTag: laboring-basic
     equippable: true
     equipSlot: HEAD
     concealsIdentity: true
@@ -16073,7 +15947,7 @@ tags:
     name: Mining Helmet
     category: items
     group: items-headgear
-    description: "A cushioned helmet with a small light, useful in the caves. While equipped, Prospecting produces an additional 1 ⬢."
+    description: "A cushioned helmet with a small light, useful in the caves. While equipped, mining produces an additional 1 ⬢."
     pointCost: 5
     depotPrice: 13
     equippable: true
@@ -16086,7 +15960,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 9
-    laborBonus: { kind: prospecting, amount: 1 }
+    miningBonus: { amount: 1 }
 
   knights-helmet:
     catalog: all

@@ -159,8 +159,8 @@ categories:
 
           Characters automatically consume 1 ⬢ a day. If you go hungry, you'll get a −1 to your Gambit. The penalty increases until you die at −6.
 
-          **Laboring**
-          Resources are produced by laboring. If you don't submit a move and have a laboring skill, you'll automatically labor. You can only labor every other turn.
+          **Working a day**
+          Resources are produced by pressing Mine, Farm or Refine on your sheet — whichever the ground you're standing on allows. Each spends your whole turn. Mining tires you out, so you can only do it every other turn.
       - title: Tags
         body: |-
           Tags represent your character's health, items, traits, and skills.
