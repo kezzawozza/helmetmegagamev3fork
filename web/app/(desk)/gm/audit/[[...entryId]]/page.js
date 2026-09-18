@@ -145,6 +145,8 @@ async function FreshAudit({ params, searchParams, userId }) {
   // only the runtime rows the entries on THIS page actually name. Paging is a
   // full server re-render, so the set is recomputed per page.
   const referencedTagIds = new Set();
+  // A revoke written before the row carried the claim text: read it off the Desire instead.
+  const revokedDesireIds = new Set();
   // `pinned` is fetched apart from the page (it is whatever entry the GM has
   // open, which need not be on this page), so it has to be scanned too or its
   // own chip is the one thing on screen that will not resolve.
@@ -152,6 +154,9 @@ async function FreshAudit({ params, searchParams, userId }) {
     const d = row.details && typeof row.details === "object" ? row.details : null;
     if (!d) continue;
     if (d.tagId) referencedTagIds.add(String(d.tagId));
+    if (row.actionType === "gm_desire_cancelled" && d.desireId && d.claimText === undefined) {
+      revokedDesireIds.add(String(d.desireId));
+    }
     // applyTagOpsInTx's `applied` array — a GM's staged ops carry their own.
     for (const op of Array.isArray(d.tags) ? d.tags : []) {
       if (op?.tagId) referencedTagIds.add(String(op.tagId));
@@ -163,6 +168,15 @@ async function FreshAudit({ params, searchParams, userId }) {
       select: chipSelect(),
     })
   ).map((t) => composeChipTag(t, GM_CHIP_CTX));
+  const revokedDesires = new Map(
+    (revokedDesireIds.size
+      ? await prisma.desire.findMany({
+          where: { id: { in: [...revokedDesireIds] } },
+          select: { id: true, text: true, reason: true },
+        })
+      : []
+    ).map((r) => [r.id, r]),
+  );
   const names = Object.fromEntries([
     ...tags.map((t) => [t.id, t.name]),
     ...zones.map((z) => [z.id, z.name]),
@@ -191,7 +205,7 @@ async function FreshAudit({ params, searchParams, userId }) {
       actionType: row.actionType,
       createdAt: row.createdAt.toISOString(),
       reason: row.reason ?? null,
-      details: row.details ?? null,
+      details: withRevokedDesire(row, revokedDesires),
       actor: {
         discordUserId: row.actorDiscordUserId,
         name: isSystem ? "The turn engine" : usernameById.get(row.actorDiscordUserId) ?? row.actorDiscordUserId,
@@ -274,6 +288,17 @@ async function FreshAudit({ params, searchParams, userId }) {
 // Dates cannot cross to a client component as Date objects without becoming
 // something the filter controls cannot echo back, so they travel as the same
 // YYYY-MM-DD strings the inputs use.
+// A gm_desire_cancelled row from before the audit kept the claim: borrow the Desire's own name and reason.
+// Rows that already carry claimText, and every other action type, come back untouched.
+function withRevokedDesire(row, revokedDesires) {
+  const d = row.details ?? null;
+  const desire = row.actionType === "gm_desire_cancelled" && d?.claimText === undefined
+    ? revokedDesires.get(String(d?.desireId))
+    : null;
+  if (!desire) return d;
+  return { ...d, desireName: d.desireName ?? desire.text, claimText: desire.reason };
+}
+
 function serializeFilters(filters) {
   return {
     ...filters,

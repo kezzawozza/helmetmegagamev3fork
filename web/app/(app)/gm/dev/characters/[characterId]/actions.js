@@ -747,6 +747,8 @@ async function revokeDesireGmImpl({ characterId, desireId }) {
 
   await audit(session, "gm_desire_cancelled", characterId, {
     desireId,
+    desireName: desire.text,
+    claimText: desire.reason,
     points: desire.status === "FULFILLED" ? desire.points : 0,
   });
   notifyCharacter(session, character, `Desire revoked: "${desire.text}"`);

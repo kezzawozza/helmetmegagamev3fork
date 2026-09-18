@@ -463,7 +463,10 @@ so there is exactly one way a claimed Desire ever comes back off, rather than
 two copies of a points reversal that could drift apart. It takes the points
 back **even into negative**, flips the row `CANCELLED`, clears
 `endedTurnNumber` (which reopens the slot — §2), writes a `gm_desire_cancelled`
-audit row, and sends one DM: "Your desire was rejected." — a `NOTICE`, not a
+audit row (both revoke paths snapshot `desireName` and `claimText`, the player's
+`reason`, so `/gm/audit` shows what was claimed; rows from before that get the
+same two fields read off the Desire by `withRevokedDesire` on the audit page),
+and sends one DM: "Your desire was rejected." — a `NOTICE`, not a
 `CONVERSATION`, for the reason every DM kind is chosen on: the game said it,
 a person didn't. Reject then stamps `reviewedAt`/`reviewedBy` on the
 same row inside the transaction, so a rejected claim is also a reviewed one.

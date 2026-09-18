@@ -1801,7 +1801,7 @@ async function rejectDesireClaimImpl({ desireId }) {
       actorDiscordUserId: session.discordUserId,
       actionType: "gm_desire_cancelled",
       targetCharacterId: desire.characterId,
-      details: { desireId: id, desireName: desire.text, points: desire.points },
+      details: { desireId: id, desireName: desire.text, claimText: desire.reason, points: desire.points },
     },
   });
 

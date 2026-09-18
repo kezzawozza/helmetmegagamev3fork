@@ -248,7 +248,13 @@ const R = {
   // gm_desire_set kept for old rows; a GM now AWARDS (gm_desire_fulfilled) or REVOKES (gm_desire_cancelled).
   gm_desire_set: (d) => [actor(), t("set a Desire for"), target(), t("worth"), points(d.points)],
   gm_desire_fulfilled: (d) => [actor(), t("awarded a Desire to"), target(), t("worth"), points(d.points)],
-  gm_desire_cancelled: () => [actor(), t("revoked a Desire of"), target()],
+  // desireName and claimText are the Desire's name and the reason the player typed when claiming it.
+  // Older rows have neither on the row; the audit page fills both in from the Desire itself.
+  gm_desire_cancelled: (d) => [
+    actor(), t("revoked a Desire of"), target(),
+    ...(d.desireName ? [t("—"), em(quote(d.desireName))] : []),
+    ...(d.claimText ? [t("— claimed as"), em(quote(truncate(d.claimText, 90)))] : []),
+  ],
   gm_donated_lifeweb_blood: (d) => [actor(), t("donated blood for"), target(), ...bloodTail(d)],
   gm_fed_lifeweb_person: (d) => [actor(), t("fed a person to the Lifeweb"), ...bloodTail(d)],
 
