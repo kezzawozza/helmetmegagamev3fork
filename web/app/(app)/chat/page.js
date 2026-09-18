@@ -266,6 +266,10 @@ async function FreshChat({ userId }) {
                 },
               },
               role: { select: { slug: true } },
+              // The you-frame's role line and mood word (chat.css `.you-frame`) —
+              // neither was read here before shard 3.
+              roleTitle: true,
+              mood: true,
               // Which in-game DAY the bird last left on, and how many of that
               // day's flights are spent — a Rookery is worth several
               // (db/lib/rookery.js). (docs/systemdocs/PAPERWORK.md §Bird.)
@@ -397,6 +401,10 @@ async function FreshChat({ userId }) {
           affordances,
           place: viewer.character.location ?? null,
           zone: viewer.character.location?.zone ?? null,
+          // The you-frame's own line (chat.css `.you-name`/`.you-role`) —
+          // everything else it draws is already on `sheet`/`carry` below.
+          name: character.name,
+          roleTitle: character.roleTitle ?? null,
           placeLines: examine?.ok ? examine.lines : [],
           waiting: waiting.ok ? waiting.rows : [],
           selfId: character.id,

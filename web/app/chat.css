@@ -84,10 +84,11 @@
   padding: var(--sp-3);
 }
 
-/* The tabbed right column: a strip that holds still, and one panel under it
-   that scrolls on its own. Before this the five sections were stacked down a
-   single scroller and the tallest of them decided how far you travelled to
-   reach the rest. */
+/* The GM's right column only now (GmAside.js) — a strip that holds still, and
+   one panel under it that scrolls on its own. A GM has no hands, so a tab
+   strip over one readout at a time still earns its keep there; the player's
+   own column dropped its tabs for the mockup's stack (`.chat-aside-stack`,
+   below) in shard 3. */
 .chat-aside-tabs {
   display: flex;
   flex-direction: column;
@@ -121,6 +122,17 @@
 .chat-aside-tabs > .desk-inspector-zones {
   padding-inline: 0;
   margin-top: auto;
+}
+
+/* The player's right column (ChatAside.js): one stack, one scroller, no tab
+   strip — the mockup's `.aside` is the scroller itself, and this is that,
+   named apart from `.chat-aside` (the grid column/drawer around it) so the
+   two can be told apart in a stack trace or a DOM inspector. */
+.chat-aside-stack {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* The centre is itself a column: the phone's tab strip, then the scene. */
@@ -1421,24 +1433,38 @@
    same weight and made the whole column read as one grey list. A surface, a
    border and a radius is the same treatment .panel gets everywhere else in
    the app. */
+/* These five used to share the You frame's own stats-LFWB.png plate below —
+   every section in the old tabbed column was a "card" wearing the same
+   sprite. The mockup wears the plate for You alone; PlaceCard, HereList,
+   PartyRack, RoomPanel and TravelNodes mount inside a plain `.block` in the
+   chat aside now (ChatAside.js) — or, for HereList's one other caller, inside
+   a `.panel` on the sheet's own Who's-here box (CharacterSheet.js) — so this
+   rule owns spacing only, and whichever wrapper is actually theirs supplies
+   the box. */
 .chat-card,
 .chat-here,
 .chat-party,
 .chat-room,
-.chat-travel,
-/* THE "YOU" FRAME (REDESIGN.md §3). stats-LFWB.png, the Lifeweb stats plate,
-   stretched around the status strip in the right column — the one place in the
-   app that wears a whole sprite rather than a strip of one. Stretched on purpose:
-   the plate is a frame with a hole in it and the strip inside decides how tall the
-   hole has to be, so `100% 100%` is the only size that fits it. `pixelated` is
-   what keeps that stretch honest rather than blurry.
+.chat-travel {
+  margin: 0;
+}
+
+/* THE "YOU" FRAME (REDESIGN.md §3, the mockup's `.you-frame`/`.you-well`).
+   stats-LFWB.png, the Lifeweb stats plate, stretched around the status strip
+   in the right column — the one place in the app that wears a whole sprite
+   rather than a strip of one, and the one section that keeps it (shard 3):
+   everything else that used to share this plate is a plain `.block` now.
+   Stretched on purpose: the plate is a frame with a hole in it and the strip
+   inside decides how tall the hole has to be, so `100% 100%` is the only size
+   that fits it. `pixelated` is what keeps that stretch honest rather than
+   blurry.
 
    The padding is the plate's own border, measured off the art: the well has to
    land inside the riveted edge, not over it.
 
    image-rendering INHERITS, so it is put back for anything with a picture in it —
    a tag chip's icon has no business being point-sampled. */
-.chat-you-frame {
+.you-frame {
   margin-bottom: var(--sp-3);
   padding: 22px 18px 20px;
   border: 1px solid var(--border-lo);
@@ -1449,36 +1475,72 @@
   image-rendering: pixelated;
 }
 
-.chat-you-frame img,
-.chat-you-frame svg {
+.you-frame img,
+.you-frame svg {
   image-rendering: auto;
 }
 
 /* The dark well the words sit in, inside the plate. Recessed and shadowed, so the
    plate reads as a frame around a hole rather than as a picture behind text. */
-.chat-you-well {
+.you-well {
   padding: var(--sp-2);
   border: 1px solid var(--border-lo);
   background: var(--field-bg);
   box-shadow: inset 0 0 12px var(--shadow-color);
 }
 
-.chat-you {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: var(--sp-3);
-  margin-bottom: var(--sp-3);
+.you-name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+  text-shadow: 0 1px 0 var(--border-lo);
+  letter-spacing: 0.01em;
 }
 
-/* Last card in whichever panel is open — there is no run of them to separate
-   from any more. */
-.chat-card:last-child,
-.chat-here:last-child,
-.chat-party:last-child,
-.chat-room:last-child,
-.chat-travel:last-child,
-.chat-you:last-child {
+.you-role {
+  margin: 0 0 var(--sp-2);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* One fact per line — the mockup's `.kv`. A `<dl>` because that is what a
+   label/value pair IS; `dt`/`dd` need no class of their own. */
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: 1px 0;
+}
+
+.kv dt {
+  color: var(--muted);
+}
+
+.kv dd {
+  margin: 0;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A block in the aside's stack below You: Turn, Here, Waiting on you, and
+   every older section (Place, Room, Travel, the party rack, Things, Desires)
+   that has no home in the mockup's own three. `h3` wears `.bar` itself — one
+   recipe for every column head and every block head alike. */
+.block {
+  margin-bottom: var(--sp-3);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.block .body {
+  padding: var(--sp-2);
+}
+
+.chat-aside-stack > .block:last-child {
   margin-bottom: 0;
 }
 
@@ -1496,6 +1558,18 @@
 .chat-person:hover {
   background: var(--surface);
 }
+
+/* The Here block's own rows wear the same six name hues the feed does
+   (nameHue.js) — one colour per character, everywhere the app names them, so
+   a face is as easy to pick out of the aside's list as out of the scene. Not
+   drawn for a hood (`.chat-person-name.text-muted`, no `data-hue`), since a
+   consistent colour would itself be a way to re-identify one. */
+.chat-person-name[data-hue="1"] { color: var(--name-1); font-weight: 600; }
+.chat-person-name[data-hue="2"] { color: var(--name-2); font-weight: 600; }
+.chat-person-name[data-hue="3"] { color: var(--name-3); font-weight: 600; }
+.chat-person-name[data-hue="4"] { color: var(--name-4); font-weight: 600; }
+.chat-person-name[data-hue="5"] { color: var(--name-5); font-weight: 600; }
+.chat-person-name[data-hue="6"] { color: var(--name-6); font-weight: 600; }
 
 .chat-menu {
   position: absolute;
@@ -1821,11 +1895,38 @@
 }
 
 .chat-move {
-  margin-bottom: var(--sp-3);
+  margin-bottom: 0;
+}
+
+/* The mockup's `.turn-line`/`.warn` (docs/design/mockups/chat/index.html):
+   the label and the countdown, one line, no chip. `.warn` is also what marks
+   a locked turn now — a shut Move window is exactly the kind of fact that
+   deserves the same colour as a close countdown. */
+.turn-line {
+  margin: 0 0 var(--sp-2);
+  color: var(--text);
+}
+
+.warn {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* A line quoting somebody's own words — the filed Move here, an offer's own
+   sentence in Waiting on you. `.mark` is the » itself, dimmer than the words
+   it introduces. */
+.quote {
+  margin: 0 0 var(--sp-2);
+  color: var(--muted);
+}
+
+.quote .mark {
+  color: var(--muted);
 }
 
 /* The filed Move, three lines of it. A Move can be a paragraph and the column
-   is not where the whole of one belongs, so it clamps until it is clicked. */
+   is not where the whole of one belongs, so it clamps until it is clicked.
+   Composed with `.quote` for colour; this is the button reset and the clamp. */
 .chat-move-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -1837,7 +1938,7 @@
   background: none;
   border: 0;
   padding: 0;
-  color: var(--text);
+  font: inherit;
   font-size: var(--fs-sm);
   white-space: pre-wrap;
   cursor: pointer;
@@ -1875,8 +1976,7 @@
   gap: var(--sp-2);
 }
 
-.chat-notice-row,
-.chat-waiting-row {
+.chat-notice-row {
   display: flex;
   align-items: baseline;
   gap: var(--sp-3);
@@ -1884,14 +1984,15 @@
   font-size: var(--fs-sm);
 }
 
-.chat-waiting-actions {
-  display: flex;
-  gap: var(--sp-3);
-  flex-shrink: 0;
+/* One offer, in Waiting on you: its own sentence (`.quote`), then Accept/
+   Decline/Answer/Open right under it (`.chat-buttons`). Stacked, not a row —
+   the sentence is often longer than the block is wide. */
+.chat-waiting-row {
+  margin-bottom: var(--sp-2);
 }
 
-.chat-waiting {
-  margin-top: var(--sp-3);
+.chat-waiting-row:last-child {
+  margin-bottom: 0;
 }
 
 /* ---- The two drawers (Chat.js) ---- */

@@ -8,6 +8,7 @@ import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { formatGambitModifiers, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import { bandOf } from "@lifeweb/db/lib/mood";
 import StatusStrip from "@/app/(app)/chat/StatusStrip";
+import { obolsOf } from "@/lib/purse";
 import ActionGrid from "./ActionGrid";
 import AvatarZoom from "./AvatarZoom";
 import CombatTile from "./CombatReadout";
@@ -18,11 +19,6 @@ import SheetTurn from "./SheetTurn";
 import SoundTrumpetButton from "./SoundTrumpetButton";
 import TagDetails from "./TagDetails";
 import TurnForecast from "./TurnForecast";
-
-// The coin's slug, spelled here the way character/actions/crafting.js spells it
-// — there is no constant for it in db/lib, and a client component may not reach
-// the @lifeweb/db barrel to look for one.
-const OBOL_SLUG = "obol";
 
 // A signed figure with a real U+2212 minus, matching
 // db/lib/gambitModifier.js#formatGambitModifiers and the bot's roll line.
@@ -74,10 +70,9 @@ export default function LedgerBand({
   // Physical coin, on the ⬢ tile's own sub-line. One obol is one ⬢ (DEPOT.md
   // §0) — parity, not identity — so it is counted and printed in ¢ beside the
   // ⬢ rather than added into them. Off the held rows, like the ⬢ above.
-  const obols = (character.tags ?? []).reduce(
-    (n, ct) => (((ct?.tag?.slug ?? ct?.slug) === OBOL_SLUG) ? n + (ct.quantity ?? 1) : n),
-    0,
-  );
+  // web/lib/purse.js is the one copy — the chat aside's you-frame counts the
+  // same way.
+  const obols = obolsOf(character);
   // The mockup's Resources tile also shows a cap. There is none: the old
   // GameConfig.carryResourceCap was retired when a ⬢ started weighing a pound
   // and pushing against the Carrying tile's cap instead (CARRY.md §1). So the

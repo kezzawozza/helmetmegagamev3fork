@@ -32,32 +32,25 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
   // `shut` outranks the countdown, and is checked separately from `locked`: out of session there is no cutoff to count to
   // and `locked` is false, so reading it alone would draw an open turn on a closed game (db/lib/turnGate.js).
   const countdown = turn.shut ? "not in session" : turn.locked ? "locked" : untilLabel(turn.closesAt, now);
-  const shut = Boolean(turn.shut) || turn.locked;
 
   return (
     <div className="chat-move">
-      {/* The server's minute and the browser's are not the same minute. */}
-      <p className="chat-quiet-line" suppressHydrationWarning>
+      {/* The mockup's `.turn-line`/`.warn` (docs/design/mockups/chat/index.html):
+          the server's minute and the browser's are not the same minute. */}
+      <p className="turn-line" suppressHydrationWarning>
         {label}
-        {countdown &&
-          (shut ? (
-            <>
-              {" · "}
-              <span className="chip chip-mono" data-tone="danger">
-                {countdown}
-              </span>
-            </>
-          ) : (
-            ` · ${countdown}`
-          ))}
+        {countdown && (
+          <>
+            {" — Moves close "}
+            <span className="warn">{countdown}</span>
+          </>
+        )}
       </p>
 
       {move ? (
-        /* The words are the point, so they are what this draws. The kind used to
-           be a .chip up in the row above, which put a filled, bordered pill where
-           a plain word belongs and left the player's own sentence reading as the
-           caption to a badge. It is a quiet lead-in now. The » stays: it is the
-           house mark for a line quoting somebody's own words (CLAUDE.md).
+        /* The words are the point, so they are what this draws. The » stays:
+           it is the house mark for a line quoting somebody's own words
+           (CLAUDE.md) — the mockup's `.quote .mark`.
 
            Still clamped until clicked, because a Move can be a paragraph and
            neither surface is the place to read the whole of one by default — so
@@ -66,22 +59,23 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
         <>
           <button
             type="button"
-            className="chat-move-text"
+            className="chat-move-text quote"
             data-open={open ? "true" : undefined}
             onClick={() => setOpen((was) => !was)}
           >
-            <span className="chat-move-mark" aria-hidden="true">
+            <span className="mark" aria-hidden="true">
               »
-            </span>
-            <span className="chat-move-kind">{moveKindLabel(move.kind)}</span>
-            {move.description}
+            </span>{" "}
+            <b>{moveKindLabel(move.kind)}</b> — {move.description}
           </button>
           {/* Only a Gambit still pending at the cutoff (chat/actions.js#myMove). A
               Anything the game filed has already happened. Polled, so
-              it disappears on its own when Moves lock. */}
+              it disappears on its own when Moves lock. History was asked for
+              and dropped (Bascinet's answer): there is no per-character Move
+              log to show. */}
           {move.editable && onEdit && (
             <div className="chat-buttons">
-              <button type="button" className="btn-quiet" onClick={onEdit}>
+              <button type="button" className="btn" onClick={onEdit}>
                 Change…
               </button>
             </div>
@@ -89,7 +83,7 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
         </>
       ) : (
         <div className="chat-buttons">
-          <button type="button" className="btn" disabled={shut} onClick={onFile}>
+          <button type="button" className="btn" disabled={Boolean(turn.shut) || turn.locked} onClick={onFile}>
             Move…
           </button>
         </div>

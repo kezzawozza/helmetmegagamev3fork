@@ -686,8 +686,9 @@ like everything else.
   feed's own `.bar` (below), not above it as a separate line any more.
 - **Touch targets hold a floor of 44px** under a coarse pointer.
 
-HERE is not a tab: the people in the room are drawn at the top of the Place
-panel instead. The reasoning is under `ChatAside.js` below.
+**Superseded 2026-09-18 (shard 3).** HERE is its own block again, not merged
+into Place — see "The right column, rebuilt to the mockup" below for the
+current shape and why the tab strip is gone.
 
 ### The wireframes Bascinet chose
 
@@ -707,10 +708,13 @@ down the middle.
 
 The right column below is drawn as the pre-tab stack, which is what it looked
 like when Bascinet picked this. Read it for what is IN the column, not for how
-it is arranged: PLACE, ROOM, TRAVEL and YOU are one tab at a time now, and HERE
-sits at the top of PLACE rather than under the place card. The tab strip runs
-where `[Place] [Zone]` is drawn — those two chips are the place card's own, and
-they stayed.
+it is arranged: `[Place] [Zone]` are the place card's own chips and stayed
+exactly there. **The wireframe's right column predates shard 3 (2026-09-18)
+and no longer matches the on-screen order** — see "The right column, rebuilt
+to the mockup" below for the current one: `.bar` You / the you-frame (Mood,
+Resources, Purse, Carrying, the load meter, notable tags) / `Turn` / `Here` /
+`Waiting on you`, and PLACE, ROOM, TRAVEL, Things and Desires kept below all
+four as plain sections instead of tabs.
 
 ```
 ┌───────────────┬────────────────────────────────────────────┬──────────────────────┐
@@ -1368,74 +1372,83 @@ a 48px head and a one-line composer:
   its own, so it keeps Escape, the focus trap and the backdrop `Modal`
   already owns.
 
-  **The sections are TABS, not a stack** (2026-09-09) — Place · Room · Travel ·
-  You. Three of them are unbounded (the place card is as long as its prose, the
-  travel grid is 6rem per exit, YOU is four sub-blocks plus a waiting list), so
-  stacked down one scroller the tallest of them decided how far you travelled
-  to reach anything under it; and two of them render nothing at all when they
-  have nothing to say, which moved the column's height on every walk. One panel
-  open at a time fixes both. **ROOM** appears only when a room is open. Which
-  tab you left open is remembered per browser in `localStorage` through
-  `asideTabStore.js` — `useSyncExternalStore`, never an effect — and a stored
-  tab this place does not have falls back to Place. The `dialogs` node hangs
-  OUTSIDE the panel on purpose: a dialog opened from one tab must not unmount
-  because the reader pressed another.
+  ### The right column, rebuilt to the mockup (2026-09-18, shard 3)
 
-  **HERE IS NOT A TAB** (2026-09-09, later the same day). It was one for an
-  afternoon, and a playtester said what was wrong with that: *"Bit tedious I
-  think having to click to see who's in the same room. Could be merged with
-  'place' maybe?"* They were right. Who you are standing with is the question
-  the page exists to answer, so you want it answered the whole time rather than
-  on request — and HERE has none of the problem the tabs solve, being as tall
-  as the room is full rather than as long as somebody's prose. So the people
-  are drawn at the top of **PLACE**, which is the tab the column opens on, and
-  the four tabs left are the things you go and look at. The party rack sits
-  BELOW the place card rather than with the people, even though it belongs with
-  them: it fetches its party on mount and draws nothing until that lands, so
-  above the card it shoved the Location's prose down a card-height on every
-  visit to the default tab. Anything that appears late goes under the things
-  that do not.
+  Bascinet's verdict on the shipped page was that it looked nothing like
+  `docs/design/mockups/chat/index.html`, and the mockup is what ships now. The
+  column dropped its tab strip — Place · Room · Travel · You, plus
+  `asideTabStore.js` remembering which one was open — for the mockup's own
+  stack, top to bottom, ALWAYS mounted, nothing folded to reach:
 
-  The cost of this is named rather than hidden: HERE is unbounded too, one row
-  per occupant, so a launch-day Town can push the place card below the fold of
-  the default tab. A `max-height` with a scroller is the obvious answer and is
-  the wrong one today — the person menu is a plain absolutely-positioned
-  `.chat-menu` inside the list, and an overflow would trap it in a scrollbox.
-  `.chat-menu-portal` exists for exactly that (it is how `placePanel()` escapes
-  its own container); the menu moves onto it first, then the cap.
+  1. `.bar` reading **You**.
+  2. **The you-frame** — `stats-LFWB.png` (the one sprite frame this column
+     wears now; every OTHER section that used to share it, Place/Here/Room/
+     Travel/Party, is a plain `.block` instead, see below). Inside the well:
+     the character's name in serif, `{role} · {zone}` under it, then `.kv`
+     rows — **Mood** (the band word, `db/lib/mood.js#bandOf`), **Resources**
+     (`N ⬢`), **Purse** (`N ¢`, `web/lib/purse.js#obolsOf` — the SAME reducer
+     `LedgerBand.js`'s ⬢ tile counts obols with, lifted out to one copy for
+     both), **Carrying** (`used/cap lb`) — then `StatusStrip.js`'s own load
+     meter and Status/Health tag chips, called with `numbers={false}` since
+     the kv rows already said Resources and Carrying in words.
+  3. **`Turn`** block — `TurnCard.js`, reskinned to the mockup's
+     `.turn-line`/`.warn`/`.quote`: the label and countdown on one line
+     (`Moves close` in `.warn` red when there is a cutoff, including "locked"
+     and "not in session"), then the filed Move behind a `»` mark, clamped
+     until clicked, and **Change…** alone underneath. **There is no
+     History** — Bascinet's answer was to drop it: there is no per-character
+     Move log anywhere in the app to show, and a dead button is worse than no
+     button.
+  4. **`Here · N`** block — `HereList.js` mounted with `showTitle={false}`
+     (the block's own `.bar` already says "Here · N", so the component's
+     usual internal label would say it twice) so the SAME rows, avatars, eye
+     and per-person menu the sheet's Actions panel uses are reused whole,
+     never rebuilt as bare `.person` chips — the row IS the menu's anchor.
+     Named rows now wear the feed's own six name hues
+     (`nameHue.js`, `.chat-person-name[data-hue]`), so a face is as easy to
+     pick out of this list as out of the scene; a hood stays unhued.
+  5. **`Waiting on you · N`** block — the same `waitingOnYou()`/
+     `answerWaiting()` pair as before, reskinned to the mockup's `.quote`
+     (the offer's own sentence) plus plain `.btn`s (Accept/Decline/Answer/
+     Open) instead of a `menu-item` row.
 
-  **Neither the list nor the party rack is gated on the drawer any more**, and
-  both used to be. The HERE tab was `!inSheet` on the stated grounds that the
-  phone's avatar strip (since removed) made a second poller — which was never
-  true: that strip was rendered with no `poll` prop and never polled anything.
-  What that gate did cost was real. The sheet was mounted from 900px down
-  (`useAsideFolded.js`) and the strip only appeared from 720px down, so
-  between the two **who is standing here was drawn nowhere at all** — and
-  under 720 the sheet was titled "Here" and had no people in it. The party
-  rack was worse off again: living inside a desktop-only tab, it was
-  unreachable on a phone entirely.
+  **Everything else that lived in the old tabs keeps a home, below these
+  four, as plain always-mounted sections rather than a fifth tab** — nothing
+  was cut:
+  - **Place** (`PlaceCard.js`, its fixtures, the place notice line and
+    `FormError`) — its own `.chat-card` root, inside one more `.block`.
+  - **Room** (`RoomPanel.js`) — drawn only while the open place IS a room,
+    exactly as it was gated as a tab.
+  - **The party rack** (`PartyRack.js`) — still directly below Place for the
+    reason it always was (§ below): it fetches on mount and draws nothing
+    until that lands.
+  - **Travel** (`TravelNodes.js`) — its own block, always mounted (it always
+    rendered something — "Reading the road…", a refusal, or the grid).
+  - **Things** and **Desires** (`ThingsDrawer.js`, `DesiresBlock.js`) — kept
+    exactly as they were, closed-by-default drawers with their own fold
+    (`.chat-details-fold`), not wrapped in a fourth `.block` of their own.
+  - **`Sheet ›`** — the link to `/character`, at the very foot of the stack.
 
-  What that costs is one poll. A desktop reader sitting on Place pays two slow
-  re-reads a minute where the tabbed version paid none until you pressed HERE —
-  which is not new load, it is the load the stacked column always had, and
-  `useVisiblePoll` stands both of them down whenever the BROWSER tab is in the
-  background (it reads `document.visibilityState`, not which aside tab is
-  open — that standing-down comes from the closed panels being unmounted). On a
-  phone both mount only while the 👥 drawer is open.
+  `YouPanel.js` is gone: its Move-dialog state, the waiting-list poll and the
+  you-frame markup moved directly into `ChatAside.js`, because the mockup
+  interleaves Here between Turn and Waiting — a component boundary that used
+  to own Turn+Waiting+Things+Desires as one unit could no longer draw the
+  mockup's order without new plumbing to reach inside it. `useMyMove`,
+  `waitingOnYou`, `answerWaiting`, `MoveDialog` are the same calls as before,
+  just made from one component instead of two.
 
-  The list is keyed on `hereKey` (exported from `ChatAside.js`): `HereList`
-  seeds the server's rows into `useState`, so a move — which hands down a new
-  list — has to remount it rather than leave the old street's people in place.
+  **`GmAside.js` is untouched** and keeps its own tab strip
+  (`.chat-aside-tabs`/`.tab-bar`, `asideTabStore.js`) — a GM has no hands, so
+  reading one panel at a time still earns its keep there. Only the PLAYER'S
+  column dropped tabs.
 
-  Each section is a **card** — `--surface`, a border and `--r-md`, the same
-  treatment `.panel` gets everywhere else. They were a hairline `border-bottom`
-  and nothing else, which gave a Location's long prose and a one-chip status
-  strip identical weight.
+  The `dialogs` node from `usePlaceActions()` still hangs OUTSIDE every block,
+  on purpose: a dialog opened from one section must not unmount because the
+  reader scrolled past another.
 
   It owns the affordance list the sections share through `usePlaceActions`.
-  The numbers below are the sections, not the tabs — 1 and 2 both sit in the
-  **Place** panel, and the people are drawn ABOVE the place card rather than
-  under it:
+  The numbers below are the sections that follow the four mockup blocks, not a
+  tab list:
   1. **`PlaceCard.js`** — the Location's name, its zone muted under it, a
      `Place` / `Zone` chip pair and the chosen text, always on the page inside
      a scrolling `max-height`. **Place** is `Location.description` plus the
@@ -1519,7 +1532,7 @@ a 48px head and a one-line composer:
      of you the grid still draws, every way shut with its reason on it, under
      one banner saying so (INTERCEPT.md). It used to be replaced outright while
      a journey was pending; travel lands at once now (MAP.md §3).
-  5. **`YouPanel.js`** — below.
+  5. **The party rack, Things, Desires and Sheet ›** — below.
 - **`PlacePanel.js`** is no longer a panel. It is `usePlaceActions()` plus the
   dialogs the sections open: Noticeboard, Converse, Bell, Turret, Intercom.
   The hook owns the affordance list and the refresh rule — anything that
@@ -1528,22 +1541,28 @@ a 48px head and a one-line composer:
   same thing. The web filters the ids `travel`, `whosHere`, `secretRooms` and
   `examine` out of that list; they stay in
   `db/lib/placeAffordances.js` for the anchor, which has no column beside it.
-- **`YouPanel.js`** draws **YOU**, in the order a player asks it — and every
-  section of it is about the character rather than the street they are
-  standing in:
+- **`TurnCard.js`**, **`StatusStrip.js`**, **`ThingsDrawer.js`** and
+  **`DesiresBlock.js`** are the pieces of what used to be **YOU**, now mounted
+  directly by `ChatAside.js` (§"The right column, rebuilt to the mockup"
+  above) rather than by a `YouPanel.js` in between:
   1. **`TurnCard.js`** — `DAY 4 · DUSK`, a `closes in 5 h` countdown
      computed in the browser off an ISO end time on a 60-second tick (absent
      entirely when `moveWindow` reports no lock: a frozen clock or a short
      manual turn has no honest end to count to), and then either the **Move…**
-     button or the Move already filed — its kind joining the chip row, and its
-     text behind a `»`, clamped to three lines until clicked. There is no Edit:
-     a filed Move is final (TURN-ENGINE.md §6a-i).
-  2. **`StatusStrip.js`** — one wrapping row of data chips: `{n} ⬢`, the carry
-     line against the cap, and every held tag whose `Tag.category` is
-     **Status** or **Health**. The category test is the sheet's own
-     (`web/lib/sheetCards.js`), so a new affliction appears here the day it is added to
-     `docs/tags.yaml`. Overburdened, Dying and Catatonic — and a carry line
-     over its cap — wear the danger tone.
+     button or the Move already filed — behind a `»`, clamped to three lines
+     until clicked, with **Change…** underneath when it is still editable.
+     There is no Edit label any more and no History: a filed Move is final
+     (TURN-ENGINE.md §6a-i) except the one still-open Gambit case, and there is
+     no per-character Move log to show.
+  2. **`StatusStrip.js`** — one wrapping row of data chips: every held tag
+     whose `Tag.category` is **Status** or **Health**, plus the load meter.
+     The category test is the sheet's own (`web/lib/sheetCards.js`), so a new
+     affliction appears here the day it is added to `docs/tags.yaml`.
+     Overburdened, Dying and Catatonic — and a carry line over its cap — wear
+     the danger tone. It also draws `{n} ⬢` and the carry line itself when a
+     caller passes `numbers={true}` (its default); the you-frame passes
+     `false`, since its own `.kv` rows already say Resources and Carrying in
+     words.
   3. **`ThingsDrawer.js`** — **Things**, the pockets drawer, collapsed by
      default and remembered in `localStorage`. Every tag
      whose category is **Items** or **Assets**, grouped in that order, as one
@@ -1564,23 +1583,24 @@ a 48px head and a one-line composer:
      arrives: the page carries the slots only, and the ~271 evaluated
      templates are fetched by `desireCatalogView()` the first time somebody
      opens the picker.
-  5. **`Sheet ›`** — the link to `/character`. The sheet carries the way
-     back: a Back link in its header, and Escape (`SHEET.md` §1). Its band
-     reuses this column's turn card and status strip, so the two never
-     disagree about your Move.
-  6. **`WaitingList`** — the pending offers, threat spawns, unanswered bird
-     letters and a lobby assignment. Accept and Decline call the **same**
-     `db/lib` functions the DM buttons call (`lessons.js`, `bind.js`,
-     `confession.js`, `threatSpawn.js`, `lobby.js`), so an answer given here
-     and one given in Discord are one answer, and the second surface finds
-     nothing left to answer.
+  5. **`Sheet ›`** — the link to `/character`, at the foot of the whole
+     stack. The sheet carries the way back: a Back link in its header, and
+     Escape (`SHEET.md` §1). Its band reuses `useMyMove` and `StatusStrip`
+     too, so the two never disagree about your Move.
+  6. **`WaitingList`** (a small function inside `ChatAside.js` now, not its
+     own file) — the pending offers, threat spawns, unanswered bird letters
+     and a lobby assignment. Accept and Decline call the **same** `db/lib`
+     functions the DM buttons call (`lessons.js`, `bind.js`, `confession.js`,
+     `threatSpawn.js`, `lobby.js`), so an answer given here and one given in
+     Discord are one answer, and the second surface finds nothing left to
+     answer.
   7. ~~**`Yesterday.js`**~~ — gone. What the last close said is in the
      Bascinet conversation at the top of the places column (§2b), with every
      other day.
 
-  On a phone, the turn (1) reads as a plain text line rather than a pill,
-  and Desires (4) folds the same way Things does, each slot labelled
-  `Slot N · open` or its lock or cooldown, above the Claim.
+  On a phone, this is the same stack in the same order, inside the 👥
+  drawer — Things and Desires fold the same way they do on desktop, each
+  slot labelled `Slot N · open` or its lock or cooldown, above the Claim.
 
   The card and the waiting list share **one** 60-second interval (`myMove()`
   and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`
@@ -2348,12 +2368,15 @@ connection resolved its viewer when it connected and never re-gates itself, and
 the places, feed and seen stores are all keyed to the list about to be replaced
 whole.
 
-`GmAside.js` is that column, and it is deliberately the SAME SHAPE as
-`ChatAside` — the same tab strip, the same `.chat-aside-tabs` /
-the shared `.tab-bar` / `.chat-aside-panel`, the same remembered tab through
-`asideTabStore.js`, and `PlaceCard` is literally the player's own component.
-That is §8's posture one surface over: a GM reading a scene should be reading
-the player's page, not a GM-flavoured copy of it.
+`GmAside.js` is that column. Until shard 3 (2026-09-18) it was deliberately
+the SAME SHAPE as `ChatAside` — the same tab strip. `ChatAside` dropped its
+tabs for the mockup's stack that shard, and `GmAside` did not: a GM has no
+hands, so reading one readout at a time still earns the tab strip's keep, and
+`GmAside.js` still wears `.chat-aside-tabs` / the shared `.tab-bar` /
+`.chat-aside-panel`, the same remembered tab through `asideTabStore.js`. What
+the two keep in common is `PlaceCard`, which is literally the player's own
+component — §8's posture still holds one surface over: a GM reading a scene
+should be reading the player's own place card, not a GM-flavoured copy of it.
 
 | Tab | Drawn for | What is in it |
 |---|---|---|
