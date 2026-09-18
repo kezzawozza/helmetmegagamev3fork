@@ -1,15 +1,18 @@
 # The game 3 redesign
 
-This is the architecture for reworking the whole web UI for game 3. It sets
-the direction and the decisions; Opus plans each phase from it and Sonnet
-builds. It does not replace `DESIGN-SYSTEM.md` yet. That doc gets rewritten
-in the last phase, once the rules below have been proved in the app.
+This is the record of reworking the whole web UI for game 3: what it was
+going for, the decisions Bascinet made, and which phase landed what.
+**`DESIGN-SYSTEM.md` holds the rules now** — read that first for how the app
+is actually styled. This doc stays as the history and the reasoning behind
+those rules, not a second copy of them; §3–§9 below each point at the doc
+that now owns their material instead of restating it.
 
-Two mockups sit beside this doc and are the reference for how it should
+Two mockups sit beside this doc and were the reference for how it should
 look: `docs/design/mockups/chat/index.html` (the full treatment) and
 `docs/design/mockups/character/index.html` (the CSS-only template every other
-page follows). Open them in a browser. The screenshots next to them were
-taken in a sandbox with no font access, so the blackletter is missing there.
+page followed). Open them in a browser if you want to see where the numbers in
+§3 originally came from. The screenshots next to them were taken in a sandbox
+with no font access, so the blackletter is missing there.
 
 ## 1. What we are going for
 
@@ -53,221 +56,102 @@ These were settled with Bascinet on 2026-09-17. Do not reopen them in a plan.
 
 ## 3. The look, in numbers
 
-The chat mockup's values, then the 10% correction.
-
-**Ground and surfaces.** Warm black, not teal. Mockup: `#0d0b08` ground,
-`#171310` surface, `#211b16` raised. Correction: lift each a step so the app
-reads dark rather than black, around `#14110d` / `#1d1814` / `#27211b`, and
-keep the 1.20 contrast per rung the surface ladder rule requires.
-
-**Textures.** `web/public/assets/chrome/` holds the five files and their
-attribution. `chatbg.png` tiles under every page. The mockups ran it at full
-strength on chat and 0.35 on the sheet; correction: about 0.6 on the chat
-log, 0.25 elsewhere, so it is a texture and not a subject. `chatshadow.png`
-repeats along the top of the log. `bg.png` is a vertical rail, `bg2.png` the
-header strip, `stats-LFWB.png` the frame around the chat "you" panel. Sprites
-scale at integer multiples with `image-rendering: pixelated`.
-
-**Accent.** Dried blood for fills (`#7a2a24`), a rusty salmon for text
-(`#d8806a`). Correction: desaturate both a little and let the positive
-green (`#7fa06a`) and the gold warning (`#c9a24a`) carry more of the
-interface, so it is iron and lamplight rather than iron and blood. No teal.
-No orange.
-
-**Text.** Bone grey `#b3ada2` body, `#7d776c` muted, `#cfc9bb` emphasis.
-Speech `#efb28a`. World subtext `#8a8478`. Combat and danger `#fd5b5b`.
-Blackletter in `#9a5a5a` with `text-shadow: 0 2px 3px #000`; Lifeweb's own
-`#744` fails contrast on this ground. Names get a small fixed palette of six
-muted hues, assigned per character and stable across sessions.
-
-**Fonts.** Body and chrome:
-`system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif` at 13px,
-12px in tables and chips, line-height 1.3. That is the "more modern"
-correction: Verdana-2003 was a step too far. Headings are the same face,
-bold, barely larger than body. `--font-mono` becomes
-`"Courier New", Courier, ui-monospace, monospace` for numbers only.
-`--font-display` stays UnifrakturMaguntia, the one Google Font left, used
-for a zone heading, a decree, and the name on the sheet. `next/font` drops
-Source Sans 3, Source Serif 4 and IBM Plex Mono.
-
-**Shape.** Radius 0 everywhere; the radius ladder collapses to one token at
-0. `.btn` is a 2px outset border on a flat fill, inset on `:active`. Inputs
-are inset with a hard dark edge. Panel padding 8px, table cells 2px 6px with
-1px rules. Chips are bordered labels with a 3px category rule, not pills.
-`StatusPill` is bold coloured text with no background.
+This section set the ground, surface, accent, text and shape values — the chat
+mockup's numbers, then Bascinet's 10% correction toward less grimdark. All of
+it landed in phase 1 and has since moved with the app: **`DESIGN-SYSTEM.md`
+§2 (Colour) and §3b (Shape) are where the real values live now**, gated by
+`npm run audit:contrast --workspace=web`, not this doc's snapshot of them.
 
 ## 4. Themes and time
 
-`themeForPhase` in `web/lib/turnFormat.js` picks dusk or dawn from the turn's
-phase today. Game 3 syncs to real Central time instead:
-
-- One palette, two named looks. `dawn` and `dusk` are both defined on the
-  rust ground and differ in lamp warmth only: dawn a little cooler and
-  lifted, dusk warmer and lower.
-- **A slow gradient through the day, a hard switch at dusk.** Between dawn
-  and dusk the warmth tokens interpolate with clock time; at the dusk moment
-  the theme flips at once. The interpolation is a handful of tokens set on
-  `<html>` from a small client hook, re-evaluated on a coarse timer, never
-  per frame. Everything else is static CSS.
-- `limestone` is deleted, `THEMES` shrinks to two, `BASCINET_THEME` keeps
-  working as the override.
-- `npm run audit:contrast --workspace=web` gates both looks and both ends of
-  the gradient. A monochrome-ish rust palette is where AA is easiest to lose,
-  so this runs in every phase.
+This section specified moving off `themeForPhase` (turn-phase-based) onto the
+real Chicago clock, with a slow warmth gradient through the day and a hard
+switch at dusk. Landed in phase 2. **`DESIGN-SYSTEM.md` §3 (Themes)** is the
+current description, alongside `web/lib/clockTheme.js` itself.
 
 ## 5. One component set
 
-The app has 644 top-level CSS classes and 170 components, and the same idea
-drawn several ways. The redesign is the excuse to end that. The rule: **a
-page may not own a control that the shared set already has.**
-
-Keep and restyle, since they already carry most of the app: `PageShell`,
-`PageHeader`, `Panel`, `DataTable` and `Pager`, `Modal` and `useConfirm`,
-`ActionButton`, `ActionDialog`, `CheckField`, `Switch`, `CheckPicker`,
-`ChipPicker`, `StatusPill`, `EnumPill`, `EmptyState`, `SubmitButton`,
-`FormError`, `useActionRunner`, `useNotice`.
-
-Consolidate while touching them:
-
-- **Desk chrome.** `.desk-*`, `.ops-*` and `.audit-*` are three nav-rail
-  families for four desks. One `DeskRail` component and one `.desk-*`
-  family; `DeskHeader` stays the one header.
-- **Page families.** `.chat-` (147 rules), `.desk-` (79), `.depot-` (35),
-  `.map-` (29), `.sheet-`, `.ledger-`, `.equip-` each carry their own
-  buttons, headers and lists. Anything in them that is a button, a header, a
-  chip, a list row or a tab moves to the shared class; only true layout
-  stays page-scoped.
-- **One log renderer.** `/chat`'s feed, `/archive`, the desk inspector's
-  Archive tab and the DM thread all draw a line of transcript. One
-  `TranscriptLine` component with one style, keyed on `channelKind`, used by
-  all four.
-- **One header strip.** `.panel-header` draws `bg2.png`; the chat column
-  bars and the desk column heads use `.panel-header` rather than their own.
+This section named the duplication to end — three desk-rail families, five
+page families each carrying their own buttons and headers, three copies of a
+transcript line — and set the rule that a page may not own a control the
+shared set already has. Landed in phase 3, across the shard commits below.
+**`DESIGN-SYSTEM.md` §5 (Shared classes) and §6 (Page shell)** now own the
+component list and the rule.
 
 ## 6. The chat rework
 
-The feed is where the look lives and where the named pains are. In order:
-
-**The composer.** One textarea, Enter sends and Shift+Enter breaks, the Say
-kind is a small segmented control beside it rather than a dropdown, `@` opens
-the mention directory inline, Up-arrow on an empty box edits your last line.
-The typing line stays above it. Nothing in this touches the outbox.
-
-**Your own line appears at once.** `feedStore` already has an optimistic
-`pending` map keyed by `clientId`. The pain is that the composer waits on the
-POST before it clears and the pending row is not drawn until the store
-re-renders. Fix: clear the box and append the pending row on submit,
-synchronously, and reconcile on the confirmed row. Failure marks the line,
-never removes it silently.
-
-**Switching places paints from cache.** `/chat` should hold every place's
-last window of rows in the store and paint it on switch before fetching
-history. The snapshot layer in `web/lib/snapshot/` is the seam; the store's
-`resetHistory` should not wipe what was already shown.
-
-**Unread and notification.** Two levels, like Discord:
-
-- *Unread.* The newest notable seq in a place is past what this browser has
-  seen there (`seenStore`). The place's name brightens. No number.
-- *Notified.* A mention of you, a line in your Bascinet mail, or a DM. A red
-  count, the chime, and a browser notification when the tab is hidden.
-  Counts are per place and clear when the place is read.
-
-`SYSTEM` scenery never counts for either, as today.
-
-**A name is a mention.** `db/lib/mentions.js` (new) answers "does this text
-name this character" for both faces: whole-word match on the presented name
-and the bare first name, case-insensitive, never on a concealed character,
-never on the speaker. The bot's `messageCreate` and the web's send path both
-call it and write a mention relay through the existing `relayWebMentions`
-shape, so Discord gets a real ping and the web gets a notified count. The
-directory in `web/lib/mentionDirectory.js` stays the source of names.
-
-**The intercom block.** `channelKind: "intercom"` rows draw as a bordered
-full-width block: a small caps heading ("Intercom · Keep"), the words in the
-body face at regular size, a top and bottom rule. It scrolls with the log.
-The decree block from the mockup is the same component with a blackletter
-heading, so GM notices and intercoms share one shape.
-
-**Places column.** Compressed, sectioned, as the mockup draws it: Mail,
-then the zone name as a divider, Summary, Here, Locations, Rooms, Elsewhere.
-Unread brightens, notified counts. The mobile drawer is the same list.
-
-**Removed from the mockup:** the sprite scrollbar.
+This section laid out the chat pains in order — the composer, an instant own
+line, a cached place switch, unread vs. notified, a bare name as a mention,
+the intercom block, the places column — and is now what phase 5 is building
+on `phase5-chat`. **`CHAT.md` is the doc that owns this material**, and will
+describe it as shipped once that branch lands; this section is not kept in
+sync with it in the meantime.
 
 ## 7. Tier names
 
-The chains in `docs/tags.yaml`: Melee and Ranged (Basic, Trained, Skilled,
-Expert, Legendary), Laboring, Pickpocketing, Smithing, Builder, Medical,
-Brewing, Cooking (various subsets). Rename each rung to a numeral by its
-position in its own chain, so `Melee (Basic)` is `Melee I` and
-`Melee (Legendary)` is `Melee V`, while `Builder (Skilled)`, the first rung
-of a chain that starts there, is `Builder I`. The word stays wherever it is
-a sidegrade rather than a rung (`Laborer (Farming)`, the Laboring
-masteries). `parentTag` and `requiredTag` keys do not change; only `name`.
-
-Names are referenced in prose across the system docs, the handbook and a
-handful of `db/lib` strings (four hits). The rename is a sync, not a
-migration: `db:sync-tags` upserts by key, so no character loses a tag. This
-is a game 3 change and never runs against the game 2 database.
+This section set the rename rule — a chain's rungs become numerals
+(`Melee (Skilled)` → `Melee III`), a sidegrade keeps its word
+(`Laborer (Farming)`) — and is now what phase 6 is building on
+`phase6-tiers`. **`TAGS.md` is the doc that owns tag naming**, and will
+describe the numerals as shipped once that branch lands.
 
 ## 8. GM desks
 
-They inherit the look through the shared classes and get the consolidation
-in section 5. No layout redesign. The rule for a desk page in this pass:
-if it looks broken after the restyle, fix it; if it looks dense, leave it.
-The inspector column, the modeless dialogs and the keyboard guards in
-`ADJUDICATION.md` and `PLAYER-DESK.md` are not touched.
+This section asked for the desks to inherit the look through the shared
+classes and fold their duplicated rail/tab/header components into it, with no
+layout redesign. That work happened inside phase 3 rather than as a separate
+pass — the shard commits below (`DeskRail`, the shared tab strip, the header
+strip on desk column heads) are what this section asked for. **`DESIGN-SYSTEM.md`
+§6 (Page shell, the desk exception)** is where it is documented now.
 
 ## 9. Constraints that do not move
 
-- **No `backdrop-filter`, no per-frame animation, no full-viewport animated
-  layer.** `/gm/turns` scrolling smoothly is the benchmark. The theme
-  gradient is a coarse timer setting tokens, not an animation.
-- **The contrast audit gates every colour**, both looks, both ends of the
-  gradient, the zone and tag codes at 3.0.
-- **Every colour is a token.** Zero hardcoded hex in a component stays
-  zero. The name palette in section 3 is six tokens.
-- **Discord still gets every line.** The outbox, the proxy pipeline and the
-  mirror are not part of this work. A web-only feature is presentation, or a
-  notification, never a message Discord does not receive.
-- **Mobile keeps the 720px shell, the 44px floor and the bottom bar.** The
-  chat page keeps its full-screen phone view.
-- **The BY-SA attribution ships with the first texture commit**
-  (`web/public/assets/chrome/ATTRIBUTION.md`, already there) and a line in
-  the handbook credits.
+This section held the lines that do not move regardless of phase: no
+`backdrop-filter` and no per-frame or full-viewport animation, every colour a
+token, the contrast audit gating every colour and both ends of the theme
+gradient, mobile keeping its 720px shell and 44px floor, Discord still
+getting every line, and the BY-SA texture attribution shipping with the
+textures. All of these are now load-bearing rules in **`DESIGN-SYSTEM.md`**
+(§2 Colour, §3a Chrome, §9 Mobile) rather than a list to check against once —
+CHAT.md carries the Discord-parity constraint specifically, once phase 5
+lands.
 
 ## 10. Phases
 
-Each phase is one Opus plan and lands on `master` in v3 on its own. Order
-matters: every later phase is judged against the look the earlier ones
-establish.
+Each phase is one Opus plan and its own push (or its own branch, until it
+lands) to `master` in v3. Order matters: every later phase is judged against
+the look the earlier ones establish.
 
-1. **Tokens and fonts.** The two rust looks in `globals.css`, the system
-   font stack, radius to 0, bevels on `.btn` and `.field`, the header strip,
-   the ground texture at 0.25, limestone deleted. Audit green. Every page
-   changes at once and nothing else does. This is the sheet mockup made real.
-2. **Real-time theme.** The CST clock, the gradient tokens, the hard switch.
-3. **Shared set consolidation.** Section 5: the desk rails, the log
-   renderer, the page families' private buttons and headers. Pure refactor,
-   no visible change beyond the look already landed.
-4. **The sheet.** `docs/design/mockups/character/index.html` is the spec,
-   built on the real data and on the components phase 3 produced: the band
-   with the blackletter name, the five tiles, the This turn / Combat / Turn
-   effects row, the verb strip as hairline-split groups of bevelled buttons
-   with gated verbs dashed, the tag rail with its next-tier lines, the equip
-   board with slot wells, Mood as the nine-band strip, Desires. Headings in
-   this pass go to a bold serif as the mockup draws them, app-wide, and the
-   name on the sheet takes `--font-display` and `--blackletter`. Phase 1
-   restyled the old layout; this is the layout. `SHEET.md` is updated with it.
-5. **Chat.** Section 6, in its listed order: composer, instant own line,
-   cached place switch, unread and notified, name mentions (bot and web), the
-   intercom block, the places column, the rails and the you-panel frame.
-6. **Tier names.** Section 7, with the doc and handbook sweep.
-7. **GM desks.** Section 8.
-8. **Docs.** Rewrite `DESIGN-SYSTEM.md` to the new rules, retire
-   `CRT-TERMINAL.md`, update `CHAT.md` and `SHEET.md`, and delete this file's
-   sections 3 to 6 in favour of pointers, so there is one design doc again.
+1. **Tokens and fonts — landed** (`43e83ffe`, "Phase 1 of the game 3 redesign:
+   the rust palette, system fonts, square bevelled chrome"). The two rust
+   looks in `globals.css`, the system font stack, radius to 0, bevels on
+   `.btn` and `.field`, the header strip, the ground texture at 0.25,
+   limestone deleted.
+2. **Real-time theme — landed** (`56f6db70`, "Phase 2 of the game 3 redesign:
+   the look follows the Chicago clock"). The Chicago clock, the gradient
+   tokens, the hard switch.
+3. **Shared set consolidation — landed**, across five shards: `aaa28209`
+   ("one TranscriptLine for the feed, the inspector and DMs"), `e7f512ef`
+   ("one DeskRail — the Dev Panel and audit rails fold into it"), `d182b0c2`
+   ("Chat's, the Depot's and the faction console's tabs take the shared
+   strip"), `34ada3a4` ("one recipe for the quiet label over a group of
+   things"), `9f7c07b1` ("one header strip on the desk column heads"). Pure
+   refactor, no visible change beyond the look phases 1–2 already landed.
+4. **The sheet — landed** (`f0eab3b7`, "Phase 4 of the game 3 redesign: the
+   character sheet, rebuilt"). The band with the blackletter name, the five
+   tiles, the verb strip as hairline-split bevelled groups, the tag rail, the
+   equip board, Mood as the nine-band strip. `SHEET.md` was updated with it.
+5. **Chat — in progress**, on branch `phase5-chat`. The composer, instant own
+   line, cached place switch, unread/notified, name mentions, the intercom
+   block, the places column. See §6 above.
+6. **Tier names — in progress**, on branch `phase6-tiers`. See §7 above.
+7. **GM desks — absorbed into phase 3.** No separate pass was needed; the
+   shard commits above did the consolidation this phase asked for.
+8. **Docs — this commit.** `DESIGN-SYSTEM.md` rewritten to the rules as they
+   exist in code, `CRT-TERMINAL.md` retired, and this file's §3–§9 turned
+   into pointers so there is one design doc again. `CHAT.md` and `TAGS.md`
+   are phase 5's and phase 6's to update when those branches land — not
+   touched here.
 
 ## 11. Out of scope
 
