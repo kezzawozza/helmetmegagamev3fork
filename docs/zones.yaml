@@ -664,10 +664,6 @@ zones:
             stash:
               items:
                 paper: 4
-          keep-swimming-pool:
-            name: Swimming Pool
-            description: >-
-              An extravagant design. Its novelty has worn off, and now it's a place where the nobility fall in and drown. You swear you can see something shiny at the bottom.
           keep-library:
             name: Library
             description: >-
