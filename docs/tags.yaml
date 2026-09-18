@@ -353,7 +353,7 @@ tags:
     catalog: gm
     name: Hungerless
     category: meta
-    description: "You never get hungry. You do not need to eat at all."
+    description: "Your body no longer needs sustenance."
     pointCost: 0
     purchasable: false
 
@@ -1554,7 +1554,7 @@ tags:
     keepSlug: true
     category: general
     group: general-traits
-    description: "You get hungry twice as fast as anyone else."
+    description: "You find yourself feeling hungry far more often than normal."
     pointCost: -6
     # OFF the creation menu until it means something. It is a drawback worth 6
     # points, and while it is unenforced those are 6 free points for accepting
@@ -3444,7 +3444,7 @@ tags:
     name: Ate Meal
     category: status
     group: status-food
-    description: "You sat down to a proper meal today."
+    description: "Your appetite is sated, for now."
     pointCost: 0
     purchasable: false
     durationTurns: 1
@@ -3469,7 +3469,7 @@ tags:
     name: Hungry
     category: status
     group: status-debuffs
-    description: "Your stomach is grumbling and you're finding it hard to think straight. Eat something. -1 on all Gambits."
+    description: "Hunger pangs ache at your core, compelling you to find something to eat soon. -1 on all gambits."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -3485,7 +3485,7 @@ tags:
     name: Starving
     category: status
     group: status-debuffs
-    description: "You have not eaten in far too long. Your hands shake and you can barely stand. -3 on all Gambits, and you cannot keep this up."
+    description: "Deprived of food, your body has begun to cannibalize itself to survive. You can feel your life sapping away, -3 to all gambits."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -3690,7 +3690,7 @@ tags:
     name: Fertilized Fields
     category: status
     group: status-buffs
-    description: "Your fields are richly fed. Nothing withers when you sow, and one crop in six comes up double."
+    description: "You have nourished the earth upon which you plant, the harvest will surely be bountiful!"
     pointCost: 0
     visible: false
     purchasable: false
@@ -5544,7 +5544,7 @@ tags:
     name: Arelitz
     category: assets
     group: assets-companions
-    description: "A broken-in arelitz, rideable by up to 2 people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others. Cannot be used in the Caves. No food upkeep — it feeds itself in the stable."
+    description: "A great eight legged spider. It has been broken in, allowing it to be rode by up to two people. Riders are able to move an extra zone."
     pointCost: 9
     tradeable: true
     stackable: true
@@ -5567,7 +5567,7 @@ tags:
     name: Unruly Arelitz
     category: assets
     group: assets-companions
-    description: "An adult arelitz nobody has broken in. It eats, it lays, it pulls a plow if you hold it — but nobody rides it until it's tamed."
+    description: "It has yet to learn to fear its masters, and will refuse any rider. This great spider must be broken in before it can be used as a mount."
     pointCost: 6
     tradeable: true
     stackable: true
@@ -5582,7 +5582,7 @@ tags:
     name: Arelitz Hatchling
     category: assets
     group: assets-companions
-    description: "A newly-hatched arelitz, barely out of the egg. It will grow if it's left where it hatched."
+    description: "A small newly hatched arelitz, it is barely larger than a rat."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5597,7 +5597,7 @@ tags:
     name: Arelitz Youngling
     category: assets
     group: assets-companions
-    description: "A young arelitz, past hatching but still growing."
+    description: "This arelitz has recently shed its carapace, its maturation slow but steady."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5612,7 +5612,7 @@ tags:
     name: Arelitz Yearling
     category: assets
     group: assets-companions
-    description: "An almost-grown arelitz, one turn from maturity."
+    description: "Nigh indistinguishable from an adult, this arelitz has almost completely matured."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -5630,7 +5630,7 @@ tags:
     name: Arelitz Mastery
     category: skills
     teachable: false
-    description: "You know how to break an unruly arelitz in. It's still a Gambit — the beast gets a say."
+    description: "You have mastered the ability to break in unruly arelitz."
     pointCost: 15
     mastery: true
     purchasable: true
@@ -7014,7 +7014,7 @@ tags:
     category: items
     group: items-gear
     sprite: bottle1
-    description: "Synthetic liquid that can be consumed to gain {tag:fertilized-fields} — nothing withers on your next sowing, and one crop in six comes up double."
+    description: "A sack filled with clumps reeking of sulfur. Consuming it will make any crops planted this turn have significantly greater yields."
     pointCost: 2
     depotPrice: 4
     weight: 3
@@ -9480,7 +9480,7 @@ tags:
     name: Arelitz Tack
     category: items
     group: items-gear
-    description: "Increases the speed of your arelitz, giving it +1 free zone move."
+    description: "A custom tailored saddle, granting you significantly more control of where your beast lumbers. +1 to your arelitz free move bonus."
     pointCost: 7
     equippable: true
     equipSlot: ACCESSORY
@@ -10230,7 +10230,7 @@ tags:
     category: items
     group: items-food
     sprite: wheat
-    description: "A sheaf of raw wheat. You could cook with it."
+    description: "Thick grains of wheat, waiting to be cooked."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10256,7 +10256,7 @@ tags:
     category: items
     group: items-food
     sprite: potato
-    description: "A potato, fresh from the dirt. You could cook with it."
+    description: "Comes in many shapes and sizes, all of them round."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10279,7 +10279,7 @@ tags:
     category: items
     group: items-food
     sprite: tomato
-    description: "A ripe tomato. You could cook with it."
+    description: "The ideal projectile, second only to the humble stone."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10302,7 +10302,7 @@ tags:
     category: items
     group: items-food
     sprite: carrot
-    description: "A carrot, pulled from the earth. You could cook with it."
+    description: "Sharp and astute."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10325,7 +10325,7 @@ tags:
     category: items
     group: items-food
     sprite: plump-harvest
-    description: "A stubby fungus that passes for a vegetable in the caves. You could cook with it."
+    description: "Soft and purple, it has sustained generations of cave dwellers."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10351,7 +10351,7 @@ tags:
     category: items
     group: items-gear
     sprite: pigtail
-    description: "A bundle of tough fibrous reeds, grown in the fields. Could be crushed into fibre for rope or thread, if anyone worked out how."
+    description: "A hard pink fibrous sheath, it can be crushed into bundles of fibers for crafting."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10369,7 +10369,7 @@ tags:
     category: items
     group: items-food
     sprite: rottenmeat
-    description: "A cut of raw meat. You could cook with it."
+    description: "All the fleshy bits"
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10392,7 +10392,7 @@ tags:
     category: items
     group: items-food
     sprite: monkeycube
-    description: "A hard block of preserved rations. You could cook with it."
+    description: "Straight from a tin, flavoured like death to mask the cans that have spoiled."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10416,7 +10416,7 @@ tags:
     category: items
     group: items-food
     sprite: rat
-    description: "A dead rat. You could cook with it."
+    description: "Squeak squeak!"
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10440,7 +10440,7 @@ tags:
     category: items
     group: items-food
     sprite: sugar
-    description: "A twist of raw sugar. You could cook with it."
+    description: "A saccharine luxury from far away lands."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10465,7 +10465,7 @@ tags:
     category: items
     group: items-food
     sprite: cheesewedge
-    description: "A wedge of cheese. You could cook with it."
+    description: "The mold is apparently supposed to be there."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10491,7 +10491,7 @@ tags:
     category: items
     group: items-food
     sprite: fat
-    description: "A tub of rendered fat. You could cook with it."
+    description: "Gelatinous and slimy, packed with oils."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10515,7 +10515,7 @@ tags:
     name: Eel
     category: items
     group: items-food
-    description: "An eel. You could cook with it."
+    description: "Slippery and covered in sharp bony spurs."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10538,7 +10538,7 @@ tags:
     category: items
     group: items-food
     sprite: fish
-    description: "A pale fish coated in cave dust. You could cook with it."
+    description: "A brightly speckled exterior warns any would-be predator to steer clear."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10561,7 +10561,7 @@ tags:
     name: Haggar
     category: items
     group: items-food
-    description: "A haggar, hauled up from somewhere deep. You could cook with it."
+    description: "Its eye sockets have sealed shut, rendering it completely blind."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10584,7 +10584,7 @@ tags:
     category: items
     group: items-food
     sprite: fish
-    description: "A trout, fished out of some flooded tunnel. You could cook with it."
+    description: "Lean and agile, with a great translucent fin to carry it through the water."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -10615,7 +10615,7 @@ tags:
     category: items
     group: items-seeds
     sprite: wheat-2
-    description: "A sack of seed wheat. Open it in the fields to sow."
+    description: "A staple choice!"
     pointCost: 0
     depotPrice: 4
     weight: 1
@@ -10633,7 +10633,7 @@ tags:
     name: Sowing Wheat
     category: status
     group: status-buffs
-    description: "You have wheat seed to hand, and today is the day for it."
+    description: "You can plant wheat crops."
     pointCost: 0
     visible: false
     purchasable: false
@@ -10646,7 +10646,7 @@ tags:
     category: items
     group: items-seeds
     sprite: potato-2
-    description: "A sack of seed potatoes. Open it in the fields to sow."
+    description: "The humble potato, famed for its reliable harvests."
     pointCost: 0
     depotPrice: 4
     weight: 1
@@ -10664,7 +10664,7 @@ tags:
     name: Sowing Potato
     category: status
     group: status-buffs
-    description: "You have potato seed to hand, and today is the day for it."
+    description: "You can plant potatoes."
     pointCost: 0
     visible: false
     purchasable: false
@@ -10677,7 +10677,7 @@ tags:
     category: items
     group: items-seeds
     sprite: tomato-2
-    description: "A sack of seed tomato. Open it in the fields to sow."
+    description: "Little black specks, which might grow stalks of swollen red globes."
     pointCost: 0
     depotPrice: 4
     weight: 1
@@ -10695,7 +10695,7 @@ tags:
     name: Sowing Tomato
     category: status
     group: status-buffs
-    description: "You have tomato seed to hand, and today is the day for it."
+    description: "You can plant tomatoes."
     pointCost: 0
     visible: false
     purchasable: false
@@ -10708,7 +10708,7 @@ tags:
     category: items
     group: items-seeds
     sprite: carrot-2
-    description: "A sack of seed carrot. Open it in the fields to sow."
+    description: "Carrot seeds ready to begin burrowing into the earth."
     pointCost: 0
     depotPrice: 4
     weight: 1
@@ -10726,7 +10726,7 @@ tags:
     name: Sowing Carrot
     category: status
     group: status-buffs
-    description: "You have carrot seed to hand, and today is the day for it."
+    description: "You can plant carrots."
     pointCost: 0
     visible: false
     purchasable: false
@@ -10739,7 +10739,7 @@ tags:
     category: items
     group: items-seeds
     sprite: onion
-    description: "A sack of seed onion. Open it in the fields to sow."
+    description: "Your onions will soon be the talk of the town!"
     pointCost: 0
     depotPrice: 4
     weight: 1
@@ -10757,7 +10757,7 @@ tags:
     name: Sowing Onion
     category: status
     group: status-buffs
-    description: "You have onion seed to hand, and today is the day for it."
+    description: "You can plant onions."
     pointCost: 0
     visible: false
     purchasable: false
@@ -10770,7 +10770,7 @@ tags:
     category: items
     group: items-seeds
     sprite: unnamed-2
-    description: "A sack of plump helmet spores. Open it in the fields to sow."
+    description: "A handful of spores, dust them where you wish them to grow."
     pointCost: 0
     depotPrice: 4
     weight: 1
@@ -10788,7 +10788,7 @@ tags:
     name: Sowing Plump Helmet
     category: status
     group: status-buffs
-    description: "You have plump helmet spores to hand, and today is the day for it."
+    description: "You can plant plump helmets."
     pointCost: 0
     visible: false
     purchasable: false
@@ -10801,7 +10801,7 @@ tags:
     category: items
     group: items-seeds
     sprite: pigtail
-    description: "A sack of pigtails seed. Open it in the fields to sow."
+    description: "Grows into tough pink sheathes of fiber for all sorts of crafting."
     pointCost: 0
     depotPrice: 4
     weight: 1
@@ -10819,7 +10819,7 @@ tags:
     name: Sowing Pigtails
     category: status
     group: status-buffs
-    description: "You have pigtails seed to hand, and today is the day for it."
+    description: "You can grow pigtails."
     pointCost: 0
     visible: false
     purchasable: false
@@ -11143,7 +11143,7 @@ tags:
     category: items
     group: items-food
     sprite: bread
-    description: "Two sheaves of wheat, baked down to something you can actually eat."
+    description: "Delightfully fluffy, though notably bland. Goes great with circuses."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11170,7 +11170,7 @@ tags:
     category: items
     group: items-food
     sprite: loaf4
-    description: "A denser loaf, half wheat and half potato."
+    description: "Thick and starchy, swallowing it can be hard but it tastes lovely."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11198,7 +11198,7 @@ tags:
     category: items
     group: items-food
     sprite: pastatomato
-    description: "Wheat worked with tomato into something worth a fork."
+    description: "Long strands of wheat pasta mixed with crushed up tomato."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11226,7 +11226,7 @@ tags:
     category: items
     group: items-food
     sprite: bakedpotato
-    description: "Two potatoes, baked through."
+    description: "Potato, cut into small chunks and baked to perfection."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11253,7 +11253,7 @@ tags:
     name: Red Mash
     category: items
     group: items-food
-    description: "Potato mashed through with tomato."
+    description: "Mashed up potato, stained blood red by the tomato that has been mixed inside."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11281,7 +11281,7 @@ tags:
     category: items
     group: items-food
     sprite: vegetablesoup
-    description: "Whatever the field gave up today, boiled down together."
+    description: "An assortment of various vegetables, all boiled together."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11317,7 +11317,7 @@ tags:
     category: items
     group: items-food
     sprite: potatorat
-    description: "Potato and whatever the traps caught."
+    description: "A rat, gutted and cooked with a baked potato stuffed inside."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11345,7 +11345,7 @@ tags:
     category: items
     group: items-food
     sprite: tomatosoup
-    description: "Tomatoes, cooked down to a soup."
+    description: "Soup is good food."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11373,7 +11373,7 @@ tags:
     category: items
     group: items-food
     sprite: onion3
-    description: "Onion, fried down to something sweeter than it started."
+    description: "No onions for those Blackstone dogs."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11401,7 +11401,7 @@ tags:
     category: items
     group: items-food
     sprite: meatballsoup
-    description: "Meat, boiled down with whatever root vegetable is on hand."
+    description: "Meat and vegetable, infused into a potent and hearty broth."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11431,7 +11431,7 @@ tags:
     category: items
     group: items-food
     sprite: meatstake
-    description: "Meat, fried plain."
+    description: "Various cuts of meat, all fried to a nice crisp texture."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11458,7 +11458,7 @@ tags:
     name: Fried Rat
     category: items
     group: items-food
-    description: "Dead rat, fried down until it's actually appetizing."
+    description: "Cooked to a crisp, let's hope that makes it somewhat more edible."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11486,7 +11486,7 @@ tags:
     category: items
     group: items-food
     sprite: shroomsteak
-    description: "Plump Helmet, fried down to a mushroom's version of Fried Onion."
+    description: "A handful of plump helmets grilled and ready to eat."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11513,7 +11513,7 @@ tags:
     name: Poached Rat
     category: items
     group: items-food
-    description: "Dead rat, poached in arelitz egg."
+    description: "A boiled rat served with poached arelitz egg. An unusual tradition in the North."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11541,7 +11541,7 @@ tags:
     category: items
     group: items-food
     sprite: stew
-    description: "Whatever's biting, boiled down with a root vegetable."
+    description: "Loose scales swim in a sea of lumpy vegetables."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11571,7 +11571,7 @@ tags:
     category: items
     group: items-food
     sprite: fishfillet
-    description: "Two catches, fried plain."
+    description: "White grilled flesh melts off the bones."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11603,7 +11603,7 @@ tags:
     category: items
     group: items-food
     sprite: omelette
-    description: "Two arelitz eggs, worked into an omelette."
+    description: "Arelitz egg; broken, mixed and fried."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11631,7 +11631,7 @@ tags:
     category: items
     group: items-food
     sprite: sausage
-    description: "Meat packed with rendered fat."
+    description: "Various unknown meats packed into a tasty tube."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11659,7 +11659,7 @@ tags:
     category: items
     group: items-food
     sprite: fat
-    description: "Rendered fat, cured with rock salt."
+    description: "A slab of fat, cured with salt, delicious."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11694,7 +11694,7 @@ tags:
     category: items
     group: items-food
     sprite: piepotato
-    description: "Bread worked through with potato and fried."
+    description: "A small assortment of clumps of fried potato."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11724,7 +11724,7 @@ tags:
     category: items
     group: items-food
     sprite: egghole
-    description: "Bread with an arelitz egg fried into the middle."
+    description: "A piece of bread with a fried egg popped in the middle. The yolk stares back at you."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11753,7 +11753,7 @@ tags:
     category: items
     group: items-food
     sprite: pizzamargheritaslice
-    description: "Two loaves worked flat, with cheese and tomato baked in."
+    description: "A thin slice coated in tomato and cheese."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11782,7 +11782,7 @@ tags:
     category: items
     group: items-food
     sprite: sandwich
-    description: "Bread and tomato, closed over meat or whatever the traps caught."
+    description: "Two slices of bread ensnare a hapless piece of fried meat."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11817,7 +11817,7 @@ tags:
     category: items
     group: items-food
     sprite: honeycomb
-    description: "Honey or sugar, worked into a treat."
+    description: "Sweet candies, they melt in your mouth leaving you hungry for more!"
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11847,7 +11847,7 @@ tags:
     category: items
     group: items-food
     sprite: bun
-    description: "Bread worked with tinned butter."
+    description: "Curt pieces of bread, buttered through the middle."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11878,7 +11878,7 @@ tags:
     category: items
     group: items-food
     sprite: carrotcake-slice
-    description: "Bread and carrot, sweetened with honey or sugar."
+    description: "A thick loaf of cake, infused with distinct carrot undertones."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11909,7 +11909,7 @@ tags:
     category: items
     group: items-food
     sprite: pancake
-    description: "Wheat, arelitz egg and maggot milk, worked into a batter."
+    description: "Thinly fried batter, piled up into a formidable stack."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11937,7 +11937,7 @@ tags:
     category: items
     group: items-food
     sprite: steak
-    description: "Three cuts of meat, cooked plain."
+    description: "A juicy hunk of meat, ready to be served with a side or on its own."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11964,7 +11964,7 @@ tags:
     name: Caviar
     category: items
     group: items-food
-    description: "Fish roe, cured with rock salt."
+    description: "Fish eggs cured with salt, a very underwhelming delicacy."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -11992,7 +11992,7 @@ tags:
     category: items
     group: items-food
     sprite: meatpie
-    description: "Bread worked around arelitz egg and meat."
+    description: "A great mince pie, fit for even the most greedy of gluttons."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -12019,7 +12019,7 @@ tags:
     name: Honeyed Crayfish
     category: items
     group: items-food
-    description: "Crayfish, glazed in honey."
+    description: "Glazed in honey, before being baked. Its shell is surprisingly soft and sweet."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -12046,7 +12046,7 @@ tags:
     name: Soaked Truffles
     category: items
     group: items-food
-    description: "Deep morel and plump helmet, soaked in sake or Ravenheart Red."
+    description: "An assortment of fungi, left to soak in fine liquor for an overwhelmingly rich taste."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -12076,7 +12076,7 @@ tags:
     name: Fondue
     category: items
     group: items-food
-    description: "Cheese melted through with maggot milk and honey or sugar."
+    description: "A dessert of liquefied cheese, mixed with cream and honey or sugar."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -12106,7 +12106,7 @@ tags:
     name: Foie Gras
     category: items
     group: items-food
-    description: "Deer liver, worked with tinned butter."
+    description: "Creamy and smooth, this organ has been plumped out with butter to imitate the taste of a diseased liver."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -12133,7 +12133,7 @@ tags:
     name: Northern Delight
     category: items
     group: items-food
-    description: "Ravenheart Red, honey and dustfish, worked into something you probably shouldn't eat."
+    description: "Off-putting to most, the sharp taste of the dustfish—when cooked properly—has become a traditional flavour of the North."
     pointCost: 0
     weight: 0.5
     stackable: true
