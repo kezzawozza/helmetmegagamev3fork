@@ -1657,7 +1657,7 @@ tags:
     psychological: true
     category: general
     group: general-addictions
-    description: "You're addicted to heroin. Nothing else seems worth wanting. Locks every Desire except using again."
+    description: "You're addicted to heroin. It locks both desire slots."
     pointCost: -8
     exclusive: true
     purchasable: true
@@ -13780,9 +13780,12 @@ tags:
   # path never reads `cooked.mood` for one (web/.../actions/misc.js) — what a
   # drug does to the dial is a row in CONSUME_RELIEF (db/lib/mood.js), and the
   # two that go straight to the top SET the dial there rather than adding to
-  # it. The `taste:` lines below are empty on purpose, the way Phrygian Tears
-  # does it: an empty taste prints nothing rather than a gap, and none of
-  # these has been given a flavour yet.
+  # it.
+  #
+  # `taste:` is "something bitter" for most of them, the phrasing Soporific
+  # and Poppy Pods already use — tasteLine() writes "It tastes like {taste}",
+  # so a bare adjective does not parse. Kzozel Yantar tastes of alcohol and
+  # Ambrosia of itself.
   # ---------------------------------------------------------------------
 
   # Cheap, imported, and the start of the worst thing that can happen to a
@@ -13808,7 +13811,7 @@ tags:
       - heroin-addict
     cures: [aching, severe-pain, pain-shock]
     cooked:
-      taste: ""
+      taste: "something bitter"
       mood: 0
 
   changa:
@@ -13829,7 +13832,7 @@ tags:
     consumesInto:
       - changa-high
     cooked:
-      taste: ""
+      taste: "something bitter"
       mood: 0
 
   eth-lod:
@@ -13851,7 +13854,7 @@ tags:
       - dissociated
     cures: [aching, severe-pain, pain-shock]
     cooked:
-      taste: ""
+      taste: "something bitter"
       mood: 0
 
   kzozel-yantar:
@@ -13872,7 +13875,7 @@ tags:
     consumesInto:
       - tipsy
     cooked:
-      taste: ""
+      taste: "alcohol"
       mood: 0
 
   love-tablets:
@@ -13893,7 +13896,7 @@ tags:
     consumesInto:
       - in-love
     cooked:
-      taste: ""
+      taste: "something bitter"
       mood: 0
 
   # The way out, and the only one that is not a Chaplain. Enumerated rather
@@ -13925,7 +13928,7 @@ tags:
       gambit: false
       items: [cave-fungus]
     cooked:
-      taste: ""
+      taste: "something bitter"
       mood: 0
 
   # The military autoinjector's cures list exactly, at a fifth of the price,
@@ -13993,7 +13996,7 @@ tags:
       gambit: false
       items: [changa, cave-fungus]
     cooked:
-      taste: ""
+      taste: "something bitter"
       mood: 0
 
   # The dearest thing on the shelf, and the only item in the game that hands
@@ -14024,7 +14027,7 @@ tags:
       gambit: false
       items: [{ tag: cave-fungus, count: 5 }]
     cooked:
-      taste: ""
+      taste: "ambrosia"
       mood: 0
 
   ravenheart-red:
