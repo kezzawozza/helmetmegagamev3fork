@@ -471,6 +471,38 @@ npm run audit:contrast --workspace=web   # AA gate over globals.css themes
 npm run assets:letters --workspace=web   # regenerate default letter-plaque avatars
 ```
 
+### "Boot it so I can log in and look"
+
+When Bascinet just wants to open the app in a browser, this is the whole
+recipe — do it without re-deriving it:
+
+1. **`echo $DATABASE_URL` first.** If it doesn't say `localhost`, don't run
+   `dev:setup` or `dev:web` against it — prefix those commands with
+   `env -u DATABASE_URL` so the shell's own `.env` (`db/prisma/.env`) wins
+   instead of whatever the parent shell exported. See the top of this file
+   for why this checkout in particular has been bitten by this.
+2. **Check for an existing dev server before starting one.**
+   `ps aux | grep "next dev"` — several sessions share this one checkout, so
+   one is very often already running. If it is, use its port (`next dev`
+   prints which one it picked, and refuses to double-start on the same
+   directory) rather than launching a second.
+3. **Otherwise:** `npm run dev:setup` (builds/seeds a local Postgres from the
+   YAML masters — a no-op if one already exists), then
+   `npm run dev:web` in the background.
+4. **Mint a login** — the app only signs in through real Discord otherwise:
+   `npm run dev:session -- --gm` for a superadmin, or
+   `npm run dev:session -- --character "Name"` for a specific ALIVE
+   character (`dev:seed` adds a couple of throwaway ones if none exist yet).
+   Hand Bascinet the printed `authjs.session-token` cookie value and the
+   port to set it on.
+
+A `prisma migrate deploy` failure during `dev:setup` is a real bug in a
+checked-in migration (it'll fail the same way in production), not a
+local-only problem — fix the migration file, `prisma migrate resolve
+--rolled-back <name>` against the local DB, and retry. Don't work around it
+by resetting the local database instead; that hides the bug rather than
+fixing it.
+
 ### Verifying a change locally
 
 The app signs in only through Discord, so `next dev` starts fine but every page

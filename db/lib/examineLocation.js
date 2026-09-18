@@ -50,7 +50,7 @@ async function examineLines(prisma, locationId) {
   if (hasAttribute(location, "depot")) {
     const [row, openTurn] = await Promise.all([
       loadDepot(prisma),
-      prisma.turn.findFirst({ where: { closedAt: null }, orderBy: { number: "desc" }, select: { number: true } }),
+      prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" }, select: { number: true } }),
     ]);
     depot = {
       turretArmed: row.turretArmed,

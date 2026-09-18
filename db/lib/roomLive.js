@@ -24,7 +24,7 @@ const LIVE = {
   train: {
     load: async (prisma) => {
       const turn = await prisma.turn.findFirst({
-        where: { closedAt: null },
+        where: { status: "OPEN" },
         orderBy: { number: "desc" },
         select: { number: true },
       });
