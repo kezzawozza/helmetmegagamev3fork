@@ -4853,7 +4853,7 @@ model CraftProject {
 /// the build site itself: a half-raised palisade is a visible, burnable
 /// object in a yard, not a plan in somebody's pocket, so there is
 /// deliberately no separate project table. LIVE STATE: no YAML sync writes
-/// this table, the same rule LocationYield.current and LocationLink.isOpen
+/// this table, the same rule LocationMining.current and LocationLink.isOpen
 /// live under, and wipeGameData deletes it explicitly (nothing it cascades
 /// from is deleted there).
 ///
