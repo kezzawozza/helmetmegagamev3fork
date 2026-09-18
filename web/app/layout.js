@@ -1,5 +1,7 @@
 import { UnifrakturMaguntia } from "next/font/google";
 import "./globals.css";
+import "./chat.css";
+import "./sheet.css";
 import { getMoveWindow } from "@/lib/turn";
 import { resolveLook } from "@/lib/clockTheme";
 import {

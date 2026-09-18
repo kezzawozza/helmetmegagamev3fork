@@ -382,6 +382,39 @@ Five things about these are load-bearing:
   is a client leaf. It cannot see a button wired by `form={id}` from outside the
   form — there is no enclosing form to read.
 
+## 5b. `chat.css` and `sheet.css`, and the `.bar` recipe
+
+`globals.css` used to hold Chat's rules and the sheet's rules too, alongside
+every token declaration and shared primitive on the page — 10,982 lines, most
+of them one page's own furniture. Shard 1 of the chat/sheet rebuild
+(`/root/.claude/plans/misty-shimmying-micali.md`) split it: Chat's block moved
+verbatim into `web/app/chat.css`, the sheet's into `web/app/sheet.css`, both
+imported from `layout.js` right after `globals.css` (order matters — they win
+any name they share with it). **Token declarations never moved.**
+`web/scripts/audit-contrast.js` reads `globals.css` by a hardcoded path and
+throws if the `[data-theme]` / `[data-theme="dusk"]` / `[data-theme="dawn"]`
+blocks are missing, so a new colour token is always declared there, in those
+blocks, whichever page's stylesheet uses it. Only *rules* live in the split
+files now — `globals.css` keeps tokens, the reset, the shared primitives above,
+the desks, and `/map`.
+
+**`.bar`** is the chat pages' one column-head recipe, ported from the mockup
+(`docs/design/mockups/chat/index.html`): a `bg2.png` metal strip, bold
+uppercase 10px type, a `text-shadow`. The places column's head
+(`<p className="bar">Places</p>`) and the feed's head (`ChatHead.js`, above
+720px) both wear it, plus `.spacer` (`flex:1`, pushes trailing content to the
+right edge) and `.sub`/`.crumb` for the quieter text beside the name. It
+declares `flex: 0 0 auto` explicitly — the longhand, all three values pinned —
+because the bar it replaced (`.panel-header` doing double duty as
+`.chat-bar`) set `flex-grow: 1` by way of `.panel-header`'s own shorthand, and
+a bar is the one child of a flex **column** (`.chat-places`) that must never
+grow. That one un-pinned property is the whole reason the places column used
+to visually break when a section folded shut (CHAT.md): once the column
+stopped overflowing, the bar swallowed the free space Flexbox handed it, and
+every row beneath it slid to the bottom of the screen. The fold itself is
+gone now too (CHAT.md) — the mockup never had one, and it was a second,
+independent way to hide a place with something unread in it.
+
 ## 6. Page shell
 
 `web/app/components/PageShell.js` — a component, not a convention. Every

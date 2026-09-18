@@ -44,16 +44,6 @@ export default function ChatHead({
         </span>
       )}
       <div className="chat-head-main">
-        {crumb.length > 0 && (
-          <p className="chat-crumb">
-            {crumb.map((part, i) => (
-              <Fragment key={part}>
-                {i > 0 && <span aria-hidden="true"> · </span>}
-                {part}
-              </Fragment>
-            ))}
-          </p>
-        )}
         {/* The name is a button only where it has something to open. A
             heading that looks like a button and does nothing is worse than
             a plain heading. */}
@@ -71,6 +61,16 @@ export default function ChatHead({
         ) : (
           <h1 className="section-title">{name}</h1>
         )}
+        {crumb.length > 0 && (
+          <span className="crumb">
+            {crumb.map((part, i) => (
+              <Fragment key={part}>
+                {i > 0 && <span aria-hidden="true"> · </span>}
+                {part}
+              </Fragment>
+            ))}
+          </span>
+        )}
         {text && (
           <button
             type="button"
@@ -83,6 +83,8 @@ export default function ChatHead({
           </button>
         )}
       </div>
+      <span className="spacer" />
+      {hereCount != null && hereCount > 0 && <span className="sub">{hereCount} here</span>}
       {trailing}
       {onOpenAside && (
         <span className="chat-head-phone">

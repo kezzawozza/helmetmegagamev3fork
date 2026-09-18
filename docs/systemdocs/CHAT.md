@@ -663,11 +663,16 @@ like everything else.
   **Web only.** Discord stops a player at 2000 in its own client, so there is
   nothing on that side to split. An EDIT is also still one message: editing
   one message into three is a different feature.
-- **Sections in the places column fold** (`sectionFold.js`, same
-  `useSyncExternalStore` shape). A folded section **still shows anything
-  unread in it**, with a count of what it is holding back: folding is for
-  shortening a column, not for going deaf.
-- **A breadcrumb** — Zone · Location — sits above the open place's name.
+- **No section in the places column folds.** It used to (`sectionFold.js`,
+  deleted): a folded section stayed shut across visits, and one bug in that
+  scheme — `.chat-bar`'s `flex-shrink: 0` fixing only half the shorthand
+  `.panel-header` set — meant folding a section long enough to stop the
+  column overflowing sent every row in it sliding to the floor of the
+  screen. The mockup has no fold at all, so shard 1 deleted the whole
+  mechanism rather than patching around it: a long column stays long now,
+  and nothing in it is ever hidden by accident.
+- **A crumb** — Zone · Location — sits beside the open place's name, in the
+  feed's own `.bar` (below), not above it as a separate line any more.
 - **Touch targets hold a floor of 44px** under a coarse pointer.
 
 HERE is not a tab: the people in the room are drawn at the top of the Place
@@ -675,9 +680,14 @@ panel instead. The reasoning is under `ChatAside.js` below.
 
 ### The wireframes Bascinet chose
 
-Desktop, three columns — `15rem minmax(0,1fr) 20rem`, carried as
+Desktop, the mockup's five tracks — `186px 8px minmax(0,1fr) 8px 252px`
+(`docs/design/mockups/chat/index.html`), the two flanks carried as
 `--chat-rail` and `--chat-aside-w` on `.chat-body` rather than as literals
-repeated across the media queries below. The right column grew from 17rem in
+repeated across the media queries below. The two 8px tracks are the metal
+rails: real `<div className="chat-rail">` children now (Chat.js), one grid
+cell each, rather than pseudo-elements pinned to a column-width custom
+property — a rail is rendered only alongside the column it borders, so a
+folded flank takes no rail with it. The right column grew from 17rem in
 the second pass: it is the game suite now, not a button strip. The feed fills
 whatever the middle column gives it. It was briefly capped at a `70ch` prose
 measure, which sounds right and looked wrong: the cap is left-aligned, so on a
@@ -742,14 +752,14 @@ they stayed.
 └───────────────┴────────────────────────────────────────────┴──────────────────────┘
 ```
 
-Three widths above the phone, one breakpoint each (`globals.css`, the
-"ladder" comment above the `.chat-*` media blocks):
+Three widths above the phone, one breakpoint each (`chat.css`, the "ladder"
+comment above the `.chat-*` media blocks):
 
 ```
->= 1200        15rem | 1fr | 20rem     three columns
-900 - 1200     12rem | 1fr | 17rem     the flanks shrink
-720 - 900      11rem | 1fr   [👥]      the aside folds into the right drawer
-<= 720         [≡] head [👥] / feed    one column, a drawer each side
+>= 1200        186px | 8 | 1fr | 8 | 252px     five tracks, the mockup
+900 - 1200     160px | 8 | 1fr | 8 | 220px     the flanks shrink
+720 - 900      150px | 8 | 1fr                 the aside folds into the right drawer
+<= 720         [≡] head [👥] / feed            one column, a drawer each side
 ```
 
 The aside folds at 900px in the CSS **and** in `useAsideFolded.js`, and the
@@ -856,8 +866,9 @@ a 48px head and a one-line composer:
   line for when it is not, under the tab strip — the row that is on screen
   whichever pane is open and on a phone, which is where a stream drops most.
 - **`PlacesColumn.js`** draws the column, and since the zone split it draws it
-  in two halves. The top is the places that belong to **no zone**: **Messages**
-  (the DM pseudo-place, §2b), **Radio** (the frequencies carried, §5d) and
+  in two halves. The top is the places that belong to **no zone**: **Mail**
+  (the Bascinet conversation, §2b, then Deadchat, one section — the mockup
+  draws them together), **Radio** (the frequencies carried, §5d) and
   **Faction** (the roster pseudo-place). Everything below that is **grouped by
   zone**, the way Discord groups channels into categories, each group headed by
   a horizontal divider carrying the zone's name — `—— TOWN ——`,
@@ -889,23 +900,28 @@ a 48px head and a one-line composer:
   `docs/zones.yaml`, so the web column and the Discord category list read in
   the same order rather than one of them alphabetically.
 
-  A section folds shut and stays shut (`sectionFold.js`), and with the column
-  grouped the remembered key is scoped per zone — folding Rooms under Town
-  leaves Rooms under Fortress open. Ungrouped, the key is the bare title, so a
-  player's existing folds carried over.
-- **The column's own bar and its section names.** The places column opens with a
-  `.chat-bar` reading PLACES, so all three columns start on the same line — it
+  No section folds any more (above) — every section heading is a plain `<p
+  className="sect">`, the mockup's own class, drawn whether or not the
+  section is empty (an empty one draws nothing at all, unchanged).
+- **The column's own bar and its section names.** The places column opens with
+  `.bar` reading Places, so all three columns start on the same line — it
   used to open straight onto its first section heading, which left two bars
-  between three columns. Its sections are the mockup's: **Mail**, then a zone
-  divider, then Summary, **Here** (or **Locations**, when the group holds more
-  than one — a player stands in exactly one, a GM watches every one), Rooms,
-  Conversations, Elsewhere. The fold key for that section is a literal, NOT its
-  title, or a walk that changed the count would forget the fold.
+  between three columns. `.bar` is a shared recipe now (`chat.css`): the
+  places head, the feed head (`ChatHead.js`) and any future block heading can
+  all wear it, and it fixes the bug above at the source — `flex: 0 0 auto`,
+  the full shorthand, not `.panel-header`'s `flex: 1 1 auto` with only
+  `flex-shrink` overridden.
+
+  Sections are the mockup's own: **Mail** — the Bascinet conversation THEN
+  Deadchat, one heading, not two — then a zone divider (`.zone-div`), then
+  Summary, **Here** (or **Locations**, when the group holds more than one — a
+  player stands in exactly one, a GM watches every one), Rooms, Conversations,
+  Elsewhere.
 
   `.chat-head` is the one bar deliberately **without** the metal strip on a phone.
   There it is the whole top of the screen and the place's own words sit under its
-  name, so a strip would land between the two; above 720px it takes the strip like
-  every other bar.
+  name, so a strip would land between the two; above 720px it takes `.bar`'s own
+  background and type, crumb and "N here" included.
 - **Two levels, Discord's shape** (REDESIGN.md §6), and they are two because one
   is a watermark and the other is a count.
 

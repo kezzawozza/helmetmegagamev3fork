@@ -5,6 +5,7 @@ export default function Loading() {
   return (
     <div className="chat-body" aria-hidden="true">
       <div className="chat-places" />
+      <div className="chat-rail" />
       <div className="chat-centre">
         <div className="chat-main">
           <div className="chat-head" />

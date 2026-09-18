@@ -982,6 +982,11 @@ export default function Chat({
   return (
     <div className="chat-body">
       {!narrow && placesColumn}
+      {/* The mockup's metal rails, as real grid tracks rather than pseudo-
+          elements pinned to a column-width custom property — see chat.css.
+          Rendered only alongside the column they border, the same condition
+          that column already mounts (or not) under. */}
+      {!narrow && <div className="chat-rail" aria-hidden="true" />}
       <div className="chat-centre" ref={centreRef}>
         {/* The live feed is down. Here rather than in the feed or the column
             foot: this row is on screen whichever pane is open, on a phone as
@@ -1051,6 +1056,10 @@ export default function Chat({
         />
         )}
       </div>
+      {/* The right rail, mounted alongside whichever aside is about to mount
+          below — same two conditions, ORed, since exactly one of the next two
+          blocks ever renders. */}
+      {(aside || gmZones) && !asideFolded && <div className="chat-rail" aria-hidden="true" />}
       {/* ONE of these ever mounts. The CSS hides the column under 900px, but
           hiding is not unmounting: both copies used to be live at once on a
           phone, which meant two travel loads, two stash reads and two
