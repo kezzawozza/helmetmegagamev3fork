@@ -289,7 +289,7 @@ than from a query of their own.
 The section wears `.ops-section--wide` for the eight-column seat table. That
 used to fight `.desk-card`'s own `max-width: 52rem; margin: 0 auto`, which is
 right on the reading desks and left every card here floating centred under a
-table that stretched; `.ops-main .desk-card` now drops both.
+table that stretched; `.desk-main--ops .desk-card` now drops both.
 
 ## 6a. Objectives
 

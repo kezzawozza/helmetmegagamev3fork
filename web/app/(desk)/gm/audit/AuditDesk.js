@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import DeskRail from "@/app/components/DeskRail";
 import { useRouter } from "next/navigation";
 import Pager from "@/app/components/Pager";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
@@ -212,7 +213,7 @@ export default function AuditDesk({
       />
 
       <div className="desk-body">
-        <div className="desk-rail">
+        <DeskRail variant="sections" as="div" ariaLabel="Audit filters">
           <AuditFilters
             filters={filters}
             set={set}
@@ -224,7 +225,7 @@ export default function AuditDesk({
             locations={locations}
             turnNumbers={turnNumbers}
           />
-        </div>
+        </DeskRail>
 
         <main className="desk-main audit-main">
           <AuditFeed

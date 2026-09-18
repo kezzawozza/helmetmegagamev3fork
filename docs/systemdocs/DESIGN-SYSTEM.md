@@ -313,9 +313,10 @@ inside it still uses the tokens and the shared control classes. Within that
 exception, `DeskHeader.js` is PageHeader's desk equivalent — title/meta/
 actions slots over `.desk-header`, `<h1 className="section-title">` — and all
 four desk pages use it, `/gm/dev` included. Don't hand-roll `.desk-header`
-markup in a new one. `/gm/dev`'s own left rail (`OpsNav.js`) is the
-`.ops-*` family, the same idea as `.audit-*` for the audit desk — a nav rail
-styled to its own page rather than shared across desks.
+markup in a new one. Every desk's left rail is `DeskRail.js` on the shared
+`.desk-rail` family — `/gm/dev`'s and `/gm/economy`'s section navs are
+`variant="sections"`, which is what the old `.ops-*` and `.audit-*` rail
+classes became.
 
 Desks **do** carry the nav rail. `(desk)/layout.js` renders the same
 `.app-shell` + `AppRail` + `.app-main` as `(app)`, so a desk is

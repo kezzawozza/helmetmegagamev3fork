@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import DeskRail from "@/app/components/DeskRail";
 import ZoneChip from "@/app/components/ZoneChip";
 import { noteActionVersion } from "@/app/components/useDeskVersion";
 import Select from "@/app/components/Select";
@@ -356,7 +357,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
   const searching = query.trim().length > 0;
 
   return (
-    <div className="desk-rail">
+    <DeskRail as="div" ariaLabel="Player inbox">
       {/* Two bands of chrome, then the inbox. It used to be up to five rows
           — search, a note, a zone row, a chip row, and a button per quiet
           verb, each on its own line — so on a laptop the first conversation
@@ -546,7 +547,6 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
         })}
         {visible.length === 0 && <p className="text-sm text-muted p-4">Nobody matches.</p>}
       </div>
-
-    </div>
+    </DeskRail>
   );
 }

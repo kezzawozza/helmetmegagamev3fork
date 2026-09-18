@@ -14,6 +14,7 @@
 // "Past moves" button does.
 
 import { useCallback, useMemo, useState, useTransition } from "react";
+import DeskRail from "@/app/components/DeskRail";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
@@ -224,7 +225,7 @@ export default function OracleDesk({
             row centred itself into a rounded bubble instead of filling the
             width. The active row is data-active here rather than a border, so
             it wears the inset accent bar the other two desks use. */}
-        <aside className="desk-rail">
+        <DeskRail as="aside" ariaLabel="Chronicle pages">
           <button
             type="button"
             className="desk-queue-row"
@@ -281,7 +282,7 @@ export default function OracleDesk({
               ))}
             </section>
           )}
-        </aside>
+        </DeskRail>
 
         <main className="desk-main">
           {!page ? (

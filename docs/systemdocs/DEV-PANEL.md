@@ -915,7 +915,7 @@ db:collapse-games`, off a command line and behind a dry run.
 | The tag catalog as a section, with its snapshot wiring | `web/app/(desk)/gm/dev/DevTagsSection.js` |
 | The game-level panel's server actions | `web/app/(app)/gm/dev/actions.js` |
 | The game-level panel's toggle help text, read through `InfoIcon` | `web/app/(app)/gm/dev/devHelp.js` |
-| The game-level panel's styling | `.desk-body--ops`, `.ops-nav`, `.ops-nav-group`, `.ops-nav-title`, `.ops-nav-item`, `.ops-main`, `.ops-section`, `.ops-section-head`, `.ops-lede`, `.ops-grid`, `.ops-toggles`, `.ops-toggle`, `.ops-toggle-note`, `.ops-actions`, `.ops-report`, `.ops-report-head`, `.ops-report-detail` in `globals.css` |
+| The game-level panel's styling | `.desk-body--ops`, `.desk-main--ops`, `.ops-section`, `.ops-section-head`, `.ops-lede`, `.ops-grid`, `.ops-toggles`, `.ops-toggle`, `.ops-toggle-note`, `.ops-actions`, `.ops-report`, `.ops-report-head`, `.ops-report-detail` in `globals.css`. The nav rail itself is the shared `DeskRail` (`.desk-rail[data-variant="sections"]`, `.desk-rail-group`, `.desk-rail-item`, `.group-label`) |
 | The channel doctor it runs | `db/lib/channelDoctor.js` |
 
 ## The Depot section
