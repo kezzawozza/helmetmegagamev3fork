@@ -62,12 +62,17 @@ that way.
 
 Three things about the token set are load-bearing and easy to undo by accident:
 
-- **The surface ladder is `--bg` → `--surface` → `--surface-raised`**, each
-  step keeping ~1.20 contrast. `.panel` sits on `--surface`; modals, tooltips,
+- **The surface ladder is `--bg` → `--surface` → `--surface-raised`**, a step
+  of about 1.06 each. `.panel` sits on `--surface`; modals, tooltips,
   sticky table headers and the turn chip sit on `--surface-raised`.
   `--field-bg` is *recessed below* the surface, so inputs read as cut into a
-  panel rather than as another panel stacked on it. At 1.08 the whole app read
-  as one flat sheet, which is what this spacing fixes. `--panel-bg` survives
+  panel rather than as another panel stacked on it. **A panel is told from the
+  ground by its 1px rule and its shadow, not by the lightness of its fill** —
+  that is the character mockup's ground, which Bascinet chose on 2026-09-18
+  over a lighter ladder, and it is why `LADDER_MIN` / `BORDER_MIN` in
+  `audit:contrast` sit at 1.05 / 1.40 rather than the 1.20 / 1.90 the lighter
+  palette wanted. Those two floors are structural, not accessibility: every AA
+  text gate is untouched. Move them only by moving the palette. `--panel-bg` survives
   only as a legacy alias for `--surface`.
 - **`--accent` and `--accent-text` are different colours on purpose.**
   `--accent` is a fill or rule; `--accent-text` is for text and outlines. One

@@ -1,8 +1,8 @@
 // WCAG AA gate for the design tokens in web/app/globals.css (`npm run
 // audit:contrast --workspace=web`). Parses token values straight out of the
 // stylesheet so it can never drift. Two rules people break by accident: the
-// surface ladder (--bg -> --surface -> --surface-raised must keep ~1.20
-// contrast per step), and --accent vs --accent-text (text and outlines must
+// surface ladder (--bg -> --surface -> --surface-raised must keep a step of
+// separation), and --accent vs --accent-text (text and outlines must
 // use --accent-text; --accent is a fill only). The zone code (--zone-*) is
 // fills only too, gated at 3.0 against --surface, not AA.
 
@@ -12,8 +12,20 @@ const path = require("path");
 const CSS_PATH = path.join(__dirname, "..", "app", "globals.css");
 
 const AA = 4.5; // WCAG AA, normal-size text
-const LADDER_MIN = 1.2; // per-step surface separation
-const BORDER_MIN = 1.9; // hairline vs the surface it sits on
+// The ground ladder's two structural floors. These are NOT accessibility
+// rules — every one of those (AA text, the 3.0 graphic floors below) is
+// untouched. They ask a narrower question: can you still tell a panel from
+// the ground behind it? They were written against a lighter palette, and on
+// 2026-09-18 Bascinet chose the character mockup's ground instead
+// (docs/design/mockups/character/index.html: --bg #0d0b08 on --surface
+// #171310), which separates a panel by its RULE and its shadow rather than by
+// the lightness of its fill. That ground measures 1.06 per step and 1.47 for
+// the hairline, so the old 1.20/1.90 would have refused the design the game
+// is built on. Lowered to sit just under it: still enough to catch a real
+// regression — two surfaces collapsing into one, or a border going invisible
+// — without arguing with the palette. Raise these only by moving the palette.
+const LADDER_MIN = 1.05; // per-step surface separation
+const BORDER_MIN = 1.4; // hairline vs the surface it sits on
 const ZONE_MARK_MIN = 3.0; // large-graphic floor, not AA — none of the map-picked hues would clear 4.5
 const ZONE_KEYS = ["fortress", "town", "forest", "hills", "marshes", "caves", "depths"];
 // The tag code (--tag-*), one per Tag.category. Fills only, same 3.0 floor as
