@@ -138,14 +138,15 @@ export function Readout({ readout }) {
       {readout.line && <p className="text-sm text-muted">{readout.line}</p>}
       {readout.appearance && <p className="text-sm" style={{ whiteSpace: "pre-wrap" }}>{readout.appearance}</p>}
 
+      {/* Above the gear, because an office is part of who somebody is rather
+          than a thing found on them. Null for a hood and for the four seats
+          nobody reads off a look — decided once in db/lib/examine.js. */}
+      <Line label="Role" values={readout.roleTitle ? [readout.roleTitle] : null} />
+
       <Line label="Ailments" values={readout.ailments} />
       <Line label="Equipment" values={readout.equipment} />
 
       {readout.tags.length > 0 && <SeenTags tags={readout.tags} />}
-
-      {/* Role/⬢ visibility both decided in db/lib/examine.js. */}
-      <Line label="Role" values={readout.roleTitle ? [readout.roleTitle] : null} />
-      <Line label="Resources" values={readout.resources != null ? [`${readout.resources} ⬢`] : null} />
 
       {/* Only when the looker holds the sight that buys it — db/lib/inspectVision.js. */}
       {readout.desire && (

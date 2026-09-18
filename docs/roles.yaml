@@ -61,6 +61,14 @@
 # they are also the ones the assignment roll fills first
 # (db/lib/roleAssignment.js) and the ones the picker marks with a ★.
 #
+# `examine_visible` (optional, defaults TRUE) is whether examining somebody in
+# this seat reads the title off them. Most seats in this game are public
+# offices — the Bishop, the Sheriff and the Innkeeper are known to be what they
+# are — so leaving the key out means visible. It is set to `false` on the four
+# seats that live on not being known: the two Brigands and the two Tribunal
+# seats. A hooded character reads out no role either way, the same as they read
+# out no name.
+#
 # `bank_account` (role-level, optional) opens a fingerprinted account at the
 # Depot for this character at creation: `treasury` for a claim on the coin in
 # the Keep's Vault, `offshore` for money the Company holds off-world (the
@@ -1357,6 +1365,7 @@ groups:
           A little hint: some of the Cerberi might take bribes.
       difficulty: normal
       multiple: false
+      examine_visible: false
       starting_resources: 3
       starting_zone: hills
       starting_location: hills-grand-ravine
@@ -1394,6 +1403,7 @@ groups:
       difficulty: easy
       multiple: true
       weight: 3
+      examine_visible: false
       starting_resources: 2
       starting_zone: hills
       starting_location: hills-grand-ravine
@@ -1431,6 +1441,7 @@ groups:
       difficulty: hard
       multiple: true
       weight: 1
+      examine_visible: false
       starting_resources: 8
       starting_zone: hills
       starting_location: hills-waterway
@@ -1481,6 +1492,7 @@ groups:
       difficulty: hard
       multiple: true
       weight: unlimited
+      examine_visible: false
       starting_resources: 8
       starting_zone: hills
       starting_location: hills-waterway

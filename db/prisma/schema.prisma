@@ -3477,6 +3477,16 @@ model Role {
   // docs/systemdocs/CHARACTERS.md §2.
   requiresWhitelist Boolean @default(false)
 
+  // Whether examining somebody in this seat reads the title off them. On for
+  // nearly every role -- the Bishop, the Sheriff and the Innkeeper are known to
+  // be what they are -- and off only for the seats that live on not being
+  // known: the two Brigands and the two Tribunal seats. Declared as
+  // `examine_visible:` in docs/roles.yaml, where leaving it out means visible.
+  // The title itself is frozen onto each line the character says
+  // (db/lib/examineSnapshot.js), so a look answers for the moment it was said.
+  // See docs/systemdocs/CHARACTERS.md §2.
+  examineVisible Boolean @default(true)
+
   // A seat that fixes the holder's gender rather than letting them choose:
   // Baron and Heir are MAN, Baroness and Successor are WOMAN. Null for every
   // ordinary role, which is nearly all of them. Declared as `gender:` in

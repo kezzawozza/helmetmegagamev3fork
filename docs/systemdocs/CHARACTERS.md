@@ -518,6 +518,33 @@ The requirement is **not** switchable. `GameConfig.leaderWhitelistEnabled` was
 a Dev Panel switch; it is an orphan column now, and the gate is simply always
 on.
 
+### Which seats a look reads
+
+`examine_visible` in `docs/roles.yaml` — `Role.examineVisible` in the DB —
+decides whether examining somebody prints their role. It defaults to **true**,
+which is the opposite of every other flag in that file, and on purpose: nearly
+every seat here is a public office, and the Bishop, the Sheriff and the
+Innkeeper are known to be what they are. Four carry `examine_visible: false`:
+**Brigand Leader, Brigand, Tribunal Ordinator and Tribune**, the seats that live
+on not being known.
+
+An opaque seat reads as **nothing at all** — not "Unknown". A hidden role and a
+character with no role look identical, the same way a Desire nobody may read is
+absent rather than blanked. A hooded character prints no role either, whatever
+their seat, alongside printing no name and no appearance.
+
+The title printed is `Character.roleTitle` — the character's own, which a GM may
+hand-edit to "Disgraced Knight" — and the seat's flag only decides whether it is
+read at all. It is frozen onto each line the character says
+(`db/lib/examineSnapshot.js`, `PROXYING.md` §4a), so a look answers for the
+moment that line was said, and an opaque seat's title never enters the frozen
+payload in the first place.
+
+None of this reaches a GM: the ⚜️ dossier and `/gm/players` print every role.
+It is also deliberately absent from the creation picker and the role charter —
+"this seat is opaque to a look" is exactly the hint you do not want printed
+beside the four seats that carry it.
+
 ### The starting package
 
 Picking a role decides almost everything:
@@ -855,6 +882,7 @@ never deletes. See `SYNC.md`.
 |---|---|
 | Masters | `docs/roles.yaml`, `docs/tags.yaml`, `docs/zones.yaml` |
 | Role sync | `db/lib/syncRoles.js`, `db/scripts/sync/sync-roles.js` |
+| Which seats a look reads | `Role.examineVisible`, frozen by `db/lib/examineSnapshot.js`, read by `db/lib/examine.js` |
 | Special channels | `db/lib/specialChannels.js`, `db/lib/syncSpecialChannels.js`, `db/scripts/sync/sync-narrowcast-channels.js` |
 | Seat math | `db/lib/roleCapacity.js` |
 | Budget/eligibility rules | `web/lib/characterCreation.js` |

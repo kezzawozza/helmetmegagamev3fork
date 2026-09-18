@@ -112,6 +112,11 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
     })
     : [];
 
+  // A row with no snapshot falls back to the live character, which carries no
+  // `visibleRoleTitle` — so a line written before that key existed reads out no
+  // role, the same way it already drops the faction-era `r` and `f`. The live
+  // select above is deliberately NOT widened to fetch one: a live role read on a
+  // frozen line is the thing this whole file exists to prevent.
   const subject = state ? rehydrateSubject({ live, state, tags: catalog }) : live;
 
   // Every duration counts against the turn the LINE was said, not today's — a

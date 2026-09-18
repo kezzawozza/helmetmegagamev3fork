@@ -251,7 +251,6 @@ export default function HereList({
               />
               <span className="chat-person-name" data-hue={nameHue(person.characterId)}>
                 {person.name}
-                {person.roleTitle ? <span className="text-muted"> · {person.roleTitle}</span> : null}
                 {person.characterId === selfId ? <span className="text-muted"> · you</span> : null}
                 {/* The avatar's glow ring is the mobile signal (portrait always
                     shows, name may not); this is desktop's second cue, beside it. */}
@@ -335,7 +334,6 @@ export default function HereList({
                 />
                 <span className="chat-person-name" data-hue={nameHue(person.characterId)}>
                   {person.name}
-                  {person.roleTitle ? <span className="text-muted"> · {person.roleTitle}</span> : null}
                 </span>
               </span>
             </div>

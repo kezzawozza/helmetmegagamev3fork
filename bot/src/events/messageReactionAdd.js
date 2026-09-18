@@ -228,6 +228,12 @@ function examineEmbed(readout) {
   } else {
     embed.setTitle(readout.name).setDescription(fitDescription(readout.appearance || "No visible appearance."));
   }
+  // An office is part of who somebody is, so it sits above what they are
+  // carrying. Guarded rather than tidied: Discord rejects an empty field value,
+  // and a hood or an opaque seat leaves this null (db/lib/examine.js).
+  if (readout.roleTitle) {
+    embed.addFields({ name: "Role", value: fitField(readout.roleTitle), inline: true });
+  }
   if (readout.ailments.length > 0) {
     embed.addFields({ name: "Ailments", value: fitField(readout.ailments.join(", ")) });
   }
@@ -246,10 +252,10 @@ function examineEmbed(readout) {
         : "Nothing you can read.",
     });
   }
-  // No Role and no Resources field. Both used to ride on sharing a faction —
-  // a role title with whoever answered to the same name, a balance with that
-  // faction's officers — and with factions gone nobody but a GM is entitled to
-  // either. The GM dossier above still prints both.
+  // No Resources field. That one used to ride on sharing a faction — a balance
+  // with that faction's officers — and with factions gone nobody but a GM is
+  // entitled to it. The GM dossier above still prints it, and prints every
+  // role, opaque seats included.
   if (process.env.WEB_BASE_URL) {
     embed.setThumbnail(`${process.env.WEB_BASE_URL}${readout.avatarPath}`);
   }

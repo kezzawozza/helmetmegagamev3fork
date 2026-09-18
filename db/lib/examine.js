@@ -104,6 +104,8 @@ function concealedReadout(identity, subject) {
     equipment: withoutResources(seen.filter((ct) => !isHealth(ct))).map((ct) => ct.tag.name),
     tags: [],
     desire: null,
+    // No title either, for the same reason there is no name: an office is part
+    // of who somebody is, and the hood is there to stop the room knowing that.
   };
 }
 
@@ -153,10 +155,17 @@ function examineReadout({
     ],
     // ABSENT, never "hidden" — a viewer without sight and nothing-to-read look the same.
     desire: canSeeDesire ? { text: lastDesire?.text ?? null, points: lastDesire?.points ?? null } : null,
-    // No role title and no ⬢ figure, for anybody. Both used to ride on sharing
-    // a faction — a role title with whoever answered to the same name, a
-    // balance with that faction's officers — and with factions gone there is
-    // no reader left who is entitled to either. A GM reads both off the desk.
+    // Most seats are public offices, so a look reads the title. The four that
+    // are not — the Brigands and the Tribunal — carry `examine_visible: false`
+    // and never reach here at all: the line they said froze no title
+    // (db/lib/examineSnapshot.js), which is also why this reads
+    // `visibleRoleTitle` and never `subject.roleTitle`. A raw Character row
+    // carries the latter with no visibility attached to it.
+    //
+    // Still no ⬢ figure, for anybody. That one used to ride on sharing a
+    // faction — a balance with that faction's officers — and with factions
+    // gone there is no reader entitled to it. A GM reads it off the desk.
+    roleTitle: subject.visibleRoleTitle ?? null,
   };
 }
 

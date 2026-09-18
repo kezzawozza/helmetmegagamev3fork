@@ -62,6 +62,11 @@ function parseRolesYaml(doc) {
         // Who may claim this seat at all — a hosting decision. It also decides
         // which seats the assignment roll fills first (db/lib/roleAssignment.js).
         requiresWhitelist: role.whitelist === true,
+        // Whether a look reads the title off somebody in this seat. Default
+        // ON, unlike every other flag here — most seats are public offices,
+        // and only the four that live on not being known opt out. Strict
+        // `!== false`, so a missing key and a typo both land as visible.
+        examineVisible: role.examine_visible !== false,
         // A seat that fixes its holder's gender rather than letting them
         // choose — Baron/Heir MAN, Baroness/Successor WOMAN. Validated
         // against the enum here, so a YAML typo lands as null instead of a
@@ -169,6 +174,7 @@ async function syncRolesFromYaml(prisma) {
       startingTagSlugs: entry.startingTagSlugsResolved,
       bankAccountClass: entry.bankAccountClass,
       requiresWhitelist: entry.requiresWhitelist,
+      examineVisible: entry.examineVisible,
       lockedGender: entry.lockedGender,
       docElements: entry.docElements,
       startingZoneId: entry.startingZoneSlug
