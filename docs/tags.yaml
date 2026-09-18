@@ -535,7 +535,7 @@ tags:
     name: Soft Hands
     category: general
     group: general-court
-    description: "You've never done a day's work. You make half the ⬢ you otherwise would from a day of mining."
+    description: "You've never done a day's labor. You make half the ⬢ you otherwise would when laboring."
     pointCost: -4
     purchasable: true
     purchasableAfterStart: false
@@ -1885,12 +1885,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Ungated. It was gated on Laboring I — the "Laboring OR Commoner" gate, back
-  # when a Commoner started with the ladder — and both halves of that are gone.
-  # A drawback anybody can take is the right shape for it anyway: gating a
-  # flaw on a skill meant the people least able to afford it couldn't buy it.
-  # psychological so a chaplain can confess it away. Scripted: -25% on every
-  # mining payout after the roll, db/lib/mining.js#lazyYield.
+  # psychological so a chaplain can confess it away. Scripted:
+  # -25% on every labor payout after the roll, db/lib/mining.js.
   lazy:
     catalog: all
     name: Lazy
@@ -2335,7 +2331,7 @@ tags:
     name: Lucky
     category: general
     group: general-traits
-    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and the mining die included."
+    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and the laboring die included."
     pointCost: 15
     visible: false
     purchasable: true
@@ -2604,17 +2600,13 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # What replaced the Laboring ladder. There were eight rungs: two general
-  # tiers, four side-grades scaled by where you stood, and two masteries. All
-  # of it is gone. These two are what is left, and neither gates the other —
-  # each is one skill that turns on one button, with nothing above or below it.
   prospecting:
     catalog: all
     name: Prospecting
     category: skills
     group: skills-work
     teachable: true
-    description: "You know rock from ore. Press Mine where there is a seam to work and you produce {resource:mining}, scaled by how good the ground is — and now and then you turn something up besides."
+    description: "You can mine in the caves."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -2625,7 +2617,7 @@ tags:
     category: skills
     group: skills-work
     teachable: true
-    description: "You can work a field. Press Farm on ground that takes seed and you can sow a plan of crops, then reap whatever didn't wither."
+    description: "You can grow crops in the fields."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -3941,7 +3933,7 @@ tags:
     name: Exhausted
     category: status
     group: status-debuffs
-    description: "You've pushed too far. You can't work again until you rest, and you won't fight well like this."
+    description: "You've pushed too far. You can't Labor again until you rest, and you won't fight well like this."
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     purchasable: false
@@ -6541,8 +6533,8 @@ tags:
   # one, but it never shows in the public Tag Catalog, which is what keeps
   # its actual use a discovery — the flavor text is written the way a hunter
   # or a farmhand would actually describe it, not the way a brewer would.
-  # NOTHING DROPS THIS YET. The mining drop table (
-  # farming yields) wires acquisition; a GM grants it meanwhile.
+  # NOTHING DROPS THIS YET. The mining drop table wires acquisition;
+  # a GM grants it meanwhile.
   brackenmoss:
     catalog: gm
     name: Brackenmoss
@@ -9229,7 +9221,7 @@ tags:
     name: "Prospector's Pick"
     category: items
     group: items-gear
-    description: "A short-handled pick. While equipped, mining produces an additional 1 ⬢."
+    description: "A short-handled pick. While equipped, Prospecting produces an additional 1 ⬢."
     pointCost: 2
     miningBonus: { amount: 1 }
     equippable: true
@@ -15562,8 +15554,6 @@ tags:
     name: Plebeian Hood
     category: items
     group: items-headgear
-    # Ungated: it was behind Laboring I, and no skill has any business gating
-    # a hat.
     description: "A peasant's hood. It can be drawn down."
     pointCost: 1
     equippable: true
@@ -15699,7 +15689,7 @@ tags:
     name: Mining Helmet
     category: items
     group: items-headgear
-    description: "A cushioned helmet with a small light, useful in the caves. While equipped, mining produces an additional 1 ⬢."
+    description: "A cushioned helmet with a small light, useful in the caves. While equipped, Prospecting produces an additional 1 ⬢."
     pointCost: 5
     depotPrice: 13
     equippable: true

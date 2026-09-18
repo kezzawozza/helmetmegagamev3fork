@@ -1,23 +1,15 @@
 // What a day underground is worth: the gate, the location cut, and the tools.
 // Single source for the Mine button (web/app/(app)/character/actions/mine.js)
 // and the Examine readout. See docs/systemdocs/MINING.md.
-//
-// This is what is left of db/lib/laborAccess.js. Laboring had six tiers, four
-// of them scaled by a per-location coefficient, and a resolver that scored
-// every tag a character held and paid the best. Mining is one skill at one
-// rate, so the ladder, the tier labels and the best-of scoring are all gone —
-// what stayed is the part that was never about tiers: the Exhausted gate, the
-// location coefficient, the tools, and the three things that cut a payout.
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 const { structuresAt } = require("./structures");
 const { EXHAUSTED_SLUG, PROSPECTING_SLUG, LAZY_SLUG } = require("./constants");
 
 // What a day in the seam pays at a location coefficient of 1.0, before tools
-// and before either dial. This was PRODUCTION_RATES.labor.prospecting in
-// db/lib/production.js, the thinnest of the four specialisations on purpose —
-// the mining drop die (docs/systemdocs/MININGDROPS.md) makes up the rest of
-// its value in ore rather than in ⬢.
+// and before either dial. Thin on purpose — the mining drop die
+// (docs/systemdocs/MININGDROPS.md) makes up the rest of its value in ore
+// rather than in ⬢.
 const MINING_RATE = { min: 2, max: 8 };
 
 // Lazy cuts a quarter off whatever Resources actually landed, applied AFTER the roll (not a change to the rolled range). 0.75 is Bascinet's number.
@@ -170,9 +162,9 @@ function resolveMiningRateFrom(ctx, coefficient, { lifewebFailing = false } = {}
   const access = computeMiningAccess(ctx);
   if (!access.ok) return access;
 
-  // The row IS the gate, which is why no Location carries a "minable" flag —
-  // the same rule the four Laboring specialisations used. No row, or a row
-  // that has bottomed out, and there is nothing here to work.
+  // The row IS the gate, which is why no Location carries a "minable" flag.
+  // No row, or a row that has bottomed out, and there is nothing here to
+  // work.
   if (!ctx.coefficient || ctx.coefficient <= 0) {
     return { ok: false, reason: "There's nothing to mine here." };
   }

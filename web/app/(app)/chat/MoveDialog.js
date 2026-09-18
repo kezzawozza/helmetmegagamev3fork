@@ -11,10 +11,7 @@ import { submitMove, editMyMove, withdrawMyMove } from "./actions";
 
 // Filing the one Move a turn: the @@unique([characterId, turnId]) row IS the turn.
 //
-// A Move IS a Gambit. There was a kind picker here, with Labor beside it, and a whole
-// readout of what the ground was worth before you committed — Laboring is gone and a
-// day's work is a button on the sheet now, pressed where the work actually is. What is
-// left is the one thing in the game that stays pending: the die isn't thrown until Moves
+// A Move IS a Gambit, and the one thing in the game that stays pending: the die isn't thrown until Moves
 // lock (db/lib/gambitCutoff.js), so until then this same dialog reopens on it to rewrite
 // or withdraw it. `existing` is what puts it in that mode.
 //

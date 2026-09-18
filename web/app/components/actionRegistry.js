@@ -236,9 +236,7 @@ export const ACTION_SECTIONS = [
       // greyed out in the Fortress would just be furniture.
       //
       // Only Harvest Godflesh is free. Refine, Mine and Farm each spend the
-      // whole Move — they are what filing a Labor used to be, before Laboring
-      // was removed and a day's work became a button you press where the work
-      // actually is.
+      // whole Move.
       {
         mode: "extract",
         icon: ExtractIcon,

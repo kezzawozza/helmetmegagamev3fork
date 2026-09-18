@@ -382,10 +382,6 @@ async function resolveNeeds(turn, config) {
       );
   }
 
-  // There was an auto-labor pass at the head of this sequence: it filed a
-  // Labor for every ALIVE character who had filed nothing, so income landed
-  // before Hunger's upkeep charge. Laboring is gone and a day nobody spent is
-  // simply a day nobody spent — filing nothing now does nothing.
 
   // Offer expiry (db/lib/offerExpiryPass.js): every PENDING offer on the turn,
   // before the push closes it, and PENDING offers expire.

@@ -156,9 +156,7 @@ async function main() {
   console.log(`=== Combined pools (what a payout actually draws from${where ? `, at ${where}` : ""}) ===\n`);
 
   // 1d6 uniform: the real EV of ONE day's mining is (1/6) * sum over all six
-  // faces, an unconfigured face counted as a real zero, not skipped. There
-  // was an outer loop over the six Laboring tiers here; mining is the only
-  // one left, so there is one set of numbers now.
+  // faces, an unconfigured face counted as a real zero, not skipped.
   let totalEv = 0;
   let totalHitFraction = 0;
   let anyConfigured = false;

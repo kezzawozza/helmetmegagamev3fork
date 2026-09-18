@@ -159,8 +159,6 @@ categories:
 
           Characters automatically consume 1 ⬢ a day. If you go hungry, you'll get a −1 to your Gambit. The penalty increases until you die at −6.
 
-          **Working a day**
-          Resources are produced by pressing Mine, Farm or Refine on your sheet — whichever the ground you're standing on allows. Each spends your whole turn. Mining tires you out, so you can only do it every other turn.
       - title: Tags
         body: |-
           Tags represent your character's health, items, traits, and skills.

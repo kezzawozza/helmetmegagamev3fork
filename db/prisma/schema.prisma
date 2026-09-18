@@ -1270,11 +1270,6 @@ model GmZoneView {
 // places mining is possible at all — no row means you cannot dig here, which
 // is what the Examine button prints as a bare "x".
 //
-// There were four of these per Location once, one per labor type. Mining is
-// the only one left (docs/systemdocs/MINING.md), so the `kind` column went
-// with the rest of Laboring and the row became the Location's single
-// coefficient.
-//
 // Split out of Location rather than added as columns because the drift pass
 // (db/lib/miningYield.js) wants one uniform row shape to walk.
 model LocationMining {
@@ -1307,10 +1302,6 @@ model LocationMining {
 // ever points at one of these rows, so docs/miningdrops.yaml replaces the
 // whole table on every sync run rather than upserting it
 // (db/lib/syncMiningDrops.js). See docs/systemdocs/MININGDROPS.md.
-//
-// There was a `laborType` column here once, scoping a pool to one of the six
-// Laboring tiers. Mining is the only one left, so every row is a mining row
-// and the column went with Laboring.
 enum MiningDropKind {
   TAG
   RESOURCES
@@ -3434,10 +3425,6 @@ model Tag {
   //          number of the hexagon, added AFTER the location coefficient has
   //          scaled the range, so a tool is worth the same everywhere.
   //
-  // There was a `kind` key here once, naming which of the four labor types
-  // the bonus applied to. Mining is the only one left, so a bonus is just a
-  // bonus.
-  //
   // Json rather than columns because most tags have no bonus at all, and
   // because `requiresTag` has no column shape.
   miningBonus Json?
@@ -3746,9 +3733,7 @@ model RoleReservation {
 }
 
 /// What a player asked for if the roll leaves them with nothing
-/// (docs/systemdocs/LOBBY.md §3). MIGRANT is the one unlimited seat left —
-/// Commoner was the other until it was removed with Laboring, since it only
-/// existed to be the seat for somebody who wanted to work for a living.
+/// (docs/systemdocs/LOBBY.md §3). MIGRANT is the one unlimited seat left.
 /// RETURN_TO_LOBBY means they late-join by hand after Start.
 enum JoblessRole {
   MIGRANT

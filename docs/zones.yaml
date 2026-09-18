@@ -992,10 +992,6 @@ zones:
     description: >-
       Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, and bountiful visages. The trees thin on their approach to the mountains.
     locations:
-      # The Forest had Prospecting rows once, for the panning-and-foraging
-      # side of it — a stream, a wreck, a fungal floor. Mining is the only kind
-      # of day left (MINING.md) and it is a caves-and-hills thing, so the
-      # Forest carries no coefficient at all now: you cannot dig here.
       forest-headwaters:
         name: Headwaters
         attributes:

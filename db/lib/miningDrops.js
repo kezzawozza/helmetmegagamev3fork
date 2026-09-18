@@ -5,10 +5,6 @@
 // rarity math, this file owns finding the pool. A row may also carry
 // requiredTagId, a post-filter gate applied by passesRequiredTag below,
 // orthogonal to the SQL-side scopes.
-//
-// There was a third scope dimension here once — `laborType`, which of the six
-// Laboring tiers was working. Mining is the only one left, so the six legal
-// scope combinations collapsed to three.
 const { drawFromPool } = require("./miningdropsRarity");
 
 // The three legal scope combinations (MININGDROPS.md §2). Never zone AND location together — sync refuses it.

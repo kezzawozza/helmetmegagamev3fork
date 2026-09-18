@@ -10,9 +10,9 @@ const { touchCharacterActivity } = require("./characterActivity");
 const { deleteActionRestoringTurn, lockIsLive, syncQuestIntention } = require("./moveEconomy");
 const { attacksBy } = require("./attack");
 
-// Every kind the column may hold. ROUTINE is still written constantly — by every button that spends a Move (Mine, Refine, Farm), by a GM reclassifying from the desk — it just stopped being a kind a PLAYER picks.
+// Every kind the column may hold. ROUTINE is written by every button that spends a Move (Mine, Refine, Farm) and by a GM reclassifying from the desk; it is not a kind a player picks.
 const MOVE_KINDS = new Set(["ROUTINE", "GAMBIT"]);
-// What the modal and the Move dialog may submit. There is one: a Move IS a Gambit now that Laboring is gone and the kind picker went with it.
+// What the modal and the Move dialog may submit. There is one: a Move IS a Gambit.
 const PLAYER_MOVE_KINDS = new Set(["GAMBIT"]);
 const DESCRIPTION_MAX = 2000;
 

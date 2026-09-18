@@ -22,8 +22,6 @@
     - [Transferring Resources](#transferring-resources)  
     - [Hunger](#hunger)  
 8. [Submitting A Move](#submitting-a-move)  
-    - [What a Move is](#what-a-move-is)  
-    - [Working a day](#working-a-day)  
     - [Move Submission Is Final](#move-submission-is-final)  
 9. [Tags & Tag Points](#tags--tag-points)  
     - [Gaining, Using, and Losing Tags](#gaining-using-and-losing-tags)  
@@ -55,7 +53,7 @@ Each Zone has a Summary channel, where players can post descriptions of what the
 Introduce yourself, barge into conversations, make plans, offer services, beg for food, ask questions, etc. The bulk of the game is roleplaying as your character in a Location's channel, its Rooms, or a private Conversation. OOC discussions should take place in `#general`, keeping in mind that you should not intentionally reveal which character you play.
 
 **Decide What You're Doing**  
-Walk between Locations as often as you like, travel to another Zone, submit a description of what your character is trying to accomplish during the turn, or spend the day working instead.  
+Walk between Locations as often as you like, travel to another Zone, or submit a description of what your character is trying to accomplish during the turn.  
 
 ### Help & GMs
 
@@ -307,38 +305,15 @@ You submit a Move by pressing the Move button in `#turns` or using the `/move` s
 **Your Move**  
 A paragraph describing your character's objective, where it's happening, who else is involved, etc.
 
-If you don't submit a Move at all, nothing is filed for you and nothing happens. The day simply passes.
-
 Moves are collectively adjudicated by the GMs at the end of every turn. If the Baron's intent was to stay in his castle then the Bandit's intent to rob him won't succeed. If the Baron was wandering in the forest, the Bandit may very well get him. Adjudication results are messaged to players at the end of every turn.
 
-### What a Move is
-A Move is a **Gambit**: something whose results may affect the overall narrative and are uncertain or up to chance. Fighting a duel, stealing something, spying on someone, and similar actions are all Gambits. There is nothing else to pick — working a day is a button now, not a kind of Move (see below).
+Choose **Gambit** when the results may affect the overall narrative and are uncertain or up to chance. Fighting a duel, stealing something, spying on someone, and similar actions would all be Gambits.
 
 When you submit a Gambit, the bot rolls a d6 immediately — but doesn't tell you the result yet. The GMs adjudicating your action can see it and take it into account when determining the results, with the number rolled helping determine your Move results. The die result is not an outright indicator of success/failure, but rather a measure of how fortunate your character was while attempting it.  
 **Roll a 1:** Things went worse than you feared.  
 **Roll a 6:** Things went better than you hoped.
 
 You'll find out how your die fell when the turn ends — the bot DMs you the number alongside whatever the GMs decided it did. Playing the turn without knowing is the point: your character doesn't know how it went either.
-
-### Working a day
-
-Work isn't a Move you declare — it's a button you press where the work is, on your own sheet. There are four, and three of them spend your whole turn.
-
-**Mine** — {tag:prospecting}, in the Caves, the Depths, or thinly across the Black Hills. Spends the turn and pays you immediately: {resource:mining} at ordinary ground, scaled by how good the seam is. Now and then you turn something up besides the ⬢.
-
-**Farm** — {tag:soilery}, on ground that takes seed. Spends the turn. You sow a plan of crops and reap whatever didn't wither when the turn closes.
-
-**Refine** — on the Godard Factory floor, with Godflesh within reach. No skill needed. Spends the turn and gives you eight Squeeze at the close.
-
-**Harvest Godflesh** — in the marsh, with a hatchet, a battle-axe or a chainsaw in your hands. This one is **free**: up to once a turn, and it costs you no Move.
-
-Mining is hard work: your first day leaves you {tag:tired}. A second day running leaves you {tag:exhausted} — you can't work again until you rest, and you're worse in a fight too. One turn of rest eases it back to Tired; a second clears it completely.
-
-**What a place is worth changes.** Some ground is quietly reliable, some swings from week to week, and no two seams are alike. Press the **Examine** button in any location's channel to see how its ground is running right now, along with anything else worth knowing about the place. That is the only surface that will tell you.
-
-Tools help. A Prospector's Pick or a Mining Helmet makes a day pay more while it's equipped, and each names what it does in its own description.
-
-If the Lifeweb fails, all of this very nearly stops.
 
 Farming is how Ravenheart is fed, and as such it's taxed by the Headman. More information can be found in {document:ravenhearteconomy}, on the [Documents](https://ravenheart.quest/documents) page.
 
@@ -493,7 +468,7 @@ What you're allowed to buy depends on your tags: everyone can buy Resources and 
 | **Resources** | The ⬢ you are carrying. A pound each, counted against your weight cap. |
 | **Gambit** | The modifier for your Gambit die. |
 | **Tag Points** | Points available to spend on new tags. |
-| **This turn** | Displays whether you've submitted a Move for this turn, or spent it on a day's work. |
+| **This turn** | Displays whether you've submitted a Move for this turn. |
 
 **Actions:** This is the grid of buttons next to your Status. Each button opens a dialog that asks for your reason and applies immediately. These operate on a system of trust and verification. Your changes take effect when you submit, but are reviewed by GMs to ensure proper use.
 

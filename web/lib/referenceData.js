@@ -74,9 +74,7 @@ export async function getProductionRates() {
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   const coefficient = config?.productionCoefficient ?? 1;
 
-  // One rate now. There were six — the Laboring tiers — keyed {field: {tier}}
-  // for the renderers; mining is the only kind of day left, so the payload a
-  // {resource:...} bubble carries is a bare name.
+  // One rate, so the payload a {resource:...} bubble carries is a bare name.
   const mining = computeRate(coefficient);
   const rates = { mining: { ...mining, display: formatRate(mining) } };
 

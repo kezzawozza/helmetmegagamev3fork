@@ -15,11 +15,6 @@ const {
 
 const MOVE_MODAL_ID = "move:new";
 
-// There was a Kind picker here, with Gambit and Labor on it. Laboring is gone
-// and a day's work is a button on the sheet now, so a Move IS a Gambit
-// (db/lib/moves.js#PLAYER_MOVE_KINDS) and a picker with one option on it is
-// not a choice. Routine is still written constantly — it is what the game
-// calls a Move it filed for you — it just isn't something a player picks.
 // Kept word-for-word in step with web/app/(app)/chat/MoveDialog.js. If the
 // wording changes, change it in both places.
 const MOVE_HELP =

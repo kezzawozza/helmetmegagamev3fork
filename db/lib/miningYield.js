@@ -6,11 +6,6 @@
 //   current = clamp(current + reversion * (target - current) + noise, 0, CAP)
 // An event moves the TARGET, not `current` — swings arrive over turns and
 // decay on their own once the window closes; no separate recovery path.
-//
-// There were four sets of these parameters once, one per Laboring kind, and
-// farming's rolled a single world-wide event so a blight hit every field at
-// once. Mining is the only kind left and a seam runs out one seam at a time,
-// so the global-event path went with the rest of Laboring.
 
 const YIELD_CAP = 2;
 const YIELD_FLOOR = 0;

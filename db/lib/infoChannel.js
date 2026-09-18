@@ -18,9 +18,8 @@ const DOCS_DIR = docsPath();
 // the thread and the picker can't disagree). Names NO ZONE on purpose — that
 // would tell readers where a faction camps before the game starts. A fate
 // whose faction is whitelisted-only wears a ★ (`whitelist:`, not `leader:`).
-// The bolded name is the high-cap go-anywhere fate. There were two until
-// Commoner went with Laboring. Reads roles.yaml fresh every run, so this
-// thread can never drift from it.
+// The bolded name is the high-cap go-anywhere fate. Reads roles.yaml fresh
+// every run, so this thread can never drift from it.
 const BOLD_ROLE_NAMES = new Set(["Migrant"]);
 
 // "The Court" under a "Court" heading is just the heading again. Compared

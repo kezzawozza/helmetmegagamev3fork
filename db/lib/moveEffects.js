@@ -40,8 +40,7 @@ const MOVE_EFFECTS = {
   },
 
   // Two days in the seam before a rest, tracked by db/lib/fatigue.js's Tired -> Exhausted ladder. Mining is the one thing that climbs it from a
-  // Move — db/lib/mining.js#computeMiningAccess refuses the next day only on Exhausted. Gated on the Mine button's own marker rather than on
-  // "this Action has a roll expression", which used to mean "this was a Labor" and no longer distinguishes anything. The snapshot key stays
+  // Move — db/lib/mining.js#computeMiningAccess refuses the next day only on Exhausted. Gated on the Mine button's own marker. The snapshot key stays
   // "exhausted" even for a Tired grant, or older rows stop reverting.
   exhausted: {
     read: (action) => (action.gmNotes === AUTO_MINE_NOTE ? 1 : 0),
@@ -105,8 +104,7 @@ const MOVE_EFFECTS = {
   },
 
   // A day spent on the Godard Factory floor: one Godflesh becomes eight Squeeze (db/lib/refinery.js). Filed by the Refine button, which is the
-  // only thing that stamps this marker — it used to be "any Labor with a roll expression", which fired on every Labor anywhere and left
-  // applyRefinery to work out that it was standing in the wrong room.
+  // only thing that stamps this marker.
   refined: {
     read: (action) => (action.gmNotes === AUTO_REFINE_NOTE ? 1 : 0),
     apply: async (tx, action) => {

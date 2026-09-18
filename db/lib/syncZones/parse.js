@@ -245,12 +245,6 @@ function parseConnection(raw, locationByRef, problems) {
 
 // Per-location `mining: 0.9` -> the coefficient, or null. A location without
 // the key cannot be mined at all, which is different from being worth zero.
-//
-// This was a `yield:` MAPPING, one entry per Laboring kind, and it was
-// validated rather than trusted because a typo like `hunitng: 0.5` would
-// silently disable hunting somewhere. Mining is the only kind left, so it is a
-// bare number now and a typo in the key is caught by the unknown-key check on
-// the location itself.
 const MINING_MAX = 2;
 
 function collectMining(location, problems) {
