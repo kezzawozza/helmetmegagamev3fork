@@ -48,10 +48,6 @@ export default function RequestActionsProvider({
   characterTags = [],
   resources = 0,
   transferParties = null,
-  // Your faction's silo, when there is one and you are in its zone: a
-  // deposit-only destination the Transfer dialog pins above the rooms here
-  // (FACTIONS.md). Null the rest of the time.
-  transferSilo = null,
   // Load vs caps for the Transfer dialog's projection line (CARRY.md).
   carry = null,
   // Why this character's eyes cannot look anyone over right now, or null.
@@ -338,7 +334,6 @@ export default function RequestActionsProvider({
     carry,
     farmMaxCrops,
     transferParties,
-    transferSilo,
     lootTargets,
     consumeTargets,
     bindTargets,

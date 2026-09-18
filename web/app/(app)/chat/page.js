@@ -24,7 +24,7 @@ import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import { waitingOnYou, myMove } from "./actions";
-import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
+import { loadDesireView, loadLettersView } from "@/lib/selfPools";
 import { withoutDmNoise } from "@/lib/dmThread";
 import { DM_PLACE_KEY } from "@/lib/dmSources";
 import { thingGroups } from "./thingRows";
@@ -467,14 +467,6 @@ async function FreshChat({ userId }) {
       })()
     : null;
 
-  // The faction, for the ⚑ row at the foot of the places column. The SAME
-  // loaders /faction runs (web/lib/factionView.js), so the two surfaces cannot
-  // disagree about the roster — and a member's ⬢ is on the rows only for that
-  // faction's own Leader or Treasurer (FACTIONS.md §6).
-  const factionView = viewer.character
-    ? await loadFactionView({ discordUserId: viewer.discordUserId }, viewer.character)
-    : null;
-
   // The newest thing Bascinet said to this player, for the Messages row's
   // unread dot before the pane has ever been opened (./DmPane.js, CHAT.md
   // §2b). Through the player chair's noise filter, so a mention relay lights
@@ -588,7 +580,6 @@ async function FreshChat({ userId }) {
           hasBirdReply: (aside.letters.birdReplies ?? []).length > 0,
         }
       : null,
-    faction: factionView,
     dmNewestMs: newestDm?.createdAt?.getTime?.() ?? null,
     navItems: await navItemsPromise,
     // Not a control any more — only what the composer CALLS itself while a

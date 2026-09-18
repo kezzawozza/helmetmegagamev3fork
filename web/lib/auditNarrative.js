@@ -65,7 +65,6 @@ export const AUDIT_FAMILIES = {
   // craft_/build_ never carried the request_ prefix; without this family they'd only surface under "Everything".
   request: { label: "Player action", band: "player", prefixes: ["request_", "desire_", "craft_", "build_"] },
   move: { label: "Move", band: "player", prefixes: ["move_", "caving_roll"] },
-  faction: { label: "Faction", band: "player", prefixes: ["faction_"] },
   lifeweb: { label: "Lifeweb", band: "player", prefixes: [] },
   membership: { label: "Membership", band: "player", prefixes: ["member_", "player_"] },
   gm: { label: "GM action", band: "machine", prefixes: ["gm_"] },
@@ -267,19 +266,10 @@ const R = {
     actor(), t("moved"), count((d.effects ?? 0) + (d.messages ?? 0)), t("staged rows to turn"), em(String(d.toTurnNumber ?? "?")),
   ],
 
-  // ---- Factions ----
-  faction_leader_set: () => [actor(), t("made"), target(), t("faction Leader")],
-  faction_treasurer_assigned: () => [actor(), t("made"), target(), t("faction Treasurer")],
-  faction_treasurer_revoked: () => [actor(), t("removed"), target(), t("as faction Treasurer")],
-  faction_member_added: (d, e) => [actor(), t("added"), target(), t("to"), chip(name(e, d.factionId))],
-  faction_member_removed: () => [actor(), t("removed"), target(), t("from their faction")],
-  faction_deleted: (d) => [actor(), t("DELETED the faction"), chip(d.name)],
-
   // ---- Membership ----
   character_created: (d) => [
     actor(), t("created"), target(),
     ...(d.role ? [t("—"), chip(d.role)] : []),
-    ...(d.faction ? [t("of"), chip(d.faction)] : []),
     ...(d.location || d.zone ? [t("in"), zone(d.location ?? d.zone)] : []),
   ],
   member_joined: (d) => [em(d.username ?? "Someone"), t("joined the guild")],
@@ -339,7 +329,6 @@ const R = {
 const DESTRUCTIVE = new Set([
   "gm_character_deleted",
   "gm_character_killed",
-  "faction_deleted",
   "gm_custom_tag_deleted",
   "gm_bulk_tag_revoke",
   "superadmin_game_wipe",
@@ -411,7 +400,7 @@ export function familyPrefixes(family) {
 }
 
 
-// `entry` carries `names`, an id -> name object (tags, factions, zones) so a renderer can name a bare id.
+// `entry` carries `names`, an id -> name object (tags, zones) so a renderer can name a bare id.
 export function describeAudit(entry) {
   const type = entry?.actionType ?? "";
   const details = entry?.details && typeof entry.details === "object" ? entry.details : {};

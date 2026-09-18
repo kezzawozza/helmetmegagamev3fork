@@ -40,9 +40,9 @@ export default async function PlayerDeskLayout({ children }) {
     getOpenTurn(),
     prisma.character.findMany({
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-      // faction.zone is the zone seat this character answers to; `zone` is
-      // where they are physically standing.
-      include: { faction: { include: { zone: true } }, zone: true },
+      // `zone` is where they are physically standing, which is the only zone
+      // a desk row has now.
+      include: { zone: true },
       take: 1000, // safety net, not a real limit
     }),
     // Held tags, ids only, ALIVE characters only — feeds rail/roster tag search.
@@ -167,7 +167,7 @@ export default async function PlayerDeskLayout({ children }) {
   // costs no extra query.
   const cursed = cursedUserIds(characters);
 
-  // Name/role/faction/zone resolve together under one ALIVE-wins rule.
+  // Name/role/zone resolve together under one ALIVE-wins rule.
   const characterByUser = new Map();
   for (const c of characters) {
     const existing = characterByUser.get(c.discordUserId);
@@ -231,9 +231,6 @@ export default async function PlayerDeskLayout({ children }) {
       avatarVersion: c?.updatedAt ? c.updatedAt.getTime() : null,
       name: c?.name ?? username ?? discordUserId,
       roleTitle: c?.roleTitle ?? "",
-      factionId: c?.factionId ?? null,
-      factionName: c?.faction?.name ?? "",
-      factionZoneName: c?.faction?.zone?.name ?? "",
       zoneName: c?.zone?.name ?? "",
       status: c?.status ?? null,
       resources: c ? resourcesByCharacter.get(c.id) ?? 0 : 0,
@@ -267,7 +264,6 @@ export default async function PlayerDeskLayout({ children }) {
       id: r.characterId,
       name: r.name,
       roleTitle: r.roleTitle,
-      factionName: r.factionName,
       zoneName: r.zoneName,
     }));
 

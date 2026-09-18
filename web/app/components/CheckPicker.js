@@ -44,7 +44,7 @@ export default function CheckPicker({
   onChange,
   search = defaultSearch,
   // Anything that belongs beside the filter box — a zone dropdown that narrows
-  // `items`, a "check this whole faction" one-shot.
+  // `items`, a "check this whole zone" one-shot.
   toolbar,
   emptyLabel = "Nothing matches.",
   allLabel = "Select all",

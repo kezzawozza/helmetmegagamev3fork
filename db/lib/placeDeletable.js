@@ -122,17 +122,15 @@ async function hardDeleteBlockers(prisma, kind, id) {
     // item stack and once as themselves. The item count skips them and keeps
     // its own line, because "12 ⬢ are stashed here" says more to a GM about to
     // delete a room than "1 item stack".
-    const [guests, playerThreads, faction, tags, resources, room] = await Promise.all([
+    const [guests, playerThreads, tags, resources, room] = await Promise.all([
       prisma.roomGuest.count({ where: { roomId: id } }),
       prisma.playerThread.count({ where: { roomId: id } }),
-      prisma.faction.count({ where: { siloRoomId: id } }),
       prisma.roomTag.count({ where: { roomId: id, tag: { slug: { not: RESOURCES_SLUG } } } }),
       readRoomResources(prisma, id),
       prisma.room.findUnique({ where: { id }, select: { questId: true } }),
     ]);
     if (guests) blockers.push(`${guests} guest${guests === 1 ? "" : "s"} have a standing invite to this room`);
     if (playerThreads) blockers.push(`${playerThreads} conversation${playerThreads === 1 ? "" : "s"} are anchored to this room`);
-    if (faction) blockers.push(`${faction} faction${faction === 1 ? "" : "s"} bank here`);
     if (tags) blockers.push(`${tags} item stack${tags === 1 ? "" : "s"} are stashed here`);
     if (resources) blockers.push(`${resources} ⬢ are stashed here`);
     if (room?.questId) blockers.push("A quest minted this room — close the quest first");

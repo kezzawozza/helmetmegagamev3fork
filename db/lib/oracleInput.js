@@ -129,7 +129,6 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
       zone: { select: { id: true, name: true } },
       location: { select: { name: true } },
       role: { select: { name: true } },
-      faction: { select: { name: true } },
       tags: {
         select: {
           quantity: true,
@@ -293,7 +292,6 @@ function zoneBlock(material, zone, { aggregatesSeen, memory = [] }) {
   const roster = here.map((character) => {
     const bits = [displayName(character)];
     if (character.role?.name) bits.push(character.role.name);
-    if (character.faction?.name) bits.push(character.faction.name);
     if (character.location?.name) bits.push(character.location.name);
     const live = liveTagNames(character);
     if (live.length) bits.push(live.join(", "));

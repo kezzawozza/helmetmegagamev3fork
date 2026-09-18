@@ -246,7 +246,6 @@ you pick the right doc — they are never enough to change code with.
 | [`QUESTS.md`](docs/systemdocs/QUESTS.md) | You're touching Quests — the `/gm/dev?s=quests` panel, a GM-staged room and its **Interact** button, the quest gates, the noticeboard manager or the zone broadcaster — or **anything that touches a Room's `questId`**, which marks a room a GM minted at runtime rather than one `docs/zones.yaml` named |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, notes |
-| [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, **which zones a GM can see** (`GmZoneView`, the `GM: <Zone>` roles, `/zone`), or who can see the audit log |
 | [`MINING.md`](docs/systemdocs/MINING.md) | You're touching the Mine button — the Prospecting skill, a Location's `mining:` coefficient and its drift, the tools (`miningBonus`), or the Examine button |
 | [`MININGDROPS.md`](docs/systemdocs/MININGDROPS.md) | You're touching the mining drop die — `docs/miningdrops.yaml`, `db/lib/miningDrops.js`, or the `miningDrop` entry in `db/lib/moveEffects.js` |
@@ -599,8 +598,7 @@ disabled input or a hidden button is a hint, not a lock.
 
 There is no single unified permission system. A few independent kinds of
 Discord role each control one thing, each synced from a different piece of
-state, plus one env-configured admin role. `Faction` is **not** one of them
-(`FACTIONS.md` §1).
+state, plus one env-configured admin role.
 
 | Role | Source | What it gates |
 |---|---|---|
@@ -1483,14 +1481,12 @@ might need to reach a real environment:
 - **`prisma migrate diff` proposes dropping `ArchiveEntry_content_trgm_idx`.**
   That index lives only in raw migration SQL, so Prisma's schema doesn't know
   about it. Decline the drop; it is not drift you introduced.
-  `FactionApplication_pending_unique` is the same shape of ghost: a PARTIAL
-  unique index (`WHERE status = 'PENDING'`), which Prisma's schema language
-  cannot express. Decline that drop too — without it a character could hold
-  two live applications to one faction. `ThreatSpawn_pending_unique` is the
-  third of these, and the same answer: without it a player could hold two live
-  spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the fourth,
+  `ThreatSpawn_pending_unique` is the same shape of ghost: a PARTIAL unique
+  index (`WHERE status = 'PENDING'`), which Prisma's schema language cannot
+  express. Decline that drop too — without it a player could hold two live
+  spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the third,
   and the reason `/gm/audit`'s text search is not a full-table scan.
-  `DirectMessage_clientNonce_key` is the fifth and the same answer: a PARTIAL
+  `DirectMessage_clientNonce_key` is the fourth and the same answer: a PARTIAL
   unique index (`WHERE "clientNonce" IS NOT NULL`), so every DM writer with no
   composer behind it can go on passing null. Decline that drop too — without
   it a retried send can reach a player twice. The

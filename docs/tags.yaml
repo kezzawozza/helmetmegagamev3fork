@@ -544,7 +544,7 @@ tags:
   # Knowledge, not a possession. It is the `access:` key on a hidden Room in
   # docs/zones.yaml and nothing else, so it weighs nothing, cannot be bought
   # and cannot be handed over — you either were shown the place or you were
-  # not. A faction that recruits somebody has to grant it deliberately.
+  # not. Somebody bringing a newcomer in has to grant it deliberately.
   ravine-camp:
     catalog: all
     name: Ravine Camp
@@ -559,8 +559,8 @@ tags:
     purchasableAfterStart: false
     # Not an item, so there is no Destroy button on it — which is right: you
     # cannot un-know where a place is, and binning it would have locked a
-    # Brigand out of their own faction's home for good, untradeable meaning
-    # nobody could hand them another.
+    # Brigand out of their own camp for good, untradeable meaning nobody could
+    # hand them another.
 
   sewer:
     catalog: all
@@ -1729,21 +1729,17 @@ tags:
     psychological: true
     category: general
     group: general-personality
-    description: "You're incapable of betraying your starting faction, even in the most extreme circumstances. Locks all Desires about scheming."
+    description: "You're incapable of betraying whoever you first swore yourself to, even in the most extreme circumstances. Locks all Desires about scheming."
     pointCost: -2
     visible: false
     purchasable: true
     purchasableAfterStart: false
-    # The seats with nobody to be loyal to. Migrant and Mercenary are
-    # literally Unaffiliated; Bum and Pusher sit inside a faction on paper
-    # and owe it nothing.
+    # The seats with nobody to be loyal to: a Migrant and a Mercenary arrive
+    # owing nothing to anyone, and a Bum and a Pusher answer to nobody either.
     excludedRoles: [migrant, mercenary, bum, pusher]
-    # The own-faction carve-out is prose above (F-11), not data — the lock
-    # below reads plain faction-success, since the game has no per-desire
-    # "your side vs. any side" distinction to encode.
     desires:
       locks:
-        - families: [betrayal, scheming, faction-success]
+        - families: [betrayal, scheming]
 
   # Sign flip 2026-08-31 (Desires rework), grandfathered — see Superstitious.
   hypochondriac:

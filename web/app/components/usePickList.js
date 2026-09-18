@@ -30,7 +30,7 @@ export default function usePickList(items, initial = []) {
 
   const set = useCallback((next) => setPicked([...next]), []);
 
-  // "Check everyone in Town", "check the whole faction" — a one-shot union by
+  // "Check everyone in Town" — a one-shot union by
   // predicate rather than a live filter, so the selection stays editable
   // afterwards. Unions, so two of these in a row add up.
   const checkWhere = useCallback(

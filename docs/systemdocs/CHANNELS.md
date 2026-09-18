@@ -483,7 +483,7 @@ four rooms called "Watchtower" and two called "Road". Display names are
 unaffected. Four room slugs are also hardcoded in JS and must move with the
 YAML — `INTERCOM_ROOM_SLUG` (`db/lib/intercom.js`), `BELL_ROOM_SLUG`
 (`db/lib/bell.js`), `CENSOR_OFFICE_ROOM_SLUG` and `WATCHTOWER_ROOM_SLUGS`
-(`db/lib/roomStarterRow.js`) — as must every `silo:` in `docs/roles.yaml`,
+(`db/lib/roomStarterRow.js`),
 which `db/lib/syncRoles.js` resolves by slug and *throws* on a miss.
 
 **The id (slug) is immutable once set** — it's `placeKey`, archive keys,

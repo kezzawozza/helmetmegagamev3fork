@@ -24,9 +24,7 @@ import { transferRequest, lootCharacterRequest, stealRequest } from "@/app/(app)
 // lootCharacterRequest, with the helpless gate, the mood hit and the "your
 // body was searched" notice — whichever button opened this. Everything else
 // is transferRequest. A concealed person is offered as a destination under
-// an opaque "hood:<token>" key (web/lib/peoplePools.js); the faction silo is
-// a deposit-only destination, pinned even when it is elsewhere in the zone or
-// behind a door you cannot open (FACTIONS.md §4a).
+// an opaque "hood:<token>" key (web/lib/peoplePools.js).
 //
 // `presets` seeds the ends and a first pick: Chat's room panel opens this
 // three ways (Drop, Take, a click straight on a stack), and the HERE list's
@@ -72,7 +70,6 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
   const people = roster?.people?.transferParties ?? [];
   const lootable = roster?.people?.lootTargets ?? [];
   const rooms = roster?.rooms ?? [];
-  const silo = pools.transferSilo ?? null;
   const carry = roster?.self?.carry ?? pools.carry ?? null;
   const mine = useMemo(() => transferableTags(roster?.self?.characterTags ?? []), [roster]);
 
@@ -91,7 +88,6 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
     fromKey.startsWith("character:") && !fromSelf ? lootable.find((c) => `character:${c.id}` === fromKey) : null;
   const toSelf = toKey === selfKey;
   const toIsCharacter = toKey.startsWith("character:") || toKey.startsWith("hood:");
-  const toSilo = silo && toKey === `room:${silo.id}` ? silo : null;
 
   // Sources: you, the rooms you can get into, and anybody who can't stop
   // you. Loot opens with you left out — the point is what you are taking.
@@ -120,9 +116,6 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
           .filter((c) => c.id !== selfId)
           .map((c) => ({ id: `${c.kind ?? "character"}:${c.id}`, label: c.name, note: c.kind === "hood" ? "hooded" : null })),
         ...rooms.filter((r) => `room:${r.id}` !== fromKey).map((r) => ({ id: `room:${r.id}`, label: r.name, note: "room" })),
-        ...(silo && (!silo.here || !silo.canOpen) && `room:${silo.id}` !== fromKey
-          ? [{ id: `room:${silo.id}`, label: `★ ${silo.name}`, note: silo.here ? "locked to you" : silo.locationName }]
-          : []),
       ];
 
   // What the source has on offer, as StackRow rows.
@@ -196,17 +189,11 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
   else if (carry && toSelf && !fromPerson) projected = { weight: round(carry.weightUsed + lbs) };
   const overAfter = projected && projected.weight > carry.weightCap;
   const refusedAfter = projected && projected.weight > carry.weightHardCap;
-  const note =
-    toSilo && !toSilo.canOpen
-      ? `${toSilo.name} is locked to you. This will go in, and you won't be able to take it back out.`
-      : toSilo
-        ? "Anyone in the faction who can get into the silo can take what you leave there."
-        : null;
 
   function nameOf(key) {
     if (key === selfKey) return "you";
     const [kind, id] = key.split(":");
-    if (kind === "room") return rooms.find((r) => r.id === id)?.name ?? silo?.name ?? "the room";
+    if (kind === "room") return rooms.find((r) => r.id === id)?.name ?? "the room";
     return people.find((c) => c.id === id)?.name ?? lootable.find((c) => c.id === id)?.name ?? "them";
   }
 
@@ -325,7 +312,6 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
               : ""}
         </p>
       )}
-      {note && <p className="text-xs text-muted">{note}</p>}
     </ActionDialog>
   );
 }

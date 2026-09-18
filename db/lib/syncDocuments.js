@@ -9,8 +9,9 @@ const { entriesOf } = require("./yamlEntries");
 const RESERVED_KEYS = new Set(["role", "handbook"]);
 
 // "gamemaster" has no Character property; it resolves against the Discord GM
-// role at request time instead (web/lib/discordGuild.js#isGm).
-const FLAGS = ["leader", "treasurer", "gamemaster"];
+// role at request time instead (web/lib/discordGuild.js#isGm). It is the only
+// flag left — "leader" and "treasurer" went with the faction offices.
+const FLAGS = ["gamemaster"];
 
 // docsPath() is null only when docs/ cannot be found at all — fatal, or a sync with no master would prune everything. See db/lib/repoPaths.js.
 function requireDocsPath(...segments) {
@@ -24,10 +25,10 @@ function loadDoc() {
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
 }
 
-// documents.yaml's `tags:` list conflates real Tag names, the Leader/Treasurer booleans (not tags — TAGS.md §6), and free-text placeholder notes; anything unmatched is reported to the caller instead of thrown.
+// documents.yaml's `tags:` list conflates real Tag names, the `gamemaster` flag and free-text placeholder notes; anything unmatched is reported to the caller instead of thrown.
 function resolveAssignment(entry, catalogs) {
-  const { tagNames, tagSlugByName, roleSlugs, factionSlugs } = catalogs;
-  const out = { tagSlugs: [], roleSlugs: [], factionSlugs: [], flags: [] };
+  const { tagNames, tagSlugByName, roleSlugs } = catalogs;
+  const out = { tagSlugs: [], roleSlugs: [], flags: [] };
   const unresolved = [];
 
   for (const raw of entry.tags ?? []) {
@@ -42,10 +43,6 @@ function resolveAssignment(entry, catalogs) {
   for (const slug of entry.roles ?? []) {
     if (!roleSlugs.has(slug)) throw new Error(`documents.yaml: "${entry.key}" references unknown role "${slug}"`);
     out.roleSlugs.push(slug);
-  }
-  for (const slug of entry.factions ?? []) {
-    if (!factionSlugs.has(slug)) throw new Error(`documents.yaml: "${entry.key}" references unknown faction "${slug}"`);
-    out.factionSlugs.push(slug);
   }
   for (const flag of entry.flags ?? []) {
     const lower = String(flag).toLowerCase();
@@ -71,16 +68,14 @@ async function syncDocumentsFromYaml(prisma) {
     seen.add(e.key);
   }
 
-  const [tags, roles, factions] = await Promise.all([
+  const [tags, roles] = await Promise.all([
     prisma.tag.findMany({ select: { name: true, slug: true } }),
     prisma.role.findMany({ select: { slug: true } }),
-    prisma.faction.findMany({ select: { slug: true } }),
   ]);
   const catalogs = {
     tagNames: new Set(tags.map((t) => t.name)),
     tagSlugByName: new Map(tags.map((t) => [t.name, t.slug])),
     roleSlugs: new Set(roles.map((r) => r.slug).filter(Boolean)),
-    factionSlugs: new Set(factions.map((f) => f.slug).filter(Boolean)),
   };
 
   const summary = { created: 0, updated: 0, pruned: [], unresolved: {} };

@@ -511,16 +511,10 @@ Tag from the catalog cascades its **room** stacks
 
 ## 7. Transfer
 
-> One exception to everything below: your own faction's **silo**. It is an
-> ordinary Room stash, but you can put things into it from anywhere in that
-> room's zone, and take things out only by standing in it — even when the door
-> is locked to you. See `FACTIONS.md` §4.
-
-
 One dialog — **Move things** (`web/app/components/actions/MoveThingsDialog.js`,
 modes `transfer` and `loot`) — is Transfer, Loot, Take, Drop and Give. Two
 chip rows say the direction (From: you, a Room here, or somebody helpless;
-To: you, a person here, a Room, your silo), then every stack the source
+To: you, a person here, or a Room), then every stack the source
 offers is a row with a count (`StackRow.js`: name · − n + · All), plus a ⬢
 box.
 

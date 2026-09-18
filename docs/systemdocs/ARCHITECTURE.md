@@ -40,9 +40,6 @@ exceptions, all requiring by path instead:
 - **`db/lib/archive.js`** — takes `prisma` as its first parameter because
   `db/index.js` imports *it*; requiring the barrel back would resolve to a
   partial, prisma-less exports object.
-- **`db/lib/factionPermissions.js`** — same parameter convention, with
-  `web/lib/factionPermissions.js` as a thin shim binding the singleton so web
-  callers keep the shorter signature.
 - **`db/lib/parties.js`** and **`db/lib/resourceTransfer.js`** — the shared
   "move ⬢ between two parties" primitive
   (`resolveParty`/`partyKey`/`partyLabel`, `moveParty`/`applyTransfer`), same
@@ -51,7 +48,7 @@ exceptions, all requiring by path instead:
   `web/lib/tagEffects.js`) so the turn-end push (`db/lib/stagedPush.js`,
   CommonJS, no Next.js request context) and every GM transfer surface
   (`web/lib/gmTransfer.js`) share the exact same clamp and ordering. See
-  `FACTIONS.md` §5 and `ADJUDICATION.md` §1.
+  `CARRY.md` §7 and `ADJUDICATION.md` §1.
 
 A module reached from a **client component** must not come through the barrel
 at all — the barrel pulls in Prisma and the YAML syncs (`node:fs`), neither of
@@ -233,7 +230,6 @@ and `MAP.md`.
 | `REQUESTS.md` | Act-first/review-after player actions |
 | `ADJUDICATION.md` | The `/gm/turns` GM surface |
 | `MAP.md` | Geography, travel, the map panel |
-| `FACTIONS.md` | Factions, Leader/Treasurer |
 | `MINING.md` | The Mine button, the payout, and what each Location's seam is worth |
 | `COMMANDS.md` | Every slash command, button, modal and reaction |
 | `ARCHIVE.md` | The transcript |

@@ -11,7 +11,6 @@ import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { cookedTasteOnly } from "@/lib/referenceData";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
-import { getMyFactionRole } from "@/lib/factionPermissions";
 
 // "What can I see from here" — the reads a player-action dialog makes on
 // open (useRoster.js), so the roster is current, not the page's render-time

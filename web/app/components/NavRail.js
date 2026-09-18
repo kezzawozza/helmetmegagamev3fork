@@ -9,7 +9,6 @@ import {
   ScaleIcon,
   AuditIcon,
   EconomyIcon,
-  FactionIcon,
   DevIcon,
   MessageIcon,
   NotesIcon,
@@ -41,7 +40,6 @@ export const ICONS = {
   turns: ScaleIcon,
   audit: AuditIcon,
   economy: EconomyIcon,
-  faction: FactionIcon,
   dev: DevIcon,
   messages: MessageIcon,
   notes: NotesIcon,
@@ -55,7 +53,7 @@ export const ICONS = {
 
 // How many items stay in the mobile bottom bar; the rest go behind "More".
 // A GM keeps Players, Adjudicate, Audit, Oracle, and (superadmin) Dev
-// (navItems.js). Players keep Character, Map, Faction, Notes, Documents —
+// (navItems.js). Players keep Character, Map, Notes, Documents —
 // Handbook falls into the sheet as the deliberate casualty (a read-once reference).
 const MOBILE_PRIMARY = 5;
 

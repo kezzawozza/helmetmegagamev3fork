@@ -20,7 +20,6 @@ import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 const LOOKER_SELECT = {
   id: true,
   locationId: true,
-  factionId: true,
   discordUserId: true,
   // for examineVision.js: spectacles only correct sight while worn, Sun Sensitivity only blinds outdoors.
   tags: { select: { tagId: true, equipped: true, tag: { select: { slug: true } } } },

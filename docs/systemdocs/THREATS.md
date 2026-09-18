@@ -36,7 +36,7 @@ Three mechanisms are worth knowing about regardless of which seat uses them:
   offering it need not remember where that seat arrives. `offerThreatSpawn`
   prefers a GM's explicit pick, then this, then the role's own start.
 - **A Role no player may take.** A spawn needs a Role for its charter, kit and
-  start, so a seat can own a `docs/roles.yaml` faction whose slugs sit in
+  start, so a seat can own `docs/roles.yaml` roles whose slugs sit in
   `SPAWN_ONLY_ROLE_SLUGS` (`db/lib/roleCapacity.js`, re-exported by
   `web/lib/characterCreation.js`). That withholds them from the creation
   picker outright, rather than greying them the way a whitelisted seat is
@@ -204,7 +204,7 @@ If the DM fails (closed DMs, a departed member) the row is **rolled back to
 (`WHERE status = 'PENDING'`), so one player can never hold two live offers.
 Prisma's schema language cannot express a partial unique, so it exists only in
 the migration SQL — `prisma migrate diff` will propose dropping it and the
-answer is no, exactly as with `FactionApplication_pending_unique`.
+answer is no, exactly as with `AuditLog_details_trgm_idx`.
 
 **Phase 2 — the player accepts.** The click lands in the **bot**: a DM has no
 guild, and the clicker has no character yet, which is the whole point.

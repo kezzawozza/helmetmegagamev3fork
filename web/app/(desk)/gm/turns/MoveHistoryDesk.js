@@ -54,7 +54,7 @@ export default function MoveHistoryDesk({
           </h2>
           <p className="text-xs text-muted">
             {move.roleTitle && <>{move.roleTitle} · </>}
-            {move.locationLabel} · {move.factionName || "No faction"}
+            {move.locationLabel}
           </p>
         </div>
         <div className="flex items-center gap-2">

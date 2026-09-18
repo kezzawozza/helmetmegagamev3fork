@@ -3,9 +3,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { assignRoles } = require("../lib/roleAssignment");
 
-const R = (slug, extra = {}) => ({ slug, name: slug, isUnique: false, unlimited: false, weight: null, requiresWhitelist: false, grantsLeader: false, spawnOnly: false, ...extra });
+const R = (slug, extra = {}) => ({ slug, name: slug, isUnique: false, unlimited: false, weight: null, requiresWhitelist: false, spawnOnly: false, ...extra });
 const ROLES = [
-  R("baron", { isUnique: true, grantsLeader: true, requiresWhitelist: true }),
+  R("baron", { isUnique: true, requiresWhitelist: true }),
   R("sheriff", { isUnique: true }),
   R("courtier", { weight: 10 }),
   R("migrant", { unlimited: true }),
@@ -36,9 +36,9 @@ test("a whitelisted seat needs the role unless the gate is off", () => {
   assert.equal(roleOf(wl, "a"), "baron");
 });
 
-test("the leader pass seats a leader before the main pass hands them something else", () => {
-  // `a` wants Sheriff High and Baron Medium; the leader pass runs first at
-  // every level, so Baron (Medium, leader) wins over Sheriff (High, not).
+test("the reserved pass seats a reserved seat before the main pass hands them something else", () => {
+  // `a` wants Sheriff High and Baron Medium; the reserved pass runs first at
+  // every level, so Baron (Medium, reserved) wins over Sheriff (High, not).
   const out = assignRoles({ players: [P("a", { sheriff: "HIGH", baron: "MEDIUM" }, { whitelisted: true })], roles: ROLES, playerCount: 10, seed: "x" });
   assert.equal(roleOf(out, "a"), "baron");
   assert.equal(out.rows[0].source, "MEDIUM");
@@ -81,7 +81,7 @@ test("the same seed rolls the same table", () => {
   assert.notDeepEqual(a.rows, c.rows);
 });
 
-test("an unwanted leader seat is a warning, never forced", () => {
+test("an unwanted reserved seat is a warning, never forced", () => {
   const out = assignRoles({ players: [P("a", { courtier: "HIGH" })], roles: ROLES, playerCount: 10, seed: "x" });
   assert.equal(out.rows.filter((r) => r.roleSlug === "baron").length, 0);
   assert.ok(out.warnings.some((w) => w.includes("baron")));

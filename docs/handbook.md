@@ -88,7 +88,6 @@ General questions can be asked in the `#general` channel or by creating a thread
 | Page | Content |
 |---|---|
 | **Character** | Your character sheet. Current Location, Resources, Gambit modifier, Tag Points, tags and equipment, Desires, your bio and portrait, all requests functions. |
-| **Faction** | Faction roster and leadership. |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
 | **Notes** | Your private Journal, plus messages saved with ⭐. Both are visible only to you. |
 | **Handbook** | A full page version of this document. |
@@ -102,7 +101,7 @@ A turn is 6, 8, 12 or 24 hours long, and the GMs set which. Turns always end on 
 At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
 You can find information on the current turn in the `#turns` channel, in addition to the two main controls:  
-- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, a body, or a member of your faction if you lead it.  
+- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, or a body. Anyone else has to agree to come.  
 - **Move** is used to submit your character's Move for the turn.  
 
 ### The Wipe
@@ -125,7 +124,7 @@ The first thing you will do is open the **Character** page on the website, from 
 **After the game starts**, or if you missed the roll, you join by hand: pick from whatever seats are open. Character creation takes place in 5 steps:
 
 **Choose Your Role**  
-Your role determines your character's starting location and faction. Roles may come with responsibilities, authority, or benefits. The difficulty shown on the role (easy/normal/hard) is a rough indication of how much effort the role requires to play properly. Most roles have a maximum number allowed in the game, and Leader roles can only be selected if you have been explicitly whitelisted.
+Your role determines your character's starting location. Roles may come with responsibilities, authority, or benefits. The difficulty shown on the role (easy/normal/hard) is a rough indication of how much effort the role requires to play properly. Most roles have a maximum number allowed in the game, and the roles marked ★ can only be selected if you have been explicitly whitelisted.
 
 **Tags**  
 Tags represent your character's skills, assets, injuries, and other attributes. You may have some initial tags provided by your role, and you can purchase new tags using Tag Points. In general, beneficial tags will cost points while harmful/negative tags (drawbacks) will grant points. Any unused points are saved to use later.
@@ -234,7 +233,7 @@ To hide your identity, run `/conceal` (anywhere, the bot's DMs included) or flip
 
 While you're concealed, everything you say posts under a vague descriptor such as "Old Man" or "Young Woman" with a blank portrait, and **Who's here?** lists you the same way.
 
-Other players can still 🔎 you and see any visible wounds or gear, but your name, face, and faction remain hidden.
+Other players can still 🔎 you and see any visible wounds or gear, but your name and face remain hidden.
 
 Some transformations take the choice away. A tag like Apex Form fixes your name and face to what you have become, and `/conceal` stops working while you hold it.
 
@@ -458,7 +457,7 @@ Goods don't arrive the moment you pay for them. A cargo train runs every other t
 
 What you're allowed to buy depends on your tags: everyone can buy Resources and a Ration Box, some things need you holding the right chit, and the good stuff is the Merchant's own shelf. Selling works the other way — drop what you're selling in the dropbox at the Depot, and you're paid out when the train next leaves, minus a cut the Meister takes off the top. Whatever goes in the box is gone the moment you drop it.
 
-**Header:** Your name, title (if present), role, faction, and portrait.
+**Header:** Your name, title (if present), role, and portrait.
 
 **Status** (top-left):
 
@@ -492,7 +491,7 @@ What you're allowed to buy depends on your tags: everyone can buy Resources and 
 | **Bind** | Tie up someone within reach. They must agree, unless they're dead or already helpless. | Always. |
 | **Free** | Cut loose someone within reach. | Always. |
 | **Harm** | Injure a helpless person within reach, or finish off a Dying or bound person. This never kills instantly; a GM verifies first. | Always. |
-| **Move Player** | Carry a dead or bound person, or a member of your faction if you're the Leader, to a connected Location. This doesn't spend their Move or yours. The Travel picker on Discord offers the same thing as you go. | Always. |
+| **Move Player** | Carry a dead or bound person to a connected Location. This doesn't spend their Move or yours. The Travel picker on Discord offers the same thing as you go. | Always. |
 | **Bury Person** | Lift a body's Curse by burying it — type the character's first name to confirm. | Always. |
 
 **Letters**

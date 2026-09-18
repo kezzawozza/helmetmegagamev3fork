@@ -22,7 +22,6 @@ import {
   normalizeCoreEdits,
   applyResourcesInTx,
   diffCore,
-  setLeaderInTx,
   validateTagOps,
   applyTagOpsInTx,
   planDiscordEffects,
@@ -129,14 +128,14 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   // leaves nothing half-written and the GM sees the first real problem rather
   // than a rollback.
   validateTagOps(ops, tagsById, heldIds);
-  const { data, role, leader, resources } = await normalizeCoreEdits({ prisma, existing, core });
+  const { data, role, resources } = await normalizeCoreEdits({ prisma, existing, core });
   const diff = diffCore(existing, data);
   // ⬢ are a stack row rather than a column, so they never ride in `data` and
   // diffCore cannot see them. Fold the before/after in by hand, or the audit
   // row and the "your sheet was edited" DM both lose the change.
   if (resources && resources.from !== resources.to) diff.resources = resources;
 
-  if (!Object.keys(diff).length && !ops.length && leader === null) {
+  if (!Object.keys(diff).length && !ops.length) {
     return { name: existing.name, applied: {}, tags: [] };
   }
 
@@ -149,7 +148,7 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
 
     const fresh = await tx.character.findUnique({
       where: { id: characterId },
-      select: { updatedAt: true, status: true, factionId: true },
+      select: { updatedAt: true, status: true },
     });
     if (!fresh) throw new UserError("That character no longer exists.");
     if (expectedUpdatedAt && fresh.updatedAt.toISOString() !== expectedUpdatedAt) {
@@ -163,13 +162,6 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
     }
 
     await applyResourcesInTx(tx, characterId, resources);
-
-    // Keyed on the POST-edit faction: promoting someone who is also changing
-    // faction must demote the NEW faction's leader, not the old one.
-    if (leader !== null) {
-      const factionId = "factionId" in data ? data.factionId : fresh.factionId;
-      await setLeaderInTx(tx, { characterId, factionId, isLeader: leader });
-    }
 
     if (ops.length) {
       appliedTags = await applyTagOpsInTx(tx, {
@@ -187,12 +179,12 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
         // most rows this writes carry an empty core. Naming those differently
         // keeps /gm/audit readable — "applied" ought to mean a column moved.
         actionType:
-          Object.keys(diff).length || leader !== null
+          Object.keys(diff).length
             ? "gm_character_applied"
             : "gm_character_tag_applied",
         targetCharacterId: characterId,
         reason: reason?.trim() || null,
-        details: { core: diff, leader, tags: appliedTags },
+        details: { core: diff, tags: appliedTags },
       },
     });
   });
@@ -256,7 +248,6 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   }
 
   repaint(characterId);
-  if (diff.factionId || leader !== null || diff.isTreasurer) revalidatePath("/faction");
 
   return { name: data.name ?? existing.name, applied: diff, tags: appliedTags, discord: steps };
 }
@@ -623,7 +614,6 @@ async function deleteCharacterImpl({ characterId, confirmName }) {
         name: character.name,
         discordUserId: character.discordUserId,
         roleTitle: character.roleTitle,
-        factionId: character.factionId,
         // Read on its own rather than off the row: ⬢ are a stack row now, and
         // loadCharacter deliberately doesn't pull the tag set.
         resources: await readCharacterResources(prisma, characterId),

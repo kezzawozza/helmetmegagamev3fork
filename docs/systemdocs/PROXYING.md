@@ -258,7 +258,7 @@ stands."*
 |---|---|
 | ❌ | Soft-deletes the row; `bot/src/lib/feedOutbox.js` removes the Discord message. Owner, or a GM (who is not held to the window). |
 | ✏️ | Edit, via a DM button and a modal — see below. The modal writes the **row**, through `editSpeech`, and the outbox carries the change to Discord. Owner only. |
-| 🔍 | Inspect embed, as of that line — see §5 and `FACTIONS.md` §4. Same readout as **Look at** on `/character` (§4a). |
+| 🔍 | Inspect embed, as of that line — see §5. Same readout as **Look at** on `/character` (§4a). |
 | 📸 / 📷 | The same readout, as of that line, frozen onto a **Photo** tag in the reactor's hands. Needs an Instant Camera, which is not spent. `COMMANDS.md` §6. |
 | ⭐ | Saves a personal `Note` — see §7. |
 | 🌫️ | GM-only fog. |
@@ -483,7 +483,7 @@ The alias comes from `db/lib/concealedIdentity.js` (pure, in the barrel beside
 was always "Person" however they present, and so was a Censor. Gender is a
 real column now (`CHARACTERS.md` §1c), so the alias simply says it: an untitled
 woman conceals as "a young woman". Concealing hides the name, the face and the
-faction — it was never meant to hide how someone presents, which is what the
+seat — it was never meant to hide how someone presents, which is what the
 line above has always claimed it carries.
 
 The alias is frozen into `ArchiveEntry.concealedAlias` at send time, so a later

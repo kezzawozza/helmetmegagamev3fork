@@ -62,7 +62,6 @@ const speaker = (tags) => ({
   name: "Semyun Varyutskaya",
   appearance: "Tall, with a burn along one jaw.",
   roleTitle: null,
-  factionId: null,
   concealed: false,
   tags: [held(RESOURCES_TAG, { quantity: 4 }), ...tags],
 });

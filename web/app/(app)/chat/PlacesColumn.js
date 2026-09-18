@@ -10,8 +10,8 @@ import { isUnread } from "./seenStore";
 // mockup's own shape (docs/design/mockups/chat/index.html).
 //
 // The top of the column belongs to no zone — MAIL the Bascinet conversation
-// and Deadchat, one section, RADIO the frequencies carried, FACTION the
-// roster pseudo-place. Everything under that is grouped BY ZONE, the way
+// and Deadchat, one section, and RADIO the frequencies carried. Everything
+// under that is grouped BY ZONE, the way
 // Discord groups channels by category,
 // each group headed by a divider carrying the zone's name. Inside a group the
 // sections read the same as they always have: SUMMARY the zone's channel ·
@@ -139,9 +139,8 @@ export default function PlacesColumn({
   foot = null,
 }) {
   // The zone-less places, pinned to the top: what the game said to YOU, where
-  // a turn result lands (CHAT.md §2b), the frequencies in your pack, and the
-  // faction roster. None of them is a room on the map, so none belongs under
-  // a zone's divider.
+  // a turn result lands (CHAT.md §2b), and the frequencies in your pack.
+  // Neither is a room on the map, so neither belongs under a zone's divider.
   //
   // Mail is the mockup's own section: the Bascinet conversation THEN
   // Deadchat, one heading — not the two folds this used to be. Deadchat is
@@ -154,7 +153,6 @@ export default function PlacesColumn({
   const nets = places.filter((p) => p.kind === "net");
   const parties = places.filter((p) => p.kind === "party");
   const radio = [...nets, ...parties];
-  const faction = places.filter((p) => p.kind === "faction");
 
   // Everything else, bucketed by zone in the order the server sent it — which
   // already IS zone order (db/lib/feedAccess.js reads Zone.sortOrder). A place
@@ -169,7 +167,6 @@ export default function PlacesColumn({
         place.kind === "dm" ||
         place.kind === "net" ||
         place.kind === "party" ||
-        place.kind === "faction" ||
         place.kind === "dead"
       ) continue;
       if (!place.zoneId) {
@@ -208,7 +205,6 @@ export default function PlacesColumn({
       <p className="bar">Places</p>
       <Section title="Mail" places={mail} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
       <Section title="Radio" places={radio} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
-      <Section title="Faction" places={faction} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} />
       {groups.map((group) => {
         // Elsewhere is cut FIRST and the other three exclude it, so a fogged
         // street and its rooms are drawn once, together, under their own

@@ -174,7 +174,6 @@ export default function Workspace({
   presenceZones,
   stagingLocations,
   stagingRooms,
-  factions,
   moves: moveRows,
   cavingRolls: cavingRollRows,
   otherRows,
@@ -859,7 +858,6 @@ export default function Workspace({
         presenceZones={presenceZones}
         stagingLocations={stagingLocations}
         stagingRooms={stagingRooms}
-        factions={factions}
         tagCatalog={tagCatalog}
         onInspect={inspect}
         onOpenPreview={() => setPreviewOpen(true)}

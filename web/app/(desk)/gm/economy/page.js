@@ -29,7 +29,6 @@ import {
   counterpartyEdges,
   goodsCatalog,
   depotBooks,
-  factionTreasuries,
 } from "@/lib/economyQuery";
 
 // /gm/economy — the GM analytics desk over EconomyEntry. See CLAUDE.md's
@@ -262,7 +261,6 @@ async function FreshEconomy({ section, searchParams, userId }) {
             name: true,
             status: true,
             ...RESOURCES_SELECT,
-            faction: { select: { zone: { select: { name: true } } } },
             zone: { select: { name: true } },
           },
         }),
@@ -306,7 +304,7 @@ async function FreshEconomy({ section, searchParams, userId }) {
             kind: "character",
             name: c.name,
             status: c.status,
-            zoneName: c.faction?.zone?.name || c.zone?.name || "",
+            zoneName: c.zone?.name || "",
             balance: resourcesOf(c),
             inflow: flow.inflow,
             outflow: flow.outflow,
@@ -543,43 +541,6 @@ async function FreshEconomy({ section, searchParams, userId }) {
         trainHere: trainHere(openTurn?.number ?? 0),
         tradePoints,
       };
-      break;
-    }
-
-    case "factions": {
-      const openTurn = await getOpenTurn();
-      const treasuries = await factionTreasuries();
-      const siloIds = treasuries.map((f) => f.siloRoomId).filter(Boolean);
-
-      // Contributions in / draws out THIS TURN, for each faction's silo.
-      // Only amounts are read here, never a counterparty name, so there is
-      // nothing for redactEntry to withhold from a plain GM — a cult silo's
-      // balance and this-turn totals are already the whole of what's shown.
-      let flowById = new Map();
-      if (openTurn && siloIds.length) {
-        const legs = await prisma.$queryRaw`
-          SELECT id, SUM(inflow)::int AS inflow, SUM(outflow)::int AS outflow FROM (
-            SELECT "fromId" AS id, 0 AS inflow, SUM("amount")::int AS outflow
-              FROM "EconomyEntry"
-             WHERE "gameId" = ${gameId} AND "turnNumber" = ${openTurn.number} AND "form" = 'BALANCE'
-               AND "fromKind" = 'room' AND "fromId" = ANY(${siloIds})
-             GROUP BY 1
-            UNION ALL
-            SELECT "toId" AS id, SUM("amount")::int AS inflow, 0 AS outflow
-              FROM "EconomyEntry"
-             WHERE "gameId" = ${gameId} AND "turnNumber" = ${openTurn.number} AND "form" = 'BALANCE'
-               AND "toKind" = 'room' AND "toId" = ANY(${siloIds})
-             GROUP BY 1
-          ) legs GROUP BY id`;
-        flowById = new Map(legs.map((l) => [l.id, { in: Number(l.inflow) || 0, out: Number(l.outflow) || 0 }]));
-      }
-
-      const factions = treasuries.map((f) => {
-        const flow = f.siloRoomId ? flowById.get(f.siloRoomId) ?? { in: 0, out: 0 } : null;
-        return { ...f, turnIn: flow?.in ?? 0, turnOut: flow?.out ?? 0 };
-      });
-
-      data = { ...data, factions, openTurnNumber: openTurn?.number ?? null };
       break;
     }
 

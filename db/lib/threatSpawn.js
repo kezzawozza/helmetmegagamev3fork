@@ -91,7 +91,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
   const spawn = await prisma.threatSpawn.findUnique({
     where: { id: spawnId },
     include: {
-      role: { include: { faction: { include: { zone: true } } } },
+      role: true,
       location: { include: { zone: true } },
     },
   });
@@ -161,12 +161,9 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
           age: null,
           roleId: spawn.role.id,
           roleTitle: spawn.role.name,
-          factionId: spawn.role.factionId,
           locationId: location?.id ?? null,
           zoneId: location?.zoneId ?? null,
           tagPoints: threat.spawn.tagPoints ?? 0,
-          isLeader: spawn.role.grantsLeader,
-          isTreasurer: spawn.role.grantsTreasurer,
         },
       });
 

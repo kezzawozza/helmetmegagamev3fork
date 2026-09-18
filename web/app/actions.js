@@ -55,7 +55,6 @@ export async function startAsLocalPlayer() {
       status: "ALIVE",
       roleId: role.id,
       roleTitle: role.name,
-      factionId: role.factionId,
       // The denormalization contract: locationId and location.zoneId travel
       // together (ARCHITECTURE.md §6).
       locationId: role.startingLocationId ?? null,

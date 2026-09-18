@@ -31,7 +31,7 @@ The turn chip is `AppHeader`'s own `TurnMeta`, the same one every other page
 gets.
 
 It was a *person* until 2026-09-10 — the character's name as the title, their
-role and faction as the meta line, their face as a 24px avatar beside the Back
+role as the meta line, their face as a 24px avatar beside the Back
 link. All four moved down into the band (§2), where they sit next to a face big
 enough to be worth looking at; saying them again 40px above only made the page
 name the person twice. The layout still asks `loadHeaderIdentity()`, because
@@ -75,7 +75,7 @@ cost two taps. There are no tabs now, and `.sheet-tabs` is gone.
 Who this is, where they stand, and:
 
 - **The identity cluster** (`.ledger-identity`) — the face, then the name, the
-  role and faction on one muted line (the faction a link to `/faction`),
+  role on one muted line,
   **"Standing in Town — Tallow Row"** on the next, and the status strip under
   that.
 - **The name is the blackletter.** `.ledger-name` takes `--font-display` in

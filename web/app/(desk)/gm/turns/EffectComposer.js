@@ -157,7 +157,7 @@ export default function EffectComposer({
       .filter((c) => !chosen.has(c.id))
       .map((c) => ({
         c,
-        match: scoreMatch(q, { name: c.name, role: c.roleTitle, faction: c.factionName, zone: c.zoneName, username: c.username }),
+        match: scoreMatch(q, { name: c.name, role: c.roleTitle, zone: c.zoneName, username: c.username }),
       }))
       .filter((r) => r.match)
       .sort((a, b) => b.match.score - a.match.score)
@@ -363,7 +363,7 @@ export default function EffectComposer({
               <input
                 value={targetSearch}
                 onChange={(e) => setTargetSearch(e.target.value)}
-                placeholder="name, role, faction, zone…"
+                placeholder="name, role, zone…"
               />
             </label>
           )}
@@ -381,7 +381,6 @@ export default function EffectComposer({
                   }}
                 >
                   + {c.name}
-                  {c.factionName ? <span className="text-muted"> · {c.factionName}</span> : null}
                 </button>
               ))}
             </div>

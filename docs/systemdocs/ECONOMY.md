@@ -57,10 +57,8 @@ closes `depot:account` out at zero so the retired end does not drift forever.
 Every entry has two ends, and each is one of:
 
 - `character:<id>` — a purse
-- `room:<id>` — a stash, **and also a faction treasury and the Keep's Vault**.
-  `Faction.siloRoomId`; the `Silo` model was deleted in 9/2026 and does not come
-  back, and the Vault needs no model either — it is `undercroft-vault`, a room
-  with coin in it
+- `room:<id>` — a stash, **and also the Keep's Vault**. The Vault needs no
+  model of its own: it is `undercroft-vault`, a room with coin in it
 - `bank:<accountId>` — one player's claim. `bank:clearing` is its book
   counterparty: no live balance, exempt from reconcile, exactly like mint and
   burn. It exists so that a movement whose coin leg is already booked by the tag
@@ -264,7 +262,6 @@ and make the read path merge rather than choose.
 | Accounts | Every purse and stash, and what moved through it this turn |
 | Goods | The catalog against reality — prices, what exists, what actually trades, and any ware whose round trip prints money |
 | The Depot | Every account in the game, split TREASURY from OFFSHORE, against the coin in the Vault. A claim and its backing are shown APART, always (§1) |
-| Factions | Silo treasuries, and what went in and out this turn |
 | Health | Drift, un-hooked call sites, and the backfill seam |
 
 Two numbers the desk deliberately does not compute:
@@ -274,8 +271,8 @@ Two numbers the desk deliberately does not compute:
   simulated (`db/lib/miningdropsEv.js`), which is not a page render's job. Run
   `npm run db:audit-mining-drops` for that side. Inventing a plausible number
   there would be worse than leaving it out.
-- **No per-faction balance history.** There is no per-turn snapshot to group
-  off, so a sparkline would cost a query per faction.
+- **No per-account balance history.** There is no per-turn snapshot to group
+  off, so a sparkline would cost a query per account.
 
 ## 9. Things not to do
 
@@ -292,5 +289,6 @@ Two numbers the desk deliberately does not compute:
   anything. The write is fenced between `SAVEPOINT` and `ROLLBACK TO SAVEPOINT`.
   Keep it, and keep the test proving the savepoint is issued — the version of
   the fake transaction that never threw could not tell the difference.
-- **Don't bring back a `Silo` model.** A faction treasury is a Room.
+- **Don't bring back a `Silo` model.** Silos were a pointer from a faction at
+  a Room, and both went in 10/2026. A shared stash is a Room, full stop.
 - **Don't sum the Depot account and the Merchant's purse.**

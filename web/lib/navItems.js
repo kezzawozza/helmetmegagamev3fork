@@ -8,7 +8,6 @@ export const PLAYER_NAV = [
   { href: "/character", label: "Character", icon: "character" },
   { href: "/chat", label: "Chat", icon: "play" },
   { href: "/map", label: "Map", icon: "map" },
-  { href: "/faction", label: "Faction", icon: "faction" },
   { href: "/notes", label: "Notes", icon: "notes" },
   { href: "/documents", label: "Documents", icon: "documents" },
   { href: "/handbook", label: "Handbook", icon: "help" },

@@ -3,7 +3,6 @@
 // Prisma-free; can't query the subject's last Desire or doctor's-eye skill
 // catalog itself, both come in as arguments. `subject` may be an assembled snapshot (db/lib/examineSnapshot.js).
 const { concealedLine } = require("./concealedIdentity");
-const { inRealFaction } = require("./factionConstants");
 const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 const { formatTagRequirement } = require("./formatTagRequirement");
 const { formatTagArmor } = require("./formatTagArmor");
@@ -23,7 +22,7 @@ const {
 } = require("./presentedIdentity");
 const { turnsLeft, formatTurnsLeft } = require("./turnFormat");
 const { revealedTags } = require("./torture");
-const { resourcesOf, withoutResources, isResourcesRow } = require("./resourceStack");
+const { withoutResources, isResourcesRow } = require("./resourceStack");
 
 // TAG half split out for db/lib/examineSnapshot.js — name/armour/requirement are RULES, read live even for an old look.
 const EXAMINE_TAG_SELECT = {
@@ -50,9 +49,6 @@ const EXAMINE_SUBJECT_SELECT = {
   age: true,
   gender: true,
   updatedAt: true,
-  roleTitle: true,
-  factionId: true,
-  faction: { select: { name: true, slug: true } },
   tags: {
     select: {
       equipped: true,
@@ -89,7 +85,7 @@ function thanatiLines(subjectTags = []) {
   return [{ name: seat.tag.name, slug: seat.tag.slug, detail: null, viaSkill: false }];
 }
 
-// Built BEFORE normal field logic. Hood hides identity not inventory; no appearance/name/faction/Desire regardless of viewer gates.
+// Built BEFORE normal field logic. Hood hides identity not inventory; no appearance/name/Desire regardless of viewer gates.
 function concealedReadout(identity, subject) {
   const seen = (subject.tags ?? []).filter((ct) => seenByBystander(ct.tag, ct, false));
   const isHealth = (ct) => ct.tag.category === HEALTH_CATEGORY;
@@ -102,15 +98,12 @@ function concealedReadout(identity, subject) {
     ailments: seen.filter(isHealth).map((ct) => ct.tag.name),
     // ⬢ are left out. The catalog already hides them (`visible: false` on
     // `resources`, same as `obol`), so nothing reaches here today — this is
-    // the belt to that flag's braces, and it is worth keeping because the
-    // rule is not really about visibility: how much somebody holds is the
-    // officer-gated `resources` line below, and a bare "Resources" chip would
-    // announce to any passer-by that there is a balance worth taking.
+    // the belt to that flag's braces, and it is worth keeping because the rule
+    // is not really about visibility: a bare "Resources" chip would announce to
+    // any passer-by that there is a balance worth taking.
     equipment: withoutResources(seen.filter((ct) => !isHealth(ct))).map((ct) => ct.tag.name),
     tags: [],
     desire: null,
-    roleTitle: null,
-    resources: null,
   };
 }
 
@@ -121,8 +114,6 @@ function examineReadout({
   satisfied = new Set(),
   openTurnNumber,
   lastDesire = null,
-  viewerFactionId = null,
-  viewerIsOfficer = false,
   wasConcealedAs = null,
   // A Thanati sees whether the subject is one too (THANATI.md); HIDDEN otherwise.
   viewerIsThanati = false,
@@ -152,10 +143,9 @@ function examineReadout({
     equipment: [],
     tags: [
       // Same rule as the bystander readout above, and likewise a no-op while
-      // the catalog hides ⬢. It stays because it is what stops an officer
-      // seeing "Resources" in the chip row AND "Resources: 12 ⬢" two lines
-      // under it, as if they were two different things, the day somebody makes
-      // the stack visible again.
+      // the catalog hides ⬢. It stays because it is what stops a reader seeing
+      // a "Resources" chip at all the day somebody makes the stack visible
+      // again — what somebody is holding is nobody else's to count.
       ...medicallyVisibleTags(subject.tags, satisfied, identityVisible)
         .filter((entry) => !isResourcesRow(entry.characterTag))
         .map((entry) => describeTag(entry, openTurnNumber)),
@@ -163,10 +153,10 @@ function examineReadout({
     ],
     // ABSENT, never "hidden" — a viewer without sight and nothing-to-read look the same.
     desire: canSeeDesire ? { text: lastDesire?.text ?? null, points: lastDesire?.points ?? null } : null,
-    // Same-faction knowledge, not officer authority (FACTIONS.md §4a).
-    roleTitle: inRealFaction(subject) && viewerFactionId === subject.factionId ? (subject.roleTitle ?? null) : null,
-    // Leader/Treasurer of the subject's OWN faction sees their ⬢; caller resolves the seat (this file holds no prisma).
-    resources: inRealFaction(subject) && viewerIsOfficer ? resourcesOf(subject) : null,
+    // No role title and no ⬢ figure, for anybody. Both used to ride on sharing
+    // a faction — a role title with whoever answered to the same name, a
+    // balance with that faction's officers — and with factions gone there is
+    // no reader left who is entitled to either. A GM reads both off the desk.
   };
 }
 

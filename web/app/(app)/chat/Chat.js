@@ -16,7 +16,6 @@ import { SignOutIcon } from "@/app/components/icons";
 import { signOutOfDiscord } from "@/app/actions";
 import { describeTurn } from "@/lib/turnFormat";
 import Feed from "./Feed";
-import FactionPanel from "./FactionPanel";
 import DmPane, { DM_PLACE_KEY } from "./DmPane";
 import { useDmState, seedNewestOutbound, addDmRow, noteDmReconnect } from "./dmStore";
 import NoticeCards from "./NoticeCards";
@@ -125,11 +124,6 @@ export default function Chat({
   // gate themselves.
   letters = null,
   conceal = null,
-  // The faction this character is in, or null. A pseudo-place in the column
-  // rather than a place: it has no channel, so what its row opens is a panel
-  // (./FactionPanel.js), and the whole roster is decided on the server
-  // (web/lib/selfPools.js#loadFactionView).
-  faction = null,
   // The newest thing Bascinet said by DM, as epoch ms, for the Messages row's
   // dot before the pane has opened (./DmPane.js). The store takes over from
   // the first stream frame on.
@@ -151,13 +145,10 @@ export default function Chat({
   const wanted = useOpenPlace();
   const stream = useStreamState();
 
-  // The faction's row. `faction:<id>` is a place key the archive will never
-  // hold, which is exactly what makes it safe as a pseudo-key: it round-trips
-  // through the hash like any other, and nothing that reads a feed can ever
-  // match it.
-  const factionKey = faction ? `faction:${faction.id}` : null;
-  // And Bascinet's: the DM conversation, the same kind of pseudo-key (CHAT.md
-  // §2b). Its "newest seq" is epoch ms — seenStore compares BigInt strings,
+  // Bascinet's row: the DM conversation. `dm` is a place key the archive will
+  // never hold, which is exactly what makes it safe as a pseudo-key — it
+  // round-trips through the hash like any other, and nothing that reads a feed
+  // can ever match it (CHAT.md §2b). Its "newest seq" is epoch ms — seenStore compares BigInt strings,
   // and epoch ms is one — so the dot works without seenStore knowing.
   const dmState = useDmState();
   // Gated on the ACCOUNT, not on a living character. The DM thread belongs to
@@ -171,22 +162,14 @@ export default function Chat({
     const out = [];
     if (dmKey) out.push({ placeKey: dmKey, name: "Bascinet", kind: "dm", newestSeq: dmNewest, notableSeq: dmNewest });
     out.push(...places);
-    if (factionKey) {
-      out.push({ placeKey: factionKey, name: faction.name, kind: "faction", newestSeq: null, notableSeq: null });
-    }
     return out;
-  }, [places, factionKey, faction, dmKey, dmNewest]);
+  }, [places, dmKey, dmNewest]);
   const byKey = useMemo(() => new Map(navPlaces.map((place) => [place.placeKey, place])), [navPlaces]);
   // A remembered place you have since left falls back to the first place, so
   // a stale bookmark opens the street rather than a blank column.
   const selectedKey = (wanted && byKey.has(wanted) ? wanted : null) ?? initialPlace ?? places[0]?.placeKey ?? null;
   const selected = selectedKey ? (byKey.get(selectedKey) ?? null) : null;
-  const factionOpen = Boolean(factionKey && selectedKey === factionKey);
   const dmOpen = Boolean(dmKey && selectedKey === dmKey);
-  // The silo is a Room, so the button only draws when that room is in this
-  // character's own place list — a shut door keeps it out of the list, and a
-  // button selecting a place they cannot read would be a dead end.
-  const siloOpen = Boolean(faction?.silo && byKey.has(faction.silo.placeKey));
 
   const onSelect = useCallback((placeKey) => {
     setOpenPlace(placeKey);
@@ -760,9 +743,8 @@ export default function Chat({
   // chosen. The stream only ever carries what happens next, so without this a
   // room opened for the first time would look empty until somebody spoke.
   useEffect(() => {
-    // The two pseudo-places have no feed to load (./FactionPanel.js,
-    // ./DmPane.js — the pane fetches its own page).
-    if (!selectedKey || selectedKey.startsWith("faction:") || selectedKey === DM_PLACE_KEY || historyLoaded(selectedKey)) {
+    // The pseudo-place has no feed to load — ./DmPane.js fetches its own page.
+    if (!selectedKey || selectedKey === DM_PLACE_KEY || historyLoaded(selectedKey)) {
       return undefined;
     }
     // "loading" first, so Feed.js draws the skeleton instead of the empty
@@ -1002,9 +984,7 @@ export default function Chat({
             The connection dropped. Reload to catch up.
           </p>
         )}
-        {factionOpen ? (
-          <FactionPanel faction={faction} siloOpen={siloOpen} onSelect={onSelect} drawers={drawers} />
-        ) : dmOpen ? (
+        {dmOpen ? (
           <DmPane self={self} drawers={drawers} />
         ) : (
         <Feed

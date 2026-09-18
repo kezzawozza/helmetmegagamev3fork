@@ -37,7 +37,6 @@ export default function AuditDesk({
   typeCounts,
   actors,
   characters,
-  factions,
   zones,
   locations,
   turnNumbers,
@@ -222,7 +221,6 @@ export default function AuditDesk({
             typeCounts={typeCounts}
             actors={actors}
             characters={characters}
-            factions={factions}
             zones={zones}
             locations={locations}
             turnNumbers={turnNumbers}
@@ -270,7 +268,6 @@ function hrefFor(next) {
   for (const v of next.actors) put("actor", v);
   put("actorKind", next.actorKind);
   for (const v of next.targets) put("target", v);
-  for (const v of next.factions) put("faction", v);
   for (const v of next.zones) put("zone", v);
   for (const v of next.locations) put("location", v);
   for (const v of next.rooms) put("room", v);
@@ -295,7 +292,6 @@ function emptyFilters() {
     actors: [],
     actorKind: "",
     targets: [],
-    factions: [],
     zones: [],
     locations: [],
     rooms: [],
@@ -319,7 +315,6 @@ function toQueryObject(f) {
     actor: f.actors,
     actorKind: f.actorKind,
     target: f.targets,
-    faction: f.factions,
     zone: f.zones,
     location: f.locations,
     room: f.rooms,

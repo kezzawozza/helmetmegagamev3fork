@@ -145,7 +145,6 @@ async function actor(select) {
       name: true,
       zoneId: true,
       locationId: true,
-      factionId: true,
       discordUserId: true,
       // Not mirrored to Discord — nothing here may touch Discord for them (docs/systemdocs/CHAT.md §6).
       discordMirrored: true,
@@ -217,7 +216,6 @@ const PHOTO_ACTION = "photo_taken";
 export async function photographRow(seq) {
   const me = await actor({
     id: true,
-    factionId: true,
     locationId: true,
     discordUserId: true,
     tags: { select: { quantity: true, tag: { select: { slug: true } } } },
@@ -2316,7 +2314,7 @@ export async function lookAt(personRef) {
   const ref = String(personRef ?? "").trim();
   if (!ref) return { ok: false, error: "Look at who?" };
 
-  const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
+  const me = await actor({ id: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
 
   // One sightings Map for both halves: resolveHoodToken decides who counts as hooded from the same answer the readout uses.
@@ -2387,7 +2385,7 @@ async function privateRoomHere(character, placeKey) {
 
 // Who is in the open place, and who standing here could be let in — one call, so the picker never shows a stale list.
 export async function placeMembers(placeKey) {
-  const me = await actor({ id: true, factionId: true, locationId: true });
+  const me = await actor({ id: true, locationId: true });
   if (me.error) return { ok: false, error: me.error };
   const parsed = parsePlaceKey(placeKey);
   // Not an error: a Location, the zone summary and a public room simply have

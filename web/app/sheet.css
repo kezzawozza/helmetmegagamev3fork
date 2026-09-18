@@ -104,8 +104,8 @@
 }
 
 /* 9rem square, up from the 64px it was. The number is not arbitrary: it is
-   what the column beside it comes out at — the name, the role and faction, the
-   place, and the status chips under them — so the face fills the row instead
+   what the column beside it comes out at — the name, the role, the place, and
+   the status chips under them — so the face fills the row instead
    of sitting small at the top of it. It stays put when that column runs taller
    (somebody wearing a lot of status tags); a face that grew with the chip
    count would be a portrait that changes size as you get hungry.
@@ -143,19 +143,6 @@
   color: var(--muted);
   font-size: var(--fs-2xs);
   text-align: center;
-}
-
-/* The faction is a link to /faction, but on a muted line rather than in a
-   menu — FactionLink's own default is .menu-item, which is the header's look
-   and reads as a control here. */
-.ledger-faction {
-  color: inherit;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.ledger-faction:hover {
-  color: var(--accent-text);
 }
 
 .ledger-tiles {

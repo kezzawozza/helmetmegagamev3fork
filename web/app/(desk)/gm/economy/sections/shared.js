@@ -44,7 +44,6 @@ function sectionTitle(section) {
     sinks: "Sinks",
     goods: "Goods",
     depot: "The Depot",
-    factions: "Factions",
   };
   return titles[section] ?? section;
 }

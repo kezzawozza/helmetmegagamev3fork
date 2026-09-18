@@ -267,8 +267,9 @@ test("a transfer into the Spillway does not double-count the sender", async () =
 });
 
 test("a party kind the table does not know is a no-op in the book too", async () => {
-  // An old faction Silo. moveParty ignores it; the ledger must not invent a row
-  // for money that never moved.
+  // "silo" was a party kind until 9/2026 and dormant rows still carry it.
+  // moveParty ignores a kind it does not know; the ledger must not invent a
+  // row for money that never moved.
   const tx = fakeTx();
   await moveParty(tx, { kind: "silo", id: "s1", name: "A silo" }, 40, { reason: "TRANSFER" });
   assert.equal(tx.entries.length, 0);

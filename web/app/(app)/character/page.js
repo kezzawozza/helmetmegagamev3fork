@@ -111,24 +111,14 @@ import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import CharacterView from "./CharacterView";
 import Loading from "./Skeleton";
 
-// Everything the creation wizard needs, shaped as the Zone -> Faction -> Role
-// tree it renders. Seat counts are computed here, not the client, so the
-// numbers aren't stale-rendered from a cached page.
+// Everything the creation wizard needs, as the flat role list groupRoles()
+// buckets into the picker's social groups. Seat counts are computed here, not
+// the client, so the numbers aren't stale-rendered from a cached page.
 async function loadCreationData(discordUserId) {
-  const [zones, tags, config, state, member, dynastyName, preference] = await Promise.all([
-    prisma.zone.findMany({
-      orderBy: { name: "asc" },
-      include: {
-        factions: {
-          orderBy: { sortOrder: "asc" },
-          include: {
-            roles: {
-              orderBy: { sortOrder: "asc" },
-              include: { startingLocation: { include: { zone: true } } },
-            },
-          },
-        },
-      },
+  const [roleRows, tags, config, state, member, dynastyName, preference] = await Promise.all([
+    prisma.role.findMany({
+      orderBy: { sortOrder: "asc" },
+      include: { startingLocation: { include: { zone: true } } },
     }),
     loadPointBuyCatalog([], { includeRoleStartingTags: true }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
@@ -142,9 +132,6 @@ async function loadCreationData(discordUserId) {
 
   // Seated (ALIVE, plus DEAD on a seat that never reopens) plus anyone
   // else's live wizard-in-progress hold; excludes the viewer's own hold.
-  const roleRows = zones.flatMap((zone) =>
-    zone.factions.flatMap((faction) => faction.roles),
-  );
   const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
 
   const cursed = await isPlayerCursed(prisma, discordUserId);
@@ -182,20 +169,15 @@ async function loadCreationData(discordUserId) {
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     tags,
-    // Seven social buckets, not five zones — db/lib/roleGroups.js says which
-    // faction lands where.
-    groups: groupRoles(
-      zones.flatMap((zone) =>
-        zone.factions.map((f) => ({ ...f, zoneName: zone.name })),
-      ),
-    )
+    // Seven social buckets, not five zones — each role names its own in
+    // docs/roles.yaml and db/lib/roleGroups.js holds the order and the labels.
+    groups: groupRoles(roleRows)
       .map((group) => ({
         slug: group.slug,
         name: group.name,
         // Spawn-only seats are withheld outright, not greyed — see
         // characterCreation.js#isSpawnOnly.
         roles: group.roles.filter((role) => !isSpawnOnly(role)).map((role) => {
-          const { faction } = role;
           const cap = roleCapacity(role, playerCount);
           return {
             id: role.id,
@@ -205,9 +187,6 @@ async function loadCreationData(discordUserId) {
             // Null for ordinary seats; set on the four dynasty roles.
             lockedGender: role.lockedGender,
             difficulty: role.difficulty,
-            // Printed on the card itself, now that the faction is no longer
-            // a heading over it.
-            factionName: faction.name,
             startingLocationName: role.startingLocation?.name ?? null,
             startingZoneName: role.startingLocation?.zone?.name ?? null,
             startingResources: role.startingResources,
@@ -215,9 +194,8 @@ async function loadCreationData(discordUserId) {
             // Parsed, because the wizard matches these against catalog tag
             // slugs and an entry may carry a count ("obol x5").
             startingTagSlugs: startingTagSlugs(role.startingTagSlugs),
-            grantsLeader: role.grantsLeader,
-            // Drives the "Whitelist only" hover on a greyed card. Separate
-            // from grantsLeader, which now only means faction Leader.
+            // Drives the "Whitelist only" hover on a greyed card, and the ★
+            // beside the name: a reserved seat, vouched players only.
             requiresWhitelist: role.requiresWhitelist,
             whitelistBlocked: role.requiresWhitelist && !leaderWhitelisted,
             // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
@@ -258,7 +236,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
     include: {
-      faction: true,
       zone: true,
       // The Location's own zone kind rides along so canBuildHere() can judge
       // this ground without a second round-trip (db/lib/structures.js) —
@@ -301,7 +278,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
         prisma.lobbyEntry.count({ where: { status: "READY" } }),
       ]);
-      // Six fields per role, not the wizard's whole card — never tags, seat counts, or where a seat starts.
+      // Six fields per role, not the wizard's whole card — never tags or seat counts.
       const lobbyGroups = creation.groups.map((g) => ({
         slug: g.slug,
         name: g.name,
@@ -310,8 +287,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           slug: r.slug,
           name: r.name,
           intro: r.intro,
-          factionName: r.factionName,
-          grantsLeader: r.grantsLeader,
+          startingZoneName: r.startingZoneName,
           requiresWhitelist: r.requiresWhitelist,
           whitelistBlocked: r.whitelistBlocked,
         })),
@@ -566,51 +542,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
 
   // From is you or a room; To is anyone here or a room (actions/MoveThingsDialog.js).
   const transferPartyList = { characters: transferParties, rooms };
-  // Your faction's silo, if it has one and you're standing in its zone — a
-  // deposit-only destination pinned above rooms here (FACTIONS.md). `here`
-  // avoids listing it twice; `canOpen` decides the one-way-trip warning.
-  const siloFaction = character.factionId
-    ? await prisma.faction.findFirst({
-        where: { id: character.factionId, siloRoomId: { not: null } },
-        select: {
-          siloRoom: {
-            select: {
-              id: true,
-              name: true,
-              kind: true,
-              accessTagSlugs: true,
-              locationId: true,
-              location: { select: { name: true, zoneId: true } },
-            },
-          },
-        },
-      })
-    : null;
-  const siloRoom = siloFaction?.siloRoom ?? null;
-  const transferSilo =
-    siloRoom &&
-    character.zoneId &&
-    siloRoom.location.zoneId === character.zoneId
-      ? {
-          id: siloRoom.id,
-          name: siloRoom.name,
-          locationName: siloRoom.location.name,
-          here: siloRoom.locationId === character.locationId,
-          canOpen:
-            accessibleRooms(
-              [
-                {
-                  id: siloRoom.id,
-                  kind: siloRoom.kind,
-                  accessTagSlugs: siloRoom.accessTagSlugs,
-                },
-              ],
-              heldSlugsForRooms,
-              guestRoomIds,
-              questRoomIds,
-            ).length === 1,
-        }
-      : null;
   // Is a forge within reach? Resolved server-side so the Craft dialog can say so before a player commits.
   const hasWorkshop = await hasEquipmentInReach(
     prisma,
@@ -1156,7 +1087,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       forcedIdentity: forcedIdentity,
       concealGear: concealGear,
       transferParties: transferPartyList,
-      transferSilo: transferSilo,
       carry: carry,
       zoneMoves: zoneMoves,
       zoneMovesReason: zoneMovesReason,

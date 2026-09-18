@@ -14,7 +14,7 @@ function fakePrisma(rows) {
   return { character: { findMany: async () => rows } };
 }
 
-const base = { status: "ALIVE", updatedAt: new Date(1700000000000), roleTitle: null, factionId: null, faction: null };
+const base = { status: "ALIVE", updatedAt: new Date(1700000000000), roleTitle: null };
 const concealingTag = (extra = {}) => ({
   equipped: true,
   tag: {
@@ -53,7 +53,7 @@ const beast = (id, name) => ({ // openly a Beast: named, not hidden, even under 
 });
 const wishing = (id, name) => ({ ...base, id, name, concealed: true, age: 30, gender: "WOMAN", tags: [] }); // wish, nothing over the face
 
-const viewer = { id: "viewer", locationId: "loc", factionId: null };
+const viewer = { id: "viewer", locationId: "loc" };
 
 test("no hoodIds unless they are asked for", async () => {
   const { concealed, hoodIds } = await whosHere(fakePrisma([hood("h1", "Sir Alder")]), viewer);

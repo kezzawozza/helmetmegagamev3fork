@@ -1,6 +1,5 @@
 "use client";
 
-import CheckField from "@/app/components/CheckField";
 import Switch from "@/app/components/Switch";
 import Select from "@/app/components/Select";
 import { TITLE_WORDS, NAME_LIMITS, AGE_MIN, AGE_MAX, GENDERS, GENDER_LABELS } from "@/lib/characterName";
@@ -16,7 +15,7 @@ import { MOOD_MAX, MOOD_MIN } from "@lifeweb/db/lib/mood";
 //
 // A touched field is outlined so the GM can see at a glance what Apply is
 // about to write; `edits` is the staged diff from DevPanel.
-export default function IdentityTab({ staged, lastNameLocked, factions, locations, roles, edits, onField }) {
+export default function IdentityTab({ staged, lastNameLocked, locations, roles, edits, onField }) {
   const touched = (key) => (Object.hasOwn(edits, key) ? "field-dirty" : "");
 
   return (
@@ -126,7 +125,7 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
             <option value="">(none — keeps the free-text title below)</option>
             {roles.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.factionName} / {r.name}
+                {r.name}
               </option>
             ))}
           </Select>
@@ -140,40 +139,6 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
             className={touched("roleTitle")}
           />
         </label>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="field">
-            <span className="field-label">Faction</span>
-            <Select
-              value={staged.factionId ?? ""}
-              onChange={(e) => onField("factionId", e.target.value || null)}
-              className={touched("factionId")}
-            >
-              <option value="">(none)</option>
-              {factions.map((f) => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </Select>
-          </label>
-
-          <div className="flex flex-col justify-end gap-2 text-sm">
-            {/* Promoting through Apply demotes the faction's existing leader
-                in the same transaction — writing isLeader bare is how a
-                faction ends up with two. */}
-            <CheckField
-              checked={Boolean(staged.isLeader)}
-              onChange={(e) => onField("isLeader", e.target.checked)}
-            >
-              Faction Leader
-            </CheckField>
-            <CheckField
-              checked={Boolean(staged.isTreasurer)}
-              onChange={(e) => onField("isTreasurer", e.target.checked)}
-            >
-              Faction Treasurer
-            </CheckField>
-          </div>
-        </div>
 
         {/* Where they physically stand, and the whole of what they can see:
             Apply swaps the Location's Discord role, and the zone role with it

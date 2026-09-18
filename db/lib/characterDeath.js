@@ -8,7 +8,7 @@ const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
 const { SEAT_TAG_SLUGS } = require("./threats");
 const { applyMood } = require("./mood");
-const { CATATONIC_SLUG, GIBBED_SLUG, METEMPSYCHOSIS_SLUG } = require("./constants");
+const { GIBBED_SLUG, METEMPSYCHOSIS_SLUG } = require("./constants");
 const { NOT_A_FIGHT } = require("./intercept");
 const { closeFightsFor } = require("./attack");
 const { teardownPartyThread } = require("./partyChat");
@@ -23,31 +23,6 @@ const { teardownPartyThread } = require("./partyChat");
 // one "Gibbed" row (vaporizeTags, CORPSES.md §1a). Returns
 // `corpse: { tag, room }` alongside `claimed`; `room` null means it stayed on
 // the sheet for want of a public room.
-// Hands a dead Leader's seat to the longest-standing living member — a
-// Treasurer first, a Catatonic member LAST. Membership itself is untouched.
-async function vacateFactionOffice(prisma, character) {
-  const row = await prisma.character.findUnique({
-    where: { id: character.id },
-    select: { factionId: true, isLeader: true, isTreasurer: true },
-  });
-  if (!row || (!row.isLeader && !row.isTreasurer)) return;
-
-  await prisma.character.update({
-    where: { id: character.id },
-    data: { isLeader: false, isTreasurer: false },
-  });
-  if (!row.isLeader || !row.factionId) return;
-
-  const successors = await prisma.character.findMany({
-    where: { factionId: row.factionId, status: "ALIVE", isLeader: false },
-    orderBy: [{ isTreasurer: "desc" }, { createdAt: "asc" }],
-    select: { id: true, tags: { where: { tag: { slug: CATATONIC_SLUG } }, select: { id: true } } },
-  });
-  const heir = successors.find((c) => c.tags.length === 0) ?? successors[0];
-  if (!heir) return;
-  await prisma.character.update({ where: { id: heir.id }, data: { isLeader: true } });
-}
-
 // Vaporised rather than killed: every tag deleted, one "Gibbed" row replaces
 // them, no corpse minted. Called with `gib: true` from the two Thanati rites
 // and the bomb. SEAT_TAG_SLUGS is the one load-bearing exception: the
@@ -135,19 +110,6 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   // A pending handshake is void either way (LESSONS.md, CRAFTING.md); an ACCEPTED lesson still resolves.
   await cancelOffersForCharacter(prisma, character.id).catch((err) =>
     console.error(`Failed to void offers on death for ${character.id}:`, err),
-  );
-  // Same rule for a faction handshake (FACTIONS.md): withdrawn, not left for an officer to trip over.
-  await prisma.factionApplication
-    .updateMany({
-      where: { characterId: character.id, status: "PENDING" },
-      data: { status: "WITHDRAWN" },
-    })
-    .catch((err) => console.error(`Failed to void faction applications on death for ${character.id}:`, err));
-
-  // A dead Leader keeping the seat freezes the faction solid — every officer verb requires
-  // `isLeader` and only a GM could unstick it. Same succession as walking out (FACTIONS.md §2).
-  await vacateFactionOffice(prisma, character).catch((err) =>
-    console.error(`Failed to vacate faction office on death for ${character.id}:`, err),
   );
   await prisma.craftProject
     .updateMany({ where: { characterId: character.id, status: "ACTIVE" }, data: { status: "CANCELLED" } })

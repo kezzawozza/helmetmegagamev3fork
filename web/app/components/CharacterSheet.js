@@ -52,7 +52,6 @@ export default function CharacterSheet({
   openTurn,
   avatarSrc,
   transferParties,
-  transferSilo,
   carry = null,
   zoneMoves = null,
   zoneMovesReason = null,
@@ -237,7 +236,6 @@ export default function CharacterSheet({
         // cap at 0 and the verb quietly stops working.
         resources={resourcesOf(character)}
         transferParties={transferParties}
-        transferSilo={transferSilo}
         carry={carry}
         hasWorkshop={hasWorkshop}
         canHeal={canHeal}

@@ -54,7 +54,7 @@ function shuffled(items, rng) {
 }
 
 // players:  [{ discordUserId, priorities: { [slug]: level }, joblessRole, whitelisted }]
-// roles:    [{ slug, name, isUnique, unlimited, weight, requiresWhitelist, grantsLeader, spawnOnly }]
+// roles:    [{ slug, name, isUnique, unlimited, weight, requiresWhitelist, spawnOnly }]
 // taken:    Map<slug, number> — seats already held before the roll
 // Returns { rows: [{ discordUserId, roleSlug, source }], warnings: [string], seed }
 function assignRoles({ players, roles, taken = new Map(), playerCount, leaderWhitelistEnabled = true, seed }) {
@@ -76,15 +76,20 @@ function assignRoles({ players, roles, taken = new Map(), playerCount, leaderWhi
 
   const order = shuffled(players, rng);
 
-  // Leader pass, then everyone: same loop, once restricted to leader seats.
-  for (const leadersOnly of [true, false]) {
+  // Reserved pass, then everyone: the same loop, run once restricted to the
+  // whitelisted seats. Those are the named ones the game cannot open without —
+  // the Baron, the Bishop, the Merchant — so they are filled before the roll
+  // spends a willing player on a Commoner. This used to run off `grantsLeader`,
+  // which meant the same ten seats plus a faction office behind them; the
+  // office is gone and the whitelist is the list that survived it.
+  for (const reservedOnly of [true, false]) {
     for (const level of LEVEL_ORDER) {
       for (const player of order) {
         if (result.has(player.discordUserId)) continue;
         const candidates = roles.filter(
           (role) =>
             (player.priorities?.[role.slug] ?? null) === level &&
-            (!leadersOnly || role.grantsLeader) &&
+            (!reservedOnly || role.requiresWhitelist) &&
             eligible(player, role),
         );
         if (candidates.length === 0) continue;
@@ -105,15 +110,15 @@ function assignRoles({ players, roles, taken = new Map(), playerCount, leaderWhi
   const rows = players.map((p) => result.get(p.discordUserId));
 
   const warnings = [];
-  const unwantedLeaders = roles.filter(
+  const unwantedReserved = roles.filter(
     (role) =>
-      role.grantsLeader &&
+      role.requiresWhitelist &&
       !role.spawnOnly &&
       isOpen(role) &&
       !players.some((p) => p.priorities?.[role.slug] && mayHold(p, role)),
   );
-  if (unwantedLeaders.length) {
-    warnings.push(`The following leader seats aren't reserved by anyone: ${unwantedLeaders.map((r) => r.name).join(", ")}.`);
+  if (unwantedReserved.length) {
+    warnings.push(`The following reserved seats aren't asked for by anyone: ${unwantedReserved.map((r) => r.name).join(", ")}.`);
   }
   const returning = rows.filter((r) => r.roleSlug === null).length;
   if (returning) warnings.push(`${returning} player${returning === 1 ? "" : "s"} will return to the lobby.`);

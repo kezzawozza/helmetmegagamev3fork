@@ -152,7 +152,7 @@ export default function TagPicker({
                     className="mt-1 block text-xs text-muted"
                   />
                 )}
-                {/* The gate that unlocked this row — role/faction kit would
+                {/* The gate that unlocked this row — a role's kit would
                     otherwise be indistinguishable from the open catalog.
                     Only qualifying viewers ever see the row. */}
                 {prerequisiteNames(tag).length > 0 && (

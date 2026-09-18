@@ -17,26 +17,26 @@ import { getOpenTurn } from "@/lib/turn";
 // mounted so closing a conversation reveals the roster underneath. The
 // `selection` param is deliberately unread — it exists so /gm/players/<id>
 // resolves on a cold load; who's open comes from the selection store.
-// Heavy loads live here, not the layout: the tag catalog and faction tree
-// are only needed by this view, and the layout re-runs on every router.refresh().
+// Heavy loads live here, not the layout: the tag catalog is only needed by
+// this view, and the layout re-runs on every router.refresh().
 
 // Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
 // mounts the shell, and streams FreshPlayerRoster in behind it. A browser that has
 // been here before paints its last data in the first frame.
-export default async function PlayerRosterPage({ searchParams }) {
+export default async function PlayerRosterPage() {
   const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
   return (
     <SnapshotPage scope="gm-players" userId={session.discordUserId} render={RosterView} fallback={<Loading />}>
       <Suspense fallback={null}>
-        <FreshPlayerRoster searchParams={searchParams} userId={session.discordUserId} />
+        <FreshPlayerRoster userId={session.discordUserId} />
       </Suspense>
     </SnapshotPage>
   );
 }
 
-async function FreshPlayerRoster({ searchParams, userId }) {
-  const [tags, factions, visibleZones, openTurn, params] = await Promise.all([
+async function FreshPlayerRoster({ userId }) {
+  const [tags, visibleZones, openTurn] = await Promise.all([
     // The whole catalog, gates and all — bulk tagging is a GM grant that deliberately ignores requiredTag and the TagGroup gate (TAGS.md).
     prisma.tag.findMany({
       orderBy: [{ category: "asc" }, { name: "asc" }],
@@ -52,19 +52,14 @@ async function FreshPlayerRoster({ searchParams, userId }) {
         group: { select: { name: true } },
       },
     }),
-    prisma.faction.findMany({
-      orderBy: { name: "asc" },
-      include: { characters: { select: { id: true, name: true, isLeader: true } } },
-    }),
     getVisibleZones(),
     getOpenTurn(),
-    searchParams,
   ]);
 
   const [characters, members, actedCharacterIds, heldTags] = await Promise.all([
     prisma.character.findMany({
       orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-      include: { faction: { include: { zone: true } }, zone: true },
+      include: { zone: true },
       take: 1000,
     }),
     listGuildMembers(), // TTL-cached, so the layout already calling it costs nothing here
@@ -106,16 +101,11 @@ async function FreshPlayerRoster({ searchParams, userId }) {
       scope="gm-players"
       userId={userId}
       data={{
-        initialTab: params?.tab?.toString() ?? "",
-        initialHighlightFactionId: params?.faction?.toString() ?? null,
         characters: characters.map((c) => ({
           id: c.id,
           discordUserId: c.discordUserId,
           name: c.name,
           roleTitle: c.roleTitle,
-          factionId: c.factionId,
-          factionName: c.faction?.name ?? "",
-          factionZoneName: c.faction?.zone?.name ?? "",
           zoneName: c.zone?.name ?? "",
           status: c.status,
           username: memberById.get(c.discordUserId)?.username ?? "",
@@ -131,8 +121,6 @@ async function FreshPlayerRoster({ searchParams, userId }) {
         tags: tags,
         visibleZoneNames: visibleZones?.map((z) => z.name) ?? null,
         hasOpenTurn: Boolean(openTurn),
-        factions: factions,
-        factionCount: factions.length,
       }}
     />
   );

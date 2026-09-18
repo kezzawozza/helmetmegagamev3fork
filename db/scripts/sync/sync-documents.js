@@ -1,6 +1,6 @@
 // Manual sync from docs/documents.yaml -> DB (`npm run db:sync-documents`).
 // Run AFTER db:sync-tags and db:sync-roles — assignment references are
-// validated against the Tag/Role/Faction rows those two create.
+// validated against the Tag and Role rows those two create.
 require("dotenv").config();
 const { prisma, syncDocumentsFromYaml } = require("../../index");
 

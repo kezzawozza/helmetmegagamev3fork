@@ -1,24 +1,23 @@
 // Who is standing at a Location, shared by the "Who's here?" button and
-// Chat's people column. Named first, Role only for a fellow member of a REAL
-// faction (FACTIONS.md §4a). Concealed characters come back separately. A
-// forced name (Tag.forcedName) outranks both: `named` with NO role, and never in the concealed list.
+// Chat's people column. Names and nothing else — a role title is private, and
+// no player ever reads another's off this list; the GM readout below is the one
+// place it still appears. Concealed characters come back separately. A forced
+// name (Tag.forcedName) outranks a real one and never joins the concealed list.
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
 const { aliasRow } = require("./concealedIdentity");
-const { isUnaffiliated } = require("./factionConstants");
 const { lastSightings } = require("./sightings");
 const { hoodToken } = require("./hoodToken"); // its own leaf to avoid a require cycle; re-exported below.
 
 const PRESENT_SELECT = {
   id: true,
   name: true,
+  // GM-only: whosHereGm() below is the one reader. namedRows() never touches it.
   roleTitle: true,
-  factionId: true,
   concealed: true,
   age: true,
   gender: true,
   updatedAt: true,
   lastSeenAt: true,
-  faction: { select: { name: true, slug: true } },
   tags: {
     where: {
       OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
@@ -72,7 +71,7 @@ async function presentRows(
     });
 }
 
-// `viewer` needs { id?, factionId, locationId } — id keeps the looker out of
+// `viewer` needs { id?, locationId } — id keeps the looker out of
 // their own list, which the Discord readout never did. `withSightings` gates
 // the FACE and the eye (db/lib/sightings.js): on, a sighting REPLACES the live identity rather than decorating it.
 async function whosHere(prisma, viewer, { withHoodIds = false, withAcross = false, ...options } = {}) {
@@ -124,12 +123,9 @@ function namedRows(rows, viewer) {
   return rows
     .filter((c) => !c.hidden || c.forced)
     .map((c) => {
-      const sameFaction =
-        viewer?.factionId && c.factionId === viewer.factionId && !isUnaffiliated(c.faction) && c.roleTitle;
       return {
         characterId: c.id,
         name: c.forced ?? c.sighting?.name ?? c.name, // the name you HOLD.
-        roleTitle: c.forced ? null : sameFaction ? c.roleTitle : null,
         avatarVersion: c.updatedAt?.getTime?.() ?? null,
         // A forced name wears its letter plaque, never the face behind it.
         avatarPath: c.forced ? presentedIdentity(c, { forcedName: c.forced }).avatarPath : (c.sighting?.avatarPath ?? null),
@@ -162,8 +158,9 @@ function concealedRows(rows, { withTokens }) {
     });
 }
 
-// WHO IS ACTUALLY STANDING THERE, for a GM: no sightings, no hood tokens, no
-// faction gate. `presentedAs` is the alias the room sees, the one thing the player list can never tell them.
+// WHO IS ACTUALLY STANDING THERE, for a GM: no sightings and no hood tokens.
+// The role title is here and nowhere else — a GM reads it, a player never does.
+// `presentedAs` is the alias the room sees, the one thing the player list can never tell them.
 async function whosHereGm(prisma, locationId) {
   if (!locationId) return [];
   const rows = await presentRows(prisma, null, { locationId });
@@ -171,7 +168,6 @@ async function whosHereGm(prisma, locationId) {
     characterId: c.id,
     name: c.name,
     roleTitle: c.roleTitle ?? null,
-    factionName: isUnaffiliated(c.faction) ? null : (c.faction?.name ?? null),
     presentedAs: c.forced ?? (c.hidden ? aliasRow(c, null) : null), // forced name is not a hood (PROXYING.md §5).
     avatarVersion: c.updatedAt?.getTime?.() ?? null,
     online: isOnline(c.lastSeenAt),
@@ -196,12 +192,12 @@ async function resolveHoodToken(prisma, viewer, token, { sightings = null } = {}
 function whosHereLines({ named, concealed, across = [] }) {
   const lines = [];
   if (named.length > 0) {
-    lines.push(`**Here:** ${named.map((c) => (c.roleTitle ? `${c.name}, ${c.roleTitle}` : c.name)).join(" | ")}`);
+    lines.push(`**Here:** ${named.map((c) => c.name).join(" | ")}`);
   }
   if (concealed.length > 0) lines.push(`**Also here:** ${concealed.map((c) => c.alias).join(" | ")}`);
   for (const group of across) {
     const people = [
-      ...group.named.map((c) => (c.roleTitle ? `${c.name}, ${c.roleTitle}` : c.name)),
+      ...group.named.map((c) => c.name),
       ...group.concealed.map((c) => c.alias),
     ];
     if (people.length > 0) lines.push(`**${group.locationName}:** ${people.join(" | ")}`);

@@ -33,9 +33,8 @@ async function main() {
     }],
     ["roles", async () => {
       const s = await syncRolesFromYaml(prisma);
-      const pruned = [...s.rolesPruned, ...s.factionsPruned];
-      return `factions +${s.factionsCreated}/~${s.factionsUpdated}, roles +${s.rolesCreated}/~${s.rolesUpdated}` +
-        (pruned.length ? `, pruned ${pruned.join(", ")}` : "");
+      return `roles +${s.rolesCreated}/~${s.rolesUpdated}` +
+        (s.rolesPruned.length ? `, pruned ${s.rolesPruned.join(", ")}` : "");
     }],
     ["desires", async () => {
       const s = await syncDesiresFromYaml(prisma);

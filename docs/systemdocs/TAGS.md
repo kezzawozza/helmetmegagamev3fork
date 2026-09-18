@@ -856,9 +856,8 @@ has since been deleted outright along with the channel it opened.
   Note it is a property of the tag being *seen*. The tag that widens what an
   inspect shows is read off the **inspector** instead: Seductive reveals the
   subject's active Desire, resolved by `db/lib/inspectVision.js`, which also
-  accepts the discounted Demoness twin. Like the officer-gated Resources
-  field (`FACTIONS.md`), an unseen field is absent rather than placeholdered — a placeholder
-  advertises that there is something to go after.
+  accepts the discounted Demoness twin. An unseen field is absent rather than
+  placeholdered — a placeholder advertises that there is something to go after.
 - `exclusive` — at most one such tag per character *per group*. Set on the nine Beliefs;
   see §3 for the rule, the `requiredTag` exemption, and where it is enforced.
 - `carryBonus` — **live**: what the tag adds to both carry caps while held, as
@@ -1902,11 +1901,9 @@ same problem quietly.
 
 ## 6. Not tags
 
-`Leader` and `Treasurer` are plain booleans on `Character` (`isLeader`,
-`isTreasurer`), **not tags** — no `starting_tags` entry, no `docs/tags.yaml`
-row. Assigned dynamically by a GM (Leader) or by a GM/the faction's own
-Leader (Treasurer) from `/faction` (`web/app/(app)/faction/actions.js`).
-`Courtier` is still a tag and gates `Manor` via `requiredTag` (§3). `Mortus`
+`Leader` and `Treasurer` were plain booleans on `Character` rather than tags,
+and both went with the factions they were offices of (10/2026). Do not bring
+either back, as a tag or as a column. `Courtier` is still a tag and gates `Manor` via `requiredTag` (§3). `Mortus`
 is still a tag too — an ordinary General one that gates `/lifeweb` nav
 visibility. `Hunter` is gone entirely, and so is the hunting it named — a day's work is
 the Mine button now (`MINING.md`).
@@ -1987,9 +1984,7 @@ sweep to hand the clear to; see `TURN-ENGINE.md` §2 for why that's the
 correct exception to "every grant must stamp `expiresTurn`" rather than a
 repeat of the Paralyzed bug. Because its whole purpose is broadcasting
 "this player is AFK", it surfaces further than any other tag: a chip on the
-`/faction` member roster (visible to ordinary members — the deliberate
-exception to that roster's no-fate rule), a Catatonic column on
-`/gm/players`, a muted dot on `CharacterAvatar` across the GM desks, a
+a Catatonic column on `/gm/players`, a muted dot on `CharacterAvatar` across the GM desks, a
 Condition row on the player's own `/character` sheet, and the character's
 personal Discord role renamed to `<name> • Catatonic` in flat grey. The
 role's name/colour are composed only by
@@ -2536,11 +2531,9 @@ files a GM ticket about it. On the web, `requireCharacter({ needs: ACT })` in
 `web/app/(app)/character/requestActions.js` carries it for nearly every
 request in one place, because that function already loads every held tag.
 
-**What is deliberately not gated:** faction bureaucracy, claiming a Desire,
-reading, examining, the point-buy store, and consuming. Faction paperwork has
-no in-world moment — a bound player unable to accept a membership application
-filed three days ago is a paperwork outage, not a hostage situation. And
-somebody can always pour a drink into you.
+**What is deliberately not gated:** claiming a Desire, reading, examining, the
+point-buy store, and consuming. None of those has an in-world moment a rope
+could interrupt, and somebody can always pour a drink into you.
 
 **One exception to consuming's own exemption: `Tag.administerSkill`.** An
 item gated this way (a prosthetic fitting, `MEDICAL.md` §2) DOES need ACT to

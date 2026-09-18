@@ -14,9 +14,6 @@ export function assignedTo(document, character) {
   const tagHit = document.tagSlugs.find((slug) => character.tagSlugs.has(slug));
   if (tagHit) return character.tagNameBySlug.get(tagHit) ?? tagHit;
   if (document.roleSlugs.includes(character.role?.slug)) return character.role.name;
-  if (document.factionSlugs.includes(character.faction?.slug)) return character.faction.name;
-  if (document.flags.includes("leader") && character.isLeader) return "Leader";
-  if (document.flags.includes("treasurer") && character.isTreasurer) return "Treasurer";
   return null;
 }
 

@@ -109,7 +109,6 @@ async function handleDossierReaction(reaction, proxy, user) {
       where: { id: proxy.characterId },
       include: {
         tags: { include: { tag: true } },
-        faction: { select: { name: true } },
         location: { select: { name: true } },
         zone: { select: { name: true } },
       },
@@ -139,7 +138,7 @@ async function handleDossierReaction(reaction, proxy, user) {
       name: "Standing",
       value: [
         where,
-        character.faction?.name ?? "Unaffiliated",
+        character.roleTitle ?? "No role",
         `${resourcesOf(character)} ⬢`,
         proxy.concealed ? `concealed as ${proxy.alias ?? "Unknown"}` : null,
       ]
@@ -247,10 +246,10 @@ function examineEmbed(readout) {
         : "Nothing you can read.",
     });
   }
-  if (readout.roleTitle) embed.addFields({ name: "Role", value: readout.roleTitle, inline: true });
-  if (readout.resources != null) {
-    embed.addFields({ name: "Resources", value: `${readout.resources} ⬢`, inline: true });
-  }
+  // No Role and no Resources field. Both used to ride on sharing a faction —
+  // a role title with whoever answered to the same name, a balance with that
+  // faction's officers — and with factions gone nobody but a GM is entitled to
+  // either. The GM dossier above still prints both.
   if (process.env.WEB_BASE_URL) {
     embed.setThumbnail(`${process.env.WEB_BASE_URL}${readout.avatarPath}`);
   }

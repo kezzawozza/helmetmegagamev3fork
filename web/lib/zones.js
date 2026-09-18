@@ -48,7 +48,14 @@ export function sortZones(zones) {
   });
 }
 
-// EITHER `zoneName` (physically) or `factionZoneName` (seat) is enough.
+// `zoneName` — where the row's character is STANDING — is the whole test. It
+// used to be either that or `factionZoneName`, the zone a character's faction
+// was keyed to, and the seat outranked the feet on every desk. With factions
+// gone there is no seat, so a GM's desk follows the feet: somebody who walks
+// out of the Fortress and into Town moves onto the Town GM's list.
+//
+// A row with no zone at all stays visible to everyone — better seen twice than
+// by nobody.
 export function inVisibleZones(rows, visibleZoneNames) {
   if (!visibleZoneNames) return rows ?? [];
   const allowedNames = new Set(visibleZoneNames);
@@ -59,8 +66,5 @@ export function inVisibleZones(rows, visibleZoneNames) {
     const seat = seatKey(zone);
     return Boolean(seat) && allowedSeats.has(seat);
   };
-  return (rows ?? []).filter((r) => {
-    if (!r.zoneName && !r.factionZoneName) return true;
-    return reaches(r.zoneName) || reaches(r.factionZoneName);
-  });
+  return (rows ?? []).filter((r) => !r.zoneName || reaches(r.zoneName));
 }

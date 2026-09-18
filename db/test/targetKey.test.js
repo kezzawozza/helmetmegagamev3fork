@@ -9,7 +9,7 @@ process.env.AUTH_SECRET ||= "test-secret-for-hood-tokens";
 const { splitTargetKey, resolveTargetKey } = require("../lib/targetKey");
 const { hoodToken } = require("../lib/hoodToken");
 
-const base = { status: "ALIVE", updatedAt: new Date(1700000000000), roleTitle: null, factionId: null, faction: null };
+const base = { status: "ALIVE", updatedAt: new Date(1700000000000), roleTitle: null };
 const hoodTag = {
   equipped: true,
   tag: { forcedName: null, name: "Thanati Mask", concealsIdentity: true, concealSprite: "silvermask", forcesConceal: true, equipLayer: 1 },

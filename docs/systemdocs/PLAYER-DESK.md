@@ -90,7 +90,7 @@ conversation-havers before non-havers, then recency — a name hit with a
 thread still usually outranks a name hit with none.
 
 Search is `scoreMatch` (`web/lib/fuzzySearch.js` — keep that the one shared
-engine) over name, role, faction, Discord username **and** global name, zone,
+engine) over name, role, Discord username **and** global name, zone,
 **held tag names** and message preview. `scoreMatch` tokenizes and folds diacritics, tolerates a
 typo, and takes `field:term` scopes — `role:smith`, `zone:caves`, `@handle`
 as shorthand for `username:handle` — so a bare word still matches anything
@@ -174,7 +174,7 @@ what `react-hooks/set-state-in-effect`, an error in this repo, exists to
 catch).
 
 The **roster table** (§4) runs the same `scoreMatch` engine, over name, role,
-faction, both zones (seat and standing-in) and Discord handle — as a filter
+zone and Discord handle — as a filter
 only, though: unlike the rail it keeps whatever column sort the GM chose
 rather than reordering by match score, since the roster has real sortable
 headers to preserve.
@@ -229,7 +229,7 @@ Two bulk verbs, both GM-safe:
 
 **There is one bulk-message UI, and it is `BulkComposer`.** "Message selected"
 used to unfold its own inline panel under the filter bar — a bare textarea with
-no editable recipient list, no character count and no zone/faction shortcuts —
+no editable recipient list, no character count and no zone shortcuts —
 beside a `BulkComposer` that had all four. Same modal now, opened with the
 roster's ticked rows already in it (`initialSelectedIds`) and still fully
 editable afterwards, so picking rows in the table and then adding a whole zone
@@ -243,9 +243,9 @@ row.
 Its roster is `CheckPicker` — the same picker the Dev Panel's bulk section
 wears (`DEV-PANEL.md` §11b) — so ticking characters looks and behaves the same
 on both desks. What stays here is what is actually about messaging: the
-character cap, the two one-shot "check this whole zone / faction" selects, and
-the send. It passes `scoreMatch` as the picker's `search`, which is how the
-filter still reaches a role or a faction rather than just a name.
+character cap, the one-shot "check this whole zone" select, and the send. It
+passes `scoreMatch` as the picker's `search`, which is how the filter still
+reaches a role or a zone rather than just a name.
 
 **Two search boxes on this desk, not four.** The rail's is **Search inbox** —
 it reaches every character *and* message text. The roster's is **Filter roster**
@@ -262,7 +262,7 @@ so it is the only way to reach somebody.
 rail, this roster and (on the other desks) the inspector's lookup box
 (`MatchHint.js`): a muted
 `· <what matched>` suffix, the value where the row has one (the role title,
-the faction, the matched tag names) and the field's own word where it does
+the zone, the matched tag names) and the field's own word where it does
 not. A name hit says nothing, because the name is already the biggest thing on
 the row. The three used to print the bare field name, the bare field name with
 a different dot, and the value with no dot at all.
@@ -280,13 +280,6 @@ verb, not a roster one, and it lives with its five siblings on `/gm/dev?s=bulk`
 (`applyBulkAction`, tier `gm` — this paragraph used to name a
 `bulkMoveCharacters` that has not existed for some time, and claimed a
 superadmin gate it never had).
-
-The faction hierarchy is a view of this table rather than a separate tab, and
-`/gm/players?tab=factions` still selects it — `/faction` sends a GM here.
-A faction's **name** is the door out to `/faction`'s per-faction detail view
-(member roles, add/remove) — there is no separate "Manage" link.
-Clicking a faction from a **player** row still stays in the desk: it switches
-to the Factions tab and highlights that row instead of navigating away.
 
 ## 5. The conversation
 
@@ -453,7 +446,7 @@ client, not a support inbox.
 
   (Tag search covers **living** characters only — the layout's tag load is
   bounded to `ALIVE`, since it re-runs on every revalidation; a dead
-  character is still found by name, role, faction and handle.)
+  character is still found by name, role, zone and handle.)
 
 - Mark-read fires from a client effect, never during RSC render — otherwise
   a render marks a conversation read without anybody opening it. (The rail
@@ -722,9 +715,9 @@ rather than a note feature.
 
 ## 8. Getting between the desks
 
-- **⌘K** (`CommandPalette.js`) — a player, an open Move or Request, a zone, a
-  faction, or any page including the ones with no rail item at all
-  (`/gm/dev/tags`, `/gm/dev/factions`). It also offers
+- **⌘K** (`CommandPalette.js`) — a player, an open Move or Request, a zone, or
+  any page including the ones with no rail item at all (`/gm/dev/tags`). It
+  also offers
   "Audit: about <name>" and "Audit: by <name>" per character, which are just
   pre-filtered `/gm/audit` URLs — the audit desk keeps its whole filter state
   in the query string, so anything can link into a view of it. Built
@@ -744,7 +737,7 @@ The rail lives in `layout.js`, and **a page path does not invalidate what is
 below it**. So every `revalidatePath("/gm/players")` is
 `revalidatePath("/gm/players", "layout")` — without it a GM sitting in a
 conversation never sees the list move. There are a dozen call sites across
-`faction/`, `gm/`, `gm/dev/`, `lifeweb/`, `gamemasters/` and the adjudication
+`gm/`, `gm/dev/`, `lifeweb/`, `gamemasters/` and the adjudication
 desk's own actions. There are two deliberate exceptions:
 `markConversationRead` (§5) and the Admin notes actions (§7), neither of which
 revalidates at all — in both cases the server render never held the thing that
@@ -904,7 +897,6 @@ navigation. That hazard belongs to `router.refresh()`, which is
 | `selection.js` | Who is open, as client state, with the URL kept in step by pushState (§5a) |
 | `threadStore.js` | The conversations this tab has loaded, so reopening one costs no request (§5a) |
 | `DeskMiddle.js` | Draws the open conversation over the roster, and owns the abortable fetch (§5a) |
-| `FactionsPanel.js` | The faction hierarchy view |
 | `actions.js` | DM send/page, content search, canon load, read cursors, claims, staging, broadcast |
 | `app/api/gm/thread/route.js` | One conversation as a GET: header + newest page, or an older page from a cursor (§5a) |
 | `conversation/PersonShell.js` | The person view's wrapper (conversation only) |

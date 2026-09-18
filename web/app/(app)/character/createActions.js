@@ -132,7 +132,6 @@ export async function createCharacter(formData) {
     prisma.role.findUnique({
       where: { id: roleId },
       include: {
-        faction: { include: { zone: true } },
         startingZone: true,
         startingLocation: { include: { zone: true } },
       },
@@ -357,14 +356,11 @@ export async function createCharacter(formData) {
           discordMirrored: false, // set before placement runs, so applyLocationMoveSideEffects sees it already off and grants nothing (CHAT.md §6a)
           roleId: role.id,
           roleTitle: role.name,
-          factionId: role.factionId,
           // Denormalization contract: every writer of locationId writes
           // location.zoneId in the same statement.
           locationId: role.startingLocationId ?? null,
           zoneId: role.startingLocation?.zoneId ?? null,
           tagPoints: budget - spent,
-          isLeader: role.grantsLeader,
-          isTreasurer: role.grantsTreasurer,
           antagonistOptIns,
         },
       });
@@ -493,7 +489,6 @@ export async function createCharacter(formData) {
       targetCharacterId: created.id,
       details: {
         role: role.name,
-        faction: role.faction?.name ?? null,
         zone: role.startingLocation?.zone?.name ?? null,
         location: role.startingLocation?.name ?? null,
         budget,
@@ -529,7 +524,7 @@ export async function reserveRoleAction(roleId) {
   }
 
   const [role, config, state, member] = await Promise.all([
-    prisma.role.findUnique({ where: { id: roleId }, include: { faction: { include: { zone: true } } } }),
+    prisma.role.findUnique({ where: { id: roleId } }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     readGameState(prisma),
     getGuildMember(discordUserId, 0), // always fresh

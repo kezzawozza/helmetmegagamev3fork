@@ -71,7 +71,7 @@ Two columns: the roles down the left, and on the right (sticky) the Ready
 card with the count, the fallback dropdown and the antagonist boxes. No
 explainer text anywhere on it — the handbook carries that. Players see the
 ready count and nothing else — no seat counts, no demand, and no starting
-areas (a role row is its name, faction and pitch) — so nobody games the roll.
+areas (a role row is its name, its starting zone and its pitch) — so nobody games the roll.
 
 GMs and superadmins see a **Skip to character creation** button
 (`/character?create=1`), which opens the ordinary wizard in any phase. The

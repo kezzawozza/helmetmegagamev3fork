@@ -53,7 +53,6 @@ export async function requireCharacter({ needs = null } = {}) {
 
 export function revalidateAll() {
   revalidatePath("/character");
-  revalidatePath("/faction");
   revalidatePath(TURNS_PATH, "page");
   revalidatePath("/gm/audit");
 }

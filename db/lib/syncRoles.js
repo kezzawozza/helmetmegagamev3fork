@@ -1,17 +1,15 @@
-// docs/roles.yaml -> the Zone/Faction/Role tables. Called by
-// db/scripts/sync/sync-roles.js (`npm run db:sync-roles`) and by wipeGameData's
-// "Restart Game" flow (web/app/(app)/gm/dev/actions.js). Must run AFTER
-// syncLocationsFromYaml and syncTagsFromYaml (starting_zone/starting_tags are
-// validated against them). Threats live in db/lib/threats.js, not here.
-//
-// A faction's parentFactionId is live game state once created, so it is
-// only written on CREATE.
+// docs/roles.yaml -> the Role table. Called by db/scripts/sync/sync-roles.js
+// (`npm run db:sync-roles`) and by wipeGameData's "Restart Game" flow
+// (web/app/(app)/gm/dev/actions.js). Must run AFTER syncLocationsFromYaml and
+// syncTagsFromYaml (starting_zone/starting_tags are validated against them).
+// Threats live in db/lib/threats.js, not here.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 const { assertTitlesResolve, GENDERS } = require("./titles");
 const { entriesOf } = require("./yamlEntries");
 const { parseStartingTag, formatStartingTag } = require("./startingTags");
+const { isRoleGroupSlug } = require("./roleGroups");
 
 // docsPath() is null only when docs/ cannot be found at all, which for a YAML
 // master is fatal — a sync with no master would read as "everything was
@@ -27,83 +25,53 @@ function loadDoc() {
   return yaml.load(fs.readFileSync(yamlPath, "utf8"));
 }
 
-// Flattens the zone -> faction -> role nesting into two lists, preserving
-// authoring order as sortOrder so the picker reads the way the YAML does.
+// Flattens the group -> role nesting into one list, preserving authoring order
+// within a group as sortOrder so the picker reads the way the YAML does.
 function parseRolesYaml(doc) {
-  const factions = [];
   const roles = [];
-  for (const zone of doc?.zones ?? []) {
-    let factionOrder = 0;
-    for (const faction of entriesOf(zone?.factions, "slug")) {
-      if (!faction.slug) throw new Error(`docs/roles.yaml: faction "${faction.name}" has no slug`);
-      const entry = {
-        slug: faction.slug,
-        name: faction.name,
-        zoneName: zone.name,
-        parentSlug: faction.parent ?? null,
-        siloRoomSlug: faction.silo ?? null,
-        sortOrder: factionOrder++,
-      };
-      factions.push(entry);
-
-      let roleOrder = 0;
-      for (const role of entriesOf(faction?.roles, "slug")) {
-        if (!role.slug) throw new Error(`docs/roles.yaml: role "${role.name}" has no slug`);
-        const parsedRole = {
-          slug: role.slug,
-          name: role.name,
-          intro: (role.intro ?? "").trim(),
-          description: role.description ?? [],
-          difficulty: role.difficulty ?? null,
-          factionSlug: faction.slug,
-          sortOrder: roleOrder++,
-          // `multiple: false` means one specific named character. `weight:
-          // unlimited` means uncapped. Anything else carries a numeric weight.
-          isUnique: role.multiple === false,
-          unlimited: role.weight === "unlimited",
-          weight: typeof role.weight === "number" ? role.weight : null,
-          startingResources: role.starting_resources ?? 0,
-          extraStartingPoints: role.extra_starting_points ?? 0,
-          startingZoneSlug: role.starting_zone ?? null,
-          startingLocationSlug: role.starting_location ?? null,
-          startingTagNames: role.starting_tags ?? [],
-          grantsLeader: role.leader === true,
-          grantsTreasurer: role.treasurer === true,
-          // `bank_account: treasury | offshore`. Anything else — including
-          // absent — is no account, which is what the Black Hills seats get.
-          bankAccountClass:
-            role.bank_account === "offshore"
-              ? "OFFSHORE"
-              : role.bank_account === "treasury"
-                ? "TREASURY"
-                : null,
-          // Independent of `leader:` since the whitelist split — see the
-          // Role.requiresWhitelist comment in schema.prisma.
-          requiresWhitelist: role.whitelist === true,
-          // A seat that fixes its holder's gender rather than letting them
-          // choose — Baron/Heir MAN, Baroness/Successor WOMAN. Validated
-          // against the enum here, so a YAML typo lands as null instead of a
-          // Prisma write-time rejection with no hint which role caused it.
-          lockedGender: GENDERS.includes(role.gender) ? role.gender : null,
-          docElements: role.doc_elements ?? [],
-        };
-        roles.push(parsedRole);
-      }
+  for (const [groupSlug, group] of Object.entries(doc?.groups ?? {})) {
+    let roleOrder = 0;
+    for (const role of entriesOf(group, "slug")) {
+      if (!role.slug) throw new Error(`docs/roles.yaml: role "${role.name}" has no slug`);
+      roles.push({
+        slug: role.slug,
+        name: role.name,
+        intro: (role.intro ?? "").trim(),
+        description: role.description ?? [],
+        difficulty: role.difficulty ?? null,
+        groupSlug,
+        sortOrder: roleOrder++,
+        // `multiple: false` means one specific named character. `weight:
+        // unlimited` means uncapped. Anything else carries a numeric weight.
+        isUnique: role.multiple === false,
+        unlimited: role.weight === "unlimited",
+        weight: typeof role.weight === "number" ? role.weight : null,
+        startingResources: role.starting_resources ?? 0,
+        extraStartingPoints: role.extra_starting_points ?? 0,
+        startingZoneSlug: role.starting_zone ?? null,
+        startingLocationSlug: role.starting_location ?? null,
+        startingTagNames: role.starting_tags ?? [],
+        // `bank_account: treasury | offshore`. Anything else — including
+        // absent — is no account, which is what the Black Hills seats get.
+        bankAccountClass:
+          role.bank_account === "offshore"
+            ? "OFFSHORE"
+            : role.bank_account === "treasury"
+              ? "TREASURY"
+              : null,
+        // Who may claim this seat at all — a hosting decision. It also decides
+        // which seats the assignment roll fills first (db/lib/roleAssignment.js).
+        requiresWhitelist: role.whitelist === true,
+        // A seat that fixes its holder's gender rather than letting them
+        // choose — Baron/Heir MAN, Baroness/Successor WOMAN. Validated
+        // against the enum here, so a YAML typo lands as null instead of a
+        // Prisma write-time rejection with no hint which role caused it.
+        lockedGender: GENDERS.includes(role.gender) ? role.gender : null,
+        docElements: role.doc_elements ?? [],
+      });
     }
   }
-  return { factions, roles };
-}
-
-// `parent:` in the YAML is written as a faction NAME, but slugs are the match
-// key everywhere else — resolve names to slugs once, up front.
-function resolveParentSlugs(factions) {
-  const slugByName = new Map(factions.map((f) => [f.name, f.slug]));
-  for (const f of factions) {
-    if (!f.parentSlug) continue;
-    const resolved = slugByName.get(f.parentSlug);
-    if (!resolved) throw new Error(`docs/roles.yaml: faction "${f.name}" has unknown parent "${f.parentSlug}"`);
-    f.parentSlug = resolved;
-  }
+  return { roles };
 }
 
 function changed(row, data) {
@@ -113,22 +81,22 @@ function changed(row, data) {
 }
 
 async function syncRolesFromYaml(prisma) {
-  const { factions, roles } = parseRolesYaml(loadDoc());
-  resolveParentSlugs(factions);
+  const { roles } = parseRolesYaml(loadDoc());
 
-  const slugs = { faction: new Set(), role: new Set() };
-  for (const f of factions) {
-    if (slugs.faction.has(f.slug)) throw new Error(`docs/roles.yaml: duplicate faction slug "${f.slug}"`);
-    slugs.faction.add(f.slug);
-  }
+  const roleSlugs = new Set();
   for (const r of roles) {
-    if (slugs.role.has(r.slug)) throw new Error(`docs/roles.yaml: duplicate role slug "${r.slug}"`);
-    slugs.role.add(r.slug);
+    if (roleSlugs.has(r.slug)) throw new Error(`docs/roles.yaml: duplicate role slug "${r.slug}"`);
+    roleSlugs.add(r.slug);
+    // Up front, with the rest of the validation below: a group key nobody
+    // named must stop the sync before it writes, not quietly land its roles
+    // under "Elsewhere". The names live in db/lib/roleGroups.js.
+    if (!isRoleGroupSlug(r.groupSlug)) {
+      throw new Error(`docs/roles.yaml: role "${r.name}" is in unknown group "${r.groupSlug}" — see db/lib/roleGroups.js`);
+    }
   }
 
   // Validate every cross-file reference before writing anything.
   const zones = await prisma.zone.findMany();
-  const zoneIdByName = new Map(zones.map((z) => [z.name, z.id]));
   // starting_zone must be a PRESENCE zone — the Caves group is a container,
   // not a place a character can stand.
   const presenceZoneIdBySlug = new Map(
@@ -155,11 +123,6 @@ async function syncRolesFromYaml(prisma) {
     return firstLocationByZoneId.get(presenceZoneIdBySlug.get(entry.startingZoneSlug)) ?? null;
   };
 
-  for (const f of factions) {
-    if (!zoneIdByName.has(f.zoneName)) {
-      throw new Error(`docs/roles.yaml: faction "${f.name}" is in unknown zone "${f.zoneName}" — run db:import-zones first`);
-    }
-  }
   for (const r of roles) {
     if (r.startingZoneSlug && !presenceZoneIdBySlug.has(r.startingZoneSlug)) {
       throw new Error(`docs/roles.yaml: role "${r.name}" has unknown or unstandable starting_zone "${r.startingZoneSlug}"`);
@@ -187,91 +150,16 @@ async function syncRolesFromYaml(prisma) {
     });
   }
 
-  const stats = {
-    factionsCreated: 0,
-    factionsUpdated: 0,
-    rolesCreated: 0,
-    rolesUpdated: 0,
-    rolesPruned: [],
-    factionsPruned: [],
-  };
+  const stats = { rolesCreated: 0, rolesUpdated: 0, rolesPruned: [] };
 
-  // Pass 1: Faction scalars.
-  const factionIdBySlug = new Map();
-  // Rows this run brought into existence — the only ones pass 2 parents on an
-  // ordinary sync. A pre-slug row being claimed counts as fresh: it has never
-  // been through pass 2 before, so it has no live hierarchy to protect.
-  const freshFactionIds = new Set();
-  for (const entry of factions) {
-    const data = {
-      name: entry.name,
-      zoneId: zoneIdByName.get(entry.zoneName),
-      sortOrder: entry.sortOrder,
-    };
-    let row = await prisma.faction.findUnique({ where: { slug: entry.slug } });
-    if (!row) {
-      row = await prisma.faction.create({ data: { slug: entry.slug, ...data } });
-      stats.factionsCreated++;
-      freshFactionIds.add(row.id);
-    } else if (changed(row, data)) {
-      row = await prisma.faction.update({ where: { id: row.id }, data });
-      stats.factionsUpdated++;
-    }
-    factionIdBySlug.set(entry.slug, row.id);
-  }
-
-  // Pass 2: faction hierarchy, now that every row exists. Create-only — a
-  // clan can break away or be absorbed mid-game, so only a fresh row takes
-  // its parent from the YAML.
-  for (const entry of factions) {
-    const parentFactionId = entry.parentSlug ? factionIdBySlug.get(entry.parentSlug) : null;
-    const id = factionIdBySlug.get(entry.slug);
-    if (!freshFactionIds.has(id)) continue;
-    const current = await prisma.faction.findUnique({ where: { id }, select: { parentFactionId: true } });
-    if (current.parentFactionId !== parentFactionId) {
-      await prisma.faction.update({ where: { id }, data: { parentFactionId } });
-    }
-  }
-
-  // Pass 2b: the silo pointer. A FLOOR, not a create-only field and not a
-  // reset: it fills a faction that has no silo and leaves one that does
-  // alone. That is stronger than the hierarchy's create-only rule above and
-  // still can't clobber a Leader — re-pointing a silo writes a non-null id,
-  // which this never touches — while a faction that predates the silo
-  // column still gets the one roles.yaml names for it.
-  //
-  // Rooms come from db:import-zones, which runs first, so an unknown slug is a
-  // warning rather than a throw — the same posture seedRoomStash takes
-  // toward a tag that hasn't synced yet.
-  for (const entry of factions) {
-    if (!entry.siloRoomSlug) continue;
-    const id = factionIdBySlug.get(entry.slug);
-    const room = await prisma.room.findUnique({
-      where: { slug: entry.siloRoomSlug },
-      select: { id: true },
-    });
-    if (!room) {
-      console.warn(
-        `roles.yaml: faction "${entry.name}" names unknown silo room "${entry.siloRoomSlug}" — run db:import-zones first.`,
-      );
-      continue;
-    }
-    // The `siloRoomId: null` in the WHERE *is* the floor — one round trip,
-    // and a faction whose officers have already picked a silo is skipped.
-    await prisma.faction.updateMany({
-      where: { id, siloRoomId: null },
-      data: { siloRoomId: room.id },
-    });
-  }
-
-  // Pass 3: Role scalars.
+  // Pass 1: Role scalars.
   for (const entry of roles) {
     const data = {
       name: entry.name,
       intro: entry.intro,
       description: entry.description,
       difficulty: entry.difficulty,
-      factionId: factionIdBySlug.get(entry.factionSlug),
+      groupSlug: entry.groupSlug,
       sortOrder: entry.sortOrder,
       isUnique: entry.isUnique,
       unlimited: entry.unlimited,
@@ -279,8 +167,6 @@ async function syncRolesFromYaml(prisma) {
       startingResources: entry.startingResources,
       extraStartingPoints: entry.extraStartingPoints,
       startingTagSlugs: entry.startingTagSlugsResolved,
-      grantsLeader: entry.grantsLeader,
-      grantsTreasurer: entry.grantsTreasurer,
       bankAccountClass: entry.bankAccountClass,
       requiresWhitelist: entry.requiresWhitelist,
       lockedGender: entry.lockedGender,
@@ -300,12 +186,11 @@ async function syncRolesFromYaml(prisma) {
     }
   }
 
-  // Pass 4: prune. Unlike syncLocations (hard-destructive) this only removes
-  // rows nothing points at — a Role still held by a character, or a Faction
-  // with members, is left in place and reported instead, since deleting it
-  // would orphan live game state.
+  // Pass 2: prune. Unlike syncLocations (hard-destructive) this only removes
+  // rows nothing points at — a Role still held by a character is left in place
+  // and reported instead, since deleting it would orphan live game state.
   for (const role of await prisma.role.findMany({
-    where: { slug: { notIn: [...slugs.role] } },
+    where: { slug: { notIn: [...roleSlugs] } },
     include: { _count: { select: { characters: true } } },
   })) {
     if (role._count.characters > 0) {
@@ -314,27 +199,6 @@ async function syncRolesFromYaml(prisma) {
     }
     await prisma.role.delete({ where: { id: role.id } });
     stats.rolesPruned.push(role.name);
-  }
-
-  for (const faction of await prisma.faction.findMany({
-    // A faction founded in play was never in roles.yaml and never will be, so
-    // "absent from the YAML" cannot mean "delete" for it. Nothing mints
-    // foundedById any more — the Found verb went in 2026-09-08 — but the rows
-    // it wrote are still live, so this stays until the last of them is gone.
-    // Without it, the
-    // moment its last member walked out or died the next `db:sync-roles` —
-    // which `npm run db:sync` runs every time — would delete the row and
-    // cascade its applications away (FACTIONS.md §3: a faction with nobody
-    // left is leaderless, not deleted).
-    where: { slug: { notIn: [...slugs.faction] }, foundedById: null },
-    include: { _count: { select: { characters: true, roles: true } } },
-  })) {
-    if (faction._count.characters > 0 || faction._count.roles > 0) {
-      console.warn(`Faction "${faction.name}" dropped out of roles.yaml but still has members/roles — keeping`);
-      continue;
-    }
-    await prisma.faction.delete({ where: { id: faction.id } });
-    stats.factionsPruned.push(faction.name);
   }
 
   // Titles are earned from tags and roles (db/lib/titles.js); both catalogs

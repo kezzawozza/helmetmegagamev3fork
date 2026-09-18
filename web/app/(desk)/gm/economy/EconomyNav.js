@@ -12,7 +12,6 @@ const BUILT = [
   { key: "sinks", label: "Sinks" },
   { key: "goods", label: "Goods" },
   { key: "depot", label: "The Depot" },
-  { key: "factions", label: "Factions" },
 ];
 
 export default function EconomyNav({ section }) {

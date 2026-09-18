@@ -493,15 +493,15 @@ one answer:
 
 | Verdict | Who | On click |
 |---|---|---|
-| `FORCED` | a corpse; anyone holding an `INCAPACITATING_SLUGS` tag; a member of the faction you lead | attaches at once |
+| `FORCED` | a corpse; anyone holding an `INCAPACITATING_SLUGS` tag | attaches at once |
 | `CONSENTED` | somebody whose standing agreement to *you* has not lapsed | attaches at once |
 | `ASK` | any other living character standing with you | files an `ESCORT` `Offer` and DMs them |
 | `null` | not standing with you, hooded, yourself, buried, **willingly** following somebody else, or **you yourself are being brought along** | not offered |
 
-**Force beats an arrangement.** The three `FORCED` branches are reached
-*before* the `escortedById` guard, so a captor takes their prisoner off
-whoever is holding them, and the same goes for a corpse and for a member of
-the faction you lead. It read the other way round until a player found it:
+**Force beats an arrangement.** Both `FORCED` branches are reached *before*
+the `escortedById` guard, so a captor takes their prisoner off whoever is
+holding them, and the same goes for a corpse. It read the other way round
+until a player found it:
 tie somebody up while they were walking with a friend, and the friend kept
 them, because asking first had won the column. `attach()` re-asserted the
 same rule in its `updateMany` WHERE, so it takes a `takeover` flag that only
@@ -525,12 +525,9 @@ Three things about it are easy to get wrong:
 
 - **It is Location grain.** The old `canDrag` scooped the whole **zone**, so a
   body could be picked up from across the map. You walk to somebody now.
-- **It needs the faction RELATION, not `factionId`.** `isUnaffiliated` reads
-  `leader.faction`, and returns `true` for `undefined` — so a select that
-  loaded only the id quietly refused every faction leader. That was live in
-  `canDrag`, which `performLocationMove` re-ran against a `CHARACTER_SELECT`
-  row that had no `faction`. `ESCORT_SELECT` carries it, and
-  `db/test/escort.test.js` pins the case.
+- **No rank carries anybody.** A Leader used to be able to walk a member of
+  their own faction anywhere without asking. Factions are gone, and so is that
+  verdict: a healthy, conscious person is always an `ASK`.
 - **`ESCORT_SELECT` is a strict superset of `CHARACTER_SELECT`**, because
   every caller now loads a mover with it and hands that row straight to
   `performLocationMove`. Drop `zoneMoves*` and free crossings never run out;
@@ -726,7 +723,7 @@ mover between hops and checks `status` itself. The re-read is mandatory for
 three more reasons besides: `status`, `heldUntil` and `tags` are all written by
 `applyLocationMoveSideEffects` *after* the mover already returned. It re-reads
 with `ESCORT_SELECT`, because the next hop hands that row straight back to the
-mover, which re-authorises the party off it (§3a's missing-`faction` trap).
+mover, which re-authorises the party off it.
 
 **The party follows the whole way, and nothing was needed to make it so.** Each
 hop reads `escortedById` inside its own transaction, so followers are carried
@@ -793,7 +790,7 @@ the map but light nothing, because nobody walked out of anywhere.
 Travel cost is also what a **tax run** costs. Handing ⬢ or an item to a
 person requires the same zone — so a payment across zones is still a journey
 somebody physically makes, checked against `Character.zoneId` exactly as
-before. See `FACTIONS.md` §3b.
+before.
 
 The Lifeweb is the same rule with a fixed address: bleeding or feeding
 someone to the Web needs the Mortus **and** the target standing in the

@@ -391,33 +391,3 @@ export async function depotBooks() {
   };
 }
 
-// Every faction's silo balance — the Room it banks in (FACTIONS.md/CARRY.md).
-export async function factionTreasuries() {
-  const factions = await prisma.faction.findMany({
-    select: {
-      id: true,
-      name: true,
-      zone: { select: { name: true } },
-      siloRoom: {
-        select: {
-          id: true,
-          name: true,
-          location: { select: { zone: { select: { name: true } } } },
-        },
-      },
-      _count: { select: { characters: true } },
-    },
-  });
-  const balances = await resourcesByRoomIds(prisma, factions.map((f) => f.siloRoom?.id));
-  return factions.map((f) => ({
-    id: f.id,
-    name: f.name,
-    zoneName: f.zone?.name ?? f.siloRoom?.location?.zone?.name ?? "",
-    siloRoomId: f.siloRoom?.id ?? null,
-    siloRoomName: f.siloRoom?.name ?? null,
-    // null, not 0, when a faction has no silo Room at all — "nowhere to bank"
-    // is not the same as "banked nothing".
-    balance: f.siloRoom ? balances.get(f.siloRoom.id) ?? 0 : null,
-    memberCount: f._count.characters,
-  }));
-}

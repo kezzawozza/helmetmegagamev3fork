@@ -29,8 +29,6 @@ const CHARACTER_SELECT = {
   discordUserId: true,
   locationId: true,
   zoneId: true,
-  factionId: true,
-  isLeader: true,
   buriedAt: true,
   zoneMovesTurnId: true,
   zoneMovesUsed: true,
@@ -315,7 +313,7 @@ class MoveRefused extends Error {
 }
 
 // `character` is the mover as loaded by the caller (needs id, name,
-// locationId, zoneId, factionId, isLeader, discordUserId, tags);
+// locationId, zoneId, discordUserId, tags);
 // `targetLocation` must include its zone.
 //
 // WHO COMES ALONG is not a parameter any more. The party is read off

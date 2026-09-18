@@ -1270,7 +1270,6 @@ async function getCharacterInspectorImpl({ characterId }) {
   const character = await prisma.character.findUnique({
     where: { id: characterId ?? "" },
     include: {
-      faction: { select: { id: true, name: true } },
       zone: { select: { name: true } },
       location: { select: { name: true } },
       tags: {
@@ -1308,8 +1307,6 @@ async function getCharacterInspectorImpl({ characterId }) {
     status: character.status,
     discordUserId: character.discordUserId,
     roleTitle: character.roleTitle ?? null,
-    factionId: character.faction?.id ?? null,
-    factionName: character.faction?.name ?? null,
     isLeader: character.isLeader,
     // Zone · Location, because Character.locationId is where a ruling
     // actually happens — a placed structure, a stash, a fight are all

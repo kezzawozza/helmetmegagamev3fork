@@ -25,7 +25,6 @@ const LINKS = {
   cavingRollId: (v) => `/gm/turns?sel=caving/${v}`,
   characterId: (v) => `/gm/dev/characters/${v}`,
   tagId: () => "/gm/dev?s=tags",
-  factionId: () => "/gm/dev?s=factions",
   discordUserId: (v) => `/gm/players/${v}`,
   targetDiscordUserId: (v) => `/gm/players/${v}`,
 };

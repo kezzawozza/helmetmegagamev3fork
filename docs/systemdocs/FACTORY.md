@@ -235,7 +235,7 @@ so they cannot even hold their own output, let alone walk it anywhere: past
 the ceiling the overflow drop fires on the *intended* loop every day. **4**
 cubes (68 lb) fit under the cap; **6** (102 lb) fit under the ceiling,
 Overburdened. They stash the rest in the Logistics Room and the carry pass
-handles the overflow. The cart and the silo are the business; that is
+handles the overflow. The cart and the storeroom are the business; that is
 deliberate, not an oversight.
 
 **A cube sells for 7 ⬢.** (It was 4, then 5, then this, all on 2026-09-10 and

@@ -149,12 +149,6 @@ async function setHideoutImpl({ roomId }) {
   if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) {
     throw new UserError("That door is locked.");
   }
-  // NOT a faction silo. A silo is an ordinary Room with a pointer on the
-  // Faction (FACTIONS.md), so nothing else here would have stopped it — and
-  // Purchase Gear spends whatever is on the hideout floor, which would have
-  // turned a treasury into a cult shelf for anyone standing at that Location.
-  const silo = await prisma.faction.findFirst({ where: { siloRoomId: room.id }, select: { id: true } });
-  if (silo) throw new UserError("Not in a faction's silo.");
   await prisma.gameState.update({ where: { id: 1 }, data: { thanatiHideoutRoomId: room.id } });
   await logAudit(prisma, {
     actorDiscordUserId: session.discordUserId,

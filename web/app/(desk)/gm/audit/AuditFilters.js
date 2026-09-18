@@ -30,7 +30,6 @@ export default function AuditFilters({
   typeCounts,
   actors,
   characters,
-  factions,
   zones,
   locations,
   turnNumbers,
@@ -85,7 +84,6 @@ export default function AuditFilters({
     filters.actors.length ||
     filters.actorKind ||
     filters.targets.length ||
-    filters.factions.length ||
     filters.zones.length ||
     filters.locations.length ||
     filters.rooms.length ||
@@ -234,20 +232,6 @@ export default function AuditFilters({
           </Select>
         </label>
         <label className="field">
-          <span className="field-label">Faction</span>
-          <Select
-            value={filters.factions[0] ?? ""}
-            onChange={(e) => set({ factions: e.target.value ? [e.target.value] : [] })}
-          >
-            <option value="">Any</option>
-            {factions.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="field">
           <span className="field-label">Zone</span>
           <Select
             value={filters.zones[0] ?? ""}
@@ -260,9 +244,7 @@ export default function AuditFilters({
               </option>
             ))}
           </Select>
-          {/* The zone a row belongs to is its target's FACTION zone, never
-              where they happen to be standing — the rule ZoneChip states. */}
-          <span className="text-muted text-xs">By the character&rsquo;s faction.</span>
+          <span className="text-muted text-xs">By where the character is standing.</span>
         </label>
         <label className="field">
           <span className="field-label">Location</span>
@@ -292,8 +274,8 @@ export default function AuditFilters({
               </option>
             ))}
           </Select>
-          {/* Where it happened, not the target's faction zone above. Only
-              rows written after this column shipped carry one. */}
+          {/* Where it happened. Only rows written after this column shipped
+              carry one. */}
           <span className="text-muted text-xs">Only rows logged since this filter shipped.</span>
         </label>
       </Group>

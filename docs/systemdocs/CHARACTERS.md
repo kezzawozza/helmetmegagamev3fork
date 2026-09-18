@@ -264,7 +264,7 @@ character happened to wear:
 
 The second is a behaviour change worth knowing: an untitled woman now conceals
 as "a young woman" rather than "a young person". Concealing hides the name, the
-face and the faction — it was never meant to hide how someone presents, and the
+face and the seat — it was never meant to hide how someone presents, and the
 alias comment always said as much. `ArchiveEntry.concealedAlias` is frozen at
 send time, so a later correction never rewrites history.
 
@@ -366,7 +366,7 @@ means granting or changing a title never renames or recolours anyone.
 `orderBy: { name: "asc" }` on a Character would file `Sir Jorren` under S, so
 the seven Character-model sites use
 `[{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }]`. Most
-`orderBy: { name }` in the codebase is on Faction/Zone/Tag and is
+`orderBy: { name }` in the codebase is on Zone/Tag and is
 untouched — **check the model before changing one.** The client-side
 `characterName` sort in the GM tables still sorts the titled string, which is
 fine: those tables are searched far more than sorted, and the search matches
@@ -376,41 +376,49 @@ the same string.
 ### 1e. The seven buckets
 
 The picker groups roles into **Court, Clergy, Cerberon, Saviors, Business, Soil
-and Outsiders**, and each card prints the faction it belongs to.
+and Outsiders**, and each card prints the zone its holder starts in.
 
-It used to nest **Zone → Faction → Role**, which is the shape the database
-stores, the shape `docs/roles.yaml` is written in, and the shape `#info`'s
-roles-intro thread still uses. On the picker it read as a map, and a map is not
-the question being asked — what a player chooses between is a social position,
-and those cut across the geography. The Church and the Order of the Silver
-Cross are both in Town and are both clergy; the Company sits in the Caves and
-the Factory in the Marshes and both are business.
+It used to nest **Zone → Faction → Role**, which was the shape the database
+stored and the shape `docs/roles.yaml` was written in. On the picker it read as
+a map, and a map is not the question being asked — what a player chooses
+between is a social position, and those cut across the geography. The Church
+and the Order of the Silver Cross are both in Town and are both clergy; the
+Company sits in the Caves and the Factory in the Marshes and both are business.
 
-`db/lib/roleGroups.js` is the only place the mapping lives. It is by faction
-**slug**, and it is in code rather than in the YAML master for the same reason
-`roleCapacity.js#PERMANENT_SEAT_ROLE_SLUGS` is: the sync has no business
-reading it, and a typo here must not be able to throw `db:sync-roles` mid-pass
-with the factions already written.
+Since factions were removed (10/2026) the buckets are the *only* grouping
+there is. `docs/roles.yaml` is a `groups:` map keyed by bucket slug, each role
+carries its bucket as `Role.groupSlug`, and `db/lib/roleGroups.js#groupRoles`
+takes a flat role list and files it.
 
-**A faction in no bucket falls into a trailing "Elsewhere" rather than
-vanishing.** A silently dropped bucket would be a seat nobody could take,
+**The slugs are in the YAML; the display names are in code.** `ROLE_GROUPS` in
+`db/lib/roleGroups.js` holds the order and the labels, for the same reason
+`roleCapacity.js#PERMANENT_SEAT_ROLE_SLUGS` does: a typo in a label must not be
+able to throw `db:sync-roles` mid-pass with rows already written. A group *key*
+in the YAML that names no bucket is a different matter — `syncRoles` validates
+every one against `isRoleGroupSlug()` in its up-front pass and throws before it
+writes anything, since a mistyped key would otherwise file a seat under
+"Elsewhere" and nobody would notice.
+
+**A role in no bucket falls into a trailing "Elsewhere" rather than
+vanishing.** That is the `Role.groupSlug` default, and it is the safe
+direction: a silently dropped bucket would be a seat nobody could take,
 discovered by a player rather than by us.
 
-Bucketing happens at **role** grain, not faction grain, so one seat can sit
-somewhere its faction does not: `ROLE_GROUP_OVERRIDES` in the same file maps a
-role slug straight to a bucket. The Fisherman is the only entry today — he is
-on the Factory's books, but a man alone in the marsh with a rod belongs under
-Soil rather than Business. An override naming a bucket that does not exist
-falls into "Elsewhere" for the same reason an unbucketed faction does.
+Bucketing is at **role** grain, and always was. The Fisherman is the standing
+example — on the Factory's books once, but a man alone in the marsh with a rod
+belongs under Soil. That used to need a `ROLE_GROUP_OVERRIDES` entry pointing
+away from his faction's bucket; now he simply sits under `soil:` in the YAML,
+and the override table is gone.
 
-Nothing about `Faction.zoneId` changed. The faction page still chips its zone,
-`#info` still groups by it, and each role card still names the zone its holder
-starts in — only the picker's headings moved.
+`#info`'s roles-intro thread reads the same `groups:` map
+(`db/lib/infoChannel.js`), so the thread and the picker cannot disagree about
+where a seat belongs.
+
 ## 2. Roles
 
 `docs/roles.yaml` is the master. `db/lib/syncRoles.js#syncRolesFromYaml`
-(`npm run db:sync-roles`) reads its `zones[].factions[].roles[]` nesting into
-the `Zone`/`Faction`/`Role` tables, matched by `slug`.
+(`npm run db:sync-roles`) reads its `groups[].roles[]` nesting into the `Role`
+table, matched by `slug`.
 
 **A role's two prose fields go to different places.** `intro` is the one-line
 pitch in the creation picker. `description` is a `String[]` of plain sentences
@@ -430,8 +438,8 @@ prose in `db/lib/threats.js` rather than role data (`THREATS.md`). They used to 
 `zones[].threats[]`, carrying a full role's worth of fields that no sync ever
 read.
 
-It replaced the old `db/lib/factionSync.js`, which read the same file but
-only ever used faction `name`/`parent`/`starting_resources`.
+It replaced the old `db/lib/factionSync.js`, which read the same file but only
+ever used a handful of its fields.
 
 ### Seat caps
 
@@ -456,8 +464,8 @@ which is right for a Bum or a Cerberus. The roles in
 Successor, Hand, Meister, Arbiter, Censor, Incarn, Bishop, Esculap,
 Inquisitor, Headman, Sheriff, Innkeeper and both Brigand roles — count DEAD
 holders too, so once taken they stay taken for the run. It is neither "the unique roles" (Sheriff is weighted; Pusher and
-Merchant are unique and deliberately absent) nor a faction — read the
-constant, not a rule. A single-seat role on the list (Sheriff,
+Merchant are unique and deliberately absent) nor a picker bucket — read the
+constant, not a rule about any one kind of seat. A single-seat role on the list (Sheriff,
 Ranger, Master of Parties at 100 players) is one-and-done for the run. "Taken"
 means "a Character row still points at this Role": a GM deleting the dead
 row from the dev panel, or moving the dead holder to another role, frees the
@@ -514,7 +522,6 @@ on.
 
 Picking a role decides almost everything:
 
-- `factionId` — from the role's faction.
 - `zoneId` — from `starting_zone` (a Zone **slug** from `docs/zones.yaml`).
   `createCharacter` then calls `syncCharacterZoneRole(uid, null, zoneId)`, and
   **that role is the character's whole Discord channel access** — there are no
@@ -754,7 +761,7 @@ or `TRANSFER_RESOURCES` **in the `LOOT` direction** to lift `tradeable` tags or 
 off the corpse — see `REQUESTS.md` §5. The `/character` page shows a "Bodies
 here" panel to any living character in a zone that has a corpse; that
 panel is the **only** player-facing surface that spells out that someone
-died. Every other list (faction roster, transfer target picker) renders a
+died. Every other list (the transfer target picker, for one) renders a
 DEAD character as a normal row with no status pill, and every GM surface
 still shows the raw `status`.
 

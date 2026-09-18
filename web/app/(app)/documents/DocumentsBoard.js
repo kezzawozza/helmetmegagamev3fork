@@ -393,7 +393,7 @@ export default function DocumentsBoard({
           {totalCount === 0 ? (
             <p className="panel p-4 empty-state">
               {tab === "assigned"
-                ? "Nothing has been handed to you yet. Your role, your tags and your faction each bring their own papers."
+                ? "Nothing has been handed to you yet. Your role and your tags each bring their own papers."
                 : tab === "gamemaster"
                   ? "No gamemaster papers have been written yet."
                   : tab === "secret"

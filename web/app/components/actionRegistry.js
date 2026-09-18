@@ -92,7 +92,7 @@ export const ACTION_HELP = {
     "Offer to teach a skill you have. It takes your whole turn unless you hold Teaching.",
   confess:
     "Confessing a tag is a Gambit. It succeeds on a 5 or a 6. It also takes the confessor's turn.",
-  move: "Forcibly move an incapacitated or Bound person. If you're a Leader, you can also move people within your own faction.",
+  move: "Forcibly move an incapacitated or Bound person.",
   bind: "Tie someone up. Bound people can be looted or forcefully moved.",
   kiss: "Ask somebody for a kiss.",
   search: "Request to search a person's inventory.",

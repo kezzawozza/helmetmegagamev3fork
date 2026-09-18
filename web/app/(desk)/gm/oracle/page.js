@@ -91,7 +91,6 @@ export default async function OraclePage({ searchParams }) {
         discordUserId: true,
         zoneId: true,
         role: { select: { name: true } },
-        faction: { select: { name: true } },
         // seatZoneId too — lands a cave-LEVEL character on the cave GROUP's row (db/lib/seatZone.js), else the badge never counts them.
         zone: { select: { name: true, seatZoneId: true } },
       },
@@ -155,7 +154,6 @@ export default async function OraclePage({ searchParams }) {
     name: character.name,
     discordUserId: character.discordUserId,
     roleTitle: character.role?.name ?? null,
-    factionName: character.faction?.name ?? null,
     zoneName: character.zone?.name ?? null,
   }));
 

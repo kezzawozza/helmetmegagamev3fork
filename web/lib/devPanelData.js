@@ -29,13 +29,12 @@ import { prettifyActionType } from "@/lib/auditNarrative";
 export async function loadDevPanelProps(characterId, actingDiscordUserId) {
   const character = await prisma.character.findUnique({
     where: { id: characterId },
-    include: { role: true, faction: true, zone: true, location: true },
+    include: { role: true, zone: true, location: true },
   });
   if (!character) return null;
 
   const [
     locations,
-    factions,
     roles,
     allTags,
     heldTags,
@@ -58,16 +57,9 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
       select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
     }),
-    // The Identity tab's faction picker (IdentityTab.js) — the faction
-    // rework added the prop to DevPanel without adding the load here, which
-    // crashed BOTH Dev Panel mounts on every character.
-    prisma.faction.findMany({
-      orderBy: [{ sortOrder: "asc" }],
-      select: { id: true, name: true },
-    }),
     prisma.role.findMany({
       orderBy: [{ sortOrder: "asc" }],
-      select: { id: true, name: true, slug: true, faction: { select: { name: true } } },
+      select: { id: true, name: true, slug: true, groupSlug: true },
     }),
     // The whole catalog, gates and all: a GM grant deliberately ignores
     // requiredTag and the TagGroup gate (TAGS.md), so unlike getVisibleTags (lib/referenceData.js) this
@@ -352,8 +344,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       appearance: character.appearance,
       roleId: character.roleId,
       roleTitle: character.roleTitle,
-      factionId: character.factionId,
-      factionName: character.faction?.name ?? null,
       locationId: character.locationId,
       locationName: character.location?.name ?? null,
       zoneId: character.zoneId,
@@ -417,8 +407,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       zoneId: l.zoneId,
       zoneName: l.zone?.name ?? null,
     })),
-    factions: factions.map((f) => ({ id: f.id, name: f.name })),
-    roles: roles.map((r) => ({ id: r.id, name: r.name, factionName: r.faction?.name ?? null })),
+    roles: roles.map((r) => ({ id: r.id, name: r.name, groupSlug: r.groupSlug })),
     tags: allTags.map((t) => ({
       id: t.id,
       name: t.name,
