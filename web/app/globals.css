@@ -7468,35 +7468,30 @@ label.chip {
   flex-shrink: 0;
 }
 
-/* Speak / Shout / OOC, folded INSIDE the box. As narrow as its longest label
-   and no narrower — it must not take room from the words, which are the thing
-   anybody is actually aiming at.
+/* Speak / Shout / OOC, beside the words rather than under a dropdown
+   (REDESIGN.md §6). The shared `.segmented`, shrunk to sit on one row with a
+   26px send: three words a glance reads, instead of one word and two nobody
+   knows are there.
 
-   The trigger is a `.control`, so it draws its own recessed surface and border.
-   Inside the container that is a frame around a frame, so it drops both and
-   reads as a label you can press. It keeps the app's focus ring: the global
-   :focus-visible rule is untouched, and must stay that way — the caret
-   argument that lets the textarea go without one does not apply to a
-   dropdown. */
-.chat-composer-box .chat-mode-select {
+   It sits OUTSIDE the say box now — the box is a black well with the speech
+   colour in it, and a control inside that well would read as something typed
+   into it. */
+.chat-mode-seg {
   flex: 0 0 auto;
-  width: auto;
-  min-width: 0;
-  font-size: var(--fs-xs);
-  background: transparent;
-  border-color: transparent;
-  color: var(--muted);
-  /* Same height as everything else on the row. `.control` brings `padding: 8px
-     10px` and a 1px border, which made this 32px next to a 26px send — and the
-     row is align-items: flex-end, so three heights meant three different text
-     positions. The trigger is already a centred flex box, so a height is all it
-     takes; no padding maths, and it survives a font-size change. */
+  align-self: flex-end;
   height: 26px;
-  padding: 0 var(--sp-1);
+  border-color: var(--border);
 }
 
-.chat-composer-box .chat-mode-select:hover {
-  color: var(--text);
+.chat-mode-seg button {
+  padding: 0 var(--sp-2);
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: var(--fs-2xs);
+}
+
+.chat-mode-seg button[aria-pressed="true"] {
+  color: var(--speech);
 }
 
 /* Bare inside the container — the box draws the surface, the border and the
@@ -7517,6 +7512,13 @@ label.chip {
      a content-box height added that padding a second time and drew the box 8px
      taller than its own text. */
   box-sizing: border-box;
+}
+
+/* What you are about to say, in the colour it will be said in (REDESIGN.md §3,
+   Text). The feed draws speech in --speech; the box drawing it in body grey
+   meant your own sentence changed colour the moment you pressed Enter. */
+.chat-composer-box textarea {
+  color: var(--speech);
 }
 
 .chat-composer textarea::placeholder {
@@ -8453,10 +8455,28 @@ label.chip {
   position: relative;
   min-width: 0;
   flex: 1;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  /* The mockup's say box: a black inset well, not a raised panel
+     (docs/design/mockups/chat/index.html, `.say`). --field-bg is the recessed
+     surface every input in the app takes, and the inset shadow is what makes it
+     read as a hole rather than a lighter rectangle. */
+  background: var(--field-bg);
+  border: 1px solid var(--border-lo);
+  box-shadow: inset 0 1px 3px var(--shadow-color), 0 0 0 1px var(--border);
   border-radius: var(--r-md);
   padding: var(--sp-1) var(--sp-2);
+}
+
+/* The mockup's say row: the voice picker beside the well, level with its
+   bottom edge so the two stay aligned as the box grows to six lines. */
+.chat-say-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.chat-say-row > .chat-composer-box {
+  min-width: 0;
 }
 
 /* The quiet half of a focus indicator. The textarea's own ring is dropped —

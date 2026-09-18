@@ -518,12 +518,17 @@ like everything else.
   lazily-filled ref of the seq the place painted with — a ref rather than
   state, since `react-hooks/set-state-in-effect` is an error here — and sets
   `data-live` above it.
-- **The composer is ONE container, the way Discord's is.** The Speak picker,
-  the ✉, the words and the send all sit inside a single rounded box
-  (`.chat-composer-box`, holding one `.chat-composer-row`), on `--surface` —
-  *above* the feed's `--bg` rather than recessed below it in `--field-bg`,
-  because a composer is the place you type, not a hole in the page. The
-  slowmode clock and the character count stay outside it, to its right.
+- **The composer is ONE container, the way Discord's is.** The ✉, the words and
+  the send all sit inside a single box (`.chat-composer-box`, holding one
+  `.chat-composer-row`); the voice picker stands beside it in `.chat-say-row`.
+  The slowmode clock and the character count stay outside it, to its right.
+
+  The box is the mockup's say box: a **black inset well** (`--field-bg`, a hard
+  `--border-lo` edge and an inset shadow) with the words in **`--speech`**, the
+  same colour the feed will print them in. It was a raised `--surface` panel
+  with body-grey text, on the argument that a composer is where you type rather
+  than a hole in the page; the cost was that your own sentence changed colour
+  the moment you pressed Enter.
 
   It was three bordered rectangles standing in a line — a dropdown, a
   two-line recess, and a solid `--accent-solid` slab stretched to the box's
@@ -553,6 +558,14 @@ like everything else.
   three composers share that hook — the scene's, Bascinet's pane and the GM's
   system box — because a one-line box with no autosize scrolls a long message
   inside a single line instead of growing to hold it.
+- **Up-arrow on an empty box recalls your last line**, the way a shell recalls
+  the last command (REDESIGN.md §6). It opens that row's own editor rather than
+  putting the words back in the composer — that editor is what actually saves an
+  edit, and two ways of changing a line would be two places for the five-minute
+  window to be checked. Only a confirmed row of your own, and only speech; a
+  pending row has no seq to edit. Past the window `onEdit` says so out loud,
+  exactly as the row's own ✎ does. On a NON-empty box Up still moves the caret
+  through what you are writing.
 - **The textarea shows no focus ring, and the container shows the focus
   instead.** It drew `outline: 2px solid var(--accent-text)` at a 2px offset,
   so a focused box read as two frames with a light leak between them.
@@ -575,13 +588,13 @@ like everything else.
   first message, and the longest thing in the composer. It is gone; the send
   button's tooltip is what is left, which is why the send stays a labelled
   `IconButton`.
-- **Speak / Shout / OOC is an inline dropdown at the head of the composer row**
-  on desktop — inside the box now, at the left of `.chat-composer-row`, with
-  its `.control` surface and border taken off so it reads as a label you press
-  rather than a frame inside a frame. On a phone it folds into the `+` beside
-  the words, where the ✉ already lives. It was a `.segmented` strip ACROSS THE
-  TOP of the box for a day, which cost the composer a whole band of chrome for
-  a three-item choice. It stores **no state of its own**: each of the two that
+- **Speak / Shout / OOC is a `.segmented` control beside the box** on desktop
+  (REDESIGN.md §6), in `.chat-say-row` — the picker, then the say box. It sat
+  inside the box as a dropdown for a while; a dropdown hides two of three
+  choices behind a click and says nothing about what the others are, and a
+  control standing inside a recessed well reads as something that was typed into
+  it. On a phone it still folds into the `+` beside the words, where the ✉
+  already lives. It stores **no state of its own**: each of the two that
   is not plain speech is already a command in `./commands.js`, so the control
   enters command mode and `runCurrent()` does the sending, the clearing, the
   length cap and the hand-back-on-refusal. Which mode you are in is *derived*

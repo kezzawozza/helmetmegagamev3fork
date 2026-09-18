@@ -9,7 +9,6 @@ import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
-import Select from "@/app/components/Select";
 import useComposerAutosize from "./useComposerAutosize";
 import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, PlusIcon, QuillIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -1339,6 +1338,27 @@ export default function Feed({
     return { label: `sends as ${pieces} messages`, over: false };
   }, [draft]);
 
+  // ArrowUp on an EMPTY box recalls the last thing you said here, the way a
+  // shell recalls the last command (REDESIGN.md §6). It opens the row's own
+  // editor rather than putting the words back in the composer: that editor is
+  // what actually saves an edit, and two ways of changing a line would be two
+  // places for the five-minute window to be checked.
+  //
+  // Only a confirmed row of your own, and only speech — a pending row has no
+  // seq to edit and the world's lines are not yours. The window is checked by
+  // onEdit, which says so out loud when it has passed.
+  const lastOwnLine = useMemo(() => {
+    if (!self?.characterId && !self?.speakerKey) return null;
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      const row = rows[i];
+      if (!row?.seq || row.pending || row.failed) continue;
+      if (row.source === "SYSTEM") continue;
+      if (!isOwnRow(row, self.characterId ?? null, self.speakerKey ?? null)) continue;
+      return { seq: row.seq, sentAt: row.sentAt ?? null };
+    }
+    return null;
+  }, [rows, self?.characterId, self?.speakerKey]);
+
   const submit = useCallback(() => {
     const content = draft.trim();
     if (!content || !placeKey) return;
@@ -2131,6 +2151,36 @@ export default function Feed({
         <div className="chat-composer">
           {place.canSpeak ? (
             <>
+              {/* The mockup's say row: the voice picker, then the black well
+                  with the words in it (docs/design/mockups/chat/index.html).
+                  The picker sits OUTSIDE the well — the well is a recess with
+                  the speech colour in it, and a control standing in there would
+                  read as something that had been typed. */}
+              <div className="chat-say-row">
+              {/* Speak / Shout / OOC. Hidden when there is only Speak to pick —
+                  a control with one option is decoration. Desktop only: on a
+                  phone the same three sit under the + with the rest of the
+                  composer's verbs.
+
+                  The shared `.segmented`, not a dropdown (REDESIGN.md §6). A
+                  dropdown hides two of three choices behind a click and says
+                  nothing about what the others are; three words in a row say
+                  it. Pressed state lives in aria-pressed, which is where a
+                  screen reader reads a control's value. */}
+              {!narrow && speechModes.length > 1 && (
+                <div className="segmented chat-mode-seg" role="group" aria-label="How to talk">
+                  {speechModes.map((m) => (
+                    <button
+                      key={m.mode}
+                      type="button"
+                      aria-pressed={speechMode === m.mode}
+                      onClick={() => pickSpeechMode(m.mode)}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="field chat-composer-box" data-command={command ? "true" : undefined}>
                 {/* COMMAND MODE reads as a strip across the top of the box —
                     what you are running, what it does, and a way out. It used
@@ -2159,30 +2209,6 @@ export default function Feed({
                     orange slab as tall as both — which is three objects to read
                     before you can type into one of them. */}
                 <div className="chat-composer-row">
-                  {/* Speak / Shout / OOC. Hidden when there is only Speak to
-                      pick — a control with one option is decoration. Desktop
-                      only: on a phone the same three sit under the + with the
-                      rest of the composer's verbs.
-
-                      The shared Select, never a bare <select>: it draws its own
-                      popup rather than OS chrome that ignores the theme. It
-                      already puts `.control` on its trigger, and inside this
-                      container that is a frame around a frame, so the CSS takes
-                      its surface and border off and leaves a label you press. */}
-                  {!narrow && speechModes.length > 1 && (
-                    <Select
-                      className="chat-mode-select"
-                      aria-label="How to talk"
-                      value={speechMode ?? "speak"}
-                      onChange={(e) => pickSpeechMode(e.target.value)}
-                    >
-                      {speechModes.map((m) => (
-                        <option key={m.mode} value={m.mode}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
                   {composerTools}
                   <textarea
                     id="chat-composer"
@@ -2277,6 +2303,14 @@ export default function Feed({
                           return;
                         }
                       }
+                      // Nothing typed, and Up: recall your own last line into
+                      // its editor. Only on an EMPTY box, so Up inside a draft
+                      // still moves the caret through what you are writing.
+                      if (e.key === "ArrowUp" && draft.length === 0 && lastOwnLine) {
+                        e.preventDefault();
+                        onEdit(lastOwnLine.seq, lastOwnLine.sentAt);
+                        return;
+                      }
                       // A phone keyboard's Enter is a newline, as it is in
                       // Discord's app; the button beside the box is the send
                       // there. On a keyboard Enter sends and Shift+Enter breaks
@@ -2338,6 +2372,7 @@ export default function Feed({
                     }
                   />
                 )}
+              </div>
               </div>
               {/* Slowmode, said as a clock rather than as a refusal — and
                   said BEFORE it bites. It only appeared once the wait was
