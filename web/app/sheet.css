@@ -291,12 +291,17 @@
   outline-offset: 2px;
 }
 
+/* --text-hi, not --text. The mockup draws a tile's number a shade brighter
+   than the prose around it, the same lift it gives a heading — the figure is
+   the thing you came to the tile to read. A tone below overrides it when the
+   number means something (over cap, a mood band). */
 .ledger-tile-value {
   font-family: var(--font-mono);
   font-size: var(--fs-lg);
   line-height: 1.2;
   display: block;
   margin-top: var(--sp-1);
+  color: var(--text-hi);
 }
 
 .ledger-tile-value[data-over="true"] {
@@ -596,9 +601,12 @@
 /* On top of .btn-secondary, not instead of it. The font-family is pinned
    because the .tag-hover wrapper the tooltip brings with it hands down the mono
    face, and these are labels, not data. */
+/* 3px, the mockup's own .btn padding, not 4 — an extra pixel top and bottom
+   on 24 buttons is two more rows' worth of dark between the labels, and the
+   strip is meant to read as one dense bar. */
 .action-strip-item {
   gap: var(--sp-1);
-  padding: 4px var(--sp-2);
+  padding: 3px var(--sp-2);
   font-family: var(--font-sans);
   letter-spacing: normal;
   white-space: nowrap;
@@ -613,9 +621,9 @@
    stay pressable so its tooltip can be opened (ActionButton.js), so the look
    has to be said again rather than riding :disabled. */
 .action-strip-item[data-muted="true"] {
-  border: 2px dashed var(--border);
-  background: var(--field-bg);
-  color: var(--muted);
+  border: 2px dashed var(--well-border);
+  background: var(--well-bg);
+  color: var(--well-text);
   cursor: not-allowed;
 }
 
@@ -1018,10 +1026,19 @@ button.equip-cell-face:focus-visible {
   outline-offset: -2px;
 }
 
+/* The name of the thing you are wearing, lifted the way the mockup lifts it
+   (its `.cell-name b`). It used to inherit --muted from the cell, which put
+   the one word that matters in a slot at the same weight as the fact under
+   it. An EMPTY cell's label stays quiet — that rule is below. */
 .equip-cell-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-hi);
+}
+
+.equip-cell.is-empty .equip-cell-name {
+  color: var(--well-text);
 }
 
 .equip-cell-fact {
@@ -1129,7 +1146,7 @@ button.equip-cell-face:focus-visible {
 }
 
 .desire .head b {
-  color: var(--text);
+  color: var(--text-hi);
 }
 
 .desire p {

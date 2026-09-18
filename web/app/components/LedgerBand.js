@@ -83,9 +83,12 @@ export default function LedgerBand({
     (worst, m) => (worst && Math.abs(worst.value) >= Math.abs(m.value) ? worst : m),
     null,
   );
+  // Only when something IS weighing on the roll. A tile saying "nothing
+  // weighing on it" under a die already reading ±0 says the same thing twice,
+  // and the quiet line is worth more empty than repeating the value above it.
   const gambitTop = heaviest
     ? `${heaviest.label} ${signed(heaviest.value)}${gambitParts.length > 1 ? ` · +${gambitParts.length - 1} more` : ""}`
-    : "nothing weighing on it";
+    : null;
   const loadPct = carry
     ? Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))
     : 0;
@@ -191,12 +194,12 @@ export default function LedgerBand({
             value={moodBand?.label ?? "Fine"}
             tone={moodBand?.tone ?? "muted"}
             word
-            // The mockup's "−16 · press for why". The number IS shown here, on
-            // the quiet line, where the word above it is what carries the
-            // meaning — and "press for why" is a true sentence, because the
-            // tile's detail is Bascinet's paragraph on what moves a mood. Only
-            // on your own sheet: somebody else's figure is not yours to read.
-            sub={isSelf ? `${signed(character.mood ?? 0)} · press for why` : null}
+            // The figure, and nothing else. The mockup writes "−16 · press for
+            // why", but the tile is visibly pressable and the instruction only
+            // took up the line. The word above carries the meaning; this is the
+            // number behind it. Only on your own sheet: somebody else's figure
+            // is not yours to read.
+            sub={isSelf ? signed(character.mood ?? 0) : null}
             detail={MOOD_DETAIL}
             open={tileOpen === "mood"}
             onOpen={(want) => setTileOpen(want ? "mood" : null)}

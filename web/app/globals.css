@@ -763,11 +763,18 @@ input[type="radio"]:focus-visible,
    app look faded. .btn-danger keeps its own opacity below: it has no dashed
    alternate face to fall back on, so it is the only signal a disabled Reject
    or Kill has. */
+/* A gated verb is a well, and it takes the well's own three values — the
+   mockup draws this face and the empty equip cell with the same hexes, which
+   is why they are tokens. It used to read --field-bg over --border in
+   --muted: a darker ground than the mockup's under a brighter edge and
+   brighter text, so a shut button sat heavier on the strip than it does
+   there. On a sheet where most verbs are gated, that was most of why the
+   strip looked dimmer than the artifact's. */
 .btn-secondary[aria-disabled="true"],
 .btn-secondary:disabled {
-  border: 2px dashed var(--border);
-  background: var(--field-bg);
-  color: var(--muted);
+  border: 2px dashed var(--well-border);
+  background: var(--well-bg);
+  color: var(--well-text);
   cursor: default;
 }
 
