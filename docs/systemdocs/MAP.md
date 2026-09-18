@@ -689,8 +689,16 @@ map's double-click may do (§6c).
 
 Every edge is judged by `crossingCheck`, the very verdict `performLocationMove`
 reaches again at each hop — there is no second copy of the gating rule here. The
-hold and the Caving Die are deliberately **not** asked: the mover asks them, in
-its own words, at the hop that meets them. Neighbour lists are sorted by slug
+Caving Die is deliberately **not** asked: it only ever shuts a way *out* of the
+zone, which a same-zone walk never crosses, so the mover asks it, in its own
+words, at the hop that meets it. A **hold** is asked, once, up front, the same
+`heldReasonFor` call `resolveNeighbors` already makes for the adjacent list —
+being held shuts every way, not just the ones that cross a zone
+([`INTERCEPT.md`](INTERCEPT.md) §4), so a held character has no first hop to
+take and there is nothing to offer. Before this, the picker showed a farther
+Location as walkable while marking every *adjacent* one shut for the same hold
+— a real destination the mover would always refuse the moment it was picked.
+Neighbour lists are sorted by slug
 before the search, `soundRange`'s reason sharpened — the surface that *shows* a
 route and the walk that *takes* it must pick the same road, or somebody is shot
 by a turret on a street they were never told they would pass.

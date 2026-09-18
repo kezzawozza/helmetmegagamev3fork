@@ -257,14 +257,19 @@ const NO_WALK = "You don't know a way there.";
 // can see for a reason they cannot.
 //
 // Nothing here re-derives a gate: every edge is judged by crossingCheck, the
-// very verdict performLocationMove reaches again per hop. The hold and the
-// Caving Die are deliberately NOT asked — the mover asks them, in its own words,
-// at the hop that meets them, and a copy here would be a second rule to keep in
-// agreement.
+// very verdict performLocationMove reaches again per hop. The Caving Die is
+// deliberately NOT asked — it only ever shuts a way OUT of the zone, which a
+// same-zone walk never crosses, so the mover asks it, in its own words, at the
+// hop that meets it, and a copy here would be a second rule to keep in
+// agreement. A HOLD is asked, once, up front: it shuts every way, adjacent or
+// not (INTERCEPT.md), so a held character has no first hop to take and there
+// is no walk to offer — not a per-edge re-check, just the one predicate
+// resolveNeighbors already calls the same way.
 async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS } = {}) {
   const from = character?.locationId ?? null;
   const zoneId = character?.zoneId ?? null;
   if (!from || !zoneId) return [];
+  if (heldReasonFor(character)) return [];
 
   const knownIds = known instanceof Set ? known : new Set(known ?? []);
 

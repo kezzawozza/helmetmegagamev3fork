@@ -41,12 +41,14 @@ function fakePrisma(locations, links) {
   };
 }
 
-function walker(slugs = [], { at = "gate", zone = TOWN } = {}) {
+function walker(slugs = [], { at = "gate", zone = TOWN, held = null } = {}) {
   return {
     id: "c1",
     locationId: at,
     zoneId: zone.id,
     tags: slugs.map((slug) => ({ equipped: true, tag: { slug } })),
+    heldUntil: held ? new Date(Date.now() + 60_000) : null,
+    heldReason: held,
   };
 }
 
@@ -185,6 +187,17 @@ test("no road answers, rather than throwing, and an empty fog goes nowhere", asy
   assert.deepEqual(await routesWithinZone(fakePrisma(ROAD.locations, ROAD.links), walker(), { known: new Set() }), []);
   // Standing still is not a walk.
   assert.equal((await pathWithinZone(fakePrisma(ROAD.locations, ROAD.links), walker(), "gate", { known: ALL_KNOWN })).ok, false);
+});
+
+test("a held character has no walk at all, even to a place an unheld one could reach", async () => {
+  const prisma = fakePrisma(ROAD.locations, ROAD.links);
+  // Same road, same fog, only the hold differs — so this isolates the hold as
+  // the reason, not a missing edge or an unknown place (INTERCEPT.md §4).
+  assert.deepEqual(await routesWithinZone(prisma, walker([], { held: "attack" }), { known: ALL_KNOWN }), []);
+  assert.deepEqual(await pathWithinZone(prisma, walker([], { held: "attack" }), "keep", { known: ALL_KNOWN }), {
+    ok: false,
+    reason: NO_WALK,
+  });
 });
 
 test("the neighbours are in the list too, nearest first", async () => {
