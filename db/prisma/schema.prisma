@@ -691,13 +691,6 @@ model GameState {
   // means Start is disabled — there is nothing to commit.
   assignmentDraft Json?
 
-  // Whether players can reach /archive. GMs always can. Off until the game is
-  // ended, when endGame flips it: the archive shows every location regardless
-  // of where a character was, and renders a concealed message as
-  // "Alias (Real Name)" — so opening it mid-game retroactively unmasks every
-  // /conceal ever used and hands everyone the whole map's history.
-  archiveVisible Boolean @default(false)
-
   // The Lifeweb's blood pool, 0-100 (db/lib/lifeweb.js).
   lifewebBlood Int @default(100)
 

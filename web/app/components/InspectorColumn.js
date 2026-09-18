@@ -429,9 +429,8 @@ function MovesView({ data }) {
 // needs was already there — archiveQuery.js speaks `character`, `zone`, `day`,
 // `q`, `show` and `order`, and the route already pages them by keyset cursor —
 // so the tab used to be a worse, unfilterable copy of a thing one directory
-// over. A GM is never shut out of that route: archiveAccess.js closes the
-// current game's transcript to PLAYERS until archiveVisible, and tests
-// `!gm` before it does.
+// over. A GM is never shut out of that route: archiveAccess.js is GM-only,
+// full stop — a player is refused before any game or filter is even looked at.
 //
 // Filters are component state, not the URL. The page puts them in the URL
 // because a transcript view is worth linking to; an inspector tab is a lens

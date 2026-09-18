@@ -1091,8 +1091,7 @@ slow. Check the breakdown before optimising anything here; the answer has been
 guessed at twice already.
 
 Private-channel content **is** in the transcript. The privacy tradeoff is
-handled by `GameConfig.archiveVisible` keeping `/archive` shut to players until
-the game ends, not by the code.
+handled by `/archive` being GM-only, always, not by the wipe's own code.
 
 **But the thunk does not run itself.** `advanceTurn()` returns every side
 effect as one `runSideEffects()` thunk, because the wipe walks every zone's

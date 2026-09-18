@@ -31,7 +31,7 @@ export const GM_NAV = [
 
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
-const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "player" };
+const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "gm" };
 // On every player's rail, always. The Depot is a public market now and the page
 // is a shop window — read-only unless you are standing in it, which is the page's
 // own business, not the rail's. See docs/systemdocs/DEPOT.md §2.
@@ -61,16 +61,14 @@ async function loadUnreadConversationCount(discordUserId) {
 }
 
 export async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, hasMortusTag, treasuryGate, config, gameConfig, pastGames] = await Promise.all([
+  const [{ isGm: gm }, hasMortusTag, treasuryGate, gameConfig] = await Promise.all([
     getGmSession(),
     prisma.characterTag.findFirst({
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
     }),
     canReadTreasury(prisma, discordUserId),
-    prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
     // Chat switch (CHAT.md §5). Presentation here; /chat enforces it.
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true, oraclePlaytest: true } }),
-    prisma.game.count({ where: { endedAt: { not: null } } }),
   ]);
   const superadmin = isSuperadmin(discordUserId);
   // The Lifeweb item follows the Mortus tag, not the GM role — a superadmin keeps it, host access
@@ -87,8 +85,7 @@ export async function loadNavItems(discordUserId) {
       item.href === "/gm/players" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
     );
   const withLifeweb = hasMortus ? [...baseNav, LIFEWEB_NAV_ITEM] : baseNav;
-  const withArchive =
-    gm || config?.archiveVisible || pastGames > 0 ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
+  const withArchive = gm ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
   const withDepot = [...withArchive, DEPOT_NAV_ITEM];
   const withTreasury = treasuryGate.ok || superadmin ? [...withDepot, TREASURY_NAV_ITEM] : withDepot;
   if (!superadmin) return withTreasury;
