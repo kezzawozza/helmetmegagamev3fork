@@ -7441,6 +7441,18 @@ label.chip {
   color: var(--text);
 }
 
+/* decree */
+/* All a decree adds to the notice block above: its words are set in the serif,
+   because a proclamation is read off paper while a PA comes out of a speaker
+   grille (the mockup's `.decree p`, docs/design/mockups/chat/index.html). The
+   blackletter heading and the byline are already there — they come from
+   data-face="blackletter" and .tline-block-by, which the intercom and the decree
+   share. No colours: the block's own tokens are the right ones. */
+.tline--block[data-kind="decree"] .tline-block-body {
+  font-family: var(--font-serif);
+  line-height: 1.35;
+}
+
 /* A shout heard at distance 0 — your OWN place (db/lib/shout.js). Louder than
    the intercom: this is a shout right where it's shouted, larger than
    ordinary chat text (--fs-base), not just un-muted like the PA. */

@@ -11,6 +11,10 @@ import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
 import useComposerAutosize from "./useComposerAutosize";
+// Safe from a client file: db/lib/decreeText.js has zero requires, the same rule
+// db/lib/dmKinds.js keeps — see EDIT_WINDOW_MS below for what one require of
+// @lifeweb/db would drag into the browser bundle.
+import { DECREE_LABEL, splitDecree } from "@lifeweb/db/lib/decreeText";
 import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, PlusIcon, QuillIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
@@ -139,13 +143,21 @@ const SystemRow = memo(function SystemRow({ row, zone = null }) {
   // data-kind for the CSS to key off — the five-way branch that used to live here.
   if (BLOCK_KINDS.has(row.channelKind)) {
     const decree = row.channelKind === "decree";
-    const body = decree ? row.content : String(row.content ?? "").replace(INTERCOM_PREFIX, "");
+    // A decree carries its own title, written by the GM: the row is the title,
+    // a blank line, then the words (db/lib/decreeText.js, which has zero
+    // requires precisely so a client file may read it). The title is the
+    // blackletter heading and the byline says what kind of thing this is and
+    // where it was read — the intercom's heading says both in one line because
+    // a PA has no title of its own.
+    const parts = decree ? splitDecree(row.content) : null;
+    const body = decree ? parts.body : String(row.content ?? "").replace(INTERCOM_PREFIX, "");
     return (
       <TranscriptLine
         variant="block"
         channelKind={row.channelKind}
         headingFace={decree ? "blackletter" : "caps"}
-        heading={decree ? (zone ?? "Ravenheart") : zone ? `Intercom · ${zone}` : "Intercom"}
+        heading={decree ? (parts.title || zone || "Ravenheart") : zone ? `Intercom · ${zone}` : "Intercom"}
+        byline={decree ? (zone ? `${DECREE_LABEL} · ${zone}` : DECREE_LABEL) : null}
         seq={row.seq}
       >
         <ChatMarkdown content={body} />

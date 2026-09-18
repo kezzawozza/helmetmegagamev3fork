@@ -340,6 +340,60 @@ player desk…); the desk's own actions dropped theirs. What is left in
 `actions.js` is only ever another page's — `/character` after a Reject or a
 portrait takedown, `/gm/audit` after a fight is called off — never this one's.
 
+### 3a. Decree
+
+**Decree** is the one verb on this desk that belongs to no row, so it sits in
+the header beside the inspector toggle (`DecreeButton.js`) — the same seat
+`/gm/players` gives **Bulk message**. It opens a dialog
+(`DecreeComposer.js`) with three things in it: a **title**, the **words**, and
+which **zones** hear it, every zone ticked to start with. It asks before it
+sends (`useConfirm`), because nothing about a decree is staged.
+
+**It is not a staged row, and that is the point.** A staged public declaration
+waits for the midnight push (§1), which is right for the outcome of a Move and
+wrong for a proclamation — a decree held until midnight is a decree about
+yesterday. `sendDecree` (`actions.js`) sends it now, the way the intercom does
+(`db/lib/intercom.js`, and CLAUDE.md's "Bot message style" on why a
+loudspeaker is not scenery). There is no unsend.
+
+What `db/lib/decree.js` does, per chosen zone:
+
+- **One feed row**, `channelKind: "decree"`, filed against the zone's own
+  summary place through `sceneLineAt` — one per zone, never one for the
+  broadcast, since a zone feed can only show a row filed against its own place
+  key (`CHAT.md` §2). The row is the title, a blank line, then the words;
+  `db/lib/decreeText.js` is the only thing that writes or reads that seam, and
+  it has **zero requires** so the feed's own client code can read it back.
+- **One Discord embed** in the zone's `#summary`: `title`, `description`,
+  and the footer `Decree`. No colour and **no `@here`** — an embed never pings
+  anybody, so a decree is read rather than shouted, which is the one place it
+  parts company with the PA. A `CAVE_LEVEL` has no `#summary` and gets it in
+  each of its Location channels instead, through the same
+  `publicPostTargets.js` a staged declaration posts through (§1a).
+- **One `AuditLog` row** at the call site, `decree_broadcast`, carrying the
+  title, the first 500 characters and which zones heard it. The Oracle counts
+  it as a story fact (`db/lib/oracleAudit.js`).
+
+The title caps at **256** characters and the body at **4096** — Discord's own
+embed limits, not the desk's `GM_MESSAGE_MAX_LENGTH`. Both are refused rather
+than truncated: a GM must not find out a sentence went missing by reading it in
+the channel.
+
+**The row lands whether or not Discord took the post.** A zone whose `#summary`
+has not been provisioned yet still has a summary place on `/chat`, so the words
+are never lost to a missing channel — the dialog stays open and says which
+zones bounced.
+
+On the web it draws as the **notice block** the intercom draws as, with the
+blackletter heading the intercom does not get: the title over a `Decree ·
+<zone>` byline, the words in the serif, ruled top and bottom (`TranscriptLine`
+`variant="block"`, `CHAT.md` §2). One component, two faces.
+
+**A decree is not zone-scoped to the GM sending it.** `GmZoneView` decides
+which desk ROWS a GM reads (`GAMEMASTERS.md`); the picker offers every presence
+zone regardless, because the world speaks wherever it likes and the proclamation
+is Ravenheart's rather than one GM's.
+
 ### What the Move desk looks like
 
 Top-down, the card is one job: who and where (with the side trips — Message
@@ -909,6 +963,9 @@ adjudicable the moment the Ram is a ruin.
 | `.../MoveDesk.js` / `CavingDesk.js` | The desks |
 | `.../MoveHistoryDesk.js` | The read-only desk for a Move on a pushed turn |
 | `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |
+| `.../DecreeButton.js` / `.../DecreeComposer.js` | The header's Decree door and the dialog behind it (§3a) — a SEND, not a staging composer |
+| `db/lib/decree.js` | What a decree IS: one feed row and one `#summary` embed per zone. `db/lib/intercom.js` is the model |
+| `db/lib/decreeText.js` | The title/body seam and Discord's two embed caps. **Zero requires**, so the feed's client code can read a decree row back (`db/lib/dmKinds.js`'s rule) |
 | `.../RoomEffectComposer.js` | The staging composer for a room's stash — its own dialog rather than a mode inside `EffectComposer.js`, which is character-shaped throughout (roster search, held tags, tag points, Relocate) |
 | `.../DeathComposer.js` | The staging composer for an instantaneous death — its own dialog for the same reason Room's is separate: death doesn't compose with a resource/tag/relocation delta on the same row |
 | `.../StagingStrip.js` | The one `+ Effect / + Transfer / + Room / + Death / + Message / + Public` button row, shared by the tray and both desks |

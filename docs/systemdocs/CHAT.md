@@ -84,11 +84,21 @@ for a while, which read as somebody in the room shouting rather than as a notice
 on the wall.
 
 The **decree** is the same component with a blackletter heading, so a GM notice
-and a PA share one shape: a row written with `channelKind: "decree"` draws one,
-and that is all a future GM broadcast has to pass. **Nothing writes `"decree"`
-yet** — `broadcastToZones` (the nuke, the rites, the turn side effects) still
-writes plain scenery, and changing that is a call about those lines rather than
-about this component.
+and a PA share one shape. A decree is a GM's proclamation, sent from the
+**Decree** button on the adjudication desk (`ADJUDICATION.md` §3a): one row per
+chosen zone, `channelKind: "decree"`, written by `db/lib/decree.js` beside the
+Discord **embed** it posts in that zone's `#summary`.
+
+**A decree row carries two things in one `content`**, because the wire shape a
+browser reads is `channelKind` plus `content` and nothing else: the title, a
+blank line, then the words. `db/lib/decreeText.js` composes and splits that
+seam, and it is the only thing allowed to — it has **zero requires** (the
+`db/lib/dmKinds.js` rule), which is what lets `Feed.js` read a row back without
+dragging Prisma into the browser bundle. The title becomes the blackletter
+heading, the words become the body, and the byline underneath says `Decree ·
+<zone>`. Nothing else writes `"decree"`: `broadcastToZones` (the nuke, the
+rites, the turn side effects) still writes plain scenery, and changing that is a
+call about those lines rather than about this component.
 
 The heading strips the `"You hear a voice from the intercom:"` the row carries,
 since the heading already says it; the ROW is untouched and Discord reads what it
@@ -143,6 +153,7 @@ channel it came from than a proxied one can.
 | `soundBroadcast.js#broadcastSound` (so the Cathedral bell too) | one row per Location in earshot — the same words at every distance, since a bell never muffles and all the distance decided was the `-#` |
 | `locationMove.js#announceGateCrossing` | the destination zone |
 | `intercom.js#broadcastIntercom` | one row per zone in range, the `@here` left off — a notification is not part of what was said |
+| `decree.js#broadcastDecree` | one row per chosen zone, `channelKind: "decree"` — the title and the words, the same text the `#summary` embed carries |
 | `turretBurst.js#announceTurretBurst` | the gun's Location and its neighbours |
 | `deathSmell.js#runDeathSmell` | each Location that stinks |
 | the noticeboard's pin and tear, on **both** faces | the Location |
@@ -1325,7 +1336,8 @@ a 48px head and a one-line composer:
   (`db/lib/ambientLine.js`). Phase 4 is what actually writes them. **The
   intercom is the one `SYSTEM` row that isn't scenery** — `channelKind:
   "intercom"` (§2) draws it as a bordered notice block instead (`variant="block"`,
-  which the decree shares). **A shout is three sizes**: `channelKind: "shout"` at
+  which a GM's `"decree"` shares — the same block with the title in blackletter
+  over it). **A shout is three sizes**: `channelKind: "shout"` at
   distance 0 draws `[data-kind="shout"]` (bigger and bold), `"shout-near"` at distance
   1 draws `[data-kind="shout-near"]` (ordinary size), and distance 2+ keeps the
   default `"scene"` and stays `.chat-subtext`.
